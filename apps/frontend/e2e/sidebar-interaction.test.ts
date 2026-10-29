@@ -40,7 +40,7 @@ test.describe('Touch sidebar targets', () => {
     const scrollRegion = sidebar.getByRole('region');
     const lastRoom = chatPage.roomList.getByRole('link').last();
     await expect(chatPage.roomList.getByRole('link')).toHaveCount(14);
-    await expect(lastRoom).toHaveCSS('height', '48px');
+    await expect(lastRoom).toHaveCSS('height', '32px');
     await expect(lastRoom).not.toBeInViewport();
     const href = await lastRoom.getAttribute('href');
     expect(href).toBeTruthy();
@@ -77,8 +77,8 @@ test.describe('Touch sidebar targets', () => {
       .toBeGreaterThan(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 
-    // This point is below the old 32 px row, and must activate this link only.
-    await lastRoom.tap({ position: { x: 24, y: 46 } });
+    // Tap near the bottom edge of the compact row to activate this link only.
+    await lastRoom.tap({ position: { x: 24, y: 30 } });
     await expect(page).toHaveURL(new URL(href!, serverURL).href);
     await expect(page.getByTestId('message-input')).toBeVisible();
     await expect(chatPage.roomList).not.toBeVisible();

@@ -20,11 +20,13 @@ type operatorSeedService struct{ api *API }
 
 func (s *operatorSeedService) SeedData(ctx context.Context, req *connect.Request[operatorv1.SeedDataRequest]) (*connect.Response[operatorv1.SeedDataResponse], error) {
 	r, err := s.api.core.SeedData(ctx, core.SeedOptions{Seed: req.Msg.Seed,
-		Users: int(req.Msg.Users), Rooms: int(req.Msg.Rooms), Messages: int(req.Msg.Messages), ThreadReplies: int(req.Msg.ThreadReplies), AvatarImages: req.Msg.AvatarImages})
+		Users: int(req.Msg.Users), Rooms: int(req.Msg.Rooms), Messages: int(req.Msg.Messages), ThreadReplies: int(req.Msg.ThreadReplies),
+		AvatarImages:          req.Msg.AvatarImages,
+		NotificationRecipient: req.Msg.NotificationRecipient, Notifications: int(req.Msg.Notifications), NotificationDays: int(req.Msg.NotificationDays)})
 	if err != nil {
 		return nil, err
 	}
-	response := &operatorv1.SeedDataResponse{Version: r.Version, Seed: r.Seed}
+	response := &operatorv1.SeedDataResponse{Version: r.Version, Seed: r.Seed, NotificationCount: int32(r.NotificationCount)}
 	for _, user := range r.Users {
 		response.Users = append(response.Users, &operatorv1.SeedUser{Id: user.ID, Login: user.Login, DisplayName: user.DisplayName})
 	}

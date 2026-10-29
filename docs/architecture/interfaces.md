@@ -408,7 +408,9 @@ existing account, channel, membership, and message operations. Its CLI is
 for serving projections before success. The
 optional avatar image pool uses the existing user-avatar operation and asset
 storage. The CLI can opt in to Pravatar downloads before the seed RPC; the server
-does not fetch external avatar URLs. The
+does not fetch external avatar URLs. Optional notification fixtures use the
+historical message import service and notification command model to populate an
+existing account's inbox across several days, without Web Push. The
 [test-only HTTP wrapper](../../cli/internal/http_server/seed_test_endpoint.go)
 also mounts `POST /auth/test/seed` and `POST /auth/test/create-session` in
 `test_endpoints` builds. Session creation accepts an existing human account ID

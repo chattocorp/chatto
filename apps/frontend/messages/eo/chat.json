@@ -6,6 +6,13 @@
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {
+      "all_notifications": "Ĉiuj sciigoj",
+      "all_types": "Ĉiuj tipoj",
+      "filter_status": "Stato",
+      "filter_type": "Tipo",
+      "reactions": "Reagoj",
+      "replies": "Respondoj",
+      "mentions": "Mencioj",
       "next_unread_source": "Iri al la sekva nelegita fonto",
       "no_unread": "Neniuj nelegitaj sciigoj",
       "title": "Sciigoj",

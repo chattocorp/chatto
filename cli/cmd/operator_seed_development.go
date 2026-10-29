@@ -44,6 +44,7 @@ func operatorSeedCmd() *cobra.Command {
 				Seed:  request.Seed,
 				Users: int(request.Users), Rooms: int(request.Rooms),
 				Messages: int(request.Messages), ThreadReplies: int(request.ThreadReplies),
+				NotificationRecipient: request.NotificationRecipient, Notifications: int(request.Notifications), NotificationDays: int(request.NotificationDays),
 			}
 			if err := options.Validate(); err != nil {
 				return err
@@ -76,6 +77,9 @@ func operatorSeedCmd() *cobra.Command {
 			}
 			return printOperatorOutput(cmd.OutOrStdout(), result.Msg, func() {
 				fmt.Fprintf(cmd.OutOrStdout(), "Created %d users, %d rooms, and %d messages (seed %d, %s).\n", len(result.Msg.Users), len(result.Msg.Rooms), len(result.Msg.Messages), result.Msg.Seed, result.Msg.Version)
+				if result.Msg.NotificationCount > 0 {
+					fmt.Fprintf(cmd.OutOrStdout(), "Created %d notification fixtures.\n", result.Msg.NotificationCount)
+				}
 			})
 		},
 	}
@@ -84,6 +88,9 @@ func operatorSeedCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&request.Rooms, "rooms", 5, "number of channels")
 	cmd.Flags().Int32Var(&request.Messages, "messages", 200, "total posts, including thread replies")
 	cmd.Flags().Int32Var(&request.ThreadReplies, "thread-replies", 0, "posts that reply to generated root messages")
+	cmd.Flags().StringVar(&request.NotificationRecipient, "notification-recipient", "", "existing login that receives notification fixtures")
+	cmd.Flags().Int32Var(&request.Notifications, "notifications", 0, "additional historical notification fixtures (0-1000)")
+	cmd.Flags().Int32Var(&request.NotificationDays, "notification-days", 5, "days of notification history, including today (1-30)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "maximum time to wait for seeding")
 	cmd.Flags().StringVar(&avatarDir, "avatar-dir", "", "optional folder of JPEG, PNG, or WebP avatars (sorted by filename, resized and cycled across users; 50 files and 512 KiB converted total maximum; no network requests)")
 	cmd.Flags().BoolVar(&pravatar, "pravatar", false, "download up to 20 portraits from i.pravatar.cc before seeding (shares your IP and synthetic seed keys with Pravatar; stored locally)")

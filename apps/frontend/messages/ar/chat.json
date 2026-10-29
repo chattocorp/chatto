@@ -6,6 +6,13 @@
       "confirmation": "لمدة 15 دقيقة، يؤدي هذا إلى تفعيل الأذونات الإضافية المعيّنة لك على هذا الخادم."
     },
     "notifications": {
+      "all_notifications": "كل الإشعارات",
+      "all_types": "كل الأنواع",
+      "filter_status": "الحالة",
+      "filter_type": "النوع",
+      "reactions": "تفاعلات",
+      "replies": "ردود",
+      "mentions": "إشارات",
       "next_unread_source": "انتقل إلى المصدر التالي غير المقروء",
       "no_unread": "لا توجد إشعارات غير مقروءة",
       "title": "الإشعارات",

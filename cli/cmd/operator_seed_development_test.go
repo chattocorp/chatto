@@ -100,15 +100,22 @@ func TestSeedAvatarSourcesAreMutuallyExclusive(t *testing.T) {
 	require.ErrorContains(t, cmd.Execute(), "none of the others can be")
 }
 
-func TestSeedCLIUploadsLocalAvatars(t *testing.T) {
+func TestSeedCLIUploadsLocalAvatarsWithNotificationHistory(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "avatar-seed-viewer", "Viewer", "")
+	require.NoError(t, err)
 	directory := t.TempDir()
 	var portrait bytes.Buffer
 	require.NoError(t, png.Encode(&portrait, image.NewRGBA(image.Rect(0, 0, 32, 32))))
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "portrait.png"), portrait.Bytes(), 0600))
-	output := env.run(t, "operator", "seed", "--users", "2", "--rooms", "1", "--messages", "0", "--avatar-dir", directory, "--json")
+	output := env.run(t, "operator", "seed", "--users", "2", "--rooms", "1", "--messages", "0", "--avatar-dir", directory,
+		"--notification-recipient", viewer.Login, "--notifications", "6", "--notification-days", "2", "--json")
 	var result operatorv1.SeedDataResponse
 	require.NoError(t, protojson.Unmarshal([]byte(output), &result))
+	require.EqualValues(t, 6, result.NotificationCount)
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id)
+	require.NoError(t, err)
+	require.Len(t, occurrences, 6)
 	for _, seeded := range result.Users {
 		avatarURL, err := env.core.GetUserAvatarURL(env.ctx, seeded.Id, nil, nil, "")
 		require.NoError(t, err)
@@ -189,6 +196,20 @@ func TestSeedCLIExplainsMissingOrStoppedServer(t *testing.T) {
 			require.NotContains(t, err.Error(), "partial data")
 		})
 	}
+}
+
+func TestSeedCLINotificationHistory(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "seed-viewer", "Viewer", "")
+	require.NoError(t, err)
+	output := env.run(t, "operator", "seed", "--users", "2", "--rooms", "1", "--messages", "0",
+		"--notification-recipient", viewer.Login, "--notifications", "6", "--notification-days", "2", "--json")
+	var result operatorv1.SeedDataResponse
+	require.NoError(t, protojson.Unmarshal([]byte(output), &result))
+	require.EqualValues(t, 6, result.NotificationCount)
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id)
+	require.NoError(t, err)
+	require.Len(t, occurrences, 6)
 }
 
 func TestSeedCLIKeepsPartialDataWarningAfterConnection(t *testing.T) {

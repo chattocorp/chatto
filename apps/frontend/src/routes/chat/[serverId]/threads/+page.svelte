@@ -17,7 +17,6 @@
     LoadingDots,
     EmptyState,
     Hint,
-    PaneContent,
     PaneHeader,
     ScrollFader,
     SegmentedControl,
@@ -364,8 +363,8 @@
 <div class="pane-page">
   <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} />
 
-  <PaneContent fillHeight>
-    <div class="flex flex-col gap-3 pb-3">
+  <div class="flex min-h-0 max-w-pane flex-1 flex-col">
+    <div class="flex shrink-0 flex-col gap-3 px-4 py-3">
       <FeatureCompatibilityNotice
         serverSegment={serverIdToSegment(serverScope.serverId)}
         features={serverStore.serverInfo.limitedFeatures.filter(
@@ -389,7 +388,7 @@
             />
           </div>
         {/if}
-        <div class="ms-auto flex max-w-full shrink-0 flex-wrap items-center gap-3">
+        <div class="segmented-control-group flex-auto">
           <SegmentedControl
             label={m('chat.threads.tab_label')}
             options={tabOptions}
@@ -414,8 +413,12 @@
         <Hint tone="warning">{m('search.degraded')}</Hint>
       {/if}
     </div>
-    <!-- Rows bring their own inset; cancel the page gutter so it is not doubled. -->
-    <ScrollFader top bottom keyboardFocusable={false} class="-mx-1 min-h-0 flex-1 max-md:-mx-4">
+    <ScrollFader
+      top
+      bottom
+      keyboardFocusable={false}
+      class="min-h-0 flex-1 px-3 [&_section:first-child>h2]:mt-0"
+    >
       <div class="flex min-h-full flex-col">
         {#if searchQuery && !searchStatus.available}
           <SearchAvailability
@@ -455,8 +458,13 @@
         {:else}
           <div class="selectable-list pb-3" aria-busy={loadingMore}>
             {#each dateSections as section (section.key)}
-              <section aria-labelledby={`thread-date-${section.key}`}>
-                <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
+              <section
+                aria-label={section.key === 'today' ? section.label : undefined}
+                aria-labelledby={section.key === 'today' ? undefined : `thread-date-${section.key}`}
+              >
+                {#if section.key !== 'today'}
+                  <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
+                {/if}
                 {#each section.items as thread (thread.threadRootEventId)}
                   {@const actors = rowActors(thread)}
                   {@const primary = primaryEvent(thread)}
@@ -507,5 +515,5 @@
         {/if}
       </div>
     </ScrollFader>
-  </PaneContent>
+  </div>
 </div>

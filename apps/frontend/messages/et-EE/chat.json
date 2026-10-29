@@ -6,6 +6,13 @@
       "confirmation": "See aktiveerib 15 minutiks sulle selles serveris määratud lisaõigused."
     },
     "notifications": {
+      "all_notifications": "Kõik teavitused",
+      "all_types": "Kõik tüübid",
+      "filter_status": "Olek",
+      "filter_type": "Tüüp",
+      "reactions": "Reaktsioonid",
+      "replies": "Vastused",
+      "mentions": "Mainimised",
       "next_unread_source": "Minge järgmise lugemata allika juurde",
       "no_unread": "Lugemata teavitusi pole",
       "title": "Märguanded",

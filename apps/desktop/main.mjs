@@ -18,10 +18,11 @@ import {
   session,
   shell
 } from 'electron';
-import { APP_ORIGIN, createFrontendProtocolHandler } from './frontend_protocol.mjs';
+import { createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
 import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
 import { configureNativeNavigation } from './native_navigation.mjs';
+import { configureLastServer } from './last_server.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
@@ -469,7 +470,9 @@ function createMainWindow() {
       mainWindow = undefined;
     }
   });
-  window.loadURL(APP_ORIGIN);
+  window.loadURL(
+    configureLastServer(window.webContents, path.join(app.getPath('userData'), 'last-server.json'))
+  );
   return window;
 }
 

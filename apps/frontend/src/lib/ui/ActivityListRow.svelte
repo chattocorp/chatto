@@ -12,6 +12,8 @@
     interactive = true,
     pending = false,
     important = false,
+    compact = false,
+    overlayActions = false,
     rowAttributes = {}
   }: {
     children: Snippet;
@@ -22,6 +24,10 @@
     interactive?: boolean;
     pending?: boolean;
     important?: boolean;
+    /** Reduce vertical padding for single-line activity feeds. */
+    compact?: boolean;
+    /** On hover-capable devices, reveal actions over the trailing content without reserving a column. */
+    overlayActions?: boolean;
     rowAttributes?: HTMLAttributes<HTMLDivElement>;
   } = $props();
 </script>
@@ -29,7 +35,8 @@
 <div
   {...rowAttributes}
   class={[
-    'group flex w-full items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
+    'group relative flex w-full items-center gap-3 selectable-list-item px-3 transition-colors',
+    compact ? 'min-h-11 py-0.5' : 'py-2.5',
     interactive ? 'cursor-pointer' : 'cursor-default',
     important && 'bg-attention/5',
     rowAttributes.class
@@ -49,7 +56,13 @@
     {@render children()}
   </button>
   {#if actions}
-    <div class="hover-reveal-action flex shrink-0 items-center">
+    <div
+      class={[
+        'hover-reveal-action flex shrink-0 items-center',
+        overlayActions &&
+          '[@media(hover:hover)_and_(pointer:fine)]:absolute [@media(hover:hover)_and_(pointer:fine)]:end-3 [@media(hover:hover)_and_(pointer:fine)]:top-1/2 [@media(hover:hover)_and_(pointer:fine)]:-translate-y-1/2'
+      ]}
+    >
       {@render actions()}
     </div>
   {/if}

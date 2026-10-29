@@ -52,7 +52,10 @@ The Operator API gives server operators local, root-equivalent user administrati
   seed select the dataset. Room membership varies. Joins and some leaves occur
   between messages; authors are current members. Each room keeps at least one
   member. The manifest lists final generated members. Activity is ordered
-  without artificial waits or backdated timestamps.
+  without artificial waits or backdated timestamps by default. Optional
+  notification fixtures add historical mentions, replies, and reactions for an
+  existing login over 1–30 days. They include message targets, room membership,
+  followed reply threads, and mixed read states. They use in-app delivery only.
   Accounts have no password or owner role. JSON output provides the created IDs
   and content for later operations and test assertions.
 - `mise seed -- --avatar-dir PATH` optionally reads JPEG, PNG, and WebP files

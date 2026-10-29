@@ -6,6 +6,13 @@
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {
+      "all_notifications": "Alle varsler",
+      "all_types": "Alle typer",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reaksjoner",
+      "replies": "Svar",
+      "mentions": "Omtaler",
       "next_unread_source": "Gå til neste uleste kilde",
       "no_unread": "Ingen uleste varsler",
       "title": "Varsler",

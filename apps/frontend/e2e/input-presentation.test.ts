@@ -36,7 +36,7 @@ for (const input of ['mouse', 'touch'] as const) {
           chatPage.getRoomLink('general'),
           page.getByTestId('server-sidebar').getByRole('link', { name: 'Overview', exact: true })
         ]) {
-          await expect(row).toHaveCSS('height', touch ? '48px' : '32px');
+          await expect(row).toHaveCSS('height', '32px');
         }
       };
       for (const width of [375, 500, 767, 768, 1024, 500]) {
@@ -112,7 +112,7 @@ for (const input of ['mouse', 'touch'] as const) {
       for (const coarse of [!touch, touch]) {
         await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: coarse });
         await expect(frame).toHaveCSS('border-radius', coarse ? '0px' : '16px');
-        await expect(roomLink).toHaveCSS('height', coarse ? '48px' : '32px');
+        await expect(roomLink).toHaveCSS('height', '32px');
         await expect(roomLink).toBeFocused();
         await expect
           .poll(async () => (await page.getByTestId('mobile-sidebar-panel').boundingBox())?.x)

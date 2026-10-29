@@ -34,9 +34,15 @@ type SeedDataRequest struct {
 	Messages int32 `protobuf:"varint,5,opt,name=messages,proto3" json:"messages,omitempty"`
 	// Number of posts that reply to generated root messages. Requires at least one root.
 	ThreadReplies int32 `protobuf:"varint,6,opt,name=thread_replies,json=threadReplies,proto3" json:"thread_replies,omitempty"`
+	// Existing login that receives the additional notification fixtures.
+	NotificationRecipient string `protobuf:"bytes,7,opt,name=notification_recipient,json=notificationRecipient,proto3" json:"notification_recipient,omitempty"`
+	// Additional notifications and their historical message targets, from 0 to 1000.
+	Notifications int32 `protobuf:"varint,8,opt,name=notifications,proto3" json:"notifications,omitempty"`
+	// Days of notification history, including today, from 1 to 30 when enabled.
+	NotificationDays int32 `protobuf:"varint,9,opt,name=notification_days,json=notificationDays,proto3" json:"notification_days,omitempty"`
 	// Optional image files, cycled in order across users and stored as Chatto avatars.
 	// At most 50 images and 512 KiB in total. No remote image URLs are fetched.
-	AvatarImages  [][]byte `protobuf:"bytes,7,rep,name=avatar_images,json=avatarImages,proto3" json:"avatar_images,omitempty"`
+	AvatarImages  [][]byte `protobuf:"bytes,10,rep,name=avatar_images,json=avatarImages,proto3" json:"avatar_images,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,6 +108,27 @@ func (x *SeedDataRequest) GetMessages() int32 {
 func (x *SeedDataRequest) GetThreadReplies() int32 {
 	if x != nil {
 		return x.ThreadReplies
+	}
+	return 0
+}
+
+func (x *SeedDataRequest) GetNotificationRecipient() string {
+	if x != nil {
+		return x.NotificationRecipient
+	}
+	return ""
+}
+
+func (x *SeedDataRequest) GetNotifications() int32 {
+	if x != nil {
+		return x.Notifications
+	}
+	return 0
+}
+
+func (x *SeedDataRequest) GetNotificationDays() int32 {
+	if x != nil {
+		return x.NotificationDays
 	}
 	return 0
 }
@@ -335,9 +362,11 @@ type SeedDataResponse struct {
 	// Generated channels.
 	Rooms []*SeedRoom `protobuf:"bytes,5,rep,name=rooms,proto3" json:"rooms,omitempty"`
 	// Generated root messages followed by generated thread replies.
-	Messages      []*SeedMessage `protobuf:"bytes,6,rep,name=messages,proto3" json:"messages,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Messages []*SeedMessage `protobuf:"bytes,6,rep,name=messages,proto3" json:"messages,omitempty"`
+	// Number of additional notification fixtures created for the recipient.
+	NotificationCount int32 `protobuf:"varint,7,opt,name=notification_count,json=notificationCount,proto3" json:"notification_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SeedDataResponse) Reset() {
@@ -405,18 +434,29 @@ func (x *SeedDataResponse) GetMessages() []*SeedMessage {
 	return nil
 }
 
+func (x *SeedDataResponse) GetNotificationCount() int32 {
+	if x != nil {
+		return x.NotificationCount
+	}
+	return 0
+}
+
 var File_chatto_operator_v1_seed_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_seed_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/operator/v1/seed.proto\x12\x12chatto.operator.v1\"\xc7\x01\n" +
+	"\x1dchatto/operator/v1/seed.proto\x12\x12chatto.operator.v1\"\xd1\x02\n" +
 	"\x0fSeedDataRequest\x12\x12\n" +
 	"\x04seed\x18\x01 \x01(\x03R\x04seed\x12\x14\n" +
 	"\x05users\x18\x03 \x01(\x05R\x05users\x12\x14\n" +
 	"\x05rooms\x18\x04 \x01(\x05R\x05rooms\x12\x1a\n" +
 	"\bmessages\x18\x05 \x01(\x05R\bmessages\x12%\n" +
-	"\x0ethread_replies\x18\x06 \x01(\x05R\rthreadReplies\x12#\n" +
-	"\ravatar_images\x18\a \x03(\fR\favatarImagesJ\x04\b\x02\x10\x03R\x06prefix\"S\n" +
+	"\x0ethread_replies\x18\x06 \x01(\x05R\rthreadReplies\x125\n" +
+	"\x16notification_recipient\x18\a \x01(\tR\x15notificationRecipient\x12$\n" +
+	"\rnotifications\x18\b \x01(\x05R\rnotifications\x12+\n" +
+	"\x11notification_days\x18\t \x01(\x05R\x10notificationDays\x12#\n" +
+	"\ravatar_images\x18\n" +
+	" \x03(\fR\favatarImagesJ\x04\b\x02\x10\x03R\x06prefix\"S\n" +
 	"\bSeedUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -431,13 +471,14 @@ const file_chatto_operator_v1_seed_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1b\n" +
 	"\tauthor_id\x18\x03 \x01(\tR\bauthorId\x12\x12\n" +
 	"\x04body\x18\x04 \x01(\tR\x04body\x12$\n" +
-	"\x0ethread_root_id\x18\x05 \x01(\tR\fthreadRootId\"\xf3\x01\n" +
+	"\x0ethread_root_id\x18\x05 \x01(\tR\fthreadRootId\"\xa2\x02\n" +
 	"\x10SeedDataResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\x03R\x04seed\x122\n" +
 	"\x05users\x18\x04 \x03(\v2\x1c.chatto.operator.v1.SeedUserR\x05users\x122\n" +
 	"\x05rooms\x18\x05 \x03(\v2\x1c.chatto.operator.v1.SeedRoomR\x05rooms\x12;\n" +
-	"\bmessages\x18\x06 \x03(\v2\x1f.chatto.operator.v1.SeedMessageR\bmessagesJ\x04\b\x03\x10\x04R\x06prefix2l\n" +
+	"\bmessages\x18\x06 \x03(\v2\x1f.chatto.operator.v1.SeedMessageR\bmessages\x12-\n" +
+	"\x12notification_count\x18\a \x01(\x05R\x11notificationCountJ\x04\b\x03\x10\x04R\x06prefix2l\n" +
 	"\x13OperatorSeedService\x12U\n" +
 	"\bSeedData\x12#.chatto.operator.v1.SeedDataRequest\x1a$.chatto.operator.v1.SeedDataResponseB\xd9\x01\n" +
 	"\x16com.chatto.operator.v1B\tSeedProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"

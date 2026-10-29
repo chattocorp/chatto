@@ -295,6 +295,71 @@ class SlackArchiveTests(unittest.TestCase):
         self.assertIn({"emoji": "custom_company_emoji", "user_ids": ["U2"]}, reactions)
         self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
 
+    def test_skin_tone_reactions_use_complete_shared_sequences(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [
+            {"name": name, "users": ["U2"], "count": 1} for name in (
+                "thumbsup::skin-tone-4", "woman_technologist::skin-tone-4",
+                "handshake::skin-tone-2-6")]
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        self.assertEqual({r["emoji"] for r in records["events"][1]["data"]["reactions"]},
+                         {"👍🏽", "👩🏽‍💻", "🫱🏻‍🫲🏿"})
+        self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
+        self.assertFalse(any("emoji images" in o["reason"] for o in records["manifest"]["omissions"]))
+
+    def test_slack_aliases_preserve_tones_and_merge_equivalent_reactors(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [
+            {"name": "the_horns::skin-tone-3", "users": ["U2"], "count": 1},
+            {"name": "metal::skin-tone-3", "users": ["U1", "U2"], "count": 2},
+            {"name": "male_elf::skin-tone-3", "users": ["U2"], "count": 1},
+            {"name": "female-judge::skin-tone-3", "users": ["U2"], "count": 1},
+        ]
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        reactions = {r["emoji"]: r["user_ids"] for r in records["events"][1]["data"]["reactions"]}
+        self.assertEqual(reactions, {"🤘🏼": ["U1", "U2"], "🧝🏼‍♂️": ["U2"], "👩🏼‍⚖️": ["U2"]})
+        self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
+
+    def test_newer_standard_emoji_is_not_mislabeled_as_custom(self):
+        aliases, supported = exporter.slack_emoji_catalog()
+        with patch.object(exporter, "slack_emoji_catalog",
+                          return_value=({**aliases, "future_emoji": "🫩"}, supported - {"🫩"})):
+            self.assertEqual(exporter.reaction_unicode("future_emoji", {}), "future_emoji")
+            self.data["general/2020-01-01.json"][1]["reactions"][0]["name"] = "future_emoji"
+            plan = self.plan()
+            records, _ = exporter.build_archive(plan)
+            validate_records(records)
+            omissions = records["manifest"]["omissions"]
+            self.assertTrue(any(o["reason"].startswith("Newer standard reaction") for o in omissions))
+            self.assertFalse(any(o["reason"].startswith("Custom reaction") for o in omissions))
+            report = exporter.conversion_report(plan)
+            self.assertEqual(report["unsupported_emoji_names"], 0)
+            self.assertIn("standard_reaction_name_without_destination_glyph",
+                          {item["code"] for item in report["transformations"]})
+        with patch.object(exporter, "slack_emoji_catalog", return_value=({"future::skin-tone-2": "🫩🏻"}, frozenset())):
+            with self.assertRaisesRegex(ApplyError, "destination catalog"):
+                exporter.reaction_unicode("future::skin-tone-2", {})
+
+    def test_supplemental_standard_emoji_convert_to_unicode(self):
+        emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+        for name, glyph in {
+            "face_with_bags_under_eyes": "🫩", "head_shaking_vertically": "🙂‍↕️",
+            "leafless_tree": "🪾", "phoenix": "🐦‍🔥", "shovel": "🪏", "splatter": "🫟",
+        }.items():
+            with self.subTest(name=name):
+                self.assertEqual(exporter.reaction_unicode(name, emojis), glyph)
+
+    def test_invalid_skin_tone_combinations_are_not_constructed(self):
+        emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+        for name in ("heart::skin-tone-4", "custom::skin-tone-4", "hugs::skin-tone-4",
+                     "thumbsup::skin-tone-1", "thumbsup::skin-tone-7", "thumbsup::skin-tone-4-4"):
+            with self.subTest(name=name), self.assertRaises(ApplyError):
+                exporter.reaction_unicode(name, emojis)
+
     def test_custom_reaction_images_are_declared_once_per_retained_name(self):
         reason = "Custom reaction names are retained; their emoji images are not included."
         records, _ = exporter.build_archive(self.plan())

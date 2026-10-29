@@ -227,6 +227,19 @@ creates one root message with 99 replies for a populated thread preview.
 `--avatar-dir` and `--pravatar` cannot be combined. Without either option,
 seeding creates no avatars and makes no requests to an image provider.
 
+To populate an existing account's notification page across several days:
+
+```sh
+mise seed -- --seed 42 --users 6 --rooms 3 --messages 0 \
+  --notification-recipient alice --notifications 40 --notification-days 5
+```
+
+This adds mentions, replies, and reactions with historical message targets.
+One quarter start as read. The recipient joins the generated rooms and follows
+the generated reply threads. These additional messages are separate from the
+`--messages` count. Notification fixtures use in-app delivery, without Web Push.
+The recipient login must exist. Restart `mise dev` after changes to the seeder.
+
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) runs the root `mise` tasks as native

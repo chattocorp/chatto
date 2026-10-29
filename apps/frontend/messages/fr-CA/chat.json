@@ -6,6 +6,13 @@
       "confirmation": "Pendant 15 minutes, ceci active les autorisations supplémentaires qui te sont attribuées sur ce serveur."
     },
     "notifications": {
+      "all_notifications": "Toutes les notifications",
+      "all_types": "Tous les types",
+      "filter_status": "Statut",
+      "filter_type": "Type",
+      "reactions": "Réactions",
+      "replies": "Réponses",
+      "mentions": "Mentions",
       "next_unread_source": "Accéder à la prochaine source non lue",
       "no_unread": "Aucune notification non lue",
       "title": "Notifications",
