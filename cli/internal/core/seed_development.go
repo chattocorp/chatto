@@ -29,6 +29,12 @@ type SeedOptions struct {
 	Rooms         int   `json:"rooms"`
 	Messages      int   `json:"messages"`
 	ThreadReplies int   `json:"threadReplies"`
+	// NotificationRecipient is the existing login that receives the fixtures.
+	NotificationRecipient string `json:"notificationRecipient"`
+	// Notifications adds historical targets and a mixed read/unread inbox.
+	Notifications int `json:"notifications"`
+	// NotificationDays is the number of days over which to distribute fixtures.
+	NotificationDays int `json:"notificationDays"`
 }
 
 // SeedUser identifies a passwordless synthetic account in generation order.
@@ -59,17 +65,24 @@ type SeedMessage struct {
 // it is partial: the failing command may also have committed before its read
 // barrier failed. Seeding does not roll back earlier commands.
 type SeedResult struct {
-	Version  string        `json:"version"`
-	Seed     int64         `json:"seed"`
-	Users    []SeedUser    `json:"users"`
-	Rooms    []SeedRoom    `json:"rooms"`
-	Messages []SeedMessage `json:"messages"`
+	Version           string        `json:"version"`
+	Seed              int64         `json:"seed"`
+	Users             []SeedUser    `json:"users"`
+	Rooms             []SeedRoom    `json:"rooms"`
+	Messages          []SeedMessage `json:"messages"`
+	NotificationCount int           `json:"notificationCount"`
 }
 
 var seedNameSeparators = regexp.MustCompile(`[^a-z0-9]+`)
 
 // Validate rejects the complete request before any durable writes occur.
 func (o SeedOptions) Validate() error {
+	if o.Notifications < 0 || o.Notifications > 1000 {
+		return invalidArgument("notifications must be between zero and 1000")
+	}
+	if o.Notifications > 0 && (strings.TrimSpace(o.NotificationRecipient) == "" || o.NotificationDays < 1 || o.NotificationDays > 30) {
+		return invalidArgument("notifications require a recipient login and between 1 and 30 days")
+	}
 	if o.Users < 1 || o.Users > 5000 {
 		return invalidArgument("users must be between 1 and 5000")
 	}
@@ -100,6 +113,15 @@ func (o SeedOptions) Validate() error {
 func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, error) {
 	if err := o.Validate(); err != nil {
 		return nil, err
+	}
+	// Resolve the recipient before the first write, so a typo creates no data.
+	var recipientID string
+	if o.Notifications > 0 {
+		user, err := c.GetUserByLogin(ctx, o.NotificationRecipient)
+		if err != nil {
+			return nil, fmt.Errorf("resolve notification recipient: %w", err)
+		}
+		recipientID = user.Id
 	}
 	result := &SeedResult{Version: SeedVersion, Seed: o.Seed,
 		Users: []SeedUser{}, Rooms: []SeedRoom{}, Messages: []SeedMessage{}}
@@ -196,6 +218,11 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 	// A zero-message dataset still applies its joins and optional departures.
 	if err := applyMemberships(max(1, o.Messages)); err != nil {
 		return result, fmt.Errorf("seed final memberships: %w", err)
+	}
+	if o.Notifications > 0 {
+		if err := c.seedNotifications(ctx, o, recipientID, result, faker); err != nil {
+			return result, fmt.Errorf("seed notifications: %w", err)
+		}
 	}
 	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
 		return result, fmt.Errorf("wait for seed projections: %w", err)

@@ -6,6 +6,13 @@
       "confirmation": "For 15 minutes, this enables the additional permissions assigned to you on this server."
     },
     "notifications": {
+      "all_notifications": "All notifications",
+      "all_types": "All types",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reactions",
+      "replies": "Replies",
+      "mentions": "Mentions",
       "next_unread_source": "Go to next unread source",
       "no_unread": "No unread notifications",
       "title": "Notifications",
@@ -20,10 +27,10 @@
       "unread": "Unread",
       "activity": "New activity",
       "summary": {
-        "direct_message": "{actor} sent you a direct message",
-        "reaction": "{actor} reacted with {emoji} to your message",
-        "reaction_group": "{actor} and others reacted with {emoji} to your message",
-        "reply": "{actor} replied to your message",
+        "direct_message": "{actor} sent you a DM",
+        "reaction": "{actor} reacted with {emoji}",
+        "reaction_group": "{actor} and others reacted with {emoji}",
+        "reply": "{actor} replied to you",
         "mention": "{actor} mentioned you",
         "followed_thread": "{actor} replied in a thread you follow",
         "new_message": "{actor} posted a new message",

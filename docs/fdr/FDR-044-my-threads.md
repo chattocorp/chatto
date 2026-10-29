@@ -127,7 +127,8 @@ move the offset until the list loads again.
 
 ### 3. The activity-list presentation makes the order clear
 
-**Decision:** Threads uses flat activity rows and date sections. Each row
+**Decision:** Threads uses flat activity rows and date sections. The Today
+section has no visible heading or separator. Each row
 shows the latest visible reply first when one exists and keeps compact
 root-message context below it. A thread without replies shows its root as the
 primary activity.

@@ -36,11 +36,14 @@ message search results:
 - Use `ActivityListRow` for newest-first activity records that have one primary
   open action and optional row actions. It owns the important fill, pending
   state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
-  snippet and `ActivityRowText` in its body: `ActivityRowText` shows unread
+  snippet. Use `ActivityRowText` for a two-line body: it shows unread
   activity in bold and keeps read activity in the normal text color.
+  Compact notification rows use a single-line grid, small avatars, muted read
+  summaries, and subdued metadata. Use the row's `compact` and `overlayActions`
+  options; touch inputs keep a separate visible action.
 - Rows rest transparently on the owning `background` work plane. Threads
   uses an avatar dot for unread rows, so bold text is not the only unread cue.
-  Important notification attention keeps its own colour. Hover and keyboard
+  Notification rows use neutral backgrounds for all attention levels. Hover and keyboard
   focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
 - Each row owns its rounded shape. The collection owns only the standard
@@ -599,6 +602,12 @@ area and the visible keyboard focus outline. The colour changes with
 `feedback-quick`. Text actions such as the version number use
 `app-header-text-action` for the same treatment at content width.
 
+For adjacent filter controls, put `SegmentedControl` components directly inside
+`segmented-control-group`. The group stays content-sized while the controls fit
+on one line. When they wrap, each control fills its line and its option pills
+expand with it. Wrapping follows the labels' actual widths, including translated
+labels. Do not add wrappers between the group and its controls.
+
 Form inputs and `SegmentedControl` share the `control-frame` utility. It owns
 their rounded corners, one-pixel border, and subtle inset shadow. Inputs and
 segmented tracks read as recessed surfaces. `segmented-track` softens the track
@@ -703,6 +712,15 @@ contrast does not change. Use the semantic tokens, or `--tone-100` to
 
 For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
+
+Use `text-subdued` for lower-priority metadata. This semantic utility applies
+Tailwind's `text-current/90`: it inherits the parent's text color at 90%
+opacity. At default contrast, this retains readable contrast with the normal
+and muted text tokens on the background. Set the source color on the parent,
+for example `text-muted`.
+It affects text color rather than the whole element's opacity. Do not nest
+the utility, because each level reduces the inherited color again. Reserve
+it for supporting metadata, not primary content, actions, or disabled states.
 
 The **Contrast** slider in the UI Style section of Appearance's Theme
 customisation panel runs from 0% to 100%.

@@ -6,6 +6,13 @@
       "confirmation": "Bu işlem, bu sunucuda sana atanmış ek izinleri 15 dakika boyunca etkinleştirir."
     },
     "notifications": {
+      "all_notifications": "Tüm bildirimler",
+      "all_types": "Tüm türler",
+      "filter_status": "Durum",
+      "filter_type": "Tür",
+      "reactions": "Tepkiler",
+      "replies": "Yanıtlar",
+      "mentions": "Bahsetmeler",
       "next_unread_source": "Sonraki okunmamış kaynağa gidin",
       "no_unread": "Okunmamış bildirim yok",
       "title": "Bildirimler",

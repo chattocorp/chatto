@@ -7,9 +7,66 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestSeedNotificationHistory(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := c.CreateUser(ctx, SystemActorID, "notification-viewer", "Viewer", "")
+	require.NoError(t, err)
+	result, err := c.SeedData(ctx, SeedOptions{Seed: 42, Users: 3, Rooms: 2,
+		NotificationRecipient: viewer.Login, Notifications: 15, NotificationDays: 5})
+	require.NoError(t, err)
+	require.Equal(t, 15, result.NotificationCount)
+	occurrences, err := c.NotificationOccurrences().List(ctx, viewer.Id)
+	require.NoError(t, err)
+	require.Len(t, occurrences, 15)
+	visible, err := c.NotificationOccurrences().VisibleOccurrences(ctx, viewer.Id, occurrences)
+	require.NoError(t, err)
+	require.Len(t, visible, 15)
+	kinds := map[string]int{}
+	days := map[int]int{}
+	read := 0
+	for _, occurrence := range occurrences {
+		kinds[notificationSignalIdentity(occurrence.Signal)]++
+		days[int(time.Since(occurrence.SourceCreatedAt.AsTime()).Hours()/24)]++
+		if occurrence.Read {
+			read++
+		}
+		require.Nil(t, occurrence.AlertExpiresAt)
+		ref := NotificationOccurrenceMessageReference(occurrence)
+		if occurrence.Signal.GetReplyReceived() != nil {
+			require.NotEmpty(t, ref.GetThreadRootEventId())
+		}
+		if occurrence.Signal.GetReactionReceived() != nil {
+			require.NotZero(t, occurrence.SourceStreamSequence)
+		}
+		_, err := c.GetRoomEventByEventID(ctx, KindChannel, ref.RoomId, ref.EventId)
+		require.NoError(t, err)
+		_, err = c.RoomMemberships().GetRoomMembership(ctx, KindChannel, viewer.Id, ref.RoomId)
+		require.NoError(t, err)
+	}
+	require.Len(t, kinds, 3)
+	require.Len(t, days, 5)
+	require.Equal(t, 4, read)
+}
+
+func TestSeedNotificationRecipientFailsBeforeWrites(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	before, err := c.CountUsers(ctx)
+	require.NoError(t, err)
+	_, err = c.SeedData(ctx, SeedOptions{Users: 2, Rooms: 1, NotificationRecipient: "missing", Notifications: 3, NotificationDays: 5})
+	require.Error(t, err)
+	after, err := c.CountUsers(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
 
 func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 	t.Parallel()

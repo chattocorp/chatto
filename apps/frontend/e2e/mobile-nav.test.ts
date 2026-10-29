@@ -270,15 +270,15 @@ test.describe('Mobile Navigation', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    // Navigate to a page with a subtitle (notifications page)
-    await page.goto(routes.notifications);
-    await page.waitForURL(routes.notifications);
+    // Threads retains a subtitle; the compact notification header does not.
+    await page.goto(routes.threads);
+    await page.waitForURL(routes.threads);
 
     // Ensure desktop viewport first
     await page.setViewportSize({ width: 1280, height: 720 });
 
     // Subtitle should be visible on desktop
-    const subtitle = page.locator("text=Here's what's new");
+    const subtitle = page.getByText('New activity in your threads', { exact: true });
     await expect(subtitle).toBeVisible();
 
     // Resize to mobile
@@ -288,7 +288,7 @@ test.describe('Mobile Navigation', () => {
     await expect(subtitle).not.toBeVisible();
 
     // Title should still be visible
-    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Threads', exact: true })).toBeVisible();
   });
 
   test('room header omits redundant server name on mobile', async ({ page, chatPage }) => {

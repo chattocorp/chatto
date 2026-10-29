@@ -68,6 +68,20 @@ func TestSeedCLIExplainsMissingOrStoppedServer(t *testing.T) {
 	}
 }
 
+func TestSeedCLINotificationHistory(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "seed-viewer", "Viewer", "")
+	require.NoError(t, err)
+	output := env.run(t, "operator", "seed", "--users", "2", "--rooms", "1", "--messages", "0",
+		"--notification-recipient", viewer.Login, "--notifications", "6", "--notification-days", "2", "--json")
+	var result operatorv1.SeedDataResponse
+	require.NoError(t, protojson.Unmarshal([]byte(output), &result))
+	require.EqualValues(t, 6, result.NotificationCount)
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id)
+	require.NoError(t, err)
+	require.Len(t, occurrences, 6)
+}
+
 func TestSeedCLIKeepsPartialDataWarningAfterConnection(t *testing.T) {
 	for _, err := range []error{
 		connect.NewError(connect.CodeUnavailable, io.EOF),

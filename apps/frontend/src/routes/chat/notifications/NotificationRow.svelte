@@ -3,7 +3,6 @@
   import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import { NotificationSignalKind, type NotificationActor } from '@chatto/client/api/notifications';
   import { ActivityListRow } from '$lib/ui';
-  import ActivityRowText from '$lib/components/ActivityRowText.svelte';
   import ActivityAvatar, { type ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { m } from '$lib/i18n/messages';
@@ -33,10 +32,10 @@
     /** Rendered reaction emoji for the cause badge of a reaction group. */
     reactionEmoji?: string | null;
     roomName: string | null;
-    /** Formatted relative time of the newest occurrence. */
+    /** Relative time for today's activity; local clock time for older days. */
     time: string;
     unread: boolean;
-    /** Unread Important attention; adds the notification tint. */
+    /** Attention classification for row metadata; never changes the background. */
     important: boolean;
     /** False when this client cannot open the notification target. */
     interactive?: boolean;
@@ -73,52 +72,76 @@
 </script>
 
 {#snippet location()}
-  {#if roomName}<bdi dir="auto">#{roomName}</bdi>{/if}
-  {#if roomName && server}<span aria-hidden="true">·</span>{/if}
+  {#if roomName}<bdi dir="auto" class="hidden @min-[36rem]/notification:block">#{roomName}</bdi
+    >{/if}
+  {#if roomName && server}<span aria-hidden="true" class="hidden @min-[36rem]/notification:block"
+      >·</span
+    >{/if}
   {#if server}<bdi dir="auto" data-testid="notification-server-name">{server.name}</bdi>{/if}
 {/snippet}
 
 <ActivityListRow
+  compact
+  overlayActions
   {interactive}
   {pending}
   disabled={pending || !interactive}
-  {important}
   onclick={onopen}
   rowAttributes={{
+    class: '@container/notification',
     'data-testid': 'notification-group',
     'data-notification-state': unread ? 'unread' : 'read',
     'data-notification-attention': unread ? (important ? 'important' : 'ambient') : 'none'
   }}
 >
   {#snippet leading()}
-    <ActivityAvatar {actor} {server}>
-      {#snippet badge()}
-        {#if reactionEmoji}
-          <span class="leading-none">{reactionEmoji}</span>
-        {:else}
-          <span class="iconify {signalIcon(signalKind)}" aria-hidden="true"></span>
-        {/if}
-      {/snippet}
-    </ActivityAvatar>
+    <span class="shrink-0 self-start">
+      <ActivityAvatar {actor} {server} size="sm">
+        {#snippet badge()}
+          {#if reactionEmoji}
+            <span class="leading-none">{reactionEmoji}</span>
+          {:else}
+            <span class="iconify {signalIcon(signalKind)}" aria-hidden="true"></span>
+          {/if}
+        {/snippet}
+      </ActivityAvatar>
+    </span>
   {/snippet}
   {#if unread}
     <span class="sr-only">{m('chat.notifications.unread')}</span>
   {/if}
-  <ActivityRowText
-    {time}
-    emphasized={unread}
-    wrapOnNarrow
-    subtitle={roomName || server ? location : undefined}
-    testId="notification-content"
+  <span
+    class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 text-muted @min-[36rem]/notification:grid-cols-[minmax(0,1fr)_fit-content(40%)_5rem]"
+    data-testid="notification-content"
   >
-    {#snippet title()}
+    <bdi
+      dir="auto"
+      class={[
+        'col-start-1 row-start-1 min-w-0 truncate',
+        unread ? 'font-semibold text-text-top' : 'text-muted'
+      ]}
+    >
       <AccountNameTokens text={summary} accounts={summaryAccounts} />
-    {/snippet}
-  </ActivityRowText>
+    </bdi>
+    {#if roomName || server}
+      <span
+        class={[
+          'col-start-1 row-start-2 min-w-0 flex-wrap items-baseline gap-1 text-sm text-subdued @min-[36rem]/notification:col-start-2 @min-[36rem]/notification:row-start-1 @min-[36rem]/notification:flex @min-[36rem]/notification:flex-nowrap [&>bdi]:min-w-0 [&>bdi]:wrap-anywhere @min-[36rem]/notification:[&>bdi]:truncate',
+          server ? 'flex' : 'hidden'
+        ]}
+      >
+        {@render location()}
+      </span>
+    {/if}
+    <span
+      class="col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-subdued tabular-nums @min-[36rem]/notification:col-start-3 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
+      >{time}</span
+    >
+  </span>
   {#snippet actions()}
     <button
       type="button"
-      class="icon-action icon-action-danger"
+      class="icon-action"
       disabled={pending}
       aria-label={m('common.delete')}
       title={m('common.delete')}
