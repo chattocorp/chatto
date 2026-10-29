@@ -3,6 +3,17 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.25](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.24...v0.5.0-beta.25) (2026-10-29)
+
+
+### Bug Fixes
+
+* **assets:** cache public server card images ([#3305](https://github.com/chattocorp/chatto/issues/3305)) ([749fb53](https://github.com/chattocorp/chatto/commit/749fb53e1fba508e3cc0bc9722529c32c082e3bf))
+* **desktop:** preserve beta version in packaged update metadata ([#3300](https://github.com/chattocorp/chatto/issues/3300)) ([1241afc](https://github.com/chattocorp/chatto/commit/1241afc1aa3e668a997c2d201f355cc4643fe3d9))
+* **desktop:** restore Windows updates and consistent German installer text ([#3303](https://github.com/chattocorp/chatto/issues/3303)) ([be8bb55](https://github.com/chattocorp/chatto/commit/be8bb55cc0bb4fa744c256bbf8392e235ab3f00a))
+* **frontend:** round and inset server banners ([#3304](https://github.com/chattocorp/chatto/issues/3304)) ([ad96ab1](https://github.com/chattocorp/chatto/commit/ad96ab1c277abacb20b147b55c6d77510a9778c8))
+* **release:** publish built artifacts after one approval ([#3301](https://github.com/chattocorp/chatto/issues/3301)) ([746af07](https://github.com/chattocorp/chatto/commit/746af07927e9b8e80bd18237c636f3c822c5db8c))
+
 ## [0.5.0-beta.24](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.23...v0.5.0-beta.24) (2026-10-29)
 
 
