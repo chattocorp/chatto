@@ -719,11 +719,20 @@ test.describe('Navigation from Notifications', () => {
     await notificationsPage.goto();
     const notification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await page.getByRole('radio', { name: 'Unread', exact: true }).click();
+    await page.getByRole('radio', { name: 'Mentions', exact: true }).click();
+    await expect(page).toHaveURL(/status=unread&type=mentions/);
     await notificationsPage.clickNotification(notification);
 
     // Verify navigated to the room
     await page.waitForURL(routes.patterns.anyRoomWithQuery);
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Mentions', exact: true })).toBeChecked();
+    await page.reload();
+    await expect(page.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Mentions', exact: true })).toBeChecked();
   });
 
   test('clicking reply notification navigates to the thread', async ({

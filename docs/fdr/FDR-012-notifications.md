@@ -43,7 +43,10 @@ targets, unread counts, read state, or deletion semantics.
   past pages without matches. Dismiss read still applies across all servers
   and types. Dismiss controls use the standard neutral icon treatment.
   The filters start with All notifications and All types to distinguish their
-  purposes without visible group labels. All notification rows use
+  purposes without visible group labels.
+  URL parameters `status` and `type` retain the filters through navigation,
+  browser Back, and reload. Missing or unknown values select All.
+  All notification rows use
   neutral backgrounds. Unread rows show their summary in bold. Read rows use
   muted text in regular weight and remain fully interactive. The list does not use a
   separate unread dot on each row.
@@ -65,9 +68,9 @@ targets, unread counts, read state, or deletion semantics.
   App-wide pages and app preferences use `Page · Chatto`, including preferences
   opened from server settings. Public authentication pages use the origin server
   name. The Important count is a prefix, for example `(3) #general · Chatto HQ`.
-- The list is divided into Today, Yesterday, This Week, and month sections
-  using the preferred time zone of the account on each server. The Today
-  section has no visible heading or separator.
+- The list groups activity by calendar day using the preferred time zone of
+  the account on each server. Each row shows the local clock time. The Today
+  section has no visible heading or separator; older days have date headings.
 - Rows use short localized summaries without message previews. Reaction rows
   show the emoji that were given. The time is at the end of the summary line.
   Wide rows show the summary, room, server, and time on one line. Narrow rows

@@ -11,6 +11,12 @@ import {
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
 import { NotificationStore } from '@chatto/client/server/notifications';
+import { page as routePage } from '$app/state';
+
+vi.mock('$app/state', async () => {
+  const { SvelteURL } = await import('svelte/reactivity');
+  return { page: { url: new SvelteURL('https://chat.example.test/chat/notifications') } };
+});
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -150,6 +156,10 @@ function retainProjection(
 describe('notifications page', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    routePage.url.href = 'https://chat.example.test/chat/notifications';
+    mocks.goto.mockImplementation(async (target: string) => {
+      routePage.url.href = new URL(target, routePage.url).href;
+    });
     toast.clear();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
@@ -223,6 +233,29 @@ describe('notifications page', () => {
     expect(serverHosts(screen.container)).toContain('chat.example.test');
     await screen.getByRole('radio', { name: 'Mentions', exact: true }).click();
     await expect.element(screen.getByText('No unread notifications')).toBeVisible();
+  });
+
+  it('reads direct-entry filters and preserves unrelated query parameters when changing them', async () => {
+    routePage.url.href =
+      'https://chat.example.test/chat/-/notifications?status=unread&type=mentions&other=keep';
+    const screen = render(NotificationsPage);
+    await expect.element(screen.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
+    await expect
+      .element(screen.getByRole('radio', { name: 'Mentions', exact: true }))
+      .toBeChecked();
+    await screen.getByRole('radio', { name: 'All notifications', exact: true }).click();
+    expect(mocks.goto).toHaveBeenLastCalledWith('/chat/-/notifications?type=mentions&other=keep', {
+      replaceState: true,
+      keepFocus: true,
+      noScroll: true
+    });
+    routePage.url.search = '?status=unknown&type=unknown';
+    await expect
+      .element(screen.getByRole('radio', { name: 'All notifications', exact: true }))
+      .toBeChecked();
+    await expect
+      .element(screen.getByRole('radio', { name: 'All types', exact: true }))
+      .toBeChecked();
   });
 
   it('queues an unread occurrence to be marked read after its target is displayed', async () => {
@@ -889,7 +922,12 @@ describe('notifications page', () => {
     expect(headings).not.toContain('Today');
     expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(3);
     expect(headings).toContain('Yesterday');
-    expect(headings.some((heading) => heading?.match(/\w+ \d{4}/))).toBe(true);
+    expect(headings.some((heading) => heading?.includes('2026'))).toBe(true);
+    expect(
+      [...container.querySelectorAll('[data-testid="notification-content"]')].map((row) =>
+        row.lastElementChild?.textContent?.trim()
+      )
+    ).toEqual(['00:00', '00:00', '00:00']);
     const firstHeading = container.querySelector(
       '[data-testid="notification-date-heading"]'
     ) as HTMLElement;

@@ -3,7 +3,8 @@
   import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { base, resolve } from '$app/paths';
+  import { page } from '$app/state';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import {
     EmptyState,
@@ -36,8 +37,8 @@
   import NotificationRow from './NotificationRow.svelte';
   import type { ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import {
-    formatRelativeTime,
-    groupByActivityDate,
+    formatMessageTime,
+    groupByActivityDay,
     timeFormatSettingsFor,
     type TimeFormatSettings
   } from '$lib/utils/formatTime';
@@ -75,8 +76,23 @@
   const loading = $derived(!notificationProjectionHasLoaded());
   let loadingMore = $state(false);
   let loadMoreError = $state(false);
-  let filter = $state<'all' | 'unread'>('all');
-  let kind = $state<'all' | 'reactions' | 'replies' | 'mentions'>('all');
+  const filter = $derived(page.url.searchParams.get('status') === 'unread' ? 'unread' : 'all');
+  const kind = $derived.by(() => {
+    const value = page.url.searchParams.get('type');
+    return value === 'reactions' || value === 'replies' || value === 'mentions' ? value : 'all';
+  });
+
+  /** Replace the inbox entry so Back from a notification restores its filters. */
+  function setFilter(parameter: 'status' | 'type', value: string) {
+    const url = new URL(page.url);
+    if (value === 'all') url.searchParams.delete(parameter);
+    else url.searchParams.set(parameter, value);
+    return goto(resolve((url.pathname.slice(base.length) + url.search + url.hash) as '/'), {
+      replaceState: true,
+      keepFocus: true,
+      noScroll: true
+    });
+  }
   const filterOptions = $derived([
     { value: 'all' as const, label: m('chat.notifications.all_notifications') },
     { value: 'unread' as const, label: m('chat.threads.filter_unread') }
@@ -138,7 +154,7 @@
     })
   );
   const dateSections = $derived.by(() =>
-    groupByActivityDate(
+    groupByActivityDay(
       filteredGroups,
       (item) => item.group.latestAt,
       (item) => item.timeFormatSettings,
@@ -564,7 +580,7 @@
           label={m('chat.notifications.filter_status')}
           options={filterOptions}
           value={filter}
-          onchange={(value) => (filter = value)}
+          onchange={(value) => setFilter('status', value)}
         />
       </div>
       <div class="max-w-full overflow-x-auto">
@@ -572,7 +588,7 @@
           label={m('chat.notifications.filter_type')}
           options={kindOptions}
           value={kind}
-          onchange={(value) => (kind = value)}
+          onchange={(value) => setFilter('type', value)}
         />
       </div>
     </div>
@@ -621,7 +637,7 @@
                     signalKind={occurrence?.signalKind}
                     reactionEmoji={emoji}
                     {roomName}
-                    time={formatRelativeTime(
+                    time={formatMessageTime(
                       item.group.latestAt,
                       item.timeFormatSettings,
                       activeLocale

@@ -357,6 +357,42 @@ export function groupByActivityDate<T>(
   return sections;
 }
 
+/** Group activity by calendar day in each item's viewer timezone, retaining input order. */
+export function groupByActivityDay<T>(
+  items: readonly T[],
+  activityAt: (item: T) => Date | string,
+  settingsFor: (item: T) => TimeFormatSettings,
+  now: Date = new Date(),
+  locale: string = activeLocale()
+): ActivityDateSection<T>[] {
+  const sections = new Map<string, ActivityDateSection<T>>();
+  for (const item of items) {
+    const timestamp = activityAt(item);
+    const settings = settingsFor(item);
+    const parts = dateParts(toDate(timestamp), settings);
+    const daysAgo = daySerial(dateParts(now, settings)) - daySerial(parts);
+    const key =
+      daysAgo === 0
+        ? 'today'
+        : daysAgo === 1
+          ? 'yesterday'
+          : `${parts.year}-${parts.month}-${parts.day}`;
+    let section = sections.get(key);
+    if (!section) {
+      const label =
+        daysAgo === 0
+          ? m('ui.dates.today')
+          : daysAgo === 1
+            ? m('ui.dates.yesterday')
+            : formatDate(timestamp, settings, locale);
+      section = { key, label, items: [] };
+      sections.set(key, section);
+    }
+    section.items.push(item);
+  }
+  return [...sections.values()];
+}
+
 /** Format recent activity as elapsed time and older activity as a calendar date. */
 export function formatRelativeTime(
   timestamp: Date | string | null | undefined,

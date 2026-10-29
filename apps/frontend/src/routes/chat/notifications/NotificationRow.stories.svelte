@@ -46,7 +46,7 @@
       actor: alice,
       signalKind: NotificationSignalKind.ROOM_INVITATION,
       roomName: 'design-team',
-      time: 'Just now',
+      time: '14:32',
       unread: true,
       important: true
     },
@@ -55,7 +55,7 @@
       actor: bob,
       signalKind: NotificationSignalKind.DIRECT_MESSAGE,
       roomName: null,
-      time: '2m ago',
+      time: '14:30',
       unread: true,
       important: true
     },
@@ -64,7 +64,7 @@
       actor: alice,
       signalKind: NotificationSignalKind.DIRECT_MENTION,
       roomName: 'chatto-development',
-      time: '17m ago',
+      time: '14:15',
       unread: true,
       important: true
     },
@@ -74,7 +74,7 @@
       signalKind: NotificationSignalKind.REACTION,
       reactionEmoji: '❤️',
       roomName: 'chatto-development',
-      time: '4h ago',
+      time: '10:32',
       unread: false,
       important: false
     },
@@ -83,7 +83,7 @@
       actor: bob,
       signalKind: NotificationSignalKind.FOLLOWED_THREAD,
       roomName: 'bug-reports',
-      time: '9h ago',
+      time: '05:32',
       unread: false,
       important: false
     },
@@ -93,7 +93,7 @@
       signalKind: NotificationSignalKind.REACTION,
       reactionEmoji: '👍',
       roomName: 'random-chat',
-      time: '11h ago',
+      time: '03:32 AM',
       unread: false,
       important: false
     }
