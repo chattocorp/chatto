@@ -11,6 +11,24 @@ const workflow = readFileSync(
   'utf8'
 ).replaceAll('\r\n', '\n');
 
+test('only the final job publishes Chatto, after server and desktop completion', () => {
+  const build = workflow.split('\n  release:\n')[1].split('\n  finalize-release:\n')[0];
+  const finalize = workflow
+    .split('\n  finalize-release:\n')[1]
+    .split('\n  publish-stable-docs:\n')[0];
+  assert.ok(!build.includes('--draft=false'));
+  assert.match(finalize, /needs: \[release, assemble-desktop-release\]/);
+  assert.ok(!finalize.includes('always()'));
+  assert.ok(finalize.includes('--draft=false'));
+  const assemble = workflow.split('\n  assemble-desktop-release:\n')[1].split('\n  release:\n')[0];
+  assert.match(assemble, /needs: build-desktop-release/);
+  assert.ok(!assemble.includes('always()'));
+  assert.ok(
+    assemble.indexOf('Generate desktop update manifests') <
+      assemble.indexOf('Upload desktop assets to the Chatto release')
+  );
+});
+
 /** Extract a named shell step so tests exercise the actual publication commands. */
 function shellStep(name, source = workflow) {
   const step = source.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];

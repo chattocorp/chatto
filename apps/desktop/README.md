@@ -52,7 +52,8 @@ mise desktop-dev
 
 The task builds the shared frontend and opens it in Electron. Electron stores
 the default session beneath the platform's application-data directory for
-`Chatto Desktop`; the shell writes no separate credentials or settings file.
+`Chatto Desktop`. The shell stores update preferences separately in
+`updates.json` within this profile. This file contains no account credentials.
 
 ## Verify and build
 
@@ -63,10 +64,45 @@ Open the disk image and drag **Chatto Desktop** to **Applications**. Eject the
 disk image, then open the app from Applications. Release disk images and apps
 are Developer ID signed and notarised. The ZIP download remains available.
 
-To update, quit Chatto Desktop and replace the app in Applications with the
-new version. Registrations, sessions, and preferences remain in the existing
-profile. Updates are manual. Moving the app to the Trash does not erase that
+Use the **Updates** menu to check, select Stable or Beta, and restart to install.
+Registrations, sessions, and preferences remain in the existing profile.
+Older builds without this menu need one manual replacement. Moving the app to the Trash does not erase that
 profile or sign out registered servers.
+
+### Desktop updates
+
+Tagged macOS apps, Windows NSIS installations, and Linux AppImages use
+`electron-updater` with the public `chattocorp/chatto` GitHub releases. Windows
+ZIP and Linux tarball installations remain manual. Local builds and manual CI
+verification builds do not check for updates.
+
+Prerelease builds default to Beta; stable builds default to Stable. A saved
+channel choice takes precedence. Beta includes beta and subsequent stable
+releases. Switching to Stable does not downgrade an installed beta. Automatic
+checks start 30 seconds after launch and repeat every 30 minutes. Stable
+updates roll out over 36 hours; manual checks and Beta bypass this delay.
+Users can disable automatic checks and downloads in the Updates menu.
+Installation requires **Restart to Update** and confirmation. An ordinary quit
+does not install an update. The frontend stays bundled and startup uses local files.
+
+GitHub receives the user's IP address and update requests. The updater sends
+no Chatto account or connected-server information. The **About Updates** menu
+explains this connection. Downloads use full archives with SHA-512 checksums;
+macOS and Windows also verify application signatures. Linux AppImage updates
+trust HTTPS and the GitHub release manifest, without a separate publisher signature.
+
+The release workflow collects all three update artifacts before it generates
+the channel manifests. It uploads these to the existing draft release. Only
+`finalize-release`, after both server and desktop jobs succeed, makes the release
+public. Signing or packaging failures keep the release in draft. Rerun failed
+jobs against the same tag before publication. Do not replace published update
+artifacts; ship a new version instead.
+
+Before the first updater release, verify an installed signed build updating
+to a newer signed build on macOS and Windows, and an AppImage updating on Linux.
+Check stable/beta selection, signature rejection, failed downloads, retained
+sessions, and restart during a call. Existing installations need one manual
+upgrade to obtain the updater.
 
 After `mise desktop-build` on macOS, create a local disk image with:
 
@@ -400,7 +436,7 @@ is sandboxed.
 
 ## Prototype boundaries
 
-This scaffold does not yet provide auto-update, OS deep links, Linux installers, or
+This scaffold does not yet provide OS deep links, Linux distro packages, or
 end-to-end desktop tests. Some identity providers
 reject authentication inside embedded user agents, so a system-browser OAuth
 handoff may still be required before treating this as a general release.

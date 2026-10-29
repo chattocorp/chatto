@@ -154,7 +154,10 @@ Mobile Components:
 Desktop Components:
 
 - electron-builder (https://www.electron.build/) - MIT License
-  (Windows installer and macOS disk-image packaging)
+  (Windows installer, macOS disk-image, and Linux AppImage packaging)
+- electron-updater (https://www.electron.build/) - MIT License. Bundled
+  dependency licence texts are in app.asar/updater-licenses.txt.
+- esbuild (https://github.com/evanw/esbuild) - MIT License (build tool)
 - macOS disk-image background artwork (`apps/desktop/icons/background*.png`) -
   Apache License 2.0, as specified in REUSE.toml
 - NSIS (https://nsis.sourceforge.io/) - zlib/libpng License; installer components

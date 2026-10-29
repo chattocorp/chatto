@@ -424,6 +424,8 @@ jobs:
         shell: bash
         env:
           CHATTO_BUILD_VERSION: ${{ steps.version.outputs.frontend_version }}
+          CHATTO_DESKTOP_AUTO_UPDATE: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          CHATTO_WINDOWS_EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
           DEBUG: ${{ runner.os == 'macOS' && 'electron-notarize*' || '' }}
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
@@ -599,6 +601,8 @@ jobs:
           tar -C apps/desktop/dist -czf \
             ".context/desktop-release/chatto-desktop_${VERSION}_Linux_${RUNNER_ARCH}.tar.gz" \
             chatto-desktop
+          mise x -- pnpm --filter chatto-desktop build:linux-appimage
+          cp apps/desktop/dist/appimage/*.AppImage .context/desktop-release/
 
       - name: Package Windows release
         if: runner.os == 'Windows'
@@ -627,12 +631,28 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
       - name: Download desktop release artifacts
         uses: actions/download-artifact@v8
         with:
           pattern: desktop-release-*
           path: .context/desktop-release
           merge-multiple: true
+
+      - name: Generate desktop update manifests
+        shell: bash
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          node apps/desktop/scripts/update-manifests.mjs .context/desktop-release "$version"
 
       - name: Generate checksums
         shell: bash
@@ -649,8 +669,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      # The server job owns publication. Desktop uploads may finish before or
-      # after it, and signing failures must not block a server security release.
+      # Keep this release hidden until both server and desktop jobs finish.
       - name: Upload desktop assets to the Chatto release
         if: github.event_name == 'push'
         shell: bash
@@ -658,6 +677,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
+          test "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" = true
           gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
 
   release:
@@ -671,6 +691,8 @@ jobs:
       id-token: write
     outputs:
       is_stable: ${{ steps.release_meta.outputs.is_stable }}
+      version: ${{ steps.release_meta.outputs.version }}
+      make_latest: ${{ steps.release_meta.outputs.push_latest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -846,12 +868,20 @@ jobs:
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.licenses=Apache-2.0
 
+  finalize-release:
+    needs: [release, assemble-desktop-release]
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    environment: chatto-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       - name: Publish GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-          MAKE_LATEST: ${{ steps.release_meta.outputs.push_latest }}
+          VERSION: ${{ needs.release.outputs.version }}
+          MAKE_LATEST: ${{ needs.release.outputs.make_latest }}
         run: |
           set -euo pipefail
 
@@ -861,12 +891,12 @@ jobs:
             --latest="$MAKE_LATEST"
 
       - name: Update Homebrew tap
-        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        if: ${{ needs.release.outputs.is_stable == 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
 
@@ -956,7 +986,7 @@ jobs:
           git -C "${tap_dir}" push origin HEAD:main
 
   publish-stable-docs:
-    needs: release
+    needs: [release, finalize-release]
     if: ${{ github.event_name == 'push' && needs.release.outputs.is_stable == 'true' }}
     permissions:
       contents: read

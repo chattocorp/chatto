@@ -47,8 +47,17 @@ Chatto Desktop is experimental. Download it from the
 [Chatto releases](https://github.com/chattocorp/chatto/releases).
 On Apple Silicon Macs, you need macOS 13 or later. Open the `.dmg` download and drag **Chatto Desktop** to
 **Applications**. Eject the disk image and open the app from Applications.
-To update, quit the app and replace it with the newer version. Your registered
-servers and sessions remain available. Updates are manual.
+On macOS, installed Windows copies, and Linux AppImages, use the **Updates**
+menu to check for updates and select **Restart to Update**. Your registered
+servers and sessions remain available. Older builds without this menu need
+one manual upgrade. Windows ZIP and Linux tarball downloads use manual updates.
+
+Updates download from GitHub, which receives your IP address and update
+requests. You can disable automatic checks and downloads in the Updates menu.
+Prerelease builds default to Beta; stable builds default to Stable. Your saved
+channel choice is kept when you upgrade. Select Beta to receive test releases. Switching
+back to Stable does not install an older version. The frontend stays local;
+starting the app does not require a connection to GitHub.
 
 Use your mouse's back and forward buttons to navigate in Chatto Desktop.
 You can also use `Alt+Left` and `Alt+Right` on Windows/Linux, or `Cmd+[` and

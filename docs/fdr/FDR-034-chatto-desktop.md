@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
@@ -73,12 +73,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
   changelog, and `v{version}` tag. Each release embeds the frontend from that
   commit and displays the shared version. Manual verification builds display
   a development version and abbreviated commit SHA.
-- Desktop downloads are attached to the Chatto release. Signing failures can
-  delay those downloads, but do not block server publication. Matching desktop
+- Desktop downloads are attached to the Chatto release. Signing failures keep
+  the shared GitHub release in draft. Matching desktop
   and server versions are not required; existing compatibility rules apply.
 - macOS users can download a signed, notarised disk image and drag the app to
-  Applications. The ZIP remains available. To update, users quit the app and
-  replace it with the newer version. Both downloads use the same profile;
+  Applications. The ZIP remains available. Both downloads use the same profile;
   replacement preserves registrations, sessions, and preferences. Removing the
   app does not erase the profile or sign out registered servers.
 - Windows users can install through a self-contained installer without
@@ -90,7 +89,18 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Uninstall removes application files and shortcuts but preserves registrations,
   credentials, and preferences. Users must close the ZIP application before
   switching to the installed application. Old extracted folders are not removed.
-  Updates remain manual.
+- Tagged macOS apps, Windows installer copies, and Linux AppImages can download
+  whole-app updates from GitHub. The frontend stays local and bundled. The
+  Updates menu offers Stable or Beta, manual checks, and an automatic-check
+  setting. Prerelease builds default to Beta; stable builds default to Stable.
+  A saved channel choice takes precedence. Stable rolls out over 36 hours. Beta and manual
+  checks bypass this delay. Switching to Stable never installs an older version.
+  Installation requires an explicit restart confirmation; ordinary quit does
+  not install updates. Existing builds need one manual upgrade to obtain this
+  behavior. Windows ZIP and Linux tarball updates remain manual.
+- GitHub receives update requests and the user's IP address, but no Chatto
+  account or connected-server information. The Updates menu explains this
+  connection and lets users disable automatic checks and downloads.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
 - Local macOS development bundles can use the separate **Chatto Desktop Dev**
@@ -238,8 +248,8 @@ uses the shared version for its frontend. See ADR-118.
 **Why:** Users can compare desktop and web frontend versions directly, and
 maintainers prepare one release instead of two.
 **Tradeoff:** Each release requires desktop builds and signing approvals, and
-desktop-only fixes also advance the Chatto version. Desktop uploads can arrive
-after server publication so signing failures do not block security fixes.
+desktop-only fixes also advance the Chatto version. Desktop build and signing
+failures delay GitHub publication, including server fixes. See ADR-121.
 
 ### 6. Build all supported host bundles and sign trusted releases
 
@@ -248,8 +258,8 @@ protected release workflow Developer ID signs and notarises macOS, and uses
 Microsoft Artifact Signing with GitHub OpenID Connect to sign Windows PE files.
 It validates macOS acceptance, every Windows signature and timestamp, and the
 main application's publisher subject before packaging. Bundled third-party
-libraries may retain their original valid publisher. Linux remains unsigned
-until its update-capable package and trust model are selected.
+libraries may retain their original valid publisher. Linux AppImage updates
+use HTTPS and manifest checksums without a separate publisher signature.
 **Why:** Cross-platform builds catch packaging drift and let contributors test
 the application before release credentials are available. Managed Windows
 signing keeps the private key out of GitHub while a protected environment and
@@ -336,7 +346,18 @@ depend on the renderer being alive.
 **Decision:** Provide a signed and notarised DMG alongside the ZIP download.
 **Why:** The app is self-contained. A disk image gives users a familiar way to
 install it without installation scripts or additional system services.
-**Tradeoff:** Updates require users to quit and replace the app manually.
+**Tradeoff:** Installation requires a manual drag to Applications. Subsequent
+updates use the Updates menu and require a restart.
+
+### 11. Update the complete desktop app through GitHub
+
+**Decision:** Use GitHub releases for Stable and Beta updates. Keep releases
+in draft until server and desktop artifacts are ready. See ADR-121.
+**Why:** This uses the existing release system and keeps the frontend, native
+helpers, and desktop bridge on the same version.
+**Tradeoff:** Installed updaters depend on the GitHub repository identity.
+Frontend-only changes require an app update. Existing users need one manual
+upgrade before automatic downloads become available.
 
 ## Related
 
@@ -344,15 +365,14 @@ The iOS shell shares the frontend but uses native system authentication. See
 [FDR-048](FDR-048-chatto-mobile.md) and
 [ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases), ADR-121 (complete GitHub releases for desktop updates)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-013 (Web Push Notifications), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
 
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
-- Which automatic-update strategy and Linux installers should follow the
-  Windows installer, macOS disk image, and downloadable archives.
+- Which Linux distribution packages should accompany the AppImage and tarball.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
 - Which higher native screen-share quality profiles should be offered once representative

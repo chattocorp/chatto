@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-25
 
-**Status:** Accepted
+**Status:** Partially superseded
 
 ## Context
 
@@ -37,9 +37,10 @@ builds identify the frontend with the development version and commit SHA; their
 native package metadata retains the checked-in version.
 
 Desktop archives and checksums are attached to the same GitHub release. The
-server job alone controls publication. It does not depend on desktop build or
-signing jobs. Desktop uploads can finish after publication, and failed desktop
-jobs can be retried against the same tag.
+original decision let the server job publish before desktop builds completed.
+[ADR-121](ADR-121-github-desktop-updates.md) supersedes this part: the release
+stays in draft until both server and desktop jobs succeed. The shared version
+and release identity remain unchanged.
 
 Signing remains subject to protected-environment approval and trusted source
 checks. Source commits must be reachable from `main` or a maintenance release
@@ -54,5 +55,5 @@ required to connect.
 
 Each release requires desktop builds and signing approvals. Desktop-only fixes
 also advance the Chatto version. A signing outage can delay desktop downloads,
-but cannot block publication of a server security fix. Independent desktop
+and now blocks GitHub publication under ADR-121. Independent desktop
 releases can be reconsidered if release costs justify the additional versioning.

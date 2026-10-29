@@ -40,6 +40,7 @@ import { desktopBuildProfile } from './build_profile.mjs';
 import { StreamDiagnostics } from './stream_diagnostics.mjs';
 import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
 import { passwordLogin } from './password_login.mjs';
+import { configureUpdateMenu } from './update_menu.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 if (buildProfile.variant === 'development') {
@@ -134,6 +135,8 @@ async function start() {
   });
   mainWindow = createMainWindow();
   configureDiagnosticsMenu();
+  // Update setup errors must not prevent local startup or expose request URLs.
+  void configureUpdateMenu(packageJson).catch(() => console.error('Update setup failed.'));
 
   app.on('second-instance', () => {
     if (!mainWindow) return;
