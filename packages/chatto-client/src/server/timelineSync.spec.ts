@@ -97,7 +97,11 @@ describe('TimelineSync', () => {
         event: { kind, roomId: 'R1' }
       });
       const readMessages = vi.fn(async () => []);
-      const { sync } = makeSync({ R1: { messages: room } }, { readMessages });
+      const thread = fakeTimeline();
+      const { sync } = makeSync(
+        { R1: { messages: room, threads: { root: thread } } },
+        { readMessages }
+      );
       sync.reconcile('R1', 'membership');
       await flush();
       expect(room.refreshCurrentWindow).toHaveBeenCalledWith(
@@ -107,6 +111,7 @@ describe('TimelineSync', () => {
         expect.any(Function)
       );
       expect(readMessages).not.toHaveBeenCalled();
+      expect(thread.refreshCurrentWindow).not.toHaveBeenCalled();
       room.reads[0]?.resolve();
       await flush();
     }

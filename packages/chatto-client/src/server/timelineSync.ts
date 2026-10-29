@@ -147,13 +147,14 @@ export class TimelineSync {
     const stores = rooms.timelines(roomId);
     // Membership events have no Message resource. Refresh their timeline window
     // instead of asking BatchGetMessages to hydrate them.
-    if (
-      stores.some((store) => {
-        const kind = store.getEventById(id)?.event.kind;
-        return kind === 'userJoinedRoom' || kind === 'userLeftRoom';
-      })
-    ) {
-      this.refreshWindows(roomId, id);
+    const membershipStores = stores.filter((store) => {
+      const kind = store.getEventById(id)?.event.kind;
+      return kind === 'userJoinedRoom' || kind === 'userLeftRoom';
+    });
+    if (membershipStores.length) {
+      for (const store of membershipStores) {
+        this.#refreshWindow(store, id, false, this.#options.eventCursor());
+      }
       return;
     }
     const { files, pins } = rooms.loaded(roomId) ?? {};
