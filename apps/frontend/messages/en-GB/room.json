@@ -276,6 +276,7 @@
     "thread": {
       "title": "Thread in #{room}",
       "back_to_room": "Back to room",
+      "participants": "Thread participants ({count})",
       "follow": "Follow thread",
       "unfollow": "Unfollow thread",
       "close": "Close thread",

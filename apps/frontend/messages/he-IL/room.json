@@ -280,6 +280,7 @@
     "thread": {
       "title": "שרשור ב-#{room}",
       "back_to_room": "חזרה לחדר",
+      "participants": "משתתפים בשרשור ({count})",
       "follow": "עקוב אחר השרשור",
       "unfollow": "בטל את המעקב אחר השרשור",
       "close": "סגור שרשור",

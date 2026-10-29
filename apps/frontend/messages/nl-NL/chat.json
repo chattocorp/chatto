@@ -6,6 +6,13 @@
       "confirmation": "Hiermee schakel je gedurende 15 minuten de extra machtigingen in die je op deze server hebt gekregen."
     },
     "notifications": {
+      "all_notifications": "Alle meldingen",
+      "all_types": "Alle typen",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reacties",
+      "replies": "Antwoorden",
+      "mentions": "Vermeldingen",
       "next_unread_source": "Ga naar de volgende ongelezen bron",
       "no_unread": "Geen ongelezen meldingen",
       "title": "Meldingen",

@@ -6,6 +6,13 @@
       "confirmation": "למשך 15 דקות, פעולה זו מפעילה את ההרשאות הנוספות שהוקצו לך בשרת זה."
     },
     "notifications": {
+      "all_notifications": "כל ההתראות",
+      "all_types": "כל הסוגים",
+      "filter_status": "מצב",
+      "filter_type": "סוג",
+      "reactions": "תגובות רגש",
+      "replies": "תשובות",
+      "mentions": "אזכורים",
       "next_unread_source": "עבור למקור הבא שלא נקרא",
       "no_unread": "אין התראות שלא נקראו",
       "title": "התראות",

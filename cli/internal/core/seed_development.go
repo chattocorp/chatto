@@ -3,6 +3,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"github.com/brianvoe/gofakeit/v7"
@@ -29,7 +31,19 @@ type SeedOptions struct {
 	Rooms         int   `json:"rooms"`
 	Messages      int   `json:"messages"`
 	ThreadReplies int   `json:"threadReplies"`
+	// AvatarImages are optional local image bytes, cycled in order across users.
+	AvatarImages [][]byte `json:"avatarImages,omitempty"`
+	// NotificationRecipient is the existing login that receives the fixtures.
+	NotificationRecipient string `json:"notificationRecipient"`
+	// Notifications adds historical targets and a mixed read/unread inbox.
+	Notifications int `json:"notifications"`
+	// NotificationDays is the number of days over which to distribute fixtures.
+	NotificationDays int `json:"notificationDays"`
 }
+
+// MaxSeedAvatarBytes keeps the image pool below the operator request size limit,
+// including base64 expansion when a caller uses JSON.
+const MaxSeedAvatarBytes = 512 << 10
 
 // SeedUser identifies a passwordless synthetic account in generation order.
 type SeedUser struct {
@@ -59,17 +73,37 @@ type SeedMessage struct {
 // it is partial: the failing command may also have committed before its read
 // barrier failed. Seeding does not roll back earlier commands.
 type SeedResult struct {
-	Version  string        `json:"version"`
-	Seed     int64         `json:"seed"`
-	Users    []SeedUser    `json:"users"`
-	Rooms    []SeedRoom    `json:"rooms"`
-	Messages []SeedMessage `json:"messages"`
+	Version           string        `json:"version"`
+	Seed              int64         `json:"seed"`
+	Users             []SeedUser    `json:"users"`
+	Rooms             []SeedRoom    `json:"rooms"`
+	Messages          []SeedMessage `json:"messages"`
+	NotificationCount int           `json:"notificationCount"`
 }
 
 var seedNameSeparators = regexp.MustCompile(`[^a-z0-9]+`)
 
 // Validate rejects the complete request before any durable writes occur.
 func (o SeedOptions) Validate() error {
+	if len(o.AvatarImages) > 50 {
+		return invalidArgument("at most 50 seed avatar images are allowed")
+	}
+	total := 0
+	for i, data := range o.AvatarImages {
+		total += len(data)
+		if total > MaxSeedAvatarBytes {
+			return invalidArgument("seed avatar images must not exceed 512 KiB in total")
+		}
+		if _, err := assets.InspectImage(bytes.NewReader(data)); err != nil {
+			return invalidArgument(fmt.Sprintf("seed avatar %d is not a supported image", i+1))
+		}
+	}
+	if o.Notifications < 0 || o.Notifications > 1000 {
+		return invalidArgument("notifications must be between zero and 1000")
+	}
+	if o.Notifications > 0 && (strings.TrimSpace(o.NotificationRecipient) == "" || o.NotificationDays < 1 || o.NotificationDays > 30) {
+		return invalidArgument("notifications require a recipient login and between 1 and 30 days")
+	}
 	if o.Users < 1 || o.Users > 5000 {
 		return invalidArgument("users must be between 1 and 5000")
 	}
@@ -101,6 +135,15 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 	if err := o.Validate(); err != nil {
 		return nil, err
 	}
+	// Resolve the recipient before the first write, so a typo creates no data.
+	var recipientID string
+	if o.Notifications > 0 {
+		user, err := c.GetUserByLogin(ctx, o.NotificationRecipient)
+		if err != nil {
+			return nil, fmt.Errorf("resolve notification recipient: %w", err)
+		}
+		recipientID = user.Id
+	}
 	result := &SeedResult{Version: SeedVersion, Seed: o.Seed,
 		Users: []SeedUser{}, Rooms: []SeedRoom{}, Messages: []SeedMessage{}}
 	source := rand.NewPCG(uint64(o.Seed), 0x63686174746f)
@@ -115,6 +158,11 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 			return result, fmt.Errorf("seed user %d: %w", i+1, err)
 		}
 		result.Users = append(result.Users, SeedUser{ID: user.Id, Login: user.Login, DisplayName: user.DisplayName})
+		if len(o.AvatarImages) > 0 {
+			if _, err := c.UpdateUserAvatar(ctx, user.Id, user.Id, bytes.NewReader(o.AvatarImages[i%len(o.AvatarImages)])); err != nil {
+				return result, fmt.Errorf("seed avatar for user %d: %w", i+1, err)
+			}
+		}
 	}
 	for i := 0; i < o.Rooms; i++ {
 		room, err := c.createSeedRoom(ctx, seedName(faker.Hobby()), faker.Sentence())
@@ -196,6 +244,11 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 	// A zero-message dataset still applies its joins and optional departures.
 	if err := applyMemberships(max(1, o.Messages)); err != nil {
 		return result, fmt.Errorf("seed final memberships: %w", err)
+	}
+	if o.Notifications > 0 {
+		if err := c.seedNotifications(ctx, o, recipientID, result, faker); err != nil {
+			return result, fmt.Errorf("seed notifications: %w", err)
+		}
 	}
 	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
 		return result, fmt.Errorf("wait for seed projections: %w", err)

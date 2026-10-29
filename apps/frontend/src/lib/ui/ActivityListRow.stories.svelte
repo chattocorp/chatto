@@ -9,6 +9,39 @@
   });
 </script>
 
+<Story name="Compact" asChild>
+  <div class="max-w-xl">
+    {#each ['Mention in general', 'Reply in design', 'Reaction in development'] as summary (summary)}
+      <ActivityListRow compact onclick={() => undefined}>
+        {#snippet leading()}
+          <span class="size-8 shrink-0 rounded-full bg-surface-emphasized"></span>
+        {/snippet}
+        <span class="min-w-0 flex-1 truncate">{summary}</span>
+        {#snippet actions()}
+          <button type="button" class="icon-action" aria-label="Dismiss">
+            <span class="iconify icon-[uil--trash-alt]" aria-hidden="true"></span>
+          </button>
+        {/snippet}
+      </ActivityListRow>
+    {/each}
+  </div>
+</Story>
+
+<Story name="Overlay actions" asChild>
+  <ActivityListRow compact overlayActions onclick={() => undefined}>
+    <span class="min-w-0 flex-1 truncate">Mention in general</span>
+    <span
+      class="text-sm text-muted [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
+      >2m ago</span
+    >
+    {#snippet actions()}
+      <button type="button" class="icon-action" aria-label="Dismiss">
+        <span class="iconify icon-[uil--trash-alt]" aria-hidden="true"></span>
+      </button>
+    {/snippet}
+  </ActivityListRow>
+</Story>
+
 <Story name="States" asChild>
   <div class="selectable-list max-w-xl">
     <ActivityListRow onclick={() => undefined}>

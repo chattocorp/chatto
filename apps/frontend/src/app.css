@@ -1885,6 +1885,29 @@
   @apply relative overflow-hidden;
 }
 
+/* Keep adjacent segmented controls content-sized until they wrap. Each control
+   then grows across its line, including its option labels and selection pill. */
+@utility segmented-control-group {
+  @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
+
+  & > fieldset {
+    @apply w-max flex-auto;
+  }
+
+  & > fieldset > label {
+    @apply grow;
+  }
+
+  & > fieldset > label > span {
+    @apply w-full;
+  }
+}
+
+/* Lower-priority metadata retains enough of its inherited color for readable contrast. */
+@utility text-subdued {
+  @apply text-current/90;
+}
+
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
    Containers should add `group/badges` so the hover elevation works. */
 @utility meta-badge {
@@ -1953,7 +1976,7 @@
 }
 
 @utility sidebar-item {
-  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text comfortable-density:min-h-12;
+  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
 

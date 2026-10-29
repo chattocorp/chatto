@@ -276,6 +276,7 @@
     "thread": {
       "title": "#{room} 中的话题串",
       "back_to_room": "返回聊天室",
+      "participants": "话题参与者 ({count})",
       "follow": "关注话题串",
       "unfollow": "取消关注话题串",
       "close": "关闭话题串",

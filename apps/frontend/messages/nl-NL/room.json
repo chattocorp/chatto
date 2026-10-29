@@ -276,6 +276,7 @@
     "thread": {
       "title": "Onderwerp in #{room}",
       "back_to_room": "Terug naar de kamer",
+      "participants": "Deelnemers aan de thread ({count})",
       "follow": "Volg draad",
       "unfollow": "Discussie niet meer volgen",
       "close": "Discussie sluiten",

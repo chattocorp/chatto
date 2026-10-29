@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Shared sidebar navigation states. Blue marks the current route; neutral text and dots mark unread content. Rows grow to at least 48 px when touch input is available, at every viewport width.'
+            'Shared sidebar navigation states. Blue marks the current route; neutral text and dots mark unread content. Rows keep compact spacing for both mouse and touch input, at every viewport width.'
         }
       }
     }

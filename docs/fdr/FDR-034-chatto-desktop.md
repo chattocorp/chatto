@@ -24,9 +24,10 @@ system-browser authentication, and clean-machine media behavior are hardened.
   existing client registry. Registrations, credentials, and browser-managed
   preferences persist across application launches in an app-specific profile.
 - On launch, restored authenticated servers reconcile in the background so the
-  Server Directory shows saved servers without selecting one. Desktop starts
-  on this directory, with direct address lookup available. It does not register
-  its application origin as a Chatto server. See FDR-042.
+  Server Directory shows saved servers without selecting one. Desktop reopens
+  the last selected server and its remembered room. Without a saved server,
+  it starts on the directory, with direct address lookup available. It does not
+  register its application origin as a Chatto server. See FDR-042.
 - A signed-out server shows a password form in the main window when the server
   permits password login. Desktop sends the password only to the selected
   server and stores its renewable session. It does not store the password.

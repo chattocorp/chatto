@@ -52,9 +52,27 @@ The Operator API gives server operators local, root-equivalent user administrati
   seed select the dataset. Room membership varies. Joins and some leaves occur
   between messages; authors are current members. Each room keeps at least one
   member. The manifest lists final generated members. Activity is ordered
-  without artificial waits or backdated timestamps.
+  without artificial waits or backdated timestamps by default. Optional
+  notification fixtures add historical mentions, replies, and reactions for an
+  existing login over 1–30 days. They include message targets, room membership,
+  followed reply threads, and mixed read states. They use in-app delivery only.
   Accounts have no password or owner role. JSON output provides the created IDs
   and content for later operations and test assertions.
+- `mise seed -- --avatar-dir PATH` optionally reads JPEG, PNG, and WebP files
+  in filename order and cycles them across generated users. The image pool is
+  limited to 50 files and 512 KiB in total after the CLI converts them to avatar
+  size. Input files use the normal image upload limit. Images use normal Chatto avatar
+  storage. This local-file mode makes no requests to external image providers.
+  Image headers are checked before seeding; a later decode or storage failure
+  can still leave a partial dataset.
+- `--pravatar` is an alternative to `--avatar-dir`. Before seeding, the CLI
+  downloads up to 20 portraits from `i.pravatar.cc`, with bounded response sizes,
+  a request timeout, and HTTPS redirects restricted to that host. Keys contain
+  only the seed and image index. The provider receives these keys and the CLI's
+  source IP address; no account names or credentials are sent. Larger datasets
+  cycle the pool. Downloads must succeed before writes start, without automatic
+  retries. Images are stored in Chatto, so clients do not contact Pravatar.
+  Seeding without either avatar option has no image-provider requests.
 - A pinned data generator supplies natural names, room topics, and text. Visible
   resources contain no dataset labels or message markers. Tests use IDs and
   content from the manifest. Existing name collisions receive numeric suffixes.

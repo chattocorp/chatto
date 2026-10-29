@@ -276,6 +276,7 @@
     "thread": {
       "title": "#{room} 中的討論串",
       "back_to_room": "返回聊天室",
+      "participants": "討論串參與者 ({count})",
       "follow": "追蹤討論串",
       "unfollow": "取消追蹤討論串",
       "close": "關閉討論串",

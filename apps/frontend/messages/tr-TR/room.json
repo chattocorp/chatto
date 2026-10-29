@@ -276,6 +276,7 @@
     "thread": {
       "title": "#{room} içindeki konu",
       "back_to_room": "Odaya geri dön",
+      "participants": "Konu katılımcıları ({count})",
       "follow": "Konuyu takip et",
       "unfollow": "Konuyu takip etmeyi bırak",
       "close": "Konuyu kapat",

@@ -276,6 +276,7 @@
     "thread": {
       "title": "Tråd i #{room}",
       "back_to_room": "Tilbake til rommet",
+      "participants": "Deltakere i tråden ({count})",
       "follow": "Følg tråden",
       "unfollow": "Slutt å følge tråden",
       "close": "Lukk tråden",

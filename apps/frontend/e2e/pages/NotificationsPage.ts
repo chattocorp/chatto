@@ -57,7 +57,9 @@ export class NotificationsPage {
     await expect(this.bellButton).toBeVisible();
     await expect(async () => {
       await Promise.all([
-        this.page.waitForURL(routes.notifications, { timeout: TIMEOUTS.UI_STANDARD }),
+        this.page.waitForURL(/\/chat\/(?:[^/]+\/)?notifications$/, {
+          timeout: TIMEOUTS.UI_STANDARD
+        }),
         this.bellButton.click()
       ]);
     }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });

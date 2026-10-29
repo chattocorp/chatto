@@ -197,6 +197,49 @@ IDs and timestamps change. Each run adds data. A failed run can leave partial
 data. Add `--json` to get the generated IDs and text, or `--help` for options.
 Seeding is available only in development and test builds.
 
+To download face avatars automatically, opt in to Pravatar:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 1 --messages 100 --thread-replies 99 --pravatar
+```
+
+The CLI downloads up to 20 portraits from `https://i.pravatar.cc`, then stores
+them as normal Chatto avatars. Larger datasets cycle through this pool. Requests
+use stable keys based on the seed and image index; the provider can change its
+images. Pravatar receives your IP address and these synthetic keys, but no
+account names, credentials, or Chatto server data. Viewing the avatars contacts
+only your Chatto server. Downloads are bounded and must succeed before any seed
+data is created. The command does not retry failed downloads automatically.
+
+For an offline source, place JPEG, PNG, or WebP portraits in a
+local directory and add `--avatar-dir`:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 1 --messages 100 --thread-replies 99 --avatar-dir "$PWD/.context/avatars" --json
+```
+
+The CLI converts images to avatar size, reads them in filename order, and cycles
+through them across users. Use up to 50 files, each within the normal 25 MiB image
+upload limit. The converted pool must fit within 512 KiB. Images are stored by
+Chatto; neither seeding nor viewing the avatars contacts an external image
+provider. Obtain images separately from a source you can use. The example above
+creates one root message with 99 replies for a populated thread preview.
+`--avatar-dir` and `--pravatar` cannot be combined. Without either option,
+seeding creates no avatars and makes no requests to an image provider.
+
+To populate an existing account's notification page across several days:
+
+```sh
+mise seed -- --seed 42 --users 6 --rooms 3 --messages 0 \
+  --notification-recipient alice --notifications 40 --notification-days 5
+```
+
+This adds mentions, replies, and reactions with historical message targets.
+One quarter start as read. The recipient joins the generated rooms and follows
+the generated reply threads. These additional messages are separate from the
+`--messages` count. Notification fixtures use in-app delivery, without Web Push.
+The recipient login must exist. Restart `mise dev` after changes to the seeder.
+
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) runs the root `mise` tasks as native
