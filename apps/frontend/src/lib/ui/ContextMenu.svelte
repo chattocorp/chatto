@@ -79,7 +79,7 @@ picker uses it to fill the sheet width.
 </script>
 
 <!-- Right-click can leave focus in the composer. Consume Escape before it reaches that input. -->
-<svelte:document onkeydowncapture={handleKeydown} />
+<svelte:window onkeydowncapture={handleKeydown} />
 
 {#if useSheet}
   <BottomSheet bind:visible={sheetVisible} {ariaLabel} {onclose}>
