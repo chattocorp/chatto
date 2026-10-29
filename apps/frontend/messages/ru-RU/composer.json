@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Вставить эмодзи",
     "attach_file": "Прикрепить файл",
     "formatting_options": "Параметры форматирования",
     "send": "Отправить сообщение",

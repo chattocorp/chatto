@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
@@ -13,6 +13,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
 - Built-in emoji shortcodes, such as `:wave:`, `:heart:`, and `:+1:`, render as Unicode emoji. Names are case-sensitive and use the gemoji catalogue, including its aliases, plus the entries in `tools/emoji-additions.json`. The additions supply newer emoji missing from the released dependency; `mise codegen-emoji` includes them in the server, client, and converter maps. The picker and shortcode resolver use the same base catalogue. Display depends on the device's emoji font. Adjacent tags work without spaces. Unknown names stay literal. Code, automatic URL labels, link destinations, and link titles stay unchanged. Explicit link labels, quotes, tables, footnotes, and inline Markdown previews support shortcodes.
 - Typed shortcodes remain in the stored message and in both editors. Editing, reopening, and copying the full message source retain them. Existing Unicode emoji and the picker's Unicode insertion still work. Other clients can show shortcode text without a server upgrade.
+- The smiley button beside the attachment and timestamp controls opens the same emoji picker used for reactions. Selecting an emoji inserts Unicode at the cursor or replaces selected text, then returns focus to the editor. Both editors support this in new messages, thread replies, and message edits. Search, skin-tone choices, and the per-server Recently Used list are shared with the reaction picker. Touch-primary devices show the picker in a bottom sheet. The button is disabled when the message input is disabled.
 - Shortcodes directly beside Unicode letters, numbers, combining marks, or literal underscores stay literal. For example, `omg:poop:foo` stays unchanged. Whitespace and punctuation permit conversion, so `(:wave:)!` and `:wave::heart:` work. Markdown formatting still applies around tags, such as `_:wave:_` for an italic emoji. Autocomplete uses the same opening boundary and shortcode name characters. Suggestions appear after two name characters, including signed aliases such as `:+1`.
 - Double underscores (`__text__`) mean underline, including in existing messages. Double asterisks (`**text**`) mean bold. Underline uses the normal emphasis boundaries and does not interpret underscores inside inline code, code blocks, or link destinations. Both editors provide an Underline toolbar button and Ctrl+U (⌘U on macOS). The visual editor retains underline when messages are saved, reopened, or switched to Markdown.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.

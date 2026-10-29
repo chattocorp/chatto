@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "הוסף אימוג׳י",
     "attach_file": "צרף קובץ",
     "formatting_options": "אפשרויות עיצוב",
     "send": "שלח הודעה",
