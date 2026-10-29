@@ -2,6 +2,7 @@ import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packager } from '@electron/packager';
+import { bundleUpdater } from './bundle-updater.mjs';
 import packageJson from '../package.json' with { type: 'json' };
 import { pruneElectronLocales } from './locales.mjs';
 import { embedMacOSCaptureHelper } from './macos-capture-helper.mjs';
@@ -15,6 +16,11 @@ const distRoot = path.join(desktopRoot, 'dist');
 const packagerOut = path.join(distRoot, '.packager');
 const platform = process.platform;
 const profile = desktopBuildProfile(process.env.CHATTO_DESKTOP_BUILD);
+const autoUpdate =
+  process.env.CHATTO_DESKTOP_AUTO_UPDATE === 'true' && profile.variant === 'release';
+if (autoUpdate && platform === 'win32' && !process.env.CHATTO_WINDOWS_EXPECTED_PUBLISHER) {
+  throw new Error('Update-capable Windows builds require CHATTO_WINDOWS_EXPECTED_PUBLISHER.');
+}
 const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
 const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
 const embedCaptureHelper = platform === 'darwin';
@@ -53,12 +59,16 @@ const [bundleRoot] = await packager({
             ...packageJson,
             name: profile.packageName,
             productName: profile.productName,
-            chattoBuildVariant: profile.variant
+            chattoBuildVariant: profile.variant,
+            chattoAutoUpdate: autoUpdate
           },
           null,
           2
         )
       );
+      // Keep pnpm's symlink layout out of the app. Bundle the updater and its
+      // dependencies into one CommonJS file, with only Electron external.
+      await bundleUpdater(buildPath);
     }
   ],
   icon:
@@ -97,18 +107,36 @@ const [bundleRoot] = await packager({
     : undefined,
   osxSign: macOSDistribution.osxSign,
   osxNotarize: macOSDistribution.osxNotarize,
-  afterCopyExtraResources: macOSDistribution.osxSign
-    ? [
-        async () => {
-          signingStartedAt = performance.now();
-          console.log(
-            macOSDistribution.osxNotarize
-              ? 'Signing and notarising macOS app and nested code...'
-              : 'Signing macOS app and nested code...'
-          );
-        }
-      ]
-    : undefined,
+  afterCopyExtraResources: [
+    async ({ buildPath }) => {
+      if (autoUpdate) {
+        // This must be inside Resources before macOS signing. JSON is valid YAML.
+        const resources =
+          platform === 'darwin'
+            ? path.join(buildPath, `${profile.productName}.app/Contents/Resources`)
+            : path.join(buildPath, 'resources');
+        await writeFile(
+          path.join(resources, 'app-update.yml'),
+          JSON.stringify({
+            provider: 'github',
+            owner: 'chattocorp',
+            repo: 'chatto',
+            updaterCacheDirName: 'chatto-desktop-updater',
+            ...(platform === 'win32'
+              ? { publisherName: process.env.CHATTO_WINDOWS_EXPECTED_PUBLISHER }
+              : {})
+          })
+        );
+      }
+      if (!macOSDistribution.osxSign) return;
+      signingStartedAt = performance.now();
+      console.log(
+        macOSDistribution.osxNotarize
+          ? 'Signing and notarising macOS app and nested code...'
+          : 'Signing macOS app and nested code...'
+      );
+    }
+  ],
   ignore: [
     /^\/dist(?:\/|$)/,
     /^\/native(?:\/|$)/,

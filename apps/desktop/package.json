@@ -11,13 +11,16 @@
   "scripts": {
     "build:macos-dmg": "node scripts/macos-dmg.mjs",
     "build:windows-installer": "node scripts/windows-installer.mjs",
+    "build:linux-appimage": "node scripts/linux-appimage.mjs",
     "build": "install-electron && node scripts/build.mjs",
-    "check": "node --check main.mjs && node --check preload.cjs && node --check frontend_protocol.mjs && node --check game_capture.mjs && node --check scripts/build.mjs && node --check scripts/macos-capture-helper.mjs && node --test",
+    "check": "node --check main.mjs && node --check preload.cjs && node --check frontend_protocol.mjs && node --check game_capture.mjs && node --check update_menu.mjs && node --check updater_vendor.mjs && node --check scripts/linux-appimage.mjs && node --check scripts/build.mjs && node --check scripts/macos-capture-helper.mjs && node --test",
     "dev": "electron ."
   },
   "devDependencies": {
     "@electron/packager": "20.2.0",
     "electron": "45.1.0",
-    "electron-builder": "26.18.0"
+    "electron-builder": "26.18.0",
+    "electron-updater": "6.8.11",
+    "esbuild": "0.28.2"
   }
 }
