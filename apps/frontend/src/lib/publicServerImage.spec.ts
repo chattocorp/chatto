@@ -33,6 +33,65 @@ describe('publicServerImageURL', () => {
 });
 
 describe('loadPublicServerImage', () => {
+  it('retries a failed fetch once with a fresh response and the same privacy options', async () => {
+    const browserFetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(new Response('image', { headers: { 'Content-Type': 'image/png' } }));
+    vi.stubGlobal('fetch', browserFetch);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:retry');
+    const image = {
+      src: '',
+      removeAttribute: vi.fn(),
+      dispatchEvent: vi.fn()
+    } as unknown as HTMLImageElement;
+
+    loadPublicServerImage('https://chat.example/logo.png')(image);
+
+    await vi.waitFor(() => expect(image.src).toBe('blob:retry'));
+    expect(browserFetch).toHaveBeenCalledTimes(2);
+    expect(browserFetch.mock.calls[0][1].cache).toBeUndefined();
+    expect(browserFetch.mock.calls[1][1]).toEqual({
+      ...browserFetch.mock.calls[0][1],
+      cache: 'reload'
+    });
+    expect(image.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  it('does not retry again if the fresh request fails', async () => {
+    const browserFetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', browserFetch);
+    const image = {
+      removeAttribute: vi.fn(),
+      dispatchEvent: vi.fn()
+    } as unknown as HTMLImageElement;
+    loadPublicServerImage('https://chat.example/logo.png')(image);
+    await vi.waitFor(() => expect(image.dispatchEvent).toHaveBeenCalledOnce());
+    expect(browserFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a failed fetch after disposal', async () => {
+    let rejectRequest!: (reason: Error) => void;
+    const browserFetch = vi.fn(
+      () =>
+        new Promise<Response>((_, reject) => {
+          rejectRequest = reject;
+        })
+    );
+    vi.stubGlobal('fetch', browserFetch);
+    const image = {
+      removeAttribute: vi.fn(),
+      dispatchEvent: vi.fn()
+    } as unknown as HTMLImageElement;
+    const cleanup = loadPublicServerImage('https://chat.example/logo.png')(image);
+    cleanup?.();
+    rejectRequest(new TypeError('Failed to fetch'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(browserFetch).toHaveBeenCalledOnce();
+    expect(image.dispatchEvent).not.toHaveBeenCalled();
+  });
+
   it('loads an image without credentials, referrer data, or redirects', async () => {
     let requestSignal: AbortSignal | undefined;
     const browserFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -53,7 +112,6 @@ describe('loadPublicServerImage', () => {
     await vi.waitFor(() => expect(image.src).toBe('blob:public-image'));
     expect(removeAttribute).toHaveBeenCalledWith('src');
     expect(browserFetch).toHaveBeenCalledWith('https://chat.example/logo.webp', {
-      cache: 'no-cache',
       credentials: 'omit',
       redirect: 'error',
       referrerPolicy: 'no-referrer',

@@ -77,16 +77,22 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
 
     void (async () => {
       try {
-        const response = await fetch(source, {
-          // A plain <img> (for example in the sidebar) can cache a response
-          // without CORS headers on older servers. Revalidate it for this
-          // CORS request instead of reusing that response unchanged.
-          cache: 'no-cache',
+        const options: RequestInit = {
           credentials: 'omit',
           redirect: 'error',
           referrerPolicy: 'no-referrer',
           signal: controller.signal
-        });
+        };
+        let response: Response;
+        try {
+          response = await fetch(source, options);
+        } catch (error) {
+          if (!(error instanceof TypeError) || controller.signal.aborted) throw error;
+          // Older servers can leave a plain <img> response without CORS headers
+          // in the cache. Retry once with a fresh response, only after failure.
+          // Fetch does not distinguish CORS failures from other network errors.
+          response = await fetch(source, { ...options, cache: 'reload' });
+        }
         const mediaType = response.headers
           .get('content-type')
           ?.split(';', 1)[0]
