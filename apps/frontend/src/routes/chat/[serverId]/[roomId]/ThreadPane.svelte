@@ -10,7 +10,7 @@
   import type { ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
-  import { PaneHeader, HeaderIconButton } from '$lib/ui';
+  import { PaneHeader, HeaderIconButton, FloatingPopover } from '$lib/ui';
   import { expoOutTransition } from '$lib/ui/motion';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -108,6 +108,28 @@
     paneWidth >= 640 ? 12 : paneWidth >= 480 ? 8 : paneWidth >= 360 ? 5 : 3
   );
   const visibleParticipants = $derived(participants.slice(0, participantLimit));
+  let participantHint = $state<{
+    userId: string;
+    roomId: string;
+    threadRootEventId: string;
+    anchor: DOMRect;
+  } | null>(null);
+  const hintedParticipant = $derived(
+    participantHint?.roomId === roomId && participantHint.threadRootEventId === threadRootEventId
+      ? visibleParticipants.find((user) => user.id === participantHint?.userId)
+      : undefined
+  );
+  function showParticipantHint(event: MouseEvent | FocusEvent, userId: string) {
+    participantHint = {
+      userId,
+      roomId,
+      threadRootEventId,
+      anchor: (event.currentTarget as HTMLElement).getBoundingClientRect()
+    };
+  }
+  function hideParticipantHint() {
+    participantHint = null;
+  }
   // Resolve menu data from the current thread so removed participants cannot stay visible.
   const participantMenu = new UserMenuState<{
     roomId: string;
@@ -217,11 +239,15 @@
                     'relative pane-header-icon-button rounded-full not-disabled:hover:bg-transparent focus-visible:z-10 not-disabled:active:bg-transparent',
                     index > 0 && '-ms-4'
                   ]}
-                  title={name}
                   aria-label={name}
                   aria-haspopup="dialog"
                   aria-expanded={menuParticipant?.id === participant.id}
                   disabled={participant.deleted}
+                  onmouseenter={(event) => showParticipantHint(event, participant.id)}
+                  onmouseleave={hideParticipantHint}
+                  onfocus={(event) => showParticipantHint(event, participant.id)}
+                  onblur={hideParticipantHint}
+                  onpointerdown={hideParticipantHint}
                   onclick={(event) => participantMenu.open(menuTarget, event)}
                   {@attach participantMenu.trigger(() => (participant.deleted ? null : menuTarget))}
                 >
@@ -253,6 +279,32 @@
     {/snippet}
   </ConversationPane>
 </div>
+
+<svelte:window
+  onresize={hideParticipantHint}
+  onkeydowncapture={(event) => {
+    if (event.key === 'Escape' && participantHint && !menuParticipant) {
+      hideParticipantHint();
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }}
+/>
+
+{#if participantHint && hintedParticipant && !menuParticipant}
+  <FloatingPopover
+    anchor={participantHint.anchor}
+    role="tooltip"
+    class="pointer-events-none max-w-xs menu"
+    onclose={hideParticipantHint}
+  >
+    <div class="menu-section px-3 py-2 text-xs whitespace-normal">
+      {hintedParticipant.deleted
+        ? m('common.deleted_user')
+        : hintedParticipant.displayName || hintedParticipant.login || m('common.unknown_user')}
+    </div>
+  </FloatingPopover>
+{/if}
 
 {#if menuParticipant}
   <UserMenu

@@ -401,7 +401,14 @@ describe('ThreadPane', () => {
     await expect.element(group.getByRole('button', { name: 'Alice', exact: true })).toBeVisible();
     await expect.element(group.getByRole('button', { name: 'Carol', exact: true })).toBeVisible();
     await expect.element(group.getByRole('button', { name: 'Dave', exact: true })).toBeVisible();
-    await group.getByRole('button', { name: 'Bob', exact: true }).click();
+    const bobAvatar = group.getByRole('button', { name: 'Bob', exact: true });
+    await expect.element(bobAvatar).not.toHaveAttribute('title');
+    await bobAvatar.hover();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'Bob' })).toBeVisible();
+    await bobAvatar.click();
+    await expect
+      .element(page.getByRole('tooltip').filter({ hasText: 'Bob' }))
+      .not.toBeInTheDocument();
     const menu = page.getByRole('dialog', { name: 'User profile' });
     await expect.element(menu).toBeVisible();
     expect(onOpenProfile).not.toHaveBeenCalled();
