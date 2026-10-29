@@ -7,7 +7,7 @@ import packageJson from '../package.json' with { type: 'json' };
 import { pruneElectronLocales } from './locales.mjs';
 import { embedMacOSCaptureHelper } from './macos-capture-helper.mjs';
 import { macOSDistributionOptions } from './macos-signing.mjs';
-import { macOSVersions, releaseBuildVersion } from './version.mjs';
+import { macOSVersions, releaseBuildVersion, restoreReleaseVersion } from './version.mjs';
 import { desktopBuildProfile } from '../build_profile.mjs';
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +48,9 @@ const [bundleRoot] = await packager({
   appVersion: macVersions?.shortVersion ?? packageJson.version,
   buildVersion: macVersions?.bundleVersion ?? releaseBuildVersion(packageJson.version),
   appBundleId: profile.bundleIdentifier,
+  // The packager overwrites package.json after afterCopy and afterPrune.
+  // Restore SemVer before archiving so update channels and comparisons retain it.
+  beforeAsar: [async ({ buildPath }) => restoreReleaseVersion(buildPath, packageJson.version)],
   afterCopy: [
     async ({ buildPath }) => {
       // Electron reads this metadata before main starts. Separate names also

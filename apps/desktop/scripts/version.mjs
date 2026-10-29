@@ -1,3 +1,6 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 /** Convert a SemVer release into the numeric build version expected by packagers. */
 export function releaseBuildVersion(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(?:-[^.]+\.(\d+))?$/.exec(version);
@@ -26,4 +29,11 @@ export function macOSVersions(version) {
     shortVersion,
     bundleVersion: `${shortVersion}${suffix}${safeBuild}`
   };
+}
+/** Restore release SemVer after the packager writes the numeric macOS app version. */
+export async function restoreReleaseVersion(buildPath, version) {
+  const filename = path.join(buildPath, 'package.json');
+  const metadata = JSON.parse(await readFile(filename, 'utf8'));
+  metadata.version = version;
+  await writeFile(filename, JSON.stringify(metadata, null, 2));
 }
