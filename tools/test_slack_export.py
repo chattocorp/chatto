@@ -395,10 +395,74 @@ class SlackArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ApplyError, "structured metadata"):
             exporter.build_archive(self.plan())
 
+    def test_channel_event_reactions_are_reported_separately_from_content(self):
+        row = self.data["general/2020-01-01.json"][-1]
+        row["reactions"] = [{"name": "heart", "users": ["U2"], "count": 1}]
+        plan = self.plan()
+        blockers = {item["code"]: item for item in exporter.conversion_report(plan)["blockers"]}
+        self.assertEqual(blockers["channel_event_reactions"]["count"], 1)
+        self.assertEqual(blockers["channel_event_reactions"]["source_records"], [6])
+        self.assertNotIn("channel_event_content", blockers)
+        with self.assertRaisesRegex(ApplyError, "channel event type"):
+            exporter.build_archive(plan)
+        row["blocks"] = [{"type": "unsupported"}]
+        blockers = {item["code"] for item in exporter.conversion_report(self.plan())["blockers"]}
+        self.assertIn("channel_event_reactions", blockers)
+        self.assertIn("channel_event_content", blockers)
+
+    def test_membership_reactions_preserve_event_identity_and_timestamp(self):
+        for index in (0, 4):
+            self.data["general/2020-01-01.json"][index]["reactions"] = [
+                {"name": "wave::skin-tone-3", "users": ["U1", "U2"], "count": 2},
+                {"name": "custom_emoji", "users": ["U2"], "count": 1}]
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        self.assertEqual(exporter.conversion_report(plan)["blockers"], [])
+        for index, kind in ((0, "room.member_joined"), (4, "room.member_left")):
+            event = records["events"][index]
+            self.assertEqual(event["type"], kind)
+            self.assertEqual(event["occurred_at"], f"2020-01-01T00:00:0{index}.000000Z")
+            self.assertEqual(event["data"]["reactions"], [
+                {"emoji": "custom_emoji", "user_ids": ["U2"]},
+                {"emoji": "👋🏼", "user_ids": ["U1", "U2"]}])
+
     def test_private_channel_is_not_made_public(self):
         self.data["channels.json"][0]["is_private"] = True
         records, _ = exporter.build_archive(self.plan())
         self.assertEqual(records["rooms"][0]["visibility"], "private")
+
+    def test_oversized_body_replacement_preserves_message_and_reports_loss(self):
+        row = self.data["general/2020-01-01.json"][1]
+        row["text"] = "x" * 10001
+        row["files"] = [{"id": "F1", "mode": "hidden_by_limit"}]
+        plan = self.plan()
+        with self.assertRaises(exporter.OversizedBodyError):
+            exporter.build_archive(plan, allow_missing_files=True)
+        report = exporter.conversion_report(plan, allow_missing_files=True)
+        self.assertIn("oversized_message_body", {b["code"] for b in report["blockers"]})
+        records, _ = exporter.build_archive(plan, allow_missing_files=True, replace_oversized_messages=True)
+        validate_records(records)
+        root = records["events"][1]["data"]
+        self.assertEqual(root["content"]["body"]["text"], exporter.OVERSIZED_BODY_NOTICE)
+        self.assertEqual(root["content"]["asset_ids"], ["F1"])
+        self.assertEqual(root["author_id"], "U1")
+        self.assertEqual(root["created_at"], "2020-01-01T00:00:01.000001Z")
+        self.assertEqual(root["edited_at"], "2020-01-01T00:00:10.000000Z")
+        self.assertEqual(root["reactions"], [{"emoji": "❤️", "user_ids": ["U2"]}])
+        self.assertEqual(records["events"][2]["data"]["thread_id"], root["message_id"])
+        self.assertTrue(any(o["reason"].startswith("Oversized message bodies") and o["count"] == 1
+                            for o in records["manifest"]["omissions"]))
+        report = exporter.conversion_report(plan, allow_missing_files=True, replace_oversized_messages=True)
+        self.assertEqual(report["blockers"], [])
+        omission = next(o for o in report["omissions"] if o["code"] == "oversized_message_body")
+        self.assertEqual(omission["source_records"], [2])
+
+    def test_body_replacement_does_not_hide_other_conversion_errors(self):
+        for value in ("", "*unsupported legacy formatting*"):
+            self.data["general/2020-01-01.json"][1]["text"] = value
+            with self.subTest(value=value), self.assertRaises(ApplyError):
+                exporter.build_archive(self.plan(), replace_oversized_messages=True)
 
     def test_repeated_membership_transition_fails(self):
         self.data["general/2020-01-01.json"].append({"type": "message", "subtype": "channel_join",

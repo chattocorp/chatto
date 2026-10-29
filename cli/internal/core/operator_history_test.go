@@ -71,6 +71,30 @@ func TestHistoricalThreadImport(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestHistoricalRoomEventLegacyReceiptDoesNotRepeatTransition(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := c.CreateUser(ctx, SystemActorID, "legacy-member", "Member", "password")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "legacy-membership", "")
+	require.NoError(t, err)
+	in := HistoricalRoomChange{RoomID: room.Id, OperationKey: uuid.NewString(), Kind: "joined", Value: user.Id}
+	o, err := c.operatorOperation(ctx, in.OperationKey, "ImportRoomEvent", in)
+	require.NoError(t, err)
+	// Older servers retained only the room ID after committing a transition.
+	_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{o.receipt(room.Id)})
+	require.NoError(t, err)
+	before, err := c.EventPublisher.LastStreamSeq(ctx)
+	require.NoError(t, err)
+	id, err := c.ImportHistoricalRoomEvent(ctx, in)
+	require.NoError(t, err)
+	require.Empty(t, id)
+	after, err := c.EventPublisher.LastStreamSeq(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
+
 func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	t.Parallel()
 	const emoji = "Party_Parrot"

@@ -29,6 +29,10 @@ class ApplyError(ValueError):
     """A safe, content-free diagnostic for the operator."""
 
 
+class OversizedBodyError(ApplyError):
+    """The converted UTF-8 body exceeds the supported message size."""
+
+
 class APIError(ApplyError):
     def __init__(self, code, invalid_idempotency_key=False, invalid_deleted_content=False):
         super().__init__("Operator request failed (" + code + ").")
@@ -540,8 +544,10 @@ def convert(message, logins, allow_missing_files, allow_attachment_summaries=Fal
         if not allow_missing_files:
             raise ApplyError("Files require --allow-missing-files.")
         body += "\n\n[Attachment unavailable in this import]" * len(message["files"])
-    if (not body.strip() and not has_attachments) or len(body.encode()) > 10000:
-        raise ApplyError("Converted message is empty or exceeds the body limit.")
+    if not body.strip() and not has_attachments:
+        raise ApplyError("Converted message is empty.")
+    if len(body.encode()) > 10000:
+        raise OversizedBodyError("Converted message exceeds the body limit.")
     return body
 
 

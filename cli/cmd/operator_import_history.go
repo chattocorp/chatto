@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/interchange"
 	op "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,10 +23,15 @@ func (m *cliArchiveImport) roomChange(ctx context.Context, key string, r *op.Imp
 		return nil
 	}
 	r.OperationKey = m.progress.operation(key)
-	if _, err := m.roomAPI.ImportRoomEvent(ctx, operatorRequest(r)); err != nil {
+	res, err := m.roomAPI.ImportRoomEvent(ctx, operatorRequest(r))
+	if err != nil {
 		return err
 	}
-	return m.progress.put(key, "done")
+	id := res.Msg.EventId
+	if id == "" {
+		id = "done" // Older servers and receipts still support reaction-free imports.
+	}
+	return m.progress.put(key, id)
 }
 func (m *cliArchiveImport) messageChange(ctx context.Context, key string, r *op.ImportMessageChangeRequest) error {
 	if m.progress.values[key] != "" {
@@ -173,7 +180,33 @@ func (m *cliArchiveImport) history(ctx context.Context) error {
 		case "thread.created":
 			return m.messageChange(ctx, key, &op.ImportMessageChangeRequest{RoomId: room, MessageId: m.messages[d.RootID], ActorId: actor, OccurredAt: at, Change: &op.ImportMessageChangeRequest_CreateThread{CreateThread: true}})
 		case "room.member_joined", "room.member_left":
-			return join(m.users[d.UserID], e.Type == "room.member_joined", false)
+			if err := join(m.users[d.UserID], e.Type == "room.member_joined", false); err != nil {
+				return err
+			}
+			id := m.progress.values[key+"/member/"+m.users[d.UserID]]
+			if len(d.Reactions) > 0 && (id == "" || id == "done") {
+				return fmt.Errorf("membership reactions require an event ID from ImportRoomEvent; upgrade the destination server; older receipts cannot supply this ID")
+			}
+			for _, reaction := range d.Reactions {
+				// ImportReaction accepts names; interchange also permits Unicode.
+				emoji, err := core.HistoricalReactionName(reaction.Emoji)
+				if err != nil {
+					return err
+				}
+				for _, user := range reaction.UserIDs {
+					progressKey := key + "/reaction/" + reaction.Emoji + "/" + m.users[user]
+					if m.progress.values[progressKey] != "" {
+						continue
+					}
+					_, err := m.messageAPI.ImportReaction(ctx, operatorRequest(&op.ImportReactionRequest{RoomId: room, MessageEventId: id, UserId: m.users[user], Emoji: emoji}))
+					if err != nil {
+						return err
+					}
+					if err = m.progress.put(progressKey, "done"); err != nil {
+						return err
+					}
+				}
+			}
 		case "room.membership_snapshot":
 			final := map[string]bool{}
 			for _, id := range d.UserIDs {

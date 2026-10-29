@@ -117,6 +117,22 @@ native interchange events. Channel changes require structured source fields;
 the converter does not extract values from human-readable notice text.
 Every channel ends with an authoritative membership snapshot.
 
+Use `--replace-oversized-messages` to replace converted bodies over 10,000 UTF-8
+bytes with: "This message could not be imported because its converted content
+exceeds the message size limit." This omits the whole body, including attachment
+summary text, but preserves identity, author, timestamps, thread references,
+reactions, and file references. The report lists `oversized_message_body` as an
+omission, and the archive manifest records the replacement count. Without this
+option, oversized bodies block conversion. Other conversion errors still block
+conversion.
+Join/leave events retain their known reactors as reaction snapshots, without
+inventing reaction times. Import requires a destination that returns the event
+ID from `ImportRoomEvent` and accepts membership targets in `ImportReaction`.
+These reactions are stored even though the client does not yet show them.
+Reactions on other channel events stop conversion with
+`channel_event_reactions`. Blocks, attachments, or files on channel events are
+reported separately as `channel_event_content`.
+
 The manifest marks history as partial and capture consistency as unknown.
 Known gaps are declared as omissions. It does not use the conversion time as
 the source capture time. Rich-text conversion keeps the existing supported

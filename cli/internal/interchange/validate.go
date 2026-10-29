@@ -314,6 +314,18 @@ func (a *Archive) validateReferences() error {
 						return fail("invalid membership transition")
 					}
 					state[d.UserID] = want
+					emojis := map[string]bool{}
+					for _, reaction := range d.Reactions {
+						if emojis[reaction.Emoji] {
+							return fail("duplicate reaction group")
+						}
+						emojis[reaction.Emoji] = true
+						for _, id := range reaction.UserIDs {
+							if !users[id] {
+								return fail("unknown reactor reference")
+							}
+						}
+					}
 				}
 			default:
 				if metadata[e.RoomID] == nil {

@@ -566,7 +566,10 @@ func (*ImportRoomEventRequest_Archived) isImportRoomEventRequest_Change() {}
 
 // Successful historical channel operation.
 type ImportRoomEventResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Committed room event ID, stable across retries; usable as a reaction target
+	// for join/leave events. Empty for receipts created by older servers.
+	EventId       string `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -599,6 +602,13 @@ func (x *ImportRoomEventResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ImportRoomEventResponse.ProtoReflect.Descriptor instead.
 func (*ImportRoomEventResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_operator_v1_rooms_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ImportRoomEventResponse) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
 }
 
 var File_chatto_operator_v1_rooms_proto protoreflect.FileDescriptor
@@ -640,8 +650,9 @@ const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\x05topic\x18\r \x01(\tH\x00R\x05topic\x12\x1a\n" +
 	"\apurpose\x18\x0e \x01(\tH\x00R\apurpose\x12\x1c\n" +
 	"\barchived\x18\x0f \x01(\bH\x00R\barchivedB\b\n" +
-	"\x06change\"\x19\n" +
-	"\x17ImportRoomEventResponse2\x92\x03\n" +
+	"\x06change\"4\n" +
+	"\x17ImportRoomEventResponse\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId2\x92\x03\n" +
 	"\x13OperatorRoomService\x12j\n" +
 	"\x0fImportRoomEvent\x12*.chatto.operator.v1.ImportRoomEventRequest\x1a+.chatto.operator.v1.ImportRoomEventResponse\x12X\n" +
 	"\tListRooms\x12$.chatto.operator.v1.ListRoomsRequest\x1a%.chatto.operator.v1.ListRoomsResponse\x12[\n" +

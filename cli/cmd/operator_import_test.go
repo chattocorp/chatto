@@ -152,6 +152,30 @@ func TestOperatorImportRejectsSourceBeforeConnecting(t *testing.T) {
 	require.ErrorContains(t, command.Execute(), "source must be a directory")
 }
 
+func TestOperatorImportRejectsLongDisplayNameBeforeWrites(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+	path := filepath.Join(dir, "users.jsonl")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	var user map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &user))
+	user["display_name"] = strings.Repeat("ü", core.MaxDisplayNameLength+1)
+	encoded, err := json.Marshal(user)
+	require.NoError(t, err)
+	lines[0] = string(encoded)
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600))
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	_, err = env.execute(t, "operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress"))
+	require.ErrorContains(t, err, "unsupported destination name")
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
+
 func TestOperatorImportUnknownReactionNames(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
 	dir := t.TempDir()
@@ -179,4 +203,74 @@ func TestOperatorImportUnknownReactionNames(t *testing.T) {
 	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
 	require.NoError(t, err)
 	require.Equal(t, before, after)
+}
+
+func TestOperatorImportMembershipReactions(t *testing.T) {
+	for _, lostResponse := range []string{"ImportRoomEvent", "ImportReaction"} {
+		t.Run(lostResponse, func(t *testing.T) {
+			env := newOperatorCLITestEnv(t)
+			dir := t.TempDir()
+			require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+			path := filepath.Join(dir, "events.jsonl")
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+			lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+			for _, index := range []int{0, 8} {
+				var event map[string]any
+				require.NoError(t, json.Unmarshal([]byte(lines[index]), &event))
+				event["data"].(map[string]any)["reactions"] = []any{map[string]any{"emoji": "👋", "user_ids": []string{"user-1", "user-2"}}}
+				encoded, err := json.Marshal(event)
+				require.NoError(t, err)
+				lines[index] = string(encoded)
+			}
+			require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600))
+			original := env.server.Handler
+			var dropped atomic.Bool
+			env.server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				recorded := httptest.NewRecorder()
+				original.ServeHTTP(recorded, r)
+				if strings.HasSuffix(r.URL.Path, "/"+lostResponse) && recorded.Code == http.StatusOK && !dropped.Swap(true) {
+					connection, _, err := w.(http.Hijacker).Hijack()
+					if err == nil {
+						_ = connection.Close()
+					}
+					return
+				}
+				maps.Copy(w.Header(), recorded.Header())
+				w.WriteHeader(recorded.Code)
+				_, _ = w.Write(recorded.Body.Bytes())
+			})
+			args := []string{"operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+			_, err = env.execute(t, args...)
+			require.Error(t, err, "the first attempt loses a committed response")
+			env.run(t, args...)
+			require.True(t, dropped.Load())
+			facts, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, "evt.room.*.reaction_added")
+			require.NoError(t, err)
+			counts := map[string]int{}
+			for _, fact := range facts {
+				r := fact.GetReactionAdded()
+				if r.Emoji != "wave" {
+					continue
+				}
+				target, err := env.core.GetRoomEventByEventID(env.ctx, core.KindChannel, r.RoomId, r.MessageEventId)
+				require.NoError(t, err)
+				if target.GetUserJoinedRoom() != nil {
+					counts["joined"]++
+				} else if target.GetUserLeftRoom() != nil {
+					counts["left"]++
+				} else {
+					t.Fatal("reaction targeted a message instead of membership")
+				}
+				require.True(t, r.HistoricalImport)
+			}
+			require.Equal(t, map[string]int{"joined": 2, "left": 2}, counts)
+			before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+			require.NoError(t, err)
+			env.run(t, args...)
+			after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+			require.NoError(t, err)
+			require.Equal(t, before, after)
+		})
+	}
 }

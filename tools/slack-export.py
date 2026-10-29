@@ -18,12 +18,14 @@ from pathlib import Path
 import sys
 import uuid
 
-from slack_apply import ApplyError, CHANNEL_NOTICES, convert, fingerprint
+from slack_apply import ApplyError, OversizedBodyError, CHANNEL_NOTICES, convert, fingerprint
 from slack_api import SlackAPI, enrich_users, read_token
 from slack_files import FileCache, FileImports, file_inventory, file_references
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
+
+OVERSIZED_BODY_NOTICE = "This message could not be imported because its converted content exceeds the message size limit."
 
 # Keep the existing command and its recovery journals usable. Its source reader
 # has no side effects on import; conversion never constructs an Operator client.
@@ -160,7 +162,7 @@ def prepare_message(original):
 
 
 def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=False,
-                      allow_missing_files=False):
+                      allow_missing_files=False, replace_oversized_messages=False):
     """Scan independent source records without downloads or destination writes.
 
     References are one-based positions in the reader's ordered message list,
@@ -227,8 +229,10 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
             if any(user not in logins for user in reaction.get("users", [])):
                 add("blockers", "unresolved_reactor", position=position)
         if subtype in CHANNEL_NOTICES:
-            if original.get("blocks") or file_references(original) or original.get("attachments") or original.get("reactions"):
+            if original.get("blocks") or file_references(original) or original.get("attachments"):
                 add("blockers", "channel_event_content", position=position)
+            if original.get("reactions") and subtype not in {"channel_join", "channel_leave"}:
+                add("blockers", "channel_event_reactions", position=position)
             if subtype in {"channel_join", "channel_leave"}:
                 member = row["source_channel_id"], author
                 present = subtype == "channel_join"
@@ -257,6 +261,9 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
             add("blockers", "tombstone_content", position=position)
         try:
             convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
+        except OversizedBodyError:
+            add("omissions" if replace_oversized_messages else "blockers",
+                "oversized_message_body", position=position)
         except ApplyError:
             add("blockers", "unsupported_message_content", position=position)
     report["unsupported_emoji_names"] = len(unknown_names)
@@ -280,7 +287,7 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
 
 
 def build_archive(plan, downloads=None, *, allow_missing_files=False,
-                  allow_attachment_summaries=False, skip_canvases=False):
+                  allow_attachment_summaries=False, skip_canvases=False, replace_oversized_messages=False):
     """Build portable records and a file-copy list. Never call a destination API.
 
     Slack message rows are final observations, not edit/reaction history.
@@ -344,7 +351,23 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
     events, introduced, membership = [], set(), {}
     custom_reaction_names = set()
     newer_reaction_names = set()
-    mentions = summaries = broadcasts = 0
+    def reaction_snapshot(original):
+        """Preserve known reactors without inventing when their reactions occurred."""
+        reactions = collections.defaultdict(set)
+        for reaction in original.get("reactions", []):
+            for user in reaction.get("users", []):
+                if user not in logins:
+                    raise ApplyError("Unresolved reaction user.")
+                emoji = reaction_unicode(reaction["name"], emojis)
+                reactions[emoji].add(user)
+                if emoji == reaction["name"]:
+                    if emoji in slack_emoji_catalog()[0]:
+                        newer_reaction_names.add(emoji)
+                    else:
+                        custom_reaction_names.add(emoji)
+        return [{"emoji": emoji, "user_ids": sorted(ids)} for emoji, ids in sorted(reactions.items())]
+
+    mentions = summaries = broadcasts = oversized_bodies = 0
     for row in plan["messages"]:
         original = row["source"]
         subtype, key, room = original.get("subtype"), row["source_key"], row["source_channel_id"]
@@ -354,8 +377,10 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
         if not author and original.get("bot_id"):
             author = bot_authors.get(original["bot_id"])
         if subtype in CHANNEL_NOTICES:
-            if original.get("blocks") or file_references(original) or original.get("attachments") or original.get("reactions"):
+            if original.get("blocks") or file_references(original) or original.get("attachments"):
                 raise ApplyError("Channel event contains unsupported message content.")
+            if original.get("reactions") and subtype not in {"channel_join", "channel_leave"}:
+                raise ApplyError("Reactions on this channel event type are not supported by the interchange format and destination.")
             event.update(occurred_at=row["created_at"], actor_id=author if author in logins else None)
             if subtype in {"channel_join", "channel_leave"}:
                 if author not in logins:
@@ -366,6 +391,8 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                     raise ApplyError("Membership history has a repeated transition without its counterpart.")
                 membership[member] = present
                 event.update(type="room.member_joined" if subtype == "channel_join" else "room.member_left", data={"user_id": author})
+                if original.get("reactions"):
+                    event["data"]["reactions"] = reaction_snapshot(original)
                 inviter = original.get("inviter")
                 if inviter:
                     if inviter not in logins:
@@ -392,28 +419,21 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
         if subtype == "tombstone" and references:
             raise ApplyError("Tombstone contains unsupported content.")
         mentions += mention_count
-        body = convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
+        try:
+            body = convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
+        except OversizedBodyError:
+            if not replace_oversized_messages:
+                raise
+            body = OVERSIZED_BODY_NOTICE
+            oversized_bodies += 1
         summaries += has_attachments
         broadcasts += subtype == "thread_broadcast"
         content = {"status": "deleted"} if subtype == "tombstone" else {
             "status": "available", "body": {"format": "chatto-markdown", "text": body}, "asset_ids": references}
-        reactions = collections.defaultdict(set)
-        for reaction in original.get("reactions", []):
-            for user in reaction.get("users", []):
-                if user not in logins:
-                    raise ApplyError("Unresolved reaction user.")
-                emoji = reaction_unicode(reaction["name"], emojis)
-                reactions[emoji].add(user)
-                # Unresolved names retain their identity but have no image in the archive.
-                if emoji == reaction["name"]:
-                    if emoji in slack_emoji_catalog()[0]:
-                        newer_reaction_names.add(emoji)
-                    else:
-                        custom_reaction_names.add(emoji)
         event.update(type="message.snapshot", data={"message_id": key, "author_id": author,
             "thread_id": root, "reply_to": None, "content": content, "created_at": row["created_at"],
             "edited_at": row["edited_at"], "deleted_at": None,
-            "reactions": [{"emoji": emoji, "user_ids": sorted(ids)} for emoji, ids in sorted(reactions.items())]})
+            "reactions": reaction_snapshot(original)})
         events.append(event)
         introduced.add(key)
     for room in plan["rooms"]:
@@ -421,6 +441,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                        "room_id": room["source_id"], "actor_id": None, "occurred_at": None,
                        "data": {"user_ids": sorted(set(room["members"]))}})
     omit("unsupported", "Structured user mentions are retained as literal names.", mentions)
+    omit("unsupported", "Oversized message bodies are replaced with an import failure notice; original body content is omitted.", oversized_bodies)
     omit("unsupported", "Custom reaction names are retained; their emoji images are not included.", len(custom_reaction_names))
     omit("unsupported", "Newer standard reaction names are retained; the destination emoji catalog has no glyph mapping.", len(newer_reaction_names))
     omit("unsupported", "Attachment text is retained; layout and embedded media are omitted.", summaries)
@@ -527,6 +548,8 @@ def main():
     parser.add_argument("--allow-missing-files", action="store_true")
     parser.add_argument("--allow-attachment-summaries", action="store_true")
     parser.add_argument("--skip-canvases", action="store_true")
+    parser.add_argument("--replace-oversized-messages", action="store_true",
+                        help="replace bodies over 10,000 UTF-8 bytes with an import failure notice")
     parser.add_argument("--max-source-mib", type=int, default=256)
     parser.add_argument("--max-file-mib", type=int, default=25)
     parser.add_argument("--max-download-mib", type=int, default=1024)
@@ -562,7 +585,8 @@ def main():
             enrich_users(plan, SlackAPI(read_token(args.slack_token_file, sys.stdin)))
         stage = "source_scan"
         report = conversion_report(plan, allow_attachment_summaries=args.allow_attachment_summaries,
-                                   skip_canvases=args.skip_canvases, allow_missing_files=args.allow_missing_files)
+                                   skip_canvases=args.skip_canvases, allow_missing_files=args.allow_missing_files,
+                                   replace_oversized_messages=args.replace_oversized_messages)
         if report["blockers"]:
             report["status"] = "blocked"
             print("Conversion blocked; see conversion report.", file=sys.stderr)
@@ -572,7 +596,8 @@ def main():
         # Reject content and reference gaps before potentially expensive downloads.
         stage = "archive_validation"
         build_archive(plan, allow_missing_files=True,
-                      allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases)
+                      allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases,
+                      replace_oversized_messages=args.replace_oversized_messages)
         downloads = None
         stage = "file_downloads"
         if not args.skip_files and file_inventory(plan):
@@ -583,7 +608,8 @@ def main():
             report["file_failures"] = dict(collections.Counter(downloads.failures.values()))
         stage = "archive_validation"
         records, copies = build_archive(plan, downloads, allow_missing_files=args.allow_missing_files,
-            allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases)
+            allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases,
+            replace_oversized_messages=args.replace_oversized_messages)
         report["archive_omissions"] = records["manifest"]["omissions"]
         stage = "archive_write"
         write_archive(args.output, records, copies)

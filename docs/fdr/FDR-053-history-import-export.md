@@ -82,6 +82,15 @@ stop a partial import. Trusted imported emails can enable configured email
 sign-in; no passwords are created. Private rooms remain unsupported.
 
 Progress is saved in a private local journal under the user cache directory.
+Join/leave records can carry final reaction snapshots. The CLI retains the
+event ID returned by `ImportRoomEvent` and calls `ImportReaction` for each known
+reactor. These calls preserve the membership event as their target and do not
+invent source reaction times. Repeated calls do not create duplicate reactions.
+Room-event receipts now retain the event ID. Older receipts contain only a room
+ID and return an empty event ID; the CLI stops if reactions need that missing
+target, without repeating the membership transition. Older servers remain
+usable for archives without membership reactions. UI display is separate.
+
 `--progress PATH` selects another file. Preserve it and the immutable archive
 for retries. Operation receipts on the server prevent duplicate mutations even
 when a successful response is lost. Recovery does not use the sending retry

@@ -296,6 +296,11 @@
           "properties": {
             "user_id": {
               "$ref": "common.schema.json#/$defs/id"
+            },
+            "reactions": {
+              "description": "Final source reactions on this membership event; reaction times are unknown.",
+              "type": "array",
+              "items": {"$ref": "common.schema.json#/$defs/reaction"}
             }
           },
           "required": ["user_id"],
@@ -316,6 +321,11 @@
           "properties": {
             "user_id": {
               "$ref": "common.schema.json#/$defs/id"
+            },
+            "reactions": {
+              "description": "Final source reactions on this membership event; reaction times are unknown.",
+              "type": "array",
+              "items": {"$ref": "common.schema.json#/$defs/reaction"}
             }
           },
           "required": ["user_id"],
