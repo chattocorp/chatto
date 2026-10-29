@@ -1,6 +1,7 @@
 import type { DMData } from '$lib/hooks/useRoomData.svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page } from 'vitest/browser';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
@@ -116,6 +117,11 @@ vi.mock('$lib/client', async () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_id: string, fallback: string | null) => fallback,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
+  getLiveDisplayName: (_id: string, fallback: string) => fallback,
+  getLiveLogin: (_id: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
   getLiveCustomStatus: () => null
 }));
@@ -398,6 +404,10 @@ describe('ThreadPane', () => {
       .element(group.getByRole('button', { name: 'Dave', exact: true }))
       .not.toBeInTheDocument();
     await group.getByRole('button', { name: 'Bob', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'User profile' });
+    await expect.element(menu).toBeVisible();
+    expect(onOpenProfile).not.toHaveBeenCalled();
+    await menu.getByRole('button', { name: 'View profile' }).click();
     expect(onOpenProfile).toHaveBeenCalledWith('Bob');
 
     mocks.threadStore!.threadEvents = [participantRoot(['Carol'])];
@@ -413,12 +423,62 @@ describe('ThreadPane', () => {
     ).toBeNull();
   });
 
+  it('opens the participant menu on right-click and clears it when the participant disappears', async () => {
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob'])];
+    const rendered = render(ThreadPane, { props: threadProps });
+    const group = rendered.getByRole('group', { name: 'Thread participants (2)' });
+    const avatar = group.getByRole('button', { name: 'Bob', exact: true });
+    await avatar.click({ button: 'right' });
+    const menu = page.getByRole('dialog', { name: 'User profile' });
+    await expect.element(menu).toBeVisible();
+    await expect.element(menu.getByText('@Bob', { exact: true })).toBeVisible();
+    await expect.element(avatar).toHaveAttribute('aria-expanded', 'true');
+
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice'])];
+    await expect.element(menu).not.toBeInTheDocument();
+  });
+
+  it('closes the participant menu when switching threads even if the user is in both', async () => {
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice'])];
+    const other = new ThreadPaneTestStore();
+    other.threadEvents = [{ ...participantRoot(['Alice']), id: 'thread-2' }];
+    threadStores.set('thread-2', other);
+    const rendered = render(ThreadPane, { props: threadProps });
+    await rendered.getByRole('group').getByRole('button', { name: 'Alice', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'User profile' });
+    await expect.element(menu).toBeVisible();
+    await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
+    await expect.element(menu).not.toBeInTheDocument();
+  });
+
   it('does not show participants from a reply when the root is unavailable', async () => {
     mocks.threadStore!.threadEvents = [{ ...participantRoot(['Alice']), id: 'reply' }];
     const rendered = render(ThreadPane, { props: threadProps });
     expect(
       rendered.container.querySelector('[data-testid="thread-header-participants"]')
     ).toBeNull();
+  });
+
+  it('keeps a large participant count and header controls inside a narrow pane', async () => {
+    await page.viewport(320, 480);
+    try {
+      mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob', 'Carol', 'Dave'], 10000)];
+      const rendered = render(ThreadPane, {
+        props: { ...threadProps, roomName: 'a-very-long-channel-name-for-the-header' }
+      });
+      const group = rendered.getByRole('group', { name: 'Thread participants (10000)' });
+      await expect.element(group.getByText('+9997')).toBeVisible();
+      const header = q(rendered.container, '[data-page-reveal]')!;
+      for (const button of header.querySelectorAll('button')) {
+        if (!button.getClientRects().length) continue;
+        const rect = button.getBoundingClientRect();
+        expect(rect.left).toBeGreaterThanOrEqual(0);
+        expect(rect.right).toBeLessThanOrEqual(320);
+      }
+      expect(header.scrollWidth).toBeLessThanOrEqual(320);
+    } finally {
+      await page.viewport(1280, 720);
+    }
   });
 
   it('updates the composer when interaction posting is granted and revoked', async () => {

@@ -14,6 +14,9 @@
   import { expoOutTransition } from '$lib/ui/motion';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
+  import { startDMWith } from '$lib/dm/startDM';
   import ConversationPane from './ConversationPane.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -100,6 +103,18 @@
       : 0
   );
   const visibleParticipants = $derived(participants.slice(0, 3));
+  // Resolve menu data from the current thread so removed participants cannot stay visible.
+  const participantMenu = new UserMenuState<{
+    roomId: string;
+    threadRootEventId: string;
+    userId: string;
+  }>();
+  const menuParticipant = $derived(
+    participantMenu.target?.roomId === roomId &&
+      participantMenu.target.threadRootEventId === threadRootEventId
+      ? participants.find((user) => user.id === participantMenu.target?.userId && !user.deleted)
+      : undefined
+  );
   let canPost = $derived(
     threadingMode !== RoomThreadingMode.DISABLED &&
       (isMessagePostedEvent(threadMessage)
@@ -186,6 +201,7 @@
               data-testid="thread-header-participants"
             >
               {#each visibleParticipants as participant, index (participant.id)}
+                {@const menuTarget = { roomId, threadRootEventId, userId: participant.id }}
                 {@const name = participant.deleted
                   ? m('common.deleted_user')
                   : participant.displayName || participant.login || m('common.unknown_user')}
@@ -197,8 +213,11 @@
                   ]}
                   title={name}
                   aria-label={name}
-                  disabled={!onOpenProfile || participant.deleted}
-                  onclick={() => onOpenProfile?.(participant.id)}
+                  aria-haspopup="dialog"
+                  aria-expanded={menuParticipant?.id === participant.id}
+                  disabled={participant.deleted}
+                  onclick={(event) => participantMenu.open(menuTarget, event)}
+                  {@attach participantMenu.trigger(() => (participant.deleted ? null : menuTarget))}
                 >
                   <UserAvatar user={participant} size="sm" class="ring-2 ring-background" />
                 </button>
@@ -228,3 +247,14 @@
     {/snippet}
   </ConversationPane>
 </div>
+
+{#if menuParticipant}
+  <UserMenu
+    state={participantMenu}
+    user={menuParticipant}
+    canSendMessage={stores.permissions.canStartDMs}
+    viewerSettings={stores.currentUser.user?.settings}
+    onSendMessage={() => startDMWith(serverScope.serverId, menuParticipant!.id)}
+    {onOpenProfile}
+  />
+{/if}

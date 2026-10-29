@@ -71,13 +71,15 @@ picker uses it to fill the sheet width.
   function handleKeydown(e: KeyboardEvent) {
     if (useSheet) return;
     if (e.key === 'Escape') {
+      e.preventDefault();
       e.stopPropagation();
       onclose();
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<!-- Right-click can leave focus in the composer. Consume Escape before it reaches that input. -->
+<svelte:document onkeydowncapture={handleKeydown} />
 
 {#if useSheet}
   <BottomSheet bind:visible={sheetVisible} {ariaLabel} {onclose}>

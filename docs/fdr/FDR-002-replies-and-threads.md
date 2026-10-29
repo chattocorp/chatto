@@ -56,7 +56,8 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
 - Below 1024 px viewport width, the thread header has one back arrow to return to the room and no trailing close button. Desktop controls remain available at wider widths. Header targets are at least 44 px square whenever touch input is available.
 - The thread header shows up to three participant avatars and the number of
-  additional participants. Select an avatar to open that user's profile.
+  additional participants. Left-click, right-click, or long-press an avatar to
+  open the user context menu. The menu includes the full profile action.
   Participants are authors of current replies; the root author appears only
   if they also replied. The preview stays compact to leave room for header controls.
 - A root message with an attached thread does not group with adjacent messages
