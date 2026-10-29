@@ -6,6 +6,13 @@
       "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
     },
     "notifications": {
+      "all_notifications": "Wszystkie powiadomienia",
+      "all_types": "Wszystkie typy",
+      "filter_status": "Stan",
+      "filter_type": "Typ",
+      "reactions": "Reakcje",
+      "replies": "Odpowiedzi",
+      "mentions": "Wzmianki",
       "next_unread_source": "Przejdź do następnego nieprzeczytanego źródła",
       "no_unread": "Brak nieprzeczytanych powiadomień",
       "title": "Powiadomienia",

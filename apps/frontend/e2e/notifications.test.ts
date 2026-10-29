@@ -327,9 +327,7 @@ test.describe('Notification Bell & Page', () => {
 
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(1, TIMEOUTS.REALTIME_EVENT);
-    await expect(
-      notificationsPage.getNotificationBySummary('sent you a direct message')
-    ).toBeVisible();
+    await expect(notificationsPage.getNotificationBySummary('sent you a DM')).toBeVisible();
   });
 });
 
@@ -547,7 +545,7 @@ test.describe('Notification Page Display', () => {
       await expect(notification).toContainText('👍');
       await expect(notification).toContainText('❤️');
       await expect(notification).toContainText('and others reacted with');
-      await expect(notification).toContainText('to your message');
+      await expect(notification).toContainText('reacted with');
       await expect(notification).toContainText('#general');
       await expect(notification).not.toContainText(messageText);
       await expect(serverNotificationBadge(page)).toHaveClass(/bg-text/);
@@ -1383,7 +1381,7 @@ test.describe('Room Reply Notifications', () => {
 
     // Verify notification page shows reply notification with correct content
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('replied to your message');
+    const notification = notificationsPage.getNotificationBySummary('replied to you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.expectNotificationWithLocation(notification, 'general');
   });
@@ -1409,7 +1407,7 @@ test.describe('Room Reply Notifications', () => {
 
     // User A: Click the reply notification
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('replied to your message');
+    const notification = notificationsPage.getNotificationBySummary('replied to you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.clickNotification(notification);
 

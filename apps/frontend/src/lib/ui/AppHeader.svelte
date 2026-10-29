@@ -74,7 +74,11 @@
     {#if hasInstances}
       <!-- Notification bell - 44px tap target for mobile accessibility -->
       <a
-        href={resolve('/chat/notifications')}
+        href={getActiveServer() && serverRegistry.isAuthenticated(getActiveServer())
+          ? resolve('/chat/[serverId]/notifications', {
+              serverId: serverIdToSegment(getActiveServer())
+            })
+          : resolve('/chat/notifications')}
         aria-label={m('ui.notifications')}
         title={m('ui.notifications')}
         class="app-header-icon relative"

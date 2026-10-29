@@ -75,6 +75,22 @@
   </form>
 </Story>
 
+<Story name="Long labels in a narrow control" asChild>
+  <div class="w-64">
+    <SegmentedControl
+      label="Notification type"
+      options={[
+        { value: 'all', label: 'Alle Typen' },
+        { value: 'replies', label: 'Antworten' },
+        { value: 'mentions', label: 'Erwähnungen' },
+        { value: 'reactions', label: 'Reaktionen' }
+      ]}
+      value="all"
+      onchange={() => {}}
+    />
+  </div>
+</Story>
+
 <Story name="Disabled" asChild>
   <SegmentedControl
     label="Sort messages"

@@ -6,6 +6,13 @@
       "confirmation": "15分間、このサーバーで割り当てられている追加の権限を有効にします。"
     },
     "notifications": {
+      "all_notifications": "すべての通知",
+      "all_types": "すべての種類",
+      "filter_status": "状態",
+      "filter_type": "種類",
+      "reactions": "リアクション",
+      "replies": "返信",
+      "mentions": "メンション",
       "next_unread_source": "次の未読の通知元に移動",
       "no_unread": "未読の通知はありません",
       "title": "通知",

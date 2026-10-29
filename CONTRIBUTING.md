@@ -197,6 +197,19 @@ IDs and timestamps change. Each run adds data. A failed run can leave partial
 data. Add `--json` to get the generated IDs and text, or `--help` for options.
 Seeding is available only in development and test builds.
 
+To populate an existing account's notification page across several days:
+
+```sh
+mise seed -- --seed 42 --users 6 --rooms 3 --messages 0 \
+  --notification-recipient alice --notifications 40 --notification-days 5
+```
+
+This adds mentions, replies, and reactions with historical message targets.
+One quarter start as read. The recipient joins the generated rooms and follows
+the generated reply threads. These additional messages are separate from the
+`--messages` count. Notification fixtures use in-app delivery, without Web Push.
+The recipient login must exist. Restart `mise dev` after changes to the seeder.
+
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) runs the root `mise` tasks as native
@@ -336,8 +349,7 @@ even when the stable hostnames differ.
 Run `mise test-dev-tooling` to check environment defaults, disabled NATS
 listeners, cleanup after failure, route ownership, and real Traefik routing.
 The routing test checks that changes to another route preserve a WebSocket,
-that proxy restarts restore routes, and that unknown or removed hosts return
-404. The lifecycle test runs the real mise task graph with test listeners. It
+that proxy restarts restore routes, and that unknown or removed hosts return 404. The lifecycle test runs the real mise task graph with test listeners. It
 checks that one stop closes all listeners and removes routes and runtime state
 within Paseo's shutdown deadline. This task also runs in CI and as part of
 `mise test`.

@@ -71,7 +71,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
 
 <fieldset
   class={[
-    'group/segmented relative inline-flex h-10 w-fit min-w-0 items-center gap-1 segmented-track p-1',
+    'group/segmented relative inline-flex h-10 w-fit max-w-full min-w-0 items-center gap-1 segmented-track p-1',
     className
   ]}
   {disabled}
@@ -99,7 +99,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
           'relative z-10 inline-flex h-full min-w-10 items-center justify-center rounded-lg px-3 text-sm font-medium text-muted transition-[background-color,color] feedback-quick peer-checked:bg-[var(--segmented-fill)] peer-checked:text-text-top group-data-[indicator-ready=true]/segmented:peer-checked:bg-transparent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text'
         ]}
       >
-        {option.label}
+        <span class="min-w-0 truncate" title={option.label}>{option.label}</span>
       </span>
     </label>
   {/each}

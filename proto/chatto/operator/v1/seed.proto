@@ -16,6 +16,12 @@ message SeedDataRequest {
   int32 messages = 5;
   // Number of posts that reply to generated root messages. Requires at least one root.
   int32 thread_replies = 6;
+  // Existing login that receives the additional notification fixtures.
+  string notification_recipient = 7;
+  // Additional notifications and their historical message targets, from 0 to 1000.
+  int32 notifications = 8;
+  // Days of notification history, including today, from 1 to 30 when enabled.
+  int32 notification_days = 9;
 }
 
 // A generated passwordless account. Use operator user commands to set a password.
@@ -66,6 +72,8 @@ message SeedDataResponse {
   repeated SeedRoom rooms = 5;
   // Generated root messages followed by generated thread replies.
   repeated SeedMessage messages = 6;
+  // Number of additional notification fixtures created for the recipient.
+  int32 notification_count = 7;
 }
 
 // Local synthetic data generation, served only by development and test builds

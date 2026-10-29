@@ -113,7 +113,7 @@
 </script>
 
 <Story name="Single server" asChild>
-  <div class="selectable-list max-w-2xl">
+  <div class="selectable-list max-w-5xl">
     {#each rows as row, index (index)}
       <NotificationRow
         {...row}
@@ -125,8 +125,22 @@
   </div>
 </Story>
 
+<Story name="Wrapped rows" asChild>
+  <div class="selectable-list w-80 max-w-full">
+    {#each rows as row, index (index)}
+      <NotificationRow
+        {...row}
+        summaryAccounts={accounts(row.actor)}
+        server={servers[index % servers.length]}
+        onopen={() => undefined}
+        ondismiss={() => undefined}
+      />
+    {/each}
+  </div>
+</Story>
+
 <Story name="Multiple servers" asChild>
-  <div class="selectable-list max-w-2xl">
+  <div class="selectable-list max-w-5xl">
     {#each rows as row, index (index)}
       <NotificationRow
         {...row}

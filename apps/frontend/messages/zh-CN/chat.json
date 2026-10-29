@@ -6,6 +6,13 @@
       "confirmation": "这会在 15 分钟内启用你在此服务器上获得的额外权限。"
     },
     "notifications": {
+      "all_notifications": "所有通知",
+      "all_types": "所有类型",
+      "filter_status": "状态",
+      "filter_type": "类型",
+      "reactions": "表情回应",
+      "replies": "回复",
+      "mentions": "提及",
       "next_unread_source": "前往下一个未读通知来源",
       "no_unread": "没有未读通知",
       "title": "通知",

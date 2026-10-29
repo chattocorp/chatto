@@ -174,6 +174,57 @@ describe('notifications page', () => {
     vi.unstubAllGlobals();
   });
 
+  it('combines unread and type filters across servers', async () => {
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        id: 'read-reaction',
+        signalKind: NotificationSignalKind.REACTION,
+        unread: false
+      },
+      {
+        ...mocks.occurrence,
+        id: 'reply',
+        signalKind: NotificationSignalKind.FOLLOWED_THREAD,
+        eventId: 'reply-event'
+      }
+    ]);
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', {
+      ...mocks.store,
+      notifications: {
+        ...mocks.store.notifications,
+        occurrences: [
+          {
+            ...mocks.occurrence,
+            id: 'remote-reaction',
+            signalKind: NotificationSignalKind.REACTION
+          }
+        ]
+      }
+    });
+    const screen = render(NotificationsPage);
+    await expect
+      .poll(() => screen.container.querySelectorAll('[data-testid="notification-group"]').length)
+      .toBe(3);
+    await screen.getByRole('radio', { name: 'Reactions', exact: true }).click();
+    await expect
+      .poll(() => screen.container.querySelectorAll('[data-testid="notification-group"]').length)
+      .toBe(2);
+    await screen.getByRole('radio', { name: 'Unread', exact: true }).click();
+    await expect
+      .poll(() => screen.container.querySelectorAll('[data-testid="notification-group"]').length)
+      .toBe(1);
+    expect(serverHosts(screen.container)).toContain('remote.example.test');
+    await screen.getByRole('radio', { name: 'Replies', exact: true }).click();
+    await expect
+      .poll(() => screen.container.querySelectorAll('[data-testid="notification-group"]').length)
+      .toBe(1);
+    expect(serverHosts(screen.container)).toContain('chat.example.test');
+    await screen.getByRole('radio', { name: 'Mentions', exact: true }).click();
+    await expect.element(screen.getByText('No unread notifications')).toBeVisible();
+  });
+
   it('queues an unread occurrence to be marked read after its target is displayed', async () => {
     const { container } = render(NotificationsPage);
     const item = await vi.waitFor(() => {
@@ -229,7 +280,7 @@ describe('notifications page', () => {
     expect(mocks.store.pendingHighlights.set).not.toHaveBeenCalled();
   });
 
-  it('uses the notification orange and reveals a quiet delete action from the row', async () => {
+  it('keeps unread rows neutral and reveals a quiet delete action from the row', async () => {
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
       const element = q(container, '[data-testid="notification-group"]');
@@ -240,7 +291,7 @@ describe('notifications page', () => {
     const deleteButton = q(row, 'button[aria-label="Delete"]') as HTMLButtonElement;
 
     expect(row.classList.contains('cursor-pointer')).toBe(true);
-    expect(row.classList.contains('bg-attention/5')).toBe(true);
+    expect(row.classList.contains('bg-attention/5')).toBe(false);
     expect(q(row, '[data-testid="notification-unread-dot"]')).toBeNull();
     expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
     expect(deleteButton.classList.contains('icon-action')).toBe(true);
@@ -311,9 +362,8 @@ describe('notifications page', () => {
     expect(readTarget.classList.contains('text-muted')).toBe(false);
     expect(unreadTarget.classList.contains('text-muted')).toBe(false);
     expect(q(readContent, 'bdi')?.classList.contains('font-semibold')).toBe(false);
+    expect(q(readContent, 'bdi')?.classList.contains('text-muted')).toBe(true);
     expect(q(unreadContent, 'bdi')?.classList.contains('font-semibold')).toBe(true);
-    expect(readContent.querySelectorAll(':scope > *')).toHaveLength(2);
-    expect(unreadContent.querySelectorAll(':scope > *')).toHaveLength(2);
     expect(q(container, '[data-testid="activity-server"]')).toBeNull();
     expect(q(container, '[data-testid="notification-server-name"]')).toBeNull();
   });
@@ -468,7 +518,7 @@ describe('notifications page', () => {
       return rows[0] as HTMLElement;
     });
 
-    expect(row.textContent).toContain('Alice and others reacted with 👍 ❤️ to your message');
+    expect(row.textContent).toContain('Alice and others reacted with 👍 ❤️');
     expect(row.textContent?.match(/#general/g)).toHaveLength(1);
     expect(row.dataset.notificationAttention).toBe('ambient');
     expect(row.classList.contains('bg-attention/5')).toBe(false);
@@ -507,7 +557,7 @@ describe('notifications page', () => {
       });
 
       expect(row.textContent).toContain(
-        `Bob reacted with ${emoji === 'heart' ? '❤️' : ':Party_Parrot:'} to your message`
+        `Bob reacted with ${emoji === 'heart' ? '❤️' : ':Party_Parrot:'}`
       );
       if (emoji !== 'heart') {
         expect(q(row, '[data-testid="activity-badge"]')?.textContent?.trim()).toBe('');
@@ -556,7 +606,7 @@ describe('notifications page', () => {
       return element as HTMLElement;
     });
 
-    expect(row.textContent).toContain('Alice and others reacted with ❤️ 👍 to your message');
+    expect(row.textContent).toContain('Alice and others reacted with ❤️ 👍');
     expect(row.textContent).not.toContain('[deleted user] and others');
   });
 
@@ -670,9 +720,7 @@ describe('notifications page', () => {
 
       await vi.waitFor(() => {
         expect(rendered.container.textContent).not.toContain('Alice Example');
-        expect(rendered.container.textContent).toContain(
-          '[deleted user] reacted with ❤️ to your message'
-        );
+        expect(rendered.container.textContent).toContain('[deleted user] reacted with ❤️');
       });
     } finally {
       rendered.unmount();
@@ -834,11 +882,12 @@ describe('notifications page', () => {
     const { container } = render(NotificationsPage);
     const headings = await vi.waitFor(() => {
       const elements = container.querySelectorAll('[data-testid="notification-date-heading"]');
-      expect(elements.length).toBeGreaterThanOrEqual(3);
+      expect(elements.length).toBe(2);
       return [...elements].map((heading) => heading.textContent?.trim());
     });
 
-    expect(headings).toContain('Today');
+    expect(headings).not.toContain('Today');
+    expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(3);
     expect(headings).toContain('Yesterday');
     expect(headings.some((heading) => heading?.match(/\w+ \d{4}/))).toBe(true);
     const firstHeading = container.querySelector(
@@ -1174,38 +1223,50 @@ describe('notifications page', () => {
     }
   });
 
-  it('continues past an empty privacy-filtered page using its raw consumed offset', async () => {
-    const originalStore = mocks.store.notifications;
-    const api = {
-      listNotificationOccurrences: vi.fn((_limit: number, offset = 0) => {
-        return Promise.resolve(
-          offset === 50
-            ? { ...page([mocks.occurrence as NotificationOccurrenceItem]), consumedCount: 1 }
-            : page([])
-        );
-      }),
-      markNotificationRead: vi.fn(),
-      batchDeleteNotificationOccurrences: vi.fn(),
-      deleteAllNotificationOccurrences: vi.fn(),
-      getNotificationPolicy: vi.fn(),
-      updateNotificationPolicy: vi.fn()
-    };
-    const notificationStore = new NotificationStore(api as never);
-    notificationStore.replaceOccurrenceProjection({ ...page([], true), consumedCount: 50 });
-    const fetchPage = vi.spyOn(notificationStore, 'fetchPage');
-    (mocks.store as { notifications: unknown }).notifications = notificationStore;
-
-    const { container, unmount } = render(NotificationsPage);
-    try {
-      await vi.waitFor(() => {
-        expect(fetchPage).toHaveBeenCalledWith(50);
-        expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+  it.each(['privacy', 'unread'] as const)(
+    'continues past an empty %s-filtered page using its raw consumed offset',
+    async (filter) => {
+      const originalStore = mocks.store.notifications;
+      const api = {
+        listNotificationOccurrences: vi.fn((_limit: number, offset = 0) => {
+          return Promise.resolve(
+            offset === 50
+              ? { ...page([mocks.occurrence as NotificationOccurrenceItem]), consumedCount: 1 }
+              : page([])
+          );
+        }),
+        markNotificationRead: vi.fn(),
+        batchDeleteNotificationOccurrences: vi.fn(),
+        deleteAllNotificationOccurrences: vi.fn(),
+        getNotificationPolicy: vi.fn(),
+        updateNotificationPolicy: vi.fn()
+      };
+      const notificationStore = new NotificationStore(api as never);
+      notificationStore.replaceOccurrenceProjection({
+        ...page(
+          filter === 'unread'
+            ? [{ ...mocks.occurrence, id: 'read', unread: false } as NotificationOccurrenceItem]
+            : [],
+          true
+        ),
+        consumedCount: 50
       });
-    } finally {
-      unmount();
-      (mocks.store as { notifications: unknown }).notifications = originalStore;
+      const fetchPage = vi.spyOn(notificationStore, 'fetchPage');
+      (mocks.store as { notifications: unknown }).notifications = notificationStore;
+
+      const { container, unmount, getByRole } = render(NotificationsPage);
+      try {
+        if (filter === 'unread') await getByRole('radio', { name: 'Unread', exact: true }).click();
+        await vi.waitFor(() => {
+          expect(fetchPage).toHaveBeenCalledWith(50);
+          expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+        });
+      } finally {
+        unmount();
+        (mocks.store as { notifications: unknown }).notifications = originalStore;
+      }
     }
-  });
+  );
 
   it('consolidates one direct-message group across loaded pages and dismisses every member', async () => {
     const originalStore = mocks.store.notifications;
