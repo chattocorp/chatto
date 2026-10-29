@@ -79,6 +79,7 @@ const { mocks } = vi.hoisted(() => {
 let server: TestServerScope;
 const reactionOccurrences = signal<NotificationOccurrenceItem[]>([]);
 const present = signal(true);
+const liveParticipantProfiles = signal<Record<string, { displayName: string; login: string }>>({});
 
 /** The event bus delivers resources after the store has applied their rows. */
 function notifyReactionUpdate() {
@@ -120,8 +121,10 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_id: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
-  getLiveDisplayName: (_id: string, fallback: string) => fallback,
-  getLiveLogin: (_id: string, fallback: string) => fallback,
+  getLiveDisplayName: (id: string, fallback: string) =>
+    liveParticipantProfiles.get()[id]?.displayName ?? fallback,
+  getLiveLogin: (id: string, fallback: string) =>
+    liveParticipantProfiles.get()[id]?.login ?? fallback,
   getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
   getLiveCustomStatus: () => null
 }));
@@ -315,6 +318,7 @@ function participantRoot(ids: string[], count = ids.length): TimelineEventView {
 describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    liveParticipantProfiles.set({});
     mocks.realUnreadLifecycle = false;
     reactionOccurrences.set([]);
     Object.defineProperty(mocks.appState, 'isPresent', {
@@ -426,6 +430,24 @@ describe('ThreadPane', () => {
     expect(
       rendered.container.querySelector('[data-testid="thread-header-participants"]')
     ).toBeNull();
+  });
+
+  it('updates participant labels and an open hint when the live profile changes', async () => {
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice'])];
+    const rendered = render(ThreadPane, { props: threadProps });
+    const group = rendered.getByRole('group', { name: 'Thread participants (1)' });
+    await group.getByRole('button', { name: 'Alice', exact: true }).hover();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'Alice' })).toBeVisible();
+
+    liveParticipantProfiles.set({ Alice: { displayName: 'Alicia', login: 'new-login' } });
+    await expect.element(group.getByRole('button', { name: 'Alicia', exact: true })).toBeVisible();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'Alicia' })).toBeVisible();
+
+    liveParticipantProfiles.set({ Alice: { displayName: '', login: 'new-login' } });
+    await expect
+      .element(group.getByRole('button', { name: 'new-login', exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'new-login' })).toBeVisible();
   });
 
   it('opens the participant menu on right-click and clears it when the participant disappears', async () => {

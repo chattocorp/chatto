@@ -17,6 +17,7 @@
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import { startDMWith } from '$lib/dm/startDM';
+  import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import ConversationPane from './ConversationPane.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -107,7 +108,18 @@
   const participantLimit = $derived(
     paneWidth >= 640 ? 12 : paneWidth >= 480 ? 8 : paneWidth >= 360 ? 5 : 3
   );
-  const visibleParticipants = $derived(participants.slice(0, participantLimit));
+  // Profile changes must update labels and open hints without refreshing the thread summary.
+  const visibleParticipants = $derived(
+    participants.slice(0, participantLimit).map((user) =>
+      user.deleted
+        ? user
+        : {
+            ...user,
+            displayName: getLiveDisplayName(user.id, user.displayName ?? ''),
+            login: getLiveLogin(user.id, user.login ?? '')
+          }
+    )
+  );
   let participantHint = $state<{
     userId: string;
     roomId: string;
