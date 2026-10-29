@@ -105,8 +105,8 @@ move the full frame width to follow a finger. Select a destination, use the app-
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
-route. Rows have a minimum height of 48 px in comfortable density.
-Compact density keeps smaller rows. Text and icon sizes do not change. Keep long
+route. Rows keep compact spacing for both mouse and touch input.
+Text and icon sizes do not change. Keep long
 navigation lists in a scrollable region so all rows remain reachable.
 The shared primitive uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,
