@@ -174,6 +174,17 @@
   </div>
 </Story>
 
+<Story name="Subdued metadata" asChild>
+  <div class="space-y-4 bg-background p-4">
+    <p class="flex gap-4 text-text">
+      Normal text <span class="text-subdued">Inherited metadata</span>
+    </p>
+    <p class="flex gap-4 text-muted">
+      Muted text <span class="text-subdued">#general · 12:30</span>
+    </p>
+  </div>
+</Story>
+
 <Story name="Semantic + opacity tints" asChild>
   <p class="mb-3 max-w-prose text-sm text-muted">
     Semantic colors are commonly used at low opacity for subtle background tints (e.g. <code

@@ -155,7 +155,10 @@ const unusedStyleAllowlistEntries = new Set(styleBlockAllowlist);
 
 // Tailwind silently ignores color utilities whose token does not exist, so a
 // typo or a token from another design system renders nothing. Accept only the
-// --color-* tokens that src/app.css defines, plus CSS keywords.
+// --color-* tokens and named utilities that src/app.css defines, plus CSS keywords.
+const semanticUtilities = new Set(
+  [...appCss.matchAll(/@utility\s+([a-z][a-z0-9-]*)\s*\{/g)].map((match) => match[1])
+);
 const colorTokens = new Set([
   ...[...appCss.matchAll(/--color-([a-z0-9-]+)\s*:/g)].map((match) => match[1]),
   'white',
@@ -302,12 +305,17 @@ for (const file of await svelteFiles(sourceRoot)) {
   if (!isTestSupportFile(path)) {
     for (const match of utilitySource.matchAll(colorUtility)) {
       const [, prefix, name] = match;
-      if (colorTokens.has(name) || nonColorSuffixes[prefix].test(name) || paletteName.test(name)) {
+      if (
+        semanticUtilities.has(`${prefix}-${name}`) ||
+        colorTokens.has(name) ||
+        nonColorSuffixes[prefix].test(name) ||
+        paletteName.test(name)
+      ) {
         continue;
       }
       const line = utilitySource.slice(0, match.index).split('\n').length;
       failures.push(
-        `${path}:${line}: unknown color token; use a --color-* token from src/app.css (${match[0].trim()})`
+        `${path}:${line}: unknown color token or utility; use a --color-* token or named utility from src/app.css (${match[0].trim()})`
       );
     }
   }

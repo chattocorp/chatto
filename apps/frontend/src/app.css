@@ -1864,6 +1864,11 @@
   @apply relative overflow-hidden;
 }
 
+/* Lower-priority metadata inherits its parent's text color at half strength. */
+@utility text-subdued {
+  @apply text-current/50;
+}
+
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
    Containers should add `group/badges` so the hover elevation works. */
 @utility meta-badge {

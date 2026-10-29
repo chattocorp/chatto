@@ -111,7 +111,7 @@
     <span class="sr-only">{m('chat.notifications.unread')}</span>
   {/if}
   <span
-    class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 @min-[36rem]/notification:grid-cols-[minmax(0,1fr)_fit-content(40%)_5rem]"
+    class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 text-muted @min-[36rem]/notification:grid-cols-[minmax(0,1fr)_fit-content(40%)_5rem]"
     data-testid="notification-content"
   >
     <bdi
@@ -126,7 +126,7 @@
     {#if roomName || server}
       <span
         class={[
-          'col-start-1 row-start-2 min-w-0 flex-wrap items-baseline gap-1 text-sm text-muted @min-[36rem]/notification:col-start-2 @min-[36rem]/notification:row-start-1 @min-[36rem]/notification:flex @min-[36rem]/notification:flex-nowrap [&>bdi]:min-w-0 [&>bdi]:wrap-anywhere @min-[36rem]/notification:[&>bdi]:truncate',
+          'col-start-1 row-start-2 min-w-0 flex-wrap items-baseline gap-1 text-sm text-subdued @min-[36rem]/notification:col-start-2 @min-[36rem]/notification:row-start-1 @min-[36rem]/notification:flex @min-[36rem]/notification:flex-nowrap [&>bdi]:min-w-0 [&>bdi]:wrap-anywhere @min-[36rem]/notification:[&>bdi]:truncate',
           server ? 'flex' : 'hidden'
         ]}
       >
@@ -134,7 +134,7 @@
       </span>
     {/if}
     <span
-      class="col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-muted tabular-nums @min-[36rem]/notification:col-start-3 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
+      class="col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-subdued tabular-nums @min-[36rem]/notification:col-start-3 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
       >{time}</span
     >
   </span>
