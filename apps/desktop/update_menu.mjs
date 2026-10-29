@@ -1,21 +1,17 @@
 /** Native update controls; no renderer gets access to the installer or feed configuration. */
 import { randomInt } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { app, dialog, Menu, MenuItem, Notification } from 'electron';
 import { createDesktopUpdates, updatePreferences } from './updates.mjs';
+import { hasWindowsUninstaller } from './update_installation.mjs';
 
 /** Enable only release builds and supported installations. Startup never waits for the feed. */
 export async function configureUpdateMenu(packageJson) {
   if (!app.isPackaged || !packageJson.chattoAutoUpdate) return;
   if (process.platform === 'linux' && !process.env.APPIMAGE) return;
-  if (
-    process.platform === 'win32' &&
-    !existsSync(path.join(path.dirname(process.execPath), 'Uninstall Chatto Desktop.exe'))
-  )
-    return;
+  if (process.platform === 'win32' && !hasWindowsUninstaller(process.execPath)) return;
 
   const settingsPath = path.join(app.getPath('userData'), 'updates.json');
   let stored;

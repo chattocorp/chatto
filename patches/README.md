@@ -1,5 +1,16 @@
 # Dependency patches
 
+## app-builder-lib 26.18.0
+
+`app-builder-lib@26.18.0.patch` makes the German Windows installer and
+uninstaller messages use the formal address "Sie". The upstream messages for
+a running application, an application that cannot close, and extraction or
+removal failures use informal language. The uninstall confirmation uses "Sie".
+
+Remove this patch when an upstream release uses consistent formal German in
+these messages. Before release, check the German uninstall confirmation and
+running-application prompt on Windows.
+
 ## virtua 0.54.0
 
 `virtua@0.54.0.patch` keeps retained Svelte rows mounted when older rows are
