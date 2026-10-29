@@ -397,12 +397,10 @@ describe('ThreadPane', () => {
     mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob', 'Carol', 'Dave'], 12)];
     const group = rendered.getByRole('group', { name: 'Thread participants (12)' });
     await expect.element(group).toBeVisible();
-    await expect.element(group.getByText('+9')).toBeVisible();
+    await expect.element(group.getByText('+8')).toBeVisible();
     await expect.element(group.getByRole('button', { name: 'Alice', exact: true })).toBeVisible();
     await expect.element(group.getByRole('button', { name: 'Carol', exact: true })).toBeVisible();
-    await expect
-      .element(group.getByRole('button', { name: 'Dave', exact: true }))
-      .not.toBeInTheDocument();
+    await expect.element(group.getByRole('button', { name: 'Dave', exact: true })).toBeVisible();
     await group.getByRole('button', { name: 'Bob', exact: true }).click();
     const menu = page.getByRole('dialog', { name: 'User profile' });
     await expect.element(menu).toBeVisible();
@@ -476,6 +474,36 @@ describe('ThreadPane', () => {
         expect(rect.right).toBeLessThanOrEqual(320);
       }
       expect(header.scrollWidth).toBeLessThanOrEqual(320);
+    } finally {
+      await page.viewport(1280, 720);
+    }
+  });
+
+  it('adapts the participant preview to pane width as it resizes', async () => {
+    mocks.threadStore!.threadEvents = [
+      participantRoot(
+        Array.from({ length: 20 }, (_, index) => `User ${index}`),
+        10000
+      )
+    ];
+    const rendered = render(ThreadPane, { props: threadProps });
+    const group = rendered.getByRole('group', { name: 'Thread participants (10000)' });
+    const pane = q(rendered.container, '[data-testid="thread-pane"]')!;
+    try {
+      await page.viewport(1280, 720);
+      // Resize the pane within a fixed desktop viewport, as the split-pane handle does.
+      for (const [width, count] of [
+        [640, 12],
+        [480, 8],
+        [360, 5],
+        [320, 3]
+      ]) {
+        pane.style.width = `${width}px`;
+        await expect.element(group.getByText(`+${10000 - count}`)).toBeVisible();
+        expect(group.element().querySelectorAll('button')).toHaveLength(count);
+        const header = q(rendered.container, '[data-page-reveal]')!;
+        expect(header.scrollWidth).toBeLessThanOrEqual(width);
+      }
     } finally {
       await page.viewport(1280, 720);
     }

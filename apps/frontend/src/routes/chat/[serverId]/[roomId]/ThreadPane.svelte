@@ -102,7 +102,12 @@
       ? Math.max(rootMessage.threadParticipantCount ?? 0, participants.length)
       : 0
   );
-  const visibleParticipants = $derived(participants.slice(0, 3));
+  let paneWidth = $state(0);
+  // Use the actual pane width: split panes can stay narrow on a wide screen.
+  const participantLimit = $derived(
+    paneWidth >= 640 ? 12 : paneWidth >= 480 ? 8 : paneWidth >= 360 ? 5 : 3
+  );
+  const visibleParticipants = $derived(participants.slice(0, participantLimit));
   // Resolve menu data from the current thread so removed participants cannot stay visible.
   const participantMenu = new UserMenuState<{
     roomId: string;
@@ -147,6 +152,7 @@
       : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
   ]}
   data-testid="thread-pane"
+  bind:clientWidth={paneWidth}
   {@attach revealThread}
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
   transition:fly|global={{
