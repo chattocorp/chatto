@@ -36,6 +36,7 @@ test.describe('Profile Settings', () => {
     await expect(dialog).toContainText(`@${renamed}?`);
     await dialog.getByRole('button', { name: 'Change username', exact: true }).click();
     await expect(dialog).not.toBeVisible();
+    await expect(page.getByText('Profile updated')).toBeVisible();
     await expect(settings.saveDisplayNameButton).toBeDisabled();
     await page.reload();
     await expect(username).toHaveValue(renamed);
