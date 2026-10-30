@@ -6,6 +6,7 @@ preview-card styling. Its parent owns shared link-preview actions.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import { PreviewToolbar, PreviewAction } from '$lib/ui';
   import { renderedLinkTarget, handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import type { SocialPostPreviewView } from '@chatto/client/timeline/linkPreviews';
 
@@ -302,31 +303,17 @@ preview-card styling. Its parent owns shared link-preview actions.
       {/if}
     {/if}
   </div>
-  {#if showDismiss && onDismiss}
-    <button
-      type="button"
-      onclick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onDismiss?.();
-      }}
-      class="embed-control-button"
-      aria-label={m('preview.dismiss')}
-    >
-      <span aria-hidden="true" class="iconify icon-[uil--times] text-sm"></span>
-    </button>
-  {:else if onDelete}
-    <button
-      type="button"
-      onclick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onDelete();
-      }}
-      class="embed-control-button"
-      aria-label={m('preview.delete')}
-    >
-      <span aria-hidden="true" class="iconify icon-[uil--times] text-sm"></span>
-    </button>
+  {#if (showDismiss && onDismiss) || onDelete}
+    <PreviewToolbar>
+      {#if showDismiss && onDismiss}
+        <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
+      {:else}
+        <PreviewAction
+          label={m('preview.delete')}
+          icon="icon-[uil--trash-alt]"
+          onclick={onDelete}
+        />
+      {/if}
+    </PreviewToolbar>
   {/if}
 </div>

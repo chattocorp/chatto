@@ -44,7 +44,7 @@ preview on screen.
     withAssetUrlRetryParam
   } from '@chatto/client/attachments/attachmentUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
-  import { ScrollFader } from '$lib/ui';
+  import { ScrollFader, PreviewToolbar, PreviewAction } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import DeletedUserLabel from './DeletedUserLabel.svelte';
@@ -354,18 +354,9 @@ preview on screen.
       </div>
     {/if}
     {#if showDismiss && onDismiss}
-      <button
-        type="button"
-        onclick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onDismiss?.();
-        }}
-        class="embed-control-button"
-        aria-label={m('preview.dismiss')}
-      >
-        <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
-      </button>
+      <PreviewToolbar>
+        <PreviewAction onclick={onDismiss} label={m('preview.dismiss')} icon="icon-[uil--times]" />
+      </PreviewToolbar>
     {/if}
   </div>
 {/if}

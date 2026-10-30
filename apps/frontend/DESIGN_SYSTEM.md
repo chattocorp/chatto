@@ -628,6 +628,20 @@ keyboard focus, accessible names, and action hit areas. Image thumbnails use
 or contact a third party merely to demonstrate the frame. These utilities do
 not change preview fetch, consent, or content-warning behavior.
 
+Use `PreviewToolbar` and `PreviewAction` for image, link, social-post, and video
+preview actions. The toolbar forms a visor across the top inside the frame rim,
+with the theme's `surface` colour at 50% opacity. Its positioned parent uses
+`group/preview`. Mouse hover and keyboard focus reveal the toolbar. Touch
+devices keep it visible. Only visible controls intercept pointer input; the rest
+of the visor lets clicks reach the links and media below it.
+Use `layout="row"` for file and audio actions that stay in the normal layout.
+The card owns action permissions, callbacks, and confirmation dialogs.
+`PreviewAction` uses the same `icon-action-emphasis` utility as standard icon
+controls: hover and visible keyboard focus use the full-intensity `text-top`
+colour. Disabled controls do not brighten. Keep this rule in the shared utility;
+do not add colour overrides at call sites. Preview actions keep a neutral tone,
+including the delete icon. Delete confirmations retain their destructive tone.
+
 Link hover cards use one native link around their image, text, and destination
 footer. Use the same navigation rules as their trigger. Keep the card open
 while it has keyboard focus; Escape closes it and returns focus to the trigger.

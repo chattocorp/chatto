@@ -13,6 +13,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import { PreviewToolbar, PreviewAction } from '$lib/ui';
 
   let {
     videoId,
@@ -43,23 +44,21 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
   ></iframe>
-  {#if showDismiss && onDismiss}
-    <button
-      type="button"
-      onclick={onDismiss}
-      class="embed-control-button"
-      aria-label={m('preview.youtube_dismiss')}
-    >
-      <span aria-hidden="true" class="iconify icon-[uil--times] text-sm"></span>
-    </button>
-  {:else if onDelete}
-    <button
-      type="button"
-      onclick={onDelete}
-      class="embed-control-button"
-      aria-label={m('preview.youtube_delete')}
-    >
-      <span aria-hidden="true" class="iconify icon-[uil--times] text-sm"></span>
-    </button>
+  {#if (showDismiss && onDismiss) || onDelete}
+    <PreviewToolbar>
+      {#if showDismiss && onDismiss}
+        <PreviewAction
+          label={m('preview.youtube_dismiss')}
+          icon="icon-[uil--times]"
+          onclick={onDismiss}
+        />
+      {:else}
+        <PreviewAction
+          label={m('preview.youtube_delete')}
+          icon="icon-[uil--trash-alt]"
+          onclick={onDelete}
+        />
+      {/if}
+    </PreviewToolbar>
   {/if}
 </div>
