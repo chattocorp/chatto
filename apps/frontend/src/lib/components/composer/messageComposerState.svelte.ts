@@ -165,6 +165,7 @@ export class MessageComposerState {
   #focusRequested = false;
   #threadCreationPolicyKey = '';
   #threadDestinationChoicePending = false;
+  #cancelPreviewDetection: (() => void) | undefined;
   pendingThreadDestinationConfirmation = $state<{
     post: PreparedPost;
     candidate: RecentThreadRootCandidate;
@@ -175,6 +176,7 @@ export class MessageComposerState {
     dependencies.context.focus = () => this.focus();
     onDestroy(() => {
       dependencies.context.focus = undefined;
+      this.#cancelPreviewDetection?.();
     });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
     this.linkPreviews = new LinkPreviewState(dependencies.getLinkPreviewAPI);
@@ -197,8 +199,6 @@ export class MessageComposerState {
     this.#synchronizeMentionSearch();
     this.#synchronizeEditState();
     this.#synchronizeDraft();
-    this.#synchronizeDraftText();
-    this.#synchronizeLinkPreviews();
     this.#synchronizeAttachmentPermission();
     this.#synchronizeThreadCreationPolicy();
     this.#synchronizeAutoFocus();
@@ -416,7 +416,7 @@ export class MessageComposerState {
 
   handleEditorUpdate(text: string): void {
     const changed = text !== this.message;
-    this.message = text;
+    this.#setMessage(text);
     if (changed) this.#dependencies.getCallbacks().onTyping?.();
     this.autocomplete.update();
   }
@@ -457,7 +457,7 @@ export class MessageComposerState {
         this.#editSeededForEvent = eventId;
         this.autocomplete.reset();
         this.draft.clearText();
-        this.message = originalBody;
+        this.#setMessage(originalBody);
         this.alsoSendToChannel = this.editState.channelEchoEventId !== null;
         api?.setContent(originalBody);
         tick().then(() => api?.focus('end'));
@@ -488,22 +488,18 @@ export class MessageComposerState {
         return;
       }
       const draftMessage = this.draft.switchKey(this.draftKey);
-      this.message = draftMessage;
+      this.#setMessage(draftMessage);
       this.editorApi?.setContent(draftMessage);
       this.attachments.restore(untrack(() => this.draft.takeFiles()));
       return () => this.draft.stashFiles(untrack(() => this.attachments.filesWithUrls));
     });
   }
 
-  #synchronizeDraftText(): void {
-    $effect(() => {
-      void this.draftKey;
-      if (!this.isEditing) this.draft.persistText(this.message);
-    });
-  }
-
-  #synchronizeLinkPreviews(): void {
-    $effect(() => this.linkPreviews.scheduleDetection(this.message, this.isEditing));
+  /** Apply text changes together, including restored drafts and editor commands. */
+  #setMessage(text: string): void {
+    this.message = text;
+    if (!this.isEditing) this.draft.persistText(text);
+    this.#cancelPreviewDetection = this.linkPreviews.scheduleDetection(text, this.isEditing);
   }
 
   #synchronizeAttachmentPermission(): void {
@@ -579,7 +575,7 @@ export class MessageComposerState {
 
   #resetEditor(): void {
     this.autocomplete.reset();
-    this.message = '';
+    this.#setMessage('');
     this.alsoSendToChannel = false;
     this.createThread =
       this.#dependencies.getCanCreateThread() &&
