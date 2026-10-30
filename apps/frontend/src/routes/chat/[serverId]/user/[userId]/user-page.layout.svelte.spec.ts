@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   page: { params: { serverId: '-', userId: 'recipient' } as Record<string, string> },
   startDM: vi.fn(),
   ensureRoomAvailable: vi.fn(),
+  loadRoomMembers: vi.fn(),
   goto: vi.fn(),
   record: vi.fn()
 }));
@@ -73,7 +74,10 @@ beforeEach(() => {
     serverId: 'origin',
     viewer: { id: 'self' },
     api: { startDM: mocks.startDM },
-    store: { ensureRoomAvailable: mocks.ensureRoomAvailable }
+    store: {
+      ensureRoomAvailable: mocks.ensureRoomAvailable,
+      loadRoomMembers: mocks.loadRoomMembers
+    }
   });
   mocks.startDM.mockResolvedValue({ id: 'dm-room' });
   mocks.ensureRoomAvailable.mockResolvedValue(undefined);
@@ -104,6 +108,7 @@ describe('user page', () => {
       expect(conversation.element()).toBe(original);
       expect(mocks.startDM).toHaveBeenCalledOnce();
       expect(mocks.ensureRoomAvailable).toHaveBeenCalledOnce();
+      expect(mocks.loadRoomMembers).toHaveBeenCalledExactlyOnceWith('dm-room');
     }
   });
 

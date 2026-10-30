@@ -330,6 +330,36 @@ describe('OAuth page layout', () => {
   });
 });
 
+describe('room member navigation boundary', () => {
+  it('requests members on direct entry before the room mounts, and on room changes', async () => {
+    const loadRoomMembers = vi.fn();
+    vi.mocked(serverRegistry.tryGetStore).mockReturnValue({
+      loadRoomMembers,
+      serverInfo: {},
+      currentUser: { user: null }
+    } as never);
+    page.route.id = '/chat/[serverId]/[roomId]';
+    Object.assign(page, { params: { serverId: '-', roomId: 'room-1' } });
+    try {
+      renderLayout();
+      const navigate = mocks.afterNavigate.mock.calls.at(-1)![0];
+      await navigate({ from: null, to: { route: page.route } });
+      expect(loadRoomMembers).toHaveBeenLastCalledWith('room-1');
+
+      page.route.id = '/chat/[serverId]/[roomId]/[threadId]';
+      Object.assign(page, { params: { serverId: '-', roomId: 'room-2', threadId: 'thread' } });
+      await tick();
+      await navigate({ from: null, to: { route: page.route } });
+      expect(loadRoomMembers).toHaveBeenLastCalledWith('room-2');
+      expect(loadRoomMembers).toHaveBeenCalledTimes(2);
+    } finally {
+      page.route.id = '/';
+      Object.assign(page, { params: {} });
+      vi.mocked(serverRegistry.tryGetStore).mockReturnValue(undefined);
+    }
+  });
+});
+
 describe('management catalog navigation boundary', () => {
   beforeEach(() => vi.clearAllMocks());
 

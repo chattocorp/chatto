@@ -122,6 +122,8 @@
 
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(async ({ from, to }) => {
+    // The room can mount after this event while the server completes its snapshot.
+    if (activeRoomId) serverRegistry.tryGetStore(activeServerId)?.loadRoomMembers(activeRoomId);
     if (sidebarNav.isMobile) sidebarNav.close();
     // Only a completed exit changes the active catalogs; canceled navigation
     // must leave management ready for subsequent language changes.

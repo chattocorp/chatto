@@ -528,18 +528,19 @@ describe('Room interaction bundles', () => {
     }
   );
 
-  it('loads channel membership through the canonical member directory', async () => {
+  it('leaves channel membership loading to navigation', async () => {
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
       .mockImplementation(() => {});
 
     render(Room, { props: { roomId: 'room-1' } });
 
-    await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
+    await tick();
+    expect(ensureLoaded).not.toHaveBeenCalled();
   });
 
   it.each(['pending', 'failed'])(
-    'restarts a %s channel member load after a reset',
+    'leaves recovery of a %s member load to the client',
     async (state) => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
       let reads = 0;
@@ -554,12 +555,16 @@ describe('Room interaction bundles', () => {
       const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
       mocks.roomMembers.mockReturnValue(store);
 
+      store.ensureLoaded();
       render(Room, { props: { roomId: 'room-1' } });
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
       if (state === 'failed')
         await vi.waitFor(() => expect(store.loadError).toMatchObject({ message: 'offline' }));
 
       store.resetProjectionState();
+      await tick();
+      expect(api.listRoomMembers).toHaveBeenCalledOnce();
+      void store.refresh({ minimumCursor: 'recovered' });
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
     }
   );
