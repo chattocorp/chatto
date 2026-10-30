@@ -49,7 +49,7 @@ Chatto's pre-1.0 API remains experimental.
   need a newer bundled frontend. Both directions use one Affected features
   list, with the same row layout and one combined count. The upgrade notice
   identifies which side needs an update. Each entry shows the server's feature name,
-  explanation, and the frontend release that introduced support. One notice
+  explanation, and the Chatto release that introduced support. One notice
   shows the current app version and asks the user to update the app or ask
   the administrator of the server that provides it. This advice never blocks
   a connection. Permissions and server settings still control feature access.
@@ -60,8 +60,8 @@ Chatto's pre-1.0 API remains experimental.
   descriptions are plain text, rendered without HTML or Markdown. The endpoint
   accepts an optional locale. The server tries that locale and its parents,
   then English for missing translations. Invalid or unsupported locales also
-  use English. The optional `introduced_after_frontend_version` filter returns
-  only features introduced after that bundled frontend release. It requires
+  use English. The optional `introduced_after_version` filter returns
+  only features introduced after that Chatto release. It requires
   a full Semantic Version; invalid values return `INVALID_ARGUMENT`. Omit the
   filter for the complete catalog. Third-party clients should omit it.
   The app loads the catalog only on Server information for remote servers.
@@ -146,7 +146,7 @@ with the discovered version before connecting.
 **Why:** Future clients know which older server contracts they still implement;
 the server cannot predict the requirements of clients that do not exist yet.
 The advisory feature catalog is separate from connection policy. It records
-the first bundled frontend release for each listed product feature, not a
+the first Chatto release for each listed product feature, not a
 minimum client version required to connect. Third-party clients use stable
 feature IDs with their own support policy.
 **Tradeoff:** A client update must keep its version thresholds accurate and

@@ -20,18 +20,18 @@ import (
 // affect only the response; they never change connection or permission policy.
 func (s *serverDiscoveryService) ListFeatures(ctx context.Context, req *connect.Request[discoveryv1.ListFeaturesRequest]) (*connect.Response[discoveryv1.ListFeaturesResponse], error) {
 	var after *semver.Version
-	if req.Msg.IntroducedAfterFrontendVersion != nil {
-		value := req.Msg.GetIntroducedAfterFrontendVersion()
+	if req.Msg.IntroducedAfterVersion != nil {
+		value := req.Msg.GetIntroducedAfterVersion()
 		parsed, err := parseFeatureRelease(value)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("introduced_after_frontend_version must be a full Semantic Version"))
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("introduced_after_version must be a full Semantic Version"))
 		}
 		after = parsed
 	}
 	response := &discoveryv1.ListFeaturesResponse{}
 	for _, feature := range serverFeatureCatalog(req.Msg.GetLocale()) {
 		if after != nil {
-			introduced, err := semver.NewVersion(feature.FrontendIntroducedVersion)
+			introduced, err := semver.NewVersion(feature.IntroducedVersion)
 			if err != nil {
 				return nil, connectInternalError(fmt.Errorf("invalid feature release: %w", err))
 			}

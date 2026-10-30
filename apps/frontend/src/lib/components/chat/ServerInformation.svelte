@@ -85,7 +85,7 @@
           title: feature.name,
           description: feature.description,
           requirement: m('chat.compatibility.frontend_requires', {
-            version: feature.frontendIntroducedVersion
+            version: feature.introducedVersion
           })
         }))
       : [])

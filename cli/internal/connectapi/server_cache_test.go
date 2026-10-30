@@ -27,7 +27,7 @@ func TestDiscoveryFeatureCatalog(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, feature := range features {
-		if feature.Id == "" || feature.Name == "" || feature.Description == "" || feature.FrontendIntroducedVersion == "" || seen[feature.Id] {
+		if feature.Id == "" || feature.Name == "" || feature.Description == "" || feature.IntroducedVersion == "" || seen[feature.Id] {
 			t.Fatalf("incomplete or duplicate feature: %v", feature)
 		}
 		seen[feature.Id] = true
@@ -86,7 +86,7 @@ func TestDiscoveryFeatureLocale(t *testing.T) {
 			}
 			for i, feature := range response.Msg.Features {
 				base := english.Msg.Features[i]
-				if feature.Id != base.Id || feature.FrontendIntroducedVersion != base.FrontendIntroducedVersion {
+				if feature.Id != base.Id || feature.IntroducedVersion != base.IntroducedVersion {
 					t.Fatal("locale changed feature identity or version")
 				}
 			}
@@ -133,7 +133,7 @@ func TestListFeaturesVersionFilter(t *testing.T) {
 	} {
 		t.Run(test.version, func(t *testing.T) {
 			response, err := service.ListFeatures(t.Context(), connect.NewRequest(&discoveryv1.ListFeaturesRequest{
-				Locale: new("de-DE"), IntroducedAfterFrontendVersion: new(test.version),
+				Locale: new("de-DE"), IntroducedAfterVersion: new(test.version),
 			}))
 			if err != nil {
 				t.Fatal(err)
@@ -144,7 +144,7 @@ func TestListFeaturesVersionFilter(t *testing.T) {
 		})
 	}
 	for _, version := range []string{"", "dev", "0.5", "v0.5.0", "0.5.0-beta.01", "0.5.0 "} {
-		_, err := service.ListFeatures(t.Context(), connect.NewRequest(&discoveryv1.ListFeaturesRequest{IntroducedAfterFrontendVersion: new(version)}))
+		_, err := service.ListFeatures(t.Context(), connect.NewRequest(&discoveryv1.ListFeaturesRequest{IntroducedAfterVersion: new(version)}))
 		if connect.CodeOf(err) != connect.CodeInvalidArgument {
 			t.Errorf("%q: expected INVALID_ARGUMENT, got %v", version, err)
 		}

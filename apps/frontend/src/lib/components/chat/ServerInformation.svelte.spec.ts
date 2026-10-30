@@ -112,7 +112,7 @@ describe('ServerInformation', () => {
           id: 'future-feature',
           name: '<img src=x onerror=alert(1)>',
           description: '<script>alert(1)</script>',
-          frontendIntroducedVersion: '0.6.0'
+          introducedVersion: '0.6.0'
         }
       ]
     };
@@ -147,7 +147,7 @@ describe('ServerInformation', () => {
           id: 'future',
           name: 'Future feature',
           description: 'New functionality.',
-          frontendIntroducedVersion: '0.6.0'
+          introducedVersion: '0.6.0'
         }
       ]
     };

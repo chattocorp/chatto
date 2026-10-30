@@ -114,14 +114,14 @@ export class ListFeaturesRequest extends Message<ListFeaturesRequest> {
   locale?: string;
 
   /**
-   * Return only features introduced strictly after this bundled frontend
+   * Return only features introduced strictly after this Chatto
    * release. Omit for the complete catalog. Must be a full Semantic Version,
    * including any prerelease stage; invalid or empty values are INVALID_ARGUMENT.
    * Third-party clients should omit this filter and use stable feature IDs.
    *
-   * @generated from field: optional string introduced_after_frontend_version = 2;
+   * @generated from field: optional string introduced_after_version = 2;
    */
-  introducedAfterFrontendVersion?: string;
+  introducedAfterVersion?: string;
 
   constructor(data?: PartialMessage<ListFeaturesRequest>) {
     super();
@@ -132,7 +132,7 @@ export class ListFeaturesRequest extends Message<ListFeaturesRequest> {
   static readonly typeName = "chatto.discovery.v1.ListFeaturesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "locale", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "introduced_after_frontend_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "introduced_after_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFeaturesRequest {
@@ -224,12 +224,13 @@ export class ServerFeature extends Message<ServerFeature> {
   description = "";
 
   /**
-   * First bundled Chatto frontend release with support for this feature.
+   * First Chatto release with support for this feature in the server and
+   * bundled frontend.
    * Third-party clients use the ID with their own support policy instead.
    *
-   * @generated from field: string frontend_introduced_version = 4;
+   * @generated from field: string introduced_version = 4;
    */
-  frontendIntroducedVersion = "";
+  introducedVersion = "";
 
   constructor(data?: PartialMessage<ServerFeature>) {
     super();
@@ -242,7 +243,7 @@ export class ServerFeature extends Message<ServerFeature> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "frontend_introduced_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "introduced_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerFeature {

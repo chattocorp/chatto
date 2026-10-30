@@ -75,7 +75,7 @@ Optional filters for the public feature catalog.
 | Field | Type | Description |
 | --- | --- | --- |
 | `locale` | `optional string` | BCP 47 language tag for feature names and descriptions. The server tries this locale, its parents, then English. Invalid or unsupported locales, and omitted values, use English. |
-| `introduced_after_frontend_version` | `optional string` | Return only features introduced strictly after this bundled frontend release. Omit for the complete catalog. Must be a full Semantic Version, including any prerelease stage; invalid or empty values are INVALID_ARGUMENT. Third-party clients should omit this filter and use stable feature IDs. |
+| `introduced_after_version` | `optional string` | Return only features introduced strictly after this Chatto release. Omit for the complete catalog. Must be a full Semantic Version, including any prerelease stage; invalid or empty values are INVALID_ARGUMENT. Third-party clients should omit this filter and use stable feature IDs. |
 
 
 <a id="chatto-discovery-v1-ListFeaturesResponse"></a>

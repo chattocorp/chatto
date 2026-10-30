@@ -25,11 +25,11 @@ message ListFeaturesRequest {
   // this locale, its parents, then English. Invalid or unsupported locales,
   // and omitted values, use English.
   optional string locale = 1;
-  // Return only features introduced strictly after this bundled frontend
+  // Return only features introduced strictly after this Chatto
   // release. Omit for the complete catalog. Must be a full Semantic Version,
   // including any prerelease stage; invalid or empty values are INVALID_ARGUMENT.
   // Third-party clients should omit this filter and use stable feature IDs.
-  optional string introduced_after_frontend_version = 2;
+  optional string introduced_after_version = 2;
 }
 
 // Advisory features supported by this server software, in display order.
@@ -49,9 +49,10 @@ message ServerFeature {
   string name = 2;
   // Localised explanation for users. Render as plain text.
   string description = 3;
-  // First bundled Chatto frontend release with support for this feature.
+  // First Chatto release with support for this feature in the server and
+  // bundled frontend.
   // Third-party clients use the ID with their own support policy instead.
-  string frontend_introduced_version = 4;
+  string introduced_version = 4;
 }
 
 // Request for the public Neighbor directory.

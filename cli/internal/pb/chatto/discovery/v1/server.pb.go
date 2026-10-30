@@ -132,13 +132,13 @@ type ListFeaturesRequest struct {
 	// this locale, its parents, then English. Invalid or unsupported locales,
 	// and omitted values, use English.
 	Locale *string `protobuf:"bytes,1,opt,name=locale,proto3,oneof" json:"locale,omitempty"`
-	// Return only features introduced strictly after this bundled frontend
+	// Return only features introduced strictly after this Chatto
 	// release. Omit for the complete catalog. Must be a full Semantic Version,
 	// including any prerelease stage; invalid or empty values are INVALID_ARGUMENT.
 	// Third-party clients should omit this filter and use stable feature IDs.
-	IntroducedAfterFrontendVersion *string `protobuf:"bytes,2,opt,name=introduced_after_frontend_version,json=introducedAfterFrontendVersion,proto3,oneof" json:"introduced_after_frontend_version,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	IntroducedAfterVersion *string `protobuf:"bytes,2,opt,name=introduced_after_version,json=introducedAfterVersion,proto3,oneof" json:"introduced_after_version,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ListFeaturesRequest) Reset() {
@@ -178,9 +178,9 @@ func (x *ListFeaturesRequest) GetLocale() string {
 	return ""
 }
 
-func (x *ListFeaturesRequest) GetIntroducedAfterFrontendVersion() string {
-	if x != nil && x.IntroducedAfterFrontendVersion != nil {
-		return *x.IntroducedAfterFrontendVersion
+func (x *ListFeaturesRequest) GetIntroducedAfterVersion() string {
+	if x != nil && x.IntroducedAfterVersion != nil {
+		return *x.IntroducedAfterVersion
 	}
 	return ""
 }
@@ -243,11 +243,12 @@ type ServerFeature struct {
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Localised explanation for users. Render as plain text.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// First bundled Chatto frontend release with support for this feature.
+	// First Chatto release with support for this feature in the server and
+	// bundled frontend.
 	// Third-party clients use the ID with their own support policy instead.
-	FrontendIntroducedVersion string `protobuf:"bytes,4,opt,name=frontend_introduced_version,json=frontendIntroducedVersion,proto3" json:"frontend_introduced_version,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	IntroducedVersion string `protobuf:"bytes,4,opt,name=introduced_version,json=introducedVersion,proto3" json:"introduced_version,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ServerFeature) Reset() {
@@ -301,9 +302,9 @@ func (x *ServerFeature) GetDescription() string {
 	return ""
 }
 
-func (x *ServerFeature) GetFrontendIntroducedVersion() string {
+func (x *ServerFeature) GetIntroducedVersion() string {
 	if x != nil {
-		return x.FrontendIntroducedVersion
+		return x.IntroducedVersion
 	}
 	return ""
 }
@@ -572,19 +573,19 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
 	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\x12%\n" +
-	"\x0esetup_required\x18\x03 \x01(\bR\rsetupRequired\"\xb3\x01\n" +
+	"\x0esetup_required\x18\x03 \x01(\bR\rsetupRequired\"\x99\x01\n" +
 	"\x13ListFeaturesRequest\x12\x1b\n" +
-	"\x06locale\x18\x01 \x01(\tH\x00R\x06locale\x88\x01\x01\x12N\n" +
-	"!introduced_after_frontend_version\x18\x02 \x01(\tH\x01R\x1eintroducedAfterFrontendVersion\x88\x01\x01B\t\n" +
-	"\a_localeB$\n" +
-	"\"_introduced_after_frontend_version\"V\n" +
+	"\x06locale\x18\x01 \x01(\tH\x00R\x06locale\x88\x01\x01\x12=\n" +
+	"\x18introduced_after_version\x18\x02 \x01(\tH\x01R\x16introducedAfterVersion\x88\x01\x01B\t\n" +
+	"\a_localeB\x1b\n" +
+	"\x19_introduced_after_version\"V\n" +
 	"\x14ListFeaturesResponse\x12>\n" +
-	"\bfeatures\x18\x01 \x03(\v2\".chatto.discovery.v1.ServerFeatureR\bfeatures\"\x95\x01\n" +
+	"\bfeatures\x18\x01 \x03(\v2\".chatto.discovery.v1.ServerFeatureR\bfeatures\"\x84\x01\n" +
 	"\rServerFeature\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12>\n" +
-	"\x1bfrontend_introduced_version\x18\x04 \x01(\tR\x19frontendIntroducedVersion\"\x16\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12-\n" +
+	"\x12introduced_version\x18\x04 \x01(\tR\x11introducedVersion\"\x16\n" +
 	"\x14ListNeighborsRequest\"B\n" +
 	"\x15ListNeighborsResponse\x12\x18\n" +
 	"\aorigins\x18\x01 \x03(\tR\aoriginsJ\x04\b\x02\x10\x03R\tneighbors\" \n" +

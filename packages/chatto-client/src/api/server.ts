@@ -8,7 +8,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 /** Advisory product metadata. Unknown IDs remain useful to older clients. */
 export type PublicServerFeature = Pick<
   ServerFeature,
-  'id' | 'name' | 'description' | 'frontendIntroducedVersion'
+  'id' | 'name' | 'description' | 'introducedVersion'
 >;
 
 export type PublicAuthProvider = {
@@ -79,19 +79,19 @@ export async function getPublicServerInfo(
 
 /**
  * Read the public product catalog on demand. The optional version filter is
- * exclusive and applies only to bundled frontend releases. Older servers
+ * exclusive and compares Chatto releases. Older servers
  * without this RPC return an empty catalog; other failures remain errors.
  */
 export async function listServerFeatures(
   baseUrl: string,
-  options: { locale?: string; introducedAfterFrontendVersion?: string; signal?: AbortSignal } = {}
+  options: { locale?: string; introducedAfterVersion?: string; signal?: AbortSignal } = {}
 ): Promise<readonly PublicServerFeature[]> {
   const client = createPublicChattoClient(ServerDiscoveryService, baseUrl);
   try {
     const response = await client.listFeatures(
       {
         locale: options.locale,
-        introducedAfterFrontendVersion: options.introducedAfterFrontendVersion
+        introducedAfterVersion: options.introducedAfterVersion
       },
       { signal: options.signal, timeoutMs: 10_000 }
     );

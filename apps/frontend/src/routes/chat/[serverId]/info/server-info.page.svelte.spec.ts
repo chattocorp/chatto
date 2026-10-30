@@ -14,7 +14,7 @@ vi.mock(
 );
 
 describe('public feature catalog on Server information', () => {
-  const requests: { locale?: string; introducedAfterFrontendVersion?: string }[] = [];
+  const requests: { locale?: string; introducedAfterVersion?: string }[] = [];
   let info: ServerInfoState;
   beforeEach(async () => {
     queryClient.clear();
@@ -43,7 +43,7 @@ describe('public feature catalog on Server information', () => {
               id: 'future-feature',
               name: filters.locale === 'de-DE' ? 'Neue Funktion' : 'Future feature',
               description: 'An unfamiliar feature.',
-              frontendIntroducedVersion: '9.0.0'
+              introducedVersion: '9.0.0'
             }
           ]
         }).toJsonString(),
@@ -60,9 +60,7 @@ describe('public feature catalog on Server information', () => {
     expect(requests).toHaveLength(0);
     const first = render(ServerInfoPage);
     await expect.element(first.getByRole('heading', { name: 'Future feature' })).toBeVisible();
-    expect(requests).toEqual([
-      { locale: 'en-GB', introducedAfterFrontendVersion: expect.any(String) }
-    ]);
+    expect(requests).toEqual([{ locale: 'en-GB', introducedAfterVersion: expect.any(String) }]);
     await first.unmount();
     const second = render(ServerInfoPage);
     await expect.element(second.getByRole('heading', { name: 'Future feature' })).toBeVisible();

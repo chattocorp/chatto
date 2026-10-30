@@ -35,7 +35,7 @@
       queryFn: ({ signal }) =>
         listServerFeatures(connection.connectBaseUrl, {
           locale,
-          introducedAfterFrontendVersion: frontendRelease,
+          introducedAfterVersion: frontendRelease,
           signal
         }),
       enabled: catalogEnabled,

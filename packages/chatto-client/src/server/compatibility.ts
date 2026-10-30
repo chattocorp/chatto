@@ -15,7 +15,7 @@ export function limitedFrontendFeatures(
   return catalog.filter((feature) => {
     if (!feature.id.trim() || !feature.name.trim() || seen.has(feature.id)) return false;
     seen.add(feature.id);
-    return compareReleaseVersions(frontendVersion, feature.frontendIntroducedVersion) === -1;
+    return compareReleaseVersions(frontendVersion, feature.introducedVersion) === -1;
   });
 }
 

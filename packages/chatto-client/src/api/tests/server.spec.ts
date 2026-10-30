@@ -162,7 +162,7 @@ describe('public server discovery', () => {
       id: 'futureFeature',
       name: 'Future feature',
       description: 'A feature added after this client shipped.',
-      frontendIntroducedVersion: '9.0.0'
+      introducedVersion: '9.0.0'
     };
     respondWith(new ListFeaturesResponse({ features: [feature] }));
     expect(await listServerFeatures('https://chat.example.test')).toMatchObject([feature]);
@@ -173,11 +173,11 @@ describe('public server discovery', () => {
     respondWith(new ListFeaturesResponse());
     await listServerFeatures('https://chat.example.test', {
       locale: 'de-AT',
-      introducedAfterFrontendVersion: '0.5.0-beta.17'
+      introducedAfterVersion: '0.5.0-beta.17'
     });
     expect(await new Response(sentRequest().init?.body).json()).toEqual({
       locale: 'de-AT',
-      introducedAfterFrontendVersion: '0.5.0-beta.17'
+      introducedAfterVersion: '0.5.0-beta.17'
     });
     expect(sentRequest().headers.has('Accept-Language')).toBe(false);
     expect(sentRequest().init?.credentials).toBe('omit');

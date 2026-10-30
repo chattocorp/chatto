@@ -37,7 +37,7 @@ ConnectRPC API.
   discovery capabilities. The bundled client keeps explicit minimum server
   versions for features it gates.
 - Do not make the server declare minimum client versions for connection.
-  The advisory product feature catalog may report the bundled frontend release
+  The advisory product feature catalog may report the Chatto release
   that introduced a feature. It does not negotiate APIs, grant permissions,
   or report enabled configuration. Third-party clients use stable feature IDs
   with their own support policy, not bundled frontend version comparisons.

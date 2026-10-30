@@ -514,13 +514,13 @@ independently configured direct-registration and direct-login capabilities.
 The separate public `ListFeatures` endpoint serves an advisory product feature
 catalog. The discovery handler owns the catalog for the
 server build. Entries contain stable IDs, localised plain-text descriptions, and the
-first bundled frontend release with support. The catalog does not change
+first Chatto release with support in the server and bundled frontend. The catalog does not change
 authorization, server configuration, or connection eligibility.
 The optional `ListFeatures` locale selects static translations from the server
 build, with parent-locale and English fallback. The request reveals the selected
 language to the connected server. The optional
-`introduced_after_frontend_version` filter selects features introduced strictly
-after the supplied bundled frontend release. It requires a full Semantic
+`introduced_after_version` filter selects features introduced strictly
+after the supplied Chatto release. It requires a full Semantic
 Version and returns `INVALID_ARGUMENT` for invalid values. Without the filter,
 the response contains the complete catalog. The filter reveals the frontend
 release to the connected server. No translation service is contacted.

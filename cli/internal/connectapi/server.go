@@ -75,16 +75,16 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 	features := []*discoveryv1.ServerFeature{
 		{
-			Id:                        "threadViews",
-			Name:                      "Separate thread views",
-			Description:               "View followed threads separately from threads you started.",
-			FrontendIntroducedVersion: "0.5.0-beta.16",
+			Id:                "threadViews",
+			Name:              "Separate thread views",
+			Description:       "View followed threads separately from threads you started.",
+			IntroducedVersion: "0.5.0-beta.16",
 		},
 		{
-			Id:                        "independentSlowMode",
-			Name:                      "Independent slow mode",
-			Description:               "Use separate cooldowns for channel messages and thread replies.",
-			FrontendIntroducedVersion: "0.5.0-beta.18",
+			Id:                "independentSlowMode",
+			Name:              "Independent slow mode",
+			Description:       "Use separate cooldowns for channel messages and thread replies.",
+			IntroducedVersion: "0.5.0-beta.18",
 		},
 	}
 	for _, feature := range features {

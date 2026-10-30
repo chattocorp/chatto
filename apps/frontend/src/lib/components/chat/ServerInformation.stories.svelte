@@ -37,7 +37,7 @@
         id: 'example-scheduled-messages',
         name: 'Scheduled messages',
         description: 'Choose when a message is sent. This is an example of a future feature.',
-        frontendIntroducedVersion: '0.6.0'
+        introducedVersion: '0.6.0'
       }
     ]
   }}
@@ -52,7 +52,7 @@
         id: 'example-backported-feature',
         name: 'Scheduled messages',
         description: 'An example feature supplied by a custom server build.',
-        frontendIntroducedVersion: '0.6.0'
+        introducedVersion: '0.6.0'
       }
     ]
   }}

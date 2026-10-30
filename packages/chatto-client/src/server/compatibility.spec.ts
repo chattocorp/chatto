@@ -18,7 +18,7 @@ describe('bundled frontend feature guidance', () => {
     id: 'unknown-future-feature',
     name: 'Future feature',
     description: 'A feature the client does not know.',
-    frontendIntroducedVersion: '0.6.0-beta.2'
+    introducedVersion: '0.6.0-beta.2'
   };
 
   it.each([
@@ -39,7 +39,7 @@ describe('bundled frontend feature guidance', () => {
         [
           { ...future, id: '' },
           { ...future, id: 'empty-name', name: ' ' },
-          { ...future, id: 'unknown-version', frontendIntroducedVersion: 'dev' },
+          { ...future, id: 'unknown-version', introducedVersion: 'dev' },
           future,
           future
         ],
