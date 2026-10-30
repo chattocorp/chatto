@@ -14,7 +14,7 @@
 </script>
 
 <!-- @component Member issuance entry. Permission loss removes the dialog and its secret. -->
-{#if scope.store.permissions.canInviteUsers && scope.store.isAuthenticated}
+{#if scope.store.permissions.canInviteUsers && scope.store.isAuthenticated && scope.store.serverInfo.accountCreationPolicy === 'invite_only'}
   <button type="button" class="sidebar-item" onclick={open}>
     <span class="iconify sidebar-icon icon-[uil--envelope-share]" aria-hidden="true"></span>
     {m('chat.invitation.title')}

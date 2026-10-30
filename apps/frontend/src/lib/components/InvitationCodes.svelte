@@ -4,6 +4,7 @@
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInvitationCodeAPI, type InvitationCode } from '$lib/api/invitations';
   import { createUserAPI } from '@chatto/client/api/users';
+  import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { Panel, DataTable, ConfirmDialog, FormDialog, Hint, Pill, CopyButton } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
@@ -142,7 +143,7 @@
   {/if}
   <DataTable
     items={invitations}
-    columns={3}
+    columns={5}
     getKey={(invitation) => invitation.id}
     loading={loading && invitations.length === 0}
     emptyMessage={m('admin.invitations.empty')}
@@ -154,16 +155,20 @@
   >
     {#snippet header()}
       <th class="table-header-cell">{m('auth.register.invitation.label')}</th>
+      <th class="table-header-cell">{m('admin.common.status')}</th>
+      <th class="table-header-cell">{m('admin.invitations.created_by')}</th>
       <th class="table-header-cell">{m('admin.common.expires')}</th>
       <th class="table-header-cell text-end">{m('admin.invitations.actions')}</th>
     {/snippet}
     {#snippet row(invitation)}
-      <td class="px-5 py-4">
+      {@const creator = serverScope.store.projection.users.view(invitation.createdBy)}
+      <td class="px-4 py-2">
         <div class="flex items-center gap-2">
           <code
             dir="ltr"
+            title={`${m('admin.invitations.created_at')} ${formatTimestamp(invitation.createdAt)}`}
             class={[
-              'block w-fit font-mono text-sm tracking-wide whitespace-nowrap',
+              'block w-fit font-mono text-base whitespace-nowrap',
               invitation.status !== 'active' && 'text-muted'
             ]}>{invitation.code}</code
           >
@@ -172,33 +177,30 @@
           {/if}
         </div>
         {#if invitation.note}
-          <p class="mt-2 max-w-md text-sm wrap-anywhere">{invitation.note}</p>
+          <p class="mt-1 max-w-md text-base wrap-anywhere text-muted">{invitation.note}</p>
         {/if}
-        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-          <Pill tone={statusTone(invitation.status)}
-            >{m(`admin.invitations.status.${invitation.status}`)}</Pill
-          >
-          <span
-            >{m('admin.invitations.created_at')}
-            <time datetime={invitation.createdAt} title={formatTimestamp(invitation.createdAt)}
-              >{formatDate(invitation.createdAt, userSettings, activeLocale)}</time
-            ></span
-          >
-          <span
-            >{m('admin.invitations.created_by')}:
-            <bdi
-              >{serverScope.store.projection.users.view(invitation.createdBy)?.displayName ??
-                invitation.createdBy}</bdi
-            ></span
-          >
-        </div>
       </td>
-      <td class="px-5 py-4 text-sm whitespace-nowrap">
+      <td class="px-4 py-2 whitespace-nowrap">
+        <Pill tone={statusTone(invitation.status)}
+          >{m(`admin.invitations.status.${invitation.status}`)}</Pill
+        >
+      </td>
+      <td class="px-4 py-2">
+        {#if creator}
+          <UserIdentity
+            user={creator}
+            viewerSettings={serverScope.store.currentUser.user?.settings}
+          />
+        {:else}
+          <bdi class="text-muted">{invitation.createdBy}</bdi>
+        {/if}
+      </td>
+      <td class="px-4 py-2 text-base whitespace-nowrap">
         {#if invitation.expiresAt}
           <time datetime={invitation.expiresAt} title={formatTimestamp(invitation.expiresAt)}>
             <span class="block">{formatDate(invitation.expiresAt, userSettings, activeLocale)}</span
             >
-            <span class="mt-1 block text-xs text-muted"
+            <span class="block text-sm text-muted"
               >{formatMessageTime(invitation.expiresAt, userSettings, activeLocale)}</span
             >
           </time>
@@ -206,7 +208,7 @@
           <span class="text-muted">{m('admin.invitations.never')}</span>
         {/if}
       </td>
-      <td class="px-5 py-4">
+      <td class="w-0 px-4 py-2">
         <div class="flex items-center justify-end gap-1">
           {#if invitation.status === 'active'}
             <Button

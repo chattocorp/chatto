@@ -77,13 +77,19 @@ describe('Invitation codes', () => {
     });
     const { container } = render(InvitationCodes);
     await vi.waitFor(() =>
-      expect([...container.querySelectorAll('bdi')].map((node) => node.textContent)).toEqual([
-        'Bob',
-        'Bob'
-      ])
+      expect(
+        [...container.querySelectorAll('[data-testid="user-identity"] bdi')].filter(
+          (node) => node.textContent === 'Bob'
+        )
+      ).toHaveLength(2)
     );
     expect(profiles.batchGetUsers).toHaveBeenCalledOnce();
     expect(profiles.batchGetUsers.mock.calls[0][0].userIds).toEqual(['creator']);
+    expect(container.querySelectorAll('[data-testid="user-identity"]')).toHaveLength(2);
+    expect(container.querySelectorAll('thead th')).toHaveLength(5);
+    expect(
+      container.querySelector('tbody tr td:nth-child(3) [data-testid="user-identity"]')
+    ).not.toBeNull();
     users.clear();
   });
 

@@ -22,6 +22,7 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Registration' 
 const settings = mockService(AdminServerService);
 const invitations = mockService(AdminInvitationCodeService);
 const signupMethods = {
+  refreshProfile: vi.fn().mockResolvedValue(undefined),
   directRegistrationEnabled: true,
   authProviders: [
     { id: 'company', label: 'Company SSO', autoProvision: true },
@@ -74,6 +75,7 @@ describe('Registration admin page', () => {
       updateMask: { paths: ['registration.admission'] }
     });
     await expect.element(page.getByRole('radio', { name: /^Invite Code Required/ })).toBeChecked();
+    expect(signupMethods.refreshProfile).toHaveBeenCalledOnce();
     await expect.element(page.getByRole('radio', { name: /^Open Registration/ })).not.toBeChecked();
     await expect
       .element(page.getByRole('button', { name: 'Create code', exact: true }))

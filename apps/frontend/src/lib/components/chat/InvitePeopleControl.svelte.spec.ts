@@ -37,6 +37,7 @@ beforeEach(() => {
   vi.spyOn(history, 'back').mockImplementation(() => route.state.set({}));
   scope = createTestServerScope({
     permissions: { canInviteUsers: true },
+    serverInfo: { accountCreationPolicy: 'invite_only' },
     routes: (router) => router.service(InvitationCodeService, invitations)
   });
   invitations.createInvitationCode.mockReturnValue({
@@ -46,6 +47,36 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('member invitation codes', () => {
+  it('hides issuance for open or unknown registration and discards a code when registration opens', async () => {
+    const policy = signal<'open' | 'invite_only' | null>('open');
+    scope = createTestServerScope({
+      permissions: { canInviteUsers: true },
+      serverInfo: {
+        get accountCreationPolicy() {
+          return policy.get();
+        }
+      },
+      routes: (router) => router.service(InvitationCodeService, invitations)
+    });
+    const view = render(InvitePeopleControl);
+    await expect
+      .element(view.getByRole('button', { name: 'Invite people' }))
+      .not.toBeInTheDocument();
+    policy.set(null);
+    await expect
+      .element(view.getByRole('button', { name: 'Invite people' }))
+      .not.toBeInTheDocument();
+    policy.set('invite_only');
+    await userEvent.click(view.getByRole('button', { name: 'Invite people' }));
+    await userEvent.click(view.getByRole('button', { name: 'Create code' }));
+    await expect.element(view.getByText(code)).toBeVisible();
+    policy.set('open');
+    await expect.element(view.getByRole('dialog')).not.toBeInTheDocument();
+    policy.set('invite_only');
+    await expect.element(view.getByRole('button', { name: 'Create code' })).toBeVisible();
+    await expect.element(view.getByText(code)).not.toBeInTheDocument();
+  });
+
   it('creates and copies a code without admin access, then forgets it on Back and Forward', async () => {
     const view = render(InvitePeopleControl);
     const clipboard = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
