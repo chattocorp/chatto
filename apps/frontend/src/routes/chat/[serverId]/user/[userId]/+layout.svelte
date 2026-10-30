@@ -49,6 +49,7 @@
         if (!room?.id) throw new Error('Conversation is unavailable');
         await scope.store.ensureRoomAvailable(room.id);
         if (!isCurrent()) return;
+        scope.store.loadRoomMembers(room.id);
         conversation = { userId, roomId: room.id };
         recentQuickSwitcher.record(userPath(scope.serverId, userId));
       } catch {

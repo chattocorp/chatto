@@ -528,14 +528,15 @@ describe('Room interaction bundles', () => {
     }
   );
 
-  it('loads channel membership through the canonical member directory', async () => {
+  it('leaves channel membership loading to navigation', async () => {
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
       .mockImplementation(() => {});
 
     render(Room, { props: { roomId: 'room-1' } });
 
-    await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
+    await tick();
+    expect(ensureLoaded).not.toHaveBeenCalled();
   });
 
   it.each(['pending', 'failed'])(
@@ -554,6 +555,7 @@ describe('Room interaction bundles', () => {
       const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
       mocks.roomMembers.mockReturnValue(store);
 
+      store.ensureLoaded();
       render(Room, { props: { roomId: 'room-1' } });
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
       if (state === 'failed')
@@ -566,27 +568,6 @@ describe('Room interaction bundles', () => {
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
     }
   );
-
-  it('retains members once per room and releases them on navigation and unmount', async () => {
-    const first = new RoomMembersStore('room-1');
-    const second = new RoomMembersStore('room-2');
-    const releaseFirst = vi.fn();
-    const releaseSecond = vi.fn();
-    const retainFirst = vi.spyOn(first, 'retain').mockReturnValue(releaseFirst);
-    const retainSecond = vi.spyOn(second, 'retain').mockReturnValue(releaseSecond);
-    mocks.roomMembers.mockImplementation((id: string) => (id === 'room-1' ? first : second));
-    const view = render(Room, { props: { roomId: 'room-1' } });
-    await vi.waitFor(() => expect(retainFirst).toHaveBeenCalledOnce());
-    first.resetProjectionState();
-    await tick();
-    expect(retainFirst).toHaveBeenCalledOnce();
-    expect(releaseFirst).not.toHaveBeenCalled();
-    await view.rerender({ roomId: 'room-2' });
-    await vi.waitFor(() => expect(retainSecond).toHaveBeenCalledOnce());
-    expect(releaseFirst).toHaveBeenCalledOnce();
-    view.unmount();
-    expect(releaseSecond).toHaveBeenCalledOnce();
-  });
 
   it('leaves membership event handling to the session store without a component reload', async () => {
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});

@@ -356,7 +356,6 @@ export class ServerStateStore {
       presence: this.presence,
       realtimeViewerId: () => this.realtimeViewerId(),
       viewerId: () => this.viewerId,
-      deferMemberLoading: () => this.#realtimeSnapshotPending || this.checkingPermissions,
       projectedMemberIds: (roomId) => {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
@@ -759,11 +758,25 @@ export class ServerStateStore {
     );
   }
 
-  /** An active recovery or permission check owns the replacement member read. */
+  /** Request members after navigation; recovery can complete the load later. */
+  loadRoomMembers(roomId: string): void {
+    const members = this.#rooms.members(roomId);
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
+    members.ensureLoaded();
+  }
+
+  /** Recovery owns its refresh; ordinary membership changes refresh the cached list. */
   private invalidateRoomMembership(roomId: string): void {
     const members = this.#rooms.loaded(roomId)?.members;
-    if (this.#realtimeSnapshotPending || this.checkingPermissions) members?.resetProjectionState();
-    else members?.invalidateMembership(this.#currentEventMinimumCursor);
+    if (!members) return;
+    members.resetProjectionState();
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
+    this.trackProjectionReconciliation(
+      members.refresh({ minimumCursor: this.#currentEventMinimumCursor }),
+      this.#realtimeProjectionGeneration
+    );
   }
 
   /** Universal membership depends on server authorization, not only join facts. */
@@ -776,7 +789,7 @@ export class ServerStateStore {
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false, invitationId?: string): void {
     this.#rooms.loaded(roomId)?.notice?.reset(true);
-    this.#rooms.loaded(roomId)?.members?.clearForAccessRevocation();
+    this.#rooms.loaded(roomId)?.members?.resetProjectionState();
     this.projection.removeRoomCalls(roomId);
     if (this.notifications.clearRoom(roomId, invitationId)) {
       // Its creation hint may have arrived before the invitation directory row.
@@ -802,11 +815,9 @@ export class ServerStateStore {
     this.#rooms.clearMessageAccess(roomId, forgetStores);
   }
 
-  /** Reacquire only mounted stores that were previously scrubbed for access loss. */
+  /** Reacquire cached members and mounted resources after access returns. */
   private restoreRoomAccess(roomId: string): void {
-    this.#rooms.loaded(roomId)?.members?.restoreAccess({
-      deferLoad: this.#realtimeSnapshotPending || this.checkingPermissions
-    });
+    if (this.#rooms.loaded(roomId)?.members) this.loadRoomMembers(roomId);
     this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);

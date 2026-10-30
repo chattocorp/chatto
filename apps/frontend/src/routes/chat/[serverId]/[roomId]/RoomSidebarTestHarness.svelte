@@ -66,7 +66,7 @@ can exercise pagination wiring without mounting the full chat room.
 
   const syncMembersStore: Attachment = () => {
     const store = roomMembersStore;
-    if (activePanel === 'members') return untrack(() => store.retain());
+    if (activePanel === 'members') untrack(() => store.ensureLoaded());
   };
 
   const syncFilesStore: Attachment = () => {
