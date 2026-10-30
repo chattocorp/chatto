@@ -41,12 +41,16 @@
 </script>
 
 <!-- @component One opening owns one code. No mutation cache or browser storage retains it. -->
-<Dialog visible title={m('chat.invitation.title')} size="sm" oncloserequest={clear} {onclose}>
-  <div class="space-y-4 p-5">
-    <p class="text-sm text-muted">{m('chat.invitation.description')}</p>
+<Dialog visible title={m('chat.invitation.title')} size="md" oncloserequest={clear} {onclose}>
+  <div class="space-y-6 py-4 text-lg leading-relaxed">
+    <p>{m('chat.invitation.description')}</p>
     {#if code}
-      <div class="flex items-center justify-between gap-2">
-        <code dir="ltr" class="font-mono text-base tracking-wide break-all">{code}</code>
+      <div class="flex items-center justify-between gap-4 py-2">
+        <code
+          dir="ltr"
+          class="min-w-0 font-mono text-2xl font-semibold tracking-wide wrap-anywhere text-text-top"
+          >{code}</code
+        >
         <CopyButton value={code} />
       </div>
       <Hint>{m('chat.invitation.once')}</Hint>
