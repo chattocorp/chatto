@@ -22,9 +22,12 @@ test('changes a signed-in password and invalidates other browser sessions', asyn
   await otherPage.getByRole('button', { name: 'Sign in' }).click();
   await expect(otherPage.getByRole('heading', { name: 'Your account' })).toBeVisible();
 
+  await page.getByRole('link', { name: 'Security', exact: true }).click();
   await page.getByRole('link', { name: 'Change password' }).click();
   await expect(page.getByRole('heading', { name: 'Change your password' })).toBeVisible();
-  await expect(page.getByText('signs out your other browser sessions on Test Accounts')).toBeVisible();
+  await expect(
+    page.getByText('signs out your other browser sessions on Test Accounts')
+  ).toBeVisible();
 
   await page.getByLabel('Current password').fill('the wrong current password');
   await page.getByLabel('New password', { exact: true }).fill(replacementPassword);
@@ -36,7 +39,9 @@ test('changes a signed-in password and invalidates other browser sessions', asyn
   await page.getByLabel('New password', { exact: true }).fill(originalPassword);
   await page.getByLabel('Confirm new password').fill(originalPassword);
   await page.getByRole('button', { name: 'Change password' }).click();
-  await expect(page.getByRole('alert')).toHaveText('new password must be different from the current password');
+  await expect(page.getByRole('alert')).toHaveText(
+    'new password must be different from the current password'
+  );
 
   await page.getByLabel('Current password').fill(originalPassword);
   await page.getByLabel('New password', { exact: true }).fill(replacementPassword);
@@ -49,6 +54,7 @@ test('changes a signed-in password and invalidates other browser sessions', asyn
   await page.getByLabel('Confirm new password').fill(replacementPassword);
   await page.getByRole('button', { name: 'Change password' }).click();
   await expect(page.getByRole('status')).toContainText('Your password was changed');
+  await page.getByRole('link', { name: 'Profile', exact: true }).click();
   await expect(page.locator('code')).toHaveText(accountID);
 
   await otherPage.goto('/account');

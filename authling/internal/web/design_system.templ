@@ -15,6 +15,7 @@ templ designSystemPage() {
 				<button class="button button-secondary" type="button">Secondary</button>
 				<button class="button button-danger" type="button">Destructive</button>
 				<button class="button button-primary" type="button" disabled>Disabled</button>
+				<button class="button button-primary" type="button" disabled aria-busy="true">Saving…</button>
 				<a class="button button-secondary" href="#fields-heading">Link action</a>
 			</div>
 			<p class="mt-4"><a class="text-link" href="#feedback-heading">Text link</a></p>
@@ -48,16 +49,24 @@ templ designSystemPage() {
 		<section class="panel mt-6" aria-labelledby="records-heading">
 			<h2 class="settings-heading" id="records-heading">Records and navigation</h2>
 			<div class="settings-item mt-4">
-				<div class="flex flex-wrap items-center gap-2"><span class="font-medium">Browser session</span>@ui.Badge("This browser")</div>
+				<div class="flex flex-wrap items-center gap-2"><span class="font-medium">Browser session</span>@ui.Badge("This browser")
+</div>
 				<details class="disclosure mt-2"><summary>Session details</summary><p class="mt-2 text-muted">Example details for a native disclosure.</p></details>
 			</div>
 			<div class="mt-4">
 				@ui.DataTable("Example users", []string{"User", "Access", "Registered"}) {
-					<tr><th scope="row">Alice Example</th><td>@ui.Badge("Administrator")</td><td>29 Oct 2026</td></tr>
+					<tr><th scope="row">Alice Example</th><td>@ui.Badge("Administrator")
+</td><td>29 Oct 2026</td></tr>
 					<tr><th scope="row">Bob Example</th><td>User</td><td>29 Oct 2026</td></tr>
+					<tr><th scope="row">A deliberately long example name that tests wrapping on small screens</th><td>@ui.Badge("Administrator")
+</td><td>29 Oct 2026</td></tr>
 				}
 			</div>
 			@ui.Pagination("/dev/ui#records-heading", "/dev/ui#records-heading")
+			<p class="mt-4 text-muted">First page: only the next action is available.</p>
+			@ui.Pagination("", "/dev/ui#records-heading")
+			<p class="mt-4 text-muted">Last page: return to the first page.</p>
+			@ui.Pagination("/dev/ui#records-heading", "")
 			<div class="mt-4">
 				@ui.DataTable("Empty example", []string{"User", "Access", "Registered"}) {
 					@ui.TableEmpty(3, "No accounts on this page.")

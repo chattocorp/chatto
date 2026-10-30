@@ -48,7 +48,7 @@ func TestSiteCopyIsEscapedAcrossBrowserPages(t *testing.T) {
 		"password reset": newPasswordPage("", "", 10, ""),
 		"email change":   emailChangePage("", ""), "email confirmation": emailChangeConfirmPage("", "", ""),
 		"password change": passwordChangePage("", 10, ""),
-		"account":         accountPage("acc_test", "", nil, nil, false, false, false, false, false, false, false, false, false, false),
+		"account":         accountPage(accountPageData{accountID: "acc_test", section: "profile"}),
 		"consent":         consentPage(oidcprovider.ConsentRequest{ClientName: "Example app"}, "", "acc_test", accounts.Profile{}),
 		"delete":          deleteAccountPage(""), "deleted": accountDeletedPage(),
 	} {

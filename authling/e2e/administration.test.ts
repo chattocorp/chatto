@@ -72,6 +72,7 @@ test('limits the user directory to administrators and renders it on small screen
       true
     );
     await page.getByRole('region', { name: 'Registered users' }).focus();
+    await page.evaluate(() => document.dispatchEvent(new Event('htmx:afterSettle')));
     await expect(page.getByRole('region', { name: 'Registered users' })).toBeFocused();
   }
   await page.context().clearCookies();

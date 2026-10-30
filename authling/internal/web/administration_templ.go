@@ -196,7 +196,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 41, Col: 75}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 42, Col: 75}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 					if templ_7745c5c3_Err != nil {
@@ -209,7 +209,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.CreatedAt.UTC().Format("02 Jan 2006 15:04 UTC"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 41, Col: 137}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 42, Col: 137}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 					if templ_7745c5c3_Err != nil {
@@ -222,7 +222,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 					var templ_7745c5c3_Var12 string
 					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(row.CreatedAt.UTC().Format("02 Jan 2006"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 42, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 43, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 					if templ_7745c5c3_Err != nil {
@@ -235,7 +235,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 45, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 46, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 					if templ_7745c5c3_Err != nil {
@@ -248,7 +248,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(row.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 45, Col: 85}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/administration.templ`, Line: 46, Col: 85}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {

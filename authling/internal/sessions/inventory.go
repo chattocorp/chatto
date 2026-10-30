@@ -291,7 +291,7 @@ func (s *Service) inventoryEntryByIDLocked(accountID, id string) (inventoryEntry
 }
 
 func (s *Service) sessionActive(state Session, now time.Time, version uint64) bool {
-	if !now.Before(state.ExpiresAt) || now.Sub(state.LastSeenAt) >= InactivityLifetime {
+	if !now.Before(state.ExpiresAt) {
 		return false
 	}
 	if s.authenticationVersion != nil {

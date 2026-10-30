@@ -154,7 +154,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     name: 'Updated Profile Person'
   });
 
-  await page.goto(`${stack.baseURL}/account`);
+  await page.goto(`${stack.baseURL}/account/apps`);
   const authorizedApps = page.getByRole('heading', { name: 'Connected apps' }).locator('..');
   await expect(authorizedApps.getByText('Authling E2E client')).toBeVisible();
   await expect(
@@ -169,7 +169,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   await page.goto(forcedConsent.toString());
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
 
-  await page.goto(`${stack.baseURL}/account`);
+  await page.goto(`${stack.baseURL}/account/apps`);
   await authorizedApps.getByRole('button', { name: 'Revoke access' }).click();
   await expect(
     page.getByText('The app’s authorization was revoked', { exact: false })

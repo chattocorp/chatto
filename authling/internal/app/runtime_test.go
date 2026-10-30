@@ -569,7 +569,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 	if err != nil || len(grants) != 1 || grants[0].ClientName != "Test Client" {
 		t.Fatalf("active grants = %+v, %v", grants, err)
 	}
-	accountPage := requestHandler(t, handler, http.MethodGet, "/account", "", cookie)
+	accountPage := requestHandler(t, handler, http.MethodGet, "/account/apps", "", cookie)
 	if accountPage.Code != http.StatusOK || !strings.Contains(accountPage.Body.String(), "Connected apps") || !strings.Contains(accountPage.Body.String(), "Test Client") {
 		t.Fatalf("account authorized apps status/body = %d %s", accountPage.Code, accountPage.Body.String())
 	}
@@ -603,7 +603,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 	}
 
 	revoke := requestHandler(t, handler, http.MethodPost, "/account/authorizations/revoke", url.Values{"grant_id": {grants[0].ID}}.Encode(), cookie)
-	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/account?app_revoked=1" {
+	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/account/apps?app_revoked=1" {
 		t.Fatalf("grant revoke status/location/body = %d %q %s", revoke.Code, revoke.Header().Get("Location"), revoke.Body.String())
 	}
 	if remaining, err := runtime.Authorizations.List(testContext(t), account.ID); err != nil || len(remaining) != 0 {
@@ -737,7 +737,7 @@ func TestBrowserSessionManagementHTTP(t *testing.T) {
 	currentCookie := login()
 	otherCookie := login()
 
-	accountPage := requestHandler(t, handler, http.MethodGet, "/account", "", currentCookie)
+	accountPage := requestHandler(t, handler, http.MethodGet, "/account/sessions", "", currentCookie)
 	if accountPage.Code != http.StatusOK {
 		t.Fatalf("account status/body = %d %s", accountPage.Code, accountPage.Body.String())
 	}
@@ -764,13 +764,13 @@ func TestBrowserSessionManagementHTTP(t *testing.T) {
 	}
 
 	revoke := requestHandler(t, handler, http.MethodPost, "/account/sessions/revoke", url.Values{"session_id": {match[1]}}.Encode(), currentCookie)
-	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/account?session_revoked=1" {
+	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/account/sessions?session_revoked=1" {
 		t.Fatalf("revoke status/location/body = %d %q %s", revoke.Code, revoke.Header().Get("Location"), revoke.Body.String())
 	}
 	if response := requestHandler(t, handler, http.MethodGet, "/account", "", otherCookie); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
 		t.Fatalf("revoked browser status/location = %d %q", response.Code, response.Header().Get("Location"))
 	}
-	if response := requestHandler(t, handler, http.MethodGet, "/account?session_revoked=1", "", currentCookie); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "other browser session was signed out") {
+	if response := requestHandler(t, handler, http.MethodGet, "/account/sessions?session_revoked=1", "", currentCookie); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "other browser session was signed out") {
 		t.Fatalf("current browser after revoke status/body = %d %s", response.Code, response.Body.String())
 	}
 
@@ -789,13 +789,13 @@ func TestBrowserSessionManagementHTTP(t *testing.T) {
 	}
 
 	revokeOthers := requestHandler(t, handler, http.MethodPost, "/account/sessions/revoke-others", "confirm=1", currentCookie)
-	if revokeOthers.Code != http.StatusSeeOther || revokeOthers.Header().Get("Location") != "/account?other_sessions_revoked=1" {
+	if revokeOthers.Code != http.StatusSeeOther || revokeOthers.Header().Get("Location") != "/account/sessions?other_sessions_revoked=1" {
 		t.Fatalf("bulk revoke status/location = %d %q", revokeOthers.Code, revokeOthers.Header().Get("Location"))
 	}
 	if response := requestHandler(t, handler, http.MethodGet, "/account", "", thirdCookie); response.Code != http.StatusSeeOther {
 		t.Fatalf("bulk-revoked browser status = %d, want redirect", response.Code)
 	}
-	if response := requestHandler(t, handler, http.MethodGet, "/account?other_sessions_revoked=1", "", currentCookie); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "other browser sessions were signed out") {
+	if response := requestHandler(t, handler, http.MethodGet, "/account/sessions?other_sessions_revoked=1", "", currentCookie); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "other browser sessions were signed out") {
 		t.Fatalf("current browser after bulk revoke status/body = %d %s", response.Code, response.Body.String())
 	}
 }

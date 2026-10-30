@@ -87,6 +87,6 @@ func mountPasswordChange(mux *http.ServeMux, deps Dependencies, publicOrigin *ur
 			http.Error(w, "password changed, but a new session could not be established", http.StatusServiceUnavailable)
 			return
 		}
-		redirect(w, r, "/account?password_changed=1")
+		redirect(w, r, "/account/security?password_changed=1")
 	})
 }

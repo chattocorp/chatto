@@ -7,14 +7,24 @@ const (
 	Neutral Tone = "neutral"
 	Success Tone = "success"
 	Warning Tone = "warning"
-	Danger Tone = "error"
+	Danger  Tone = "error"
 )
 
 // Heading supplies the single page heading and optional introductory content.
 templ Heading(title string) {
 	<header class="page-heading">
 		<h1 class="page-title">{ title }</h1>
-		<div class="page-description">{ children... }</div>
+		<div class="page-description">{ children... }
+</div>
+	</header>
+}
+
+// SectionHeading titles a panel below the page's primary heading.
+templ SectionHeading(title string) {
+	<header class="page-heading">
+		<h2 class="page-title">{ title }</h2>
+		<div class="page-description">{ children... }
+</div>
 	</header>
 }
 

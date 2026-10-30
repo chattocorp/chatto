@@ -66,7 +66,7 @@ func designSystemPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <section class=\"panel mt-6\" aria-labelledby=\"actions-heading\"><h2 class=\"settings-heading\" id=\"actions-heading\">Actions</h2><div class=\"mt-4 flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"button\">Primary</button> <button class=\"button button-secondary\" type=\"button\">Secondary</button> <button class=\"button button-danger\" type=\"button\">Destructive</button> <button class=\"button button-primary\" type=\"button\" disabled>Disabled</button> <a class=\"button button-secondary\" href=\"#fields-heading\">Link action</a></div><p class=\"mt-4\"><a class=\"text-link\" href=\"#feedback-heading\">Text link</a></p></section><section class=\"panel mt-6\" aria-labelledby=\"fields-heading\"><h2 class=\"settings-heading\" id=\"fields-heading\">Fields</h2><div class=\"mt-4 grid gap-4 sm:grid-cols-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <section class=\"panel mt-6\" aria-labelledby=\"actions-heading\"><h2 class=\"settings-heading\" id=\"actions-heading\">Actions</h2><div class=\"mt-4 flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"button\">Primary</button> <button class=\"button button-secondary\" type=\"button\">Secondary</button> <button class=\"button button-danger\" type=\"button\">Destructive</button> <button class=\"button button-primary\" type=\"button\" disabled>Disabled</button> <button class=\"button button-primary\" type=\"button\" disabled aria-busy=\"true\">Saving…</button> <a class=\"button button-secondary\" href=\"#fields-heading\">Link action</a></div><p class=\"mt-4\"><a class=\"text-link\" href=\"#feedback-heading\">Text link</a></p></section><section class=\"panel mt-6\" aria-labelledby=\"fields-heading\"><h2 class=\"settings-heading\" id=\"fields-heading\">Fields</h2><div class=\"mt-4 grid gap-4 sm:grid-cols-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -200,7 +200,15 @@ func designSystemPage() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</td><td>29 Oct 2026</td></tr><tr><th scope=\"row\">Bob Example</th><td>User</td><td>29 Oct 2026</td></tr>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</td><td>29 Oct 2026</td></tr><tr><th scope=\"row\">Bob Example</th><td>User</td><td>29 Oct 2026</td></tr><tr><th scope=\"row\">A deliberately long example name that tests wrapping on small screens</th><td>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = ui.Badge("Administrator").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</td><td>29 Oct 2026</td></tr>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -210,7 +218,7 @@ func designSystemPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -218,7 +226,23 @@ func designSystemPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"mt-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<p class=\"mt-4 text-muted\">First page: only the next action is available.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = ui.Pagination("", "/dev/ui#records-heading").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"mt-4 text-muted\">Last page: return to the first page.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = ui.Pagination("/dev/ui#records-heading", "").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"mt-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -244,7 +268,7 @@ func designSystemPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

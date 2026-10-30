@@ -202,7 +202,7 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 // establishSessionAtAuthenticationVersion never upgrades a stale login or
 // recovery proof to a credential generation that did not authorize it.
 func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64, authenticatedAt time.Time) error {
-	token, _, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion, authenticatedAt)
+	token, state, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion, authenticatedAt)
 	if err != nil {
 		return err
 	}
@@ -215,14 +215,16 @@ func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Requ
 		_ = deps.Sessions.Revoke(r.Context(), token)
 		return cookieErr
 	}
-	setSessionCookie(w, token, deps.SecureCookies)
+	setSessionCookie(w, token, deps.SecureCookies, state.ExpiresAt)
 	return nil
 }
 
-func setSessionCookie(w http.ResponseWriter, token string, secure bool) {
+func setSessionCookie(w http.ResponseWriter, token string, secure bool, expiresAt time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName(secure),
 		Value:    token,
+		Expires:  expiresAt,
+		MaxAge:   int(sessions.AbsoluteLifetime / time.Second),
 		Path:     "/",
 		Secure:   secure,
 		HttpOnly: true,

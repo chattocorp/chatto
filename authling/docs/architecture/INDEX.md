@@ -347,7 +347,7 @@ keyed attempt limit before checking the encrypted credential and creates a
 fresh browser session on success. `GET /account` requires that session, and
 same-origin `POST /logout` revokes it. Successful signup also starts a session.
 The host-only browser cookie carries only a random opaque bearer and is
-`HttpOnly`, `SameSite=Lax`, scoped to `/`, non-persistent, and secure outside
+`HttpOnly`, `SameSite=Lax`, scoped to `/`, persistent for 90 days, and secure outside
 the explicit loopback development mode.
 
 The `internal/runtimejson` codec encodes version-1 encrypted JSON envelopes
@@ -359,8 +359,8 @@ The codec clears temporary plaintext buffers before returning. Existing records
 remain readable, and old readers can read new records without migration.
 
 Session records are authenticated-encrypted in runtime state beneath
-HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
-inactivity limit. Activity updates use OCC and never extend the absolute
+HMAC-derived keys. New sessions have a 90-day absolute lifetime and no separate
+inactivity limit. Existing records keep their stored expiry. Activity updates use OCC and never extend the absolute
 deadline. Each session records the account authentication version current at
 issuance. Password reset, signed-in password change, and verified email change
 advance that durable version, invalidating every older session across replicas
@@ -371,7 +371,9 @@ storage formats are unchanged; all replicas must run the fix to close the old
 session-creation path. Logout deletes the server record before clearing the
 cookie.
 
-`GET /account` also reads the current account's active sessions from the
+`GET /account` renders the profile summary. `GET /account/security` renders
+password and deletion actions. Each account section requires an active session.
+`GET /account/sessions` reads the current account's active sessions from the
 process-wide inventory. It renders lifecycle timestamps and identifies the
 current browser without collecting user agents, IP addresses, device names, or
 locations. Same-origin `POST /account/sessions/revoke` signs out one other
@@ -469,7 +471,7 @@ scopes. ID tokens retain authorized UserInfo claims. UserInfo uses the scopes
 stored in encrypted access-token state, never scopes from the HTTP request.
 Plaintext email is not added to events, projections, or token records.
 
-`GET /account` lists active OIDC grants separately from Authling browser
+`GET /account/apps` lists active OIDC grants separately from Authling browser
 sessions. Same-origin `POST /account/authorizations/revoke` authorizes the
 opaque grant ID under the current account and commits revocation. Revocation
 forces future authorization to ask again but does not terminate already issued

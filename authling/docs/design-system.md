@@ -8,10 +8,10 @@ account, and admin pages.
 ## Foundations
 
 Use IBM Plex Sans for interface text. Use monospace only for identifiers and
-verification codes. All interface text uses 18px, including headings, inputs,
+verification codes. All interface text uses 17px, including headings, inputs,
 buttons, hints, badges, and metadata. Use weight, spacing, and secondary text
 color for hierarchy instead of different font sizes. Normal line height is 24px.
-Input text at 18px also avoids focus zoom on mobile browsers.
+Input text at 17px also avoids focus zoom on mobile browsers.
 
 Use a 4px spacing grid. Forms have 16px between fields and 24px before the first
 field. Related text has 4–8px between lines or groups. Buttons and inputs are at
@@ -44,13 +44,22 @@ controls remain native disabled controls. Do not remove keyboard focus outlines.
 
 ## Layouts and components
 
-Focused tasks, including sign-in, registration, recovery, and profile editing,
-use a `focus-card` with a 32rem maximum width. `focus-main` centers the card
+Sign-in and registration use a `focus-card` with a 32rem maximum width.
+`focus-main` centers the card
 horizontally and vertically in the space below the site header. On short screens,
 auto margins collapse and the document scrolls; the card's top stays accessible.
 
-Account and administration use a 64rem content container. The site header aligns
-with this container. Administrator navigation appears in the header on these pages.
+Account, recovery, and administration pages use a 64rem content container.
+The site header aligns with this container. Administrator navigation appears
+in the header on the account overview and administration pages.
+The account workspace has four URL-backed sections: Profile (`/account`),
+Security (`/account/security`), Connected apps (`/account/apps`), and Sessions
+(`/account/sessions`). Use ordinary links with `aria-current="page"` for the
+active section. The four equal-width tabs form the top edge of the content
+sheet. They remain in one row on small screens, where Connected apps is
+displayed as Apps. The accessible name remains Connected apps.
+Account tasks retain this navigation and use full-width panels. Fields and
+explanatory text have a narrower maximum width for readability.
 Each functional section
 uses a `panel` that fills the container width. The user directory keeps its
 heading, table, and pagination in one panel. Panels use the same surface and
@@ -59,12 +68,16 @@ with a bottom divider. Descriptions remain in the padded content body.
 Sessions and connected apps remain records inside
 their panels. Consent keeps its narrow, compact layout for authorization popups.
 
-Use `ui.Heading` once per page. Use `settings-heading` and `settings-description`
+Use `ui.Heading` once per page and `ui.SectionHeading` for account task panels.
+Use `settings-heading` and `settings-description`
 for sections, and `form-stack` for normal forms. Consent may use a compact action
 row. Allow scrolling for long content, expanded disclosures, or increased text
 size; never hide overflow to make a page fit.
 
 The [component guide](../internal/web/ui/README.md) describes the templ API.
+Page templates live beside their feature handlers in `internal/web/`.
+`layout.templ` owns the document and page shell. Keep feature content in its
+own template and shared markup in `ui/`.
 Use components when markup carries shared semantics: labels and hints, notices,
 or table captions. Use CSS primitives for native buttons, links, and disclosures.
 A wrapper around every HTML element is not required.
@@ -92,16 +105,17 @@ Its exact CSP hash permits this style without permitting arbitrary inline CSS.
 Keep its fallback colors in `internal/web/assets.go` aligned with the canvas tokens.
 
 Ordinary links use htmx to replace the body while keeping the document alive.
-Ordinary sign-in also uses htmx, including its validation errors and account
-redirect. OAuth sign-in, other forms, consent pages, and authentication links with
+Ordinary sign-in and profile editing also use htmx, including validation errors
+and account redirects. Their submit buttons are disabled while a request is
+pending. A failed network request preserves input and displays a message; it
+does not automatically repeat the submission.
+OAuth sign-in, other forms, consent pages, and authentication links with
 query parameters keep native navigation. Titles, browser history, and keyboard
 focus follow the destination.
 History pages are fetched again instead of stored in htmx's browser cache.
 Without JavaScript, all links and forms use ordinary browser navigation.
-htmx swaps use a 160ms CSS View Transition on the main content. The background
-and header stay outside the snapshots. Reduced-motion preferences disable the
-animation, including when the preference changes while the page is open.
-Cross-document View Transitions remain disabled after reports of white flashes.
+Page changes have no animation. htmx swaps content directly; CSS View
+Transitions are not used.
 The initial canvas style remains active without the external stylesheet.
 
 Start the development Authling server and open `/dev/ui`. The preview is
@@ -109,8 +123,9 @@ registered only in binaries built with the `bootstrap` tag. Static examples read
 no account data and have no save actions. Production binaries return 404 for this
 path. The page follows the browser's light/dark preference.
 
-Inspect normal, invalid, disabled, and read-only states. Check keyboard focus,
-the empty table, and narrow layouts. Then check real pages. Test forms without
+Inspect normal, invalid, disabled, read-only, and pending states. Check keyboard
+focus, empty tables, long content, first/last-page navigation, and narrow layouts.
+Then check real pages. Test forms without
 JavaScript and retain native validation and autofill. Check long names and email
 addresses. Standard consent must fit at 520 × 500px; forms must remain usable at
 320px width. Arbitrary long content and zoomed text may need scrolling.
