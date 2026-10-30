@@ -10,8 +10,8 @@ if (process.platform !== 'darwin') {
   throw new Error('Build the macOS DMG on macOS.');
 }
 const desktopRoot = fileURLToPath(new URL('../', import.meta.url));
-const bundle = path.join(desktopRoot, 'dist/Chatto Desktop.app');
-await access(path.join(bundle, 'Contents/MacOS/Chatto Desktop'));
+const bundle = path.join(desktopRoot, 'dist/Chatto.app');
+await access(path.join(bundle, 'Contents/MacOS/Chatto'));
 await rm(path.join(desktopRoot, 'dist/dmg'), { recursive: true, force: true });
 const artifactName = `chatto-desktop_${packageJson.version}_macOS_${process.arch.toUpperCase()}.dmg`;
 await build({
@@ -21,7 +21,7 @@ await build({
   publish: 'never',
   config: {
     appId: 'run.chatto.desktop',
-    productName: 'Chatto Desktop',
+    productName: 'Chatto',
     electronVersion: packageJson.devDependencies.electron,
     directories: { output: 'dist/dmg', buildResources: 'icons' },
     publish: null,
@@ -31,7 +31,7 @@ await build({
       // Release signing is explicit below and must fail if credentials are absent.
       sign: false,
       writeUpdateInfo: false,
-      title: 'Chatto Desktop',
+      title: 'Chatto',
       background: path.join(desktopRoot, 'icons/background.png'),
       window: { width: 540, height: 380 },
       contents: [

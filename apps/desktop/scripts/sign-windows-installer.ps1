@@ -16,7 +16,7 @@ Invoke-ArtifactSigning -Endpoint $env:CHATTO_WINDOWS_SIGNING_ENDPOINT `
     -TimestampRfc3161 'http://timestamp.acs.microsoft.com' `
     -ExcludeEnvironmentCredential:$true -ExcludeWorkloadIdentityCredential:$true `
     -ExcludeManagedIdentityCredential:$true -ExcludeAzureCliCredential:$false `
-    -Description 'Chatto Desktop' -DescriptionUrl 'https://chatto.run'
+    -Description 'Chatto' -DescriptionUrl 'https://chatto.run'
 
 $signature = Get-AuthenticodeSignature -LiteralPath $File
 if ($signature.Status -ne 'Valid' -or $null -eq $signature.TimeStamperCertificate -or

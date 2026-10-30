@@ -286,7 +286,7 @@ run = "pnpm build"
 [tasks.desktop-run-dev]
 description = "Build and open Chatto Desktop Dev on macOS"
 depends = ["desktop-build-dev"]
-run = 'open "apps/desktop/dist/Chatto Desktop Dev.app"'
+run = 'open "apps/desktop/dist/Chatto Dev.app"'
 
 [tasks.desktop-video-benchmark]
 description = "Compare macOS hardware encoder settings locally (pass --output <new-directory>)"
