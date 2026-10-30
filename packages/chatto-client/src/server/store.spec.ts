@@ -1735,6 +1735,42 @@ describe('ServerStateStore room search state', () => {
     store.dispose();
   });
 
+  it('defers membership invalidation that arrives during a permission check', async () => {
+    apiMocks.listRoomMembers.mockClear();
+    const store = makeStore(new FakeServerConnection([]));
+    const room = new RoomWithViewerState({
+      room: new Room({ id: 'universal', universal: true }),
+      viewerState: { isMember: true }
+    });
+    store.projection.rooms.set('universal', room);
+    const release = store.rooms.members('universal').retain();
+    await flushPromises();
+    const gate = deferred<void>();
+    apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+      await gate.promise;
+      return family === 'rooms' ? [roomResource([room])] : [];
+    });
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+      })
+    );
+    expect(store.checkingPermissions).toBe(true);
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          event: { case: 'roleAssigned', value: { userId: 'U2', roleName: 'helper' } }
+        })
+      })
+    );
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce();
+    gate.resolve();
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+    release();
+    store.dispose();
+  });
+
   it('reloads retained universal membership after another user receives a role', async () => {
     apiMocks.listRoomMembers.mockClear();
     const store = makeStore(new FakeServerConnection([]));

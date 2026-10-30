@@ -759,13 +759,17 @@ export class ServerStateStore {
     );
   }
 
+  /** An active recovery or permission check owns the replacement member read. */
+  private invalidateRoomMembership(roomId: string): void {
+    const members = this.#rooms.loaded(roomId)?.members;
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) members?.resetProjectionState();
+    else members?.invalidateMembership(this.#currentEventMinimumCursor);
+  }
+
   /** Universal membership depends on server authorization, not only join facts. */
-  private invalidateUniversalMembership(deferLoad = false): void {
+  private invalidateUniversalMembership(): void {
     for (const [id, room] of this.projection.rooms) {
-      if (!room.room?.universal) continue;
-      const members = this.#rooms.loaded(id)?.members;
-      if (deferLoad) members?.resetProjectionState();
-      else members?.invalidateMembership(this.#currentEventMinimumCursor);
+      if (room.room?.universal) this.invalidateRoomMembership(id);
     }
   }
 
@@ -1001,7 +1005,7 @@ export class ServerStateStore {
       if (!current()) return;
       const listenerResults = await listeners;
       if (!current()) return;
-      this.invalidateUniversalMembership(true);
+      this.invalidateUniversalMembership();
       await Promise.all(
         this.#rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
       );
@@ -1443,9 +1447,7 @@ export class ServerStateStore {
       case 'roomMembershipEventsVisibilityChanged':
       case 'userJoinedRoom':
         if (payload.case === 'roomUniversalChanged' && roomId) {
-          this.#rooms
-            .loaded(roomId)
-            ?.members?.invalidateMembership(this.#currentEventMinimumCursor);
+          this.invalidateRoomMembership(roomId);
           // Effective membership can expose a call that started before access.
           this.refreshRealtimeResource('activeCalls');
         }
