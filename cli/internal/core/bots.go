@@ -424,7 +424,8 @@ func (c *ChattoCore) credentialUsageIsActive(botID, credentialKey string) bool {
 	return active
 }
 
-// CreateBot creates a passwordless bot owned by actorID and returns its raw key once.
+// CreateBot creates a passwordless bot for the human caller or a bot caller's
+// human owner, and returns its raw key once.
 func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName string) (*Bot, error) {
 	return c.CreateBotWithAPIKeyName(ctx, actorID, login, displayName, defaultBotAPIKeyName)
 }

@@ -1,10 +1,12 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/stretchr/testify/require"
 )
@@ -56,8 +58,24 @@ func TestBotAdministrativeAccountOperations(t *testing.T) {
 	require.ErrorIs(t, err, ErrHumanAccountRequired)
 }
 
-// Creation must record the creator's owner at its commit position, even when
-// another request reassigns the creator while its creation facts are prepared.
+// reassignOnCreateKeyWrapper changes ownership after creation has selected its
+// owner but before its final authorization check. No scheduler timing is needed.
+type reassignOnCreateKeyWrapper struct {
+	kms.KeyWrapper
+	reassign func() error
+	userID   string
+}
+
+func (w *reassignOnCreateKeyWrapper) CreateKey(ctx context.Context, userID string) (string, error) {
+	w.userID = userID
+	if err := w.reassign(); err != nil {
+		return "", err
+	}
+	return w.KeyWrapper.CreateKey(ctx, userID)
+}
+
+// Creation must reject the selected owner if the creator is reassigned before
+// commit. A fresh request then creates the bot for the new human owner.
 func TestBotCreationConcurrentWithCreatorReassignment(t *testing.T) {
 	t.Parallel()
 	c, _ := setupTestCore(t)
@@ -71,33 +89,22 @@ func TestBotCreationConcurrentWithCreatorReassignment(t *testing.T) {
 	creator, err := c.CreateBot(ctx, owner.Id, "concurrent-creator", "Creator")
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, creator.User.Id, PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow))
-	start := make(chan struct{})
-	reassigned := make(chan error, 1)
-	go func() {
-		<-start
+	wrapper := &reassignOnCreateKeyWrapper{KeyWrapper: c.encryption.keyWrapper, reassign: func() error {
 		_, err := c.ReassignBotOwner(ctx, nextOwner.Id, creator.User.Id, nextOwner.Id)
-		reassigned <- err
-	}()
-	close(start)
+		return err
+	}}
+	c.encryption.keyWrapper = wrapper
 	created, createErr := c.CreateBot(ctx, creator.User.Id, "concurrent-created", "Created")
-	require.NoError(t, <-reassigned)
-	if createErr != nil {
-		require.ErrorIs(t, createErr, events.ErrConflict)
-		return
-	}
-	history, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserSubjectFilter())
+	c.encryption.keyWrapper = wrapper.KeyWrapper
+	require.NotEmpty(t, wrapper.userID, "test must reach key creation")
+	require.ErrorIs(t, createErr, events.ErrConflict)
+	require.Nil(t, created)
+	history, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(wrapper.userID).Subject(evtstream.EventUserAccountCreated))
 	require.NoError(t, err)
-	expectedOwner := owner.Id
-	for _, event := range history {
-		if reassignment := event.GetBotOwnerReassigned(); reassignment != nil && reassignment.GetUserId() == creator.User.Id {
-			expectedOwner = reassignment.GetOwnerUserId()
-		}
-		if account := event.GetUserAccountCreated(); account != nil && account.GetUserId() == created.User.Id {
-			require.Equal(t, expectedOwner, account.GetBotOwnerUserId())
-			return
-		}
-	}
-	t.Fatal("created bot has no account creation fact")
+	require.Empty(t, history, "rejected creation must not persist an account")
+	created, err = c.CreateBot(ctx, creator.User.Id, "concurrent-created", "Created")
+	require.NoError(t, err)
+	require.Equal(t, nextOwner.Id, created.OwnerUserID)
 }
 
 func TestBotCanCreateAndManageBotsWithExplicitGrants(t *testing.T) {
