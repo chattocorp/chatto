@@ -42,7 +42,7 @@
                   href={resolve(item.href as '/')}
                   aria-label={item.label}
                   aria-describedby={`${item.href}-description`}
-                  class="group flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-colors duration-200 hover:border-action/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action motion-reduce:transition-none"
+                  class="group flex min-w-0 hover-lift cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-surface hover:border-action/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
                 >
                   <SettingsCardArtwork href={item.href} icon={item.icon} />
                   <div class="flex flex-1 flex-col gap-2 p-4">

@@ -597,10 +597,27 @@ floating-menu elevation independent of this setting. Accent swatches become
 solid in Flat, retain their gradient in 3D, and add sheen in Very 3D. New depth recipes must
 use these shared parameters instead of fixed decorative shadow opacity.
 
-`hover-lift` moves a surface up 2 px over 150 ms on hover. Put
-`hover-lift-group` on an enclosing label to trigger the same movement from
-the label. Server cards and Appearance swatches share this utility. It only
-moves on devices with hover support and respects reduced motion.
+### Hover Lift
+
+**Hover Lift** is the shared motion cue for an interactive card or visual choice.
+The `hover-lift` utility moves the surface up 2 px over 150 ms on pointer hover
+and returns it when the pointer leaves. Server cards, Appearance swatches, and
+Settings Overview cards use the same utility. See **Foundations / Hover Lift**
+in Storybook and [the glossary](../../docs/GLOSSARY.md#ui).
+
+Apply `hover-lift` to the surface that moves. For a labelled choice, put
+`hover-lift-group` on the enclosing label and `hover-lift` on its visual preview.
+This lets the whole label trigger the preview without moving the label text.
+Keep the keyboard focus outline on the control; focus alone does not lift it.
+Do not apply the utility to static or disabled cards, dense list rows, or both
+a card and its children. It adds movement, not a shadow, fill, or selection state.
+Do not override its transform transition with `transition-colors`.
+
+Hover Lift runs only on devices with hover support and when the effective app
+motion policy is `full`. It stays still with reduced motion. Illustration
+animations inside a card remain separate from the movement of the card itself.
+
+### Other hover feedback
 
 `shimmer-hover` overlays one broad, soft highlight that crosses the surface in
 450 ms. It runs once per hover and respects reduced motion. Nested gutter
