@@ -92,15 +92,33 @@ it('keeps the card in the top layer until its zoom-fade exit completes', async (
   expect(container.querySelector('a')!.hasAttribute('aria-describedby')).toBe(false);
 });
 it('cancels brief hovers and pending opens on Escape', async () => {
-  const { container } = render(LinkHover, { href, children });
-  hover(container);
-  container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseleave'));
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  expect(fetchLinkPreview).not.toHaveBeenCalled();
-  hover(container);
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+  // Advance the debounce in the same task as the synthetic pointer events.
+  // Wall-clock waits let the browser's real pointer re-enter the new fixture.
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const { container } = render(LinkHover, { href, children });
+    hover(container);
+    vi.advanceTimersByTime(349);
+    await tick();
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseleave'));
+    vi.advanceTimersByTime(400);
+    await tick();
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    hover(container);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    vi.advanceTimersByTime(400);
+    await tick();
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    // A sustained hover still opens: cancellation must not disable the trigger.
+    hover(container);
+    vi.advanceTimersByTime(350);
+    await tick();
+    expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 it('skips transitions when animations are disabled in the app', async () => {
   applyAnimationPreference('disabled');
