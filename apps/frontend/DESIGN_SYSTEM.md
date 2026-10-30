@@ -1089,6 +1089,12 @@ system does not apply.
 
 ### Reviewed Exceptions
 
+Settings Overview artwork uses scoped keyframes in `SettingsCardArtwork` and
+`SettingsDestinationArtwork`. SVG pivot points, stroke drawing, and coordinated
+scene motion belong to these illustrations rather than shared UI utilities.
+Each scene settles within five seconds and repeats while its card has pointer
+hover or keyboard focus. Reduced-motion preferences disable the animations.
+
 The design-system audit (#1647) confirmed these exceptions. Do not convert them
 to the standard primitives unless their purpose changes.
 

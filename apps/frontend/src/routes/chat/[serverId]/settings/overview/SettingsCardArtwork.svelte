@@ -22,7 +22,7 @@
 
   <div class="flex scale-75 items-center justify-center">
     {#if kind === 'appearance'}
-      <div class="relative flex items-center -space-x-8">
+      <div class="palette relative flex items-center -space-x-8">
         <div
           class="h-28 w-40 -rotate-6 overflow-hidden rounded-xl border border-border bg-background shadow-lg transition-transform duration-200 group-hover:-rotate-3 motion-reduce:transition-none"
         >
@@ -54,7 +54,7 @@
         </div>
       </div>
     {:else if kind === 'language'}
-      <div class="relative flex items-center -space-x-3">
+      <div class="languages relative flex items-center -space-x-3">
         <span
           class="flex size-20 -rotate-12 items-center justify-center rounded-2xl border border-border bg-background text-5xl font-semibold shadow-lg transition-transform duration-200 group-hover:-rotate-6 motion-reduce:transition-none"
           >A</span
@@ -70,7 +70,7 @@
       </div>
     {:else if kind === 'composer'}
       <div
-        class="relative w-60 -rotate-3 rounded-xl border border-border bg-background p-4 shadow-lg transition-transform duration-200 group-hover:rotate-0 motion-reduce:transition-none"
+        class="composer relative w-60 -rotate-3 rounded-xl border border-border bg-background p-4 shadow-lg transition-transform duration-200 group-hover:rotate-0 motion-reduce:transition-none"
       >
         <div class="mb-4 flex gap-3 border-b border-border pb-3 text-muted">
           <span aria-hidden="true" class="iconify icon-[uil--bold] text-lg"></span><span
@@ -87,22 +87,30 @@
           ></span><span class="h-2 w-2/5 rounded-full bg-action/40"></span>
         </div>
         <span
-          class="absolute -end-4 -bottom-3 flex size-12 rotate-3 items-center justify-center rounded-2xl bg-action text-background shadow-lg"
+          class="send absolute -end-4 -bottom-3 flex size-12 rotate-3 items-center justify-center rounded-2xl bg-action text-background shadow-lg"
           ><span aria-hidden="true" class="iconify icon-[uil--message] text-2xl rtl:-scale-x-100"
           ></span></span
         >
       </div>
     {:else if kind === 'voice'}
-      <div class="relative flex items-center gap-2">
+      <div class="waveform relative flex items-center gap-2">
         {#each [24, 48, 72, 40] as height, index (index)}
-          <span class="w-2 rounded-full bg-action/25" style:height={`${height}px`}></span>
+          <span
+            class="wave w-2 rounded-full bg-action/25"
+            style:height={`${height}px`}
+            style:--delay={`${index * -0.2}s`}
+          ></span>
         {/each}
         <span
           class="mx-4 flex size-24 items-center justify-center rounded-full border border-action/20 bg-background text-5xl shadow-lg"
           ><span aria-hidden="true" class={icon}></span></span
         >
         {#each [56, 80, 40, 24] as height, index (index)}
-          <span class="w-2 rounded-full bg-action/25" style:height={`${height}px`}></span>
+          <span
+            class="wave w-2 rounded-full bg-action/25"
+            style:height={`${height}px`}
+            style:--delay={`${index * -0.3}s`}
+          ></span>
         {/each}
       </div>
     {:else}
@@ -110,3 +118,80 @@
     {/if}
   </div>
 </div>
+
+<style>
+  /* Illustration-specific keyframes need scoped CSS rather than shared UI utilities.
+     Brief welcome motion; hovering or keyboard focus keeps the scene playing. */
+  .palette > div:last-child,
+  .languages > span,
+  .send,
+  .wave {
+    animation: lift 4s ease-in-out 1;
+  }
+  .languages > span:nth-child(2) {
+    animation-delay: -0.3s;
+  }
+  .languages > span:nth-child(3) {
+    animation-delay: -0.6s;
+  }
+  .send {
+    animation-name: send;
+  }
+  .wave {
+    animation-name: waveform;
+    animation-delay: var(--delay);
+  }
+  :global(a:hover) .palette > div:last-child,
+  :global(a:focus-visible) .palette > div:last-child,
+  :global(a:hover) .languages > span,
+  :global(a:focus-visible) .languages > span,
+  :global(a:hover) .send,
+  :global(a:focus-visible) .send,
+  :global(a:hover) .wave,
+  :global(a:focus-visible) .wave {
+    animation-iteration-count: infinite;
+  }
+  @keyframes lift {
+    0%,
+    65%,
+    100% {
+      translate: 0 0;
+    }
+    25%,
+    45% {
+      translate: 0 -8px;
+    }
+  }
+  @keyframes send {
+    0%,
+    65%,
+    100% {
+      translate: 0 0;
+    }
+    30% {
+      translate: 9px -9px;
+    }
+  }
+  @keyframes waveform {
+    0%,
+    65%,
+    100% {
+      scale: 1 1;
+    }
+    20%,
+    45% {
+      scale: 1 0.45;
+    }
+    32% {
+      scale: 1 1.1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .palette > div:last-child,
+    .languages > span,
+    .send,
+    .wave {
+      animation: none;
+    }
+  }
+</style>

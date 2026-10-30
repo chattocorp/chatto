@@ -18,7 +18,14 @@
       <path d="M85 45h63" stroke="currentColor" stroke-width="6" opacity=".3" />
       <rect x="55" y="67" width="140" height="31" rx="7" class="fill-surface-emphasized" />
       {#each [69, 85, 101, 117, 133] as x (x)}
-        <circle cx={x} cy="83" r="3" fill="currentColor" />
+        <circle
+          class="pulse"
+          style:--delay={`${(x - 69) / 80}s`}
+          cx={x}
+          cy="83"
+          r="3"
+          fill="currentColor"
+        />
       {/each}
     </g>
     <g transform="rotate(22 215 91)" stroke="currentColor" stroke-width="9">
@@ -45,7 +52,7 @@
         opacity=".25"
       />
     </g>
-    <g transform="rotate(35 228 97)">
+    <g class="write" transform="rotate(35 228 97)">
       <rect x="220" y="68" width="15" height="50" rx="4" fill="currentColor" />
       <path d="m220 122 7 12 8-12" fill="currentColor" />
     </g>
@@ -57,7 +64,7 @@
     <circle cx="184" cy="82" r="48" class="fill-background stroke-border" stroke-width="3" />
     <g stroke="currentColor" stroke-width="3"
       ><path d="M184 43v5m39 34h-5m-34 39v-5m-39-34h5" />
-      <path d="M184 56v26l19 12" stroke-width="5" /></g
+      <path class="clock" d="M184 56v26l19 12" stroke-width="5" /></g
     >
     <circle cx="184" cy="82" r="5" fill="currentColor" />
   {:else if kind === 'notifications'}
@@ -77,6 +84,7 @@
     <circle cx="220" cy="63" r="32" class="fill-background" />
     <path
       d="M202 74h36l-5-9V54a13 13 0 0 0-26 0v11zm13 9q5 6 10 0"
+      class="ring"
       stroke="currentColor"
       stroke-width="4"
     />
@@ -93,11 +101,12 @@
         opacity=".3"
       />
       <rect x="180" y="96" width="42" height="16" rx="8" fill="currentColor" opacity=".35" />
-      <circle cx="212" cy="104" r="5" class="fill-background" />
+      <circle cx="212" cy="104" r="5" class="toggle fill-background" />
     </g>
   {:else if kind === 'neighbors'}
     <path
       d="m80 42 122 10M80 42l50 70m72-60-72 60"
+      class="signal"
       stroke="currentColor"
       stroke-width="3"
       stroke-dasharray="5 7"
@@ -136,7 +145,14 @@
           rx="14"
           class="fill-background stroke-border"
         />
-        <circle cy="-12" r="14" fill="currentColor" opacity=".7" />
+        <circle
+          class="greet"
+          style:--delay={`${person.x / -200}s`}
+          cy="-12"
+          r="14"
+          fill="currentColor"
+          opacity=".7"
+        />
         <path d="M-24 27c0-31 48-31 48 0" fill="currentColor" opacity=".3" />
         <path d="M-15 41h30" stroke="currentColor" stroke-width="4" opacity=".35" />
       </g>
@@ -159,7 +175,8 @@
         stroke-width="2"
       />
       <rect x="77" y="48" width="88" height="39" rx="14" fill="currentColor" opacity=".2" />
-      <circle cx="98" cy="67" r="7" fill="currentColor" /><circle
+      <circle class="blink" cx="98" cy="67" r="7" fill="currentColor" /><circle
+        class="blink"
         cx="145"
         cy="67"
         r="7"
@@ -184,8 +201,10 @@
     </g>
   {:else if kind === 'invite-links'}
     <g transform="rotate(-7 135 75)">
-      <rect x="61" y="14" width="142" height="98" rx="10" class="fill-background stroke-border" />
-      <path d="M84 36h98M84 51h65" stroke="currentColor" stroke-width="5" opacity=".3" />
+      <g class="letter">
+        <rect x="61" y="14" width="142" height="98" rx="10" class="fill-background stroke-border" />
+        <path d="M84 36h98M84 51h65" stroke="currentColor" stroke-width="5" opacity=".3" />
+      </g>
       <path d="M42 55h190v72H42z" class="fill-surface-emphasized stroke-border" />
       <path
         d="m42 55 95 55 95-55M42 127l62-35m128 35-62-35"
@@ -201,7 +220,14 @@
       <g transform={`translate(${room.x} ${room.y}) rotate(-5)`}>
         <rect width="83" height="48" rx="10" class="fill-background stroke-border" />
         <path d="M19 15v18m9-18v18M13 21h21m-21 7h21" stroke="currentColor" stroke-width="2" />
-        <path d="M46 19h23M46 29h14" stroke="currentColor" stroke-width="4" opacity=".3" />
+        <path
+          class="pulse"
+          style:--delay={`${room.x / -150}s`}
+          d="M46 19h23M46 29h14"
+          stroke="currentColor"
+          stroke-width="4"
+          opacity=".3"
+        />
       </g>
     {/each}
   {:else if kind === 'moderation'}
@@ -218,11 +244,17 @@
       stroke="currentColor"
       stroke-width="2"
     />
-    <path d="m198 89 10 10 21-23" stroke="currentColor" stroke-width="5" />
+    <path
+      class="draw"
+      pathLength="1"
+      d="m198 89 10 10 21-23"
+      stroke="currentColor"
+      stroke-width="5"
+    />
   {:else if kind === 'permissions'}
     <path d="M140 40v27m-70 20V67h140v20" stroke="currentColor" stroke-width="3" opacity=".4" />
     <rect x="110" y="9" width="60" height="40" rx="11" fill="currentColor" />
-    <path d="m127 29 9 8 16-17" class="stroke-background" stroke-width="4" />
+    <path d="m127 29 9 8 16-17" class="draw stroke-background" pathLength="1" stroke-width="4" />
     {#each [70, 140, 210] as x (x)}
       <rect
         x={x - 26}
@@ -238,7 +270,7 @@
   {:else if kind === 'security'}
     <g stroke="currentColor" stroke-width="2" opacity=".3">
       <path d="M54 47V26h30m142 21V26h-30M54 94v21h30m142-21v21h-30" />
-      <path d="M39 71h202" stroke-dasharray="4 7" />
+      <path class="scan" d="M39 71h202" stroke-dasharray="4 7" />
     </g>
     <path
       d="m140 9 51 20v44q0 36-51 59-51-23-51-59V29z"
@@ -253,7 +285,14 @@
       <rect x="45" y="10" width="190" height="120" rx="13" class="fill-background stroke-border" />
       <path d="M74 32v76" stroke="currentColor" stroke-width="2" opacity=".3" />
       {#each [35, 70, 105] as y (y)}
-        <circle cx="74" cy={y} r="6" fill="currentColor" />
+        <circle
+          class="pulse"
+          style:--delay={`${y / -100}s`}
+          cx="74"
+          cy={y}
+          r="6"
+          fill="currentColor"
+        />
         <path
           d={`M93 ${y - 4}h103m-103 11h65`}
           stroke="currentColor"
@@ -287,7 +326,200 @@
         class="fill-surface-emphasized stroke-border"
       />
       <path d="M157 95h80M157 78h80M157 61h80" stroke="currentColor" opacity=".12" />
-      <path d="m156 83 16-5 11 8 15-36 13 23 13-7 14 6" stroke="currentColor" stroke-width="3" />
+      <path
+        class="draw"
+        pathLength="1"
+        d="m156 83 16-5 11 8 15-36 13 23 13-7 14 6"
+        stroke="currentColor"
+        stroke-width="3"
+      />
     </g>
   {/if}
 </svg>
+
+<style>
+  /* SVG-specific pivots and stroke keyframes need scoped CSS, not shared UI utilities.
+     Each scene settles within five seconds, then replays on hover or keyboard focus.
+     Independent translate/rotate/scale properties preserve SVG placement transforms. */
+  .pulse,
+  .write,
+  .clock,
+  .ring,
+  .toggle,
+  .signal,
+  .greet,
+  .blink,
+  .letter,
+  .draw,
+  .scan {
+    animation: pulse 4s ease-in-out 1;
+    animation-delay: var(--delay, 0s);
+  }
+  :global(a:hover)
+    :is(.pulse, .write, .clock, .ring, .toggle, .signal, .greet, .blink, .letter, .draw, .scan),
+  :global(a:focus-visible)
+    :is(.pulse, .write, .clock, .ring, .toggle, .signal, .greet, .blink, .letter, .draw, .scan) {
+    animation-iteration-count: infinite;
+  }
+  .write {
+    animation-name: write;
+  }
+  .clock {
+    animation-name: clock;
+    transform-origin: 184px 82px;
+  }
+  .ring {
+    animation-name: ring;
+    transform-origin: 220px 45px;
+  }
+  .toggle {
+    animation-name: toggle;
+  }
+  .signal {
+    animation-name: signal;
+  }
+  .greet,
+  .letter {
+    animation-name: lift;
+  }
+  .blink {
+    animation-name: blink;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .draw {
+    animation-name: draw;
+    stroke-dasharray: 1;
+  }
+  .scan {
+    animation-name: scan;
+  }
+  @keyframes pulse {
+    0%,
+    65%,
+    100% {
+      opacity: 1;
+    }
+    25%,
+    45% {
+      opacity: 0.2;
+    }
+  }
+  @keyframes write {
+    0%,
+    65%,
+    100% {
+      translate: 0 0;
+    }
+    20%,
+    40% {
+      translate: -7px 3px;
+    }
+    30%,
+    50% {
+      translate: 2px -2px;
+    }
+  }
+  @keyframes clock {
+    0% {
+      rotate: 0deg;
+    }
+    65%,
+    100% {
+      rotate: 360deg;
+    }
+  }
+  @keyframes ring {
+    0%,
+    45%,
+    100% {
+      rotate: 0deg;
+    }
+    15%,
+    30% {
+      rotate: 12deg;
+    }
+    22%,
+    37% {
+      rotate: -12deg;
+    }
+  }
+  @keyframes toggle {
+    0%,
+    70%,
+    100% {
+      translate: 0 0;
+    }
+    25%,
+    50% {
+      translate: -22px 0;
+    }
+  }
+  @keyframes signal {
+    from {
+      stroke-dashoffset: 24;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes lift {
+    0%,
+    65%,
+    100% {
+      translate: 0 0;
+    }
+    25%,
+    45% {
+      translate: 0 -7px;
+    }
+  }
+  @keyframes blink {
+    0%,
+    25%,
+    35%,
+    100% {
+      scale: 1 1;
+    }
+    30% {
+      scale: 1 0.1;
+    }
+  }
+  @keyframes draw {
+    0% {
+      stroke-dashoffset: 1;
+    }
+    45%,
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes scan {
+    0%,
+    70%,
+    100% {
+      translate: 0 0;
+    }
+    20% {
+      translate: 0 -25px;
+    }
+    50% {
+      translate: 0 25px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse,
+    .write,
+    .clock,
+    .ring,
+    .toggle,
+    .signal,
+    .greet,
+    .blink,
+    .letter,
+    .draw,
+    .scan {
+      animation: none;
+    }
+  }
+</style>
