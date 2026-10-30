@@ -393,6 +393,11 @@ typed historical transitions. Optional operation keys on creation and message
 import provide permanent exact retry protection. See
 [FDR-053](../fdr/FDR-053-history-import-export.md).
 
+Operation receipts are read by exact subject from the EVT stream leader,
+without a temporary history consumer. Each receipt commits with its facts and
+a subject-empty guard, so its subject contains at most one receipt. Reads check
+the stored argument fingerprint before returning the previous result.
+
 `OperatorMessageService.ImportReactionChanges` commits a bounded set of
 historical reaction transitions in one channel. It shares validation and one
 atomic commit across the new transitions and their individual retry receipts.
