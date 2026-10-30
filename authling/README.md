@@ -329,10 +329,10 @@ Neither action removes a separate stored administrator assignment. The override
 does not bypass login or account deletion.
 
 Select **Appearance** to edit the site name, description, and sign-in
-introduction. **Preview** shows the sign-in card without publishing changes.
+introduction.
 **Save changes** applies the text immediately and preserves it across restarts.
 Each save records the administrator, time, and replacement settings in the event
-history. Preview does not create an event. A browser history viewer is not yet
+history. A browser history viewer is not yet
 available.
 If another administrator has saved first, compare the saved settings before
 starting a new edit. Only public text belongs in these fields.
