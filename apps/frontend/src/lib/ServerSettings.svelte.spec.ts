@@ -206,22 +206,51 @@ describe('ServerSettings', () => {
     );
   });
 
-  it('updates the cached logo after an upload mutation', async () => {
+  it.each(['logo', 'banner'] as const)('updates the cached %s after an upload', async (asset) => {
     const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
     const { container } = await renderSettings();
-    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const fileInput = container.querySelector<HTMLInputElement>(
+      `[data-testid="${asset}-drop-zone"] input[type="file"]`
+    )!;
     const transfer = new DataTransfer();
-    transfer.items.add(new File(['image'], 'logo.png', { type: 'image/png' }));
+    const file = new File(['image'], `${asset}.png`, { type: 'image/png' });
+    transfer.items.add(file);
     fileInput.files = transfer.files;
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await vi.waitFor(() => expect(mocks.uploadServerLogo).toHaveBeenCalledOnce());
+    const upload = asset === 'logo' ? mocks.uploadServerLogo : mocks.uploadServerBanner;
     await vi.waitFor(() =>
-      expect(queryClient.getQueryData<{ logoUrl: string | null }>(queryKey)?.logoUrl).toBe(
-        'https://cdn.example.test/logo.webp'
-      )
+      expect(upload).toHaveBeenCalledExactlyOnceWith(server.scope.connection.apiConfig, file)
     );
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryData(queryKey)).toMatchObject({
+        [`${asset}Url`]: `https://cdn.example.test/${asset}.webp`
+      })
+    );
+    await expect.element(fileInput).toHaveValue('');
   });
+
+  it.each(['logo', 'banner'] as const)(
+    'rejects invalid and oversized %s uploads',
+    async (asset) => {
+      const { container } = await renderSettings();
+      const input = container.querySelector<HTMLInputElement>(
+        `[data-testid="${asset}-drop-zone"] input[type="file"]`
+      )!;
+      for (const file of [
+        new File(['text'], 'file.txt', { type: 'text/plain' }),
+        new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' })
+      ]) {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        flushSync();
+      }
+      expect(mocks.uploadServerLogo).not.toHaveBeenCalled();
+      expect(mocks.uploadServerBanner).not.toHaveBeenCalled();
+    }
+  );
 
   it('adopts refreshed pristine fields without replacing a dirty draft', async () => {
     const { container } = await renderSettings();

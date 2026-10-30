@@ -207,25 +207,10 @@
 
   // Keep the form serialized even if a privacy generation fences the pending result.
   const saving = $derived(saveMutation.isPending);
-  const uploadingLogo = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'upload-logo'
-  );
-  const deletingLogo = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'delete-logo'
-  );
-  const uploadingBanner = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'upload-banner'
-  );
-  const deletingBanner = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'delete-banner'
+  const activeAssetOperation = $derived(
+    assetMutation.isPending && session.isCurrent(assetMutation.variables)
+      ? assetMutation.variables.operation
+      : null
   );
   const error = $derived.by(() => {
     if (settingsQuery.error) {
@@ -251,7 +236,8 @@
     });
   }
 
-  function uploadLogoFile(file: File) {
+  function uploadAsset(file: File | undefined, operation: 'upload-logo' | 'upload-banner') {
+    if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error(m('server_settings.invalid_image'));
       return;
@@ -263,18 +249,12 @@
     }
 
     if (!assetMutation.isPending) {
-      assetMutation.mutate({ ...mutationScope(), operation: 'upload-logo', file });
+      assetMutation.mutate({ ...mutationScope(), operation, file });
     }
   }
 
-  function handleLogoUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) uploadLogoFile(file);
-  }
-
   const logoDropZone = dropZone({
-    onDrop: (files) => uploadLogoFile(files[0]),
+    onDrop: (files) => uploadAsset(files[0], 'upload-logo'),
     onDragStateChange: (dragging) => (isDraggingLogo = dragging),
     acceptedTypes: ['image/*']
   });
@@ -284,30 +264,8 @@
     assetMutation.mutate({ ...mutationScope(), operation: 'delete-logo' });
   }
 
-  function uploadBannerFile(file: File) {
-    if (!file.type.startsWith('image/')) {
-      toast.error(m('server_settings.invalid_image'));
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error(m('server_settings.image_too_large'));
-      return;
-    }
-
-    if (!assetMutation.isPending) {
-      assetMutation.mutate({ ...mutationScope(), operation: 'upload-banner', file });
-    }
-  }
-
-  function handleBannerUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) uploadBannerFile(file);
-  }
-
   const bannerDropZone = dropZone({
-    onDrop: (files) => uploadBannerFile(files[0]),
+    onDrop: (files) => uploadAsset(files[0], 'upload-banner'),
     onDragStateChange: (dragging) => (isDraggingBanner = dragging),
     acceptedTypes: ['image/*']
   });
@@ -417,11 +375,11 @@
               accept="image/*"
               class="hidden"
               bind:this={logoFileInput}
-              onchange={handleLogoUpload}
+              onchange={(event) => uploadAsset(event.currentTarget.files?.[0], 'upload-logo')}
             />
             <Button
               onclick={() => logoFileInput?.click()}
-              loading={uploadingLogo}
+              loading={activeAssetOperation === 'upload-logo'}
               disabled={assetMutation.isPending}
               loadingText={m('server_settings.uploading')}
             >
@@ -434,7 +392,7 @@
               <Button
                 variant="danger-secondary"
                 onclick={handleLogoDelete}
-                loading={deletingLogo}
+                loading={activeAssetOperation === 'delete-logo'}
                 disabled={assetMutation.isPending}
                 loadingText={m('server_settings.removing')}
               >
@@ -490,11 +448,11 @@
               accept="image/*"
               class="hidden"
               bind:this={bannerFileInput}
-              onchange={handleBannerUpload}
+              onchange={(event) => uploadAsset(event.currentTarget.files?.[0], 'upload-banner')}
             />
             <Button
               onclick={() => bannerFileInput?.click()}
-              loading={uploadingBanner}
+              loading={activeAssetOperation === 'upload-banner'}
               disabled={assetMutation.isPending}
               loadingText={m('server_settings.uploading')}
             >
@@ -509,7 +467,7 @@
               <Button
                 variant="danger-secondary"
                 onclick={handleBannerDelete}
-                loading={deletingBanner}
+                loading={activeAssetOperation === 'delete-banner'}
                 disabled={assetMutation.isPending}
                 loadingText={m('server_settings.removing')}
               >
