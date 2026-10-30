@@ -1818,7 +1818,9 @@
 
 /* Inline counterpart of the Inset Frame: no rim or border that changes line height. */
 @utility inline-link-pill {
-  @apply inline-flex cursor-pointer items-baseline gap-1 inset-content px-1.5 align-baseline leading-[1.25] font-normal text-subdued no-underline ring-1 ring-text/15 transition-[color,box-shadow] feedback-quick ring-inset hover:text-text-top hover:ring-text/30;
+  --inline-link-radius: 3px;
+  @apply inline-flex cursor-pointer items-baseline gap-1 inset-content bg-surface-emphasized px-1.5 align-baseline leading-[1.25] font-normal text-text no-underline ring-1 ring-text/20 transition-[background-color,color,box-shadow] feedback-quick ring-inset hover:bg-surface-selected hover:text-text-top hover:ring-text/30;
+  border-radius: var(--inline-link-radius);
 }
 
 /* Native links with live entity names, sized to fit message text. */
@@ -1849,8 +1851,12 @@
 }
 
 .entity-link[data-entity-kind='user'] {
-  border-start-start-radius: 9999px;
-  border-end-start-radius: 9999px;
+  /* Half the avatar height: oversized radii also shrink the trailing corners. */
+  border-radius: 0.625em var(--inline-link-radius) var(--inline-link-radius) 0.625em;
+
+  &:dir(rtl) {
+    border-radius: var(--inline-link-radius) 0.625em 0.625em var(--inline-link-radius);
+  }
 }
 
 .message-timestamp {

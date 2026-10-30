@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect } from 'storybook/test';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
@@ -71,7 +72,23 @@
   </div>
 </Story>
 
-<Story name="Web and entity links together" asChild>
+<Story
+  name="Web and entity links together"
+  asChild
+  play={async ({ canvasElement }) => {
+    for (const pill of canvasElement.querySelectorAll<HTMLElement>('.entity-link, .url-link')) {
+      const style = getComputedStyle(pill);
+      await expect(style.borderTopRightRadius).toBe('3px');
+      // Huge leading radii cause CSS to scale down the trailing corners as well.
+      await expect(parseFloat(style.borderTopLeftRadius)).toBeLessThanOrEqual(
+        pill.getBoundingClientRect().height / 2
+      );
+    }
+    const image = canvasElement.querySelector('[data-entity-kind="server"] .entity-link-image')!;
+    await expect(getComputedStyle(image).borderRadius).toBe('3px');
+    await expect(getComputedStyle(image.firstElementChild!).borderRadius).toBe('3px');
+  }}
+>
   <div class="prose max-w-xl bg-background p-4">
     <p>{@render examples(serverLogo)}</p>
     <p>Read <UrlLink href="https://docs.example.test/getting-started" /> for details.</p>

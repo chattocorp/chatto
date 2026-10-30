@@ -43,7 +43,7 @@
 -->
 <div
   class="shimmer-hover flex shrink-0 items-center justify-center overflow-hidden {compact
-    ? 'h-full w-full rounded-sm text-[0.65em] leading-none'
+    ? 'h-full w-full rounded-[inherit] text-[0.65em] leading-none'
     : 'rounded-xl text-3xl'} font-black transition-[background-color,color] feedback-quick {compact
     ? ''
     : fill

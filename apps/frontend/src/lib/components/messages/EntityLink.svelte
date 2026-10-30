@@ -15,6 +15,9 @@
   const target = $derived(parseEntityLink(href));
   const store = $derived(target ? serverRegistry.tryGetStore(target.serverId) : undefined);
   const server = $derived(target ? serverRegistry.getServer(target.serverId) : undefined);
+  const serverName = $derived(
+    store ? serverDisplayName(store.serverInfo, server?.name) : (server?.name ?? '')
+  );
   const user = $derived.by(() => {
     const profile = target?.kind === 'user' ? store?.projection.users.view(target.id) : undefined;
     return profile?.deleted ? undefined : profile;
@@ -24,9 +27,7 @@
       ? store?.roomList.rooms.find((room) => room.id === target.id)
       : undefined
   );
-  const known = $derived(
-    !!target && !!server && (target.kind === 'server' || !!room || (!!user && !user.deleted))
-  );
+  const known = $derived(!!target && !!server && (target.kind === 'server' || !!room || !!user));
   const name = $derived(
     user
       ? user.displayName || user.login
@@ -34,9 +35,7 @@
         ? room.name
         : target && target.kind !== 'server'
           ? target.id
-          : store
-            ? serverDisplayName(store.serverInfo, server?.name)
-            : (server?.name ?? '')
+          : serverName
   );
   const path = $derived(
     target
@@ -57,7 +56,7 @@
         name,
         description:
           room?.description ??
-          (target.kind === 'user' && user && !user.deleted
+          (target.kind === 'user' && user
             ? store?.projection.users.get(target.id)?.user?.bio
             : target.kind === 'server'
               ? store?.serverInfo.description
@@ -71,12 +70,7 @@
         image:
           user?.avatarUrl ??
           (target.kind === 'server' ? (store?.serverInfo.iconUrl ?? server.iconUrl) : null),
-        server:
-          target.kind !== 'server'
-            ? store
-              ? serverDisplayName(store.serverInfo, server.name)
-              : server.name
-            : undefined
+        server: target.kind !== 'server' ? serverName : undefined
       }
     : undefined}
 >

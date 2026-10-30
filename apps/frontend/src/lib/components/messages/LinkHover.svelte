@@ -61,7 +61,6 @@
     node.addEventListener('contextmenu', close);
     return () => {
       if (title != null) link?.setAttribute('title', title);
-      clearTimeout(timer);
       close();
       node.removeEventListener('mouseenter', enter);
       node.removeEventListener('mouseleave', exit);

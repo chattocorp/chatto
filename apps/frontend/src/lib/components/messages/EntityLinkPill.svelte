@@ -77,7 +77,7 @@
     {/if}
   {:else}
     <span
-      class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-sm"
+      class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-[var(--inline-link-radius)]"
       aria-hidden="true"
     >
       <ServerLogo server={{ name, logoUrl }} compact />

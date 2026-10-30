@@ -213,19 +213,30 @@ describe('entity links in messages', () => {
     });
     await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
     const chip = container.querySelector<HTMLAnchorElement>('.url-link')!;
-    expect(chip.textContent).toContain('docs.example.test:8443/');
+    expect(chip.textContent).toBe('docs.example.test:8443');
     expect(chip.href).toBe(href);
     expect(chip.title).toBe(href);
     expect(document.getElementById(chip.getAttribute('aria-describedby')!)?.textContent).toBe(href);
     expect(chip.textContent).not.toContain('?q=');
     expect(chip.textContent).not.toContain('#section');
-    expect(chip.textContent).toContain('/…/long-path');
+    expect(chip.textContent).not.toContain('long-path');
     expect(chip.getBoundingClientRect().width).toBeLessThan(400);
     chip.click();
     expect(opened).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
     expect(container.querySelectorAll('.url-link')).toHaveLength(1);
     expect(container.textContent).toContain('read the docs');
     expect(container.querySelector('a[href="mailto:reader@example.test"]')).not.toBeNull();
+  });
+
+  it('keeps the hostname ending and port visible without a second truncated path', async () => {
+    const href = 'http://chatto.ws55110.localhost:55110/chat/-/user/UT9SQd0NQaXj3pc';
+    const { container } = render(MessageContent, { body: href });
+    await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
+    const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
+    expect(link.textContent).toMatch(/^chatt….*localhost:55110$/);
+    expect(link.textContent?.match(/…/g)).toHaveLength(1);
+    expect(link.href).toBe(href);
+    expect(link.title).toBe(href);
   });
 
   it('upgrades an unknown URL after server registration without rendering the message again', async () => {
@@ -410,7 +421,7 @@ it.each([
   [
     'https://unknown.example.test:8443/a/very/long/path?query=value#section',
     '.url-link',
-    'unknown.example.test:8443'
+    'unkno…xample.test:8443'
   ]
 ])(
   'previews pasted %s immediately and keeps the following text editable',
