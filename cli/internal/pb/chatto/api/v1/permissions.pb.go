@@ -145,7 +145,6 @@ func (x *PermissionGrant) GetGranted() bool {
 // - dm.start
 // - admin.view-users
 // - user.manage-accounts
-// - user.invite
 // - user.manage-invites
 // - role.assign
 // - role.view
