@@ -17,6 +17,81 @@ import { ReactiveMap } from '@chatto/client/reactivity';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 
+describe('EventList hidden-page backfill', () => {
+  it.each([false, true])('continues through deleted pages (empty history: %s)', async (empty) => {
+    let pages = 0;
+    const onLoadMore = vi.fn(async () => {
+      await Promise.resolve();
+      pages += 1;
+      await view.rerender({
+        eventIds: pages === 1 ? ['deleted-older', 'deleted'] : empty ? ['deleted'] : ['visible'],
+        eventKinds: { deleted: 'deleted', 'deleted-older': 'deleted' },
+        hasReachedStart: pages === 2
+      });
+    });
+    const view = render(EventListTestHarness, {
+      props: {
+        eventIds: ['deleted'],
+        eventKinds: { deleted: 'deleted' },
+        scrollToEventId: null,
+        onLoadMore
+      }
+    });
+    await vi.waitFor(() => expect(onLoadMore).toHaveBeenCalledTimes(2));
+    await expect
+      .element(view.getByText(empty ? 'No messages yet' : 'visible', { exact: true }))
+      .toBeVisible();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(onLoadMore).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not repeat a load that makes no progress', async () => {
+    // The store catches page failures and leaves its window unchanged.
+    const onLoadMore = vi.fn(async () => {});
+    render(EventListTestHarness, {
+      props: {
+        eventIds: ['deleted'],
+        eventKinds: { deleted: 'deleted' },
+        scrollToEventId: null,
+        onLoadMore
+      }
+    });
+    await vi.waitFor(() => expect(onLoadMore).toHaveBeenCalledOnce());
+    for (let i = 0; i < 3; i++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+    expect(onLoadMore).toHaveBeenCalledOnce();
+  });
+
+  it('stops backfill when the component unmounts during a load', async () => {
+    const pending = Promise.withResolvers<void>();
+    const onStoreRead = vi.fn();
+    const onLoadMore = vi.fn(async () => {
+      await Promise.resolve();
+      await view.rerender({ eventIds: ['deleted-older', 'deleted'] });
+      await pending.promise;
+    });
+    const view = render(EventListTestHarness, {
+      props: {
+        eventIds: ['deleted'],
+        eventKinds: { deleted: 'deleted', 'deleted-older': 'deleted' },
+        scrollToEventId: null,
+        onLoadMore,
+        onStoreRead
+      }
+    });
+    await vi.waitFor(() => expect(onLoadMore).toHaveBeenCalledOnce());
+    view.unmount();
+    onStoreRead.mockClear();
+    pending.resolve();
+    for (let i = 0; i < 3; i++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+    expect(onLoadMore).toHaveBeenCalledOnce();
+    expect(onStoreRead).not.toHaveBeenCalled();
+  });
+});
+
 describe('membership activity display', () => {
   it.each(['join', 'leave'] as const)(
     'does not announce a hidden live %s while reading history',
