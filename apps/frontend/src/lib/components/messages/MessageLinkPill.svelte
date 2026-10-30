@@ -20,13 +20,14 @@
   class:entity-link-with-image={!!user}
   data-entity-kind={user ? 'user' : 'message'}
   data-message-link
+  data-content-href={href}
   title={href}
-  aria-label={`${user ? m('message_preview.open_linked_message_from', { name }) : name} · ${context}`}
   onclick={(event) => handleRenderedLinkClick(event, destination.href)}
   onauxclick={(event) => {
     if (event.button === 1) handleRenderedLinkClick(event, destination.href);
   }}
 >
+  <span class="sr-only">{m('message_preview.open_linked_message')}: </span>
   {#if user}
     <span
       class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-full [&>div]:size-full"

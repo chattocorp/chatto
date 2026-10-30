@@ -162,7 +162,7 @@ test.describe('Message links', () => {
         'Open this conversation:'
       );
       const linkedMessage = postedLink.locator;
-      await expect(linkedMessage.locator('.url-link')).toHaveAttribute(
+      await expect(linkedMessage.locator('[data-message-link]')).toHaveAttribute(
         'data-content-href',
         linkUrl
       );
@@ -283,7 +283,11 @@ test.describe('Message links', () => {
 
     // Post a message containing the target's message link URL
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
-    await roomPage.sendMessage(linkUrl, new URL(linkUrl).host);
+    const postedLink = await roomPage.sendMessage(`Reference: ${linkUrl}`, 'Reference:');
+    await expect(postedLink.locator.locator('[data-message-link]')).toHaveAttribute(
+      'data-content-href',
+      linkUrl
+    );
 
     // Wait for the embedded preview card to appear
     const previewCard = page.getByTestId('message-preview-card');
@@ -312,7 +316,11 @@ test.describe('Message links', () => {
 
     // Post a message containing the image message's link
     const linkUrl = `${serverURL}${routes.messageLink(roomId, imageEventId!)}`;
-    await roomPage.sendMessage(linkUrl, new URL(linkUrl).host);
+    const postedLink = await roomPage.sendMessage(`Reference: ${linkUrl}`, 'Reference:');
+    await expect(postedLink.locator.locator('[data-message-link]')).toHaveAttribute(
+      'data-content-href',
+      linkUrl
+    );
 
     // The preview card should appear for the image-only message
     const previewCard = page.getByTestId('message-preview-card');
@@ -400,7 +408,10 @@ test.describe('Message links', () => {
 
     // Wait for the link to render in the message body (inside .prose, not the preview card)
     const message = postedLink.locator;
-    await expect(message.locator('.url-link')).toHaveAttribute('data-content-href', linkUrl);
+    await expect(message.locator('[data-message-link]')).toHaveAttribute(
+      'data-content-href',
+      linkUrl
+    );
     const link = message.locator(`.prose a[href*="/m/${targetEventId}"]`);
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 

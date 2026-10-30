@@ -98,6 +98,9 @@ describe('entity links in messages', () => {
     const { container } = render(MessageContent, { body: `${href} [the original post](${href})` });
     await vi.waitFor(() => expect(container.querySelector('[data-message-link]')).not.toBeNull());
     expect(container.querySelector('[data-message-link]')?.textContent).toContain('General');
+    expect(container.querySelector('[data-message-link]')?.getAttribute('data-content-href')).toBe(
+      href
+    );
     expect(createTimeline).not.toHaveBeenCalled();
     expect(container.querySelectorAll('[data-message-link]')).toHaveLength(1);
     expect(container.textContent).toContain('the original post');
