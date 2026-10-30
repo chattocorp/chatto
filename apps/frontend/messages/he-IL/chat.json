@@ -47,6 +47,7 @@
       "administration": "ניהול שרת"
     },
     "user_menu": {
+      "edit_profile": "ערוך פרופיל",
       "profile": "פרופיל משתמש",
       "send_message": "פתח שיחה",
       "view_profile": "הצגת פרופיל",

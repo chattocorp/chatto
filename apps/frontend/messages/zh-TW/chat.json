@@ -47,6 +47,7 @@
       "administration": "伺服器管理"
     },
     "user_menu": {
+      "edit_profile": "編輯個人資料",
       "profile": "使用者個人檔案",
       "send_message": "開啟對話",
       "view_profile": "查看個人資料",

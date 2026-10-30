@@ -47,6 +47,7 @@
       "administration": "Διαχείριση διακομιστή"
     },
     "user_menu": {
+      "edit_profile": "Επεξεργασία προφίλ",
       "profile": "Προφίλ χρήστη",
       "send_message": "Άνοιγμα συνομιλίας",
       "view_profile": "Προβολή προφίλ",

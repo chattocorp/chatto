@@ -47,6 +47,7 @@
       "administration": "Serverbeheer"
     },
     "user_menu": {
+      "edit_profile": "Profiel bewerken",
       "profile": "Gebruikersprofiel",
       "send_message": "Gesprek openen",
       "view_profile": "Profiel bekijken",

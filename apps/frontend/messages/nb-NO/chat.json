@@ -47,6 +47,7 @@
       "administration": "Serveradministrasjon"
     },
     "user_menu": {
+      "edit_profile": "Rediger profil",
       "profile": "Brukerprofil",
       "send_message": "Åpne samtale",
       "view_profile": "Vis profil",
