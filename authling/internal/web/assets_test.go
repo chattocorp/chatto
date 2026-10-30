@@ -1,6 +1,8 @@
 package web
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,6 +11,24 @@ import (
 	"testing"
 	"testing/fstest"
 )
+
+func TestInitialCanvasStyleAllowedByCSP(t *testing.T) {
+	response := httptest.NewRecorder()
+	Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/login", nil))
+	body := response.Body.String()
+	style := regexp.MustCompile(`<style>(.*?)</style>`).FindStringSubmatch(body)
+	if len(style) != 2 {
+		t.Fatal("missing initial canvas style")
+	}
+	digest := sha256.Sum256([]byte(style[1]))
+	policy := response.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "style-src 'self' 'sha256-"+base64.StdEncoding.EncodeToString(digest[:])+"'") || strings.Contains(policy, "'unsafe-inline'") {
+		t.Fatal("CSP must allow the exact rendered style without allowing arbitrary inline styles")
+	}
+	if strings.Index(body, "<style>") > strings.Index(body, `<link rel="stylesheet"`) {
+		t.Fatal("initial canvas style must precede the external stylesheet")
+	}
+}
 
 func TestAssetVersionTracksNamesAndContents(t *testing.T) {
 	fixtures := []struct {
@@ -53,7 +73,7 @@ func TestAssetCachePolicy(t *testing.T) {
 		{"/assets/" + strings.Repeat("0", 64) + "/app.css", 404, "no-store"},
 		{"/assets/missing.css", 404, "no-store"},
 		{"/assets/", 404, "no-store"},
-		{"/", 200, "no-store"},
+		{"/", http.StatusSeeOther, "no-store"},
 		{"/login", 200, "no-store"},
 		{"/signup", 200, "no-store"},
 	} {
@@ -96,7 +116,7 @@ func TestUnversionedAssetRevalidation(t *testing.T) {
 
 func TestFontPreloadMatchesBuiltStylesheet(t *testing.T) {
 	response := httptest.NewRecorder()
-	Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+	Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/login", nil))
 	body := response.Body.String()
 	preload := regexp.MustCompile(`<link rel="preload" href="([^"]+)" as="font" type="font/woff2" crossorigin="anonymous"`).FindStringSubmatch(body)
 	stylesheet := regexp.MustCompile(`<link rel="stylesheet" href="([^"]+)"`).FindStringSubmatch(body)

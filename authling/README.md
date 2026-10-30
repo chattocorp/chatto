@@ -180,11 +180,40 @@ mise mailpit
 mise authling run
 ```
 
-Or run both development processes together:
+For development with ready-to-use accounts, run both processes together:
 
 ```sh
 mise dev
 ```
+
+This builds `bin/authling-dev` with the Go `bootstrap` tag and enables account
+bootstrap before HTTP starts. It creates these verified local accounts without
+sending verification email:
+
+| Account | Initial password | Development access |
+| --- | --- | --- |
+| `alice@alice.com` | `foobar123` | Administrator through the configured email override |
+| `bob@bob.com` | `foobar123` | Regular user |
+
+The repository's `mise dev-full` uses the same bootstrap. Existing accounts at
+these addresses keep their IDs, passwords, profiles, and stored administrator
+flags. A restart does not reset them. If a fixture account is deleted or its
+email changes, the missing fixture address is created again on the next start.
+Alice's administrator override is a development-task default; set
+`AUTHLING_ADMIN_EMAILS` to choose a different list.
+
+`mise build` and `mise authling run` use the untagged `bin/authling` and do not
+seed users. A tagged binary also needs `bootstrap.enabled = true` in TOML or
+`AUTHLING_BOOTSTRAP_ENABLED=true`; `mise dev` sets this automatically. Untagged
+binaries reject attempts to enable bootstrap. Only the compiled fixture path
+accepts the short initial password; signup and password changes retain the
+configured password policy. Development bootstrap does not send email or make
+other new external connections.
+
+Use only disposable development storage with the bootstrap enabled. Clearing
+that storage recreates the fixtures with new IDs and invalidates existing
+Chatto links to those identities. Browser tests keep their isolated accounts
+and use the untagged binary.
 
 The development configuration serves Authling at <http://localhost:8080>, with
 signup at <http://localhost:8080/signup>, login at
@@ -250,8 +279,9 @@ description = "Your account for Chatto."
 
 `AUTHLING_SITE_NAME` and `AUTHLING_SITE_DESCRIPTION` override these TOML values.
 The name appears in page headers, page titles, account messages, and transactional
-email subjects and bodies. The optional description appears on the home page and
-in page metadata. Values are plain text; HTML is escaped. Names allow up to 120
+email subjects and bodies. The optional description appears in page metadata.
+The root URL sends visitors to sign-in, or to their account if already signed in.
+Values are plain text; HTML is escaped. Names allow up to 120
 Unicode characters and descriptions up to 500, with no control characters.
 Leading and trailing spaces are removed.
 
@@ -265,6 +295,37 @@ site's sender name and address.
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.
+
+## Administration
+
+To give an existing or future account administrator access, configure its
+verified email address:
+
+```toml
+[administration]
+admin_emails = ["you@example.com"]
+```
+
+`AUTHLING_ADMIN_EMAILS` overrides this list with comma-separated addresses.
+Restart every replica after changing the configuration. Matching uses the same
+case-insensitive, whitespace-trimmed comparison as account login.
+
+Sign in normally, then select **Administration** on the account page or open
+`/admin`. The read-only directory shows up to 50 registered users per page,
+including their verified email, profile names, account ID, registration time,
+and administrator access source. Deleted accounts do not appear.
+
+A current verified address on the configured list always grants administrator
+access, independent of the account's stored administrator flag. The page marks
+this access as coming from server configuration. Changing away from the
+configured email removes this override; an account that later verifies that
+address receives it. Removing the configuration also removes the override.
+Neither action removes a separate stored administrator assignment. The override
+does not bypass login or account deletion.
+
+This first administration surface cannot edit users, administrator flags, or
+site settings. Use the configured email list to enable access. Administration
+does not grant roles or permissions in connected applications.
 
 ## OpenID Connect
 

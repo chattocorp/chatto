@@ -26,6 +26,11 @@ is released, but the account ID is never reused. Encrypted workflow records and
 external copies have separate retention limits. See
 [FDR-013](fdr/FDR-013-account-deletion.md).
 
+**Administrator** — An active Authling account with a stored administrator flag
+or a current verified email on the operator's administrator list. This grants
+access to Authling's administration area, not privileges in connected apps.
+See [FDR-015](fdr/FDR-015-administration.md).
+
 **Local credential** — An Authling login method based on a verified normalized
 email address and an Argon2id password verifier. Both values are retained only
 inside an encrypted credential payload.

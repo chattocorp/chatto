@@ -1,0 +1,63 @@
+package web
+
+import (
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+)
+
+templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, configured, laterPage bool, nextURL string) {
+	@pageLayout("Administration", signedInAs, true, true) {
+		<div class="panel">
+			@ui.Heading("Registered users") {
+				<p>Accounts registered with { siteFromContext(ctx).Name }.</p>
+			}
+			<div class="mt-6">
+				@ui.DataTable("Registered users", []string{"Email", "Name", "Access", "Registered", "Account ID"}) {
+					if len(rows) == 0 {
+						@ui.TableEmpty(5, "No accounts on this page.")
+					}
+					for _, row := range rows {
+						<tr class="whitespace-nowrap">
+							<th scope="row" class="font-medium">{ row.Email }</th>
+							<td title={ row.Profile.PreferredUsername }>
+								if row.Profile.FullName != "" {
+									{ row.Profile.FullName }
+								} else {
+									{ row.Profile.PreferredUsername }
+								}
+							</td>
+							<td>
+								if row.Access.Allowed() {
+									if row.Access.Configured {
+										<span title="Via server configuration">@ui.Badge("Administrator")</span>
+									} else {
+										@ui.Badge("Administrator")
+									}
+								} else {
+									<span class="text-muted">User</span>
+								}
+							</td>
+							<td class="whitespace-nowrap tabular-nums">
+								<time datetime={ row.CreatedAt.UTC().Format("2006-01-02T15:04:05Z") } title={ row.CreatedAt.UTC().Format("02 Jan 2006 15:04 UTC") }>
+									{ row.CreatedAt.UTC().Format("02 Jan 2006") }
+								</time>
+							</td>
+							<td><code class="block max-w-28 truncate text-muted" title={ row.ID }>{ row.ID }</code></td>
+						</tr>
+					}
+				}
+			</div>
+			@ui.Pagination(adminFirstPageURL(laterPage), nextURL)
+			if configured {
+				<p class="mt-5 text-muted">Your administrator access is set in server configuration.</p>
+			}
+		</div>
+	}
+}
+
+func adminFirstPageURL(laterPage bool) string {
+	if laterPage {
+		return "/admin"
+	}
+	return ""
+}

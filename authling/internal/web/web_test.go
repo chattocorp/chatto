@@ -5,14 +5,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/a-h/templ"
 )
 
-func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
+func TestHomeRedirectsToSignIn(t *testing.T) {
+	response := httptest.NewRecorder()
+	Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
+		t.Fatal("signed-out root request must redirect to sign-in")
+	}
+}
+
+func TestHandlerRendersLoginWithLocalNavigationScript(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/login", nil)
 	response := httptest.NewRecorder()
 
 	Handler().ServeHTTP(response, request)
@@ -21,17 +30,30 @@ func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 	}
 	body := response.Body.String()
-	if !strings.Contains(body, "Welcome to Account service") {
+	if !strings.Contains(body, "Sign in to Account service") {
 		t.Fatalf("body does not contain the Authling heading: %q", body)
 	}
 	if strings.Contains(body, `<meta name="description"`) {
 		t.Fatalf("body unexpectedly contains a description: %q", body)
 	}
-	if strings.Contains(body, "<script") {
-		t.Fatalf("body unexpectedly contains a script: %q", body)
+	if !strings.Contains(body, `src="`+browserAssets.url("app.js")+`"`) || strings.Contains(body, "<script>") {
+		t.Fatal("home must load the local navigation module without inline scripts")
 	}
 	if got := response.Header().Get("Content-Security-Policy"); !strings.Contains(got, "default-src 'none'") {
 		t.Fatalf("Content-Security-Policy = %q, want fail-closed default", got)
+	}
+}
+
+func TestHomePreservesSessionWhenServicesAreUnavailable(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.AddCookie(&http.Cookie{Name: developmentSessionCookieName, Value: "existing-session"})
+	w := httptest.NewRecorder()
+	Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusServiceUnavailable || w.Header().Get("Set-Cookie") != "" {
+		t.Fatal("unavailable session services must not sign the user out")
+	}
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("session response must not be cached")
 	}
 }
 
@@ -73,7 +95,13 @@ func TestLoginPageAutofocusesEmail(t *testing.T) {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 	}
 	body := response.Body.String()
-	if !strings.Contains(body, `name="email" autocomplete="email" autofocus`) {
+	autofocusesEmail := false
+	for _, input := range regexp.MustCompile(`<input\b[^>]*>`).FindAllString(body, -1) {
+		if strings.Contains(input, `name="email"`) && strings.Contains(input, `autocomplete="email"`) && strings.Contains(input, " autofocus") {
+			autofocusesEmail = true
+		}
+	}
+	if !autofocusesEmail {
 		t.Fatalf("login page email input does not have autofocus: %q", body)
 	}
 	if !strings.Contains(body, `href="/password-reset"`) || !strings.Contains(body, "Forgot your password?") {
@@ -122,7 +150,7 @@ func TestPasswordResetPageRendersWithoutAccountDisclosure(t *testing.T) {
 	if !strings.Contains(body, "Reset your password") || !strings.Contains(body, `action="/password-reset"`) {
 		t.Fatalf("body does not contain the password reset form: %q", body)
 	}
-	if strings.Contains(body, "account exists") || strings.Contains(body, "account not found") || strings.Contains(body, "<script") {
+	if strings.Contains(body, "account exists") || strings.Contains(body, "account not found") || strings.Contains(body, "<script>") {
 		t.Fatalf("password reset page has disclosure or script content: %q", body)
 	}
 }
@@ -257,7 +285,7 @@ func TestHandlerAcceptsCanonicalHostWithImplicitDefaultPort(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, test.requestURL, nil)
+			request := httptest.NewRequest(http.MethodGet, test.requestURL+"login", nil)
 			response := httptest.NewRecorder()
 
 			Handler(Dependencies{PublicURL: test.publicURL}).ServeHTTP(response, request)
@@ -279,7 +307,7 @@ func TestHandlerUsesForwardedOriginOnlyWhenExplicitlyTrusted(t *testing.T) {
 		{name: "enabled", trust: true, want: http.StatusOK},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "http://localhost:8080/", nil)
+			request := httptest.NewRequest(http.MethodGet, "http://localhost:8080/login", nil)
 			request.Header.Set("X-Forwarded-Host", "auth.example:42443")
 			request.Header.Set("X-Forwarded-Proto", "https")
 			response := httptest.NewRecorder()

@@ -288,6 +288,11 @@ func serveRuntime(ctx context.Context, cfg config.Config, logger *slog.Logger, r
 		}
 		return fmt.Errorf("wait for Authling readiness: %w", startupErr)
 	}
+	if err := bootstrapDevelopment(runContext, cfg, runtime); err != nil {
+		cancel()
+		<-runErrors
+		return fmt.Errorf("bootstrap development data: %w", err)
+	}
 	listener, err := net.Listen("tcp", cfg.HTTP.BindAddressOrDefault())
 	if err != nil {
 		cancel()
@@ -296,6 +301,7 @@ func serveRuntime(ctx context.Context, cfg config.Config, logger *slog.Logger, r
 	}
 	httpServer := &http.Server{
 		Handler: web.Handler(web.Dependencies{
+			Administration:    cfg.Administration,
 			Site:              cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()),
 			Accounts:          runtime.Accounts,
 			Authentication:    runtime.Authentication,

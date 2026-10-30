@@ -35,10 +35,27 @@ from the `authling/` directory, with `mise authling` as the CLI passthrough.
 Repository-level CI may enter that directory, but Chatto's root task and
 package catalogs do not own Authling's workflow.
 
-JavaScript and progressive enhancement may be introduced for a demonstrated
-interaction need. htmx is the preferred first option for server-driven
-enhancement after htmx 4 is stable, but it is not part of the initial runtime
-or a prerequisite for any authentication flow.
+Ordinary navigation uses locally bundled htmx 2 to replace the body without
+reloading the document. This addresses repeated white flashes during full-page
+navigation. The earlier plan to wait for htmx 4 is replaced by this limited use
+of the stable htmx 2 release. The server still returns complete HTML pages.
+Ordinary sign-in uses htmx so its account redirect can animate. Login validation
+errors replace the form without a second submission. OAuth sign-in, other forms,
+consent pages, and authentication links with query parameters use native
+navigation. JavaScript is not a prerequisite for any authentication flow.
+
+The enhancement uses an explicit route allowlist. It updates the title, URL,
+and keyboard focus. History navigation requests fresh HTML; htmx history storage
+is disabled so account data and form contents are not saved in browser storage.
+An asset-version change triggers a fresh document load. Failed GET requests use
+native navigation to show the server response. No third-party system receives
+navigation requests, account data, or the user's IP address through this feature.
+
+The [design system](../design-system.md) defines semantic color tokens, shared
+type and spacing scales, and compact page layouts. Application-neutral templ
+primitives live in `internal/web/ui`; Tailwind component classes live in
+`web/src/app.css`. Feature templates own data, validation rules, and navigation.
+The `/dev/ui` static component preview is registered only in `bootstrap` builds.
 
 ## Consequences
 
@@ -51,10 +68,11 @@ generated browser assets. The Vite output under `internal/web/assets/` is not
 versioned; CI, tests, and release builds regenerate it before compiling the Go
 binary. Font and icon licensing remains part of the shipped-artifact review.
 
-The Content Security Policy prohibits scripts and restricts styles and fonts
-to Authling's own origin. Images may also use data URLs. Forms use Authling's
+The Content Security Policy restricts scripts, styles, and fonts
+to Authling's own origin, with one exact style hash for the initial light/dark
+canvas rule in the HTML head. Images may also use data URLs. Forms use Authling's
 origin; pages that continue an OIDC request also permit its validated client
 redirect origin so the browser can complete the redirect chain. This exception
-does not permit arbitrary return URLs. A future enhancement that needs
-JavaScript must deliberately revise the policy and preserve the
-non-JavaScript path.
+does not permit arbitrary return URLs. Inline scripts and eval remain prohibited.
+htmx disables eval, response scripts, and injected indicator styles. Future
+enhancements must preserve the non-JavaScript path.

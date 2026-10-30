@@ -21,7 +21,7 @@ func TestSiteSettingsAreLocalToEachHandler(t *testing.T) {
 		handler http.Handler
 		name    string
 	}{{first, "chatto.id"}, {second, "Other accounts"}, {first, "chatto.id"}} {
-		for _, path := range []string{"/", "/login", "/signup", "/password-reset"} {
+		for _, path := range []string{"/login", "/signup", "/password-reset"} {
 			response := httptest.NewRecorder()
 			test.handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
 			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), test.name) {
@@ -34,8 +34,8 @@ func TestSiteSettingsAreLocalToEachHandler(t *testing.T) {
 	}
 	handler := Handler(Dependencies{PublicURL: "https://accounts.example.com:8443"})
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://accounts.example.com:8443/", nil))
-	if !strings.Contains(response.Body.String(), "Welcome to accounts.example.com") {
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://accounts.example.com:8443/login", nil))
+	if !strings.Contains(response.Body.String(), "Sign in to accounts.example.com") {
 		t.Fatal("missing configured hostname fallback")
 	}
 }
@@ -44,11 +44,11 @@ func TestSiteCopyIsEscapedAcrossBrowserPages(t *testing.T) {
 	site := config.SiteConfig{Name: `Accounts <script>alert(1)</script>`, Description: `Description " onload="alert(1)`}
 	ctx := context.WithValue(t.Context(), siteContextKey{}, site)
 	for name, page := range map[string]templ.Component{
-		"home": homePage(), "login": loginPage("", "", ""), "signup": signupPage("", ""),
+		"login": loginPage("", "", ""), "signup": signupPage("", ""),
 		"password reset": newPasswordPage("", "", 10, ""),
 		"email change":   emailChangePage("", ""), "email confirmation": emailChangeConfirmPage("", "", ""),
 		"password change": passwordChangePage("", 10, ""),
-		"account":         accountPage("acc_test", "", nil, nil, false, false, false, false, false, false, false, false, false),
+		"account":         accountPage("acc_test", "", nil, nil, false, false, false, false, false, false, false, false, false, false),
 		"consent":         consentPage(oidcprovider.ConsentRequest{ClientName: "Example app"}, "", "acc_test", accounts.Profile{}),
 		"delete":          deleteAccountPage(""), "deleted": accountDeletedPage(),
 	} {

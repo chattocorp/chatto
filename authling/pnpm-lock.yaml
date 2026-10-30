@@ -19,6 +19,10 @@ importers:
         version: 6.0.3
 
   web:
+    dependencies:
+      htmx.org:
+        specifier: 2.0.11
+        version: 2.0.11
     devDependencies:
       '@fontsource-variable/ibm-plex-sans':
         specifier: ^5.3.0
@@ -548,6 +552,9 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  htmx.org@2.0.11:
+    resolution: {integrity: sha512-Thx/WtpeOQqSrqBCw/A1cwGJGg4UrVa3+sW0GmrM3p4gJgO89ecH4qtbnyzDDWFvBTqjnIMCgELTNt636dtamA==}
 
   import-meta-resolve@4.2.0:
     resolution: {integrity: sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg==}
@@ -1151,6 +1158,8 @@ snapshots:
     optional: true
 
   graceful-fs@4.2.11: {}
+
+  htmx.org@2.0.11: {}
 
   import-meta-resolve@4.2.0: {}
 

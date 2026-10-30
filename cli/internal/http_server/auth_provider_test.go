@@ -200,6 +200,66 @@ func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	}
 }
 
+// Provider denial must finish the popup transaction without accepting an
+// unvalidated callback state or an external return URL.
+func TestProviderDenialReturnsToPopup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, _ := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "test-provider", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret",
+		}}
+		s.setupOIDCRoutes()
+	})
+	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	for _, tc := range []struct {
+		name, returnPath, wantPath, wantError string
+		badState                              bool
+	}{
+		{"popup", popupReturn, "/servers/callback", "provider_denied", false},
+		{"no return path", "", "/login", "provider_denied", false},
+		{"external return path", "https://attacker.invalid/callback", "/login", "provider_denied", false},
+		{"invalid state", popupReturn, "/login", "provider_failed", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			start := startNoEmailOIDC(t, client, ts.URL, "test-provider", url.Values{"redirect": {tc.returnPath}})
+			state := authStateFromLocation(t, start)
+			if tc.badState {
+				state = "wrong-state"
+			}
+			callback := ts.URL + "/auth/providers/test-provider/callback?" + url.Values{
+				"state": {state}, "error": {"access_denied"},
+			}.Encode()
+			response, err := client.Get(callback)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response.Body.Close()
+			location, err := url.Parse(response.Header.Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != http.StatusTemporaryRedirect || location.Path != tc.wantPath || location.Query().Get("error") != tc.wantError {
+				t.Fatalf("denial return = %d %q, want %s with %s", response.StatusCode, location, tc.wantPath, tc.wantError)
+			}
+			if tc.wantPath == "/servers/callback" && (location.Query().Get("mode") != "provider" || location.Query().Get("state") != "popup-state") {
+				t.Fatalf("popup correlation was lost: %s", location)
+			}
+			// The state is consumed even on denial; replay cannot notify a popup.
+			replay, err := client.Get(callback)
+			if err != nil {
+				t.Fatal(err)
+			}
+			replay.Body.Close()
+			if got := replay.Header.Get("Location"); got != "/login?error=provider_failed" {
+				t.Fatalf("replayed denial return = %q", got)
+			}
+		})
+	}
+}
+
 func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	requestEmail := false
