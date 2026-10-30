@@ -171,7 +171,7 @@
       "admin_view_audit": "Låter ett konto se händelseloggen i serveradministrationen. Händelseloggen registrerar administrativa ändringar och varje start och stopp av privilegierat läge.",
       "user_delete_any": "Låter ett konto ta bort vilken medlems konto som helst. Ge den bara till personer som får bestämma att ta bort någon från servern.",
       "user_delete_self": "Låter personer ta bort sitt eget konto. Neka den om bara administratörer ska ta bort konton.",
-      "user_invite": "Låter ett konto lista, skapa, kopiera och återkalla inbjudningslänkar. Det kan se och använda alla aktiva inbjudningslänkar, inte bara sina egna.",
+      "user_invite": "Låter ett konto lista, skapa, kopiera och återkalla inbjudningskoder för engångsbruk. Det kan hantera alla koder, inte bara sina egna.",
       "user_manage_accounts": "Låter ett konto skapa konton, ändra kontoidentitet, återställa lösenord, lägga till verifierade e-postadresser och rensa inloggningsspärrar för andra medlemmar. Den tillåter också att lägga till ett konto i ett rum eller ta bort det med raden Gick med.",
       "user_manage_permissions": "Låter ett konto ändra behörighetsinställningarna för en enskild medlem eller bot direkt, utanför roller. Den behövs också för att se en persons effektiva behörigheter.",
       "bot_create": "Låter personer skapa bottar som de äger. En bot får bara de behörigheter som du tillåter direkt på botten, och aldrig fler än dess ägare har.",

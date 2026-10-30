@@ -171,7 +171,7 @@
       "admin_view_audit": "Staat een account toe het gebeurtenislogboek in Serverbeheer te zien. Het gebeurtenislogboek legt beheerwijzigingen vast en elke start en stop van de bevoorrechte modus.",
       "user_delete_any": "Staat een account toe het account van elk lid te verwijderen. Geef het alleen aan mensen die mogen beslissen iemand van de server te verwijderen.",
       "user_delete_self": "Staat mensen toe hun eigen account te verwijderen. Weiger het als alleen beheerders accounts mogen verwijderen.",
-      "user_invite": "Staat een account toe uitnodigingslinks te bekijken, aan te maken, te kopiëren en in te trekken. Het kan alle actieve uitnodigingslinks zien en gebruiken, niet alleen de eigen links.",
+      "user_invite": "Staat een account toe eenmalige uitnodigingscodes te bekijken, aan te maken, te kopiëren en in te trekken. Het kan alle codes beheren, niet alleen de eigen codes.",
       "user_manage_accounts": "Staat een account toe voor andere leden accounts aan te maken, de accountidentiteit te wijzigen, wachtwoorden opnieuw in te stellen, geverifieerde e-mailadressen toe te voegen en inlogwachttijden te wissen. Het staat ook toe een account met de rij Lid geworden aan een kamer toe te voegen of eruit te verwijderen.",
       "user_manage_permissions": "Staat een account toe de rechteninstellingen van één lid of bot direct te wijzigen, los van rollen. Het is ook nodig om de effectieve rechten van een persoon te zien.",
       "bot_create": "Staat mensen toe eigen bots aan te maken. Een bot krijgt alleen de rechten die je direct op de bot toestaat, en nooit meer dan zijn eigenaar heeft.",

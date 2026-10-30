@@ -171,7 +171,7 @@
       "admin_view_audit": "Allows an account to see the event log in Server Administration. The event log records administrative changes and each start and stop of privileged mode.",
       "user_delete_any": "Allows an account to delete the account of any member. Give it only to people who can decide to remove someone from the server.",
       "user_delete_self": "Allows people to delete their own account. Deny it if only administrators must delete accounts.",
-      "user_invite": "Allows an account to list, create, copy, and revoke invite links. It can see and use all active invite links, not only its own.",
+      "user_invite": "Allows an account to list, create, copy, and revoke single-use invitation codes. It can manage all codes, not only its own.",
       "user_manage_accounts": "Allows an account to create accounts, change account identity, reset passwords, attach verified email addresses, and clear login cooldowns for other members. It also allows adding an account to a room or removing it with the Joined row.",
       "user_manage_permissions": "Allows an account to change the permission settings of one member or bot directly, outside of roles. It is also necessary to see the effective permissions of a person.",
       "bot_create": "Allows people to create bots that they own. A bot gets only the permissions that you allow directly on the bot, and never more than its owner has.",
