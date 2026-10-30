@@ -42,6 +42,7 @@ it.each([
 ] as const)('opens the whole card with %s %j', async (type, options) => {
   const open = vi.spyOn(window, 'open').mockReturnValue(null);
   const { container } = render(LinkHover, { href, children });
+  container.classList.add('prose');
   hover(container);
   const card = await vi.waitFor(() => {
     const link = container.querySelector<HTMLAnchorElement>('[data-testid="link-hover-card"]');
@@ -52,6 +53,7 @@ it.each([
   expect(card.href).toBe(href);
   expect(card.rel).toBe('noopener noreferrer');
   expect(card.dataset.contentHref).toBe(href);
+  expect(getComputedStyle(card).textDecorationLine).toBe('none');
   card
     .querySelector('.font-semibold')!
     .dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...options }));
