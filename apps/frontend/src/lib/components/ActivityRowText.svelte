@@ -14,6 +14,7 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
     title,
     location,
     locationOnNarrow = false,
+    hideTimeOnNarrow = false,
     time,
     emphasized = false,
     overlayActions = 0,
@@ -24,6 +25,8 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
     location?: Snippet;
     /** Keep cross-server context visible below the title when the location column hides. */
     locationOnNarrow?: boolean;
+    /** Below 36rem, keep the time available only to screen readers. */
+    hideTimeOnNarrow?: boolean;
     /** Formatted time shown at the end of the title line. */
     time: string;
     emphasized?: boolean;
@@ -35,7 +38,10 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
 
 <span
   class={[
-    'grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 text-muted',
+    'grid min-w-0 flex-1 items-baseline gap-x-4 text-muted',
+    hideTimeOnNarrow
+      ? 'grid-cols-1 @min-[36rem]/activity:grid-cols-[minmax(0,1fr)_auto]'
+      : 'grid-cols-[minmax(0,1fr)_auto]',
     location &&
       '@min-[36rem]/activity:grid-cols-[minmax(0,1fr)_fit-content(40%)_minmax(5rem,max-content)]'
   ]}
@@ -63,6 +69,7 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
   <span
     class={[
       'col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-subdued tabular-nums',
+      hideTimeOnNarrow && 'sr-only @min-[36rem]/activity:not-sr-only',
       location && '@min-[36rem]/activity:col-start-3',
       overlayActions === 2 && '[@media(hover:hover)_and_(pointer:fine)]:min-w-20',
       overlayActions &&

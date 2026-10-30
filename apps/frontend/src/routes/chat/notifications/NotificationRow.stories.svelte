@@ -15,7 +15,7 @@
       docs: {
         description: {
           component:
-            'One notification group: cause badge on the actor avatar, short summary, time, and room. When more than one server is signed in, a server logo appears before the avatar and the server name after the room.'
+            'One notification group with an actor avatar and a cause badge. Summaries stay on one line and truncate when needed. Narrow rows hide the time and room. Multiple servers use a logo with a tooltip; the server name remains available to screen readers.'
         }
       }
     }
@@ -34,7 +34,7 @@
   }
 
   const alice = actor('alice', 'Alice', imageAvatar);
-  const bob = actor('bob', 'Bob');
+  const bob = actor('bob', 'Carlo Zottmann');
   const carol = actor('carol', 'Carol');
 
   const token = accountNameToken(0);
@@ -133,13 +133,33 @@
   {@render singleServer()}
 </Story>
 
-<Story name="Wrapped rows" asChild>
+<Story name="Narrow rows" asChild>
   <div class="selectable-list w-80 max-w-full">
     {#each rows as row, index (index)}
       <NotificationRow
         {...row}
         summaryAccounts={accounts(row.actor)}
         server={servers[index % servers.length]}
+        onopen={() => undefined}
+        ondismiss={() => undefined}
+      />
+    {/each}
+  </div>
+</Story>
+
+<Story name="Reaction badge alignment" asChild>
+  <div class="selectable-list w-80 max-w-full">
+    {#each ['❤️', '👍', '🤣', '👋', '😍', '🎉', '👍🏽'] as emoji (emoji)}
+      <NotificationRow
+        summary={m('chat.notifications.summary.reaction', { actor: token, emoji })}
+        summaryAccounts={accounts(alice)}
+        actor={alice}
+        signalKind={NotificationSignalKind.REACTION}
+        reactionEmoji={emoji}
+        roomName={null}
+        time="2m ago"
+        unread={false}
+        important={false}
         onopen={() => undefined}
         ondismiss={() => undefined}
       />

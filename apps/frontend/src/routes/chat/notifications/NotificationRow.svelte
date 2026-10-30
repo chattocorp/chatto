@@ -73,11 +73,7 @@
 </script>
 
 {#snippet location()}
-  {#if roomName}<bdi dir="auto" class="hidden @min-[36rem]/activity:block">#{roomName}</bdi>{/if}
-  {#if roomName && server}<span aria-hidden="true" class="hidden @min-[36rem]/activity:block"
-      >·</span
-    >{/if}
-  {#if server}<bdi dir="auto" data-testid="notification-server-name">{server.name}</bdi>{/if}
+  {#if roomName}<bdi dir="auto">#{roomName}</bdi>{/if}
 {/snippet}
 
 <ActivityListRow
@@ -99,7 +95,17 @@
       <ActivityAvatar {actor} {server} size="sm">
         {#snippet badge()}
           {#if reactionEmoji}
-            <span class="leading-none">{reactionEmoji}</span>
+            <!-- Centre the 12px glyph, not its advance width (which can include trailing space).
+                 The half-pixel baseline offset balances the visible glyph inside the 16px circle. -->
+            <svg class="size-full" viewBox="0 0 16 16" aria-hidden="true">
+              <text
+                x="2"
+                y="7.5"
+                dominant-baseline="central"
+                font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
+                font-size="12">{reactionEmoji}</text
+              >
+            </svg>
           {:else}
             <span class="iconify {signalIcon(signalKind)}" aria-hidden="true"></span>
           {/if}
@@ -110,12 +116,15 @@
   {#if unread}
     <span class="sr-only">{m('chat.notifications.unread')}</span>
   {/if}
+  {#if server}
+    <span class="sr-only" data-testid="notification-server-name">{server.name}</span>
+  {/if}
   <ActivityRowText
     {time}
+    hideTimeOnNarrow
     emphasized={unread}
     overlayActions={1}
-    location={roomName || server ? location : undefined}
-    locationOnNarrow={Boolean(server)}
+    location={roomName ? location : undefined}
     testId="notification-content"
   >
     {#snippet title()}

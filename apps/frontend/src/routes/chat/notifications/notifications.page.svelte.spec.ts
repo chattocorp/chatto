@@ -670,7 +670,11 @@ describe('notifications page', () => {
     const serverMarker = q(container, '[data-testid="activity-server"]') as HTMLElement;
     expect(serverMarker.title).toBe('Example Chat (chat.example.test)');
     const row = q(container, '[data-testid="notification-content"]') as HTMLElement;
-    expect(row.textContent?.replace(/\s+/g, ' ')).toContain('#general · Example Chat');
+    expect(row.textContent).toContain('#general');
+    expect(row.textContent).not.toContain('Example Chat');
+    expect(q(container, '[data-testid="notification-server-name"]')?.textContent).toBe(
+      'Example Chat'
+    );
   });
 
   it('does not render a stale notification page for a room behind a privacy boundary', async () => {

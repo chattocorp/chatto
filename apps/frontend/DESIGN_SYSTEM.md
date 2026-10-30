@@ -45,8 +45,11 @@ message search results:
   Its optional `location` snippet adds a truncated column before the time.
   Put `@container/activity` on the row; this column hides below 36rem, matching
   the notification room column. Location and time use `text-subdued`.
-  Cross-server notifications use `locationOnNarrow` to keep their server label
-  below the title when the room column hides.
+  Notification summaries always stay on one line and truncate when needed.
+  Notifications use `hideTimeOnNarrow` to hide the timestamp below 36rem.
+  The time remains available to screen readers.
+  Cross-server notifications show the server logo with its name in a tooltip
+  and visually hidden text, without a repeated server-name line.
   Both feeds use `ActivityDaySection` and `groupByActivityDay` for calendar-day
   headings. The section supplies a row-time formatter: relative time for Today,
   local clock time for older days. Pass the same timestamp for grouping and
