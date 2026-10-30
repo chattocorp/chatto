@@ -8,9 +8,48 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func TestOperatorImportReactionChangesSourceTime(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("operator-reaction-batch")
+	service := &operatorMessageService{api: env.api}
+	created := time.Date(2020, 3, 14, 12, 0, 0, 0, time.UTC)
+	post, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: env.viewer.Id, CreatedAt: timestamppb.New(created), Body: "historical body",
+	}))
+	require.NoError(t, err)
+	operation := &operatorv1.HistoricalReactionOperation{
+		MessageId: post.Msg.MessageId, OperationKey: uuid.NewString(), ActorId: env.viewer.Id,
+		OccurredAt: timestamppb.New(created.Add(time.Hour)),
+		Change:     &operatorv1.HistoricalReactionChange{UserId: env.viewer.Id, Emoji: "heart", Present: true},
+	}
+	_, err = service.ImportReactionChanges(env.ctx, connect.NewRequest(&operatorv1.ImportReactionChangesRequest{RoomId: room.Id, Operations: []*operatorv1.HistoricalReactionOperation{operation}}))
+	require.NoError(t, err)
+	facts, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, "evt.room.*.reaction_added")
+	require.NoError(t, err)
+	require.Len(t, facts, 1)
+	require.Equal(t, operation.OccurredAt.AsTime(), facts[0].CreatedAt.AsTime())
+	require.Equal(t, env.viewer.Id, facts[0].GetImportContext().GetSourceActorId())
+	require.False(t, facts[0].GetImportContext().GetUnknownTime())
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	for _, bad := range []*operatorv1.HistoricalReactionOperation{
+		nil,
+		{MessageId: post.Msg.MessageId, OperationKey: uuid.NewString()},
+		{MessageId: post.Msg.MessageId, OperationKey: uuid.NewString(), Change: operation.Change, OccurredAt: &timestamppb.Timestamp{Seconds: 1 << 62}},
+	} {
+		_, err := service.ImportReactionChanges(env.ctx, connect.NewRequest(&operatorv1.ImportReactionChangesRequest{RoomId: room.Id, Operations: []*operatorv1.HistoricalReactionOperation{bad}}))
+		require.Error(t, err)
+	}
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
 
 func TestOperatorImportMembershipEventReactions(t *testing.T) {
 	t.Parallel()

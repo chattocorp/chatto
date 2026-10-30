@@ -143,6 +143,17 @@ each consumer a readable name and description metadata. Use static labels
 without personal data or secrets. The framework adds a random suffix to
 separate replicas and the SDK adds a generation number for recovery. Labels do
 not change snapshot contracts.
+
+Projections can implement `StartupBatchEventProjection` to commit replay events
+in groups. `LiveBatchEventProjection` separately enables batches after the
+captured startup target. Set a positive event count and maximum buffer delay.
+The timer runs only while a batch is pending. Each batch must apply atomically:
+on error, leave the projection unchanged. The projector advances sequence
+waiters only after success and reports a failed batch from its first sequence.
+Shutdown can discard pending events. Replay starts from committed restore state,
+or from retained history when the projection has no restore capability. Other
+projections continue to receive individual `Apply` calls.
+
 On exit, `Run` stops consumption and attempts to delete its current ephemeral
 consumer with an independent two-second request timeout. Deletion failure does
 not replace the run error. Five-minute inactivity expiry remains the fallback

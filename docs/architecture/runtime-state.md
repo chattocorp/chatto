@@ -252,6 +252,12 @@ Notes: Backups skip this bucket. Discovery rewrites an image that the current di
 
 **SERVER\_ASSETS keys:**
 
+Attachment writes retry explicit JetStream ingest backpressure (429/10167)
+up to five attempts, with delays from 250 ms to 2 s. Seekable input is rewound
+to its initial offset and the object key stays unchanged. These retries occur
+before upload offsets or asset facts are committed. Other errors are returned
+without an automatic retry.
+
 | Key                                              | Description                                                                                                                                      |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `public/{assetId}`                               | New public avatars, server branding, and link-preview images                                                                                     |

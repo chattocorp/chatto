@@ -3,6 +3,7 @@ package events
 import (
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -131,13 +132,14 @@ type SubjectProjection interface {
 type EventProjection[E any] interface {
 	SubjectProjection
 
-	// Apply is called for every decoded event matching Subjects(), in stream
-	// order. seq is the stable stream sequence of this event.
+	// Apply receives decoded events matching Subjects(), in stream order,
+	// unless an optional batch capability handles them. seq is the stable
+	// stream sequence of this event.
 	Apply(event E, seq uint64) error
 }
 
 // SequencedEventOf pairs one decoded application event with its stable stream
-// sequence. StartupBatchEventProjection receives these in strictly increasing
+// sequence. Batch projections receive these in strictly increasing
 // stream order.
 type SequencedEventOf[E any] struct {
 	Event    E
@@ -150,6 +152,19 @@ type StartupBatchEventProjection[E any] interface {
 	EventProjection[E]
 	StartupBatchSize() int
 	ApplyStartupBatch([]SequencedEventOf[E]) error
+}
+
+// LiveBatchEventProjection opts into ordered, atomic live commits. A batch is
+// flushed when it reaches LiveBatchSize or on the LiveBatchMaxDelay timer.
+// Both limits must be positive. The delay bounds queue time, not commit time.
+// ApplyLiveBatch must leave state unchanged on error. Waiters and checkpoints
+// advance only after a successful commit. Shutdown may discard buffered events;
+// they replay on the next run. Restore state must cover only committed events.
+type LiveBatchEventProjection[E any] interface {
+	EventProjection[E]
+	LiveBatchSize() int
+	LiveBatchMaxDelay() time.Duration
+	ApplyLiveBatch([]SequencedEventOf[E]) error
 }
 
 // ReplaySubjectProjection can be implemented when a projection's logical

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -16,6 +17,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestOperatorImportLostHistoryCheckpoints(t *testing.T) {
+	// Serial: the CLI harness changes command globals and uses shared NATS.
+	env := newOperatorCLITestEnv(t)
+	progress := filepath.Join(t.TempDir(), "progress.jsonl")
+	args := []string{"operator", "import", "../../schema/interchange/v1/examples/conversation", "--accept-omissions", "--progress", progress}
+	env.run(t, args...)
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	raw, err := os.ReadFile(progress)
+	require.NoError(t, err)
+	var retained bytes.Buffer
+	for line := range bytes.SplitSeq(bytes.TrimSpace(raw), []byte{'\n'}) {
+		var entry progressEntry
+		require.NoError(t, json.Unmarshal(line, &entry))
+		// Lose all recoverable history results, including post IDs used by
+		// edits, replies, reactions, and deletes. Keep durable prerequisites.
+		if strings.HasPrefix(entry.Key, "event/") || strings.HasPrefix(entry.Key, "final/") || entry.Key == "complete" {
+			continue
+		}
+		retained.Write(line)
+		retained.WriteByte('\n')
+	}
+	retained.WriteString(`{"key":"crash-tail`)
+	require.NoError(t, os.WriteFile(progress, retained.Bytes(), 0600))
+	env.run(t, args...)
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "recovery must not append duplicate facts or upload files again")
+}
+
 func TestOperatorImportThroughSocket(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
 	removed := httptest.NewRecorder()
@@ -30,7 +61,7 @@ func TestOperatorImportThroughSocket(t *testing.T) {
 		if strings.HasSuffix(r.URL.Path, "/UploadChunk") {
 			uploads.Add(1)
 		}
-		if strings.HasSuffix(r.URL.Path, "/ImportMessage") {
+		if strings.HasSuffix(r.URL.Path, "/ImportMessage") || strings.HasSuffix(r.URL.Path, "/ImportMessages") {
 			posts.Add(1)
 		}
 		baseHandler.ServeHTTP(w, r)
@@ -61,7 +92,7 @@ func TestOperatorImportThroughSocket(t *testing.T) {
 }
 
 func TestOperatorImportLostResponse(t *testing.T) {
-	for _, method := range []string{"CreateUser", "CreateRoom", "CompleteUpload", "ImportMessage", "ImportMessageChange", "ImportRoomEvent"} {
+	for _, method := range []string{"CreateUser", "CreateRoom", "CompleteUpload", "ImportMessage", "ImportMessages", "ImportMessageChange", "ImportRoomEvent"} {
 		t.Run(method, func(t *testing.T) {
 			env := newOperatorCLITestEnv(t)
 			original := env.server.Handler

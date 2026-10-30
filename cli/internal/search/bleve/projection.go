@@ -172,8 +172,19 @@ func (p *Projection) Subjects() []string {
 func (p *Projection) CheckpointContractID() string { return p.contractID }
 
 // StartupBatchSize selects the number of ordered replay events committed with
-// one Bleve transaction. Live events still commit individually through Apply.
+// one Bleve transaction.
 func (*Projection) StartupBatchSize() int { return startupReplayBatchSize }
+
+// LiveBatchSize bounds each atomic live index and checkpoint commit.
+func (*Projection) LiveBatchSize() int { return 256 }
+
+// LiveBatchMaxDelay bounds buffering latency when traffic is sparse.
+func (*Projection) LiveBatchMaxDelay() time.Duration { return 10 * time.Millisecond }
+
+// ApplyLiveBatch uses the same ordered transaction as startup replay.
+func (p *Projection) ApplyLiveBatch(items []evtstream.SequencedEvent) error {
+	return p.applyBatch(items)
+}
 
 func (p *Projection) Apply(event *evtv1.Event, seq uint64) error {
 	return p.applyBatch([]evtstream.SequencedEvent{{Event: event, Sequence: seq}})

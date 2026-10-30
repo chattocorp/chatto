@@ -786,6 +786,15 @@ run = [
     "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=${CHATTO_BENCH_COUNT:-5}",
 ]
 
+[tasks.bench-import]
+description = "Measure fresh synthetic imports through the Operator API"
+depends = ["setup-cli"]
+dir = "cli"
+run = [
+    "go test -trimpath ./cmd -run '^$' -bench '^BenchmarkOperatorImport$' -benchtime=1x -count=${CHATTO_BENCH_COUNT:-3} -timeout=20m",
+    "go test -trimpath ./cmd -run '^$' -bench '^BenchmarkOperatorImportJournal$' -benchtime=1000x -count=${CHATTO_BENCH_COUNT:-3} -timeout=2m",
+]
+
 [tasks.bench-projections-profile]
 description = "Capture exact retained-heap profiles for projection replay"
 depends = ["setup-cli"]

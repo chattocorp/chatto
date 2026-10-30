@@ -1,11 +1,28 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestImportProgressGroupedCheckpoints(t *testing.T) {
+	t.Parallel()
+	p, err := openImportProgress(filepath.Join(t.TempDir(), "progress"), "binding")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, p.file.Close()) })
+	for i := range importProgressSyncEvery - 1 {
+		require.NoError(t, p.putReplayable(fmt.Sprint(i), "result"))
+	}
+	require.Equal(t, importProgressSyncEvery-1, p.unsynced)
+	require.NoError(t, p.putReplayable("last", "result"))
+	require.Zero(t, p.unsynced)
+	require.NoError(t, p.putReplayable("next", "result"))
+	require.NoError(t, p.put("complete", "true"))
+	require.Zero(t, p.unsynced, "completion must sync all preceding results")
+}
 
 func TestImportProgressCrashRecoveryAndLock(t *testing.T) {
 	t.Parallel()

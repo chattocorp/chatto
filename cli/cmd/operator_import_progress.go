@@ -12,13 +12,19 @@ import (
 	"path/filepath"
 )
 
-// importProgress stores opaque mappings and upload state. Complete lines are
-// synced before dependent requests. The process lock permits crash-tail repair.
+// importProgress stores opaque mappings and upload state. Identity and upload
+// checkpoints are synced before dependent requests. Results protected by durable
+// server receipts can share a sync. The process lock permits crash-tail repair.
 type importProgress struct {
 	file      *os.File
 	values    map[string]string
 	namespace uuid.UUID
+	unsynced  int
 }
+
+// Bound recovery work after a lost checkpoint without a sync per history RPC.
+const importProgressSyncEvery = 128
+
 type progressEntry struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -101,19 +107,40 @@ func openImportProgress(path, binding string) (*importProgress, error) {
 	if err != nil {
 		return nil, errors.New("import: invalid progress namespace")
 	}
+	// A previous process can leave complete but unsynced lines in the page
+	// cache. Checkpoint them (and any tail repair) before using their results.
+	if err = f.Sync(); err != nil {
+		return nil, err
+	}
 	ok = true
 	return p, nil
 }
 
 func (p *importProgress) put(key, value string) error {
+	return p.write(key, value, true)
+}
+
+// putReplayable records a successful operation whose result can be recovered
+// from a durable server receipt with the same operation key and arguments.
+// The namespace and all non-replayable dependencies must already be synced.
+// Never use this for upload sessions, identity claims, or the completion marker.
+func (p *importProgress) putReplayable(key, value string) error {
+	return p.write(key, value, false)
+}
+
+func (p *importProgress) write(key, value string, syncNow bool) error {
 	if p.values[key] == value {
 		return nil
 	}
 	if err := json.NewEncoder(p.file).Encode(progressEntry{key, value}); err != nil {
 		return err
 	}
-	if err := p.file.Sync(); err != nil {
-		return err
+	p.unsynced++
+	if syncNow || p.unsynced >= importProgressSyncEvery {
+		if err := p.file.Sync(); err != nil {
+			return err
+		}
+		p.unsynced = 0
 	}
 	p.values[key] = value
 	return nil
