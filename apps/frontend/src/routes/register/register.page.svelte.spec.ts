@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from 'vitest/browser';
 import type { PublicServerInfo } from '@chatto/client/api/server';
+import { GetPendingExternalIdentityResponse } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
 import RegisterPage from './+page.svelte';
+import { load } from './+page';
 
 const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
 
@@ -57,6 +59,7 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
+          invitationRequired: true,
           externalIdentityToken: ''
         }
       }
@@ -83,6 +86,7 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
+          invitationRequired: true,
           externalIdentityToken: ''
         }
       }
@@ -106,6 +110,7 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
+          invitationRequired: true,
           externalIdentityToken: 'verified-flow',
           redirectUrl: '/'
         }
@@ -130,6 +135,7 @@ describe('invite-only registration', () => {
           user: null,
           serverInfoLoaded: true,
           admissionId: 'admission-1',
+          invitationRequired: true,
           externalIdentityToken: '',
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
@@ -160,6 +166,7 @@ describe('invite-only registration', () => {
           redirectUrl: '/',
           serverInfoLoaded: true,
           admissionId: '',
+          invitationRequired: true,
           externalIdentityToken: '',
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
@@ -181,5 +188,54 @@ describe('invite-only registration', () => {
     await expect
       .element(getByText('Registration is not available on this instance.'))
       .toBeVisible();
+  });
+
+  it.each([true, false])(
+    'honours pending SSO admission with stale open discovery (email enabled: %s)',
+    async (directRegistrationEnabled) => {
+      const fetcher = vi.fn<typeof fetch>(
+        async () =>
+          new Response(
+            new Uint8Array(
+              new GetPendingExternalIdentityResponse({
+                pending: { kind: 1, invitationRequired: true }
+              }).toBinary()
+            ),
+            { headers: { 'Content-Type': 'application/proto' } }
+          )
+      );
+      vi.stubGlobal('fetch', fetcher);
+      const parentData = {
+        user: null,
+        serverInfo: serverInfo({ accountCreationPolicy: 'open', directRegistrationEnabled }),
+        serverInfoLoaded: true
+      };
+      const loaded = await load({
+        parent: async () => parentData,
+        url: new URL('https://chat.example.test/register?external_identity=verified-flow'),
+        fetch: fetcher
+      } as never);
+      const page = render(RegisterPage, { props: { data: { ...parentData, ...loaded } } });
+
+      await expect.element(page.getByLabelText('Invitation code')).toBeVisible();
+      await expect.element(page.getByLabelText('Email')).not.toBeInTheDocument();
+      await expect
+        .element(page.getByRole('link', { name: 'Sign in with existing account' }))
+        .toHaveAttribute('href', '/sso/confirm?token=verified-flow&existing=1');
+    }
+  );
+
+  it('keeps ordinary registration sign-in redirects', async () => {
+    const parentData = { user: null, serverInfo: serverInfo(), serverInfoLoaded: true };
+    const loaded = await load({
+      parent: async () => parentData,
+      url: new URL('https://chat.example.test/register?redirect=%2Foauth%2Fauthorize'),
+      fetch: async () => Response.json({ admissionId: '' })
+    } as never);
+    const page = render(RegisterPage, { props: { data: { ...parentData, ...loaded } } });
+    await expect.element(page.getByLabelText('Invitation code')).toBeVisible();
+    await expect
+      .element(page.getByRole('link', { name: 'Sign In', exact: true }))
+      .toHaveAttribute('href', '/login?redirect=%2Foauth%2Fauthorize');
   });
 });

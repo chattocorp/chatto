@@ -25,12 +25,14 @@
   type Step = 'email' | 'code' | 'details';
 
   const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
-  const invitationRequired = $derived(data.serverInfo?.accountCreationPolicy === 'invite_only');
+  const invitationRequired = $derived(data.invitationRequired);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const registrationProviders = $derived(
     authProviders.filter((provider) => provider.autoProvision !== false)
   );
-  const selfServiceAvailable = $derived(registrationEnabled || registrationProviders.length > 0);
+  const selfServiceAvailable = $derived(
+    !!data.externalIdentityToken || registrationEnabled || registrationProviders.length > 0
+  );
   let admissionId = $derived(data.admissionId ?? '');
   let invitationCode = $state('');
 
@@ -429,12 +431,15 @@
   <Divider label={m('common.or')} />
 
   <Button
-    href={resolve('/login') +
-      (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
+    href={data.externalIdentityToken
+      ? resolve('/sso/confirm') +
+        `?${new URLSearchParams({ token: data.externalIdentityToken, existing: '1' })}`
+      : resolve('/login') +
+        (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
     variant="secondary"
     size="lg"
     fullWidth
   >
-    {m('common.sign_in')}
+    {m(data.externalIdentityToken ? 'auth.sso.sign_in_existing' : 'common.sign_in')}
   </Button>
 </AuthLayout>
