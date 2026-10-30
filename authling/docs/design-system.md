@@ -63,8 +63,10 @@ explanatory text have a narrower maximum width for readability.
 Each functional section
 uses a `panel` that fills the container width. The user directory keeps its
 heading, table, and pagination in one panel. Panels use the same surface and
-border tokens as focused cards. Card and panel titles use a full-width title bar
-with a bottom divider. Descriptions remain in the padded content body.
+border tokens as focused cards. Standalone card and panel titles use a full-width
+title bar with a bottom divider. In the account sheet, the tab strip supplies
+the shared frame and section titles sit inside the content. Descriptions remain
+in the padded content body.
 Sessions and connected apps remain records inside
 their panels. Consent keeps its narrow, compact layout for authorization popups.
 
