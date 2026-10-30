@@ -45,17 +45,15 @@
                   class="group hover-lift-group min-w-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
                 >
                   <!-- Keep the link's hover area fixed while its visual surface lifts. -->
-                  <div
-                    class="flex h-full hover-lift flex-col inset-frame group-hover:border-action/40"
-                  >
+                  <div class="flex h-full hover-lift flex-col inset-frame">
                     <div class="overflow-hidden inset-content">
                       <SettingsCardArtwork href={item.href} icon={item.icon} />
                     </div>
                     <div class="flex flex-1 flex-col gap-2 p-3">
-                      <span class="text-xl font-bold tracking-tight text-text-top"
+                      <span class="text-base font-bold tracking-tight text-text-top"
                         >{item.label}</span
                       >
-                      <p id={`${item.href}-description`} class="text-base text-muted">
+                      <p id={`${item.href}-description`} class="min-h-[3lh] text-sm text-muted">
                         {item.description}
                       </p>
                     </div>

@@ -134,7 +134,7 @@
     {
       href: resolve(DEFAULT_SERVER_SETTINGS_ROUTE, { serverId: serverSegment }),
       label: m('settings.overview.title'),
-      icon: 'iconify icon-[uil--apps]'
+      icon: 'iconify icon-[uil--setting]'
     }
   ]);
 </script>
