@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -10,6 +11,8 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 )
 
 // operatorOperation fences one root-equivalent operation across replicas. A
@@ -34,17 +37,26 @@ func (c *ChattoCore) operatorOperation(ctx context.Context, key, method string, 
 }
 
 func (o *operatorOperation) load(ctx context.Context) error {
-	facts, _, err := o.core.EventPublisher.SubjectEvents(ctx, o.subject)
+	// Each receipt is created with ExpectSubjectSeq(0), atomically with its
+	// operation's facts. Thus this exact subject has at most one record; do not
+	// create a history consumer just to check whether that record exists.
+	// EVT disables AllowDirect, so this read goes through the stream leader.
+	msg, err := o.core.storage.serverEvtStream.GetLastMsgForSubject(ctx, o.subject)
+	if errors.Is(err, jetstream.ErrMsgNotFound) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	if len(facts) == 0 {
-		return nil
+	var event evtv1.Event
+	if err := proto.Unmarshal(msg.Data, &event); err != nil {
+		return fmt.Errorf("decode operator receipt: %w", err)
 	}
-	if len(facts) != 1 || facts[0].GetOperatorOperationCompleted().GetFingerprint() != o.fingerprint {
+	receipt := event.GetOperatorOperationCompleted()
+	if receipt == nil || receipt.GetFingerprint() != o.fingerprint {
 		return invalidArgument("operation_key already belongs to different arguments")
 	}
-	o.resource = facts[0].GetOperatorOperationCompleted().GetResourceId()
+	o.resource = receipt.GetResourceId()
 	if o.resource == "" {
 		return fmt.Errorf("operator receipt has no result")
 	}
