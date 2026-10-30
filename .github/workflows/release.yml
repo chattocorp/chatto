@@ -185,6 +185,17 @@ jobs:
             org.opencontainers.image.version=${{ steps.image.outputs.version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
+  # All protected environments request approval at the start of a tagged run.
+  # Keep this job independent of builds so one review can approve all three.
+  approve-release:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    environment: chatto-release
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Approve release build and publication
+        run: echo 'Release build and publication approved.'
+
   build-desktop-release:
     if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
@@ -670,6 +681,7 @@ jobs:
           retention-days: 7
 
   build-server-release:
+    needs: approve-release
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -873,11 +885,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # One approval publishes the artifacts from both successful build jobs.
+  # Publication uses the initial approval and requires every build to succeed.
   release:
-    needs: [build-server-release, assemble-desktop-release]
+    needs: [approve-release, build-server-release, assemble-desktop-release]
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    environment: chatto-release
     runs-on: ubuntu-latest
     concurrency:
       group: chatto-release-publication-${{ github.ref }}
