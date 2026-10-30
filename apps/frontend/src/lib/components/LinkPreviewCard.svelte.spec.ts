@@ -58,6 +58,34 @@ async function menuButton(label: string): Promise<HTMLButtonElement> {
 }
 
 describe('LinkPreviewCard', () => {
+  it('keeps the link under the visible visor clickable', () => {
+    const { container } = render(LinkPreviewCard, {
+      preview: preview({ url: 'https://bar.com/chat/-/overview', title: 'Overview' }),
+      canDelete: true
+    });
+    const card = container.querySelector<HTMLAnchorElement>('[data-testid="link-preview-card"]')!;
+    container.querySelector<HTMLButtonElement>('[aria-label="Delete preview"]')!.focus();
+    const visor = container.querySelector('.preview-toolbar')!.getBoundingClientRect();
+    const target = document.elementFromPoint(visor.left + 12, visor.top + 12) as HTMLElement;
+    expect(target.closest('a')).toBe(card);
+    target.click();
+    expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
+  });
+
+  it('dismisses from the toolbar without activating the preview link', () => {
+    const onDismiss = vi.fn();
+    const { container } = render(LinkPreviewCard, {
+      preview: preview({ title: 'Example' }),
+      onDismiss
+    });
+    const button = container.querySelector<HTMLButtonElement>('[aria-label="Dismiss preview"]')!;
+    expect(button.closest('a')).toBeNull();
+    expect(button.closest('.preview-toolbar')).not.toBeNull();
+    button.click();
+    expect(onDismiss).toHaveBeenCalledOnce();
+    expect(navigation.goto).not.toHaveBeenCalled();
+  });
+
   it('rewrites Chatto links embedded in social previews', () => {
     const { container } = render(LinkPreviewCard, {
       props: {

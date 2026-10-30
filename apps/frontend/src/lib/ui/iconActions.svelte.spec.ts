@@ -21,6 +21,45 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+describe.each(['icon-action', 'btn-secondary attachment-action-button'])(
+  '%s emphasis',
+  (classes) => {
+    it('uses the full-intensity foreground on keyboard focus', async () => {
+      const host = mount(`
+      <span class="text-text-top" data-testid="foreground-probe">probe</span>
+      <button type="button" class="${classes}">Action</button>
+    `);
+      const button = host.querySelector('button')!;
+      const foreground = getComputedStyle(
+        host.querySelector('[data-testid="foreground-probe"]')!
+      ).color;
+      await userEvent.tab();
+      expect(document.activeElement).toBe(button);
+      await expect.poll(() => getComputedStyle(button).color).toBe(foreground);
+    });
+
+    it.skipIf(!supportsHover)(
+      'brightens on hover but leaves disabled icons unchanged',
+      async () => {
+        const host = mount(`
+      <span class="text-text-top" data-testid="foreground-probe">probe</span>
+      <button type="button" class="${classes}">Action</button>
+      <button type="button" class="${classes}" disabled>Disabled</button>
+    `);
+        const [button, disabled] = host.querySelectorAll('button');
+        const foreground = getComputedStyle(
+          host.querySelector('[data-testid="foreground-probe"]')!
+        ).color;
+        const disabledColour = getComputedStyle(disabled).color;
+        await userEvent.hover(button);
+        await expect.poll(() => getComputedStyle(button).color).toBe(foreground);
+        await userEvent.hover(disabled, { force: true });
+        expect(getComputedStyle(disabled).color).toBe(disabledColour);
+      }
+    );
+  }
+);
+
 describe('icon-action-danger', () => {
   it('shows the danger colour on keyboard focus', async () => {
     const host = mount(`

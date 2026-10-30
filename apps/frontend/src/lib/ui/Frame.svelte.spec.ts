@@ -27,11 +27,11 @@ it.each([false, true])(
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
     const { container } = render(Frame, {
       children: testSnippet(
-        '<div class="group/preview relative h-40 w-64"><button class="menu-entry">Command</button><button class="embed-control-button" aria-label="Open attachment">Open</button></div>'
+        '<div class="group/preview relative h-40 w-64"><button class="menu-entry">Command</button><div class="preview-toolbar"><button aria-label="Open attachment">Open</button></div></div>'
       )
     });
     const command = container.querySelector<HTMLElement>('.menu-entry')!;
-    const action = container.querySelector<HTMLElement>('.embed-control-button')!;
+    const action = container.querySelector<HTMLElement>('.preview-toolbar')!;
     for (const width of [320, 767, 768, 1280]) {
       await page.viewport(width, 800);
       expect(command.getBoundingClientRect().height).toBeGreaterThanOrEqual(touch ? 44 : 32);
@@ -75,14 +75,15 @@ it.each([false, true])(
     const idleOpacity = hoverControls ? '0' : '1';
     const { container } = render(Frame, {
       children: testSnippet(
-        '<div><div class="group/preview relative h-40 w-64"><button class="embed-control-button" aria-label="Open attachment">Open</button></div><button data-testid="outside-preview">Outside preview</button></div>'
+        '<div><div class="group/preview relative h-40 w-64"><div class="preview-toolbar"><button aria-label="Open attachment">Open</button></div></div><button data-testid="outside-preview">Outside preview</button></div>'
       )
     });
-    const button = container.querySelector<HTMLButtonElement>('.embed-control-button')!;
+    const toolbar = container.querySelector<HTMLElement>('.preview-toolbar')!;
+    const button = toolbar.querySelector<HTMLButtonElement>('button')!;
     const outside = container.querySelector<HTMLElement>('[data-testid="outside-preview"]')!;
     // Start focused so the test also proves it clears keyboard reveal state.
     button.focus();
-    await expect.poll(() => getComputedStyle(button).opacity).toBe('1');
+    await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
     for (const width of [375, 1024]) {
       await page.viewport(width, 800);
       // Both pointer and keyboard focus can reveal the preview controls.
@@ -90,11 +91,15 @@ it.each([false, true])(
       outside.focus();
       expect(button.parentElement!.matches(':hover')).toBe(false);
       expect(button.parentElement!.matches(':focus-within')).toBe(false);
-      await expect.poll(() => getComputedStyle(button).opacity).toBe(idleOpacity);
+      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe(idleOpacity);
+      expect(getComputedStyle(toolbar).pointerEvents).toBe('none');
+      expect(getComputedStyle(button).pointerEvents).toBe(hoverControls ? 'none' : 'auto');
       button.focus();
-      await expect.poll(() => getComputedStyle(button).opacity).toBe('1');
+      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
+      expect(getComputedStyle(toolbar).pointerEvents).toBe('none');
+      expect(getComputedStyle(button).pointerEvents).toBe('auto');
       outside.focus();
-      await expect.poll(() => getComputedStyle(button).opacity).toBe(idleOpacity);
+      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe(idleOpacity);
     }
   }
 );

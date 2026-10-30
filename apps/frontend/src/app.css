@@ -1946,14 +1946,22 @@
   @apply preview-code w-full;
 }
 
-@utility embed-control-button {
-  @apply absolute end-1 top-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 focus-visible:opacity-100 active:scale-[0.96] compact-input:hover-actions:opacity-0;
-  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100;
+@utility preview-toolbar {
+  /* Use the theme surface so the visor follows light, dark, and contrast settings. */
+  @apply pointer-events-none absolute inset-x-1 top-1 z-10 flex items-center justify-end gap-1 rounded-t-md bg-surface/50 p-1 transition-opacity feedback-quick;
+  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0;
+
+  /* Only the controls intercept clicks; links and media under the visor stay usable. */
+  & > * {
+    @apply pointer-events-auto compact-input:hover-actions:pointer-events-none;
+    @apply group-focus-within/preview:pointer-events-auto group-hover/preview:pointer-events-auto focus-within:pointer-events-auto;
+  }
 }
 
 @utility attachment-action-button {
   /* Pair with a standard button tone; it owns the shared depth and feedback. */
   @apply h-7 min-h-7 w-7 min-w-7 shrink-0 rounded-md p-0 text-sm;
+  @apply icon-action-emphasis;
 }
 
 @utility attachment-card {
@@ -2050,10 +2058,15 @@
   @apply min-w-0 flex-1 space-y-1;
 }
 
+/* Shared foreground feedback for quiet and filled icon controls. */
+@utility icon-action-emphasis {
+  @apply not-disabled:hover:text-text-top not-disabled:focus-visible:text-text-top;
+}
+
 /* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
 @utility icon-action-feedback {
-  @apply rounded-lg text-muted transition-[background-color,color] feedback-quick;
-  @apply not-disabled:hover:bg-text/5 not-disabled:hover:text-text-top not-disabled:active:bg-text/10;
+  @apply rounded-lg icon-action-emphasis text-muted transition-[background-color,color] feedback-quick;
+  @apply not-disabled:hover:bg-text/5 not-disabled:active:bg-text/10;
   @apply focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
 }
 
