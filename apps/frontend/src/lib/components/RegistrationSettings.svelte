@@ -6,7 +6,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { createQuery, createMutation, queryClient } from '$lib/query/client';
+  import { createMutation, queryClient } from '$lib/query/client';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
   import { Panel, Hint, LoadingFog, ChoiceRow } from '$lib/ui';
@@ -16,10 +16,15 @@
   const scope = useServerScope();
   const session = createSessionGuard(scope);
   const key = adminQueryKeys.registrationSettings(scope.serverId, scope.connection);
-  const settings = createQuery(() => ({
-    queryKey: key,
-    queryFn: ({ signal }) => scope.connection.getAPI(createRegistrationSettingsAPI).get({ signal })
-  }));
+  let {
+    admission,
+    loading,
+    error
+  }: {
+    admission: RegistrationAdmission | undefined;
+    loading: boolean;
+    error: unknown;
+  } = $props();
   const serverInfo = $derived(scope.store.serverInfo);
   const registrationProviders = $derived(
     serverInfo.authProviders.filter((provider) => provider.autoProvision !== false)
@@ -42,10 +47,10 @@
     }
   }));
 
-  function save(admission: RegistrationAdmission) {
-    if (admission === settings.data || mutation.isPending) return;
+  function save(value: RegistrationAdmission) {
+    if (value === admission || mutation.isPending) return;
     mutation.mutate({
-      admission,
+      admission: value,
       snapshot: session.snapshot()
     });
   }
@@ -53,23 +58,23 @@
 
 <!-- @component Controls admission for new accounts on this server. -->
 <Panel title={m('admin.registration.title')}>
-  {#if settings.isPending}
+  {#if loading}
     <LoadingFog class="h-24 w-full" />
-  {:else if settings.error}
-    <Hint tone="danger">{errorMessage(settings.error)}</Hint>
+  {:else if error}
+    <Hint tone="danger">{errorMessage(error)}</Hint>
   {:else}
     <div role="radiogroup" aria-label={m('admin.registration.title')} class="flex flex-col gap-2">
       <ChoiceRow
         label={m('admin.registration.open')}
         description={m('admin.registration.open_description')}
-        selected={settings.data === 'open'}
+        selected={admission === 'open'}
         disabled={mutation.isPending}
         onclick={() => save('open')}
       />
       <ChoiceRow
         label={m('admin.registration.invite_only')}
         description={m('admin.registration.invite_only_description')}
-        selected={settings.data === 'invite_only'}
+        selected={admission === 'invite_only'}
         disabled={mutation.isPending}
         onclick={() => save('invite_only')}
       />

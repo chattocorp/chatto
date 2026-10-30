@@ -77,6 +77,19 @@ describe('ServerInfoState.init()', () => {
     expect(state.authProviders).toEqual([]);
   });
 
+  it('keeps the admission hint unknown until discovery and refreshes it', async () => {
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockResolvedValue(publicServerInfo({ accountCreationPolicy: 'open' }));
+    const state = new ServerInfoState('https://acme.test', loader);
+    expect(state.accountCreationPolicy).toBeNull();
+    await state.init();
+    expect(state.accountCreationPolicy).toBe('open');
+    loader.mockResolvedValue(publicServerInfo({ accountCreationPolicy: 'invite_only' }));
+    await state.refreshProfile();
+    expect(state.accountCreationPolicy).toBe('invite_only');
+  });
+
   it('coalesces concurrent discovery requests', async () => {
     let resolve!: (info: PublicServerInfo) => void;
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockImplementation(

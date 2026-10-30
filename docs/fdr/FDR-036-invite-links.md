@@ -41,6 +41,9 @@ the API to integrate code issuance with an external system.
   **Invite Code Required** and save immediately. The page lists enabled signup
   methods: email/password registration and providers that can create accounts.
   Each section requires its own permission.
+- While registration is open, the code panel stays visible but faded, with
+  Create, Copy, and Revoke disabled. Saving Invite Code Required activates
+  these controls. Existing codes remain unchanged.
 - Administrators can list, read, create, copy, and revoke codes. The API
   offers the same operations. Chatto does not send codes to recipients.
 - Expired, used, revoked, malformed, and unknown codes show the same public

@@ -4,9 +4,22 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { PageTitle, PaneHeader, PaneContent } from '$lib/ui';
+  import { createRegistrationSettingsAPI } from '$lib/api/registrationSettings';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { createQuery } from '$lib/query/client';
 
   const scope = useServerScope();
   const permissions = $derived(scope.store.permissions);
+  // Both panels use the saved admin value. Code-only managers use public discovery.
+  const settings = createQuery(() => ({
+    queryKey: adminQueryKeys.registrationSettings(scope.serverId, scope.connection),
+    queryFn: ({ signal }) => scope.connection.getAPI(createRegistrationSettingsAPI).get({ signal }),
+    enabled: permissions.canManageServer
+  }));
+  const codesInactive = $derived(
+    (permissions.canManageServer ? settings.data : scope.store.serverInfo.accountCreationPolicy) !==
+      'invite_only'
+  );
   let scrollContainer = $state<HTMLDivElement>();
 </script>
 
@@ -20,10 +33,20 @@
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if permissions.canManageServer}
-        <RegistrationSettings />
+        <RegistrationSettings
+          admission={settings.data}
+          loading={settings.isPending}
+          error={settings.error}
+        />
       {/if}
       {#if permissions.canManageInvites}
-        <InvitationCodes {scrollContainer} />
+        <fieldset
+          disabled={codesInactive}
+          aria-label={m('admin.invitations.list_title')}
+          class={['min-w-0', codesInactive && 'opacity-50']}
+        >
+          <InvitationCodes {scrollContainer} />
+        </fieldset>
       {/if}
     </div>
   </PaneContent>

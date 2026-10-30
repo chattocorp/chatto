@@ -4,6 +4,8 @@ import { userEvent } from 'vitest/browser';
 import { ConnectError, Code } from '@connectrpc/connect';
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
 import { AccountCreationPolicy } from '@chatto/api-types/api/v1/server_pb';
+import { InvitationCodeStatus } from '@chatto/api-types/admin/v1/invitations_pb';
+import { Timestamp } from '@bufbuild/protobuf';
 import { AdminInvitationCodeService } from '@chatto/api-types/admin/v1/invitations_connect';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -64,7 +66,7 @@ describe('Registration admin page', () => {
       .not.toBeInTheDocument();
     await expect
       .element(page.getByRole('button', { name: 'Create code', exact: true }))
-      .toBeVisible();
+      .toBeDisabled();
     await userEvent.click(page.getByRole('radio', { name: /^Invite Code Required/ }));
     await vi.waitFor(() => expect(settings.updateServerConfig).toHaveBeenCalledOnce());
     expect(settings.updateServerConfig.mock.calls[0][0]).toMatchObject({
@@ -73,12 +75,18 @@ describe('Registration admin page', () => {
     });
     await expect.element(page.getByRole('radio', { name: /^Invite Code Required/ })).toBeChecked();
     await expect.element(page.getByRole('radio', { name: /^Open Registration/ })).not.toBeChecked();
+    await expect
+      .element(page.getByRole('button', { name: 'Create code', exact: true }))
+      .toBeEnabled();
 
     settings.updateServerConfig.mockReturnValue({
       config: { registration: { admission: AccountCreationPolicy.OPEN } }
     });
     await userEvent.click(page.getByRole('radio', { name: /^Open Registration/ }));
     await expect.element(page.getByRole('radio', { name: /^Open Registration/ })).toBeChecked();
+    await expect
+      .element(page.getByRole('button', { name: 'Create code', exact: true }))
+      .toBeDisabled();
     expect(settings.updateServerConfig.mock.calls[1][0]).toMatchObject({
       registration: { admission: AccountCreationPolicy.OPEN }
     });
@@ -96,6 +104,43 @@ describe('Registration admin page', () => {
     await expect.element(invitation).toBeEnabled();
     await expect.element(invitation).not.toBeChecked();
     await expect.element(page.getByRole('radio', { name: /^Open Registration/ })).toBeChecked();
+    await expect
+      .element(page.getByRole('button', { name: 'Create code', exact: true }))
+      .toBeDisabled();
+  });
+
+  it('keeps codes readable but disables their controls until invite-only is saved', async () => {
+    invitations.listInvitationCodes.mockReturnValue({
+      invitationCodes: [
+        {
+          id: 'invitation-1',
+          code: 'ABCD-EFGH-IJKL-MNOP-QRST',
+          status: InvitationCodeStatus.ACTIVE,
+          createdAt: Timestamp.fromDate(new Date('2026-10-30'))
+        }
+      ],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    let finish!: () => void;
+    settings.updateServerConfig.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () =>
+            resolve({ config: { registration: { admission: AccountCreationPolicy.INVITE_ONLY } } });
+        })
+    );
+    const page = render(RegistrationPage);
+    await expect.element(page.getByText('ABCD-EFGH-IJKL-MNOP-QRST')).toBeVisible();
+    const copy = page.getByRole('button', { name: 'Copy to clipboard', exact: true });
+    const revoke = page.getByRole('button', { name: 'Revoke', exact: true });
+    await expect.element(copy).toBeDisabled();
+    await expect.element(revoke).toBeDisabled();
+    await userEvent.click(page.getByRole('radio', { name: /^Invite Code Required/ }));
+    await vi.waitFor(() => expect(settings.updateServerConfig).toHaveBeenCalledOnce());
+    await expect.element(copy).toBeDisabled();
+    finish();
+    await expect.element(copy).toBeEnabled();
+    await expect.element(revoke).toBeEnabled();
   });
 
   it('explains when neither mode has an enabled signup method', async () => {
@@ -127,6 +172,19 @@ describe('Registration admin page', () => {
       .not.toBeInTheDocument();
     expect(settings.getServerConfig).not.toHaveBeenCalled();
   });
+
+  it.each(['open', 'invite_only'] as const)(
+    'uses the public %s policy for managers without server-settings permission',
+    async (policy) => {
+      server.permissions.canManageServer = false;
+      Object.assign(server.scope.store.serverInfo, { accountCreationPolicy: policy });
+      const page = render(RegistrationPage);
+      const create = page.getByRole('button', { name: 'Create code', exact: true });
+      if (policy === 'open') await expect.element(create).toBeDisabled();
+      else await expect.element(create).toBeEnabled();
+      expect(settings.getServerConfig).not.toHaveBeenCalled();
+    }
+  );
 
   it('does not load or show codes without invitation permission', async () => {
     server.permissions.canManageInvites = false;
