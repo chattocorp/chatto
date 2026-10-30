@@ -3,9 +3,10 @@
   import { createMemberInvitationAPI } from '@chatto/client/api/invitations';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { CopyButton, Dialog, Hint } from '$lib/ui';
+  import { Dialog, Hint } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { copyToClipboard } from '$lib/utils/copyToClipboard';
 
   let { onclose }: { onclose: () => void } = $props();
   const scope = useServerScope();
@@ -42,24 +43,30 @@
 
 <!-- @component One opening owns one code. No mutation cache or browser storage retains it. -->
 <Dialog visible title={m('chat.invitation.title')} size="md" oncloserequest={clear} {onclose}>
-  <div class="space-y-6 py-4 text-lg leading-relaxed">
-    <p>{m('chat.invitation.description')}</p>
+  <div class="flex flex-col items-center gap-5 px-2 py-4 text-center">
+    <span aria-hidden="true" class="iconify icon-[uil--envelope-share] text-5xl text-action"></span>
     {#if code}
-      <div class="flex items-center justify-between gap-4 py-2">
-        <code
-          dir="ltr"
-          class="min-w-0 font-mono text-2xl font-semibold tracking-wide wrap-anywhere text-text-top"
-          >{code}</code
-        >
-        <CopyButton value={code} />
-      </div>
-      <Hint>{m('chat.invitation.once')}</Hint>
+      <code
+        dir="ltr"
+        class="block w-full font-mono text-3xl leading-snug font-semibold tracking-wide text-balance wrap-anywhere text-text-top"
+        >{code}</code
+      >
+    {/if}
+    <p class="max-w-md text-lg leading-relaxed text-pretty">{m('chat.invitation.description')}</p>
+    {#if code}
+      <p class="max-w-md text-base leading-relaxed text-pretty">{m('chat.invitation.once')}</p>
     {/if}
     {#if error}<Hint tone="danger">{error}</Hint>{/if}
   </div>
   {#snippet primaryAction()}
-    {#if !code}
+    {#if code}
+      <Button variant="action" onclick={() => void copyToClipboard(code)}>
+        <span aria-hidden="true" class="iconify icon-[uil--copy]"></span>
+        {m('common.copy_to_clipboard')}
+      </Button>
+    {:else}
       <Button variant="action" loading={pending} disabled={pending} onclick={create}>
+        <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
         {m('chat.invitation.create')}
       </Button>
     {/if}
