@@ -3686,9 +3686,13 @@ describe('MessageComposer', () => {
       pasteText(editor, url);
 
       await vi.waitFor(() => {
-        expect(editor.querySelector('a')?.textContent).toBe(url);
+        expect(editor.querySelector('.url-link')?.getAttribute('title')).toBe(url);
+        expect(editor.querySelector('a:not(.url-link)')?.textContent).toBe(url);
         expect(editor.querySelector('strong')?.textContent).toBe(url);
       });
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.body).toBe(`**${url}**`);
     });
 
     it('pastes unsupported Markdown syntax literally over selected text', async () => {
@@ -3816,7 +3820,7 @@ describe('MessageComposer', () => {
       editor.focus();
       pasteText(editor, url);
       await vi.waitFor(() => {
-        const link = editor.querySelector('a');
+        const link = editor.querySelector('a:not(.url-link)');
         expect(link?.textContent).toBe(url);
         expect(link?.getAttribute('href')).toBe(url);
       });
@@ -3824,11 +3828,13 @@ describe('MessageComposer', () => {
       await insertEditorLiteralText(editor, ' after');
 
       await vi.waitFor(() => {
-        const links = editor.querySelectorAll('a');
+        const links = editor.querySelectorAll('a:not(.url-link)');
         expect(links).toHaveLength(1);
         expect(links[0]?.textContent).toBe(url);
-        expect(editor.textContent).toBe(`${url} after`);
       });
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.body).toBe(`${url} after`);
     });
 
     it('posts fresh literal HTML-looking text without entity corruption', async () => {

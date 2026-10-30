@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Aucun aperçu n’est disponible pour ce lien.",
     "dismiss": "Ignorer l'aperçu",
     "delete": "Supprimer l'aperçu",
     "open_link": "Ouvrir le lien",

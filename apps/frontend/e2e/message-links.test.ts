@@ -197,8 +197,15 @@ test.describe('Message links', () => {
       const linkUrl = `${serverURL}${routes.messageLink(roomId, rootId)}`;
 
       // Create the link before the thread exists. Navigation must use current data.
-      await roomPage.sendMessage(`Open this conversation: ${linkUrl}`);
-      const linkedMessage = page.locator('[role="article"]', { hasText: linkUrl });
+      const postedLink = await roomPage.sendMessage(
+        `Open this conversation: ${linkUrl}`,
+        'Open this conversation:'
+      );
+      const linkedMessage = postedLink.locator;
+      await expect(linkedMessage.locator('[data-message-link]')).toHaveAttribute(
+        'data-content-href',
+        linkUrl
+      );
       await expect(linkedMessage.getByTestId('message-preview-card')).toBeVisible();
       const replyBody = `Attached thread reply - ${Date.now()}`;
       await postThreadReplyViaConnect(page, roomId, replyBody, rootId);
@@ -316,7 +323,11 @@ test.describe('Message links', () => {
 
     // Post a message containing the target's message link URL
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
-    await roomPage.sendMessage(linkUrl);
+    const postedLink = await roomPage.sendMessage(`Reference: ${linkUrl}`, 'Reference:');
+    await expect(postedLink.locator.locator('[data-message-link]')).toHaveAttribute(
+      'data-content-href',
+      linkUrl
+    );
 
     // Wait for the embedded preview card to appear
     const previewCard = page.getByTestId('message-preview-card');
@@ -345,7 +356,11 @@ test.describe('Message links', () => {
 
     // Post a message containing the image message's link
     const linkUrl = `${serverURL}${routes.messageLink(roomId, imageEventId!)}`;
-    await roomPage.sendMessage(linkUrl);
+    const postedLink = await roomPage.sendMessage(`Reference: ${linkUrl}`, 'Reference:');
+    await expect(postedLink.locator.locator('[data-message-link]')).toHaveAttribute(
+      'data-content-href',
+      linkUrl
+    );
 
     // The preview card should appear for the image-only message
     const previewCard = page.getByTestId('message-preview-card');
@@ -429,10 +444,14 @@ test.describe('Message links', () => {
 
     // Post a message containing the message link
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
-    await roomPage.sendMessage(`Go to ${linkUrl}`);
+    const postedLink = await roomPage.sendMessage(`Go to ${linkUrl}`, 'Go to');
 
     // Wait for the link to render in the message body (inside .prose, not the preview card)
-    const message = page.locator('[role="article"]', { hasText: linkUrl });
+    const message = postedLink.locator;
+    await expect(message.locator('[data-message-link]')).toHaveAttribute(
+      'data-content-href',
+      linkUrl
+    );
     const link = message.locator(`.prose a[href*="/m/${targetEventId}"]`);
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 

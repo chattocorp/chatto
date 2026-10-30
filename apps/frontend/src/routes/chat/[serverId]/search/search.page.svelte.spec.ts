@@ -30,6 +30,8 @@ vi.mock(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    servers: [],
+    getServer: () => undefined,
     getStore: (serverId: string) => mocks.serverStores[serverId],
     tryGetStore: (serverId: string) => mocks.serverStores[serverId]
   }
@@ -55,6 +57,7 @@ vi.mock('$lib/navigation', () => ({
 }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: mocks.activeServer }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
+  hasServerScope: () => true,
   useServerScope: () => ({
     get serverId() {
       return activeServerId;

@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "הודעה מאת {name}",
     "attachments_count": {
       "one": "{count} קובץ מצורף",
       "two": "{count} קבצים מצורפים",

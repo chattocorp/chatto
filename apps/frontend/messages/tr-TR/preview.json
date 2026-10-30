@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Bu bağlantı için önizleme yok.",
     "dismiss": "Önizlemeyi kapat",
     "delete": "Önizlemeyi silin",
     "open_link": "Bağlantıyı açın",

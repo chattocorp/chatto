@@ -5,7 +5,7 @@
   let { label }: { label: string } = $props();
 </script>
 
-<div class="relative h-full w-full overflow-hidden">
+<div class="relative h-full w-full preview-content">
   <LoadingFog class="absolute inset-0 h-full w-full rounded-none" {label} />
   <span
     aria-hidden="true"

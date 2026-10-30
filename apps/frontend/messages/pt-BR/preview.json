@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Não há pré-visualização disponível para esta ligação.",
     "dismiss": "Ignorar visualização",
     "delete": "Excluir visualização",
     "open_link": "Abrir link",

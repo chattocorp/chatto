@@ -1,8 +1,27 @@
 import { Editor } from '@tiptap/core';
 import { describe, expect, it } from 'vitest';
 import { createComposerExtensions } from './extensions';
+import { getSerializedMarkdown } from './markdown';
 
 describe('composer automatic links', () => {
+  it.each([
+    'https://known.example.test',
+    'https://known.example.test/a_b',
+    '**https://known.example.test**',
+    '<https://known.example.test>',
+    '[https://known.example.test](https://known.example.test)'
+  ])('preserves the source distinction for %s', (source) => {
+    const editor = new Editor({
+      extensions: createComposerExtensions(''),
+      content: source,
+      contentType: 'markdown'
+    });
+    try {
+      expect(getSerializedMarkdown(editor)).toBe(source);
+    } finally {
+      editor.destroy();
+    }
+  });
   it.each([
     '/chat/chat.chatto.run/R8rLgzhPkYja7Gs',
     'agents.md',

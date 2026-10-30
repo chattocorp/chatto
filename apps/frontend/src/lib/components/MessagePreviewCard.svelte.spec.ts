@@ -240,6 +240,15 @@ beforeEach(() => {
 });
 
 describe('MessagePreviewCard', () => {
+  it('shows the linked message timestamp', async () => {
+    messageResults.push(bodyPreviewResult('Dated message'));
+    const { container } = render(MessagePreviewCard, { props: { link: link() } });
+    await vi.waitFor(() => {
+      const time = container.querySelector('time');
+      expect(time?.dateTime).toBe('2027-05-29T15:00:00Z');
+      expect(time?.textContent).toContain('2027');
+    });
+  });
   it('hides a message when access is denied', async () => {
     getMessageMock.mockRejectedValue(new ConnectError('Access denied', Code.PermissionDenied));
     const { container } = render(MessagePreviewCard, { props: { link: link() } });
@@ -466,17 +475,19 @@ describe('MessagePreviewCard', () => {
       container.querySelector('[data-testid="message-preview-card"] strong')?.textContent
     ).toBe('Breaking');
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
-    const scrollViewport = container.querySelector<HTMLElement>('.max-h-52.overflow-y-auto');
+    const scrollViewport = container.querySelector<HTMLElement>('.max-h-32.overflow-y-auto');
     expect(scrollViewport).not.toBeNull();
     expect(getComputedStyle(scrollViewport!).overscrollBehaviorY).toBe('auto');
     expect(
       [...container.querySelectorAll('[data-testid="message-preview-card"] bdi')]
         .map((value) => value.textContent)
-        .filter((value) => value === 'Test Server' || value === '#general')
-    ).toEqual(['Test Server', '#general']);
-    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+        .filter((value) => value === 'Test Server' || value === 'general')
+    ).toEqual(['general', 'Test Server']);
+    const fades = container.querySelectorAll<HTMLElement>(
+      '[aria-hidden="true"].pointer-events-none'
+    );
     expect(fades).toHaveLength(2);
-    expect(fades[0].className).toContain('from-surface');
+    expect(fades[0].className).toContain('from-background');
     expect(fades[0].className).toContain('z-30');
     expect(fades[1].className).toContain('bg-gradient-to-t');
     await vi.waitFor(() => {
@@ -498,12 +509,14 @@ describe('MessagePreviewCard', () => {
     });
 
     const scrollViewport = await vi.waitFor(() => {
-      const viewport = container.querySelector<HTMLElement>('.max-h-52.overflow-y-auto');
+      const viewport = container.querySelector<HTMLElement>('.max-h-32.overflow-y-auto');
       expect(viewport).not.toBeNull();
       expect(viewport!.scrollHeight).toBeGreaterThan(viewport!.clientHeight + 1);
       return viewport!;
     });
-    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+    const fades = container.querySelectorAll<HTMLElement>(
+      '[aria-hidden="true"].pointer-events-none'
+    );
 
     expect(getComputedStyle(scrollViewport).overscrollBehaviorY).toBe('auto');
 

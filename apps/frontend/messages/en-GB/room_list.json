@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Copy server link",
     "copy_room_link": "Copy room link",
     "show_rooms_in_group": "Show more rooms in {group} ({count})",
     "hide_rooms_in_group": "Hide unjoined rooms in {group}",

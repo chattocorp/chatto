@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "来自 {name} 的消息",
     "attachments_count": { "other": "{count} 个附件" },
     "attachment_image": "图片",
     "attachment_video": "视频",

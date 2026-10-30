@@ -1820,6 +1820,49 @@
   @apply bg-attention/20 text-text;
 }
 
+/* Inline counterpart of the Inset Frame: no rim or border that changes line height. */
+@utility inline-link-pill {
+  --inline-link-radius: 3px;
+  @apply inline-flex cursor-pointer items-baseline gap-1 inset-content bg-surface-emphasized px-1.5 align-baseline leading-[1.25] font-normal text-text no-underline ring-1 ring-text/20 transition-[background-color,color,box-shadow] feedback-quick ring-inset hover:bg-surface-selected hover:text-text-top hover:ring-text/30;
+  border-radius: var(--inline-link-radius);
+}
+
+/* Native links with live entity names, sized to fit message text. */
+.entity-link {
+  @apply inline-link-pill max-w-full;
+}
+
+.url-link {
+  @apply inline-link-pill max-w-[min(100%,32ch)];
+}
+
+.entity-link-with-image {
+  padding-inline-start: 0;
+}
+
+/* Overlay the image so the hairline does not change its size or get covered by it. */
+.entity-link-image {
+  position: relative;
+}
+
+.entity-link-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 0.5px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.entity-link[data-entity-kind='user'] {
+  /* Half the avatar height: oversized radii also shrink the trailing corners. */
+  border-radius: 0.625em var(--inline-link-radius) var(--inline-link-radius) 0.625em;
+
+  &:dir(rtl) {
+    border-radius: var(--inline-link-radius) 0.625em 0.625em var(--inline-link-radius);
+  }
+}
+
 .message-timestamp {
   @apply inline-flex cursor-pointer items-baseline gap-1 rounded-sm bg-surface-emphasized px-1 font-medium whitespace-nowrap text-text transition-[background-color,color,scale] hover:bg-surface-selected active:scale-[0.98];
 }
@@ -1828,9 +1871,52 @@
   @apply text-[0.78em] text-muted;
 }
 
-/* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
-@utility embed-frame {
-  @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface shadow-sm outline-[3px] outline-offset-0 outline-surface-strong transition-shadow hover:shadow-md focus-visible:shadow-md;
+/* Inset Frame: the shared shell for menus, palettes, and previews.
+ * Layout, clipping, elevation, and interactions belong to its consumers. */
+@utility inset-frame {
+  @apply rounded-lg border border-text/10 floating-frame text-text;
+  /* A default rim must not override a row's attachment-card or p-* spacing. */
+  :where(&) {
+    @apply p-1;
+  }
+}
+
+@utility inset-content {
+  @apply rounded-md bg-background floating-inset;
+}
+
+/* Preview variants add clipping and elevation, never a second frame recipe. */
+@utility preview-frame {
+  @apply overflow-hidden inset-frame shadow-sm;
+}
+
+@utility preview-content {
+  @apply overflow-hidden inset-content;
+}
+
+@utility preview-thumbnail {
+  @apply overflow-hidden inset-content border border-text/10;
+}
+
+/* Posted code and the visual editor share a frame and a scrollable inset canvas. */
+@utility preview-code {
+  @apply relative preview-frame p-1 font-mono text-sm;
+  direction: ltr;
+  unicode-bidi: isolate;
+  line-height: 1.5;
+
+  & > code {
+    @apply block preview-content overflow-x-auto px-3 py-2;
+    padding-inline-end: 5.5rem;
+    color: var(--composer-code-text);
+    font-size: inherit;
+    line-height: inherit;
+    white-space: pre;
+  }
+}
+
+.tiptap-editor .ProseMirror pre {
+  @apply preview-code w-full;
 }
 
 @utility embed-control-button {
@@ -1852,7 +1938,7 @@
 
   /* Put spacing outside the overlay's containing block so the top and end
    * offsets both start at the visible media frame. */
-  & > .embed-frame {
+  & > .preview-frame {
     @apply my-0;
   }
 }
@@ -1862,7 +1948,7 @@
 
   /* Keep the action row above the player's bottom controls, even
    * when a narrow message reduces the video's natural display height. */
-  & > .embed-frame,
+  & > .preview-frame,
   & > video {
     @apply min-h-48;
   }
@@ -2387,6 +2473,11 @@
   --lighting-edge-bottom: var(--frame-edge-shade);
 }
 
+/* Compact informational cards share the same surface as menus and panels. */
+@utility preview-surface {
+  @apply w-72 preview-frame text-sm leading-snug shadow-xl;
+}
+
 /* A soft inner edge makes content sit below the surrounding floating frame. */
 @utility floating-inset {
   @apply surface-lowered;
@@ -2404,10 +2495,6 @@
   padding-inline-start: max(1rem, env(safe-area-inset-left));
   padding-inline-end: max(1rem, env(safe-area-inset-right));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
-
-  & :is(.menu-section, .menu-section-sm) {
-    @apply floating-inset;
-  }
 }
 
 /* The outer app frame meets the window edge without a depth highlight. */
@@ -2487,11 +2574,7 @@
   /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
      (which is pure white in dark mode, not the app's slightly-off neutral-100).
      Menu items that need a different color still override it on their own. */
-  @apply rounded-lg border border-text/10 floating-frame p-1 text-sm text-text shadow-xl;
-
-  & :is(.menu-section, .menu-section-sm) {
-    @apply floating-inset;
-  }
+  @apply inset-frame text-sm shadow-xl;
 }
 
 /* Palettes retain the app header even while their search opens the keyboard. */
@@ -2530,10 +2613,13 @@
     padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     & :is(.menu-section, .menu-section-sm) {
       border-radius: 0;
+      /* Full-pane mobile results remain flat, without desktop inset lighting. */
+      box-shadow: none;
+      outline: none;
     }
   }
   @media (width >= 48rem) {
-    @apply w-140 max-w-[calc(100vw-2rem)] gap-1 menu rounded-lg p-1 text-sm;
+    @apply w-140 max-w-[calc(100vw-2rem)] gap-1 menu;
   }
 }
 
@@ -2563,11 +2649,11 @@
 }
 
 @utility menu-section {
-  @apply rounded-md bg-background p-1;
+  @apply inset-content p-1;
 }
 
 @utility menu-section-sm {
-  @apply rounded-md bg-background p-0.5;
+  @apply inset-content p-0.5;
 }
 
 @utility menu-item {
@@ -2711,4 +2797,11 @@ body[data-resizing-sidebar] {
 
 :root[data-motion='reduced'] {
   transition: none;
+}
+/* Keep the editable URL in ProseMirror; hide its anchor too so it is not an empty
+   accessible link. The separate boundary widget preserves caret placement. */
+.composer-entity-preview:has(.entity-link, .url-link) + * .composer-entity-source,
+.composer-entity-preview:has(.entity-link, .url-link) + a:has(.composer-entity-source),
+.composer-entity-preview:has(.entity-link, .url-link) + .composer-entity-source {
+  display: none;
 }

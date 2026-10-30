@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Melding fra {name}",
     "attachments_count": { "other": "{count} vedlegg" },
     "attachment_image": "Bilde",
     "attachment_video": "Video",

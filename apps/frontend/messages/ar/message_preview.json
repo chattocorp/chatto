@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "رسالة من {name}",
     "attachments_count": {
       "zero": "{count} مرفقات",
       "one": "{count} مرفق",

@@ -114,40 +114,42 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     onclick={(event) => handleRenderedLinkClick(event, preview.url)}
     onauxclick={(event) => handleRenderedLinkClick(event, preview.url)}
     data-testid="link-preview-card"
-    class="group/preview relative embed-frame flex w-full max-w-md flex-col"
+    class="group/preview relative my-1.5 flex w-full max-w-md flex-col preview-frame"
     oncontextmenu={handleContextMenu}
   >
-    {#if preview.imageUrl}
-      <div class="relative aspect-[1.91/1] w-full overflow-hidden rounded-sm">
-        {#if settledImageUrl !== preview.imageUrl}
-          <LoadingFog class="h-full w-full rounded-none" />
+    <div class="preview-content">
+      {#if preview.imageUrl}
+        <div class="relative aspect-[1.91/1] w-full overflow-hidden">
+          {#if settledImageUrl !== preview.imageUrl}
+            <LoadingFog class="h-full w-full rounded-none" />
+          {/if}
+          <img
+            src={preview.imageUrl}
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover"
+            onload={(event) => {
+              (event.currentTarget as HTMLImageElement).style.visibility = '';
+              settledImageUrl = event.currentTarget.getAttribute('src');
+            }}
+            onerror={(e) => {
+              // Keep the image frame in the virtualized message row.
+              (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+              settledImageUrl = e.currentTarget.getAttribute('src');
+            }}
+          />
+        </div>
+      {/if}
+      <div class="flex min-w-0 flex-col gap-0.5 px-3 pt-3 pb-2">
+        {#if preview.siteName}
+          <span class="text-xs tracking-wide text-muted uppercase">{preview.siteName}</span>
         {/if}
-        <img
-          src={preview.imageUrl}
-          alt=""
-          class="absolute inset-0 h-full w-full object-cover"
-          onload={(event) => {
-            (event.currentTarget as HTMLImageElement).style.visibility = '';
-            settledImageUrl = event.currentTarget.getAttribute('src');
-          }}
-          onerror={(e) => {
-            // Keep the image frame in the virtualized message row.
-            (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-            settledImageUrl = e.currentTarget.getAttribute('src');
-          }}
-        />
+        {#if preview.title}
+          <span class="line-clamp-2 text-sm leading-snug font-medium">{preview.title}</span>
+        {/if}
+        {#if preview.description}
+          <span class="line-clamp-2 text-xs text-muted">{preview.description}</span>
+        {/if}
       </div>
-    {/if}
-    <div class="flex min-w-0 flex-col gap-0.5 px-3 pt-3 pb-2">
-      {#if preview.siteName}
-        <span class="text-xs tracking-wide text-muted uppercase">{preview.siteName}</span>
-      {/if}
-      {#if preview.title}
-        <span class="line-clamp-2 text-sm leading-snug font-medium">{preview.title}</span>
-      {/if}
-      {#if preview.description}
-        <span class="line-clamp-2 text-xs text-muted">{preview.description}</span>
-      {/if}
     </div>
     {#if showDismiss && onDismiss}
       <button

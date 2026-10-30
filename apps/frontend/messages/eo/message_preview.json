@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Mesaĝo de {name}",
     "attachments_count": { "other": "{count} aldonaĵoj" },
     "attachment_image": "Bildo",
     "attachment_video": "Video",
