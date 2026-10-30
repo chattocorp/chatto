@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Przegląd",
+      "shield_notice": "Aby użyć dodatkowych uprawnień na tym serwerze, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia."
+    },
     "nav": {
       "title": "Ustawienia",
       "back_to_server": "Powrót do serwera",

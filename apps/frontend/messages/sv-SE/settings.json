@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Översikt",
+      "shield_notice": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att använda dina extra behörigheter på den här servern."
+    },
     "nav": {
       "title": "Inställningar",
       "back_to_server": "Tillbaka till servern",

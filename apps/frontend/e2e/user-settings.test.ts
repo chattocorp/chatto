@@ -10,19 +10,27 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('App and User Preferences', () => {
-  test('opens unified Appearance settings from the Application Header', async ({ page }) => {
+  test('opens the settings Overview from the Application Header', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.chat);
     await page.getByRole('link', { name: 'App Preferences' }).click();
-    await page.waitForURL(routes.settingsAppearance);
+    await page.waitForURL(routes.settingsOverview);
     await expect(page.getByTestId('server-sidebar')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-    await expect(page.getByText('App preferences', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Language' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Composer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'App preferences', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'App preferences', exact: true })
+        .getByRole('link', { name: 'Language' })
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'App preferences', exact: true })
+        .getByRole('link', { name: 'Composer' })
+    ).toBeVisible();
   });
 
   test('can choose a local display theme', async ({ page }) => {

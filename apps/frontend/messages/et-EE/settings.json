@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Ülevaade",
+      "shield_notice": "Selles serveris oma lisaõiguste kasutamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga."
+    },
     "nav": {
       "title": "Seaded",
       "back_to_server": "Tagasi serverisse",

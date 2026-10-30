@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Genel bakış",
+      "shield_notice": "Bu sunucudaki ek izinlerinizi kullanmak için adınızın yanındaki kalkan düğmesiyle ayrıcalıklı modu etkinleştirin."
+    },
     "nav": {
       "title": "Ayarlar",
       "back_to_server": "Sunucuya Geri Dön",

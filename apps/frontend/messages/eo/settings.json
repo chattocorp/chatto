@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Superrigardo",
+      "shield_notice": "Por uzi viajn aldonajn permesojn en ĉi tiu servilo, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo."
+    },
     "nav": {
       "title": "Agordoj",
       "back_to_server": "Reen al Servilo",

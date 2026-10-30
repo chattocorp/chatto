@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Vue d’ensemble",
+      "shield_notice": "Pour utiliser vos autorisations supplémentaires sur ce serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom."
+    },
     "nav": {
       "title": "Paramètres",
       "back_to_server": "Retour au serveur",

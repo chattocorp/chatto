@@ -268,7 +268,7 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('app-frame Settings gear opens Appearance without a sidebar Settings link', async ({
+  test('app-frame Settings gear opens Overview without a sidebar Settings link', async ({
     page,
     adminPage
   }) => {
@@ -282,9 +282,9 @@ test.describe('Admin Navigation', () => {
     ).toHaveCount(0);
     await expect(adminPage.settingsLink).toHaveAttribute('href', routes.settingsRoot);
     await adminPage.navigateToSettings();
-    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await adminPage.expectBackToChatVisible();
-    await expect(page.getByRole('link', { name: 'Appearance' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute(
       'aria-current',
       'page'
     );

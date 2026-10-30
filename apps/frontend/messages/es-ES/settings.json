@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Resumen",
+      "shield_notice": "Para usar tus permisos adicionales en este servidor, activa el modo privilegiado con el botón del escudo junto a tu nombre."
+    },
     "nav": {
       "title": "Configuración",
       "back_to_server": "Volver al servidor",

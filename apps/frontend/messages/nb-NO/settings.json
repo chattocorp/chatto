@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Oversikt",
+      "shield_notice": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å bruke de ekstra tillatelsene dine på denne serveren."
+    },
     "nav": {
       "title": "Innstillinger",
       "back_to_server": "Tilbake til server",

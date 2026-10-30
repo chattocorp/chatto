@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "總覽",
+      "shield_notice": "若要使用你在此伺服器上的額外權限，請使用名稱旁的盾牌按鈕啟用特權模式。"
+    },
     "nav": {
       "title": "設定",
       "back_to_server": "返回伺服器",

@@ -1,5 +1,9 @@
 {
   "settings": {
+    "overview": {
+      "title": "Overview",
+      "shield_notice": "To use your additional permissions on this server, activate Shield Mode with the shield button beside your name."
+    },
     "nav": {
       "title": "Settings",
       "back_to_server": "Back to Server",
