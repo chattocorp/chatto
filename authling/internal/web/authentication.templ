@@ -44,10 +44,11 @@ templ loginCard(message, oidcRequest, returnPath string, preview bool) {
 }
 
 templ loginIntroduction() {
-	<p>
-		<span data-login-introduction hidden?={ siteFromContext(ctx).Introduction == "" }>{ siteFromContext(ctx).Introduction }</span>
-		<span data-login-default hidden?={ siteFromContext(ctx).Introduction != "" }>Sign in to <span data-login-site-name>{ siteFromContext(ctx).Name }</span> with your email address and password.</span>
-	</p>
+	if siteFromContext(ctx).Introduction != "" {
+		<p>{ siteFromContext(ctx).Introduction }</p>
+	} else {
+		<p>Sign in to { siteFromContext(ctx).Name } with your email address and password.</p>
+	}
 }
 
 func signupURL(oidcRequest string) string {

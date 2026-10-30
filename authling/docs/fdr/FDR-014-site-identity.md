@@ -14,7 +14,8 @@ account pages and transactional emails.
 - The operator can set default site name, description, and sign-in introduction
   through TOML or environment variables. Environment values override TOML.
 - Administrators can edit these values in Administration → Appearance. Preview
-  updates the sign-in card as they type, without requests or publishing changes.
+  updates the sign-in card after a short typing pause through an htmx request,
+  without publishing changes. The server renders the preview with templ.
   Without JavaScript, a Preview button renders the draft. Save applies the text to
   subsequent pages and emails without a restart, including on other replicas.
 - Saved settings override display defaults and survive restarts. Concurrent

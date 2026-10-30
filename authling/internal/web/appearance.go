@@ -70,7 +70,7 @@ func mountAppearance(mux *http.ServeMux, deps Dependencies, origin *url.URL) {
 				Name: r.PostForm.Get("name"), Description: r.PostForm.Get("description"), Introduction: r.PostForm.Get("introduction"),
 			}}
 			if err := sitesettings.Validate(input.Site); err != nil {
-				render(w, r, http.StatusUnprocessableEntity, appearancePage(email, input, "Enter a site name of up to 120 characters. Description and introduction can each have up to 500 characters. Use single-line plain text.", false, false))
+				render(w, r, http.StatusUnprocessableEntity, appearancePage(email, input, "Enter a site name of up to 120 characters. Description and introduction can each have up to 500 characters. Use single-line plain text.", r.PostForm.Get("action") == "preview", false))
 				return
 			}
 			switch r.PostForm.Get("action") {

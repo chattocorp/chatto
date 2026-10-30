@@ -65,6 +65,14 @@ for (const javaScriptEnabled of [true, false]) {
       );
       await expect(preview.locator('script')).toHaveCount(0);
       if (javaScriptEnabled) {
+        await expect(page.getByLabel('Sign-in introduction', { exact: true })).toBeFocused();
+        await page
+          .getByLabel('Sign-in introduction', { exact: true })
+          .fill('Invalid\nintroduction');
+        await expect(preview.getByRole('alert')).toBeVisible();
+        await expect(page.getByLabel('Sign-in introduction', { exact: true })).toHaveValue(
+          'Invalid\nintroduction'
+        );
         await page.getByLabel('Sign-in introduction', { exact: true }).fill('');
         await expect(
           preview.getByText('Sign in to Our accounts with your email address and password.')

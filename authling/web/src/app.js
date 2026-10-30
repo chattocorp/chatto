@@ -2,7 +2,6 @@
 import './app.css';
 import htmx from 'htmx.org';
 import './toasts.js';
-import './appearance.js';
 
 Object.assign(htmx.config, {
   allowEval: false,
@@ -57,6 +56,15 @@ document.addEventListener('htmx:beforeProcessNode', (event) => {
 document.addEventListener('htmx:beforeSwap', (event) => {
   const { xhr } = event.detail;
   const response = new DOMParser().parseFromString(xhr.responseText, 'text/html');
+  // Preview requests select only the server-rendered preview, including invalid
+  // draft feedback. The editor stays in place and retains focus and unsaved text.
+  if (
+    event.detail.target.id === 'appearance-preview' &&
+    response.querySelector('#appearance-preview')
+  ) {
+    event.detail.shouldSwap = true;
+    event.detail.isError = false;
+  }
   // Render form validation and availability errors without replaying the POST
   // or losing the server's message through a fallback GET.
   if (
