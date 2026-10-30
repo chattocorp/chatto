@@ -167,7 +167,7 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 			APIKeyName:         "Local development",
 			CredentialFile:     credentialFile,
 			OutboundWebhookURL: "http://localhost:4003/api/runs/start/chatto",
-			Permissions:        []string{"room.join", "message.read", "message.post-in-thread"},
+			Permissions:        []string{"message.read-interactions", "message.post-in-interactions", "message.react", "message.attach"},
 			Rooms:              []string{"general"},
 		}},
 		Server: &config.BootstrapServer{Name: "Engineering"},
@@ -269,26 +269,30 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 	if !member {
 		t.Fatal("expected bootstrap bot to join general")
 	}
-	canRead, err := c.CanReadMessages(ctx, bot.GetId(), core.KindChannel, generalID)
-	if err != nil {
-		t.Fatalf("check bot message.read: %v", err)
-	}
-	if !canRead {
-		t.Fatal("expected bootstrap bot to have message.read")
-	}
-	canPostInThread, err := c.CanPostInThread(ctx, bot.GetId(), core.KindChannel, generalID)
-	if err != nil {
-		t.Fatalf("check bot message.post-in-thread: %v", err)
-	}
-	if !canPostInThread {
-		t.Fatal("expected bootstrap bot to have message.post-in-thread")
-	}
-	canPost, err := c.CanPostMessage(ctx, bot.GetId(), core.KindChannel, generalID)
-	if err != nil {
-		t.Fatalf("check bot message.post: %v", err)
-	}
-	if canPost {
-		t.Fatal("bootstrap bot must not gain unconfigured message.post")
+	for _, kind := range []core.RoomKind{core.KindChannel, core.KindDM} {
+		roomID := ""
+		if kind == core.KindChannel {
+			roomID = generalID
+		}
+		for _, permission := range []core.Permission{
+			core.PermMessageReadInteractions, core.PermMessagePostInInteractions,
+			core.PermMessageReact, core.PermMessageAttach,
+		} {
+			decision, err := c.PermResolver().Resolve(ctx, bot.GetId(), kind, roomID, permission)
+			if err != nil || decision != core.DecisionAllow {
+				t.Errorf("bot %s in %s = %s, %v; want allow", permission, kind, decision, err)
+			}
+		}
+		for _, permission := range []core.Permission{
+			core.PermMessageRead, core.PermMessagePost, core.PermMessagePostInThread,
+			core.PermMessageEcho, core.PermMessageManage, core.PermMessagePin,
+			core.PermRoomJoin, core.PermRoomList,
+		} {
+			decision, err := c.PermResolver().Resolve(ctx, bot.GetId(), kind, roomID, permission)
+			if err != nil || decision != core.DecisionDeny {
+				t.Errorf("bot %s in %s = %s, %v; want deny", permission, kind, decision, err)
+			}
+		}
 	}
 }
 
