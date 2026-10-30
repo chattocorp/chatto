@@ -2,7 +2,8 @@
 @component
 
 General section of a room: its name and description, visibility, Slow Mode,
-Threading Mode, and membership activity, each in its own form with Save and Discard actions. A viewer who cannot
+Threading Mode, and membership activity. Membership activity saves immediately;
+the other panels have Save and Discard actions. A viewer who cannot
 change the settings goes to the Members section instead.
 -->
 <script lang="ts">
@@ -37,7 +38,6 @@ change the settings goes to the Members section instead.
   let visibilitySection = $state<SettingsSection>();
   let slowModeSection = $state<SettingsSection>();
   let threadingSection = $state<SettingsSection>();
-  let membershipEventsSection = $state<SettingsSection>();
   type UpdateRoomVariables = RoomMutationScope & { patch: RoomSettingsPatch };
 
   // Only managers can change the settings. Other viewers of the page may
@@ -105,13 +105,9 @@ change the settings goes to the Members section instead.
 <UnsavedChangesGuard
   enabled={detail.canManageRoom}
   hasChanges={() =>
-    [
-      nameSection,
-      visibilitySection,
-      slowModeSection,
-      threadingSection,
-      membershipEventsSection
-    ].some((section) => section?.hasChanges())}
+    [nameSection, visibilitySection, slowModeSection, threadingSection].some((section) =>
+      section?.hasChanges()
+    )}
 />
 
 {#if detail.canManageRoom}
@@ -140,10 +136,6 @@ change the settings goes to the Members section instead.
       room={detail.room}
       onSave={saveSettings}
     />
-    <RoomMembershipEventsSettingsPanel
-      bind:this={membershipEventsSection}
-      room={detail.room}
-      onSave={saveSettings}
-    />
+    <RoomMembershipEventsSettingsPanel room={detail.room} onSave={saveSettings} />
   {/key}
 {/if}

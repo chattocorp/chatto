@@ -4,6 +4,35 @@ import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { createRoomViaConnect, getDefaultRoomGroupIdViaConnect } from './fixtures/connectHelpers';
 import * as routes from './routes';
 
+test('membership activity saves immediately without an unsaved-settings prompt', async ({
+  page
+}) => {
+  await loginAsAdminAndUsePrimaryServer(page);
+  const groupId = await getDefaultRoomGroupIdViaConnect(page);
+  const roomId = await createRoomViaConnect(page, 'activity-toggle', groupId);
+  const settings = `${routes.serverAdminRooms}/${roomId}`;
+  const permissions = `${settings}/permissions`;
+  const checkbox = page.getByRole('checkbox', { name: 'Show join/leave events' });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await page.goto(settings);
+  await expect(checkbox).toBeChecked();
+  await page.locator('label[for="room-settings-membership-events"]').click();
+  await expect(page.getByText('Room updated').last()).toBeVisible();
+  await expect(checkbox).toBeEnabled();
+  await page.locator(`a[href="${permissions}"]`).click();
+  await expect(page).toHaveURL(permissions);
+  await page.goBack();
+  await expect(checkbox).not.toBeChecked();
+  await page.goForward();
+  await expect(page).toHaveURL(permissions);
+  await page.goBack();
+  await page.reload();
+  await expect(checkbox).not.toBeChecked();
+  expect(errors).toEqual([]);
+});
+
 for (const kind of ['room', 'room-group'] as const) {
   test(`${kind} settings preserve drafts on cancellation and resume browser history`, async ({
     page

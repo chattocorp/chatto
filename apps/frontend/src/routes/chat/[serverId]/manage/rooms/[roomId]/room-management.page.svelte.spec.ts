@@ -282,30 +282,67 @@ function roomRemoved(): RealtimeProjectionUpdate {
 }
 
 describe('room management page identity and realtime authority', () => {
-  it('saves and discards only the membership display setting', async () => {
+  it('saves only the membership display setting immediately and blocks repeated clicks', async () => {
     serveRoom(managedRoom('general', { showMembershipEvents: true }));
+    const pending = deferred<Room>();
+    mocks.updateRoom.mockReturnValueOnce(pending.promise);
     const view = renderSections('general');
     await expect.element(view.getByLabelText('Show join/leave events')).toBeChecked();
     const checkbox = view.container.querySelector(
       '#room-settings-membership-events'
     ) as HTMLInputElement;
     checkbox.click();
-    flushSync();
-    expect(mocks.updateRoom).not.toHaveBeenCalled();
-    formAction(view.container, '#room-settings-membership-events', 'Discard changes').click();
-    await expect.element(view.getByLabelText('Show join/leave events')).toBeChecked();
-    checkbox.click();
-    submitSection(view.container, '#room-settings-membership-events');
     await vi.waitFor(() =>
       expect(mocks.updateRoom).toHaveBeenCalledWith({
         roomId: 'shared-room',
         showMembershipEvents: false
       })
     );
+    await expect.element(view.getByLabelText('Show join/leave events')).toBeDisabled();
+    checkbox.click();
+    expect(mocks.updateRoom).toHaveBeenCalledOnce();
+    expect(checkbox.closest('form')).toBeNull();
+    const cancel = vi.fn();
+    mocks.beforeNavigate.mock.calls.at(-1)![0]({ type: 'leave', cancel });
+    expect(cancel).not.toHaveBeenCalled();
+
+    pending.resolve(new Room({ id: 'shared-room', showMembershipEvents: false }));
     await expect.element(view.getByLabelText('Show join/leave events')).not.toBeChecked();
-    await vi.waitFor(() =>
-      expect(formAction(view.container, '#room-settings-membership-events').disabled).toBe(true)
-    );
+    await expect.element(view.getByLabelText('Show join/leave events')).toBeEnabled();
+    expect(mocks.success).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the server membership display setting after failure and permits retry', async () => {
+    serveRoom(managedRoom('general', { showMembershipEvents: true }));
+    mocks.updateRoom.mockRejectedValueOnce(new Error('Save failed'));
+    const view = renderSections('general');
+    const checkbox = view.getByLabelText('Show join/leave events');
+    await checkbox.click();
+    await vi.waitFor(() => expect(mocks.error).toHaveBeenCalledOnce());
+    await expect.element(checkbox).toBeChecked();
+    await expect.element(checkbox).toBeEnabled();
+    await checkbox.click();
+    await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledTimes(2));
+    await expect.element(checkbox).not.toBeChecked();
+  });
+
+  it('does not restore the room after leaving during a membership display save', async () => {
+    serveRoom(managedRoom('general', { showMembershipEvents: true }));
+    const pending = deferred<Room>();
+    mocks.updateRoom.mockReturnValueOnce(pending.promise);
+    const view = renderSections('general');
+    await view.getByLabelText('Show join/leave events').click();
+    await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledOnce());
+    removeRegisteredAdminQueries('server-a');
+    view.unmount();
+    pending.resolve(new Room({ id: 'shared-room', showMembershipEvents: false }));
+    await settle();
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(
+      queryClient.getQueryData(
+        adminQueryKeys.room('server-a', server.scope.connection, 'shared-room')
+      )
+    ).toBeUndefined();
   });
 
   it('disables membership display editing on older servers', async () => {
