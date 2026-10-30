@@ -45,8 +45,11 @@ message search results:
   Its optional `location` snippet adds a truncated column before the time.
   Put `@container/activity` on the row; this column hides below 36rem, matching
   the notification room column. Location and time use `text-subdued`.
-  Cross-server notifications use `locationOnNarrow` to keep their server label
-  below the title when the room column hides.
+  Notification summaries always stay on one line and truncate when needed.
+  Notifications use `hideTimeOnNarrow` to hide the timestamp below 36rem.
+  The time remains available to screen readers.
+  Cross-server notifications show the server logo with its name in a tooltip
+  and visually hidden text, without a repeated server-name line.
   Both feeds use `ActivityDaySection` and `groupByActivityDay` for calendar-day
   headings. The section supplies a row-time formatter: relative time for Today,
   local clock time for older days. Pass the same timestamp for grouping and
@@ -462,9 +465,10 @@ state ownership, not the visual treatment of their forms.
 
 Use semantic tokens instead of Tailwind palette colors for application chrome.
 
-Generated user avatars use `bg-surface-emphasized` with `text-muted` and a
-subtle inset ring. They follow the selected surface tone and theme. All
-accounts use the same neutral styling. Avatar labels use complete Unicode
+Generated user avatars use `bg-surface-emphasized` with `text-text` and a
+subtle inset ring. The text colour keeps initials readable in both themes.
+They follow the selected surface tone and theme. All accounts use the same
+neutral styling. Avatar labels use complete Unicode
 graphemes for initials or emoji; a user icon is the last fallback. Generation
 needs no external service.
 Media overlays may use literal black and white where contrast must be
