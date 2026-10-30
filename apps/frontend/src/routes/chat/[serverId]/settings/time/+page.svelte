@@ -15,10 +15,6 @@
   const savedSettings = $derived(currentUser.user?.settings);
   const activeLocale = $derived(getLocale());
 
-  function accountAPI() {
-    return serverScope.connection.getAPI(createAccountAPI);
-  }
-
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
 
@@ -26,12 +22,10 @@
   // so a save response can distinguish its draft from newer input.
   let draft = $state<{
     timezoneSearch?: string;
-    timezone?: string;
     timeFormat?: TimeFormat;
     shareTimezone?: boolean;
   }>({});
   const timezoneSearch = $derived(draft.timezoneSearch ?? savedSettings?.timezone ?? '');
-  const selectedTimezone = $derived(draft.timezone ?? savedSettings?.timezone ?? '');
   const selectedTimeFormat = $derived(
     draft.timeFormat ?? savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO
   );
@@ -49,6 +43,12 @@
   // Cap displayed results to avoid rendering 400+ items
   let displayedTimezones = $derived(filteredTimezones.slice(0, 50));
 
+  const timezoneError = $derived(
+    timezoneSearch && !allTimezones.includes(timezoneSearch)
+      ? m('settings.preferences.timezone.invalid')
+      : undefined
+  );
+  const selectedTimezone = $derived(timezoneError ? '' : timezoneSearch);
   const supportsTimezoneSharing = $derived(savedSettings?.shareTimezone !== undefined);
   const changes = $derived.by(() => {
     const input: UpdateSettingsInput = {};
@@ -65,13 +65,6 @@
   });
   const isModified = $derived(!currentUser.loading && Object.keys(changes).length > 0);
 
-  // Timezone validation
-  const timezoneError = $derived.by(() => {
-    if (!timezoneSearch) return undefined;
-    if (allTimezones.includes(timezoneSearch)) return undefined;
-    return m('settings.preferences.timezone.invalid');
-  });
-
   const selectedTimezoneTime = $derived.by(() => {
     if (!selectedTimezone) return null;
 
@@ -85,10 +78,6 @@
     );
   });
 
-  function handleTimezoneTextChange(text: string) {
-    if (!text || allTimezones.includes(text)) draft = { ...draft, timezone: text };
-  }
-
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     if (!isModified || isSaving || timezoneError) return;
@@ -99,7 +88,9 @@
     const submittedDraft = draft;
 
     try {
-      const settings = await accountAPI().updateSettings(changes);
+      const settings = await serverScope.connection
+        .getAPI(createAccountAPI)
+        .updateSettings(changes);
       if (!serverScope.isCurrent()) return;
       currentUser.update(userId, () => ({ settings }));
       if (draft === submittedDraft) draft = {};
@@ -162,11 +153,10 @@
             clearLabel={m('settings.preferences.timezone.clear')}
             allowFreeform={false}
             disabled={currentUser.loading}
-            bind:value={() => selectedTimezone, (timezone) => (draft = { ...draft, timezone })}
+            value={selectedTimezone}
             bind:text={
               () => timezoneSearch, (timezoneSearch) => (draft = { ...draft, timezoneSearch })
             }
-            ontextchange={handleTimezoneTextChange}
           />
 
           {#if selectedTimezoneTime}
@@ -203,11 +193,10 @@
             aria-label={m('settings.preferences.time_format.title')}
           >
             {#each timeFormatOptions as option (option.value)}
-              {@const isSelected = selectedTimeFormat === option.value}
               <ChoiceRow
                 label={option.label}
                 description={option.description}
-                selected={isSelected}
+                selected={selectedTimeFormat === option.value}
                 disabled={currentUser.loading}
                 onclick={() => (draft = { ...draft, timeFormat: option.value })}
               />

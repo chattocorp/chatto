@@ -22,6 +22,12 @@ vi.mock(
 
 import PreferencesPage from './+page.svelte';
 
+const defaultSettings = {
+  timezone: 'Europe/Berlin',
+  timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+  shareTimezone: false
+};
+
 function currentUser(settings: NonNullable<CurrentUser['settings']>): CurrentUser {
   return {
     id: 'user-1',
@@ -113,13 +119,7 @@ describe('Time and region settings page', () => {
   });
 
   it('updates untouched values while preserving edits when saved settings change', async () => {
-    mocks.currentUser.accept(
-      currentUser({
-        timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-        shareTimezone: false
-      })
-    );
+    mocks.currentUser.accept(currentUser(defaultSettings));
     const { container } = render(PreferencesPage);
     await settle();
     buttonWithText(container, '24-hour').click();
@@ -153,11 +153,7 @@ describe('Time and region settings page', () => {
   });
 
   it('keeps edits after a failed save and clears them after a successful retry', async () => {
-    const settings = {
-      timezone: 'Europe/Berlin',
-      timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-      shareTimezone: false
-    };
+    const settings = defaultSettings;
     mocks.currentUser.accept(currentUser(settings));
     mocks.updateSettings
       .mockRejectedValueOnce(new Error('offline'))
@@ -180,11 +176,7 @@ describe('Time and region settings page', () => {
   });
 
   it('preserves edits made while a save is pending', async () => {
-    const settings = {
-      timezone: 'Europe/Berlin',
-      timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-      shareTimezone: false
-    };
+    const settings = defaultSettings;
     mocks.currentUser.accept(currentUser(settings));
     let finish!: (settings: NonNullable<CurrentUser['settings']>) => void;
     mocks.updateSettings.mockReturnValue(
@@ -234,11 +226,7 @@ describe('Time and region settings page', () => {
   });
 
   it('blocks invalid timezone text and sends an explicit clear as null', async () => {
-    const settings = {
-      timezone: 'Europe/Berlin',
-      timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-      shareTimezone: false
-    };
+    const settings = defaultSettings;
     mocks.currentUser.accept(currentUser(settings));
     mocks.updateSettings.mockResolvedValue({ ...settings, timezone: null });
     const { container } = render(PreferencesPage);
