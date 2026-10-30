@@ -16,7 +16,7 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/web"
 )
 
-func TestAppearanceAuthorizationPreviewSaveAndRestart(t *testing.T) {
+func TestAppearanceAuthorizationSaveAndRestart(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	cfg.Site = config.SiteConfig{Name: "Configured name"}
 	cfg.Administration.AdminEmails = []string{"admin@example.invalid"}
@@ -66,13 +66,10 @@ func TestAppearanceAuthorizationPreviewSaveAndRestart(t *testing.T) {
 	request("POST", path, ordinaryToken, "http://localhost", form, http.StatusForbidden)
 	request("POST", path, adminToken, "https://attacker.invalid", form, http.StatusForbidden)
 	request("POST", path, adminToken, "", form, http.StatusForbidden)
-	preview := request("POST", path, adminToken, "http://localhost", form, http.StatusOK)
-	if strings.Contains(preview.Body.String(), "<script>name") || strings.Contains(preview.Body.String(), "<img src=x") {
-		t.Fatal("preview renders unescaped text")
-	}
+	request("POST", path, adminToken, "http://localhost", form, http.StatusBadRequest)
 	snapshot, err := runtime.SiteSettings.Read(t.Context())
 	if err != nil || snapshot.Revision != 0 || snapshot.Site.Name != cfg.Site.Name {
-		t.Fatalf("preview persisted: %v", err)
+		t.Fatalf("unsupported action persisted: %v", err)
 	}
 	form.Set("action", "save")
 	form.Set("name", "Bad\r\nBcc: header")

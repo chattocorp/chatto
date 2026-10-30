@@ -103,7 +103,7 @@ func administrationWorkspace(signedInAs, active string) templ.Component {
 	})
 }
 
-func appearancePage(signedInAs string, input sitesettings.Snapshot, message string, preview, saved bool) templ.Component {
+func appearancePage(signedInAs string, input sitesettings.Snapshot, message string, saved bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -186,26 +186,24 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 					return templ_7745c5c3_Err
 				}
 			}
-			if !preview {
-				templ_7745c5c3_Err = ui.Error(message).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = ui.Error(message).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"mt-6 grid items-start gap-8 lg:grid-cols-2\"><form class=\"form-stack mt-0\" method=\"post\" action=\"/admin/appearance\" hx-boost=\"true\" hx-push-url=\"true\" hx-disabled-elt=\"find button[type='submit']\"><input type=\"hidden\" name=\"revision\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"mt-6\"><form class=\"form-stack mt-0\" method=\"post\" action=\"/admin/appearance\" hx-boost=\"true\" hx-push-url=\"true\" hx-disabled-elt=\"find button[type='submit']\"><input type=\"hidden\" name=\"revision\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatUint(input.Revision, 10))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 41, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 39, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><div class=\"grid gap-5\" hx-post=\"/admin/appearance\" hx-trigger=\"input delay:250ms\" hx-vals='{\"action\":\"preview\"}' hx-target=\"#appearance-preview\" hx-select=\"#appearance-preview\" hx-swap=\"outerHTML\" hx-push-url=\"false\" hx-sync=\"this:replace\" hx-disabled-elt=\"this\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><div class=\"grid gap-5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -224,67 +222,13 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(input.Site.Introduction)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 47, Col: 173}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 45, Col: 173}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea><p id=\"site-introduction-hint\" class=\"field-hint\">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p></div></div><div class=\"flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"submit\" name=\"action\" value=\"save\">Save changes</button><noscript><button class=\"button button-secondary\" type=\"submit\" name=\"action\" value=\"preview\">Preview</button></noscript></div><a class=\"text-link\" href=\"/admin/appearance\" target=\"_blank\" rel=\"noopener\">View saved settings</a></form><aside id=\"appearance-preview\" aria-label=\"Sign-in preview\" class=\"min-w-0\"><div class=\"mb-4 flex flex-wrap items-center justify-between gap-2\"><h2 class=\"font-semibold\">Sign-in preview</h2>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = ui.Badge("Not interactive").Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><p class=\"mb-4 text-muted\" role=\"status\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if preview {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "Preview updated. Your changes have not been saved.")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "Changes apply when you save.")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if preview {
-				templ_7745c5c3_Err = ui.Error(message).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"mb-3 break-words font-semibold\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(input.Site.Name)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 72, Col: 66}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><div class=\"focus-card w-full\" inert>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = withSite(input.Site, loginCard("", "", "", true)).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></aside></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea><p id=\"site-introduction-hint\" class=\"field-hint\">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p></div></div><div class=\"flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"submit\" name=\"action\" value=\"save\">Save changes</button></div><a class=\"text-link\" href=\"/admin/appearance\" target=\"_blank\" rel=\"noopener\">View saved settings</a></form></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

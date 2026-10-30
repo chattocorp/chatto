@@ -23,7 +23,7 @@ for (const javaScriptEnabled of [true, false]) {
   test.describe(`appearance with JavaScript ${javaScriptEnabled ? 'enabled' : 'disabled'}`, () => {
     test.use({ javaScriptEnabled });
 
-    test('previews without publishing and saves across a restart', async ({
+    test('edits without publishing and saves across a restart', async ({
       page,
       request,
       stack
@@ -44,40 +44,17 @@ for (const javaScriptEnabled of [true, false]) {
       await page
         .getByLabel('Sign-in introduction', { exact: true })
         .fill('Welcome <script>alert(1)</script>');
-      if (!javaScriptEnabled) {
-        await page.getByRole('button', { name: 'Preview', exact: true }).click();
-      } else {
-        await expect(page.getByRole('button', { name: 'Preview', exact: true })).toBeHidden();
-        await expect(page.getByLabel('Sign-in introduction', { exact: true })).toBeFocused();
-      }
+      await expect(page.getByRole('button', { name: 'Preview', exact: true })).toHaveCount(0);
       if (javaScriptEnabled) {
         expect(await page.evaluate(() => Reflect.get(window, 'appearanceDocument'))).toBe(true);
       }
-      const preview = page.getByRole('complementary', { name: 'Sign-in preview' });
-      await expect(
-        preview.getByText('Welcome <script>alert(1)</script>', { exact: true })
-      ).toBeVisible();
+      await expect(page.getByRole('complementary', { name: 'Sign-in preview' })).toHaveCount(0);
       await expect(
         page.getByRole('banner').getByRole('link', { name: 'Test Accounts', exact: true })
       ).toBeVisible();
       expect(await (await request.get(`${stack.baseURL}/login`)).text()).not.toContain(
         'Our accounts'
       );
-      await expect(preview.locator('script')).toHaveCount(0);
-      if (javaScriptEnabled) {
-        await expect(page.getByLabel('Sign-in introduction', { exact: true })).toBeFocused();
-        await page
-          .getByLabel('Sign-in introduction', { exact: true })
-          .fill('Invalid\nintroduction');
-        await expect(preview.getByRole('alert')).toBeVisible();
-        await expect(page.getByLabel('Sign-in introduction', { exact: true })).toHaveValue(
-          'Invalid\nintroduction'
-        );
-        await page.getByLabel('Sign-in introduction', { exact: true }).fill('');
-        await expect(
-          preview.getByText('Sign in to Our accounts with your email address and password.')
-        ).toBeVisible();
-      }
       for (const colorScheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme });
         await page.setViewportSize({ width: 375, height: 812 });

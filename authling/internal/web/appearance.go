@@ -1,14 +1,11 @@
 package web
 
 import (
-	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 
-	"github.com/a-h/templ"
 	"github.com/chattocorp/chatto/authling/internal/config"
 	"github.com/chattocorp/chatto/authling/internal/sessions"
 	"github.com/chattocorp/chatto/authling/internal/sitesettings"
@@ -16,7 +13,7 @@ import (
 
 const appearancePath = "/admin/appearance"
 
-// mountAppearance supports native forms, including a preview that never writes.
+// mountAppearance supports administrator settings through native and boosted forms.
 func mountAppearance(mux *http.ServeMux, deps Dependencies, origin *url.URL) {
 	for _, method := range []string{"GET", "POST"} {
 		mux.HandleFunc(method+" "+appearancePath, func(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +51,7 @@ func mountAppearance(mux *http.ServeMux, deps Dependencies, origin *url.URL) {
 					http.Error(w, "site settings unavailable", http.StatusServiceUnavailable)
 					return
 				}
-				render(w, r, http.StatusOK, appearancePage(email, snapshot, "", false, r.URL.Query().Get("saved") == "1"))
+				render(w, r, http.StatusOK, appearancePage(email, snapshot, "", r.URL.Query().Get("saved") == "1"))
 				return
 			}
 			if err := r.ParseForm(); err != nil {
@@ -70,22 +67,19 @@ func mountAppearance(mux *http.ServeMux, deps Dependencies, origin *url.URL) {
 				Name: r.PostForm.Get("name"), Description: r.PostForm.Get("description"), Introduction: r.PostForm.Get("introduction"),
 			}}
 			if err := sitesettings.Validate(input.Site); err != nil {
-				render(w, r, http.StatusUnprocessableEntity, appearancePage(email, input, "Enter a site name of up to 120 characters. Description and introduction can each have up to 500 characters. Use single-line plain text.", r.PostForm.Get("action") == "preview", false))
+				render(w, r, http.StatusUnprocessableEntity, appearancePage(email, input, "Enter a site name of up to 120 characters. Description and introduction can each have up to 500 characters. Use single-line plain text.", false))
 				return
 			}
 			switch r.PostForm.Get("action") {
-			case "preview":
-				input.Site = input.Site.Resolve("")
-				render(w, r, http.StatusOK, appearancePage(email, input, "", true, false))
 			case "save":
 				err := deps.SiteSettings.Save(r.Context(), account.ID, input)
 				switch {
 				case errors.Is(err, sitesettings.ErrForbidden):
 					http.Error(w, "administrator access required", http.StatusForbidden)
 				case errors.Is(err, sitesettings.ErrConflict):
-					render(w, r, http.StatusConflict, appearancePage(email, input, "Someone changed these settings while you were editing. Your text is still below. Open the saved settings in another tab and compare before starting a new edit.", false, false))
+					render(w, r, http.StatusConflict, appearancePage(email, input, "Someone changed these settings while you were editing. Your text is still below. Open the saved settings in another tab and compare before starting a new edit.", false))
 				case err != nil:
-					render(w, r, http.StatusServiceUnavailable, appearancePage(email, input, "We couldn't confirm the save. Your text is still below. Check the saved settings before trying again.", false, false))
+					render(w, r, http.StatusServiceUnavailable, appearancePage(email, input, "We couldn't confirm the save. Your text is still below. Check the saved settings before trying again.", false))
 				default:
 					redirect(w, r, appearancePath+"?saved=1")
 				}
@@ -94,11 +88,4 @@ func mountAppearance(mux *http.ServeMux, deps Dependencies, origin *url.URL) {
 			}
 		})
 	}
-}
-
-// withSite isolates draft branding to a preview subtree, never the admin shell.
-func withSite(site config.SiteConfig, component templ.Component) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		return component.Render(context.WithValue(ctx, siteContextKey{}, site), w)
-	})
 }

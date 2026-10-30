@@ -13,16 +13,14 @@ account pages and transactional emails.
 
 - The operator can set default site name, description, and sign-in introduction
   through TOML or environment variables. Environment values override TOML.
-- Administrators can edit these values in Administration → Appearance. Preview
-  updates the sign-in card after a short typing pause through an htmx request,
-  without publishing changes. The server renders the preview with templ.
-  Without JavaScript, a Preview button renders the draft. Save applies the text to
+- Administrators can edit these values in Administration → Appearance.
+  Save applies the text to
   subsequent pages and emails without a restart, including on other replicas.
 - Saved settings override display defaults and survive restarts. Concurrent
   edits produce a conflict instead of overwriting another administrator's work.
   Failed saves keep submitted text visible. The editor works without JavaScript.
 - Each save retains the acting administrator, time, and replacement settings in
-  the audit history. Preview does not create an audit entry. There is no history
+  the audit history. There is no history
   viewer in the browser yet.
 - An omitted or blank name uses the hostname from the configured public URL.
   The local listener default supplies the hostname during local development.

@@ -325,13 +325,12 @@ values to request context; email workflows resolve them before composition.
 Configuration defaults apply only before the first settings event.
 
 `GET /admin/appearance` and `POST /admin/appearance` require current administrator
-access. POST also requires a matching origin and a bounded form body. Preview
-renders escaped text in an inert copy of the shared sign-in card. Save checks
+access. POST also requires a matching origin and a bounded form body. Save checks
 administrator access again, then appends a `SiteSettingsChangedEvent` with
 subject-level OCC. The event records actor ID, time, previous revision, and
 public replacement values in plaintext. Conflicts synchronize the projection again and
 preserve input without retrying the edit. Successful saves wait for local
-application. Preview produces no event. The projection validates the predecessor
+application. The projection validates the predecessor
 chain, envelope, and text constraints during live processing and cold replay.
 Settings history has no encryption-key dependency and remains after account
 erasure. No new storage resource or external connection is added.

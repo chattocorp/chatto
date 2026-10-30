@@ -34,8 +34,8 @@ email override. There are no roles, groups, or configurable permissions.
   that verifies that address receives it. The override follows mailbox control,
   not a permanent account ID. It does not bypass authentication or deletion.
 - The Users and Appearance sections share navigation. Appearance provides
-  preview and save for site name, description, and sign-in introduction, as
-  specified in FDR-014. Only current administrators can preview or save.
+  editing and saving for site name, description, and sign-in introduction, as
+  specified in FDR-014. Only current administrators can edit or save.
 - The directory does not let administrators change users or administrator flags.
   Administrator access has no effect on connected apps.
 

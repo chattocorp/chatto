@@ -34,7 +34,6 @@ Save checks current administrator access, synchronizes settings state, and
 checks access again before appending with the editor's original subject revision.
 After a conflict, synchronize again and return a conflict without retrying the
 submitted edit. After a successful append, wait for local projection application.
-Preview does not append an event.
 
 Administrator revocation and a settings append are not one atomic transaction.
 Authorization is checked immediately before append. This command cannot change

@@ -8,19 +8,13 @@ import (
 
 templ loginPage(message, oidcRequest, returnPath string) {
 	@layout("Sign in", "") {
-		@loginCard(message, oidcRequest, returnPath, false)
+		@loginCard(message, oidcRequest, returnPath)
 	}
 }
 
-templ loginCard(message, oidcRequest, returnPath string, preview bool) {
-	if preview {
-		@ui.SectionHeading("Sign in") {
-			@loginIntroduction()
-		}
-	} else {
-		@ui.Heading("Sign in") {
-			@loginIntroduction()
-		}
+templ loginCard(message, oidcRequest, returnPath string) {
+	@ui.Heading("Sign in") {
+		@loginIntroduction()
 	}
 	@ui.Error(message)
 	<form class="form-stack" method="post" action="/login" hx-boost={ strconv.FormatBool(oidcRequest == "") } hx-push-url="true" hx-disabled-elt="find button[type='submit']">
@@ -30,7 +24,7 @@ templ loginCard(message, oidcRequest, returnPath string, preview bool) {
 		if returnPath != "" {
 			<input type="hidden" name="return_to" value={ returnPath }/>
 		}
-		@ui.Field("email", "Email address", "", templ.Attributes{"type": "email", "name": "email", "autocomplete": "email", "autofocus": !preview, "required": true})
+		@ui.Field("email", "Email address", "", templ.Attributes{"type": "email", "name": "email", "autocomplete": "email", "autofocus": true, "required": true})
 		@ui.Field("password", "Password", "", templ.Attributes{"type": "password", "name": "password", "autocomplete": "current-password", "maxlength": "1024", "required": true})
 		<button class="button button-primary w-full" type="submit">Sign in</button>
 	</form>
