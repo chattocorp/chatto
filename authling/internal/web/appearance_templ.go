@@ -228,7 +228,7 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea><p id=\"site-introduction-hint\" class=\"field-hint\">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p></div></div><div class=\"flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"submit\" name=\"action\" value=\"save\">Save changes</button></div><a class=\"text-link\" href=\"/admin/appearance\" target=\"_blank\" rel=\"noopener\">View saved settings</a></form></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea><p id=\"site-introduction-hint\" class=\"field-hint\">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p></div></div><div class=\"flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"submit\" name=\"action\" value=\"save\">Save changes</button></div></form></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
