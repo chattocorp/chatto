@@ -76,6 +76,7 @@
     path={resolve('/chat/[serverId]/user/[userId]', { serverId: '-', userId: user.id })}
     href="https://chat.example.test/chat/-/user/alice"
     name={user.displayName}
+    context="Community"
     {user}
   />
   in
@@ -84,6 +85,7 @@
     path={resolve('/chat/[serverId]/[roomId]', { serverId: '-', roomId: room.id })}
     href="https://chat.example.test/chat/-/R123456789abcde"
     name={room.name}
+    context="Community"
     {room}
   />
   on
@@ -114,15 +116,15 @@
   play={async ({ canvasElement }) => {
     for (const pill of canvasElement.querySelectorAll<HTMLElement>('.entity-link, .url-link')) {
       const style = getComputedStyle(pill);
-      await expect(style.borderTopRightRadius).toBe('3px');
+      await expect(style.borderTopRightRadius).toBe('6px');
       // Huge leading radii cause CSS to scale down the trailing corners as well.
       await expect(parseFloat(style.borderTopLeftRadius)).toBeLessThanOrEqual(
         pill.getBoundingClientRect().height / 2
       );
     }
     const image = canvasElement.querySelector('[data-entity-kind="server"] .entity-link-image')!;
-    await expect(getComputedStyle(image).borderRadius).toBe('3px');
-    await expect(getComputedStyle(image.firstElementChild!).borderRadius).toBe('3px');
+    await expect(getComputedStyle(image).borderRadius).toBe('6px');
+    await expect(getComputedStyle(image.firstElementChild!).borderRadius).toBe('6px');
   }}
 >
   <div class="prose max-w-xl bg-background p-4">

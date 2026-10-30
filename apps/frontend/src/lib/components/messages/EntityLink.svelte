@@ -11,8 +11,10 @@
   import EntityLinkPill from './EntityLinkPill.svelte';
   import UrlLink from './UrlLink.svelte';
   import LinkHover from './LinkHover.svelte';
+  import { hasServerScope, useServerScope } from '$lib/state/server/scope.svelte';
 
   let { href, children: authoredLabel }: { href: string; children?: Snippet } = $props();
+  const scope = hasServerScope() ? useServerScope() : undefined;
   const target = $derived(parseEntityLink(href));
   const message = $derived(target ? null : parseMessageLink(href));
   const store = $derived(target ? serverRegistry.tryGetStore(target.serverId) : undefined);
@@ -90,6 +92,9 @@
             {path}
             {href}
             {name}
+            context={target.kind !== 'server' && target.serverId !== scope?.serverId
+              ? serverName
+              : undefined}
             {user}
             {room}
             {store}

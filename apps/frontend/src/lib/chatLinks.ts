@@ -115,13 +115,20 @@ function parseChatLink(input: string, origin: string) {
 }
 
 /**
- * Rewrite any registered server's /chat/<server>/... route into this frontend.
+ * Rewrite a registered server's root URL or /chat/<server>/... route into this frontend.
  * The remaining path, query, and fragment are preserved. Preview parsing stays strict.
  */
 export function resolveChatRoute(input: string): ResolvedPathname | null {
   if (typeof window === 'undefined') return null;
   const parsed = parseChatURL(input, window.location.origin);
-  if (!parsed) return null;
+  if (!parsed) {
+    // Bare server URLs already render as entity pills. Their cards and authored
+    // links must use the same destination instead of opening another frontend.
+    const entity = parseEntityLink(input);
+    return entity?.kind === 'server'
+      ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(entity.serverId) })
+      : null;
+  }
   const serverId = resolveChatLinkServerId(parsed);
   if (!serverId) return null;
   const prefix = resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) });

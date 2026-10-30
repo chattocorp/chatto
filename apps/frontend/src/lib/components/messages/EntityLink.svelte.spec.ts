@@ -10,6 +10,7 @@ import MessageContent from '../MessageContent.svelte';
 import UrlLink from './UrlLink.svelte';
 import TipTapEditor from '../composer/TipTapEditor.svelte';
 import type { ComposerEditorApi } from '../composer/editorTypes';
+import type { ServerScope } from '$lib/state/server/scope.svelte';
 import { ServerInfoState } from '@chatto/client/server/state';
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { createRoomTimelineAPI } from '@chatto/client/api/roomTimeline';
@@ -17,8 +18,17 @@ import '../../../app.css';
 
 const mocks = vi.hoisted(() => ({
   registry: undefined as ReturnType<typeof createClient>['registry'] | undefined,
+  scope: undefined as ServerScope | undefined,
   goto: vi.fn()
 }));
+vi.mock('$lib/state/server/scope.svelte', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/state/server/scope.svelte')>();
+  return {
+    ...actual,
+    hasServerScope: () => actual.hasServerScope() || !!mocks.scope,
+    useServerScope: () => (actual.hasServerScope() ? actual.useServerScope() : mocks.scope!)
+  };
+});
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
@@ -57,6 +67,7 @@ function putUser(displayName = 'Alice') {
 }
 
 beforeEach(() => {
+  mocks.scope = undefined;
   vi.spyOn(ServerInfoState.prototype, 'init').mockResolvedValue();
   client = createClient();
   mocks.registry = client.registry;
@@ -129,10 +140,52 @@ it.each(['ltr', 'rtl'])(
         ? host.getBoundingClientRect().left > title.getBoundingClientRect().left
         : host.getBoundingClientRect().left < title.getBoundingClientRect().left
     ).toBe(true);
+    // A standalone link can use the wider message instead of keeping a fixed cap.
+    container.style.width = '900px';
+    expect(anchor.getBoundingClientRect().width).toBeGreaterThan(800);
+    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(900);
   }
 );
 
 describe('entity links in messages', () => {
+  it.each(['known', 'another-server'])(
+    'shows server metadata only across servers from %s',
+    async (serverId) => {
+      const store = client.registry.getStore('known');
+      mocks.scope = { serverId, store, connection: store.connection, isCurrent: () => true };
+      const { container } = render(MessageContent, {
+        body: `${origin}/chat/-/${roomId} ${origin}/chat/-/user/${userId}`
+      });
+      await vi.waitFor(() => expect(container.querySelectorAll('.entity-link')).toHaveLength(2));
+      expect(container.querySelectorAll('.link-pill-meta')).toHaveLength(
+        serverId === 'known' ? 0 : 2
+      );
+    }
+  );
+
+  it('opens a known server root in-app from the pill, its hover card, and an authored link', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { container } = render(MessageContent, { body: `${origin} [our server](${origin})` });
+    await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
+    const pill = container.querySelector<HTMLAnchorElement>('.entity-link')!;
+    pill.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/known.example.test');
+    pill.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+    const card = await vi.waitFor(() => {
+      const node = container.querySelector<HTMLAnchorElement>('[data-testid="link-hover-card"]');
+      expect(node).not.toBeNull();
+      return node!;
+    });
+    expect(card.hasAttribute('target')).toBe(false);
+    card.click();
+    const authored = Array.from(container.querySelectorAll('a')).find(
+      (link) => link.textContent === 'our server'
+    )!;
+    authored.click();
+    expect(mocks.goto).toHaveBeenCalledTimes(3);
+    expect(open).not.toHaveBeenCalled();
+  });
+
   it('opens a known destination from its hover card using local navigation', async () => {
     const { container } = render(MessageContent, { body: `${origin}/chat/-/${roomId}` });
     const pill = await vi.waitFor(() => {
@@ -205,6 +258,8 @@ describe('entity links in messages', () => {
     await vi.waitFor(() =>
       expect(container.querySelector('[data-message-link]')?.textContent).toContain('Alice')
     );
+    expect(container.querySelector('[data-message-link] .entity-link-image')).not.toBeNull();
+    expect(container.querySelector('[data-message-link] .iconify')).toBeNull();
     putUser('Alicia');
     await vi.waitFor(() =>
       expect(container.querySelector('[data-message-link]')?.textContent).toContain('Alicia')
@@ -213,6 +268,8 @@ describe('entity links in messages', () => {
     await vi.waitFor(() =>
       expect(container.querySelector('[data-message-link]')?.textContent).not.toContain('Alicia')
     );
+    expect(container.querySelector('[data-message-link] .entity-link-image')).toBeNull();
+    expect(container.querySelector('[data-message-link] .iconify')).not.toBeNull();
     expect(container.querySelector('[data-message-link]')?.textContent).toContain('General');
   });
 

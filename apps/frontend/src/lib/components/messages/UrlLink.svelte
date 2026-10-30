@@ -45,8 +45,9 @@
   >
     <span class="url-link-main">
       {#if destination.target === '_blank'}
-        <span class="iconify icon-[uil--external-link-alt] shrink-0 self-center" aria-hidden="true"
-        ></span>
+        <span class="url-link-icon" aria-hidden="true">
+          <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
+        </span>
       {/if}
       {#if hasTitle}
         <bdi class="min-w-0 truncate">{title}</bdi>
