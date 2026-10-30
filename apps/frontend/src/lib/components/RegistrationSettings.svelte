@@ -74,7 +74,7 @@
         onclick={() => save('invite_only')}
       />
     </div>
-    <div class="mt-4 flex max-w-md flex-col gap-3 text-sm">
+    <div class="mt-4 flex flex-col gap-3 text-sm">
       <p class="text-muted">{m('admin.registration.methods')}</p>
       {#if serverInfo.loading}
         <LoadingFog class="mt-2 h-6 w-full" />
@@ -83,11 +83,11 @@
       {:else if serverInfo.directRegistrationEnabled || registrationProviders.length > 0}
         <ul
           role="list"
-          class="flex min-w-0 flex-col gap-3"
+          class="flex min-w-0 flex-wrap gap-3"
           aria-label={m('admin.registration.methods')}
         >
           {#if serverInfo.directRegistrationEnabled}
-            <li class="flex min-w-0 items-center gap-3 rounded border border-border p-3">
+            <li class="flex max-w-full min-w-0 items-center gap-3 rounded border border-border p-3">
               <span
                 aria-hidden="true"
                 class="iconify icon-[uil--envelope] shrink-0 text-lg text-muted"
@@ -98,7 +98,7 @@
             </li>
           {/if}
           {#each registrationProviders as provider (provider.id)}
-            <li class="flex min-w-0 items-center gap-3 rounded border border-border p-3">
+            <li class="flex max-w-full min-w-0 items-center gap-3 rounded border border-border p-3">
               <span
                 aria-hidden="true"
                 class={['iconify shrink-0 text-lg text-muted', providerIcon(provider.type)]}
@@ -110,6 +110,7 @@
       {:else}
         <p class="mt-1 text-muted">{m('admin.registration.no_methods')}</p>
       {/if}
+      <p class="text-muted">{m('admin.registration.methods_configuration')}</p>
     </div>
   {/if}
 </Panel>

@@ -7,6 +7,7 @@
       "open_description": "Vem som helst kan skapa ett konto med de konfigurerade registreringsmetoderna.",
       "invite_only_description": "Nya konton kräver en inbjudningskod som bara kan användas en gång. Befintliga användare kan fortfarande logga in.",
       "methods": "Konfigurerade registreringsmetoder",
+      "methods_configuration": "Registreringsmetoderna hanteras i serverns hostingkonfiguration.",
       "email_password": "E-post och lösenord",
       "no_methods": "Inga registreringsmetoder är aktiverade. Användare kan inte skapa konton i något av lägena."
     },

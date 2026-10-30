@@ -7,6 +7,7 @@
       "open_description": "Herkes yapılandırılmış kayıt yöntemleriyle hesap oluşturabilir.",
       "invite_only_description": "Yeni hesaplar için tek kullanımlık davet kodu gerekir. Mevcut kullanıcılar giriş yapmaya devam edebilir.",
       "methods": "Yapılandırılmış kayıt yöntemleri",
+      "methods_configuration": "Kayıt yöntemleri bu sunucunun barındırma yapılandırmasında yönetilir.",
       "email_password": "E-posta ve parola",
       "no_methods": "Hiçbir kayıt yöntemi etkin değil. Kullanıcılar her iki modda da hesap oluşturamaz."
     },

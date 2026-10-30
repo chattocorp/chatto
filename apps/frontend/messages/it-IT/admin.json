@@ -7,6 +7,7 @@
       "open_description": "Chiunque può creare un account con i metodi di registrazione configurati.",
       "invite_only_description": "I nuovi account richiedono un codice d'invito monouso. Gli utenti esistenti possono continuare ad accedere.",
       "methods": "Metodi di registrazione configurati",
+      "methods_configuration": "I metodi di registrazione sono gestiti nella configurazione di hosting di questo server.",
       "email_password": "Email e password",
       "no_methods": "Nessun metodo di registrazione è abilitato. Gli utenti non possono creare account in nessuna delle due modalità."
     },

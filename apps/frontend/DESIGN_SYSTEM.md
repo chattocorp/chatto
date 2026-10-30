@@ -912,6 +912,10 @@ Touch context menus keep their bottom-sheet presentation.
   toolbar has a documented non-overlapping exception. `mini-icon-action` is
   the narrow exception for a subordinate icon placed directly beside the text
   or value it acts on; do not use it for standalone or toolbar actions.
+- Use `CopyButton` directly beside a value that users can copy. Its
+  `mini-icon-action` uses `text-muted` at rest and `text-text` on hover or
+  keyboard focus. The success check uses `text-action`. Keep these shared
+  colours; do not give copy icons the surrounding value's text colour.
 
 ## Input And Responsive Layout
 

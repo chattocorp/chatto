@@ -7,6 +7,7 @@
       "open_description": "Alle kan opprette en konto med de konfigurerte registreringsmetodene.",
       "invite_only_description": "Nye kontoer krever en invitasjonskode som bare kan brukes én gang. Eksisterende brukere kan fortsatt logge inn.",
       "methods": "Konfigurerte registreringsmetoder",
+      "methods_configuration": "Registreringsmetodene administreres i vertskonfigurasjonen for denne serveren.",
       "email_password": "E-post og passord",
       "no_methods": "Ingen registreringsmetoder er aktivert. Brukere kan ikke opprette kontoer i noen av modusene."
     },

@@ -7,6 +7,7 @@
       "open_description": "Qualquer pessoa pode criar uma conta usando os métodos de cadastro configurados.",
       "invite_only_description": "Novas contas precisam de um código de convite de uso único. Usuários existentes podem continuar entrando.",
       "methods": "Métodos de cadastro configurados",
+      "methods_configuration": "Os métodos de cadastro são gerenciados na configuração de hospedagem deste servidor.",
       "email_password": "E-mail e senha",
       "no_methods": "Nenhum método de cadastro está habilitado. Usuários não podem criar contas em nenhum dos modos."
     },

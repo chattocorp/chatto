@@ -7,6 +7,7 @@
       "open_description": "任何人都可以通过已配置的注册方式创建账户。",
       "invite_only_description": "新账户需要一次性邀请码。现有用户仍可登录。",
       "methods": "已配置的注册方式",
+      "methods_configuration": "注册方式在此服务器的托管配置中管理。",
       "email_password": "电子邮件和密码",
       "no_methods": "未启用任何注册方式。用户在两种模式下都无法创建账户。"
     },

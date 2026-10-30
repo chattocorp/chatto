@@ -7,6 +7,7 @@
       "open_description": "Qualquer pessoa pode criar uma conta com os métodos de registo configurados.",
       "invite_only_description": "As novas contas precisam de um código de convite de utilização única. Os utilizadores existentes podem continuar a iniciar sessão.",
       "methods": "Métodos de registo configurados",
+      "methods_configuration": "Os métodos de registo são geridos na configuração de alojamento deste servidor.",
       "email_password": "E-mail e palavra-passe",
       "no_methods": "Não há métodos de registo ativados. Os utilizadores não podem criar contas em nenhum dos modos."
     },

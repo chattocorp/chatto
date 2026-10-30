@@ -14,7 +14,10 @@
   name="Email address"
   parameters={{
     docs: {
-      description: { story: 'A successful copy briefly replaces the copy icon with a checkmark.' }
+      description: {
+        story:
+          'The copy icon is muted at rest and brightens on hover or keyboard focus. A successful copy briefly replaces it with an action-coloured checkmark.'
+      }
     }
   }}
   asChild

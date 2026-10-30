@@ -7,6 +7,7 @@
       "open_description": "任何人都可以透過已設定的註冊方式建立帳號。",
       "invite_only_description": "新帳號需要一次性邀請碼。現有使用者仍可登入。",
       "methods": "已設定的註冊方式",
+      "methods_configuration": "註冊方式在此伺服器的託管設定中管理。",
       "email_password": "電子郵件和密碼",
       "no_methods": "未啟用任何註冊方式。使用者在兩種模式下都無法建立帳號。"
     },

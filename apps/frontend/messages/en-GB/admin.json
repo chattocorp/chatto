@@ -7,6 +7,7 @@
       "open_description": "Anyone can create an account using the configured signup methods.",
       "invite_only_description": "New accounts need a single-use invitation code. Existing users can still sign in.",
       "methods": "Configured signup methods",
+      "methods_configuration": "Signup methods are managed in this server’s hosting configuration.",
       "email_password": "Email and password",
       "no_methods": "No signup methods are enabled. Users cannot create accounts in either mode."
     },

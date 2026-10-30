@@ -7,6 +7,7 @@
       "open_description": "Każdy może utworzyć konto przy użyciu skonfigurowanych metod rejestracji.",
       "invite_only_description": "Nowe konta wymagają jednorazowego kodu zaproszenia. Dotychczasowi użytkownicy nadal mogą się logować.",
       "methods": "Skonfigurowane metody rejestracji",
+      "methods_configuration": "Metodami rejestracji zarządza się w konfiguracji hostingu tego serwera.",
       "email_password": "E-mail i hasło",
       "no_methods": "Nie włączono żadnej metody rejestracji. Użytkownicy nie mogą tworzyć kont w żadnym trybie."
     },

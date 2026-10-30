@@ -7,6 +7,7 @@
       "open_description": "Ĉiu povas krei konton per la agorditaj registriĝaj metodoj.",
       "invite_only_description": "Novaj kontoj bezonas unuuzan invitkodon. Ekzistantaj uzantoj ankoraŭ povas ensaluti.",
       "methods": "Agorditaj registriĝaj metodoj",
+      "methods_configuration": "Registriĝaj metodoj estas administrataj en la gastiga agordo de ĉi tiu servilo.",
       "email_password": "Retpoŝto kaj pasvorto",
       "no_methods": "Neniuj registriĝaj metodoj estas aktivaj. Uzantoj ne povas krei kontojn en iu ajn reĝimo."
     },

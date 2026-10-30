@@ -7,6 +7,7 @@
       "open_description": "Ikviens var izveidot kontu, izmantojot konfigurētās reģistrācijas metodes.",
       "invite_only_description": "Jauniem kontiem ir nepieciešams vienreizējs ielūguma kods. Esošie lietotāji joprojām var pierakstīties.",
       "methods": "Konfigurētās reģistrācijas metodes",
+      "methods_configuration": "Reģistrācijas metodes tiek pārvaldītas šī servera mitināšanas konfigurācijā.",
       "email_password": "E-pasts un parole",
       "no_methods": "Nav iespējota neviena reģistrācijas metode. Lietotāji nevar izveidot kontus nevienā režīmā."
     },

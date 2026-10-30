@@ -7,6 +7,7 @@
       "open_description": "Kdokoli si může vytvořit účet pomocí nakonfigurovaných způsobů registrace.",
       "invite_only_description": "Nové účty vyžadují jednorázový kód pozvánky. Stávající uživatelé se mohou nadále přihlašovat.",
       "methods": "Nakonfigurované způsoby registrace",
+      "methods_configuration": "Způsoby registrace se spravují v konfiguraci hostingu tohoto serveru.",
       "email_password": "E-mail a heslo",
       "no_methods": "Nejsou povoleny žádné způsoby registrace. Uživatelé nemohou vytvářet účty v žádném režimu."
     },

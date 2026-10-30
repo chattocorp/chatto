@@ -7,6 +7,7 @@
       "open_description": "Igaüks saab luua konto seadistatud registreerimisviisidega.",
       "invite_only_description": "Uued kontod vajavad ühekordset kutsekoodi. Olemasolevad kasutajad saavad endiselt sisse logida.",
       "methods": "Seadistatud registreerimisviisid",
+      "methods_configuration": "Registreerimisviise hallatakse selle serveri majutuse seadistuses.",
       "email_password": "E-post ja parool",
       "no_methods": "Ükski registreerimisviis pole lubatud. Kasutajad ei saa kummaski režiimis kontosid luua."
     },

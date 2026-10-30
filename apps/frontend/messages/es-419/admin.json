@@ -7,6 +7,7 @@
       "open_description": "Cualquiera puede crear una cuenta con los métodos de registro configurados.",
       "invite_only_description": "Las cuentas nuevas necesitan un código de invitación de un solo uso. Los usuarios existentes pueden seguir iniciando sesión.",
       "methods": "Métodos de registro configurados",
+      "methods_configuration": "Los métodos de registro se administran en la configuración de alojamiento de este servidor.",
       "email_password": "Correo electrónico y contraseña",
       "no_methods": "No hay métodos de registro habilitados. Los usuarios no pueden crear cuentas en ninguno de los modos."
     },

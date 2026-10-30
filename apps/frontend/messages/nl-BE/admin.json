@@ -7,6 +7,7 @@
       "open_description": "Iedereen kan een account aanmaken met de ingestelde registratiemethoden.",
       "invite_only_description": "Nieuwe accounts vereisen een eenmalige uitnodigingscode. Bestaande gebruikers kunnen zich nog steeds aanmelden.",
       "methods": "Ingestelde registratiemethoden",
+      "methods_configuration": "Registratiemethoden worden beheerd in de hostingconfiguratie van deze server.",
       "email_password": "E-mail en wachtwoord",
       "no_methods": "Er zijn geen registratiemethoden ingeschakeld. Gebruikers kunnen in geen van beide modi accounts aanmaken."
     },
