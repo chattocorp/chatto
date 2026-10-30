@@ -587,7 +587,7 @@ export class ServerStateStore {
       // Retained channel membership can have been read before this snapshot.
       // Recheck it at the snapshot cursor before declaring the view current.
       await Promise.all(
-        this.#rooms.all('members').map((store) => store.refresh({ minimumCursor: cursor }))
+        this.accessibleMemberStores().map((store) => store.refresh({ minimumCursor: cursor }))
       );
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
@@ -769,9 +769,17 @@ export class ServerStateStore {
 
   /** Navigation can create a member store while recovery awaits its earlier reads. */
   private loadPendingRoomMembers(): void {
-    for (const roomId of this.#rooms.roomIds()) {
-      if (this.#rooms.loaded(roomId)?.members) this.loadRoomMembers(roomId);
-    }
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    for (const members of this.accessibleMemberStores()) members.ensureLoaded();
+  }
+
+  /** A requested or cached list does not grant access, including on invitation routes. */
+  private accessibleMemberStores() {
+    return this.#rooms
+      .entries()
+      .flatMap(([roomId, { members }]) =>
+        members && this.projection.rooms.get(roomId)?.viewerState?.isMember ? [members] : []
+      );
   }
 
   /** Recovery owns its refresh; ordinary membership changes refresh the cached list. */
@@ -1026,7 +1034,7 @@ export class ServerStateStore {
       if (!current()) return;
       this.invalidateUniversalMembership();
       await Promise.all(
-        this.#rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
+        this.accessibleMemberStores().map((store) => store.refresh({ reauthorize: true }))
       );
       // Each cache must complete its own check before a partial failure is
       // reported to the cursor owner for retry.
