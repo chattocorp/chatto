@@ -47,7 +47,7 @@ card. Callers supply trusted badges and actions through explicit props.
     /** `undefined` means loading; `null` means that discovery failed. */
     profile?: ServerProfileCardProfile | null;
     badge?: string;
-    /** Optional status content in a darker, centred footer. */
+    /** Optional status content in a recessed, centred footer. */
     footer?: Snippet;
     actions?: Snippet;
     /** Makes the whole card perform the caller's existing open or join action. */
@@ -99,8 +99,7 @@ card. Callers supply trusted badges and actions through explicit props.
 
 <article
   class={[
-    '@container/card relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border text-start shadow-[var(--depth-shadow-sm)]',
-    footer ? 'bg-[color-mix(in_srgb,var(--color-surface),var(--color-background))]' : 'bg-surface',
+    '@container/card relative isolate flex h-full min-w-0 flex-col overflow-hidden inset-frame text-start shadow-[var(--depth-shadow-sm)]',
     interactive && !disabled && 'shimmer-group hover-lift'
   ]}
   data-testid={testId}
@@ -115,7 +114,7 @@ card. Callers supply trusted badges and actions through explicit props.
       rel={opensInNewTab ? 'noopener noreferrer' : undefined}
       aria-label={accessibleActionLabel}
       aria-describedby={`${titleId} ${titleId}-host`}
-      class="absolute inset-0 z-10 cursor-pointer rounded-xl transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
+      class="absolute inset-0 z-10 cursor-pointer rounded-[inherit] transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
       data-testid={`${testId}-action`}
       ><span class="sr-only">{actionLabel ?? logoServer.name}</span></a
     >
@@ -128,12 +127,14 @@ card. Callers supply trusted badges and actions through explicit props.
       {disabled}
       aria-label={accessibleActionLabel}
       aria-describedby={`${titleId} ${titleId}-host`}
-      class="absolute inset-0 z-10 cursor-pointer rounded-xl transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-wait"
+      class="absolute inset-0 z-10 cursor-pointer rounded-[inherit] transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-wait"
       data-testid={`${testId}-action`}
       ><span class="sr-only">{actionLabel ?? logoServer.name}</span></button
     >
   {/if}
-  <div class={['shrink-0 bg-surface', interactive && !disabled && 'shimmer-hover']}>
+  <div
+    class={['shrink-0 overflow-hidden inset-content', interactive && !disabled && 'shimmer-hover']}
+  >
     {#if bannerURL && failedBannerURL !== bannerURL}
       <img
         alt=""
@@ -153,12 +154,7 @@ card. Callers supply trusted badges and actions through explicit props.
     {/if}
   </div>
 
-  <div
-    class={[
-      'flex flex-1 flex-col gap-2 rounded-b-xl bg-surface p-2.5 @min-[16rem]/card:gap-3 @min-[16rem]/card:p-4',
-      footer && 'shadow-[var(--depth-shadow-sm)]'
-    ]}
-  >
+  <div class="flex flex-1 flex-col gap-2 p-2.5 @min-[16rem]/card:gap-3 @min-[16rem]/card:p-4">
     <div
       class="flex min-w-0 shrink-0 flex-col items-start gap-2 @min-[16rem]/card:h-12 @min-[16rem]/card:flex-row @min-[16rem]/card:items-center @min-[16rem]/card:gap-3"
     >
@@ -218,7 +214,7 @@ card. Callers supply trusted badges and actions through explicit props.
   </div>
   {#if footer}
     <div
-      class="pointer-events-none relative z-20 flex items-center justify-center px-2.5 py-2 text-center text-sm text-muted @min-[16rem]/card:px-4"
+      class="pointer-events-none relative z-20 flex items-center justify-center inset-content px-2.5 py-2 text-center text-sm text-muted @min-[16rem]/card:px-4"
     >
       {@render footer()}
     </div>

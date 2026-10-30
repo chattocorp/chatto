@@ -6,7 +6,15 @@
   const { Story } = defineMeta({
     title: 'Components/ServerProfileCard',
     component: ServerProfileCard,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: {
+          component:
+            'Shared server cards for the Server Directory and Neighbors admin. The Inset Frame surrounds a recessed banner and optional status footer; identity, description, and actions sit on the raised surface.'
+        }
+      }
+    }
   });
 
   const profile: ServerProfileCardProfile = {
