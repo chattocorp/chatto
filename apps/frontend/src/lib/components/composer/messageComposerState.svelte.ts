@@ -158,8 +158,6 @@ export class MessageComposerState {
   readonly #mentionSearchDebounce = useDebounce();
   #mentionSearchRequestId = 0;
   #editSeededForEvent = '';
-  /** Draft key of the room or thread the composer currently shows. */
-  #shownDraftKey = '';
   #autocompleteRoomId = '';
   #insertedQuoteRequestId = 0;
   #focusRequested = false;
@@ -456,21 +454,19 @@ export class MessageComposerState {
         this.#autocompleteRoomId = roomId;
         this.autocomplete.resetForRoom();
       }
-      const changedDraft = this.#shownDraftKey !== this.draftKey;
-      if (changedDraft) {
-        if (this.#shownDraftKey) {
-          // Transfer the old draft's files once. Later attachment edits belong
-          // to the new draft and must not retrigger this route transition.
-          this.draft.stashFiles(untrack(() => this.attachments.filesWithUrls));
-          if (this.isEditing) this.#dropEdit();
-        }
-        this.#shownDraftKey = this.draftKey;
-        this.draft.switchKey(this.draftKey);
+      const key = this.draftKey;
+      const changedDraft = this.draft.key !== key;
+      if (changedDraft && this.draft.key) {
+        // Transfer the old draft's files once. Later attachment edits belong
+        // to the new draft and must not retrigger this route transition.
+        this.draft.stashFiles(untrack(() => this.attachments.filesWithUrls));
+        if (this.isEditing) this.#dropEdit();
       }
 
       const eventId = this.editState.eventId;
       if (eventId) {
         if (this.#editSeededForEvent === eventId) return;
+        if (changedDraft) this.draft.switchKey(key);
         this.#editSeededForEvent = eventId;
         this.autocomplete.reset();
         this.draft.clearText();
@@ -488,7 +484,7 @@ export class MessageComposerState {
       if (!changedDraft && !this.#editSeededForEvent) return;
       if (this.#editSeededForEvent) this.#resetEditor();
       this.#editSeededForEvent = '';
-      const draftMessage = this.draft.switchKey(this.draftKey);
+      const draftMessage = this.draft.switchKey(key);
       this.#setMessage(draftMessage);
       this.editorApi?.setContent(draftMessage);
       this.attachments.restore(untrack(() => this.draft.takeFiles()));
