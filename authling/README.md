@@ -310,7 +310,7 @@ admin_emails = ["you@example.com"]
 Restart every replica after changing the configuration. Matching uses the same
 case-insensitive, whitespace-trimmed comparison as account login.
 
-Sign in normally, then select **Administration** on the account page or open
+Sign in normally, then select **Administration** in the account-page header or open
 `/admin`. The read-only directory shows up to 50 registered users per page,
 including their verified email, profile names, account ID, registration time,
 and administrator access source. Deleted accounts do not appear.

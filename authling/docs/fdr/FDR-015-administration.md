@@ -1,7 +1,7 @@
 # FDR-015: Administration
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-29
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -11,14 +11,16 @@ email override. There are no roles, groups, or configurable permissions.
 
 ## Behavior
 
-- An administrator sees an Administration link on their account page.
+- An administrator sees an Administration link in the account-page header.
 - The directory shows verified email, profile names, account ID, registration
   time, and the source of administrator access. Pages contain at most 50 users.
-- The directory uses a compact table. Expand Account ID to inspect an opaque
-  identifier. On narrow screens, the table scrolls horizontally by pointer or
-  keyboard without widening the page.
+- The directory uses one compact line per user. Account IDs are truncated in
+  their column; the full value remains selectable and available in its title.
+  Registration times and configured-access details appear in cell titles.
+  On narrow screens, the table scrolls horizontally by pointer or keyboard
+  without widening the page.
 - The header logo returns signed-in users to their account page. It does not
-  sign them out or show the public welcome page while their session is active.
+  sign them out. Signed-out visitors go directly to sign-in.
 - Signed-out users must sign in. Other users cannot read the directory.
 - Deleted accounts do not appear. Directory responses must not be cached.
 - The stored administrator flag defaults to false for existing and new users.
