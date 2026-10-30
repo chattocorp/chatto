@@ -73,7 +73,7 @@ test.describe('Automatic URL links', () => {
 
 test.describe('Link previews', () => {
   for (const authored of [false, true]) {
-    test(`${authored ? 'Markdown links' : 'URL pills'} fetch hover previews through the server by default`, async ({
+    test(`${authored ? 'Markdown links fetch' : 'URL pills reuse attached'} hover previews through the server`, async ({
       page,
       chatPage,
       roomPage
@@ -96,7 +96,8 @@ test.describe('Link previews', () => {
         ? page
             .locator('[role="article"]')
             .getByRole('link', { name: 'the useful guide', exact: true })
-        : page.locator('[role="article"] .url-link').filter({ hasText: new URL(testUrl).host });
+        : page.locator(`[role="article"] .url-link[data-content-href="${testUrl}"]`);
+      if (!authored) await expect(chip).toHaveText('Test Page Title');
       let requests = 0;
       page.on('request', (request) => {
         if (request.url().includes('/FetchLinkPreview')) requests++;
@@ -107,7 +108,7 @@ test.describe('Link previews', () => {
       await expect(card).toContainText('Test Page Title');
       await expect(card).toContainText('Test Site');
       if (authored) await expect(chip).not.toHaveClass(/url-link|entity-link/);
-      expect(requests).toBe(1);
+      expect(requests).toBe(authored ? 1 : 0);
       await page.keyboard.press('Escape');
       await expect(card).not.toBeVisible();
     });
