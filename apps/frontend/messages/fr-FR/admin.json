@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Création de comptes",
+      "open": "Inscription ouverte",
+      "invite_only": "Code d’invitation requis",
+      "open_description": "Toute personne peut créer un compte avec les méthodes d’inscription configurées.",
+      "invite_only_description": "Les nouveaux comptes nécessitent un code d’invitation à usage unique. Les utilisateurs existants peuvent toujours se connecter.",
+      "methods": "Méthodes d’inscription configurées",
+      "methods_configuration": "Les méthodes d’inscription sont gérées dans la configuration d’hébergement de ce serveur.",
+      "email_password": "Adresse e-mail et mot de passe",
+      "no_methods": "Aucune méthode d’inscription n’est activée. Les utilisateurs ne peuvent créer de compte dans aucun des deux modes."
+    },
     "neighbors": {
       "title": "Voisins",
       "subtitle": "Publiez des serveurs Chatto amis dans votre annuaire public",
@@ -553,36 +564,28 @@
       "total": "Nombre total d'utilisateurs {count}"
     },
     "invitations": {
-      "title": "Liens d’invitation",
-      "subtitle": "Créez et gérez les liens qui permettent d’ouvrir de nouveaux comptes.",
-      "create_title": "Créer un lien d’invitation",
-      "max_uses": "Nombre maximal d’utilisations",
-      "max_uses_error": "Saisissez un nombre entier supérieur ou égal à 1.",
-      "unlimited_uses": "Autoriser un nombre illimité d’utilisations",
-      "expiry": "Expiration",
-      "expiry_1d": "1 jour",
-      "expiry_7d": "7 jours",
-      "expiry_30d": "30 jours",
-      "expiry_never": "Jamais",
-      "create": "Créer un lien d’invitation",
-      "created": "Lien d’invitation créé",
-      "list_title": "Liens d’invitation",
-      "empty": "Aucun lien d’invitation pour l’instant.",
-      "uses": "Utilisations",
+      "note_label": "Note (facultative)",
+      "note_placeholder": "Pour Alex de l’équipe de conception",
+      "note_description": "Seuls les gestionnaires des invitations peuvent voir cette note.",
+      "note_too_long": "Utilisez 250 caractères au maximum.",
+      "usage": "Les nouveaux codes expirent après 7 jours et permettent chacun de créer un compte. Copiez un code et envoyez-le à son destinataire. Il est utilisé uniquement lorsque l’inscription réussit.",
+      "create_title": "Créer un code",
+      "create": "Créer un code",
+      "created": "Code d’invitation créé",
+      "list_title": "Codes d’invitation",
+      "empty": "Aucun code d’invitation pour le moment.",
       "created_at": "Créé",
       "actions": "Actions",
       "never": "Jamais",
-      "copy": "Copier le lien",
-      "copied": "Lien d’invitation copié",
       "revoke": "Révoquer",
-      "revoked": "Lien d’invitation révoqué",
-      "revoke_title": "Révoquer le lien d’invitation ?",
-      "revoke_description": "Ce lien cessera immédiatement de permettre l’ouverture de nouveaux comptes.",
+      "revoked": "Code d’invitation révoqué",
+      "revoke_title": "Révoquer le code ?",
+      "revoke_description": "Ce code ne permettra plus de créer de nouveaux comptes, immédiatement.",
       "status": {
         "active": "Actif",
         "expired": "Expiré",
-        "exhausted": "Épuisé",
-        "revoked": "Révoqué"
+        "revoked": "Révoqué",
+        "used": "Utilisé"
       }
     }
   }

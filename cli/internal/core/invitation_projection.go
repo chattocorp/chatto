@@ -14,10 +14,11 @@ type InvitationState struct {
 	ID        string
 	CreatedBy string
 	CreatedAt time.Time
-	MaxUses   *uint32
 	ExpiresAt *time.Time
-	UseCount  uint32
+	Used      bool
 	RevokedAt *time.Time
+	// Note is creation-time metadata, visible only to invitation managers.
+	Note string
 }
 
 type InvitationProjection struct {
@@ -46,10 +47,7 @@ func (p *InvitationProjection) Apply(event *evtv1.Event, _ uint64) error {
 			ID:        payload.GetInvitationId(),
 			CreatedBy: event.GetActorId(),
 			CreatedAt: event.GetCreatedAt().AsTime(),
-		}
-		if payload.MaxUses != nil {
-			value := payload.GetMaxUses()
-			state.MaxUses = &value
+			Note:      payload.GetNote(),
 		}
 		if payload.GetExpiresAt() != nil {
 			value := payload.GetExpiresAt().AsTime()
@@ -58,7 +56,7 @@ func (p *InvitationProjection) Apply(event *evtv1.Event, _ uint64) error {
 		p.invitations[state.ID] = state
 	case *evtv1.Event_InvitationRedeemed:
 		if state := p.invitations[e.InvitationRedeemed.GetInvitationId()]; state != nil {
-			state.UseCount++
+			state.Used = true
 		}
 	case *evtv1.Event_InvitationRevoked:
 		if state := p.invitations[e.InvitationRevoked.GetInvitationId()]; state != nil {
@@ -86,7 +84,12 @@ func (p *InvitationProjection) all() []InvitationState {
 	for _, state := range p.invitations {
 		result = append(result, cloneInvitationState(state))
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.After(result[j].CreatedAt) })
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].CreatedAt.Equal(result[j].CreatedAt) {
+			return result[i].ID < result[j].ID
+		}
+		return result[i].CreatedAt.After(result[j].CreatedAt)
+	})
 	return result
 }
 
@@ -108,10 +111,6 @@ func (p *InvitationProjection) count() int {
 
 func cloneInvitationState(state *InvitationState) InvitationState {
 	clone := *state
-	if state.MaxUses != nil {
-		value := *state.MaxUses
-		clone.MaxUses = &value
-	}
 	if state.ExpiresAt != nil {
 		value := *state.ExpiresAt
 		clone.ExpiresAt = &value
@@ -128,7 +127,7 @@ func (p *InvitationProjection) adminProjectionEstimate() (int64, int64, []Projec
 	defer p.RUnlock()
 	var estimatedBytes int64
 	for _, state := range p.invitations {
-		estimatedBytes += int64(len(state.ID) + len(state.CreatedBy) + 32)
+		estimatedBytes += int64(len(state.ID) + len(state.CreatedBy) + len(state.Note) + 32)
 	}
 	return int64(len(p.invitations)), estimatedBytes, nil
 }

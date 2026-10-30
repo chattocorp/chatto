@@ -338,6 +338,7 @@ func TestRealtimeEVTRequiresSnapshotClassifiesServerConfig(t *testing.T) {
 		{name: "public profile", eventType: evtstream.EventServerNameChanged, want: false},
 		{name: "public event", eventType: evtstream.EventServerMotdChanged, want: false},
 		{name: "private blocked usernames", eventType: evtstream.EventServerBlockedUsernamesChanged, want: false},
+		{name: "private registration admission", eventType: evtstream.EventServerRegistrationAdmissionChanged, want: false},
 		{name: "separate neighbor resource", eventType: evtstream.EventServerNeighborCreated, want: false},
 		{name: "unknown future event", eventType: "future_server_setting_changed", want: true},
 	}

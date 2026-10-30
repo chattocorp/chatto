@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Hesap oluşturma",
+      "open": "Açık kayıt",
+      "invite_only": "Davet kodu gerekli",
+      "open_description": "Herkes yapılandırılmış kayıt yöntemleriyle hesap oluşturabilir.",
+      "invite_only_description": "Yeni hesaplar için tek kullanımlık davet kodu gerekir. Mevcut kullanıcılar giriş yapmaya devam edebilir.",
+      "methods": "Yapılandırılmış kayıt yöntemleri",
+      "methods_configuration": "Kayıt yöntemleri bu sunucunun barındırma yapılandırmasında yönetilir.",
+      "email_password": "E-posta ve parola",
+      "no_methods": "Hiçbir kayıt yöntemi etkin değil. Kullanıcılar her iki modda da hesap oluşturamaz."
+    },
     "neighbors": {
       "title": "Komşular",
       "subtitle": "Dost Chatto sunucularını herkese açık dizininizde tanıtın",
@@ -553,36 +564,28 @@
       "total": "Toplam {count} kullanıcı(lar)"
     },
     "invitations": {
-      "title": "Davet bağlantıları",
-      "subtitle": "Yeni hesapları kabul eden bağlantılar oluşturun ve yönetin.",
-      "create_title": "Davet bağlantısı oluştur",
-      "max_uses": "En fazla kullanım",
-      "max_uses_error": "En az 1 olan bir tam sayı girin.",
-      "unlimited_uses": "Sınırsız kullanıma izin ver",
-      "expiry": "Geçerlilik süresi",
-      "expiry_1d": "1 gün",
-      "expiry_7d": "7 gün",
-      "expiry_30d": "30 gün",
-      "expiry_never": "Asla",
-      "create": "Davet bağlantısı oluştur",
-      "created": "Davet bağlantısı oluşturuldu",
-      "list_title": "Davet bağlantıları",
-      "empty": "Henüz davet bağlantısı yok.",
-      "uses": "Kullanım",
+      "note_label": "Not (isteğe bağlı)",
+      "note_placeholder": "Tasarım ekibinden Alex için",
+      "note_description": "Bu notu yalnızca davet yöneticileri görebilir.",
+      "note_too_long": "En fazla 250 karakter kullanın.",
+      "usage": "Yeni kodlar 7 gün sonra sona erer ve her biri bir hesap için geçerlidir. Bir kodu kopyalayıp alıcısına gönderin. Kod yalnızca kayıt başarılı olduğunda kullanılır.",
+      "create_title": "Kod oluştur",
+      "create": "Kod oluştur",
+      "created": "Davet kodu oluşturuldu",
+      "list_title": "Davet kodları",
+      "empty": "Henüz davet kodu yok.",
       "created_at": "Oluşturulma",
       "actions": "İşlemler",
       "never": "Asla",
-      "copy": "Bağlantıyı kopyala",
-      "copied": "Davet bağlantısı kopyalandı",
       "revoke": "İptal et",
-      "revoked": "Davet bağlantısı iptal edildi",
-      "revoke_title": "Davet bağlantısı iptal edilsin mi?",
-      "revoke_description": "Bu bağlantı yeni hesapları hemen kabul etmeyi bırakacak.",
+      "revoked": "Davet kodu iptal edildi",
+      "revoke_title": "Kod iptal edilsin mi?",
+      "revoke_description": "Bu kod yeni hesaplara izin vermeyi hemen durduracak.",
       "status": {
         "active": "Etkin",
         "expired": "Süresi doldu",
-        "exhausted": "Tükendi",
-        "revoked": "İptal edildi"
+        "revoked": "İptal edildi",
+        "used": "Kullanıldı"
       }
     }
   }

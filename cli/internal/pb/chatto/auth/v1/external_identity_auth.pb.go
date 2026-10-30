@@ -155,8 +155,10 @@ type PendingExternalIdentity struct {
 	// Whether the user can choose a username. When externally managed, the server
 	// assigns it and ignores client input. The login hint is not a reservation.
 	ChooseUsername *UsernameChoiceAvailability `protobuf:"varint,10,opt,name=choose_username,json=chooseUsername,proto3,enum=chatto.auth.v1.UsernameChoiceAvailability,oneof" json:"choose_username,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// A create flow must first supply an invitation code. Existing-account sign-in is unaffected.
+	InvitationRequired bool `protobuf:"varint,11,opt,name=invitation_required,json=invitationRequired,proto3" json:"invitation_required,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PendingExternalIdentity) Reset() {
@@ -257,6 +259,13 @@ func (x *PendingExternalIdentity) GetChooseUsername() UsernameChoiceAvailability
 		return *x.ChooseUsername
 	}
 	return UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED
+}
+
+func (x *PendingExternalIdentity) GetInvitationRequired() bool {
+	if x != nil {
+		return x.InvitationRequired
+	}
+	return false
 }
 
 // Request to inspect a pending external identity flow.
@@ -362,9 +371,13 @@ type CreateExternalIdentityAccountRequest struct {
 	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	// Desired display name. When omitted, the server uses a valid provider hint
 	// and otherwise falls back to the assigned username.
-	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Required on invite-only servers when the flow has no valid invitation.
+	// A supplied code replaces the flow's invitation for this attempt; an invalid
+	// code fails without fallback. Consumed only when account creation succeeds.
+	InvitationCode string `protobuf:"bytes,4,opt,name=invitation_code,json=invitationCode,proto3" json:"invitation_code,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateExternalIdentityAccountRequest) Reset() {
@@ -414,6 +427,13 @@ func (x *CreateExternalIdentityAccountRequest) GetLogin() string {
 func (x *CreateExternalIdentityAccountRequest) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *CreateExternalIdentityAccountRequest) GetInvitationCode() string {
+	if x != nil {
+		return x.InvitationCode
 	}
 	return ""
 }
@@ -689,7 +709,7 @@ var File_chatto_auth_v1_external_identity_auth_proto protoreflect.FileDescriptor
 
 const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\n" +
-	"+chatto/auth/v1/external_identity_auth.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\"\xed\x03\n" +
+	"+chatto/auth/v1/external_identity_auth.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\"\x9e\x04\n" +
 	"\x17PendingExternalIdentity\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.chatto.auth.v1.ExternalIdentityFlowKindR\x04kind\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -703,16 +723,18 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\rbound_user_id\x18\b \x01(\tR\vboundUserId\x12#\n" +
 	"\rredirect_path\x18\t \x01(\tR\fredirectPath\x12X\n" +
 	"\x0fchoose_username\x18\n" +
-	" \x01(\x0e2*.chatto.auth.v1.UsernameChoiceAvailabilityH\x00R\x0echooseUsername\x88\x01\x01B\x12\n" +
+	" \x01(\x0e2*.chatto.auth.v1.UsernameChoiceAvailabilityH\x00R\x0echooseUsername\x88\x01\x01\x12/\n" +
+	"\x13invitation_required\x18\v \x01(\bR\x12invitationRequiredB\x12\n" +
 	"\x10_choose_username\"B\n" +
 	"!GetPendingExternalIdentityRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"g\n" +
 	"\"GetPendingExternalIdentityResponse\x12A\n" +
-	"\apending\x18\x01 \x01(\v2'.chatto.auth.v1.PendingExternalIdentityR\apending\"\x87\x01\n" +
+	"\apending\x18\x01 \x01(\v2'.chatto.auth.v1.PendingExternalIdentityR\apending\"\xba\x01\n" +
 	"$CreateExternalIdentityAccountRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12*\n" +
-	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\"\xe9\x01\n" +
+	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\x121\n" +
+	"\x0finvitation_code\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0einvitationCode\"\xe9\x01\n" +
 	"%CreateExternalIdentityAccountResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +

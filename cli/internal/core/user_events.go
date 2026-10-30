@@ -172,6 +172,19 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 	if len(entries) == 0 {
 		return 0, nil
 	}
+	return c.appendUserBatchWithMentionableCompose(ctx, userID, attempts, func() ([]evtstream.BatchEntry, error) {
+		if check != nil {
+			if err := check(); err != nil {
+				return nil, err
+			}
+		}
+		return entries, nil
+	})
+}
+
+// appendUserBatchWithMentionableCompose rebuilds facts after each stream-wide
+// OCC conflict. The composer may read caught-up projections to choose the batch.
+func (c *ChattoCore) appendUserBatchWithMentionableCompose(ctx context.Context, userID string, attempts int, compose func() ([]evtstream.BatchEntry, error)) (uint64, error) {
 	filter := evtstream.EventSubjectFilter()
 
 	for attempt := range attempts {
@@ -193,12 +206,13 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
 			return 0, fmt.Errorf("wait for user auth projection: %w", err)
 		}
-		if check != nil {
-			if err := check(); err != nil {
-				return 0, err
-			}
+		entries, err := compose()
+		if err != nil {
+			return 0, err
 		}
-
+		if len(entries) == 0 {
+			return 0, nil
+		}
 		chunk := append([]evtstream.BatchEntry(nil), entries...)
 		chunk[0].Expect = events.ExpectFilterSeq(filter, filterSeq)
 

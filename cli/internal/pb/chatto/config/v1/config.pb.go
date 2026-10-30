@@ -7,6 +7,7 @@
 package configv1
 
 import (
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -22,8 +23,7 @@ const (
 )
 
 // ServerConfig stores runtime-editable server settings.
-// Stored in INSTANCE_CONFIG KV bucket with key "config.instance" (legacy
-// names retained per ADR-029 to avoid a JetStream migration in this PR).
+// Derived from durable configuration events in EVT.
 type ServerConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Welcome message shown on the login page (markdown supported).
@@ -36,9 +36,11 @@ type ServerConfig struct {
 	// Checked case-insensitively during registration.
 	BlockedUsernames string `protobuf:"bytes,4,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
 	// Server description, used for OG link-preview metadata and the welcome card.
-	Description   string `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Description string `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	// Admission policy for self-service accounts; absent history means open.
+	RegistrationAdmission v1.RegistrationAdmission `protobuf:"varint,8,opt,name=registration_admission,json=registrationAdmission,proto3,enum=chatto.core.evt.v1.RegistrationAdmission" json:"registration_admission,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ServerConfig) Reset() {
@@ -106,18 +108,26 @@ func (x *ServerConfig) GetDescription() string {
 	return ""
 }
 
+func (x *ServerConfig) GetRegistrationAdmission() v1.RegistrationAdmission {
+	if x != nil {
+		return x.RegistrationAdmission
+	}
+	return v1.RegistrationAdmission(0)
+}
+
 var File_chatto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_chatto_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/config/v1/config.proto\x12\x10chatto.config.v1\"\xe1\x01\n" +
+	"\x1dchatto/config/v1/config.proto\x12\x10chatto.config.v1\x1a&chatto/core/evt/v1/config_events.proto\"\xc3\x02\n" +
 	"\fServerConfig\x12'\n" +
 	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\x12\x1f\n" +
 	"\vserver_name\x18\x02 \x01(\tR\n" +
 	"serverName\x12\x12\n" +
 	"\x04motd\x18\x03 \x01(\tR\x04motd\x12+\n" +
 	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernames\x12 \n" +
-	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xcd\x01\n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x12`\n" +
+	"\x16registration_admission\x18\b \x01(\x0e2).chatto.core.evt.v1.RegistrationAdmissionR\x15registrationAdmissionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xcd\x01\n" +
 	"\x14com.chatto.config.v1B\vConfigProtoP\x01ZFgithub.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1;configv1\xa2\x02\x03CCX\xaa\x02\x10Chatto.Config.V1\xca\x02\x10Chatto\\Config\\V1\xe2\x02\x1cChatto\\Config\\V1\\GPBMetadata\xea\x02\x12Chatto::Config::V1b\x06proto3"
 
 var (
@@ -134,14 +144,16 @@ func file_chatto_config_v1_config_proto_rawDescGZIP() []byte {
 
 var file_chatto_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_chatto_config_v1_config_proto_goTypes = []any{
-	(*ServerConfig)(nil), // 0: chatto.config.v1.ServerConfig
+	(*ServerConfig)(nil),          // 0: chatto.config.v1.ServerConfig
+	(v1.RegistrationAdmission)(0), // 1: chatto.core.evt.v1.RegistrationAdmission
 }
 var file_chatto_config_v1_config_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: chatto.config.v1.ServerConfig.registration_admission:type_name -> chatto.core.evt.v1.RegistrationAdmission
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_config_v1_config_proto_init() }

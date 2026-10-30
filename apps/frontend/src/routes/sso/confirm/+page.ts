@@ -57,5 +57,7 @@ export const load: PageLoad = async ({ url, parent }): Promise<SSOConfirmLoadDat
     }
     return { token, pending, loadError: null, existingAccount: true };
   }
+  if (pending.invitationRequired)
+    redirect(302, `/register?external_identity=${encodeURIComponent(token)}`);
   return { token, pending, loadError: null };
 };

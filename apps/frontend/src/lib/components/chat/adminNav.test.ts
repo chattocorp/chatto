@@ -88,7 +88,7 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
   });
 
-  it('shows Invite links only for invitation managers', () => {
+  it('shows Registration for invitation managers', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
       permissions: permissions({ canViewAdmin: true })
@@ -98,9 +98,9 @@ describe('getAdminNavItems', () => {
       permissions: permissions({ canViewAdmin: true, canManageInvites: true })
     });
 
-    expect(hidden.some((item) => item.label === 'Invite links')).toBe(false);
-    expect(visible.find((item) => item.label === 'Invite links')?.href).toBe(
-      '/chat/local/manage/server/invite-links'
+    expect(hidden.some((item) => item.label === 'Registration')).toBe(false);
+    expect(visible.find((item) => item.label === 'Registration')?.href).toBe(
+      '/chat/local/manage/server/registration'
     );
   });
 
@@ -129,6 +129,7 @@ describe('getAdminNavItems', () => {
     expect(items.find((item) => item.label === 'General')?.href).toBe(
       '/chat/local/manage/server/general'
     );
+    expect(items.slice(0, 2).map((item) => item.label)).toEqual(['General', 'Registration']);
     expect(items.find((item) => item.label === 'Rooms')?.href).toBe('/chat/local/manage/rooms');
   });
 });

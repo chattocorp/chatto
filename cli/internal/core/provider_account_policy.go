@@ -200,6 +200,7 @@ func (c *ChattoCore) createProviderUser(ctx context.Context, login, displayName 
 		}
 		user, err := c.createUserWithOptions(ctx, SystemActorID, login, name, "", userCreationOptions{
 			verifiedEmail: flow.VerifiedEmail, external: flow, invitationID: flow.InvitationID,
+			selfService: true,
 		})
 		if managed && (errors.Is(err, ErrLoginAlreadyTaken) || (number > 1 && errors.Is(err, ErrUsernameBlocked))) {
 			continue

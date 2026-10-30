@@ -10,14 +10,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const (
-	defaultInviteLinkLimit = 20
-	maxInviteLinkLimit     = 100
-)
+type adminInvitationCodeService struct{ api *API }
 
-type adminInviteLinkService struct{ api *API }
-
-func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *connect.Request[adminv1.ListInviteLinksRequest]) (*connect.Response[adminv1.ListInviteLinksResponse], error) {
+func (s *adminInvitationCodeService) ListInvitationCodes(ctx context.Context, req *connect.Request[adminv1.ListInvitationCodesRequest]) (*connect.Response[adminv1.ListInvitationCodesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -26,56 +21,47 @@ func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *conne
 	if err != nil {
 		return nil, err
 	}
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultInviteLinkLimit, maxInviteLinkLimit)
-	total := len(states)
-	if offset > total {
-		offset = total
-	}
-	end := min(offset+limit, total)
-	result := make([]*adminv1.InviteLink, 0, end-offset)
+	limit, offset := apiPagination(req.Msg.GetPage(), 20, 100)
+	offset = min(offset, len(states))
+	end := min(offset+limit, len(states))
+	result := make([]*adminv1.InvitationCode, 0, end-offset)
 	for _, state := range states[offset:end] {
-		result = append(result, s.apiInviteLink(ctx, state))
+		result = append(result, s.apiInvitationCode(state))
 	}
-	return connect.NewResponse(&adminv1.ListInviteLinksResponse{
-		InviteLinks: result,
-		Page:        apiPageInfo(total, end < total),
-	}), nil
+	response := connect.NewResponse(&adminv1.ListInvitationCodesResponse{InvitationCodes: result, Page: apiPageInfo(len(states), end < len(states))})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
 }
 
-func (s *adminInviteLinkService) GetInviteLink(ctx context.Context, req *connect.Request[adminv1.GetInviteLinkRequest]) (*connect.Response[adminv1.GetInviteLinkResponse], error) {
+func (s *adminInvitationCodeService) GetInvitationCode(ctx context.Context, req *connect.Request[adminv1.GetInvitationCodeRequest]) (*connect.Response[adminv1.GetInvitationCodeResponse], error) {
+	state, err := s.get(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, err
+	}
+	response := connect.NewResponse(&adminv1.GetInvitationCodeResponse{InvitationCode: s.apiInvitationCode(state)})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
+}
+
+func (s *adminInvitationCodeService) CreateInvitationCode(ctx context.Context, req *connect.Request[adminv1.CreateInvitationCodeRequest]) (*connect.Response[adminv1.CreateInvitationCodeResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
-	}
-	state, err := s.api.core.GetInvitation(ctx, caller.UserID, req.Msg.GetId())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&adminv1.GetInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
-}
-
-func (s *adminInviteLinkService) CreateInviteLink(ctx context.Context, req *connect.Request[adminv1.CreateInviteLinkRequest]) (*connect.Response[adminv1.CreateInviteLinkResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var maxUses *uint32
-	if req.Msg.MaxUses != nil {
-		value := req.Msg.GetMaxUses()
-		maxUses = &value
 	}
 	expiresAt, err := apiTimestampToTime(req.Msg.GetExpiresAt())
 	if err != nil {
 		return nil, err
 	}
-	state, err := s.api.core.CreateInvitation(ctx, caller.UserID, maxUses, expiresAt)
+	state, err := s.api.core.CreateInvitationCode(ctx, caller.UserID, expiresAt, req.Msg.GetNote())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.CreateInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
+	response := connect.NewResponse(&adminv1.CreateInvitationCodeResponse{InvitationCode: s.apiInvitationCode(state)})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
 }
 
-func (s *adminInviteLinkService) RevokeInviteLink(ctx context.Context, req *connect.Request[adminv1.RevokeInviteLinkRequest]) (*connect.Response[adminv1.RevokeInviteLinkResponse], error) {
+func (s *adminInvitationCodeService) RevokeInvitationCode(ctx context.Context, req *connect.Request[adminv1.RevokeInvitationCodeRequest]) (*connect.Response[adminv1.RevokeInvitationCodeResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -84,39 +70,41 @@ func (s *adminInviteLinkService) RevokeInviteLink(ctx context.Context, req *conn
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.RevokeInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
+	response := connect.NewResponse(&adminv1.RevokeInvitationCodeResponse{InvitationCode: s.apiInvitationCode(state)})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
 }
 
-func (s *adminInviteLinkService) apiInviteLink(ctx context.Context, state core.InvitationState) *adminv1.InviteLink {
-	inviteLink := &adminv1.InviteLink{
-		Id:        state.ID,
-		Link:      s.api.absolutizeServerURL(ctx, s.api.core.InvitationLinkPath(state.ID)),
-		CreatedBy: state.CreatedBy,
-		CreatedAt: timestamppb.New(state.CreatedAt),
-		MaxUses:   state.MaxUses,
-		UseCount:  state.UseCount,
-		Status:    apiInviteLinkStatus(core.InvitationStatusAt(state, time.Now())),
+func (s *adminInvitationCodeService) get(ctx context.Context, id string) (core.InvitationState, error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return core.InvitationState{}, err
+	}
+	state, err := s.api.core.GetInvitation(ctx, caller.UserID, id)
+	if err != nil {
+		return core.InvitationState{}, err
+	}
+	return state, nil
+}
+
+func (s *adminInvitationCodeService) apiInvitationCode(state core.InvitationState) *adminv1.InvitationCode {
+	code := &adminv1.InvitationCode{Id: state.ID, Code: s.api.core.InvitationCode(state.ID), CreatedBy: state.CreatedBy, CreatedAt: timestamppb.New(state.CreatedAt)}
+	code.Note = state.Note
+	switch core.InvitationStatusAt(state, time.Now()) {
+	case core.InvitationStatusActive:
+		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_ACTIVE
+	case core.InvitationStatusExpired:
+		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_EXPIRED
+	case core.InvitationStatusUsed:
+		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_USED
+	case core.InvitationStatusRevoked:
+		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_REVOKED
 	}
 	if state.ExpiresAt != nil {
-		inviteLink.ExpiresAt = timestamppb.New(*state.ExpiresAt)
+		code.ExpiresAt = timestamppb.New(*state.ExpiresAt)
 	}
 	if state.RevokedAt != nil {
-		inviteLink.RevokedAt = timestamppb.New(*state.RevokedAt)
+		code.RevokedAt = timestamppb.New(*state.RevokedAt)
 	}
-	return inviteLink
-}
-
-func apiInviteLinkStatus(status core.InvitationStatus) adminv1.InviteLinkStatus {
-	switch status {
-	case core.InvitationStatusActive:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE
-	case core.InvitationStatusExpired:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_EXPIRED
-	case core.InvitationStatusExhausted:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_EXHAUSTED
-	case core.InvitationStatusRevoked:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_REVOKED
-	default:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_UNSPECIFIED
-	}
+	return code
 }

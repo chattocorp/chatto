@@ -163,58 +163,59 @@ Result of reading one durable EVT entry.
 | `entry` | [`AdminEventLogEntry`](#chatto-admin-v1-AdminEventLogEntry) | Requested event-log entry. |
 
 
-<a id="chatto-admin-v1-AdminInviteLinkService"></a>
+<a id="chatto-admin-v1-AdminInvitationCodeService"></a>
 
-## AdminInviteLinkService
+## AdminInvitationCodeService
 
-Manages the invite links used for invite-only account admission.
+Issues and manages registration codes. All methods require user.invite.
+External systems can issue codes with an authorized API credential.
 
-<a id="chatto-admin-v1-AdminInviteLinkService-ListInviteLinks"></a>
+<a id="chatto-admin-v1-AdminInvitationCodeService-ListInvitationCodes"></a>
 
-### ListInviteLinks
+### ListInvitationCodes
 
-Lists invite links. Requires user.invite.
+Lists current and historical codes.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/ListInvitationCodes
 ```
 
-<a id="chatto-admin-v1-ListInviteLinksRequest"></a>
+<a id="chatto-admin-v1-ListInvitationCodesRequest"></a>
 
-#### Input: ListInviteLinksRequest
+#### Input: ListInvitationCodesRequest
 
-Requests a page of invite links, newest first.
+Lists codes newest first, with ID as the tie-breaker.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `chatto.api.v1.PageRequest` | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
+| `page` | `chatto.api.v1.PageRequest` | Default limit: 20. Maximum: 100. |
 
 
-<a id="chatto-admin-v1-ListInviteLinksResponse"></a>
+<a id="chatto-admin-v1-ListInvitationCodesResponse"></a>
 
-#### Result: ListInviteLinksResponse
+#### Result: ListInvitationCodesResponse
 
 No message description provided.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `invite_links` | repeated [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+| `invitation_codes` | repeated [`InvitationCode`](#chatto-admin-v1-InvitationCode) | No field description provided. |
 | `page` | `chatto.api.v1.PageInfo` | No field description provided. |
 
 
-<a id="chatto-admin-v1-AdminInviteLinkService-GetInviteLink"></a>
+<a id="chatto-admin-v1-AdminInvitationCodeService-GetInvitationCode"></a>
 
-### GetInviteLink
+### GetInvitationCode
 
-Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+Reads a code by ID. Returns NOT_FOUND for an unknown ID.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminInviteLinkService/GetInviteLink
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/GetInvitationCode
 ```
 
-<a id="chatto-admin-v1-GetInviteLinkRequest"></a>
+<a id="chatto-admin-v1-GetInvitationCodeRequest"></a>
 
-#### Input: GetInviteLinkRequest
+#### Input: GetInvitationCodeRequest
 
 No message description provided.
 
@@ -223,63 +224,63 @@ No message description provided.
 | `id` | `string` | No field description provided. |
 
 
-<a id="chatto-admin-v1-GetInviteLinkResponse"></a>
+<a id="chatto-admin-v1-GetInvitationCodeResponse"></a>
 
-#### Result: GetInviteLinkResponse
+#### Result: GetInvitationCodeResponse
 
 No message description provided.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+| `invitation_code` | [`InvitationCode`](#chatto-admin-v1-InvitationCode) | No field description provided. |
 
 
-<a id="chatto-admin-v1-AdminInviteLinkService-CreateInviteLink"></a>
+<a id="chatto-admin-v1-AdminInvitationCodeService-CreateInvitationCode"></a>
 
-### CreateInviteLink
+### CreateInvitationCode
 
-Creates an invite link. Requires user.invite.
+Creates a code. Not idempotent: retrying creates another code.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/CreateInvitationCode
 ```
 
-<a id="chatto-admin-v1-CreateInviteLinkRequest"></a>
+<a id="chatto-admin-v1-CreateInvitationCodeRequest"></a>
 
-#### Input: CreateInviteLinkRequest
+#### Input: CreateInvitationCodeRequest
 
-Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+Creates one code. Every code is single-use, including when expiry is omitted.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `max_uses` | `optional uint32` | No field description provided. |
 | `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible only to invitation managers; it does not bind the code to a recipient. |
 
 
-<a id="chatto-admin-v1-CreateInviteLinkResponse"></a>
+<a id="chatto-admin-v1-CreateInvitationCodeResponse"></a>
 
-#### Result: CreateInviteLinkResponse
+#### Result: CreateInvitationCodeResponse
 
 No message description provided.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+| `invitation_code` | [`InvitationCode`](#chatto-admin-v1-InvitationCode) | No field description provided. |
 
 
-<a id="chatto-admin-v1-AdminInviteLinkService-RevokeInviteLink"></a>
+<a id="chatto-admin-v1-AdminInvitationCodeService-RevokeInvitationCode"></a>
 
-### RevokeInviteLink
+### RevokeInvitationCode
 
-Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+Revokes a code without deleting its history. Repeating revocation is safe.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/RevokeInvitationCode
 ```
 
-<a id="chatto-admin-v1-RevokeInviteLinkRequest"></a>
+<a id="chatto-admin-v1-RevokeInvitationCodeRequest"></a>
 
-#### Input: RevokeInviteLinkRequest
+#### Input: RevokeInvitationCodeRequest
 
 No message description provided.
 
@@ -288,15 +289,15 @@ No message description provided.
 | `id` | `string` | No field description provided. |
 
 
-<a id="chatto-admin-v1-RevokeInviteLinkResponse"></a>
+<a id="chatto-admin-v1-RevokeInvitationCodeResponse"></a>
 
-#### Result: RevokeInviteLinkResponse
+#### Result: RevokeInvitationCodeResponse
 
 No message description provided.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+| `invitation_code` | [`InvitationCode`](#chatto-admin-v1-InvitationCode) | No field description provided. |
 
 
 <a id="chatto-admin-v1-AdminRoleService"></a>
@@ -1783,7 +1784,7 @@ settings.
 
 ### GetServerConfig
 
-Gets runtime-editable server profile settings. This RPC requires
+Gets runtime-editable server settings. This RPC requires
 server.manage.
 
 ```http
@@ -1794,18 +1795,18 @@ POST /api/connect/chatto.admin.v1.AdminServerService/GetServerConfig
 
 #### Input: GetServerConfigRequest
 
-Request server profile settings.
+Request runtime-editable server settings; requires server.manage.
 
 
 <a id="chatto-admin-v1-GetServerConfigResponse"></a>
 
 #### Result: GetServerConfigResponse
 
-Server profile settings plus effective public branding.
+Server settings plus effective public branding.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Runtime-editable server profile settings. |
+| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Runtime-editable server settings. |
 | `public_profile` | `chatto.api.v1.ServerPublicProfile` | Effective public server profile and branding. |
 
 
@@ -1813,7 +1814,7 @@ Server profile settings plus effective public branding.
 
 ### UpdateServerConfig
 
-Updates runtime-editable server profile settings. This RPC requires
+Updates runtime-editable server settings. This RPC requires
 server.manage.
 
 ```http
@@ -1824,7 +1825,7 @@ POST /api/connect/chatto.admin.v1.AdminServerService/UpdateServerConfig
 
 #### Input: UpdateServerConfigRequest
 
-Request to update runtime-editable server profile settings.
+Request to update runtime-editable server settings; requires server.manage.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1832,19 +1833,20 @@ Request to update runtime-editable server profile settings.
 | `description` | `optional string` | Optional short server description for OG link-preview metadata. Set to empty string to clear. |
 | `motd` | `optional string` | Optional message of the day for the header. Set to empty string to clear. |
 | `welcome_message` | `optional string` | Optional welcome message shown on the login page. Set to empty string to clear. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: server_name, description, motd, welcome_message. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `registration` | [`RegistrationSettingsUpdate`](#chatto-admin-v1-RegistrationSettingsUpdate) | Partial account creation settings; requires server.manage. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: server_name, description, motd, welcome_message, registration.admission. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateServerConfigResponse"></a>
 
 #### Result: UpdateServerConfigResponse
 
-Result of updating runtime-editable server profile settings.
+Result of updating runtime-editable server settings.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
-| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Updated runtime-editable server profile settings. |
+| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Updated runtime-editable server settings. |
 
 
 <a id="chatto-admin-v1-AdminServerService-UploadServerLogo"></a>
@@ -2468,24 +2470,23 @@ Filter for owner/auditor event-log inspection.
 
 
 
-<a id="chatto-admin-v1-InviteLink"></a>
+<a id="chatto-admin-v1-InvitationCode"></a>
 
-### InviteLink
+### InvitationCode
 
-An administrator-visible invite link. The link is a bearer capability and
-is returned only to callers with user.invite.
+Permission to create one account on an invite-only server. Anyone who holds
+the code can use it; it is not bound to an email address or recipient.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Durable identifier used for administrative operations. |
-| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `id` | `string` | No field description provided. |
+| `code` | `string` | Recoverable capability, returned only to callers with user.invite. Never log it. |
 | `created_by` | `string` | No field description provided. |
 | `created_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `max_uses` | `optional uint32` | No field description provided. |
-| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `use_count` | `uint32` | No field description provided. |
-| `status` | [`InviteLinkStatus`](#chatto-admin-v1-InviteLinkStatus) | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |
+| `status` | [`InvitationCodeStatus`](#chatto-admin-v1-InvitationCodeStatus) | No field description provided. |
 | `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `note` | `string` | Optional creation-time note for invitation managers. Empty means no note. This does not restrict who can redeem the code. |
 
 
 
@@ -2782,11 +2783,35 @@ One server advertised in the public Neighbor directory.
 
 
 
+<a id="chatto-admin-v1-RegistrationSettings"></a>
+
+### RegistrationSettings
+
+Account creation settings. Admission applies to direct signup and new SSO accounts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `admission` | `chatto.api.v1.AccountCreationPolicy` | Effective policy. OPEN permits signup without an invitation. |
+
+
+
+<a id="chatto-admin-v1-RegistrationSettingsUpdate"></a>
+
+### RegistrationSettingsUpdate
+
+Partial registration update. Unselected fields stay unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `admission` | `optional chatto.api.v1.AccountCreationPolicy` | Unspecified or a selected absent value resets admission to OPEN. |
+
+
+
 <a id="chatto-admin-v1-ServerConfig"></a>
 
 ### ServerConfig
 
-Runtime-editable server profile settings.
+Runtime-editable server settings.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2794,6 +2819,7 @@ Runtime-editable server profile settings.
 | `description` | `string` | Short server description for OG link-preview metadata. |
 | `motd` | `string` | Message of the day for the authenticated header. |
 | `welcome_message` | `string` | Welcome message shown on the login page. |
+| `registration` | [`RegistrationSettings`](#chatto-admin-v1-RegistrationSettings) | Settings for new self-service accounts. |
 
 
 
@@ -2850,19 +2876,19 @@ Result of the LiveKit server API check.
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR` | `5` | The server at the URL replied with an unexpected error. |
 
 
-<a id="chatto-admin-v1-InviteLinkStatus"></a>
+<a id="chatto-admin-v1-InvitationCodeStatus"></a>
 
-### InviteLinkStatus
+### InvitationCodeStatus
 
-Current lifecycle state of an invite link.
+Current state of a single-use registration code.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
-| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
-| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
-| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
-| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
+| `INVITATION_CODE_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITATION_CODE_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITATION_CODE_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITATION_CODE_STATUS_USED` | `3` | No value description provided. |
+| `INVITATION_CODE_STATUS_REVOKED` | `4` | No value description provided. |
 
 
 <a id="chatto-admin-v1-OauthClientPolicy"></a>

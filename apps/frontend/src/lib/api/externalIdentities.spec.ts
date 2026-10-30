@@ -69,7 +69,8 @@ describe('createExternalIdentityFlowAPI', () => {
       chooseUsername: undefined,
       displayNameHint: 'Octo',
       boundUserId: null,
-      redirectPath: '/chat/-/settings/account'
+      redirectPath: '/chat/-/settings/account',
+      invitationRequired: false
     });
     expect(receivedRequest(flow.getPendingExternalIdentity)).toMatchObject({ token: 'token-1' });
   });

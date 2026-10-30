@@ -172,7 +172,7 @@ also expose a disconnect hint; it is not mutation authorization. See
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
 | `chatto.discovery.v1` | `ServerDiscoveryService`                                                                                                                                                                                                                                                                                                                                         | Public discovery                                                                                           |
 | `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
-| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
+| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
 
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
 change the caller's private availability across devices. `RefreshPresence`
@@ -216,11 +216,21 @@ resource remains description-free.
 singular and bounded batch reads. These reads use existing message-read
 authorization and do not initialize or advance markers.
 
-`AdminInviteLinkService` requires `user.invite`. Its resource includes the
-full, deterministically reconstructed invite link so authorised operators can
-copy it again; raw bearer tokens are not stored in `EVT`. Opening
-`/invite/{token}` validates the compact capability, stores only the invitation
-ID in the signed browser session, and immediately redirects to registration.
+`AdminInvitationCodeService` requires `user.invite`. It lists, reads, creates,
+and revokes single-use codes with optional expiry. Codes are reconstructed
+from durable invitation IDs; raw codes are not stored in `EVT`. The browser
+POST endpoint `/auth/browser/registration-invitation` validates a code and
+stores an expiring admission binding in the signed HttpOnly session.
+Its GET endpoint rechecks that admission. Email and provider flows snapshot
+the selected invitation ID. `ExternalIdentityAuthService` reports whether a
+pending new identity still needs admission.
+
+`AdminServerService.GetServerConfig` returns typed registration settings.
+`UpdateServerConfig` accepts the `registration.admission` leaf mask and requires
+`server.manage`. The mutation emits a config fact and waits for its projection.
+`ServerDiscoveryService.GetServer` reads the local admission projection without
+waiting for catch-up. Account creation catches up and enforces admission
+independently of this discovery hint.
 
 `AdminServerService` provides CRUD operations for Neighbor resources. These
 methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors`

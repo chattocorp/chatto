@@ -169,9 +169,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     login.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Invite links">
-    Create single-use or reusable [invite links](/guides/operations/identity-login/#invite-only-account-creation) with an expiry date. Set account
-    creation to invite-only to admit new members only through these links.
+  <ReleaseFeatureCard title="Invitation codes">
+    Create [single-use invitation codes](/guides/operations/identity-login/#invite-only-account-creation)
+    with optional expiry. Set account creation to invite-only to require a code
+    before signup. Issue codes in Server Admin or through the API.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Room management where the room is">
@@ -313,7 +314,7 @@ does not return.
 Do these steps on every upgraded server:
 
 - **Grant `user.invite` and `bot.manage`** to the admin role if administrators
-  must manage invite links and bots.
+  must manage invitation codes and bots.
 - **Grant `bot.create`** to the roles that can create bots. A new server grants
   it only to `admin`.
 - **Grant `room.manage`** to delegated room managers. Room group management

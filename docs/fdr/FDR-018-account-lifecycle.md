@@ -11,7 +11,8 @@ This FDR covers human accounts from registration through deletion: signup, email
 
 ### Registration
 
-- A human user starts registration with an email address. Chatto returns the same generic response whether the address is available or already claimed, so the registration endpoint does not disclose existing accounts.
+- On invite-only servers, a human user first supplies a single-use invitation code (FDR-036). The code is consumed only when account creation succeeds.
+- Direct registration starts with an email address. Chatto returns the same generic response whether the address is available or already claimed, so the registration endpoint does not disclose existing accounts.
 - Chatto sends a six-digit verification code to an available address. Verifying the code returns a short-lived completion token; it does not create an account.
 - The user then chooses a login and password. The login must pass uniqueness, format, and blocked-username checks, and the email is checked again in case it was claimed while the completion token was outstanding.
 - Successful completion creates the account with the email already verified. There is no partially registered or unverified account state in the direct-registration flow.

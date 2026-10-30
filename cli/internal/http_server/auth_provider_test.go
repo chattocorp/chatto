@@ -565,7 +565,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.config.Webserver.URL = "http://chat.example"
-		s.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+		setTestRegistrationAdmission(t, s.core, true)
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID:            "oidc-invited",
 			Type:          config.AuthProviderTypeOpenIDConnect,
@@ -586,22 +586,20 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(t.Context(), admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	maxUses := uint32(1)
-	invitation, err := chattoCore.CreateInvitation(t.Context(), admin.Id, &maxUses, nil)
+	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, nil, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	bindResp, err := client.Get(ts.URL + chattoCore.InvitationLinkPath(invitation.ID))
-	if err != nil {
-		t.Fatalf("GET invite link: %v", err)
-	}
-	bindResp.Body.Close()
-	if bindResp.StatusCode != http.StatusSeeOther || bindResp.Header.Get("Location") != "/register?invited=1" {
-		t.Fatalf("GET invite link = %d %q", bindResp.StatusCode, bindResp.Header.Get("Location"))
-	}
+	admissionID := acceptTestInvitation(t, client, ts.URL, chattoCore.InvitationCode(invitation.ID), "")["admissionId"]
 
 	issuer.SetSubject("subject-invited-create")
-	createToken := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-invited", "/chat")
+	admittedStart := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}, "admission": {admissionID}})
+	admittedLocation := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, admittedStart))
+	admittedURL, err := url.Parse(admittedLocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createToken := admittedURL.Query().Get("token")
 	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), createToken)
 	if err != nil {
 		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
@@ -613,15 +611,15 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 		t.Fatalf("CreateUserForExternalIdentity: %v", err)
 	}
 	state, err := chattoCore.GetInvitation(t.Context(), admin.Id, invitation.ID)
-	if err != nil || state.UseCount != 1 {
+	if err != nil || !state.Used {
 		t.Fatalf("invitation after SSO signup = %+v, %v; want one use", state, err)
 	}
 
 	issuer.SetSubject("subject-missing-invite")
 	startLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}})
 	location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, startLocation))
-	if location != "/login?error=invalid_invitation" {
-		t.Fatalf("uninvited auto-provision Location = %q, want invalid invitation", location)
+	if !strings.HasPrefix(location, "/register?external_identity=") {
+		t.Fatalf("uninvited auto-provision Location = %q, want invitation gate", location)
 	}
 }
 

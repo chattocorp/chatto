@@ -11,57 +11,89 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestAdminInviteLinkServiceLifecycleAndAuthorization(t *testing.T) {
+func TestAdminInvitationCodeServiceLifecycleAndAuthorization(t *testing.T) {
 	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	regular, err := env.core.CreateUser(env.ctx, core.SystemActorID, "invite-api-regular", "Invite API Regular", "password123")
 	if err != nil {
-		t.Fatalf("CreateUser regular: %v", err)
+		t.Fatal(err)
 	}
-	if _, err := env.adminInviteLinks.ListInviteLinks(
-		withCaller(env.ctx, regular),
-		connect.NewRequest(&adminv1.ListInviteLinksRequest{}),
-	); err == nil || errorCode(err) != connect.CodePermissionDenied {
-		t.Fatalf("regular ListInviteLinks error = %v, want permission denied", err)
+	service := env.adminInvitationCodes
+	if _, err := service.ListInvitationCodes(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.ListInvitationCodesRequest{})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular list error = %v, want permission denied", err)
 	}
-
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
-		t.Fatalf("AssignAdminRole: %v", err)
+		t.Fatal(err)
 	}
-	ctx := WithRequestBaseURL(withCaller(env.ctx, env.viewer), "https://chat.example")
-	if _, err := env.adminInviteLinks.CreateInviteLink(ctx, connect.NewRequest(&adminv1.CreateInviteLinkRequest{
-		ExpiresAt: &timestamppb.Timestamp{Seconds: 253402300800},
-	})); err == nil || errorCode(err) != connect.CodeInvalidArgument {
-		t.Fatalf("invalid expiry error = %v, want invalid argument", err)
+	ctx := withCaller(env.ctx, env.viewer)
+	if _, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: &timestamppb.Timestamp{Seconds: 253402300800}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid expiry error = %v", err)
 	}
-	maxUses := uint32(3)
-	expiresAt := timestamppb.New(time.Now().Add(24 * time.Hour))
-	created, err := env.adminInviteLinks.CreateInviteLink(ctx, connect.NewRequest(&adminv1.CreateInviteLinkRequest{
-		MaxUses:   &maxUses,
-		ExpiresAt: expiresAt,
-	}))
+	if _, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{Note: strings.Repeat("界", 251)})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("overlong note error = %v", err)
+	}
+	const note = "For the design team"
+	created, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: timestamppb.New(time.Now().Add(24 * time.Hour)), Note: "  " + note + "  "}))
 	if err != nil {
-		t.Fatalf("CreateInviteLink: %v", err)
+		t.Fatal(err)
 	}
-	inviteLink := created.Msg.GetInviteLink()
-	if inviteLink.GetId() == "" || !strings.HasPrefix(inviteLink.GetLink(), "https://chat.example/invite/") || inviteLink.GetMaxUses() != maxUses || inviteLink.GetStatus() != adminv1.InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE {
-		t.Fatalf("created invite link = %+v", inviteLink)
+	code := created.Msg.GetInvitationCode()
+	if code.GetNote() != note {
+		t.Fatal("create response lost the note")
 	}
-
-	listed, err := env.adminInviteLinks.ListInviteLinks(ctx, connect.NewRequest(&adminv1.ListInviteLinksRequest{}))
+	if _, err := service.GetInvitationCode(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.GetInvitationCodeRequest{Id: code.GetId()})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular get error = %v, want permission denied", err)
+	}
+	if _, err := service.CreateInvitationCode(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.CreateInvitationCodeRequest{Note: note})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular create error = %v, want permission denied", err)
+	}
+	if code.GetId() == "" || code.GetCode() == "" || code.GetStatus() != adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_ACTIVE {
+		t.Fatal("incomplete created code")
+	}
+	if id, err := env.core.ValidateInvitationCode(ctx, code.GetCode()); err != nil || id != code.GetId() {
+		t.Fatalf("validate created code: %v", err)
+	}
+	listed, err := service.ListInvitationCodes(ctx, connect.NewRequest(&adminv1.ListInvitationCodesRequest{}))
 	if err != nil {
-		t.Fatalf("ListInviteLinks: %v", err)
+		t.Fatal(err)
 	}
-	if len(listed.Msg.GetInviteLinks()) != 1 || listed.Msg.GetInviteLinks()[0].GetLink() != inviteLink.GetLink() {
-		t.Fatalf("listed invite links = %+v, want reconstructed link %q", listed.Msg.GetInviteLinks(), inviteLink.GetLink())
+	if len(listed.Msg.GetInvitationCodes()) != 1 || listed.Msg.GetInvitationCodes()[0].GetCode() != code.GetCode() {
+		t.Fatal("list must reconstruct the same code")
 	}
-
-	revoked, err := env.adminInviteLinks.RevokeInviteLink(ctx, connect.NewRequest(&adminv1.RevokeInviteLinkRequest{Id: inviteLink.GetId()}))
+	if listed.Msg.GetInvitationCodes()[0].GetNote() != note {
+		t.Fatal("list response lost the note")
+	}
+	got, err := service.GetInvitationCode(ctx, connect.NewRequest(&adminv1.GetInvitationCodeRequest{Id: code.GetId()}))
+	if err != nil || got.Msg.GetInvitationCode().GetCode() != code.GetCode() {
+		t.Fatalf("get code: %v", err)
+	}
+	if got.Msg.GetInvitationCode().GetNote() != note {
+		t.Fatal("get response lost the note")
+	}
+	missingID := core.NewInvitationID()
+	for _, id := range []string{code.GetId(), missingID} {
+		if _, err := service.RevokeInvitationCode(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: id})); errorCode(err) != connect.CodePermissionDenied {
+			t.Fatalf("regular revoke error = %v, want permission denied", err)
+		}
+	}
+	if _, err := service.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: missingID})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("missing revoke error = %v, want not found", err)
+	}
+	revoked, err := service.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: code.GetId()}))
 	if err != nil {
-		t.Fatalf("RevokeInviteLink: %v", err)
+		t.Fatal(err)
 	}
-	if revoked.Msg.GetInviteLink().GetStatus() != adminv1.InviteLinkStatus_INVITE_LINK_STATUS_REVOKED || revoked.Msg.GetInviteLink().GetRevokedAt() == nil {
-		t.Fatalf("revoked invite link = %+v", revoked.Msg.GetInviteLink())
+	if revoked.Msg.GetInvitationCode().GetStatus() != adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_REVOKED || revoked.Msg.GetInvitationCode().GetRevokedAt() == nil {
+		t.Fatal("expected revoked code")
+	}
+	if revoked.Msg.GetInvitationCode().GetNote() != note {
+		t.Fatal("revocation response lost the note")
+	}
+	repeated, err := service.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: code.GetId()}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !repeated.Msg.GetInvitationCode().GetRevokedAt().AsTime().Equal(revoked.Msg.GetInvitationCode().GetRevokedAt().AsTime()) {
+		t.Fatal("repeated revocation changed its timestamp")
 	}
 }

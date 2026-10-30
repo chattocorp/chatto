@@ -72,6 +72,12 @@ migration. They are not a complete compatibility report.
 
 ## Check the server version
 
+Invitation management uses `AdminInvitationCodeService`. Integrations that
+used the beta `AdminInviteLinkService` must switch services and issue one code
+per account. Reusable links and their pending admission grants are retired.
+See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
+This change does not raise the client connection threshold.
+
 For room membership activity, an absent `Room.show_membership_events` means
 enabled. Do not offer to edit this setting when the field is absent. Supporting
 clients use it only for join/leave rows; older clients can continue to show them.

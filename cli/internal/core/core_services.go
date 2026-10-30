@@ -60,7 +60,7 @@ func assembleCore(
 		userModel:        userModel,
 		rbacModel:        newRBACModel(projections.rbac),
 		mentionables:     newMentionablesModel(projections.mentionables),
-		invitationModel:  newInvitationModel(infra.eventPublisher, projections.invitations, cfg.SecretKey),
+		invitationModel:  newInvitationModel(projections.invitations, cfg.SecretKey),
 		oauthClientModel: newOAuthClientModel(projections.oauthClients),
 		s3Client:         infra.s3Client,
 		serverOrigins:    serverOrigins,
