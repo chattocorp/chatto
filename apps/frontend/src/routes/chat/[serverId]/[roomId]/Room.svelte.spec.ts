@@ -438,6 +438,7 @@ beforeEach(() => {
       },
       messageSearch: {
         availability: {
+          showSearchControls: true,
           statusLoading: false,
           statusError: false,
           statusLoaded: true,

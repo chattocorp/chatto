@@ -99,6 +99,24 @@ describe('MessageSearchStore', () => {
     expect(store.availability.available).toBe(true);
   });
 
+  it('keeps search controls accessible for status errors and indexing', async () => {
+    const getStatus = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ state: MessageSearchState.INDEXING, retryAfterMs: null })
+      .mockResolvedValueOnce({ state: MessageSearchState.DISABLED, retryAfterMs: null });
+    const { availability } = new MessageSearchStore(api({ getStatus }));
+    expect(availability.showSearchControls).toBe(false);
+    await availability.ensureStatus();
+    expect(availability.showSearchControls).toBe(true);
+    expect(availability.available).toBe(false);
+    await availability.refreshStatus();
+    expect(availability.showSearchControls).toBe(true);
+    expect(availability.available).toBe(false);
+    await availability.refreshStatus();
+    expect(availability.showSearchControls).toBe(false);
+  });
+
   it('searches and automatically appends deduplicated cursor pages', async () => {
     const client = api({
       searchMessages: vi

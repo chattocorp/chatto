@@ -13,7 +13,6 @@
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch';
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
@@ -98,11 +97,7 @@
   // Wait for remote discovery, but allow best-effort feature requests.
   const serverCanConnect = $derived(activeStore.serverInfo.canConnect);
   const messageSearchAvailable = $derived(
-    serverCanConnect &&
-      (serverUi(activeStore).messageSearch.availability.statusError ||
-        (serverUi(activeStore).messageSearch.availability.statusLoaded &&
-          serverUi(activeStore).messageSearch.availability.status.state !==
-            MessageSearchState.DISABLED))
+    serverCanConnect && serverUi(activeStore).messageSearch.availability.showSearchControls
   );
 
   $effect(() => {

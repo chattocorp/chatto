@@ -51,6 +51,13 @@ export class MessageSearchAvailability {
     );
   }
 
+  /** Keep search entry points visible during indexing or errors so users can retry. */
+  get showSearchControls(): boolean {
+    return (
+      this.statusError || (this.statusLoaded && this.status.state !== MessageSearchState.DISABLED)
+    );
+  }
+
   /** Load once per session; concurrent callers share the pending request. */
   async ensureStatus(force = false): Promise<void> {
     if (!this.canLoad()) return;

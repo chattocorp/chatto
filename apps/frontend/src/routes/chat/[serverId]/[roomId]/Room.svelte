@@ -25,7 +25,6 @@
     type RoomSidebarPresentation
   } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch';
   import { userPreferences, type ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
@@ -257,9 +256,7 @@
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   const messageSearchAvailable = $derived(
-    serverUi(stores).messageSearch.availability.statusError ||
-      (serverUi(stores).messageSearch.availability.statusLoaded &&
-        serverUi(stores).messageSearch.availability.status.state !== MessageSearchState.DISABLED)
+    serverUi(stores).messageSearch.availability.showSearchControls
   );
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
