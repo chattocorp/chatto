@@ -13,7 +13,6 @@
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
@@ -53,15 +52,12 @@
   // Wait for remote discovery, but allow best-effort feature requests.
   const serverCanConnect = $derived(activeStore.serverInfo.canConnect);
   const messageSearchAvailable = $derived(
-    serverCanConnect &&
-      (serverUi(activeStore).messageSearch.statusError ||
-        (serverUi(activeStore).messageSearch.statusLoaded &&
-          serverUi(activeStore).messageSearch.status.state !== MessageSearchState.DISABLED))
+    serverCanConnect && serverUi(activeStore).messageSearch.availability.showSearchControls
   );
 
   $effect(() => {
     if (serverCanConnect && activeStore.isAuthenticated)
-      void serverUi(activeStore).messageSearch.ensureStatus();
+      void serverUi(activeStore).messageSearch.availability.ensureStatus();
   });
 
   // Detect if we're on the My Threads page

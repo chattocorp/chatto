@@ -159,7 +159,10 @@ export class ServerUi {
       this.draftReplies.clear();
       this.#forEachSearch((search) => search.invalidateAuthor(userId));
     });
-    store.onSessionEnded(() => this.draftReplies.clear());
+    store.onSessionEnded(() => {
+      this.draftReplies.clear();
+      this.messageSearch.availability.reset();
+    });
     store.onPermissionsChanged(() => {
       // Search holds plaintext outside the projection: fence it at once.
       this.#forEachSearch((search) => search.refreshPermissions());
@@ -203,6 +206,7 @@ export class ServerUi {
       this.#adminRoomLayoutSubscriptions = 0;
       this.pendingHighlights.clear();
       this.#forEachSearch((search) => search.reset());
+      this.messageSearch.availability.reset();
       this.#roomSearches.clear();
     });
   }
@@ -226,7 +230,11 @@ export class ServerUi {
       // store cannot be a replacement that a later call creates for that room.
       queueMicrotask(() => evicted.reset());
     }
-    const search = new MessageSearchStore(this.#searchAPI, () => this.#store.isAuthenticated);
+    const search = new MessageSearchStore(
+      this.#searchAPI,
+      () => this.#store.isAuthenticated,
+      this.messageSearch.availability
+    );
     this.#roomSearches.set(roomId, search);
     return search;
   }

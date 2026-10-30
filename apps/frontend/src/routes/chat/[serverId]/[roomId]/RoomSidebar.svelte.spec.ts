@@ -476,7 +476,7 @@ describe('RoomSidebar', () => {
       .mockResolvedValueOnce({ state: MessageSearchState.UNAVAILABLE, retryAfterMs: null })
       .mockResolvedValueOnce({ state: MessageSearchState.READY, retryAfterMs: null });
     const searchStore = new MessageSearchStore({ getStatus, searchMessages: vi.fn() });
-    await searchStore.ensureStatus();
+    await searchStore.availability.ensureStatus();
     const rendered = render(RoomSidebarTestHarness, {
       props: { activePanel: 'search', roomData: roomData([member(1)], 1, false), searchStore }
     });
@@ -536,7 +536,7 @@ describe('RoomSidebar', () => {
       getStatus: vi.fn().mockResolvedValue({ state: MessageSearchState.READY, retryAfterMs: null }),
       searchMessages
     });
-    await searchStore.ensureStatus();
+    await searchStore.availability.ensureStatus();
     const onOpenSearchResult = vi.fn();
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -1733,7 +1733,7 @@ describe('RoomSidebar', () => {
       getStatus: vi.fn().mockResolvedValue({ state: MessageSearchState.READY, retryAfterMs: null }),
       searchMessages: vi.fn()
     });
-    await searchStore.ensureStatus();
+    await searchStore.availability.ensureStatus();
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'search',

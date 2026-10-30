@@ -46,10 +46,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
     getInput: (query) => ({ query, roomId, order: MessageSearchOrder.RELEVANCE })
   });
 
-  $effect(() => {
-    void store.ensureStatus();
-  });
-
   function scheduleSearch(event: Event): void {
     search.schedule((event.currentTarget as HTMLInputElement).value);
   }
@@ -60,10 +56,10 @@ so switching rooms cannot leak a query or plaintext results into another room.
 </script>
 
 <SearchAvailability
-  state={store.status.state}
-  checking={!store.statusLoaded && !store.statusError}
-  error={store.statusError}
-  onRetry={() => void store.refreshStatus()}
+  state={store.availability.status.state}
+  checking={!store.availability.statusLoaded && !store.availability.statusError}
+  error={store.availability.statusError}
+  onRetry={() => void store.availability.refreshStatus()}
   checkingClass="flex min-h-32 flex-1 items-center justify-center p-4 text-center text-sm text-muted"
 >
   {#snippet frame(content, checking)}
@@ -105,7 +101,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
     </ScrollFader>
 
     <div class="shrink-0 bg-background p-2" data-testid="room-search-input-block">
-      {#if store.status.state === MessageSearchState.DEGRADED}
+      {#if store.availability.status.state === MessageSearchState.DEGRADED}
         <div class="mb-2">
           <Hint tone="warning">{m('search.degraded')}</Hint>
         </div>

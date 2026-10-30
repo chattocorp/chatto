@@ -48,10 +48,6 @@ in the active server store so browser Back can restore the current search.
     getStore: () => store,
     getInput: (query) => ({ query, order: store.order })
   });
-  $effect(() => {
-    void store.ensureStatus();
-  });
-
   function submit(event: SubmitEvent): void {
     event.preventDefault();
     search.submitNow();
@@ -84,10 +80,10 @@ in the active server store so browser Back can restore the current search.
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col md:gap-6">
       <SearchAvailability
-        state={store.status.state}
-        checking={store.statusLoading && !store.statusLoaded}
-        error={store.statusError}
-        onRetry={() => void store.refreshStatus()}
+        state={store.availability.status.state}
+        checking={store.availability.statusLoading && !store.availability.statusLoaded}
+        error={store.availability.statusError}
+        onRetry={() => void store.availability.refreshStatus()}
         checkingClass="flex min-h-64 items-center justify-center text-muted"
       >
         {#snippet frame(content)}
@@ -115,7 +111,7 @@ in the active server store so browser Back can restore the current search.
             />
           </form>
 
-          {#if store.status.state === MessageSearchState.DEGRADED}
+          {#if store.availability.status.state === MessageSearchState.DEGRADED}
             <div class="mt-4">
               <Hint tone="warning">{m('search.degraded')}</Hint>
             </div>
