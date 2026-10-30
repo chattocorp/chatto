@@ -185,3 +185,43 @@ func TestLiveBatchFollowsStartupReplay(t *testing.T) {
 	cancel()
 	<-done
 }
+
+// deletedTargetLiveProjection retains startup events until delivery crosses
+// the deleted target. The hook records how much state startup made visible.
+type deletedTargetLiveProjection struct {
+	liveBatchProjection
+	startupValues int
+	completions   int
+}
+
+func (*deletedTargetLiveProjection) StartupBatchSize() int { return 10 }
+
+func (p *deletedTargetLiveProjection) CompleteStartupReplay() {
+	values, _ := p.state()
+	p.startupValues = len(values)
+	p.completions++
+}
+
+func TestLiveBatchCompletesStartupBeforeBufferingPastDeletedTarget(t *testing.T) {
+	fixture, js := newStartupTargetFixture(t, "evt.live.deleted.target")
+	projection := &deletedTargetLiveProjection{
+		liveBatchProjection: liveBatchProjection{size: 256, delay: time.Hour},
+	}
+	projection.subject = fixture.subject
+	gate := newStartupGate()
+	projector := gate.newProjector(t, js, fixture.stream, projection)
+	// Crossing the target must complete startup without reconciliation or
+	// a live flush. Neither timer should fire during this test.
+	projector.SetStartupReconcileIntervalForTest(time.Hour)
+	fixture.runWithDeletedTarget(t, projector, gate, func() {
+		fixture.append(t, EncodedRecord{ID: "four", Data: []byte("four:delta")})
+	})
+	waitForStartup(t, projector)
+	status := projector.Status()
+	if status.LastSeq != fixture.sequences[1] || status.StartupTargetSeq != fixture.sequences[1] || status.StartupMessages != 2 {
+		t.Fatalf("unexpected startup status: %+v", status)
+	}
+	if projection.startupValues != 2 || projection.completions != 1 {
+		t.Fatalf("startup hook: values=%d calls=%d", projection.startupValues, projection.completions)
+	}
+}

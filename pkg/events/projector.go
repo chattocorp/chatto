@@ -998,6 +998,18 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		}
 	}
 	if p.applyLiveBatch != nil && seq > p.startupTargetSequence() {
+		// Ordered delivery past the target proves that all retained startup
+		// events have been handled. If the target disappeared, finish at the
+		// committed sequence before buffering live events. Otherwise readiness
+		// and the startup hook would depend on the live batch timer.
+		p.mu.Lock()
+		if p.startupEndedAt.IsZero() && p.lastSeq < p.startupTargetSeq {
+			p.startupTargetSeq = p.lastSeq
+		}
+		p.mu.Unlock()
+		if summary, completed := p.completeStartupLocked(time.Now()); completed {
+			p.logStartupComplete(summary)
+		}
 		p.liveBatch = append(p.liveBatch, sequencedDecodedEvent{event: event, sequence: seq})
 		if len(p.liveBatch) == 1 {
 			p.liveFlushTimer.Reset(p.liveBatchDelay)
