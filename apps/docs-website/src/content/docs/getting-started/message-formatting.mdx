@@ -7,7 +7,7 @@ Chatto stores every message as Markdown. You can write with the visual editor or
 
 ## Choose an editor
 
-Select the App Preferences gear in the Application Header. Settings opens the **Appearance** page for your active server. In **App preferences**, open **Composer**. In **Message editor**, select an option:
+Select the App Preferences gear in the Application Header. Settings opens the **Overview** page for your active server. In **App preferences**, open **Composer**. In **Message editor**, select an option:
 
 - **Markdown** to edit source syntax directly, with Markdown and fenced-code highlighting. This is the default.
 - **Visual** to format text without seeing Markdown markers.
@@ -121,7 +121,40 @@ In the visual editor, paste into a code block without a language, or leave the b
 
 Select **Copy to clipboard** on a rendered code block to copy its code without the Markdown fence.
 
-Right-click a link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
+Plain URLs to users, rooms, and servers that your client knows appear as pills with
+their current name and avatar or icon. This includes angle-bracket URLs.
+Markdown links such as `[the development channel](URL)` keep their labels and
+normal link display. The visual composer previews plain URLs as pills; select
+a preview to edit its URL. Select a pill in a message to open its destination. Right-click
+or long-press it to open the entity's menu. These links do not notify users
+as mentions do.
+
+Other automatic web links appear as compact chips with a hostname and, when it
+fits, a short, complete path. Long paths and opaque identifiers stay out of the
+label. Long hostnames shorten in the middle, keeping their ending and port visible.
+Query strings and fragments stay out of the label. This also applies to unknown
+or unavailable Chatto destinations and to thread links. Hover over a
+chip to preview the destination, or use **Copy Link** in the message menu for the full URL. The visual
+composer uses the same compact display; select a chip to edit its full URL.
+
+Message links to known servers show a message icon and the room or server name.
+If the message is already in the client's loaded history, the pill also shows
+the author's name and avatar. The attached preview uses a compact inset body;
+scroll inside it to read a long message, or select it to open the original.
+
+Hover over a pill or a Markdown link, or focus it with the keyboard, to inspect
+its destination. Markdown links keep their authored text and formatting.
+Known Chatto entities show locally available details. Other URLs load page details
+automatically when the hover card opens. The message's server receives the URL and fetches
+the details and images; the website sees the server's IP address. Existing
+composer previews are unchanged. Select any part of the hover card to open its
+destination. You can also Tab into the card and press Enter. Press Escape to
+dismiss it and return keyboard focus to the original link.
+
+Right-click an ordinary link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
+
+To share a server, right-click its sidebar icon or a server pill and select
+**Copy server link**. This copies the full server URL.
 
 To share a room, right-click its sidebar row and select **Copy room link** from the
 room menu. Copied room and message links use the address of the server that

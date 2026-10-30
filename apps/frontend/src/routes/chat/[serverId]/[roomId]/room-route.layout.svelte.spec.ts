@@ -128,6 +128,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 vi.mock('$lib/state/server/scope.svelte', async () => {
   const { serverRegistry } = await import('$lib/client');
   return {
+    hasServerScope: () => true,
     useServerScope: () => ({
       serverId: 'origin',
       connection: { getAPI: () => ({ getMessage: mocks.getMessage }) },

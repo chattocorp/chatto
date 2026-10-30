@@ -18,7 +18,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 <script lang="ts">
   import { openRenderedLink } from '$lib/navigation/renderedLink';
   import { isAllowedMarkdownLink } from '$lib/markdownLinks';
-  import { tick, untrack } from 'svelte';
+  import { getAllContexts, tick, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
   import { Slice } from '@tiptap/pm/model';
   import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -56,6 +56,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     blockquote: false,
     codeBlock: false
   };
+  const context = getAllContexts();
 
   let {
     placeholder = m('composer.placeholder'),
@@ -155,8 +156,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     const frameRect = editorFrameElement.getBoundingClientRect();
     const preRect = preElement.getBoundingClientRect();
     activeCodeBlockSelectorPosition = {
-      right: frameRect.right - preRect.right,
-      bottom: frameRect.bottom - preRect.bottom
+      right: frameRect.right - preRect.right + 4,
+      bottom: frameRect.bottom - preRect.bottom + 4
     };
   }
 
@@ -297,7 +298,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       const tr = editor.state.tr.addMark(
         activeLinkRange.from,
         activeLinkRange.to,
-        linkType.create({ href })
+        linkType.create({ href, explicitLabel: true })
       );
       editor.view.dispatch(tr);
       editor.commands.focus();
@@ -487,7 +488,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       () =>
         new Editor({
           element: editorElement,
-          extensions: createComposerExtensions(placeholder),
+          extensions: createComposerExtensions(placeholder, context),
           content: '',
           contentType: 'markdown',
           editable,
@@ -672,7 +673,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
     <div class="absolute z-10" style={codeLanguageSelectStyle}>
       <div
-        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
+        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
         <span aria-hidden="true" class="iconify icon-[uil--angle-down] size-3"></span>
@@ -829,22 +830,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     margin-top: 0.45em;
   }
 
-  :global(.tiptap-editor .ProseMirror pre) {
-    overflow: hidden;
-    position: relative;
-    width: 100%;
-    border-radius: 0.375rem;
-    border: 1px solid var(--color-surface-emphasized);
-    background: transparent;
-    padding: 0.5rem 0.75rem;
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    line-height: 1.5;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-    direction: ltr;
-    unicode-bidi: isolate;
-  }
-
   :global(.tiptap-editor .ProseMirror p),
   :global(.tiptap-editor .ProseMirror li),
   :global(.tiptap-editor .ProseMirror blockquote),
@@ -872,10 +857,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror pre[data-language]::after) {
     content: attr(data-language);
     position: absolute;
-    right: 0;
-    bottom: 0;
+    right: 4px;
+    bottom: 4px;
     border-top-left-radius: 0.375rem;
-    background: var(--color-surface-emphasized);
+    border-bottom-right-radius: 0.375rem;
+    background: var(--color-surface);
     padding: 0.125rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -884,17 +870,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     color: var(--color-muted);
     text-transform: uppercase;
     pointer-events: none;
-  }
-
-  :global(.tiptap-editor .ProseMirror pre code) {
-    display: block;
-    overflow-x: auto;
-    background: transparent;
-    padding: 0 3.5rem 0 0;
-    font-size: inherit;
-    line-height: inherit;
-    color: var(--composer-code-text);
-    white-space: pre;
   }
 
   :global(.tiptap-editor .ProseMirror .hljs-comment),

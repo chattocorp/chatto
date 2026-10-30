@@ -38,12 +38,12 @@
     {#each [{ label: 'Flat', strength: 0, width: 1 }, { label: 'Kinda 3D', strength: 0.75, width: 1 }, { label: 'Very 3D', strength: 1.75, width: 1.5 }] as mode (mode.label)}
       <div style:--depth-strength={mode.strength} style:--depth-width={mode.width}>
         <p class="mb-2">{mode.label}</p>
-        <div class="group/attachment relative embed-frame h-48 w-64 bg-surface-emphasized">
+        <div class="group/attachment relative my-1.5 h-48 w-64 preview-frame bg-surface-emphasized">
           <div class="absolute end-2 top-2 flex items-center gap-1">
             {@render actions(true)}
           </div>
         </div>
-        <div class="embed-frame mt-4 attachment-card w-64">
+        <div class="my-1.5 mt-4 attachment-card w-64 preview-frame">
           <button
             type="button"
             class="flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-3 text-start"
@@ -57,7 +57,7 @@
             {@render actions()}
           </div>
         </div>
-        <div class="embed-frame mt-4 attachment-card w-64 flex-wrap">
+        <div class="my-1.5 mt-4 attachment-card w-64 flex-wrap preview-frame">
           <audio
             controls
             preload="none"
@@ -77,7 +77,9 @@
     <div class="w-30 max-w-full">
       <p class="mb-2">Video</p>
       <div class="group/attachment attachment-video-frame">
-        <video controls preload="none" class="embed-frame w-full"><track kind="captions" /></video>
+        <video controls preload="none" class="my-1.5 w-full preview-frame"
+          ><track kind="captions" /></video
+        >
         <div
           class="absolute end-2 top-2 z-10 flex items-center gap-1 transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0"
         >
@@ -96,7 +98,7 @@
                   '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="200"><rect width="240" height="200" fill="#408cab"/><circle cx="120" cy="100" r="32" fill="white"/></svg>'
                 )}
               alt="White circle on a blue background"
-              class="embed-frame h-50 object-cover"
+              class="my-1.5 h-50 preview-frame object-cover"
               style:width={`${width}px`}
             />
             <div

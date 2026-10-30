@@ -24,6 +24,7 @@ import Bold, {
 } from '@tiptap/extension-bold';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
+import { entityLinkPreview } from './entityLinkPreview';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -109,6 +110,7 @@ export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
 const markdownAutolinkAttribute = 'markdownAutolink';
 const closedMarkdownAutolink = 'closed';
 const unclosedMarkdownAutolink = 'unclosed';
+const bareMarkdownAutolink = 'bare';
 
 function isMarkdownAutolinkToken(token: MarkdownToken): boolean {
   const raw = token.raw ?? '';
@@ -138,6 +140,8 @@ export const ComposerLink = Link.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      // Preserve author intent even when an explicit label is the URL itself.
+      explicitLabel: { default: false, rendered: false },
       [markdownAutolinkAttribute]: {
         default: false,
         rendered: false
@@ -157,7 +161,12 @@ export const ComposerLink = Link.extend({
     return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
       href: token.href,
       title: token.title || null,
-      [markdownAutolinkAttribute]: isMarkdownAutolinkToken(token) ? closedMarkdownAutolink : false
+      explicitLabel: raw.startsWith('['),
+      [markdownAutolinkAttribute]: isMarkdownAutolinkToken(token)
+        ? closedMarkdownAutolink
+        : raw.startsWith('[')
+          ? false
+          : bareMarkdownAutolink
     });
   },
 
@@ -171,6 +180,9 @@ export const ComposerLink = Link.extend({
     }
 
     if (node.attrs?.[markdownAutolinkAttribute] === unclosedMarkdownAutolink && !title) return text;
+
+    // Automatic URLs must stay automatic when sent or switched to source mode.
+    if (node.attrs?.[markdownAutolinkAttribute] === bareMarkdownAutolink && !title) return text;
 
     return title ? `[${text}](${href} "${title}")` : `[${text}](${href})`;
   }
@@ -314,7 +326,7 @@ export const MarkdownLinkInputRule = Extension.create({
 
           tr.delete(from, to);
           tr.insertText(label, from);
-          tr.addMark(from, from + label.length, linkType.create({ href }));
+          tr.addMark(from, from + label.length, linkType.create({ href, explicitLabel: true }));
           tr.removeStoredMark(linkType);
         }
       })
@@ -390,15 +402,26 @@ export const NormalizeMarkdownAutolinks = Extension.create({
             if (!link) return;
 
             const currentAutolink = link.attrs[markdownAutolinkAttribute];
-            const isPlainURLLink =
-              node.text === link.attrs.href && node.marks.length === 1 && !link.attrs.title;
+            const hasURLText =
+              (node.text === link.attrs.href || `http://${node.text}` === link.attrs.href) &&
+              !link.attrs.title;
+            const isPlainURLLink = hasURLText && node.marks.length === 1;
             let nextAutolink:
-              false | typeof closedMarkdownAutolink | typeof unclosedMarkdownAutolink = false;
+              | false
+              | typeof closedMarkdownAutolink
+              | typeof unclosedMarkdownAutolink
+              | typeof bareMarkdownAutolink = false;
 
             if (currentAutolink === closedMarkdownAutolink && isPlainURLLink) {
               nextAutolink = closedMarkdownAutolink;
-            } else if (isPlainURLLink && hasUnescapedOpeningAngleBefore(position)) {
+            } else if (
+              isPlainURLLink &&
+              !link.attrs.explicitLabel &&
+              hasUnescapedOpeningAngleBefore(position)
+            ) {
               nextAutolink = unclosedMarkdownAutolink;
+            } else if (hasURLText && !link.attrs.explicitLabel) {
+              nextAutolink = bareMarkdownAutolink;
             }
 
             if (currentAutolink === nextAutolink) return;
@@ -571,7 +594,14 @@ export const ClearMarksOnEmptyDocument = Extension.create({
 });
 
 /** Build the complete, deliberately constrained extension set for the composer. */
-export function createComposerExtensions(placeholder: string) {
+export function createComposerExtensions(placeholder: string, context?: Map<unknown, unknown>) {
+  const link = context
+    ? ComposerLink.extend({
+        addProseMirrorPlugins() {
+          return [...(this.parent?.() ?? []), entityLinkPreview(context)];
+        }
+      })
+    : ComposerLink;
   return [
     StarterKit.configure({
       // Keep the composer subset aligned with the rendered message markdown.
@@ -585,7 +615,7 @@ export function createComposerExtensions(placeholder: string) {
     }),
     ComposerBold.configure(),
     ComposerUnderline.configure(),
-    ComposerLink.configure({
+    link.configure({
       autolink: true,
       shouldAutoLink: hasAutoLinkPrefix,
       isAllowedUri: (url, { defaultValidate }) =>

@@ -537,7 +537,9 @@ function createClipboardInlineContent(
 
     if (matchIndex > index)
       nodes.push(schema.text(text.slice(index, matchIndex), destinationMarks));
-    nodes.push(schema.text(label, [...nonLinkMarks, linkType.create({ href })]));
+    nodes.push(
+      schema.text(label, [...nonLinkMarks, linkType.create({ href, explicitLabel: true })])
+    );
     index = matchIndex + match[0].length;
   }
 

@@ -197,8 +197,8 @@ test.describe('Server Admin Page', () => {
 
     await serverAdminPage.expectSettingsLinkVisible();
     await serverAdminPage.settingsLink.click();
-    await page.waitForURL(routes.settingsAppearance);
-    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+    await page.waitForURL(routes.settingsOverview);
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await serverAdminPage.expectBotsNavVisible();
     await serverAdminPage.expectGeneralNavNotVisible();
   });

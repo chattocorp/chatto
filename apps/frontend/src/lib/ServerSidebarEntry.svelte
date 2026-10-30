@@ -31,6 +31,7 @@
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
   import { copyToClipboard } from '$lib/utils/copyToClipboard';
+  import { copyServerLinkToClipboard } from '$lib/copyChatLink';
   import { notificationPath } from '$lib/notificationPath';
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -357,6 +358,16 @@
         {m('chat.server_info.title')}
       </MenuItem>
       {#if host}
+        <MenuItem
+          icon="icon-[uil--link]"
+          dataTestid="copy-server-link"
+          onclick={() => {
+            void copyServerLinkToClipboard(serverId);
+            closeContextMenu();
+          }}
+        >
+          {m('room_list.copy_server_link')}
+        </MenuItem>
         <MenuItem
           icon="icon-[uil--copy]"
           onclick={() => void handleCopyServerHostname()}

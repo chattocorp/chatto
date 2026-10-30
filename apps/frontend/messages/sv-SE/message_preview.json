@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Meddelande från {name}",
     "attachments_count": { "other": "{count} bilagor" },
     "attachment_image": "Bild",
     "attachment_video": "Video",

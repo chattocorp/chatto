@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Kopii ligilon al la servilo",
     "copy_room_link": "Kopiu ĉambran ligilon",
     "show_rooms_in_group": "Montri pliajn ĉambrojn en {group} ({count})",
     "hide_rooms_in_group": "Kaŝi nealiĝintajn ĉambrojn en {group}",

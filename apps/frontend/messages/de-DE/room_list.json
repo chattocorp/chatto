@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Server-Link kopieren",
     "copy_room_link": "Raumlink kopieren",
     "show_rooms_in_group": "{count} weitere Räume in {group} anzeigen",
     "hide_rooms_in_group": "Weitere Räume in {group} ausblenden",

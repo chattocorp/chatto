@@ -527,6 +527,109 @@ the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
 which colours the icon with the action colour.
 
+### Inset Frame
+
+**Inset Frame** is the canonical name in the [glossary](../../docs/GLOSSARY.md#ui).
+It is a raised rim around recessed content, shared by context menus, palettes,
+dialog trays, and preview cards. Its two primitives in `src/app.css` are the source of truth:
+
+- `inset-frame` owns the 1px `text/10` border, 8px outer corners, `surface` fill,
+  depth-aware lighting, text color, and default 4px rim.
+- `inset-content` owns the 6px inner corners, `background` fill, and inset depth.
+  It does not set padding or clip content.
+
+The primitives set no width, margin, outer shadow, positioning, or animation.
+Consumers retain native semantics and own those choices. `floating-frame` and
+`floating-inset` are lower-level lighting finishes, not alternative frame
+recipes. Panels and sheets also use these finishes but keep their own geometry.
+
+| Consumer         | Composition                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ContextMenu`    | `menu` uses `inset-frame` with small text and a floating shadow. `MenuSection` uses `menu-section`, which adds padding to `inset-content`. |
+| Desktop palettes | `command-palette` composes `menu`; results use the same menu sections. Narrow palettes retain their full-pane layout.                      |
+| Preview cards    | `preview-frame` adds clipping and a small shadow to `inset-frame`. `preview-content` adds clipping to `inset-content`.                     |
+| Hover cards      | `preview-surface` adds width, type size, and floating elevation to the preview frame.                                                      |
+| Code previews    | `preview-code` composes the preview frame and scrollable preview content.                                                                  |
+| Thumbnails       | `preview-thumbnail` uses the inset content and a thin border, without an outer rim.                                                        |
+
+Dialog trays also compose `inset-frame`, with an 8px rim, and `inset-content`.
+Settings Overview cards use `inset-frame` for the card and `inset-content`
+for the illustration. The title and description sit on the outer surface.
+Server Directory and Neighbors cards use the same composition for their banners,
+with a second `inset-content` surface for an optional status footer.
+Full-screen media dialogs apply the frame only at desktop sizes; task sheets
+keep their viewport-edge geometry.
+
+Change the primitives to change the shared treatment. Do not repeat border,
+radius, or fill recipes in consumer utilities. The design-system check enforces
+the core frame and section composition boundaries. **UI/Inset Frame** compares real menu, palette,
+and preview components and checks their computed frame styles. Check it in
+both themes and at each depth setting. **UI/Preview frames** covers media,
+composer rows, code, loading states, and narrow layouts.
+
+### Preview surfaces
+
+Inline URL and entity pills use `inline-link-pill`, the inline counterpart of
+the Inset Frame. It composes `inset-content` with a visible `surface-emphasized`
+fill, a thin inset ring, regular `text` foreground, and a brighter surface and
+ring on hover. It has no outer rim or vertical padding, so it does not increase
+line height. Keep URL paths muted and use the hostname as the primary label.
+Show only short, complete paths that fit beside
+it; omit long paths and opaque identifiers. Shorten long hostnames in the middle
+so their ending and port remain visible. Entity avatars and server icons stay flush with
+the leading edge and retain their own subtle image border. Pill corners and
+compact server icons use the shared 3px `--inline-link-radius`. User pills round
+only the avatar edge to half the avatar height; an oversized radius would also
+shrink the trailing corners through CSS radius scaling. Mirror this edge in RTL.
+Use this same
+treatment in messages and visual-composer previews; do not give URL and entity
+pills separate fills. See **Messages/Entity links** in Storybook.
+
+Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
+cards, social embeds, linked messages, composer previews, and hover cards.
+The primitives are semantic CSS utilities. Apply them to the existing native
+link, button, media element, or container; do not add a component that changes
+its interaction or content lifecycle.
+
+| Utility             | Contract                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `preview-frame`     | Outer frame: the context-menu border (`border-text/10`), raised surface, 8px corners, 4px rim, and small shadow. No width or outer margin. |
+| `preview-content`   | Recessed content canvas with 6px corners. No padding or dimensions. Use inside a frame for media or a card body.                           |
+| `preview-thumbnail` | Compact media or fallback tile inside a row or gallery. Includes the shared border and inset surface. Owners set dimensions and image fit. |
+| `preview-surface`   | Hover-card layout: `preview-frame`, 288px width, small text, and floating shadow. Position and motion belong to `FloatingPopover`.         |
+
+Use a 4px rim around media and card bodies. Compact file and composer rows can
+use 8–12px padding for their controls. Put captions or destination rows on the
+outer frame. Do not add the old outline around a preview. Depth settings must
+control the same lighting and inset effects as context menus.
+
+Preserve image aspect ratios, stable loading dimensions, overflow limits,
+keyboard focus, accessible names, and action hit areas. Image thumbnails use
+`object-cover`; full images use their existing fit rule. Do not load a player
+or contact a third party merely to demonstrate the frame. These utilities do
+not change preview fetch, consent, or content-warning behavior.
+
+Link hover cards use one native link around their image, text, and destination
+footer. Use the same navigation rules as their trigger. Keep the card open
+while it has keyboard focus; Escape closes it and returns focus to the trigger.
+Do not use `role="tooltip"` for this interactive surface or nest links inside it.
+
+`preview-code` composes the frame and scrollable inset for posted code and the
+visual composer. Keep its geometry in `app.css`, rather than separate editor
+and message recipes. Language and copy controls sit inside the rim. ANSI art
+keeps its fixed terminal colors on the inset canvas. Composer link attachments
+use a `preview-content` row inside `preview-frame`, like posted preview cards.
+
+Full-size attachment viewers, live call tiles, avatars, and server icons keep
+their dedicated primitives. Plain Markdown images use the preview frame through
+`prose.css`; images already inside preview frames are excluded from that rule.
+
+Use **UI/Preview frames** in Storybook to check the family, aspect ratios,
+composer rows, loading/failure states, depth settings, and narrow RTL layouts.
+Use the Storybook theme control to check light and dark themes. The existing
+attachment-action and link-hover stories cover controls and floating behavior.
+`embed-frame` is retired and rejected by the design-system check.
+
 All message attachment actions pair `attachment-action-button` with `btn-secondary`
 or `btn-danger-secondary` for deletion. The attachment utility sets the square
 28 px geometry. One shared renderer arranges these controls in media overlays,
@@ -601,10 +704,30 @@ floating-menu elevation independent of this setting. Accent swatches become
 solid in Flat, retain their gradient in 3D, and add sheen in Very 3D. New depth recipes must
 use these shared parameters instead of fixed decorative shadow opacity.
 
-`hover-lift` moves a surface up 2 px over 150 ms on hover. Put
-`hover-lift-group` on an enclosing label to trigger the same movement from
-the label. Server cards and Appearance swatches share this utility. It only
-moves on devices with hover support and respects reduced motion.
+### Hover Lift
+
+**Hover Lift** is the shared motion cue for an interactive card or visual choice.
+The `hover-lift` utility moves the surface up 2 px over 150 ms on pointer hover
+and returns it when the pointer leaves. Server cards, Appearance swatches, and
+Settings Overview cards use the same utility. See **Foundations / Hover Lift**
+in Storybook and [the glossary](../../docs/GLOSSARY.md#ui).
+
+Apply `hover-lift` to the surface that moves. For a labelled choice, put
+`hover-lift-group` on the enclosing label and `hover-lift` on its visual preview.
+This lets the whole label trigger the preview without moving the label text.
+For cards with hover-driven illustration animations, keep the link fixed:
+put `hover-lift-group` on the link and `hover-lift` on an inner surface. This
+keeps the pointer inside the trigger at the card edges while the surface moves.
+Keep the keyboard focus outline on the control; focus alone does not lift it.
+Do not apply the utility to static or disabled cards, dense list rows, or both
+a card and its children. It adds movement, not a shadow, fill, or selection state.
+Do not override its transform transition with `transition-colors`.
+
+Hover Lift runs only on devices with hover support and when the effective app
+motion policy is `full`. It stays still with reduced motion. Illustration
+animations inside a card remain separate from the movement of the card itself.
+
+### Other hover feedback
 
 `shimmer-hover` overlays one broad, soft highlight that crosses the surface in
 450 ms. It runs once per hover and respects reduced motion. Nested gutter
@@ -874,6 +997,16 @@ Reduced motion skips surface animations. Floating placement uses the full
 layout size so the entrance zoom cannot move a menu beyond the viewport.
 Touch context menus keep their bottom-sheet presentation.
 
+Link hover cards use `preview-surface`: a 288px-wide `preview-frame` with a
+`preview-content` inset and a destination row on the outer frame.
+Use 12px content padding,
+36px identity images, and preview images up to 120px high. Keep titles to two
+lines and descriptions to three.
+`FloatingPopover` supports `animate` for these cards. With a parent conditional
+block, it uses the shared 180ms compact motion duration to zoom-fade on entry and exit,
+keeps the surface in the top layer until exit finishes, and skips motion when
+the effective app motion preference requests reduced motion.
+
 - Labelled buttons use `rounded-xl` at every size, matching chat input surfaces.
   Filled icon-only buttons keep `rounded-md` corners.
 - `rounded` and `rounded-md` are the default for other compact controls, fields,
@@ -1096,6 +1229,13 @@ external media. Keep those exceptions local and document why the semantic
 system does not apply.
 
 ### Reviewed Exceptions
+
+Settings Overview artwork uses scoped keyframes in `SettingsCardArtwork` and
+`SettingsDestinationArtwork`. SVG pivot points, stroke drawing, and coordinated
+scene motion belong to these illustrations rather than shared UI utilities.
+Scenes animate only while their card has pointer hover. They stay still on load
+and keyboard focus, and return to their still state when the pointer leaves.
+Reduced-motion preferences disable the animations.
 
 The design-system audit (#1647) confirmed these exceptions. Do not convert them
 to the standard primitives unless their purpose changes.

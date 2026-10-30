@@ -10,19 +10,109 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('App and User Preferences', () => {
-  test('opens unified Appearance settings from the Application Header', async ({ page }) => {
+  test('opens the settings Overview from the Application Header', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.chat);
     await page.getByRole('link', { name: 'App Preferences' }).click();
-    await page.waitForURL(routes.settingsAppearance);
+    await page.waitForURL(routes.settingsOverview);
     await expect(page.getByTestId('server-sidebar')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-    await expect(page.getByText('App preferences', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Language' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Composer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'App preferences', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'App preferences', exact: true })
+        .getByRole('link', { name: 'Language' })
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'App preferences', exact: true })
+        .getByRole('link', { name: 'Composer' })
+    ).toBeVisible();
+  });
+
+  test('keeps the Overview hover target fixed while its artwork animates', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsOverview);
+    const card = page
+      .getByRole('navigation', { name: 'App preferences', exact: true })
+      .getByRole('link', { name: 'Voice & video', exact: true });
+    await expect(card).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document
+              .getAnimations()
+              .filter(
+                (animation) =>
+                  animation.playState === 'running' &&
+                  animation.effect?.getTiming().iterations !== Infinity
+              ).length
+        )
+      )
+      .toBe(0);
+    const bounds = await card.boundingBox();
+    expect(bounds).not.toBeNull();
+    const { x, y, width, height } = bounds!;
+    await page.mouse.move(x + width / 2, y + height / 2);
+    await expect
+      .poll(() =>
+        card.evaluate(
+          (el) =>
+            el.querySelector('.hover-lift')?.getBoundingClientRect().y ??
+            el.getBoundingClientRect().y
+        )
+      )
+      .toBe(y - 2);
+    // The surface moves, but the link must retain its original pointer area.
+    expect((await card.boundingBox())?.y).toBe(y);
+    const animationTime = () =>
+      card.evaluate((el) => {
+        const animation = el
+          .getAnimations({ subtree: true })
+          .find((item) => item instanceof CSSAnimation);
+        return typeof animation?.currentTime === 'number' ? animation.currentTime : 0;
+      });
+    await expect.poll(animationTime).toBeGreaterThan(200);
+    const before = await animationTime();
+    const animationStart = () =>
+      card.evaluate(
+        (el) =>
+          el.getAnimations({ subtree: true }).find((item) => item instanceof CSSAnimation)
+            ?.startTime
+      );
+    const startedAt = await animationStart();
+    await page.mouse.move(x + width / 2, y + height - 1);
+    expect(await animationStart()).toBe(startedAt);
+    await expect.poll(animationTime).toBeGreaterThan(before);
+    await expect(card).toBeVisible();
+  });
+
+  test('tilts the Appearance and Language artwork without lifting its individual pieces', async ({
+    page
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsOverview);
+    const group = page.getByRole('navigation', { name: 'App preferences', exact: true });
+    for (const name of ['Appearance', 'Language']) {
+      const card = group.getByRole('link', { name, exact: true });
+      await card.hover();
+      await expect
+        .poll(() =>
+          card.evaluate((el) => {
+            const artwork = el.querySelector('[aria-hidden="true"]')!;
+            return [...artwork.querySelectorAll('*')]
+              .map((piece) => getComputedStyle(piece).translate)
+              .filter((translate) => translate !== 'none');
+          })
+        )
+        .toEqual([]);
+    }
   });
 
   test('can choose a local display theme', async ({ page }) => {
@@ -130,8 +220,11 @@ test.describe('App and User Preferences', () => {
       await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
       await page.getByRole('link', { name: 'App Preferences' }).click();
-      await page.waitForURL(/\/chat\/[^/]+\/settings\/appearance$/);
-      await page.getByRole('link', { name: 'Composer' }).click();
+      await page.waitForURL(/\/chat\/[^/]+\/settings\/overview$/);
+      await page
+        .getByRole('navigation', { name: 'App preferences', exact: true })
+        .getByRole('link', { name: 'Composer' })
+        .click();
       await page.waitForURL(/\/chat\/[^/]+\/settings\/composer$/);
       await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
         'aria-checked',

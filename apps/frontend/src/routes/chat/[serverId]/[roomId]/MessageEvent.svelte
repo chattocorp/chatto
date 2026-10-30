@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { provideLinkPreview } from '$lib/components/messages/linkPreviewContext';
   import { conversationPath } from '$lib/navigation/conversationPath';
   import { untrack } from 'svelte';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -243,6 +244,7 @@
 
   // The posted message: body, attachments, reactions, threading, and reply attribution.
   const msg = $derived(target.messageEvent);
+  provideLinkPreview((href) => (msg?.linkPreview?.url === href ? msg.linkPreview : undefined));
 
   const timestamp = $derived(
     event ? formatMessageTime(event.createdAt, userSettings, activeLocale) : ''

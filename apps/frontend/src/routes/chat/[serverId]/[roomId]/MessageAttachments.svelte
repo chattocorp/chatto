@@ -500,7 +500,7 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={imageButtonStyle(display, variant)}
-        class="relative embed-frame block min-w-0 cursor-pointer overflow-hidden"
+        class="relative my-1.5 block min-w-0 cursor-pointer preview-frame overflow-hidden"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -516,7 +516,10 @@
             loading="lazy"
             src={imageUrl}
             alt={attachment.description || attachment.filename}
-            class={['h-full w-full', display.fit === 'contain' ? 'object-contain' : 'object-cover']}
+            class={[
+              'h-full w-full preview-content',
+              display.fit === 'contain' ? 'object-contain' : 'object-cover'
+            ]}
             onload={() => settledImageUrls.set(attachment.id, imageUrl)}
             onerror={() => {
               settledImageUrls.set(attachment.id, imageUrl);
@@ -565,7 +568,7 @@
           title={attachment.description || undefined}
         >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <LoadingFog class="embed-frame min-h-32 min-w-48" />
+            <LoadingFog class="my-1.5 min-h-32 min-w-48 preview-frame" />
           {:then { default: VideoPlayer }}
             <VideoPlayer
               status={attachment.videoProcessing.status}
@@ -592,7 +595,7 @@
             />
           {:catch}
             <LoadRetry
-              class="embed-frame min-h-32 min-w-48"
+              class="my-1.5 min-h-32 min-w-48 preview-frame"
               onretry={() => (videoPlayerLoadAttempt += 1)}
             />
           {/await}
@@ -608,7 +611,7 @@
           original so the user can at least play it.
         -->
         <div
-          class="group/attachment attachment-video-frame embed-frame"
+          class="group/attachment attachment-video-frame my-1.5 preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
@@ -617,7 +620,7 @@
             controls
             preload="metadata"
             src={attachment.url}
-            class="max-h-64 max-w-full object-contain"
+            class="max-h-64 max-w-full preview-content object-contain"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
@@ -627,7 +630,7 @@
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div
-          class="group/attachment embed-frame attachment-card w-[30rem] min-w-0 flex-wrap"
+          class="group/attachment my-1.5 attachment-card w-[30rem] min-w-0 flex-wrap preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
@@ -646,7 +649,7 @@
           {@render attachmentControls(attachment, true, 'row')}
         </div>
       {:else}
-        <div class="group/attachment embed-frame attachment-card min-w-[min(14rem,100%)]">
+        <div class="group/attachment my-1.5 attachment-card min-w-[min(14rem,100%)] preview-frame">
           <button
             type="button"
             onclick={() => openAttachmentModal(attachment)}

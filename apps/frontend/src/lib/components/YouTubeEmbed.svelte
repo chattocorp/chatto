@@ -32,14 +32,14 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
 <!-- Context menu only. The same actions stay available from the message action menu. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="group/preview relative embed-frame w-full max-w-md"
+  class="group/preview relative my-1.5 w-full max-w-md preview-frame"
   data-testid="youtube-embed"
   oncontextmenu={onContextMenu}
 >
   <iframe
     src="https://www.youtube-nocookie.com/embed/{videoId}"
     title={m('preview.youtube_title')}
-    class="aspect-video w-full"
+    class="aspect-video w-full preview-content"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
   ></iframe>

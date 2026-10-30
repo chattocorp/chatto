@@ -19,7 +19,7 @@ export class ServerAdminPage {
 
   /** Unified Settings sidebar link container. */
   get serverSettingsLinks(): Locator {
-    return this.page.locator('nav').first();
+    return this.page.getByTestId('server-sidebar');
   }
 
   /** Back-compat default admin nav item. */
@@ -155,7 +155,7 @@ export class ServerAdminPage {
   async goto(_spaceId: string): Promise<void> {
     await this.page.goto(routes.chat);
     await this.settingsLink.click();
-    await this.page.waitForURL(routes.settingsAppearance);
+    await this.page.waitForURL(routes.settingsOverview);
     await this.generalNavItem.click();
     await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();

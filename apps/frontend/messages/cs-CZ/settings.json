@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Spravujte heslo, e-mailové adresy a způsoby přihlášení.",
+        "profile": "Aktualizujte jméno, avatar a údaje profilu.",
+        "time": "Zvolte, jak tento server zobrazuje data a časy",
+        "notifications": "Nakonfigurujte způsob přijímání oznámení",
+        "language": "Vyberte jazyk a regionální znění pro tento prohlížeč.",
+        "bots": "Vytvářejte účty API a řiďte, co přesně mohou dělat",
+        "general": "Identita serveru, branding a zprávy",
+        "neighbors": "Propagujte spřátelené servery Chatto ve svém veřejném adresáři",
+        "members": "Zobrazení a správa členů serveru a jejich rolí",
+        "invitations": "Vytvářejte a spravujte odkazy, přes které se mohou registrovat nové účty.",
+        "rooms": "Vytvářejte, upravujte, organizujte a archivujte místnosti",
+        "moderation": "Zkontrolovat aktivní pozastavení přístupu do místností",
+        "permissions": "Spravujte výchozí hodnoty rolí na celém serveru",
+        "security": "Omezení registrace a ochrana účtu",
+        "appearance": "Přizpůsobte aplikaci pomocí barev, motivů a možností zobrazení.",
+        "composer": "Vyberte editor zpráv a způsob jejich odesílání.",
+        "voice": "Nastavte mikrofon, reproduktory a předvolby hovorů.",
+        "system": "Zkontrolujte stav serveru, úložiště a úlohy na pozadí.",
+        "event_log": "Procházejte události serveru a zkoumejte změny."
+      },
+      "title": "Přehled",
+      "shield_notice": "Chcete-li na tomto serveru používat další oprávnění, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména."
+    },
     "nav": {
       "title": "Nastavení",
       "back_to_server": "Zpět na Server",

@@ -15,7 +15,9 @@ const styleBlockAllowlist = new Set([
   'src/lib/ui/AppHeader.svelte',
   'src/lib/ui/ModalSurface.svelte',
   'src/lib/ui/Dialog.svelte',
-  'src/lib/ui/toast/ToastContainer.svelte'
+  'src/lib/ui/toast/ToastContainer.svelte',
+  'src/routes/chat/[serverId]/settings/overview/SettingsCardArtwork.svelte',
+  'src/routes/chat/[serverId]/settings/overview/SettingsDestinationArtwork.svelte'
 ]);
 
 // These components own specialized native-dialog behavior. Standard task
@@ -29,6 +31,10 @@ const nativeDialogAllowlist = new Set([
 ]);
 
 const checks = [
+  {
+    description: 'retired embed frame; use preview-frame, preview-content, and preview-thumbnail',
+    pattern: /\bembed-frame\b/g
+  },
   {
     description: 'bare transition utilities; name the transitioned properties',
     pattern: /(?:^|\s)transition(?:-all)?(?:\s|$)/g
@@ -151,6 +157,31 @@ async function sourceFiles(directory) {
 
 const failures = [];
 const appCss = await readFile(appCssPath, 'utf8');
+
+// These variants must compose the Inset Frame, not grow independent surface recipes.
+const insetConsumers = {
+  menu: 'inset-frame',
+  'preview-frame': 'inset-frame',
+  'menu-section': 'inset-content',
+  'menu-section-sm': 'inset-content',
+  'preview-content': 'inset-content'
+};
+for (const [consumer, primitive] of Object.entries(insetConsumers)) {
+  const body = appCss.match(new RegExp(`@utility ${consumer} \\{([\\s\\S]*?)\\n\\}`))?.[1] ?? '';
+  const applied = [...body.matchAll(/@apply\s+([^;]+);/g)].flatMap((match) =>
+    match[1].trim().split(/\s+/)
+  );
+  if (!applied.includes(primitive)) {
+    failures.push(`src/app.css: ${consumer} must compose ${primitive}`);
+  }
+  if (
+    applied.some((token) =>
+      /^(?:rounded(?:-|$)|border(?:-|$)|bg-|floating-(?:frame|inset)$)/.test(token)
+    )
+  ) {
+    failures.push(`src/app.css: ${consumer} must inherit its surface recipe from ${primitive}`);
+  }
+}
 const unusedStyleAllowlistEntries = new Set(styleBlockAllowlist);
 
 // Tailwind silently ignores color utilities whose token does not exist, so a
