@@ -178,7 +178,7 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
 }
 
 function renderLayout() {
-  const view = render(Layout, {
+  return render(Layout, {
     props: {
       children: testSnippet('<div></div>'),
       data: {
@@ -190,7 +190,6 @@ function renderLayout() {
       }
     }
   });
-  return view;
 }
 
 function directRoom(): RoomsListItem {
@@ -382,6 +381,8 @@ describe('room route layout access handling', () => {
 
   it('renders the inline join screen instead of the message resolver for nonmember message links', async () => {
     mocks.page.url = new URL('https://chat.example.test/chat/-/room-1/m/Eabc123DEF456gh');
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/m/[messageId]';
+    mocks.page.params.messageId = 'Eabc123DEF456gh';
     mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
 
     const { container } = renderLayout();
