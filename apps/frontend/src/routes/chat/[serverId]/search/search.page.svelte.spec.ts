@@ -79,11 +79,15 @@ function serverStore(
   } = {}
 ) {
   const messageSearch = $state({
-    status: { state: MessageSearchState.READY, retryAfterMs: null },
-    statusLoading: false,
-    statusLoaded: true,
-    statusError: false,
-    available: true,
+    availability: {
+      status: { state: MessageSearchState.READY, retryAfterMs: null },
+      statusLoading: false,
+      statusLoaded: true,
+      statusError: false,
+      available: true,
+      ensureStatus: mocks.ensureStatus,
+      refreshStatus: vi.fn()
+    },
     query,
     order,
     results: options.results ?? [],
@@ -92,8 +96,6 @@ function serverStore(
     loadingMore: false,
     error: false,
     hasSearched: options.hasSearched ?? false,
-    ensureStatus: mocks.ensureStatus,
-    refreshStatus: vi.fn(),
     search: mocks.search,
     clearResults: mocks.clearResults,
     prepareQueryChange: mocks.prepareQueryChange,
@@ -135,7 +137,7 @@ describe('message search page', () => {
     [MessageSearchState.INDEXING, 'Search is getting ready', 'Check again']
   ] as const)('shows search availability for state %s', async (state, title, action) => {
     const store = serverStore();
-    store.messageSearch.status.state = state;
+    store.messageSearch.availability.status.state = state;
     mocks.serverStores.origin = store;
     const rendered = render(SearchPageTestHarness);
 
@@ -143,31 +145,31 @@ describe('message search page', () => {
     await expect.element(rendered.getByRole('textbox')).not.toBeInTheDocument();
     if (action) {
       await userEvent.click(rendered.getByRole('button', { name: action }));
-      expect(store.messageSearch.refreshStatus).toHaveBeenCalledOnce();
+      expect(store.messageSearch.availability.refreshStatus).toHaveBeenCalledOnce();
     } else {
-      expect(store.messageSearch.refreshStatus).not.toHaveBeenCalled();
+      expect(store.messageSearch.availability.refreshStatus).not.toHaveBeenCalled();
     }
   });
 
   it('shows search checking before errors and returns to the form after recovery', async () => {
     const store = serverStore();
-    store.messageSearch.statusLoading = true;
-    store.messageSearch.statusLoaded = false;
-    store.messageSearch.statusError = true;
+    store.messageSearch.availability.statusLoading = true;
+    store.messageSearch.availability.statusLoaded = false;
+    store.messageSearch.availability.statusError = true;
     mocks.serverStores.origin = store;
     const rendered = render(SearchPageTestHarness);
 
     await expect
       .element(rendered.getByRole('status', { name: 'Checking search availability...' }))
       .toBeInTheDocument();
-    store.messageSearch.statusLoading = false;
+    store.messageSearch.availability.statusLoading = false;
     await tick();
     await expect
       .element(rendered.getByText('Search is unavailable', { exact: true }))
       .toBeVisible();
-    store.messageSearch.statusError = false;
-    store.messageSearch.statusLoaded = true;
-    store.messageSearch.status.state = MessageSearchState.DEGRADED;
+    store.messageSearch.availability.statusError = false;
+    store.messageSearch.availability.statusLoaded = true;
+    store.messageSearch.availability.status.state = MessageSearchState.DEGRADED;
     await tick();
     await expect.element(rendered.getByRole('textbox')).toBeVisible();
     await expect
@@ -176,7 +178,7 @@ describe('message search page', () => {
 
     // A background status read must not unmount an already available search form.
     const input = rendered.container.querySelector('input');
-    store.messageSearch.statusLoading = true;
+    store.messageSearch.availability.statusLoading = true;
     await tick();
     expect(rendered.container.querySelector('input')).toBe(input);
   });
@@ -199,7 +201,7 @@ describe('message search page', () => {
         (button) => button.textContent?.trim() === 'Search'
       )
     ).toBe(false);
-    expect(mocks.ensureStatus).toHaveBeenCalledOnce();
+    expect(mocks.ensureStatus).not.toHaveBeenCalled();
     expect(mocks.search).toHaveBeenCalledWith(
       {
         query: 'motherfucking search',

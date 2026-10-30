@@ -257,9 +257,9 @@
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   const messageSearchAvailable = $derived(
-    serverUi(stores).messageSearch.statusError ||
-      (serverUi(stores).messageSearch.statusLoaded &&
-        serverUi(stores).messageSearch.status.state !== MessageSearchState.DISABLED)
+    serverUi(stores).messageSearch.availability.statusError ||
+      (serverUi(stores).messageSearch.availability.statusLoaded &&
+        serverUi(stores).messageSearch.availability.status.state !== MessageSearchState.DISABLED)
   );
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);

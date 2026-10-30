@@ -46,13 +46,13 @@ describe('MessageSearchStore', () => {
     const store = new MessageSearchStore(client, () => canLoad);
     const input = { query: 'hello', roomId: 'room-1', order: MessageSearchOrder.NEWEST };
 
-    await store.ensureStatus();
+    await store.availability.ensureStatus();
     await store.search(input);
     expect(client.getStatus).not.toHaveBeenCalled();
     expect(client.searchMessages).not.toHaveBeenCalled();
 
     canLoad = true;
-    await store.ensureStatus();
+    await store.availability.ensureStatus();
     await store.search(input);
     expect(client.getStatus).toHaveBeenCalledOnce();
     expect(client.searchMessages).toHaveBeenCalledOnce();
@@ -93,10 +93,10 @@ describe('MessageSearchStore', () => {
     const client = api();
     const store = new MessageSearchStore(client);
 
-    await Promise.all([store.ensureStatus(), store.ensureStatus()]);
+    await Promise.all([store.availability.ensureStatus(), store.availability.ensureStatus()]);
 
     expect(client.getStatus).toHaveBeenCalledOnce();
-    expect(store.available).toBe(true);
+    expect(store.availability.available).toBe(true);
   });
 
   it('searches and automatically appends deduplicated cursor pages', async () => {
@@ -188,28 +188,28 @@ describe('MessageSearchStore', () => {
       })
     );
 
-    const staleRequest = store.ensureStatus();
-    store.reset();
-    const currentRequest = store.ensureStatus();
+    const staleRequest = store.availability.ensureStatus();
+    store.availability.reset();
+    const currentRequest = store.availability.ensureStatus();
     resolveStaleStatus({ state: MessageSearchState.READY, retryAfterMs: null });
     await staleRequest;
 
-    expect(store.status).toEqual({
+    expect(store.availability.status).toEqual({
       state: MessageSearchState.UNSPECIFIED,
       retryAfterMs: null
     });
-    expect(store.statusLoaded).toBe(false);
-    expect(store.statusLoading).toBe(true);
+    expect(store.availability.statusLoaded).toBe(false);
+    expect(store.availability.statusLoading).toBe(true);
 
     resolveCurrentStatus({ state: MessageSearchState.DEGRADED, retryAfterMs: 1000 });
     await currentRequest;
 
-    expect(store.status).toEqual({
+    expect(store.availability.status).toEqual({
       state: MessageSearchState.DEGRADED,
       retryAfterMs: 1000
     });
-    expect(store.statusLoaded).toBe(true);
-    expect(store.statusLoading).toBe(false);
+    expect(store.availability.statusLoaded).toBe(true);
+    expect(store.availability.statusLoading).toBe(false);
   });
 
   it('retains empty-search state for browser Back restoration', async () => {

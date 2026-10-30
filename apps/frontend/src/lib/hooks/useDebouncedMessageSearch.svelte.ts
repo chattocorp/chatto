@@ -43,7 +43,10 @@ export function useDebouncedMessageSearch({
     if (getStore() !== store || activeStore !== store) return;
     pendingKey = null;
     if (!searchTerm || inputKey(getInput(searchTerm)) !== key) return;
-    if (!store.available || (!force && key === submittedKey && store.hasSearched && !store.error)) {
+    if (
+      !store.availability.available ||
+      (!force && key === submittedKey && store.hasSearched && !store.error)
+    ) {
       return;
     }
     submittedKey = key;
@@ -80,7 +83,7 @@ export function useDebouncedMessageSearch({
     debounce.cancel();
     pendingKey = null;
     const query = searchTerm;
-    if (!query || !store.available) return;
+    if (!query || !store.availability.available) return;
     const input = getInput(query);
     runSearch(store, input, inputKey(input), true);
   }

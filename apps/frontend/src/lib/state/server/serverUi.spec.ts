@@ -9,6 +9,7 @@ import { NotificationStore } from '@chatto/client/server/notifications';
 import { ServerProjectionStore } from '@chatto/client/server/projection';
 import { RoomListView } from '@chatto/client/server/rooms';
 import { serverUi } from './serverUi';
+import { MessageSearchState } from './messageSearch';
 import { ComposerContext } from '$lib/state/room/composerContext.svelte';
 
 type Listener<T extends unknown[] = []> = (...args: T) => unknown;
@@ -78,6 +79,46 @@ describe('serverUi', () => {
     expect(second).not.toBe(first);
     expect(second.query).toBe('');
     expect(ui.messageSearch.query).toBe('');
+    expect(first.availability).toBe(ui.messageSearch.availability);
+    expect(second.availability).toBe(first.availability);
+  });
+
+  it('shares status requests and retry across rooms without clearing status on eviction', async () => {
+    const { store, emit } = fakeStore();
+    const getStatus = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({
+      state: MessageSearchState.READY,
+      retryAfterMs: null
+    });
+    vi.spyOn(store.connection, 'getAPI').mockReturnValue({ getStatus });
+    const ui = serverUi(store);
+    const first = ui.roomSearch('R1');
+    const second = ui.roomSearch('R2');
+    await Promise.all([
+      ui.messageSearch.availability.ensureStatus(),
+      first.availability.ensureStatus(),
+      second.availability.ensureStatus()
+    ]);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    expect(first.availability.statusError).toBe(true);
+
+    await Promise.all([first.availability.refreshStatus(), second.availability.refreshStatus()]);
+    expect(getStatus).toHaveBeenCalledTimes(2);
+    expect(ui.messageSearch.availability.available).toBe(true);
+    expect(second.availability.statusError).toBe(false);
+
+    for (let i = 3; i <= 12; i++) ui.roomSearch(`R${i}`);
+    await Promise.resolve(); // Evicted query stores clear after rendering.
+    await ui.roomSearch('R1').availability.ensureStatus();
+    emit.reset({ privacy: false, retainView: false });
+    expect(first.availability.available).toBe(true);
+    expect(getStatus).toHaveBeenCalledTimes(2);
+
+    emit.sessionEnded();
+    expect(first.availability.statusLoaded).toBe(false);
+    await second.availability.ensureStatus();
+    expect(getStatus).toHaveBeenCalledTimes(3);
+    emit.dispose();
+    expect(second.availability.statusLoaded).toBe(false);
   });
 
   it('selects separate reply drafts from the pane destination across remounts', () => {

@@ -99,14 +99,15 @@
   const serverCanConnect = $derived(activeStore.serverInfo.canConnect);
   const messageSearchAvailable = $derived(
     serverCanConnect &&
-      (serverUi(activeStore).messageSearch.statusError ||
-        (serverUi(activeStore).messageSearch.statusLoaded &&
-          serverUi(activeStore).messageSearch.status.state !== MessageSearchState.DISABLED))
+      (serverUi(activeStore).messageSearch.availability.statusError ||
+        (serverUi(activeStore).messageSearch.availability.statusLoaded &&
+          serverUi(activeStore).messageSearch.availability.status.state !==
+            MessageSearchState.DISABLED))
   );
 
   $effect(() => {
     if (serverCanConnect && activeStore.isAuthenticated)
-      void serverUi(activeStore).messageSearch.ensureStatus();
+      void serverUi(activeStore).messageSearch.availability.ensureStatus();
   });
 
   // Detect if we're on the My Threads page

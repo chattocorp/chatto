@@ -437,11 +437,13 @@ beforeEach(() => {
         }
       },
       messageSearch: {
-        statusLoading: false,
-        statusError: false,
-        statusLoaded: true,
-        status: { state: MessageSearchState.READY },
-        ensureStatus: vi.fn()
+        availability: {
+          statusLoading: false,
+          statusError: false,
+          statusLoaded: true,
+          status: { state: MessageSearchState.READY },
+          ensureStatus: vi.fn()
+        }
       },
       pendingHighlights: highlights,
       notifications: {

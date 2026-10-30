@@ -61,17 +61,13 @@
   const debounce = useDebounce();
   let searchInput = $state({ raw: '', submitted: '' });
   const rawQuery = $derived(searchInput.raw);
-  const searchStatus = $derived(serverUi(serverStore).messageSearch);
+  const searchStatus = $derived(serverUi(serverStore).messageSearch.availability);
   const searchEnabled = $derived(
     searchStatus.statusError ||
       (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED)
   );
   const searchQuery = $derived(searchEnabled ? searchInput.submitted : '');
   const waitingForSearch = $derived(searchEnabled && rawQuery.trim() !== searchQuery);
-
-  $effect(() => {
-    void searchStatus.ensureStatus();
-  });
 
   function scheduleSearch(raw: string): void {
     searchInput = { raw, submitted: searchQuery };
