@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.26](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.25...v0.5.0-beta.26) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** replace invite links with managed registration codes ([#3085](https://github.com/chattocorp/chatto/issues/3085))
+
+### Features
+
+* **authling:** add administration and modernize the browser UI ([#3320](https://github.com/chattocorp/chatto/issues/3320)) ([c2c4ad3](https://github.com/chattocorp/chatto/commit/c2c4ad3acb41bbc33d404740958484a8828638ff))
+* **auth:** replace invite links with managed registration codes ([#3085](https://github.com/chattocorp/chatto/issues/3085)) ([e538090](https://github.com/chattocorp/chatto/commit/e538090a5e1903696aa0daa0d21b42a60546c74e))
+* **bots:** allow direct message initiation with posting permission ([#3321](https://github.com/chattocorp/chatto/issues/3321)) ([9302ec7](https://github.com/chattocorp/chatto/commit/9302ec7bf12708af688e903e3f41e711d6e350a7))
+* **compatibility:** report features missing from older frontends ([#3324](https://github.com/chattocorp/chatto/issues/3324)) ([236f4c9](https://github.com/chattocorp/chatto/commit/236f4c949c8ae06ff0718f6aa05dbdb41d4af14d))
+
+
+### Bug Fixes
+
+* **desktop:** name the application Chatto ([#3309](https://github.com/chattocorp/chatto/issues/3309)) ([233c784](https://github.com/chattocorp/chatto/commit/233c7842ab7558b30814a78ce893dd0f9b219e6b))
+* **desktop:** show restart action only when an update is ready ([#3315](https://github.com/chattocorp/chatto/issues/3315)) ([f3f93d8](https://github.com/chattocorp/chatto/commit/f3f93d8a99f1b9066b25a8d0989bcd130cee6aa9))
+* **frontend:** preserve attachments across composer editor changes ([#3316](https://github.com/chattocorp/chatto/issues/3316)) ([97b9996](https://github.com/chattocorp/chatto/commit/97b99961ee76482f960c81e19f4f462447c80f70))
+* **frontend:** reapply saved display theme at startup ([#3322](https://github.com/chattocorp/chatto/issues/3322)) ([b325461](https://github.com/chattocorp/chatto/commit/b325461588fa11196b780e5f43db3b6a6ac59e49))
+* **frontend:** simplify mobile notifications and centre reaction badges ([#3319](https://github.com/chattocorp/chatto/issues/3319)) ([008c9c5](https://github.com/chattocorp/chatto/commit/008c9c5cb74ff8858899d5247e7ec80a3c1a3c0d))
+* **frontend:** simplify room loading and composer updates ([#3314](https://github.com/chattocorp/chatto/issues/3314)) ([518cad7](https://github.com/chattocorp/chatto/commit/518cad7bd9427612b9e2e5bcfd225cd0c9e711db))
+* **frontend:** simplify room member loading ([#3323](https://github.com/chattocorp/chatto/issues/3323)) ([e9b92a5](https://github.com/chattocorp/chatto/commit/e9b92a56b2647102383f0662999955ff716e597a))
+* **release:** request all environment approvals upfront ([#3308](https://github.com/chattocorp/chatto/issues/3308)) ([eea4867](https://github.com/chattocorp/chatto/commit/eea4867c74f73eda49438c384587e99a64a1c28a))
+
+
+### Performance Improvements
+
+* **import:** batch history writes and live search indexing ([#3306](https://github.com/chattocorp/chatto/issues/3306)) ([e3c42af](https://github.com/chattocorp/chatto/commit/e3c42af06032156fd50cd2088d59f7119a48bfa7))
+
 ## [0.5.0-beta.25](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.24...v0.5.0-beta.25) (2026-10-29)
 
 
