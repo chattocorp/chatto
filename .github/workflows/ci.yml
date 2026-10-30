@@ -326,7 +326,7 @@ jobs:
             artifact-path: apps/desktop/dist/chatto-desktop
           - platform: macos
             os: macos-15
-            artifact-path: apps/desktop/dist/Chatto Desktop.app
+            artifact-path: apps/desktop/dist/Chatto.app
           - platform: windows
             os: windows-latest
             artifact-path: apps/desktop/dist/windows
@@ -381,13 +381,13 @@ jobs:
 
       - name: Verify macOS bundle signature
         if: runner.os == 'macOS'
-        run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+        run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto.app"
 
       - name: Verify macOS game-capture helper
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
+          helper="apps/desktop/dist/Chatto.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
           "$helper" help | grep -F 'publish --window'
           otool -l "$helper" | grep -F '@executable_path/../Frameworks'

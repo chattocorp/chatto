@@ -7,7 +7,7 @@ export const windowsAppId = 'run.chatto.desktop';
 export function windowsInstallerConfig(version, sign) {
   return {
     appId: windowsAppId,
-    productName: 'Chatto Desktop',
+    productName: 'Chatto',
     executableName: 'chatto-desktop',
     buildVersion: releaseBuildVersion(version),
     directories: { output: 'dist/installer', buildResources: 'icons' },
@@ -28,7 +28,7 @@ export function windowsInstallerConfig(version, sign) {
       packElevateHelper: false,
       createDesktopShortcut: false,
       createStartMenuShortcut: true,
-      shortcutName: 'Chatto Desktop',
+      shortcutName: 'Chatto',
       deleteAppDataOnUninstall: false,
       differentialPackage: false,
       runAfterFinish: true

@@ -15,7 +15,7 @@ await build({
   publish: 'never',
   config: {
     appId: 'run.chatto.desktop',
-    productName: 'Chatto Desktop',
+    productName: 'Chatto',
     executableName: 'chatto-desktop',
     electronVersion: packageJson.devDependencies.electron,
     directories: { output: 'dist/appimage' },

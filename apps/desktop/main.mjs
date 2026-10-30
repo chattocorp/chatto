@@ -43,10 +43,8 @@ import { passwordLogin } from './password_login.mjs';
 import { configureUpdateMenu } from './update_menu.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
-if (buildProfile.variant === 'development') {
-  app.setName(buildProfile.productName);
-  app.setPath('userData', path.join(app.getPath('appData'), buildProfile.productName));
-}
+app.setName(buildProfile.productName);
+app.setPath('userData', path.join(app.getPath('appData'), buildProfile.userDataName));
 const streamDiagnostics = new StreamDiagnostics();
 let screenShareMode = defaultScreenShareMode;
 
@@ -449,7 +447,7 @@ async function runMacOSCaptureProbeList() {
 
 function createMainWindow() {
   const window = new BrowserWindow({
-    title: 'Chatto Desktop',
+    title: 'Chatto',
     width: 1280,
     height: 820,
     minWidth: 800,

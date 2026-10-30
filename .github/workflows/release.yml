@@ -541,13 +541,13 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
+          helper="apps/desktop/dist/Chatto.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
-          codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+          codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto.app"
           # Validation contacts Apple even after the ticket is stapled. Retry
           # CloudKit failures, but keep other validation failures fatal.
           for attempt in 1 2 3; do
-            if xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"; then
+            if xcrun stapler validate "apps/desktop/dist/Chatto.app"; then
               break
             else
               status=$?
@@ -557,10 +557,10 @@ jobs:
             fi
             sleep "$((attempt * 10))"
           done
-          spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto Desktop.app"
+          spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto.app"
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \
-            "apps/desktop/dist/Chatto Desktop.app" \
+            "apps/desktop/dist/Chatto.app" \
             ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
 
       - name: Build and test signed macOS DMG
