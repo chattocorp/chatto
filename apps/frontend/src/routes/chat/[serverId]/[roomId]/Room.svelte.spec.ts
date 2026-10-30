@@ -1744,6 +1744,20 @@ describe('Room local message echo', () => {
     });
   });
 
+  it('releases Files when its panel closes and retains it again when reopened', async () => {
+    const release = vi.fn();
+    mocks.roomFilesRetain.mockReturnValue(release);
+    appUi.openDesktopRoomSidebarPanel('files');
+    const rendered = render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.roomFilesRetain).toHaveBeenCalledOnce());
+    appUi.closeDesktopRoomSidebarPanel();
+    await vi.waitFor(() => expect(release).toHaveBeenCalledOnce());
+    appUi.openDesktopRoomSidebarPanel('files');
+    await vi.waitFor(() => expect(mocks.roomFilesRetain).toHaveBeenCalledTimes(2));
+    rendered.unmount();
+    expect(release).toHaveBeenCalledTimes(2);
+  });
+
   it('closes the thread when pressing inside the app sidebar or server gutter', async () => {
     render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
     await tick();

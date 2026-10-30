@@ -5,7 +5,7 @@
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
   import { beforeNavigate, goto, pushState, replaceState } from '$app/navigation';
@@ -47,6 +47,7 @@
     visibleRoomSidebarPanel
   } from './roomSidebarBehavior';
   import { RoomNavigationState } from './roomNavigationState.svelte';
+  import { RoomResources } from './roomResources';
   import { buildRoomPresentation } from './roomPresentation';
   import type { ThreadOpenOptions } from './threadOpenOptions';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
@@ -135,7 +136,6 @@
       ? stores.rooms.notice(roomId)
       : null
   );
-  const retainNotice: Attachment = () => roomNoticeStore?.retain();
   const noticeMentions: MarkdownMentionOptions = $derived({
     members: roomMembersStore.members,
     roles: stores.mentionRoles.roles,
@@ -359,26 +359,27 @@
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
 
-  // A DM's projection has every member, so its store has a first page at once.
-  // A reset discards a load in progress or a failed load; the load then starts again.
-  const loadRoomMembers: Attachment = () => {
-    const store = roomMembersStore;
-    if (!store.hasFirstPage && !store.isInitialLoading && !store.loadError) {
-      untrack(() => store.ensureLoaded());
-    }
-  };
-
-  const syncRoomFiles: Attachment = () => {
-    const store = roomFilesStore;
-    const active = roomFilesPanelActive;
-    if (active) return untrack(() => store.retain());
-  };
-
-  const syncRoomPins: Attachment = () => {
-    const store = roomPinsStore;
-    if (!store) return;
-    return untrack(() => store.retain());
-  };
+  const resources = new RoomResources();
+  onDestroy(() => resources.dispose());
+  // These leases belong to the selected room and panel, not to a DOM element.
+  // Reconcile them together so a panel change cannot release unrelated caches.
+  $effect(() => {
+    const visible = room.roomData !== null;
+    const selection = {
+      files: visible && roomFilesPanelActive ? roomFilesStore : null,
+      pins: visible ? roomPinsStore : null,
+      notice: visible && stores.viewerId ? roomNoticeStore : null
+    };
+    // A DM already has projected members. A reset clears these flags and
+    // permits a fresh read; an ordinary failure still requires explicit retry.
+    const members = roomMembersStore;
+    const membersToLoad =
+      visible && !members.hasFirstPage && !members.isInitialLoading && !members.loadError
+        ? members
+        : null;
+    // Client cache reads made while acquiring a lease are not selection inputs.
+    untrack(() => resources.update(selection, membersToLoad));
+  });
 
   $effect(() => {
     if (roomPinsPanelActive) roomPinsStore?.markSeen();
@@ -598,13 +599,7 @@
 {/key}
 
 {#if room.roomData !== null}
-  <div
-    class="flex min-h-0 min-w-0 flex-1"
-    {@attach loadRoomMembers}
-    {@attach syncRoomFiles}
-    {@attach syncRoomPins}
-    {@attach syncRoomCallWide}
-  >
+  <div class="flex min-h-0 min-w-0 flex-1" {@attach syncRoomCallWide}>
     <div
       class={[
         '@container relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
@@ -724,7 +719,7 @@
             {/snippet}
           </PaneHeader>
           {#if roomNoticeStore && stores.viewerId}
-            <div class="flex min-h-0 flex-col" {@attach retainNotice}>
+            <div class="flex min-h-0 flex-col">
               <RoomNoticeBanner
                 store={roomNoticeStore}
                 serverId={activeServerId}

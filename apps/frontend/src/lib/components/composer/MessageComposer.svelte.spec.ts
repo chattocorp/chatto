@@ -1304,6 +1304,23 @@ describe('MessageComposer', () => {
       await expect.element(editor).toHaveTextContent('**kept** draft');
     });
 
+    it('keeps attachment preparation active while switching editor implementations', async () => {
+      const pending = deferred<File[]>();
+      prepareFilesMock.mockReturnValueOnce(pending.promise);
+      const { container } = renderMessageComposer({ roomId: 'preparation-editor-switch' });
+      await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await vi.waitFor(() => expect(prepareFilesMock).toHaveBeenCalledOnce());
+
+      userPreferences.composerEditor = 'visual';
+      await vi.waitFor(() => expect(q(container, '[data-composer-editor="visual"]')).toBeTruthy());
+      await findEditor(container);
+      pending.resolve([file]);
+
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      expect(prepareFilesMock).toHaveBeenCalledOnce();
+    });
+
     it('preserves editable footnotes when switching modes and sending the message', async () => {
       const { container } = renderMessageComposer({ roomId: 'footnote-switch' });
       let editor = await findEditor(container);
