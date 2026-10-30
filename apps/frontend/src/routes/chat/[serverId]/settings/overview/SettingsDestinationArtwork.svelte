@@ -339,7 +339,7 @@
 
 <style>
   /* SVG-specific pivots and stroke keyframes need scoped CSS, not shared UI utilities.
-     Each scene settles within five seconds, then replays on hover or keyboard focus.
+     Only pointer hover starts motion; leaving the card restores the still scene.
      Independent translate/rotate/scale properties preserve SVG placement transforms. */
   .pulse,
   .write,
@@ -352,14 +352,12 @@
   .letter,
   .draw,
   .scan {
-    animation: pulse 4s ease-in-out 1;
+    animation: pulse 4s ease-in-out infinite;
     animation-delay: var(--delay, 0s);
   }
-  :global(a:hover)
-    :is(.pulse, .write, .clock, .ring, .toggle, .signal, .greet, .blink, .letter, .draw, .scan),
-  :global(a:focus-visible)
+  :global(a:not(:hover))
     :is(.pulse, .write, .clock, .ring, .toggle, .signal, .greet, .blink, .letter, .draw, .scan) {
-    animation-iteration-count: infinite;
+    animation-name: none;
   }
   .write {
     animation-name: write;

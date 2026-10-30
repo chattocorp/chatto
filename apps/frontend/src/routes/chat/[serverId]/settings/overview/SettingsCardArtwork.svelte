@@ -121,12 +121,12 @@
 
 <style>
   /* Illustration-specific keyframes need scoped CSS rather than shared UI utilities.
-     Brief welcome motion; hovering or keyboard focus keeps the scene playing. */
+     Only pointer hover starts motion; leaving the card restores the still scene. */
   .palette > div:last-child,
   .languages > span,
   .send,
   .wave {
-    animation: lift 4s ease-in-out 1;
+    animation: lift 4s ease-in-out infinite;
   }
   .languages > span:nth-child(2) {
     animation-delay: -0.3s;
@@ -141,15 +141,11 @@
     animation-name: waveform;
     animation-delay: var(--delay);
   }
-  :global(a:hover) .palette > div:last-child,
-  :global(a:focus-visible) .palette > div:last-child,
-  :global(a:hover) .languages > span,
-  :global(a:focus-visible) .languages > span,
-  :global(a:hover) .send,
-  :global(a:focus-visible) .send,
-  :global(a:hover) .wave,
-  :global(a:focus-visible) .wave {
-    animation-iteration-count: infinite;
+  :global(a:not(:hover)) .palette > div:last-child,
+  :global(a:not(:hover)) .languages > span,
+  :global(a:not(:hover)) .send,
+  :global(a:not(:hover)) .wave {
+    animation-name: none;
   }
   @keyframes lift {
     0%,
