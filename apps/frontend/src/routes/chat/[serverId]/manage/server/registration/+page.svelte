@@ -45,7 +45,10 @@
         <fieldset
           disabled={codesInactive}
           aria-label={m('admin.invitations.list_title')}
-          class={['min-w-0', codesInactive && 'opacity-50']}
+          class={[
+            'min-w-0 transition-opacity duration-150 motion-reduce:transition-none',
+            codesInactive && 'opacity-50'
+          ]}
         >
           <InvitationCodes {scrollContainer} />
         </fieldset>

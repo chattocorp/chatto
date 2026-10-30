@@ -131,6 +131,8 @@ describe('Registration admin page', () => {
     );
     const page = render(RegistrationPage);
     await expect.element(page.getByText('ABCD-EFGH-IJKL-MNOP-QRST')).toBeVisible();
+    const table = page.getByRole('table').element();
+    const row = page.getByText('ABCD-EFGH-IJKL-MNOP-QRST').element().closest('tr');
     const copy = page.getByRole('button', { name: 'Copy to clipboard', exact: true });
     const revoke = page.getByRole('button', { name: 'Revoke', exact: true });
     await expect.element(copy).toBeDisabled();
@@ -141,6 +143,18 @@ describe('Registration admin page', () => {
     finish();
     await expect.element(copy).toBeEnabled();
     await expect.element(revoke).toBeEnabled();
+    expect(page.getByRole('table').element()).toBe(table);
+    expect(page.getByText('ABCD-EFGH-IJKL-MNOP-QRST').element().closest('tr')).toBe(row);
+
+    settings.updateServerConfig.mockReturnValue({
+      config: { registration: { admission: AccountCreationPolicy.OPEN } }
+    });
+    await userEvent.click(page.getByRole('radio', { name: /^Open Registration/ }));
+    await expect.element(copy).toBeDisabled();
+    await expect.element(revoke).toBeDisabled();
+    expect(page.getByRole('table').element()).toBe(table);
+    expect(page.getByText('ABCD-EFGH-IJKL-MNOP-QRST').element().closest('tr')).toBe(row);
+    expect(invitations.listInvitationCodes).toHaveBeenCalledOnce();
   });
 
   it('explains when neither mode has an enabled signup method', async () => {
