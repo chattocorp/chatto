@@ -553,6 +553,8 @@ recipes. Panels and sheets also use these finishes but keep their own geometry.
 | Thumbnails       | `preview-thumbnail` uses the inset content and a thin border, without an outer rim.                                                        |
 
 Dialog trays also compose `inset-frame`, with an 8px rim, and `inset-content`.
+Settings Overview cards use `inset-frame` for the card and `inset-content`
+for the illustration. The title and description sit on the outer surface.
 Full-screen media dialogs apply the frame only at desktop sizes; task sheets
 keep their viewport-edge geometry.
 
