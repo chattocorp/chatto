@@ -91,7 +91,7 @@ describe('getAdminNavItems', () => {
   it('shows Registration for invitation managers', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
-      permissions: permissions({ canViewAdmin: true })
+      permissions: permissions({ canViewAdmin: true, canInviteUsers: true })
     });
     const visible = getAdminNavItems({
       serverSegment: 'local',

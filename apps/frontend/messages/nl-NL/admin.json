@@ -564,6 +564,7 @@
       "total": "{count} gebruiker(s) totaal"
     },
     "invitations": {
+      "created_by": "Gemaakt door",
       "note_label": "Notitie (optioneel)",
       "note_placeholder": "Voor Alex van het ontwerpteam",
       "note_description": "Alleen uitnodigingsbeheerders kunnen deze notitie zien.",

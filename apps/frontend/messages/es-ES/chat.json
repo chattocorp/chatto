@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Invitar personas",
+      "create": "Crear código",
+      "description": "Comparte el código y la dirección del servidor. Permite crear una cuenta y caduca a los siete días.",
+      "once": "Copia este código antes de cerrar. No podrás volver a verlo."
+    },
     "privileged_mode": {
       "enable": "Activar modo privilegiado",
       "disable": "Desactivar modo privilegiado",

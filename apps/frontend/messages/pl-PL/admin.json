@@ -586,6 +586,7 @@
       "total": "Łączna liczba użytkowników {count}"
     },
     "invitations": {
+      "created_by": "Utworzony przez",
       "note_label": "Notatka (opcjonalna)",
       "note_placeholder": "Dla Aleksa z zespołu projektowego",
       "note_description": "Tylko osoby zarządzające zaproszeniami mogą zobaczyć tę notatkę.",

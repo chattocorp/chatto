@@ -564,6 +564,7 @@
       "total": "{count} kasutaja(t) kokku"
     },
     "invitations": {
+      "created_by": "Looja",
       "note_label": "Märkus (valikuline)",
       "note_placeholder": "Alexile disainimeeskonnast",
       "note_description": "Seda märkust näevad ainult kutsete haldajad.",

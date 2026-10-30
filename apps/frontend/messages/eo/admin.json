@@ -564,6 +564,7 @@
       "total": "{count} uzanto(j) entute"
     },
     "invitations": {
+      "created_by": "Kreita de",
       "note_label": "Noto (nedeviga)",
       "note_placeholder": "Por Alex el la dezajna teamo",
       "note_description": "Nur administrantoj de invitoj povas vidi ĉi tiun noton.",

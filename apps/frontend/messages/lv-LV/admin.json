@@ -575,6 +575,7 @@
       "total": "Kopā {count} lietotājs(-i)."
     },
     "invitations": {
+      "created_by": "Izveidoja",
       "note_label": "Piezīme (neobligāta)",
       "note_placeholder": "Aleksam no dizaina komandas",
       "note_description": "Šo piezīmi var redzēt tikai ielūgumu pārvaldnieki.",

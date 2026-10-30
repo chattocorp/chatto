@@ -564,6 +564,7 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
+      "created_by": "Creado por",
       "note_label": "Nota (opcional)",
       "note_placeholder": "Para Alex del equipo de diseño",
       "note_description": "Solo los administradores de invitaciones pueden ver esta nota.",

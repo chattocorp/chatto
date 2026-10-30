@@ -586,6 +586,7 @@
       "total": "Celkem {count} uživatelů"
     },
     "invitations": {
+      "created_by": "Vytvořil",
       "note_label": "Poznámka (volitelná)",
       "note_placeholder": "Pro Alexe z designového týmu",
       "note_description": "Tuto poznámku vidí pouze správci pozvánek.",

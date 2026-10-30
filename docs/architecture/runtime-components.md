@@ -358,6 +358,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   compact purpose-separated token derivation, and projection readiness;
   redemption commits atomically with the admitted account against a whole-EVT
   OCC guard.
+  Member issuance checks `user.invite`; administrative reads and mutations
+  check `user.manage-invites`. Startup runs
+  [`splitInvitationPermissions`](../../cli/internal/core/invitation_permissions_upgrade.go)
+  after RBAC seeding to preserve old invitation decisions once.
 - **`OAuthClientModel`**
   ([`oauth_clients.go`](../../cli/internal/core/oauth_clients.go),
   [`oauth_client_projection.go`](../../cli/internal/core/oauth_client_projection.go)):

@@ -85,6 +85,14 @@ per account. Reusable links and their pending admission grants are retired.
 See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
 This change does not raise the client connection threshold.
 
+Invitation administration now requires `user.manage-invites`; `user.invite`
+only permits creation through `InvitationCodeService`, without privileged mode.
+Existing server-scope invitation allows and denies are copied to the management
+permission once at startup. Later grants of `user.invite` do not grant management.
+Update integrations that configure permission grants to use the appropriate
+permission. Complete the server upgrade before granting member issuance:
+older replicas still treat `user.invite` as administrative access.
+
 For room membership activity, an absent `Room.show_membership_events` means
 enabled. Do not offer to edit this setting when the field is absent. Supporting
 clients use it only for join/leave rows; older clients can continue to show them.

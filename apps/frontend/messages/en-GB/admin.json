@@ -564,6 +564,7 @@
       "total": "{count} user(s) total"
     },
     "invitations": {
+      "created_by": "Created by",
       "note_label": "Note (optional)",
       "note_placeholder": "For Alex from the design team",
       "note_description": "Only invitation managers can see this note.",

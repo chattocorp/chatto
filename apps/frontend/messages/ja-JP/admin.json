@@ -553,6 +553,7 @@
       "total": "{count} ユーザーの合計"
     },
     "invitations": {
+      "created_by": "作成者",
       "note_label": "メモ（任意）",
       "note_placeholder": "デザインチームのAlex用",
       "note_description": "このメモは招待の管理者のみが閲覧できます。",

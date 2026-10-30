@@ -553,6 +553,7 @@
       "total": "共 {count} 名用户"
     },
     "invitations": {
+      "created_by": "创建者",
       "note_label": "备注（可选）",
       "note_placeholder": "给设计团队的 Alex",
       "note_description": "只有邀请管理员可以查看此备注。",

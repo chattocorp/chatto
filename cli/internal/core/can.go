@@ -134,7 +134,7 @@ func (a *AuthorizationModel) CanDeleteUser(ctx context.Context, actorID, targetU
 // Used by HasAnyAdminPermission to determine "should the Admin link appear".
 var adminPermissions = []Permission{
 	PermServerManage,
-	PermUserInvite,
+	PermUserManageInvites,
 	PermRoleManage,
 	PermRoleAssign,
 	PermRoomManage,

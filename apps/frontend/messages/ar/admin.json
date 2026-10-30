@@ -608,6 +608,7 @@
       "total": "{count} إجمالي المستخدمين"
     },
     "invitations": {
+      "created_by": "أنشأه",
       "note_label": "ملاحظة (اختيارية)",
       "note_placeholder": "لأليكس من فريق التصميم",
       "note_description": "يمكن لمديري الدعوات فقط رؤية هذه الملاحظة.",

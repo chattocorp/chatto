@@ -170,8 +170,11 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
-	// PermUserInvite allows listing, creating, copying, and revoking invitation codes.
+	// PermUserInvite allows issuing a single-use code without administrative access.
 	PermUserInvite Permission = "user.invite"
+
+	// PermUserManageInvites allows listing, creating, copying, and revoking all codes.
+	PermUserManageInvites Permission = "user.manage-invites"
 
 	// PermUserManageAccounts allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
@@ -253,7 +256,8 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserManageInvites, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
@@ -448,6 +452,7 @@ func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
 		PermUserInvite,
+		PermUserManageInvites,
 		PermRoomCreate,
 		PermRoomJoin,
 		PermRoomList,

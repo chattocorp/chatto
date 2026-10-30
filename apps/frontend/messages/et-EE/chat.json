@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Kutsu inimesi",
+      "create": "Loo kood",
+      "description": "Jagage koodi ja serveri aadressi. See lubab ühe konto ja aegub seitsme päeva pärast.",
+      "once": "Kopeerige kood enne sulgemist. Seda ei saa uuesti vaadata."
+    },
     "privileged_mode": {
       "enable": "Lülita privilegeeritud režiim sisse",
       "disable": "Lülita privilegeeritud režiim välja",

@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Invite people",
+      "create": "Create code",
+      "description": "Share the code and server address. It admits one account and expires after seven days.",
+      "once": "Copy this code before closing. You cannot view it again."
+    },
     "privileged_mode": {
       "enable": "Enable privileged mode",
       "disable": "Disable privileged mode",
