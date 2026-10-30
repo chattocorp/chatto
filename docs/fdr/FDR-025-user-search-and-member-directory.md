@@ -96,6 +96,9 @@ pagination counts IDs even when an account disappears before its row is loaded.
 **Decision:** Room membership reads return IDs. The client shares cached user
 profiles across rooms and resolves missing profiles in batches. The room store
 continues background loading so local mention matching has names available.
+On initial server entry, this scan does not block snapshot completion or the
+first message read. Recovery of an existing view still waits for membership
+reads at the snapshot cursor before it declares the view current.
 Reads caused by a room join wait for that join before they load profiles.
 **Why:** A room switch must not repeat profile reads for users the client already
 knows. Each membership page must not decrypt every profile in the room.

@@ -584,11 +584,14 @@ export class ServerStateStore {
           )
       );
       this.requireCurrentRealtimeProjection(generation);
-      // Retained channel membership can have been read before this snapshot.
-      // Recheck it at the snapshot cursor before declaring the view current.
-      await Promise.all(
-        this.accessibleMemberStores().map((store) => store.refresh({ minimumCursor: cursor }))
+      // Recheck retained membership before declaring an existing view current.
+      // On cold entry, navigation can already have created member stores. Their
+      // full scans must not delay the room's first message read. refresh owns
+      // read errors and reset/disposal discards results from an obsolete scan.
+      const memberRefreshes = this.accessibleMemberStores().map((store) =>
+        store.refresh({ minimumCursor: cursor })
       );
+      if (this.realtimeSync.hasDisplayableView) await Promise.all(memberRefreshes);
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
       this.loadPendingRoomMembers();
