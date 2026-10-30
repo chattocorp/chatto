@@ -591,6 +591,7 @@ export class ServerStateStore {
       );
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
+      this.loadPendingRoomMembers();
     }
     await this.waitForRealtimeReconciliation(transportGeneration);
     this.requireCurrentRealtimeProjection(generation);
@@ -764,6 +765,13 @@ export class ServerStateStore {
     if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
     if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
     members.ensureLoaded();
+  }
+
+  /** Navigation can create a member store while recovery awaits its earlier reads. */
+  private loadPendingRoomMembers(): void {
+    for (const roomId of this.#rooms.roomIds()) {
+      if (this.#rooms.loaded(roomId)?.members) this.loadRoomMembers(roomId);
+    }
   }
 
   /** Recovery owns its refresh; ordinary membership changes refresh the cached list. */
@@ -1031,7 +1039,10 @@ export class ServerStateStore {
         if (current()) this.#reconciliationError ??= error;
       })
       .finally(() => {
-        if (current()) this.checkingPermissions = false;
+        if (current()) {
+          this.checkingPermissions = false;
+          this.loadPendingRoomMembers();
+        }
         this.#projectionReconciliations.delete(refresh);
       });
     this.#projectionReconciliations.add(refresh);

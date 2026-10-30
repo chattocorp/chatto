@@ -1572,6 +1572,46 @@ describe('ServerStateStore room search state', () => {
     }
   );
 
+  it.each(['snapshot', 'permission check'] as const)(
+    'loads members requested while a %s awaits an earlier member list',
+    async (phase) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const rooms = ['first', 'late'].map(
+        (id) => new RoomWithViewerState({ room: new Room({ id }), viewerState: { isMember: true } })
+      );
+      for (const room of rooms) store.projection.rooms.set(room.room!.id, room);
+      await store.rooms.members('first').loadInitial();
+      const gate = deferred<MemberDirectoryPage>();
+      apiMocks.listRoomMembers.mockClear();
+      apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
+      apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+        family === 'rooms' ? [roomResource(rooms)] : []
+      );
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate(
+          phase === 'snapshot'
+            ? { reset: true }
+            : {
+                event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+              }
+        )
+      );
+      const recovery =
+        phase === 'snapshot'
+          ? store.completeRealtimeCatchUp('snapshot-cursor')
+          : store.waitForRealtimeReconciliation();
+      await vi.waitFor(() => expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce());
+      store.loadRoomMembers('late');
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce();
+      gate.resolve({ members: [], totalCount: 0, hasMore: false });
+      await recovery;
+      await flushPromises();
+      expect(store.rooms.members('late').hasLoadedAll).toBe(true);
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+      store.dispose();
+    }
+  );
+
   it('refreshes cached universal membership at the event cursor', async () => {
     apiMocks.listRoomMembers.mockClear();
     const store = makeStore(new FakeServerConnection([]));
