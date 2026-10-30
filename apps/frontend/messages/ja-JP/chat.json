@@ -47,6 +47,7 @@
       "administration": "サーバー管理"
     },
     "user_menu": {
+      "edit_profile": "プロフィールを編集",
       "profile": "ユーザープロフィール",
       "send_message": "会話を開く",
       "view_profile": "プロフィールを見る",

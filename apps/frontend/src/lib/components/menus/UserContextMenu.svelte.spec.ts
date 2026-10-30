@@ -137,6 +137,38 @@ beforeEach(() => {
 });
 
 describe('UserContextMenu', () => {
+  it.each(['server-1', 'server-2'])(
+    'links own profile settings within %s and closes the menu',
+    (serverId) => {
+      serverScopeMock.serverId = serverId;
+      serverScopeMock.accountId = user.id;
+      serverScopeMock.permissions.loaded = false;
+      const onClose = vi.fn();
+      const { container } = renderMenu({ onClose });
+      const link = linkWithText(container, 'Edit profile')!;
+
+      expect(link).not.toBeNull();
+      expect(link.getAttribute('href')).toBe(`/chat/${serverId}.example.test/settings/profile`);
+      link.addEventListener('click', (event) => event.preventDefault());
+      link.click();
+      expect(onClose).toHaveBeenCalledOnce();
+    }
+  );
+
+  it('does not offer own-profile settings for another account', () => {
+    const { container } = renderMenu();
+    expect(linkWithText(container, 'Edit profile')).toBeNull();
+  });
+
+  it.each([{ isBot: true }, { deleted: true }])(
+    'does not offer own-profile settings for %o',
+    (identity) => {
+      serverScopeMock.accountId = user.id;
+      const { container } = renderMenu({ user: { ...user, ...identity } });
+      expect(linkWithText(container, 'Edit profile')).toBeNull();
+    }
+  );
+
   it('renders the user profile content', async () => {
     const { container } = renderMenu();
 

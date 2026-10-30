@@ -47,6 +47,7 @@
       "administration": "Sunucu yönetimi"
     },
     "user_menu": {
+      "edit_profile": "Profili düzenleyin",
       "profile": "Kullanıcı profili",
       "send_message": "Sohbeti açın",
       "view_profile": "Profili görüntüleyin",

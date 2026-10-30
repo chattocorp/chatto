@@ -47,6 +47,7 @@
       "administration": "Serveri haldus"
     },
     "user_menu": {
+      "edit_profile": "Muuda profiili",
       "profile": "Kasutajaprofiil",
       "send_message": "Avage vestlus",
       "view_profile": "Vaata profiili",

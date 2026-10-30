@@ -47,6 +47,7 @@
       "administration": "Amministrazione del server"
     },
     "user_menu": {
+      "edit_profile": "Modifica profilo",
       "profile": "Profilo utente",
       "send_message": "Apri conversazione",
       "view_profile": "Visualizza profilo",
