@@ -14,7 +14,7 @@ export type { UnreadMarkerWindow } from './useUnreadMarker.svelte';
 // Lifecycle hooks
 export { useTabResumeCallback } from './useTabResumeCallback.svelte';
 export { createTypingIndicator } from './useTypingIndicator.svelte';
-export type { TypingIndicator, TypingUser } from './useTypingIndicator.svelte';
+export type { TypingIndicator } from './useTypingIndicator.svelte';
 
 // UI hooks
 export { useVisualViewport } from './useVisualViewport.svelte';
