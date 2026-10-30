@@ -1178,6 +1178,73 @@ func TestThreadServiceListFollowedThreadsRootAuthorFilter(t *testing.T) {
 	require.Empty(t, list(viewer, 0, false).Threads)
 }
 
+func TestThreadServiceListFollowedThreadsOmitsFullyDeletedThreads(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []core.RoomKind{core.KindChannel, core.KindDM} {
+		t.Run(string(kind), func(t *testing.T) {
+			env := newConnectAPITestEnv(t)
+			ctx := withCaller(env.ctx, env.viewer)
+			room := env.createJoinedRoom("deleted-threads")
+			if kind == core.KindDM {
+				participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-participant", "Participant", "password")
+				require.NoError(t, err)
+				room, _, err = env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{participant.Id})
+				require.NoError(t, err)
+			}
+			post := func(root string) string {
+				t.Helper()
+				event, err := env.core.PostMessage(env.ctx, kind, room.Id, env.viewer.Id, "thread content", nil, root, "", nil, false)
+				require.NoError(t, err)
+				return event.Id
+			}
+			remove := func(id string) {
+				t.Helper()
+				require.NoError(t, env.core.DeleteMessage(env.ctx, env.viewer.Id, kind, room.Id, id))
+			}
+			liveRoot := post("")
+			remove(post(liveRoot))
+			deletedRoot := post("")
+			lastReply := post(deletedRoot)
+			remove(deletedRoot)
+			emptyRoot := post("")
+			require.NoError(t, env.core.FollowThread(env.ctx, kind, env.viewer.Id, room.Id, emptyRoot))
+			remove(emptyRoot)
+			checkPages := func(want []string) {
+				t.Helper()
+				for _, order := range []apiv1.ThreadOrder{
+					apiv1.ThreadOrder_THREAD_ORDER_UNSPECIFIED,
+					apiv1.ThreadOrder_THREAD_ORDER_ACTIVITY,
+					apiv1.ThreadOrder_THREAD_ORDER_CREATED,
+				} {
+					for offset := 0; offset <= len(want); offset++ {
+						response, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+							IncludeDirectMessageThreads: true, Order: order,
+							Page: &apiv1.PageRequest{Limit: 1, Offset: int32(offset)},
+						}))
+						require.NoError(t, err)
+						require.EqualValues(t, len(want), response.Msg.Page.TotalCount)
+						require.Equal(t, offset+1 < len(want), response.Msg.Page.HasMore)
+						if offset == len(want) {
+							require.Empty(t, response.Msg.Threads)
+						} else {
+							require.Len(t, response.Msg.Threads, 1)
+							require.Equal(t, want[offset], response.Msg.Threads[0].Thread.ThreadRootEventId)
+						}
+					}
+				}
+			}
+			checkPages([]string{deletedRoot, liveRoot})
+			remove(lastReply)
+			checkPages([]string{liveRoot})
+			remove(liveRoot)
+			checkPages(nil)
+			following, err := env.core.IsFollowingThread(env.ctx, kind, env.viewer.Id, room.Id, deletedRoot)
+			require.NoError(t, err)
+			require.True(t, following, "filtering must preserve durable follow state")
+		})
+	}
+}
+
 func TestThreadServiceListFollowedThreadsOrder(t *testing.T) {
 	t.Parallel()
 	env := newConnectAPITestEnv(t)

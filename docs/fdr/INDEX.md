@@ -53,7 +53,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-08-28    |
 | [FDR-042](FDR-042-chatto-neighbors.md)                      | Chatto Neighbors                      | Experimental | 2026-10-27    |
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
-| [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-15    |
+| [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-30    |
 | [FDR-045](FDR-045-realtime-event-stream.md)                 | Realtime Event Stream                 | Experimental | 2026-09-25    |
 | [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-09-24    |
 | [FDR-047](FDR-047-first-run-setup.md)                       | First-Run Setup                       | Active       | 2026-10-10    |
