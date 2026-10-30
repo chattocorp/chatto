@@ -1,5 +1,7 @@
 <!-- @component Decorative miniature of a settings destination. The card supplies its accessible name. -->
 <script lang="ts">
+  import SettingsDestinationArtwork from './SettingsDestinationArtwork.svelte';
+
   let { href, icon }: { href: string; icon: string } = $props();
   const kind = $derived(href.split('/').at(-1));
 </script>
@@ -104,20 +106,7 @@
         {/each}
       </div>
     {:else}
-      <div
-        class="relative flex size-32 items-center justify-center rounded-full border border-action/10"
-      >
-        <div
-          class="absolute size-24 rotate-12 rounded-3xl border border-action/15 bg-action/10 transition-transform duration-200 group-hover:rotate-6 motion-reduce:transition-none"
-        ></div>
-        <div
-          class="relative flex size-24 -rotate-6 items-center justify-center rounded-3xl border border-border bg-background shadow-lg transition-transform duration-200 group-hover:rotate-0 motion-reduce:transition-none"
-        >
-          <span aria-hidden="true" class={['text-5xl', icon]}></span>
-        </div>
-        <span class="absolute -end-2 top-2 size-3 rounded-full bg-action/30"></span>
-        <span class="absolute -start-3 bottom-1 size-2 rounded-full bg-action/20"></span>
-      </div>
+      <SettingsDestinationArtwork {kind} />
     {/if}
   </div>
 </div>
