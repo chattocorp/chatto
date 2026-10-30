@@ -17,14 +17,35 @@ test.describe('Direct-message threads', () => {
 
     await withServerUser(browser, serverURL, async ({ page: pageB }) => {
       const room = await new DMPage(pageB).startConversation(userA.login);
+      let creations = 0;
+      pageB.on('request', (request) => {
+        if (request.url().endsWith('/RoomService/StartDM')) creations++;
+      });
       const rootText = `DM thread root ${Date.now()}`;
       const replyText = `DM thread reply ${Date.now()}`;
 
       const root = await room.sendMessage(rootText);
+      const rootId = await root.getEventId();
+      const draft = 'Keep this unsent root draft';
+      await room.messageInput.fill(draft);
+      const composer = await room.messageInput.elementHandle();
       await root.openThread();
       await room.expectThreadPaneVisible();
+      await expect(room.messageInput).toHaveText(draft);
+      expect(await composer!.evaluate((element) => element.isConnected)).toBe(true);
+      await pageB.goBack();
+      await expect(pageB).toHaveURL(new RegExp(`${routes.user(userA.id!)}$`));
+      await expect(room.messageInput).toHaveText(draft);
+      await pageB.goForward();
+      await room.expectThreadPaneVisible();
+      expect(await composer!.evaluate((element) => element.isConnected)).toBe(true);
       await room.postThreadReply(replyText);
       await room.expectTextInThreadPane(replyText);
+      expect(creations).toBe(0);
+      await pageB.goto(`${routes.user(userA.id!)}/m/${rootId}`);
+      await room.expectThreadPaneVisible();
+      await room.expectTextInThreadPane(rootText);
+      await expect(pageB).not.toHaveURL(/\/m\//);
       await room.expectThreadPaneFollowing();
 
       const myThreads = new MyThreadsPage(pageB);

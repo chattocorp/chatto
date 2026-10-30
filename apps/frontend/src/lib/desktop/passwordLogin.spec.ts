@@ -6,8 +6,10 @@ const mocks = vi.hoisted(() => ({
   registered: true,
   replace: vi.fn(),
   resume: vi.fn(),
+  invalidate: vi.fn(),
   login: vi.fn()
 }));
+vi.mock('$app/navigation', () => ({ invalidateAll: mocks.invalidate }));
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
@@ -69,6 +71,7 @@ describe('Desktop password sessions', () => {
       })
     );
     expect(mocks.resume).toHaveBeenCalledWith('remote');
+    expect(mocks.invalidate).toHaveBeenCalledOnce();
   });
 
   it.each(['closed', 'removed', 'replaced'])(

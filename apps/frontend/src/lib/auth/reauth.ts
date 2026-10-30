@@ -1,5 +1,5 @@
 import { OAuthPopupError } from '$lib/oauth/popupError';
-import { goto } from '$app/navigation';
+import { goto, invalidateAll } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
 import {
@@ -179,11 +179,10 @@ async function runServerOAuthFlow(
 
 /**
  * Open a server after sign-in completes. When the current route already shows
- * the server, stay on it: the server layout replaces the signed-out view with
- * the server chrome, and the route keeps its deep link, for example a room.
+ * the server, refresh its route data in place so the deep link uses the new session.
  */
 async function openSignedInServer(serverId: string): Promise<void> {
-  if (getActiveServer() === serverId) return;
+  if (getActiveServer() === serverId) return invalidateAll();
   await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
 }
 
