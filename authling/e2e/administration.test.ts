@@ -1,6 +1,6 @@
 // Exercise the admin directory through real signup, sessions, and isolated storage.
 import { test as base, expect } from '@playwright/test';
-import { startStack, stopStack, type TestStack } from './fixtures/stack';
+import { restartAuthling, startStack, stopStack, type TestStack } from './fixtures/stack';
 import { completeSignup } from './fixtures/signup';
 
 const test = base.extend<{ stack: TestStack }>({
@@ -18,6 +18,94 @@ const test = base.extend<{ stack: TestStack }>({
     await use(stack.baseURL);
   }
 });
+
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(`appearance with JavaScript ${javaScriptEnabled ? 'enabled' : 'disabled'}`, () => {
+    test.use({ javaScriptEnabled });
+
+    test('previews without publishing and saves across a restart', async ({
+      page,
+      request,
+      stack
+    }, testInfo) => {
+      await completeSignup(
+        page,
+        request,
+        stack,
+        'administrator@example.invalid',
+        'a deliberately uncommon password'
+      );
+      await page.getByRole('link', { name: 'Administration', exact: true }).click();
+      await page.getByRole('link', { name: 'Appearance', exact: true }).click();
+      await page.evaluate(() => Reflect.set(window, 'appearanceDocument', true));
+      await expect(page.getByLabel('Site name', { exact: true })).toHaveValue('Test Accounts');
+      await page.getByLabel('Site name', { exact: true }).fill('Our accounts');
+      await page.getByLabel('Short description').fill('One identity for our community.');
+      await page
+        .getByLabel('Sign-in introduction', { exact: true })
+        .fill('Welcome <script>alert(1)</script>');
+      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      if (javaScriptEnabled) {
+        expect(await page.evaluate(() => Reflect.get(window, 'appearanceDocument'))).toBe(true);
+      }
+      const preview = page.getByRole('complementary', { name: 'Sign-in preview' });
+      await expect(
+        preview.getByText('Welcome <script>alert(1)</script>', { exact: true })
+      ).toBeVisible();
+      await expect(
+        page.getByRole('banner').getByRole('link', { name: 'Test Accounts', exact: true })
+      ).toBeVisible();
+      expect(await (await request.get(`${stack.baseURL}/login`)).text()).not.toContain(
+        'Our accounts'
+      );
+      await expect(preview.locator('script')).toHaveCount(0);
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme });
+        await page.setViewportSize({ width: 375, height: 812 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true
+        );
+      }
+      await page.setViewportSize({ width: 1440, height: 1080 });
+      const staleEditor = await page.context().newPage();
+      await staleEditor.goto(`${stack.baseURL}/admin/appearance`);
+      await page
+        .getByLabel('Sign-in introduction', { exact: true })
+        .fill('Welcome back. Your community is waiting.');
+      await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+      await expect(page.getByText('Appearance saved.', { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('banner').getByRole('link', { name: 'Our accounts', exact: true })
+      ).toBeVisible();
+      if (javaScriptEnabled) {
+        expect(await page.evaluate(() => Reflect.get(window, 'appearanceDocument'))).toBe(true);
+      }
+      await staleEditor.getByLabel('Site name', { exact: true }).fill('Stale edit');
+      await staleEditor.getByRole('button', { name: 'Save changes', exact: true }).click();
+      await expect(
+        staleEditor.getByText(/Someone changed these settings while you were editing/)
+      ).toBeVisible();
+      await expect(staleEditor.getByLabel('Site name', { exact: true })).toHaveValue('Stale edit');
+      await staleEditor.close();
+      await restartAuthling(stack, testInfo);
+      await page.context().clearCookies();
+      await page.goto('/admin/appearance');
+      await expect(page).toHaveURL(/\/login\?return_to=/);
+      await expect(
+        page.getByText('Welcome back. Your community is waiting.', { exact: true })
+      ).toBeVisible();
+      await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+        'content',
+        'One identity for our community.'
+      );
+      await page.getByLabel('Email address').fill('administrator@example.invalid');
+      await page.getByLabel('Password', { exact: true }).fill('a deliberately uncommon password');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(page).toHaveURL(`${stack.baseURL}/admin/appearance`);
+      await expect(page.getByLabel('Site name', { exact: true })).toHaveValue('Our accounts');
+    });
+  });
+}
 
 test('limits the user directory to administrators and renders it on small screens', async ({
   page,

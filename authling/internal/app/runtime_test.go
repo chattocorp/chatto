@@ -742,7 +742,7 @@ func TestBrowserSessionManagementHTTP(t *testing.T) {
 		t.Fatalf("account status/body = %d %s", accountPage.Code, accountPage.Body.String())
 	}
 	body := accountPage.Body.String()
-	if strings.Count(body, ">Browser session</p>") != 2 || !strings.Contains(body, "This browser") || !strings.Contains(body, "do not store browser names, IP addresses, or locations") {
+	if strings.Count(body, `scope="row"`) != 2 || !strings.Contains(body, "This browser") || !strings.Contains(body, "Other browser") || !strings.Contains(body, "do not store browser names, IP addresses, or locations") {
 		t.Fatalf("account page does not show privacy-preserving session inventory: %s", body)
 	}
 	match := regexp.MustCompile(`name="session_id" value="([^"]+)"`).FindStringSubmatch(body)

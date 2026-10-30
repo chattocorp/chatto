@@ -1,0 +1,70 @@
+package web
+
+import (
+	"strconv"
+	"github.com/chattocorp/chatto/authling/internal/sitesettings"
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+)
+
+templ administrationWorkspace(signedInAs, active string) {
+	@pageLayout("Administration", signedInAs, true, true) {
+		@ui.Heading("Administration") {
+			<p>Manage your account service.</p>
+		}
+		<div class="account-sheet">
+			<nav class="account-tabs administration-tabs" aria-label="Administration sections">
+				@accountTab("/admin", "Users", "Users", active == "users")
+				@accountTab("/admin/appearance", "Appearance", "Appearance", active == "appearance")
+			</nav>
+			<div class="account-section">{ children... }</div>
+		</div>
+	}
+}
+
+templ appearancePage(signedInAs string, input sitesettings.Snapshot, message string, preview, saved bool) {
+	@administrationWorkspace(signedInAs, "appearance") {
+		<section class="panel">
+			@ui.SectionHeading("Appearance") {
+				<p>Make this service feel like yours. Changes apply to everyone when you save.</p>
+			}
+			if saved {
+				@ui.Notice(ui.Success) { Appearance saved. }
+			}
+			@ui.Error(message)
+			<div class="mt-6 grid items-start gap-8 lg:grid-cols-2">
+				<form class="form-stack mt-0" method="post" action="/admin/appearance" hx-boost="true" hx-push-url="true" hx-disabled-elt="find button[type='submit']">
+					<input type="hidden" name="revision" value={ strconv.FormatUint(input.Revision, 10) }/>
+					@ui.Field("site-name", "Site name", "Shown in the header, page titles, and emails.", templ.Attributes{"name": "name", "value": input.Site.Name, "required": true, "maxlength": "120"})
+					@ui.Field("site-description", "Short description", "Used in page metadata. Optional, up to 500 characters.", templ.Attributes{"name": "description", "value": input.Site.Description, "maxlength": "500"})
+					<div class="field">
+						<label class="field-label" for="site-introduction">Sign-in introduction</label>
+						<textarea id="site-introduction" class="form-control" name="introduction" rows="3" maxlength="500" aria-describedby="site-introduction-hint">{ input.Site.Introduction }</textarea>
+						<p id="site-introduction-hint" class="field-hint">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p>
+					</div>
+					<div class="flex flex-wrap gap-3">
+						<button class="button button-primary" type="submit" name="action" value="save">Save changes</button>
+						<button class="button button-secondary" type="submit" name="action" value="preview">Preview</button>
+					</div>
+					<a class="text-link" href="/admin/appearance" target="_blank" rel="noopener">View saved settings</a>
+				</form>
+				<aside aria-label="Sign-in preview" class="min-w-0">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+						<h2 class="font-semibold">Sign-in preview</h2>
+						@ui.Badge("Not interactive")
+					</div>
+					<p class="mb-4 text-muted" role="status">
+						if preview {
+							Preview updated. Your changes have not been saved.
+						} else {
+							Use Preview to see your text before saving.
+						}
+					</p>
+					<div class="mb-3 break-words font-semibold">{ input.Site.Name }</div>
+					<div class="focus-card w-full" inert>
+						@withSite(input.Site, loginCard("", "", "", true))
+					</div>
+				</aside>
+			</div>
+		</section>
+	}
+}

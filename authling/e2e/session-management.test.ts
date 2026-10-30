@@ -22,7 +22,9 @@ test('reviews and signs out other browser sessions', async ({ browser, page, req
   const firstOther = await signInElsewhere();
   await page.getByRole('link', { name: 'Sessions', exact: true }).click();
   let sessionSection = page.getByRole('heading', { name: 'Sessions' }).locator('..');
-  await expect(sessionSection.getByText('Browser session', { exact: true })).toHaveCount(2);
+  await expect(
+    sessionSection.getByRole('table', { name: 'Browser sessions' }).locator('tbody tr')
+  ).toHaveCount(2);
   await expect(sessionSection.getByText('This browser')).toHaveCount(1);
   await expect(
     sessionSection.getByText('We do not store browser names, IP addresses, or locations.')
@@ -38,10 +40,14 @@ test('reviews and signs out other browser sessions', async ({ browser, page, req
   const thirdOther = await signInElsewhere();
   await page.reload();
   sessionSection = page.getByRole('heading', { name: 'Sessions' }).locator('..');
-  await expect(sessionSection.getByText('Browser session', { exact: true })).toHaveCount(3);
+  await expect(
+    sessionSection.getByRole('table', { name: 'Browser sessions' }).locator('tbody tr')
+  ).toHaveCount(3);
   await sessionSection.getByRole('button', { name: 'Sign out all other browsers' }).click();
   await expect(page.getByRole('status')).toHaveText('Your other browser sessions were signed out.');
-  await expect(sessionSection.getByText('Browser session', { exact: true })).toHaveCount(1);
+  await expect(
+    sessionSection.getByRole('table', { name: 'Browser sessions' }).locator('tbody tr')
+  ).toHaveCount(1);
 
   for (const other of [secondOther, thirdOther]) {
     await other.otherPage.goto('/account');

@@ -146,6 +146,10 @@
     @apply relative flex min-h-14 min-w-0 items-center justify-center whitespace-nowrap py-3 font-medium text-muted hover:bg-subtle hover:text-ink focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-focus sm:px-4 sm:py-4;
   }
 
+  .administration-tabs {
+    @apply grid-cols-2;
+  }
+
   .account-tab[aria-current='page'] {
     @apply font-semibold text-ink;
     background: var(--ui-raised);

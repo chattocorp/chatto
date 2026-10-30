@@ -23,8 +23,8 @@ function isOrdinaryLink(link) {
     !url.hash &&
     !link.hasAttribute('download') &&
     (!link.target || link.target === '_self') &&
-    (!url.search || url.pathname === '/admin') &&
-    /^(\/|\/login|\/signup|\/password-reset|\/account(?:\/(?:profile|email|password|delete|security|apps|sessions))?|\/admin|\/dev\/ui)$/.test(
+    (!url.search || url.pathname === '/admin' || url.pathname === '/admin/appearance') &&
+    /^(\/|\/login|\/signup|\/password-reset|\/account(?:\/(?:profile|email|password|delete|security|apps|sessions))?|\/admin(?:\/appearance)?|\/dev\/ui)$/.test(
       url.pathname
     )
   );
@@ -36,7 +36,7 @@ function isOrdinaryForm(element) {
   return (
     element instanceof HTMLFormElement &&
     element.getAttribute('hx-boost') === 'true' &&
-    ['/login', '/account/profile'].includes(element.getAttribute('action'))
+    ['/login', '/account/profile', '/admin/appearance'].includes(element.getAttribute('action'))
   );
 }
 

@@ -51,6 +51,8 @@ type SiteConfig struct {
 	Name string `toml:"name" env:"AUTHLING_SITE_NAME"`
 	// Description is optional plain text for page metadata.
 	Description string `toml:"description" env:"AUTHLING_SITE_DESCRIPTION"`
+	// Introduction is optional plain text above the sign-in form.
+	Introduction string `toml:"introduction" env:"AUTHLING_SITE_INTRODUCTION"`
 }
 
 // Resolve trims display text and defaults the name to the configured public
@@ -58,6 +60,7 @@ type SiteConfig struct {
 func (c SiteConfig) Resolve(publicURL string) SiteConfig {
 	c.Name = strings.TrimSpace(c.Name)
 	c.Description = strings.TrimSpace(c.Description)
+	c.Introduction = strings.TrimSpace(c.Introduction)
 	if c.Name == "" {
 		if parsed, err := url.Parse(publicURL); err == nil {
 			c.Name = parsed.Hostname()
@@ -67,6 +70,22 @@ func (c SiteConfig) Resolve(publicURL string) SiteConfig {
 		}
 	}
 	return c
+}
+
+// Validate checks display text before it enters page metadata or email headers.
+func (c SiteConfig) Validate() error {
+	for _, field := range []struct {
+		name, value string
+		limit       int
+	}{
+		{"site.name", c.Name, 120}, {"site.description", c.Description, 500},
+		{"site.introduction", c.Introduction, 500},
+	} {
+		if !utf8.ValidString(field.value) || utf8.RuneCountInString(field.value) > field.limit || strings.ContainsFunc(field.value, unicode.IsControl) {
+			return fmt.Errorf("%s must be valid single-line text within its length limit", field.name)
+		}
+	}
+	return nil
 }
 
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
@@ -302,15 +321,8 @@ func (c Config) Validate() error {
 			break
 		}
 	}
-	for _, field := range []struct {
-		name, value string
-		limit       int
-	}{
-		{"site.name", c.Site.Name, 120}, {"site.description", c.Site.Description, 500},
-	} {
-		if !utf8.ValidString(field.value) || utf8.RuneCountInString(field.value) > field.limit || strings.ContainsFunc(field.value, unicode.IsControl) {
-			problems = append(problems, field.name+" must be valid single-line text within its length limit")
-		}
+	if err := c.Site.Validate(); err != nil {
+		problems = append(problems, err.Error())
 	}
 	if days := c.OIDC.SigningKeyRotationIntervalDays; days < 0 || days > 3650 {
 		problems = append(problems, "oidc.signing_key_rotation_interval_days must be between 1 and 3650 when set")

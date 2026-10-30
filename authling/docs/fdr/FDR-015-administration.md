@@ -5,7 +5,8 @@
 
 ## Overview
 
-Administrators can inspect registered accounts through a read-only directory.
+Administrators can inspect registered accounts through a read-only directory
+and edit public site text in Appearance.
 Authling uses one administrator flag per account and an operator-controlled
 email override. There are no roles, groups, or configurable permissions.
 
@@ -32,8 +33,11 @@ email override. There are no roles, groups, or configurable permissions.
 - Changing away from a configured email removes the override. A new account
   that verifies that address receives it. The override follows mailbox control,
   not a permanent account ID. It does not bypass authentication or deletion.
-- The directory does not let administrators change users, administrator flags,
-  or site settings. Administrator access has no effect on connected apps.
+- The Users and Appearance sections share navigation. Appearance provides
+  preview and save for site name, description, and sign-in introduction, as
+  specified in FDR-014. Only current administrators can preview or save.
+- The directory does not let administrators change users or administrator flags.
+  Administrator access has no effect on connected apps.
 
 ## Design decisions
 
@@ -53,10 +57,12 @@ email override. There are no roles, groups, or configurable permissions.
 
 - Before adding flag-editing actions, define recent-authentication checks,
   last-administrator protection, and an audit record of the acting administrator.
-- User suspension, account edits, and editable site settings remain future work.
+- User suspension and account edits remain future work.
 
 ## Related
 
+- [ADR-009: Live Presentation Settings](../adr/ADR-009-live-presentation-settings.md)
+- [FDR-014: Site Identity](FDR-014-site-identity.md)
 - [FDR-002: Verified Email Signup](FDR-002-verified-email-signup.md)
 - [FDR-007: Verified Email Change](FDR-007-verified-email-change.md)
 - [FDR-013: Account Deletion](FDR-013-account-deletion.md)
