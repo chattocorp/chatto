@@ -2,6 +2,14 @@ import { createPublicChattoClient } from './connect.js';
 import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
 import { AccountCreationPolicy } from '@chatto/api-types/api/v1/server_pb';
 import { mapServerProfile } from './serverProfile.js';
+import type { ServerFeature } from '@chatto/api-types/chatto/discovery/v1/server_pb';
+import { Code, ConnectError } from '@connectrpc/connect';
+
+/** Advisory product metadata. Unknown IDs remain useful to older clients. */
+export type PublicServerFeature = Pick<
+  ServerFeature,
+  'id' | 'name' | 'description' | 'frontendIntroducedVersion'
+>;
 
 export type PublicAuthProvider = {
   id: string;
@@ -67,6 +75,31 @@ export async function getPublicServerInfo(
       autoProvision: provider.autoProvision ?? null
     }))
   };
+}
+
+/**
+ * Read the public product catalog on demand. The optional version filter is
+ * exclusive and applies only to bundled frontend releases. Older servers
+ * without this RPC return an empty catalog; other failures remain errors.
+ */
+export async function listServerFeatures(
+  baseUrl: string,
+  options: { locale?: string; introducedAfterFrontendVersion?: string; signal?: AbortSignal } = {}
+): Promise<readonly PublicServerFeature[]> {
+  const client = createPublicChattoClient(ServerDiscoveryService, baseUrl);
+  try {
+    const response = await client.listFeatures(
+      {
+        locale: options.locale,
+        introducedAfterFrontendVersion: options.introducedAfterFrontendVersion
+      },
+      { signal: options.signal, timeoutMs: 10_000 }
+    );
+    return response.features;
+  } catch (error) {
+    if (ConnectError.from(error).code === Code.Unimplemented) return [];
+    throw error;
+  }
 }
 
 /** Public profile fields of one server in a Neighborhood. */

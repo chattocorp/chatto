@@ -22,6 +22,7 @@ require (
 	connectrpc.com/validate v0.7.0
 	filippo.io/age v1.3.2
 	github.com/HugoSmits86/nativewebp v1.3.0
+	github.com/Masterminds/semver v1.4.2
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/alexedwards/scs/v2 v2.9.0
@@ -101,7 +102,6 @@ require (
 	cel.dev/expr v0.25.3 // indirect
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	filippo.io/hpke v0.4.0 // indirect
-	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.15.0+incompatible // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.29.0 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.8.0-default-no-op // indirect

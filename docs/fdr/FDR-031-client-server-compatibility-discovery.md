@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -45,6 +45,35 @@ Chatto's pre-1.0 API remains experimental.
   server upgrade, and at each poll of an inactive server. A limited-version
   warning clears when the updated version meets the full-support threshold.
 - The origin server serves its own frontend and has no version check.
+- For a remote server, Server information also lists product features that
+  need a newer bundled frontend. Both directions use one Affected features
+  list, with the same row layout and one combined count. The upgrade notice
+  identifies which side needs an update. Each entry shows the server's feature name,
+  explanation, and the frontend release that introduced support. One notice
+  shows the current app version and asks the user to update the app or ask
+  the administrator of the server that provides it. This advice never blocks
+  a connection. Permissions and server settings still control feature access.
+  A newer server version alone does not produce this notice.
+- The server supplies an advisory feature catalog through the public
+  `ServerDiscoveryService.ListFeatures` endpoint.
+  Older frontends can display new feature IDs without an update. Names and
+  descriptions are plain text, rendered without HTML or Markdown. The endpoint
+  accepts an optional locale. The server tries that locale and its parents,
+  then English for missing translations. Invalid or unsupported locales also
+  use English. The optional `introduced_after_frontend_version` filter returns
+  only features introduced after that bundled frontend release. It requires
+  a full Semantic Version; invalid values return `INVALID_ARGUMENT`. Omit the
+  filter for the complete catalog. Third-party clients should omit it.
+  The app loads the catalog only on Server information for remote servers.
+  It sends its selected language and normalized frontend release. Responses
+  are cached in memory by server, server version, language, and version filter.
+  A language or server version change selects a new cache entry. The app does
+  not request the catalog for its origin server. `GetServer` and
+  `/.well-known/chatto` do not include the catalog.
+  Older servers that return `UNIMPLEMENTED` produce no frontend upgrade advice.
+  Other catalog errors show a retry action without blocking chat. Unknown
+  frontend or feature versions do not establish a limitation. Unreachable
+  servers do not show retained frontend upgrade advice.
 - Custom suffixes do not affect comparison. For example,
   `0.6.1-my-customization` compares as `0.6.1`, and
   `0.6.1-beta.2-my-customization` compares as `0.6.1-beta.2`. Alpha, beta,
@@ -116,9 +145,16 @@ Each client owns its server version thresholds and compares that policy
 with the discovered version before connecting.
 **Why:** Future clients know which older server contracts they still implement;
 the server cannot predict the requirements of clients that do not exist yet.
-This also avoids turning client release policy into public server metadata.
+The advisory feature catalog is separate from connection policy. It records
+the first bundled frontend release for each listed product feature, not a
+minimum client version required to connect. Third-party clients use stable
+feature IDs with their own support policy.
 **Tradeoff:** A client update must keep its version thresholds accurate and
 cannot rely on a server to reject it on the client's behalf.
+The catalog must be maintained when a feature ships. It is not a complete
+API capability list. Each feature needs English fallback text and translations.
+This first version shows frontend upgrade advice
+on Server information only; it does not add a server-gutter warning.
 
 ### 3. Registration data does not cache compatibility conclusions
 

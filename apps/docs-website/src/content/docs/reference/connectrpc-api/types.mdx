@@ -47,6 +47,21 @@ One server in the Neighborhood of the called server.
 | `direct_neighbor` | `bool` | Whether the called server advertises this server as a Neighbor. |
 | `recommended_by_origins` | `repeated string` | Canonical origins of other servers in the same response that mutually recommend this server. The list does not include the called server. |
 
+<a id="chatto-discovery-v1-ServerFeature"></a>
+
+### ServerFeature
+
+A product feature that an older frontend can describe without knowing its
+implementation. This is upgrade guidance, not permission, configuration,
+API negotiation, or a minimum version required to connect.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable feature identifier. Clients must accept previously unknown IDs. |
+| `name` | `string` | Localised display name. Render as plain text, never HTML or Markdown. |
+| `description` | `string` | Localised explanation for users. Render as plain text. |
+| `frontend_introduced_version` | `string` | First bundled Chatto frontend release with support for this feature. Third-party clients use the ID with their own support policy instead. |
+
 <a id="chatto-api-v1-PageInfo"></a>
 
 ### PageInfo

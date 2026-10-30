@@ -60,6 +60,9 @@
       "details": "Serveruppgifter"
     },
     "compatibility": {
+      "older_frontend": "Din app stöder inte alla funktioner på den här servern",
+      "frontend_upgrade": "Du använder appversion {version}. Uppdatera appen eller be administratören för servern som tillhandahåller appen att uppdatera den. Tillgång till funktioner beror också på serverinställningar och dina behörigheter.",
+      "frontend_requires": "Kräver appversion {version} eller senare",
       "title": "Kompatibilitet",
       "view": "Visa kompatibilitet",
       "limited": "Äldre serverversion",

@@ -99,6 +99,170 @@ export class GetServerResponse extends Message<GetServerResponse> {
 }
 
 /**
+ * Optional filters for the public feature catalog.
+ *
+ * @generated from message chatto.discovery.v1.ListFeaturesRequest
+ */
+export class ListFeaturesRequest extends Message<ListFeaturesRequest> {
+  /**
+   * BCP 47 language tag for feature names and descriptions. The server tries
+   * this locale, its parents, then English. Invalid or unsupported locales,
+   * and omitted values, use English.
+   *
+   * @generated from field: optional string locale = 1;
+   */
+  locale?: string;
+
+  /**
+   * Return only features introduced strictly after this bundled frontend
+   * release. Omit for the complete catalog. Must be a full Semantic Version,
+   * including any prerelease stage; invalid or empty values are INVALID_ARGUMENT.
+   * Third-party clients should omit this filter and use stable feature IDs.
+   *
+   * @generated from field: optional string introduced_after_frontend_version = 2;
+   */
+  introducedAfterFrontendVersion?: string;
+
+  constructor(data?: PartialMessage<ListFeaturesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ListFeaturesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "locale", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "introduced_after_frontend_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFeaturesRequest {
+    return new ListFeaturesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFeaturesRequest {
+    return new ListFeaturesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFeaturesRequest {
+    return new ListFeaturesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFeaturesRequest | PlainMessage<ListFeaturesRequest> | undefined, b: ListFeaturesRequest | PlainMessage<ListFeaturesRequest> | undefined): boolean {
+    return proto3.util.equals(ListFeaturesRequest, a, b);
+  }
+}
+
+/**
+ * Advisory features supported by this server software, in display order.
+ * An empty list means no entries match, not that every feature is supported.
+ *
+ * @generated from message chatto.discovery.v1.ListFeaturesResponse
+ */
+export class ListFeaturesResponse extends Message<ListFeaturesResponse> {
+  /**
+   * Product metadata, not a complete API capability declaration.
+   *
+   * @generated from field: repeated chatto.discovery.v1.ServerFeature features = 1;
+   */
+  features: ServerFeature[] = [];
+
+  constructor(data?: PartialMessage<ListFeaturesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ListFeaturesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "features", kind: "message", T: ServerFeature, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFeaturesResponse {
+    return new ListFeaturesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFeaturesResponse {
+    return new ListFeaturesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFeaturesResponse {
+    return new ListFeaturesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFeaturesResponse | PlainMessage<ListFeaturesResponse> | undefined, b: ListFeaturesResponse | PlainMessage<ListFeaturesResponse> | undefined): boolean {
+    return proto3.util.equals(ListFeaturesResponse, a, b);
+  }
+}
+
+/**
+ * A product feature that an older frontend can describe without knowing its
+ * implementation. This is upgrade guidance, not permission, configuration,
+ * API negotiation, or a minimum version required to connect.
+ *
+ * @generated from message chatto.discovery.v1.ServerFeature
+ */
+export class ServerFeature extends Message<ServerFeature> {
+  /**
+   * Stable feature identifier. Clients must accept previously unknown IDs.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Localised display name. Render as plain text, never HTML or Markdown.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * Localised explanation for users. Render as plain text.
+   *
+   * @generated from field: string description = 3;
+   */
+  description = "";
+
+  /**
+   * First bundled Chatto frontend release with support for this feature.
+   * Third-party clients use the ID with their own support policy instead.
+   *
+   * @generated from field: string frontend_introduced_version = 4;
+   */
+  frontendIntroducedVersion = "";
+
+  constructor(data?: PartialMessage<ServerFeature>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ServerFeature";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "frontend_introduced_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerFeature {
+    return new ServerFeature().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerFeature {
+    return new ServerFeature().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerFeature {
+    return new ServerFeature().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerFeature | PlainMessage<ServerFeature> | undefined, b: ServerFeature | PlainMessage<ServerFeature> | undefined): boolean {
+    return proto3.util.equals(ServerFeature, a, b);
+  }
+}
+
+/**
  * Request for the public Neighbor directory.
  *
  * @generated from message chatto.discovery.v1.ListNeighborsRequest

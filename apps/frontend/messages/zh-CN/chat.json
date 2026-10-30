@@ -60,6 +60,9 @@
       "details": "服务器详细信息"
     },
     "compatibility": {
+      "older_frontend": "你的应用不支持此服务器的所有功能",
+      "frontend_upgrade": "你正在使用应用版本 {version}。请更新应用，或请提供应用的服务器管理员更新。功能的使用还取决于服务器设置和你的权限。",
+      "frontend_requires": "需要应用版本 {version} 或更新版本",
       "title": "兼容性",
       "view": "查看兼容性",
       "limited": "较旧的服务器版本",

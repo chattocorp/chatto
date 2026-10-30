@@ -60,6 +60,9 @@
       "details": "Detalles del servidor"
     },
     "compatibility": {
+      "older_frontend": "Tu aplicación no admite todas las funciones de este servidor",
+      "frontend_upgrade": "Usas la versión {version} de la aplicación. Actualízala o pide al administrador del servidor que la proporciona que la actualice. El acceso a las funciones también depende de la configuración del servidor y de tus permisos.",
+      "frontend_requires": "Requiere la versión {version} de la aplicación o posterior",
       "title": "Compatibilidad",
       "view": "Ver compatibilidad",
       "limited": "Versión anterior del servidor",

@@ -53,6 +53,43 @@ initial server view.
 | `setup_required` | `bool` | Whether first-run setup is available before normal registration. |
 
 
+<a id="chatto-discovery-v1-ServerDiscoveryService-ListFeatures"></a>
+
+### ListFeatures
+
+Lists product features without requiring a session. Clients may load this
+catalog on demand and cache it by server software version, locale, and
+version filter. Refresh when any of those values change. Older servers
+can return UNIMPLEMENTED; this does not prevent normal chat use.
+
+```http
+POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/ListFeatures
+```
+
+<a id="chatto-discovery-v1-ListFeaturesRequest"></a>
+
+#### Input: ListFeaturesRequest
+
+Optional filters for the public feature catalog.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `locale` | `optional string` | BCP 47 language tag for feature names and descriptions. The server tries this locale, its parents, then English. Invalid or unsupported locales, and omitted values, use English. |
+| `introduced_after_frontend_version` | `optional string` | Return only features introduced strictly after this bundled frontend release. Omit for the complete catalog. Must be a full Semantic Version, including any prerelease stage; invalid or empty values are INVALID_ARGUMENT. Third-party clients should omit this filter and use stable feature IDs. |
+
+
+<a id="chatto-discovery-v1-ListFeaturesResponse"></a>
+
+#### Result: ListFeaturesResponse
+
+Advisory features supported by this server software, in display order.
+An empty list means no entries match, not that every feature is supported.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `features` | repeated [`ServerFeature`](#chatto-discovery-v1-ServerFeature) | Product metadata, not a complete API capability declaration. |
+
+
 <a id="chatto-discovery-v1-ServerDiscoveryService-ListNeighbors"></a>
 
 ### ListNeighbors
@@ -133,3 +170,20 @@ One server in the Neighborhood of the called server.
 | `profile` | `chatto.api.v1.ServerPublicProfile` | Public profile that the called server loaded. The welcome message is absent. The logo and banner URLs are server-relative paths of copies on the called server. Resolve them against the origin of the called server. |
 | `direct_neighbor` | `bool` | Whether the called server advertises this server as a Neighbor. |
 | `recommended_by_origins` | `repeated string` | Canonical origins of other servers in the same response that mutually recommend this server. The list does not include the called server. |
+
+
+
+<a id="chatto-discovery-v1-ServerFeature"></a>
+
+### ServerFeature
+
+A product feature that an older frontend can describe without knowing its
+implementation. This is upgrade guidance, not permission, configuration,
+API negotiation, or a minimum version required to connect.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable feature identifier. Clients must accept previously unknown IDs. |
+| `name` | `string` | Localised display name. Render as plain text, never HTML or Markdown. |
+| `description` | `string` | Localised explanation for users. Render as plain text. |
+| `frontend_introduced_version` | `string` | First bundled Chatto frontend release with support for this feature. Third-party clients use the ID with their own support policy instead. |

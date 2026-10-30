@@ -69,6 +69,33 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 	return connect.NewResponse(response), nil
 }
 
+// serverFeatureCatalog describes product features implemented by this server
+// build. Return fresh messages for each response. These entries do not depend
+// on viewer permissions or server settings and never restrict connections.
+func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
+	features := []*discoveryv1.ServerFeature{
+		{
+			Id:                        "threadViews",
+			Name:                      "Separate thread views",
+			Description:               "View followed threads separately from threads you started.",
+			FrontendIntroducedVersion: "0.5.0-beta.16",
+		},
+		{
+			Id:                        "independentSlowMode",
+			Name:                      "Independent slow mode",
+			Description:               "Use separate cooldowns for channel messages and thread replies.",
+			FrontendIntroducedVersion: "0.5.0-beta.18",
+		},
+	}
+	for _, feature := range features {
+		if text, ok := featureTranslation(locale, feature.Id); ok {
+			feature.Name = text.Name
+			feature.Description = text.Description
+		}
+	}
+	return features
+}
+
 func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.Request[discoveryv1.ListNeighborsRequest]) (*connect.Response[discoveryv1.ListNeighborsResponse], error) {
 	neighbors := s.api.core.ConfigModel().ListNeighbors()
 	origins := make([]string, 0, len(neighbors))
