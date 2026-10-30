@@ -22,26 +22,22 @@
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
 
-  // These are edit buffers rather than mirrors. Initialize them once the
-  // scoped viewer has resolved, then preserve any edits made on this mount.
-  let settingsInitialized = $state(false);
-  let timezoneSearch = $state('');
-  let selectedTimezone = $state('');
-  let selectedTimeFormat = $state<TimeFormat>(TimeFormat.TIME_FORMAT_AUTO);
-  let shareTimezone = $state(false);
+  // Only explicit edits override saved values. Replace the object on each edit
+  // so a save response can distinguish its draft from newer input.
+  let draft = $state<{
+    timezoneSearch?: string;
+    timezone?: string;
+    timeFormat?: TimeFormat;
+    shareTimezone?: boolean;
+  }>({});
+  const timezoneSearch = $derived(draft.timezoneSearch ?? savedSettings?.timezone ?? '');
+  const selectedTimezone = $derived(draft.timezone ?? savedSettings?.timezone ?? '');
+  const selectedTimeFormat = $derived(
+    draft.timeFormat ?? savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO
+  );
+  const shareTimezone = $derived(draft.shareTimezone ?? savedSettings?.shareTimezone ?? false);
   let isSaving = $state(false);
   let error = $state('');
-
-  $effect(() => {
-    if (settingsInitialized || currentUser.loading) return;
-
-    const timezone = savedSettings?.timezone ?? '';
-    timezoneSearch = timezone;
-    selectedTimezone = timezone;
-    selectedTimeFormat = savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO;
-    shareTimezone = savedSettings?.shareTimezone ?? false;
-    settingsInitialized = true;
-  });
 
   // Filter timezone list based on search input
   let filteredTimezones = $derived(
@@ -53,15 +49,21 @@
   // Cap displayed results to avoid rendering 400+ items
   let displayedTimezones = $derived(filteredTimezones.slice(0, 50));
 
-  // Track if the form has been modified
-  const isModified = $derived(
-    settingsInitialized &&
-      ((selectedTimezone || null) !== (savedSettings?.timezone || null) ||
-        selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO) ||
-        (savedSettings?.shareTimezone !== undefined &&
-          shareTimezone !== savedSettings.shareTimezone))
-  );
   const supportsTimezoneSharing = $derived(savedSettings?.shareTimezone !== undefined);
+  const changes = $derived.by(() => {
+    const input: UpdateSettingsInput = {};
+    if ((selectedTimezone || null) !== (savedSettings?.timezone || null)) {
+      input.timezone = selectedTimezone || null;
+    }
+    if (selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO)) {
+      input.timeFormat = selectedTimeFormat;
+    }
+    if (supportsTimezoneSharing && shareTimezone !== savedSettings?.shareTimezone) {
+      input.shareTimezone = shareTimezone;
+    }
+    return input;
+  });
+  const isModified = $derived(!currentUser.loading && Object.keys(changes).length > 0);
 
   // Timezone validation
   const timezoneError = $derived.by(() => {
@@ -84,40 +86,23 @@
   });
 
   function handleTimezoneTextChange(text: string) {
-    if (!text || allTimezones.includes(text)) selectedTimezone = text;
+    if (!text || allTimezones.includes(text)) draft = { ...draft, timezone: text };
   }
 
-  function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     if (!isModified || isSaving || timezoneError) return;
-    void handleSave();
-  }
-
-  async function handleSave() {
-    // Validate timezone if set
-    if (timezoneSearch && !allTimezones.includes(timezoneSearch)) {
-      error = m('settings.preferences.timezone.invalid');
-      return;
-    }
 
     isSaving = true;
     error = '';
     const userId = serverScope.store.accountId;
+    const submittedDraft = draft;
 
     try {
-      const input: UpdateSettingsInput = {};
-      if ((selectedTimezone || null) !== (savedSettings?.timezone || null)) {
-        input.timezone = selectedTimezone || null;
-      }
-      if (selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO)) {
-        input.timeFormat = selectedTimeFormat;
-      }
-      if (supportsTimezoneSharing && shareTimezone !== savedSettings?.shareTimezone) {
-        input.shareTimezone = shareTimezone;
-      }
-      const settings = await accountAPI().updateSettings(input);
+      const settings = await accountAPI().updateSettings(changes);
       if (!serverScope.isCurrent()) return;
       currentUser.update(userId, () => ({ settings }));
+      if (draft === submittedDraft) draft = {};
 
       toast.success(m('settings.preferences.saved'));
     } catch (err) {
@@ -176,9 +161,11 @@
             placeholder={m('settings.preferences.timezone.browser_default')}
             clearLabel={m('settings.preferences.timezone.clear')}
             allowFreeform={false}
-            disabled={!settingsInitialized}
-            bind:value={selectedTimezone}
-            bind:text={timezoneSearch}
+            disabled={currentUser.loading}
+            bind:value={() => selectedTimezone, (timezone) => (draft = { ...draft, timezone })}
+            bind:text={
+              () => timezoneSearch, (timezoneSearch) => (draft = { ...draft, timezoneSearch })
+            }
             ontextchange={handleTimezoneTextChange}
           />
 
@@ -192,21 +179,15 @@
         </FormSection>
 
         <FormSection title={m('settings.preferences.timezone_sharing.title')} bordered>
-          {#if !settingsInitialized}
+          {#if currentUser.loading || supportsTimezoneSharing}
             <Checkbox
               id="share-timezone"
               label={m('settings.preferences.timezone_sharing.label')}
               description={m('settings.preferences.timezone_sharing.description')}
-              disabled
-              bind:checked={shareTimezone}
-            />
-          {:else if supportsTimezoneSharing}
-            <Checkbox
-              id="share-timezone"
-              label={m('settings.preferences.timezone_sharing.label')}
-              description={m('settings.preferences.timezone_sharing.description')}
-              disabled={!settingsInitialized}
-              bind:checked={shareTimezone}
+              disabled={currentUser.loading}
+              bind:checked={
+                () => shareTimezone, (shareTimezone) => (draft = { ...draft, shareTimezone })
+              }
             />
           {:else}
             <Hint tone="warning">
@@ -227,8 +208,8 @@
                 label={option.label}
                 description={option.description}
                 selected={isSelected}
-                disabled={!settingsInitialized}
-                onclick={() => (selectedTimeFormat = option.value)}
+                disabled={currentUser.loading}
+                onclick={() => (draft = { ...draft, timeFormat: option.value })}
               />
             {/each}
           </div>
