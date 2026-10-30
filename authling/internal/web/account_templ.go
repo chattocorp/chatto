@@ -383,7 +383,7 @@ func accountPage(data accountPageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.section == "security" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<section class=\"panel\" aria-labelledby=\"security-heading\"><h2 id=\"security-heading\" class=\"settings-heading\">Security</h2><p class=\"settings-description\">Keep your sign-in details up to date.</p><div class=\"settings-actions\"><a class=\"settings-link\" href=\"/account/password\"><span>Change password</span><span aria-hidden=\"true\">›</span></a></div></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<section class=\"panel\" aria-labelledby=\"security-heading\"><h2 id=\"security-heading\" class=\"settings-heading\">Security</h2><p class=\"settings-description\">Keep your sign-in details up to date.</p><div class=\"settings-actions\"><a class=\"button button-secondary\" href=\"/account/password\">Change password</a></div></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
