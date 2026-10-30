@@ -172,7 +172,7 @@ also expose a disconnect hint; it is not mutation authorization. See
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
 | `chatto.discovery.v1` | `ServerDiscoveryService`                                                                                                                                                                                                                                                                                                                                         | Public discovery                                                                                           |
 | `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
-| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
+| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
 
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
 change the caller's private availability across devices. `RefreshPresence`
@@ -216,11 +216,21 @@ resource remains description-free.
 singular and bounded batch reads. These reads use existing message-read
 authorization and do not initialize or advance markers.
 
-`AdminInviteLinkService` requires `user.invite`. Its resource includes the
-full, deterministically reconstructed invite link so authorised operators can
-copy it again; raw bearer tokens are not stored in `EVT`. Opening
-`/invite/{token}` validates the compact capability, stores only the invitation
-ID in the signed browser session, and immediately redirects to registration.
+`AdminInvitationCodeService` requires `user.invite`. It lists, reads, creates,
+and revokes single-use codes with optional expiry. Codes are reconstructed
+from durable invitation IDs; raw codes are not stored in `EVT`. The browser
+POST endpoint `/auth/browser/registration-invitation` validates a code and
+stores an expiring admission binding in the signed HttpOnly session.
+Its GET endpoint rechecks that admission. Email and provider flows snapshot
+the selected invitation ID. `ExternalIdentityAuthService` reports whether a
+pending new identity still needs admission.
+
+`AdminServerService.GetServerConfig` returns typed registration settings.
+`UpdateServerConfig` accepts the `registration.admission` leaf mask and requires
+`server.manage`. The mutation emits a config fact and waits for its projection.
+`ServerDiscoveryService.GetServer` reads the local admission projection without
+waiting for catch-up. Account creation catches up and enforces admission
+independently of this discovery hint.
 
 `AdminServerService` provides CRUD operations for Neighbor resources. These
 methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors`
@@ -243,8 +253,8 @@ exposed by the reference.
 that update profiles and upload or delete avatars. Self-targeting is available
 to human and bot callers. A cross-human target requires
 `user.manage-accounts`. A cross-bot target permits
-the bot owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target
-another account. These operations validate stable request-time authorization
+the bot owner, `user.manage-accounts`, or `bot.manage`. Human and bot callers
+use these same checks. These operations validate stable request-time authorization
 inputs, use OCC on the target user aggregate, and then return the ready user
 projection.
 
@@ -291,7 +301,7 @@ and create and revoke operations for as many as 20 named API keys and 20 named
 incoming webhooks for each bot. Bot permission configuration reads and writes
 use `AdminPermissionService`'s canonical user permission operations with the
 bot's user ID as the target. Human owners can
-manage their own bots; `bot.manage` allows global management. A human with
+manage their own bots; `bot.manage` allows global management by humans or bots. A caller with
 `user.manage-accounts` can list and read all bots for profile and avatar
 administration, but this visibility does not grant bot credential, permission,
 ownership, or lifecycle authority. Bot reads include the start of the bot's
@@ -325,9 +335,9 @@ the `room.join` action decision still requires the viewer to be a non-member.
 Older servers omit this value, so clients must not treat absence as a denial.
 
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
-managers, bot owners, and human bot managers. `room.manage` for the room or
+managers, bot owners, and callers with `bot.manage`. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
-Without either override, the acting human bot manager needs their own effective
+Without either override, the acting bot manager needs their own effective
 `room.join`. The bot's grant controls self-service joins. Suspensions and
 archived rooms prevent adding.
 Removal does not require join permission and works in archived rooms.
@@ -349,8 +359,10 @@ and at most six concurrent member lookups.
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
 layout so empty groups remain configurable. Each bot API key authenticates the
-normal public and realtime surfaces, but cannot call bot-management or human
-account-security operations. Reassignment requires `bot.manage`, preserves the
+normal public and realtime surfaces, including permitted administrative and
+bot-management operations. Bots cannot acquire human login methods. A bot
+creator selects its human owner and checks that selection again under creation
+OCC. Reassignment requires `bot.manage`, preserves the
 active keys and configured allowlist, and immediately changes the owner
 permission ceiling.
 
@@ -392,6 +404,24 @@ It does not accept archives. `ImportRoomEvent` and `ImportMessageChange` apply
 typed historical transitions. Optional operation keys on creation and message
 import provide permanent exact retry protection. See
 [FDR-053](../fdr/FDR-053-history-import-export.md).
+
+Operation receipts are read by exact subject from the EVT stream leader,
+without a temporary history consumer. Each receipt commits with its facts and
+a subject-empty guard, so its subject contains at most one receipt. Reads check
+the stored argument fingerprint before returning the previous result.
+
+`OperatorMessageService.ImportReactionChanges` commits a bounded set of
+historical reaction transitions in one channel. It shares validation and one
+atomic commit across the new transitions and their individual retry receipts.
+The CLI interprets archives and groups adjacent reaction changes; the server
+does not retain archive state.
+
+`OperatorMessageService.ImportMessages` commits bounded groups of messages
+without files and their reaction changes. Each message and reaction keeps its
+individual operation receipt. Earlier message operation keys can supply thread
+and reply targets within the request. Validation uses one room boundary; new
+message facts, thread declarations, reactions, and receipts share an atomic
+commit. Author key provisioning remains part of encryption preparation.
 
 `ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
 retains that ID for retries; receipts from older servers return no event ID.
@@ -485,7 +515,7 @@ ready, degraded, and unavailable states without affecting other APIs. Exact
 provider replay counts stay on the trusted NATS contract and in operator logs;
 the authenticated public status does not expose server-wide event-log scale.
 
-`ServerDiscoveryService.GetServer`, `ListNeighbors`, and
+`ServerDiscoveryService.GetServer`, `ListFeatures`, `ListNeighbors`, and
 `ListNeighborhoodServers` support side-effect-free GET. They also receive wildcard public CORS and conditional-response caching.
 Other bundled-client Connect traffic uses POST.
 
@@ -498,10 +528,25 @@ GET eligibility, authentication, and request validation.
 The discovery response includes the server software version as public
 pre-authentication state, along with configured provider metadata and the
 independently configured direct-registration and direct-login capabilities.
+The separate public `ListFeatures` endpoint serves an advisory product feature
+catalog. The discovery handler owns the catalog for the
+server build. Entries contain stable IDs, localised plain-text descriptions, and the
+first Chatto release with support in the server and bundled frontend. The catalog does not change
+authorization, server configuration, or connection eligibility.
+The optional `ListFeatures` locale selects static translations from the server
+build, with parent-locale and English fallback. The request reveals the selected
+language to the connected server. The optional
+`introduced_after_version` filter selects features introduced strictly
+after the supplied Chatto release. It requires a full Semantic
+Version and returns `INVALID_ARGUMENT` for invalid values. Without the filter,
+the response contains the complete catalog. The filter reveals the frontend
+release to the connected server. No translation service is contacted.
+Connect GET request URLs distinguish locales, and response ETags include the
+translated text. `GetServer` and the query-free `/.well-known/chatto` alias
+remain independent of the catalog and its filters.
 The direct-login capability uses scalar presence so a new client treats an
-older server that omits it as enabled. The bundled client refreshes discovery
-per server and owns one minimum supported server version. It does not gate
-individual features by server version. The 0.5 client requires a server at
+older server that omits it as enabled. Clients own their server compatibility
+policy; see FDR-031. The 0.5 client requires a server at
 `0.5.0-beta.9` or newer before opening realtime protocol 4, the only accepted
 behavioral version. The
 `chatto.realtime.v1` suffix remains the protobuf namespace.

@@ -170,7 +170,7 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
-	// PermUserInvite allows listing, creating, copying, and revoking invite links.
+	// PermUserInvite allows listing, creating, copying, and revoking invitation codes.
 	PermUserInvite Permission = "user.invite"
 
 	// PermUserManageAccounts allows account lifecycle and recovery operations
@@ -184,10 +184,12 @@ const (
 
 	// ===== Bot Account Permissions =====
 
-	// PermBotCreate allows a human user to create bot accounts they own.
+	// PermBotCreate allows bot creation for the caller's human owner (or the
+	// caller itself when human). Newly created bots have no permission grants.
 	PermBotCreate Permission = "bot.create"
 
-	// PermBotManage allows a human user to manage every bot on the server.
+	// PermBotManage allows management of every bot, including issuing keys
+	// that act with the target bot's authority rather than the manager's.
 	PermBotManage Permission = "bot.manage"
 )
 

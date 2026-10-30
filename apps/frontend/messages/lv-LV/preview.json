@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Šai saitei priekšskatījums nav pieejams.",
     "dismiss": "Noraidīt priekšskatījumu",
     "delete": "Dzēst priekšskatījumu",
     "open_link": "Atvērt saiti",

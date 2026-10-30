@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetServerRequest, GetServerResponse, ListNeighborhoodServersRequest, ListNeighborhoodServersResponse, ListNeighborsRequest, ListNeighborsResponse } from "./server_pb.js";
+import { GetServerRequest, GetServerResponse, ListFeaturesRequest, ListFeaturesResponse, ListNeighborhoodServersRequest, ListNeighborhoodServersResponse, ListNeighborsRequest, ListNeighborsResponse } from "./server_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -25,6 +25,21 @@ export const ServerDiscoveryService = {
       name: "GetServer",
       I: GetServerRequest,
       O: GetServerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Lists product features without requiring a session. Clients may load this
+     * catalog on demand and cache it by server software version, locale, and
+     * version filter. Refresh when any of those values change. Older servers
+     * can return UNIMPLEMENTED; this does not prevent normal chat use.
+     *
+     * @generated from rpc chatto.discovery.v1.ServerDiscoveryService.ListFeatures
+     */
+    listFeatures: {
+      name: "ListFeatures",
+      I: ListFeaturesRequest,
+      O: ListFeaturesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

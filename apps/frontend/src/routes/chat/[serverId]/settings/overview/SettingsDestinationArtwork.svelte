@@ -199,7 +199,7 @@
         stroke-width="3"
       />
     </g>
-  {:else if kind === 'invite-links'}
+  {:else if kind === 'registration'}
     <g transform="rotate(-7 135 75)">
       <g class="letter">
         <rect x="61" y="14" width="142" height="98" rx="10" class="fill-background stroke-border" />

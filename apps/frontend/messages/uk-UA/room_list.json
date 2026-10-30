@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Копіювати посилання на сервер",
     "copy_room_link": "Копіювати посилання на кімнату",
     "show_rooms_in_group": "Показати більше кімнат у {group} ({count})",
     "hide_rooms_in_group": "Приховати кімнати в {group}, до яких ви не приєдналися",

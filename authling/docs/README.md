@@ -6,6 +6,7 @@ Authling maintains documentation independently from Chatto:
 - [Feature Decision Records](fdr/INDEX.md)
 - [Runtime architecture inventory](architecture/INDEX.md)
 - [Glossary](GLOSSARY.md)
+- [Design system](design-system.md)
 
 Repository-wide decisions about the monorepo and shared framework remain in the
 root documentation. Authling product behavior and implementation belong here

@@ -184,7 +184,7 @@ describe('MarkdownHtml code copy', () => {
     const code = container.querySelector('.markdown-ansi code')!;
     expect(code.textContent?.trim()).toBe('ART');
     expect(getComputedStyle(code.querySelector('span')!).color).toBe('rgb(170, 0, 0)');
-    expect(getComputedStyle(code.parentElement!).backgroundColor).toBe('rgb(0, 0, 0)');
+    expect(getComputedStyle(code).backgroundColor).toBe('rgb(0, 0, 0)');
     expect(getComputedStyle(code).whiteSpace).toBe('pre');
     await userEvent.click(container.querySelector('button[data-markdown-copy]')!);
     expect(writeText).toHaveBeenCalledWith(source);

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    tryGetStore: () => undefined,
     getServer: (serverId: string) =>
       serverId === 'origin'
         ? { id: 'origin', url: window.location.origin }
@@ -809,12 +810,15 @@ describe('MessageContent component', () => {
     // $lib/mentions.svelte.test.ts. These tests assert that MessageContent renders
     // mention candidates and resolves them, i.e. that the mention class shows up
     // in the rendered DOM when a matching member is present.
-    it('keeps a member handle in a URL as literal link text', async () => {
-      const url = 'https://social.5f9.de/@alice/117331230238178837';
+    it('keeps a member handle in a URL chip as literal text', async () => {
+      const url = 'https://social.5f9.de/@alice/123';
       const { container } = renderMessage(`Zum Thema ${url}`, [
         { ...member('alice'), displayName: 'Alice Smith' }
       ]);
-      await expect.poll(() => q(container, 'a')?.textContent).toBe(url);
+      await expect
+        .poll(() => q(container, '.url-link')?.textContent?.trim())
+        .toBe('social.5f9.de/@alice/123');
+      expect(q(container, '.url-link')?.getAttribute('data-content-href')).toBe(url);
       expect(q(container, 'span.mention')).toBeNull();
     });
 

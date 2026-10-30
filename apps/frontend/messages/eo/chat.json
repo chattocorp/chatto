@@ -60,6 +60,9 @@
       "details": "Servilaj detaloj"
     },
     "compatibility": {
+      "older_frontend": "Via aplikaĵo ne subtenas ĉiujn funkciojn de ĉi tiu servilo",
+      "frontend_upgrade": "Vi uzas la version {version} de la aplikaĵo. Ĝisdatigu ĝin aŭ petu la administranton de la servilo, kiu provizas ĝin, ĝisdatigi ĝin. Aliro al funkcioj ankaŭ dependas de la servilaj agordoj kaj viaj permesoj.",
+      "frontend_requires": "Postulas la version {version} de la aplikaĵo aŭ pli novan",
       "title": "Kongrueco",
       "view": "Vidi kongruecon",
       "limited": "Pli malnova servila versio",
@@ -180,7 +183,7 @@
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
       "back_to_server": "Reiru al Servilo",
-      "invitations": "Invitligiloj"
+      "registration": "Registrado"
     }
   }
 }

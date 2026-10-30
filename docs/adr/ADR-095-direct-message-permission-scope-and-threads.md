@@ -29,8 +29,8 @@ group and room scopes. It has no per-DM identity.
   interaction thread through `message.read-interactions`.
 - `message.manage` permits moderation of another participant's message.
   Membership prevents access to DMs where the manager is not a participant.
-- `message.post` permits a human to start a DM and permits a participant to
-  post a root. Bots cannot call `StartDM`.
+- `message.post` permits a human or bot to start a DM and permits a participant
+  to post a root. Existing DM lookup does not require posting permission.
 - Bots inherit no DM decision. A bot needs an explicit direct-user allow, and
   its owner's current effective decision remains the ceiling.
 

@@ -103,12 +103,9 @@ func (a *AuthorizationModel) CanStartDM(ctx context.Context, userID string) (boo
 }
 
 func (a *AuthorizationModel) canStartDM(ctx context.Context, userID string) (bool, error) {
-	isBot, _, accountExists := a.users.isBotAndOwner(userID)
+	_, _, accountExists := a.users.isBotAndOwner(userID)
 	if !accountExists {
 		return false, ErrNotFound
-	}
-	if isBot {
-		return false, nil
 	}
 	decision, err := a.resolver.resolveWithGroup(ctx, userID, KindDM, "", "", PermMessagePost)
 	if err != nil {

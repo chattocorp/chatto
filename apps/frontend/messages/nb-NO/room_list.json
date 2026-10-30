@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Kopier serverlenke",
     "copy_room_link": "Kopier romlenken",
     "show_rooms_in_group": "Vis flere rom i {group} ({count})",
     "hide_rooms_in_group": "Skjul rom du ikke har blitt med i i {group}",

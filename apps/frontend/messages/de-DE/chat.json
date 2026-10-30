@@ -60,6 +60,9 @@
       "details": "Serverdetails"
     },
     "compatibility": {
+      "older_frontend": "Deine App unterstützt nicht alle Funktionen dieses Servers",
+      "frontend_upgrade": "Du verwendest App-Version {version}. Aktualisiere deine App oder bitte den Administrator des Servers, der deine App bereitstellt, um eine Aktualisierung. Der Zugriff auf Funktionen hängt auch von den Servereinstellungen und deinen Berechtigungen ab.",
+      "frontend_requires": "Erfordert App-Version {version} oder neuer",
       "title": "Kompatibilität",
       "view": "Kompatibilität anzeigen",
       "limited": "Ältere Serverversion",
@@ -180,7 +183,7 @@
       "event_log": "Ereignisprotokoll",
       "system": "System",
       "back_to_server": "Zurück zum Server",
-      "invitations": "Einladungslinks"
+      "registration": "Registrierung"
     }
   }
 }

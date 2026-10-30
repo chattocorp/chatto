@@ -36,6 +36,10 @@
 
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
+  const registrationAvailable = $derived(
+    directRegistrationEnabled ||
+      (data.serverInfo?.authProviders ?? []).some((provider) => provider.autoProvision !== false)
+  );
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
   const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
   const pageError = $derived(
@@ -181,7 +185,7 @@
     </div>
   {/if}
 
-  {#if directRegistrationEnabled}
+  {#if registrationAvailable}
     <Divider label={m('common.or')} />
 
     <Button

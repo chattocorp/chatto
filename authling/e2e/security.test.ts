@@ -5,13 +5,15 @@ test('serves the public pages with browser security headers', async ({ page }) =
 
   expect(response).not.toBeNull();
   expect(response?.headers()['content-security-policy']).toContain("default-src 'none'");
+  expect(response?.headers()['content-security-policy']).toContain("script-src 'self'");
+  expect(response?.headers()['content-security-policy']).not.toMatch(/unsafe-inline|unsafe-eval/);
   expect(response?.headers()['content-security-policy']).toContain("form-action 'self'");
   expect(response?.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
   expect(response?.headers()['referrer-policy']).toBe('origin');
   expect(response?.headers()['x-content-type-options']).toBe('nosniff');
   expect(response?.headers()['x-frame-options']).toBe('DENY');
 
-  await expect(page).toHaveTitle('Test Accounts');
+  await expect(page).toHaveTitle('Sign in · Test Accounts');
   await page.getByRole('link', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
 });

@@ -1,0 +1,42 @@
+package ui
+
+// Field pairs a visible label with one input and an optional accessible hint.
+// IDs must be unique within the page. Callers supply native validation and
+// autocomplete attributes; they must not override id, class, or aria-describedby.
+templ Field(id, label, hint string, attributes templ.Attributes) {
+	<div class="field">
+		<label class="field-label" for={ id }>{ label }</label>
+		<input id={ id } class="form-control" aria-describedby={ fieldHintID(id, hint) } { attributes... }/>
+		if hint != "" {
+			<p id={ id + "-hint" } class="field-hint">{ hint }</p>
+		}
+	</div>
+}
+
+func fieldHintID(id, hint string) string {
+	if hint == "" {
+		return ""
+	}
+	return id + "-hint"
+}
+
+// CodeField preserves a single native input for typing, pasting and autofill.
+// The six visual cells are decorative and excluded from the accessibility tree.
+templ CodeField(label string, autofocus bool) {
+	<label class="field">
+		<span class="field-label">{ label }</span>
+		<span class="otp-code mt-2">
+			<span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+			<input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus?={ autofocus } required/>
+		</span>
+	</label>
+}
+
+// Error renders a server validation error only when one exists.
+templ Error(message string) {
+	if message != "" {
+		@Notice(Danger) {
+			{ message }
+		}
+	}
+}

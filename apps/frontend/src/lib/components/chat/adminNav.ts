@@ -46,6 +46,15 @@ export function getAdminNavItems({
     });
   }
 
+  if (permissions.canManageServer || permissions.canManageInvites) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/registration', { serverId: serverSegment }),
+      label: m('chat.management_nav.registration'),
+      description: m('settings.overview.descriptions.invitations'),
+      icon: 'iconify icon-[uil--envelope-share]'
+    });
+  }
+
   if (permissions.canManageNeighbors) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/neighbors', { serverId: serverSegment }),
@@ -73,15 +82,6 @@ export function getAdminNavItems({
     description: m('settings.overview.descriptions.bots'),
     icon: 'iconify icon-[uil--robot]'
   });
-
-  if (permissions.canManageInvites) {
-    items.push({
-      href: resolve('/chat/[serverId]/manage/server/invite-links', { serverId: serverSegment }),
-      label: m('chat.management_nav.invitations'),
-      description: m('settings.overview.descriptions.invitations'),
-      icon: 'iconify icon-[uil--envelope-share]'
-    });
-  }
 
   if (permissions.canManageRooms) {
     items.push({

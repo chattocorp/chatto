@@ -1345,10 +1345,9 @@ func (x *JoinRoomGroupResponse) GetJoinedRoomIds() []string {
 	return nil
 }
 
-// Request to start a direct-message room for a human caller, or fetch an
-// existing one. A human caller can fetch an existing DM without message.post.
-// A valid request from a bot receives PERMISSION_DENIED, including when the
-// room already exists.
+// Request to start a direct-message room, or fetch an existing one.
+// Human and bot callers need message.post at DM scope to create a room.
+// Participants can fetch an existing DM without message.post.
 // New DMs have at most two distinct participants, including the caller.
 // Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
 // for new group conversations. Existing group DMs remain accessible.

@@ -18,7 +18,11 @@ export const clientMockDefaults = {
     stop: () => {},
     setActiveServer: () => {}
   },
-  serverRegistry: { tryGetStore: () => undefined },
+  serverRegistry: {
+    servers: [],
+    getServer: () => undefined,
+    tryGetStore: () => undefined
+  },
   knownServers: { servers: [] },
   serverConnectionManager: {},
   eventBusManager: {

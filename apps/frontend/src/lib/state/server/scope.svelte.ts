@@ -30,4 +30,4 @@ export interface ServerScope {
 }
 
 /** Access and provide the current route's server scope. */
-export const [useServerScope, provideServerScope] = createContext<ServerScope>();
+export const [useServerScope, provideServerScope, hasServerScope] = createContext<ServerScope>();

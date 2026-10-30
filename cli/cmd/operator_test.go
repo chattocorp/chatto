@@ -160,11 +160,11 @@ type operatorCLITestEnv struct {
 	socketPath string
 }
 
-func newOperatorCLITestEnv(t *testing.T) *operatorCLITestEnv {
+func newOperatorCLITestEnv(t testing.TB) *operatorCLITestEnv {
 	return newOperatorCLITestEnvWithConfig(t, config.ChattoConfig{})
 }
 
-func newOperatorCLITestEnvWithConfig(t *testing.T, cfg config.ChattoConfig) *operatorCLITestEnv {
+func newOperatorCLITestEnvWithConfig(t testing.TB, cfg config.ChattoConfig) *operatorCLITestEnv {
 	t.Helper()
 	resetOperatorGlobals(t)
 
@@ -219,7 +219,7 @@ func newOperatorCLITestEnvWithConfig(t *testing.T, cfg config.ChattoConfig) *ope
 	return env
 }
 
-func startOperatorCLITestCore(t *testing.T, c *core.ChattoCore) {
+func startOperatorCLITestCore(t testing.TB, c *core.ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -240,7 +240,7 @@ func startOperatorCLITestCore(t *testing.T, c *core.ChattoCore) {
 	}
 }
 
-func (env *operatorCLITestEnv) run(t *testing.T, args ...string) string {
+func (env *operatorCLITestEnv) run(t testing.TB, args ...string) string {
 	t.Helper()
 	out, err := env.execute(t, args...)
 	if err != nil {
@@ -249,7 +249,7 @@ func (env *operatorCLITestEnv) run(t *testing.T, args ...string) string {
 	return out
 }
 
-func (env *operatorCLITestEnv) execute(t *testing.T, args ...string) (string, error) {
+func (env *operatorCLITestEnv) execute(t testing.TB, args ...string) (string, error) {
 	t.Helper()
 	resetCommandFlags(rootCmd)
 	oldStdin := os.Stdin
@@ -305,7 +305,7 @@ func resetFlagSet(flags *pflag.FlagSet) {
 	})
 }
 
-func resetOperatorGlobals(t *testing.T) {
+func resetOperatorGlobals(t testing.TB) {
 	t.Helper()
 	oldConfigFile := operatorConfigFile
 	oldSocketPath := operatorSocketPath

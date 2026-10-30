@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Skapa konton",
+      "open": "Öppen registrering",
+      "invite_only": "Inbjudningskod krävs",
+      "open_description": "Vem som helst kan skapa ett konto med de konfigurerade registreringsmetoderna.",
+      "invite_only_description": "Nya konton kräver en inbjudningskod som bara kan användas en gång. Befintliga användare kan fortfarande logga in.",
+      "methods": "Konfigurerade registreringsmetoder",
+      "methods_configuration": "Registreringsmetoderna hanteras i serverns hostingkonfiguration.",
+      "email_password": "E-post och lösenord",
+      "no_methods": "Inga registreringsmetoder är aktiverade. Användare kan inte skapa konton i något av lägena."
+    },
     "neighbors": {
       "title": "Grannar",
       "subtitle": "Marknadsför vänliga Chatto-servrar i din offentliga katalog",
@@ -553,36 +564,28 @@
       "total": "{count} användare totalt"
     },
     "invitations": {
-      "title": "Inbjudningslänkar",
-      "subtitle": "Skapa och hantera länkar som släpper in nya konton.",
-      "create_title": "Skapa inbjudningslänk",
-      "max_uses": "Max antal användningar",
-      "max_uses_error": "Ange ett heltal på minst 1.",
-      "unlimited_uses": "Tillåt obegränsat antal användningar",
-      "expiry": "Giltighetstid",
-      "expiry_1d": "1 dag",
-      "expiry_7d": "7 dagar",
-      "expiry_30d": "30 dagar",
-      "expiry_never": "Aldrig",
-      "create": "Skapa inbjudningslänk",
-      "created": "Inbjudningslänk skapad",
-      "list_title": "Inbjudningslänkar",
-      "empty": "Inga inbjudningslänkar än.",
-      "uses": "Användningar",
+      "note_label": "Anteckning (valfritt)",
+      "note_placeholder": "Till Alex från designteamet",
+      "note_description": "Endast inbjudningsadministratörer kan se denna anteckning.",
+      "note_too_long": "Använd högst 250 tecken.",
+      "usage": "Nya koder gäller i 7 dagar och ger ett konto vardera. Kopiera en kod och skicka den till mottagaren. Koden används först när registreringen lyckas.",
+      "create_title": "Skapa kod",
+      "create": "Skapa kod",
+      "created": "Inbjudningskod skapad",
+      "list_title": "Inbjudningskoder",
+      "empty": "Inga inbjudningskoder ännu.",
       "created_at": "Skapad",
       "actions": "Åtgärder",
       "never": "Aldrig",
-      "copy": "Kopiera länk",
-      "copied": "Inbjudningslänk kopierad",
       "revoke": "Återkalla",
-      "revoked": "Inbjudningslänk återkallad",
-      "revoke_title": "Återkalla inbjudningslänken?",
-      "revoke_description": "Länken slutar genast att släppa in nya konton.",
+      "revoked": "Inbjudningskod återkallad",
+      "revoke_title": "Återkalla kod?",
+      "revoke_description": "Den här koden slutar omedelbart att tillåta nya konton.",
       "status": {
         "active": "Aktiv",
         "expired": "Utgången",
-        "exhausted": "Förbrukad",
-        "revoked": "Återkallad"
+        "revoked": "Återkallad",
+        "used": "Använd"
       }
     }
   }

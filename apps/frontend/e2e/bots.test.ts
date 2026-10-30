@@ -468,22 +468,45 @@ test.describe('Bot account lifecycle', () => {
     const dmRoomId = startedDM.room?.id;
     if (!dmRoomId) throw new Error('The human-started bot DM did not return a room ID');
 
-    // A direct message.post grant lets the bot interact in an existing DM,
-    // but it cannot invoke StartDM even to retrieve that same DM or itself.
+    // A direct message.post grant lets the bot retrieve an existing DM and
+    // create a new self-DM under the same rules as a human.
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.RoomService/StartDM', {
         participantIds: [adminId]
       })
-    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    ).resolves.toEqual({ status: 200 });
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.RoomService/StartDM', {
         participantIds: []
       })
-    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    ).resolves.toEqual({ status: 200 });
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.MessageService/CreateMessage', {
         roomId: dmRoomId,
         body: 'Bot reply in a human-started DM'
+      })
+    ).resolves.toEqual({ status: 200 });
+
+    // Administrative API-key calls need explicit grants, without a human
+    // privileged-mode session. With bot.manage, this bot can issue its own key.
+    const profileUpdate = { userId: adminId, bio: 'Managed by automation', updateMask: 'bio' };
+    await expect(
+      callAsBot(serverURL, backupKey, 'chatto.api.v1.UserService/UpdateUserProfile', profileUpdate)
+    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    for (const permission of ['user.manage-accounts', 'bot.manage']) {
+      await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetUserPermission', {
+        userId: botId,
+        permission,
+        decision: 'PERMISSION_DECISION_ALLOW'
+      });
+    }
+    await expect(
+      callAsBot(serverURL, backupKey, 'chatto.api.v1.UserService/UpdateUserProfile', profileUpdate)
+    ).resolves.toEqual({ status: 200 });
+    await expect(
+      callAsBot(serverURL, backupKey, 'chatto.api.v1.BotService/CreateBotApiKey', {
+        botUserId: botId,
+        name: 'Created by bot'
       })
     ).resolves.toEqual({ status: 200 });
 

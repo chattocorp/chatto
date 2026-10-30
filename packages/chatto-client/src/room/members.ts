@@ -278,30 +278,9 @@ export class RoomMembersStore {
     }
   }
 
-  async loadInitial(): Promise<void> {
-    // The projection has the complete membership, so a server read adds nothing.
-    if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
-    const loadId = ++this.#loadId;
-    this.#isInitialLoading = true;
-    this.#fullScanFinished = false;
-    this.#previewIds.clear();
-    this.#isBackgroundLoading = false;
-    this.#loadError = null;
-    this.loadOnlinePreview(loadId);
-    try {
-      await this.loadPages(loadId);
-    } catch (error) {
-      if (loadId === this.#loadId) {
-        this.#loadError = error;
-        console.error('Failed to load room members:', error);
-      }
-    } finally {
-      if (loadId === this.#loadId) {
-        this.#fullScanFinished = true;
-        this.#isInitialLoading = false;
-        this.#isBackgroundLoading = false;
-      }
-    }
+  /** Load or retry the list, keeping an existing first page visible during the read. */
+  loadInitial(): Promise<void> {
+    return this.refresh();
   }
 
   /** Recheck membership after a projection change, at or beyond its cursor. */

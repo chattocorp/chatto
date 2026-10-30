@@ -8,13 +8,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   const email = `oidc-${randomUUID()}@example.invalid`;
   const preferredUsername = `profile-${randomUUID()}`;
   const fullName = 'OIDC Profile Person';
-  const accountID = await completeSignup(
-    page,
-    request,
-    stack,
-    email,
-    password
-  );
+  const accountID = await completeSignup(page, request, stack, email, password);
   await page.getByRole('link', { name: 'Edit profile' }).click();
   await page.getByLabel('Preferred username').fill(preferredUsername);
   await page.getByLabel('Full name').fill(fullName);
@@ -36,7 +30,14 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     grant_types_supported: ['authorization_code'],
     client_id_metadata_document_supported: false
   });
-  expect(discovery.claims_supported).toEqual(['sub', 'preferred_username', 'name', 'email', 'email_verified', 'auth_time']);
+  expect(discovery.claims_supported).toEqual([
+    'sub',
+    'preferred_username',
+    'name',
+    'email',
+    'email_verified',
+    'auth_time'
+  ]);
   expect(discovery).not.toHaveProperty('registration_endpoint');
   expect(discovery).not.toHaveProperty('revocation_endpoint');
 
@@ -57,14 +58,39 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
 
   await page.goto(authorize.toString());
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
-  await expect(page.getByRole('link', { name: `Signed in as ${email}. View your account.` })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: `Signed in as ${email}. View your account.` })
+  ).toBeVisible();
   await expect(page.getByText(email)).toBeVisible();
-  await expect(page.getByText('configured by this site’s operator', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText('configured by this site’s operator', { exact: false })
+  ).toBeVisible();
 
+  await expect(page.getByText(accountID, { exact: true })).toBeHidden();
+  // Browser chrome reduces the usable space in a 520 × 600 popup.
+  for (const viewport of [
+    { width: 520, height: 500 },
+    { width: 320, height: 650 }
+  ]) {
+    await page.setViewportSize(viewport);
+    expect(
+      await page.evaluate(() => ({
+        horizontal: document.documentElement.scrollWidth > innerWidth,
+        vertical: document.documentElement.scrollHeight > innerHeight
+      }))
+    ).toEqual({ horizontal: false, vertical: false });
+    await expect(page.getByRole('button', { name: 'Authorize', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Deny', exact: true })).toBeInViewport();
+  }
+  await page.getByText('Your account ID', { exact: false }).click();
   await expect(page.getByText(accountID, { exact: true })).toBeVisible();
   await expect(page.getByText(preferredUsername, { exact: true })).toBeVisible();
   await expect(page.getByText(fullName, { exact: true })).toBeVisible();
-  await expect(page.getByText('This access includes future changes to the information listed above.', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText('This access includes future changes to the information listed above.', {
+      exact: false
+    })
+  ).toBeVisible();
 
   const callbackRequest = page.waitForRequest((request) =>
     request.url().startsWith(`${stack.callbackURL}?`)
@@ -91,14 +117,27 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     token_type: string;
   };
   expect(tokens.token_type).toBe('Bearer');
-  const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString()) as Record<string, unknown>;
-  expect(claims).toMatchObject({ iss: stack.baseURL, sub: accountID, azp: 'authling-e2e', nonce: 'browser-nonce', preferred_username: preferredUsername, name: fullName });
+  const claims = JSON.parse(
+    Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString()
+  ) as Record<string, unknown>;
+  expect(claims).toMatchObject({
+    iss: stack.baseURL,
+    sub: accountID,
+    azp: 'authling-e2e',
+    nonce: 'browser-nonce',
+    preferred_username: preferredUsername,
+    name: fullName
+  });
 
   const userinfo = await request.get(`${stack.baseURL}/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` }
   });
   expect(userinfo.status()).toBe(200);
-  expect(await userinfo.json()).toEqual({ sub: accountID, preferred_username: preferredUsername, name: fullName });
+  expect(await userinfo.json()).toEqual({
+    sub: accountID,
+    preferred_username: preferredUsername,
+    name: fullName
+  });
 
   // The disclosure covers live UserInfo reads as well as later sign-ins.
   await page.goto(`${stack.baseURL}/account/profile`);
@@ -109,12 +148,18 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     headers: { Authorization: `Bearer ${tokens.access_token}` }
   });
   expect(updatedUserinfo.status()).toBe(200);
-  expect(await updatedUserinfo.json()).toEqual({ sub: accountID, preferred_username: 'updated-username', name: 'Updated Profile Person' });
+  expect(await updatedUserinfo.json()).toEqual({
+    sub: accountID,
+    preferred_username: 'updated-username',
+    name: 'Updated Profile Person'
+  });
 
-  await page.goto(`${stack.baseURL}/account`);
+  await page.goto(`${stack.baseURL}/account/apps`);
   const authorizedApps = page.getByRole('heading', { name: 'Connected apps' }).locator('..');
   await expect(authorizedApps.getByText('Authling E2E client')).toBeVisible();
-  await expect(authorizedApps.getByText('configured by this site’s operator', { exact: false })).toBeVisible();
+  await expect(
+    authorizedApps.getByText('configured by this site’s operator', { exact: false })
+  ).toBeVisible();
 
   await page.goto(authorize.toString());
   await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));
@@ -124,9 +169,11 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   await page.goto(forcedConsent.toString());
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
 
-  await page.goto(`${stack.baseURL}/account`);
+  await page.goto(`${stack.baseURL}/account/apps`);
   await authorizedApps.getByRole('button', { name: 'Revoke access' }).click();
-  await expect(page.getByText('The app’s authorization was revoked', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText('The app’s authorization was revoked', { exact: false })
+  ).toBeVisible();
   await expect(authorizedApps.getByText('You haven’t authorized any apps yet.')).toBeVisible();
 
   await page.goto(authorize.toString());
@@ -134,8 +181,11 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
 
   const reused = await request.post(`${stack.baseURL}/oauth/token`, {
     form: {
-      grant_type: 'authorization_code', client_id: 'authling-e2e', redirect_uri: redirectURI,
-      code: code ?? '', code_verifier: verifier
+      grant_type: 'authorization_code',
+      client_id: 'authling-e2e',
+      redirect_uri: redirectURI,
+      code: code ?? '',
+      code_verifier: verifier
     }
   });
   expect(reused.status()).toBe(400);
@@ -146,10 +196,19 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-test('returns a missing-PKCE error to the validated client before consent', async ({ request, stack }) => {
+test('returns a missing-PKCE error to the validated client before consent', async ({
+  request,
+  stack
+}) => {
   const state = randomUUID();
   const response = await request.get(`${stack.baseURL}/oauth/authorize`, {
-    params: { client_id: 'authling-e2e', redirect_uri: stack.callbackURL, response_type: 'code', scope: 'openid', state },
+    params: {
+      client_id: 'authling-e2e',
+      redirect_uri: stack.callbackURL,
+      response_type: 'code',
+      scope: 'openid',
+      state
+    },
     maxRedirects: 0
   });
   expect(response.status()).toBe(302);
@@ -165,14 +224,22 @@ for (const { freshness, recover } of [
   { freshness: { prompt: 'login consent' }, recover: false },
   { freshness: { max_age: '0' }, recover: true }
 ]) {
-  test(`requires fresh authentication for ${JSON.stringify(freshness)} (recovery=${recover}) and preserves consent`, async ({ page, request, stack }) => {
+  test(`requires fresh authentication for ${JSON.stringify(freshness)} (recovery=${recover}) and preserves consent`, async ({
+    page,
+    request,
+    stack
+  }) => {
     const email = `freshness-${randomUUID()}@example.invalid`;
     await completeSignup(page, request, stack, email, password);
     const verifier = 'playwright-freshness-verifier-with-at-least-forty-three-characters';
     const authorize = new URL('/oauth/authorize', stack.baseURL);
     authorize.search = new URLSearchParams({
-      client_id: 'authling-e2e', redirect_uri: stack.callbackURL, response_type: 'code', scope: 'openid',
-      code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256'
+      client_id: 'authling-e2e',
+      redirect_uri: stack.callbackURL,
+      response_type: 'code',
+      scope: 'openid',
+      code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+      code_challenge_method: 'S256'
     }).toString();
     // Establish a durable grant before asking for fresh authentication.
     await page.goto(authorize.toString());
@@ -187,13 +254,16 @@ for (const { freshness, recover } of [
       await page.getByRole('link', { name: 'Forgot your password?' }).click();
       await page.getByLabel('Email address').fill(email);
       await page.getByRole('button', { name: 'Email me a reset code' }).click();
-      await page.getByLabel('Password reset code').fill(await waitForPasswordResetCode(request, stack.mailpitURL));
+      await page
+        .getByLabel('Password reset code')
+        .fill(await waitForPasswordResetCode(request, stack.mailpitURL));
       await page.getByRole('button', { name: 'Verify code' }).click();
       await page.getByLabel('New password').fill('a new uncommon recovery password');
       await page.getByRole('button', { name: 'Reset password' }).click();
     } else {
       await page.getByLabel('Email address').fill(email);
       await page.getByLabel('Password', { exact: true }).fill('wrong password');
+      await expect(page.locator('form')).toHaveAttribute('hx-boost', 'false');
       await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       await expect(page.getByText('The email address or password is incorrect.')).toBeVisible();
       await expect(page.locator('input[name="oidc_request"]')).toHaveValue(pendingID ?? '');
@@ -203,18 +273,27 @@ for (const { freshness, recover } of [
       await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     }
     if (freshness.prompt?.includes('consent')) {
-      await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Authorize Authling E2E client?' })
+      ).toBeVisible();
       await page.getByRole('button', { name: 'Authorize', exact: true }).click();
     }
     await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));
     const code = new URL(page.url()).searchParams.get('code');
-    const response = await request.post(`${stack.baseURL}/oauth/token`, { form: {
-      grant_type: 'authorization_code', client_id: 'authling-e2e', redirect_uri: stack.callbackURL,
-      code: code ?? '', code_verifier: verifier
-    } });
+    const response = await request.post(`${stack.baseURL}/oauth/token`, {
+      form: {
+        grant_type: 'authorization_code',
+        client_id: 'authling-e2e',
+        redirect_uri: stack.callbackURL,
+        code: code ?? '',
+        code_verifier: verifier
+      }
+    });
     expect(response.status()).toBe(200);
-    const tokens = await response.json() as { id_token: string };
-    const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString()) as { auth_time: number };
+    const tokens = (await response.json()) as { id_token: string };
+    const claims = JSON.parse(
+      Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString()
+    ) as { auth_time: number };
     expect(claims.auth_time).toBeGreaterThanOrEqual(loginStart);
     expect(claims.auth_time).toBeLessThanOrEqual(Math.floor(Date.now() / 1000));
     // The new session can satisfy a positive max_age without another login.
@@ -225,13 +304,23 @@ for (const { freshness, recover } of [
   });
 }
 
-test('rechecks max_age when consent is submitted after authentication expires', async ({ page, request, stack }) => {
+test('rechecks max_age when consent is submitted after authentication expires', async ({
+  page,
+  request,
+  stack
+}) => {
   const email = `expired-consent-${randomUUID()}@example.invalid`;
   await completeSignup(page, request, stack, email, password);
   const authorize = new URL('/oauth/authorize', stack.baseURL);
   authorize.search = new URLSearchParams({
-    client_id: 'authling-e2e', redirect_uri: stack.callbackURL, response_type: 'code', scope: 'openid', max_age: '5',
-    code_challenge: createHash('sha256').update('playwright-delayed-consent-verifier-at-least-forty-three-characters').digest('base64url'),
+    client_id: 'authling-e2e',
+    redirect_uri: stack.callbackURL,
+    response_type: 'code',
+    scope: 'openid',
+    max_age: '5',
+    code_challenge: createHash('sha256')
+      .update('playwright-delayed-consent-verifier-at-least-forty-three-characters')
+      .digest('base64url'),
     code_challenge_method: 'S256'
   }).toString();
   await page.goto(authorize.toString());
@@ -251,18 +340,25 @@ test('rechecks max_age when consent is submitted after authentication expires', 
   await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));
 });
 
-test('continues OIDC after signup and supports silent authorization', async ({ page, request, stack }) => {
+test('continues OIDC after signup and supports silent authorization', async ({
+  page,
+  request,
+  stack
+}) => {
   const verifier = 'signup-verifier-with-at-least-forty-three-characters';
   const authorize = new URL('/oauth/authorize', stack.baseURL);
   authorize.search = new URLSearchParams({
-    client_id: 'authling-e2e', redirect_uri: stack.callbackURL,
-    response_type: 'code', scope: 'openid', state: 'signup-state',
+    client_id: 'authling-e2e',
+    redirect_uri: stack.callbackURL,
+    response_type: 'code',
+    scope: 'openid',
+    state: 'signup-state',
     code_challenge: createHash('sha256').update(verifier).digest('base64url'),
     code_challenge_method: 'S256'
   }).toString();
   await page.goto(authorize.toString());
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Create one' }).click();
+  await page.getByRole('link', { name: 'Create account', exact: true }).click();
   await expect(page).toHaveURL(/\/signup\?id=/);
   await page.getByLabel('Email address').fill(`oidc-signup-${randomUUID()}@example.invalid`);
   await page.getByRole('button', { name: 'Email me a code' }).click();
@@ -281,18 +377,27 @@ test('continues OIDC after signup and supports silent authorization', async ({ p
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
   await page.getByRole('button', { name: 'Authorize', exact: true }).click();
-  await expect(page).toHaveURL((url) => url.origin + url.pathname === stack.callbackURL && url.searchParams.has('code'));
+  await expect(page).toHaveURL(
+    (url) => url.origin + url.pathname === stack.callbackURL && url.searchParams.has('code')
+  );
   const callback = new URL(page.url());
   expect(callback.searchParams.get('state')).toBe('signup-state');
-  const tokens = await request.post(`${stack.baseURL}/oauth/token`, { form: {
-    grant_type: 'authorization_code', client_id: 'authling-e2e', redirect_uri: stack.callbackURL,
-    code: callback.searchParams.get('code') ?? '', code_verifier: verifier
-  } });
+  const tokens = await request.post(`${stack.baseURL}/oauth/token`, {
+    form: {
+      grant_type: 'authorization_code',
+      client_id: 'authling-e2e',
+      redirect_uri: stack.callbackURL,
+      code: callback.searchParams.get('code') ?? '',
+      code_verifier: verifier
+    }
+  });
   expect(tokens.ok()).toBe(true);
 
   authorize.searchParams.set('prompt', 'none');
   await page.goto(authorize.toString());
-  await expect(page).toHaveURL((url) => url.origin + url.pathname === stack.callbackURL && url.searchParams.has('code'));
+  await expect(page).toHaveURL(
+    (url) => url.origin + url.pathname === stack.callbackURL && url.searchParams.has('code')
+  );
   authorize.searchParams.set('max_age', '0');
   await page.goto(authorize.toString());
   await expect(page).toHaveURL((url) => url.searchParams.get('error') === 'login_required');

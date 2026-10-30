@@ -3,6 +3,7 @@
 </script>
 
 <script lang="ts">
+  import { provideLinkPreview } from '$lib/components/messages/linkPreviewContext';
   import ComposerStatusRow from './ComposerStatusRow.svelte';
   import ComposerShortcutHints from './ComposerShortcutHints.svelte';
   import SlowModeBadge from './SlowModeBadge.svelte';
@@ -135,6 +136,7 @@
   const composerContext = getComposerContext();
   const replyState = $derived(composerContext.replyState);
   const membersStore = useRoomMembersStore();
+  provideLinkPreview((href) => composer.linkPreviews.previews.get(href));
   const composer = new MessageComposerState({
     draftReplies: serverUi(stores).draftReplies,
     getRoomId: () => roomId,

@@ -635,6 +635,7 @@ func realtimeEVTRequiresSnapshot(subject, eventType string) bool {
 func isKnownNonSnapshotServerConfigEventType(eventType string) bool {
 	switch eventType {
 	case evtstream.EventServerBlockedUsernamesChanged,
+		evtstream.EventServerRegistrationAdmissionChanged,
 		evtstream.EventServerNeighborCreated,
 		evtstream.EventServerNeighborOriginChanged,
 		evtstream.EventServerNeighborTestimonialChanged,

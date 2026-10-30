@@ -70,7 +70,7 @@ test('stable and beta installers share identity, executable, and profile-preserv
   assert.equal(beta.appId, stable.appId);
   assert.equal(beta.appId, 'run.chatto.desktop');
   assert.equal(beta.executableName, 'chatto-desktop');
-  assert.equal(beta.productName, 'Chatto Desktop');
+  assert.equal(beta.productName, 'Chatto');
   assert.equal(beta.buildVersion, '0.5.0.21');
   assert.equal(beta.nsis.oneClick, true);
   assert.equal(beta.nsis.perMachine, false);

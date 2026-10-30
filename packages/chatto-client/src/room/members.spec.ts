@@ -667,11 +667,13 @@ describe('RoomMembersStore', () => {
     }
   });
 
-  it('keeps the published first page when background hydration fails', async () => {
+  it('keeps the published first page when background hydration fails and during retry', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const retry = deferred<MemberDirectoryPage>();
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),
-      Promise.reject(new Error('network failed'))
+      Promise.reject(new Error('network failed')),
+      retry.promise
     ]);
     const store = new RoomMembersStore('room-1', fakeAPI);
 
@@ -684,6 +686,15 @@ describe('RoomMembersStore', () => {
       expect(store.hasLoadedAll).toBe(false);
       expect(store.loadError).toMatchObject({ message: 'network failed' });
       expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
+      const loading = store.loadInitial();
+      expect(store.members.map((member) => member.login)).toEqual(['alice']);
+      expect(store.isInitialLoading).toBe(false);
+      expect(store.isBackgroundLoading).toBe(true);
+      retry.resolve(pageResult([user('u1', 'alice'), user('u2', 'bob')]));
+      await loading;
+      expect(store.members.map((member) => member.login)).toEqual(['alice', 'bob']);
+      expect(store.hasLoadedAll).toBe(true);
+      expect(store.isBackgroundLoading).toBe(false);
     } finally {
       consoleErrorSpy.mockRestore();
     }

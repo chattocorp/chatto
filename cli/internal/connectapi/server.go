@@ -14,6 +14,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -40,6 +41,12 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			return nil, connectInternalError(err)
 		}
 	}
+	// Discovery reports the local projection as a UI hint. Account creation
+	// independently catches up and checks admission under OCC.
+	admission := evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN
+	if s.api.core != nil {
+		admission = s.api.core.ConfigModel().RegistrationAdmission()
+	}
 	directLoginEnabled := s.api.config.Auth.DirectLoginOrDefault()
 	response := &discoveryv1.GetServerResponse{
 		Profile:       profile,
@@ -49,7 +56,7 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			DirectLoginEnabled:        &directLoginEnabled,
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
-			AccountCreationPolicy:     apiAccountCreationPolicy(s.api.config.Auth.AccountCreationPolicyOrDefault()),
+			AccountCreationPolicy:     apiAccountCreationPolicy(admission),
 		},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
@@ -67,6 +74,33 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		maps.Copy(callInfo.ResponseHeader(), cacheHeaders)
 	}
 	return connect.NewResponse(response), nil
+}
+
+// serverFeatureCatalog describes product features implemented by this server
+// build. Return fresh messages for each response. These entries do not depend
+// on viewer permissions or server settings and never restrict connections.
+func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
+	features := []*discoveryv1.ServerFeature{
+		{
+			Id:                "threadViews",
+			Name:              "Separate thread views",
+			Description:       "View followed threads separately from threads you started.",
+			IntroducedVersion: "0.5.0-beta.16",
+		},
+		{
+			Id:                "independentSlowMode",
+			Name:              "Independent slow mode",
+			Description:       "Use separate cooldowns for channel messages and thread replies.",
+			IntroducedVersion: "0.5.0-beta.18",
+		},
+	}
+	for _, feature := range features {
+		if text, ok := featureTranslation(locale, feature.Id); ok {
+			feature.Name = text.Name
+			feature.Description = text.Description
+		}
+	}
+	return features
 }
 
 func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.Request[discoveryv1.ListNeighborsRequest]) (*connect.Response[discoveryv1.ListNeighborsResponse], error) {
@@ -134,11 +168,15 @@ func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ 
 	return connect.NewResponse(response), nil
 }
 
-func apiAccountCreationPolicy(policy string) apiv1.AccountCreationPolicy {
-	if policy == config.AccountCreationPolicyInviteOnly {
+func apiAccountCreationPolicy(policy evtv1.RegistrationAdmission) apiv1.AccountCreationPolicy {
+	switch policy {
+	case evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_UNSPECIFIED, evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN:
+		return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN
+	case evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY:
 		return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_INVITE_ONLY
+	default:
+		return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_UNSPECIFIED
 	}
-	return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN
 }
 
 func discoveryResponseETag(response proto.Message) (string, error) {

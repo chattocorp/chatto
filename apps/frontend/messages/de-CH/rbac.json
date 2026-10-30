@@ -1,6 +1,7 @@
 {
   "rbac": {
     "permission_help": {
+      "bot_manage": "Alle Bots verwalten, einschliesslich ihrer Schlüssel und Owner. Dazu gehört das Ausstellen von Schlüsseln für Bots mit mehr Berechtigungen als das aufrufende Konto. Erteile diese Berechtigung nur, wenn du diese Befugnis übertragen möchtest.",
       "server_manage": "Erlaubt einem Konto, den Servernamen, die Beschreibung, das Logo und andere Servereinstellungen zu ändern. Ausserdem erlaubt sie Änderungen am öffentlichen Nachbarverzeichnis. Gib sie nur Personen, die für den ganzen Server sprechen können.",
       "room_manage": "Erlaubt einem Konto, Räume und Raumgruppen in dem Bereich, in dem du sie setzt, zu konfigurieren, umzubenennen, zu archivieren und zu löschen sowie Raummitglieder hinzuzufügen oder zu entfernen. Im Serverbereich erlaubt sie ausserdem, Raumgruppen zu erstellen und zu sortieren. Konten mit dieser Berechtigung sind nicht an den langsamen Modus gebunden.",
       "message_read": "Erlaubt einem Konto, Nachrichten, Threads, Anhänge, Suchergebnisse und Tippanzeigen zu lesen. Das Konto muss ausserdem Mitglied des Raums oder der Direktnachricht sein. Wenn du diese Berechtigung verweigerst, kann message.read-interactions trotzdem Zugriff auf die eigenen Unterhaltungen des Kontos geben.",

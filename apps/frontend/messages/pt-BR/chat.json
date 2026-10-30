@@ -60,6 +60,9 @@
       "details": "Detalhes do servidor"
     },
     "compatibility": {
+      "older_frontend": "Seu aplicativo não oferece suporte a todos os recursos deste servidor",
+      "frontend_upgrade": "Você usa a versão {version} do aplicativo. Atualize o aplicativo ou peça ao administrador do servidor que o fornece para atualizá-lo. O acesso aos recursos também depende das configurações do servidor e das suas permissões.",
+      "frontend_requires": "Requer a versão {version} do aplicativo ou mais recente",
       "title": "Compatibilidade",
       "view": "Ver compatibilidade",
       "limited": "Versão mais antiga do servidor",
@@ -180,7 +183,7 @@
       "event_log": "Registro de eventos",
       "system": "Sistema",
       "back_to_server": "Retornar ao servidor",
-      "invitations": "Links de convite"
+      "registration": "Cadastro"
     }
   }
 }

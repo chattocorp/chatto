@@ -173,9 +173,7 @@ await rm(packagerOut, { recursive: true, force: true });
 
 console.log(`Desktop build complete: ${distRoot}`);
 if (platform === 'darwin' && profile.variant === 'development') {
-  console.log(
-    'To open it from the repository root: open "apps/desktop/dist/Chatto Desktop Dev.app"'
-  );
+  console.log('To open it from the repository root: open "apps/desktop/dist/Chatto Dev.app"');
   console.log('To build and open it next time: mise desktop-run-dev');
 }
 

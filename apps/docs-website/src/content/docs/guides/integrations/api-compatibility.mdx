@@ -16,6 +16,19 @@ the realtime protocol in ways that require client changes.
 
 ## Compatibility policy
 
+Bots can use administrative operations, including cross-account profile and
+avatar updates, bot creation, and bot/key management, with explicit permission
+grants and their owner's authority ceiling. Grant `user.manage-accounts` for
+account updates, `bot.create` for creation, and `bot.manage` for bot management.
+Bot-created accounts belong to the creating bot's human owner. API keys do not
+need interactive privileged mode. No client or stored-data migration is required.
+
+Bots can now call `RoomService.StartDM` under the same rules as humans.
+Creation requires `message.post` at DM scope, with the bot's explicit grant
+and owner authority ceiling. Existing DM lookup does not require posting
+permission. Existing bots with DM posting grants can now initiate conversations.
+No client or stored-data migration is required.
+
 Room notices add `GetNotice`, `PublishNotice`, and `ClearNotice` to
 `RoomService`, plus the `room_notice_changed` realtime event. Existing clients
 need no migration. Notice clients must retain the returned write version and
@@ -65,6 +78,12 @@ The release notes describe each intentional breaking change and the required
 migration. They are not a complete compatibility report.
 
 ## Check the server version
+
+Invitation management uses `AdminInvitationCodeService`. Integrations that
+used the beta `AdminInviteLinkService` must switch services and issue one code
+per account. Reusable links and their pending admission grants are retired.
+See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
+This change does not raise the client connection threshold.
 
 For room membership activity, an absent `Room.show_membership_events` means
 enabled. Do not offer to edit this setting when the field is absent. Supporting

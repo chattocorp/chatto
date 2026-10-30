@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Er is geen voorbeeld beschikbaar voor deze link.",
     "dismiss": "Voorbeeld sluiten",
     "delete": "Voorbeeld verwijderen",
     "open_link": "Link openen",

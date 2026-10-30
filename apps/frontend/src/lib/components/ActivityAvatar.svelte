@@ -6,7 +6,8 @@ text always lines up. Optional parts:
 
 - `server`: a small server logo before the avatar, which the avatar overlaps
   slightly. Use it for app-wide lists that combine several servers. The logo
-  is decorative: also show the server name as text in the row.
+  is decorative: also provide the server name as text in the row, which can
+  be visually hidden when the logo is sufficient.
 - `badge`: content in a small circle at the bottom end corner, for example a
   cause icon, an emoji, or a second participant's avatar.
 - `indicator`: content at the top end corner, for example an `UnreadDot`.

@@ -54,7 +54,7 @@ describe('UserAvatar', () => {
     ).toBe(true);
   });
 
-  it('uses the same neutral surface and muted label for different accounts in both themes', async () => {
+  it('uses the same neutral surface and readable label for different accounts in both themes', async () => {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     const user = {
@@ -77,7 +77,7 @@ describe('UserAvatar', () => {
             computedBackgroundColor(tokens.getPropertyValue('--color-surface-emphasized'))
           );
           expect(style.color).toBe(
-            computedBackgroundColor(tokens.getPropertyValue('--color-muted'))
+            computedBackgroundColor(tokens.getPropertyValue('--color-text'))
           );
         }
       }
@@ -275,6 +275,6 @@ describe('UserAvatar', () => {
     expect(view.container.querySelector('.skeleton')).toBeNull();
     image?.dispatchEvent(new Event('error'));
     await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('👩‍💻');
-    expect(q(view.container, '.bg-surface-emphasized.text-muted')).toBeTruthy();
+    expect(q(view.container, '.bg-surface-emphasized.text-text')).toBeTruthy();
   });
 });

@@ -13,11 +13,24 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ev
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-522: durable server/user configuration events on evt.config.*
+//   - 501-525: durable server/user configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
 // ============================================================================
+
+// Account admission policy. An absent setting defaults to open.
+enum RegistrationAdmission {
+  // No explicit policy; uses the default of open registration.
+  REGISTRATION_ADMISSION_UNSPECIFIED = 0;
+  REGISTRATION_ADMISSION_OPEN = 1;
+  REGISTRATION_ADMISSION_INVITE_ONLY = 2;
+}
+
+// Records the server's policy for new self-service accounts.
+message ServerRegistrationAdmissionChangedEvent {
+  RegistrationAdmission admission = 1;
+}
 
 message ServerNameChangedEvent {
   string name = 1;

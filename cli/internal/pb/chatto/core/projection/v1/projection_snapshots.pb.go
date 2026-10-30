@@ -2469,18 +2469,19 @@ func (x *RBACDecisionSnapshot) GetDecision() string {
 }
 
 type ConfigProjectionSnapshot struct {
-	state            protoimpl.MessageState    `protogen:"open.v1"`
-	ServerName       string                    `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
-	Description      string                    `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	WelcomeMessage   string                    `protobuf:"bytes,3,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
-	Motd             string                    `protobuf:"bytes,4,opt,name=motd,proto3" json:"motd,omitempty"`
-	BlockedUsernames *string                   `protobuf:"bytes,5,opt,name=blocked_usernames,json=blockedUsernames,proto3,oneof" json:"blocked_usernames,omitempty"`
-	Logo             *v1.AssetRecord           `protobuf:"bytes,6,opt,name=logo,proto3" json:"logo,omitempty"`
-	Banner           *v1.AssetRecord           `protobuf:"bytes,7,opt,name=banner,proto3" json:"banner,omitempty"`
-	Users            []*UserConfigSnapshot     `protobuf:"bytes,8,rep,name=users,proto3" json:"users,omitempty"`
-	Neighbors        []*ServerNeighborSnapshot `protobuf:"bytes,9,rep,name=neighbors,proto3" json:"neighbors,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                 protoimpl.MessageState    `protogen:"open.v1"`
+	ServerName            string                    `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	Description           string                    `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	WelcomeMessage        string                    `protobuf:"bytes,3,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	Motd                  string                    `protobuf:"bytes,4,opt,name=motd,proto3" json:"motd,omitempty"`
+	BlockedUsernames      *string                   `protobuf:"bytes,5,opt,name=blocked_usernames,json=blockedUsernames,proto3,oneof" json:"blocked_usernames,omitempty"`
+	Logo                  *v1.AssetRecord           `protobuf:"bytes,6,opt,name=logo,proto3" json:"logo,omitempty"`
+	Banner                *v1.AssetRecord           `protobuf:"bytes,7,opt,name=banner,proto3" json:"banner,omitempty"`
+	Users                 []*UserConfigSnapshot     `protobuf:"bytes,8,rep,name=users,proto3" json:"users,omitempty"`
+	Neighbors             []*ServerNeighborSnapshot `protobuf:"bytes,9,rep,name=neighbors,proto3" json:"neighbors,omitempty"`
+	RegistrationAdmission v1.RegistrationAdmission  `protobuf:"varint,10,opt,name=registration_admission,json=registrationAdmission,proto3,enum=chatto.core.evt.v1.RegistrationAdmission" json:"registration_admission,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ConfigProjectionSnapshot) Reset() {
@@ -2574,6 +2575,13 @@ func (x *ConfigProjectionSnapshot) GetNeighbors() []*ServerNeighborSnapshot {
 		return x.Neighbors
 	}
 	return nil
+}
+
+func (x *ConfigProjectionSnapshot) GetRegistrationAdmission() v1.RegistrationAdmission {
+	if x != nil {
+		return x.RegistrationAdmission
+	}
+	return v1.RegistrationAdmission(0)
 }
 
 // Restorable state for one advertised server in the Neighbor directory.
@@ -5136,7 +5144,7 @@ var File_chatto_core_projection_v1_projection_snapshots_proto protoreflect.FileD
 
 const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\n" +
-	"4chatto/core/projection/v1/projection_snapshots.proto\x12\x19chatto.core.projection.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a\x1echatto/core/evt/v1/event.proto\x1a%chatto/core/evt/v1/event_values.proto\x1a,chatto/core/evt/v1/notification_policy.proto\x1a.chatto/core/notification/v1/notification.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a)chatto/core/evt/v1/user_preferences.proto\"\xd2\x03\n" +
+	"4chatto/core/projection/v1/projection_snapshots.proto\x12\x19chatto.core.projection.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a\x1echatto/core/evt/v1/event.proto\x1a%chatto/core/evt/v1/event_values.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a,chatto/core/evt/v1/notification_policy.proto\x1a.chatto/core/notification/v1/notification.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a)chatto/core/evt/v1/user_preferences.proto\"\xd2\x03\n" +
 	"\x1cProjectionSnapshotGeneration\x12#\n" +
 	"\rgeneration_id\x18\x01 \x01(\tR\fgenerationId\x12\x1f\n" +
 	"\vstream_name\x18\x02 \x01(\tR\n" +
@@ -5335,7 +5343,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\n" +
 	"permission\x18\x05 \x01(\tR\n" +
 	"permission\x12\x1a\n" +
-	"\bdecision\x18\x06 \x01(\tR\bdecision\"\xe6\x03\n" +
+	"\bdecision\x18\x06 \x01(\tR\bdecision\"\xc8\x04\n" +
 	"\x18ConfigProjectionSnapshot\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12 \n" +
@@ -5346,7 +5354,9 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x04logo\x18\x06 \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x04logo\x127\n" +
 	"\x06banner\x18\a \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x06banner\x12C\n" +
 	"\x05users\x18\b \x03(\v2-.chatto.core.projection.v1.UserConfigSnapshotR\x05users\x12O\n" +
-	"\tneighbors\x18\t \x03(\v21.chatto.core.projection.v1.ServerNeighborSnapshotR\tneighborsB\x14\n" +
+	"\tneighbors\x18\t \x03(\v21.chatto.core.projection.v1.ServerNeighborSnapshotR\tneighbors\x12`\n" +
+	"\x16registration_admission\x18\n" +
+	" \x01(\x0e2).chatto.core.evt.v1.RegistrationAdmissionR\x15registrationAdmissionB\x14\n" +
 	"\x12_blocked_usernames\"\x82\x01\n" +
 	"\x16ServerNeighborSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
@@ -5658,20 +5668,21 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_goTypes = []any{
 	(*v1.UserDEKGeneratedEvent)(nil),               // 71: chatto.core.evt.v1.UserDEKGeneratedEvent
 	(v1.RbacPermissionSubjectKind)(0),              // 72: chatto.core.evt.v1.RbacPermissionSubjectKind
 	(*v1.AssetRecord)(nil),                         // 73: chatto.core.evt.v1.AssetRecord
-	(v1.TimeFormat)(0),                             // 74: chatto.core.evt.v1.TimeFormat
-	(*v1.NotificationDeliveryModes)(nil),           // 75: chatto.core.evt.v1.NotificationDeliveryModes
-	(*v11.NotificationOccurrence)(nil),             // 76: chatto.core.notification.v1.NotificationOccurrence
-	(*v1.AssetCreatedEvent)(nil),                   // 77: chatto.core.evt.v1.AssetCreatedEvent
-	(*v1.AssetProcessingStartedEvent)(nil),         // 78: chatto.core.evt.v1.AssetProcessingStartedEvent
-	(*v1.AssetProcessingSucceededEvent)(nil),       // 79: chatto.core.evt.v1.AssetProcessingSucceededEvent
-	(*v1.AssetProcessingFailedEvent)(nil),          // 80: chatto.core.evt.v1.AssetProcessingFailedEvent
-	(*v1.Event)(nil),                               // 81: chatto.core.evt.v1.Event
-	(*v1.ServerUserPreferences)(nil),               // 82: chatto.core.evt.v1.ServerUserPreferences
-	(*v1.EncryptedUserString)(nil),                 // 83: chatto.core.evt.v1.EncryptedUserString
-	(v1.RoomKind)(0),                               // 84: chatto.core.evt.v1.RoomKind
-	(v1.RoomThreadingMode)(0),                      // 85: chatto.core.evt.v1.RoomThreadingMode
-	(*v1.CustomUserStatus)(nil),                    // 86: chatto.core.evt.v1.CustomUserStatus
-	(*v1.SidebarGroupEntry)(nil),                   // 87: chatto.core.evt.v1.SidebarGroupEntry
+	(v1.RegistrationAdmission)(0),                  // 74: chatto.core.evt.v1.RegistrationAdmission
+	(v1.TimeFormat)(0),                             // 75: chatto.core.evt.v1.TimeFormat
+	(*v1.NotificationDeliveryModes)(nil),           // 76: chatto.core.evt.v1.NotificationDeliveryModes
+	(*v11.NotificationOccurrence)(nil),             // 77: chatto.core.notification.v1.NotificationOccurrence
+	(*v1.AssetCreatedEvent)(nil),                   // 78: chatto.core.evt.v1.AssetCreatedEvent
+	(*v1.AssetProcessingStartedEvent)(nil),         // 79: chatto.core.evt.v1.AssetProcessingStartedEvent
+	(*v1.AssetProcessingSucceededEvent)(nil),       // 80: chatto.core.evt.v1.AssetProcessingSucceededEvent
+	(*v1.AssetProcessingFailedEvent)(nil),          // 81: chatto.core.evt.v1.AssetProcessingFailedEvent
+	(*v1.Event)(nil),                               // 82: chatto.core.evt.v1.Event
+	(*v1.ServerUserPreferences)(nil),               // 83: chatto.core.evt.v1.ServerUserPreferences
+	(*v1.EncryptedUserString)(nil),                 // 84: chatto.core.evt.v1.EncryptedUserString
+	(v1.RoomKind)(0),                               // 85: chatto.core.evt.v1.RoomKind
+	(v1.RoomThreadingMode)(0),                      // 86: chatto.core.evt.v1.RoomThreadingMode
+	(*v1.CustomUserStatus)(nil),                    // 87: chatto.core.evt.v1.CustomUserStatus
+	(*v1.SidebarGroupEntry)(nil),                   // 88: chatto.core.evt.v1.SidebarGroupEntry
 }
 var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
 	69,  // 0: chatto.core.projection.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
@@ -5725,73 +5736,74 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
 	73,  // 48: chatto.core.projection.v1.ConfigProjectionSnapshot.banner:type_name -> chatto.core.evt.v1.AssetRecord
 	36,  // 49: chatto.core.projection.v1.ConfigProjectionSnapshot.users:type_name -> chatto.core.projection.v1.UserConfigSnapshot
 	35,  // 50: chatto.core.projection.v1.ConfigProjectionSnapshot.neighbors:type_name -> chatto.core.projection.v1.ServerNeighborSnapshot
-	74,  // 51: chatto.core.projection.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.evt.v1.TimeFormat
-	75,  // 52: chatto.core.projection.v1.UserConfigSnapshot.server_notification_modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	37,  // 53: chatto.core.projection.v1.UserConfigSnapshot.room_notification_modes:type_name -> chatto.core.projection.v1.RoomNotificationModesSnapshot
-	38,  // 54: chatto.core.projection.v1.UserConfigSnapshot.room_group_notification_modes:type_name -> chatto.core.projection.v1.RoomGroupNotificationModesSnapshot
-	75,  // 55: chatto.core.projection.v1.RoomNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	75,  // 56: chatto.core.projection.v1.RoomGroupNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	76,  // 57: chatto.core.projection.v1.NotificationProjectionSnapshot.notifications:type_name -> chatto.core.notification.v1.NotificationOccurrence
-	40,  // 58: chatto.core.projection.v1.NotificationProjectionSnapshot.tombstones:type_name -> chatto.core.projection.v1.NotificationProjectionTombstone
-	69,  // 59: chatto.core.projection.v1.NotificationProjectionTombstone.expires_at:type_name -> google.protobuf.Timestamp
-	77,  // 60: chatto.core.projection.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.evt.v1.AssetCreatedEvent
-	42,  // 61: chatto.core.projection.v1.AssetProjectionSnapshot.children:type_name -> chatto.core.projection.v1.AssetChildrenSnapshot
-	43,  // 62: chatto.core.projection.v1.AssetProjectionSnapshot.manifests:type_name -> chatto.core.projection.v1.AssetManifestSnapshot
-	44,  // 63: chatto.core.projection.v1.AssetProjectionSnapshot.deleted_assets:type_name -> chatto.core.projection.v1.DeletedAssetSnapshot
-	12,  // 64: chatto.core.projection.v1.AssetProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	62,  // 65: chatto.core.projection.v1.AssetProjectionSnapshot.message_owners:type_name -> chatto.core.projection.v1.AssetMessageOwnerSnapshot
-	78,  // 66: chatto.core.projection.v1.AssetManifestSnapshot.started:type_name -> chatto.core.evt.v1.AssetProcessingStartedEvent
-	79,  // 67: chatto.core.projection.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.evt.v1.AssetProcessingSucceededEvent
-	80,  // 68: chatto.core.projection.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.evt.v1.AssetProcessingFailedEvent
-	46,  // 69: chatto.core.projection.v1.ReactionProjectionSnapshot.messages:type_name -> chatto.core.projection.v1.MessageReactionsSnapshot
-	49,  // 70: chatto.core.projection.v1.ReactionProjectionSnapshot.room_sequences:type_name -> chatto.core.projection.v1.StringUint64Snapshot
-	50,  // 71: chatto.core.projection.v1.ReactionProjectionSnapshot.message_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	50,  // 72: chatto.core.projection.v1.ReactionProjectionSnapshot.echo_originals:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	50,  // 73: chatto.core.projection.v1.ReactionProjectionSnapshot.asset_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	12,  // 74: chatto.core.projection.v1.ReactionProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	47,  // 75: chatto.core.projection.v1.MessageReactionsSnapshot.emojis:type_name -> chatto.core.projection.v1.EmojiReactionsSnapshot
-	48,  // 76: chatto.core.projection.v1.EmojiReactionsSnapshot.users:type_name -> chatto.core.projection.v1.UserReactionSnapshot
-	81,  // 77: chatto.core.projection.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.evt.v1.Event
-	71,  // 78: chatto.core.projection.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
-	53,  // 79: chatto.core.projection.v1.UserProfileProjectionSnapshot.users:type_name -> chatto.core.projection.v1.ProjectedUserProfileSnapshot
-	71,  // 80: chatto.core.projection.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
-	12,  // 81: chatto.core.projection.v1.UserProfileProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	50,  // 82: chatto.core.projection.v1.UserProfileProjectionSnapshot.login_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	50,  // 83: chatto.core.projection.v1.UserProfileProjectionSnapshot.email_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	65,  // 84: chatto.core.projection.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.projection.v1.UserSnapshot
-	54,  // 85: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	54,  // 86: chatto.core.projection.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	73,  // 87: chatto.core.projection.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.evt.v1.AssetRecord
-	55,  // 88: chatto.core.projection.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot
-	82,  // 89: chatto.core.projection.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.evt.v1.ServerUserPreferences
-	69,  // 90: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
-	54,  // 91: chatto.core.projection.v1.ProjectedUserProfileSnapshot.bio:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	83,  // 92: chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.evt.v1.EncryptedUserString
-	54,  // 93: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	69,  // 94: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
-	59,  // 95: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.projection.v1.TimelineEntrySnapshot
-	60,  // 96: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.projection.v1.TimelineBodySnapshot
-	61,  // 97: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
-	61,  // 98: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
-	12,  // 99: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	57,  // 100: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.projection.v1.PinnedMessageSnapshot
-	58,  // 101: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.projection.v1.LatestRoomPinSnapshot
-	69,  // 102: chatto.core.projection.v1.TimelineEntrySnapshot.created_at:type_name -> google.protobuf.Timestamp
-	69,  // 103: chatto.core.projection.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	84,  // 104: chatto.core.projection.v1.RoomSnapshot.kind:type_name -> chatto.core.evt.v1.RoomKind
-	85,  // 105: chatto.core.projection.v1.RoomSnapshot.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
-	69,  // 106: chatto.core.projection.v1.RoomSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	64,  // 107: chatto.core.projection.v1.RoomSnapshot.notice:type_name -> chatto.core.projection.v1.RoomNoticeSnapshot
-	69,  // 108: chatto.core.projection.v1.RoomNoticeSnapshot.published_at:type_name -> google.protobuf.Timestamp
-	69,  // 109: chatto.core.projection.v1.UserSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	86,  // 110: chatto.core.projection.v1.UserSnapshot.custom_status:type_name -> chatto.core.evt.v1.CustomUserStatus
-	87,  // 111: chatto.core.projection.v1.RoomGroupSnapshot.entries:type_name -> chatto.core.evt.v1.SidebarGroupEntry
-	68,  // 112: chatto.core.projection.v1.RoomGroupSnapshot.sidebar_links:type_name -> chatto.core.projection.v1.SidebarLinkSnapshot
-	113, // [113:113] is the sub-list for method output_type
-	113, // [113:113] is the sub-list for method input_type
-	113, // [113:113] is the sub-list for extension type_name
-	113, // [113:113] is the sub-list for extension extendee
-	0,   // [0:113] is the sub-list for field type_name
+	74,  // 51: chatto.core.projection.v1.ConfigProjectionSnapshot.registration_admission:type_name -> chatto.core.evt.v1.RegistrationAdmission
+	75,  // 52: chatto.core.projection.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.evt.v1.TimeFormat
+	76,  // 53: chatto.core.projection.v1.UserConfigSnapshot.server_notification_modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	37,  // 54: chatto.core.projection.v1.UserConfigSnapshot.room_notification_modes:type_name -> chatto.core.projection.v1.RoomNotificationModesSnapshot
+	38,  // 55: chatto.core.projection.v1.UserConfigSnapshot.room_group_notification_modes:type_name -> chatto.core.projection.v1.RoomGroupNotificationModesSnapshot
+	76,  // 56: chatto.core.projection.v1.RoomNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	76,  // 57: chatto.core.projection.v1.RoomGroupNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	77,  // 58: chatto.core.projection.v1.NotificationProjectionSnapshot.notifications:type_name -> chatto.core.notification.v1.NotificationOccurrence
+	40,  // 59: chatto.core.projection.v1.NotificationProjectionSnapshot.tombstones:type_name -> chatto.core.projection.v1.NotificationProjectionTombstone
+	69,  // 60: chatto.core.projection.v1.NotificationProjectionTombstone.expires_at:type_name -> google.protobuf.Timestamp
+	78,  // 61: chatto.core.projection.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.evt.v1.AssetCreatedEvent
+	42,  // 62: chatto.core.projection.v1.AssetProjectionSnapshot.children:type_name -> chatto.core.projection.v1.AssetChildrenSnapshot
+	43,  // 63: chatto.core.projection.v1.AssetProjectionSnapshot.manifests:type_name -> chatto.core.projection.v1.AssetManifestSnapshot
+	44,  // 64: chatto.core.projection.v1.AssetProjectionSnapshot.deleted_assets:type_name -> chatto.core.projection.v1.DeletedAssetSnapshot
+	12,  // 65: chatto.core.projection.v1.AssetProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	62,  // 66: chatto.core.projection.v1.AssetProjectionSnapshot.message_owners:type_name -> chatto.core.projection.v1.AssetMessageOwnerSnapshot
+	79,  // 67: chatto.core.projection.v1.AssetManifestSnapshot.started:type_name -> chatto.core.evt.v1.AssetProcessingStartedEvent
+	80,  // 68: chatto.core.projection.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.evt.v1.AssetProcessingSucceededEvent
+	81,  // 69: chatto.core.projection.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.evt.v1.AssetProcessingFailedEvent
+	46,  // 70: chatto.core.projection.v1.ReactionProjectionSnapshot.messages:type_name -> chatto.core.projection.v1.MessageReactionsSnapshot
+	49,  // 71: chatto.core.projection.v1.ReactionProjectionSnapshot.room_sequences:type_name -> chatto.core.projection.v1.StringUint64Snapshot
+	50,  // 72: chatto.core.projection.v1.ReactionProjectionSnapshot.message_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	50,  // 73: chatto.core.projection.v1.ReactionProjectionSnapshot.echo_originals:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	50,  // 74: chatto.core.projection.v1.ReactionProjectionSnapshot.asset_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	12,  // 75: chatto.core.projection.v1.ReactionProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	47,  // 76: chatto.core.projection.v1.MessageReactionsSnapshot.emojis:type_name -> chatto.core.projection.v1.EmojiReactionsSnapshot
+	48,  // 77: chatto.core.projection.v1.EmojiReactionsSnapshot.users:type_name -> chatto.core.projection.v1.UserReactionSnapshot
+	82,  // 78: chatto.core.projection.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.evt.v1.Event
+	71,  // 79: chatto.core.projection.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
+	53,  // 80: chatto.core.projection.v1.UserProfileProjectionSnapshot.users:type_name -> chatto.core.projection.v1.ProjectedUserProfileSnapshot
+	71,  // 81: chatto.core.projection.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
+	12,  // 82: chatto.core.projection.v1.UserProfileProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	50,  // 83: chatto.core.projection.v1.UserProfileProjectionSnapshot.login_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	50,  // 84: chatto.core.projection.v1.UserProfileProjectionSnapshot.email_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	65,  // 85: chatto.core.projection.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.projection.v1.UserSnapshot
+	54,  // 86: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	54,  // 87: chatto.core.projection.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	73,  // 88: chatto.core.projection.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.evt.v1.AssetRecord
+	55,  // 89: chatto.core.projection.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot
+	83,  // 90: chatto.core.projection.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.evt.v1.ServerUserPreferences
+	69,  // 91: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
+	54,  // 92: chatto.core.projection.v1.ProjectedUserProfileSnapshot.bio:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	84,  // 93: chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.evt.v1.EncryptedUserString
+	54,  // 94: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	69,  // 95: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
+	59,  // 96: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.projection.v1.TimelineEntrySnapshot
+	60,  // 97: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.projection.v1.TimelineBodySnapshot
+	61,  // 98: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
+	61,  // 99: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
+	12,  // 100: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	57,  // 101: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.projection.v1.PinnedMessageSnapshot
+	58,  // 102: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.projection.v1.LatestRoomPinSnapshot
+	69,  // 103: chatto.core.projection.v1.TimelineEntrySnapshot.created_at:type_name -> google.protobuf.Timestamp
+	69,  // 104: chatto.core.projection.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	85,  // 105: chatto.core.projection.v1.RoomSnapshot.kind:type_name -> chatto.core.evt.v1.RoomKind
+	86,  // 106: chatto.core.projection.v1.RoomSnapshot.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
+	69,  // 107: chatto.core.projection.v1.RoomSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	64,  // 108: chatto.core.projection.v1.RoomSnapshot.notice:type_name -> chatto.core.projection.v1.RoomNoticeSnapshot
+	69,  // 109: chatto.core.projection.v1.RoomNoticeSnapshot.published_at:type_name -> google.protobuf.Timestamp
+	69,  // 110: chatto.core.projection.v1.UserSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	87,  // 111: chatto.core.projection.v1.UserSnapshot.custom_status:type_name -> chatto.core.evt.v1.CustomUserStatus
+	88,  // 112: chatto.core.projection.v1.RoomGroupSnapshot.entries:type_name -> chatto.core.evt.v1.SidebarGroupEntry
+	68,  // 113: chatto.core.projection.v1.RoomGroupSnapshot.sidebar_links:type_name -> chatto.core.projection.v1.SidebarLinkSnapshot
+	114, // [114:114] is the sub-list for method output_type
+	114, // [114:114] is the sub-list for method input_type
+	114, // [114:114] is the sub-list for extension type_name
+	114, // [114:114] is the sub-list for extension extendee
+	0,   // [0:114] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_projection_v1_projection_snapshots_proto_init() }

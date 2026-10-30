@@ -13,11 +13,14 @@
   let {
     server,
     fill = false,
+    compact = false,
     publicImageOrigin
   }: {
     server: ServerForLogo;
     /** Fill the available parent frame instead of using the default gutter size. */
     fill?: boolean;
+    /** Inline entity links use a small square frame and a matching initial. */
+    compact?: boolean;
     /** Load the logo as an untrusted public image from this server origin. */
     publicImageOrigin?: string;
   } = $props();
@@ -39,9 +42,13 @@
 	Used by ServerIcon for the server gutter icon.
 -->
 <div
-  class="shimmer-hover flex shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-[background-color,color] feedback-quick {fill
-    ? 'h-full w-full'
-    : 'h-12 w-12'}"
+  class="shimmer-hover flex shrink-0 items-center justify-center overflow-hidden {compact
+    ? 'h-full w-full rounded-[inherit] text-[0.65em] leading-none'
+    : 'rounded-xl text-3xl'} font-black transition-[background-color,color] feedback-quick {compact
+    ? ''
+    : fill
+      ? 'h-full w-full'
+      : 'h-12 w-12'}"
   style:background={gradientStyle}
 >
   {#if showLogo && logoURL && publicImageOrigin}

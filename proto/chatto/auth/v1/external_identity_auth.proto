@@ -50,6 +50,8 @@ message PendingExternalIdentity {
   // Whether the user can choose a username. When externally managed, the server
   // assigns it and ignores client input. The login hint is not a reservation.
   optional UsernameChoiceAvailability choose_username = 10;
+  // A create flow must first supply an invitation code. Existing-account sign-in is unaffected.
+  bool invitation_required = 11;
 }
 
 // Request to inspect a pending external identity flow.
@@ -75,6 +77,10 @@ message CreateExternalIdentityAccountRequest {
   // Desired display name. When omitted, the server uses a valid provider hint
   // and otherwise falls back to the assigned username.
   string display_name = 3 [(buf.validate.field).string.max_len = 32];
+  // Required on invite-only servers when the flow has no valid invitation.
+  // A supplied code replaces the flow's invitation for this attempt; an invalid
+  // code fails without fallback. Consumed only when account creation succeeds.
+  string invitation_code = 4 [(buf.validate.field).string.max_len = 128];
 }
 
 // Result of creating an account from a pending provider identity.

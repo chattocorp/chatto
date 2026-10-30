@@ -33,9 +33,15 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// OperatorMessageServiceImportMessagesProcedure is the fully-qualified name of the
+	// OperatorMessageService's ImportMessages RPC.
+	OperatorMessageServiceImportMessagesProcedure = "/chatto.operator.v1.OperatorMessageService/ImportMessages"
 	// OperatorMessageServiceImportMessageChangeProcedure is the fully-qualified name of the
 	// OperatorMessageService's ImportMessageChange RPC.
 	OperatorMessageServiceImportMessageChangeProcedure = "/chatto.operator.v1.OperatorMessageService/ImportMessageChange"
+	// OperatorMessageServiceImportReactionChangesProcedure is the fully-qualified name of the
+	// OperatorMessageService's ImportReactionChanges RPC.
+	OperatorMessageServiceImportReactionChangesProcedure = "/chatto.operator.v1.OperatorMessageService/ImportReactionChanges"
 	// OperatorMessageServiceImportMessageProcedure is the fully-qualified name of the
 	// OperatorMessageService's ImportMessage RPC.
 	OperatorMessageServiceImportMessageProcedure = "/chatto.operator.v1.OperatorMessageService/ImportMessage"
@@ -47,8 +53,19 @@ const (
 // OperatorMessageServiceClient is a client for the chatto.operator.v1.OperatorMessageService
 // service.
 type OperatorMessageServiceClient interface {
+	// Imports 1–32 messages without files in one channel, with at most 128 reaction
+	// changes total. New message facts and reactions commit atomically in order.
+	// Exact retries skip committed operations. Responses follow request order.
+	// Invalid input commits no new message facts. Key provisioning can occur
+	// before a commit. Retry identical operations after an uncertain response.
+	ImportMessages(context.Context, *connect.Request[v1.ImportMessagesRequest]) (*connect.Response[v1.ImportMessagesResponse], error)
 	// Records one historical mutation or thread declaration on an existing message.
 	ImportMessageChange(context.Context, *connect.Request[v1.ImportMessageChangeRequest]) (*connect.Response[v1.ImportMessageChangeResponse], error)
+	// Applies 1–128 reaction transitions in one channel. New transitions commit
+	// atomically in request order; previously committed operations are skipped.
+	// Retry with the same operation keys after an uncertain response. Invalid
+	// input commits none of the new transitions. Only the Operator socket serves this RPC.
+	ImportReactionChanges(context.Context, *connect.Request[v1.ImportReactionChangesRequest]) (*connect.Response[v1.ImportReactionChangesResponse], error)
 	// Appends an encrypted historical message as a system operation. A repeated
 	// request without a key creates another message. idempotency_key expires
 	// after 30 minutes; operation_key provides permanent exact retries.
@@ -69,10 +86,22 @@ func NewOperatorMessageServiceClient(httpClient connect.HTTPClient, baseURL stri
 	baseURL = strings.TrimRight(baseURL, "/")
 	operatorMessageServiceMethods := v1.File_chatto_operator_v1_messages_proto.Services().ByName("OperatorMessageService").Methods()
 	return &operatorMessageServiceClient{
+		importMessages: connect.NewClient[v1.ImportMessagesRequest, v1.ImportMessagesResponse](
+			httpClient,
+			baseURL+OperatorMessageServiceImportMessagesProcedure,
+			connect.WithSchema(operatorMessageServiceMethods.ByName("ImportMessages")),
+			connect.WithClientOptions(opts...),
+		),
 		importMessageChange: connect.NewClient[v1.ImportMessageChangeRequest, v1.ImportMessageChangeResponse](
 			httpClient,
 			baseURL+OperatorMessageServiceImportMessageChangeProcedure,
 			connect.WithSchema(operatorMessageServiceMethods.ByName("ImportMessageChange")),
+			connect.WithClientOptions(opts...),
+		),
+		importReactionChanges: connect.NewClient[v1.ImportReactionChangesRequest, v1.ImportReactionChangesResponse](
+			httpClient,
+			baseURL+OperatorMessageServiceImportReactionChangesProcedure,
+			connect.WithSchema(operatorMessageServiceMethods.ByName("ImportReactionChanges")),
 			connect.WithClientOptions(opts...),
 		),
 		importMessage: connect.NewClient[v1.ImportMessageRequest, v1.ImportMessageResponse](
@@ -92,14 +121,26 @@ func NewOperatorMessageServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // operatorMessageServiceClient implements OperatorMessageServiceClient.
 type operatorMessageServiceClient struct {
-	importMessageChange *connect.Client[v1.ImportMessageChangeRequest, v1.ImportMessageChangeResponse]
-	importMessage       *connect.Client[v1.ImportMessageRequest, v1.ImportMessageResponse]
-	importReaction      *connect.Client[v1.ImportReactionRequest, v1.ImportReactionResponse]
+	importMessages        *connect.Client[v1.ImportMessagesRequest, v1.ImportMessagesResponse]
+	importMessageChange   *connect.Client[v1.ImportMessageChangeRequest, v1.ImportMessageChangeResponse]
+	importReactionChanges *connect.Client[v1.ImportReactionChangesRequest, v1.ImportReactionChangesResponse]
+	importMessage         *connect.Client[v1.ImportMessageRequest, v1.ImportMessageResponse]
+	importReaction        *connect.Client[v1.ImportReactionRequest, v1.ImportReactionResponse]
+}
+
+// ImportMessages calls chatto.operator.v1.OperatorMessageService.ImportMessages.
+func (c *operatorMessageServiceClient) ImportMessages(ctx context.Context, req *connect.Request[v1.ImportMessagesRequest]) (*connect.Response[v1.ImportMessagesResponse], error) {
+	return c.importMessages.CallUnary(ctx, req)
 }
 
 // ImportMessageChange calls chatto.operator.v1.OperatorMessageService.ImportMessageChange.
 func (c *operatorMessageServiceClient) ImportMessageChange(ctx context.Context, req *connect.Request[v1.ImportMessageChangeRequest]) (*connect.Response[v1.ImportMessageChangeResponse], error) {
 	return c.importMessageChange.CallUnary(ctx, req)
+}
+
+// ImportReactionChanges calls chatto.operator.v1.OperatorMessageService.ImportReactionChanges.
+func (c *operatorMessageServiceClient) ImportReactionChanges(ctx context.Context, req *connect.Request[v1.ImportReactionChangesRequest]) (*connect.Response[v1.ImportReactionChangesResponse], error) {
+	return c.importReactionChanges.CallUnary(ctx, req)
 }
 
 // ImportMessage calls chatto.operator.v1.OperatorMessageService.ImportMessage.
@@ -115,8 +156,19 @@ func (c *operatorMessageServiceClient) ImportReaction(ctx context.Context, req *
 // OperatorMessageServiceHandler is an implementation of the
 // chatto.operator.v1.OperatorMessageService service.
 type OperatorMessageServiceHandler interface {
+	// Imports 1–32 messages without files in one channel, with at most 128 reaction
+	// changes total. New message facts and reactions commit atomically in order.
+	// Exact retries skip committed operations. Responses follow request order.
+	// Invalid input commits no new message facts. Key provisioning can occur
+	// before a commit. Retry identical operations after an uncertain response.
+	ImportMessages(context.Context, *connect.Request[v1.ImportMessagesRequest]) (*connect.Response[v1.ImportMessagesResponse], error)
 	// Records one historical mutation or thread declaration on an existing message.
 	ImportMessageChange(context.Context, *connect.Request[v1.ImportMessageChangeRequest]) (*connect.Response[v1.ImportMessageChangeResponse], error)
+	// Applies 1–128 reaction transitions in one channel. New transitions commit
+	// atomically in request order; previously committed operations are skipped.
+	// Retry with the same operation keys after an uncertain response. Invalid
+	// input commits none of the new transitions. Only the Operator socket serves this RPC.
+	ImportReactionChanges(context.Context, *connect.Request[v1.ImportReactionChangesRequest]) (*connect.Response[v1.ImportReactionChangesResponse], error)
 	// Appends an encrypted historical message as a system operation. A repeated
 	// request without a key creates another message. idempotency_key expires
 	// after 30 minutes; operation_key provides permanent exact retries.
@@ -133,10 +185,22 @@ type OperatorMessageServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewOperatorMessageServiceHandler(svc OperatorMessageServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	operatorMessageServiceMethods := v1.File_chatto_operator_v1_messages_proto.Services().ByName("OperatorMessageService").Methods()
+	operatorMessageServiceImportMessagesHandler := connect.NewUnaryHandler(
+		OperatorMessageServiceImportMessagesProcedure,
+		svc.ImportMessages,
+		connect.WithSchema(operatorMessageServiceMethods.ByName("ImportMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	operatorMessageServiceImportMessageChangeHandler := connect.NewUnaryHandler(
 		OperatorMessageServiceImportMessageChangeProcedure,
 		svc.ImportMessageChange,
 		connect.WithSchema(operatorMessageServiceMethods.ByName("ImportMessageChange")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operatorMessageServiceImportReactionChangesHandler := connect.NewUnaryHandler(
+		OperatorMessageServiceImportReactionChangesProcedure,
+		svc.ImportReactionChanges,
+		connect.WithSchema(operatorMessageServiceMethods.ByName("ImportReactionChanges")),
 		connect.WithHandlerOptions(opts...),
 	)
 	operatorMessageServiceImportMessageHandler := connect.NewUnaryHandler(
@@ -153,8 +217,12 @@ func NewOperatorMessageServiceHandler(svc OperatorMessageServiceHandler, opts ..
 	)
 	return "/chatto.operator.v1.OperatorMessageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case OperatorMessageServiceImportMessagesProcedure:
+			operatorMessageServiceImportMessagesHandler.ServeHTTP(w, r)
 		case OperatorMessageServiceImportMessageChangeProcedure:
 			operatorMessageServiceImportMessageChangeHandler.ServeHTTP(w, r)
+		case OperatorMessageServiceImportReactionChangesProcedure:
+			operatorMessageServiceImportReactionChangesHandler.ServeHTTP(w, r)
 		case OperatorMessageServiceImportMessageProcedure:
 			operatorMessageServiceImportMessageHandler.ServeHTTP(w, r)
 		case OperatorMessageServiceImportReactionProcedure:
@@ -168,8 +236,16 @@ func NewOperatorMessageServiceHandler(svc OperatorMessageServiceHandler, opts ..
 // UnimplementedOperatorMessageServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedOperatorMessageServiceHandler struct{}
 
+func (UnimplementedOperatorMessageServiceHandler) ImportMessages(context.Context, *connect.Request[v1.ImportMessagesRequest]) (*connect.Response[v1.ImportMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorMessageService.ImportMessages is not implemented"))
+}
+
 func (UnimplementedOperatorMessageServiceHandler) ImportMessageChange(context.Context, *connect.Request[v1.ImportMessageChangeRequest]) (*connect.Response[v1.ImportMessageChangeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorMessageService.ImportMessageChange is not implemented"))
+}
+
+func (UnimplementedOperatorMessageServiceHandler) ImportReactionChanges(context.Context, *connect.Request[v1.ImportReactionChangesRequest]) (*connect.Response[v1.ImportReactionChangesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorMessageService.ImportReactionChanges is not implemented"))
 }
 
 func (UnimplementedOperatorMessageServiceHandler) ImportMessage(context.Context, *connect.Request[v1.ImportMessageRequest]) (*connect.Response[v1.ImportMessageResponse], error) {

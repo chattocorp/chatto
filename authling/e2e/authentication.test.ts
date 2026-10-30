@@ -12,11 +12,25 @@ test('signs in after signup, logs out, and signs back in', async ({ page, reques
   const cookies = await page.context().cookies(stack.baseURL);
   const session = cookies.find((cookie) => cookie.name === 'authling_session');
   expect(session).toMatchObject({ httpOnly: true, secure: false, sameSite: 'Lax', path: '/' });
-  expect(session?.expires).toBe(-1);
+  const remainingDays = ((session?.expires ?? 0) - Date.now() / 1000) / (24 * 60 * 60);
+  expect(remainingDays).toBeGreaterThan(89.99);
+  expect(remainingDays).toBeLessThanOrEqual(90);
+
+  await page.getByRole('banner').getByRole('link', { name: 'Test Accounts', exact: true }).click();
+  await expect(page).toHaveURL(`${stack.baseURL}/account`);
+  await expect(page.locator('code')).toHaveText(accountID);
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  expect((await page.context().cookies(stack.baseURL)).some((cookie) => cookie.name === 'authling_session')).toBe(false);
+  expect(
+    (await page.context().cookies(stack.baseURL)).some(
+      (cookie) => cookie.name === 'authling_session'
+    )
+  ).toBe(false);
+
+  await page.getByRole('banner').getByRole('link', { name: 'Test Accounts', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
 
   await page.context().addCookies([
     {
@@ -31,10 +45,24 @@ test('signs in after signup, logs out, and signs back in', async ({ page, reques
   await page.goto('/account');
   await expect(page).toHaveURL(/\/login$/);
 
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(page.locator('form')).toHaveAttribute('hx-boost', 'true');
+  await page.evaluate(() => {
+    document.documentElement.dataset.loginTransition = 'pending';
+    document.addEventListener(
+      'htmx:beforeTransition',
+      () => {
+        document.documentElement.dataset.loginTransition = 'started';
+      },
+      { once: true }
+    );
+  });
   await page.getByLabel('Email address').fill(email.toUpperCase());
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
+  await expect(page).toHaveURL(`${stack.baseURL}/account`);
+  await expect(page.locator('html')).toHaveAttribute('data-login-transition', 'pending');
   await expect(page.locator('code')).toHaveText(accountID);
 });
 
@@ -72,7 +100,11 @@ test('rejects and clears a forged session cookie', async ({ page, stack }) => {
 
   await page.goto('/account');
   await expect(page).toHaveURL(/\/login$/);
-  expect((await page.context().cookies(stack.baseURL)).some((cookie) => cookie.name === 'authling_session')).toBe(false);
+  expect(
+    (await page.context().cookies(stack.baseURL)).some(
+      (cookie) => cookie.name === 'authling_session'
+    )
+  ).toBe(false);
 });
 
 test('keeps an authenticated session across an Authling restart', async ({
@@ -90,7 +122,11 @@ test('keeps an authenticated session across an Authling restart', async ({
   await expect(page.locator('code')).toHaveText(accountID);
 });
 
-test('throttles an identifier after ten failed password attempts', async ({ page, request, stack }) => {
+test('throttles an identifier after ten failed password attempts', async ({
+  page,
+  request,
+  stack
+}) => {
   const email = `throttle-${randomUUID()}@example.invalid`;
   await completeSignup(page, request, stack, email, password);
   await page.getByRole('button', { name: 'Sign out' }).click();

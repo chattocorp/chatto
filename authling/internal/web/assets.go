@@ -3,12 +3,23 @@ package web
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"strings"
 	"time"
 )
+
+// initialCanvasCSS paints the document before external assets load. Keep its
+// fallback colors aligned with the canvas tokens in web/src/app.css.
+// This constant contains no user input and is allowed by its exact CSP hash.
+const initialCanvasCSS = `html{color-scheme:light dark;background-color:var(--ui-canvas,#fafafa)}@media(prefers-color-scheme:dark){html{background-color:var(--ui-canvas,#20252b)}}`
+
+var initialCanvasCSP = func() string {
+	digest := sha256.Sum256([]byte(initialCanvasCSS))
+	return "'sha256-" + base64.StdEncoding.EncodeToString(digest[:]) + "'"
+}()
 
 // browserAssets is built once from the executable's immutable embedded files.
 var browserAssets = func() *assetBundle {

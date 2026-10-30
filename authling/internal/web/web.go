@@ -38,6 +38,7 @@ var errAmbiguousSessionCookie = errors.New("ambiguous session cookie")
 // Dependencies are the Authling-owned services used by the server-rendered
 // browser surface.
 type Dependencies struct {
+	Administration config.AdministrationConfig
 	// Site is display text shared by every browser page.
 	Site           config.SiteConfig
 	Accounts       *accounts.Service
@@ -76,17 +77,35 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/", browserAssets)
+	mountDesignSystem(mux)
 	mux.HandleFunc("GET "+changePasswordWellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		redirect(w, r, accountPasswordPath)
 	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		render(w, r, http.StatusOK, homePage())
+		// Active sessions go to the account page; other visitors go to sign-in.
+		// Storage errors preserve the cookie and fail closed.
+		if _, err := sessionCookie(r, deps.SecureCookies); !errors.Is(err, http.ErrNoCookie) {
+			_, err := authenticatedAccount(r, deps)
+			switch {
+			case err == nil:
+				redirect(w, r, "/account")
+				return
+			case errors.Is(err, sessions.ErrNotFound):
+				clearSessionCookie(w, deps.SecureCookies)
+			default:
+				w.Header().Set("Cache-Control", "no-store")
+				http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+				return
+			}
+		}
+		redirect(w, r, "/login")
 	})
 	mountLogin(mux, deps, publicOrigin)
 	mountPasswordReset(mux, deps, publicOrigin)
 	mountConsent(mux, deps, publicOrigin)
 	mountDeletion(mux, deps, publicOrigin)
 	mountAccount(mux, deps, publicOrigin)
+	mountAdministration(mux, deps)
 	mountProfile(mux, deps, publicOrigin)
 	mountPasswordChange(mux, deps, publicOrigin)
 	mountEmailChange(mux, deps, publicOrigin)
@@ -156,7 +175,7 @@ func rejectSilentRequest(w http.ResponseWriter, r *http.Request, service *oidcpr
 }
 
 func loginReturnPath(candidate string) string {
-	if candidate == accountPasswordPath {
+	if candidate == accountPasswordPath || candidate == "/admin" {
 		return candidate
 	}
 	return ""
@@ -183,7 +202,7 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 // establishSessionAtAuthenticationVersion never upgrades a stale login or
 // recovery proof to a credential generation that did not authorize it.
 func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64, authenticatedAt time.Time) error {
-	token, _, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion, authenticatedAt)
+	token, state, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion, authenticatedAt)
 	if err != nil {
 		return err
 	}
@@ -196,14 +215,16 @@ func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Requ
 		_ = deps.Sessions.Revoke(r.Context(), token)
 		return cookieErr
 	}
-	setSessionCookie(w, token, deps.SecureCookies)
+	setSessionCookie(w, token, deps.SecureCookies, state.ExpiresAt)
 	return nil
 }
 
-func setSessionCookie(w http.ResponseWriter, token string, secure bool) {
+func setSessionCookie(w http.ResponseWriter, token string, secure bool, expiresAt time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName(secure),
 		Value:    token,
+		Expires:  expiresAt,
+		MaxAge:   int(sessions.AbsoluteLifetime / time.Second),
 		Path:     "/",
 		Secure:   secure,
 		HttpOnly: true,
@@ -411,7 +432,7 @@ func contentSecurityPolicy(additionalFormOrigin string) string {
 	if additionalFormOrigin != "" {
 		formAction += " " + additionalFormOrigin
 	}
-	return "default-src 'none'; connect-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action " + formAction + "; frame-ancestors 'none'"
+	return "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' " + initialCanvasCSP + "; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action " + formAction + "; frame-ancestors 'none'"
 }
 
 // siteContextKey keeps each handler's display configuration local to its requests.

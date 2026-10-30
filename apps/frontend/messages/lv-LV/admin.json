@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kontu izveide",
+      "open": "Atvērta reģistrācija",
+      "invite_only": "Nepieciešams ielūguma kods",
+      "open_description": "Ikviens var izveidot kontu, izmantojot konfigurētās reģistrācijas metodes.",
+      "invite_only_description": "Jauniem kontiem ir nepieciešams vienreizējs ielūguma kods. Esošie lietotāji joprojām var pierakstīties.",
+      "methods": "Konfigurētās reģistrācijas metodes",
+      "methods_configuration": "Reģistrācijas metodes tiek pārvaldītas šī servera mitināšanas konfigurācijā.",
+      "email_password": "E-pasts un parole",
+      "no_methods": "Nav iespējota neviena reģistrācijas metode. Lietotāji nevar izveidot kontus nevienā režīmā."
+    },
     "neighbors": {
       "title": "Kaimiņi",
       "subtitle": "Popularizējiet draudzīgus Chatto serverus savā publiskajā katalogā",
@@ -564,36 +575,28 @@
       "total": "Kopā {count} lietotājs(-i)."
     },
     "invitations": {
-      "title": "Uzaicinājumu saites",
-      "subtitle": "Izveidojiet un pārvaldiet saites, ar kurām var pievienoties jauni konti.",
-      "create_title": "Izveidot uzaicinājuma saiti",
-      "max_uses": "Maksimālais lietojumu skaits",
-      "max_uses_error": "Ievadiet veselu skaitli, kas nav mazāks par 1.",
-      "unlimited_uses": "Atļaut neierobežotu lietojumu skaitu",
-      "expiry": "Derīguma termiņš",
-      "expiry_1d": "1 diena",
-      "expiry_7d": "7 dienas",
-      "expiry_30d": "30 dienas",
-      "expiry_never": "Nekad",
-      "create": "Izveidot uzaicinājuma saiti",
-      "created": "Uzaicinājuma saite izveidota",
-      "list_title": "Uzaicinājumu saites",
-      "empty": "Vēl nav uzaicinājumu saišu.",
-      "uses": "Lietojumi",
+      "note_label": "Piezīme (neobligāta)",
+      "note_placeholder": "Aleksam no dizaina komandas",
+      "note_description": "Šo piezīmi var redzēt tikai ielūgumu pārvaldnieki.",
+      "note_too_long": "Izmantojiet ne vairāk kā 250 rakstzīmes.",
+      "usage": "Jaunie kodi ir derīgi 7 dienas, un katrs ļauj izveidot vienu kontu. Kopējiet kodu un nosūtiet to saņēmējam. Kods tiek izmantots tikai pēc veiksmīgas reģistrācijas.",
+      "create_title": "Izveidot kodu",
+      "create": "Izveidot kodu",
+      "created": "Uzaicinājuma kods izveidots",
+      "list_title": "Uzaicinājuma kodi",
+      "empty": "Vēl nav uzaicinājuma kodu.",
       "created_at": "Izveidota",
       "actions": "Darbības",
       "never": "Nekad",
-      "copy": "Kopēt saiti",
-      "copied": "Uzaicinājuma saite nokopēta",
       "revoke": "Atsaukt",
-      "revoked": "Uzaicinājuma saite atsaukta",
-      "revoke_title": "Atsaukt uzaicinājuma saiti?",
-      "revoke_description": "Ar šo saiti uzreiz vairs nevarēs pievienoties jauni konti.",
+      "revoked": "Uzaicinājuma kods atsaukts",
+      "revoke_title": "Atsaukt kodu?",
+      "revoke_description": "Šis kods nekavējoties pārtrauks atļaut jaunus kontus.",
       "status": {
         "active": "Aktīva",
         "expired": "Beigusies",
-        "exhausted": "Izlietota",
-        "revoked": "Atsaukta"
+        "revoked": "Atsaukta",
+        "used": "Izmantots"
       }
     }
   }

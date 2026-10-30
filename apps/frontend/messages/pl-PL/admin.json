@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Tworzenie kont",
+      "open": "Otwarta rejestracja",
+      "invite_only": "Wymagany kod zaproszenia",
+      "open_description": "Każdy może utworzyć konto przy użyciu skonfigurowanych metod rejestracji.",
+      "invite_only_description": "Nowe konta wymagają jednorazowego kodu zaproszenia. Dotychczasowi użytkownicy nadal mogą się logować.",
+      "methods": "Skonfigurowane metody rejestracji",
+      "methods_configuration": "Metodami rejestracji zarządza się w konfiguracji hostingu tego serwera.",
+      "email_password": "E-mail i hasło",
+      "no_methods": "Nie włączono żadnej metody rejestracji. Użytkownicy nie mogą tworzyć kont w żadnym trybie."
+    },
     "neighbors": {
       "title": "Sąsiedzi",
       "subtitle": "Promuj zaprzyjaźnione serwery Chatto w swoim publicznym katalogu",
@@ -575,36 +586,28 @@
       "total": "Łączna liczba użytkowników {count}"
     },
     "invitations": {
-      "title": "Linki z zaproszeniem",
-      "subtitle": "Twórz linki, przez które mogą dołączać nowe konta, i zarządzaj nimi.",
-      "create_title": "Utwórz link z zaproszeniem",
-      "max_uses": "Maksymalna liczba użyć",
-      "max_uses_error": "Wpisz liczbę całkowitą równą co najmniej 1.",
-      "unlimited_uses": "Zezwalaj na nieograniczoną liczbę użyć",
-      "expiry": "Wygaśnięcie",
-      "expiry_1d": "1 dzień",
-      "expiry_7d": "7 dni",
-      "expiry_30d": "30 dni",
-      "expiry_never": "Nigdy",
-      "create": "Utwórz link z zaproszeniem",
-      "created": "Utworzono link z zaproszeniem",
-      "list_title": "Linki z zaproszeniem",
-      "empty": "Brak linków z zaproszeniem.",
-      "uses": "Użycia",
+      "note_label": "Notatka (opcjonalna)",
+      "note_placeholder": "Dla Aleksa z zespołu projektowego",
+      "note_description": "Tylko osoby zarządzające zaproszeniami mogą zobaczyć tę notatkę.",
+      "note_too_long": "Użyj najwyżej 250 znaków.",
+      "usage": "Nowe kody wygasają po 7 dniach i każdy pozwala utworzyć jedno konto. Skopiuj kod i wyślij go odbiorcy. Kod zostaje wykorzystany dopiero po udanej rejestracji.",
+      "create_title": "Utwórz kod",
+      "create": "Utwórz kod",
+      "created": "Utworzono kod zaproszenia",
+      "list_title": "Kody zaproszeń",
+      "empty": "Nie ma jeszcze kodów zaproszeń.",
       "created_at": "Utworzono",
       "actions": "Działania",
       "never": "Nigdy",
-      "copy": "Kopiuj link",
-      "copied": "Skopiowano link z zaproszeniem",
       "revoke": "Unieważnij",
-      "revoked": "Unieważniono link z zaproszeniem",
-      "revoke_title": "Unieważnić link z zaproszeniem?",
-      "revoke_description": "Ten link natychmiast przestanie wpuszczać nowe konta.",
+      "revoked": "Unieważniono kod zaproszenia",
+      "revoke_title": "Unieważnić kod?",
+      "revoke_description": "Ten kod natychmiast przestanie umożliwiać tworzenie kont.",
       "status": {
         "active": "Aktywny",
         "expired": "Wygasły",
-        "exhausted": "Wyczerpany",
-        "revoked": "Unieważniony"
+        "revoked": "Unieważniony",
+        "used": "Użyty"
       }
     }
   }

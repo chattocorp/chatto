@@ -60,6 +60,9 @@
       "details": "Szczegóły serwera"
     },
     "compatibility": {
+      "older_frontend": "Twoja aplikacja nie obsługuje wszystkich funkcji tego serwera",
+      "frontend_upgrade": "Używasz aplikacji w wersji {version}. Zaktualizuj ją lub poproś administratora serwera, który ją udostępnia, o aktualizację. Dostęp do funkcji zależy też od ustawień serwera i Twoich uprawnień.",
+      "frontend_requires": "Wymaga aplikacji w wersji {version} lub nowszej",
       "title": "Zgodność",
       "view": "Sprawdź zgodność",
       "limited": "Starsza wersja serwera",
@@ -186,7 +189,7 @@
       "event_log": "Dziennik zdarzeń",
       "system": "System",
       "back_to_server": "Wróć do serwera",
-      "invitations": "Linki z zaproszeniem"
+      "registration": "Rejestracja"
     }
   }
 }

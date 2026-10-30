@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Zpráva od {name}",
     "attachments_count": { "other": "{count} příloh" },
     "attachment_image": "Obrázek",
     "attachment_video": "Video",

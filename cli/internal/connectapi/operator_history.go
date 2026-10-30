@@ -20,6 +20,28 @@ func operatorHistoricalTime(t *timestamppb.Timestamp) (*time.Time, error) {
 	return &v, nil
 }
 
+func (s *operatorMessageService) ImportReactionChanges(ctx context.Context, req *connect.Request[operatorv1.ImportReactionChangesRequest]) (*connect.Response[operatorv1.ImportReactionChangesResponse], error) {
+	changes := make([]core.HistoricalMessageChange, 0, len(req.Msg.Operations))
+	for _, operation := range req.Msg.Operations {
+		if operation == nil || operation.Change == nil {
+			return nil, invalidArgument("reaction operation is required")
+		}
+		at, err := operatorHistoricalTime(operation.OccurredAt)
+		if err != nil {
+			return nil, err
+		}
+		changes = append(changes, core.HistoricalMessageChange{
+			RoomID: req.Msg.RoomId, MessageID: operation.MessageId, OperationKey: operation.OperationKey,
+			ActorID: operation.ActorId, OccurredAt: at, Kind: "reaction",
+			UserID: operation.Change.UserId, Emoji: operation.Change.Emoji, Present: operation.Change.Present,
+		})
+	}
+	if err := s.api.core.ImportHistoricalReactionChanges(ctx, changes); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&operatorv1.ImportReactionChangesResponse{}), nil
+}
+
 func (s *operatorRoomService) ImportRoomEvent(ctx context.Context, req *connect.Request[operatorv1.ImportRoomEventRequest]) (*connect.Response[operatorv1.ImportRoomEventResponse], error) {
 	r := req.Msg
 	at, err := operatorHistoricalTime(r.OccurredAt)

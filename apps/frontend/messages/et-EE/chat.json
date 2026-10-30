@@ -60,6 +60,9 @@
       "details": "Serveri üksikasjad"
     },
     "compatibility": {
+      "older_frontend": "Teie rakendus ei toeta kõiki selle serveri funktsioone",
+      "frontend_upgrade": "Kasutate rakenduse versiooni {version}. Uuendage rakendust või paluge seda teha rakendust pakkuva serveri administraatoril. Juurdepääs funktsioonidele sõltub ka serveri seadetest ja teie õigustest.",
+      "frontend_requires": "Vajab rakenduse versiooni {version} või uuemat",
       "title": "Ühilduvus",
       "view": "Vaata ühilduvust",
       "limited": "Vanem serveri versioon",
@@ -180,7 +183,7 @@
       "event_log": "Sündmuste logi",
       "system": "Süsteem",
       "back_to_server": "Tagasi serverisse",
-      "invitations": "Kutselingid"
+      "registration": "Registreerimine"
     }
   }
 }

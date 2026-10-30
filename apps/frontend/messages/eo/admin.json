@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kreado de kontoj",
+      "open": "Malferma registriĝo",
+      "invite_only": "Invitkodo bezonata",
+      "open_description": "Ĉiu povas krei konton per la agorditaj registriĝaj metodoj.",
+      "invite_only_description": "Novaj kontoj bezonas unuuzan invitkodon. Ekzistantaj uzantoj ankoraŭ povas ensaluti.",
+      "methods": "Agorditaj registriĝaj metodoj",
+      "methods_configuration": "Registriĝaj metodoj estas administrataj en la gastiga agordo de ĉi tiu servilo.",
+      "email_password": "Retpoŝto kaj pasvorto",
+      "no_methods": "Neniuj registriĝaj metodoj estas aktivaj. Uzantoj ne povas krei kontojn en iu ajn reĝimo."
+    },
     "neighbors": {
       "title": "Najbaroj",
       "subtitle": "Reklamu amikajn Chatto-servilojn en via publika katalogo",
@@ -553,36 +564,28 @@
       "total": "{count} uzanto(j) entute"
     },
     "invitations": {
-      "title": "Invitligiloj",
-      "subtitle": "Kreu kaj administru ligilojn, per kiuj novaj kontoj povas aliĝi.",
-      "create_title": "Krei invitligilon",
-      "max_uses": "Maksimuma nombro de uzoj",
-      "max_uses_error": "Enigu entjeron de almenaŭ 1.",
-      "unlimited_uses": "Permesi senliman nombron de uzoj",
-      "expiry": "Eksvalidiĝo",
-      "expiry_1d": "1 tago",
-      "expiry_7d": "7 tagoj",
-      "expiry_30d": "30 tagoj",
-      "expiry_never": "Neniam",
-      "create": "Krei invitligilon",
-      "created": "Invitligilo kreita",
-      "list_title": "Invitligiloj",
-      "empty": "Ankoraŭ neniuj invitligiloj.",
-      "uses": "Uzoj",
+      "note_label": "Noto (nedeviga)",
+      "note_placeholder": "Por Alex el la dezajna teamo",
+      "note_description": "Nur administrantoj de invitoj povas vidi ĉi tiun noton.",
+      "note_too_long": "Uzu maksimume 250 signojn.",
+      "usage": "Novaj kodoj validas dum 7 tagoj kaj ĉiu permesas unu konton. Kopiu kodon kaj sendu ĝin al la ricevonto. Kodo estas uzita nur post sukcesa registriĝo.",
+      "create_title": "Krei kodon",
+      "create": "Krei kodon",
+      "created": "Invitkodo kreita",
+      "list_title": "Invitkodoj",
+      "empty": "Ankoraŭ ne estas invitkodoj.",
       "created_at": "Kreita",
       "actions": "Agoj",
       "never": "Neniam",
-      "copy": "Kopii ligilon",
-      "copied": "Invitligilo kopiita",
       "revoke": "Revoki",
-      "revoked": "Invitligilo revokita",
-      "revoke_title": "Ĉu revoki la invitligilon?",
-      "revoke_description": "Ĉi tiu ligilo tuj ĉesos akcepti novajn kontojn.",
+      "revoked": "Invitkodo revokita",
+      "revoke_title": "Ĉu revoki kodon?",
+      "revoke_description": "Ĉi tiu kodo tuj ĉesos permesi novajn kontojn.",
       "status": {
         "active": "Aktiva",
         "expired": "Eksvalidiĝinta",
-        "exhausted": "Elĉerpita",
-        "revoked": "Revokita"
+        "revoked": "Revokita",
+        "used": "Uzita"
       }
     }
   }

@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Copia link del server",
     "copy_room_link": "Copia link alla stanza",
     "show_rooms_in_group": "Mostra altre stanze in {group} ({count})",
     "hide_rooms_in_group": "Nascondi le stanze di {group} a cui non partecipi",

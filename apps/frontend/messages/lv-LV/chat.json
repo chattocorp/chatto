@@ -60,6 +60,9 @@
       "details": "Servera dati"
     },
     "compatibility": {
+      "older_frontend": "Jūsu lietotne neatbalsta visas šī servera funkcijas",
+      "frontend_upgrade": "Jūs izmantojat lietotnes versiju {version}. Atjauniniet lietotni vai lūdziet to darīt tā servera administratoram, kas nodrošina lietotni. Piekļuve funkcijām ir atkarīga arī no servera iestatījumiem un jūsu atļaujām.",
+      "frontend_requires": "Nepieciešama lietotnes versija {version} vai jaunāka",
       "title": "Saderība",
       "view": "Skatīt saderību",
       "limited": "Vecāka servera versija",
@@ -183,7 +186,7 @@
       "event_log": "Notikumu žurnāls",
       "system": "Sistēma",
       "back_to_server": "Atgriezties uz serveri",
-      "invitations": "Uzaicinājumu saites"
+      "registration": "Reģistrācija"
     }
   }
 }

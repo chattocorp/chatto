@@ -42,7 +42,9 @@ setting is **Allow**, **Deny**, or **Inherit**.
 
 Bots do not get permissions from `everyone` or from other roles. A bot has only
 the permissions that you allow directly on the bot, and never more than its
-owner has. See [Bot accounts](/guides/integrations/bot-accounts/).
+owner has. This includes administrative permissions. `bot.manage` also permits
+issuing credentials for other bots, which use those bots' permissions and
+owner ceilings. See [Bot accounts](/guides/integrations/bot-accounts/).
 
 ## Built-in roles
 
@@ -132,7 +134,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
-| `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
+| `user.invite` | S | Yes | List, create, copy, and revoke invitation codes. The holder can use all active invitation codes. |
 | `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
 | `user.manage-permissions` | S | Yes | Change the permission settings of one user. |
 | `user.delete-any` | S | Yes | Delete any account. |
@@ -158,9 +160,9 @@ DMs use the `message.*` and `call.*` permissions at the **Direct messages**
 scope. No `room.*` permission applies to DMs. If you do not set a Direct
 messages value, the Server setting applies.
 
-- Only people can start a DM. They need `message.post`. A bot cannot start a
-  DM, even with `message.post`. After a person starts a DM with a bot, the bot
-  can use the DM permissions that you allow for it.
+- People and bots need `message.post` to start a DM. Bots need an explicit
+  grant, bounded by their owner's authority. This also lets existing bots
+  with DM posting permission initiate conversations.
 - A participant with `message.manage` can edit or delete the messages of other
   participants. Nobody can moderate a DM that they are not part of.
 
@@ -249,7 +251,7 @@ the 0.4 behavior:
 Make these changes on an upgraded server:
 
 - **Allow `user.invite` and `bot.manage`** for `admin` if admins must manage
-  invite links and bots.
+  invitation codes and bots.
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.

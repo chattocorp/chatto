@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "No preview is available for this link.",
     "dismiss": "Dismiss preview",
     "delete": "Delete preview",
     "open_link": "Open link",

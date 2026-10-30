@@ -76,10 +76,10 @@ const (
 
 // AdminServerServiceClient is a client for the chatto.admin.v1.AdminServerService service.
 type AdminServerServiceClient interface {
-	// Gets runtime-editable server profile settings. This RPC requires
+	// Gets runtime-editable server settings. This RPC requires
 	// server.manage.
 	GetServerConfig(context.Context, *connect.Request[v1.GetServerConfigRequest]) (*connect.Response[v1.GetServerConfigResponse], error)
-	// Updates runtime-editable server profile settings. This RPC requires
+	// Updates runtime-editable server settings. This RPC requires
 	// server.manage.
 	UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error)
 	// Uploads and sets the public server logo. This RPC requires server.manage.
@@ -286,10 +286,10 @@ func (c *adminServerServiceClient) DeleteNeighbor(ctx context.Context, req *conn
 
 // AdminServerServiceHandler is an implementation of the chatto.admin.v1.AdminServerService service.
 type AdminServerServiceHandler interface {
-	// Gets runtime-editable server profile settings. This RPC requires
+	// Gets runtime-editable server settings. This RPC requires
 	// server.manage.
 	GetServerConfig(context.Context, *connect.Request[v1.GetServerConfigRequest]) (*connect.Response[v1.GetServerConfigResponse], error)
-	// Updates runtime-editable server profile settings. This RPC requires
+	// Updates runtime-editable server settings. This RPC requires
 	// server.manage.
 	UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error)
 	// Uploads and sets the public server logo. This RPC requires server.manage.

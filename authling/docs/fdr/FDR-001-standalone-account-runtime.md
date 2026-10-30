@@ -1,7 +1,7 @@
 # FDR-001: Standalone Account Runtime
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
@@ -32,6 +32,16 @@ for the underlying structural runtime.
   fact.
 - Accounts are restored from durable history after a full process and embedded
   storage restart.
+- Development builds can create Alice and Bob before HTTP starts. Their initial
+  local credentials are documented in the development guide. Existing accounts
+  keep their IDs, passwords, and profiles across repeated starts.
+- Local development tasks give Alice administrator access through configuration.
+  Bob remains a regular user. No email is sent to verify fixture addresses.
+- Bootstrap code is excluded from production builds. A development build also
+  needs an explicit bootstrap setting. Production builds reject that setting
+  when enabled. The short fixture password does not weaken normal signup rules.
+- If a fixture address is deleted or changed, bootstrap creates the missing
+  address again on the next start. Resetting storage creates new identity IDs.
 
 ## Design Decisions
 

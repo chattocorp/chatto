@@ -11,15 +11,39 @@ const workflow = readFileSync(
   'utf8'
 ).replaceAll('\r\n', '\n');
 
-test('one protected job publishes built artifacts after server and desktop completion', () => {
+test('all release approvals are available together before builds, with no publication approval', () => {
+  const approval = workflow
+    .split('\n  approve-release:\n')[1]
+    .split('\n  build-desktop-release:\n')[0];
+  const desktop = workflow
+    .split('\n  build-desktop-release:\n')[1]
+    .split('\n  assemble-desktop-release:\n')[0];
   const build = workflow.split('\n  build-server-release:\n')[1].split('\n  release:\n')[0];
   const publish = workflow.split('\n  release:\n')[1].split('\n  publish-stable-docs:\n')[0];
   const assemble = workflow
     .split('\n  assemble-desktop-release:\n')[1]
     .split('\n  build-server-release:\n')[0];
   assert.equal(workflow.match(/environment: chatto-release/g)?.length, 1);
-  assert.match(publish, /environment: chatto-release/);
-  assert.match(publish, /needs: \[build-server-release, assemble-desktop-release\]/);
+  assert.match(approval, /environment: chatto-release/);
+  assert.match(
+    approval,
+    /github.event_name == 'push' && startsWith\(github.ref, 'refs\/tags\/v'\)/
+  );
+  assert.ok(!approval.includes('needs:'));
+  assert.ok(!desktop.includes('needs:'));
+  assert.match(desktop, /environment: \$\{\{ matrix.environment \}\}/);
+  assert.match(desktop, /environment: desktop-signing/);
+  assert.match(desktop, /environment: desktop-windows-signing/);
+  assert.match(desktop, /github.event_name == 'workflow_dispatch' && inputs.target == 'desktop'/);
+  // Only these two independent jobs may request an environment approval.
+  assert.equal(workflow.match(/^    environment:/gm)?.length, 2);
+  assert.match(build, /needs: approve-release/);
+  assert.ok(!build.includes('always()'));
+  assert.ok(!publish.includes('environment:'));
+  assert.match(
+    publish,
+    /needs: \[approve-release, build-server-release, assemble-desktop-release\]/
+  );
   assert.ok(!publish.includes('always()'));
   assert.match(build, /args: release --clean --skip=publish/);
   for (const source of [build, assemble]) {

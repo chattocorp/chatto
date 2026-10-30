@@ -28,29 +28,35 @@ Backport this policy before publishing from those branches.
 
 ## Publication approval
 
-The tagged workflow builds server archives, server and frontend container
-images, and signed desktop packages before it requests approval to publish.
-The build jobs save these files as workflow artifacts. They do not upload
-release assets or push release images to GHCR.
+The tagged workflow requests all environment approvals at the start. In
+**Review deployments**, select `chatto-release`, `desktop-signing`, and
+`desktop-windows-signing`, then approve them together. The `approve-release`
+job and the desktop signing jobs have no build dependencies, so all three
+environments are available in the same review stage.
 
-After all builds and desktop assembly succeed, approve the `release` job in
-the protected `chatto-release` environment. This is the only publication
-approval for server, frontend container, and desktop artifacts. Desktop signing
-keeps its separate protected-environment approvals. The client npm workflow
-also keeps its separate publication process.
+This review authorizes both signing and publication. The workflow then builds
+server archives, server and frontend container images, and signed desktop
+packages. The build jobs save these files as workflow artifacts. They do not
+upload release assets or push release images to GHCR.
 
-The approved job checks the archive checksums, uploads the assets, pushes the
-saved container images, and publishes the GitHub Release. Stable releases then
-update Homebrew and start the stable documentation build. Release credentials
-stay in the protected publication job. There is no second approval to make
-the GitHub Release public.
+After the approval job, all builds, and desktop assembly succeed, the `release`
+job continues automatically. It checks the archive checksums, uploads the
+assets, pushes the saved container images, and publishes the GitHub Release.
+Stable releases then
+update Homebrew and start the stable documentation build. There is no second
+approval to make the GitHub Release public. Publication credentials are
+repository secrets; do not move them into `chatto-release`, because the
+publication job does not enter that environment. Signing secrets and Windows
+OIDC configuration remain in their existing environments. Keep the required
+reviewers and branch/tag policies on all three environments. The client npm
+workflow keeps its separate publication process.
 
 Publication across GitHub and GHCR is not atomic. If publication fails, some
 images or assets can already be available. Rerun the failed jobs on the same
 workflow run to reuse the saved artifacts; they are retained for seven days.
 Uploads replace matching assets, and image pushes can be repeated. A retry of
-the protected job can require approval again. Do not rebuild a published
-version to change its contents.
+an environment-protected job can require approval again. Do not rebuild a
+published version to change its contents.
 
 ## Documentation channels
 

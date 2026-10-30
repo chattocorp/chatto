@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Ziņojums no {name}",
     "attachments_count": { "other": "{count} pielikumus" },
     "attachment_image": "Attēls",
     "attachment_video": "Video",

@@ -33,9 +33,11 @@ experience.
   password change record the start of the successful credential ceremony.
   Email-change session replacement preserves the previous authentication time.
   OIDC uses this value for authentication freshness and the `auth_time` claim.
-- A session expires after 24 hours even if active, or after one hour without
-  activity. Activity extends only the inactivity limit, never the absolute
-  lifetime.
+- New sessions and their persistent cookies expire after 90 days. Inactivity
+  does not expire a session sooner, and activity never extends the deadline.
+  Existing sessions keep their stored expiry; signing in again creates a
+  persistent cookie under the new policy. All replicas must run the new policy
+  before inactive sessions can reliably remain valid beyond one hour.
 - Signing out invalidates the current session on the server and removes its
   browser cookie. It does not sign out other browsers or relying-party
   sessions.
@@ -76,21 +78,22 @@ cookie.
 **Tradeoff:** Every authenticated browser request depends on runtime-storage
 availability.
 
-### 2. Use a non-persistent browser cookie
+### 2. Remember the browser for 90 days
 
 **Decision:** The session cookie is host-only, `HttpOnly`, `SameSite=Lax`, and
 scoped to `/`. HTTPS origins use the `__Host-authling_session` name and
 `Secure`; loopback HTTP development uses an unprefixed cookie. Duplicate
-session-cookie values are rejected. The cookie has no persistent expiry
-attribute.
+session-cookie values are rejected. The cookie sets `Max-Age` to 90 days and
+`Expires` to the server-side session deadline.
 
 **Why:** These attributes reduce script access, cross-site presentation, and
 cleartext transport risk while letting ordinary OIDC top-level navigation work
-in the OIDC flow. A browser-session cookie avoids silently adding a "remember
-me" feature.
+in the OIDC flow. Persistence lets people return without signing in every day.
 
-**Tradeoff:** Browser session restoration behavior varies, and local HTTP
-development uses a separate cookie name from production.
+**Tradeoff:** A retained browser session remains usable longer. Logout, remote
+session revocation, account deletion, and credential-generation changes still
+invalidate it. OIDC authentication-freshness requests still require a recent
+authentication ceremony. Local HTTP development uses a separate cookie name.
 
 ### 3. Treat sessions as runtime state
 

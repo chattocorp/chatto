@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Kopiera serverlänk",
     "copy_room_link": "Kopiera rumslänk",
     "show_rooms_in_group": "Visa fler rum i {group} ({count})",
     "hide_rooms_in_group": "Dölj rum du inte har gått med i i {group}",

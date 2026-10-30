@@ -1,4 +1,5 @@
 import { directBearerSession, persistedBearerSession } from '@chatto/client/auth/bearerSession';
+import { invalidateAll } from '$app/navigation';
 import type { RegisteredServer } from '@chatto/client/server/registry';
 import { serverRegistry } from '$lib/client';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
@@ -43,4 +44,5 @@ export async function signInWithPassword(
     reauthRequiredAt: null
   });
   resumePushRegistrationAfterAuthentication(server.id);
+  await invalidateAll();
 }

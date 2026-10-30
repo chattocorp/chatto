@@ -14,6 +14,10 @@
   import { formatDateTime, type TimeFormatSettings } from '$lib/utils/formatTime';
   import { SvelteDate } from 'svelte/reactivity';
   import Interval from '$lib/lifecycle/Interval.svelte';
+  import { getAllContexts } from 'svelte';
+  import { enhanceEntityLinks } from './messages/enhanceEntityLinks';
+
+  const enhanceLink = enhanceEntityLinks(getAllContexts());
 
   const fallbackTimestampSettings: TimeFormatSettings = {
     get effectiveTimezone() {
@@ -179,7 +183,7 @@
   {#await render(body, members, roleHandles, edited, echoedToChannel, viewerLogin, timestampSettings, timestampLocale)}
     {body}
   {:then html}
-    <MarkdownHtml {html} />
+    <MarkdownHtml {html} {enhanceLink} />
   {:catch error}
     {body}
     {(() => {

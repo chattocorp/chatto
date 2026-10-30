@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -12,7 +12,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Reply attribution shows the original message text when it has non-whitespace text. Otherwise, one attachment shows an icon and its translated type label (Image, Video, Audio, or File). Multiple attachments show a paperclip icon and the translated attachment count. The label uses loaded message metadata and does not load thumbnails.
 - PDF attachments open automatically in the browser's native PDF viewer when the browser reports inline PDF support. The file type must be PDF; a `.pdf` filename alone does not enable the preview. Browsers without this capability show the download fallback without loading the document. Native controls vary by browser. Download stays available when a document cannot render because the browser does not reliably report these failures to Chatto. Preview requests use the attachment server and its configured storage, with no external document-viewer service.
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
-- A message can have up to 10 attachments. The composer adds only the valid files that fit and shows a warning when it skips extra files. Files still being prepared count toward this limit. A draft change discards unfinished preparation from the previous draft.
+- A message can have up to 10 attachments. The composer adds only the valid files that fit and shows a warning when it skips extra files. Files still being prepared count toward this limit. A draft change discards unfinished preparation from the previous draft. Changing between the visual and Markdown editors keeps the same draft, including files still being prepared.
 - Draft attachments persist across room switches inside the same session.
 - Message attachments are uploaded through `chatto.api.v1.AssetUploadService` before message creation. The browser sends bounded unary chunks with SHA-256 checksums, then calls `MessageService.CreateMessage` with completed attachment asset IDs.
 - A completed asset can be attached only by its uploader and to one exact message. Reusing another member's asset ID, or reusing one's own already-attached asset ID, is rejected.

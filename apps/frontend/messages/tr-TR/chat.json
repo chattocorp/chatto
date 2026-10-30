@@ -60,6 +60,9 @@
       "details": "Sunucu ayrıntıları"
     },
     "compatibility": {
+      "older_frontend": "Uygulamanız bu sunucudaki tüm özellikleri desteklemiyor",
+      "frontend_upgrade": "Uygulamanın {version} sürümünü kullanıyorsunuz. Uygulamanızı güncelleyin veya uygulamayı sağlayan sunucunun yöneticisinden güncellemesini isteyin. Özelliklere erişim, sunucu ayarlarına ve izinlerinize de bağlıdır.",
+      "frontend_requires": "Uygulamanın {version} veya daha yeni bir sürümünü gerektirir",
       "title": "Uyumluluk",
       "view": "Uyumluluğu görüntüle",
       "limited": "Eski sunucu sürümü",
@@ -180,7 +183,7 @@
       "event_log": "Olay Günlüğü",
       "system": "Sistem",
       "back_to_server": "Sunucuya Geri Dön",
-      "invitations": "Davet bağlantıları"
+      "registration": "Kayıt"
     }
   }
 }

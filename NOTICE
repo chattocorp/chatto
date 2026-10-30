@@ -22,6 +22,7 @@ ChattoBot:
 
 Server and CLI Go Components:
 
+- Masterminds semver (https://github.com/Masterminds/semver) - MIT License
 - age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
 - AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
@@ -131,6 +132,7 @@ Frontend, Examples, and Documentation Components:
 - svelte-dnd-action (https://github.com/isaacHagoel/svelte-dnd-action) -
   MIT License
 - Tailwind CSS packages (https://tailwindcss.com/) - MIT License
+- htmx (https://htmx.org/) - Zero-Clause BSD License (0BSD); bundled locally by Authling
 - Tiptap and ProseMirror (https://tiptap.dev/, https://prosemirror.net/) -
   MIT License
 - tlds (https://github.com/segmentio/tlds) - MIT License

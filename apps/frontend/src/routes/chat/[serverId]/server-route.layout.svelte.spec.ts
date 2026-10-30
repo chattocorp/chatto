@@ -77,6 +77,7 @@ const { mocks } = vi.hoisted(() => ({
 vi.mock('$app/environment', () => ({ browser: true, dev: true, building: false, version: 'test' }));
 
 vi.mock('$app/navigation', () => ({
+  invalidateAll: vi.fn(),
   goto: mocks.goto,
   pushState: vi.fn(),
   replaceState: vi.fn()

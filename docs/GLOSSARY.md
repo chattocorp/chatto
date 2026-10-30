@@ -60,6 +60,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Hover Lift** — Shared motion cue that raises an interactive card or visual choice slightly while the pointer hovers over it. Appearance swatches, server cards, and Settings Overview cards use it. It stays still with reduced motion. See [the design system](../apps/frontend/DESIGN_SYSTEM.md#hover-lift).
 
+**Inset Frame** — Shared visual treatment for context menus, palettes, dialog trays, and previews: a raised outer rim around recessed content. `inset-frame` defines the border, corners, fill, and default rim; `inset-content` defines the inner surface. Consumer variants add layout and elevation. See [the design system](../apps/frontend/DESIGN_SYSTEM.md#inset-frame).
+
 ## Product
 
 **First-run setup** — Web flow that gives a new server a name and a local owner
@@ -97,7 +99,7 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
-**Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
+**Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the _primary space_). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 

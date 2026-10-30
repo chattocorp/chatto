@@ -80,8 +80,19 @@ message ImportReactionResponse {
 
 // Private historical import. Only the Operator Unix socket serves this RPC.
 service OperatorMessageService {
+  // Imports 1–32 messages without files in one channel, with at most 128 reaction
+  // changes total. New message facts and reactions commit atomically in order.
+  // Exact retries skip committed operations. Responses follow request order.
+  // Invalid input commits no new message facts. Key provisioning can occur
+  // before a commit. Retry identical operations after an uncertain response.
+  rpc ImportMessages(ImportMessagesRequest) returns (ImportMessagesResponse);
   // Records one historical mutation or thread declaration on an existing message.
   rpc ImportMessageChange(ImportMessageChangeRequest) returns (ImportMessageChangeResponse);
+  // Applies 1–128 reaction transitions in one channel. New transitions commit
+  // atomically in request order; previously committed operations are skipped.
+  // Retry with the same operation keys after an uncertain response. Invalid
+  // input commits none of the new transitions. Only the Operator socket serves this RPC.
+  rpc ImportReactionChanges(ImportReactionChangesRequest) returns (ImportReactionChangesResponse);
   // Appends an encrypted historical message as a system operation. A repeated
   // request without a key creates another message. idempotency_key expires
   // after 30 minutes; operation_key provides permanent exact retries.
@@ -136,3 +147,62 @@ message ImportMessageChangeRequest {
 
 // Successful historical message operation.
 message ImportMessageChangeResponse {}
+
+// One permanently retryable reaction transition on an imported message.
+// Keys and arguments can also be retried through ImportMessageChange.
+message HistoricalReactionOperation {
+  // Imported message in the request's channel, including a tombstone.
+  string message_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required non-zero UUID, unique within this request.
+  string operation_key = 2 [(buf.validate.field).string.uuid = true];
+  // Absent means unknown source time.
+  google.protobuf.Timestamp occurred_at = 3;
+  // Mapped source actor; empty means unknown.
+  string actor_id = 4;
+  // Reaction to add or remove.
+  HistoricalReactionChange change = 5 [(buf.validate.field).required = true];
+}
+
+// Bounded reaction transitions for one existing channel. Does not accept an archive.
+message ImportReactionChangesRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  repeated HistoricalReactionOperation operations = 2 [(buf.validate.field).repeated = {min_items: 1, max_items: 128}];
+}
+
+// All requested operations are committed and available to subsequent reads.
+message ImportReactionChangesResponse {}
+
+// One reaction transition on the containing batch message.
+message HistoricalMessageReaction {
+  string operation_key = 1 [(buf.validate.field).string.uuid = true];
+  google.protobuf.Timestamp occurred_at = 2;
+  // Empty means unknown source actor.
+  string actor_id = 3;
+  HistoricalReactionChange change = 4 [(buf.validate.field).required = true];
+}
+
+// One message with permanent retry protection and optional reactions.
+message HistoricalMessageOperation {
+  // operation_key is required. idempotency_key and attachments must be absent.
+  // All messages in the request must name the same room.
+  ImportMessageRequest message = 1 [(buf.validate.field).required = true];
+  // Earlier message operation_key in this call. Mutually exclusive with
+  // message.thread_root_event_id. Forward references and cycles are invalid.
+  string thread_root_operation_key = 2;
+  // Earlier message operation_key in this call. Mutually exclusive with
+  // message.in_reply_to. Omit to use an existing destination event ID.
+  string in_reply_to_operation_key = 3;
+  // Applied after this message, in order. Keys are unique across the whole call
+  // and are interchangeable with ImportMessageChange reaction operation keys.
+  repeated HistoricalMessageReaction reactions = 4 [(buf.validate.field).repeated.max_items = 128];
+}
+
+// Bounded resource operations, independent of an archive or source platform.
+message ImportMessagesRequest {
+  repeated HistoricalMessageOperation operations = 1 [(buf.validate.field).repeated = {min_items: 1, max_items: 32}];
+}
+
+// Stable destination identities in request order, including exact retries.
+message ImportMessagesResponse {
+  repeated ImportMessageResponse messages = 1;
+}

@@ -12,6 +12,19 @@ const (
 
 type requestBaseURLContextKey struct{}
 type browserSessionCreatorContextKey struct{}
+type registrationAdmissionCompleterContextKey struct{}
+
+// WithRegistrationAdmissionCompleter lets the HTTP edge clear remembered
+// admission after account creation. The callback never grants admission.
+func WithRegistrationAdmissionCompleter(ctx context.Context, complete func(string)) context.Context {
+	return context.WithValue(ctx, registrationAdmissionCompleterContextKey{}, complete)
+}
+
+func completeRegistrationAdmission(ctx context.Context, invitationID string) {
+	if complete, ok := ctx.Value(registrationAdmissionCompleterContextKey{}).(func(string)); ok && invitationID != "" {
+		complete(invitationID)
+	}
+}
 
 type BrowserSession struct {
 	Revoke func(ctx context.Context) error

@@ -1,0 +1,63 @@
+package web
+
+import (
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/oidcprovider"
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+	"slices"
+	"strconv"
+)
+
+templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID string, profile accounts.Profile) {
+	@documentLayout("Authorize access", signedInAs, false, true) {
+		@ui.Heading("Authorize " + request.ClientName + "?") {
+			<p>
+				if request.ClientHost == "configured by this site’s operator" {
+					This application is configured by this site’s operator.
+				} else {
+					Application from <strong class="font-medium">{ request.ClientHost }</strong>.
+				}
+			</p>
+		}
+		<section class="mt-4" aria-labelledby="permissions-heading">
+			<h2 id="permissions-heading" class="font-medium">You’ll share with { request.ClientName }</h2>
+			<ul class="mt-2 divide-y divide-line border-y border-line">
+				<li class="py-2">
+					<details class="disclosure">
+						<summary>Your account ID <span class="font-normal text-muted">(view)</span></summary>
+						<code class="mt-2 block break-all text-muted">{ accountID }</code>
+					</details>
+				</li>
+				if slices.Contains(request.Scopes, "profile") {
+					<li class="py-2">
+						<p><span class="font-medium">Username:</span> <span class="text-muted">{ profile.PreferredUsername }</span></p>
+						if profile.FullName != "" {
+							<p class="mt-1"><span class="font-medium">Full name:</span> <span class="text-muted">{ profile.FullName }</span></p>
+						} else {
+							<p class="mt-1 text-muted">Full name, if you add one</p>
+						}
+					</li>
+				}
+				if slices.Contains(request.Scopes, "email") {
+					<li class="py-2">
+						<p class="font-medium">Verified email address</p>
+						<p class="mt-0.5 text-muted">{ signedInAs }</p>
+					</li>
+				}
+			</ul>
+		</section>
+		<div class="mt-4 space-y-1 text-muted">
+			if slices.Contains(request.Scopes, "profile") || slices.Contains(request.Scopes, "email") {
+				<p>This access includes future changes to the information listed above.</p>
+			}
+			<p>You can revoke this access from your account page.</p>
+		</div>
+		<form class="mt-4 grid grid-cols-2 gap-3" method="post" action="/oidc/consent">
+			<input type="hidden" name="consent_version" value={ strconv.FormatUint(uint64(authorizations.ConsentVersion), 10) }/>
+			<input type="hidden" name="id" value={ request.ID }/>
+			<button class="button button-secondary w-full px-3" type="submit" name="decision" value="deny">Deny</button>
+			<button class="button button-primary w-full px-3" type="submit" name="decision" value="allow">Authorize</button>
+		</form>
+	}
+}

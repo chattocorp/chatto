@@ -1,0 +1,44 @@
+package ui
+
+// Tone describes the meaning of a notice, independently of its color.
+type Tone string
+
+const (
+	Neutral Tone = "neutral"
+	Success Tone = "success"
+	Warning Tone = "warning"
+	Danger  Tone = "error"
+)
+
+// Heading supplies the single page heading and optional introductory content.
+templ Heading(title string) {
+	<header class="page-heading">
+		<h1 class="page-title">{ title }</h1>
+		<div class="page-description">{ children... }
+</div>
+	</header>
+}
+
+// SectionHeading titles a panel below the page's primary heading.
+templ SectionHeading(title string) {
+	<header class="page-heading">
+		<h2 class="page-title">{ title }</h2>
+		<div class="page-description">{ children... }
+</div>
+	</header>
+}
+
+// Notice uses alert semantics for errors and warnings, status for other feedback.
+// Include text that explains the result; color must never carry meaning alone.
+templ Notice(tone Tone) {
+	<div class={ "notice", "notice-" + string(tone) } role={ noticeRole(tone) }>
+		{ children... }
+	</div>
+}
+
+func noticeRole(tone Tone) string {
+	if tone == Danger || tone == Warning {
+		return "alert"
+	}
+	return "status"
+}

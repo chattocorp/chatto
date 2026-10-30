@@ -150,6 +150,19 @@ func (p *Publisher) AppendProfileUpdated(ctx context.Context, event *corev1.Even
 
 }
 
+// AppendAdministratorChanged replaces the stored flag at the observed account tail.
+func (p *Publisher) AppendAdministratorChanged(ctx context.Context, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	payload := event.GetAdministratorChanged()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("administrator_changed payload is required")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+}
+
 // AppendPasswordResetRequested records an accepted recovery request at an
 // explicitly observed account tail.
 func (p *Publisher) AppendPasswordResetRequested(
@@ -317,6 +330,10 @@ func validate(event *corev1.Event) error {
 		return fmt.Errorf("Authling event created_at: %w", err)
 	}
 	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_AdministratorChanged:
+		if !validSubjectToken(payload.AdministratorChanged.GetAccountId()) {
+			return fmt.Errorf("administrator change account id is invalid")
+		}
 	case *corev1.Event_AccountErasureRequested:
 		r := payload.AccountErasureRequested
 		if !validSubjectToken(r.GetAccountId()) || !validSubjectToken(r.GetPriorCredentialEventId()) || !strings.HasPrefix(r.GetUserKeyRef(), "uk_") || !validSubjectToken(r.GetUserKeyRef()) || !strings.HasPrefix(r.GetCredentialKeyRef(), "dk_") || !validSubjectToken(r.GetCredentialKeyRef()) {

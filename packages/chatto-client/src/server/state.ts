@@ -105,6 +105,13 @@ export class ServerInfoState {
   set directLoginEnabled(value) {
     this.#directLoginEnabledSignal.set(value);
   }
+  readonly #accountCreationPolicySignal = signal<PublicServerInfo['accountCreationPolicy'] | null>(
+    null
+  );
+  /** Public admission hint, or null before discovery. Account creation enforces the policy. */
+  get accountCreationPolicy(): PublicServerInfo['accountCreationPolicy'] | null {
+    return this.#accountCreationPolicySignal.get();
+  }
   readonly #authProvidersSignal = signal<readonly PublicAuthProvider[]>([]);
   /** Configured sign-in providers from public discovery, in server-defined order. */
   get authProviders(): readonly PublicAuthProvider[] {
@@ -181,6 +188,11 @@ export class ServerInfoState {
 
   get #runtime() {
     return this.#getProjectedState()?.runtime;
+  }
+
+  /** Whether this server provides the host's bundled frontend. */
+  get isOriginServer(): boolean {
+    return this.originServer;
   }
 
   /** Known feature limitations after discovery. The origin serves its own client. */
@@ -308,6 +320,7 @@ export class ServerInfoState {
         this.bannerUrl = info.bannerUrl;
         this.directRegistrationEnabled = info.directRegistrationEnabled;
         this.directLoginEnabled = info.directLoginEnabled;
+        this.#accountCreationPolicySignal.set(info.accountCreationPolicy);
         this.#authProvidersSignal.set(info.authProviders);
       });
     } catch (err) {

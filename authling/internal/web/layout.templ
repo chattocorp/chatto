@@ -1,0 +1,72 @@
+package web
+
+import "strconv"
+
+templ layout(title, signedInAs string) {
+	@pageLayout(title, signedInAs, false) {
+		{ children... }
+	}
+}
+
+templ pageLayout(title, signedInAs string, wide bool, administrator ...bool) {
+	@documentLayout(title, signedInAs, wide, false, administrator...) {
+		{ children... }
+	}
+}
+
+// documentLayout centers focused tasks in the space below the header. Wide
+// pages own their panels; consent retains its compact authorization shell.
+templ documentLayout(title, signedInAs string, wide, consent bool, administrator ...bool) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="color-scheme" content="light dark"/>
+			@templ.Raw("<style>" + initialCanvasCSS + "</style>")
+			if siteFromContext(ctx).Description != "" {
+				<meta name="description" content={ siteFromContext(ctx).Description }/>
+			}
+			<title>{ sitePageTitle(ctx, title) }</title>
+			<link rel="preload" href={ browserAssets.url("ibm-plex-sans-latin-wght-normal.woff2") } as="font" type="font/woff2" crossorigin="anonymous"/>
+			<link rel="stylesheet" href={ browserAssets.url("app.css") }/>
+			if !consent {
+				<script type="module" src={ browserAssets.url("app.js") }></script>
+			}
+		</head>
+		<body class="flex min-h-dvh flex-col" hx-boost={ strconv.FormatBool(!consent) } hx-history="false">
+			<a class="skip-link" href="#main-content">Skip to content</a>
+			<header class="site-header">
+				<div class={ "mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-2 sm:px-8", templ.KV("max-w-5xl", !consent), templ.KV("max-w-lg", consent) }>
+					<a class="site-brand" href="/">
+						<span class="iconify uil--shield-check shrink-0 text-2xl text-muted" aria-hidden="true"></span>
+						<span class="min-w-0 break-words">{ siteFromContext(ctx).Name }</span>
+					</a>
+					if signedInAs != "" {
+						<nav class="flex flex-wrap items-center gap-3" aria-label="Account navigation">
+							if len(administrator) > 0 && administrator[0] {
+								<a
+									class="button button-secondary button-compact"
+									href="/admin"
+									if title == "Administration" {
+										aria-current="page"
+									}
+								>Administration</a>
+							}
+							<a class="account-link" href="/account" aria-label={ "Signed in as " + signedInAs + ". View your account." }>
+								<span class="iconify uil--user-circle shrink-0 text-xl" aria-hidden="true"></span>
+								<span class="hidden max-w-56 truncate sm:block" title={ signedInAs }>{ signedInAs }</span>
+								<span class="sm:hidden">Account</span>
+							</a>
+						</nav>
+					}
+				</div>
+			</header>
+			<main id="main-content" tabindex="-1" class={ templ.KV("focus-main", !wide && !consent), templ.KV("page-main page-main-wide", wide), templ.KV("mx-auto w-full max-w-lg px-5 py-5 sm:px-8", consent) }>
+				<div class={ "min-w-0 wrap-anywhere", templ.KV("focus-card", !wide && !consent) }>
+					{ children... }
+				</div>
+			</main>
+		</body>
+	</html>
+}

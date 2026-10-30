@@ -19,6 +19,8 @@ export type ChatModal =
       sources: Array<{ name: string; origin: string }>;
     }
   | { type: 'motd'; motd: string }
+  /** Rendered by the active invitation-code table that opened it. */
+  | { type: 'createInvitationCode'; serverId: string; creatorId: string }
   /** Rendered by the active room's notice panel so access loss also removes its draft. */
   | (RoomModalTarget & { type: 'roomNoticeEditor'; editorId: string })
   | (RoomModalTarget & { type: 'leaveRoom'; roomName: string })

@@ -122,7 +122,7 @@ message BatchGetBotsResponse {
   repeated Bot bots = 1;
 }
 
-// Request creation of a bot owned by the authenticated human caller.
+// Request creation of a bot owned by the human caller or a bot caller's human owner.
 message CreateBotRequest {
   // Bot login. Uses the same username rules as a human account.
   string login = 1 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
@@ -346,8 +346,8 @@ message RevokeBotOutboundWebhookRequest {
 // Revocation completed, or this endpoint was already absent.
 message RevokeBotOutboundWebhookResponse {}
 
-// Creates and manages bot accounts owned by human users. Bot API keys cannot
-// call this service.
+// Creates and manages bot accounts owned by human users. Bot API keys can
+// call this service with explicit permissions, bounded by their owner's authority.
 service BotService {
   // List retained failures for an endpoint of a bot you can manage. Returns full
   // records in recording order, oldest first. Expired records are omitted.
@@ -376,13 +376,16 @@ service BotService {
   rpc GetBot(GetBotRequest) returns (GetBotResponse);
   // Gets several visible bots. Missing and inaccessible bots are omitted.
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
-  // Creates a bot owned by the authenticated human caller. Requires bot.create.
+  // Creates a bot owned by the human caller or a bot caller's human owner.
+  // Requires bot.create. The new bot starts without permission grants.
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
   // Deletes a bot and invalidates all of its API keys.
   rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Creates one named API key. A bot can have at most 20 active API keys.
+  // Requires bot ownership or bot.manage. The key uses the target bot's authority,
+  // which can exceed the caller's authority.
   rpc CreateBotApiKey(CreateBotApiKeyRequest) returns (CreateBotApiKeyResponse);
   // Revokes one API key without changing other active keys.
   rpc RevokeBotApiKey(RevokeBotApiKeyRequest) returns (RevokeBotApiKeyResponse) {

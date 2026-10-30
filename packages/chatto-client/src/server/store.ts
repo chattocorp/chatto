@@ -587,10 +587,11 @@ export class ServerStateStore {
       // Retained channel membership can have been read before this snapshot.
       // Recheck it at the snapshot cursor before declaring the view current.
       await Promise.all(
-        this.#rooms.all('members').map((store) => store.refresh({ minimumCursor: cursor }))
+        this.accessibleMemberStores().map((store) => store.refresh({ minimumCursor: cursor }))
       );
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
+      this.loadPendingRoomMembers();
     }
     await this.waitForRealtimeReconciliation(transportGeneration);
     this.requireCurrentRealtimeProjection(generation);
@@ -697,6 +698,15 @@ export class ServerStateStore {
     if (!room || room.archived) throw new Error('Conversation is unavailable');
   }
 
+  /** Read a message from existing timelines without creating stores or making requests. */
+  knownMessage(roomId: string, messageId: string) {
+    for (const timeline of this.#rooms.timelines(roomId)) {
+      const event = timeline.getEventById(messageId);
+      if (event) return event;
+    }
+    return undefined;
+  }
+
   /** Return known follow state from a loaded canonical room timeline. */
   loadedThreadFollowState(roomId: string, threadRootEventId: string): boolean | null {
     const event = this.#rooms.loaded(roomId)?.messages?.getEventById(threadRootEventId);
@@ -758,10 +768,46 @@ export class ServerStateStore {
     );
   }
 
+  /** Request members after navigation; recovery can complete the load later. */
+  loadRoomMembers(roomId: string): void {
+    const members = this.#rooms.members(roomId);
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
+    members.ensureLoaded();
+  }
+
+  /** Navigation can create a member store while recovery awaits its earlier reads. */
+  private loadPendingRoomMembers(): void {
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    for (const members of this.accessibleMemberStores()) members.ensureLoaded();
+  }
+
+  /** A requested or cached list does not grant access, including on invitation routes. */
+  private accessibleMemberStores() {
+    return this.#rooms
+      .entries()
+      .flatMap(([roomId, { members }]) =>
+        members && this.projection.rooms.get(roomId)?.viewerState?.isMember ? [members] : []
+      );
+  }
+
+  /** Recovery owns its refresh; ordinary membership changes refresh the cached list. */
+  private invalidateRoomMembership(roomId: string): void {
+    const members = this.#rooms.loaded(roomId)?.members;
+    if (!members) return;
+    members.resetProjectionState();
+    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
+    this.trackProjectionReconciliation(
+      members.refresh({ minimumCursor: this.#currentEventMinimumCursor }),
+      this.#realtimeProjectionGeneration
+    );
+  }
+
   /** Universal membership depends on server authorization, not only join facts. */
   private invalidateUniversalMembership(): void {
     for (const [id, room] of this.projection.rooms) {
-      if (room.room?.universal) this.#rooms.loaded(id)?.members?.resetProjectionState();
+      if (room.room?.universal) this.invalidateRoomMembership(id);
     }
   }
 
@@ -794,8 +840,9 @@ export class ServerStateStore {
     this.#rooms.clearMessageAccess(roomId, forgetStores);
   }
 
-  /** Reacquire only mounted stores that were previously scrubbed for access loss. */
+  /** Reacquire cached members and mounted resources after access returns. */
   private restoreRoomAccess(roomId: string): void {
+    if (this.#rooms.loaded(roomId)?.members) this.loadRoomMembers(roomId);
     this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);
@@ -996,7 +1043,7 @@ export class ServerStateStore {
       if (!current()) return;
       this.invalidateUniversalMembership();
       await Promise.all(
-        this.#rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
+        this.accessibleMemberStores().map((store) => store.refresh({ reauthorize: true }))
       );
       // Each cache must complete its own check before a partial failure is
       // reported to the cursor owner for retry.
@@ -1009,7 +1056,10 @@ export class ServerStateStore {
         if (current()) this.#reconciliationError ??= error;
       })
       .finally(() => {
-        if (current()) this.checkingPermissions = false;
+        if (current()) {
+          this.checkingPermissions = false;
+          this.loadPendingRoomMembers();
+        }
         this.#projectionReconciliations.delete(refresh);
       });
     this.#projectionReconciliations.add(refresh);
@@ -1436,7 +1486,7 @@ export class ServerStateStore {
       case 'roomMembershipEventsVisibilityChanged':
       case 'userJoinedRoom':
         if (payload.case === 'roomUniversalChanged' && roomId) {
-          this.#rooms.loaded(roomId)?.members?.resetProjectionState();
+          this.invalidateRoomMembership(roomId);
           // Effective membership can expose a call that started before access.
           this.refreshRealtimeResource('activeCalls');
         }

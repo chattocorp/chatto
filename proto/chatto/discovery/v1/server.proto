@@ -19,6 +19,42 @@ message GetServerResponse {
   bool setup_required = 3;
 }
 
+// Optional filters for the public feature catalog.
+message ListFeaturesRequest {
+  // BCP 47 language tag for feature names and descriptions. The server tries
+  // this locale, its parents, then English. Invalid or unsupported locales,
+  // and omitted values, use English.
+  optional string locale = 1;
+  // Return only features introduced strictly after this Chatto
+  // release. Omit for the complete catalog. Must be a full Semantic Version,
+  // including any prerelease stage; invalid or empty values are INVALID_ARGUMENT.
+  // Third-party clients should omit this filter and use stable feature IDs.
+  optional string introduced_after_version = 2;
+}
+
+// Advisory features supported by this server software, in display order.
+// An empty list means no entries match, not that every feature is supported.
+message ListFeaturesResponse {
+  // Product metadata, not a complete API capability declaration.
+  repeated ServerFeature features = 1;
+}
+
+// A product feature that an older frontend can describe without knowing its
+// implementation. This is upgrade guidance, not permission, configuration,
+// API negotiation, or a minimum version required to connect.
+message ServerFeature {
+  // Stable feature identifier. Clients must accept previously unknown IDs.
+  string id = 1;
+  // Localised display name. Render as plain text, never HTML or Markdown.
+  string name = 2;
+  // Localised explanation for users. Render as plain text.
+  string description = 3;
+  // First Chatto release with support for this feature in the server and
+  // bundled frontend.
+  // Third-party clients use the ID with their own support policy instead.
+  string introduced_version = 4;
+}
+
 // Request for the public Neighbor directory.
 message ListNeighborsRequest {}
 
@@ -67,6 +103,13 @@ service ServerDiscoveryService {
   // provider information. This fully public RPC is available before login so
   // clients can render the first server screen and authentication choices.
   rpc GetServer(GetServerRequest) returns (GetServerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Lists product features without requiring a session. Clients may load this
+  // catalog on demand and cache it by server software version, locale, and
+  // version filter. Refresh when any of those values change. Older servers
+  // can return UNIMPLEMENTED; this does not prevent normal chat use.
+  rpc ListFeatures(ListFeaturesRequest) returns (ListFeaturesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // Returns the public Neighbor directory without requiring a session.

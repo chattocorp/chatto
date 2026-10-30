@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Kopeeri serveri link",
     "copy_room_link": "Kopeeri ruumi link",
     "show_rooms_in_group": "Kuva rohkem ruume rühmas {group} ({count})",
     "hide_rooms_in_group": "Peida rühmas {group} ruumid, millega sa pole liitunud",
