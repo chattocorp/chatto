@@ -770,7 +770,7 @@ env = {
   CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
   CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_RUNLING_PORT}}/api/runs/start/chatto",
   CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "{{env.CHATTO_DEV_DATA_ROOT}}/bootstrap/test_bot.key",
-  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
+  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "message.read-interactions,message.post-in-interactions,message.react,message.attach",
   CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
 }
 run = "exec bin/chatto"
