@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "{name} adlı kişiden mesaj",
     "attachments_count": { "other": "{count} ek" },
     "attachment_image": "Resim",
     "attachment_video": "video",

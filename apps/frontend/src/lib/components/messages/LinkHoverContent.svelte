@@ -6,6 +6,7 @@
     description?: string | null;
     image?: string | null;
     server?: string;
+    timestamp?: string;
     icon?: string;
     kind?: 'server' | 'room' | 'user';
   }
@@ -64,6 +65,7 @@
         <div class="min-w-0 flex-1">
           <div class="line-clamp-2 font-semibold break-words text-text">{local.name}</div>
           {#if local.server}<div class="truncate text-muted">{local.server}</div>{/if}
+          {#if local.timestamp}<div class="text-xs text-muted">{local.timestamp}</div>{/if}
         </div>
       </div>
       {#if local.description}<div class="line-clamp-3 whitespace-pre-wrap text-subdued">

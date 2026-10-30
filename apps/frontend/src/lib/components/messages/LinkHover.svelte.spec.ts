@@ -6,6 +6,8 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { queryClient } from '$lib/query/queryClient';
 import { applyAnimationPreference } from '$lib/dom/motionPreference';
 import LinkHover from './LinkHover.svelte';
+import LinkTitleTestHarness from './LinkTitleTestHarness.svelte';
+import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -35,6 +37,89 @@ afterEach(() => {
 function hover(container: HTMLElement) {
   container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
 }
+it('reuses a fetched title without replacing the focused anchor or its destination', async () => {
+  const { container } = render(LinkTitleTestHarness, { href });
+  const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  expect(trigger.textContent).toContain('example.test');
+  trigger.focus();
+  await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
+  expect(document.activeElement).toBe(trigger);
+  expect(trigger.href).toBe(href);
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
+  );
+  expect(trigger.textContent).toContain('A useful guide');
+  expect(fetchLinkPreview).toHaveBeenCalledTimes(1);
+});
+
+it('uses existing metadata immediately and truncates long titles without fetching', async () => {
+  const title = 'A very long page title '.repeat(30);
+  const { container } = render(LinkTitleTestHarness, {
+    href,
+    preview: {
+      url: href,
+      title,
+      description: null,
+      imageUrl: null,
+      siteName: null,
+      embedType: null,
+      embedId: null
+    }
+  });
+  const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  expect(trigger.textContent).toContain(title.trim());
+  expect(trigger.getBoundingClientRect().width).toBeLessThan(400);
+  expect(getComputedStyle(trigger.querySelector('bdi')!).textOverflow).toBe('ellipsis');
+  hover(container);
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull()
+  );
+  expect(fetchLinkPreview).not.toHaveBeenCalled();
+});
+
+it('clears a fetched pill title at the server privacy boundary', async () => {
+  const scope = createTestServerScope({ api: { fetchLinkPreview } });
+  const { container } = render(LinkTitleTestHarness, { href });
+  hover(container);
+  const trigger = container.querySelector('.url-link')!;
+  await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
+  removeRegisteredServerQueries(scope.serverId);
+  await vi.waitFor(() => expect(trigger.textContent).toContain('example.test'));
+  expect(trigger.textContent).not.toContain('A useful guide');
+});
+
+it('does not reveal a title protected by a social content warning', async () => {
+  fetchLinkPreview.mockResolvedValue({
+    url: href,
+    title: 'Concealed title',
+    socialPost: { contentWarning: 'Sensitive content' }
+  });
+  const { container } = render(LinkTitleTestHarness, { href });
+  hover(container);
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
+  await tick();
+  expect(container.querySelector('.url-link')?.textContent).toContain('example.test');
+  expect(container.textContent).not.toContain('Concealed title');
+});
+
+it('ignores a pending response after the server session is cleared', async () => {
+  const scope = createTestServerScope({ api: { fetchLinkPreview } });
+  let resolve!: (value: unknown) => void;
+  fetchLinkPreview.mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    })
+  );
+  const { container } = render(LinkTitleTestHarness, { href });
+  hover(container);
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
+  removeRegisteredServerQueries(scope.serverId);
+  resolve({ url: href, title: 'Old session title' });
+  await tick();
+  expect(container.querySelector('.url-link')?.textContent).toContain('example.test');
+  expect(container.textContent).not.toContain('Old session title');
+});
 it.each([
   ['click', {}],
   ['click', { ctrlKey: true }],

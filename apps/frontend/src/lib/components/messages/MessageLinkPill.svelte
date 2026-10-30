@@ -36,6 +36,6 @@
   {/if}
   <span class="iconify icon-[uil--comment-alt-message] shrink-0 self-center" aria-hidden="true"
   ></span>
-  <bdi class="truncate">{user ? name : context}</bdi>
+  <bdi class="truncate">{user ? m('message_preview.message_from', { name }) : context}</bdi>
   {#if user && context}<span class="min-w-0 truncate text-muted">· <bdi>{context}</bdi></span>{/if}
 </a>

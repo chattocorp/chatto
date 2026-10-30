@@ -6,6 +6,7 @@
   import { serverDisplayName } from '@chatto/client/server/state';
   import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
   import { m } from '$lib/i18n/messages';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import LinkHover from './LinkHover.svelte';
   import MessageLinkPill from './MessageLinkPill.svelte';
 
@@ -33,6 +34,9 @@
     name,
     server: room ? `${room.name} · ${serverName}` : serverName,
     description: body,
+    timestamp: event?.createdAt
+      ? formatDateTime(event.createdAt, timeFormatSettingsFor(store?.currentUser.user?.settings))
+      : undefined,
     image: user?.avatarUrl,
     kind: user ? 'user' : 'room',
     icon: 'icon-[uil--comment-alt-message]'

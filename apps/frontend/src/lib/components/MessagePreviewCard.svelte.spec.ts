@@ -240,6 +240,15 @@ beforeEach(() => {
 });
 
 describe('MessagePreviewCard', () => {
+  it('shows the linked message timestamp', async () => {
+    messageResults.push(bodyPreviewResult('Dated message'));
+    const { container } = render(MessagePreviewCard, { props: { link: link() } });
+    await vi.waitFor(() => {
+      const time = container.querySelector('time');
+      expect(time?.dateTime).toBe('2027-05-29T15:00:00Z');
+      expect(time?.textContent).toContain('2027');
+    });
+  });
   it('hides a message when access is denied', async () => {
     getMessageMock.mockRejectedValue(new ConnectError('Access denied', Code.PermissionDenied));
     const { container } = render(MessagePreviewCard, { props: { link: link() } });

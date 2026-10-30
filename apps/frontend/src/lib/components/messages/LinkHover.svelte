@@ -1,6 +1,9 @@
-<!-- @component Delayed, dismissible link hover card. Owns only pointer/focus timers and positioning. -->
+<!-- @component Delayed link hover card. Metadata stays subscribed after hover so URL pills can reuse its title. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { useLinkPreview } from './linkPreviewContext';
+  import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { FloatingPopover } from '$lib/ui';
   import { hasServerScope, useServerScope } from '$lib/state/server/scope.svelte';
   import LinkHoverContent, { type HoverIdentity } from './LinkHoverContent.svelte';
@@ -13,9 +16,10 @@
   }: {
     href: string;
     local?: HoverIdentity;
-    children: Snippet;
+    children: Snippet<[string | undefined]>;
   } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
+  const existingPreview = useLinkPreview();
   const cardId = $props.id();
   const destination = $derived(renderedLinkTarget(href));
   let trigger: HTMLSpanElement | undefined;
@@ -23,6 +27,14 @@
   let anchor = $state<DOMRect | null>(null);
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let fetchedPreview = $state.raw<LinkPreviewView | null>();
+  const preview = $derived(existingPreview(href) ?? fetchedPreview);
+  let loading = $state(false);
+  const pageTitle = $derived(
+    preview?.socialPost?.contentWarning || preview?.socialPost?.quotedPost?.contentWarning
+      ? undefined
+      : preview?.title || undefined
+  );
   function close() {
     clearTimeout(timer);
     clearTimeout(closeTimer);
@@ -45,7 +57,42 @@
 
   // The trigger owns timers and listeners, including cleanup when its URL changes.
   function attachTrigger(node: HTMLSpanElement) {
-    void href;
+    const url = href;
+    const identity = local;
+    let disposed = false;
+    let generation = 0;
+    let started = false;
+    let stopPreview: (() => void) | undefined;
+    fetchedPreview = undefined;
+    loading = false;
+    const stopRemoval = registerQueryCacheRemovalListener((serverId) => {
+      if (serverId !== scope?.serverId) return;
+      generation++;
+      stopPreview?.();
+      stopPreview = undefined;
+      started = false;
+      fetchedPreview = undefined;
+      loading = false;
+      close();
+    });
+    async function loadPreview() {
+      if (identity || !scope || started || existingPreview(url)) return;
+      started = true;
+      loading = true;
+      const current = generation;
+      try {
+        const { observeLinkHover } = await import('$lib/query/linkHover');
+        if (disposed || current !== generation) return;
+        stopPreview = observeLinkHover(scope, url, (data, pending) => {
+          fetchedPreview = data;
+          loading = pending;
+        });
+      } catch {
+        if (disposed || current !== generation) return;
+        loading = false;
+        started = false;
+      }
+    }
     trigger = node;
     const link = node.querySelector('a');
     const title = link?.getAttribute('title');
@@ -56,6 +103,7 @@
       keepOpen();
       timer = setTimeout(() => {
         anchor = node.getBoundingClientRect();
+        void loadPreview();
       }, 350);
     };
     const exit = () => {
@@ -70,6 +118,9 @@
     node.addEventListener('click', close);
     node.addEventListener('contextmenu', close);
     return () => {
+      disposed = true;
+      stopPreview?.();
+      stopRemoval();
       if (title != null) link?.setAttribute('title', title);
       close();
       node.removeEventListener('mouseenter', enter);
@@ -103,7 +154,7 @@
     }
   }}
 />
-<span {@attach attachTrigger}>{@render children()}</span>{#if anchor}
+<span {@attach attachTrigger}>{@render children(pageTitle)}</span>{#if anchor}
   <FloatingPopover
     animate
     {anchor}
@@ -129,14 +180,8 @@
     >
       {#if local}
         <LinkHoverContent {href} {local} />
-      {:else if scope}
-        {#await import('./RemoteLinkHover.svelte')}
-          <LinkHoverContent {href} loading />
-        {:then module}
-          <module.default {href} {scope} />
-        {/await}
       {:else}
-        <LinkHoverContent {href} />
+        <LinkHoverContent {href} {preview} {loading} />
       {/if}
     </a>
   </FloatingPopover>

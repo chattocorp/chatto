@@ -24,6 +24,7 @@ export interface MessagePreviewAttachment {
 
 /** The linked message content that a preview card renders. */
 export interface MessagePreview {
+  createdAt: string;
   body: string | null;
   attachments: MessagePreviewAttachment[];
   actor: UserAvatarUserView | null;
@@ -80,6 +81,7 @@ export async function fetchMessagePreview(
   if (!inner.body && inner.attachments.length === 0) return null;
 
   return {
+    createdAt: event.createdAt,
     body: inner.body ?? null,
     attachments: inner.attachments.map((attachment: MessageAttachmentView) => ({
       id: attachment.id,

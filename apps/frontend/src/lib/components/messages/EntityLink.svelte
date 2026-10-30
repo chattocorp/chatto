@@ -12,7 +12,7 @@
   import UrlLink from './UrlLink.svelte';
   import LinkHover from './LinkHover.svelte';
 
-  let { href, children }: { href: string; children?: Snippet } = $props();
+  let { href, children: authoredLabel }: { href: string; children?: Snippet } = $props();
   const target = $derived(parseEntityLink(href));
   const message = $derived(target ? null : parseMessageLink(href));
   const store = $derived(target ? serverRegistry.tryGetStore(target.serverId) : undefined);
@@ -51,7 +51,7 @@
 </script>
 
 {#if message?.serverId && serverRegistry.getServer(message.serverId)}
-  <MessageLink {href} link={message} {children} />
+  <MessageLink {href} link={message} children={authoredLabel} />
 {:else}
   <LinkHover
     {href}
@@ -79,24 +79,26 @@
         }
       : undefined}
   >
-    {#if children}
-      {@render children()}
-    {:else if known && target && path}
-      <!-- Loss of the entity or replacement of its session disposes open menus. -->
-      {#key store}
-        <EntityLinkPill
-          {target}
-          {path}
-          {href}
-          {name}
-          {user}
-          {room}
-          {store}
-          logoUrl={store?.serverInfo.iconUrl ?? server?.iconUrl}
-        />
-      {/key}
-    {:else}
-      <UrlLink {href} />
-    {/if}
+    {#snippet children(pageTitle)}
+      {#if authoredLabel}
+        {@render authoredLabel()}
+      {:else if known && target && path}
+        <!-- Loss of the entity or replacement of its session disposes open menus. -->
+        {#key store}
+          <EntityLinkPill
+            {target}
+            {path}
+            {href}
+            {name}
+            {user}
+            {room}
+            {store}
+            logoUrl={store?.serverInfo.iconUrl ?? server?.iconUrl}
+          />
+        {/key}
+      {:else}
+        <UrlLink {href} title={pageTitle} />
+      {/if}
+    {/snippet}
   </LinkHover>
 {/if}

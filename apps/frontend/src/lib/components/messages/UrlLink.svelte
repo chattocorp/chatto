@@ -3,7 +3,7 @@
   import { parseWebLink } from '$lib/navigation/webLink';
   import { handleRenderedLinkClick, renderedLinkTarget } from '$lib/navigation/renderedLink';
 
-  let { href }: { href: string } = $props();
+  let { href, title }: { href: string; title?: string } = $props();
   const descriptionId = $props.id();
   const url = $derived(parseWebLink(href));
   const destination = $derived(renderedLinkTarget(href));
@@ -41,11 +41,15 @@
       if (event.button === 1) handleRenderedLinkClick(event, href);
     }}
   >
-    <bdi class="flex min-w-0" dir="ltr">
-      <span class="min-w-0 flex-1 truncate">{host}</span>{#if path}<span class="shrink-0 text-muted"
-          >{path}</span
-        >{/if}
-    </bdi>
+    {#if title?.trim()}
+      <bdi class="min-w-0 truncate">{title}</bdi>
+    {:else}
+      <bdi class="flex min-w-0" dir="ltr">
+        <span class="min-w-0 flex-1 truncate">{host}</span>{#if path}<span
+            class="shrink-0 text-muted">{path}</span
+          >{/if}
+      </bdi>
+    {/if}
   </a>
   <span id={descriptionId} hidden>{href}</span>
 {/if}

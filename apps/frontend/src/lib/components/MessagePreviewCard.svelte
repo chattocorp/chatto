@@ -25,6 +25,7 @@ preview on screen.
   import { buildMessageLinkPath, type MessageLink } from '$lib/chatLinks';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { m } from '$lib/i18n/messages';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { createQuery } from '$lib/query/client';
   import {
     fetchMessagePreview,
@@ -252,9 +253,13 @@ preview on screen.
           <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
         {/if}
       </div>
-      <span
-        class="iconify ms-auto icon-[uil--comment-alt-message] shrink-0 text-muted"
-        aria-hidden="true"
+      <time datetime={preview.createdAt} class="ms-auto min-w-0 text-end text-xs text-muted"
+        >{formatDateTime(
+          preview.createdAt,
+          timeFormatSettingsFor(store?.currentUser.user?.settings)
+        )}</time
+      >
+      <span class="iconify icon-[uil--comment-alt-message] shrink-0 text-muted" aria-hidden="true"
       ></span>
     </div>
     <div class="flex min-w-0 flex-col preview-content">

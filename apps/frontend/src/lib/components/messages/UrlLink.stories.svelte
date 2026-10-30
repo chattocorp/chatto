@@ -19,6 +19,15 @@
       href="https://a-very-long-subdomain.another-long-subdomain.example.com/path"
     />.
   </p>
+  <p>
+    Page title: <UrlLink href="https://example.com/guide" title="Getting started with Chatto" />.
+  </p>
+  <p>
+    Long title: <UrlLink
+      href="https://example.com/guide"
+      title="A comprehensive guide to setting up your server and welcoming your community"
+    />.
+  </p>
 {/snippet}
 
 <Story name="Automatic web links" asChild>

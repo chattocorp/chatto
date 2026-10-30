@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Wiadomość od {name}",
     "attachments_count": { "other": "Załączniki {count}" },
     "attachment_image": "Obraz",
     "attachment_video": "Film",
