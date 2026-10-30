@@ -29,7 +29,7 @@
       "user_invite": "Skapa och hantera inbjudningslänkar",
       "user_manage_accounts": "Skapa användare, redigera kontoidentitet, återställ lösenord, bifoga verifierade e-postmeddelanden och rensa nedkylningar för inloggning",
       "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare",
-      "bot_create": "Skapa botkonton som du äger",
+      "bot_create": "Skapa botkonton",
       "bot_manage": "Visa och hantera alla botkonton",
       "call_start": "Starta ett samtal (kräver även call.join)",
       "call_join": "Ansluta till ett pågående samtal",

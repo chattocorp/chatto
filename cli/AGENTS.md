@@ -344,10 +344,10 @@ authorization, live events, backup and restore, and backend tests.
 - DM membership is mandatory for all DM access. The DM scope then controls all
   `message.*` permissions. Owners do not bypass membership. Operators who are
   not participants cannot read or manage a DM.
-- A bot must never start or fetch a DM through `RoomService.StartDM`, even when
-  it has `message.post` or the DM already exists. A human must start the DM.
-  After that, the bot needs membership, an explicit bot grant, and sufficient
-  current authority from its owner.
+- Humans and bots can create a DM through `RoomService.StartDM` with
+  `message.post` at DM scope. Bots need an explicit grant within their owner's
+  current authority. Participants can fetch an existing DM without posting
+  permission. DM access still requires membership.
 - Permission strings are opaque, stable identifiers. Punctuation helps humans
   recognize current identifiers, but it does not define authorization.
 - Define permission inclusion explicitly in the Go permission catalog. Validate
