@@ -260,43 +260,46 @@ describe('ServerSettings', () => {
       .toBeDisabled();
   });
 
-  it('keeps a newer edit when a pending save returns canonical values', async () => {
-    const saved = {
-      name: 'Canonical server name',
-      description: 'Saved description',
-      motd: '',
-      welcomeMessage: ''
-    };
-    let resolveSave!: (profile: typeof saved) => void;
-    mocks.updateServerConfig.mockReturnValue(new Promise((resolve) => (resolveSave = resolve)));
-    const { container } = await renderSettings();
-    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
-    inputDescription(textarea, 'Saved description');
-    const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    container.querySelector<HTMLFormElement>('form')!.requestSubmit();
-    await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledOnce());
-    // Simulate an input event already in flight when the form becomes disabled.
-    inputDescription(textarea, 'Newer draft');
-    resolveSave(saved);
+  it.each(['Newer draft', 'Original description'])(
+    'keeps newer input "%s" when a pending save returns canonical values',
+    async (newerDescription) => {
+      const saved = {
+        name: 'Canonical server name',
+        description: 'Saved description',
+        motd: '',
+        welcomeMessage: ''
+      };
+      let resolveSave!: (profile: typeof saved) => void;
+      mocks.updateServerConfig.mockReturnValue(new Promise((resolve) => (resolveSave = resolve)));
+      const { container } = await renderSettings();
+      const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
+      inputDescription(textarea, 'Saved description');
+      const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+      container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+      await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledOnce());
+      // Simulate an input event already in flight when the form becomes disabled.
+      inputDescription(textarea, newerDescription);
+      resolveSave(saved);
 
-    await expect
-      .element(container.querySelector<HTMLInputElement>('#name')!)
-      .toHaveValue(saved.name);
-    await expect.element(textarea).toHaveValue('Newer draft');
-    await expect.element(saveButton).toBeEnabled();
-    mocks.updateServerConfig.mockResolvedValue({ ...saved, description: 'Newer draft' });
-    container.querySelector<HTMLFormElement>('form')!.requestSubmit();
-    await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledTimes(2));
-    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
-    await vi.waitFor(() =>
-      expect(queryClient.getQueryData<{ description: string }>(queryKey)?.description).toBe(
-        'Newer draft'
-      )
-    );
-    queryClient.setQueryData(queryKey, { ...saved, viewerCanManageServer: true });
-    await expect.element(textarea).toHaveValue('Saved description');
-    await expect.element(saveButton).toBeDisabled();
-  });
+      await expect
+        .element(container.querySelector<HTMLInputElement>('#name')!)
+        .toHaveValue(saved.name);
+      await expect.element(textarea).toHaveValue(newerDescription);
+      await expect.element(saveButton).toBeEnabled();
+      mocks.updateServerConfig.mockResolvedValue({ ...saved, description: newerDescription });
+      container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+      await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledTimes(2));
+      const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<{ description: string }>(queryKey)?.description).toBe(
+          newerDescription
+        )
+      );
+      queryClient.setQueryData(queryKey, { ...saved, viewerCanManageServer: true });
+      await expect.element(textarea).toHaveValue('Saved description');
+      await expect.element(saveButton).toBeDisabled();
+    }
+  );
 
   it('does not restore settings after the admin cache is purged', async () => {
     let resolveSave!: (profile: {

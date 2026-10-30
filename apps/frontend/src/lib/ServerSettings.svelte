@@ -61,7 +61,8 @@
   const welcomeMessage = $derived(draft.welcomeMessage ?? snapshot?.welcomeMessage ?? '');
 
   function edit(field: keyof EditableServerConfig, value: string) {
-    draft[field] = value === (snapshot?.[field] ?? '') ? undefined : value;
+    // A pending save can replace the snapshot, so keep even a revert as an edit.
+    draft[field] = !saving && value === (snapshot?.[field] ?? '') ? undefined : value;
   }
 
   // Logo state
