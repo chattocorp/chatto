@@ -585,6 +585,34 @@ it('previews bare URLs in the visual composer, preserves labels, and edits the U
   expect(markdown).toBe(`[${origin}](${origin})!`);
 });
 
+it('keeps composer link styling out of hover cards', async () => {
+  let api: ComposerEditorApi | undefined;
+  const { container } = render(TipTapEditor, {
+    onReady: (ready) => {
+      api = ready;
+    }
+  });
+  await vi.waitFor(() => expect(api).toBeDefined());
+  api!.setContent(`${origin} [label](https://example.test)`);
+  const pill = await vi.waitFor(() => {
+    const link = container.querySelector<HTMLAnchorElement>('.entity-link');
+    expect(link).not.toBeNull();
+    return link!;
+  });
+  pill.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+  const card = await vi.waitFor(() => {
+    const link = container.querySelector<HTMLAnchorElement>('[data-testid="link-hover-card"]');
+    expect(link).not.toBeNull();
+    return link!;
+  });
+  expect(getComputedStyle(card).textDecorationLine).toBe('none');
+  expect(getComputedStyle(card).color).toBe(
+    getComputedStyle(card.querySelector('.text-text')!).color
+  );
+  const authored = container.querySelector<HTMLAnchorElement>('a[href="https://example.test"]')!;
+  expect(getComputedStyle(authored).textDecorationLine).toBe('underline');
+});
+
 it('keeps typing after a known URL outside its link', async () => {
   let api: ComposerEditorApi | undefined;
   let markdown = '';
@@ -648,5 +676,87 @@ it.each([
     expect(markdown).toBe(href);
     await userEvent.keyboard(' after');
     await vi.waitFor(() => expect(markdown).toBe(`${href} after`));
+  }
+);
+
+it.each([
+  ['https://example.test/path', ''],
+  ['https://example.test/path', ' nice'],
+  [`${origin}/chat/-/${roomId}`, ''],
+  [`${origin}/chat/-/${roomId}`, ' nice']
+])(
+  'keeps the caret before a pill after moving out of %s with suffix "%s"',
+  async (href, suffix) => {
+    let api: ComposerEditorApi | undefined;
+    let markdown = '';
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => {
+        api = ready;
+      },
+      onUpdate: (value) => {
+        markdown = value;
+      }
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(`${href}${suffix}`);
+    api!.focus('start');
+    const editor = container.querySelector<HTMLElement>('.ProseMirror')!;
+    await vi.waitFor(() => expect(document.activeElement).toBe(editor));
+    await userEvent.keyboard('{ArrowRight}');
+    await vi.waitFor(() => expect(container.querySelector('.composer-entity-preview')).toBeNull());
+    await userEvent.keyboard('{ArrowLeft}');
+    await vi.waitFor(() =>
+      expect(container.querySelector('.composer-entity-preview')).not.toBeNull()
+    );
+    await userEvent.keyboard('before ');
+    expect(api!.getText()).toBe(`before ${href}${suffix}`);
+    expect(markdown).toBe(`before ${href}${suffix}`);
+  }
+);
+
+it.each([
+  ['end', '{ArrowLeft}', false],
+  ['start', '{ArrowRight}', false],
+  ['end', '{Shift>}{ArrowLeft}{/Shift}', true],
+  ['start', '{Shift>}{ArrowRight}{/Shift}', true]
+] as const)(
+  'reveals a pasted URL on keyboard entry from %s (%s)',
+  async (position, key, selecting) => {
+    let api: ComposerEditorApi | undefined;
+    const href = 'https://example.test/path';
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => {
+        api = ready;
+      }
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.focus('end');
+    const editor = container.querySelector<HTMLElement>('.ProseMirror')!;
+    await vi.waitFor(() => expect(document.activeElement).toBe(editor));
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', href);
+    editor.dispatchEvent(
+      new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData })
+    );
+    api!.focus(position);
+    await vi.waitFor(() =>
+      expect(container.querySelector('.composer-entity-source')).not.toBeNull()
+    );
+
+    await userEvent.keyboard(key);
+    await vi.waitFor(() => expect(container.querySelector('.composer-entity-preview')).toBeNull());
+    expect(editor.textContent).toBe(href);
+    const selection = window.getSelection()!;
+    expect(selection.anchorNode?.parentElement?.closest('.ProseMirror')).toBe(editor);
+    expect(selection.toString()).toBe(
+      selecting ? (position === 'end' ? href.slice(-1) : href[0]) : ''
+    );
+    // The insertion point is in visible URL text, with normal character movement.
+    await userEvent.keyboard('X');
+    const expected =
+      position === 'end'
+        ? `${href.slice(0, -1)}X${selecting ? '' : href.slice(-1)}`
+        : `${selecting ? '' : href[0]}X${href.slice(1)}`;
+    expect(api!.getText()).toBe(expected);
   }
 );
