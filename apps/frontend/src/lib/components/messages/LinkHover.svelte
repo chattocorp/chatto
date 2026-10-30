@@ -4,6 +4,7 @@
   import { FloatingPopover } from '$lib/ui';
   import { hasServerScope, useServerScope } from '$lib/state/server/scope.svelte';
   import LinkHoverContent, { type HoverIdentity } from './LinkHoverContent.svelte';
+  import { handleRenderedLinkClick, renderedLinkTarget } from '$lib/navigation/renderedLink';
 
   let {
     href,
@@ -16,7 +17,9 @@
   } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
   const cardId = $props.id();
+  const destination = $derived(renderedLinkTarget(href));
   let trigger: HTMLSpanElement | undefined;
+  let card = $state<HTMLAnchorElement>();
   let anchor = $state<DOMRect | null>(null);
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -29,8 +32,15 @@
     clearTimeout(closeTimer);
   }
   function leave() {
+    // Pointer movement must not dismiss the card while its link has keyboard focus.
+    if (trigger?.matches(':focus-within') || card?.matches(':focus-within')) return;
     clearTimeout(closeTimer);
     closeTimer = setTimeout(close, 180);
+  }
+  function activate(event: MouseEvent) {
+    if (event.defaultPrevented) return;
+    handleRenderedLinkClick(event, href);
+    close();
   }
 
   // The trigger owns timers and listeners, including cleanup when its URL changes.
@@ -86,7 +96,11 @@
 
 <svelte:window
   onkeydown={(event) => {
-    if (event.key === 'Escape') close();
+    if (event.key === 'Escape') {
+      if (document.activeElement === card) trigger?.querySelector('a')?.focus();
+      // Restoring focus can schedule another open; cancel that timer too.
+      close();
+    }
   }}
 />
 <span {@attach attachTrigger}>{@render children()}</span>{#if anchor}
@@ -98,12 +112,20 @@
     onmouseleave={leave}
     class="max-h-[calc(100dvh-1rem)] preview-surface max-w-[calc(100vw-1rem)] overflow-x-hidden overflow-y-auto"
   >
-    <div
+    <a
+      bind:this={card}
+      {...destination}
+      data-content-href={href}
       id={cardId}
-      role="tooltip"
       {@attach describeTrigger}
-      class="link-hover-card"
+      class="link-hover-card block cursor-pointer rounded-md text-text no-underline outline-offset-2 focus-visible:outline-2 focus-visible:outline-action"
       data-testid="link-hover-card"
+      onfocus={keepOpen}
+      onblur={leave}
+      onclick={activate}
+      onauxclick={(event) => {
+        if (event.button === 1) activate(event);
+      }}
     >
       {#if local}
         <LinkHoverContent {href} {local} />
@@ -116,6 +138,6 @@
       {:else}
         <LinkHoverContent {href} />
       {/if}
-    </div>
+    </a>
   </FloatingPopover>
 {/if}

@@ -29,11 +29,58 @@ beforeEach(() => {
 afterEach(() => {
   applyAnimationPreference('automatic');
   queryClient.clear();
+  vi.restoreAllMocks();
 });
 
 function hover(container: HTMLElement) {
   container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
 }
+it.each([
+  ['click', {}],
+  ['click', { ctrlKey: true }],
+  ['auxclick', { button: 1 }]
+] as const)('opens the whole card with %s %j', async (type, options) => {
+  const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  const { container } = render(LinkHover, { href, children });
+  hover(container);
+  const card = await vi.waitFor(() => {
+    const link = container.querySelector<HTMLAnchorElement>('[data-testid="link-hover-card"]');
+    expect(link?.textContent).toContain('A useful guide');
+    return link!;
+  });
+  expect(card.tagName).toBe('A');
+  expect(card.href).toBe(href);
+  expect(card.rel).toBe('noopener noreferrer');
+  expect(card.dataset.contentHref).toBe(href);
+  card
+    .querySelector('.font-semibold')!
+    .dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...options }));
+  expect(open).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
+  );
+});
+
+it('keeps keyboard focus in the card and returns it to the trigger on Escape', async () => {
+  const { container } = render(LinkHover, { href, children, local: { name: 'Development' } });
+  const trigger = container.querySelector('a')!;
+  trigger.focus();
+  const card = await vi.waitFor(() => {
+    const link = container.querySelector<HTMLAnchorElement>('[data-testid="link-hover-card"]');
+    expect(link).not.toBeNull();
+    return link!;
+  });
+  card.focus();
+  container.querySelector('[popover]')!.dispatchEvent(new MouseEvent('mouseleave'));
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  expect(document.activeElement).toBe(card);
+  expect(card.isConnected).toBe(true);
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  await vi.waitFor(() => expect(card.isConnected).toBe(false));
+  expect(document.activeElement).toBe(trigger);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+});
 it('fetches metadata on hover by default and describes the link', async () => {
   const { container } = render(LinkHover, { href, children });
   expect(fetchLinkPreview).not.toHaveBeenCalled();

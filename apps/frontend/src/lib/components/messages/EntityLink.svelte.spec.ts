@@ -89,6 +89,23 @@ afterEach(() => {
 });
 
 describe('entity links in messages', () => {
+  it('opens a known destination from its hover card using local navigation', async () => {
+    const { container } = render(MessageContent, { body: `${origin}/chat/-/${roomId}` });
+    const pill = await vi.waitFor(() => {
+      const link = container.querySelector<HTMLAnchorElement>('.entity-link');
+      expect(link).not.toBeNull();
+      return link!;
+    });
+    await userEvent.hover(pill);
+    const card = await vi.waitFor(() => {
+      const link = container.querySelector<HTMLAnchorElement>('[data-testid="link-hover-card"]');
+      expect(link).not.toBeNull();
+      return link!;
+    });
+    expect(card.getAttribute('href')).toBe(`/chat/known.example.test/${roomId}`);
+    card.click();
+    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith(`/chat/known.example.test/${roomId}`);
+  });
   it('describes message destinations from local data, including thread replies, without loading a timeline', async () => {
     const store = client.registry.getStore('known');
     const messageId = 'E123456789abcde';
@@ -162,8 +179,10 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
     const link = container.querySelector('a')!;
     await userEvent.hover(link);
-    await vi.waitFor(() => expect(container.querySelector('[role="tooltip"]')).not.toBeNull());
-    const heading = container.querySelector('[role="tooltip"] .font-semibold');
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull()
+    );
+    const heading = container.querySelector('[data-testid="link-hover-card"] .font-semibold');
     expect(heading?.textContent).toBe('missing');
     await userEvent.unhover(link);
   });
@@ -205,13 +224,17 @@ describe('entity links in messages', () => {
     expect(container.querySelector('.entity-link, .url-link')).toBeNull();
     await userEvent.hover(link);
     await vi.waitFor(() =>
-      expect(container.querySelector('[role="tooltip"]')?.textContent).toContain('General')
+      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+        'General'
+      )
     );
     expect(link.textContent).toBe('the wonderful channel');
     expect(link.querySelector('strong')?.textContent).toBe('wonderful');
     expect(link.getAttribute('aria-describedby')).toBeTruthy();
     await userEvent.unhover(link);
-    await vi.waitFor(() => expect(container.querySelector('[role="tooltip"]')).toBeNull());
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
+    );
     expect(link.title).toBe('Our development room');
     expect(link.hasAttribute('aria-describedby')).toBe(false);
   });

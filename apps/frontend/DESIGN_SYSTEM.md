@@ -605,6 +605,11 @@ keyboard focus, accessible names, and action hit areas. Image thumbnails use
 or contact a third party merely to demonstrate the frame. These utilities do
 not change preview fetch, consent, or content-warning behavior.
 
+Link hover cards use one native link around their image, text, and destination
+footer. Use the same navigation rules as their trigger. Keep the card open
+while it has keyboard focus; Escape closes it and returns focus to the trigger.
+Do not use `role="tooltip"` for this interactive surface or nest links inside it.
+
 `preview-code` composes the frame and scrollable inset for posted code and the
 visual composer. Keep its geometry in `app.css`, rather than separate editor
 and message recipes. Language and copy controls sit inside the rim. ANSI art
