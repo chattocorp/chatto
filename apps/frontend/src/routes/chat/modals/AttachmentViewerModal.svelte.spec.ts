@@ -18,7 +18,7 @@ vi.mock('@chatto/client/server/serverIds', async (importOriginal) => ({
 }));
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
-  serverRegistry: { getServer: () => ({ url: 'https://remote.example' }) },
+  serverRegistry: { servers: [], getServer: () => ({ url: 'https://remote.example' }) },
   serverConnectionManager: {
     getClient: () => ({
       queryScope: 'test-session',

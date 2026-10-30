@@ -69,7 +69,8 @@ it('uses existing metadata immediately and truncates long titles without fetchin
   });
   const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
   expect(trigger.textContent).toContain(title.trim());
-  expect(trigger.getBoundingClientRect().width).toBeLessThan(400);
+  container.style.width = '320px';
+  expect(trigger.getBoundingClientRect().width).toBeLessThanOrEqual(320);
   expect(getComputedStyle(trigger.querySelector('bdi')!).textOverflow).toBe('ellipsis');
   hover(container);
   await vi.waitFor(() =>

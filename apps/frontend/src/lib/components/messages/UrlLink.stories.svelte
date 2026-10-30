@@ -28,13 +28,31 @@
       title="A comprehensive guide to setting up your server and welcoming your community"
     />.
   </p>
+  <p>
+    Article: <UrlLink
+      href="https://spiegel.de/politik/deutschland/ibrahim-ibrahim"
+      title="(S+) Ibrahim Ibrahim: Wer ist der Mann, vor dem Elif Eralp Angst hat?"
+    />.
+  </p>
+  <p>
+    Long source: <UrlLink
+      href="https://a-very-long-subdomain.another-long-subdomain.example.com:8443/guide"
+      title="A guide from a community server"
+    />.
+  </p>
 {/snippet}
 
-<Story name="Automatic web links" asChild>
+<Story name="Automatic web links" globals={{ theme: 'light' }} asChild>
+  <div class="prose max-w-xl bg-background p-4">{@render examples()}</div>
+</Story>
+<Story name="Dark" globals={{ theme: 'dark' }} asChild>
   <div class="prose max-w-xl bg-background p-4">{@render examples()}</div>
 </Story>
 <Story name="Narrow message" asChild>
-  <div class="prose w-64 bg-background p-4">{@render examples()}</div>
+  <div class="prose w-64 max-w-full bg-background p-4">{@render examples()}</div>
+</Story>
+<Story name="Right to left" asChild>
+  <div class="prose w-80 max-w-full bg-background p-4" dir="rtl">{@render examples()}</div>
 </Story>
 <Story name="Visual composer" asChild>
   <div class="max-w-xl bg-background p-4">

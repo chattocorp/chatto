@@ -7,6 +7,7 @@
   const descriptionId = $props.id();
   const url = $derived(parseWebLink(href));
   const destination = $derived(renderedLinkTarget(href));
+  const hasTitle = $derived(Boolean(title?.trim()));
   const host = $derived.by(() => {
     if (!url) return '';
     const port = url.port ? `:${url.port}` : '';
@@ -33,6 +34,7 @@
   <a
     {...destination}
     class="url-link"
+    class:url-link-with-title={hasTitle}
     data-content-href={href}
     title={href}
     aria-describedby={descriptionId}
@@ -41,14 +43,24 @@
       if (event.button === 1) handleRenderedLinkClick(event, href);
     }}
   >
-    {#if title?.trim()}
-      <bdi class="min-w-0 truncate">{title}</bdi>
-    {:else}
-      <bdi class="flex min-w-0" dir="ltr">
-        <span class="min-w-0 flex-1 truncate">{host}</span>{#if path}<span
-            class="shrink-0 text-muted">{path}</span
-          >{/if}
-      </bdi>
+    <span class="url-link-main">
+      {#if destination.target === '_blank'}
+        <span class="url-link-icon" aria-hidden="true">
+          <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
+        </span>
+      {/if}
+      {#if hasTitle}
+        <bdi class="min-w-0 truncate">{title}</bdi>
+      {:else}
+        <bdi class="flex min-w-0" dir="ltr">
+          <span class="min-w-0 flex-1 truncate">{host}</span>{#if path}<span
+              class="shrink-0 text-muted">{path}</span
+            >{/if}
+        </bdi>
+      {/if}
+    </span>
+    {#if hasTitle}
+      <span class="url-link-host"><bdi class="truncate" dir="ltr">{host}</bdi></span>
     {/if}
   </a>
   <span id={descriptionId} hidden>{href}</span>

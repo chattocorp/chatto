@@ -97,7 +97,10 @@ test.describe('Link previews', () => {
             .locator('[role="article"]')
             .getByRole('link', { name: 'the useful guide', exact: true })
         : page.locator(`[role="article"] .url-link[data-content-href="${testUrl}"]`);
-      if (!authored) await expect(chip).toHaveText('Test Page Title');
+      if (!authored) {
+        await expect(chip.locator('.url-link-main')).toHaveText('Test Page Title');
+        await expect(chip.locator('.url-link-host')).toHaveText(new URL(testUrl).host);
+      }
       let requests = 0;
       page.on('request', (request) => {
         if (request.url().includes('/FetchLinkPreview')) requests++;

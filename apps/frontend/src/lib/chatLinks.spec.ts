@@ -246,8 +246,18 @@ describe('parseMessageLink', () => {
     expect(parseMessageLink(url)).toBeNull();
   });
 
+  it.each(['https://remote.example.test', 'https://remote.example.test/'])(
+    'rewrites a registered server root into this frontend: %s',
+    (url) => {
+      expect(resolveChatRoute(url)).toBe('/chat/remote.example.test');
+      expect(parseMessageLink(url)).toBeNull();
+    }
+  );
+
   it.each([
     'https://unknown.test/chat/-/overview',
+    'https://unknown.test/',
+    'https://remote.example.test/?token=example',
     'https://remote.example.test/chat/unknown.test/overview',
     'https://remote.example.test/docs',
     'https://remote.example.test/chat/%2F/overview',

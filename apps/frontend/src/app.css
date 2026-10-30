@@ -1820,47 +1820,74 @@
   @apply bg-attention/20 text-text;
 }
 
-/* Inline counterpart of the Inset Frame: no rim or border that changes line height. */
+/* Borderless inline links use surface contrast without the Inset Frame's outlines. */
 @utility inline-link-pill {
-  --inline-link-radius: 3px;
-  @apply inline-flex cursor-pointer items-baseline gap-1 inset-content bg-surface-emphasized px-1.5 align-baseline leading-[1.25] font-normal text-text no-underline ring-1 ring-text/20 transition-[background-color,color,box-shadow] feedback-quick ring-inset hover:bg-surface-selected hover:text-text-top hover:ring-text/30;
+  --inline-link-radius: 6px;
+  @apply inline-flex cursor-pointer items-baseline gap-1 bg-surface-emphasized px-1.5 align-baseline leading-[1.25] font-normal text-text no-underline transition-[background-color,color] feedback-quick hover:bg-surface-selected hover:text-text-top;
   border-radius: var(--inline-link-radius);
 }
 
-/* Native links with live entity names, sized to fit message text. */
+/* Web and entity links share the same segmented surface. */
+.url-link,
 .entity-link {
-  @apply inline-link-pill max-w-full;
+  @apply inline-link-pill max-w-full gap-0 overflow-hidden px-0;
+  --url-link-shade: 3%;
+  --url-link-surface: var(--color-surface-emphasized);
+  /* One dark backing makes all four corners of the raised label visible. */
+  background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
-.url-link {
-  @apply inline-link-pill max-w-[min(100%,32ch)];
+.url-link:hover,
+.entity-link:hover {
+  --url-link-surface: var(--color-surface-selected);
+  background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
-.entity-link-with-image {
-  padding-inline-start: 0;
+.url-link-main,
+.link-pill-main {
+  @apply relative inline-flex min-w-0 items-baseline gap-1.5 rounded-[var(--inline-link-radius)] px-1.5 py-px;
+  background-color: var(--url-link-surface);
+  box-shadow:
+    0 0 2px 1px rgb(0 0 0 / 45%),
+    0 1px 4px rgb(0 0 0 / 35%);
 }
 
-/* Overlay the image so the hairline does not change its size or get covered by it. */
-.entity-link-image {
-  position: relative;
+.url-link-icon,
+.link-pill-icon {
+  @apply inline-flex shrink-0 items-center self-center text-[0.85em] text-muted;
 }
 
-.entity-link-image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 0.5px solid color-mix(in srgb, var(--color-text) 20%, transparent);
-  border-radius: inherit;
-  pointer-events: none;
+.url-link-host,
+.link-pill-meta {
+  @apply inline-flex shrink-0 items-center self-stretch px-1.5 text-[0.85em] text-muted;
 }
 
-.entity-link[data-entity-kind='user'] {
-  /* Half the avatar height: oversized radii also shrink the trailing corners. */
-  border-radius: 0.625em var(--inline-link-radius) var(--inline-link-radius) 0.625em;
+.url-link-host,
+.link-pill-meta {
+  @apply max-w-[40%] min-w-0;
+}
 
-  &:dir(rtl) {
-    border-radius: var(--inline-link-radius) 0.625em 0.625em var(--inline-link-radius);
-  }
+.link-pill-icon-image {
+  @apply size-[1.25em] text-[1em];
+}
+
+.link-pill-main-image {
+  padding-inline-start: 1px;
+}
+
+.url-link-main:has(> .url-link-icon),
+.link-pill-main:has(> .link-pill-icon:not(.link-pill-icon-image)) {
+  padding-inline-start: 4px;
+}
+
+.link-pill-main-avatar {
+  padding-inline-start: 2px;
+}
+
+/* Muted text needs a lighter backing in light mode to retain readable contrast. */
+:root[data-theme='dark'] .url-link,
+:root[data-theme='dark'] .entity-link {
+  --url-link-shade: 20%;
 }
 
 .message-timestamp {

@@ -569,21 +569,37 @@ composer rows, code, loading states, and narrow layouts.
 
 ### Preview surfaces
 
-Inline URL and entity pills use `inline-link-pill`, the inline counterpart of
-the Inset Frame. It composes `inset-content` with a visible `surface-emphasized`
-fill, a thin inset ring, regular `text` foreground, and a brighter surface and
-ring on hover. It has no outer rim or vertical padding, so it does not increase
-line height. Keep URL paths muted and use the hostname as the primary label.
-Show only short, complete paths that fit beside
+Inline URL and entity pills use the borderless `inline-link-pill` utility.
+It uses a visible `surface-emphasized` fill, regular `text` foreground, and a
+brighter surface on hover. Do not add decorative borders, rings, or Inset Frame
+outlines to pills, their segments, or their images. Keep keyboard focus visible.
+The lighter label has a shadow against the dark backing to separate
+the sections without an outline.
+It has no outer rim. All link pills add 1px of vertical padding to their main section.
+Titles use the surrounding text size. Icons and metadata use 85% of that size.
+Entity pills use `link-pill-icon`, `link-pill-main`, and optional `link-pill-meta`
+sections, which share the URL pill styles. The icon sits inside the lighter main
+section beside the title. Only metadata sits on the dark backing. Room and user metadata identifies the
+server only when it differs from the rendering server; message metadata identifies the room when known. Do not repeat the title
+as metadata.
+When a page title is available, show it in the main section and
+the hostname in a darker, muted trailing section. Tuck the hostname section
+behind the title's rounded trailing edge, using the shared 6px pill radius.
+All sections belong to one link. The title truncates first; keep the hostname section within 40% of the
+pill. Pills can use the full available width, but neither the pill nor its lighter
+title section stretches past its content.
+Without a title, use the hostname as the primary label. Show the standard external-link
+icon before the title, inside the lighter section, only when navigation opens a new window.
+Keep URL paths muted. Show only short, complete paths that fit beside
 it; omit long paths and opaque identifiers. Shorten long hostnames in the middle
-so their ending and port remain visible. Entity avatars and server icons stay flush with
-the leading edge and retain their own subtle image border. Pill corners and
-compact server icons use the shared 3px `--inline-link-radius`. User pills round
-only the avatar edge to half the avatar height; an oversized radius would also
-shrink the trailing corners through CSS radius scaling. Mirror this edge in RTL.
+so their ending and port remain visible. Entity avatars and server icons have a
+1px inset inside the lighter section, without an image border. Avatars stay circular;
+pill avatars use `UserAvatar` with `mutedPlaceholder` for a distinct darker fill. Pill
+corners and compact server icons use the shared 6px `--inline-link-radius`.
+Use logical layout properties to mirror the sections in RTL.
 Use this same
 treatment in messages and visual-composer previews; do not give URL and entity
-pills separate fills. See **Messages/Entity links** in Storybook.
+pills separate outer fills. See **Messages/Entity links** and **Messages/URL chips** in Storybook.
 
 Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
 cards, social embeds, linked messages, composer previews, and hover cards.

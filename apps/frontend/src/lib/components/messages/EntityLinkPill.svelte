@@ -16,6 +16,7 @@
     path,
     href,
     name,
+    context,
     user,
     room,
     store,
@@ -25,6 +26,7 @@
     path: ResolvedPathname;
     href: string;
     name: string;
+    context?: string;
     user?: UserAvatarUserView;
     room?: RoomListItem;
     store?: ServerStateStore;
@@ -45,7 +47,6 @@
 <a
   href={path}
   class="entity-link"
-  class:entity-link-with-image={!!user || !room}
   data-entity-kind={target.kind}
   data-entity-server={target.serverId}
   title={href}
@@ -58,32 +59,42 @@
   ontouchstart={(event) => event.stopPropagation()}
   {@attach trigger}
 >
-  {#if user}
-    <span
-      class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-full [&>div]:size-full"
-      aria-hidden="true"><UserAvatar {user} size="xs" useLiveProfile={false} /></span
-    >
-  {:else if room}
-    {#if room.type === RoomKind.DM || room.isUniversal}
-      <span
-        aria-hidden="true"
-        class={[
-          'iconify shrink-0 self-center',
-          room.type === RoomKind.DM ? 'icon-[uil--comments]' : 'icon-[uil--globe]'
-        ]}
-      ></span>
-    {:else}
-      <span aria-hidden="true" class="shrink-0">#</span>
-    {/if}
-  {:else}
-    <span
-      class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-[var(--inline-link-radius)]"
-      aria-hidden="true"
-    >
-      <ServerLogo server={{ name, logoUrl }} compact />
+  <span
+    class="link-pill-main"
+    class:link-pill-main-image={!!user || !room}
+    class:link-pill-main-avatar={!!user}
+  >
+    <span class="link-pill-icon" class:link-pill-icon-image={!!user || !room}>
+      {#if user}
+        <span
+          class="entity-link-image m-px inline-flex size-[calc(100%-2px)] shrink-0 rounded-full [&>div]:size-full"
+          aria-hidden="true"
+          ><UserAvatar {user} size="xs" mutedPlaceholder useLiveProfile={false} /></span
+        >
+      {:else if room}
+        {#if room.type === RoomKind.DM || room.isUniversal}
+          <span
+            aria-hidden="true"
+            class={[
+              'iconify shrink-0 self-center',
+              room.type === RoomKind.DM ? 'icon-[uil--comments]' : 'icon-[uil--globe]'
+            ]}
+          ></span>
+        {:else}
+          <span aria-hidden="true" class="shrink-0">#</span>
+        {/if}
+      {:else}
+        <span
+          class="entity-link-image inline-flex size-full shrink-0 rounded-[var(--inline-link-radius)]"
+          aria-hidden="true"
+        >
+          <ServerLogo server={{ name, logoUrl }} compact />
+        </span>
+      {/if}
     </span>
-  {/if}
-  <bdi class="truncate">{name}</bdi>
+    <bdi class="min-w-0 truncate">{name}</bdi></span
+  >
+  {#if context}<span class="link-pill-meta"><bdi class="truncate">{context}</bdi></span>{/if}
 </a>
 {#if menu && store}
   {#await Promise.all( [import('./EntityLinkMenu.svelte'), import('$lib/state/server/ServerScopeProvider.svelte')] ) then [actions, scope]}
