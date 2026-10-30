@@ -1124,8 +1124,19 @@ func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
 
 	listReq := connect.NewRequest(&apiv1.ListBotsRequest{})
 	listReq.Header().Set("Authorization", "Bearer "+apiKey)
-	if _, err := botClient.ListBots(ctx, listReq); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("ListBots with bot API key code = %v, want failed precondition", connect.CodeOf(err))
+	listed, err := botClient.ListBots(ctx, listReq)
+	if err != nil || len(listed.Msg.GetBots()) != 0 {
+		t.Fatalf("ungranted bot ListBots: err=%v, want empty list", err)
+	}
+	if err := s.core.GrantUserPermission(ctx, core.SystemActorID, owner.GetId(), core.PermBotManage); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.SetUserPermissionState(ctx, owner.GetId(), bot.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermBotManage, core.PermissionStateAllow); err != nil {
+		t.Fatal(err)
+	}
+	listed, err = botClient.ListBots(ctx, listReq)
+	if err != nil || len(listed.Msg.GetBots()) != 1 {
+		t.Fatalf("granted bot ListBots: err=%v, want one bot", err)
 	}
 
 	createKeyReq := connect.NewRequest(&apiv1.CreateBotApiKeyRequest{BotUserId: bot.GetId(), Name: "Replacement"})

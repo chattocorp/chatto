@@ -555,7 +555,7 @@ export class BatchGetBotsResponse extends Message<BatchGetBotsResponse> {
 }
 
 /**
- * Request creation of a bot owned by the authenticated human caller.
+ * Request creation of a bot owned by the human caller or a bot caller's human owner.
  *
  * @generated from message chatto.api.v1.CreateBotRequest
  */

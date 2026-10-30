@@ -103,11 +103,14 @@ type BotServiceClient interface {
 	GetBot(context.Context, *connect.Request[v1.GetBotRequest]) (*connect.Response[v1.GetBotResponse], error)
 	// Gets several visible bots. Missing and inaccessible bots are omitted.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
-	// Creates a bot owned by the authenticated human caller. Requires bot.create.
+	// Creates a bot owned by the human caller or a bot caller's human owner.
+	// Requires bot.create. The new bot starts without permission grants.
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Deletes a bot and invalidates all of its API keys.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
 	// Creates one named API key. A bot can have at most 20 active API keys.
+	// Requires bot ownership or bot.manage. The key uses the target bot's authority,
+	// which can exceed the caller's authority.
 	CreateBotApiKey(context.Context, *connect.Request[v1.CreateBotApiKeyRequest]) (*connect.Response[v1.CreateBotApiKeyResponse], error)
 	// Revokes one API key without changing other active keys.
 	RevokeBotApiKey(context.Context, *connect.Request[v1.RevokeBotApiKeyRequest]) (*connect.Response[v1.RevokeBotApiKeyResponse], error)
@@ -362,11 +365,14 @@ type BotServiceHandler interface {
 	GetBot(context.Context, *connect.Request[v1.GetBotRequest]) (*connect.Response[v1.GetBotResponse], error)
 	// Gets several visible bots. Missing and inaccessible bots are omitted.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
-	// Creates a bot owned by the authenticated human caller. Requires bot.create.
+	// Creates a bot owned by the human caller or a bot caller's human owner.
+	// Requires bot.create. The new bot starts without permission grants.
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Deletes a bot and invalidates all of its API keys.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
 	// Creates one named API key. A bot can have at most 20 active API keys.
+	// Requires bot ownership or bot.manage. The key uses the target bot's authority,
+	// which can exceed the caller's authority.
 	CreateBotApiKey(context.Context, *connect.Request[v1.CreateBotApiKeyRequest]) (*connect.Response[v1.CreateBotApiKeyResponse], error)
 	// Revokes one API key without changing other active keys.
 	RevokeBotApiKey(context.Context, *connect.Request[v1.RevokeBotApiKeyRequest]) (*connect.Response[v1.RevokeBotApiKeyResponse], error)

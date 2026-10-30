@@ -487,6 +487,29 @@ test.describe('Bot account lifecycle', () => {
       })
     ).resolves.toEqual({ status: 200 });
 
+    // Administrative API-key calls need explicit grants, without a human
+    // privileged-mode session. bot.manage includes issuing other bot keys.
+    const profileUpdate = { userId: adminId, bio: 'Managed by automation', updateMask: 'bio' };
+    await expect(
+      callAsBot(serverURL, backupKey, 'chatto.api.v1.UserService/UpdateUserProfile', profileUpdate)
+    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    for (const permission of ['user.manage-accounts', 'bot.manage']) {
+      await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetUserPermission', {
+        userId: botId,
+        permission,
+        decision: 'PERMISSION_DECISION_ALLOW'
+      });
+    }
+    await expect(
+      callAsBot(serverURL, backupKey, 'chatto.api.v1.UserService/UpdateUserProfile', profileUpdate)
+    ).resolves.toEqual({ status: 200 });
+    await expect(
+      callAsBot(serverURL, backupKey, 'chatto.api.v1.BotService/CreateBotApiKey', {
+        botUserId: botId,
+        name: 'Created by bot'
+      })
+    ).resolves.toEqual({ status: 200 });
+
     await openBotSection(page, 'Overview');
     await page.getByRole('button', { name: 'Reassign owner', exact: true }).click();
     const reassignDialog = page.getByRole('dialog', { name: 'Reassign owner' });

@@ -250,7 +250,7 @@ func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID s
 }
 
 func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	if perm == PermBotCreate || perm == PermBotManage {
+	if !botPermissionDelegable(perm) {
 		return DecisionDeny, nil
 	}
 	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
