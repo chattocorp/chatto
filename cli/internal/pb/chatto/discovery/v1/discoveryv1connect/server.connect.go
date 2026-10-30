@@ -36,6 +36,9 @@ const (
 	// ServerDiscoveryServiceGetServerProcedure is the fully-qualified name of the
 	// ServerDiscoveryService's GetServer RPC.
 	ServerDiscoveryServiceGetServerProcedure = "/chatto.discovery.v1.ServerDiscoveryService/GetServer"
+	// ServerDiscoveryServiceListFeaturesProcedure is the fully-qualified name of the
+	// ServerDiscoveryService's ListFeatures RPC.
+	ServerDiscoveryServiceListFeaturesProcedure = "/chatto.discovery.v1.ServerDiscoveryService/ListFeatures"
 	// ServerDiscoveryServiceListNeighborsProcedure is the fully-qualified name of the
 	// ServerDiscoveryService's ListNeighbors RPC.
 	ServerDiscoveryServiceListNeighborsProcedure = "/chatto.discovery.v1.ServerDiscoveryService/ListNeighbors"
@@ -51,6 +54,11 @@ type ServerDiscoveryServiceClient interface {
 	// provider information. This fully public RPC is available before login so
 	// clients can render the first server screen and authentication choices.
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
+	// Lists product features without requiring a session. Clients may load this
+	// catalog on demand and cache it by server software version, locale, and
+	// version filter. Refresh when any of those values change. Older servers
+	// can return UNIMPLEMENTED; this does not prevent normal chat use.
+	ListFeatures(context.Context, *connect.Request[v1.ListFeaturesRequest]) (*connect.Response[v1.ListFeaturesResponse], error)
 	// Returns the public Neighbor directory without requiring a session.
 	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
 	// Returns the Neighborhood without requiring a session. The server
@@ -80,6 +88,13 @@ func NewServerDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listFeatures: connect.NewClient[v1.ListFeaturesRequest, v1.ListFeaturesResponse](
+			httpClient,
+			baseURL+ServerDiscoveryServiceListFeaturesProcedure,
+			connect.WithSchema(serverDiscoveryServiceMethods.ByName("ListFeatures")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listNeighbors: connect.NewClient[v1.ListNeighborsRequest, v1.ListNeighborsResponse](
 			httpClient,
 			baseURL+ServerDiscoveryServiceListNeighborsProcedure,
@@ -100,6 +115,7 @@ func NewServerDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL stri
 // serverDiscoveryServiceClient implements ServerDiscoveryServiceClient.
 type serverDiscoveryServiceClient struct {
 	getServer               *connect.Client[v1.GetServerRequest, v1.GetServerResponse]
+	listFeatures            *connect.Client[v1.ListFeaturesRequest, v1.ListFeaturesResponse]
 	listNeighbors           *connect.Client[v1.ListNeighborsRequest, v1.ListNeighborsResponse]
 	listNeighborhoodServers *connect.Client[v1.ListNeighborhoodServersRequest, v1.ListNeighborhoodServersResponse]
 }
@@ -107,6 +123,11 @@ type serverDiscoveryServiceClient struct {
 // GetServer calls chatto.discovery.v1.ServerDiscoveryService.GetServer.
 func (c *serverDiscoveryServiceClient) GetServer(ctx context.Context, req *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error) {
 	return c.getServer.CallUnary(ctx, req)
+}
+
+// ListFeatures calls chatto.discovery.v1.ServerDiscoveryService.ListFeatures.
+func (c *serverDiscoveryServiceClient) ListFeatures(ctx context.Context, req *connect.Request[v1.ListFeaturesRequest]) (*connect.Response[v1.ListFeaturesResponse], error) {
+	return c.listFeatures.CallUnary(ctx, req)
 }
 
 // ListNeighbors calls chatto.discovery.v1.ServerDiscoveryService.ListNeighbors.
@@ -126,6 +147,11 @@ type ServerDiscoveryServiceHandler interface {
 	// provider information. This fully public RPC is available before login so
 	// clients can render the first server screen and authentication choices.
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
+	// Lists product features without requiring a session. Clients may load this
+	// catalog on demand and cache it by server software version, locale, and
+	// version filter. Refresh when any of those values change. Older servers
+	// can return UNIMPLEMENTED; this does not prevent normal chat use.
+	ListFeatures(context.Context, *connect.Request[v1.ListFeaturesRequest]) (*connect.Response[v1.ListFeaturesResponse], error)
 	// Returns the public Neighbor directory without requiring a session.
 	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
 	// Returns the Neighborhood without requiring a session. The server
@@ -151,6 +177,13 @@ func NewServerDiscoveryServiceHandler(svc ServerDiscoveryServiceHandler, opts ..
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	serverDiscoveryServiceListFeaturesHandler := connect.NewUnaryHandler(
+		ServerDiscoveryServiceListFeaturesProcedure,
+		svc.ListFeatures,
+		connect.WithSchema(serverDiscoveryServiceMethods.ByName("ListFeatures")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	serverDiscoveryServiceListNeighborsHandler := connect.NewUnaryHandler(
 		ServerDiscoveryServiceListNeighborsProcedure,
 		svc.ListNeighbors,
@@ -169,6 +202,8 @@ func NewServerDiscoveryServiceHandler(svc ServerDiscoveryServiceHandler, opts ..
 		switch r.URL.Path {
 		case ServerDiscoveryServiceGetServerProcedure:
 			serverDiscoveryServiceGetServerHandler.ServeHTTP(w, r)
+		case ServerDiscoveryServiceListFeaturesProcedure:
+			serverDiscoveryServiceListFeaturesHandler.ServeHTTP(w, r)
 		case ServerDiscoveryServiceListNeighborsProcedure:
 			serverDiscoveryServiceListNeighborsHandler.ServeHTTP(w, r)
 		case ServerDiscoveryServiceListNeighborhoodServersProcedure:
@@ -184,6 +219,10 @@ type UnimplementedServerDiscoveryServiceHandler struct{}
 
 func (UnimplementedServerDiscoveryServiceHandler) GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.discovery.v1.ServerDiscoveryService.GetServer is not implemented"))
+}
+
+func (UnimplementedServerDiscoveryServiceHandler) ListFeatures(context.Context, *connect.Request[v1.ListFeaturesRequest]) (*connect.Response[v1.ListFeaturesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.discovery.v1.ServerDiscoveryService.ListFeatures is not implemented"))
 }
 
 func (UnimplementedServerDiscoveryServiceHandler) ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error) {

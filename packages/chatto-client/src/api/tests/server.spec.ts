@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getPublicServerInfo,
+  listServerFeatures,
   InvalidPublicServerError,
   listNeighborhoodServers
 } from '../server.js';
 import {
   GetServerResponse,
+  ListFeaturesResponse,
   ListNeighborhoodServersResponse
 } from '@chatto/api-types/chatto/discovery/v1/server_pb';
 
@@ -15,7 +17,9 @@ import {
  */
 const browserFetch = vi.fn<typeof fetch>();
 
-function respondWith(message: GetServerResponse | ListNeighborhoodServersResponse) {
+function respondWith(
+  message: GetServerResponse | ListNeighborhoodServersResponse | ListFeaturesResponse
+) {
   browserFetch.mockResolvedValueOnce(
     new Response(message.toJsonString(), { headers: { 'Content-Type': 'application/json' } })
   );
@@ -151,6 +155,44 @@ describe('public server discovery', () => {
       redirect: 'error',
       referrerPolicy: 'no-referrer'
     });
+  });
+
+  it('preserves catalog entries unknown to this client through Connect JSON', async () => {
+    const feature = {
+      id: 'futureFeature',
+      name: 'Future feature',
+      description: 'A feature added after this client shipped.',
+      introducedVersion: '9.0.0'
+    };
+    respondWith(new ListFeaturesResponse({ features: [feature] }));
+    expect(await listServerFeatures('https://chat.example.test')).toMatchObject([feature]);
+    expect(sentRequest().url).toContain('ServerDiscoveryService/ListFeatures');
+  });
+
+  it('sends optional catalog filters without ambient credentials or locale headers', async () => {
+    respondWith(new ListFeaturesResponse());
+    await listServerFeatures('https://chat.example.test', {
+      locale: 'de-AT',
+      introducedAfterVersion: '0.5.0-beta.17'
+    });
+    expect(await new Response(sentRequest().init?.body).json()).toEqual({
+      locale: 'de-AT',
+      introducedAfterVersion: '0.5.0-beta.17'
+    });
+    expect(sentRequest().headers.has('Accept-Language')).toBe(false);
+    expect(sentRequest().init?.credentials).toBe('omit');
+  });
+
+  it('treats an older server as an empty catalog but preserves network failures', async () => {
+    browserFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 'unimplemented', message: 'No method' }), {
+        status: 501,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+    await expect(listServerFeatures('https://old.example.test')).resolves.toEqual([]);
+    browserFetch.mockRejectedValueOnce(new TypeError('Network error'));
+    await expect(listServerFeatures('https://offline.example.test')).rejects.toThrow();
   });
 
   it('uses profile defaults when optional public profile fields are absent', async () => {

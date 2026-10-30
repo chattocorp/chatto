@@ -1500,7 +1500,7 @@ func TestAuthenticatedPublicDiscoveryDoesNotSetCookies(t *testing.T) {
 		t.Fatalf("browser login status = %d, want 200", loginResponse.StatusCode)
 	}
 
-	for _, path := range []string{serverDiscoveryConnectPath + "?connect=v1&encoding=json", serverDiscoveryWellKnownPath} {
+	for _, path := range []string{serverDiscoveryConnectPath + "?connect=v1&encoding=json", serverFeaturesConnectPath + "?connect=v1&encoding=json", serverDiscoveryWellKnownPath} {
 		discoveryResponse, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("authenticated discovery GET: %v", err)

@@ -60,6 +60,9 @@
       "details": "Server details"
     },
     "compatibility": {
+      "older_frontend": "Your app does not support all features on this server",
+      "frontend_upgrade": "You are using app version {version}. Update your app, or ask the administrator of the server that provides your app to update it. Feature access also depends on server settings and your permissions.",
+      "frontend_requires": "Requires app version {version} or newer",
       "title": "Compatibility",
       "view": "View compatibility",
       "limited": "Older server version",

@@ -508,7 +508,7 @@ ready, degraded, and unavailable states without affecting other APIs. Exact
 provider replay counts stay on the trusted NATS contract and in operator logs;
 the authenticated public status does not expose server-wide event-log scale.
 
-`ServerDiscoveryService.GetServer`, `ListNeighbors`, and
+`ServerDiscoveryService.GetServer`, `ListFeatures`, `ListNeighbors`, and
 `ListNeighborhoodServers` support side-effect-free GET. They also receive wildcard public CORS and conditional-response caching.
 Other bundled-client Connect traffic uses POST.
 
@@ -521,10 +521,25 @@ GET eligibility, authentication, and request validation.
 The discovery response includes the server software version as public
 pre-authentication state, along with configured provider metadata and the
 independently configured direct-registration and direct-login capabilities.
+The separate public `ListFeatures` endpoint serves an advisory product feature
+catalog. The discovery handler owns the catalog for the
+server build. Entries contain stable IDs, localised plain-text descriptions, and the
+first Chatto release with support in the server and bundled frontend. The catalog does not change
+authorization, server configuration, or connection eligibility.
+The optional `ListFeatures` locale selects static translations from the server
+build, with parent-locale and English fallback. The request reveals the selected
+language to the connected server. The optional
+`introduced_after_version` filter selects features introduced strictly
+after the supplied Chatto release. It requires a full Semantic
+Version and returns `INVALID_ARGUMENT` for invalid values. Without the filter,
+the response contains the complete catalog. The filter reveals the frontend
+release to the connected server. No translation service is contacted.
+Connect GET request URLs distinguish locales, and response ETags include the
+translated text. `GetServer` and the query-free `/.well-known/chatto` alias
+remain independent of the catalog and its filters.
 The direct-login capability uses scalar presence so a new client treats an
-older server that omits it as enabled. The bundled client refreshes discovery
-per server and owns one minimum supported server version. It does not gate
-individual features by server version. The 0.5 client requires a server at
+older server that omits it as enabled. Clients own their server compatibility
+policy; see FDR-031. The 0.5 client requires a server at
 `0.5.0-beta.9` or newer before opening realtime protocol 4, the only accepted
 behavioral version. The
 `chatto.realtime.v1` suffix remains the protobuf namespace.

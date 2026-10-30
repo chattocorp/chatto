@@ -60,6 +60,9 @@
       "details": "Servergegevens"
     },
     "compatibility": {
+      "older_frontend": "Je app ondersteunt niet alle functies op deze server",
+      "frontend_upgrade": "Je gebruikt appversie {version}. Werk je app bij of vraag de beheerder van de server die je app levert om deze bij te werken. Toegang tot functies hangt ook af van serverinstellingen en je rechten.",
+      "frontend_requires": "Vereist appversie {version} of nieuwer",
       "title": "Compatibiliteit",
       "view": "Compatibiliteit bekijken",
       "limited": "Oudere serverversie",

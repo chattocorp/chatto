@@ -10,6 +10,7 @@ const (
 	// serverDiscoveryWellKnownPath serves the public discovery JSON without RPC query parameters.
 	serverDiscoveryWellKnownPath = "/.well-known/chatto"
 	serverDiscoveryConnectPath   = connectAPIPrefix + "/chatto.discovery.v1.ServerDiscoveryService/GetServer"
+	serverFeaturesConnectPath    = connectAPIPrefix + "/chatto.discovery.v1.ServerDiscoveryService/ListFeatures"
 	corsAllowedHeaders           = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Chatto-Realtime-Minimum-Cursor, X-CSRF-Token, Range, If-None-Match, If-Modified-Since"
 )
 

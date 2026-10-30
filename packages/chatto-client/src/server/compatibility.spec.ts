@@ -3,6 +3,7 @@ import {
   compareReleaseVersions,
   serverFeatureSupport,
   limitedServerFeatures,
+  limitedFrontendFeatures,
   SERVER_FEATURE_REQUIREMENTS,
   evaluateServerCompatibility,
   isSupportedServerVersion,
@@ -11,6 +12,43 @@ import {
   MINIMUM_CONNECTABLE_SERVER_VERSION,
   MINIMUM_SUPPORTED_SERVER_VERSION
 } from './compatibility.js';
+
+describe('bundled frontend feature guidance', () => {
+  const future = {
+    id: 'unknown-future-feature',
+    name: 'Future feature',
+    description: 'A feature the client does not know.',
+    introducedVersion: '0.6.0-beta.2'
+  };
+
+  it.each([
+    ['0.5.0', true],
+    ['0.6.0-beta.1', true],
+    ['0.6.0-beta.2', false],
+    ['0.6.0-beta.2-custom+build.1', false],
+    ['0.6.0', false],
+    ['dev', false],
+    ['', false]
+  ])('compares frontend %s without requiring a known feature ID', (version, missing) => {
+    expect(limitedFrontendFeatures([future], version)).toEqual(missing ? [future] : []);
+  });
+
+  it('ignores invalid entries and duplicate IDs', () => {
+    expect(
+      limitedFrontendFeatures(
+        [
+          { ...future, id: '' },
+          { ...future, id: 'empty-name', name: ' ' },
+          { ...future, id: 'unknown-version', introducedVersion: 'dev' },
+          future,
+          future
+        ],
+        '0.5.0'
+      )
+    ).toEqual([future]);
+    expect(limitedFrontendFeatures([], '0.5.0')).toEqual([]);
+  });
+});
 
 describe('server compatibility evaluation', () => {
   it.each([

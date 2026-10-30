@@ -26,7 +26,37 @@
 </script>
 
 <Story name="Older server" args={example('0.5.0-beta.11')} />
-<Story name="Supported server" args={example('0.5.0-beta.16')} />
+<Story name="Supported server" args={example('0.5.0-beta.18')} />
+<Story
+  name="Newer server features"
+  args={{
+    ...example('0.6.0'),
+    frontendVersion: '0.5.0-beta.25',
+    frontendFeatures: [
+      {
+        id: 'example-scheduled-messages',
+        name: 'Scheduled messages',
+        description: 'Choose when a message is sent. This is an example of a future feature.',
+        introducedVersion: '0.6.0'
+      }
+    ]
+  }}
+/>
+<Story
+  name="App and server limitations"
+  args={{
+    ...example('0.5.0-beta.11'),
+    frontendVersion: '0.5.0-beta.25',
+    frontendFeatures: [
+      {
+        id: 'example-backported-feature',
+        name: 'Scheduled messages',
+        description: 'An example feature supplied by a custom server build.',
+        introducedVersion: '0.6.0'
+      }
+    ]
+  }}
+/>
 <Story
   name="Community profile"
   args={{
@@ -49,3 +79,15 @@
   }}
 />
 <Story name="Loading" args={{ ...example(''), loading: true }} />
+<Story
+  name="Feature catalog loading"
+  args={{ ...example('0.6.0'), frontendFeaturesLoading: true }}
+/>
+<Story
+  name="Feature catalog failed"
+  args={{
+    ...example('0.6.0'),
+    frontendFeaturesError: 'Network error. Please try again.',
+    onRetryFrontendFeatures: () => {}
+  }}
+/>

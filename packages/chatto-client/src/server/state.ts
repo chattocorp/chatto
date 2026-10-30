@@ -190,6 +190,11 @@ export class ServerInfoState {
     return this.#getProjectedState()?.runtime;
   }
 
+  /** Whether this server provides the host's bundled frontend. */
+  get isOriginServer(): boolean {
+    return this.originServer;
+  }
+
   /** Known feature limitations after discovery. The origin serves its own client. */
   get limitedFeatures(): ServerFeature[] {
     if (

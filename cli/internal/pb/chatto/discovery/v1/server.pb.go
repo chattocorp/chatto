@@ -125,6 +125,190 @@ func (x *GetServerResponse) GetSetupRequired() bool {
 	return false
 }
 
+// Optional filters for the public feature catalog.
+type ListFeaturesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// BCP 47 language tag for feature names and descriptions. The server tries
+	// this locale, its parents, then English. Invalid or unsupported locales,
+	// and omitted values, use English.
+	Locale *string `protobuf:"bytes,1,opt,name=locale,proto3,oneof" json:"locale,omitempty"`
+	// Return only features introduced strictly after this Chatto
+	// release. Omit for the complete catalog. Must be a full Semantic Version,
+	// including any prerelease stage; invalid or empty values are INVALID_ARGUMENT.
+	// Third-party clients should omit this filter and use stable feature IDs.
+	IntroducedAfterVersion *string `protobuf:"bytes,2,opt,name=introduced_after_version,json=introducedAfterVersion,proto3,oneof" json:"introduced_after_version,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ListFeaturesRequest) Reset() {
+	*x = ListFeaturesRequest{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFeaturesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFeaturesRequest) ProtoMessage() {}
+
+func (x *ListFeaturesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFeaturesRequest.ProtoReflect.Descriptor instead.
+func (*ListFeaturesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListFeaturesRequest) GetLocale() string {
+	if x != nil && x.Locale != nil {
+		return *x.Locale
+	}
+	return ""
+}
+
+func (x *ListFeaturesRequest) GetIntroducedAfterVersion() string {
+	if x != nil && x.IntroducedAfterVersion != nil {
+		return *x.IntroducedAfterVersion
+	}
+	return ""
+}
+
+// Advisory features supported by this server software, in display order.
+// An empty list means no entries match, not that every feature is supported.
+type ListFeaturesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Product metadata, not a complete API capability declaration.
+	Features      []*ServerFeature `protobuf:"bytes,1,rep,name=features,proto3" json:"features,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFeaturesResponse) Reset() {
+	*x = ListFeaturesResponse{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFeaturesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFeaturesResponse) ProtoMessage() {}
+
+func (x *ListFeaturesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFeaturesResponse.ProtoReflect.Descriptor instead.
+func (*ListFeaturesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListFeaturesResponse) GetFeatures() []*ServerFeature {
+	if x != nil {
+		return x.Features
+	}
+	return nil
+}
+
+// A product feature that an older frontend can describe without knowing its
+// implementation. This is upgrade guidance, not permission, configuration,
+// API negotiation, or a minimum version required to connect.
+type ServerFeature struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable feature identifier. Clients must accept previously unknown IDs.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Localised display name. Render as plain text, never HTML or Markdown.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Localised explanation for users. Render as plain text.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// First Chatto release with support for this feature in the server and
+	// bundled frontend.
+	// Third-party clients use the ID with their own support policy instead.
+	IntroducedVersion string `protobuf:"bytes,4,opt,name=introduced_version,json=introducedVersion,proto3" json:"introduced_version,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ServerFeature) Reset() {
+	*x = ServerFeature{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerFeature) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerFeature) ProtoMessage() {}
+
+func (x *ServerFeature) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerFeature.ProtoReflect.Descriptor instead.
+func (*ServerFeature) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ServerFeature) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ServerFeature) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServerFeature) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ServerFeature) GetIntroducedVersion() string {
+	if x != nil {
+		return x.IntroducedVersion
+	}
+	return ""
+}
+
 // Request for the public Neighbor directory.
 type ListNeighborsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -134,7 +318,7 @@ type ListNeighborsRequest struct {
 
 func (x *ListNeighborsRequest) Reset() {
 	*x = ListNeighborsRequest{}
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +330,7 @@ func (x *ListNeighborsRequest) String() string {
 func (*ListNeighborsRequest) ProtoMessage() {}
 
 func (x *ListNeighborsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +343,7 @@ func (x *ListNeighborsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNeighborsRequest.ProtoReflect.Descriptor instead.
 func (*ListNeighborsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{2}
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{5}
 }
 
 // Publicly advertised servers. The response has no ordering contract.
@@ -173,7 +357,7 @@ type ListNeighborsResponse struct {
 
 func (x *ListNeighborsResponse) Reset() {
 	*x = ListNeighborsResponse{}
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -185,7 +369,7 @@ func (x *ListNeighborsResponse) String() string {
 func (*ListNeighborsResponse) ProtoMessage() {}
 
 func (x *ListNeighborsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -198,7 +382,7 @@ func (x *ListNeighborsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNeighborsResponse.ProtoReflect.Descriptor instead.
 func (*ListNeighborsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{3}
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListNeighborsResponse) GetOrigins() []string {
@@ -217,7 +401,7 @@ type ListNeighborhoodServersRequest struct {
 
 func (x *ListNeighborhoodServersRequest) Reset() {
 	*x = ListNeighborhoodServersRequest{}
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[4]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -229,7 +413,7 @@ func (x *ListNeighborhoodServersRequest) String() string {
 func (*ListNeighborhoodServersRequest) ProtoMessage() {}
 
 func (x *ListNeighborhoodServersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[4]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -242,7 +426,7 @@ func (x *ListNeighborhoodServersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNeighborhoodServersRequest.ProtoReflect.Descriptor instead.
 func (*ListNeighborhoodServersRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{4}
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{7}
 }
 
 // One server in the Neighborhood of the called server.
@@ -265,7 +449,7 @@ type NeighborhoodServer struct {
 
 func (x *NeighborhoodServer) Reset() {
 	*x = NeighborhoodServer{}
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[5]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -277,7 +461,7 @@ func (x *NeighborhoodServer) String() string {
 func (*NeighborhoodServer) ProtoMessage() {}
 
 func (x *NeighborhoodServer) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[5]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -290,7 +474,7 @@ func (x *NeighborhoodServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NeighborhoodServer.ProtoReflect.Descriptor instead.
 func (*NeighborhoodServer) Descriptor() ([]byte, []int) {
-	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{5}
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NeighborhoodServer) GetOrigin() string {
@@ -338,7 +522,7 @@ type ListNeighborhoodServersResponse struct {
 
 func (x *ListNeighborhoodServersResponse) Reset() {
 	*x = ListNeighborhoodServersResponse{}
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[6]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -350,7 +534,7 @@ func (x *ListNeighborhoodServersResponse) String() string {
 func (*ListNeighborhoodServersResponse) ProtoMessage() {}
 
 func (x *ListNeighborhoodServersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_discovery_v1_server_proto_msgTypes[6]
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -363,7 +547,7 @@ func (x *ListNeighborhoodServersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNeighborhoodServersResponse.ProtoReflect.Descriptor instead.
 func (*ListNeighborhoodServersResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{6}
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListNeighborhoodServersResponse) GetServers() []*NeighborhoodServer {
@@ -389,7 +573,19 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
 	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\x12%\n" +
-	"\x0esetup_required\x18\x03 \x01(\bR\rsetupRequired\"\x16\n" +
+	"\x0esetup_required\x18\x03 \x01(\bR\rsetupRequired\"\x99\x01\n" +
+	"\x13ListFeaturesRequest\x12\x1b\n" +
+	"\x06locale\x18\x01 \x01(\tH\x00R\x06locale\x88\x01\x01\x12=\n" +
+	"\x18introduced_after_version\x18\x02 \x01(\tH\x01R\x16introducedAfterVersion\x88\x01\x01B\t\n" +
+	"\a_localeB\x1b\n" +
+	"\x19_introduced_after_version\"V\n" +
+	"\x14ListFeaturesResponse\x12>\n" +
+	"\bfeatures\x18\x01 \x03(\v2\".chatto.discovery.v1.ServerFeatureR\bfeatures\"\x84\x01\n" +
+	"\rServerFeature\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12-\n" +
+	"\x12introduced_version\x18\x04 \x01(\tR\x11introducedVersion\"\x16\n" +
 	"\x14ListNeighborsRequest\"B\n" +
 	"\x15ListNeighborsResponse\x12\x18\n" +
 	"\aorigins\x18\x01 \x03(\tR\aoriginsJ\x04\b\x02\x10\x03R\tneighbors\" \n" +
@@ -401,9 +597,10 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x16recommended_by_origins\x18\x04 \x03(\tR\x14recommendedByOrigins\"\xa3\x01\n" +
 	"\x1fListNeighborhoodServersResponse\x12A\n" +
 	"\aservers\x18\x01 \x03(\v2'.chatto.discovery.v1.NeighborhoodServerR\aservers\x12=\n" +
-	"\frefreshed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vrefreshedAt2\xf2\x02\n" +
+	"\frefreshed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vrefreshedAt2\xdc\x03\n" +
 	"\x16ServerDiscoveryService\x12_\n" +
-	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01\x12k\n" +
+	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01\x12h\n" +
+	"\fListFeatures\x12(.chatto.discovery.v1.ListFeaturesRequest\x1a).chatto.discovery.v1.ListFeaturesResponse\"\x03\x90\x02\x01\x12k\n" +
 	"\rListNeighbors\x12).chatto.discovery.v1.ListNeighborsRequest\x1a*.chatto.discovery.v1.ListNeighborsResponse\"\x03\x90\x02\x01\x12\x89\x01\n" +
 	"\x17ListNeighborhoodServers\x123.chatto.discovery.v1.ListNeighborhoodServersRequest\x1a4.chatto.discovery.v1.ListNeighborhoodServersResponse\"\x03\x90\x02\x01B\xe2\x01\n" +
 	"\x17com.chatto.discovery.v1B\vServerProtoP\x01ZLgithub.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1;discoveryv1\xa2\x02\x03CDX\xaa\x02\x13Chatto.Discovery.V1\xca\x02\x13Chatto\\Discovery\\V1\xe2\x02\x1fChatto\\Discovery\\V1\\GPBMetadata\xea\x02\x15Chatto::Discovery::V1b\x06proto3"
@@ -420,36 +617,42 @@ func file_chatto_discovery_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_discovery_v1_server_proto_rawDescData
 }
 
-var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_chatto_discovery_v1_server_proto_goTypes = []any{
 	(*GetServerRequest)(nil),                // 0: chatto.discovery.v1.GetServerRequest
 	(*GetServerResponse)(nil),               // 1: chatto.discovery.v1.GetServerResponse
-	(*ListNeighborsRequest)(nil),            // 2: chatto.discovery.v1.ListNeighborsRequest
-	(*ListNeighborsResponse)(nil),           // 3: chatto.discovery.v1.ListNeighborsResponse
-	(*ListNeighborhoodServersRequest)(nil),  // 4: chatto.discovery.v1.ListNeighborhoodServersRequest
-	(*NeighborhoodServer)(nil),              // 5: chatto.discovery.v1.NeighborhoodServer
-	(*ListNeighborhoodServersResponse)(nil), // 6: chatto.discovery.v1.ListNeighborhoodServersResponse
-	(*v1.ServerPublicProfile)(nil),          // 7: chatto.api.v1.ServerPublicProfile
-	(*v1.ServerLogin)(nil),                  // 8: chatto.api.v1.ServerLogin
-	(*timestamppb.Timestamp)(nil),           // 9: google.protobuf.Timestamp
+	(*ListFeaturesRequest)(nil),             // 2: chatto.discovery.v1.ListFeaturesRequest
+	(*ListFeaturesResponse)(nil),            // 3: chatto.discovery.v1.ListFeaturesResponse
+	(*ServerFeature)(nil),                   // 4: chatto.discovery.v1.ServerFeature
+	(*ListNeighborsRequest)(nil),            // 5: chatto.discovery.v1.ListNeighborsRequest
+	(*ListNeighborsResponse)(nil),           // 6: chatto.discovery.v1.ListNeighborsResponse
+	(*ListNeighborhoodServersRequest)(nil),  // 7: chatto.discovery.v1.ListNeighborhoodServersRequest
+	(*NeighborhoodServer)(nil),              // 8: chatto.discovery.v1.NeighborhoodServer
+	(*ListNeighborhoodServersResponse)(nil), // 9: chatto.discovery.v1.ListNeighborhoodServersResponse
+	(*v1.ServerPublicProfile)(nil),          // 10: chatto.api.v1.ServerPublicProfile
+	(*v1.ServerLogin)(nil),                  // 11: chatto.api.v1.ServerLogin
+	(*timestamppb.Timestamp)(nil),           // 12: google.protobuf.Timestamp
 }
 var file_chatto_discovery_v1_server_proto_depIdxs = []int32{
-	7, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
-	8, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
-	7, // 2: chatto.discovery.v1.NeighborhoodServer.profile:type_name -> chatto.api.v1.ServerPublicProfile
-	5, // 3: chatto.discovery.v1.ListNeighborhoodServersResponse.servers:type_name -> chatto.discovery.v1.NeighborhoodServer
-	9, // 4: chatto.discovery.v1.ListNeighborhoodServersResponse.refreshed_at:type_name -> google.protobuf.Timestamp
-	0, // 5: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
-	2, // 6: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:input_type -> chatto.discovery.v1.ListNeighborsRequest
-	4, // 7: chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers:input_type -> chatto.discovery.v1.ListNeighborhoodServersRequest
-	1, // 8: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
-	3, // 9: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:output_type -> chatto.discovery.v1.ListNeighborsResponse
-	6, // 10: chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers:output_type -> chatto.discovery.v1.ListNeighborhoodServersResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	10, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	11, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
+	4,  // 2: chatto.discovery.v1.ListFeaturesResponse.features:type_name -> chatto.discovery.v1.ServerFeature
+	10, // 3: chatto.discovery.v1.NeighborhoodServer.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	8,  // 4: chatto.discovery.v1.ListNeighborhoodServersResponse.servers:type_name -> chatto.discovery.v1.NeighborhoodServer
+	12, // 5: chatto.discovery.v1.ListNeighborhoodServersResponse.refreshed_at:type_name -> google.protobuf.Timestamp
+	0,  // 6: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
+	2,  // 7: chatto.discovery.v1.ServerDiscoveryService.ListFeatures:input_type -> chatto.discovery.v1.ListFeaturesRequest
+	5,  // 8: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:input_type -> chatto.discovery.v1.ListNeighborsRequest
+	7,  // 9: chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers:input_type -> chatto.discovery.v1.ListNeighborhoodServersRequest
+	1,  // 10: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
+	3,  // 11: chatto.discovery.v1.ServerDiscoveryService.ListFeatures:output_type -> chatto.discovery.v1.ListFeaturesResponse
+	6,  // 12: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:output_type -> chatto.discovery.v1.ListNeighborsResponse
+	9,  // 13: chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers:output_type -> chatto.discovery.v1.ListNeighborhoodServersResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_discovery_v1_server_proto_init() }
@@ -457,13 +660,14 @@ func file_chatto_discovery_v1_server_proto_init() {
 	if File_chatto_discovery_v1_server_proto != nil {
 		return
 	}
+	file_chatto_discovery_v1_server_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_discovery_v1_server_proto_rawDesc), len(file_chatto_discovery_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
