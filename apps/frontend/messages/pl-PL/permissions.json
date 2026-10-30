@@ -29,7 +29,7 @@
       "user_invite": "Twórz kody i zarządzaj nimi. Każdy kod pozwala utworzyć jedno konto.",
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
       "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników",
-      "bot_create": "Tworzyć własne konta botów",
+      "bot_create": "Tworzenie kont botów",
       "bot_manage": "Wyświetlać wszystkie konta botów i zarządzać nimi",
       "call_start": "Rozpoczynanie rozmowy (wymaga też call.join)",
       "call_join": "Dołączanie do trwającej rozmowy",

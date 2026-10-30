@@ -7,8 +7,8 @@ import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, Crea
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Creates and manages bot accounts owned by human users. Bot API keys cannot
- * call this service.
+ * Creates and manages bot accounts owned by human users. Bot API keys can
+ * call this service with explicit permissions, bounded by their owner's authority.
  *
  * @generated from service chatto.api.v1.BotService
  */
@@ -121,7 +121,8 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a bot owned by the authenticated human caller. Requires bot.create.
+     * Creates a bot owned by the human caller or a bot caller's human owner.
+     * Requires bot.create. The new bot starts without permission grants.
      *
      * @generated from rpc chatto.api.v1.BotService.CreateBot
      */
@@ -145,6 +146,8 @@ export const BotService = {
     },
     /**
      * Creates one named API key. A bot can have at most 20 active API keys.
+     * Requires bot ownership or bot.manage. The key uses the target bot's authority,
+     * which can exceed the caller's authority.
      *
      * @generated from rpc chatto.api.v1.BotService.CreateBotApiKey
      */

@@ -29,7 +29,7 @@
       "user_invite": "Loo ja halda koode. Iga kood lubab ühe uue konto.",
       "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
       "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi",
-      "bot_create": "Loo endale kuuluvaid botikontosid",
+      "bot_create": "Botikontode loomine",
       "bot_manage": "Vaata ja halda kõiki botikontosid",
       "call_start": "Kõne alustamine (nõuab ka õigust call.join)",
       "call_join": "Käimasoleva kõnega liitumine",

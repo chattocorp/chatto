@@ -253,8 +253,8 @@ exposed by the reference.
 that update profiles and upload or delete avatars. Self-targeting is available
 to human and bot callers. A cross-human target requires
 `user.manage-accounts`. A cross-bot target permits
-the bot owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target
-another account. These operations validate stable request-time authorization
+the bot owner, `user.manage-accounts`, or `bot.manage`. Human and bot callers
+use these same checks. These operations validate stable request-time authorization
 inputs, use OCC on the target user aggregate, and then return the ready user
 projection.
 
@@ -301,7 +301,7 @@ and create and revoke operations for as many as 20 named API keys and 20 named
 incoming webhooks for each bot. Bot permission configuration reads and writes
 use `AdminPermissionService`'s canonical user permission operations with the
 bot's user ID as the target. Human owners can
-manage their own bots; `bot.manage` allows global management. A human with
+manage their own bots; `bot.manage` allows global management by humans or bots. A caller with
 `user.manage-accounts` can list and read all bots for profile and avatar
 administration, but this visibility does not grant bot credential, permission,
 ownership, or lifecycle authority. Bot reads include the start of the bot's
@@ -335,9 +335,9 @@ the `room.join` action decision still requires the viewer to be a non-member.
 Older servers omit this value, so clients must not treat absence as a denial.
 
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
-managers, bot owners, and human bot managers. `room.manage` for the room or
+managers, bot owners, and callers with `bot.manage`. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
-Without either override, the acting human bot manager needs their own effective
+Without either override, the acting bot manager needs their own effective
 `room.join`. The bot's grant controls self-service joins. Suspensions and
 archived rooms prevent adding.
 Removal does not require join permission and works in archived rooms.
@@ -359,8 +359,10 @@ and at most six concurrent member lookups.
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
 layout so empty groups remain configurable. Each bot API key authenticates the
-normal public and realtime surfaces, but cannot call bot-management or human
-account-security operations. Reassignment requires `bot.manage`, preserves the
+normal public and realtime surfaces, including permitted administrative and
+bot-management operations. Bots cannot acquire human login methods. A bot
+creator selects its human owner and checks that selection again under creation
+OCC. Reassignment requires `bot.manage`, preserves the
 active keys and configured allowlist, and immediately changes the owner
 permission ceiling.
 

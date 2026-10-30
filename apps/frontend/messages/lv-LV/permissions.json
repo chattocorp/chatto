@@ -29,7 +29,7 @@
       "user_invite": "Izveidojiet un pārvaldiet kodus. Katrs kods ļauj izveidot vienu kontu.",
       "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
       "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu",
-      "bot_create": "Izveidot sev piederošus botu kontus",
+      "bot_create": "Veidot botu kontus",
       "bot_manage": "Skatīt un pārvaldīt visus botu kontus",
       "call_start": "Sākt zvanu (nepieciešama arī call.join atļauja)",
       "call_join": "Pievienoties notiekošam zvanam",

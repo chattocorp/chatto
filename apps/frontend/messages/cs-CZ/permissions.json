@@ -29,7 +29,7 @@
       "user_invite": "Vytvářejte a spravujte kódy. Každý kód umožňuje vytvořit jeden účet.",
       "user_manage_accounts": "Vytvářejte uživatele, upravujte identitu účtu, resetujte hesla, připojujte ověřené e-maily a vymažte cooldowny pro přihlášení",
       "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele",
-      "bot_create": "Vytvářet účty botů, které vlastníte",
+      "bot_create": "Vytvářet účty botů",
       "bot_manage": "Zobrazit a spravovat všechny účty botů",
       "call_start": "Zahájit hovor (vyžaduje také call.join)",
       "call_join": "Připojit se k probíhajícímu hovoru",

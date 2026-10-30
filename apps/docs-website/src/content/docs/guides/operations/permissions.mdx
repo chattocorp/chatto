@@ -42,7 +42,9 @@ setting is **Allow**, **Deny**, or **Inherit**.
 
 Bots do not get permissions from `everyone` or from other roles. A bot has only
 the permissions that you allow directly on the bot, and never more than its
-owner has. See [Bot accounts](/guides/integrations/bot-accounts/).
+owner has. This includes administrative permissions. `bot.manage` also permits
+issuing credentials for other bots, which use those bots' permissions and
+owner ceilings. See [Bot accounts](/guides/integrations/bot-accounts/).
 
 ## Built-in roles
 

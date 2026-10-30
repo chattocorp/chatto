@@ -29,7 +29,7 @@
       "user_invite": "Crea y gestiona códigos. Cada código permite crear una cuenta.",
       "user_manage_accounts": "Cree usuarios, edite la identidad de la cuenta, restablezca contraseñas, adjunte correos electrónicos verificados y borre los tiempos de reutilización de inicio de sesión",
       "user_manage_permissions": "Editar anulaciones de permisos directos por usuario",
-      "bot_create": "Crear cuentas de bot propias",
+      "bot_create": "Crear cuentas de bot",
       "bot_manage": "Ver y gestionar todas las cuentas de bot",
       "call_start": "Iniciar una llamada (también requiere call.join)",
       "call_join": "Unirse a una llamada en curso",

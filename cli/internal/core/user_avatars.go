@@ -95,12 +95,8 @@ func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, 
 	if actorID == targetUserID {
 		return target, nil
 	}
-	actor, err := c.GetUser(ctx, actorID)
-	if err != nil {
+	if _, err := c.GetUser(ctx, actorID); err != nil {
 		return nil, err
-	}
-	if actor.GetIsBot() {
-		return nil, ErrPermissionDenied
 	}
 	canManageAccounts, err := c.CanManageUserAccounts(ctx, actorID)
 	if err != nil {

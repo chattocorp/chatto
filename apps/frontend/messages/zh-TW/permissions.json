@@ -29,7 +29,7 @@
       "user_invite": "建立及管理邀請碼。每個邀請碼可建立一個新帳號。",
       "user_manage_accounts": "建立使用者、編輯帳號身分、重設密碼、附加已驗證的電子郵件地址，以及清除登入冷卻時間",
       "user_manage_permissions": "編輯個別使用者的權限覆寫",
-      "bot_create": "建立您擁有的機器人帳號",
+      "bot_create": "建立機器人帳號",
       "bot_manage": "檢視及管理所有機器人帳號",
       "call_start": "開始通話（也需要 call.join）",
       "call_join": "加入進行中的通話",

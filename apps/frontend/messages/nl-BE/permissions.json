@@ -29,7 +29,7 @@
       "user_invite": "Maak en beheer codes. Elke code geeft toegang voor één nieuw account.",
       "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
       "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker",
-      "bot_create": "Botaccounts maken waarvan je eigenaar bent",
+      "bot_create": "Botaccounts maken",
       "bot_manage": "Alle botaccounts bekijken en beheren",
       "call_start": "Een oproep starten (vereist ook call.join)",
       "call_join": "Deelnemen aan een actieve oproep",

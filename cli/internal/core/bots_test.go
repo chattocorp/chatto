@@ -595,8 +595,8 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	if _, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), otherBot.User.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("bot recipient reassignment err = %v, want ErrHumanAccountRequired", err)
 	}
-	if _, err := c.ReassignBotOwner(ctx, bot.User.GetId(), bot.User.GetId(), owner.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("bot actor reassignment err = %v, want ErrHumanAccountRequired", err)
+	if _, err := c.ReassignBotOwner(ctx, bot.User.GetId(), bot.User.GetId(), owner.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ungranted bot actor reassignment err = %v, want ErrPermissionDenied", err)
 	}
 }
 
@@ -809,8 +809,8 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if decision, err := c.GetUserExplicitServerOverride(ctx, bot.User.GetId(), PermMessagePost); err != nil || decision != DecisionNone {
 		t.Fatalf("explicit bot override after rejected denial = %s, %v; want none", decision, err)
 	}
-	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
-		t.Fatalf("delegate bot.create err = %v, want ErrInvalidArgument", err)
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); err != nil {
+		t.Fatalf("delegate bot.create: %v", err)
 	}
 	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, bot.User.GetId(), RoleAdmin); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("assign bot role err = %v, want ErrHumanAccountRequired", err)
@@ -1316,11 +1316,11 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 		t.Fatalf("bot manager SetUserPermissionState: %v", err)
 	}
 
-	if _, err := c.GetUserPermissionMatrix(ctx, bot.User.GetId(), bot.User.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("bot caller GetUserPermissionMatrix err = %v, want ErrHumanAccountRequired", err)
+	if _, err := c.GetUserPermissionMatrix(ctx, bot.User.GetId(), bot.User.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ungranted bot caller GetUserPermissionMatrix err = %v, want ErrPermissionDenied", err)
 	}
-	if err := c.SetUserPermissionState(ctx, bot.User.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("bot caller SetUserPermissionState err = %v, want ErrHumanAccountRequired", err)
+	if err := c.SetUserPermissionState(ctx, bot.User.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ungranted bot caller SetUserPermissionState err = %v, want ErrPermissionDenied", err)
 	}
 	if _, err := c.GetUserPermissionMatrix(ctx, "", "missing-user"); !errors.Is(err, ErrNotAuthenticated) {
 		t.Fatalf("unauthenticated GetUserPermissionMatrix err = %v, want ErrNotAuthenticated", err)

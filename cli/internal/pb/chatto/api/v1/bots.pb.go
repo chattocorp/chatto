@@ -646,7 +646,7 @@ func (x *BatchGetBotsResponse) GetBots() []*Bot {
 	return nil
 }
 
-// Request creation of a bot owned by the authenticated human caller.
+// Request creation of a bot owned by the human caller or a bot caller's human owner.
 type CreateBotRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Bot login. Uses the same username rules as a human account.

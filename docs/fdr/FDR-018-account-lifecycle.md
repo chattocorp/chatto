@@ -109,7 +109,7 @@ This FDR covers human accounts from registration through deletion: signup, email
   deleted user, not as a self-DM. See FDR-007.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
 - The login is freed up for re-use.
-- Bots cannot request their own deletion. Their owner or a human user with `bot.manage` deletes them through `BotService`; deleting a human owner also deletes every bot they own. Those paths use the same durable deletion and crypto-shredding behavior described above.
+- Bots cannot use the human account-deletion flow. Their owner or a human or bot caller with `bot.manage` deletes them through `BotService`; deleting a human owner also deletes every bot they own. Those paths use the same durable deletion and crypto-shredding behavior described above.
 
 ## Design Decisions
 
