@@ -42,14 +42,21 @@
                   href={resolve(item.href as '/')}
                   aria-label={item.label}
                   aria-describedby={`${item.href}-description`}
-                  class="group flex min-w-0 hover-lift cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-surface hover:border-action/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
+                  class="group hover-lift-group min-w-0 cursor-pointer rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
                 >
-                  <SettingsCardArtwork href={item.href} icon={item.icon} />
-                  <div class="flex flex-1 flex-col gap-2 p-4">
-                    <span class="text-xl font-bold tracking-tight text-text-top">{item.label}</span>
-                    <p id={`${item.href}-description`} class="text-base text-muted">
-                      {item.description}
-                    </p>
+                  <!-- Keep the link's hover area fixed while its visual surface lifts. -->
+                  <div
+                    class="flex h-full hover-lift flex-col overflow-hidden rounded-2xl border border-border bg-surface group-hover:border-action/40"
+                  >
+                    <SettingsCardArtwork href={item.href} icon={item.icon} />
+                    <div class="flex flex-1 flex-col gap-2 p-4">
+                      <span class="text-xl font-bold tracking-tight text-text-top"
+                        >{item.label}</span
+                      >
+                      <p id={`${item.href}-description`} class="text-base text-muted">
+                        {item.description}
+                      </p>
+                    </div>
                   </div>
                 </a>
               {/each}

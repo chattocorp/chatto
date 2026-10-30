@@ -33,6 +33,65 @@ test.describe('App and User Preferences', () => {
     ).toBeVisible();
   });
 
+  test('keeps the Overview hover target fixed while its artwork animates', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsOverview);
+    const card = page
+      .getByRole('navigation', { name: 'App preferences', exact: true })
+      .getByRole('link', { name: 'Appearance', exact: true });
+    await expect(card).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document
+              .getAnimations()
+              .filter(
+                (animation) =>
+                  animation.playState === 'running' &&
+                  animation.effect?.getTiming().iterations !== Infinity
+              ).length
+        )
+      )
+      .toBe(0);
+    const bounds = await card.boundingBox();
+    expect(bounds).not.toBeNull();
+    const { x, y, width, height } = bounds!;
+    await page.mouse.move(x + width / 2, y + height / 2);
+    await expect
+      .poll(() =>
+        card.evaluate(
+          (el) =>
+            el.querySelector('.hover-lift')?.getBoundingClientRect().y ??
+            el.getBoundingClientRect().y
+        )
+      )
+      .toBe(y - 2);
+    // The surface moves, but the link must retain its original pointer area.
+    expect((await card.boundingBox())?.y).toBe(y);
+    const animationTime = () =>
+      card.evaluate((el) => {
+        const animation = el
+          .getAnimations({ subtree: true })
+          .find((item) => item instanceof CSSAnimation);
+        return typeof animation?.currentTime === 'number' ? animation.currentTime : 0;
+      });
+    await expect.poll(animationTime).toBeGreaterThan(200);
+    const before = await animationTime();
+    const animationStart = () =>
+      card.evaluate(
+        (el) =>
+          el.getAnimations({ subtree: true }).find((item) => item instanceof CSSAnimation)
+            ?.startTime
+      );
+    const startedAt = await animationStart();
+    await page.mouse.move(x + width / 2, y + height - 1);
+    expect(await animationStart()).toBe(startedAt);
+    await expect.poll(animationTime).toBeGreaterThan(before);
+    await expect(card).toBeVisible();
+  });
+
   test('can choose a local display theme', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await createAndLoginTestUser(page);

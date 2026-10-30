@@ -608,6 +608,9 @@ in Storybook and [the glossary](../../docs/GLOSSARY.md#ui).
 Apply `hover-lift` to the surface that moves. For a labelled choice, put
 `hover-lift-group` on the enclosing label and `hover-lift` on its visual preview.
 This lets the whole label trigger the preview without moving the label text.
+For cards with hover-driven illustration animations, keep the link fixed:
+put `hover-lift-group` on the link and `hover-lift` on an inner surface. This
+keeps the pointer inside the trigger at the card edges while the surface moves.
 Keep the keyboard focus outline on the control; focus alone does not lift it.
 Do not apply the utility to static or disabled cards, dense list rows, or both
 a card and its children. It adds movement, not a shadow, fill, or selection state.
