@@ -2448,15 +2448,17 @@
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
-  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] feedback-quick;
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center text-3xl transition-[background-color,color] feedback-quick;
   @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
   @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+  /* The 44 px logo has rounded-xl corners inside a 48 px frame. */
+  border-radius: calc(var(--radius-xl) + 2px);
 }
 
 /* Paint above server artwork so image logos and fallback initials get the same rim.
  * The overlay does not intercept links or notification controls. */
 .server-gutter-item::after {
-  @apply pointer-events-none absolute inset-0 z-1 rounded-xl shell-lighting;
+  @apply pointer-events-none absolute inset-0 z-1 rounded-[inherit] shell-lighting;
   content: '';
 }
 
