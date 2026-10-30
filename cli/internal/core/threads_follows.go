@@ -176,7 +176,8 @@ func (s *ThreadFollowModel) GetThreadFollowers(ctx context.Context, kind RoomKin
 // listFollowedThreads returns all threads followed by the user in the given
 // spaces, sorted by last activity (newest first).
 // The result includes only rooms where the user is still a member and has
-// applicable message-read authority.
+// applicable message-read authority. Threads with a deleted root and no visible
+// replies are omitted before pagination and total counts.
 func (s *ThreadFollowModel) listFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
 	page, err := s.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0, ThreadRootAuthorAll, ThreadOrderDefault)
 	if err != nil {
@@ -319,6 +320,10 @@ func (s *ThreadFollowModel) listFollowedThreadsInSpace(ctx context.Context, user
 		}
 
 		metadata := s.rooms.threadMetadata(threadRootEventID)
+		// Keep the follow state, but hide threads that have no content left.
+		if metadata.ReplyCount == 0 && s.rooms.messageTombstoned(threadRootEventID) {
+			continue
+		}
 		var rootCreatedAt *time.Time
 		if includeRootDate {
 			rootCreatedAt = s.rootCreatedAt(roomID, threadRootEventID)

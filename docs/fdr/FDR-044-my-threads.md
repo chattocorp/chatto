@@ -1,7 +1,7 @@
 # FDR-044: Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -64,7 +64,11 @@ find replies that they have not read.
 - Opening a thread uses the normal thread read behavior. This advances the read
   cursor and clears notification attention that the displayed content covers.
 - A thread can remain in Threads after all replies and notifications are
-  read. It remains until the user stops following it or loses access.
+  read. It remains until the user stops following it, loses access, or its
+  root and all replies are deleted. A deleted root with visible replies stays
+  in the list. A live root with no replies also stays in the list.
+  The server excludes fully deleted threads before page counts and pagination.
+  Their follow state stays unchanged.
 - Thread activity can change activity order; it does not change creation order. The bundled client restarts
   loaded offset pages after a reply post, edit, or retraction before it
   continues pagination.
@@ -83,7 +87,8 @@ The minimum server version stays unchanged.
 
 ### Mine narrows the followed inbox
 
-**Decision:** Followed includes every followed thread. Mine filters this set
+**Decision:** Followed includes every accessible followed thread with content.
+Mine filters this set
 to the current user's root messages before pagination and search.
 Keep the navigation indicator combined across both tabs, without tab counts.
 **Why:** Users can find conversations they started without removing them from
