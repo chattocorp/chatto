@@ -84,7 +84,6 @@ const (
 )
 
 type InvitationModel struct {
-	publisher    *evtstream.Publisher
 	projection   events.ProjectionHandle[*InvitationProjection]
 	signingKey   []byte
 	tokenIndexMu sync.Mutex
@@ -92,11 +91,10 @@ type InvitationModel struct {
 	indexedIDs   int
 }
 
-func newInvitationModel(publisher *evtstream.Publisher, projection events.ProjectionHandle[*InvitationProjection], secretKey string) *InvitationModel {
+func newInvitationModel(projection events.ProjectionHandle[*InvitationProjection], secretKey string) *InvitationModel {
 	keyMAC := hmac.New(sha256.New, []byte(secretKey))
 	_, _ = keyMAC.Write([]byte("chatto/invitation-code/v1\x00"))
 	return &InvitationModel{
-		publisher:  publisher,
 		projection: projection,
 		signingKey: keyMAC.Sum(nil),
 		tokenIndex: make(map[string]string),

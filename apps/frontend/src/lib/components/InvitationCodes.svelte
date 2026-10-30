@@ -21,6 +21,7 @@
   const PAGE_SIZE = 20;
   // Codes created in this screen always expire seven days after issuance.
   const CODE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+  const NOTE_MAX_LENGTH = 250;
   const serverScope = useServerScope();
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
@@ -216,9 +217,9 @@
     submitLabel={m('admin.invitations.create')}
     submitIcon="iconify icon-[uil--plus]"
     loading={createInvitationMutation.isPending}
-    disabled={noteLength > 250}
+    disabled={noteLength > NOTE_MAX_LENGTH}
     onsubmit={() => {
-      if (!createInvitationMutation.isPending && noteLength <= 250)
+      if (!createInvitationMutation.isPending && noteLength <= NOTE_MAX_LENGTH)
         createInvitationMutation.mutate(note);
     }}
     onclose={closeCreateDialog}
@@ -229,8 +230,8 @@
       label={m('admin.invitations.note_label')}
       placeholder={m('admin.invitations.note_placeholder')}
       description={m('admin.invitations.note_description')}
-      error={noteLength > 250 ? m('admin.invitations.note_too_long') : undefined}
-      trailingText={`${noteLength}/250`}
+      error={noteLength > NOTE_MAX_LENGTH ? m('admin.invitations.note_too_long') : undefined}
+      trailingText={`${noteLength}/${NOTE_MAX_LENGTH}`}
       disabled={createInvitationMutation.isPending}
       bind:value={note}
     />

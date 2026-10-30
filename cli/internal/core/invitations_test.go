@@ -60,7 +60,7 @@ func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
 		}
 	}
 
-	rotated := newInvitationModel(c.EventPublisher, c.invitationModel.projection, "rotated-secret")
+	rotated := newInvitationModel(c.invitationModel.projection, "rotated-secret")
 	if _, err := rotated.resolveCode(strings.ReplaceAll(first, "-", "")); !errors.Is(err, ErrInvitationInvalid) {
 		t.Fatalf("rotated secret validation error = %v, want ErrInvitationInvalid", err)
 	}
