@@ -92,6 +92,20 @@ export function notificationAttentionForThread(
   return strongest;
 }
 
+/** Missing IDs are handled only when a complete page or zero unread count proves it. */
+function handledIdsFromPage(
+  ids: readonly string[],
+  page: Pick<NotificationOccurrencePage, 'occurrences' | 'hasMore' | 'unreadCount'>,
+  handled: Set<string>
+): Set<string> {
+  const rows = new Map(page.occurrences.map((row) => [row.id, row]));
+  for (const id of ids) {
+    const row = rows.get(id);
+    if (row ? !row.unread : !page.hasMore || page.unreadCount === 0) handled.add(id);
+  }
+  return handled;
+}
+
 /**
  * The viewer's notification occurrences and counts on one server, kept
  * current by the realtime projection, with optimistic reads and deletions.
@@ -120,6 +134,8 @@ export class NotificationStore {
   #mutationIdleWaiters = new Set<() => void>();
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
+  #reconciliation: Promise<void> | undefined;
+  #lastSuccessfulReadAt: number | null = null;
   #handledPushIds = new ReactiveSet<string>();
   /** Changes when native notification cleanup must recheck server state. */
   readonly #pushRevisionSignal = signal(0);
@@ -309,6 +325,7 @@ export class NotificationStore {
 
   /** Install a page whose room access and actor data have already been checked. */
   #replaceSafeOccurrenceProjection(page: NotificationOccurrencePage): void {
+    this.#lastSuccessfulReadAt = Date.now();
     this.pushRevision++;
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
@@ -331,6 +348,8 @@ export class NotificationStore {
 
   /** Invalidate projection-owned state while a snapshot hydrates. */
   resetProjectionState(): void {
+    this.#reconciliation = undefined;
+    this.#lastSuccessfulReadAt = null;
     this.pushRevision++;
     this.#handledPushIds.clear();
     this.#roomInvitations.clear();
@@ -427,9 +446,26 @@ export class NotificationStore {
     await this.#refresh(true);
   }
 
-  /** Quietly reconcile after a potentially missed best-effort live hint. */
-  async reconcile() {
-    await this.#refresh(false);
+  /**
+   * Quietly recover missed hints. A host may reuse a successful first-page read
+   * younger than maxAgeMs; failures and resets never postpone recovery.
+   * Concurrent fallback calls share one read. The default always checks the server.
+   */
+  async reconcile(maxAgeMs = 0): Promise<void> {
+    if (this.#reconciliation) return this.#reconciliation;
+    if (
+      !this.error &&
+      this.#lastSuccessfulReadAt !== null &&
+      Date.now() - this.#lastSuccessfulReadAt < maxAgeMs
+    )
+      return;
+    const request = this.#refresh(false);
+    this.#reconciliation = request;
+    try {
+      await request;
+    } finally {
+      if (this.#reconciliation === request) this.#reconciliation = undefined;
+    }
   }
 
   async #refresh(showLoading: boolean) {
@@ -765,6 +801,8 @@ export class NotificationStore {
   }
 
   #beginMutation(): void {
+    this.#reconciliation = undefined;
+    this.#lastSuccessfulReadAt = null;
     this.pushRevision++;
     this.#pendingMutationCount++;
     this.#authoritativeGeneration++;
@@ -803,12 +841,26 @@ export class NotificationStore {
     if (generation !== this.#authoritativeGeneration || this.#pendingMutationCount > 0) {
       return new Set();
     }
-    const rows = new Map(page.occurrences.map((row) => [row.id, row]));
-    for (const id of ids) {
-      const row = rows.get(id);
-      if (row ? !row.unread : !page.hasMore || page.unreadCount === 0) handled.add(id);
-    }
-    return handled;
+    return handledIdsFromPage(ids, page, handled);
+  }
+
+  /**
+   * Return confirmed handled IDs from retained state without a request. Missing
+   * IDs on partial pages remain unknown. Mutations invalidate page evidence until
+   * another authoritative read; confirmed local read/delete IDs remain usable.
+   */
+  knownHandledNotificationIds(ids: readonly string[]): Set<string> {
+    const handled = new Set(ids.filter((id) => this.#handledPushIds.has(id)));
+    if (this.#pendingMutationCount > 0 || this.#lastSuccessfulReadAt === null) return handled;
+    return handledIdsFromPage(
+      ids,
+      {
+        occurrences: this.occurrences,
+        hasMore: this.hasMore,
+        unreadCount: this.unreadNotificationCount
+      },
+      handled
+    );
   }
 
   #rememberHandledPushIds(ids: readonly string[]): void {

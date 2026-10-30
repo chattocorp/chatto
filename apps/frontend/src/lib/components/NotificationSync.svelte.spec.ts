@@ -418,6 +418,7 @@ describe('NotificationSync', () => {
       await renderAndWaitForSubscription();
       await vi.advanceTimersByTimeAsync(60_000);
       expect(mocks.stores.origin.notifications.reconcile).toHaveBeenCalledOnce();
+      expect(mocks.stores.origin.notifications.reconcile).toHaveBeenCalledWith(5_000);
     } finally {
       vi.useRealTimers();
     }
