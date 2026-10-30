@@ -56,7 +56,6 @@ const mocks = vi.hoisted(() => ({
   getAppUiState: vi.fn(),
   activeCallRoomIds: new Set<string>(),
   joinedCallRoomIds: new Set<string>(),
-  threadPaneModuleLoaded: vi.fn(),
   roomSidebarModuleLoaded: vi.fn(),
   markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
   roomMessages: vi.fn(),
@@ -247,7 +246,6 @@ vi.mock('./EventList.svelte', async () => {
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
-  mocks.threadPaneModuleLoaded();
   const { default: ThreadPaneMock } = await import('./RoomThreadPaneMock.svelte');
   return { default: ThreadPaneMock };
 });
@@ -596,14 +594,14 @@ describe('Room interaction bundles', () => {
     expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-1');
   });
 
-  it('does not load thread or sidebar panes when the sidebar is explicitly closed', async () => {
+  it('does not mount a thread or load the closed sidebar on a room route', async () => {
     appUi.closeDesktopRoomSidebarPanel();
-    render(Room, { props: { roomId: 'room-1' } });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await tick();
     await Promise.resolve();
 
-    expect(mocks.threadPaneModuleLoaded).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="thread-pane-root-id"]')).toBeNull();
     expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
   });
 
@@ -672,17 +670,23 @@ describe('Room interaction bundles', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toBeInTheDocument();
   });
 
-  it('loads the thread pane when the thread route is active', async () => {
+  it('mounts a direct-entry thread without an intermediate chunk loading screen', async () => {
     appUi.closeDesktopRoomSidebarPanel();
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
 
-    await vi.waitFor(() => expect(mocks.threadPaneModuleLoaded).toHaveBeenCalledOnce());
-    expect(
-      (await waitForElement(container, '[data-testid="thread-pane-root-id"]')).textContent
-    ).toBe('thread-root');
+    expect(q(container, '[data-testid="thread-pane-root-id"]')).toHaveTextContent('thread-root');
     expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it('does not refresh the server role catalogue when returning to a room', async () => {
+    const first = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    first.unmount();
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    expect(mocks.mentionRoles.refresh).not.toHaveBeenCalled();
   });
 
   it('loads the room sidebar when a desktop panel is active', async () => {
@@ -836,7 +840,9 @@ describe('Room interaction bundles', () => {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
 
-    await expect.element(q(container, '[data-testid="thread-pane"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="thread-pane-root-id"]'))
+      .toHaveTextContent('thread-root');
     await expect
       .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
       .toBeInTheDocument();
