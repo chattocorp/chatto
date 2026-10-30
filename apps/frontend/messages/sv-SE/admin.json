@@ -564,6 +564,7 @@
       "total": "{count} användare totalt"
     },
     "invitations": {
+      "created_by": "Skapad av",
       "note_label": "Anteckning (valfritt)",
       "note_placeholder": "Till Alex från designteamet",
       "note_description": "Endast inbjudningsadministratörer kan se denna anteckning.",

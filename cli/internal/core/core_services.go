@@ -207,6 +207,9 @@ func initializeCoreServices(
 	if err := core.seedUpgradePermissions(ctx); err != nil {
 		return fmt.Errorf("seed upgrade permissions: %w", err)
 	}
+	if err := core.splitInvitationPermissions(ctx); err != nil {
+		return fmt.Errorf("split invitation permissions: %w", err)
+	}
 	if err := core.notificationMaterializer.Initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize notification materializer: %w", err)
 	}

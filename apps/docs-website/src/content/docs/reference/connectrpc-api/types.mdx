@@ -168,6 +168,7 @@ Built-in keys currently include:
 - admin.view-users
 - user.manage-accounts
 - user.invite
+- user.manage-invites
 - role.assign
 - role.view
 - role.manage
@@ -1134,6 +1135,19 @@ Safe summary of one recorded outbound webhook failure.
 | `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
 | `source_event_id` | `string` | Source message ID associated with this delivery. |
 
+<a id="chatto-api-v1-IssuedInvitationCode"></a>
+
+### IssuedInvitationCode
+
+A newly issued single-use code. Unlike the administrative resource, this
+result is available only at creation; members cannot retrieve it later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Opaque invitation identifier, also visible in administrative records. |
+| `code` | `string` | Share this secret with the recipient. Never log or persist it in client storage. |
+| `expires_at` | `google.protobuf.Timestamp` | The code expires seven days after creation. |
+
 <a id="chatto-api-v1-FollowedThread"></a>
 
 ### FollowedThread
@@ -1731,7 +1745,7 @@ the code can use it; it is not bound to an email address or recipient.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | No field description provided. |
-| `code` | `string` | Recoverable capability, returned only to callers with user.invite. Never log it. |
+| `code` | `string` | Recoverable capability, returned only to callers with user.manage-invites. Never log it. |
 | `created_by` | `string` | No field description provided. |
 | `created_at` | `google.protobuf.Timestamp` | No field description provided. |
 | `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |

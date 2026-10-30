@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Pozvat lidi",
+      "create": "Vytvořit kód",
+      "description": "Sdílejte kód a adresu serveru. Umožní vytvořit jeden účet a vyprší za sedm dní.",
+      "once": "Před zavřením kód zkopírujte. Znovu jej již nezobrazíte."
+    },
     "privileged_mode": {
       "enable": "Zapnout privilegovaný režim",
       "disable": "Vypnout privilegovaný režim",

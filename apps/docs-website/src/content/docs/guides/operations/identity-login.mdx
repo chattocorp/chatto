@@ -224,11 +224,21 @@ email/password registration and to provider auto-provisioning. Existing users
 can still sign in and link providers. Accounts that operators create are not
 affected.
 
-Administrators with `user.invite` create and revoke codes under
+Administrators with `user.manage-invites` create and revoke codes under
 **Server Admin → Registration**. Each code permits one new account.
 Use **Create code** in the table header, then confirm in the dialog. Each new code expires after seven
 days. Copy an active code and send it through your chosen channel. Chatto does
 not send it for you. The API supports other expiry times or no expiry.
+
+Members with `user.invite` can select **Invite people** in the server sidebar,
+then **Create code**. Copy the code before closing the modal: it is shown only
+once. Send the code and server address to the recipient. No admin access is
+needed. Administrators can see the code and its creator in Registration.
+Members cannot retrieve or revoke codes after closing the modal.
+
+Fresh servers grant both permissions to admins. Other members need an explicit
+`user.invite` grant. That permission does not require privileged mode and does
+not grant access to Registration. Management still requires privileged mode.
 
 You can add an optional note when you create a code, for example to record who
 it is for. Notes accept up to 250 characters and appear beneath the code in the
@@ -244,7 +254,10 @@ Expired, used, revoked, or incorrect codes show as unavailable.
 
 For external integrations, use
 [`AdminInvitationCodeService`](/reference/connectrpc-api/admin-invitation-codes/)
-with a credential that has `user.invite`. Each create call issues a separate
+with a credential that has `user.manage-invites`. For creation without management
+access, use [`InvitationCodeService`](/reference/connectrpc-api/invitation-codes/)
+with `user.invite`. Do not retry creation automatically: a lost response can
+leave a code that only an administrator can retrieve. Each create call issues a separate
 code. Direct API registration can send `invitationCode` with the email to
 `POST /auth/register`. SSO account creation can send `invitation_code` with
 `CreateExternalIdentityAccount`. Both paths check and consume admission on

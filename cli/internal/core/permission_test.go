@@ -99,7 +99,7 @@ func TestPermissionMetadata_PrivilegedModeClassification(t *testing.T) {
 		PermRoleAssign:            true,
 		PermAdminUsersView:        true,
 		PermAdminAuditView:        true,
-		PermUserInvite:            true,
+		PermUserManageInvites:     true,
 		PermUserDeleteAny:         true,
 		PermUserManageAccounts:    true,
 		PermUserManagePermissions: true,
@@ -518,6 +518,7 @@ func TestPermissionConsistency(t *testing.T) {
 		want := []Permission{
 			PermServerManage,
 			PermUserInvite,
+			PermUserManageInvites,
 			PermRoomCreate,
 			PermRoomJoin,
 			PermRoomList,

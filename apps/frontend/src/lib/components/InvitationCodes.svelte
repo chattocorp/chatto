@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInvitationCodeAPI, type InvitationCode } from '$lib/api/invitations';
+  import { createUserAPI } from '@chatto/client/api/users';
   import { Panel, DataTable, ConfirmDialog, FormDialog, Hint, Pill, CopyButton } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
@@ -57,8 +58,16 @@
     const connection = serverScope.connection;
     return {
       queryKey: adminQueryKeys.invitations(serverId, connection),
-      queryFn: ({ pageParam, signal }) =>
-        connection.getAPI(createInvitationCodeAPI).list(pageParam, PAGE_SIZE, { signal }),
+      queryFn: async ({ pageParam, signal }) => {
+        const result = await connection
+          .getAPI(createInvitationCodeAPI)
+          .list(pageParam, PAGE_SIZE, { signal });
+        const creatorIds = [
+          ...new Set(result.invitationCodes.map((code) => code.createdBy).filter(Boolean))
+        ];
+        if (creatorIds.length) await connection.getAPI(createUserAPI).batchGetUsers(creatorIds);
+        return result;
+      },
       initialPageParam: 0,
       getNextPageParam: (lastPage, _pages, lastPageParam) =>
         lastPage.hasMore && lastPage.invitationCodes.length > 0
@@ -173,6 +182,13 @@
             >{m('admin.invitations.created_at')}
             <time datetime={invitation.createdAt} title={formatTimestamp(invitation.createdAt)}
               >{formatDate(invitation.createdAt, userSettings, activeLocale)}</time
+            ></span
+          >
+          <span
+            >{m('admin.invitations.created_by')}:
+            <bdi
+              >{serverScope.store.projection.users.view(invitation.createdBy)?.displayName ??
+                invitation.createdBy}</bdi
             ></span
           >
         </div>

@@ -44,6 +44,7 @@ describe('PERMISSION_DEFINITIONS', () => {
       'user.delete-self',
       'user.invite',
       'user.manage-accounts',
+      'user.manage-invites',
       'user.manage-permissions'
     ]);
   });
@@ -67,8 +68,8 @@ describe('PERMISSION_DEFINITIONS', () => {
       'server.manage',
       'server.manage-neighbors',
       'user.delete-any',
-      'user.invite',
       'user.manage-accounts',
+      'user.manage-invites',
       'user.manage-permissions'
     ]);
   });

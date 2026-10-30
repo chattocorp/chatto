@@ -20,6 +20,8 @@ export type ServerPermissions = ViewerCapabilities & {
   canCreateBots: boolean;
   /** Effective server-wide `bot.manage`. */
   canManageBots: boolean;
+  /** Effective server-wide `user.invite`; does not grant administrative reads. */
+  canInviteUsers: boolean;
 };
 
 /** Permissions before the viewer projection loads, or after it is cleared. */
@@ -41,7 +43,8 @@ export const NO_SERVER_PERMISSIONS: ServerPermissions = Object.freeze({
   canManageRooms: false,
   canModerateRooms: false,
   canCreateBots: false,
-  canManageBots: false
+  canManageBots: false,
+  canInviteUsers: false
 });
 
 /** Map a loaded viewer projection to the permissions that the UI checks. */
@@ -65,6 +68,7 @@ export function serverPermissionsFromViewer(viewer: ViewerState): ServerPermissi
     canManageRooms: can('room.manage'),
     canModerateRooms: can('room.remove-member'),
     canCreateBots: can('bot.create'),
-    canManageBots: can('bot.manage')
+    canManageBots: can('bot.manage'),
+    canInviteUsers: can('user.invite')
   };
 }

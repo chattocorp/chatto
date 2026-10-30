@@ -553,6 +553,7 @@
       "total": "共 {count} 位使用者"
     },
     "invitations": {
+      "created_by": "建立者",
       "note_label": "備註（選填）",
       "note_placeholder": "給設計團隊的 Alex",
       "note_description": "只有邀請管理員可以查看此備註。",

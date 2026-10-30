@@ -575,6 +575,7 @@
       "total": "{count} משתמשים בסך הכל"
     },
     "invitations": {
+      "created_by": "נוצר על ידי",
       "note_label": "הערה (לא חובה)",
       "note_placeholder": "עבור אלכס מצוות העיצוב",
       "note_description": "רק מנהלי הזמנות יכולים לראות את ההערה הזו.",

@@ -7,7 +7,7 @@ import { CreateInvitationCodeRequest, CreateInvitationCodeResponse, GetInvitatio
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Issues and manages registration codes. All methods require user.invite.
+ * Issues and manages registration codes. All methods require user.manage-invites.
  * External systems can issue codes with an authorized API credential.
  *
  * @generated from service chatto.admin.v1.AdminInvitationCodeService

@@ -167,6 +167,12 @@ const categories = [
         description: 'Authenticated server-wide user directory RPCs.'
       },
       {
+        name: 'InvitationCodeService',
+        slug: 'invitation-codes',
+        title: 'Invitation Codes',
+        description: 'Member issuance of single-use invitation codes.'
+      },
+      {
         name: 'ViewerService',
         slug: 'viewer',
         title: 'Viewer',

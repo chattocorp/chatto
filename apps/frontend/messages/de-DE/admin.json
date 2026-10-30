@@ -564,6 +564,7 @@
       "total": "{count} Benutzer insgesamt"
     },
     "invitations": {
+      "created_by": "Erstellt von",
       "note_label": "Notiz (optional)",
       "note_placeholder": "Für Alex aus dem Designteam",
       "note_description": "Nur Einladungsverwalter können diese Notiz sehen.",

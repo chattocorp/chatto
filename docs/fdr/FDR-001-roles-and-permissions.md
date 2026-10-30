@@ -195,6 +195,12 @@ gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 These grants preserve existing capabilities without undoing an operator's
 later decision.
+
+The invitation permission split also copies current server-scope `user.invite`
+allows and denies to `user.manage-invites` once. A historical decision for the
+new permission, including a clear, prevents another copy. The original decisions
+remain as non-privileged issuance grants or denials. Fresh admins receive both;
+everyone receives neither. See [FDR-036](FDR-036-invite-links.md).
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Apart from the explicit upgrade grants above, adding a new code default does not grant it to existing servers or rooms automatically. Changes of meaning, such as `room.manage` for room-group managers, remain manual review items. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 

@@ -60,7 +60,7 @@ export class InvitationCode extends Message<InvitationCode> {
   id = "";
 
   /**
-   * Recoverable capability, returned only to callers with user.invite. Never log it.
+   * Recoverable capability, returned only to callers with user.manage-invites. Never log it.
    *
    * @generated from field: string code = 2;
    */

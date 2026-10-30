@@ -65,7 +65,8 @@ describe('serverPermissionsFromViewer', () => {
     ['room.manage', 'canManageRooms'],
     ['room.remove-member', 'canModerateRooms'],
     ['bot.create', 'canCreateBots'],
-    ['bot.manage', 'canManageBots']
+    ['bot.manage', 'canManageBots'],
+    ['user.invite', 'canInviteUsers']
   ] as const)('maps effective %s to %s', (permission, flag) => {
     expect(serverPermissionsFromViewer(viewer({}, { [permission]: true }))).toEqual({
       ...NO_SERVER_PERMISSIONS,

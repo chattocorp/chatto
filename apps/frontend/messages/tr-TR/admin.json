@@ -564,6 +564,7 @@
       "total": "Toplam {count} kullanıcı(lar)"
     },
     "invitations": {
+      "created_by": "Oluşturan",
       "note_label": "Not (isteğe bağlı)",
       "note_placeholder": "Tasarım ekibinden Alex için",
       "note_description": "Bu notu yalnızca davet yöneticileri görebilir.",
