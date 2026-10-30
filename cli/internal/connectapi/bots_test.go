@@ -202,8 +202,8 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminView) {
 		t.Fatal("bot unexpectedly granted admin.view capability")
 	}
-	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityDMStart) {
-		t.Fatal("bot unexpectedly granted dm.start capability")
+	if !apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityDMStart) {
+		t.Fatal("bot with message.post missing dm.start capability")
 	}
 
 	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); errorCode(err) != connect.CodeFailedPrecondition {

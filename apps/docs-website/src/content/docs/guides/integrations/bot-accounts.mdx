@@ -135,8 +135,10 @@ key.
 
 ## Direct messages
 
-A bot cannot start a DM, and no permission changes this. A human can start a
-DM that includes the bot. To let a bot talk in DMs without channel access,
+A bot can start a DM with `RoomService.StartDM` when it has `message.post`
+at the **Direct messages** scope. It can also use this method to find an
+existing DM without posting permission. To let a bot talk in DMs without
+channel access,
 grant `message.read` and `message.post` at the **Direct messages** scope. The
 owner must have the same permissions at that scope. For a bot that only
 replies, `message.read-interactions` at this scope is enough to read its DMs

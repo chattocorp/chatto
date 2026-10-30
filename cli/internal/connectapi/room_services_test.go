@@ -703,13 +703,14 @@ func TestRoomServiceStartDM(t *testing.T) {
 	botCtx := withCaller(env.ctx, bot.User)
 	for name, participantIDs := range map[string][]string{
 		"self":     nil,
+		"new":      {participant.Id},
 		"existing": {env.viewer.GetId()},
 	} {
-		t.Run("bot cannot start "+name+" DM", func(t *testing.T) {
+		t.Run("bot can start "+name+" DM", func(t *testing.T) {
 			if _, err := env.rooms.StartDM(botCtx, connect.NewRequest(&apiv1.StartDMRequest{
 				ParticipantIds: participantIDs,
-			})); errorCode(err) != connect.CodePermissionDenied {
-				t.Fatalf("bot StartDM code = %v, want permission denied", errorCode(err))
+			})); err != nil {
+				t.Fatalf("bot StartDM: %v", err)
 			}
 		})
 	}

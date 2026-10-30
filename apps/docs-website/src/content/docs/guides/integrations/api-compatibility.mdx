@@ -16,6 +16,12 @@ the realtime protocol in ways that require client changes.
 
 ## Compatibility policy
 
+Bots can now call `RoomService.StartDM` under the same rules as humans.
+Creation requires `message.post` at DM scope, with the bot's explicit grant
+and owner authority ceiling. Existing DM lookup does not require posting
+permission. Existing bots with DM posting grants can now initiate conversations.
+No client or stored-data migration is required.
+
 Room notices add `GetNotice`, `PublishNotice`, and `ClearNotice` to
 `RoomService`, plus the `room_notice_changed` realtime event. Existing clients
 need no migration. Notice clients must retain the returned write version and
