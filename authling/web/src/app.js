@@ -1,8 +1,6 @@
-// Enhance ordinary links and sign-in; OAuth and other forms retain native navigation.
+// Enhance ordinary links and explicitly opted-in forms. Protocol flows stay native.
 import './app.css';
 import htmx from 'htmx.org';
-
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 Object.assign(htmx.config, {
   allowEval: false,
@@ -11,14 +9,9 @@ Object.assign(htmx.config, {
   historyCacheSize: 0,
   historyRestoreAsHxRequest: false,
   selfRequestsOnly: true,
-  globalViewTransitions: !reducedMotion.matches,
+  globalViewTransitions: false,
   defaultFocusScroll: false,
   reportValidityOfForms: true
-});
-
-// Respect preference changes without requiring a document reload.
-reducedMotion.addEventListener('change', () => {
-  htmx.config.globalViewTransitions = !reducedMotion.matches;
 });
 
 // Only known page routes may use AJAX. Query-bearing authentication links carry
@@ -31,19 +24,26 @@ function isOrdinaryLink(link) {
     !link.hasAttribute('download') &&
     (!link.target || link.target === '_self') &&
     (!url.search || url.pathname === '/admin') &&
-    /^(\/|\/login|\/signup|\/password-reset|\/account(?:\/(?:profile|email|password|delete))?|\/admin|\/dev\/ui)$/.test(
+    /^(\/|\/login|\/signup|\/password-reset|\/account(?:\/(?:profile|email|password|delete|security|apps|sessions))?|\/admin|\/dev\/ui)$/.test(
       url.pathname
     )
+  );
+}
+
+// Keep the form allowlist explicit: protocol redirects and multi-step recovery
+// need their own review before they can share a document with another page.
+function isOrdinaryForm(element) {
+  return (
+    element instanceof HTMLFormElement &&
+    element.getAttribute('hx-boost') === 'true' &&
+    ['/login', '/account/profile'].includes(element.getAttribute('action'))
   );
 }
 
 document.addEventListener('htmx:beforeProcessNode', (event) => {
   const element = event.target;
   if (
-    (element instanceof HTMLFormElement &&
-      !(
-        element.getAttribute('action') === '/login' && element.getAttribute('hx-boost') === 'true'
-      )) ||
+    (element instanceof HTMLFormElement && !isOrdinaryForm(element)) ||
     (element instanceof HTMLAnchorElement && !isOrdinaryLink(element))
   ) {
     element.setAttribute('hx-boost', 'false');
@@ -55,12 +55,14 @@ document.addEventListener('htmx:beforeProcessNode', (event) => {
 document.addEventListener('htmx:beforeSwap', (event) => {
   const { xhr } = event.detail;
   const response = new DOMParser().parseFromString(xhr.responseText, 'text/html');
-  // Render login validation and availability errors without replaying the POST
+  // Render form validation and availability errors without replaying the POST
   // or losing the server's message through a fallback GET.
   if (
-    event.detail.requestConfig.elt instanceof HTMLFormElement &&
-    event.detail.requestConfig.elt.getAttribute('action') === '/login' &&
-    response.querySelector('form[action="/login"]')
+    isOrdinaryForm(event.detail.requestConfig.elt) &&
+    [...response.forms].some(
+      (form) =>
+        form.getAttribute('action') === event.detail.requestConfig.elt.getAttribute('action')
+    )
   ) {
     event.detail.shouldSwap = true;
     event.detail.isError = false;
@@ -77,12 +79,23 @@ document.addEventListener('htmx:beforeSwap', (event) => {
 });
 
 function focusPage() {
+  // A person can focus a control before the swap settles. Do not move
+  // focus again if the destination already has an active element.
+  const active = document.activeElement;
+  if (active && active !== document.body && active !== document.documentElement) return;
   const target = document.querySelector('main [autofocus]') || document.querySelector('main');
   target?.focus({ preventScroll: true });
 }
 
 document.addEventListener('htmx:afterSettle', focusPage);
 document.addEventListener('htmx:historyRestore', focusPage);
+
+document.addEventListener('htmx:beforeRequest', (event) => {
+  if (isOrdinaryForm(event.detail.elt)) event.detail.elt.setAttribute('aria-busy', 'true');
+});
+document.addEventListener('htmx:afterRequest', (event) => {
+  if (isOrdinaryForm(event.detail.elt)) event.detail.elt.removeAttribute('aria-busy');
+});
 
 // History misses fetch fresh HTML without storing account pages. They bypass
 // beforeSwap, so check asset changes and session redirects here as well.
@@ -108,14 +121,15 @@ document.addEventListener('htmx:responseError', (event) => {
 document.addEventListener('htmx:sendError', (event) => {
   if (event.detail.elt instanceof HTMLAnchorElement) location.assign(event.detail.elt.href);
   if (event.detail.elt instanceof HTMLFormElement) {
-    let notice = document.getElementById('login-network-error');
+    let notice = document.getElementById('form-network-error');
     if (!notice) {
       notice = document.createElement('p');
-      notice.id = 'login-network-error';
+      notice.id = 'form-network-error';
       notice.className = 'notice notice-error';
       notice.setAttribute('role', 'alert');
       event.detail.elt.before(notice);
     }
-    notice.textContent = "We couldn't reach the server. Please try signing in again.";
+    notice.textContent =
+      "We couldn't confirm whether your submission reached the server. Check your connection and try again.";
   }
 });

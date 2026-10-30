@@ -31,7 +31,7 @@ account's encrypted history unreadable in live storage.
   after live key erasure.
 - Encrypted short-lived verification records expire separately, normally
   within 15 minutes of their creation. Browser-session records expire within
-  24 hours; access is denied immediately after the deletion boundary. OIDC
+  90 days; access is denied immediately after the deletion boundary. OIDC
   runtime records also keep their existing bounded lifetimes.
 - Backup copies and external key exports follow the operator's retention
   policy. Restoring an old data-and-key backup can restore a deleted account.

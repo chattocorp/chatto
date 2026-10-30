@@ -12,7 +12,9 @@ test('signs in after signup, logs out, and signs back in', async ({ page, reques
   const cookies = await page.context().cookies(stack.baseURL);
   const session = cookies.find((cookie) => cookie.name === 'authling_session');
   expect(session).toMatchObject({ httpOnly: true, secure: false, sameSite: 'Lax', path: '/' });
-  expect(session?.expires).toBe(-1);
+  const remainingDays = ((session?.expires ?? 0) - Date.now() / 1000) / (24 * 60 * 60);
+  expect(remainingDays).toBeGreaterThan(89.99);
+  expect(remainingDays).toBeLessThanOrEqual(90);
 
   await page.getByRole('banner').getByRole('link', { name: 'Test Accounts', exact: true }).click();
   await expect(page).toHaveURL(`${stack.baseURL}/account`);
@@ -60,7 +62,7 @@ test('signs in after signup, logs out, and signs back in', async ({ page, reques
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
   await expect(page).toHaveURL(`${stack.baseURL}/account`);
-  await expect(page.locator('html')).toHaveAttribute('data-login-transition', 'started');
+  await expect(page.locator('html')).toHaveAttribute('data-login-transition', 'pending');
   await expect(page.locator('code')).toHaveText(accountID);
 });
 

@@ -40,7 +40,7 @@ sessions.
 - Approval forms carry the disclosure version. The server rejects an outdated
   approval form and asks the person to reload it. Denial remains available.
 - Denying a forced-consent request does not revoke an existing grant.
-- The account page lists active grants with their client name, display host,
+- The Connected apps tab at `/account/apps` lists active grants with their client name, display host,
   recorded scopes, and latest explicit authorization time. Same-origin POST is required to
   revoke one.
 - Revocation affects future authorization decisions immediately after the

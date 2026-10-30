@@ -7,31 +7,9 @@
 }
 @source '../../internal/web/**/*.templ';
 
-/* Only htmx's same-document swaps animate; full document navigation stays native. */
-@view-transition {
-  navigation: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  :root {
-    view-transition-name: none;
-  }
-
-  main {
-    view-transition-name: page-content;
-  }
-
-  ::view-transition-group(page-content),
-  ::view-transition-old(page-content),
-  ::view-transition-new(page-content) {
-    animation-duration: 160ms;
-    animation-timing-function: ease-out;
-  }
-}
-
 @theme {
   --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
-  --text-base: 1.125rem;
+  --text-base: 1.0625rem;
   --text-base--line-height: 1.5rem;
   --radius-control: 0.5rem;
   --radius-surface: 0.75rem;
@@ -147,6 +125,72 @@
     @apply max-w-5xl;
   }
 
+  .account-heading {
+    @apply flex flex-wrap items-start justify-between gap-4;
+  }
+
+  .account-sheet {
+    @apply mt-6 overflow-hidden rounded-surface border;
+    border-color: var(--ui-raised-border);
+    background: var(--ui-raised);
+    box-shadow: var(--ui-raised-shadow);
+  }
+
+  .account-tabs {
+    @apply grid grid-cols-4 border-b;
+    border-color: var(--ui-raised-border);
+    background: var(--ui-surface);
+  }
+
+  .account-tab {
+    @apply relative flex min-h-14 min-w-0 items-center justify-center whitespace-nowrap py-3 font-medium text-muted hover:bg-subtle hover:text-ink focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-focus sm:px-4 sm:py-4;
+  }
+
+  .account-tab[aria-current='page'] {
+    @apply font-semibold text-ink;
+    background: var(--ui-raised);
+    box-shadow: inset 0 -3px var(--ui-action);
+  }
+
+  .account-section > .panel {
+    @apply m-0 rounded-none border-0 shadow-none;
+  }
+
+  .account-section > .panel + .panel {
+    @apply border-t border-line;
+  }
+
+  .account-section > .notice {
+    @apply mx-4 mb-4 sm:mx-6;
+  }
+
+  .account-task > form,
+  .account-task > p,
+  .account-task > .notice,
+  .account-task .page-description {
+    @apply max-w-2xl;
+  }
+
+  .account-task button[type='submit'] {
+    @apply sm:w-auto;
+  }
+
+  .identity-details {
+    @apply mt-5 divide-y divide-line;
+  }
+
+  .identity-details > div {
+    @apply grid gap-1 py-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6;
+  }
+
+  .identity-details dt {
+    @apply text-muted;
+  }
+
+  .identity-details dd {
+    @apply min-w-0 break-words;
+  }
+
   .focus-main {
     @apply flex w-full flex-1 flex-col px-4 py-6;
   }
@@ -187,6 +231,12 @@
   .panel > .page-heading > .page-description,
   .panel > .settings-heading:first-child + .settings-description {
     margin-top: 1.25rem;
+  }
+
+  /* The tab strip owns the sheet's chrome; section titles stay in the content. */
+  .account-section > .panel > .settings-heading:first-child,
+  .account-section > .panel > .page-heading > .page-title {
+    @apply m-0 rounded-none border-0 bg-transparent p-0;
   }
 
   .focus-card,
@@ -262,7 +312,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center rounded-control bg-subtle px-2 py-0.5 font-medium text-ink;
+    @apply inline-flex items-center whitespace-nowrap rounded-control bg-subtle px-2 py-0.5 font-medium text-ink;
   }
 
   .pagination {

@@ -1,0 +1,21 @@
+package web
+
+import (
+	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+)
+
+templ profilePage(profile accounts.Profile, message, signedInAs string) {
+	@accountTask("Edit your profile", signedInAs, "profile") {
+		@ui.SectionHeading("Edit your profile") {
+			<p>Connected apps with profile access can see your username and full name. Other people can use the same names.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/account/profile" hx-boost="true" hx-push-url="true" hx-disabled-elt="find button[type='submit']">
+			@ui.Field("preferred_username", "Preferred username", "This does not have to be unique.", templ.Attributes{"type": "text", "name": "preferred_username", "autocomplete": "username", "minlength": "2", "maxlength": "64", "value": profile.PreferredUsername, "autofocus": true, "required": true})
+			@ui.Field("full_name", "Full name", "", templ.Attributes{"type": "text", "name": "full_name", "autocomplete": "name", "maxlength": "128", "value": profile.FullName})
+			<button class="button button-primary w-full" type="submit">Save profile</button>
+		</form>
+		<p class="mt-6"><a class="text-link" href="/account">Return to your account</a>.</p>
+	}
+}

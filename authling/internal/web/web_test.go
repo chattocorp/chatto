@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 )
@@ -208,13 +209,14 @@ func TestHandlerDoesNotExposeAccountDataSync(t *testing.T) {
 
 func TestSessionCookieAttributes(t *testing.T) {
 	response := httptest.NewRecorder()
-	setSessionCookie(response, "opaque", true)
+	expiresAt := time.Now().UTC().Truncate(time.Second).Add(90 * 24 * time.Hour)
+	setSessionCookie(response, "opaque", true, expiresAt)
 	cookies := response.Result().Cookies()
 	if len(cookies) != 1 {
 		t.Fatalf("cookies = %d, want 1", len(cookies))
 	}
 	cookie := cookies[0]
-	if cookie.Name != secureSessionCookieName || cookie.Value != "opaque" || cookie.Path != "/" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Expires.Unix() > 0 || cookie.MaxAge != 0 {
+	if cookie.Name != secureSessionCookieName || cookie.Value != "opaque" || cookie.Path != "/" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || !cookie.Expires.Equal(expiresAt) || cookie.MaxAge != 90*24*60*60 {
 		t.Fatalf("session cookie = %+v", cookie)
 	}
 }

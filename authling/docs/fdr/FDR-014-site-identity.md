@@ -24,8 +24,9 @@ account pages and transactional emails.
   descriptions up to 500, without control characters. Edge spaces are removed.
 - Changes take effect after a restart. They do not change issuer identity,
   account IDs, connected-app names, credentials, or the SMTP sender address.
-- Short forms use a compact layout. Account settings separate profile,
-  security, connected apps, sessions, and account deletion. Light and dark
+- Only sign-in and registration use centered cards. Account settings use
+  URL-backed Profile, Security, Connected apps, and Sessions tabs. Account
+  editing and recovery use full-width panels; deletion is under Security. Light and dark
   appearance, keyboard navigation, and use without JavaScript remain supported.
 
 ## Design decisions

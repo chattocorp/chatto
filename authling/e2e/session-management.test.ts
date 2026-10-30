@@ -20,7 +20,7 @@ test('reviews and signs out other browser sessions', async ({ browser, page, req
   };
 
   const firstOther = await signInElsewhere();
-  await page.reload();
+  await page.getByRole('link', { name: 'Sessions', exact: true }).click();
   let sessionSection = page.getByRole('heading', { name: 'Sessions' }).locator('..');
   await expect(sessionSection.getByText('Browser session', { exact: true })).toHaveCount(2);
   await expect(sessionSection.getByText('This browser')).toHaveCount(1);

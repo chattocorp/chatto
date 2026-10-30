@@ -8,6 +8,7 @@ The [design system](../../../docs/design-system.md) defines tokens, type, spacin
 layouts, and verification. Preview components at `/dev/ui` in a `bootstrap` build.
 
 - `Heading` supplies the page title; children supply its introduction.
+- `SectionHeading` supplies a panel title below the page heading.
 - `Field` pairs a label, native input, and optional accessible hint. IDs must be
   unique. Pass native attributes for type, name, autocomplete, and validation.
   Do not override its ID, class, or hint relationship in the attributes map.

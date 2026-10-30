@@ -29,7 +29,8 @@ templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, c
 							<td>
 								if row.Access.Allowed() {
 									if row.Access.Configured {
-										<span title="Via server configuration">@ui.Badge("Administrator")</span>
+										<span title="Via server configuration">@ui.Badge("Administrator")
+</span>
 									} else {
 										@ui.Badge("Administrator")
 									}
