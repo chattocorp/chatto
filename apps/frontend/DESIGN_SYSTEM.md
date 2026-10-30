@@ -141,6 +141,9 @@ text-coloured ring and a `surface-selected` surround. Keep the server artwork un
 stays separate from the accent-coloured keyboard focus outline. Do not add
 a side stripe or cast shadow for navigation selection.
 
+The 48 px server frame has a corner radius 2 px larger than the 44 px logo's
+`rounded-xl` radius. This keeps the frame and artwork corners concentric.
+
 ## Choosing A Primitive
 
 | Need                                        | Use                                                                                    | Avoid                                                         |
