@@ -44,7 +44,12 @@ for (const javaScriptEnabled of [true, false]) {
       await page
         .getByLabel('Sign-in introduction', { exact: true })
         .fill('Welcome <script>alert(1)</script>');
-      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      if (!javaScriptEnabled) {
+        await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      } else {
+        await expect(page.getByRole('button', { name: 'Preview', exact: true })).toBeHidden();
+        await expect(page.getByLabel('Sign-in introduction', { exact: true })).toBeFocused();
+      }
       if (javaScriptEnabled) {
         expect(await page.evaluate(() => Reflect.get(window, 'appearanceDocument'))).toBe(true);
       }
@@ -59,6 +64,12 @@ for (const javaScriptEnabled of [true, false]) {
         'Our accounts'
       );
       await expect(preview.locator('script')).toHaveCount(0);
+      if (javaScriptEnabled) {
+        await page.getByLabel('Sign-in introduction', { exact: true }).fill('');
+        await expect(
+          preview.getByText('Sign in to Our accounts with your email address and password.')
+        ).toBeVisible();
+      }
       for (const colorScheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme });
         await page.setViewportSize({ width: 375, height: 812 });

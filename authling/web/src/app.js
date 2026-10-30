@@ -2,6 +2,7 @@
 import './app.css';
 import htmx from 'htmx.org';
 import './toasts.js';
+import './appearance.js';
 
 Object.assign(htmx.config, {
   allowEval: false,

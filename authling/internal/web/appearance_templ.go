@@ -190,7 +190,7 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"mt-6 grid items-start gap-8 lg:grid-cols-2\"><form class=\"form-stack mt-0\" method=\"post\" action=\"/admin/appearance\" hx-boost=\"true\" hx-push-url=\"true\" hx-disabled-elt=\"find button[type='submit']\"><input type=\"hidden\" name=\"revision\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div data-appearance-editor class=\"mt-6 grid items-start gap-8 lg:grid-cols-2\"><form class=\"form-stack mt-0\" method=\"post\" action=\"/admin/appearance\" hx-boost=\"true\" hx-push-url=\"true\" hx-disabled-elt=\"find button[type='submit']\"><input type=\"hidden\" name=\"revision\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -228,7 +228,7 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea><p id=\"site-introduction-hint\" class=\"field-hint\">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p></div><div class=\"flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"submit\" name=\"action\" value=\"save\">Save changes</button> <button class=\"button button-secondary\" type=\"submit\" name=\"action\" value=\"preview\">Preview</button></div><a class=\"text-link\" href=\"/admin/appearance\" target=\"_blank\" rel=\"noopener\">View saved settings</a></form><aside aria-label=\"Sign-in preview\" class=\"min-w-0\"><div class=\"mb-4 flex flex-wrap items-center justify-between gap-2\"><h2 class=\"font-semibold\">Sign-in preview</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea><p id=\"site-introduction-hint\" class=\"field-hint\">A short welcome above the sign-in form. Leave blank for the default. Plain text, up to 500 characters, without line breaks.</p></div><div class=\"flex flex-wrap gap-3\"><button class=\"button button-primary\" type=\"submit\" name=\"action\" value=\"save\">Save changes</button> <button data-preview-button class=\"button button-secondary\" type=\"submit\" name=\"action\" value=\"preview\">Preview</button></div><a class=\"text-link\" href=\"/admin/appearance\" target=\"_blank\" rel=\"noopener\">View saved settings</a></form><aside aria-label=\"Sign-in preview\" class=\"min-w-0\"><div class=\"mb-4 flex flex-wrap items-center justify-between gap-2\"><h2 class=\"font-semibold\">Sign-in preview</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -236,7 +236,7 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><p class=\"mb-4 text-muted\" role=\"status\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><p data-preview-status class=\"mb-4 text-muted\" role=\"status\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -251,14 +251,14 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p><div class=\"mb-3 break-words font-semibold\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p><div data-preview-name class=\"mb-3 break-words font-semibold\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(input.Site.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 62, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/appearance.templ`, Line: 62, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
