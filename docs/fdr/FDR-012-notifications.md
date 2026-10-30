@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-22
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -19,6 +19,28 @@ consolidate them for presentation without changing occurrence identity, jump
 targets, unread counts, read state, or deletion semantics.
 
 ## Behavior
+
+- Desktop users can enable native OS alerts with **Push notifications on this
+  device**. Consent starts off and applies to all signed-in servers on that
+  device. A local test checks OS delivery. Alerts contain generic text without
+  message previews. They use the existing live updates and notification polls;
+  inactive servers do not gain persistent connections or additional polls.
+  New Important occurrences that need attention can alert after the initial
+  notification list loads. Older pages, repeated reads, Ambient occurrences,
+  and occurrences observed during Do Not Disturb do not alert. Each eligible
+  batch uses the selected server-specific sound once. Reading or removing an
+  occurrence clears its retained alert after the client observes the change.
+  Session and access boundaries clear retained alerts and click targets. An
+  occurrence missing from a partial page remains unknown. Its alert and click
+  target stay available until handling or expiry is confirmed, or until the
+  device's limit of 64 retained alerts removes the oldest alert. Retained targets
+  contain no actor or room display text.
+- On macOS, closing the desktop window keeps Chatto running. The Dock reopens
+  the window. **Command-Q** quits the app and stops new alerts. On Windows and
+  Linux, closing the main window quits the app. Chatto adds no menu bar or
+  system tray icon. OS shutdown and update restarts can still terminate the app.
+  This delivery contacts only the user's Chatto servers and the local OS;
+  it does not use an external push provider.
 
 - Option/Alt+Shift+Down opens the next unread notification source across signed-in
   servers. The quick switcher offers the same action. Important notifications
@@ -347,7 +369,10 @@ decorate a followed thread from matching unread occurrences in the finite
 notification view. The thread read cursor remains the only source of
 reply-unread state. Unread totals remain exact even when rows are grouped. The
 client also performs quiet periodic reconciliation so a lost transient update
-cannot leave counts stale indefinitely.
+cannot leave counts stale indefinitely. The one-minute fallback skips a read
+when an authoritative notification page was read within the last five seconds.
+Concurrent fallback requests share one read. Failed reads and privacy resets
+do not delay recovery. This coordination adds no timers or persistent connections.
 
 **Why:** A transient notification invalidation is not durable notification
 state. Rebuilding the finite projection avoids exposing internal storage
@@ -405,8 +430,10 @@ shared account Do Not Disturb choice, current unread state, and attention level 
 playback. Only new unread Important notifications can cause a sound. Ambient
 notifications stay silent so low-attention activity does not interrupt the user.
 The client groups eligible creations received during one refresh into one sound.
-Duplicate hints, failed
-reads, missing rows, and quiet reconciliation do not cause another sound.
+Duplicate hints, failed reads, and missing rows do not cause another sound.
+Browser reconciliation stays silent. With desktop alerts enabled, a new eligible
+occurrence found by polling can produce one sound for the batch. Both delivery
+paths use the same attention, Do Not Disturb, and sound preferences.
 During an upgrade, the client
 copies the old global sound choice when it first creates the slot for a server.
 

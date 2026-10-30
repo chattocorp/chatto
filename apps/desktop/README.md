@@ -42,6 +42,31 @@ popup support for the same PKCE and
 `chatto://desktop` client identity and exact callback; bearer-authenticated API
 and realtime access requires no server origin configuration.
 
+## Notifications and background operation
+
+On macOS, closing the main window hides it and keeps Chatto running. Select
+Chatto in the Dock to open the window again. **Command-Q** quits the app and
+stops its connections and new alerts. On Windows and Linux, closing the main
+window quits the app. Chatto adds no menu bar or system tray icon.
+
+In notification settings, enable **Push notifications on this device** to allow
+native desktop alerts. This choice applies to every signed-in server and starts
+off. Use **Send test notification** to check OS delivery. macOS notification
+tests require a signed application. OS notification settings can block alerts.
+
+Native alerts use the existing notification resource reads. The selected server
+keeps its normal live connection; inactive servers keep their normal polling
+schedule. Desktop alerts do not open additional connections or add polling.
+An inactive server's alert can therefore arrive at the next poll.
+
+Only new Important notifications that still need attention produce alerts.
+Do Not Disturb suppresses alerts. Initial history and older pages do not produce
+alerts. Alerts contain generic text, without message previews. Click an alert
+to open its conversation and highlight its message. Reading or removing an
+occurrence, signing out, or losing access clears its retained alert when the
+client observes that change. Fully quitting stops new alerts. Delivery uses no
+external push provider; browser Web Push is separate.
+
 ## Run it
 
 From the repository root:

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import {
   NotificationStore,
@@ -1443,5 +1443,87 @@ describe('native push reconciliation', () => {
     store.replaceOccurrenceProjection(notificationPage(page([mention('new')])));
     read.resolve(notificationPage(page([])));
     expect(await pending).toEqual(new Set());
+  });
+});
+
+describe('notification fallback freshness and retained alert evidence', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reuses a recent projection read, then recovers a missed hint when its age limit expires', async () => {
+    vi.useFakeTimers();
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(notificationPage(page([mention('one')])));
+    await store.reconcile(60_000);
+    expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(60_000);
+    await store.reconcile(60_000);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledOnce();
+    await store.reconcile();
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares overlapping fallback reads and allows immediate retries after failure', async () => {
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    const read = deferred<NotificationOccurrencePage>();
+    api.listNotificationOccurrences.mockReturnValueOnce(read.promise);
+    const first = store.reconcile(60_000);
+    const second = store.reconcile(60_000);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledOnce();
+    read.reject(new Error('offline'));
+    await Promise.all([first, second]);
+    await store.reconcile(60_000);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reuse a read invalidated by a projection reset', async () => {
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    const read = deferred<NotificationOccurrencePage>();
+    api.listNotificationOccurrences.mockReturnValueOnce(read.promise);
+    const stale = store.reconcile(60_000);
+    store.resetProjectionState();
+    await store.reconcile(60_000);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2);
+    read.resolve(notificationPage(page([mention('stale')])));
+    await stale;
+    expect(store.occurrences).toEqual([]);
+  });
+
+  it('keeps missing IDs on partial pages and clears them only with authoritative evidence', () => {
+    const store = new NotificationStore(makeAPI());
+    expect(store.knownHandledNotificationIds(['older'])).toEqual(new Set());
+    const partial = { ...notificationPage(page([mention('newer')])), hasMore: true };
+    store.replaceOccurrenceProjection(partial);
+    expect(store.knownHandledNotificationIds(['older', 'newer'])).toEqual(new Set());
+    store.replaceOccurrenceProjection({
+      ...partial,
+      occurrences: [{ ...mention('newer'), unread: false }]
+    });
+    expect(store.knownHandledNotificationIds(['older', 'newer'])).toEqual(new Set(['newer']));
+    store.replaceOccurrenceProjection({ ...partial, occurrences: [], unreadCount: 0 });
+    expect(store.knownHandledNotificationIds(['older'])).toEqual(new Set(['older']));
+    store.resetProjectionState();
+    expect(store.knownHandledNotificationIds(['older'])).toEqual(new Set());
+    store.replaceOccurrenceProjection(notificationPage(page([])));
+    expect(store.knownHandledNotificationIds(['older'])).toEqual(new Set(['older']));
+  });
+
+  it('does not treat optimistic deletion as confirmed handling', async () => {
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(notificationPage(page([mention('one')])));
+    const deletion = deferred<number>();
+    api.batchDeleteNotificationOccurrences.mockReturnValueOnce(deletion.promise);
+    const pending = store.deleteOccurrences(['one']);
+    expect(store.knownHandledNotificationIds(['one'])).toEqual(new Set());
+    deletion.resolve(1);
+    await pending;
+    expect(store.knownHandledNotificationIds(['one'])).toEqual(new Set(['one']));
+    await store.reconcile(60_000);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledOnce();
   });
 });
