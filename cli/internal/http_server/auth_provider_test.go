@@ -200,6 +200,66 @@ func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	}
 }
 
+// Provider denial must finish the popup transaction without accepting an
+// unvalidated callback state or an external return URL.
+func TestProviderDenialReturnsToPopup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, _ := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "test-provider", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret",
+		}}
+		s.setupOIDCRoutes()
+	})
+	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	for _, tc := range []struct {
+		name, returnPath, wantPath, wantError string
+		badState                              bool
+	}{
+		{"popup", popupReturn, "/servers/callback", "provider_denied", false},
+		{"no return path", "", "/login", "provider_denied", false},
+		{"external return path", "https://attacker.invalid/callback", "/login", "provider_denied", false},
+		{"invalid state", popupReturn, "/login", "provider_failed", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			start := startNoEmailOIDC(t, client, ts.URL, "test-provider", url.Values{"redirect": {tc.returnPath}})
+			state := authStateFromLocation(t, start)
+			if tc.badState {
+				state = "wrong-state"
+			}
+			callback := ts.URL + "/auth/providers/test-provider/callback?" + url.Values{
+				"state": {state}, "error": {"access_denied"},
+			}.Encode()
+			response, err := client.Get(callback)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response.Body.Close()
+			location, err := url.Parse(response.Header.Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != http.StatusTemporaryRedirect || location.Path != tc.wantPath || location.Query().Get("error") != tc.wantError {
+				t.Fatalf("denial return = %d %q, want %s with %s", response.StatusCode, location, tc.wantPath, tc.wantError)
+			}
+			if tc.wantPath == "/servers/callback" && (location.Query().Get("mode") != "provider" || location.Query().Get("state") != "popup-state") {
+				t.Fatalf("popup correlation was lost: %s", location)
+			}
+			// The state is consumed even on denial; replay cannot notify a popup.
+			replay, err := client.Get(callback)
+			if err != nil {
+				t.Fatal(err)
+			}
+			replay.Body.Close()
+			if got := replay.Header.Get("Location"); got != "/login?error=provider_failed" {
+				t.Fatalf("replayed denial return = %q", got)
+			}
+		})
+	}
+}
+
 func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	requestEmail := false
@@ -505,7 +565,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.config.Webserver.URL = "http://chat.example"
-		s.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+		setTestRegistrationAdmission(t, s.core, true)
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID:            "oidc-invited",
 			Type:          config.AuthProviderTypeOpenIDConnect,
@@ -526,22 +586,20 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(t.Context(), admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	maxUses := uint32(1)
-	invitation, err := chattoCore.CreateInvitation(t.Context(), admin.Id, &maxUses, nil)
+	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, nil, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	bindResp, err := client.Get(ts.URL + chattoCore.InvitationLinkPath(invitation.ID))
-	if err != nil {
-		t.Fatalf("GET invite link: %v", err)
-	}
-	bindResp.Body.Close()
-	if bindResp.StatusCode != http.StatusSeeOther || bindResp.Header.Get("Location") != "/register?invited=1" {
-		t.Fatalf("GET invite link = %d %q", bindResp.StatusCode, bindResp.Header.Get("Location"))
-	}
+	admissionID := acceptTestInvitation(t, client, ts.URL, chattoCore.InvitationCode(invitation.ID), "")["admissionId"]
 
 	issuer.SetSubject("subject-invited-create")
-	createToken := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-invited", "/chat")
+	admittedStart := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}, "admission": {admissionID}})
+	admittedLocation := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, admittedStart))
+	admittedURL, err := url.Parse(admittedLocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createToken := admittedURL.Query().Get("token")
 	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), createToken)
 	if err != nil {
 		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
@@ -553,15 +611,15 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 		t.Fatalf("CreateUserForExternalIdentity: %v", err)
 	}
 	state, err := chattoCore.GetInvitation(t.Context(), admin.Id, invitation.ID)
-	if err != nil || state.UseCount != 1 {
+	if err != nil || !state.Used {
 		t.Fatalf("invitation after SSO signup = %+v, %v; want one use", state, err)
 	}
 
 	issuer.SetSubject("subject-missing-invite")
 	startLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}})
 	location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, startLocation))
-	if location != "/login?error=invalid_invitation" {
-		t.Fatalf("uninvited auto-provision Location = %q, want invalid invitation", location)
+	if !strings.HasPrefix(location, "/register?external_identity=") {
+		t.Fatalf("uninvited auto-provision Location = %q, want invitation gate", location)
 	}
 }
 

@@ -17,7 +17,7 @@ system-browser authentication, and clean-machine media behavior are hardened.
   this includes navigation gestures sent by mouse software such as Options+.
   Keyboard navigation uses `Alt+Left` and `Alt+Right` on Windows/Linux, or
   `Cmd+[` and `Cmd+]` on macOS. Navigation stops at either end of the history.
-- The application is named **Chatto Desktop** and presents the same interface,
+- The application is named **Chatto** and presents the same interface,
   routes, translations, and client-server compatibility behavior as the
   official standalone frontend.
 - People can register and switch between multiple Chatto servers through the
@@ -95,6 +95,7 @@ system-browser authentication, and clean-machine media behavior are hardened.
   setting. Prerelease builds default to Beta; stable builds default to Stable.
   A saved channel choice takes precedence. Stable rolls out over 36 hours. Beta and manual
   checks bypass this delay. Switching to Stable never installs an older version.
+  The restart action is hidden until an update is ready and shows its version.
   Installation requires an explicit restart confirmation; ordinary quit does
   not install updates. Existing builds need one manual upgrade to obtain this
   behavior. Windows ZIP and Linux tarball updates remain manual.
@@ -103,7 +104,7 @@ system-browser authentication, and clean-machine media behavior are hardened.
   connection and lets users disable automatic checks and downloads.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
-- Local macOS development bundles can use the separate **Chatto Desktop Dev**
+- Local macOS development bundles can use the separate **Chatto Dev**
   identity, helper identity, and app-data directory. This keeps development
   permissions and sessions separate from the official app. Ad-hoc signed
   rebuilds can still require a new permission grant; a stable signing

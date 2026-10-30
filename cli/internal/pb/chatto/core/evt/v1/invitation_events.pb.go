@@ -22,13 +22,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// InvitationCreatedEvent establishes one server invitation and its immutable
-// admission constraints. The shareable signed code is deliberately not stored.
+// InvitationCreatedEvent establishes one single-use invitation code.
+// The shareable code is not stored.
 type InvitationCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InvitationId  string                 `protobuf:"bytes,1,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
-	MaxUses       *uint32                `protobuf:"varint,2,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	InvitationId string                 `protobuf:"bytes,1,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	ExpiresAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Immutable plain-text note for invitation managers, not an admission constraint.
+	Note          string `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -70,18 +71,18 @@ func (x *InvitationCreatedEvent) GetInvitationId() string {
 	return ""
 }
 
-func (x *InvitationCreatedEvent) GetMaxUses() uint32 {
-	if x != nil && x.MaxUses != nil {
-		return *x.MaxUses
-	}
-	return 0
-}
-
 func (x *InvitationCreatedEvent) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
+}
+
+func (x *InvitationCreatedEvent) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
 }
 
 // InvitationRedeemedEvent records the account admitted by an invitation.
@@ -186,13 +187,12 @@ var File_chatto_core_evt_v1_invitation_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_invitation_events_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/evt/v1/invitation_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa5\x01\n" +
+	"*chatto/core/evt/v1/invitation_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x01\n" +
 	"\x16InvitationCreatedEvent\x12#\n" +
-	"\rinvitation_id\x18\x01 \x01(\tR\finvitationId\x12\x1e\n" +
-	"\bmax_uses\x18\x02 \x01(\rH\x00R\amaxUses\x88\x01\x01\x129\n" +
+	"\rinvitation_id\x18\x01 \x01(\tR\finvitationId\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAtB\v\n" +
-	"\t_max_uses\"W\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x12\n" +
+	"\x04note\x18\x04 \x01(\tR\x04noteJ\x04\b\x02\x10\x03R\bmax_uses\"W\n" +
 	"\x17InvitationRedeemedEvent\x12#\n" +
 	"\rinvitation_id\x18\x01 \x01(\tR\finvitationId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"=\n" +
@@ -233,7 +233,6 @@ func file_chatto_core_evt_v1_invitation_events_proto_init() {
 	if File_chatto_core_evt_v1_invitation_events_proto != nil {
 		return
 	}
-	file_chatto_core_evt_v1_invitation_events_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

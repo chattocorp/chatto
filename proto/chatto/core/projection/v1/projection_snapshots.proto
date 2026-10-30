@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "chatto/core/evt/v1/asset_events.proto";
 import "chatto/core/evt/v1/event.proto";
 import "chatto/core/evt/v1/event_values.proto";
+import "chatto/core/evt/v1/config_events.proto";
 import "chatto/core/evt/v1/notification_policy.proto";
 import "chatto/core/notification/v1/notification.proto";
 import "chatto/core/evt/v1/rbac_events.proto";
@@ -311,6 +312,7 @@ message ConfigProjectionSnapshot {
   chatto.core.evt.v1.AssetRecord banner = 7;
   repeated UserConfigSnapshot users = 8;
   repeated ServerNeighborSnapshot neighbors = 9;
+  chatto.core.evt.v1.RegistrationAdmission registration_admission = 10;
 }
 
 // Restorable state for one advertised server in the Neighbor directory.

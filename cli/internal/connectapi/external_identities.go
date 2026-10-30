@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -42,9 +43,19 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
 		pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED.Enum()
 	}
-	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
-		Pending: pending,
-	}), nil
+	if err := s.api.core.WaitForRegistrationPolicy(ctx); err != nil {
+		return nil, err
+	}
+	if flow.Kind == core.ExternalIdentityFlowKindCreate && s.api.core.InvitationRequired() {
+		err := s.api.core.ValidateInvitationAdmission(ctx, flow.InvitationID)
+		if err != nil && !errors.Is(err, core.ErrInvitationInvalid) {
+			return nil, err
+		}
+		pending.InvitationRequired = err != nil
+	}
+	response := connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{Pending: pending})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
 }
 
 func availableExternalIdentityLogin(chattoCore *core.ChattoCore, token, hint string) string {
@@ -73,14 +84,21 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, err
 	}
-	if s.api.config.Auth.InvitationRequired() {
+	if err := s.api.core.WaitForRegistrationPolicy(ctx); err != nil {
+		return nil, err
+	}
+	if s.api.core.InvitationRequired() {
+		// An explicit code replaces the captured invitation for this attempt,
+		// including when the captured invitation is no longer usable.
+		if req.Msg.GetInvitationCode() != "" {
+			flow.InvitationID, err = s.api.core.ValidateInvitationCode(ctx, req.Msg.GetInvitationCode())
+			if err != nil {
+				return nil, err
+			}
+		}
 		if strings.TrimSpace(flow.InvitationID) == "" {
 			return nil, core.ErrInvitationInvalid
 		}
-	} else {
-		// Pending flows survive configuration rollouts. Re-evaluate admission
-		// now, and never redeem an invitation while the server is open.
-		flow.InvitationID = ""
 	}
 	// Leave the fallback empty for managed names. Core uses the actual assigned
 	// username, including any collision suffix, when it creates the account.
@@ -94,6 +112,7 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, err
 	}
 	// The account is committed. A failed sync is repeated at the next sign-in.
+	completeRegistrationAdmission(ctx, flow.InvitationID)
 	if provider, ok := s.api.authProvider(flow.ProviderID); ok {
 		groups := core.ProviderGroups{Groups: flow.Groups, Known: flow.GroupsKnown}
 		if err := s.api.core.SyncProviderGroupRoles(ctx, user.GetId(), core.ProviderRoleSource{ProviderID: provider.ID, Issuer: flow.Issuer, Subject: flow.Subject}, provider.GroupRoleMappings(), groups); err != nil {

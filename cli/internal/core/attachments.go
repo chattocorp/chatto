@@ -192,7 +192,7 @@ func (c *MediaModel) storeAttachmentBinary(
 		if err != nil {
 			return nil, fmt.Errorf("failed to get attachments store: %w", err)
 		}
-		if _, err := store.Put(ctx, jetstream.ObjectMeta{
+		if _, err := putAttachmentObject(ctx, store.Put, jetstream.ObjectMeta{
 			Name: attachmentID,
 			Headers: map[string][]string{
 				"Content-Type": {contentType},

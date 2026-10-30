@@ -31,3 +31,14 @@
     </ActivityListRow>
   </div>
 </Story>
+
+<Story name="Narrow summary" asChild>
+  <div class="selectable-list w-80 max-w-full">
+    <ActivityListRow rowAttributes={{ class: '@container/activity' }} onclick={() => undefined}>
+      <ActivityRowText time="2m ago" emphasized hideTimeOnNarrow>
+        {#snippet title()}Carlo Zottmann replied in a thread you follow{/snippet}
+        {#snippet location()}<bdi dir="auto">#general</bdi>{/snippet}
+      </ActivityRowText>
+    </ActivityListRow>
+  </div>
+</Story>

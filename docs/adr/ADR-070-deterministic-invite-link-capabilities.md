@@ -1,116 +1,79 @@
-# ADR-070: Derive Invite-Link Capabilities from Durable EVT Identity
+# ADR-070: Derive Invitation Capabilities from Durable EVT Identity
 
 **Date:** 2026-08-11
-
+**Amended:** 2026-10-29
 **Status:** Accepted
 
 ## Context
 
-Invite-only account creation needs shareable invite links that can be
-copied again, limited by use count or expiry, revoked, and redeemed correctly
-when several Chatto replicas serve signups concurrently. Invitation lifecycle
-and usage also need durable audit history.
+Invite-only account creation needs capabilities that administrators can copy
+again, revoke, and redeem correctly across replicas. Invitation lifecycle
+needs durable audit history. FDR-036 specifies single-use codes.
 
-Persisting a raw invite-link token in `EVT` would put a live bearer capability in
-event history and backups. Persisting only a one-way hash avoids that exposure
-but makes an existing link impossible to recover, forcing administrators into
-a show-once workflow. A mutable latest-value record would make counters
-convenient but would split the source of truth from the required audit history.
-
-The admission policy itself has different ownership. It determines whether
-self-service account creation is available at deployment time, before an
-administrator can necessarily use the application, and resembles configured
-authentication methods more than a mutable domain resource.
+Persisting raw capabilities in `EVT` would expose them in event history and
+backups. A hash alone would prevent administrators from copying a code again.
+A separate mutable record would split invitation state from its audit history.
 
 ## Decision
 
-Account admission policy is static server configuration with two values:
-`open` and `invite_only`. `open` is the compatibility default. Every serving
-replica must use the same configured value; operators upgrade all replicas
-before enabling `invite_only` during a rolling deployment.
+Account admission policy is the typed admin setting `registration.admission`:
+`open` or `invite_only`, with `open` as the default. Changes are durable config
+facts in EVT and apply to all replicas.
 
-Invitation creation, constraints, redemption, and revocation are protobuf
-facts in the `EVT` stream. A dedicated invitation projection derives active,
-expired, exhausted, and revoked state and the current use count. Mutations use
-the invitation aggregate's subject-filter OCC boundary. Account creation adds
-the redemption fact to the same atomic EVT batch as the new user's durable
-creation and verified sign-in-factor facts. The existing whole-`EVT`
-account-uniqueness OCC boundary also covers the invitation tail, so any
-concurrent redemption forces the complete admission decision to retry.
+Creation, redemption, and revocation remain protobuf facts in `EVT`. The
+invitation projection retains each code's creation, used state, expiry, and
+revocation. Every code permits exactly one account. There are no reusable
+invitations, use limits, or code-version fields.
 
-An invite link uses `/invite/{token}`, where `token` is a fixed 16-character
-URL-safe opaque capability. It is the first 96 bits of an HMAC over Chatto's
-existing public invitation ID, encoded as 16 unpadded base64url characters.
-Every character therefore contributes to the token's 96 bits of secret
-unpredictability instead of carrying a separately visible identifier.
+Invitation mutations use the invitation aggregate's subject-filter OCC
+boundary. Account creation adds the redemption fact to the same atomic EVT
+batch as the user's creation and verified sign-in factors. The whole-`EVT`
+account-uniqueness guard also covers invitation changes. A concurrent change
+forces the complete admission decision to retry.
 
-Chatto derives a purpose-specific signing key from `[core].secret_key` and a
-fixed, versioned invite-link context before signing the invitation ID. The
-token is never stored in `EVT`, `RUNTIME_STATE`, logs, or audit metadata.
-Authorized administrators can reproduce the same full link from the invitation
-ID.
+Codes contain the first 96 bits of an HMAC over the public invitation ID,
+encoded as 20 unpadded base32 characters in five groups of four. Validation
+ignores letter case, spaces, and hyphens. Both key derivation and the HMAC
+input use versioned, purpose-specific contexts. Raw codes are not stored in
+`EVT`, runtime records, or logs. Authorized administrators reconstruct them.
 
-Each replica maintains a process-local token-to-invitation index derived from
-the invitation projection. Invitation identities are append-only, so the model
-rebuilds the index when the projected identity count changes. Token resolution
-then remains constant-time without turning the bearer capability into durable
-state. A collision in the 96-bit truncated output fails validation closed
-rather than selecting either invitation.
+Each replica derives a code-to-ID index from the invitation projection. IDs
+are append-only, so the model rebuilds the index when the identity count
+changes. Resolution is then constant-time. A detected collision fails closed.
 
-The `/invite/{token}` HTTP entry point validates the capability, stores only
-the invitation ID in the signed browser session, and redirects immediately to
-`/register?invited=1`. Invalid links redirect to the same generic registration
-error. Responses are non-cacheable and suppress referrers, and request logging
-records `/invite/:token` rather than the bearer value. Direct registration and
-external-provider auto-provisioning consume the session-bound invitation ID;
-there is no separate manual-entry flow.
+The browser submits a code in a JSON POST body to a same-origin endpoint.
+The server validates it without consumption and stores a bounded list of
+admission IDs, invitation IDs, code fingerprints, and expiry times in its
+signed HttpOnly session cookie, encrypted when cookie encryption is configured.
+A tab keeps only its random admission selector in session
+storage. New email and SSO flows select an exact cookie entry. Started flows
+retain their invitation ID in existing short-lived runtime records.
 
-The application cannot redact an upstream reverse proxy's or CDN's access
-logs. Operators must configure those layers to replace the suffix of
-`/invite/*` with a placeholder. This is the unavoidable operational tradeoff
-of placing a directly usable bearer capability in a conventional link path.
+A new provider identity can reach the invitation gate after authentication.
+Binding a code creates a new pending capability with the same verified
+identity and original expiry. The original remains until expiry so a lost
+response can be retried. Each copy keeps its invitation. Identity uniqueness
+and atomic account creation prevent duplicate accounts or consuming two codes
+for the same identity. Linking flows are not accepted by this gate.
 
-Changing `[core].secret_key` intentionally invalidates all previously shared
-invite-link capabilities, alongside the other server-secret-derived runtime
-artifacts. It does not rewrite or revoke durable invitation aggregates; after
-rotation, an administrator can copy a newly derived link for any invitation
-that is otherwise still active.
+Code handoff through URLs is deferred.
 
 ## Consequences
 
-Invite-link definitions and usage remain auditable, restorable domain history,
-while backups do not contain directly usable links. The same link
-can be recovered without separate encrypted secret storage.
+Invitation history remains auditable and restorable. Backups do not contain
+raw codes. Failed signup does not consume a code, and one code cannot admit
+two accounts across replicas.
 
-Use limits remain correct across replicas, and failed account creation cannot
-consume a use. The signup implementation is more coupled to the atomic EVT
-batch boundary because it must commit user and invitation facts together.
+Changing `core.secret_key` invalidates distributed codes and browser admission
+grants through their code fingerprints. Active durable records remain, and administrators can copy new codes.
+Operators must keep this secret consistent across replicas and restores.
 
-The compact signing format fixes its current 96-bit length. Its versioned
-derivation context allows a future implementation to derive and index more
-than one format during a migration without spending path characters on an
-explicit version. Operators must treat
-`[core].secret_key` as stable shared deployment state and understand that its
-rotation invalidates already-distributed links.
+The code index adds process-local memory and retains the 96-bit namespace's
+collision risk. Detected collisions fail closed.
 
-The shortened capability adds a small process-local lookup index and accepts
-the birthday-bound collision risk of a 96-bit namespace. A detected collision
-fails closed. Even at one million durable invitation records, the approximate
-chance of any collision remains about 6 in a quintillion.
-
-Conventional paths are easier to share than fragment-based handoffs, but every
-HTTP intermediary sees the bearer path. Chatto redacts its own request and
-internal-error logs and returns no-store, no-referrer, and noindex directives;
-deployment-owned access logging needs equivalent redaction.
-
-Static admission policy is simple to bootstrap and operate, but changing it
-requires configuration rollout rather than an in-application toggle. Mixed
-old/new server replicas must not serve traffic with invite-only enabled.
-
-The public API additions are additive. New clients interpret an absent or
-unknown discovery policy from older servers as `open`; older clients do not
-understand invite-only registration and therefore cannot create accounts on a
-server that enables it.
+The public administration API replaces `AdminInviteLinkService` with
+`AdminInvitationCodeService`. Integrations must use the new service. No
+client connection floor increase is required.
 
 ## Related
 

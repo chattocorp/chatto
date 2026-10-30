@@ -170,7 +170,7 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
-	// PermUserInvite allows listing, creating, copying, and revoking invite links.
+	// PermUserInvite allows listing, creating, copying, and revoking invitation codes.
 	PermUserInvite Permission = "user.invite"
 
 	// PermUserManageAccounts allows account lifecycle and recovery operations

@@ -1304,6 +1304,30 @@ describe('MessageComposer', () => {
       await expect.element(editor).toHaveTextContent('**kept** draft');
     });
 
+    it.each([
+      ['markdown', 'visual'],
+      ['visual', 'markdown']
+    ] as const)(
+      'keeps attachment preparation active when switching from %s to %s',
+      async (from, to) => {
+        userPreferences.composerEditor = from;
+        const pending = deferred<File[]>();
+        prepareFilesMock.mockReturnValueOnce(pending.promise);
+        const { container } = renderMessageComposer({ roomId: 'preparation-editor-switch' });
+        await findEditor(container);
+        const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+        await vi.waitFor(() => expect(prepareFilesMock).toHaveBeenCalledOnce());
+
+        userPreferences.composerEditor = to;
+        await vi.waitFor(() => expect(q(container, `[data-composer-editor="${to}"]`)).toBeTruthy());
+        await findEditor(container);
+        pending.resolve([file]);
+
+        await expect.poll(() => q(container, 'img')).toBeTruthy();
+        expect(prepareFilesMock).toHaveBeenCalledOnce();
+      }
+    );
+
     it('preserves editable footnotes when switching modes and sending the message', async () => {
       const { container } = renderMessageComposer({ roomId: 'footnote-switch' });
       let editor = await findEditor(container);
@@ -4708,6 +4732,36 @@ describe('MessageComposer', () => {
   });
 
   describe('link preview composer behavior', () => {
+    it('detects links in a restored draft without an editor input event', async () => {
+      const url = 'https://example.com/restored';
+      mockLinkPreview(url);
+      sessionStorage.setItem('chatto:draft:restored-preview', `Look ${url}`);
+      const { container } = renderMessageComposer(
+        { roomId: 'restored-preview' },
+        { exactRoomId: true }
+      );
+
+      await findEditor(container);
+      await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce());
+      await expect
+        .element(q(container, '[data-testid="composer-link-preview"]'))
+        .toBeInTheDocument();
+      expect(sessionStorage.getItem('chatto:draft:restored-preview')).toBe(`Look ${url}`);
+    });
+
+    it('cancels pending preview detection when the composer unmounts', async () => {
+      const rendered = renderMessageComposer({ roomId: 'preview-unmount' });
+      const editor = await findEditor(rendered.container);
+      await typeInEditor(editor, 'https://example.com/unmounted');
+      rendered.unmount();
+
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(fetchLinkPreviewConnectMock).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem(`chatto:draft:${rendered.roomId}`)).toBe(
+        'https://example.com/unmounted'
+      );
+    });
+
     it('retries the original request when a preview loads after a lost response', async () => {
       const url = 'https://example.com/late-preview';
       let finishPreview!: () => void;

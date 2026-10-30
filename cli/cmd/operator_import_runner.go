@@ -31,6 +31,7 @@ type cliArchiveImport struct {
 	users, rooms, messages, authors map[string]string
 	assets                          map[string]interchange.Asset
 	userMatches                     []importUserMatch
+	legacyMessageBatches            bool
 }
 
 // importRef keeps arbitrary source identifiers private and unambiguous in keys.
@@ -80,7 +81,8 @@ func sortedImportKeys[V any](values map[string]V) []string {
 }
 
 // run resolves identities before writes, then applies each source operation in
-// order. A durable local mapping is written before dependent calls are made.
+// order. Non-replayable mappings are synced before dependent calls. History
+// results use grouped checkpoints and stable keys backed by server receipts.
 func (m *cliArchiveImport) run(ctx context.Context, validateOnly, acceptOmissions bool) error {
 	if m.progress.values["complete"] == "true" {
 		return nil

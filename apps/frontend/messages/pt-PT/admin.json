@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Criação de contas",
+      "open": "Registo aberto",
+      "invite_only": "Código de convite obrigatório",
+      "open_description": "Qualquer pessoa pode criar uma conta com os métodos de registo configurados.",
+      "invite_only_description": "As novas contas precisam de um código de convite de utilização única. Os utilizadores existentes podem continuar a iniciar sessão.",
+      "methods": "Métodos de registo configurados",
+      "methods_configuration": "Os métodos de registo são geridos na configuração de alojamento deste servidor.",
+      "email_password": "E-mail e palavra-passe",
+      "no_methods": "Não há métodos de registo ativados. Os utilizadores não podem criar contas em nenhum dos modos."
+    },
     "neighbors": {
       "title": "Vizinhos",
       "subtitle": "Divulgue servidores Chatto amigos no seu diretório público",
@@ -553,36 +564,28 @@
       "total": "Total de utilizadores {count}"
     },
     "invitations": {
-      "title": "Ligações de convite",
-      "subtitle": "Crie e faça a gestão de ligações que permitem criar novas contas.",
-      "create_title": "Criar ligação de convite",
-      "max_uses": "Número máximo de usos",
-      "max_uses_error": "Introduza um número inteiro igual ou superior a 1.",
-      "unlimited_uses": "Permitir usos ilimitados",
-      "expiry": "Validade",
-      "expiry_1d": "1 dia",
-      "expiry_7d": "7 dias",
-      "expiry_30d": "30 dias",
-      "expiry_never": "Nunca",
-      "create": "Criar ligação de convite",
-      "created": "Ligação de convite criada",
-      "list_title": "Ligações de convite",
-      "empty": "Ainda não existem ligações de convite.",
-      "uses": "Usos",
+      "note_label": "Nota (opcional)",
+      "note_placeholder": "Para Alex da equipa de design",
+      "note_description": "Apenas os gestores de convites podem ver esta nota.",
+      "note_too_long": "Utilize no máximo 250 caracteres.",
+      "usage": "Os novos códigos expiram após 7 dias e permitem uma conta cada. Copie um código e envie-o ao destinatário. Só é utilizado quando o registo é concluído.",
+      "create_title": "Criar código",
+      "create": "Criar código",
+      "created": "Código de convite criado",
+      "list_title": "Códigos de convite",
+      "empty": "Ainda não existem códigos de convite.",
       "created_at": "Criado",
       "actions": "Ações",
       "never": "Nunca",
-      "copy": "Copiar ligação",
-      "copied": "Ligação de convite copiada",
       "revoke": "Revogar",
-      "revoked": "Ligação de convite revogada",
-      "revoke_title": "Revogar ligação de convite?",
-      "revoke_description": "Esta ligação deixará de permitir a criação de novas contas imediatamente.",
+      "revoked": "Código de convite revogado",
+      "revoke_title": "Revogar código?",
+      "revoke_description": "Este código deixará de permitir novas contas imediatamente.",
       "status": {
         "active": "Ativa",
         "expired": "Expirada",
-        "exhausted": "Esgotada",
-        "revoked": "Revogada"
+        "revoked": "Revogada",
+        "used": "Utilizado"
       }
     }
   }

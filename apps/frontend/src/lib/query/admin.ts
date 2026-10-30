@@ -17,6 +17,9 @@ function userPermissionsRoot(serverId: string, connection: AdminQueryConnection)
 
 export const adminQueryKeys = {
   root: adminRoot,
+  registrationSettings(serverId: string, connection: AdminQueryConnection) {
+    return [...adminRoot(serverId, connection), 'registration-settings'] as const;
+  },
   membersRoot(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'members'] as const;
   },

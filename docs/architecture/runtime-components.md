@@ -201,7 +201,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`server_config_model.go`](../../cli/internal/core/server_config_model.go),
   [`neighbors.go`](../../cli/internal/core/neighbors.go)): Sole core boundary
   for semantic server/user config and Neighbor reads and event writes, including
-  `ConfigProjection` readiness.
+  `ConfigProjection` readiness. Server registration admission is a typed setting
+  in this aggregate. Self-service account creation reads the current admission
+  under stream-wide EVT OCC and commits any required invitation redemption in
+  the account batch. A conflict rebuilds the batch with the current policy.
 - **`NotificationPolicyModel` / `NotificationOccurrenceModel` /
   `NotificationProjection` / `NotificationMaterializer` /
   `NotificationDecisionProjection` / `NotificationAlertDelivery`**
@@ -351,7 +354,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`InvitationModel`**
   ([`invitations.go`](../../cli/internal/core/invitations.go),
   [`invitation_projection.go`](../../cli/internal/core/invitation_projection.go)):
-  Sole core owner of invite-link creation, listing, revocation, validation,
+  Sole core owner of invitation-code creation, listing, revocation, validation,
   compact purpose-separated token derivation, and projection readiness;
   redemption commits atomically with the admitted account against a whole-EVT
   OCC guard.

@@ -158,13 +158,12 @@ export class MessageComposerState {
   readonly #mentionSearchDebounce = useDebounce();
   #mentionSearchRequestId = 0;
   #editSeededForEvent = '';
-  /** Draft key of the room or thread the composer currently shows. */
-  #shownDraftKey = '';
   #autocompleteRoomId = '';
   #insertedQuoteRequestId = 0;
   #focusRequested = false;
   #threadCreationPolicyKey = '';
   #threadDestinationChoicePending = false;
+  #cancelPreviewDetection: (() => void) | undefined;
   pendingThreadDestinationConfirmation = $state<{
     post: PreparedPost;
     candidate: RecentThreadRootCandidate;
@@ -175,6 +174,8 @@ export class MessageComposerState {
     dependencies.context.focus = () => this.focus();
     onDestroy(() => {
       dependencies.context.focus = undefined;
+      this.#cancelPreviewDetection?.();
+      this.draft.stashFiles(this.attachments.filesWithUrls);
     });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
     this.linkPreviews = new LinkPreviewState(dependencies.getLinkPreviewAPI);
@@ -195,10 +196,7 @@ export class MessageComposerState {
 
     void dependencies.mentionRolesStore.load();
     this.#synchronizeMentionSearch();
-    this.#synchronizeEditState();
     this.#synchronizeDraft();
-    this.#synchronizeDraftText();
-    this.#synchronizeLinkPreviews();
     this.#synchronizeAttachmentPermission();
     this.#synchronizeThreadCreationPolicy();
     this.#synchronizeAutoFocus();
@@ -416,7 +414,7 @@ export class MessageComposerState {
 
   handleEditorUpdate(text: string): void {
     const changed = text !== this.message;
-    this.message = text;
+    this.#setMessage(text);
     if (changed) this.#dependencies.getCallbacks().onTyping?.();
     this.autocomplete.update();
   }
@@ -448,28 +446,7 @@ export class MessageComposerState {
     });
   }
 
-  #synchronizeEditState(): void {
-    $effect(() => {
-      const eventId = this.editState.eventId;
-      const originalBody = this.editState.originalBody;
-      const api = this.editorApi;
-      if (eventId && this.#editSeededForEvent !== eventId) {
-        this.#editSeededForEvent = eventId;
-        this.autocomplete.reset();
-        this.draft.clearText();
-        this.message = originalBody;
-        this.alsoSendToChannel = this.editState.channelEchoEventId !== null;
-        api?.setContent(originalBody);
-        tick().then(() => api?.focus('end'));
-        this.attachments.clear();
-        this.linkPreviews.clear();
-      } else if (this.#editSeededForEvent && !eventId) {
-        this.#resetEditor();
-        this.#editSeededForEvent = '';
-      }
-    });
-  }
-
+  /** Apply a route or edit transition once, before the editor receives its text. */
   #synchronizeDraft(): void {
     $effect(() => {
       const roomId = this.#dependencies.getRoomId();
@@ -477,33 +454,48 @@ export class MessageComposerState {
         this.#autocompleteRoomId = roomId;
         this.autocomplete.resetForRoom();
       }
-      // A reused composer drops its edit when it moves to another room or thread.
-      if (this.#shownDraftKey !== this.draftKey) {
-        if (this.#shownDraftKey && this.isEditing) this.#dropEdit();
-        this.#shownDraftKey = this.draftKey;
+      const key = this.draftKey;
+      const changedDraft = this.draft.key !== key;
+      if (changedDraft && this.draft.key) {
+        // Transfer the old draft's files once. Later attachment edits belong
+        // to the new draft and must not retrigger this route transition.
+        this.draft.stashFiles(untrack(() => this.attachments.filesWithUrls));
+        if (this.isEditing) this.#dropEdit();
       }
-      if (this.isEditing) {
-        this.draft.switchKey(this.draftKey);
-        this.attachments.restore([]);
+
+      const eventId = this.editState.eventId;
+      if (eventId) {
+        if (this.#editSeededForEvent === eventId) return;
+        if (changedDraft) this.draft.switchKey(key);
+        this.#editSeededForEvent = eventId;
+        this.autocomplete.reset();
+        this.draft.clearText();
+        const originalBody = this.editState.originalBody;
+        this.#setMessage(originalBody);
+        this.alsoSendToChannel = this.editState.channelEchoEventId !== null;
+        const api = this.editorApi;
+        api?.setContent(originalBody);
+        tick().then(() => api?.focus('end'));
+        this.attachments.clear();
+        this.linkPreviews.clear();
         return;
       }
-      const draftMessage = this.draft.switchKey(this.draftKey);
-      this.message = draftMessage;
+
+      if (!changedDraft && !this.#editSeededForEvent) return;
+      if (this.#editSeededForEvent) this.#resetEditor();
+      this.#editSeededForEvent = '';
+      const draftMessage = this.draft.switchKey(key);
+      this.#setMessage(draftMessage);
       this.editorApi?.setContent(draftMessage);
       this.attachments.restore(untrack(() => this.draft.takeFiles()));
-      return () => this.draft.stashFiles(untrack(() => this.attachments.filesWithUrls));
     });
   }
 
-  #synchronizeDraftText(): void {
-    $effect(() => {
-      void this.draftKey;
-      if (!this.isEditing) this.draft.persistText(this.message);
-    });
-  }
-
-  #synchronizeLinkPreviews(): void {
-    $effect(() => this.linkPreviews.scheduleDetection(this.message, this.isEditing));
+  /** Apply text changes together, including restored drafts and editor commands. */
+  #setMessage(text: string): void {
+    this.message = text;
+    if (!this.isEditing) this.draft.persistText(text);
+    this.#cancelPreviewDetection = this.linkPreviews.scheduleDetection(text, this.isEditing);
   }
 
   #synchronizeAttachmentPermission(): void {
@@ -579,7 +571,7 @@ export class MessageComposerState {
 
   #resetEditor(): void {
     this.autocomplete.reset();
-    this.message = '';
+    this.#setMessage('');
     this.alsoSendToChannel = false;
     this.createThread =
       this.#dependencies.getCanCreateThread() &&

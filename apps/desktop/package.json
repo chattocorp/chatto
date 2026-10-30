@@ -1,10 +1,10 @@
 {
   "name": "chatto-desktop",
-  "productName": "Chatto Desktop",
+  "productName": "Chatto",
   "description": "Chatto Desktop",
   "author": "ChattoCorp GmbH",
   "homepage": "https://chatto.run",
-  "version": "0.5.0-beta.24",
+  "version": "0.5.0-beta.25",
   "private": true,
   "type": "module",
   "main": "main.mjs",

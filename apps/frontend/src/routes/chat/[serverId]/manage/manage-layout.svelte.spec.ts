@@ -46,6 +46,21 @@ beforeEach(() => {
 });
 
 describe('management route admission', () => {
+  it.each(['canManageServer', 'canManageInvites'] as const)(
+    'admits Registration with %s and denies it after access is removed',
+    async (permission) => {
+      page.url = new URL('https://example.test/chat/origin/manage/server/registration');
+      server.permissions[permission] = true;
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<p>Registration controls</p>') }
+      });
+      await tick();
+      expect(container.textContent).toContain('Registration controls');
+      server.permissions[permission] = false;
+      await tick();
+      expect(container.textContent).toContain('Access Denied');
+    }
+  );
   it.each(['', '/moderator'])(
     'admits role assigners to the role list and roster: %s',
     async (suffix) => {

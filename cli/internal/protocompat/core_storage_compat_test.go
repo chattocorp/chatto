@@ -211,6 +211,12 @@ func compareMessageDescriptors(t *testing.T, oldMessage, newMessage protoreflect
 	oldFields := oldMessage.Fields()
 	for i := 0; i < oldFields.Len(); i++ {
 		oldField := oldFields.Get(i)
+		if removedInvitationUseLimit(oldField) {
+			if !newMessage.ReservedRanges().Has(2) || !newMessage.ReservedNames().Has("max_uses") {
+				t.Errorf("%s: removed invitation use limit must remain reserved", pair)
+			}
+			continue
+		}
 		newField := newMessage.Fields().ByNumber(oldField.Number())
 		if newField == nil {
 			t.Errorf("%s: stored field %s (%d) was removed", pair, oldField.Name(), oldField.Number())
@@ -345,6 +351,14 @@ func rootSelections(message protoreflect.MessageDescriptor) []protoreflect.Field
 	return selections
 }
 
+// Reusable beta invitations have no compatibility contract (FDR-036).
+// Keep checking all other stored fields, including the rest of this event.
+func removedInvitationUseLimit(field protoreflect.FieldDescriptor) bool {
+	parent := field.ContainingMessage().FullName()
+	return (parent == "chatto.core.v1.InvitationCreatedEvent" || parent == "chatto.core.evt.v1.InvitationCreatedEvent") &&
+		field.Number() == 2 && field.Name() == "max_uses"
+}
+
 func populateMessage(message protoreflect.Message, rootSelection protoreflect.FieldNumber, depth int, stack map[protoreflect.FullName]bool) {
 	if depth > 12 || stack[message.Descriptor().FullName()] {
 		return
@@ -369,6 +383,9 @@ func populateMessage(message protoreflect.Message, rootSelection protoreflect.Fi
 	fields := message.Descriptor().Fields()
 	for i := 0; i < fields.Len(); i++ {
 		field := fields.Get(i)
+		if removedInvitationUseLimit(field) {
+			continue
+		}
 		if oneof := field.ContainingOneof(); oneof != nil && !oneof.IsSynthetic() && selectedOneofFields[oneof.FullName()] != field.Number() {
 			continue
 		}

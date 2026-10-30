@@ -1,21 +1,17 @@
 /** Native update controls; no renderer gets access to the installer or feed configuration. */
 import { randomInt } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { app, dialog, Menu, MenuItem, Notification } from 'electron';
 import { createDesktopUpdates, updatePreferences } from './updates.mjs';
+import { hasWindowsUninstaller } from './update_installation.mjs';
 
 /** Enable only release builds and supported installations. Startup never waits for the feed. */
 export async function configureUpdateMenu(packageJson) {
   if (!app.isPackaged || !packageJson.chattoAutoUpdate) return;
   if (process.platform === 'linux' && !process.env.APPIMAGE) return;
-  if (
-    process.platform === 'win32' &&
-    !existsSync(path.join(path.dirname(process.execPath), 'Uninstall Chatto Desktop.exe'))
-  )
-    return;
+  if (process.platform === 'win32' && !hasWindowsUninstaller(process.execPath)) return;
 
   const settingsPath = path.join(app.getPath('userData'), 'updates.json');
   let stored;
@@ -38,6 +34,7 @@ export async function configureUpdateMenu(packageJson) {
   const readyItem = new MenuItem({
     label: 'Restart to Update…',
     enabled: false,
+    visible: false,
     click: async () => {
       const { response } = await dialog.showMessageBox({
         type: 'question',
@@ -56,10 +53,12 @@ export async function configureUpdateMenu(packageJson) {
     save,
     notify: async (state, version, isManual) => {
       readyItem.enabled = state === 'ready';
+      readyItem.visible = state === 'ready';
+      if (state === 'ready') readyItem.label = `Restart to Install ${version}…`;
       if (state === 'idle') return;
       const messages = {
         current: 'No newer update is available on this channel.',
-        ready: `Chatto ${version} is ready. Use Updates → Restart to Update when convenient.`,
+        ready: `Chatto ${version} is ready. Use the Updates menu to restart and install it when convenient.`,
         changed: 'The available release changed. Check for updates again.',
         error: 'Chatto could not complete the update. Try again later.'
       };
@@ -77,6 +76,7 @@ export async function configureUpdateMenu(packageJson) {
         await dialog.showMessageBox({ message: 'Wait for the current update check to finish.' });
       } else {
         readyItem.enabled = false;
+        readyItem.visible = false;
       }
     } catch {
       await dialog.showMessageBox({ message: 'Chatto could not save the update settings.' });

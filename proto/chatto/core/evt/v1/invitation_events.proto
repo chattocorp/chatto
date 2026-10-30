@@ -6,12 +6,15 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
-// InvitationCreatedEvent establishes one server invitation and its immutable
-// admission constraints. The shareable signed code is deliberately not stored.
+// InvitationCreatedEvent establishes one single-use invitation code.
+// The shareable code is not stored.
 message InvitationCreatedEvent {
   string invitation_id = 1;
-  optional uint32 max_uses = 2;
+  reserved 2;
+  reserved "max_uses";
   google.protobuf.Timestamp expires_at = 3;
+  // Immutable plain-text note for invitation managers, not an admission constraint.
+  string note = 4;
 }
 
 // InvitationRedeemedEvent records the account admitted by an invitation.

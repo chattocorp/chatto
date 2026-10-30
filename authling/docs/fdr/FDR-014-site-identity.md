@@ -16,8 +16,10 @@ account pages and transactional emails.
 - An omitted or blank name uses the hostname from the configured public URL.
   The local listener default supplies the hostname during local development.
 - Headers, page titles, account messages, verification emails, recovery emails,
-  and email-change notices use the site name. The description appears on the
-  home page and in page metadata. An empty description is omitted.
+  and email-change notices use the site name. The description appears in page
+  metadata. An empty description is omitted.
+- The root URL redirects signed-out visitors to sign-in and active sessions to
+  their account. There is no separate welcome page.
 - Settings are plain text. Names allow up to 120 Unicode characters and
   descriptions up to 500, without control characters. Edge spaces are removed.
 - Changes take effect after a restart. They do not change issuer identity,

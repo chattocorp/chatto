@@ -171,7 +171,7 @@
       "admin_view_audit": "Consente a un account di vedere il registro eventi nell’amministrazione del server. Il registro eventi annota le modifiche amministrative e ogni attivazione e disattivazione della modalità privilegiata.",
       "user_delete_any": "Consente a un account di eliminare l’account di qualsiasi membro. Concedila solo a persone che possono decidere di rimuovere qualcuno dal server.",
       "user_delete_self": "Consente alle persone di eliminare il proprio account. Negala se solo gli amministratori devono eliminare gli account.",
-      "user_invite": "Consente a un account di elencare, creare, copiare e revocare link di invito. Può vedere e usare tutti i link di invito attivi, non solo i propri.",
+      "user_invite": "Consente a un account di elencare, creare, copiare e revocare codici di invito monouso. Può gestire tutti i codici, non solo i propri.",
       "user_manage_accounts": "Consente a un account di creare account, modificare l’identità di un account, reimpostare password, collegare indirizzi email verificati e azzerare i tempi di attesa di accesso di altri membri. Consente anche di aggiungere un account a una stanza o di rimuoverlo con la riga Iscritto.",
       "user_manage_permissions": "Consente a un account di modificare direttamente le impostazioni di autorizzazione di un singolo membro o bot, al di fuori dei ruoli. È anche necessaria per vedere le autorizzazioni effettive di una persona.",
       "bot_create": "Consente alle persone di creare bot di loro proprietà. Un bot riceve solo le autorizzazioni che consenti direttamente sul bot, e mai più di quelle del suo proprietario.",

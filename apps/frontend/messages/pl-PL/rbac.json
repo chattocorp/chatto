@@ -171,7 +171,7 @@
       "admin_view_audit": "Pozwala kontu widzieć dziennik zdarzeń w administracji serwerem. Dziennik zdarzeń rejestruje zmiany administracyjne oraz każde włączenie i wyłączenie trybu uprzywilejowanego.",
       "user_delete_any": "Pozwala kontu usunąć konto dowolnego członka. Nadawaj je tylko osobom, które mogą decydować o usunięciu kogoś z serwera.",
       "user_delete_self": "Pozwala osobom usunąć własne konto. Odmów go, jeśli konta mają usuwać tylko administratorzy.",
-      "user_invite": "Pozwala kontu wyświetlać, tworzyć, kopiować i unieważniać linki z zaproszeniem. Może widzieć i używać wszystkich aktywnych linków z zaproszeniem, nie tylko własnych.",
+      "user_invite": "Pozwala kontu wyświetlać, tworzyć, kopiować i unieważniać jednorazowe kody zaproszeń. Może zarządzać wszystkimi kodami, nie tylko własnymi.",
       "user_manage_accounts": "Pozwala kontu tworzyć konta, zmieniać tożsamość konta, resetować hasła, dołączać zweryfikowane adresy e-mail i usuwać blokady logowania innych członków. Pozwala też dodać konto do pokoju lub je z niego usunąć za pomocą wiersza Dołączył.",
       "user_manage_permissions": "Pozwala kontu bezpośrednio zmieniać ustawienia uprawnień pojedynczego członka lub bota, niezależnie od ról. Jest też potrzebne, aby zobaczyć efektywne uprawnienia danej osoby.",
       "bot_create": "Pozwala osobom tworzyć własne boty. Bot otrzymuje tylko uprawnienia, na które zezwolisz bezpośrednio w bocie, i nigdy więcej niż ma jego właściciel.",

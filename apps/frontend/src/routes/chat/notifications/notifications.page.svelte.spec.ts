@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page as browserPage } from 'vitest/browser';
+import '../../../app.css';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -401,6 +403,57 @@ describe('notifications page', () => {
     expect(q(container, '[data-testid="notification-server-name"]')).toBeNull();
   });
 
+  it('keeps long notifications on one line and restores timestamps only in wide rows', async () => {
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        signalKind: NotificationSignalKind.REPLY,
+        actor: {
+          id: 'long-name',
+          login: 'long-name',
+          displayName: 'Alexandra Montgomery-Wellington',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 1,
+          customStatus: null
+        }
+      }
+    ]);
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = container.querySelector<HTMLElement>('[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    const content = row.querySelector<HTMLElement>('[data-testid="notification-content"]')!;
+    const summary = content.querySelector<HTMLElement>(':scope > bdi')!;
+    const timestamp = content.lastElementChild as HTMLElement;
+
+    try {
+      for (const width of [320, 393, 1024]) {
+        await browserPage.viewport(width, 650);
+        await document.fonts.ready;
+        await vi.waitFor(() => {
+          const style = getComputedStyle(summary);
+          expect(summary.getBoundingClientRect().height).toBeCloseTo(parseFloat(style.lineHeight));
+          expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
+          expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+          if (width < 576) {
+            expect(summary.scrollWidth).toBeGreaterThan(summary.clientWidth);
+            expect(style.textOverflow).toBe('ellipsis');
+            expect(timestamp.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+            expect(getComputedStyle(timestamp).clipPath).toBe('inset(50%)');
+          } else {
+            expect(timestamp.getBoundingClientRect().width).toBeGreaterThan(20);
+            expect(getComputedStyle(timestamp).clipPath).toBe('none');
+          }
+        });
+      }
+    } finally {
+      await browserPage.viewport(1280, 720);
+    }
+  });
+
   it('renders a retained occurrence projection without refetching it', async () => {
     const rendered = render(NotificationsPage);
     expect(rendered.container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(
@@ -559,6 +612,33 @@ describe('notifications page', () => {
     expect(q(row, '[data-testid="activity-badge"]')?.textContent?.trim()).toBe('👍');
   });
 
+  it('keeps the reaction glyph in the same badge position in right-to-left layouts', async () => {
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        signalKind: NotificationSignalKind.REACTION,
+        reactionEmoji: 'heart'
+      }
+    ]);
+
+    const { container } = render(NotificationsPage);
+    const glyph = await vi.waitFor(() => {
+      const element = container.querySelector<SVGTextElement>(
+        '[data-testid="activity-badge"] text'
+      );
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    container.dir = 'ltr';
+    const leftToRight = glyph.getBBox();
+    container.dir = 'rtl';
+    const rightToLeft = glyph.getBBox();
+
+    expect(rightToLeft.x).toBeCloseTo(leftToRight.x);
+    expect(rightToLeft.y).toBeCloseTo(leftToRight.y);
+    expect(rightToLeft.width).toBeCloseTo(leftToRight.width);
+  });
+
   it.each(['heart', 'Party_Parrot'])(
     'renders a single %s reaction as a sentence',
     async (emoji) => {
@@ -670,7 +750,11 @@ describe('notifications page', () => {
     const serverMarker = q(container, '[data-testid="activity-server"]') as HTMLElement;
     expect(serverMarker.title).toBe('Example Chat (chat.example.test)');
     const row = q(container, '[data-testid="notification-content"]') as HTMLElement;
-    expect(row.textContent?.replace(/\s+/g, ' ')).toContain('#general · Example Chat');
+    expect(row.textContent).toContain('#general');
+    expect(row.textContent).not.toContain('Example Chat');
+    expect(q(container, '[data-testid="notification-server-name"]')?.textContent).toBe(
+      'Example Chat'
+    );
   });
 
   it('does not render a stale notification page for a room behind a privacy boundary', async () => {

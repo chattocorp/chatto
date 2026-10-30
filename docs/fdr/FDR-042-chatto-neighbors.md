@@ -111,7 +111,10 @@ recommendation, not a trust or reciprocal relationship.
   direct server-address lookup, this is the server at that address. The
   client loads the image without credentials or referrer data, rejects
   redirects, and accepts only responses that declare a supported raster image
-  media type and contain at most 5 MiB.
+  media type and contain at most 5 MiB. It uses normal browser caching. If
+  the fetch fails with a network or CORS error, it retries once without using
+  the cached response. This lets older servers replace cached responses that
+  lack CORS headers without forcing a download on every visit.
 - The Server Directory sends one request to each registered server, with at
   most six active requests and a ten-second timeout for each request. A
   registered server that does not provide a Neighborhood contributes no

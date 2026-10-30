@@ -60,7 +60,7 @@ the default session beneath the platform's application-data directory for
 ### macOS installation
 
 Download `chatto-desktop_<version>_macOS_ARM64.dmg` from the Chatto release.
-Open the disk image and drag **Chatto Desktop** to **Applications**. Eject the
+Open the disk image and drag **Chatto** to **Applications**. Eject the
 disk image, then open the app from Applications. Release disk images and apps
 are Developer ID signed and notarised. The ZIP download remains available.
 
@@ -82,7 +82,8 @@ releases. Switching to Stable does not downgrade an installed beta. Automatic
 checks start 30 seconds after launch and repeat every 30 minutes. Stable
 updates roll out over 36 hours; manual checks and Beta bypass this delay.
 Users can disable automatic checks and downloads in the Updates menu.
-Installation requires **Restart to Update** and confirmation. An ordinary quit
+The restart action appears only when an update is ready and shows its version.
+Installation requires **Restart to Install [version]** and confirmation. An ordinary quit
 does not install an update. The frontend stays bundled and startup uses local files.
 
 GitHub receives the user's IP address and update requests. The updater sends
@@ -127,9 +128,11 @@ replace these interactive checks.
 
 Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
 and run it. The installer installs for the current Windows user without
-administrator rights and adds a **Chatto Desktop** Start menu shortcut. Run a
-newer installer to update the application. Automatic updates are not available.
-Close Chatto Desktop before an update.
+administrator rights and adds a **Chatto** Start menu shortcut.
+Use **Updates → Release Channel** to select Stable or Beta, and the **Updates**
+menu to check for updates and restart to install them. If an older installation
+has no Updates menu, close Chatto and run a newer installer once.
+ZIP copies do not support automatic updates.
 
 The installer uses the same profile as the ZIP application. Existing server
 registrations and sessions remain available. Quit the ZIP application before
@@ -154,10 +157,10 @@ mise desktop-run-dev
 ```
 
 `mise desktop-build-dev` builds the app without opening it. To open an existing
-build, run `open "apps/desktop/dist/Chatto Desktop Dev.app"` from the repository
+build, run `open "apps/desktop/dist/Chatto Dev.app"` from the repository
 root. Quit a running dev app before rebuilding it to test the new binary.
 
-This creates **Chatto Desktop Dev** (`run.chatto.desktop.dev`) with a separate
+This creates **Chatto Dev** (`run.chatto.desktop.dev`) with a separate
 capture-helper identity and app-data directory. Sign in and grant permission
 to the dev app once. The official app keeps `run.chatto.desktop`; switching
 between these installs does not replace its permission identity.

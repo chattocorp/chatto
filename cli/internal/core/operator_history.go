@@ -160,6 +160,9 @@ func (c *ChattoCore) importHistoricalRoomChange(ctx context.Context, in Historic
 // ImportHistoricalMessageChange preserves source-time mutations without live
 // effects. Each operation and its permanent retry receipt commit atomically.
 func (c *ChattoCore) ImportHistoricalMessageChange(ctx context.Context, in HistoricalMessageChange) error {
+	if in.Kind == "reaction" {
+		return c.ImportHistoricalReactionChanges(ctx, []HistoricalMessageChange{in})
+	}
 	o, err := c.operatorOperation(ctx, in.OperationKey, "ImportMessageChange", in)
 	if err != nil {
 		return err
@@ -297,20 +300,6 @@ func (c *ChattoCore) ImportHistoricalMessageChange(ctx context.Context, in Histo
 					deleted := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_AssetDeleted{AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: id}}})
 					deletedAssets = append(deletedAssets, evtstream.BatchEntry{Subject: aa.SubjectFor(deleted), Event: deleted, Expect: events.ExpectFilterSeq(aa.AllEventsFilter(), tail.Seq)})
 				}
-			}
-		case "reaction":
-			if _, err = c.GetUser(ctx, in.UserID); err != nil {
-				return err
-			}
-			emoji, err := HistoricalReactionName(in.Emoji)
-			if err != nil {
-				return err
-			}
-			if in.Present {
-				e.Event = &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: in.RoomID, MessageEventId: in.MessageID, UserId: in.UserID, Emoji: emoji, HistoricalImport: true}}
-			} else {
-				e.ActorId = in.UserID
-				e.Event = &evtv1.Event_ReactionRemoved{ReactionRemoved: &evtv1.ReactionRemovedEvent{RoomId: in.RoomID, MessageEventId: in.MessageID, Emoji: emoji}}
 			}
 		case "thread":
 			if post.GetMessagePosted().GetInThread() != "" {

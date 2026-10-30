@@ -7,135 +7,354 @@
 }
 @source '../../internal/web/**/*.templ';
 
+/* Only htmx's same-document swaps animate; full document navigation stays native. */
+@view-transition {
+  navigation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    view-transition-name: none;
+  }
+
+  main {
+    view-transition-name: page-content;
+  }
+
+  ::view-transition-group(page-content),
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content) {
+    animation-duration: 160ms;
+    animation-timing-function: ease-out;
+  }
+}
+
 @theme {
   --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --text-base: 1.125rem;
+  --text-base--line-height: 1.5rem;
+  --radius-control: 0.5rem;
+  --radius-surface: 0.75rem;
+}
+
+/* Semantic colors are the only palette used by shared components. */
+@theme inline {
+  --color-canvas: var(--ui-canvas);
+  --color-surface: var(--ui-surface);
+  --color-subtle: var(--ui-subtle);
+  --color-ink: var(--ui-ink);
+  --color-muted: var(--ui-muted);
+  --color-line: var(--ui-line);
+  --color-control-line: var(--ui-control-line);
+  --color-action: var(--ui-action);
+  --color-action-hover: var(--ui-action-hover);
+  --color-on-action: var(--ui-on-action);
+  --color-focus: var(--ui-focus);
+  --color-danger: var(--ui-danger);
+  --color-danger-surface: var(--ui-danger-surface);
+  --color-success: var(--ui-success);
+  --color-success-surface: var(--ui-success-surface);
+  --color-warning: var(--ui-warning);
+  --color-warning-surface: var(--ui-warning-surface);
 }
 
 @layer base {
   html {
     color-scheme: light dark;
+    background-color: var(--ui-canvas);
+    --ui-canvas: #fafafa;
+    --ui-canvas-glow: #edf1f5;
+    --ui-surface: #ffffff;
+    --ui-raised: #ffffff;
+    --ui-raised-border: #cfd6de;
+    --ui-raised-shadow: 0 12px 36px rgb(30 45 60 / 8%), 0 2px 6px rgb(30 45 60 / 4%);
+    --ui-subtle: #f0f0f0;
+    --ui-ink: #171717;
+    --ui-muted: #595959;
+    --ui-line: #dedede;
+    --ui-control-line: #888888;
+    --ui-action: #202020;
+    --ui-action-hover: #404040;
+    --ui-on-action: #ffffff;
+    --ui-focus: #525252;
+    --ui-danger: #b42318;
+    --ui-danger-surface: #fff0ee;
+    --ui-success: #166534;
+    --ui-success-surface: #edf9f0;
+    --ui-warning: #854d0e;
+    --ui-warning-surface: #fff8e6;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html {
+      --ui-canvas: #20252b;
+      --ui-canvas-glow: #29333e;
+      --ui-surface: #272d34;
+      --ui-raised: #303841;
+      --ui-raised-border: #4c5865;
+      --ui-raised-shadow: 0 12px 36px rgb(0 0 0 / 20%), 0 2px 6px rgb(0 0 0 / 12%), inset 0 1px 0 rgb(255 255 255 / 4%);
+      --ui-subtle: #303842;
+      --ui-ink: #d6dbe1;
+      --ui-muted: #a8b0ba;
+      --ui-line: #3b444f;
+      --ui-control-line: #687481;
+      --ui-action: #8da4b5;
+      --ui-action-hover: #a1b6c5;
+      --ui-on-action: #20262d;
+      --ui-focus: #9bb2c6;
+      --ui-danger: #d99c96;
+      --ui-danger-surface: #382b2f;
+      --ui-success: #a3c6aa;
+      --ui-success-surface: #27372f;
+      --ui-warning: #d2b888;
+      --ui-warning-surface: #39332a;
+    }
   }
 
   input[type='checkbox'], input[type='radio'] {
-    @apply text-neutral-700 focus:ring-neutral-500 dark:text-neutral-300 dark:focus:ring-neutral-400;
+    @apply rounded border-control-line bg-surface text-action focus:ring-focus;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+    @apply bg-canvas text-ink text-base leading-6 antialiased;
+    background-image: radial-gradient(ellipse at 50% 0%, var(--ui-canvas-glow), transparent 75%);
+    background-attachment: fixed;
   }
 }
 
 @layer components {
   .site-header {
-    @apply border-b border-neutral-200 dark:border-neutral-800;
+    @apply shrink-0 border-b border-line;
   }
 
   .site-brand {
-    @apply flex min-w-0 items-center gap-2.5 rounded-sm text-lg font-semibold tracking-tight hover:text-neutral-600 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-500 dark:focus-visible:outline-neutral-400 dark:hover:text-neutral-200;
+    @apply flex min-w-0 items-center gap-2.5 rounded-sm text-base font-semibold tracking-tight hover:text-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus;
   }
 
   .account-link {
-    @apply flex shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:focus-visible:outline-neutral-400 dark:text-neutral-300 dark:hover:bg-neutral-800;
+    @apply flex min-h-11 shrink-0 items-center gap-2 rounded-control px-2 text-muted hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
   }
 
   .skip-link {
-    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:p-3 focus:text-neutral-900 focus:outline-2 focus:outline-neutral-500;
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-surface focus:p-3 focus:text-ink focus:outline-2 focus:outline-focus;
   }
 
   .page-main {
-    @apply mx-auto max-w-lg px-5 pt-10 pb-16 sm:pt-16;
+    @apply mx-auto w-full px-4 py-6 sm:px-8;
   }
 
   .page-main-wide {
-    @apply max-w-3xl;
+    @apply max-w-5xl;
   }
 
-  .page-surface {
-    @apply min-w-0 rounded-xl border border-neutral-200 bg-white p-6 sm:p-8 dark:border-neutral-800 dark:bg-neutral-900;
-    @apply wrap-anywhere bg-linear-to-b from-transparent to-black/1 shadow-lg shadow-black/4 inset-shadow-2xs inset-shadow-white/90 dark:from-white/3 dark:to-transparent dark:to-50% dark:shadow-black/20 dark:inset-shadow-white/6;
+  .focus-main {
+    @apply flex w-full flex-1 flex-col px-4 py-6;
   }
 
-  .page-surface-wide {
-    @apply sm:p-10;
+  /* Auto margins center short cards and collapse for safely scrollable tall ones. */
+  .focus-card {
+    @apply m-auto w-full min-w-0 max-w-lg rounded-surface border border-line bg-surface p-5 sm:p-8;
+    --surface-padding: 1.25rem;
   }
 
-  .settings-section {
-    @apply mt-8 border-t border-neutral-200 pt-6 dark:border-neutral-800;
+  .panel {
+    @apply w-full min-w-0 rounded-surface border border-line bg-surface p-4 sm:p-6;
+    --surface-padding: 1rem;
+  }
+
+  @media (width >= 40rem) {
+    .focus-card {
+      --surface-padding: 2rem;
+    }
+
+    .panel {
+      --surface-padding: 1.5rem;
+    }
+  }
+
+  /* Title bars share the surface edge; descriptions remain in the content body. */
+  .focus-card > .page-heading > .page-title,
+  .panel > .page-heading > .page-title,
+  .panel > .settings-heading:first-child {
+    margin: calc(-1 * var(--surface-padding)) calc(-1 * var(--surface-padding)) 0;
+    padding: 1rem var(--surface-padding);
+    background-color: var(--ui-surface);
+    border-bottom: 1px solid var(--ui-raised-border);
+    border-radius: calc(var(--radius-surface) - 1px) calc(var(--radius-surface) - 1px) 0 0;
+  }
+
+  .focus-card > .page-heading > .page-description,
+  .panel > .page-heading > .page-description,
+  .panel > .settings-heading:first-child + .settings-description {
+    margin-top: 1.25rem;
+  }
+
+  .focus-card,
+  .panel {
+    background-color: var(--ui-raised);
+    border-color: var(--ui-raised-border);
+    box-shadow: var(--ui-raised-shadow);
+  }
+
+  .page-title {
+    @apply font-semibold text-balance;
+  }
+
+  .page-description {
+    @apply mt-2 text-muted empty:hidden;
+  }
+
+  .form-stack {
+    @apply mt-6 space-y-4;
+  }
+
+  .field {
+    @apply block min-w-0;
+  }
+
+  .field-label {
+    @apply block font-medium;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-muted;
+  }
+
+  .data-table-scroll {
+    @apply max-w-full overflow-x-auto rounded-surface border border-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
+  }
+
+  .data-table {
+    @apply w-full min-w-[36rem] border-collapse bg-surface text-left;
+  }
+
+  .data-table thead th {
+    @apply bg-subtle px-4 py-2.5 font-medium text-muted;
+  }
+
+  .data-table tbody th,
+  .data-table tbody td {
+    @apply border-t border-line px-4 py-3 align-middle;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-subtle/50;
+  }
+
+  .data-table .data-table-empty {
+    @apply py-10 text-center text-muted;
+  }
+
+  .table-details {
+    @apply mt-1 font-normal text-muted;
+  }
+
+  .disclosure summary {
+    @apply w-fit cursor-pointer rounded-sm font-medium hover:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
+  }
+
+  .table-details summary {
+    @apply w-fit cursor-pointer rounded-sm hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
+  }
+
+  .table-details code {
+    @apply mt-2 block break-all text-muted;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-control bg-subtle px-2 py-0.5 font-medium text-ink;
+  }
+
+  .pagination {
+    @apply mt-4 flex flex-wrap items-center justify-between gap-3;
   }
 
   .settings-heading {
-    @apply text-lg font-semibold tracking-tight;
+    @apply text-base font-semibold tracking-tight;
   }
 
   .settings-description {
-    @apply mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300;
+    @apply mt-1 text-muted;
   }
 
   .settings-actions {
-    @apply mt-4 divide-y divide-neutral-200 dark:divide-neutral-800;
+    @apply mt-3 divide-y divide-line;
   }
 
   .settings-link {
-    @apply flex items-center justify-between gap-4 rounded-md py-3 font-medium text-neutral-600 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:focus-visible:outline-neutral-400 dark:text-neutral-200 dark:hover:bg-neutral-800;
+    @apply flex min-h-11 items-center justify-between gap-4 rounded-control py-2 font-medium text-ink hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
   }
 
   .settings-item {
-    @apply rounded-lg border border-neutral-200 p-4 dark:border-neutral-700;
+    @apply rounded-control border border-line bg-surface p-4;
   }
 
   .button {
-    @apply inline-flex cursor-pointer items-center justify-center rounded-lg px-5 py-3 font-semibold motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:focus-visible:outline-neutral-400 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-control px-4 py-2 font-semibold motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .button-primary {
-    @apply bg-neutral-900 text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-white;
-    @apply bg-linear-to-b from-white/8 to-transparent shadow-xs shadow-black/10 inset-shadow-2xs inset-shadow-white/12 dark:from-white/45 dark:to-black/3 dark:shadow-black/20 dark:inset-shadow-white/80;
+    @apply bg-action text-on-action hover:bg-action-hover disabled:hover:bg-action;
   }
 
   .button-secondary {
-    @apply border border-neutral-300 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800;
-    @apply bg-linear-to-b from-white/40 to-transparent shadow-2xs shadow-black/3 inset-shadow-2xs inset-shadow-white/60 dark:from-white/3 dark:shadow-black/12 dark:inset-shadow-white/4;
+    @apply border border-control-line bg-transparent text-ink hover:bg-subtle disabled:hover:bg-transparent;
+  }
+
+  .button-quiet {
+    @apply font-medium text-muted hover:bg-subtle hover:text-ink active:bg-surface disabled:hover:bg-transparent disabled:hover:text-muted;
+  }
+
+  .card-footer {
+    @apply mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row sm:flex-wrap;
+    margin-right: calc(-1 * var(--surface-padding));
+    margin-bottom: calc(-1 * var(--surface-padding));
+    margin-left: calc(-1 * var(--surface-padding));
+    padding: 1rem var(--surface-padding);
+    border-top: 1px solid var(--ui-raised-border);
+    border-radius: 0 0 calc(var(--radius-surface) - 1px) calc(var(--radius-surface) - 1px);
+    background-color: var(--ui-surface);
   }
 
   .button-primary:active:not(:disabled),
   .button-secondary:active:not(:disabled) {
-    @apply bg-none shadow-none inset-shadow-xs inset-shadow-black/10;
+    @apply opacity-80;
   }
 
   .button-danger {
-    @apply border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950;
+    @apply border border-danger/60 text-danger hover:bg-danger-surface disabled:hover:bg-transparent;
   }
 
   .button-compact {
-    @apply px-3 py-2 text-sm;
+    @apply px-3 py-1.5;
   }
 
   .text-link {
-    @apply cursor-pointer font-semibold text-neutral-600 underline decoration-neutral-500/40 underline-offset-2 hover:text-neutral-500 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:focus-visible:outline-neutral-400 dark:text-neutral-200 dark:hover:text-neutral-50;
+    @apply cursor-pointer font-medium text-ink underline decoration-muted/50 underline-offset-4 hover:decoration-ink focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
   }
 
   .form-control {
-    @apply mt-2 w-full rounded-lg border border-neutral-300 bg-transparent px-4 py-3 focus:border-neutral-500 focus:ring-neutral-500 dark:border-neutral-600 dark:focus:border-neutral-400 dark:focus:ring-neutral-400;
+    @apply mt-1.5 min-h-11 w-full rounded-control border border-control-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted focus:border-focus focus:ring-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted aria-invalid:border-danger aria-invalid:focus:ring-danger;
   }
 
   .notice {
-    @apply mt-5 rounded-lg p-4;
+    @apply mt-4 rounded-control border border-current/20 px-3 py-2.5;
   }
 
   .notice-error {
-    @apply bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-100;
+    @apply bg-danger-surface text-danger;
   }
 
   .notice-success {
-    @apply bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100;
+    @apply bg-success-surface text-success;
   }
 
   .notice-warning {
-    @apply bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100;
+    @apply bg-warning-surface text-warning;
   }
 
   .notice-neutral {
-    @apply bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100;
+    @apply bg-subtle text-ink;
   }
 
   .otp-code {
@@ -154,20 +373,19 @@
   }
 
   .otp-code-boxes > span {
-    @apply border border-neutral-300 bg-transparent motion-safe:transition-colors dark:border-neutral-700;
-    border-radius: clamp(0.5rem, 2vw, 0.75rem);
+    @apply rounded-control border border-control-line bg-surface motion-safe:transition-colors;
   }
 
   .otp-code:focus-within .otp-code-boxes > span {
-    @apply border-neutral-500 ring-2 ring-neutral-500/25 dark:border-neutral-400 dark:ring-neutral-400/30;
+    @apply border-focus ring-2 ring-focus/25;
   }
 
   .otp-code-input {
-    @apply absolute inset-0 h-full border-0 bg-transparent font-mono font-semibold text-neutral-900 shadow-none outline-none dark:text-neutral-100;
+    @apply absolute inset-0 h-full border-0 bg-transparent font-mono font-semibold text-ink shadow-none outline-none;
     box-sizing: border-box;
     width: calc(100% + var(--otp-gap) + (var(--otp-cell-size) - 1ch) / 2);
     padding: 0 0 0 calc((var(--otp-cell-size) - 1ch) / 2);
-    font-size: clamp(1.25rem, 5vw, 1.5rem);
+    font-size: var(--text-base);
     line-height: var(--otp-cell-size);
     letter-spacing: calc(var(--otp-cell-size) + var(--otp-gap) - 1ch);
     clip-path: inset(0 calc(var(--otp-gap) + (var(--otp-cell-size) - 1ch) / 2) 0 0);

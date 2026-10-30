@@ -89,7 +89,10 @@ describe('server security query lifecycle', () => {
     server = createTestServerScope({
       serverId: 'origin',
       viewer: null,
-      api: { list: mocks.listOAuthClients, updatePolicy: mocks.updateOAuthClientPolicy }
+      api: {
+        list: mocks.listOAuthClients,
+        updatePolicy: mocks.updateOAuthClientPolicy
+      }
     });
     mocks.getServerSecurityConfig.mockResolvedValue({ blockedUsernames: 'root\nadmin' });
     mocks.updateBlockedUsernames.mockResolvedValue({
@@ -141,7 +144,10 @@ describe('server security query lifecycle', () => {
     await settle();
 
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-    const save = container.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const save = container
+      .querySelector('textarea')!
+      .closest('form')!
+      .querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(save.disabled).toBe(true);
 
     textarea.value = 'root\nadmin\nreserved';
@@ -177,7 +183,12 @@ describe('server security query lifecycle', () => {
     textarea.value = 'private-pattern';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
-    (view.container.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    (
+      view.container
+        .querySelector('textarea')!
+        .closest('form')!
+        .querySelector('button[type="submit"]') as HTMLButtonElement
+    ).click();
     await vi.waitFor(() => expect(mocks.updateBlockedUsernames).toHaveBeenCalledOnce());
 
     removeRegisteredAdminQueries('origin');
@@ -248,7 +259,9 @@ describe('server security query lifecycle', () => {
       Array.from(container.querySelectorAll('bdi[dir="ltr"]'), (element) => element.textContent)
     ).toEqual([client.clientId, client.redirectOrigins[0]]);
 
-    const policy = container.querySelector('select') as HTMLSelectElement;
+    const policy = container.querySelector(
+      'select:not(#registration-admission)'
+    ) as HTMLSelectElement;
     policy.value = 'blocked';
     policy.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -293,9 +306,11 @@ describe('server security query lifecycle', () => {
     );
 
     const { container } = render(SecurityPage);
-    await vi.waitFor(() => expect(container.querySelectorAll('select')).toHaveLength(2));
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('select:not(#registration-admission)')).toHaveLength(2)
+    );
     const [alphaPolicy, bravoPolicy] = Array.from(
-      container.querySelectorAll('select')
+      container.querySelectorAll('select:not(#registration-admission)')
     ) as HTMLSelectElement[];
 
     alphaPolicy.value = 'blocked';
@@ -345,7 +360,9 @@ describe('server security query lifecycle', () => {
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
 
-    const policy = container.querySelector('select') as HTMLSelectElement;
+    const policy = container.querySelector(
+      'select:not(#registration-admission)'
+    ) as HTMLSelectElement;
     policy.value = 'blocked';
     policy.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -380,7 +397,9 @@ describe('server security query lifecycle', () => {
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Future Client'));
 
-    const policy = container.querySelector('select') as HTMLSelectElement;
+    const policy = container.querySelector(
+      'select:not(#registration-admission)'
+    ) as HTMLSelectElement;
     expect(policy.value).toBe('unknown');
     expect(policy.disabled).toBe(true);
     expect(policy.selectedOptions[0]?.textContent?.trim()).toBe('Unknown (101)');
@@ -411,7 +430,9 @@ describe('server security query lifecycle', () => {
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
 
-    const policy = container.querySelector('select') as HTMLSelectElement;
+    const policy = container.querySelector(
+      'select:not(#registration-admission)'
+    ) as HTMLSelectElement;
     policy.value = 'blocked';
     policy.dispatchEvent(new Event('change', { bubbles: true }));
 

@@ -24,7 +24,7 @@ describe('SSO confirmation load', () => {
   });
 
   it('requires authentication while preserving the existing-account continuation', async () => {
-    mocks.getPending.mockResolvedValue({ kind: 1 });
+    mocks.getPending.mockResolvedValue({ kind: 1, invitationRequired: true });
     const url = new URL('https://chat.example.test/sso/confirm?token=flow&existing=1');
     await expect(
       load({ url, parent: async () => ({ user: null }) } as never)
@@ -35,7 +35,7 @@ describe('SSO confirmation load', () => {
   });
 
   it('offers linking only after an existing account authenticates', async () => {
-    const pending = { kind: 1, providerId: 'discord-main' };
+    const pending = { kind: 1, providerId: 'discord-main', invitationRequired: true };
     mocks.getPending.mockResolvedValue(pending);
     const url = new URL('https://chat.example.test/sso/confirm?token=flow&existing=1');
     await expect(
@@ -89,6 +89,14 @@ describe('SSO confirmation load', () => {
       token: 'expired-token',
       pending: null,
       loadError: 'invalid'
+    });
+  });
+
+  it('sends an unadmitted new identity through the invitation gate', async () => {
+    mocks.getPending.mockResolvedValue({ invitationRequired: true });
+    await expect(loadConfirmation('verified-flow')).rejects.toMatchObject({
+      status: 302,
+      location: '/register?external_identity=verified-flow'
     });
   });
 

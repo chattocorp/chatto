@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Creación de cuentas",
+      "open": "Registro abierto",
+      "invite_only": "Código de invitación obligatorio",
+      "open_description": "Cualquiera puede crear una cuenta con los métodos de registro configurados.",
+      "invite_only_description": "Las cuentas nuevas necesitan un código de invitación de un solo uso. Los usuarios existentes pueden seguir iniciando sesión.",
+      "methods": "Métodos de registro configurados",
+      "methods_configuration": "Los métodos de registro se administran en la configuración de alojamiento de este servidor.",
+      "email_password": "Correo electrónico y contraseña",
+      "no_methods": "No hay métodos de registro habilitados. Los usuarios no pueden crear cuentas en ninguno de los modos."
+    },
     "neighbors": {
       "title": "Vecinos",
       "subtitle": "Publica servidores de Chatto amigos en tu directorio público",
@@ -553,36 +564,28 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
-      "title": "Enlaces de invitación",
-      "subtitle": "Crea y administra enlaces que permiten crear cuentas nuevas.",
-      "create_title": "Crear enlace de invitación",
-      "max_uses": "Usos máximos",
-      "max_uses_error": "Ingresa un número entero igual o mayor que 1.",
-      "unlimited_uses": "Permitir usos ilimitados",
-      "expiry": "Vencimiento",
-      "expiry_1d": "1 día",
-      "expiry_7d": "7 días",
-      "expiry_30d": "30 días",
-      "expiry_never": "Nunca",
-      "create": "Crear enlace de invitación",
-      "created": "Enlace de invitación creado",
-      "list_title": "Enlaces de invitación",
-      "empty": "Todavía no hay enlaces de invitación.",
-      "uses": "Usos",
+      "note_label": "Nota (opcional)",
+      "note_placeholder": "Para Alex del equipo de diseño",
+      "note_description": "Solo los administradores de invitaciones pueden ver esta nota.",
+      "note_too_long": "Usa 250 caracteres o menos.",
+      "usage": "Los códigos nuevos vencen a los 7 días y permiten crear una cuenta cada uno. Copia un código y envíalo a su destinatario. Solo se consume cuando el registro se completa.",
+      "create_title": "Crear código",
+      "create": "Crear código",
+      "created": "Código de invitación creado",
+      "list_title": "Códigos de invitación",
+      "empty": "Aún no hay códigos de invitación.",
       "created_at": "Creado",
       "actions": "Acciones",
       "never": "Nunca",
-      "copy": "Copiar enlace",
-      "copied": "Enlace de invitación copiado",
       "revoke": "Revocar",
-      "revoked": "Enlace de invitación revocado",
-      "revoke_title": "¿Revocar el enlace de invitación?",
-      "revoke_description": "Este enlace dejará de permitir la creación de cuentas nuevas de inmediato.",
+      "revoked": "Código de invitación revocado",
+      "revoke_title": "¿Revocar código?",
+      "revoke_description": "Este código dejará de permitir cuentas nuevas inmediatamente.",
       "status": {
         "active": "Activo",
         "expired": "Vencido",
-        "exhausted": "Agotado",
-        "revoked": "Revocado"
+        "revoked": "Revocado",
+        "used": "Usado"
       }
     }
   }

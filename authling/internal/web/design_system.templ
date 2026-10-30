@@ -1,0 +1,68 @@
+package web
+
+import "github.com/chattocorp/chatto/authling/internal/web/ui"
+
+// designSystemPage is a static reference, reachable only in bootstrap builds.
+templ designSystemPage() {
+	@pageLayout("Design system", "", true) {
+		@ui.Heading("Design system") {
+			<p>Development reference for Authling’s shared components. Examples do not save data.</p>
+		}
+		<section class="panel mt-6" aria-labelledby="actions-heading">
+			<h2 class="settings-heading" id="actions-heading">Actions</h2>
+			<div class="mt-4 flex flex-wrap gap-3">
+				<button class="button button-primary" type="button">Primary</button>
+				<button class="button button-secondary" type="button">Secondary</button>
+				<button class="button button-danger" type="button">Destructive</button>
+				<button class="button button-primary" type="button" disabled>Disabled</button>
+				<a class="button button-secondary" href="#fields-heading">Link action</a>
+			</div>
+			<p class="mt-4"><a class="text-link" href="#feedback-heading">Text link</a></p>
+		</section>
+		<section class="panel mt-6" aria-labelledby="fields-heading">
+			<h2 class="settings-heading" id="fields-heading">Fields</h2>
+			<div class="mt-4 grid gap-4 sm:grid-cols-2">
+				@ui.Field("example-email", "Email address", "Use an address you can access.", templ.Attributes{"type": "email", "autocomplete": "off", "placeholder": "you@example.com"})
+				@ui.Field("example-invalid", "Invalid field", "Enter a complete email address.", templ.Attributes{"type": "email", "value": "incomplete", "aria-invalid": "true"})
+				@ui.Field("example-disabled", "Disabled field", "", templ.Attributes{"type": "text", "value": "Unavailable", "disabled": true})
+				@ui.Field("example-readonly", "Read-only field", "", templ.Attributes{"type": "text", "value": "Example value", "readonly": true})
+			</div>
+			<label class="mt-4 flex items-center gap-3"><input type="checkbox"/>Example confirmation</label>
+			<div class="mt-4">
+				@ui.CodeField("Verification code", false)
+			</div>
+		</section>
+		<section class="panel mt-6" aria-labelledby="feedback-heading">
+			<h2 class="settings-heading" id="feedback-heading">Feedback</h2>
+			@ui.Notice(ui.Success) {
+				<p>Your profile was updated.</p>
+			}
+			@ui.Notice(ui.Warning) {
+				<p>The change was saved, but the security email could not be sent.</p>
+			}
+			@ui.Error("Check your email address and password, then try again.")
+			@ui.Notice(ui.Neutral) {
+				<p>That browser session is no longer active.</p>
+			}
+		</section>
+		<section class="panel mt-6" aria-labelledby="records-heading">
+			<h2 class="settings-heading" id="records-heading">Records and navigation</h2>
+			<div class="settings-item mt-4">
+				<div class="flex flex-wrap items-center gap-2"><span class="font-medium">Browser session</span>@ui.Badge("This browser")</div>
+				<details class="disclosure mt-2"><summary>Session details</summary><p class="mt-2 text-muted">Example details for a native disclosure.</p></details>
+			</div>
+			<div class="mt-4">
+				@ui.DataTable("Example users", []string{"User", "Access", "Registered"}) {
+					<tr><th scope="row">Alice Example</th><td>@ui.Badge("Administrator")</td><td>29 Oct 2026</td></tr>
+					<tr><th scope="row">Bob Example</th><td>User</td><td>29 Oct 2026</td></tr>
+				}
+			</div>
+			@ui.Pagination("/dev/ui#records-heading", "/dev/ui#records-heading")
+			<div class="mt-4">
+				@ui.DataTable("Empty example", []string{"User", "Access", "Registered"}) {
+					@ui.TableEmpty(3, "No accounts on this page.")
+				}
+			</div>
+		</section>
+	}
+}

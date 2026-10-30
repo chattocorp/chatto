@@ -3,6 +3,7 @@
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Button } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
+  import { providerIcon } from '$lib/auth/providerIcon';
 
   let {
     providers,
@@ -19,21 +20,6 @@
     href?: (provider: PublicAuthProvider) => string;
     onclick: (event: MouseEvent, provider: PublicAuthProvider) => void;
   } = $props();
-
-  function providerIcon(type: string): string {
-    switch (type) {
-      case 'github':
-        return 'icon-[mdi--github]';
-      case 'gitlab':
-        return 'icon-[mdi--gitlab]';
-      case 'google':
-        return 'icon-[mdi--google]';
-      case 'discord':
-        return 'icon-[mdi--discord]';
-      default:
-        return 'icon-[mdi--shield-account]';
-    }
-  }
 </script>
 
 <div class="flex flex-col gap-3">

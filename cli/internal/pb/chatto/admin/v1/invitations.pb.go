@@ -24,95 +24,96 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Current lifecycle state of an invite link.
-type InviteLinkStatus int32
+// Current state of a single-use registration code.
+type InvitationCodeStatus int32
 
 const (
-	InviteLinkStatus_INVITE_LINK_STATUS_UNSPECIFIED InviteLinkStatus = 0
-	InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE      InviteLinkStatus = 1
-	InviteLinkStatus_INVITE_LINK_STATUS_EXPIRED     InviteLinkStatus = 2
-	InviteLinkStatus_INVITE_LINK_STATUS_EXHAUSTED   InviteLinkStatus = 3
-	InviteLinkStatus_INVITE_LINK_STATUS_REVOKED     InviteLinkStatus = 4
+	InvitationCodeStatus_INVITATION_CODE_STATUS_UNSPECIFIED InvitationCodeStatus = 0
+	InvitationCodeStatus_INVITATION_CODE_STATUS_ACTIVE      InvitationCodeStatus = 1
+	InvitationCodeStatus_INVITATION_CODE_STATUS_EXPIRED     InvitationCodeStatus = 2
+	InvitationCodeStatus_INVITATION_CODE_STATUS_USED        InvitationCodeStatus = 3
+	InvitationCodeStatus_INVITATION_CODE_STATUS_REVOKED     InvitationCodeStatus = 4
 )
 
-// Enum value maps for InviteLinkStatus.
+// Enum value maps for InvitationCodeStatus.
 var (
-	InviteLinkStatus_name = map[int32]string{
-		0: "INVITE_LINK_STATUS_UNSPECIFIED",
-		1: "INVITE_LINK_STATUS_ACTIVE",
-		2: "INVITE_LINK_STATUS_EXPIRED",
-		3: "INVITE_LINK_STATUS_EXHAUSTED",
-		4: "INVITE_LINK_STATUS_REVOKED",
+	InvitationCodeStatus_name = map[int32]string{
+		0: "INVITATION_CODE_STATUS_UNSPECIFIED",
+		1: "INVITATION_CODE_STATUS_ACTIVE",
+		2: "INVITATION_CODE_STATUS_EXPIRED",
+		3: "INVITATION_CODE_STATUS_USED",
+		4: "INVITATION_CODE_STATUS_REVOKED",
 	}
-	InviteLinkStatus_value = map[string]int32{
-		"INVITE_LINK_STATUS_UNSPECIFIED": 0,
-		"INVITE_LINK_STATUS_ACTIVE":      1,
-		"INVITE_LINK_STATUS_EXPIRED":     2,
-		"INVITE_LINK_STATUS_EXHAUSTED":   3,
-		"INVITE_LINK_STATUS_REVOKED":     4,
+	InvitationCodeStatus_value = map[string]int32{
+		"INVITATION_CODE_STATUS_UNSPECIFIED": 0,
+		"INVITATION_CODE_STATUS_ACTIVE":      1,
+		"INVITATION_CODE_STATUS_EXPIRED":     2,
+		"INVITATION_CODE_STATUS_USED":        3,
+		"INVITATION_CODE_STATUS_REVOKED":     4,
 	}
 )
 
-func (x InviteLinkStatus) Enum() *InviteLinkStatus {
-	p := new(InviteLinkStatus)
+func (x InvitationCodeStatus) Enum() *InvitationCodeStatus {
+	p := new(InvitationCodeStatus)
 	*p = x
 	return p
 }
 
-func (x InviteLinkStatus) String() string {
+func (x InvitationCodeStatus) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (InviteLinkStatus) Descriptor() protoreflect.EnumDescriptor {
+func (InvitationCodeStatus) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_admin_v1_invitations_proto_enumTypes[0].Descriptor()
 }
 
-func (InviteLinkStatus) Type() protoreflect.EnumType {
+func (InvitationCodeStatus) Type() protoreflect.EnumType {
 	return &file_chatto_admin_v1_invitations_proto_enumTypes[0]
 }
 
-func (x InviteLinkStatus) Number() protoreflect.EnumNumber {
+func (x InvitationCodeStatus) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use InviteLinkStatus.Descriptor instead.
-func (InviteLinkStatus) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use InvitationCodeStatus.Descriptor instead.
+func (InvitationCodeStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{0}
 }
 
-// An administrator-visible invite link. The link is a bearer capability and
-// is returned only to callers with user.invite.
-type InviteLink struct {
+// Permission to create one account on an invite-only server. Anyone who holds
+// the code can use it; it is not bound to an email address or recipient.
+type InvitationCode struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Durable identifier used for administrative operations.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Fully qualified bearer URL. Anyone who has it can use the link while active.
-	Link          string                 `protobuf:"bytes,2,opt,name=link,proto3" json:"link,omitempty"`
-	CreatedBy     string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	MaxUses       *uint32                `protobuf:"varint,5,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	UseCount      uint32                 `protobuf:"varint,7,opt,name=use_count,json=useCount,proto3" json:"use_count,omitempty"`
-	Status        InviteLinkStatus       `protobuf:"varint,8,opt,name=status,proto3,enum=chatto.admin.v1.InviteLinkStatus" json:"status,omitempty"`
-	RevokedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Recoverable capability, returned only to callers with user.invite. Never log it.
+	Code      string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	CreatedBy string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Absent means no expiry. Revocation and successful account creation still invalidate the code.
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Status    InvitationCodeStatus   `protobuf:"varint,6,opt,name=status,proto3,enum=chatto.admin.v1.InvitationCodeStatus" json:"status,omitempty"`
+	RevokedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	// Optional creation-time note for invitation managers. Empty means no note.
+	// This does not restrict who can redeem the code.
+	Note          string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *InviteLink) Reset() {
-	*x = InviteLink{}
+func (x *InvitationCode) Reset() {
+	*x = InvitationCode{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *InviteLink) String() string {
+func (x *InvitationCode) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*InviteLink) ProtoMessage() {}
+func (*InvitationCode) ProtoMessage() {}
 
-func (x *InviteLink) ProtoReflect() protoreflect.Message {
+func (x *InvitationCode) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -124,97 +125,90 @@ func (x *InviteLink) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use InviteLink.ProtoReflect.Descriptor instead.
-func (*InviteLink) Descriptor() ([]byte, []int) {
+// Deprecated: Use InvitationCode.ProtoReflect.Descriptor instead.
+func (*InvitationCode) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *InviteLink) GetId() string {
+func (x *InvitationCode) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *InviteLink) GetLink() string {
+func (x *InvitationCode) GetCode() string {
 	if x != nil {
-		return x.Link
+		return x.Code
 	}
 	return ""
 }
 
-func (x *InviteLink) GetCreatedBy() string {
+func (x *InvitationCode) GetCreatedBy() string {
 	if x != nil {
 		return x.CreatedBy
 	}
 	return ""
 }
 
-func (x *InviteLink) GetCreatedAt() *timestamppb.Timestamp {
+func (x *InvitationCode) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *InviteLink) GetMaxUses() uint32 {
-	if x != nil && x.MaxUses != nil {
-		return *x.MaxUses
-	}
-	return 0
-}
-
-func (x *InviteLink) GetExpiresAt() *timestamppb.Timestamp {
+func (x *InvitationCode) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-func (x *InviteLink) GetUseCount() uint32 {
-	if x != nil {
-		return x.UseCount
-	}
-	return 0
-}
-
-func (x *InviteLink) GetStatus() InviteLinkStatus {
+func (x *InvitationCode) GetStatus() InvitationCodeStatus {
 	if x != nil {
 		return x.Status
 	}
-	return InviteLinkStatus_INVITE_LINK_STATUS_UNSPECIFIED
+	return InvitationCodeStatus_INVITATION_CODE_STATUS_UNSPECIFIED
 }
 
-func (x *InviteLink) GetRevokedAt() *timestamppb.Timestamp {
+func (x *InvitationCode) GetRevokedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.RevokedAt
 	}
 	return nil
 }
 
-// Requests a page of invite links, newest first.
-type ListInviteLinksRequest struct {
+func (x *InvitationCode) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// Lists codes newest first, with ID as the tie-breaker.
+type ListInvitationCodesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
+	// Default limit: 20. Maximum: 100.
 	Page          *v1.PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListInviteLinksRequest) Reset() {
-	*x = ListInviteLinksRequest{}
+func (x *ListInvitationCodesRequest) Reset() {
+	*x = ListInvitationCodesRequest{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListInviteLinksRequest) String() string {
+func (x *ListInvitationCodesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListInviteLinksRequest) ProtoMessage() {}
+func (*ListInvitationCodesRequest) ProtoMessage() {}
 
-func (x *ListInviteLinksRequest) ProtoReflect() protoreflect.Message {
+func (x *ListInvitationCodesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -226,40 +220,40 @@ func (x *ListInviteLinksRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListInviteLinksRequest.ProtoReflect.Descriptor instead.
-func (*ListInviteLinksRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListInvitationCodesRequest.ProtoReflect.Descriptor instead.
+func (*ListInvitationCodesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListInviteLinksRequest) GetPage() *v1.PageRequest {
+func (x *ListInvitationCodesRequest) GetPage() *v1.PageRequest {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-type ListInviteLinksResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InviteLinks   []*InviteLink          `protobuf:"bytes,1,rep,name=invite_links,json=inviteLinks,proto3" json:"invite_links,omitempty"`
-	Page          *v1.PageInfo           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type ListInvitationCodesResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	InvitationCodes []*InvitationCode      `protobuf:"bytes,1,rep,name=invitation_codes,json=invitationCodes,proto3" json:"invitation_codes,omitempty"`
+	Page            *v1.PageInfo           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
-func (x *ListInviteLinksResponse) Reset() {
-	*x = ListInviteLinksResponse{}
+func (x *ListInvitationCodesResponse) Reset() {
+	*x = ListInvitationCodesResponse{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListInviteLinksResponse) String() string {
+func (x *ListInvitationCodesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListInviteLinksResponse) ProtoMessage() {}
+func (*ListInvitationCodesResponse) ProtoMessage() {}
 
-func (x *ListInviteLinksResponse) ProtoReflect() protoreflect.Message {
+func (x *ListInvitationCodesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -271,46 +265,46 @@ func (x *ListInviteLinksResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListInviteLinksResponse.ProtoReflect.Descriptor instead.
-func (*ListInviteLinksResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListInvitationCodesResponse.ProtoReflect.Descriptor instead.
+func (*ListInvitationCodesResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListInviteLinksResponse) GetInviteLinks() []*InviteLink {
+func (x *ListInvitationCodesResponse) GetInvitationCodes() []*InvitationCode {
 	if x != nil {
-		return x.InviteLinks
+		return x.InvitationCodes
 	}
 	return nil
 }
 
-func (x *ListInviteLinksResponse) GetPage() *v1.PageInfo {
+func (x *ListInvitationCodesResponse) GetPage() *v1.PageInfo {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-type GetInviteLinkRequest struct {
+type GetInvitationCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetInviteLinkRequest) Reset() {
-	*x = GetInviteLinkRequest{}
+func (x *GetInvitationCodeRequest) Reset() {
+	*x = GetInvitationCodeRequest{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetInviteLinkRequest) String() string {
+func (x *GetInvitationCodeRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetInviteLinkRequest) ProtoMessage() {}
+func (*GetInvitationCodeRequest) ProtoMessage() {}
 
-func (x *GetInviteLinkRequest) ProtoReflect() protoreflect.Message {
+func (x *GetInvitationCodeRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -322,39 +316,39 @@ func (x *GetInviteLinkRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetInviteLinkRequest.ProtoReflect.Descriptor instead.
-func (*GetInviteLinkRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetInvitationCodeRequest.ProtoReflect.Descriptor instead.
+func (*GetInvitationCodeRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetInviteLinkRequest) GetId() string {
+func (x *GetInvitationCodeRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type GetInviteLinkResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InviteLink    *InviteLink            `protobuf:"bytes,1,opt,name=invite_link,json=inviteLink,proto3" json:"invite_link,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type GetInvitationCodeResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	InvitationCode *InvitationCode        `protobuf:"bytes,1,opt,name=invitation_code,json=invitationCode,proto3" json:"invitation_code,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *GetInviteLinkResponse) Reset() {
-	*x = GetInviteLinkResponse{}
+func (x *GetInvitationCodeResponse) Reset() {
+	*x = GetInvitationCodeResponse{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetInviteLinkResponse) String() string {
+func (x *GetInvitationCodeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetInviteLinkResponse) ProtoMessage() {}
+func (*GetInvitationCodeResponse) ProtoMessage() {}
 
-func (x *GetInviteLinkResponse) ProtoReflect() protoreflect.Message {
+func (x *GetInvitationCodeResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -366,41 +360,43 @@ func (x *GetInviteLinkResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetInviteLinkResponse.ProtoReflect.Descriptor instead.
-func (*GetInviteLinkResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetInvitationCodeResponse.ProtoReflect.Descriptor instead.
+func (*GetInvitationCodeResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetInviteLinkResponse) GetInviteLink() *InviteLink {
+func (x *GetInvitationCodeResponse) GetInvitationCode() *InvitationCode {
 	if x != nil {
-		return x.InviteLink
+		return x.InvitationCode
 	}
 	return nil
 }
 
-// Creates an invite link. Absent constraints mean unlimited uses and no expiry.
-type CreateInviteLinkRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MaxUses       *uint32                `protobuf:"varint,1,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+// Creates one code. Every code is single-use, including when expiry is omitted.
+type CreateInvitationCodeRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
+	// Visible only to invitation managers; it does not bind the code to a recipient.
+	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CreateInviteLinkRequest) Reset() {
-	*x = CreateInviteLinkRequest{}
+func (x *CreateInvitationCodeRequest) Reset() {
+	*x = CreateInvitationCodeRequest{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateInviteLinkRequest) String() string {
+func (x *CreateInvitationCodeRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateInviteLinkRequest) ProtoMessage() {}
+func (*CreateInvitationCodeRequest) ProtoMessage() {}
 
-func (x *CreateInviteLinkRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateInvitationCodeRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -412,46 +408,46 @@ func (x *CreateInviteLinkRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateInviteLinkRequest.ProtoReflect.Descriptor instead.
-func (*CreateInviteLinkRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateInvitationCodeRequest.ProtoReflect.Descriptor instead.
+func (*CreateInvitationCodeRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateInviteLinkRequest) GetMaxUses() uint32 {
-	if x != nil && x.MaxUses != nil {
-		return *x.MaxUses
-	}
-	return 0
-}
-
-func (x *CreateInviteLinkRequest) GetExpiresAt() *timestamppb.Timestamp {
+func (x *CreateInvitationCodeRequest) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-type CreateInviteLinkResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InviteLink    *InviteLink            `protobuf:"bytes,1,opt,name=invite_link,json=inviteLink,proto3" json:"invite_link,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+func (x *CreateInvitationCodeRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
 }
 
-func (x *CreateInviteLinkResponse) Reset() {
-	*x = CreateInviteLinkResponse{}
+type CreateInvitationCodeResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	InvitationCode *InvitationCode        `protobuf:"bytes,1,opt,name=invitation_code,json=invitationCode,proto3" json:"invitation_code,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateInvitationCodeResponse) Reset() {
+	*x = CreateInvitationCodeResponse{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateInviteLinkResponse) String() string {
+func (x *CreateInvitationCodeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateInviteLinkResponse) ProtoMessage() {}
+func (*CreateInvitationCodeResponse) ProtoMessage() {}
 
-func (x *CreateInviteLinkResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateInvitationCodeResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -463,39 +459,39 @@ func (x *CreateInviteLinkResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateInviteLinkResponse.ProtoReflect.Descriptor instead.
-func (*CreateInviteLinkResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateInvitationCodeResponse.ProtoReflect.Descriptor instead.
+func (*CreateInvitationCodeResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *CreateInviteLinkResponse) GetInviteLink() *InviteLink {
+func (x *CreateInvitationCodeResponse) GetInvitationCode() *InvitationCode {
 	if x != nil {
-		return x.InviteLink
+		return x.InvitationCode
 	}
 	return nil
 }
 
-type RevokeInviteLinkRequest struct {
+type RevokeInvitationCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RevokeInviteLinkRequest) Reset() {
-	*x = RevokeInviteLinkRequest{}
+func (x *RevokeInvitationCodeRequest) Reset() {
+	*x = RevokeInvitationCodeRequest{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RevokeInviteLinkRequest) String() string {
+func (x *RevokeInvitationCodeRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RevokeInviteLinkRequest) ProtoMessage() {}
+func (*RevokeInvitationCodeRequest) ProtoMessage() {}
 
-func (x *RevokeInviteLinkRequest) ProtoReflect() protoreflect.Message {
+func (x *RevokeInvitationCodeRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -507,39 +503,39 @@ func (x *RevokeInviteLinkRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RevokeInviteLinkRequest.ProtoReflect.Descriptor instead.
-func (*RevokeInviteLinkRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RevokeInvitationCodeRequest.ProtoReflect.Descriptor instead.
+func (*RevokeInvitationCodeRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *RevokeInviteLinkRequest) GetId() string {
+func (x *RevokeInvitationCodeRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type RevokeInviteLinkResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InviteLink    *InviteLink            `protobuf:"bytes,1,opt,name=invite_link,json=inviteLink,proto3" json:"invite_link,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type RevokeInvitationCodeResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	InvitationCode *InvitationCode        `protobuf:"bytes,1,opt,name=invitation_code,json=invitationCode,proto3" json:"invitation_code,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *RevokeInviteLinkResponse) Reset() {
-	*x = RevokeInviteLinkResponse{}
+func (x *RevokeInvitationCodeResponse) Reset() {
+	*x = RevokeInvitationCodeResponse{}
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RevokeInviteLinkResponse) String() string {
+func (x *RevokeInvitationCodeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RevokeInviteLinkResponse) ProtoMessage() {}
+func (*RevokeInvitationCodeResponse) ProtoMessage() {}
 
-func (x *RevokeInviteLinkResponse) ProtoReflect() protoreflect.Message {
+func (x *RevokeInvitationCodeResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -551,14 +547,14 @@ func (x *RevokeInviteLinkResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RevokeInviteLinkResponse.ProtoReflect.Descriptor instead.
-func (*RevokeInviteLinkResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RevokeInvitationCodeResponse.ProtoReflect.Descriptor instead.
+func (*RevokeInvitationCodeResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RevokeInviteLinkResponse) GetInviteLink() *InviteLink {
+func (x *RevokeInvitationCodeResponse) GetInvitationCode() *InvitationCode {
 	if x != nil {
-		return x.InviteLink
+		return x.InvitationCode
 	}
 	return nil
 }
@@ -567,57 +563,50 @@ var File_chatto_admin_v1_invitations_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/admin/v1/invitations.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x85\x03\n" +
-	"\n" +
-	"InviteLink\x12\x0e\n" +
+	"!chatto/admin/v1/invitations.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd7\x02\n" +
+	"\x0eInvitationCode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04link\x18\x02 \x01(\tR\x04link\x12\x1d\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\x03 \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1e\n" +
-	"\bmax_uses\x18\x05 \x01(\rH\x00R\amaxUses\x88\x01\x01\x129\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1b\n" +
-	"\tuse_count\x18\a \x01(\rR\buseCount\x129\n" +
-	"\x06status\x18\b \x01(\x0e2!.chatto.admin.v1.InviteLinkStatusR\x06status\x129\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12=\n" +
+	"\x06status\x18\x06 \x01(\x0e2%.chatto.admin.v1.InvitationCodeStatusR\x06status\x129\n" +
 	"\n" +
-	"revoked_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAtB\v\n" +
-	"\t_max_uses\"H\n" +
-	"\x16ListInviteLinksRequest\x12.\n" +
-	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x86\x01\n" +
-	"\x17ListInviteLinksResponse\x12>\n" +
-	"\finvite_links\x18\x01 \x03(\v2\x1b.chatto.admin.v1.InviteLinkR\vinviteLinks\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"/\n" +
-	"\x14GetInviteLinkRequest\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"U\n" +
-	"\x15GetInviteLinkResponse\x12<\n" +
-	"\vinvite_link\x18\x01 \x01(\v2\x1b.chatto.admin.v1.InviteLinkR\n" +
-	"inviteLink\"\x8a\x01\n" +
-	"\x17CreateInviteLinkRequest\x12'\n" +
-	"\bmax_uses\x18\x01 \x01(\rB\a\xbaH\x04*\x02(\x01H\x00R\amaxUses\x88\x01\x01\x129\n" +
+	"revoked_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12\x12\n" +
+	"\x04note\x18\b \x01(\tR\x04note\"L\n" +
+	"\x1aListInvitationCodesRequest\x12.\n" +
+	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x96\x01\n" +
+	"\x1bListInvitationCodesResponse\x12J\n" +
+	"\x10invitation_codes\x18\x01 \x03(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0finvitationCodes\x12+\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"3\n" +
+	"\x18GetInvitationCodeRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"e\n" +
+	"\x19GetInvitationCodeResponse\x12H\n" +
+	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"v\n" +
+	"\x1bCreateInvitationCodeRequest\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAtB\v\n" +
-	"\t_max_uses\"X\n" +
-	"\x18CreateInviteLinkResponse\x12<\n" +
-	"\vinvite_link\x18\x01 \x01(\v2\x1b.chatto.admin.v1.InviteLinkR\n" +
-	"inviteLink\"2\n" +
-	"\x17RevokeInviteLinkRequest\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"X\n" +
-	"\x18RevokeInviteLinkResponse\x12<\n" +
-	"\vinvite_link\x18\x01 \x01(\v2\x1b.chatto.admin.v1.InviteLinkR\n" +
-	"inviteLink*\xb7\x01\n" +
-	"\x10InviteLinkStatus\x12\"\n" +
-	"\x1eINVITE_LINK_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
-	"\x19INVITE_LINK_STATUS_ACTIVE\x10\x01\x12\x1e\n" +
-	"\x1aINVITE_LINK_STATUS_EXPIRED\x10\x02\x12 \n" +
-	"\x1cINVITE_LINK_STATUS_EXHAUSTED\x10\x03\x12\x1e\n" +
-	"\x1aINVITE_LINK_STATUS_REVOKED\x10\x042\xb0\x03\n" +
-	"\x16AdminInviteLinkService\x12d\n" +
-	"\x0fListInviteLinks\x12'.chatto.admin.v1.ListInviteLinksRequest\x1a(.chatto.admin.v1.ListInviteLinksResponse\x12^\n" +
-	"\rGetInviteLink\x12%.chatto.admin.v1.GetInviteLinkRequest\x1a&.chatto.admin.v1.GetInviteLinkResponse\x12g\n" +
-	"\x10CreateInviteLink\x12(.chatto.admin.v1.CreateInviteLinkRequest\x1a).chatto.admin.v1.CreateInviteLinkResponse\x12g\n" +
-	"\x10RevokeInviteLink\x12(.chatto.admin.v1.RevokeInviteLinkRequest\x1a).chatto.admin.v1.RevokeInviteLinkResponseB\xcb\x01\n" +
+	"expires_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1c\n" +
+	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01R\x04note\"h\n" +
+	"\x1cCreateInvitationCodeResponse\x12H\n" +
+	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"6\n" +
+	"\x1bRevokeInvitationCodeRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"h\n" +
+	"\x1cRevokeInvitationCodeResponse\x12H\n" +
+	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode*\xca\x01\n" +
+	"\x14InvitationCodeStatus\x12&\n" +
+	"\"INVITATION_CODE_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dINVITATION_CODE_STATUS_ACTIVE\x10\x01\x12\"\n" +
+	"\x1eINVITATION_CODE_STATUS_EXPIRED\x10\x02\x12\x1f\n" +
+	"\x1bINVITATION_CODE_STATUS_USED\x10\x03\x12\"\n" +
+	"\x1eINVITATION_CODE_STATUS_REVOKED\x10\x042\xe4\x03\n" +
+	"\x1aAdminInvitationCodeService\x12p\n" +
+	"\x13ListInvitationCodes\x12+.chatto.admin.v1.ListInvitationCodesRequest\x1a,.chatto.admin.v1.ListInvitationCodesResponse\x12j\n" +
+	"\x11GetInvitationCode\x12).chatto.admin.v1.GetInvitationCodeRequest\x1a*.chatto.admin.v1.GetInvitationCodeResponse\x12s\n" +
+	"\x14CreateInvitationCode\x12,.chatto.admin.v1.CreateInvitationCodeRequest\x1a-.chatto.admin.v1.CreateInvitationCodeResponse\x12s\n" +
+	"\x14RevokeInvitationCode\x12,.chatto.admin.v1.RevokeInvitationCodeRequest\x1a-.chatto.admin.v1.RevokeInvitationCodeResponseB\xcb\x01\n" +
 	"\x13com.chatto.admin.v1B\x10InvitationsProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
@@ -635,40 +624,40 @@ func file_chatto_admin_v1_invitations_proto_rawDescGZIP() []byte {
 var file_chatto_admin_v1_invitations_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_admin_v1_invitations_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_admin_v1_invitations_proto_goTypes = []any{
-	(InviteLinkStatus)(0),            // 0: chatto.admin.v1.InviteLinkStatus
-	(*InviteLink)(nil),               // 1: chatto.admin.v1.InviteLink
-	(*ListInviteLinksRequest)(nil),   // 2: chatto.admin.v1.ListInviteLinksRequest
-	(*ListInviteLinksResponse)(nil),  // 3: chatto.admin.v1.ListInviteLinksResponse
-	(*GetInviteLinkRequest)(nil),     // 4: chatto.admin.v1.GetInviteLinkRequest
-	(*GetInviteLinkResponse)(nil),    // 5: chatto.admin.v1.GetInviteLinkResponse
-	(*CreateInviteLinkRequest)(nil),  // 6: chatto.admin.v1.CreateInviteLinkRequest
-	(*CreateInviteLinkResponse)(nil), // 7: chatto.admin.v1.CreateInviteLinkResponse
-	(*RevokeInviteLinkRequest)(nil),  // 8: chatto.admin.v1.RevokeInviteLinkRequest
-	(*RevokeInviteLinkResponse)(nil), // 9: chatto.admin.v1.RevokeInviteLinkResponse
-	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),           // 11: chatto.api.v1.PageRequest
-	(*v1.PageInfo)(nil),              // 12: chatto.api.v1.PageInfo
+	(InvitationCodeStatus)(0),            // 0: chatto.admin.v1.InvitationCodeStatus
+	(*InvitationCode)(nil),               // 1: chatto.admin.v1.InvitationCode
+	(*ListInvitationCodesRequest)(nil),   // 2: chatto.admin.v1.ListInvitationCodesRequest
+	(*ListInvitationCodesResponse)(nil),  // 3: chatto.admin.v1.ListInvitationCodesResponse
+	(*GetInvitationCodeRequest)(nil),     // 4: chatto.admin.v1.GetInvitationCodeRequest
+	(*GetInvitationCodeResponse)(nil),    // 5: chatto.admin.v1.GetInvitationCodeResponse
+	(*CreateInvitationCodeRequest)(nil),  // 6: chatto.admin.v1.CreateInvitationCodeRequest
+	(*CreateInvitationCodeResponse)(nil), // 7: chatto.admin.v1.CreateInvitationCodeResponse
+	(*RevokeInvitationCodeRequest)(nil),  // 8: chatto.admin.v1.RevokeInvitationCodeRequest
+	(*RevokeInvitationCodeResponse)(nil), // 9: chatto.admin.v1.RevokeInvitationCodeResponse
+	(*timestamppb.Timestamp)(nil),        // 10: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),               // 11: chatto.api.v1.PageRequest
+	(*v1.PageInfo)(nil),                  // 12: chatto.api.v1.PageInfo
 }
 var file_chatto_admin_v1_invitations_proto_depIdxs = []int32{
-	10, // 0: chatto.admin.v1.InviteLink.created_at:type_name -> google.protobuf.Timestamp
-	10, // 1: chatto.admin.v1.InviteLink.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: chatto.admin.v1.InviteLink.status:type_name -> chatto.admin.v1.InviteLinkStatus
-	10, // 3: chatto.admin.v1.InviteLink.revoked_at:type_name -> google.protobuf.Timestamp
-	11, // 4: chatto.admin.v1.ListInviteLinksRequest.page:type_name -> chatto.api.v1.PageRequest
-	1,  // 5: chatto.admin.v1.ListInviteLinksResponse.invite_links:type_name -> chatto.admin.v1.InviteLink
-	12, // 6: chatto.admin.v1.ListInviteLinksResponse.page:type_name -> chatto.api.v1.PageInfo
-	1,  // 7: chatto.admin.v1.GetInviteLinkResponse.invite_link:type_name -> chatto.admin.v1.InviteLink
-	10, // 8: chatto.admin.v1.CreateInviteLinkRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: chatto.admin.v1.CreateInviteLinkResponse.invite_link:type_name -> chatto.admin.v1.InviteLink
-	1,  // 10: chatto.admin.v1.RevokeInviteLinkResponse.invite_link:type_name -> chatto.admin.v1.InviteLink
-	2,  // 11: chatto.admin.v1.AdminInviteLinkService.ListInviteLinks:input_type -> chatto.admin.v1.ListInviteLinksRequest
-	4,  // 12: chatto.admin.v1.AdminInviteLinkService.GetInviteLink:input_type -> chatto.admin.v1.GetInviteLinkRequest
-	6,  // 13: chatto.admin.v1.AdminInviteLinkService.CreateInviteLink:input_type -> chatto.admin.v1.CreateInviteLinkRequest
-	8,  // 14: chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink:input_type -> chatto.admin.v1.RevokeInviteLinkRequest
-	3,  // 15: chatto.admin.v1.AdminInviteLinkService.ListInviteLinks:output_type -> chatto.admin.v1.ListInviteLinksResponse
-	5,  // 16: chatto.admin.v1.AdminInviteLinkService.GetInviteLink:output_type -> chatto.admin.v1.GetInviteLinkResponse
-	7,  // 17: chatto.admin.v1.AdminInviteLinkService.CreateInviteLink:output_type -> chatto.admin.v1.CreateInviteLinkResponse
-	9,  // 18: chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink:output_type -> chatto.admin.v1.RevokeInviteLinkResponse
+	10, // 0: chatto.admin.v1.InvitationCode.created_at:type_name -> google.protobuf.Timestamp
+	10, // 1: chatto.admin.v1.InvitationCode.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: chatto.admin.v1.InvitationCode.status:type_name -> chatto.admin.v1.InvitationCodeStatus
+	10, // 3: chatto.admin.v1.InvitationCode.revoked_at:type_name -> google.protobuf.Timestamp
+	11, // 4: chatto.admin.v1.ListInvitationCodesRequest.page:type_name -> chatto.api.v1.PageRequest
+	1,  // 5: chatto.admin.v1.ListInvitationCodesResponse.invitation_codes:type_name -> chatto.admin.v1.InvitationCode
+	12, // 6: chatto.admin.v1.ListInvitationCodesResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 7: chatto.admin.v1.GetInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
+	10, // 8: chatto.admin.v1.CreateInvitationCodeRequest.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 9: chatto.admin.v1.CreateInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
+	1,  // 10: chatto.admin.v1.RevokeInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
+	2,  // 11: chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes:input_type -> chatto.admin.v1.ListInvitationCodesRequest
+	4,  // 12: chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode:input_type -> chatto.admin.v1.GetInvitationCodeRequest
+	6,  // 13: chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode:input_type -> chatto.admin.v1.CreateInvitationCodeRequest
+	8,  // 14: chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode:input_type -> chatto.admin.v1.RevokeInvitationCodeRequest
+	3,  // 15: chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes:output_type -> chatto.admin.v1.ListInvitationCodesResponse
+	5,  // 16: chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode:output_type -> chatto.admin.v1.GetInvitationCodeResponse
+	7,  // 17: chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode:output_type -> chatto.admin.v1.CreateInvitationCodeResponse
+	9,  // 18: chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode:output_type -> chatto.admin.v1.RevokeInvitationCodeResponse
 	15, // [15:19] is the sub-list for method output_type
 	11, // [11:15] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
@@ -681,8 +670,6 @@ func file_chatto_admin_v1_invitations_proto_init() {
 	if File_chatto_admin_v1_invitations_proto != nil {
 		return
 	}
-	file_chatto_admin_v1_invitations_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_admin_v1_invitations_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

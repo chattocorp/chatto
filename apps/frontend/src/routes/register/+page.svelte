@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
@@ -8,6 +9,7 @@
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { acceptRegistrationInvitation } from '$lib/auth/registrationAdmission';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
   import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
@@ -23,14 +25,16 @@
   type Step = 'email' | 'code' | 'details';
 
   const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
-  const invitationRequired = $derived(data.serverInfo?.accountCreationPolicy === 'invite_only');
+  const invitationRequired = $derived(data.invitationRequired);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const registrationProviders = $derived(
     authProviders.filter((provider) => provider.autoProvision !== false)
   );
-  const selfServiceAvailable = $derived(registrationEnabled || registrationProviders.length > 0);
-  const inviteAccepted = $derived(data.inviteAccepted ?? false);
-  const inviteError = $derived(data.inviteError ?? false);
+  const selfServiceAvailable = $derived(
+    !!data.externalIdentityToken || registrationEnabled || registrationProviders.length > 0
+  );
+  let admissionId = $derived(data.admissionId ?? '');
+  let invitationCode = $state('');
 
   let step = $state<Step>('email');
   let email = $state('');
@@ -82,7 +86,40 @@
   );
 
   function providerLoginHref(provider: PublicAuthProvider): string {
-    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
+    const url = new URL(provider.loginUrl, window.location.origin);
+    url.searchParams.set('redirect', data.redirectUrl);
+    if (admissionId) url.searchParams.set('admission', admissionId);
+    return url.href;
+  }
+
+  async function handleInvitationSubmit(event: Event) {
+    event.preventDefault();
+    error = '';
+    isLoading = true;
+    try {
+      const accepted = await acceptRegistrationInvitation(
+        invitationCode,
+        data.externalIdentityToken ?? ''
+      );
+      if (!active) return;
+      if (!accepted) {
+        error = m('auth.register.invitation.invalid');
+        return;
+      }
+      invitationCode = '';
+      if (accepted.externalIdentityToken) {
+        await goto(
+          resolve(`/sso/confirm?token=${encodeURIComponent(accepted.externalIdentityToken)}`),
+          { replaceState: true }
+        );
+      } else {
+        admissionId = accepted.admissionId;
+      }
+    } catch (err) {
+      if (active) error = errorMessage(err, m('auth.register.failed'));
+    } finally {
+      isLoading = false;
+    }
   }
 
   async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
@@ -95,7 +132,7 @@
       return;
     }
     try {
-      providerPopup = openProviderSignIn(provider.loginUrl);
+      providerPopup = openProviderSignIn(providerLoginHref(provider));
       await verifyProviderSignIn(providerPopup);
       if (!active) return;
       if (!(await completeOriginAuthentication()))
@@ -128,7 +165,7 @@
           'Content-Type': 'application/json',
           ...browserCookieAuthenticationHeaders
         },
-        body: JSON.stringify({ email: normalizedEmail })
+        body: JSON.stringify({ email: normalizedEmail, admissionId })
       });
       const body = await response.json();
 
@@ -238,13 +275,23 @@
 >
   {#if !selfServiceAvailable}
     <Hint>{m('auth.register.unavailable')}</Hint>
-  {:else if invitationRequired && !inviteAccepted}
-    <div class="flex flex-col gap-4 text-center">
+  {:else if invitationRequired && !admissionId}
+    <form onsubmit={handleInvitationSubmit} class="flex flex-col gap-4">
       <p class="text-muted">{m('auth.register.invitation.required')}</p>
-      {#if inviteError}
-        <FormError error={m('auth.register.invitation.invalid')} />
-      {/if}
-    </div>
+      <TextInput
+        id="invitation-code"
+        label={m('auth.register.invitation.label')}
+        bind:value={invitationCode}
+        required
+        autofocus
+        disabled={isLoading}
+        autocomplete="off"
+      />
+      <FormError {error} />
+      <Button type="submit" size="lg" loading={isLoading} disabled={!invitationCode.trim()}>
+        {m('common.continue')}
+      </Button>
+    </form>
   {:else if step === 'email'}
     {#if registrationEnabled}
       <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
@@ -384,12 +431,15 @@
   <Divider label={m('common.or')} />
 
   <Button
-    href={resolve('/login') +
-      (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
+    href={data.externalIdentityToken
+      ? resolve('/sso/confirm') +
+        `?${new URLSearchParams({ token: data.externalIdentityToken, existing: '1' })}`
+      : resolve('/login') +
+        (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
     variant="secondary"
     size="lg"
     fullWidth
   >
-    {m('common.sign_in')}
+    {m(data.externalIdentityToken ? 'auth.sso.sign_in_existing' : 'common.sign_in')}
   </Button>
 </AuthLayout>

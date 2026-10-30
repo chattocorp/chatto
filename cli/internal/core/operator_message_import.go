@@ -149,62 +149,70 @@ func (c *ChattoCore) readHistoricalClaim(ctx context.Context, input HistoricalMe
 	return c.lookupHistoricalMessage(ctx, input, claim)
 }
 
-// ImportHistoricalMessage appends a source-time message without user posting
-// policy or live posting effects. EVT records the system actor, while the
-// message fact and encrypted body retain the mapped historical author.
-func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input HistoricalMessageInput) (result *evtv1.Event, resultErr error) {
+// validateHistoricalMessageInput checks immutable input before claims or writes.
+func validateHistoricalMessageInput(input HistoricalMessageInput) error {
 	if (input.DeletedAt != nil || input.SourceActorID != "") && input.OperationKey == "" {
-		return nil, invalidArgument("source metadata requires operation_key")
+		return invalidArgument("source metadata requires operation_key")
 	}
 	if input.DeletedAt != nil && (!input.Deleted || input.DeletedAt.Before(input.CreatedAt) || timestamppb.New(*input.DeletedAt).CheckValid() != nil) {
-		return nil, invalidArgument("invalid deleted_at")
-	}
-	if input.SourceActorID != "" {
-		if _, err := c.GetUser(ctx, input.SourceActorID); err != nil {
-			return nil, err
-		}
+		return invalidArgument("invalid deleted_at")
 	}
 	if input.OperationKey != "" && input.IdempotencyKey != "" {
-		return nil, invalidArgument("operation_key and idempotency_key are mutually exclusive")
+		return invalidArgument("operation_key and idempotency_key are mutually exclusive")
 	}
 	if input.Deleted && (input.Body != "" || len(input.AttachmentAssetIDs) != 0 || input.LinkPreview != nil || input.EditedAt != nil) {
-		return nil, invalidArgument("deleted imports must not contain body, attachments, preview, or edited_at")
+		return invalidArgument("deleted imports must not contain body, attachments, preview, or edited_at")
 	}
 	if input.IdempotencyKey != "" {
 		if _, err := messageClaimKey(messageImportClaimPrefix, SystemActorID, input.IdempotencyKey); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if input.RoomID == "" || input.AuthorID == "" || input.CreatedAt.IsZero() {
-		return nil, invalidArgument("room_id, author_id, and created_at are required")
+		return invalidArgument("room_id, author_id, and created_at are required")
 	}
 	if input.CreateThread && input.ThreadRootEventID != "" {
-		return nil, invalidArgument("create_thread and thread_root_event_id are mutually exclusive")
+		return invalidArgument("create_thread and thread_root_event_id are mutually exclusive")
 	}
 	if err := timestamppb.New(input.CreatedAt).CheckValid(); err != nil {
-		return nil, invalidArgument("created_at is invalid")
+		return invalidArgument("created_at is invalid")
 	}
 	if input.EditedAt != nil {
 		if input.EditedAt.Before(input.CreatedAt) || timestamppb.New(*input.EditedAt).CheckValid() != nil {
-			return nil, invalidArgument("edited_at must be valid and no earlier than created_at")
+			return invalidArgument("edited_at must be valid and no earlier than created_at")
 		}
 	}
 	if err := validateMessageAttachmentAssetIDs(input.AttachmentAssetIDs); err != nil {
-		return nil, err
+		return err
 	}
 	if len(input.Body) > MaxMessageBodyLength {
-		return nil, ErrMessageTooLong
+		return ErrMessageTooLong
 	}
 	if !input.Deleted && !HasVisibleContent(input.Body) && len(input.AttachmentAssetIDs) == 0 {
-		return nil, invalidArgument("message must have either body or attachments")
+		return invalidArgument("message must have either body or attachments")
 	}
 	if err := validateLinkPreview(input.LinkPreview); err != nil {
-		return nil, err
+		return err
 	}
 	if input.LinkPreview != nil {
 		parsed, err := url.Parse(input.LinkPreview.GetUrl())
 		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-			return nil, invalidArgument("preview_url must be an HTTP or HTTPS URL with a host")
+			return invalidArgument("preview_url must be an HTTP or HTTPS URL with a host")
+		}
+	}
+	return nil
+}
+
+// ImportHistoricalMessage appends a source-time message without user posting
+// policy or live posting effects. EVT records the system actor, while the
+// message fact and encrypted body retain the mapped historical author.
+func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input HistoricalMessageInput) (result *evtv1.Event, resultErr error) {
+	if err := validateHistoricalMessageInput(input); err != nil {
+		return nil, err
+	}
+	if input.SourceActorID != "" {
+		if _, err := c.GetUser(ctx, input.SourceActorID); err != nil {
+			return nil, err
 		}
 	}
 	if _, err := c.GetUser(ctx, input.AuthorID); err != nil {

@@ -8,6 +8,23 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
+func TestMarshalEventLogPayloadJSONRedactsInvitationNote(t *testing.T) {
+	t.Parallel()
+	event := &evtv1.Event{Event: &evtv1.Event_InvitationCreated{
+		InvitationCreated: &evtv1.InvitationCreatedEvent{InvitationId: "invite", Note: "Private recipient note"},
+	}}
+	data, err := marshalEventLogPayloadJSON(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "Private recipient note") || strings.Contains(string(data), `"note"`) {
+		t.Fatal("audit payload exposed an invitation note")
+	}
+	if event.GetInvitationCreated().GetNote() != "Private recipient note" {
+		t.Fatal("redaction changed the durable event")
+	}
+}
+
 func TestMarshalEventLogPayloadJSONRedactsPasswordHash(t *testing.T) {
 	t.Parallel()
 

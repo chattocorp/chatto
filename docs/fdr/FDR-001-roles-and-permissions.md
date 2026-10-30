@@ -240,11 +240,11 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   access to the complete thread. An effective `message.read` allow includes
   this permission. Fresh and upgraded servers store only the `message.read`
   grant for `everyone`.
-- `message.post` — post root messages and thread replies, and let human users start DMs.
+- `message.post` — post root messages and thread replies, and let humans and bots start DMs.
   Includes `message.post-in-thread` and `message.post-in-interactions`. A narrow
   deny cannot restrict an effective broad allow.
-  Bot accounts cannot start DMs. Fresh servers grant this permission to
-  `everyone` at server scope. Fresh announcement rooms replace that baseline
+  Bots need an explicit grant within their owner's authority. Fresh servers
+  grant this permission to `everyone` at server scope. Fresh announcement rooms replace that baseline
   with a room-level `everyone` deny and a room-level `admin` allow. Moderators
   and other named roles need their own room-level posting grant.
 - `message.post-in-thread` — reply in any readable thread where room policy permits it.

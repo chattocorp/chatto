@@ -6,7 +6,9 @@ export function desktopBuildProfile(variant = 'release') {
   const development = variant === 'development';
   return {
     variant,
-    productName: development ? 'Chatto Desktop Dev' : 'Chatto Desktop',
+    productName: development ? 'Chatto Dev' : 'Chatto',
+    // Keep existing sessions and preferences when the display name changes.
+    userDataName: development ? 'Chatto Desktop Dev' : 'Chatto Desktop',
     packageName: development ? 'chatto-desktop-dev' : 'chatto-desktop',
     bundleIdentifier: development ? 'run.chatto.desktop.dev' : 'run.chatto.desktop'
   };

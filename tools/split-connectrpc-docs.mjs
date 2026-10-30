@@ -184,10 +184,10 @@ const categories = [
     title: 'chatto.admin.v1',
     services: [
       {
-        name: 'AdminInviteLinkService',
-        slug: 'admin-invite-links',
-        title: 'Admin Invite Links',
-        description: 'Invite-link administration RPCs.'
+        name: 'AdminInvitationCodeService',
+        slug: 'admin-invitation-codes',
+        title: 'Admin Invitation Codes',
+        description: 'Single-use invitation-code administration RPCs.'
       },
       {
         name: 'AdminOAuthClientService',

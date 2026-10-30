@@ -4,7 +4,12 @@
 # Override with AUTHLING_SITE_NAME and AUTHLING_SITE_DESCRIPTION.
 [site]
 name = 'chatto.id'
-description = 'Your account for Chatto.'
+description = 'Your centralized identity for all your favorite Chatto servers.'
+
+# Current verified addresses that always have administrator access.
+# Override with AUTHLING_ADMIN_EMAILS (comma-separated). Restart after changes.
+[administration]
+admin_emails = []
 
 [http]
 bind_address = '127.0.0.1:8080'

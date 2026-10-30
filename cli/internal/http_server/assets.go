@@ -155,6 +155,10 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	c.Header("ETag", fmt.Sprintf("\"%s\"", key))
 	c.Header("Vary", "Accept-Encoding")
+	if requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
+		c.Status(http.StatusNotModified)
+		return
+	}
 
 	c.DataFromReader(
 		http.StatusOK,
@@ -185,6 +189,10 @@ func (s *HTTPServer) serveNeighborhoodImage(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	c.Header("ETag", fmt.Sprintf("\"%s\"", name))
 	c.Header("X-Content-Type-Options", "nosniff")
+	if requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
+		c.Status(http.StatusNotModified)
+		return
+	}
 	c.DataFromReader(http.StatusOK, int64(info.Size), "image/webp", reader, nil)
 }
 
@@ -687,6 +695,10 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 		c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
 		c.Header("Vary", transformedAssetVary(req.Authorize == nil))
 		c.Header("X-Cache", "HIT")
+		if req.Authorize == nil && requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
+			c.Status(http.StatusNotModified)
+			return
+		}
 		c.Data(http.StatusOK, assets.DetectImageContentType(cached), cached)
 		return
 	}
@@ -758,6 +770,10 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
 	c.Header("Vary", transformedAssetVary(req.Authorize == nil))
 	c.Header("X-Cache", "MISS")
+	if req.Authorize == nil && requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
+		c.Status(http.StatusNotModified)
+		return
+	}
 
 	// Serve the transformed image with appropriate content type
 	c.Data(http.StatusOK, result.ContentType, result.Data)

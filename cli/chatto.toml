@@ -55,7 +55,6 @@ signing_secret = '2e5cac66f8ea81759952186886d233410c1e6e18e3048bc680792935206240
 max_upload_size = '25MB'
 
 [auth]
-account_creation_policy = 'open'
 
 # `mise dev-full` enables email. Its Mailpit receives the mail.
 [smtp]
