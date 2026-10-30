@@ -158,9 +158,9 @@ DMs use the `message.*` and `call.*` permissions at the **Direct messages**
 scope. No `room.*` permission applies to DMs. If you do not set a Direct
 messages value, the Server setting applies.
 
-- Only people can start a DM. They need `message.post`. A bot cannot start a
-  DM, even with `message.post`. After a person starts a DM with a bot, the bot
-  can use the DM permissions that you allow for it.
+- People and bots need `message.post` to start a DM. Bots need an explicit
+  grant, bounded by their owner's authority. This also lets existing bots
+  with DM posting permission initiate conversations.
 - A participant with `message.manage` can edit or delete the messages of other
   participants. Nobody can moderate a DM that they are not part of.
 

@@ -188,10 +188,9 @@ exercise more authority than its human owner currently possesses.
   includes the narrow permission. Each grant is bounded by sufficient
   effective authority on its owner. DM membership remains necessary, and the
   bot also needs a DM-scoped broad or interaction read grant.
-- A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
-  has `message.post` or the DM already exists. A human must start a DM that
-  includes the bot. The bot can then interact in that DM through its normal
-  message permissions.
+- A bot can start a DM with an explicit `message.post` grant at DM scope,
+  bounded by its owner's authority. It can fetch an existing DM through
+  `RoomService.StartDM` without posting permission, like a human participant.
 - Bot permissions are granted explicitly at their applicable server, room
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current RBAC entitlement allow
@@ -365,17 +364,15 @@ across existing and future surfaces.
 **Tradeoff:** Older clients that do not understand the additive bot marker will
 render a bot like an ordinary user until they are upgraded.
 
-### 9. Bots cannot start DMs
+### 9. Bots use normal DM permissions
 
-**Decision:** Bot account kind always denies `RoomService.StartDM`. This rule
-applies before RBAC and has no owner override. A human can start a DM with a
-bot, after which DM membership and normal message permissions apply.
-**Why:** An automation credential must not create an unsolicited private
-conversation. The account-kind rule is visible and cannot be enabled by an
-incorrect permission grant.
-**Tradeoff:** A bot cannot use the idempotent start operation to get an
-existing DM. It must use the room state that Chatto sends after a human starts
-the DM.
+**Decision:** Bots can start DMs with `message.post` at DM scope, subject to
+explicit grants and the owner's authority ceiling. Existing DM lookup does
+not require posting permission. New group DMs remain unsupported.
+**Why:** Workflows such as invoice approval need bots to contact people.
+An account-kind restriction does not prevent spam from human credentials.
+**Tradeoff:** Existing bots with DM posting authority can initiate contact.
+There is no separate permission or approval step for initiation.
 
 ### 10. Semantic public events are the bot activation contract
 
@@ -516,9 +513,8 @@ render bot accounts as ordinary users, and the bundled client does not call
 bot-management operations on an older server.
 
 Operators must replace all replicas before they create or revoke bot
-credentials, reassign bot ownership, or depend on the rule that bots cannot
-start DMs. An older replica can omit newer bot facts or accept the earlier DM
-behavior. Updated servers continue to accept the first longer bot-key format
+credentials or reassign bot ownership. An older replica can omit newer bot
+facts. Updated servers continue to accept the first longer bot-key format
 while issuing the current shorter format. Exact field, method, event, and
 version-gate details belong in the public schema and API compatibility guide.
 

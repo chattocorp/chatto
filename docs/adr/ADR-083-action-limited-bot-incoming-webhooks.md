@@ -46,8 +46,9 @@ IDs, not names. The Chatto-only `create_thread` field requests a new thread.
 The HTTP handler authenticates the credential and calls the normal message
 operation as the bot. Normal room membership, bot and owner permissions,
 threading policy, archived-room state, slow mode, message validation, and
-commit-time authorization apply. The webhook can post to an existing DM only
-when a human already started that DM with the bot. It cannot start or find a DM.
+commit-time authorization apply. The webhook can post to an existing DM that
+includes the bot. The webhook credential cannot start or find a DM; a bot can
+use its API key to call `RoomService.StartDM`.
 It rejects thread creation in a DM.
 
 The first version has no idempotency key. If a caller retries after it loses a
