@@ -82,7 +82,8 @@ releases. Switching to Stable does not downgrade an installed beta. Automatic
 checks start 30 seconds after launch and repeat every 30 minutes. Stable
 updates roll out over 36 hours; manual checks and Beta bypass this delay.
 Users can disable automatic checks and downloads in the Updates menu.
-Installation requires **Restart to Update** and confirmation. An ordinary quit
+The restart action appears only when an update is ready and shows its version.
+Installation requires **Restart to Install [version]** and confirmation. An ordinary quit
 does not install an update. The frontend stays bundled and startup uses local files.
 
 GitHub receives the user's IP address and update requests. The updater sends
