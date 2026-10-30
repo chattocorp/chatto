@@ -7,6 +7,7 @@ import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/client/api/roomDirectory';
 import MessageContent from '../MessageContent.svelte';
+import UrlLink from './UrlLink.svelte';
 import TipTapEditor from '../composer/TipTapEditor.svelte';
 import type { ComposerEditorApi } from '../composer/editorTypes';
 import { ServerInfoState } from '@chatto/client/server/state';
@@ -87,6 +88,49 @@ afterEach(() => {
   client.close();
   vi.restoreAllMocks();
 });
+
+it('marks only links that open a new window and keeps both segments in one link', async () => {
+  const href = 'https://spiegel.de/politik/article';
+  const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  const { container, rerender } = render(UrlLink, { href, title: 'An article' });
+  const anchor = container.querySelector('a')!;
+  expect(anchor.target).toBe('_blank');
+  expect(
+    anchor.querySelector('.iconify')?.classList.contains('icon-[uil--external-link-alt]')
+  ).toBe(true);
+  expect(anchor.querySelector('.url-link-host')?.textContent).toBe('spiegel.de');
+  expect(container.querySelectorAll('a')).toHaveLength(1);
+  anchor.querySelector<HTMLElement>('.url-link-host')!.click();
+  expect(open).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+
+  await rerender({ href: `${origin}/chat/-/${roomId}`, title: 'General' });
+  expect(anchor.hasAttribute('target')).toBe(false);
+  expect(anchor.querySelector('.iconify')).toBeNull();
+});
+
+it.each(['ltr', 'rtl'])(
+  'keeps the source visible and the title truncated in a narrow %s message',
+  async (dir) => {
+    const { container } = render(UrlLink, {
+      href: 'https://spiegel.de/politik/article',
+      title: 'A long article title that must yield space to its source hostname'.repeat(3)
+    });
+    container.style.width = '240px';
+    container.dir = dir;
+    const anchor = container.querySelector('a')!;
+    const title = anchor.querySelector<HTMLElement>('.url-link-main bdi')!;
+    const host = anchor.querySelector<HTMLElement>('.url-link-host bdi')!;
+    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(240);
+    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
+    expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth);
+    expect(getComputedStyle(title).textOverflow).toBe('ellipsis');
+    expect(
+      dir === 'ltr'
+        ? host.getBoundingClientRect().left > title.getBoundingClientRect().left
+        : host.getBoundingClientRect().left < title.getBoundingClientRect().left
+    ).toBe(true);
+  }
+);
 
 describe('entity links in messages', () => {
   it('opens a known destination from its hover card using local navigation', async () => {
@@ -303,7 +347,7 @@ describe('entity links in messages', () => {
     });
     await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
     const chip = container.querySelector<HTMLAnchorElement>('.url-link')!;
-    expect(chip.textContent).toBe('docs.example.test:8443');
+    expect(chip.textContent?.trim()).toBe('docs.example.test:8443');
     expect(chip.href).toBe(href);
     expect(chip.title).toBe(href);
     expect(document.getElementById(chip.getAttribute('aria-describedby')!)?.textContent).toBe(href);
@@ -323,7 +367,7 @@ describe('entity links in messages', () => {
     const { container } = render(MessageContent, { body: href });
     await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
     const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
-    expect(link.textContent).toMatch(/^chatt….*localhost:55110$/);
+    expect(link.textContent?.trim()).toMatch(/^chatt….*localhost:55110$/);
     expect(link.textContent?.match(/…/g)).toHaveLength(1);
     expect(link.href).toBe(href);
     expect(link.title).toBe(href);

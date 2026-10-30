@@ -1836,6 +1836,23 @@
   @apply inline-link-pill max-w-[min(100%,32ch)];
 }
 
+.url-link-main {
+  @apply inline-flex min-w-0 items-baseline gap-1;
+}
+
+/* Title and source share one hit target and one frame; the title yields first. */
+.url-link-with-title {
+  @apply max-w-[min(100%,48ch)] gap-0 overflow-hidden px-0;
+}
+
+.url-link-with-title .url-link-main {
+  @apply flex-1 px-1.5;
+}
+
+.url-link-host {
+  @apply inline-flex max-w-[40%] min-w-0 shrink-0 items-center self-stretch border-s border-text/10 bg-black/20 px-1.5 text-[0.85em] text-text-top/80;
+}
+
 .entity-link-with-image {
   padding-inline-start: 0;
 }

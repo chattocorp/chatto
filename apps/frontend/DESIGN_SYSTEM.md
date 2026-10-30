@@ -569,8 +569,13 @@ Inline URL and entity pills use `inline-link-pill`, the inline counterpart of
 the Inset Frame. It composes `inset-content` with a visible `surface-emphasized`
 fill, a thin inset ring, regular `text` foreground, and a brighter surface and
 ring on hover. It has no outer rim or vertical padding, so it does not increase
-line height. Keep URL paths muted and use the hostname as the primary label.
-Show only short, complete paths that fit beside
+line height. When a page title is available, show it in the main section and
+the hostname in a darker, muted trailing section. Both sections belong to one
+link. The title truncates first; keep the hostname section within 40% of the
+pill and the complete pill within 48ch or the available width. Without a title,
+use the hostname as the primary label within 32ch. Show the standard external-link
+icon at the leading edge only when navigation opens a new window.
+Keep URL paths muted. Show only short, complete paths that fit beside
 it; omit long paths and opaque identifiers. Shorten long hostnames in the middle
 so their ending and port remain visible. Entity avatars and server icons stay flush with
 the leading edge and retain their own subtle image border. Pill corners and
@@ -579,7 +584,7 @@ only the avatar edge to half the avatar height; an oversized radius would also
 shrink the trailing corners through CSS radius scaling. Mirror this edge in RTL.
 Use this same
 treatment in messages and visual-composer previews; do not give URL and entity
-pills separate fills. See **Messages/Entity links** in Storybook.
+pills separate outer fills. See **Messages/Entity links** and **Messages/URL chips** in Storybook.
 
 Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
 cards, social embeds, linked messages, composer previews, and hover cards.
