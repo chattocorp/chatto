@@ -824,6 +824,7 @@
   }
 
   async function loadOlderIfTimelineNeedsBackfill(): Promise<void> {
+    if (destroyed) return;
     if (stores.realtimeSync.isRecoveringSnapshot || recoveryViewport(messageStore)) return;
     if (
       isLoading ||
@@ -836,18 +837,22 @@
     }
 
     underfilledBackfillInFlight = true;
+    const previousEvents = events;
+    let loaded = false;
     try {
       // A fetched page can consist entirely of hidden activity or tombstones. There is no
       // Virtualizer in that state, but pagination still needs to walk backward
       // until it finds visible history or reaches the beginning.
       if (timelineEvents.length > 0 && filteredEvents.length === 0) {
         await loadOlder(messageStore);
+        loaded = true;
         return;
       }
 
       await tick();
       await new Promise((resolve) => requestAnimationFrame(resolve));
       if (
+        destroyed ||
         !virtualizerHandle ||
         isLoading ||
         isLoadingMore ||
@@ -866,9 +871,15 @@
         messageEventCount < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET;
       if (scrollSize <= viewportSize + 50 || lacksInitialRoomMessages) {
         await loadOlder(messageStore);
+        loaded = true;
       }
     } finally {
       underfilledBackfillInFlight = false;
+      // The reactive check can run before this guard clears. Continue after a
+      // changed window, but do not retry failed or declined loads without progress.
+      if (loaded && !destroyed && events !== previousEvents) {
+        void loadOlderIfTimelineNeedsBackfill();
+      }
     }
   }
 
