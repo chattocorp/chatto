@@ -27,7 +27,7 @@
   <PaneContent wide>
     <div class="flex flex-col gap-8">
       {#if privilegedMode?.available && !privilegedMode.active}
-        <Hint icon="icon-[uil--shield]">{m('settings.overview.shield_notice')}</Hint>
+        <Hint tone="warning" icon="icon-[uil--shield]">{m('settings.overview.shield_notice')}</Hint>
       {/if}
       {#each groups as group (group.persistKey)}
         {#if group.items.length > 0}
