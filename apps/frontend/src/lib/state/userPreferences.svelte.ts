@@ -495,6 +495,9 @@ export class UserPreferencesState {
     applyAnimationPreference(this.#preferences.animations);
     applySurfaceDepth(this.#preferences.surfaceDepth);
     this.#applySurfaceTones();
+    // Read the current system theme again: the early HTML bootstrap can leave
+    // a stale theme. Use the same path as a change in the appearance settings.
+    applyDisplayTheme(this.#preferences.displayTheme);
   }
 
   get displayTheme(): DisplayTheme {

@@ -204,6 +204,36 @@ describe('UserPreferencesState', () => {
     expect(state.effectiveDisplayTheme).toBe('dark');
   });
 
+  it.each([
+    [undefined, 'dark', 'dark'],
+    ['system', 'dark', 'dark'],
+    ['system', 'light', 'light'],
+    ['light', 'dark', 'light'],
+    ['dark', 'light', 'dark']
+  ] as const)(
+    'corrects a stale startup theme for preference %s and system theme %s',
+    (displayTheme, systemTheme, expectedTheme) => {
+      mockSystemTheme(systemTheme);
+      if (displayTheme !== undefined) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayTheme }));
+      }
+      const savedPreferences = localStorage.getItem(STORAGE_KEY);
+      const root = document.documentElement;
+      root.dataset.theme = expectedTheme === 'dark' ? 'light' : 'dark';
+      root.style.colorScheme = root.dataset.theme;
+
+      const state = new UserPreferencesState();
+
+      expect(state.displayTheme).toBe(displayTheme ?? 'system');
+      expect(root.dataset.theme).toBe(expectedTheme);
+      expect(root.style.colorScheme).toBe(expectedTheme);
+      expect(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content).toBe(
+        expectedTheme === 'dark' ? '#262626' : '#e5e7eb'
+      );
+      expect(localStorage.getItem(STORAGE_KEY)).toBe(savedPreferences);
+    }
+  );
+
   it.each(['system', 'light', 'dark'] as const)(
     'hydrates a persisted %s display theme',
     (displayTheme) => {
