@@ -65,7 +65,7 @@ func parseFeatureRelease(value string) (*semver.Version, error) {
 	if parsed.String() != value {
 		return nil, errors.New("non-canonical version")
 	}
-	for _, part := range strings.Split(parsed.Prerelease(), ".") {
+	for part := range strings.SplitSeq(parsed.Prerelease(), ".") {
 		if len(part) > 1 && part[0] == '0' && strings.Trim(part, "0123456789") == "" {
 			return nil, errors.New("numeric prerelease identifier has a leading zero")
 		}
