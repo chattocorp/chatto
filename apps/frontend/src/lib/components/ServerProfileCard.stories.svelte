@@ -25,6 +25,25 @@
   };
 </script>
 
+<Story name="Populated directory" parameters={{ layout: 'fullscreen' }} asChild>
+  <div class="mx-auto flex max-w-7xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold text-text-top">Server Directory</h1>
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {#each [{ name: 'The Greenhouse', host: 'greenhouse', description: 'A growing community of gardeners, plant collectors, and people who keep trying to keep their basil alive.' }, { name: 'Night Shift', host: 'nightshift', description: 'Late-night conversations, shared playlists, and good company across every time zone.' }, { name: 'Pixel Workshop', host: 'pixels', description: 'Small games, big ideas. Share your work, trade feedback, and build something playful.' }, { name: 'Common Ground', host: 'common', description: 'Your neighbourhood, online. Local projects, weekend plans, and friendly introductions.' }, { name: 'Orbit', host: 'orbit', description: 'For curious minds looking up. Space news, telescope tips, and the occasional rocket launch.' }, { name: 'The Reading Room', host: 'reading', description: 'One more chapter. Book clubs, unexpected recommendations, and conversations that go beyond the last page.' }, { name: 'Trail Mix', host: 'trails', description: 'Find your next path. Hiking routes, muddy boots, and stories from the great outdoors.' }, { name: 'Open Kitchen', host: 'kitchen', description: 'Recipes worth repeating, ambitious experiments, and a place at the table for everyone.' }] as server, index (server.host)}
+        {#snippet footer()}{index < 3 ? 'Joined' : 'Recommended by Common Ground'}{/snippet}
+        <ServerProfileCard
+          origin={`https://${server.host}.example`}
+          profile={{ ...server, iconUrl: null, bannerUrl: null }}
+          {footer}
+          onactivate={() => {}}
+          actionLabel={index < 3 ? 'Open' : 'Join'}
+          headingTag="h2"
+        />
+      {/each}
+    </div>
+  </div>
+</Story>
+
 <Story name="Admin profile" asChild>
   <div class="w-full max-w-sm p-4">
     <ServerProfileCard origin="https://long-neighbourhood.example" {profile} />
