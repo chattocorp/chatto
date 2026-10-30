@@ -138,8 +138,11 @@ test.describe('App and User Preferences', () => {
       await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
       await page.getByRole('link', { name: 'App Preferences' }).click();
-      await page.waitForURL(/\/chat\/[^/]+\/settings\/appearance$/);
-      await page.getByRole('link', { name: 'Composer' }).click();
+      await page.waitForURL(/\/chat\/[^/]+\/settings\/overview$/);
+      await page
+        .getByRole('navigation', { name: 'App preferences', exact: true })
+        .getByRole('link', { name: 'Composer' })
+        .click();
       await page.waitForURL(/\/chat\/[^/]+\/settings\/composer$/);
       await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
         'aria-checked',
