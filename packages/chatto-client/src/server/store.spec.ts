@@ -3673,6 +3673,25 @@ describe('ServerStateStore unified realtime resources', () => {
     };
   }
 
+  it('reads known messages across loaded room and thread timelines without creating stores', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const createRoom = vi.spyOn(store.rooms, 'messages');
+    expect(store.knownMessage('unopened', 'M1')).toBeUndefined();
+    expect(createRoom).not.toHaveBeenCalled();
+    const room = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'ROOT');
+    await flushPromises(20);
+    room.ingestEvent(postedRow('M1'));
+    thread.events = [postedRow('ROOT')];
+    expect(store.knownMessage('R1', 'M1')?.id).toBe('M1');
+    expect(store.knownMessage('R1', 'ROOT')?.id).toBe('ROOT');
+    expect(store.knownMessage('other-room', 'M1')).toBeUndefined();
+    room.clearForAccessRevocation();
+    thread.clearForAccessRevocation();
+    expect(store.knownMessage('R1', 'M1')).toBeUndefined();
+    expect(store.knownMessage('R1', 'ROOT')).toBeUndefined();
+  });
+
   it('refreshes the window around a loaded message after another local message change', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const room = store.rooms.messages('R1');

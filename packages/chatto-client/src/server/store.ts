@@ -697,6 +697,15 @@ export class ServerStateStore {
     if (!room || room.archived) throw new Error('Conversation is unavailable');
   }
 
+  /** Read a message from existing timelines without creating stores or making requests. */
+  knownMessage(roomId: string, messageId: string) {
+    for (const timeline of this.#rooms.timelines(roomId)) {
+      const event = timeline.getEventById(messageId);
+      if (event) return event;
+    }
+    return undefined;
+  }
+
   /** Return known follow state from a loaded canonical room timeline. */
   loadedThreadFollowState(roomId: string, threadRootEventId: string): boolean | null {
     const event = this.#rooms.loaded(roomId)?.messages?.getEventById(threadRootEventId);

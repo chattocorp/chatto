@@ -10,6 +10,8 @@ import MessageContent from '../MessageContent.svelte';
 import TipTapEditor from '../composer/TipTapEditor.svelte';
 import type { ComposerEditorApi } from '../composer/editorTypes';
 import { ServerInfoState } from '@chatto/client/server/state';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+import { createRoomTimelineAPI } from '@chatto/client/api/roomTimeline';
 import '../../../app.css';
 
 const mocks = vi.hoisted(() => ({
@@ -87,6 +89,69 @@ afterEach(() => {
 });
 
 describe('entity links in messages', () => {
+  it('describes message destinations from local data, including thread replies, without loading a timeline', async () => {
+    const store = client.registry.getStore('known');
+    const messageId = 'E123456789abcde';
+    const threadId = 'Eabcdefghijklm0';
+    const href = `${origin}/chat/-/${roomId}/${threadId}/m/${messageId}`;
+    const createTimeline = vi.spyOn(store.rooms, 'messages');
+    const { container } = render(MessageContent, { body: `${href} [the original post](${href})` });
+    await vi.waitFor(() => expect(container.querySelector('[data-message-link]')).not.toBeNull());
+    expect(container.querySelector('[data-message-link]')?.textContent).toContain('General');
+    expect(createTimeline).not.toHaveBeenCalled();
+    expect(container.querySelectorAll('[data-message-link]')).toHaveLength(1);
+    expect(container.textContent).toContain('the original post');
+    container.querySelector<HTMLAnchorElement>('[data-message-link]')!.click();
+    expect(mocks.goto).toHaveBeenCalledWith(
+      `/chat/known.example.test/${roomId}/${threadId}/m/${messageId}`
+    );
+  });
+
+  it('uses a cached author and follows edits and message access loss', async () => {
+    const store = client.registry.getStore('known');
+    const messageId = 'E123456789abcde';
+    vi.spyOn(store.connection.getAPI(createRoomTimelineAPI), 'getRoomEvents').mockResolvedValue({
+      events: [],
+      hasOlder: false,
+      hasNewer: false,
+      startCursor: null,
+      endCursor: null
+    });
+    const timeline = store.rooms.messages(roomId);
+    await vi.waitFor(() => expect(timeline.isInitialLoading).toBe(false));
+    timeline.events = [
+      {
+        id: messageId,
+        createdAt: '2026-10-30T12:00:00Z',
+        actor: store.projection.users.view(userId),
+        event: {
+          kind: TimelineEventKind.MessagePosted,
+          roomId,
+          body: 'An existing message',
+          attachments: [],
+          replyCount: 0,
+          threadParticipants: [],
+          reactions: []
+        }
+      }
+    ];
+    const { container } = render(MessageContent, {
+      body: `${origin}/chat/-/${roomId}/m/${messageId}`
+    });
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-message-link]')?.textContent).toContain('Alice')
+    );
+    putUser('Alicia');
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-message-link]')?.textContent).toContain('Alicia')
+    );
+    timeline.clearForAccessRevocation();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-message-link]')?.textContent).not.toContain('Alicia')
+    );
+    expect(container.querySelector('[data-message-link]')?.textContent).toContain('General');
+  });
+
   it('uses the entity identifier when local profile data is unavailable', async () => {
     const { container } = render(MessageContent, {
       body: `${origin}/chat/-/user/missing`
@@ -154,7 +219,6 @@ describe('entity links in messages', () => {
       'https://unknown.example.test/chat/known.example.test/user/' + userId,
       origin + '/chat/-/user/missing',
       origin + '/chat/-/R00000000000000',
-      origin + `/chat/-/${roomId}/m/E123456789abcde`,
       origin + `/chat/-/${roomId}/E123456789abcde`,
       origin + '/chat/-/manage/server',
       origin + '/?token=example',
@@ -418,6 +482,7 @@ it('keeps typing after a known URL outside its link', async () => {
 
 it.each([
   [`${origin}/chat/-/${roomId}`, '.entity-link', 'General'],
+  [`${origin}/chat/-/${roomId}/m/E123456789abcde`, '[data-message-link]', 'General'],
   [
     'https://unknown.example.test:8443/a/very/long/path?query=value#section',
     '.url-link',

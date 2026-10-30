@@ -235,44 +235,37 @@ preview on screen.
         })
       : m('message_preview.open_linked_message')}
     data-testid="message-preview-card"
-    class="group/preview relative my-1.5 flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col preview-frame"
+    class="group/preview relative my-1.5 flex w-full max-w-[min(32rem,100%)] cursor-pointer flex-col gap-1 preview-frame text-sm"
     onclick={openPreview}
     onkeydown={handlePreviewKeydown}
   >
-    <div class="flex min-w-0 flex-col preview-content">
-      <div
-        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-emphasized/60 px-3 py-2"
-      >
-        <div class="flex min-w-0 flex-1 flex-col gap-1">
-          {#if spaceName || roomName}
-            <span class="truncate text-xs tracking-wide text-muted">
-              {#if spaceName}<bdi>{spaceName}</bdi>{/if}
-              {#if spaceName && roomName}&nbsp;·&nbsp;{/if}
-              {#if roomName}<bdi>#{roomName}</bdi>{/if}
-            </span>
-          {/if}
-          <div class="flex min-w-0 items-center gap-2">
-            {#if preview.actor && !preview.actor.deleted}
-              <UserAvatar user={preview.actor} size="xs" />
-              <AccountName
-                name={displayName ?? ''}
-                identity={preview.actor}
-                class="text-sm font-medium"
-              />
-            {:else}
-              <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
-            {/if}
-          </div>
-        </div>
+    <div class="flex min-w-0 items-center gap-2 px-2 py-1.5">
+      <div class="flex min-w-0 items-center gap-2">
+        {#if preview.actor && !preview.actor.deleted}
+          <UserAvatar user={preview.actor} size="xs" />
+          <AccountName
+            name={displayName ?? ''}
+            identity={preview.actor}
+            class="text-sm font-medium"
+          />
+        {:else}
+          <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
+        {/if}
       </div>
+      <span
+        class="iconify ms-auto icon-[uil--comment-alt-message] shrink-0 text-muted"
+        aria-hidden="true"
+      ></span>
+    </div>
+    <div class="flex min-w-0 flex-col preview-content">
       {#if hasBody}
         <ScrollFader
           top
           bottom
           fill={false}
           fadeHeight="h-5"
-          fadeColorClass="from-surface via-surface/80"
-          scrollClass={compact ? 'max-h-12' : 'max-h-52'}
+          fadeColorClass="from-background via-background/80"
+          scrollClass={compact ? 'max-h-12' : 'max-h-32'}
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent body={bodyMarkdown} viewerLogin={store?.currentUser.user?.login} />
@@ -344,6 +337,17 @@ preview on screen.
         </div>
       {/if}
     </div>
+    {#if spaceName || roomName}
+      <div class="flex min-w-0 items-center gap-2 px-2 py-1.5 text-muted">
+        <span class="iconify icon-[uil--comments] shrink-0" aria-hidden="true"></span>
+        <span class="min-w-0 flex-1 truncate">
+          {#if roomName}<bdi>{roomName}</bdi>{/if}
+          {#if spaceName && roomName}&nbsp;·&nbsp;{/if}
+          {#if spaceName}<bdi>{spaceName}</bdi>{/if}
+        </span>
+        <span class="iconify icon-[uil--arrow-up-right] shrink-0" aria-hidden="true"></span>
+      </div>
+    {/if}
     {#if showDismiss && onDismiss}
       <button
         type="button"

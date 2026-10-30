@@ -30,6 +30,8 @@ vi.mock(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    servers: [],
+    getServer: () => undefined,
     getStore: (serverId: string) => mocks.serverStores[serverId],
     tryGetStore: (serverId: string) => mocks.serverStores[serverId]
   }

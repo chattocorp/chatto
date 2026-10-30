@@ -6,6 +6,7 @@
   import { RoomKind } from '@chatto/client/api/roomDirectory';
   import EntityLinkPill from './EntityLinkPill.svelte';
   import UrlLink from './UrlLink.svelte';
+  import MessageLinkPill from './MessageLinkPill.svelte';
   import LinkPreviewCard from '../LinkPreviewCard.svelte';
 
   const serverLogo = `data:image/svg+xml,${encodeURIComponent(
@@ -32,6 +33,41 @@
     members: []
   };
 </script>
+
+<Story name="Message destinations" asChild>
+  <div class="flex max-w-lg flex-col gap-5 bg-background p-4">
+    <p>
+      As discussed in <MessageLinkPill
+        href="https://chat.example.test/chat/-/R123456789abcde/m/E123456789abcde"
+        name="Alice"
+        context="development"
+        {user}
+      />.
+    </p>
+    <p>
+      Room known: <MessageLinkPill
+        href="https://chat.example.test/chat/-/R123456789abcde/m/E123456789abcde"
+        name="Open linked message"
+        context="development"
+      />.
+    </p>
+    <p>
+      Server known: <MessageLinkPill
+        href="https://chat.example.test/chat/-/R123456789abcde/m/E123456789abcde"
+        name="Open linked message"
+        context="Community server"
+      />.
+    </p>
+    <div class="w-56">
+      <MessageLinkPill
+        href="https://chat.example.test/chat/-/R123456789abcde/m/E123456789abcde"
+        name="A very long author display name"
+        context="a-very-long-room-name"
+        {user}
+      />
+    </div>
+  </div>
+</Story>
 
 {#snippet examples(logoUrl?: string)}
   Meet
