@@ -82,6 +82,7 @@ export const settingsAccount = `/chat/${HOME}/settings/account`;
 export const settingsVerifyEmail = `/chat/${HOME}/settings/account/verify-email`;
 export const settingsNotifications = `/chat/${HOME}/settings/notifications`;
 export const settingsTime = `/chat/${HOME}/settings/time`;
+export const settingsOverview = `/chat/${HOME}/settings/overview`;
 export const settingsAppearance = `/chat/${HOME}/settings/appearance`;
 export const settingsLanguage = `/chat/${HOME}/settings/language`;
 export const settingsComposer = `/chat/${HOME}/settings/composer`;

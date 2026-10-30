@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Hantera ditt lösenord, dina e-postadresser och inloggningsmetoder.",
+        "profile": "Uppdatera ditt namn, din avatar och dina profiluppgifter.",
+        "time": "Välj hur den här servern visar datum och tider för dig",
+        "notifications": "Konfigurera hur du tar emot aviseringar",
+        "language": "Välj språk och regional formulering för den här webbläsaren.",
+        "bots": "Skapa API-konton och kontrollera exakt vad de kan göra",
+        "general": "Serveridentitet, varumärke och meddelanden",
+        "neighbors": "Marknadsför vänliga Chatto-servrar i din offentliga katalog",
+        "members": "Visa och hantera servermedlemmar och deras roller",
+        "invitations": "Skapa och hantera länkar som släpper in nya konton.",
+        "rooms": "Skapa, redigera, organisera och arkivera rum",
+        "moderation": "Granska aktiva avstängningar från rum",
+        "permissions": "Hantera standardinställningar för serveromfattande roller",
+        "security": "Registreringsbegränsningar och kontoskydd",
+        "appearance": "Anpassa appen med färger, teman och visningsalternativ.",
+        "composer": "Välj meddelanderedigerare och hur du skickar meddelanden.",
+        "voice": "Ställ in mikrofon, högtalare och samtalsinställningar.",
+        "system": "Kontrollera serverstatus, lagring och bakgrundsuppgifter.",
+        "event_log": "Utforska serverhändelser och undersök ändringar."
+      },
+      "title": "Översikt",
+      "shield_notice": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att använda dina extra behörigheter på den här servern."
+    },
     "nav": {
       "title": "Inställningar",
       "back_to_server": "Tillbaka till servern",

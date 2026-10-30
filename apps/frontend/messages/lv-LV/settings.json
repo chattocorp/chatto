@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Pārvaldiet paroli, e-pasta adreses un pierakstīšanās metodes.",
+        "profile": "Atjauniniet savu vārdu, avatāru un profila informāciju.",
+        "time": "Izvēlieties, kā šis serveris attēlo datumus un laikus",
+        "notifications": "Konfigurējiet paziņojumu saņemšanas veidu",
+        "language": "Izvēlieties valodu un reģionālo formulējumu šai pārlūkprogrammai.",
+        "bots": "Izveidojiet API kontus un precīzi kontrolējiet, ko tie var darīt",
+        "general": "Servera identitāte, zīmols un ziņojumi",
+        "neighbors": "Popularizējiet draudzīgus Chatto serverus savā publiskajā katalogā",
+        "members": "Skatiet un pārvaldiet servera dalībniekus un viņu lomas",
+        "invitations": "Izveidojiet un pārvaldiet saites, ar kurām var pievienoties jauni konti.",
+        "rooms": "Izveidojiet, rediģējiet, kārtojiet un arhivējiet telpas",
+        "moderation": "Pārskatīt aktīvos telpu piekļuves apturējumus",
+        "permissions": "Pārvaldiet servera mēroga lomu noklusējuma iestatījumus",
+        "security": "Reģistrēšanās ierobežojumi un konta aizsardzība",
+        "appearance": "Pielāgojiet lietotni ar krāsām, motīviem un attēlojuma opcijām.",
+        "composer": "Izvēlieties ziņojumu redaktoru un ziņojumu sūtīšanas veidu.",
+        "voice": "Iestatiet mikrofonu, skaļruņus un zvanu preferences.",
+        "system": "Pārbaudiet servera stāvokli, krātuvi un fona uzdevumus.",
+        "event_log": "Pārlūkojiet servera notikumus un izpētiet izmaiņas."
+      },
+      "title": "Pārskats",
+      "shield_notice": "Lai izmantotu papildu atļaujas šajā serverī, aktivizējiet privileģēto režīmu ar vairoga pogu blakus savam vārdam."
+    },
     "nav": {
       "title": "Iestatījumi",
       "back_to_server": "Atpakaļ uz serveri",

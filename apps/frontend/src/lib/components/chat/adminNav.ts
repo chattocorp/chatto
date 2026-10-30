@@ -22,6 +22,8 @@ export type AdminNavItem = {
   href: string;
   label: string;
   icon: string;
+  /** Short explanation displayed on the Settings Overview card. */
+  description: string;
 };
 
 export function getAdminNavItems({
@@ -39,6 +41,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/general', { serverId: serverSegment }),
       label: m('chat.management_nav.general'),
+      description: m('settings.overview.descriptions.general'),
       icon: 'iconify icon-[uil--setting]'
     });
   }
@@ -47,6 +50,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/registration', { serverId: serverSegment }),
       label: m('chat.management_nav.registration'),
+      description: m('settings.overview.descriptions.invitations'),
       icon: 'iconify icon-[uil--envelope-share]'
     });
   }
@@ -55,6 +59,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/neighbors', { serverId: serverSegment }),
       label: m('chat.management_nav.neighbors'),
+      description: m('settings.overview.descriptions.neighbors'),
       icon: 'iconify icon-[uil--servers]'
     });
   }
@@ -63,6 +68,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/members', { serverId: serverSegment }),
       label: m('chat.management_nav.members'),
+      description: m('settings.overview.descriptions.members'),
       icon: 'iconify icon-[uil--users-alt]'
     });
   }
@@ -73,6 +79,7 @@ export function getAdminNavItems({
   items.push({
     href: resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment }),
     label: m('settings.bots.title'),
+    description: m('settings.overview.descriptions.bots'),
     icon: 'iconify icon-[uil--robot]'
   });
 
@@ -80,6 +87,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }),
       label: m('chat.management_nav.rooms'),
+      description: m('settings.overview.descriptions.rooms'),
       icon: 'iconify icon-[uil--apps]'
     });
   }
@@ -88,6 +96,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/moderation', { serverId: serverSegment }),
       label: m('chat.management_nav.moderation'),
+      description: m('settings.overview.descriptions.moderation'),
       icon: 'iconify icon-[uil--ban]'
     });
   }
@@ -96,6 +105,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }),
       label: m('chat.management_nav.permissions'),
+      description: m('settings.overview.descriptions.permissions'),
       icon: 'iconify icon-[uil--shield-check]'
     });
   }
@@ -104,6 +114,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/security', { serverId: serverSegment }),
       label: m('chat.management_nav.security'),
+      description: m('settings.overview.descriptions.security'),
       icon: 'iconify icon-[uil--shield-exclamation]'
     });
   }
@@ -112,6 +123,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/event-log', { serverId: serverSegment }),
       label: m('chat.management_nav.event_log'),
+      description: m('settings.overview.descriptions.event_log'),
       icon: 'iconify icon-[uil--history]'
     });
   }
@@ -120,6 +132,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/system', { serverId: serverSegment }),
       label: m('chat.management_nav.system'),
+      description: m('settings.overview.descriptions.system'),
       icon: 'iconify icon-[uil--server]'
     });
   }

@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Parolanızı, e-posta adreslerinizi ve oturum açma yöntemlerinizi yönetin.",
+        "profile": "Adınızı, avatarınızı ve profil bilgilerinizi güncelleyin.",
+        "time": "Bu sunucunun tarihleri ve saatleri size nasıl göstereceğini seçin",
+        "notifications": "Bildirimleri nasıl alacağınızı yapılandırın",
+        "language": "Bu tarayıcı için dili ve bölgesel ifadeyi seçin.",
+        "bots": "API hesapları oluşturun ve tam olarak ne yapabileceklerini kontrol edin",
+        "general": "Sunucu kimliği, markalama ve mesajlar",
+        "neighbors": "Dost Chatto sunucularını herkese açık dizininizde tanıtın",
+        "members": "Sunucu üyelerini ve rollerini görüntüleyin ve yönetin",
+        "invitations": "Yeni hesapları kabul eden bağlantılar oluşturun ve yönetin.",
+        "rooms": "Odaları oluşturun, düzenleyin, organize edin ve arşivleyin",
+        "moderation": "Etkin oda uzaklaştırmalarını incele",
+        "permissions": "Sunucu genelindeki rol varsayılanlarını yönetin",
+        "security": "Kayıt kısıtlamaları ve hesap koruması",
+        "appearance": "Uygulamayı renkler, temalar ve görüntüleme seçenekleriyle kişiselleştirin.",
+        "composer": "Mesaj düzenleyicinizi ve mesaj gönderme yönteminizi seçin.",
+        "voice": "Mikrofonunuzu, hoparlörlerinizi ve arama tercihlerinizi ayarlayın.",
+        "system": "Sunucu sağlığını, depolamayı ve arka plan görevlerini kontrol edin.",
+        "event_log": "Sunucu olaylarını keşfedin ve değişiklikleri inceleyin."
+      },
+      "title": "Genel bakış",
+      "shield_notice": "Bu sunucudaki ek izinlerinizi kullanmak için adınızın yanındaki kalkan düğmesiyle ayrıcalıklı modu etkinleştirin."
+    },
     "nav": {
       "title": "Ayarlar",
       "back_to_server": "Sunucuya Geri Dön",

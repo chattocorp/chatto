@@ -96,7 +96,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('regular member enters Settings through Appearance', async ({ serverAdminPage }) => {
+    test('regular member enters Settings through Overview', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create admin user and load the primary server
@@ -113,11 +113,11 @@ test.describe('Server Admin Navigation Permissions', () => {
 
       // Bots stays available to every signed-in human for owned bots, so it is
       // this member's only Server Configuration page. Settings still starts at
-      // Appearance.
+      // Overview.
       await serverAdminPage.expectSettingsLinkVisible();
       await serverAdminPage.settingsLink.click();
-      await page.waitForURL(routes.settingsAppearance);
-      await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+      await page.waitForURL(routes.settingsOverview);
+      await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
       await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectGeneralNavNotVisible();
     });
