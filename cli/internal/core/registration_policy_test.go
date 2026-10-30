@@ -35,13 +35,13 @@ func TestRegistrationAdmissionPermissionsAndCompletion(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	// Fresh servers accept self-service accounts without an invitation.
-	member, err := c.CreateVerifiedUserWithInvitation(ctx, SystemActorID, "policy-member", "Member", "password123", "member@example.test", "")
+	member, err := c.CreateSelfServiceUser(ctx, SystemActorID, "policy-member", "Member", "password123", "member@example.test", "")
 	require.NoError(t, err)
 	inviteOnly := evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY
 	_, err = c.UpdateServerConfig(ctx, member.Id, ServerConfigUpdateInput{RegistrationAdmission: &inviteOnly})
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	adminID := invitationAdmin(t, c)
-	_, err = c.CreateVerifiedUserWithInvitation(ctx, SystemActorID, "blocked-signup", "Blocked", "password123", "blocked@example.test", "")
+	_, err = c.CreateSelfServiceUser(ctx, SystemActorID, "blocked-signup", "Blocked", "password123", "blocked@example.test", "")
 	require.ErrorIs(t, err, ErrInvitationInvalid)
 	_, err = c.GetUserByLogin(ctx, "blocked-signup")
 	require.ErrorIs(t, err, ErrNotFound)
@@ -54,7 +54,7 @@ func TestRegistrationAdmissionPermissionsAndCompletion(t *testing.T) {
 	require.NoError(t, err)
 	// A policy written by a newer server must never silently permit signups.
 	require.NoError(t, c.ConfigModel().SetServerConfig(ctx, SystemActorID, &configv1.ServerConfig{RegistrationAdmission: 99}))
-	_, err = c.CreateVerifiedUserWithInvitation(ctx, SystemActorID, "unknown-policy", "Unknown", "password123", "unknown@example.test", "")
+	_, err = c.CreateSelfServiceUser(ctx, SystemActorID, "unknown-policy", "Unknown", "password123", "unknown@example.test", "")
 	require.ErrorIs(t, err, ErrInvitationInvalid)
 }
 

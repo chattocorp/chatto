@@ -428,8 +428,8 @@ func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef
 
 // CreateVerifiedUser atomically creates a user with an already-verified email.
 //
-// Used by signup-completion (post email-link click) and trusted account-link
-// flows where the email has already been proven.
+// This trusted entry point bypasses registration admission. Self-service email
+// registration must use CreateSelfServiceUser, even when registration is open.
 func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*readmodel.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
@@ -438,10 +438,11 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{verifiedEmail: email})
 }
 
-// CreateVerifiedUserWithInvitation completes self-service registration under the
-// current admission policy. An empty invitation is allowed only when open.
+// CreateSelfServiceUser completes self-service email registration with an
+// already-verified address under the current admission policy.
+// An empty invitation is allowed only when registration is open.
 // Invitation redemption and account creation commit atomically when required.
-func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*readmodel.User, error) {
+func (c *ChattoCore) CreateSelfServiceUser(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*readmodel.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return nil, ErrInvalidArgument

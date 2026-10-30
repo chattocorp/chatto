@@ -70,6 +70,15 @@ func TestAdminInvitationCodeServiceLifecycleAndAuthorization(t *testing.T) {
 	if got.Msg.GetInvitationCode().GetNote() != note {
 		t.Fatal("get response lost the note")
 	}
+	missingID := core.NewInvitationID()
+	for _, id := range []string{code.GetId(), missingID} {
+		if _, err := service.RevokeInvitationCode(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: id})); errorCode(err) != connect.CodePermissionDenied {
+			t.Fatalf("regular revoke error = %v, want permission denied", err)
+		}
+	}
+	if _, err := service.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: missingID})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("missing revoke error = %v, want not found", err)
+	}
 	revoked, err := service.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: code.GetId()}))
 	if err != nil {
 		t.Fatal(err)
@@ -79,5 +88,12 @@ func TestAdminInvitationCodeServiceLifecycleAndAuthorization(t *testing.T) {
 	}
 	if revoked.Msg.GetInvitationCode().GetNote() != note {
 		t.Fatal("revocation response lost the note")
+	}
+	repeated, err := service.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: code.GetId()}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !repeated.Msg.GetInvitationCode().GetRevokedAt().AsTime().Equal(revoked.Msg.GetInvitationCode().GetRevokedAt().AsTime()) {
+		t.Fatal("repeated revocation changed its timestamp")
 	}
 }

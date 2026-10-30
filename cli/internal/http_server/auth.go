@@ -805,7 +805,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		user, err := s.core.CreateVerifiedUserWithInvitation(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
+		user, err := s.core.CreateSelfServiceUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrInvitationInvalid) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})

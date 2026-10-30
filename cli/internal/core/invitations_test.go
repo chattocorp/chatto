@@ -260,7 +260,7 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			_, err := c.CreateVerifiedUserWithInvitation(
+			_, err := c.CreateSelfServiceUser(
 				ctx,
 				SystemActorID,
 				fmt.Sprintf("invite-racer-%d", i),
@@ -320,8 +320,8 @@ func TestFailedSignupDoesNotConsumeInvitation(t *testing.T) {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
 
-	if _, err := c.CreateVerifiedUserWithInvitation(ctx, SystemActorID, "failed-invite", "Failed Invite", "password123", "claimed@example.test", invitation.ID); !errors.Is(err, ErrEmailAlreadyVerified) {
-		t.Fatalf("CreateVerifiedUserWithInvitation error = %v, want ErrEmailAlreadyVerified", err)
+	if _, err := c.CreateSelfServiceUser(ctx, SystemActorID, "failed-invite", "Failed Invite", "password123", "claimed@example.test", invitation.ID); !errors.Is(err, ErrEmailAlreadyVerified) {
+		t.Fatalf("CreateSelfServiceUser error = %v, want ErrEmailAlreadyVerified", err)
 	}
 	state, err := c.GetInvitation(ctx, adminID, invitation.ID)
 	if err != nil {

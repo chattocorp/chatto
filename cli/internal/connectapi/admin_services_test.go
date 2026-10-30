@@ -95,7 +95,7 @@ func TestExternalIdentityAccountCreationReplacesBoundInvitation(t *testing.T) {
 			}
 			switch status {
 			case "used":
-				_, err = env.core.CreateVerifiedUserWithInvitation(env.ctx, core.SystemActorID, "earlier-user", "Earlier User", "password123", "earlier@example.test", original.ID)
+				_, err = env.core.CreateSelfServiceUser(env.ctx, core.SystemActorID, "earlier-user", "Earlier User", "password123", "earlier@example.test", original.ID)
 			case "revoked":
 				_, err = env.core.RevokeInvitation(env.ctx, env.viewer.Id, original.ID)
 			}

@@ -62,9 +62,6 @@ func (s *adminInvitationCodeService) CreateInvitationCode(ctx context.Context, r
 }
 
 func (s *adminInvitationCodeService) RevokeInvitationCode(ctx context.Context, req *connect.Request[adminv1.RevokeInvitationCodeRequest]) (*connect.Response[adminv1.RevokeInvitationCodeResponse], error) {
-	if _, err := s.get(ctx, req.Msg.GetId()); err != nil {
-		return nil, err
-	}
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
