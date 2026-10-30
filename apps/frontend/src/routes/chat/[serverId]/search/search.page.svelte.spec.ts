@@ -55,6 +55,7 @@ vi.mock('$lib/navigation', () => ({
 }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: mocks.activeServer }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
+  hasServerScope: () => true,
   useServerScope: () => ({
     get serverId() {
       return activeServerId;
