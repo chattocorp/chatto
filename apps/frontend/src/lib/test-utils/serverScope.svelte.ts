@@ -231,6 +231,9 @@ export function createTestServerScope(options?: TestServerScopeOptions): TestSer
  * ```
  */
 export const serverScopeModule = {
+  hasServerScope(): boolean {
+    return latest !== null;
+  },
   useServerScope(): ServerScope {
     if (!latest) throw new Error('Call createTestServerScope() before rendering');
     return latest.scope;

@@ -235,11 +235,11 @@ preview on screen.
         })
       : m('message_preview.open_linked_message')}
     data-testid="message-preview-card"
-    class="group/preview relative embed-frame flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col"
+    class="group/preview relative my-1.5 flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col preview-frame"
     onclick={openPreview}
     onkeydown={handlePreviewKeydown}
   >
-    <div class="flex min-w-0 flex-col">
+    <div class="flex min-w-0 flex-col preview-content">
       <div
         class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-emphasized/60 px-3 py-2"
       >
@@ -298,9 +298,7 @@ preview on screen.
           {#each preview.attachments.slice(0, 4) as attachment (attachment.id)}
             {@const thumbnailUrl = previewThumbnailUrl(attachment)}
             {#if thumbnailUrl}
-              <div
-                class="relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border"
-              >
+              <div class="relative h-12 w-12 shrink-0 preview-thumbnail">
                 <img
                   src={thumbnailUrl}
                   alt={attachment.description || attachment.filename}
@@ -321,7 +319,7 @@ preview on screen.
               </div>
             {:else}
               <div
-                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-emphasized text-xs text-muted"
+                class="flex h-12 w-12 items-center justify-center preview-thumbnail text-xs text-muted"
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span class="iconify icon-[uil--play] text-lg" aria-hidden="true"></span>

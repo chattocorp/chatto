@@ -4,6 +4,8 @@
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
   import EntityLinkPill from './EntityLinkPill.svelte';
+  import UrlLink from './UrlLink.svelte';
+  import LinkPreviewCard from '../LinkPreviewCard.svelte';
 
   const serverLogo = `data:image/svg+xml,${encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#6750a4"/><path d="M8 8h16v12H14l-6 5z" fill="white"/></svg>'
@@ -66,5 +68,32 @@
 <Story name="Large text and server image" asChild>
   <div class="text-2xl">
     <div class="prose max-w-xl bg-background p-4"><p>{@render examples(serverLogo)}</p></div>
+  </div>
+</Story>
+
+<Story name="Web and entity links together" asChild>
+  <div class="prose max-w-xl bg-background p-4">
+    <p>{@render examples(serverLogo)}</p>
+    <p>Read <UrlLink href="https://docs.example.test/getting-started" /> for details.</p>
+    <p><UrlLink href="https://www.youtube.com/watch?v=example" /></p>
+    <LinkPreviewCard
+      preview={{
+        url: 'https://www.youtube.com/watch?v=example',
+        siteName: 'YouTube',
+        title: 'Building something together',
+        description: 'A preview shares the same recessed surface as its inline link.'
+      }}
+      showDismiss={false}
+    />
+  </div>
+</Story>
+
+<Story name="Narrow web links" asChild>
+  <div class="prose w-64 bg-background p-4">
+    <p>
+      See <UrlLink
+        href="https://docs.example.test/a/very/long/path/to/getting-started?language=en#intro"
+      /> and then ask {@render examples(serverLogo)}
+    </p>
   </div>
 </Story>

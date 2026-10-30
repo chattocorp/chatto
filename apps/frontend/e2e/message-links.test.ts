@@ -283,7 +283,7 @@ test.describe('Message links', () => {
 
     // Post a message containing the target's message link URL
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
-    await roomPage.sendMessage(linkUrl, `${new URL(linkUrl).host}${new URL(linkUrl).pathname}`);
+    await roomPage.sendMessage(linkUrl, new URL(linkUrl).host);
 
     // Wait for the embedded preview card to appear
     const previewCard = page.getByTestId('message-preview-card');
@@ -312,7 +312,7 @@ test.describe('Message links', () => {
 
     // Post a message containing the image message's link
     const linkUrl = `${serverURL}${routes.messageLink(roomId, imageEventId!)}`;
-    await roomPage.sendMessage(linkUrl, `${new URL(linkUrl).host}${new URL(linkUrl).pathname}`);
+    await roomPage.sendMessage(linkUrl, new URL(linkUrl).host);
 
     // The preview card should appear for the image-only message
     const previewCard = page.getByTestId('message-preview-card');

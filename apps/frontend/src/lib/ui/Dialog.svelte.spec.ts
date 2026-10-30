@@ -199,8 +199,8 @@ describe('Dialog', () => {
 
       const frame = q(container, FRAME);
       await expect.element(frame).toHaveClass('bg-surface');
-      await expect.element(frame).toHaveClass('border');
-      await expect.element(frame).toHaveClass('rounded-lg');
+      expect(getComputedStyle(frame!).borderTopWidth).toBe('1px');
+      expect(getComputedStyle(frame!).borderTopLeftRadius).toBe('8px');
       await expect.element(frame).toHaveClass('shadow-xl');
     });
   });
@@ -214,7 +214,7 @@ describe('Dialog', () => {
 
       const well = q(container, WELL);
       await expect.element(well).toHaveClass('bg-background');
-      await expect.element(well).toHaveClass('rounded-md');
+      expect(getComputedStyle(well!).borderTopLeftRadius).toBe('6px');
     });
 
     it('uses separate tray and work-plane padding', async () => {

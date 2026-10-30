@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Ingen forhåndsvisning er tilgjengelig for lenken.",
     "dismiss": "Avvis forhåndsvisning",
     "delete": "Slett forhåndsvisning",
     "open_link": "Åpne lenken",

@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Nessuna anteprima disponibile per questo link.",
     "dismiss": "Ignora anteprima",
     "delete": "Elimina anteprima",
     "open_link": "Apri collegamento",

@@ -58,6 +58,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Panel** — Bordered card used across instance-admin (`/chat/[serverId]/admin/*`) and per-server settings pages. Shared visual chrome for administrative interfaces. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
+**Inset Frame** — Shared visual treatment for context menus, palettes, dialog trays, and previews: a raised outer rim around recessed content. `inset-frame` defines the border, corners, fill, and default rim; `inset-content` defines the inner surface. Consumer variants add layout and elevation. See [the design system](../apps/frontend/DESIGN_SYSTEM.md#inset-frame).
+
 ## Product
 
 **First-run setup** — Web flow that gives a new server a name and a local owner

@@ -114,6 +114,27 @@ describe('entity links in messages', () => {
     expect(container.querySelectorAll('.entity-link')).toHaveLength(0);
   });
 
+  it('previews authored links without replacing their text, formatting, or title', async () => {
+    const { container } = render(MessageContent, {
+      body: `Please join [the **wonderful** channel](${origin}/chat/-/${roomId} "Our development room").`
+    });
+    await vi.waitFor(() => expect(container.querySelector('a strong')).not.toBeNull());
+    const link = container.querySelector('a')!;
+    expect(link.title).toBe('Our development room');
+    expect(container.querySelector('.entity-link, .url-link')).toBeNull();
+    await userEvent.hover(link);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[role="tooltip"]')?.textContent).toContain('General')
+    );
+    expect(link.textContent).toBe('the wonderful channel');
+    expect(link.querySelector('strong')?.textContent).toBe('wonderful');
+    expect(link.getAttribute('aria-describedby')).toBeTruthy();
+    await userEvent.unhover(link);
+    await vi.waitFor(() => expect(container.querySelector('[role="tooltip"]')).toBeNull());
+    expect(link.title).toBe('Our development room');
+    expect(link.hasAttribute('aria-describedby')).toBe(false);
+  });
+
   it('uses neutral chips for unknown destinations and non-entity routes, preserving full URLs', async () => {
     const links = [
       'https://unknown.example.test/chat/-/user/' + userId,
@@ -182,7 +203,10 @@ describe('entity links in messages', () => {
     expect(chip.textContent).toContain('docs.example.test:8443/');
     expect(chip.href).toBe(href);
     expect(chip.title).toBe(href);
-    expect(chip.getAttribute('aria-label')).toBe(href);
+    expect(document.getElementById(chip.getAttribute('aria-describedby')!)?.textContent).toBe(href);
+    expect(chip.textContent).not.toContain('?q=');
+    expect(chip.textContent).not.toContain('#section');
+    expect(chip.textContent).toContain('/…/long-path');
     expect(chip.getBoundingClientRect().width).toBeLessThan(400);
     chip.click();
     expect(opened).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');

@@ -129,11 +129,20 @@ a preview to edit its URL. Select a pill in a message to open its destination. R
 or long-press it to open the entity's menu. These links do not notify users
 as mentions do.
 
-Other automatic web links appear as compact chips showing the hostname and as much
-of the path as fits. Long labels end with an ellipsis. This also applies to unknown
+Other automatic web links appear as compact chips with an emphasized hostname and
+a muted, shortened path. Long paths use an ellipsis before their final segment;
+long identifiers collapse to an ellipsis. Query strings and fragments stay out of
+the label. This also applies to unknown
 or unavailable Chatto destinations and to message and thread links. Hover over a
-chip to inspect the full URL, or use **Copy Link** in the message menu. The visual
+chip to preview the destination, or use **Copy Link** in the message menu for the full URL. The visual
 composer uses the same compact display; select a chip to edit its full URL.
+
+Hover over a pill or a Markdown link, or focus it with the keyboard, to inspect
+its destination. Markdown links keep their authored text and formatting.
+Known Chatto entities show locally available details. Other URLs load page details
+automatically when the hover card opens. The message's server receives the URL and fetches
+the details and images; the website sees the server's IP address. Existing
+composer previews are unchanged. Press Escape to dismiss a hover card.
 
 Right-click an ordinary link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
 
