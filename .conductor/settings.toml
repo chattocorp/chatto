@@ -35,6 +35,11 @@ command = "exec mise dev-full"
 available_in = [ "local" ]
 icon = "network"
 
+[scripts.run.dev_authling]
+command = "exec mise dev-stack-authling"
+available_in = [ "local" ]
+icon = "shield"
+
 [scripts.run.frontend]
 command = "exec mise dev-frontend"
 available_in = [ "local" ]

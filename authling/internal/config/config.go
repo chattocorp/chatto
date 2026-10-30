@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"strconv"
 	"strings"
@@ -22,6 +23,8 @@ const (
 
 // Config is Authling's canonical process configuration.
 type Config struct {
+	Bootstrap      BootstrapConfig      `toml:"bootstrap"`
+	Administration AdministrationConfig `toml:"administration"`
 	Site           SiteConfig           `toml:"site"`
 	HTTP           HTTPConfig           `toml:"http"`
 	Authentication AuthenticationConfig `toml:"authentication"`
@@ -30,11 +33,23 @@ type Config struct {
 	SMTP           SMTPConfig           `toml:"smtp"`
 }
 
+// BootstrapConfig enables the fixed development fixtures only in bootstrap-tag
+// builds. Release builds reject attempts to enable it through TOML or ENV.
+type BootstrapConfig struct {
+	Enabled bool `toml:"enabled" env:"AUTHLING_BOOTSTRAP_ENABLED"`
+}
+
+// AdministrationConfig grants operator-managed access independently of stored
+// administrator flags. Changes require a restart on every replica.
+type AdministrationConfig struct {
+	AdminEmails []string `toml:"admin_emails" env:"AUTHLING_ADMIN_EMAILS"`
+}
+
 // SiteConfig contains operator-controlled display text, independent of issuer identity.
 type SiteConfig struct {
 	// Name is the public service name, not the software name.
 	Name string `toml:"name" env:"AUTHLING_SITE_NAME"`
-	// Description is optional plain text for the home page and page metadata.
+	// Description is optional plain text for page metadata.
 	Description string `toml:"description" env:"AUTHLING_SITE_DESCRIPTION"`
 }
 
@@ -276,6 +291,17 @@ func (c *Config) applyDefaults() {
 // Validate checks that Authling has exactly one usable NATS deployment mode.
 func (c Config) Validate() error {
 	var problems []string
+	if c.Bootstrap.Enabled && !bootstrapAvailable {
+		problems = append(problems, "bootstrap.enabled requires a development build with the bootstrap tag")
+	}
+	for _, raw := range c.Administration.AdminEmails {
+		value := strings.TrimSpace(raw)
+		address, err := mail.ParseAddress(value)
+		if err != nil || address.Address != value || strings.ContainsAny(value, "\r\n") {
+			problems = append(problems, "administration.admin_emails must contain plain email addresses")
+			break
+		}
+	}
 	for _, field := range []struct {
 		name, value string
 		limit       int

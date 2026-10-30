@@ -677,6 +677,8 @@ exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- \
 [tasks.dev-stack-authling]
 hide = true
 env = {
+  AUTHLING_BOOTSTRAP_ENABLED = "true",
+  AUTHLING_ADMIN_EMAILS = "{{env.AUTHLING_ADMIN_EMAILS | default(value='alice@alice.com')}}",
   AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CHATTO_DEV_AUTHLING_PORT}}",
   AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH = "10",
   AUTHLING_NATS_REPLICAS = "1",
@@ -702,7 +704,7 @@ config_path="$data_root/authling.toml"
 state_dir="$data_root/port-$CHATTO_DEV_AUTHLING_PORT"
 mkdir -p "$state_dir/nats"
 cd authling
-mise build
+mise build-dev
 cp authling.toml "$config_path"
 cat >>"$config_path" <<TOML
 
@@ -715,7 +717,7 @@ TOML
 export AUTHLING_HTTP_PUBLIC_URL="$CHATTO_DEV_AUTHLING_URL"
 export AUTHLING_NATS_EMBEDDED_DATA_DIR="$state_dir/nats"
 echo "Authling: $AUTHLING_HTTP_PUBLIC_URL"
-exec bin/authling run --config "$config_path"
+exec bin/authling-dev run --config "$config_path"
 '''
 
 [tasks.dev-stack-runling-bot]

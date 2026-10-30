@@ -379,11 +379,9 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "error", safeOAuthError(errCode))
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		if intent == "link" {
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_denied"))
-		} else {
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_denied")
-		}
+		// Both sign-in and linking can run in a popup. Return the error to
+		// its saved callback so the opening window can finish the attempt.
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_denied"))
 		return
 	}
 
@@ -398,11 +396,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID)
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		if intent == "link" {
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
-		} else {
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
-		}
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
 		return
 	}
 	deleteProviderExchangeState(session, providerRuntime.config.ID)

@@ -75,6 +75,8 @@ var ErrCredentialChanged = errors.New("local credential changed")
 type Account struct {
 	ID        string
 	CreatedAt time.Time
+	// IsAdministrator is the durable flag; configured email overrides are separate.
+	IsAdministrator bool
 	// AuthenticationVersion identifies the credential generation. Account
 	// commands and login return the generation they authorized; callers must
 	// pass it unchanged when creating a browser session.
@@ -198,6 +200,17 @@ func (*Projection) Subjects() []string {
 
 // Apply adds one durable account fact to the in-memory registry.
 func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
+	if changed := event.GetAdministratorChanged(); changed != nil {
+		p.Lock()
+		defer p.Unlock()
+		account, ok := p.accounts[changed.GetAccountId()]
+		if !ok {
+			return fmt.Errorf("administrator change references an absent account")
+		}
+		account.IsAdministrator = changed.GetIsAdministrator()
+		p.accounts[account.ID] = account
+		return nil
+	}
 	if r := event.GetAccountErasureRequested(); r != nil {
 		p.Lock()
 		defer p.Unlock()
@@ -698,6 +711,7 @@ func (p *Projection) Count() int {
 // accountPublisher is the event boundary used by account commands. Publication
 // errors other than an OCC conflict may leave the commit outcome unknown.
 type accountPublisher interface {
+	AppendAdministratorChanged(context.Context, *corev1.Event, uint64) (events.StreamPosition, error)
 	AccountRegistryTail(context.Context) (uint64, error)
 	AccountTail(context.Context, string) (uint64, error)
 	AppendAccountCreated(context.Context, *corev1.Event) (events.StreamPosition, error)

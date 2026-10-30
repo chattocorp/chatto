@@ -222,7 +222,10 @@ In a provider popup, the original callback and its state survive this sequence.
 An inherited app return path cannot replace the explicit continuation. Successful
 linking returns to the callback; the opening window verifies its cookie session
 and resumes its own destination. Cancellation and provider link denial return an
-error instead of reporting successful sign-in. The external provider receives
+error instead of reporting successful sign-in. Provider sign-in denial and
+identity-exchange failures also return to the saved callback, so the popup closes
+and the opening window can show the error. Without a saved return path, these
+failures return to the login page. The external provider receives
 another authorization request, including the user's IP address, as it does for
 linking from account settings.
 

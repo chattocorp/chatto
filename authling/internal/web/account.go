@@ -45,6 +45,11 @@ func mountAccount(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) 
 			}
 		}
 		emailChanged := r.URL.Query().Get("email_changed") == "1"
+		adminAccess, err := deps.Accounts.Administrator(r.Context(), account.ID, deps.Administration.AdminEmails)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		passwordChanged := r.URL.Query().Get("password_changed") == "1"
 		render(w, r, http.StatusOK, accountPage(
 			account.ID,
@@ -60,6 +65,7 @@ func mountAccount(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) 
 			r.URL.Query().Get("session_missing") == "1",
 			r.URL.Query().Get("app_revoked") == "1",
 			r.URL.Query().Get("app_missing") == "1",
+			adminAccess.Allowed(),
 		))
 	})
 	mux.HandleFunc("POST /account/authorizations/revoke", func(w http.ResponseWriter, r *http.Request) {
