@@ -2058,12 +2058,12 @@
   @apply min-w-0 flex-1 space-y-1;
 }
 
-/* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
 /* Shared foreground feedback for quiet and filled icon controls. */
 @utility icon-action-emphasis {
   @apply not-disabled:hover:text-text-top not-disabled:focus-visible:text-text-top;
 }
 
+/* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
 @utility icon-action-feedback {
   @apply rounded-lg icon-action-emphasis text-muted transition-[background-color,color] feedback-quick;
   @apply not-disabled:hover:bg-text/5 not-disabled:active:bg-text/10;

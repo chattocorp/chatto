@@ -383,10 +383,7 @@
     });
   }
 
-  function openDeleteConfirmation(attachment: Attachment, event: Event) {
-    // Prevent opening the image modal
-    event.stopPropagation();
-
+  function openDeleteConfirmation(attachment: Attachment) {
     pushState('', {
       modal: {
         type: 'deleteAttachment',
@@ -398,8 +395,7 @@
     });
   }
 
-  function openDescriptionEditor(attachment: Attachment, event: Event) {
-    event.stopPropagation();
+  function openDescriptionEditor(attachment: Attachment) {
     pushState('', {
       modal: {
         type: 'editAttachmentDescription',
@@ -417,7 +413,7 @@
   {#snippet deleteAttachmentButton(attachment: Attachment)}
     {#if canDeleteAttachment}
       <PreviewAction
-        onclick={(event) => openDeleteConfirmation(attachment, event)}
+        onclick={() => openDeleteConfirmation(attachment)}
         label={m('room.attachment.delete_label')}
         icon="icon-[uil--trash-alt]"
       />
@@ -427,7 +423,7 @@
   {#snippet editDescriptionButton(attachment: Attachment)}
     {#if canEditAttachmentDescription}
       <PreviewAction
-        onclick={(event) => openDescriptionEditor(attachment, event)}
+        onclick={() => openDescriptionEditor(attachment)}
         label={attachment.description
           ? m('room.attachment.edit_description')
           : m('room.attachment.add_description')}
