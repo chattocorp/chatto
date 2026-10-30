@@ -1,5 +1,6 @@
 <script lang="ts">
   import RegistrationSettings from '$lib/components/RegistrationSettings.svelte';
+  import SignupMethods from '$lib/components/SignupMethods.svelte';
   import InvitationCodes from '$lib/components/InvitationCodes.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
@@ -33,6 +34,7 @@
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if permissions.canManageServer}
+        <SignupMethods />
         <RegistrationSettings
           admission={settings.data}
           loading={settings.isPending}
