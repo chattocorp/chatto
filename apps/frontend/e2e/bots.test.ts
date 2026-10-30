@@ -488,7 +488,7 @@ test.describe('Bot account lifecycle', () => {
     ).resolves.toEqual({ status: 200 });
 
     // Administrative API-key calls need explicit grants, without a human
-    // privileged-mode session. bot.manage includes issuing other bot keys.
+    // privileged-mode session. With bot.manage, this bot can issue its own key.
     const profileUpdate = { userId: adminId, bio: 'Managed by automation', updateMask: 'bio' };
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.UserService/UpdateUserProfile', profileUpdate)
