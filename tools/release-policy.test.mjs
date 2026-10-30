@@ -14,6 +14,9 @@ const workflow = readFileSync(
 test('all release approvals are available together before builds, with no publication approval', () => {
   const approval = workflow
     .split('\n  approve-release:\n')[1]
+    .split('\n  publish-chatto-client:\n')[0];
+  const client = workflow
+    .split('\n  publish-chatto-client:\n')[1]
     .split('\n  build-desktop-release:\n')[0];
   const desktop = workflow
     .split('\n  build-desktop-release:\n')[1]
@@ -30,6 +33,11 @@ test('all release approvals are available together before builds, with no public
     /github.event_name == 'push' && startsWith\(github.ref, 'refs\/tags\/v'\)/
   );
   assert.ok(!approval.includes('needs:'));
+  assert.match(client, /needs: approve-release/);
+  assert.match(client, /uses: \.\/\.github\/workflows\/publish-chatto-client.yml/);
+  assert.match(client, /github.event_name == 'push' && startsWith\(github.ref, 'refs\/tags\/v'\)/);
+  assert.match(client, /id-token: write/);
+  assert.ok(!client.includes('always()'));
   assert.ok(!desktop.includes('needs:'));
   assert.match(desktop, /environment: \$\{\{ matrix.environment \}\}/);
   assert.match(desktop, /environment: desktop-signing/);
@@ -201,7 +209,10 @@ for (const [tag, expected] of [
       new URL('../.github/workflows/publish-chatto-client.yml', import.meta.url),
       'utf8'
     ).replaceAll('\r\n', '\n');
-    assert.match(source, /tags:\n\s+- 'v\*'/);
+    assert.match(source, /^  workflow_call:/m);
+    assert.match(source, /^  workflow_dispatch:/m);
+    assert.doesNotMatch(source, /^  push:/m);
+    assert.match(source, /publish:\n    if: github.event_name == 'push'\n    needs: package/);
     const script = shellStep('Publish the tested tarball with trusted publishing', source);
     const result = runShell(
       t,
