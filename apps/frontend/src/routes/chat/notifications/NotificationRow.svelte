@@ -96,11 +96,13 @@
         {#snippet badge()}
           {#if reactionEmoji}
             <!-- Centre the 12px glyph, not its advance width (which can include trailing space).
-                 The half-pixel baseline offset balances the visible glyph inside the 16px circle. -->
+                 The half-pixel baseline offset balances the visible glyph inside the 16px circle.
+                 Keep its coordinate direction fixed when the surrounding layout is RTL. -->
             <svg class="size-full" viewBox="0 0 16 16" aria-hidden="true">
               <text
                 x="2"
                 y="7.5"
+                direction="ltr"
                 dominant-baseline="central"
                 font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
                 font-size="12">{reactionEmoji}</text

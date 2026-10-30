@@ -559,6 +559,33 @@ describe('notifications page', () => {
     expect(q(row, '[data-testid="activity-badge"]')?.textContent?.trim()).toBe('👍');
   });
 
+  it('keeps the reaction glyph in the same badge position in right-to-left layouts', async () => {
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        signalKind: NotificationSignalKind.REACTION,
+        reactionEmoji: 'heart'
+      }
+    ]);
+
+    const { container } = render(NotificationsPage);
+    const glyph = await vi.waitFor(() => {
+      const element = container.querySelector<SVGTextElement>(
+        '[data-testid="activity-badge"] text'
+      );
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    container.dir = 'ltr';
+    const leftToRight = glyph.getBBox();
+    container.dir = 'rtl';
+    const rightToLeft = glyph.getBBox();
+
+    expect(rightToLeft.x).toBeCloseTo(leftToRight.x);
+    expect(rightToLeft.y).toBeCloseTo(leftToRight.y);
+    expect(rightToLeft.width).toBeCloseTo(leftToRight.width);
+  });
+
   it.each(['heart', 'Party_Parrot'])(
     'renders a single %s reaction as a sentence',
     async (emoji) => {
