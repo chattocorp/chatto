@@ -468,18 +468,18 @@ test.describe('Bot account lifecycle', () => {
     const dmRoomId = startedDM.room?.id;
     if (!dmRoomId) throw new Error('The human-started bot DM did not return a room ID');
 
-    // A direct message.post grant lets the bot interact in an existing DM,
-    // but it cannot invoke StartDM even to retrieve that same DM or itself.
+    // A direct message.post grant lets the bot retrieve an existing DM and
+    // create a new self-DM under the same rules as a human.
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.RoomService/StartDM', {
         participantIds: [adminId]
       })
-    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    ).resolves.toEqual({ status: 200 });
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.RoomService/StartDM', {
         participantIds: []
       })
-    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    ).resolves.toEqual({ status: 200 });
     await expect(
       callAsBot(serverURL, backupKey, 'chatto.api.v1.MessageService/CreateMessage', {
         roomId: dmRoomId,
