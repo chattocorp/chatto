@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { untrack } from 'svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import {
@@ -54,15 +53,16 @@
   const loading = $derived(settingsQuery.isPending && snapshot === null);
   const loaded = $derived(snapshot?.viewerCanManageServer ?? false);
 
-  // Form state
-  let name = $state('');
-  let description = $state('');
-  let motd = $state('');
-  let welcomeMessage = $state('');
-  let originalName = $state('');
-  let originalDescription = $state('');
-  let originalMotd = $state('');
-  let originalWelcomeMessage = $state('');
+  // Explicit edits override query snapshots until saved or reverted.
+  let draft = $state<Partial<EditableServerConfig>>({});
+  const name = $derived(draft.name ?? snapshot?.name ?? '');
+  const description = $derived(draft.description ?? snapshot?.description ?? '');
+  const motd = $derived(draft.motd ?? snapshot?.motd ?? '');
+  const welcomeMessage = $derived(draft.welcomeMessage ?? snapshot?.welcomeMessage ?? '');
+
+  function edit(field: keyof EditableServerConfig, value: string) {
+    draft[field] = value === (snapshot?.[field] ?? '') ? undefined : value;
+  }
 
   // Logo state
   const logoUrl = $derived(snapshot?.logoUrl ?? null);
@@ -84,31 +84,11 @@
     return undefined;
   });
   const changed = $derived(
-    name !== originalName ||
-      description !== originalDescription ||
-      motd !== originalMotd ||
-      welcomeMessage !== originalWelcomeMessage
+    name !== (snapshot?.name ?? '') ||
+      description !== (snapshot?.description ?? '') ||
+      motd !== (snapshot?.motd ?? '') ||
+      welcomeMessage !== (snapshot?.welcomeMessage ?? '')
   );
-
-  // Query snapshots are external state. Reconcile each pristine field independently so a
-  // background refresh cannot erase a draft in another field.
-  $effect(() => {
-    const next = snapshot;
-    if (!next) return;
-    untrack(() => {
-      const nextDescription = next.description ?? '';
-      const nextMotd = next.motd ?? '';
-      const nextWelcomeMessage = next.welcomeMessage ?? '';
-      if (name === originalName) name = next.name;
-      if (description === originalDescription) description = nextDescription;
-      if (motd === originalMotd) motd = nextMotd;
-      if (welcomeMessage === originalWelcomeMessage) welcomeMessage = nextWelcomeMessage;
-      originalName = next.name;
-      originalDescription = nextDescription;
-      originalMotd = nextMotd;
-      originalWelcomeMessage = nextWelcomeMessage;
-    });
-  });
 
   $effect(() => {
     if (!snapshot || snapshot.viewerCanManageServer || !serverScope.isCurrent()) return;
@@ -148,19 +128,13 @@
         mergeEditableProfile(current, profile)
       );
 
-      const nextDescription = profile.description ?? '';
-      const nextMotd = profile.motd ?? '';
-      const nextWelcomeMessage = profile.welcomeMessage ?? '';
-      if (name.trim() === variables.input.name) name = profile.name;
-      if (description.trim() === variables.input.description) description = nextDescription;
-      if (motd === variables.input.motd) motd = nextMotd;
+      // Clear only submitted values; a newer edit must survive the response.
+      if (name.trim() === variables.input.name) delete draft.name;
+      if (description.trim() === variables.input.description) delete draft.description;
+      if (motd === variables.input.motd) delete draft.motd;
       if (welcomeMessage === variables.input.welcomeMessage) {
-        welcomeMessage = nextWelcomeMessage;
+        delete draft.welcomeMessage;
       }
-      originalName = profile.name;
-      originalDescription = nextDescription;
-      originalMotd = nextMotd;
-      originalWelcomeMessage = nextWelcomeMessage;
       toast.success(m('common.saved'));
     }
   }));
@@ -353,7 +327,7 @@
         <TextInput
           id="name"
           label={m('server_settings.name_label')}
-          bind:value={name}
+          bind:value={() => name, (value) => edit('name', value)}
           required
           disabled={saving}
           error={nameError}
@@ -362,7 +336,7 @@
         <TextArea
           id="description"
           label={m('server_settings.description_label')}
-          bind:value={description}
+          bind:value={() => description, (value) => edit('description', value)}
           maxBytes={MAX_SERVER_DESCRIPTION_BYTES}
           disabled={saving}
           rows={2}
@@ -372,7 +346,7 @@
         <TextInput
           id="motd"
           label={m('common.message_of_the_day')}
-          bind:value={motd}
+          bind:value={() => motd, (value) => edit('motd', value)}
           disabled={saving}
           description={m('server_settings.motd_help')}
         />
@@ -380,7 +354,7 @@
         <TextArea
           id="welcome-message"
           label={m('server_settings.welcome_message_label')}
-          bind:value={welcomeMessage}
+          bind:value={() => welcomeMessage, (value) => edit('welcomeMessage', value)}
           rows={3}
           disabled={saving}
           description={m('server_settings.welcome_message_help')}
