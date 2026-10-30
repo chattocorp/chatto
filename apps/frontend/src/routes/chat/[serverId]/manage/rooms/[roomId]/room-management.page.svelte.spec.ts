@@ -324,6 +324,8 @@ describe('room management page identity and realtime authority', () => {
     await checkbox.click();
     await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledTimes(2));
     await expect.element(checkbox).not.toBeChecked();
+    await expect.element(checkbox).toBeEnabled();
+    expect(mocks.success).toHaveBeenCalledOnce();
   });
 
   it('does not restore the room after leaving during a membership display save', async () => {
