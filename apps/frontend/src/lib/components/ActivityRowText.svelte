@@ -3,7 +3,7 @@
 
 Single-line text body shared by notification and thread activity rows: a title,
 an optional responsive location column, and a timestamp. Put @container/activity
-on the owning row. Cross-server locations can remain below the title on narrow rows.
+on the owning row. The location hides on narrow rows; the time can also hide.
 `emphasized` renders the title in bold for unread activity; other rows keep
 regular weight in muted text. Supporting metadata uses the subdued text utility.
 -->
@@ -13,7 +13,6 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
   let {
     title,
     location,
-    locationOnNarrow = false,
     hideTimeOnNarrow = false,
     time,
     emphasized = false,
@@ -23,8 +22,6 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
     title: Snippet;
     /** Optional location column; requires @container/activity on the row and hides below 36rem. */
     location?: Snippet;
-    /** Keep cross-server context visible below the title when the location column hides. */
-    locationOnNarrow?: boolean;
     /** Below 36rem, keep the time available only to screen readers. */
     hideTimeOnNarrow?: boolean;
     /** Formatted time shown at the end of the title line. */
@@ -58,10 +55,7 @@ regular weight in muted text. Supporting metadata uses the subdued text utility.
   </bdi>
   {#if location}
     <span
-      class={[
-        'min-w-0 items-baseline gap-1 text-sm text-subdued @min-[36rem]/activity:col-start-2 @min-[36rem]/activity:row-start-1 @min-[36rem]/activity:flex @min-[36rem]/activity:flex-nowrap [&>bdi]:min-w-0 [&>bdi]:truncate',
-        locationOnNarrow ? 'col-start-1 row-start-2 flex flex-wrap' : 'hidden'
-      ]}
+      class="hidden min-w-0 items-baseline gap-1 text-sm text-subdued @min-[36rem]/activity:col-start-2 @min-[36rem]/activity:row-start-1 @min-[36rem]/activity:flex [&>bdi]:min-w-0 [&>bdi]:truncate"
     >
       {@render location()}
     </span>
