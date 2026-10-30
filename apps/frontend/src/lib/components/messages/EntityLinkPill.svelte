@@ -5,7 +5,7 @@
   import type { ServerStateStore } from '@chatto/client/server/store';
   import type { RoomListItem } from '@chatto/client/server/rooms';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
-  import { RoomKind } from '@chatto/client/api/roomDirectory';
+  import { roomIcon } from '$lib/render/roomIcon';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { contextMenuTrigger, type ContextMenuTriggerDetails } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -72,17 +72,8 @@
           ><UserAvatar {user} size="xs" mutedPlaceholder useLiveProfile={false} /></span
         >
       {:else if room}
-        {#if room.type === RoomKind.DM || room.isUniversal}
-          <span
-            aria-hidden="true"
-            class={[
-              'iconify shrink-0 self-center',
-              room.type === RoomKind.DM ? 'icon-[uil--comments]' : 'icon-[uil--globe]'
-            ]}
-          ></span>
-        {:else}
-          <span aria-hidden="true" class="shrink-0">#</span>
-        {/if}
+        {@const icon = roomIcon(room)}
+        <span aria-hidden="true" class={['shrink-0 self-center', icon.className]}>{icon.text}</span>
       {:else}
         <span
           class="entity-link-image inline-flex size-full shrink-0 rounded-[var(--inline-link-radius)]"

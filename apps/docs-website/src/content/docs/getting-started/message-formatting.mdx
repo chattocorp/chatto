@@ -20,6 +20,27 @@ Both editors provide the same formatting toolbar, mentions, emoji completion, at
 
 The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor. Tab still accepts an active mention or emoji suggestion first, and repeated Tab presses cycle through matching mentions.
 
+## Link to a room
+
+Type `#` at the start of a message or after a space to open the room picker.
+Continue typing to find a channel room on the current server. Use the arrow keys
+to select a room, then press Space, Enter, or Tab. You can also click a room. Press Escape
+to close the picker.
+
+Search is fuzzy: type `#designteam` to find **Design Team**. Omit spaces from the
+search because Space accepts the highlighted room. Universal rooms show a globe;
+other channel rooms show `#`.
+
+The picker inserts a room link. Sent messages show the room's current name when
+the reader can see that room. Direct messages and archived rooms are not listed.
+Both editors support the picker in messages, replies, and edits.
+
+Space accepts the selected room and adds one space. Enter and Tab accept without
+adding whitespace or sending the message. Mention (`@`) and emoji (`:`) suggestions
+use the same keys. Clicking a suggestion adds a space.
+
+To write a Markdown heading, press Escape after `#`, then type a space.
+
 ## Profile text
 
 In **Settings → Profile**, the **About** field uses your selected Markdown or visual editor and the same formatting toolbar. Use **Save** to save your changes. The limit is 1,000 characters, including Markdown syntax.
@@ -62,9 +83,15 @@ such as `:heart::skin-tone-4:`, stay as text.
 In the emoji picker, select an emoji to open its skin-tone choices. Choose yellow
 or one of five skin tones. Back or Escape returns to the previous search. Recently used
 emoji select their exact tone immediately.
-In autocomplete, accept an emoji with Enter, Tab, or a click to open its skin-tone
+Both the emoji picker and shortcode suggestions use fuzzy search across names,
+aliases, and tags. For example, type `:headshakingvertically` to find
+`:head_shaking_vertically:`. Exact names rank first. You must accept a suggestion
+to insert the emoji; an incomplete shortcode stays as text if you send it as typed.
+
+In autocomplete, accept an emoji with Space, Enter, Tab, or a click to open its skin-tone
 popup. Your saved tone is highlighted. Use Up and Down to choose a tone, then
-Enter or Tab to insert it. Escape returns to the emoji suggestions. You can also
+Space, Enter, or Tab to insert it. Space adds a trailing space; Enter and Tab do not.
+Escape returns to the emoji suggestions. You can also
 click a tone. Emoji without skin tones insert immediately.
 Chatto remembers the choice in this browser and uses it for supported picker
 and autocomplete choices, including reactions. Recently used emoji keep their

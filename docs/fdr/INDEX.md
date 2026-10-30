@@ -15,7 +15,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-003](FDR-003-thread-reply-echo.md)                     | Thread Reply Echo                     | Active       | 2026-09-18    |
 | [FDR-004](FDR-004-message-editing-and-deletion.md)          | Message Editing & Deletion            | Active       | 2026-10-12    |
 | [FDR-005](FDR-005-reactions.md)                             | Reactions                             | Active       | 2026-10-02    |
-| [FDR-006](FDR-006-mentions.md)                              | @Mentions                             | Active       | 2026-09-24    |
+| [FDR-006](FDR-006-mentions.md)                              | @Mentions                             | Active       | 2026-10-30    |
 | [FDR-007](FDR-007-direct-messages.md)                       | Direct Messages                       | Active       | 2026-10-25    |
 | [FDR-008](FDR-008-file-attachments-and-video.md)            | File Attachments & Video Processing   | Active       | 2026-10-25    |
 | [FDR-009](FDR-009-link-previews.md)                         | Link Previews                         | Active       | 2026-10-15    |
@@ -41,7 +41,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-029](FDR-029-chatto-shields.md)                        | Chatto Shields                        | Active       | 2026-08-23    |
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-10-15    |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-30    |
-| [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-10-29    |
+| [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-10-30    |
 | [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-26    |
 | [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-10-29    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |

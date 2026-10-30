@@ -20,6 +20,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { m } from '$lib/i18n/messages';
+  import { roomIcon } from '$lib/render/roomIcon';
   import {
     normalizeSidebarLinkURL,
     sidebarLinkAnchorAttributes,
@@ -1017,26 +1018,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {:else}
       <span class="relative flex size-5 shrink-0 items-center justify-center">
         {#if isJoined}
-          {#if room.isUniversal}
-            <span
-              class={[
-                'iconify sidebar-icon icon-[uil--globe] transition-opacity feedback-quick',
-                showUnread ? 'text-text-top' : 'text-muted',
-                showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
-              ]}
-              role="img"
-              aria-label={m('room.directory.universal')}
-              title={m('room.directory.universal_title')}
-            ></span>
-          {:else}
-            <span
-              class={[
-                'sidebar-icon transition-opacity feedback-quick',
-                showUnread ? 'text-text-top' : 'text-muted',
-                showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
-              ]}>#</span
-            >
-          {/if}
+          {@const icon = roomIcon(room)}
+          <span
+            class={[
+              'sidebar-icon transition-opacity feedback-quick',
+              icon.className,
+              showUnread ? 'text-text-top' : 'text-muted',
+              showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
+            ]}
+            role={room.isUniversal ? 'img' : undefined}
+            aria-label={room.isUniversal ? m('room.directory.universal') : undefined}
+            title={room.isUniversal ? m('room.directory.universal_title') : undefined}
+            >{icon.text}</span
+          >
         {:else if room.viewerInvitation}
           <span
             class="iconify sidebar-icon icon-[uil--envelope-alt] text-action"

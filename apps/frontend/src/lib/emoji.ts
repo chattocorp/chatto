@@ -6,6 +6,7 @@
 import { builtInEmoji } from '@chatto/client/messaging/emojiShortcodes';
 import { resolveEmoji, emojiNameFromUnicode } from '@chatto/client/messaging/emojiShortcodes';
 import type { EmojiTone } from '$lib/emojiTones';
+import { fuzzyMatchAny } from '$lib/fuzzyMatch';
 
 /** Apply the picker default only to unmodified names with a supported variant. */
 export function emojiWithTone(name: string, tone: EmojiTone): { name: string; emoji: string } {
@@ -39,14 +40,13 @@ export function getReactionDisplay(name: string): string {
 /**
  * Search emojis by query string.
  * Matches against both shortcode names and tags.
- * Results are scored: exact match > prefix match > substring match.
+ * Names and aliases use the shared fuzzy matcher; tags have one tenth of their weight.
+ * Exact names rank first, followed by prefixes, substrings, and subsequences.
  * @param query - Search query (e.g., 'hea' matches 'heart', 'headphones')
  * @param limit - Maximum number of results to return
  * @returns Array of matching emojis with name, emoji character, and tags
  */
 export function searchEmojis(query: string, limit = 10): EmojiResult[] {
-  const q = query.toLowerCase();
-
   type ScoredEmoji = {
     emoji: string;
     name: string;
@@ -57,29 +57,10 @@ export function searchEmojis(query: string, limit = 10): EmojiResult[] {
   const scored: ScoredEmoji[] = [];
 
   for (const e of builtInEmoji) {
-    let bestScore = 0;
-
-    // Check names for matches
-    for (const name of e.names) {
-      if (name === q) {
-        bestScore = Math.max(bestScore, 1000); // Exact match
-      } else if (name.startsWith(q)) {
-        bestScore = Math.max(bestScore, 500 - name.length); // Prefix (shorter = better)
-      } else if (name.includes(q)) {
-        bestScore = Math.max(bestScore, 100 - name.length); // Substring (shorter = better)
-      }
-    }
-
-    // Check tags for matches (lower priority than names)
-    for (const tag of e.tags) {
-      if (tag === q) {
-        bestScore = Math.max(bestScore, 50);
-      } else if (tag.startsWith(q)) {
-        bestScore = Math.max(bestScore, 25);
-      } else if (tag.includes(q)) {
-        bestScore = Math.max(bestScore, 10);
-      }
-    }
+    const bestScore = Math.max(
+      fuzzyMatchAny(query, e.names) ?? 0,
+      (fuzzyMatchAny(query, e.tags) ?? 0) * 0.1
+    );
 
     if (bestScore > 0) {
       scored.push({
