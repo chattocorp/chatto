@@ -69,9 +69,23 @@ it('keeps the card in the top layer until its zoom-fade exit completes', async (
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
   await tick();
   expect(popover.matches(':popover-open')).toBe(true);
-  const exit = popover.getAnimations()[0];
+  // Svelte starts the outro on the next animation frame; tick only flushes DOM work.
+  await vi.waitFor(() =>
+    expect(
+      popover
+        .getAnimations()
+        .some(
+          (animation) => (animation.effect as KeyframeEffect).getKeyframes().at(-1)?.opacity === '0'
+        )
+    ).toBe(true)
+  );
+  const exit = popover
+    .getAnimations()
+    .find(
+      (animation) => (animation.effect as KeyframeEffect).getKeyframes().at(-1)?.opacity === '0'
+    );
   expect(exit).toBeDefined();
-  const frames = (exit.effect as KeyframeEffect).getKeyframes();
+  const frames = (exit!.effect as KeyframeEffect).getKeyframes();
   expect(frames.at(-1)?.opacity).toBe('0');
   expect(frames.at(-1)?.transform).toContain('scale(0.95)');
   await vi.waitFor(() => expect(container.querySelector('[popover]')).toBeNull());
