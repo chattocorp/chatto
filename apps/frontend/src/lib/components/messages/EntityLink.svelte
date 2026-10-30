@@ -15,9 +15,10 @@
   const target = $derived(parseEntityLink(href));
   const store = $derived(target ? serverRegistry.tryGetStore(target.serverId) : undefined);
   const server = $derived(target ? serverRegistry.getServer(target.serverId) : undefined);
-  const user = $derived(
-    target?.kind === 'user' ? store?.projection.users.view(target.id) : undefined
-  );
+  const user = $derived.by(() => {
+    const profile = target?.kind === 'user' ? store?.projection.users.view(target.id) : undefined;
+    return profile?.deleted ? undefined : profile;
+  });
   const room = $derived(
     target?.kind === 'room'
       ? store?.roomList.rooms.find((room) => room.id === target.id)
@@ -31,9 +32,11 @@
       ? user.displayName || user.login
       : room
         ? room.name
-        : store
-          ? serverDisplayName(store.serverInfo, server?.name)
-          : (server?.name ?? '')
+        : target && target.kind !== 'server'
+          ? target.id
+          : store
+            ? serverDisplayName(store.serverInfo, server?.name)
+            : (server?.name ?? '')
   );
   const path = $derived(
     target

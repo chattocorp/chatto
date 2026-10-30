@@ -87,6 +87,19 @@ afterEach(() => {
 });
 
 describe('entity links in messages', () => {
+  it('uses the entity identifier when local profile data is unavailable', async () => {
+    const { container } = render(MessageContent, {
+      body: `${origin}/chat/-/user/missing`
+    });
+    await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
+    const link = container.querySelector('a')!;
+    await userEvent.hover(link);
+    await vi.waitFor(() => expect(container.querySelector('[role="tooltip"]')).not.toBeNull());
+    const heading = container.querySelector('[role="tooltip"] .font-semibold');
+    expect(heading?.textContent).toBe('missing');
+    await userEvent.unhover(link);
+  });
+
   it('replaces bare and angle-bracket URLs with known names and images', async () => {
     const { container } = render(MessageContent, {
       body: `${origin}\n\n<${origin}/chat/-/${roomId}> and ${origin}/chat/-/user/${userId}`
