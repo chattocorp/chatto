@@ -1,1 +1,1 @@
-<!-- The parent layout resolves the message destination. -->
+<!-- The page load resolves the message after the conversation is available. -->

@@ -34,6 +34,7 @@ const {
   getPublicServerInfoMock,
   initServerInfoMock,
   gotoMock,
+  invalidateAllMock,
   registered,
   replaceServerAuthenticationMock,
   updateRegistrationMock
@@ -42,12 +43,13 @@ const {
   getPublicServerInfoMock: vi.fn(),
   initServerInfoMock: vi.fn(() => Promise.resolve()),
   gotoMock: vi.fn(() => Promise.resolve()),
+  invalidateAllMock: vi.fn(() => Promise.resolve()),
   registered: { servers: [] as RegisteredServer[] },
   replaceServerAuthenticationMock: vi.fn(() => true),
   updateRegistrationMock: vi.fn()
 }));
 
-vi.mock('$app/navigation', () => ({ goto: gotoMock }));
+vi.mock('$app/navigation', () => ({ goto: gotoMock, invalidateAll: invalidateAllMock }));
 vi.mock('$app/paths', () => ({
   resolve: (route: string, params?: { serverId?: string }) =>
     params?.serverId ? `/chat/${params.serverId}` : route
@@ -242,6 +244,7 @@ describe('remote server OAuth popup', () => {
 
     expect(replaceServerAuthenticationMock).toHaveBeenCalledOnce();
     expect(gotoMock).not.toHaveBeenCalled();
+    expect(invalidateAllMock).toHaveBeenCalledOnce();
   });
 
   it('does not exchange credentials or store a session after native cancellation', async () => {

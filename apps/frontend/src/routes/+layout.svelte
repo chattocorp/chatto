@@ -23,6 +23,8 @@
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
+  import { userPath } from '$lib/navigation/conversationPath';
+  import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { serverRegistry } from '$lib/client';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -122,6 +124,8 @@
 
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(async ({ from, to }) => {
+    if (to?.route.id?.startsWith('/chat/[serverId]/user/[userId]') && page.params.userId)
+      recentQuickSwitcher.record(userPath(activeServerId, page.params.userId));
     // The room can mount after this event while the server completes its snapshot.
     if (activeRoomId) serverRegistry.tryGetStore(activeServerId)?.loadRoomMembers(activeRoomId);
     if (sidebarNav.isMobile) sidebarNav.close();
