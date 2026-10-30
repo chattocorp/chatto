@@ -359,13 +359,11 @@
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
 
-  // A DM's projection has every member, so its store has a first page at once.
-  // A reset discards a load in progress or a failed load; the load then starts again.
-  const loadRoomMembers: Attachment = () => {
+  // The room needs members for presentation and mentions, even with its sidebar
+  // closed. The client owns loading and recovery; only room identity is reactive.
+  const retainRoomMembers: Attachment = () => {
     const store = roomMembersStore;
-    if (!store.hasFirstPage && !store.isInitialLoading && !store.loadError) {
-      untrack(() => store.ensureLoaded());
-    }
+    return untrack(() => store.retain());
   };
 
   const syncRoomFiles: Attachment = () => {
@@ -600,7 +598,7 @@
 {#if room.roomData !== null}
   <div
     class="flex min-h-0 min-w-0 flex-1"
-    {@attach loadRoomMembers}
+    {@attach retainRoomMembers}
     {@attach syncRoomFiles}
     {@attach syncRoomPins}
     {@attach syncRoomCallWide}

@@ -356,6 +356,7 @@ export class ServerStateStore {
       presence: this.presence,
       realtimeViewerId: () => this.realtimeViewerId(),
       viewerId: () => this.viewerId,
+      deferMemberLoading: () => this.#realtimeSnapshotPending || this.checkingPermissions,
       projectedMemberIds: (roomId) => {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
@@ -759,16 +760,19 @@ export class ServerStateStore {
   }
 
   /** Universal membership depends on server authorization, not only join facts. */
-  private invalidateUniversalMembership(): void {
+  private invalidateUniversalMembership(deferLoad = false): void {
     for (const [id, room] of this.projection.rooms) {
-      if (room.room?.universal) this.#rooms.loaded(id)?.members?.resetProjectionState();
+      if (!room.room?.universal) continue;
+      const members = this.#rooms.loaded(id)?.members;
+      if (deferLoad) members?.resetProjectionState();
+      else members?.invalidateMembership(this.#currentEventMinimumCursor);
     }
   }
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false, invitationId?: string): void {
     this.#rooms.loaded(roomId)?.notice?.reset(true);
-    this.#rooms.loaded(roomId)?.members?.resetProjectionState();
+    this.#rooms.loaded(roomId)?.members?.clearForAccessRevocation();
     this.projection.removeRoomCalls(roomId);
     if (this.notifications.clearRoom(roomId, invitationId)) {
       // Its creation hint may have arrived before the invitation directory row.
@@ -796,6 +800,9 @@ export class ServerStateStore {
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
   private restoreRoomAccess(roomId: string): void {
+    this.#rooms.loaded(roomId)?.members?.restoreAccess({
+      deferLoad: this.#realtimeSnapshotPending || this.checkingPermissions
+    });
     this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);
@@ -994,7 +1001,7 @@ export class ServerStateStore {
       if (!current()) return;
       const listenerResults = await listeners;
       if (!current()) return;
-      this.invalidateUniversalMembership();
+      this.invalidateUniversalMembership(true);
       await Promise.all(
         this.#rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
       );
@@ -1436,7 +1443,9 @@ export class ServerStateStore {
       case 'roomMembershipEventsVisibilityChanged':
       case 'userJoinedRoom':
         if (payload.case === 'roomUniversalChanged' && roomId) {
-          this.#rooms.loaded(roomId)?.members?.resetProjectionState();
+          this.#rooms
+            .loaded(roomId)
+            ?.members?.invalidateMembership(this.#currentEventMinimumCursor);
           // Effective membership can expose a call that started before access.
           this.refreshRealtimeResource('activeCalls');
         }

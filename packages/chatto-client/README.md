@@ -132,6 +132,15 @@ does not read the thread again for each change.
 
 Use `readThread` instead when you need one snapshot and no live updates.
 
+For a live member list, call `rooms.members(roomId).retain()` and keep its
+release function. Call that function when the consumer closes or changes
+rooms. Consumers share one load and cached pages. The server store owns
+recovery and access changes; do not watch loading flags to restart reads.
+After an ordinary load failure, call `loadInitial()` for an explicit retry.
+For a standalone member store, `resetProjectionState()` defers automatic
+loading until its owner calls `refresh()` or confirms access with
+`restoreAccess()`.
+
 ### Readiness and failures
 
 - `ready()` rejects when the server rejects the key, when the server is

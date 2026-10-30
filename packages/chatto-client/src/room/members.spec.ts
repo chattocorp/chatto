@@ -79,6 +79,113 @@ function createStore(
 }
 
 describe('RoomMembersStore', () => {
+  it('shares one scan across consumers and reuses it after release', async () => {
+    const pending = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([pending.promise]);
+    const store = new RoomMembersStore('room', api);
+    const releaseFirst = store.retain();
+    const releaseSecond = store.retain();
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+    releaseFirst();
+    releaseFirst();
+    pending.resolve(pageResult([user('member')]));
+    await vi.waitFor(() => expect(store.hasLoadedAll).toBe(true));
+    releaseSecond();
+    const releaseAgain = store.retain();
+    expect(store.members.map((member) => member.id)).toEqual(['member']);
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+    releaseAgain();
+  });
+
+  it('defers retained recovery to the explicit cursor-bound refresh', async () => {
+    const stale = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([stale.promise, pageResult([user('fresh')])]);
+    const store = new RoomMembersStore('room', api);
+    const release = store.retain();
+    store.resetProjectionState();
+    store.restoreAccess({ deferLoad: true });
+    const releaseSecond = store.retain();
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+    await store.refresh({ minimumCursor: 'cursor' });
+    stale.resolve(pageResult([user('stale')]));
+    await Promise.resolve();
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(2);
+    expect(api.listRoomMembers).toHaveBeenLastCalledWith('room', '', ROOM_MEMBERS_PAGE_SIZE, 0, {
+      minimumCursor: 'cursor'
+    });
+    expect(store.members.map((member) => member.id)).toEqual(['fresh']);
+    release();
+    releaseSecond();
+  });
+
+  it('blocks reads and stale responses after access loss, then reloads retained members on grant', async () => {
+    const stale = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([stale.promise, pageResult([user('fresh')])]);
+    const store = new RoomMembersStore('room', api);
+    const release = store.retain();
+    store.clearForAccessRevocation();
+    await store.loadInitial();
+    await store.refresh();
+    await store.searchMembers('member');
+    await store.setSearch('member');
+    await store.applyMembership('member', true);
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+    stale.resolve(pageResult([user('stale')]));
+    await Promise.resolve();
+    expect(store.members).toEqual([]);
+    store.restoreAccess();
+    await vi.waitFor(() => expect(store.hasLoadedAll).toBe(true));
+    expect(store.members.map((member) => member.id)).toEqual(['fresh']);
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(2);
+    release();
+  });
+
+  it('does not reload released or disposed consumers on an access grant', () => {
+    const api = new FakeMemberDirectoryAPI([new Promise(() => {})]);
+    const store = new RoomMembersStore('room', api);
+    const release = store.retain();
+    release();
+    release();
+    store.clearForAccessRevocation();
+    store.restoreAccess();
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+    store.dispose();
+    store.retain()();
+    store.restoreAccess();
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry failed loads when another consumer retains the list', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const api = new FakeMemberDirectoryAPI([]);
+    const store = new RoomMembersStore('room', api);
+    try {
+      const release = store.retain();
+      await vi.waitFor(() => expect(store.loadError).not.toBeNull());
+      const releaseSecond = store.retain();
+      store.restoreAccess();
+      expect(api.listRoomMembers).toHaveBeenCalledOnce();
+      vi.mocked(api.listRoomMembers).mockResolvedValueOnce(pageResult([user('retried')]));
+      await store.loadInitial();
+      expect(store.members.map((member) => member.id)).toEqual(['retried']);
+      expect(api.listRoomMembers).toHaveBeenCalledTimes(2);
+      release();
+      releaseSecond();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('uses projected DM membership without loading for retained consumers', () => {
+    const api = new FakeMemberDirectoryAPI([]);
+    const store = new RoomMembersStore('dm', api, { projectedMemberIds: () => ['member'] });
+    const release = store.retain();
+    expect(store.hasFirstPage).toBe(true);
+    expect(store.totalCount).toBe(1);
+    expect(api.listRoomMembers).not.toHaveBeenCalled();
+    release();
+  });
+
   it('discards a read in progress and starts no reads after dispose', async () => {
     const page = deferred<MemberDirectoryPage>();
     const api = new FakeMemberDirectoryAPI([page.promise, pageResult([user('u2')])]);

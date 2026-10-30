@@ -40,6 +40,8 @@ function pageIds(page: MemberDirectoryPage): string[] {
 
 /** Optional collaborators of a {@link RoomMembersStore}. */
 export type RoomMembersStoreOptions = {
+  /** A server recovery refresh owns the first read when this store is created. */
+  deferInitialLoad?: boolean;
   /** The server's presence owner, which receives fresh presence from preview reads. */
   presence?: ServerPresence | null;
   /**
@@ -186,6 +188,9 @@ export class RoomMembersStore {
   private readonly roomId: string;
   #loadId = 0;
   #disposed = false;
+  #retainCount = 0;
+  /** Automatic loads stop during recovery or revoked access. */
+  #loadAccess: 'available' | 'recovering' | 'revoked' = 'available';
   #searchCache = new ReactiveMap<string, MemberSearchCacheEntry>();
   #membershipChanges = new ReactiveMap<string, boolean>();
   #minimumCursor: string | undefined;
@@ -201,6 +206,7 @@ export class RoomMembersStore {
     options: RoomMembersStoreOptions = {}
   ) {
     this.roomId = roomId;
+    if (options.deferInitialLoad) this.#loadAccess = 'recovering';
     this.#presence = options.presence ?? null;
     this.#projectedMemberIds = options.projectedMemberIds ?? (() => null);
     if (!source) {
@@ -256,8 +262,28 @@ export class RoomMembersStore {
     }
   }
 
+  /**
+   * Keep this member list available for a consumer. Consumers share the initial
+   * load and cached pages. Release is idempotent and does not discard the cache
+   * or cancel a scan that another route can reuse.
+   */
+  retain(): () => void {
+    if (this.#disposed) return () => {};
+    this.#retainCount++;
+    this.ensureLoaded();
+    let retained = true;
+    return () => {
+      if (!retained) return;
+      retained = false;
+      this.#retainCount--;
+    };
+  }
+
+  /** Start a missing load, without retrying failures or racing recovery. */
   ensureLoaded(): void {
     if (
+      this.#disposed ||
+      this.#loadAccess !== 'available' ||
       !this.roomId ||
       this.isInitialLoading ||
       this.isBackgroundLoading ||
@@ -278,9 +304,17 @@ export class RoomMembersStore {
     }
   }
 
+  /** Explicitly load or retry the list. Revoked access still prevents the read. */
   async loadInitial(): Promise<void> {
     // The projection has the complete membership, so a server read adds nothing.
-    if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
+    if (
+      this.#disposed ||
+      this.#loadAccess === 'revoked' ||
+      !this.roomId ||
+      !this.api ||
+      this.#projected !== null
+    )
+      return;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = true;
     this.#fullScanFinished = false;
@@ -312,7 +346,15 @@ export class RoomMembersStore {
     reauthorize?: boolean;
     minimumCursor?: string;
   } = {}): Promise<void> {
-    if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
+    if (
+      this.#disposed ||
+      this.#loadAccess === 'revoked' ||
+      !this.roomId ||
+      !this.api ||
+      this.#projected !== null
+    )
+      return;
+    this.#loadAccess = 'available';
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = !this.#hasFirstPage;
@@ -351,7 +393,14 @@ export class RoomMembersStore {
 
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
     const normalizedSearch = search.trim();
-    if (!normalizedSearch || this.hasLoadedAll || this.#disposed || !this.roomId || !this.api) {
+    if (
+      !normalizedSearch ||
+      this.hasLoadedAll ||
+      this.#disposed ||
+      this.#loadAccess !== 'available' ||
+      !this.roomId ||
+      !this.api
+    ) {
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
 
@@ -378,7 +427,7 @@ export class RoomMembersStore {
   }
 
   private async searchAllMembers(search: string): Promise<void> {
-    if (this.#disposed) return;
+    if (this.#disposed || this.#loadAccess !== 'available') return;
     const query = search.trim().toLowerCase();
     const loadId = this.#loadId;
     let ids: string[] = [];
@@ -428,7 +477,7 @@ export class RoomMembersStore {
   /** Apply membership deltas even while this room is not mounted. A delta
    * during offset pagination restarts that read to avoid skipped rows. */
   async applyMembership(userId: string, joined: boolean, minimumCursor?: string): Promise<void> {
-    if (!userId || this.#disposed || !this.api) return;
+    if (!userId || this.#disposed || this.#loadAccess === 'revoked' || !this.api) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     this.#membershipChanges.set(userId, joined);
     if (!joined && !this.#users) this.#standaloneProfiles.delete(userId);
@@ -456,7 +505,10 @@ export class RoomMembersStore {
       users = await this.api.batchGetUsers([userId]);
     } catch {
       // An old request must not invalidate a newer snapshot after a reset.
-      if (loadId === this.#loadId) this.reset();
+      if (loadId === this.#loadId) {
+        this.reset();
+        if (this.#retainCount > 0) this.ensureLoaded();
+      }
       return;
     }
     if (loadId !== this.#loadId || !this.#membershipChanges.get(userId)) return;
@@ -468,9 +520,32 @@ export class RoomMembersStore {
     }
   }
 
-  /** Discard snapshots after a recovery gap or an authorization boundary. */
+  /** Discard snapshots and defer consumer loads to the server's recovery refresh. */
   resetProjectionState(): void {
+    if (this.#loadAccess !== 'revoked') this.#loadAccess = 'recovering';
     this.reset();
+  }
+
+  /** Rebuild changed effective membership only while a consumer needs the list. */
+  invalidateMembership(minimumCursor?: string): void {
+    this.reset();
+    this.#minimumCursor = minimumCursor;
+    if (this.#retainCount > 0) this.ensureLoaded();
+  }
+
+  /** Fence stale responses and prevent reads until a positive room-access grant. */
+  clearForAccessRevocation(): void {
+    this.#loadAccess = 'revoked';
+    this.reset();
+  }
+
+  /**
+   * Accept confirmed room access. During snapshot or permission reconciliation,
+   * the server defers loading because its cursor-bound refresh owns the read.
+   */
+  restoreAccess({ deferLoad = false }: { deferLoad?: boolean } = {}): void {
+    this.#loadAccess = deferLoad ? 'recovering' : 'available';
+    if (!deferLoad && this.#retainCount > 0) this.ensureLoaded();
   }
 
   /**

@@ -539,7 +539,7 @@ describe('Room interaction bundles', () => {
   });
 
   it.each(['pending', 'failed'])(
-    'restarts a %s channel member load after a reset',
+    'leaves recovery of a %s member load to the client',
     async (state) => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
       let reads = 0;
@@ -560,9 +560,33 @@ describe('Room interaction bundles', () => {
         await vi.waitFor(() => expect(store.loadError).toMatchObject({ message: 'offline' }));
 
       store.resetProjectionState();
+      await tick();
+      expect(api.listRoomMembers).toHaveBeenCalledOnce();
+      void store.refresh({ minimumCursor: 'recovered' });
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
     }
   );
+
+  it('retains members once per room and releases them on navigation and unmount', async () => {
+    const first = new RoomMembersStore('room-1');
+    const second = new RoomMembersStore('room-2');
+    const releaseFirst = vi.fn();
+    const releaseSecond = vi.fn();
+    const retainFirst = vi.spyOn(first, 'retain').mockReturnValue(releaseFirst);
+    const retainSecond = vi.spyOn(second, 'retain').mockReturnValue(releaseSecond);
+    mocks.roomMembers.mockImplementation((id: string) => (id === 'room-1' ? first : second));
+    const view = render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(retainFirst).toHaveBeenCalledOnce());
+    first.resetProjectionState();
+    await tick();
+    expect(retainFirst).toHaveBeenCalledOnce();
+    expect(releaseFirst).not.toHaveBeenCalled();
+    await view.rerender({ roomId: 'room-2' });
+    await vi.waitFor(() => expect(retainSecond).toHaveBeenCalledOnce());
+    expect(releaseFirst).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(releaseSecond).toHaveBeenCalledOnce();
+  });
 
   it('leaves membership event handling to the session store without a component reload', async () => {
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});

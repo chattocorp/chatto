@@ -33,6 +33,10 @@ Any authenticated user can browse the server's member directory — a paginated 
   mention completion. A failed preview does not stop that full load.
 - Recovery resets and access loss clear retained membership. Changes to
   universal-room eligibility require an authoritative membership read.
+- After a recovery reset, member loading waits for confirmed room access and
+  the recovery read. Opening another view of the same room does not start a
+  competing load. Failed loads wait for an explicit retry. Leaving and reopening
+  a room reuses its completed member list while that room remains cached.
 - The room sidebar member list shows the Online, Bots, and Offline groups in
   one virtualized list. The client mounts only the group headings and member
   rows near the visible part of the list.

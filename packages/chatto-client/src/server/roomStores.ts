@@ -79,6 +79,8 @@ export type RoomStoresOptions = {
   viewerId: () => string | null;
   /** The complete member IDs of a room from the realtime projection, or null. */
   projectedMemberIds: (roomId: string) => readonly string[] | null;
+  /** Whether server recovery owns the first read of a newly created member store. */
+  deferMemberLoading?: () => boolean;
   /** The number of recently used rooms and threads to keep; see {@link KeepRecent}. */
   keepRecent?: KeepRecent;
 };
@@ -257,6 +259,7 @@ export class RoomStores {
     const entry = this.#usedRoom(roomId);
     if (entry.members) return entry.members;
     return (entry.members = new RoomMembersStore(roomId, this.#options.connection, {
+      deferInitialLoad: this.#options.deferMemberLoading?.(),
       presence: this.#options.presence,
       projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
     }));
