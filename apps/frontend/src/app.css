@@ -2603,6 +2603,9 @@
     padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     & :is(.menu-section, .menu-section-sm) {
       border-radius: 0;
+      /* Full-pane mobile results remain flat, without desktop inset lighting. */
+      box-shadow: none;
+      outline: none;
     }
   }
   @media (width >= 48rem) {
