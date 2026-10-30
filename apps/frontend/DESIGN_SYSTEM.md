@@ -465,9 +465,10 @@ state ownership, not the visual treatment of their forms.
 
 Use semantic tokens instead of Tailwind palette colors for application chrome.
 
-Generated user avatars use `bg-surface-emphasized` with `text-muted` and a
-subtle inset ring. They follow the selected surface tone and theme. All
-accounts use the same neutral styling. Avatar labels use complete Unicode
+Generated user avatars use `bg-surface-emphasized` with `text-text` and a
+subtle inset ring. The text colour keeps initials readable in both themes.
+They follow the selected surface tone and theme. All accounts use the same
+neutral styling. Avatar labels use complete Unicode
 graphemes for initials or emoji; a user icon is the last fallback. Generation
 needs no external service.
 Media overlays may use literal black and white where contrast must be
