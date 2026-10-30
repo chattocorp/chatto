@@ -576,8 +576,6 @@
       "created_at": "Criado",
       "actions": "Ações",
       "never": "Nunca",
-      "copy": "Copiar código",
-      "copied": "Código de convite copiado",
       "revoke": "Revogar",
       "revoked": "Código de convite revogado",
       "revoke_title": "Revogar código?",
@@ -587,8 +585,7 @@
         "expired": "Expirado",
         "revoked": "Revogado",
         "used": "Usado"
-      },
-      "copy_failed": "Não foi possível copiar o código"
+      }
     }
   }
 }

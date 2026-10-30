@@ -587,8 +587,6 @@
       "created_at": "Izveidota",
       "actions": "Darbības",
       "never": "Nekad",
-      "copy": "Kopēt kodu",
-      "copied": "Uzaicinājuma kods nokopēts",
       "revoke": "Atsaukt",
       "revoked": "Uzaicinājuma kods atsaukts",
       "revoke_title": "Atsaukt kodu?",
@@ -598,8 +596,7 @@
         "expired": "Beigusies",
         "revoked": "Atsaukta",
         "used": "Izmantots"
-      },
-      "copy_failed": "Neizdevās nokopēt kodu"
+      }
     }
   }
 }

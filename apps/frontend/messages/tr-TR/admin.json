@@ -576,8 +576,6 @@
       "created_at": "Oluşturulma",
       "actions": "İşlemler",
       "never": "Asla",
-      "copy": "Kodu kopyala",
-      "copied": "Davet kodu kopyalandı",
       "revoke": "İptal et",
       "revoked": "Davet kodu iptal edildi",
       "revoke_title": "Kod iptal edilsin mi?",
@@ -587,8 +585,7 @@
         "expired": "Süresi doldu",
         "revoked": "İptal edildi",
         "used": "Kullanıldı"
-      },
-      "copy_failed": "Kod kopyalanamadı"
+      }
     }
   }
 }

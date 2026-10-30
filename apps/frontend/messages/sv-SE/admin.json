@@ -576,8 +576,6 @@
       "created_at": "Skapad",
       "actions": "Åtgärder",
       "never": "Aldrig",
-      "copy": "Kopiera kod",
-      "copied": "Inbjudningskod kopierad",
       "revoke": "Återkalla",
       "revoked": "Inbjudningskod återkallad",
       "revoke_title": "Återkalla kod?",
@@ -587,8 +585,7 @@
         "expired": "Utgången",
         "revoked": "Återkallad",
         "used": "Använd"
-      },
-      "copy_failed": "Kunde inte kopiera koden"
+      }
     }
   }
 }

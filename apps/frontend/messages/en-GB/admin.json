@@ -576,8 +576,6 @@
       "created_at": "Created",
       "actions": "Actions",
       "never": "Never",
-      "copy": "Copy code",
-      "copied": "Invitation code copied",
       "revoke": "Revoke",
       "revoked": "Invitation code revoked",
       "revoke_title": "Revoke code?",
@@ -587,8 +585,7 @@
         "expired": "Expired",
         "revoked": "Revoked",
         "used": "Used"
-      },
-      "copy_failed": "Failed to copy code"
+      }
     }
   }
 }

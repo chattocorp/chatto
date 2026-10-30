@@ -576,8 +576,6 @@
       "created_at": "Kreita",
       "actions": "Agoj",
       "never": "Neniam",
-      "copy": "Kopii kodon",
-      "copied": "Invitkodo kopiita",
       "revoke": "Revoki",
       "revoked": "Invitkodo revokita",
       "revoke_title": "Ĉu revoki kodon?",
@@ -587,8 +585,7 @@
         "expired": "Eksvalidiĝinta",
         "revoked": "Revokita",
         "used": "Uzita"
-      },
-      "copy_failed": "Ne eblis kopii la kodon"
+      }
     }
   }
 }

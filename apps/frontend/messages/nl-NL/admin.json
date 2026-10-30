@@ -576,8 +576,6 @@
       "created_at": "Gemaakt",
       "actions": "Acties",
       "never": "Nooit",
-      "copy": "Code kopiëren",
-      "copied": "Uitnodigingscode gekopieerd",
       "revoke": "Intrekken",
       "revoked": "Uitnodigingscode ingetrokken",
       "revoke_title": "Code intrekken?",
@@ -587,8 +585,7 @@
         "expired": "Verlopen",
         "revoked": "Ingetrokken",
         "used": "Gebruikt"
-      },
-      "copy_failed": "Code kopiëren mislukt"
+      }
     }
   }
 }

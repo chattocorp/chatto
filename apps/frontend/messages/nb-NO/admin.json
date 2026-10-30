@@ -576,8 +576,6 @@
       "created_at": "Opprettet",
       "actions": "Handlinger",
       "never": "Aldri",
-      "copy": "Kopier kode",
-      "copied": "Invitasjonskode kopiert",
       "revoke": "Trekk tilbake",
       "revoked": "Invitasjonskode tilbakekalt",
       "revoke_title": "Tilbakekalle kode?",
@@ -587,8 +585,7 @@
         "expired": "Utløpt",
         "revoked": "Trukket tilbake",
         "used": "Brukt"
-      },
-      "copy_failed": "Kunne ikke kopiere koden"
+      }
     }
   }
 }

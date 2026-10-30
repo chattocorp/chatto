@@ -598,8 +598,6 @@
       "created_at": "Utworzono",
       "actions": "Działania",
       "never": "Nigdy",
-      "copy": "Kopiuj kod",
-      "copied": "Skopiowano kod zaproszenia",
       "revoke": "Unieważnij",
       "revoked": "Unieważniono kod zaproszenia",
       "revoke_title": "Unieważnić kod?",
@@ -609,8 +607,7 @@
         "expired": "Wygasły",
         "revoked": "Unieważniony",
         "used": "Użyty"
-      },
-      "copy_failed": "Nie udało się skopiować kodu"
+      }
     }
   }
 }

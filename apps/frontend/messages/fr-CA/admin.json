@@ -576,8 +576,6 @@
       "created_at": "Créé",
       "actions": "Actions",
       "never": "Jamais",
-      "copy": "Copier le code",
-      "copied": "Code d’invitation copié",
       "revoke": "Révoquer",
       "revoked": "Code d’invitation révoqué",
       "revoke_title": "Révoquer le code ?",
@@ -587,8 +585,7 @@
         "expired": "Expiré",
         "revoked": "Révoqué",
         "used": "Utilisé"
-      },
-      "copy_failed": "Impossible de copier le code"
+      }
     }
   }
 }

@@ -598,8 +598,6 @@
       "created_at": "Vytvořeno",
       "actions": "Akce",
       "never": "Nikdy",
-      "copy": "Kopírovat kód",
-      "copied": "Kód pozvánky zkopírován",
       "revoke": "Odvolat",
       "revoked": "Kód pozvánky zrušen",
       "revoke_title": "Zrušit kód?",
@@ -609,8 +607,7 @@
         "expired": "Vypršel",
         "revoked": "Odvolán",
         "used": "Použitý"
-      },
-      "copy_failed": "Kód se nepodařilo zkopírovat"
+      }
     }
   }
 }

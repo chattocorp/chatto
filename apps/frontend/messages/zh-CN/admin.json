@@ -565,8 +565,6 @@
       "created_at": "创建时间",
       "actions": "操作",
       "never": "永不",
-      "copy": "复制邀请码",
-      "copied": "已复制邀请码",
       "revoke": "撤销",
       "revoked": "已撤销邀请码",
       "revoke_title": "撤销邀请码？",
@@ -576,8 +574,7 @@
         "expired": "已过期",
         "revoked": "已撤销",
         "used": "已使用"
-      },
-      "copy_failed": "无法复制邀请码"
+      }
     }
   }
 }

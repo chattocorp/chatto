@@ -80,19 +80,24 @@ describe('Invitation codes', () => {
     const { container } = render(InvitationCodes);
     const copyButton = () =>
       [...container.querySelectorAll('button')].find(
-        (button) => button.textContent?.trim() === 'Copy code'
+        (button) => button.getAttribute('aria-label') === 'Copy to clipboard'
       );
     await vi.waitFor(() => expect(copyButton()).toBeDefined());
 
     await userEvent.click(copyButton()!);
 
-    expect(getToasts()).toMatchObject([{ tone: 'error', message: 'Failed to copy code' }]);
+    expect(getToasts()).toMatchObject([
+      {
+        tone: 'error',
+        message: 'Could not copy to clipboard. Select the text and copy it manually.'
+      }
+    ]);
     toast.clear();
 
     await userEvent.click(copyButton()!);
 
     expect(writeText).toHaveBeenNthCalledWith(2, code);
-    expect(getToasts()).toMatchObject([{ tone: 'success', message: 'Invitation code copied' }]);
+    expect(getToasts()).toMatchObject([{ tone: 'success', message: 'Copied to clipboard' }]);
   });
 
   it('renders notes as plain text beneath their codes', async () => {
@@ -227,7 +232,7 @@ describe('Invitation codes', () => {
     await expect.element(page.getByText('Expired', { exact: true })).toBeVisible();
     await expect.element(page.getByText('Revoked', { exact: true })).toBeVisible();
     await expect
-      .element(page.getByRole('button', { name: 'Copy code', exact: true }))
+      .element(page.getByRole('button', { name: 'Copy to clipboard', exact: true }))
       .not.toBeInTheDocument();
     await expect
       .element(page.getByRole('button', { name: 'Revoke', exact: true }))

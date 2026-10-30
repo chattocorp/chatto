@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInvitationCodeAPI, type InvitationCode } from '$lib/api/invitations';
-  import { Panel, DataTable, ConfirmDialog, FormDialog, Hint, Pill } from '$lib/ui';
+  import { Panel, DataTable, ConfirmDialog, FormDialog, Hint, Pill, CopyButton } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -102,15 +102,6 @@
     onError: (error) => toastError(error)
   }));
 
-  async function copyInvitation(invitation: InvitationCode) {
-    try {
-      await navigator.clipboard.writeText(invitation.code);
-      toast.success(m('admin.invitations.copied'));
-    } catch {
-      toastError(undefined, m('admin.invitations.copy_failed'));
-    }
-  }
-
   function formatTimestamp(value: string): string {
     return formatDateTime(value, userSettings, activeLocale);
   }
@@ -158,13 +149,18 @@
     {/snippet}
     {#snippet row(invitation)}
       <td class="px-5 py-4">
-        <code
-          dir="ltr"
-          class={[
-            'block w-fit font-mono text-sm tracking-wide whitespace-nowrap',
-            invitation.status !== 'active' && 'text-muted'
-          ]}>{invitation.code}</code
-        >
+        <div class="flex items-center gap-2">
+          <code
+            dir="ltr"
+            class={[
+              'block w-fit font-mono text-sm tracking-wide whitespace-nowrap',
+              invitation.status !== 'active' && 'text-muted'
+            ]}>{invitation.code}</code
+          >
+          {#if invitation.status === 'active'}
+            <CopyButton value={invitation.code} />
+          {/if}
+        </div>
         {#if invitation.note}
           <p class="mt-2 max-w-md text-sm wrap-anywhere">{invitation.note}</p>
         {/if}
@@ -196,11 +192,6 @@
       <td class="px-5 py-4">
         <div class="flex items-center justify-end gap-1">
           {#if invitation.status === 'active'}
-            <Button size="sm" variant="ghost" onclick={() => copyInvitation(invitation)}>
-              <span aria-hidden="true" class="iconify icon-[uil--copy]"></span>{m(
-                'admin.invitations.copy'
-              )}
-            </Button>
             <Button
               size="icon"
               label={m('admin.invitations.revoke')}

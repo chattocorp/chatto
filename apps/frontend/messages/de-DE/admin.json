@@ -576,8 +576,6 @@
       "created_at": "Erstellt",
       "actions": "Aktionen",
       "never": "Nie",
-      "copy": "Code kopieren",
-      "copied": "Einladungscode kopiert",
       "revoke": "Widerrufen",
       "revoked": "Einladungscode widerrufen",
       "revoke_title": "Code widerrufen?",
@@ -587,8 +585,7 @@
         "expired": "Abgelaufen",
         "revoked": "Widerrufen",
         "used": "Verwendet"
-      },
-      "copy_failed": "Code konnte nicht kopiert werden"
+      }
     }
   }
 }

@@ -9,7 +9,8 @@
   import { createQuery, createMutation, queryClient } from '$lib/query/client';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
-  import { Panel, Hint, LoadingFog, ChoiceRow, Pill } from '$lib/ui';
+  import { Panel, Hint, LoadingFog, ChoiceRow } from '$lib/ui';
+  import { providerIcon } from '$lib/auth/providerIcon';
   import { toast } from '$lib/ui/toast';
 
   const scope = useServerScope();
@@ -73,9 +74,7 @@
         onclick={() => save('invite_only')}
       />
     </div>
-    <div
-      class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4 text-sm"
-    >
+    <div class="mt-4 flex max-w-md flex-col gap-3 text-sm">
       <p class="text-muted">{m('admin.registration.methods')}</p>
       {#if serverInfo.loading}
         <LoadingFog class="mt-2 h-6 w-full" />
@@ -84,34 +83,27 @@
       {:else if serverInfo.directRegistrationEnabled || registrationProviders.length > 0}
         <ul
           role="list"
-          class="flex min-w-0 flex-wrap gap-2"
+          class="flex min-w-0 flex-col gap-3"
           aria-label={m('admin.registration.methods')}
         >
           {#if serverInfo.directRegistrationEnabled}
-            <li class="max-w-full">
-              <Pill tone="default" paddingClass="px-2.5 py-1.5" class="max-w-full">
-                <span class="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    class="iconify icon-[uil--envelope] shrink-0 text-base text-muted"
-                  ></span>
-                  <span class="min-w-0 wrap-anywhere">{m('admin.registration.email_password')}</span
-                  >
-                </span>
-              </Pill>
+            <li class="flex min-w-0 items-center gap-3 rounded border border-border p-3">
+              <span
+                aria-hidden="true"
+                class="iconify icon-[uil--envelope] shrink-0 text-lg text-muted"
+              ></span>
+              <span class="min-w-0 font-medium wrap-anywhere"
+                >{m('admin.registration.email_password')}</span
+              >
             </li>
           {/if}
           {#each registrationProviders as provider (provider.id)}
-            <li class="max-w-full">
-              <Pill tone="default" paddingClass="px-2.5 py-1.5" class="max-w-full">
-                <span class="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    class="iconify icon-[uil--key-skeleton] shrink-0 text-base text-muted"
-                  ></span>
-                  <span class="min-w-0 wrap-anywhere">{provider.label}</span>
-                </span>
-              </Pill>
+            <li class="flex min-w-0 items-center gap-3 rounded border border-border p-3">
+              <span
+                aria-hidden="true"
+                class={['iconify shrink-0 text-lg text-muted', providerIcon(provider.type)]}
+              ></span>
+              <span class="min-w-0 font-medium wrap-anywhere">{provider.label}</span>
             </li>
           {/each}
         </ul>

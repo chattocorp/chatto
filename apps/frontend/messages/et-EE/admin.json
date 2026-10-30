@@ -576,8 +576,6 @@
       "created_at": "Loodud",
       "actions": "Toimingud",
       "never": "Mitte kunagi",
-      "copy": "Kopeeri kood",
-      "copied": "Kutsekood kopeeritud",
       "revoke": "Tühista",
       "revoked": "Kutsekood tühistatud",
       "revoke_title": "Tühistada kood?",
@@ -587,8 +585,7 @@
         "expired": "Aegunud",
         "revoked": "Tühistatud",
         "used": "Kasutatud"
-      },
-      "copy_failed": "Koodi kopeerimine ebaõnnestus"
+      }
     }
   }
 }
