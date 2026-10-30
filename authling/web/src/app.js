@@ -11,6 +11,9 @@ Object.assign(htmx.config, {
   historyRestoreAsHxRequest: false,
   selfRequestsOnly: true,
   globalViewTransitions: false,
+  // There are no swap animations. Settle synchronously so htmx autofocus
+  // cannot run after someone starts typing in the newly displayed form.
+  defaultSettleDelay: 0,
   defaultFocusScroll: false,
   reportValidityOfForms: true
 });
