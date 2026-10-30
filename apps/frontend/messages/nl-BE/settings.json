@@ -1,6 +1,27 @@
 {
   "settings": {
     "overview": {
+      "descriptions": {
+        "account": "Beheer je wachtwoord, e-mailadressen en aanmeldmethoden.",
+        "profile": "Werk je naam, avatar en profielgegevens bij.",
+        "time": "Kies hoe deze server datums en tijden voor je weergeeft",
+        "notifications": "Configureer hoe u meldingen ontvangt",
+        "language": "Kies de taal en regionale bewoording voor deze browser.",
+        "bots": "Maak API-accounts en beheer precies wat ze kunnen doen",
+        "general": "Serveridentiteit, branding en berichten",
+        "neighbors": "Promoot bevriende Chatto-servers in je openbare gids",
+        "members": "Bekijk en beheer serverleden en hun rollen",
+        "invitations": "Maak en beheer links waarmee nieuwe accounts kunnen worden aangemaakt.",
+        "rooms": "Ruimtes maken, bewerken, ordenen en archiveren",
+        "moderation": "Actieve schorsingen voor kamers bekijken",
+        "permissions": "Beheer standaardrollen voor de hele server",
+        "security": "Aanmeldingsbeperkingen en accountbescherming",
+        "appearance": "Maak de app persoonlijk met kleuren, thema’s en weergaveopties.",
+        "composer": "Kies je berichteditor en hoe je berichten verstuurt.",
+        "voice": "Stel je microfoon, luidsprekers en gespreksvoorkeuren in.",
+        "system": "Controleer de serverstatus, opslag en achtergrondtaken.",
+        "event_log": "Bekijk servergebeurtenissen en onderzoek wijzigingen."
+      },
       "title": "Overzicht",
       "shield_notice": "Activeer de bevoorrechte modus met de schildknop naast je naam om je extra rechten op deze server te gebruiken."
     },

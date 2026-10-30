@@ -1,6 +1,27 @@
 {
   "settings": {
     "overview": {
+      "descriptions": {
+        "account": "Gira a sua palavra-passe, os endereços de e-mail e os métodos de início de sessão.",
+        "profile": "Atualize o seu nome, avatar e dados do perfil.",
+        "time": "Escolha como este servidor apresenta datas e horas para si",
+        "notifications": "Configure como recebe as notificações",
+        "language": "Escolha o idioma e o texto regional para este browser.",
+        "bots": "Crie contas API e controle exatamente o que podem fazer",
+        "general": "Identidade, marca e mensagens do servidor",
+        "neighbors": "Divulgue servidores Chatto amigos no seu diretório público",
+        "members": "Visualizar e gerir os membros do servidor e as suas funções",
+        "invitations": "Crie e faça a gestão de ligações que permitem criar novas contas.",
+        "rooms": "Criar, editar, organizar e arquivar salas",
+        "moderation": "Rever suspensões ativas das salas",
+        "permissions": "Gerir padrões de funções em todo o servidor",
+        "security": "Restrições de registo e proteção de conta",
+        "appearance": "Personalize a aplicação com cores, temas e opções de apresentação.",
+        "composer": "Escolha o editor e como envia mensagens.",
+        "voice": "Configure o microfone, os altifalantes e as preferências de chamadas.",
+        "system": "Verifique o estado do servidor, o armazenamento e as tarefas em segundo plano.",
+        "event_log": "Explore os eventos do servidor e investigue alterações."
+      },
       "title": "Visão geral",
       "shield_notice": "Para utilizar as suas permissões adicionais neste servidor, ative o modo privilegiado com o botão de escudo junto ao seu nome."
     },

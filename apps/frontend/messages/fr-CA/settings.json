@@ -1,6 +1,27 @@
 {
   "settings": {
     "overview": {
+      "descriptions": {
+        "account": "Gérez votre mot de passe, vos adresses courriel et vos méthodes de connexion.",
+        "profile": "Modifiez votre nom, votre avatar et les détails de votre profil.",
+        "time": "Choisissez comment ce serveur affiche les dates et les heures pour vous",
+        "notifications": "Configurez comment vous recevez les notifications",
+        "language": "Choisissez la langue et la formulation régionale de ce navigateur.",
+        "bots": "Créez des comptes API et contrôlez exactement ce qu'ils peuvent faire",
+        "general": "Identité du serveur, image de marque et messages",
+        "neighbors": "Publiez des serveurs Chatto amis dans votre répertoire public",
+        "members": "Afficher et gérer les membres du serveur et leurs rôles",
+        "invitations": "Créez et gérez les liens qui permettent d’ouvrir de nouveaux comptes.",
+        "rooms": "Créer, modifier, organiser et archiver des salles",
+        "moderation": "Examiner les suspensions actives des salons",
+        "permissions": "Gérer les valeurs par défaut des rôles à l'échelle du serveur",
+        "security": "Restrictions d'inscription et protection du compte",
+        "appearance": "Personnalisez l’application avec les couleurs, thèmes et options d’affichage.",
+        "composer": "Choisissez votre éditeur et le mode d’envoi des messages.",
+        "voice": "Configurez votre microphone, vos haut-parleurs et vos préférences d’appel.",
+        "system": "Vérifiez l’état du serveur, le stockage et les tâches en arrière-plan.",
+        "event_log": "Explorez les événements du serveur et examinez les changements."
+      },
       "title": "Vue d’ensemble",
       "shield_notice": "Pour utiliser vos autorisations supplémentaires sur ce serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom."
     },

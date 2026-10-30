@@ -1,6 +1,27 @@
 {
   "settings": {
     "overview": {
+      "descriptions": {
+        "account": "Hallake parooli, e-posti aadresse ja sisselogimisviise.",
+        "profile": "Uuendage oma nime, avatari ja profiiliandmeid.",
+        "time": "Vali, kuidas see server sulle kuupäevi ja kellaaegu kuvab",
+        "notifications": "Seadistage teatiste saamise viis",
+        "language": "Valige selle brauseri jaoks keel ja piirkondlik sõnastus.",
+        "bots": "Looge API kontosid ja kontrollige täpselt, mida nad saavad teha",
+        "general": "Serveri identiteet, kaubamärk ja sõnumid",
+        "neighbors": "Tutvustage sõbralikke Chatto servereid oma avalikus kataloogis",
+        "members": "Saate vaadata ja hallata serveriliikmeid ja nende rolle",
+        "invitations": "Looge ja hallake linke, mille kaudu saavad liituda uued kontod.",
+        "rooms": "Looge, redigeerige, korraldage ja arhiivige ruume",
+        "moderation": "Vaata üle aktiivsed ruumi kasutamise peatamised",
+        "permissions": "Hallake kogu serveri rolli vaikeseadeid",
+        "security": "Registreerumispiirangud ja konto kaitse",
+        "appearance": "Kohandage rakendust värvide, teemade ja kuvamisvalikutega.",
+        "composer": "Valige sõnumiredaktor ja sõnumite saatmise viis.",
+        "voice": "Seadistage mikrofon, kõlarid ja kõneeelistused.",
+        "system": "Kontrollige serveri seisundit, salvestusruumi ja taustaülesandeid.",
+        "event_log": "Sirvige serverisündmusi ja uurige muudatusi."
+      },
       "title": "Ülevaade",
       "shield_notice": "Selles serveris oma lisaõiguste kasutamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga."
     },

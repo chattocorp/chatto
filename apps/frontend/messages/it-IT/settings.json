@@ -1,6 +1,27 @@
 {
   "settings": {
     "overview": {
+      "descriptions": {
+        "account": "Gestisci password, indirizzi e-mail e metodi di accesso.",
+        "profile": "Aggiorna nome, avatar e dettagli del profilo.",
+        "time": "Scegli come questo server mostra date e orari per te",
+        "notifications": "Configura il modo in cui ricevi le notifiche",
+        "language": "Scegli la lingua e la dicitura regionale per questo browser.",
+        "bots": "Crea account API e controlla esattamente cosa possono fare",
+        "general": "Identità del server, branding e messaggi",
+        "neighbors": "Pubblica server Chatto amici nella directory pubblica",
+        "members": "Visualizza e gestisci i membri del server e i loro ruoli",
+        "invitations": "Crea e gestisci i link che permettono di creare nuovi account.",
+        "rooms": "Crea, modifica, organizza e archivia le stanze",
+        "moderation": "Esamina le sospensioni attive dalle stanze",
+        "permissions": "Gestisci le impostazioni predefinite dei ruoli a livello di server",
+        "security": "Restrizioni di registrazione e protezione dell'account",
+        "appearance": "Personalizza l’app con colori, temi e opzioni di visualizzazione.",
+        "composer": "Scegli il tuo editor e come inviare i messaggi.",
+        "voice": "Configura microfono, altoparlanti e preferenze delle chiamate.",
+        "system": "Controlla lo stato del server, lo spazio di archiviazione e le attività in background.",
+        "event_log": "Esplora gli eventi del server e analizza le modifiche."
+      },
       "title": "Panoramica",
       "shield_notice": "Per usare i tuoi permessi aggiuntivi su questo server, attiva la modalità privilegiata con il pulsante dello scudo accanto al tuo nome."
     },

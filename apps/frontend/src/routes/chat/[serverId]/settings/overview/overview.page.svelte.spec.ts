@@ -37,6 +37,10 @@ describe('settings Overview', () => {
   it('groups links and updates server pages when effective permissions change', async () => {
     const view = render(Overview);
     expect(view.container.querySelectorAll('h2')).toHaveLength(3);
+    for (const link of view.container.querySelectorAll('nav a')) {
+      const description = document.getElementById(link.getAttribute('aria-describedby')!);
+      expect(description?.textContent?.trim()).toBeTruthy();
+    }
     await expect
       .element(view.getByRole('link', { name: 'Appearance' }))
       .toHaveAttribute('href', '/chat/remote.example.com/settings/appearance');
