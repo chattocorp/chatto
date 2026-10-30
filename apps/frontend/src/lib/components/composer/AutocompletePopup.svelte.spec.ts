@@ -47,6 +47,24 @@ function activeLabel(container: HTMLElement): string | null {
 }
 
 describe('AutocompletePopup', () => {
+  it('Space selects the highlighted item and prevents a second space', () => {
+    const onSelect = vi.fn();
+    const { component } = renderPopup({ items: items('a', 'b'), onSelect });
+    press(component, 'ArrowDown');
+    const { ev, handled } = press(component, ' ');
+    expect(handled).toBe(true);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ label: 'b' }), ' ');
+  });
+
+  it('does not accept a choice while an IME composition is active', () => {
+    const onSelect = vi.fn();
+    const { component } = renderPopup({ items: items('a'), onSelect });
+    const event = new KeyboardEvent('keydown', { key: ' ', isComposing: true, cancelable: true });
+    expect(component.handleKeyDown(event)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
   describe('rendering', () => {
     it('renders nothing when items list is empty', () => {
       const { container } = renderPopup({ items: [] });

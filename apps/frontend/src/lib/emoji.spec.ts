@@ -8,6 +8,36 @@ import {
   EMOJI_BY_CATEGORY
 } from './emoji';
 
+describe('fuzzy emoji search', () => {
+  it('finds names without separators, case-insensitively', () => {
+    expect(searchEmojis('WomanHealthWorker')).toContainEqual(
+      expect.objectContaining({ emoji: '👩‍⚕️' })
+    );
+    expect(searchEmojis('headshakingvertically')[0]).toMatchObject({
+      name: 'head_shaking_vertically'
+    });
+  });
+
+  it('matches aliases and keeps exact names ahead of fuzzy alternatives', () => {
+    expect(searchEmojis('thumbsup')[0]).toMatchObject({ emoji: '👍' });
+    expect(searchEmojis('fire')[0]).toMatchObject({ name: 'fire', emoji: '🔥' });
+    const results = searchEmojis('hrt', 100);
+    expect(results).toContainEqual(expect.objectContaining({ emoji: '❤️' }));
+    expect(new Set(results.map((result) => result.emoji)).size).toBe(results.length);
+  });
+
+  it('respects result limits and rejects unmatched or empty queries', () => {
+    expect(searchEmojis('face', 3)).toHaveLength(3);
+    expect(searchEmojis('face', 0)).toEqual([]);
+    expect(searchEmojis('zzzzzzzz')).toEqual([]);
+    expect(searchEmojis('')).toEqual([]);
+  });
+
+  it('fuzzy-matches tags as well as shortcode aliases', () => {
+    expect(searchEmojis('hry', 100)).toContainEqual(expect.objectContaining({ emoji: '🎉' }));
+  });
+});
+
 it.each([
   ['face_with_bags_under_eyes', '🫩'],
   ['head_shaking_vertically', '🙂‍↕️'],

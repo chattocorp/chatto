@@ -180,7 +180,7 @@ external value changes, such as a successful save, update the mounted editor.
         query={autocomplete.mention.query}
         members={candidates}
         roles={mentions.roles}
-        onSelect={(handle, viaTab) => autocomplete.selectMention(handle, viaTab)}
+        onSelect={(handle, key) => autocomplete.selectMention(handle, key)}
         onClose={resetAutocomplete}
       />
     {/if}

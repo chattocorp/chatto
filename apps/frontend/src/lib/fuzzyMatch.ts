@@ -1,5 +1,5 @@
 /**
- * Fuzzy matching utility for @mention tab completion.
+ * Shared fuzzy matching for room, user, emoji, and Quick Switcher searches.
  *
  * Matches a query against a target string with scoring:
  * - Exact match: highest score
@@ -41,7 +41,18 @@ export function fuzzyMatch(query: string, target: string): number | null {
   // Fuzzy subsequence match
   // All characters in query must appear in target in order
   const score = fuzzySubsequenceScore(lowerQuery, lowerTarget);
-  return score;
+  // Keep long subsequences below substring matches, including long emoji names.
+  return score === null ? null : Math.min(score, 199);
+}
+
+/** Return the strongest match across aliases or identity fields, or null if none match. */
+export function fuzzyMatchAny(query: string, targets: readonly string[]): number | null {
+  let best: number | null = null;
+  for (const target of targets) {
+    const score = fuzzyMatch(query, target);
+    if (score !== null && (best === null || score > best)) best = score;
+  }
+  return best;
 }
 
 /**

@@ -2,7 +2,21 @@
  * Unit tests for fuzzy matching utility.
  */
 import { describe, it, expect } from 'vitest';
-import { fuzzyMatch } from './fuzzyMatch';
+import { fuzzyMatch, fuzzyMatchAny } from './fuzzyMatch';
+
+describe('fuzzyMatchAny', () => {
+  it('uses the strongest alias or identity field regardless of order', () => {
+    expect(fuzzyMatchAny('alice', ['a_l_i_c_e', 'Alice'])).toBe(1000);
+    expect(fuzzyMatchAny('alice', ['Alice', 'a_l_i_c_e'])).toBe(1000);
+    expect(fuzzyMatchAny('dt', ['unrelated', 'Design Team'])).toBeGreaterThan(0);
+  });
+
+  it('returns null when no field matches', () => {
+    expect(fuzzyMatchAny('zzzz', ['Alice', 'Bob'])).toBeNull();
+    expect(fuzzyMatchAny('alice', [])).toBeNull();
+    expect(fuzzyMatchAny('', ['Alice'])).toBeNull();
+  });
+});
 
 describe('fuzzyMatch', () => {
   describe('exact matches', () => {
@@ -132,6 +146,13 @@ describe('fuzzyMatch', () => {
   });
 
   describe('score ordering', () => {
+    it('keeps long fuzzy matches below literal substring matches', () => {
+      const query = 'womanhealthworker';
+      expect(fuzzyMatch(query, 'woman_health_worker')).toBeLessThan(
+        fuzzyMatch(query, `x${query}x`)!
+      );
+      expect(fuzzyMatch(query, query)).toBeGreaterThan(fuzzyMatch(query, 'woman_health_worker')!);
+    });
     it('orders: exact > prefix > contains > fuzzy', () => {
       const exact = fuzzyMatch('foobar', 'foobar')!;
       const prefix = fuzzyMatch('foo', 'foobar')!;

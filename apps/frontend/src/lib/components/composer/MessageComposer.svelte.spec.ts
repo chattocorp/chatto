@@ -20,6 +20,8 @@ import type { CreateMessageInput } from '@chatto/client/api/messages';
 import { MentionRolesStore } from '@chatto/client/server/mentionRoles';
 import { Code, ConnectError } from '@chatto/client/api/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { serverRegistry } from '$lib/client';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 
 async function expectAccentColour(button: HTMLElement) {
   const reference = document.createElement('span');
@@ -391,6 +393,7 @@ describe('MessageComposer', () => {
       },
       store: {
         roomUnread,
+        roomList: { rooms: [] },
         projection: {
           rooms: new Map(),
           activeCalls: [],
@@ -612,6 +615,55 @@ describe('MessageComposer', () => {
   });
 
   describe('form rendering', () => {
+    it.each([
+      ['markdown', ' '],
+      ['markdown', 'Enter'],
+      ['markdown', 'Tab'],
+      ['visual', ' '],
+      ['visual', 'Enter'],
+      ['visual', 'Tab']
+    ] as const)('accepts a room in %s with %s without sending', async (kind, key) => {
+      userPreferences.composerEditor = kind;
+      const targetRoomId = 'R123456789abcde';
+      const url = `https://rooms.example.test/chat/-/${targetRoomId}`;
+      vi.spyOn(serverRegistry, 'getServer').mockReturnValue({
+        id: 'test-instance',
+        url: 'https://rooms.example.test',
+        name: 'Rooms',
+        iconUrl: null,
+        token: null,
+        userId: null,
+        userLogin: null,
+        userDisplayName: null,
+        userAvatarUrl: null,
+        reauthRequiredAt: null,
+        addedAt: 1
+      });
+      server.scope.store.roomList.rooms.push({
+        id: targetRoomId,
+        name: 'Design Team',
+        type: RoomKind.CHANNEL,
+        isUniversal: false,
+        viewerIsMember: false,
+        viewerCanJoinRoom: true,
+        viewerCanManageRoom: false,
+        members: []
+      });
+      const { container } = renderMessageComposer({ roomId: 'room-completion' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '#designteam');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="room-autocomplete"]')).toBeTruthy()
+      );
+      await pressEditorKey(editor, key);
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="room-autocomplete"]')).toBeNull();
+      // Ignore visual-editor decorations; assert the actual editable text.
+      const content = editor.cloneNode(true) as HTMLElement;
+      content.querySelectorAll('.ProseMirror-widget').forEach((node) => node.remove());
+      expect(content.textContent).toBe(url + (key === ' ' ? ' ' : ''));
+    });
+
     it('renders the TipTap editor', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
@@ -1177,10 +1229,10 @@ describe('MessageComposer', () => {
       );
 
       await userEvent.keyboard('{Tab}');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice'));
       expect(document.activeElement).toBe(editor);
       await userEvent.keyboard('{Tab}');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia '));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia'));
       expect(document.activeElement).toBe(editor);
       expect(mutationMock).not.toHaveBeenCalled();
     });
@@ -1219,7 +1271,7 @@ describe('MessageComposer', () => {
       expect(handles).toEqual(['@alicia', '@alice']);
 
       await userEvent.keyboard('{Tab}');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia '));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia'));
     });
 
     it('completes mentions before Enter can submit Markdown', async () => {
@@ -1232,7 +1284,7 @@ describe('MessageComposer', () => {
       );
 
       await pressEditorKey(editor, 'Enter');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice'));
       expect(mutationMock).not.toHaveBeenCalled();
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -1272,7 +1324,7 @@ describe('MessageComposer', () => {
       );
 
       await pressEditorKey(editor, 'Enter');
-      await vi.waitFor(() => expect(editor.textContent).toMatch(/^\p{Extended_Pictographic}\s$/u));
+      await vi.waitFor(() => expect(editor.textContent).toMatch(/^\p{Extended_Pictographic}$/u));
       expect(mutationMock).not.toHaveBeenCalled();
       const completedEmoji = editor.textContent!.trim();
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
@@ -3191,7 +3243,7 @@ describe('MessageComposer', () => {
 
       await pressEditorKey(editor, 'Enter');
 
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice'));
       expect(mutationMock).not.toHaveBeenCalled();
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
@@ -3213,7 +3265,7 @@ describe('MessageComposer', () => {
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
       );
       await pressEditorKey(editor, 'Enter');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@chatto_bot '));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@chatto_bot'));
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
