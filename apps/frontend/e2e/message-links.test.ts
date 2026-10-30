@@ -17,6 +17,46 @@ import { withServerUser } from './fixtures/serverUser';
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  test('an old lookup cannot redirect a later visit to the same message link', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const eventId = await postMessageViaConnect(page, roomId, 'Repeated link visit');
+    const link = routes.messageLink(roomId, eventId);
+    const releases: Array<() => void> = [];
+    await page.route('**/chatto.api.v1.MessageService/GetMessage', async (route) => {
+      if (GetMessageRequest.fromBinary(route.request().postDataBuffer()!).eventId === eventId) {
+        await new Promise<void>((resolve) => releases.push(resolve));
+      }
+      await route.continue();
+    });
+    try {
+      await page.goto(link);
+      await expect.poll(() => releases.length).toBe(1);
+      await page.getByRole('link', { name: 'Overview', exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`${routes.serverOverview}$`));
+      await page.goBack();
+      await expect.poll(() => releases.length).toBe(2);
+      const response = page.waitForResponse('**/chatto.api.v1.MessageService/GetMessage');
+      releases[0]();
+      await (await response).finished();
+      await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      );
+      await expect(page).toHaveURL(new RegExp(`${link}$`));
+      releases[1]();
+      await expect(page).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
+      await expect(page.getByText('Repeated link visit', { exact: true })).toBeVisible();
+    } finally {
+      releases.forEach((release) => release());
+      await page.unrouteAll({ behavior: 'wait' });
+    }
+  });
+
   test('Markdown links to thread replies show composer and posted previews', async ({
     page,
     chatPage,

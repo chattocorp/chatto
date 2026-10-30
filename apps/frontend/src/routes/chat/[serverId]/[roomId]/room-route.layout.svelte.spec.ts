@@ -22,12 +22,13 @@ vi.mock('$lib/client', async () => ({
         )
       },
       realtimeSync: mocks.realtimeSync,
+      pendingHighlights: { set: vi.fn() },
       navigation: {
         get rooms() {
           return mocks.roomsStore.rooms;
         },
         get isInitialLoading() {
-          return mocks.roomsStore.isInitialLoading;
+          return mocks.roomsStore.isInitialLoading || !mocks.realtimeSync!.hasDisplayableView;
         },
         get roomGroups() {
           return mocks.roomsStore.roomGroups;
@@ -64,10 +65,12 @@ import { q, testSnippet } from '$lib/test-utils';
 
 import type { RoomsListItem } from '$lib/state/server/navigation';
 import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
+import { navigationVisits } from '$lib/navigation/mutationCompletion';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
+    getMessage: vi.fn(),
     page: {
       params: { serverId: '-', roomId: 'room-1' } as Record<string, string | undefined>,
       route: { id: '/chat/[serverId]/[roomId]' as string | null },
@@ -127,7 +130,7 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
   return {
     useServerScope: () => ({
       serverId: 'origin',
-      connection: {},
+      connection: { getAPI: () => ({ getMessage: mocks.getMessage }) },
       get store() {
         return serverRegistry.getStore('origin');
       },
@@ -150,6 +153,14 @@ vi.mock('./Room.svelte', async () => {
 
 import Layout from './+layout.svelte';
 
+/** Keep projection fixtures reactive, as the client adapter is in the application. */
+class TestRoomList {
+  rooms = $state<RoomsListItem[]>([]);
+  roomGroups = $state<Array<{ id: string; name: string; roomIds: string[] }>>([]);
+  isInitialLoading = $state(false);
+  currentUserId = $state('viewer-1');
+}
+
 function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
   return {
     id: 'room-1',
@@ -169,22 +180,37 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
 function renderLayout() {
   return render(Layout, {
     props: {
+      children: testSnippet('<div></div>'),
       data: {
         user: null,
         serverInfo: null,
         serverInfoLoaded: true,
         serverSegment: '-',
         roomId: 'room-1'
-      },
-      children: testSnippet('<div data-testid="message-resolver"></div>')
+      }
     }
   });
 }
 
+function directRoom(): RoomsListItem {
+  return room({
+    type: RoomKind.DM,
+    members: ['viewer-1', 'peer'].map((id) => ({
+      id,
+      login: id,
+      displayName: id,
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.ONLINE
+    }))
+  });
+}
+
 beforeEach(() => {
+  mocks.roomsStore = new TestRoomList();
   mocks.realtimeSync = new RealtimeProjectionSyncState();
   mocks.realtimeSync.markCaughtUp('initial');
   vi.clearAllMocks();
+  mocks.getMessage.mockResolvedValue(null);
   mocks.page.params = { serverId: '-', roomId: 'room-1' };
   mocks.page.route.id = '/chat/[serverId]/[roomId]';
   mocks.page.state = {};
@@ -199,6 +225,74 @@ beforeEach(() => {
 });
 
 describe('room route layout access handling', () => {
+  it('keeps one lookup through room metadata updates and discards it after membership loss', async () => {
+    let finish!: (result: null) => void;
+    mocks.getMessage.mockReturnValueOnce(
+      new Promise<null>((resolve) => {
+        finish = resolve;
+      })
+    );
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/m/[messageId]';
+    mocks.page.params.messageId = 'message';
+    renderLayout();
+    await tick();
+    expect(mocks.getMessage).toHaveBeenCalledOnce();
+    mocks.roomsStore.rooms = [room({ name: 'renamed' })];
+    await tick();
+    expect(mocks.getMessage).toHaveBeenCalledOnce();
+    mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
+    await tick();
+    finish(null);
+    await tick();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('resolves a pending message link when projected membership arrives without navigation', async () => {
+    mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/m/[messageId]';
+    mocks.page.params.messageId = 'message';
+    renderLayout();
+    await tick();
+    expect(mocks.getMessage).not.toHaveBeenCalled();
+    mocks.roomsStore.rooms = [room()];
+    await tick();
+    expect(mocks.getMessage).toHaveBeenCalledOnce();
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true })
+    );
+  });
+
+  it('lets a DM message link resolve directly instead of first redirecting to a user URL', async () => {
+    mocks.roomsStore.rooms = [directRoom()];
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/m/[messageId]';
+    mocks.page.params.messageId = 'message';
+    renderLayout();
+    await tick();
+    expect(mocks.getMessage).toHaveBeenCalledOnce();
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/-/user/peer', {
+        replaceState: true
+      })
+    );
+  });
+
+  it.each([false, true])(
+    'waits for cold DM data and fences a departed visit: %s',
+    async (leave) => {
+      mocks.roomsStore.rooms = [directRoom()];
+      mocks.realtimeSync!.reset();
+      const view = renderLayout();
+      expect(mocks.goto).not.toHaveBeenCalled();
+      if (leave) {
+        navigationVisits.leave();
+        await view.unmount();
+      }
+      mocks.realtimeSync!.markCaughtUp('later');
+      await tick();
+      if (leave) expect(mocks.goto).not.toHaveBeenCalled();
+      else expect(mocks.goto).toHaveBeenCalledWith('/chat/-/user/peer', { replaceState: true });
+    }
+  );
   it('redirects a DM message link with query and fragment to its partner page', async () => {
     mocks.roomsStore.rooms = [
       room({
@@ -260,7 +354,7 @@ describe('room route layout access handling', () => {
     await tick();
 
     expect(q(container, '[data-testid="room-layout-room"]')).toBeNull();
-    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+    expect(mocks.getMessage).not.toHaveBeenCalled();
   });
 
   it('renders the room without redirecting when the viewer is already a member', async () => {
@@ -287,6 +381,8 @@ describe('room route layout access handling', () => {
 
   it('renders the inline join screen instead of the message resolver for nonmember message links', async () => {
     mocks.page.url = new URL('https://chat.example.test/chat/-/room-1/m/Eabc123DEF456gh');
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/m/[messageId]';
+    mocks.page.params.messageId = 'Eabc123DEF456gh';
     mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
 
     const { container } = renderLayout();
@@ -295,7 +391,7 @@ describe('room route layout access handling', () => {
     await expect
       .element(q(container, 'section'))
       .toHaveTextContent('Join this room to read and participate.');
-    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+    expect(mocks.getMessage).not.toHaveBeenCalled();
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
@@ -304,10 +400,10 @@ describe('room route layout access handling', () => {
     mocks.page.params.messageId = 'message-1';
     mocks.roomsStore.rooms = [];
 
-    const { container } = renderLayout();
+    renderLayout();
     await tick();
 
-    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+    expect(mocks.getMessage).not.toHaveBeenCalled();
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
@@ -442,7 +538,7 @@ describe('room route layout access handling', () => {
     const renderedRoom = q(container, '[data-testid="room-layout-room"]') as HTMLElement;
     expect(renderedRoom?.dataset.threadId).toBe('Ethread123ABC456');
     expect(renderedRoom?.dataset.routeMessageId).toBe('Ereply123ABC4567');
-    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+    expect(mocks.getMessage).not.toHaveBeenCalled();
   });
 
   it('renders the target thread after joining has made the viewer a member', async () => {
