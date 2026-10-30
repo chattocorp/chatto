@@ -39,7 +39,7 @@ test.describe('App and User Preferences', () => {
     await page.goto(routes.settingsOverview);
     const card = page
       .getByRole('navigation', { name: 'App preferences', exact: true })
-      .getByRole('link', { name: 'Appearance', exact: true });
+      .getByRole('link', { name: 'Voice & video', exact: true });
     await expect(card).toBeVisible();
     await expect
       .poll(() =>
@@ -90,6 +90,29 @@ test.describe('App and User Preferences', () => {
     expect(await animationStart()).toBe(startedAt);
     await expect.poll(animationTime).toBeGreaterThan(before);
     await expect(card).toBeVisible();
+  });
+
+  test('tilts the Appearance and Language artwork without lifting its individual pieces', async ({
+    page
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsOverview);
+    const group = page.getByRole('navigation', { name: 'App preferences', exact: true });
+    for (const name of ['Appearance', 'Language']) {
+      const card = group.getByRole('link', { name, exact: true });
+      await card.hover();
+      await expect
+        .poll(() =>
+          card.evaluate((el) => {
+            const artwork = el.querySelector('[aria-hidden="true"]')!;
+            return [...artwork.querySelectorAll('*')]
+              .map((piece) => getComputedStyle(piece).translate)
+              .filter((translate) => translate !== 'none');
+          })
+        )
+        .toEqual([]);
+    }
   });
 
   test('can choose a local display theme', async ({ page }) => {

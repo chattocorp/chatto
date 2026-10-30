@@ -22,7 +22,7 @@
 
   <div class="flex scale-75 items-center justify-center">
     {#if kind === 'appearance'}
-      <div class="palette relative flex items-center -space-x-8">
+      <div class="relative flex items-center -space-x-8">
         <div
           class="h-28 w-40 -rotate-6 overflow-hidden rounded-xl border border-border bg-background shadow-lg transition-transform duration-200 group-hover:-rotate-3 motion-reduce:transition-none"
         >
@@ -54,7 +54,7 @@
         </div>
       </div>
     {:else if kind === 'language'}
-      <div class="languages relative flex items-center -space-x-3">
+      <div class="relative flex items-center -space-x-3">
         <span
           class="flex size-20 -rotate-12 items-center justify-center rounded-2xl border border-border bg-background text-5xl font-semibold shadow-lg transition-transform duration-200 group-hover:-rotate-6 motion-reduce:transition-none"
           >A</span
@@ -122,17 +122,11 @@
 <style>
   /* Illustration-specific keyframes need scoped CSS rather than shared UI utilities.
      Only pointer hover starts motion; leaving the card restores the still scene. */
-  .palette > div:last-child,
-  .languages > span,
   .send,
   .wave {
-    animation: lift 4s ease-in-out infinite;
-  }
-  .languages > span:nth-child(2) {
-    animation-delay: -0.3s;
-  }
-  .languages > span:nth-child(3) {
-    animation-delay: -0.6s;
+    animation-duration: 4s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
   }
   .send {
     animation-name: send;
@@ -141,22 +135,9 @@
     animation-name: waveform;
     animation-delay: var(--delay);
   }
-  :global(a:not(:hover)) .palette > div:last-child,
-  :global(a:not(:hover)) .languages > span,
   :global(a:not(:hover)) .send,
   :global(a:not(:hover)) .wave {
     animation-name: none;
-  }
-  @keyframes lift {
-    0%,
-    65%,
-    100% {
-      translate: 0 0;
-    }
-    25%,
-    45% {
-      translate: 0 -8px;
-    }
   }
   @keyframes send {
     0%,
@@ -183,8 +164,6 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .palette > div:last-child,
-    .languages > span,
     .send,
     .wave {
       animation: none;

@@ -376,10 +376,6 @@
   .signal {
     animation-name: signal;
   }
-  .greet,
-  .letter {
-    animation-name: lift;
-  }
   .blink {
     animation-name: blink;
     transform-box: fill-box;
@@ -459,17 +455,6 @@
     }
     to {
       stroke-dashoffset: 0;
-    }
-  }
-  @keyframes lift {
-    0%,
-    65%,
-    100% {
-      translate: 0 0;
-    }
-    25%,
-    45% {
-      translate: 0 -7px;
     }
   }
   @keyframes blink {
