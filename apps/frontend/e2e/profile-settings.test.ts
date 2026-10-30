@@ -14,6 +14,35 @@ async function setCustomStatus(page: Page, text: string): Promise<void> {
 }
 
 test.describe('Profile Settings', () => {
+  test('cancels and confirms a username change with the current profile draft', async ({
+    page
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settings);
+    const username = page.getByTestId('settings-username');
+    const renamed = `renamed${Date.now()}`;
+    const settings = new SettingsPage(page);
+    await username.fill(`${renamed}x`);
+    await settings.displayNameInput.fill('Updated profile');
+    await settings.saveDisplayNameButton.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(`@${renamed}x`);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(username).toHaveValue(`${renamed}x`);
+    await expect(settings.displayNameInput).toHaveValue('Updated profile');
+
+    await username.fill(renamed);
+    await settings.saveDisplayNameButton.click();
+    await expect(dialog).toContainText(`@${renamed}?`);
+    await dialog.getByRole('button', { name: 'Change username', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText('Profile updated')).toBeVisible();
+    await expect(settings.saveDisplayNameButton).toBeDisabled();
+    await page.reload();
+    await expect(username).toHaveValue(renamed);
+    await expect(settings.displayNameInput).toHaveValue('Updated profile');
+  });
+
   test('opens settings from own profile menus and returns with updated identity', async ({
     page,
     chatPage
