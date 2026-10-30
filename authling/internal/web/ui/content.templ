@@ -42,3 +42,11 @@ func noticeRole(tone Tone) string {
 	}
 	return "status"
 }
+
+// Toast progressively enhances result feedback; without JavaScript it remains
+// an inline notice. Validation errors and security warnings should use Notice.
+templ Toast(tone Tone) {
+	<div data-toast={ string(tone) }>
+		@Notice(tone) { { children... } }
+	</div>
+}

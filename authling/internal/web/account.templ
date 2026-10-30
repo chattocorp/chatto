@@ -10,17 +10,17 @@ import (
 templ accountPage(data accountPageData) {
 	@accountWorkspace("Your account", data.signedInAs, data.section, data.administrator) {
 		if data.passwordChanged {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your password was changed. Your other browser sessions on { siteFromContext(ctx).Name } were signed out.</p>
 			}
 		}
 		if data.emailChanged {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your email address was changed. Use your new email address the next time you sign in.</p>
 			}
 		}
 		if data.profileUpdated {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your profile was updated.</p>
 			}
 		}
@@ -30,27 +30,27 @@ templ accountPage(data accountPageData) {
 			}
 		}
 		if data.sessionRevoked {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>The other browser session was signed out.</p>
 			}
 		}
 		if data.otherSessionsRevoked {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your other browser sessions were signed out.</p>
 			}
 		}
 		if data.sessionMissing {
-			@ui.Notice(ui.Neutral) {
+			@ui.Toast(ui.Neutral) {
 				<p>That browser session is no longer active.</p>
 			}
 		}
 		if data.appRevoked {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>The app’s authorization was revoked. It must ask for access again in a future authorization flow.</p>
 			}
 		}
 		if data.appMissing {
-			@ui.Notice(ui.Neutral) {
+			@ui.Toast(ui.Neutral) {
 				<p>That app is no longer authorized.</p>
 			}
 		}

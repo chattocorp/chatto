@@ -28,7 +28,7 @@ templ appearancePage(signedInAs string, input sitesettings.Snapshot, message str
 				<p>Make this service feel like yours. Changes apply to everyone when you save.</p>
 			}
 			if saved {
-				@ui.Notice(ui.Success) { Appearance saved. }
+				@ui.Toast(ui.Success) { Appearance saved. }
 			}
 			@ui.Error(message)
 			<div class="mt-6 grid items-start gap-8 lg:grid-cols-2">

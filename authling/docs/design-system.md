@@ -125,6 +125,14 @@ registered only in binaries built with the `bootstrap` tag. Static examples read
 no account data and have no save actions. Production binaries return 404 for this
 path. The page follows the browser's light/dark preference.
 
+Use `ui.Toast` for completed actions and ordinary result feedback. JavaScript
+moves these notices into a fixed stack with dismiss buttons and polite live
+announcements. Each toast expires after eight seconds; hover, keyboard focus,
+and a hidden browser tab pause its timer. Navigation clears the old stack.
+Consumed result flags are removed from the URL to prevent repeat notifications
+on reload. Without JavaScript, feedback remains visible inline. Use `ui.Notice`
+for form errors and security warnings that must remain beside their context.
+
 Inspect normal, invalid, disabled, read-only, and pending states. Check keyboard
 focus, empty tables, long content, first/last-page navigation, and narrow layouts.
 Then check real pages. Test forms without

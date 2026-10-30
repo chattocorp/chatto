@@ -181,7 +181,7 @@ func appearancePage(signedInAs string, input sitesettings.Snapshot, message stri
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = ui.Notice(ui.Success).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ui.Toast(ui.Success).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

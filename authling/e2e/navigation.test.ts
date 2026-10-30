@@ -158,7 +158,7 @@ test('profile validation and saving keep the document and expose pending state',
   } finally {
     releaseRequest();
   }
-  await expect(page).toHaveURL(/\/account\?profile_updated=1$/);
+  await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole('status')).toContainText('Your profile was updated.');
   await expect(page.locator('html')).toHaveAttribute('data-navigation-marker', 'original');
   await page.getByRole('link', { name: 'Edit profile', exact: true }).click();

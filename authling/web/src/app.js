@@ -1,6 +1,7 @@
 // Enhance ordinary links and explicitly opted-in forms. Protocol flows stay native.
 import './app.css';
 import htmx from 'htmx.org';
+import './toasts.js';
 
 Object.assign(htmx.config, {
   allowEval: false,

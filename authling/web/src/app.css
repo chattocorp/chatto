@@ -164,7 +164,8 @@
     @apply border-t border-line;
   }
 
-  .account-section > .notice {
+  .account-section > .notice,
+  .account-section > [data-toast] {
     @apply mx-4 mb-4 sm:mx-6;
   }
 
@@ -393,6 +394,23 @@
 
   .notice {
     @apply mt-4 rounded-control border border-current/20 px-3 py-2.5;
+  }
+
+  .toast-region {
+    @apply fixed inset-x-4 bottom-4 z-50 flex max-h-[calc(100dvh-2rem)] flex-col gap-3 overflow-y-auto pointer-events-none sm:left-auto sm:right-6 sm:bottom-6 sm:w-96;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .toast {
+    @apply relative shrink-0 pointer-events-auto rounded-surface border border-line bg-surface text-ink shadow-xl;
+  }
+
+  .toast > .notice {
+    @apply m-0 rounded-surface border-0 bg-transparent py-4 pl-4 pr-14;
+  }
+
+  .toast-close {
+    @apply absolute right-1 top-1 flex size-11 cursor-pointer items-center justify-center rounded-control text-muted hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-focus;
   }
 
   .notice-error {

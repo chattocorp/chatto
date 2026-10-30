@@ -32,11 +32,13 @@ test('changes the verified email without changing sub and invalidates other sess
   const code = await waitForEmailChangeCode(request, stack.mailpitURL);
   await page.getByLabel('Email change code').fill(code);
   await page.getByRole('button', { name: 'Verify code' }).click();
-  await expect(page.getByRole('heading', { name: 'Your new email address is verified' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your new email address is verified' })
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Change email address' }).click();
   await expect(page.getByRole('status')).toContainText('Your email address was changed');
   await page.reload();
-  await expect(page.getByRole('status')).toContainText('Your email address was changed');
+  await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.locator('code')).toHaveText(accountID);
 
   await otherPage.goto('/account');
@@ -80,11 +82,15 @@ test('does not disclose that a requested email address is already claimed', asyn
   const code = await waitForEmailChangeCode(request, stack.mailpitURL);
   await page.getByLabel('Email change code').fill(code);
   await page.getByRole('button', { name: 'Verify code' }).click();
-  await expect(page.getByRole('heading', { name: 'Your new email address is verified' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your new email address is verified' })
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Change email address' }).click();
 
   await expect(page.getByRole('heading', { name: 'Change your email address' })).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveText("We couldn't change that email address. Start again.");
+  await expect(page.getByRole('alert')).toHaveText(
+    "We couldn't change that email address. Start again."
+  );
   await page.goto('/account');
   await expect(page.locator('code')).toHaveText(accountID);
 });
