@@ -194,7 +194,7 @@ describe('room-group management query lifecycle', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await settle();
     const destination = new URL(
-      'https://example.test/chat/-/manage/room-groups/group-a/permissions'
+      'https://example.test/chat/-/manage/room-groups/group-a/permissions?filter=active#permissions'
     );
     const navigation = { type: 'link', cancel, to: { url: destination }, willUnload: false };
     guard(navigation);
@@ -215,7 +215,9 @@ describe('room-group management query lifecycle', () => {
     );
     (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
     await settle();
-    expect(mocks.goto).toHaveBeenCalledWith(destination.pathname);
+    expect(mocks.goto).toHaveBeenCalledWith(
+      `${destination.pathname}${destination.search}${destination.hash}`
+    );
     expect(resumedCancel).not.toHaveBeenCalled();
     expect(mocks.updateRoomGroup).not.toHaveBeenCalled();
     guard({ type: 'leave', cancel });
@@ -255,6 +257,13 @@ describe('room-group management query lifecycle', () => {
     input.value = 'Private draft';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await settle();
+    mocks.beforeNavigate.mock.calls.at(-1)![0]({
+      type: 'link',
+      cancel: vi.fn(),
+      to: { url: new URL('https://example.test/chat/-/overview') }
+    });
+    await settle();
+    expect(document.querySelector('dialog[open]')).not.toBeNull();
     mocks.getRoomGroup.mockResolvedValue({ ...managedGroup('Lobby'), canManageGroup: false });
     dispatchGroups(['group-a']);
     await vi.waitFor(() => expect(container.querySelector('#room-group-settings-name')).toBeNull());

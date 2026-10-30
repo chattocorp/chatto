@@ -942,7 +942,7 @@ describe('room management page identity and realtime authority', () => {
     await settle();
     expect(formAction(container, '#room-settings-name').disabled).toBe(true);
     const destination = new URL(
-      'https://server-a.example.test/chat/-/manage/rooms/shared-room/members'
+      'https://server-a.example.test/chat/-/manage/rooms/shared-room/members?filter=active#members'
     );
     const navigation = { type: 'link', cancel, to: { url: destination }, willUnload: false };
     guard(navigation);
@@ -967,7 +967,9 @@ describe('room management page identity and realtime authority', () => {
     );
     (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
     await settle();
-    expect(mocks.goto).toHaveBeenCalledWith(destination.pathname);
+    expect(mocks.goto).toHaveBeenCalledWith(
+      `${destination.pathname}${destination.search}${destination.hash}`
+    );
     expect(resumedCancel).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
     expect(mocks.updateRoom).not.toHaveBeenCalled();
@@ -1028,6 +1030,13 @@ describe('room management page identity and realtime authority', () => {
     const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const cancel = vi.fn();
+    guard({
+      type: 'link',
+      cancel: vi.fn(),
+      to: { url: new URL('https://server-a.example.test/chat/-/overview') }
+    });
+    await settle();
+    expect(document.querySelector('dialog[open]')).not.toBeNull();
     mocks.getRoom.mockResolvedValue(managedRoom('general', { canManageRoom: false }));
     dispatchProjection(roomSnapshot());
     await vi.waitFor(() => expect(container.querySelector('#room-settings-universal')).toBeNull());
@@ -1036,5 +1045,6 @@ describe('room management page identity and realtime authority', () => {
     expect(cancel).not.toHaveBeenCalled();
     expect(mocks.goto).toHaveBeenCalled();
     expect(mocks.updateRoom).not.toHaveBeenCalled();
+    expect(document.querySelector('dialog[open]')).toBeNull();
   });
 });
