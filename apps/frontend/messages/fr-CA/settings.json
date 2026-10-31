@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Mises à jour",
+      "subtitle": "Mises à jour de cette installation",
+      "updates": "Mises à jour de l’application",
+      "unavailable": "Les mises à jour automatiques ne sont pas disponibles dans cette installation.",
+      "version": "Version installée : {version}",
+      "ready_link": "Mise à jour prête",
+      "restart_warning": "Le redémarrage met fin aux appels actifs et au partage d’écran.",
+      "restart": "Redémarrer pour mettre à jour",
+      "check": "Rechercher des mises à jour",
+      "preferences": "Préférences de mise à jour",
+      "automatic": "Rechercher et télécharger automatiquement",
+      "channel": "Canal de publication",
+      "stable": "Stable",
+      "beta": "Bêta",
+      "channel_help": "Les mises à jour stables automatiques sont déployées sur 36 heures. Les vérifications manuelles et Bêta ignorent ce délai. Le passage à Stable n’installe jamais une version antérieure.",
+      "privacy": "Les mises à jour contactent GitHub, qui reçoit votre adresse IP et vos demandes de mise à jour. Chatto n’envoie aucune information de compte ni de serveur connecté.",
+      "status": {
+        "idle": "Prêt à rechercher des mises à jour.",
+        "checking": "Recherche de mises à jour…",
+        "downloading": "Téléchargement de la mise à jour…",
+        "ready": "Prêt à redémarrer.",
+        "current": "Aucune mise à jour plus récente n’est disponible sur ce canal.",
+        "error": "L’opération de mise à jour a échoué. Réessayez.",
+        "changed": "La version disponible a changé. Vérifiez à nouveau.",
+        "installing": "Préparation du redémarrage…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Gérez votre mot de passe, vos adresses courriel et vos méthodes de connexion.",

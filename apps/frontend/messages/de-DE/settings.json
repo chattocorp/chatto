@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Updates",
+      "subtitle": "Updates für diese Installation",
+      "updates": "App-Updates",
+      "unavailable": "Automatische Updates sind in dieser Installation nicht verfügbar.",
+      "version": "Installierte Version: {version}",
+      "ready_link": "Update bereit",
+      "restart_warning": "Ein Neustart beendet aktive Anrufe und die Bildschirmfreigabe.",
+      "restart": "Für Update neu starten",
+      "check": "Nach Updates suchen",
+      "preferences": "Update-Einstellungen",
+      "automatic": "Automatisch suchen und herunterladen",
+      "channel": "Release-Kanal",
+      "stable": "Stabil",
+      "beta": "Beta",
+      "channel_help": "Automatische stabile Updates werden über 36 Stunden verteilt. Manuelle Prüfungen und Beta umgehen diese Verzögerung. Der Wechsel zu Stabil installiert nie eine ältere Version.",
+      "privacy": "Updates kontaktieren GitHub. GitHub erhält deine IP-Adresse und Update-Anfragen. Chatto sendet keine Konto- oder verbundenen Serverinformationen.",
+      "status": {
+        "idle": "Bereit, nach Updates zu suchen.",
+        "checking": "Suche nach Updates…",
+        "downloading": "Update wird heruntergeladen…",
+        "ready": "Bereit zum Neustart.",
+        "current": "In diesem Kanal ist kein neueres Update verfügbar.",
+        "error": "Die Update-Aktion ist fehlgeschlagen. Versuch es erneut.",
+        "changed": "Die verfügbare Version hat sich geändert. Prüfe erneut.",
+        "installing": "Neustart wird vorbereitet…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Verwalte dein Passwort, deine E-Mail-Adressen und Anmeldemethoden.",

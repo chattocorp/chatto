@@ -53,6 +53,18 @@ ipcRenderer.on(gameCapturePublisherChannel, (event, message) => {
 contextBridge.exposeInMainWorld(
   'chattoDesktop',
   Object.freeze({
+    updates: Object.freeze({
+      getStatus: () => ipcRenderer.invoke('chatto:updates:status'),
+      check: () => ipcRenderer.invoke('chatto:updates:check'),
+      setPreference: (key, value) =>
+        ipcRenderer.invoke('chatto:updates:preference', { key, value }),
+      install: () => ipcRenderer.invoke('chatto:updates:install'),
+      onStatus: (callback) => {
+        const listener = (_event, state) => callback(state);
+        ipcRenderer.on('chatto:updates:changed', listener);
+        return () => ipcRenderer.removeListener('chatto:updates:changed', listener);
+      }
+    }),
     notifications: Object.freeze({
       show: (request) =>
         ipcRenderer.invoke('chatto:notifications:show', {

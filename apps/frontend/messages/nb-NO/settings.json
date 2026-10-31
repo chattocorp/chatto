@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Oppdateringer",
+      "subtitle": "Oppdateringer for denne installasjonen",
+      "updates": "Appoppdateringer",
+      "unavailable": "Automatiske oppdateringer er ikke tilgjengelige i denne installasjonen.",
+      "version": "Installert versjon: {version}",
+      "ready_link": "Oppdatering klar",
+      "restart_warning": "Omstart avslutter aktive samtaler og skjermdeling.",
+      "restart": "Start på nytt for å oppdatere",
+      "check": "Se etter oppdateringer",
+      "preferences": "Oppdateringsinnstillinger",
+      "automatic": "Søk og last ned automatisk",
+      "channel": "Utgivelseskanal",
+      "stable": "Stabil",
+      "beta": "Beta",
+      "channel_help": "Automatiske stabile oppdateringer fordeles over 36 timer. Manuelle kontroller og Beta hopper over ventetiden. Bytte til Stabil installerer aldri en eldre versjon.",
+      "privacy": "Oppdateringer kontakter GitHub, som mottar IP-adressen din og oppdateringsforespørsler. Chatto sender ingen kontoopplysninger eller informasjon om tilkoblede servere.",
+      "status": {
+        "idle": "Klar til å se etter oppdateringer.",
+        "checking": "Ser etter oppdateringer…",
+        "downloading": "Laster ned oppdatering…",
+        "ready": "Klar til å starte på nytt.",
+        "current": "Ingen nyere oppdatering er tilgjengelig i denne kanalen.",
+        "error": "Oppdateringshandlingen mislyktes. Prøv igjen.",
+        "changed": "Den tilgjengelige versjonen er endret. Sjekk igjen.",
+        "installing": "Forbereder omstart…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Administrer passordet ditt, e-postadressene dine og påloggingsmetodene.",

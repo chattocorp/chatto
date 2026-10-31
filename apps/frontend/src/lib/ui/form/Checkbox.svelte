@@ -9,7 +9,7 @@ The native checkbox remains in
 the DOM for form semantics, keyboard focus, and screen-reader state.
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
 
   let {
     id,
@@ -20,6 +20,7 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
     disabled = false,
     loading = false,
     onchange,
+    onCheckedChange,
     children
   }: {
     id: string;
@@ -30,8 +31,39 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
     disabled?: boolean;
     loading?: boolean;
     onchange?: (event: Event) => void;
+    /** Owns the committed value and failure feedback for an asynchronous save. */
+    onCheckedChange?: (checked: boolean) => void | Promise<void>;
     children?: Snippet;
   } = $props();
+
+  let pending = $state(false);
+
+  async function change(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    if (!onCheckedChange) return;
+    const next = input.checked;
+    input.checked = checked;
+    if (pending) return;
+    const restoreFocus = input === input.ownerDocument.activeElement;
+    pending = true;
+    try {
+      await onCheckedChange(next);
+    } catch {
+      // The owner reports failure; keep its last committed value.
+    } finally {
+      await tick();
+      input.checked = checked;
+      pending = false;
+      await tick();
+      if (
+        restoreFocus &&
+        input.isConnected &&
+        !input.disabled &&
+        input.ownerDocument.activeElement === input.ownerDocument.body
+      )
+        input.focus({ preventScroll: true });
+    }
+  }
 
   const describedBy = $derived(
     error ? `${id}-error` : description ? `${id}-description` : undefined
@@ -40,7 +72,7 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
 
 <label
   for={id}
-  aria-busy={loading || undefined}
+  aria-busy={loading || pending || undefined}
   class={[
     'relative checkbox-option',
     checked && !error && 'checkbox-option-selected',
@@ -49,16 +81,30 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
     disabled && !checked && !error && 'hover:border-border hover:bg-transparent'
   ]}
 >
-  <input
-    type="checkbox"
-    {id}
-    bind:checked
-    disabled={disabled || loading}
-    {onchange}
-    class="peer sr-only"
-    aria-invalid={error ? 'true' : undefined}
-    aria-describedby={describedBy}
-  />
+  {#if onCheckedChange}
+    <input
+      type="checkbox"
+      {id}
+      {checked}
+      disabled={disabled || loading || pending}
+      onchange={change}
+      class="peer sr-only"
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={describedBy}
+    />
+  {:else}
+    <!-- Preserve Svelte's ordinary binding and native form-reset behavior. -->
+    <input
+      type="checkbox"
+      {id}
+      bind:checked
+      disabled={disabled || loading}
+      {onchange}
+      class="peer sr-only"
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={describedBy}
+    />
+  {/if}
 
   <span
     class={[
@@ -66,7 +112,7 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
       'peer-focus-visible:ring-2 peer-focus-visible:ring-action/35 peer-focus-visible:ring-offset-0',
       checked && 'checkbox-box-selected',
       error && 'checkbox-box-error peer-focus-visible:ring-error/30',
-      loading && 'animate-pulse'
+      (loading || pending) && 'animate-pulse'
     ]}
     aria-hidden="true"
   >

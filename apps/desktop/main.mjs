@@ -42,6 +42,8 @@ import { StreamDiagnostics } from './stream_diagnostics.mjs';
 import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
 import { passwordLogin } from './password_login.mjs';
 import { configureUpdateMenu } from './update_menu.mjs';
+import { configureUpdateBridge } from './update_bridge.mjs';
+import { unavailableDesktopUpdates } from './updates.mjs';
 import { configureBackgroundWindow } from './background.mjs';
 import { configureDesktopNotifications } from './notifications.mjs';
 
@@ -159,7 +161,26 @@ async function start() {
   app.on('before-quit', () => notifications.clear());
   configureDiagnosticsMenu();
   // Update setup errors must not prevent local startup or expose request URLs.
-  void configureUpdateMenu(packageJson).catch(() => console.error('Update setup failed.'));
+  const updateController = configureUpdateMenu(packageJson).catch(() => {
+    console.error('Update setup failed.');
+    return unavailableDesktopUpdates(packageJson.version);
+  });
+  configureUpdateBridge({
+    ipcMain,
+    controller: updateController,
+    isTrusted: (event) =>
+      Boolean(
+        mainWindow &&
+        !mainWindow.isDestroyed() &&
+        event.sender === mainWindow.webContents &&
+        event.senderFrame === mainWindow.webContents.mainFrame &&
+        hasAppOrigin(event.senderFrame.url)
+      ),
+    send: (state) => {
+      if (mainWindow && !mainWindow.isDestroyed() && hasAppOrigin(mainWindow.webContents.getURL()))
+        mainWindow.webContents.send('chatto:updates:changed', state);
+    }
+  });
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();

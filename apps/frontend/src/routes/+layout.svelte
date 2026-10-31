@@ -35,8 +35,11 @@
   import { ToastContainer } from '$lib/ui/toast';
   import { AppHeader, Frame } from '$lib/ui';
   import '../app.css';
+  import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
   let { data, children } = $props();
+  // Native status belongs to this document, independently of routes and server identities.
+  onMount(() => desktopUpdates.start());
   let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
 
   onMount(() => {
