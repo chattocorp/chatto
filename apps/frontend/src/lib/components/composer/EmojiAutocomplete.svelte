@@ -6,11 +6,12 @@ Shows matching emojis when typing :shortcode in chat input.
 
 **Props:**
 - `query` - Current search query (without the leading colon)
+- `results` - Ranked matches from the autocomplete state
 - `onSelect` - Callback with the emoji, name, and final selection key
 - `onClose` - Callback to close the popup
 -->
 <script lang="ts">
-  import { searchEmojis, emojiWithTone, emojiToName, type EmojiResult } from '$lib/emoji';
+  import { emojiWithTone, emojiToName, type EmojiResult } from '$lib/emoji';
   import { emojiPreferences } from '$lib/state/emojiPreferences.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
   import { emojiTones, emojiToneBase } from '$lib/emojiTones';
@@ -18,15 +19,13 @@ Shows matching emojis when typing :shortcode in chat input.
 
   type Props = {
     query: string;
+    results: EmojiResult[];
     onSelect: (emoji: string, name: string, key: string) => void;
     onClose: () => void;
   };
 
-  let { query, onSelect, onClose }: Props = $props();
+  let { query, results, onSelect, onClose }: Props = $props();
 
-  // Keep search results independent of tone so changing it preserves the
-  // highlighted result, including keyboard and pointer selection.
-  let results = $derived(searchEmojis(query, 10));
   // Editing the query cancels the second step without changing the draft.
   let qualifying = $derived.by((): EmojiResult | null => {
     void query;

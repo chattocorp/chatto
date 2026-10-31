@@ -1,5 +1,10 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import { searchEmojis } from '$lib/emoji';
+import EmojiAutocomplete from './EmojiAutocomplete.svelte';
+
+vi.mock('$lib/emoji', { spy: true });
 
 import type { RoomMember } from '$lib/state/room';
 import type { ComposerEditorApi } from './editorTypes';
@@ -66,6 +71,29 @@ function tabEvent(): KeyboardEvent {
 }
 
 describe('AutocompleteState', () => {
+  it('searches once for both popup visibility and its ranked, limited results', () => {
+    const fakeEditor = editor(':he');
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => []
+    );
+    vi.mocked(searchEmojis).mockClear();
+    state.update();
+    expect(state.emoji?.results).toHaveLength(10);
+    const { container } = render(EmojiAutocomplete, {
+      query: state.emoji!.query,
+      results: state.emoji!.results,
+      onSelect: () => {},
+      onClose: () => {}
+    });
+    expect(searchEmojis).toHaveBeenCalledExactlyOnceWith('he', 10);
+    expect(container.querySelectorAll('button')).toHaveLength(10);
+
+    fakeEditor.setText(':zzzznothing');
+    state.update();
+    expect(state.emoji).toBeNull();
+  });
+
   it.each(['Enter', 'Tab', 'click'])(
     'uses the %s selection whitespace rule for all pickers',
     (key) => {
