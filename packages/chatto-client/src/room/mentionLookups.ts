@@ -1,18 +1,24 @@
 import { LRUCache } from 'lru-cache';
 import { signal } from '../reactivity/index.js';
 
+/** One handle's consumers, request, and outcome. Failed reads settle without a result. */
+type MentionLookup = {
+  readers: number;
+  state: 'idle' | 'pending' | 'settled';
+  result: string | false | undefined;
+  controller?: AbortController;
+};
+
 /**
  * Shared lookups for handles retained by visible room content. Results contain
  * IDs only; the room reads current profiles from its normal profile owner.
  * At most four reads run at once. Unused results have a bounded memory cache.
  */
 export class MentionLookups {
-  readonly #retained = new Map<string, number>();
+  readonly #entries = new Map<string, MentionLookup>();
   readonly #cache = new LRUCache<string, string | false>({ max: 256 });
-  readonly #matches = new Map<string, string | false>();
-  readonly #pending = new Map<string, AbortController>();
-  readonly #attempted = new Set<string>();
   readonly #ids = signal<string[]>([]);
+  #running = 0;
   #disposed = false;
 
   constructor(
@@ -30,10 +36,14 @@ export class MentionLookups {
     if (this.#disposed) return () => {};
     const keys = [...new Set(handles.map((handle) => handle.toLowerCase()))];
     for (const key of keys) {
-      if (!this.#retained.has(key)) this.#attempted.delete(key);
-      this.#retained.set(key, (this.#retained.get(key) ?? 0) + 1);
-      const cached = this.#cache.get(key);
-      if (cached !== undefined) this.#matches.set(key, cached);
+      let entry = this.#entries.get(key);
+      if (!entry) {
+        const result = this.#cache.get(key);
+        this.#cache.delete(key);
+        entry = { readers: 0, state: result === undefined ? 'idle' : 'settled', result };
+        this.#entries.set(key, entry);
+      }
+      entry.readers++;
     }
     this.resume();
     let released = false;
@@ -41,13 +51,11 @@ export class MentionLookups {
       if (released) return;
       released = true;
       for (const key of keys) {
-        const count = (this.#retained.get(key) ?? 1) - 1;
-        if (count) this.#retained.set(key, count);
-        else {
-          this.#retained.delete(key);
-          this.#matches.delete(key);
-          this.#attempted.delete(key);
-          this.#pending.get(key)?.abort();
+        const entry = this.#entries.get(key);
+        if (entry && --entry.readers === 0) {
+          if (entry.result !== undefined) this.#cache.set(key, entry.result);
+          if (entry.controller) entry.controller.abort();
+          else this.#entries.delete(key);
         }
       }
       this.publish();
@@ -56,10 +64,12 @@ export class MentionLookups {
 
   /** Fence old reads and discard matches after membership or authority changes. */
   invalidate(): void {
-    for (const controller of this.#pending.values()) controller.abort();
+    for (const entry of this.#entries.values()) {
+      entry.result = undefined;
+      if (entry.controller) entry.controller.abort();
+      else entry.state = 'idle';
+    }
     this.#cache.clear();
-    this.#matches.clear();
-    this.#attempted.clear();
     this.#ids.set([]);
   }
 
@@ -67,26 +77,25 @@ export class MentionLookups {
   resume(): void {
     if (this.#disposed || !this.canRead()) return;
     this.publish();
-    for (const handle of this.#retained.keys()) {
-      if (this.#pending.size >= 4) break;
-      if (this.#matches.has(handle) || this.#pending.has(handle) || this.#attempted.has(handle))
-        continue;
+    for (const [handle, entry] of this.#entries) {
+      if (this.#running >= 4) break;
+      if (!entry.readers || entry.state !== 'idle') continue;
       const controller = new AbortController();
-      this.#pending.set(handle, controller);
-      this.#attempted.add(handle);
+      entry.controller = controller;
+      entry.state = 'pending';
+      this.#running++;
       void this.lookup(handle, controller.signal)
         .then((id) => {
-          if (!controller.signal.aborted) {
-            this.#cache.set(handle, id ?? false);
-            this.#matches.set(handle, id ?? false);
-          }
+          if (!controller.signal.aborted) entry.result = id ?? false;
         })
         .catch(() => {
           // A failed lookup leaves plain text. A later retain or invalidation retries it.
         })
         .finally(() => {
-          this.#pending.delete(handle);
-          if (controller.signal.aborted) this.#attempted.delete(handle);
+          this.#running--;
+          entry.controller = undefined;
+          entry.state = controller.signal.aborted ? 'idle' : 'settled';
+          if (!entry.readers) this.#entries.delete(handle);
           this.resume();
         });
     }
@@ -96,16 +105,15 @@ export class MentionLookups {
   dispose(): void {
     this.#disposed = true;
     this.invalidate();
-    this.#retained.clear();
+    this.#entries.clear();
   }
 
   private publish(): void {
     const ids = [
       ...new Set(
-        [...this.#retained.keys()].flatMap((handle) => {
-          const id = this.#matches.get(handle);
-          return id ? [id] : [];
-        })
+        [...this.#entries.values()].flatMap(({ readers, result }) =>
+          readers && result ? [result] : []
+        )
       )
     ];
     const previous = this.#ids.get();

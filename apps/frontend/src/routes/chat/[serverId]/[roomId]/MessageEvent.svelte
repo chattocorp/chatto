@@ -7,7 +7,7 @@
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import {
-    getRoomMembers,
+    getRoomMentionMembers,
     getRoomMembersStore,
     getMentionRoles,
     getComposerContext,
@@ -85,7 +85,7 @@
   const prefersTouch = prefersTouchActions();
   const canUseHoverActions = supportsHoverActions();
   // Wrap in $derived to ensure reactivity when the member list changes
-  const members = $derived(getRoomMembers());
+  const members = $derived(getRoomMentionMembers());
   const mentionStore = $derived(getRoomMembersStore());
   const mentionRoleHandles = $derived(
     getMentionRoles()

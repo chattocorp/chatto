@@ -33,6 +33,11 @@ export function useRoomMembersStore(): () => RoomMembersStore {
 }
 
 export function getRoomMembers(): RoomMember[] {
+  return getRoomMembersStore().members;
+}
+
+/** Members available to mention rendering and its profile actions, including lazy lookups. */
+export function getRoomMentionMembers(): RoomMember[] {
   return getRoomMembersStore().mentionMembers;
 }
 

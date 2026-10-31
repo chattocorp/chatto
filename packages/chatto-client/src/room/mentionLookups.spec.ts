@@ -34,7 +34,32 @@ describe('MentionLookups', () => {
     store.dispose();
   });
 
-  it('keeps active results when the bounded inactive cache fills', async () => {
+  it.each(['release', 'invalidate'] as const)(
+    'reuses a handle safely after %s while its old request is pending',
+    async (boundary) => {
+      const pending: Array<(id: string) => void> = [];
+      const lookup = vi.fn(() => new Promise<string>((resolve) => pending.push(resolve)));
+      const store = new MentionLookups(lookup, () => true);
+      const release = store.retain(['alice']);
+      if (boundary === 'release') {
+        release();
+        release();
+        store.retain(['ALICE']);
+      } else {
+        store.invalidate();
+        store.resume();
+      }
+      expect(lookup).toHaveBeenCalledTimes(1);
+      pending[0]!('obsolete');
+      await vi.waitFor(() => expect(lookup).toHaveBeenCalledTimes(2));
+      expect(store.ids).toEqual([]);
+      pending[1]!('current');
+      await vi.waitFor(() => expect(store.ids).toEqual(['current']));
+      store.dispose();
+    }
+  );
+
+  it('keeps all active results beyond the inactive cache size', async () => {
     const lookup = vi.fn(async (handle: string) => handle);
     const store = new MentionLookups(lookup, () => true);
     const handles = Array.from({ length: 260 }, (_, index) => `user${index}`);
