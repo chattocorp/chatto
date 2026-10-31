@@ -26,15 +26,16 @@ Shows matching emojis when typing :shortcode in chat input.
 
   let { query, results, onSelect, onClose }: Props = $props();
 
-  // Cursor offsets can change the owner's snapshot without changing the list.
+  // Cursor offsets can change the owner's snapshot without changing these values.
   const items = $derived(results);
+  const currentQuery = $derived(query);
   // Editing the query cancels the second step without changing the draft.
   let qualifying = $derived.by((): EmojiResult | null => {
-    void query;
+    void currentQuery;
     return null;
   });
   let previousKey = $derived.by((): string | undefined => {
-    void query;
+    void currentQuery;
     return undefined;
   });
 
