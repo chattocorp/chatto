@@ -16,6 +16,28 @@ function fixture() {
 }
 
 describe('room notice state', () => {
+  it('notifies retained consumers of cached content, reads, and writes until release', async () => {
+    const { api, store } = fixture();
+    const initial = new RoomNotice({ body: 'Ask @alice', version: 'v1' });
+    api.get.mockResolvedValue(initial);
+    await store.refresh();
+    const listener = vi.fn();
+    const release = store.retain(listener);
+    expect(listener).toHaveBeenLastCalledWith(initial);
+    const next = new RoomNotice({ body: 'Ask @bob', version: 'v2' });
+    api.publish.mockResolvedValue(next);
+    await store.publish(next.body, 'v1', false);
+    expect(listener).toHaveBeenLastCalledWith(next);
+    store.reset(true);
+    expect(listener).toHaveBeenLastCalledWith(null);
+    release();
+    release();
+    listener.mockClear();
+    store.restoreAccess();
+    await store.refresh();
+    expect(listener).not.toHaveBeenCalled();
+    store.dispose();
+  });
   it('preserves content and the draft epoch while reconnect refreshes retained state', async () => {
     const { api, store } = fixture();
     const initial = new RoomNotice({ body: 'Initial', version: 'v1' });

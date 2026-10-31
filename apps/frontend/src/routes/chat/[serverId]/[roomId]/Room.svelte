@@ -1,6 +1,7 @@
 <script lang="ts">
   import RoomNoticeBanner from './RoomNoticeBanner.svelte';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
+  import { extractMentions } from '$lib/mentions';
   import { timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -134,7 +135,17 @@
       ? stores.rooms.notice(roomId)
       : null
   );
-  const retainNotice: Attachment = () => roomNoticeStore?.retain();
+  const retainNotice: Attachment = () => {
+    const notice = roomNoticeStore;
+    const server = stores;
+    const id = roomId;
+    // The subscription owns its reads; the attachment tracks only its room/store.
+    return untrack(() =>
+      notice?.retain((value) => {
+        if (value?.body && extractMentions(value.body).length) server.loadRoomMembers(id);
+      })
+    );
+  };
   const noticeMentions: MarkdownMentionOptions = $derived({
     members: roomMembersStore.members,
     roles: stores.mentionRoles.roles,

@@ -36,7 +36,6 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
       }
       if (!roomId) throw new Error('Conversation is unavailable');
       await store.ensureRoomAvailable(roomId);
-      store.loadRoomMembers(roomId);
       return roomId;
     } catch {
       return null;

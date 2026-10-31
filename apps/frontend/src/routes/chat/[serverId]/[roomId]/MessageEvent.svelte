@@ -142,7 +142,15 @@
   }
 
   // Touch handlers for mobile
-  function handleTouchStart() {
+  function handleTouchStart(event: TouchEvent | MouseEvent) {
+    // Link previews and top-layer surfaces own their gestures even though
+    // their DOM remains inside this message row. Compatibility mouse events
+    // after a touch release can target the newly opened sheet.
+    if (
+      event.target instanceof Element &&
+      event.target.closest('[data-link-preview-trigger], dialog, [popover]')
+    )
+      return;
     if (actionOverlayKind === 'sheet') return;
     longPress.start();
   }
@@ -168,7 +176,7 @@
     if (!prefersTouch || canUseHoverActions) return;
     // Only handle left mouse button
     if (e.button !== 0) return;
-    handleTouchStart();
+    handleTouchStart(e);
   }
 
   function handleMouseUp(event: MouseEvent) {
@@ -210,6 +218,9 @@
 
   function openMenuFromMessage(e: MouseEvent) {
     e.preventDefault();
+    // A long-press contextmenu can land inside the preview that just opened.
+    // Its DOM is still in this row, but the overlay owns this interaction.
+    if (e.target instanceof Element && e.target.closest('dialog, [popover]')) return;
     // Browsers may synthesize this event during a touch long press, including
     // on hybrid devices; that gesture already owns the action sheet.
     if (longPress.pending || actionOverlayKind === 'sheet') return;

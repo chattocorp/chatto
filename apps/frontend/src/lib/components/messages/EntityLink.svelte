@@ -86,7 +86,7 @@
         }
       : undefined}
   >
-    {#snippet children(pageTitle, loading)}
+    {#snippet children(pageTitle, loading, sheetPreview)}
       {#if authoredLabel}
         {@render authoredLabel()}
       {:else if known && target && path}
@@ -103,6 +103,7 @@
             {user}
             {room}
             {store}
+            {sheetPreview}
             logoUrl={store?.serverInfo.iconUrl ?? server?.iconUrl}
           />
         {/key}

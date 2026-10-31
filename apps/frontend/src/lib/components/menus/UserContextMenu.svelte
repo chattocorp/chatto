@@ -68,6 +68,7 @@ profile settings.
     viewerSettings,
     audioSource = 'voiceVolume',
     extraActions,
+    header,
     onSendMessage,
     onBanFromRoom,
     onOpenProfile,
@@ -98,6 +99,8 @@ profile settings.
     audioSource?: ParticipantVolumeControl;
     /** Host-owned actions rendered before profile actions, within this menu's context. */
     extraActions?: Snippet;
+    /** Optional host content before the profile and its actions. */
+    header?: Snippet;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
     onOpenProfile?: (userId: string) => void;
@@ -199,6 +202,7 @@ profile settings.
   class={audioParticipant ? 'w-72' : 'w-64'}
   onclose={() => onClose?.()}
 >
+  {@render header?.()}
   <div class="flex items-center gap-3 menu-section p-3 text-start">
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">

@@ -178,7 +178,8 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
           ]}
           onclick={() => selectEmoji(index)}
         >
-          <span class="max-w-48 truncate" aria-hidden="true"
+          <!-- Give emoji glyphs room above and below the baseline before truncation clips overflow. -->
+          <span class="max-w-48 truncate leading-normal" aria-hidden="true"
             >{getReactionDisplay(reaction.emoji)}</span
           >
           <span class="shrink-0" aria-hidden="true">{reaction.count}</span>
