@@ -1,8 +1,6 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-27
-
 **Last reviewed:** 2026-10-31
 
 ## Overview
