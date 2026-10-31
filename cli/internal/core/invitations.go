@@ -200,11 +200,16 @@ func (c *ChattoCore) invitationAccess(ctx context.Context, actorID string) (bool
 // InvitationNoteMaxLength is the maximum number of Unicode code points in a creation note.
 const InvitationNoteMaxLength = 250
 
-// CreateInvitationCode grants admission for exactly one new account. Expiry and
-// the note are optional. Either invitation permission allows creation.
+// CreateInvitationCode grants admission for exactly one new account. Members
+// must supply an expiry within seven days. Managers may omit or extend expiry.
+// Either invitation permission allows creation; the note is optional.
 func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
-	if _, err := c.invitationAccess(ctx, actorID); err != nil {
+	manageAll, err := c.invitationAccess(ctx, actorID)
+	if err != nil {
 		return InvitationState{}, err
+	}
+	if !manageAll && (expiresAt == nil || expiresAt.After(time.Now().Add(7*24*time.Hour))) {
+		return InvitationState{}, ErrInvalidArgument
 	}
 	return c.createInvitationCode(ctx, actorID, expiresAt, note)
 }

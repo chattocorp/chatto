@@ -45,6 +45,40 @@ const invitations = mockService(AdminInvitationCodeService);
 const code = 'ABCD-EFGH-IJKL-MNOP-QRST';
 
 describe('Invitation codes', () => {
+  it('does not reopen a revoked-access confirmation when management returns', async () => {
+    const profiles = mockService(UserService);
+    profiles.batchGetUsers.mockReturnValue({ users: [] });
+    const server = createTestServerScope({
+      permissions: { canManageInvites: true, canInviteUsers: true },
+      routes: (router) =>
+        router.service(AdminInvitationCodeService, invitations).service(UserService, profiles)
+    });
+    invitations.listInvitationCodes.mockReturnValue({
+      invitationCodes: [
+        {
+          id: 'other',
+          code,
+          createdBy: 'other',
+          status: InvitationCodeStatus.ACTIVE,
+          createdAt: Timestamp.fromDate(new Date('2026-01-01'))
+        }
+      ]
+    });
+    const view = render(InvitationCodes);
+    await userEvent.click(view.getByRole('button', { name: 'Revoke', exact: true }));
+    await expect.element(view.getByRole('dialog', { name: 'Revoke code?' })).toBeVisible();
+    server.permissions.canManageInvites = false;
+    await expect
+      .element(view.getByRole('dialog', { name: 'Revoke code?' }))
+      .not.toBeInTheDocument();
+    server.permissions.canManageInvites = true;
+    await expect.element(view.getByRole('button', { name: 'Revoke', exact: true })).toBeVisible();
+    await expect
+      .element(view.getByRole('dialog', { name: 'Revoke code?' }))
+      .not.toBeInTheDocument();
+    expect(invitations.revokeInvitationCode).not.toHaveBeenCalled();
+  });
+
   it('hides other creators immediately when management access is removed', async () => {
     const profiles = mockService(UserService);
     profiles.batchGetUsers.mockReturnValue({ users: [] });

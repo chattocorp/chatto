@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Kişileri davet et",
-      "create": "Kod oluştur",
-      "description": "Kodu ve sunucu adresini paylaşın. Bir hesap oluşturulmasını sağlar ve yedi gün sonra süresi dolar.",
-      "once": "Kapatmadan önce bu kodu kopyalayın. Tekrar görüntüleyemezsiniz."
-    },
     "privileged_mode": {
       "enable": "Ayrıcalıklı modu etkinleştir",
       "disable": "Ayrıcalıklı modu devre dışı bırak",

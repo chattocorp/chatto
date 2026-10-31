@@ -220,7 +220,8 @@ authorization and do not initialize or advance markers.
 creation. `AdminInvitationCodeService` permits callers with `user.invite` to
 list, read, create, and revoke their own codes. Effective `user.manage-invites`
 permits these operations on all codes. Lists filter by ownership before pagination.
-Expiry is optional. Codes are reconstructed
+Members must supply an expiry within seven days; effective managers may omit
+or extend expiry. Codes are reconstructed
 from durable invitation IDs; raw codes are not stored in `EVT`. The browser
 POST endpoint `/auth/browser/registration-invitation` validates a code and
 stores an expiring admission binding in the signed HttpOnly session.

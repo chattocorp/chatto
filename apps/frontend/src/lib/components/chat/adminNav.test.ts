@@ -7,6 +7,19 @@ function permissions(overrides: Partial<ServerPermissions> = {}): ServerPermissi
 }
 
 describe('getAdminNavItems', () => {
+  it('describes Registration separately from invitation code management', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageServer: true, canManageInvites: true })
+    });
+    expect(items.find((item) => item.label === 'Registration')?.description).toBe(
+      'Control how new accounts join this server.'
+    );
+    expect(items.find((item) => item.label === 'Invites')?.description).toBe(
+      'Create and manage invitation codes.'
+    );
+  });
+
   it('lists nothing until the viewer permissions load', () => {
     expect(
       getAdminNavItems({ serverSegment: 'local', permissions: NO_SERVER_PERMISSIONS })

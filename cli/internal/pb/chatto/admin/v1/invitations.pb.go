@@ -374,7 +374,9 @@ func (x *GetInvitationCodeResponse) GetInvitationCode() *InvitationCode {
 
 // Creates one code. Every code is single-use, including when expiry is omitted.
 type CreateInvitationCodeRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required for user.invite-only callers: must be in the future and within seven days.
+	// Effective user.manage-invites permits a later expiry or omission (no expiry).
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
 	// Visible to the creator and invitation managers; it does not bind the code to a recipient.

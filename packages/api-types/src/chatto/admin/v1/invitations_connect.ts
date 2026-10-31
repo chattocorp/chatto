@@ -40,7 +40,9 @@ export const AdminInvitationCodeService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a code. Not idempotent: retrying creates another code.
+     * Creates a code. Members must supply an expiry within seven days;
+     * effective invitation managers may omit or extend it.
+     * Not idempotent: retrying creates another code.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode
      */

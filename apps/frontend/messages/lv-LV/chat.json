@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Uzaicināt cilvēkus",
-      "create": "Izveidot kodu",
-      "description": "Kopīgojiet kodu un servera adresi. Tas atļauj vienu kontu un beidzas pēc septiņām dienām.",
-      "once": "Pirms aizvēršanas nokopējiet kodu. To vairs nevarēs apskatīt."
-    },
     "privileged_mode": {
       "enable": "Ieslēgt privileģēto režīmu",
       "disable": "Izslēgt privileģēto režīmu",

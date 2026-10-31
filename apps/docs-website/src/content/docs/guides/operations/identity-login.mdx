@@ -228,7 +228,9 @@ Administrators with `user.manage-invites` create and revoke codes under
 **Server Admin → Invites**. Each code permits one new account.
 Use **Create code** in the table header, then confirm in the dialog. Each new code expires after seven
 days. Copy an active code and send it through your chosen channel. Chatto does
-not send it for you. The API supports other expiry times or no expiry.
+not send it for you. Invitation managers can use the API to set other expiry
+times or no expiry. Members using the management API must supply a future
+expiry within seven days; missing or longer expiries are rejected.
 
 Members with `user.invite` use the same **Invites** page. They can see, copy,
 and revoke only codes they created. Send the code and server address to the

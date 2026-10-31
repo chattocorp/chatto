@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Zaproś osoby",
-      "create": "Utwórz kod",
-      "description": "Udostępnij kod i adres serwera. Pozwala utworzyć jedno konto i wygasa po siedmiu dniach.",
-      "once": "Skopiuj ten kod przed zamknięciem. Nie zobaczysz go ponownie."
-    },
     "privileged_mode": {
       "enable": "Włącz tryb uprzywilejowany",
       "disable": "Wyłącz tryb uprzywilejowany",

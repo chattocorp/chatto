@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Leute einladen",
-      "create": "Code erstellen",
-      "description": "Teile den Code und die Serveradresse. Er gilt für ein Konto und läuft nach sieben Tagen ab.",
-      "once": "Kopiere diesen Code vor dem Schließen. Du kannst ihn danach nicht erneut ansehen."
-    },
     "privileged_mode": {
       "enable": "Privilegierten Modus aktivieren",
       "disable": "Privilegierten Modus deaktivieren",

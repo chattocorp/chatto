@@ -301,6 +301,9 @@ export class GetInvitationCodeResponse extends Message<GetInvitationCodeResponse
  */
 export class CreateInvitationCodeRequest extends Message<CreateInvitationCodeRequest> {
   /**
+   * Required for user.invite-only callers: must be in the future and within seven days.
+   * Effective user.manage-invites permits a later expiry or omission (no expiry).
+   *
    * @generated from field: google.protobuf.Timestamp expires_at = 1;
    */
   expiresAt?: Timestamp;

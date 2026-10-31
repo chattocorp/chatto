@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Bjud in personer",
-      "create": "Skapa kod",
-      "description": "Dela koden och serveradressen. Den tillåter ett konto och går ut efter sju dagar.",
-      "once": "Kopiera koden innan du stänger. Du kan inte se den igen."
-    },
     "privileged_mode": {
       "enable": "Aktivera privilegierat läge",
       "disable": "Inaktivera privilegierat läge",

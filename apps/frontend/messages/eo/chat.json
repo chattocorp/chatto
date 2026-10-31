@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Inviti homojn",
-      "create": "Krei kodon",
-      "description": "Kunhavigu la kodon kaj la servilan adreson. Ĝi permesas unu konton kaj eksvalidiĝas post sep tagoj.",
-      "once": "Kopiu ĉi tiun kodon antaŭ ol fermi. Vi ne povos vidi ĝin denove."
-    },
     "privileged_mode": {
       "enable": "Ŝalti privilegian reĝimon",
       "disable": "Malŝalti privilegian reĝimon",

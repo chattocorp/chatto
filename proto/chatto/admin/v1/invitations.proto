@@ -49,6 +49,8 @@ message GetInvitationCodeResponse {
 }
 // Creates one code. Every code is single-use, including when expiry is omitted.
 message CreateInvitationCodeRequest {
+  // Required for user.invite-only callers: must be in the future and within seven days.
+  // Effective user.manage-invites permits a later expiry or omission (no expiry).
   google.protobuf.Timestamp expires_at = 1;
   // Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
   // Visible to the creator and invitation managers; it does not bind the code to a recipient.
@@ -73,7 +75,9 @@ service AdminInvitationCodeService {
   rpc ListInvitationCodes(ListInvitationCodesRequest) returns (ListInvitationCodesResponse);
   // Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
   rpc GetInvitationCode(GetInvitationCodeRequest) returns (GetInvitationCodeResponse);
-  // Creates a code. Not idempotent: retrying creates another code.
+  // Creates a code. Members must supply an expiry within seven days;
+  // effective invitation managers may omit or extend it.
+  // Not idempotent: retrying creates another code.
   rpc CreateInvitationCode(CreateInvitationCodeRequest) returns (CreateInvitationCodeResponse);
   // Revokes a code without deleting its history. Repeating revocation is safe.
   // Returns NOT_FOUND for an unknown or inaccessible ID.

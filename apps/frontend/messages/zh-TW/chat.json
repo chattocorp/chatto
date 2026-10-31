@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "邀請他人",
-      "create": "建立邀請碼",
-      "description": "分享邀請碼和伺服器位址。此碼可建立一個帳號，七天後到期。",
-      "once": "請在關閉前複製此碼。你將無法再次檢視。"
-    },
     "privileged_mode": {
       "enable": "啟用特權模式",
       "disable": "停用特權模式",

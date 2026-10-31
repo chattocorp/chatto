@@ -29,7 +29,9 @@ the API to integrate code issuance with an external system.
 - **Create code** in the table header opens a confirmation dialog. It explains
   that a code expires after seven days, admits one account, and is used only
   after successful signup. Confirmation creates one code and closes the dialog.
-  The API can set a different expiry or no expiry. Active codes can be
+  Invitation managers can use the API to set a different expiry or no expiry.
+  Members must supply a future expiry within seven days; missing or longer
+  expiries are rejected. Active codes can be
   copied and revoked; inactive rows show their status without these actions.
 - A creation-time note can identify the intended recipient or purpose. It is
   optional plain text, limited to 250 Unicode characters, and shown beneath the

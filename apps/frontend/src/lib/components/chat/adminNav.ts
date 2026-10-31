@@ -51,7 +51,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/registration', { serverId: serverSegment }),
       label: m('chat.management_nav.registration'),
-      description: m('settings.overview.descriptions.invitations'),
+      description: m('settings.overview.descriptions.registration'),
       icon: 'iconify icon-[uil--envelope-share]'
     });
   }

@@ -54,6 +54,15 @@
     if (creatingCode) history.back();
   }
 
+  function canAccess(invitation: InvitationCode): boolean {
+    const permissions = serverScope.store.permissions;
+    return (
+      permissions.canManageInvites ||
+      (permissions.canInviteUsers &&
+        invitation.createdBy === serverScope.store.currentUser.user?.id)
+    );
+  }
+
   const invitationsQuery = createInfiniteQuery(() => {
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
@@ -81,13 +90,7 @@
   });
 
   const invitations = $derived(
-    (invitationsQuery.data?.pages ?? [])
-      .flatMap((page) => page.invitationCodes)
-      .filter(
-        (invitation) =>
-          serverScope.store.permissions.canManageInvites ||
-          invitation.createdBy === serverScope.store.currentUser.user?.id
-      )
+    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.invitationCodes).filter(canAccess)
   );
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
@@ -265,8 +268,10 @@
   </FormDialog>
 {/if}
 
-{#if revokeTarget && (serverScope.store.permissions.canManageInvites || revokeTarget.createdBy === serverScope.store.currentUser.user?.id)}
+<!-- A permission-driven close must reach onclose and discard the old target. -->
+{#if revokeTarget}
   <ConfirmDialog
+    visible={canAccess(revokeTarget)}
     title={m('admin.invitations.revoke_title')}
     actionLabel={m('admin.invitations.revoke')}
     loading={revokeMutation.isPending}
