@@ -105,16 +105,9 @@ describe('Mermaid previews', () => {
       expect(getComputedStyle(code.querySelector('.markdown-code-header')!).position).toBe(
         'static'
       );
-      expect(getComputedStyle(visual.querySelector('.markdown-code-header')!).display).toBe('none');
-      await expect
-        .element(visual.querySelector<HTMLElement>('[data-markdown-copy]')!)
-        .not.toBeVisible();
-      await expect
-        .element(visual.querySelector<HTMLElement>('[data-code-tab="source"]')!)
-        .not.toBeVisible();
-      await expect
-        .element(visual.querySelector<HTMLElement>('[data-code-tab="render"]')!)
-        .not.toBeVisible();
+      expect(
+        visual.querySelector('.markdown-code-header, [data-code-tab], [data-code-panel="source"]')
+      ).toBeNull();
       await userEvent.click(code.querySelector('[data-code-tab="render"]')!);
       await expect
         .element(code.querySelector<HTMLElement>('[data-code-tab="source"]')!)
@@ -675,9 +668,7 @@ describe('MarkdownHtml code copy', () => {
     expect(container.querySelector('svg')).toBeNull();
     container.classList.add('prose');
     expect(container.querySelector('details, summary')).toBeNull();
-    await expect
-      .element(container.querySelector<HTMLButtonElement>('button[data-markdown-copy]')!)
-      .not.toBeVisible();
+    expect(container.querySelector('button[data-markdown-copy]')).toBeNull();
     expect(getComputedStyle(image.parentElement!).borderTopWidth).toBe('0px');
     expect(getComputedStyle(image).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     expect(getComputedStyle(image).outlineStyle).toBe('none');
@@ -689,6 +680,7 @@ describe('MarkdownHtml code copy', () => {
       html: await renderMarkdown('```svg rendered\n<svg broken\n```')
     });
     container.classList.add('prose');
+    await expect.poll(() => container.querySelector('code')).not.toBeNull();
     await expect.element(container.querySelector('code')!).toBeVisible();
     await expect
       .element(container.querySelector<HTMLElement>('[data-markdown-copy]')!)
@@ -721,6 +713,7 @@ describe('MarkdownHtml code copy', () => {
   it('handles SVG failures after the message HTML changes', async () => {
     const rendered = render(MarkdownHtml, { html: await renderMarkdown('Original message') });
     await rendered.rerender({ html: await renderMarkdown('```svg rendered\n<svg broken\n```') });
+    await expect.poll(() => rendered.container.querySelector('code')).not.toBeNull();
     await expect.element(rendered.container.querySelector('code')!).toBeVisible();
     await rendered.rerender({ html: await renderMarkdown('Updated message') });
     expect(rendered.container.querySelector('img, details')).toBeNull();

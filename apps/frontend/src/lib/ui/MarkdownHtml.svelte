@@ -13,7 +13,8 @@ targets are unique to each component, including when callers reuse rendered HTML
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { trustedMarkdownHtml } from '$lib/security/trustedHtml';
+  import { trustedMarkdownHtml, parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
+  import { renderArtifactFallback } from '$lib/markdown';
   import { toast } from '$lib/ui/toast';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { attachCodeFrames } from '$lib/markdownArtifacts';
@@ -33,6 +34,15 @@ targets are unique to each component, including when callers reuse rendered HTML
 
   const footnoteScope = $props.id();
   const trusted = $derived(trustedMarkdownHtml(scopeFootnotes(html)));
+
+  /** Keep failure markup in the same audited sink as the initial Markdown. */
+  function showArtifactSource(frame: HTMLElement, source: string, language: string) {
+    const fallback = renderArtifactFallback(source, language);
+    frame.replaceChildren(...parseTrustedMarkdownHtml(fallback).body.childNodes);
+    frame.dataset.presentation = 'code';
+    delete frame.dataset.artifactSource;
+    return attachCodeScrollFades(html)(frame);
+  }
 
   /** Qualifies only the numeric footnote attributes emitted by markdown-it. */
   function scopeFootnotes(value: string): string {
@@ -118,7 +128,7 @@ targets are unique to each component, including when callers reuse rendered HTML
 <div
   class="markdown-html contents"
   {@attach attachMarkdownActions}
-  {@attach attachCodeFrames(html, footnoteScope)}
+  {@attach attachCodeFrames(html, footnoteScope, showArtifactSource)}
   {@attach attachCodeScrollFades(html)}
 >
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- rendered markdown from `$lib/markdown`; see component docs above -->

@@ -31,6 +31,7 @@ describe('RenderedImage', () => {
       // Observe after delegated Svelte handlers, as the message row does.
       const stopObserving = on(view.container, 'click', parentClick);
       const opener = view.container.querySelector('button')!;
+      await expect.element(opener).toHaveAccessibleDescription('Diagram');
       expect(opener.textContent?.trim()).toBe('');
       await userEvent.click(image);
       expect(parentClick).not.toHaveBeenCalled();

@@ -16,6 +16,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
+  import { parseArtifactFence, formatArtifactFence } from '$lib/artifactFence';
   import { openRenderedLink } from '$lib/navigation/renderedLink';
   import { isAllowedMarkdownLink } from '$lib/markdownLinks';
   import { getAllContexts, tick, untrack } from 'svelte';
@@ -88,13 +89,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let settingContent = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
-  const activeArtifactHint = $derived(
-    /^(svg|mermaid|ansi)(\s+rendered)?$/i.exec(activeCodeBlockLanguage ?? '')
-  );
-  const activeCodeLanguage = $derived(
-    activeArtifactHint?.[1].toLowerCase() ?? activeCodeBlockLanguage
-  );
-  const renderByDefault = $derived(!!activeArtifactHint?.[2]);
+  const activeArtifactHint = $derived(parseArtifactFence(activeCodeBlockLanguage));
+  const activeCodeLanguage = $derived(activeArtifactHint?.language ?? activeCodeBlockLanguage);
+  const visualPresentation = $derived(activeArtifactHint?.presentation === 'visual');
   let activeCodeBlockLanguageLabel = $derived(
     CODE_LANGUAGE_OPTIONS.find((language) => language.value === activeCodeLanguage)?.label ??
       activeCodeBlockLanguage?.toUpperCase() ??
@@ -225,10 +222,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     }
   }
 
-  function setCodeBlockLanguage(language: string, render = renderByDefault) {
+  function setCodeBlockLanguage(language: string, visual = visualPresentation) {
     if (!editor) return;
-    const hint =
-      render && /^(svg|mermaid|ansi)$/i.test(language) ? `${language} rendered` : language;
+    const hint = formatArtifactFence(language, visual);
 
     editor
       .chain()
@@ -712,7 +708,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         <button
           type="button"
           class="code-render-toggle mini-icon-action h-5 px-1"
-          aria-pressed={!renderByDefault}
+          aria-pressed={!visualPresentation}
           disabled={!editable || readOnly}
           onclick={() => setCodeBlockLanguage(activeCodeLanguage!, false)}
         >
@@ -721,7 +717,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         <button
           type="button"
           class="code-render-toggle mini-icon-action h-5 px-1"
-          aria-pressed={renderByDefault}
+          aria-pressed={visualPresentation}
           disabled={!editable || readOnly}
           onclick={() => setCodeBlockLanguage(activeCodeLanguage!, true)}
         >

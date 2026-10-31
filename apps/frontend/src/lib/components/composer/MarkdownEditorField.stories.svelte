@@ -62,6 +62,20 @@
   <MarkdownEditorField bind:value={mermaid} editorKind="markdown" label="Flight plan" />
 </Story>
 
+<Story name="Scrollable code" asChild>
+  <MarkdownEditorField
+    value={'```javascript\n' +
+      Array.from(
+        { length: 40 },
+        (_, i) => `const checkpoint${i} = "${'cargo inspected; '.repeat(8)}";`
+      ).join('\n') +
+      '\n```'}
+    editorKind="visual"
+    label="Cargo manifest"
+    maxlength={10000}
+  />
+</Story>
+
 <Story
   name="Mermaid visual editor"
   asChild

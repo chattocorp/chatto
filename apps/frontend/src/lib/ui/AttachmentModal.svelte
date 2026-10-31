@@ -2,13 +2,9 @@
 Shared attachment viewer shell. Preview loading belongs to the owner.
 Header, gallery controls and download stay outside the preview on all screens.
 -->
-<script module lang="ts">
-  /** Descendant image stages place their controls in this viewer's footer. */
-  export const imageControlsContext = Symbol('image-controls');
-</script>
-
 <script lang="ts">
-  import { setContext, type Snippet } from 'svelte';
+  import type { Snippet } from 'svelte';
+  import { provideImageControls } from './imageControlsContext';
   import { toInlineEndDelta } from '$lib/i18n/direction';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
@@ -61,7 +57,7 @@ Header, gallery controls and download stay outside the preview on all screens.
   const detailsId = `${descriptionId}-details`;
   let detailsOpen = $state(false);
   let imageControls: HTMLDivElement | undefined = $state();
-  setContext(imageControlsContext, () => imageControls);
+  provideImageControls(() => imageControls);
 
   function handleKeydown(event: KeyboardEvent) {
     if (count < 2 || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)

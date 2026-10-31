@@ -39,7 +39,7 @@ function pointer(stage: HTMLElement, type: string, id: number, x: number, y: num
 
 describe('ZoomableImage', () => {
   it('zooms below Fit and resets', async () => {
-    const view = render(ZoomableImage, { src, onerror: vi.fn() });
+    const view = render(ZoomableImage, { src, alt: 'Test image', onerror: vi.fn() });
     view.container.style.width = '400px';
     view.container.style.height = '350px';
     await expect.poll(() => view.container.querySelector('img')?.naturalWidth).toBe(400);

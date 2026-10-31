@@ -11,24 +11,21 @@ Controls live in the viewer footer when one is provided through context.
 
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
-  import { getContext } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { imageControlsContext } from './AttachmentModal.svelte';
+  import { useImageControls, hasImageControls } from './imageControlsContext';
 
   let {
-    src = '',
-    alt = '',
+    src,
+    alt,
     onerror
   }: {
-    src?: string;
-    alt?: string;
+    src: string;
+    alt: string;
     onerror: () => void;
   } = $props();
 
   let stage: HTMLDivElement;
-  const viewerControls = getContext<(() => HTMLElement | undefined) | undefined>(
-    imageControlsContext
-  );
+  const viewerControls = hasImageControls() ? useImageControls() : undefined;
 
   /** Relocate the one shared toolbar; its lifecycle and state stay with this canvas. */
   function placeControls(node: HTMLDivElement) {

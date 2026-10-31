@@ -2073,6 +2073,24 @@
   @apply preview-code min-w-0;
 }
 
+/* Message and composer code share edge cues, outside their scrollable contents. */
+.markdown-code-fade {
+  @apply scroll-edge-fade;
+  --tw-gradient-from: var(--message-code-background, var(--color-background));
+}
+.markdown-code-fade-top {
+  @apply inset-x-3 top-2 h-8 bg-gradient-to-b;
+}
+.markdown-code-fade-bottom {
+  @apply inset-x-3 bottom-2 h-8 bg-gradient-to-t;
+}
+.markdown-code-fade-left {
+  @apply inset-y-2 left-3 w-8 bg-gradient-to-r;
+}
+.markdown-code-fade-right {
+  @apply inset-y-2 right-3 w-8 bg-gradient-to-l;
+}
+
 @utility code-frame-header {
   /* Balance the frame's 4px top rim when centring controls above the inset. */
   @apply flex h-6 items-center justify-end gap-1 px-2 pt-0 pb-1 font-sans text-xs leading-4 text-muted;

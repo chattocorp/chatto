@@ -169,14 +169,10 @@
     @apply code-frame-header;
   }
 
-  /* Visual fences show only their output. A render failure reveals the source
-     and its controls so the message remains readable and copyable. */
+  /* Visual frames fit their image; failure recovery uses the regular code frame. */
   & [data-presentation='visual']:has([data-code-panel='render']:not([hidden])) {
     &:has(.rendered-image) {
       @apply w-fit max-w-full;
-    }
-    & .markdown-code-header {
-      display: none;
     }
   }
 
@@ -220,34 +216,6 @@
 
   & .markdown-code-scroll-content {
     @apply block min-w-max;
-  }
-
-  & .markdown-code-fade {
-    @apply scroll-edge-fade;
-    --tw-gradient-from: var(--message-code-background, var(--color-background));
-  }
-
-  & .markdown-code-fade-top {
-    @apply inset-x-3 top-2 h-8 bg-gradient-to-b;
-  }
-
-  & .markdown-code-fade-bottom {
-    @apply inset-x-3 bottom-2 h-8 bg-gradient-to-t;
-  }
-
-  & .markdown-code-fade-left {
-    @apply inset-y-2 left-3 w-8 bg-gradient-to-r;
-  }
-
-  & .markdown-code-fade-right {
-    @apply inset-y-2 right-3 w-8 bg-gradient-to-l;
-  }
-
-  & .markdown-svg-preview:not([hidden], [data-canvas-image]),
-  & .markdown-mermaid-preview:not([hidden], [data-canvas-image]) {
-    @apply mx-auto my-0 block h-auto max-w-full object-contain;
-    border-radius: 0;
-    outline: none;
   }
 
   /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */

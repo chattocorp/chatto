@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import { parseArtifactFence, type ArtifactFence } from './artifactFence';
 import { isMermaidSourceAllowed, MAX_MERMAID_PREVIEWS } from './mermaid/policy';
 import footnotePlugin from 'markdown-it-footnote';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
@@ -327,19 +328,40 @@ function renderCodeCopyButton(): string {
   return `<button type="button" class="markdown-code-copy copy-feedback mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span data-copy-icon class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span><span data-copy-check class="iconify icon-[uil--check] text-sm text-action" aria-hidden="true"></span></button>`;
 }
 
-/** All code shares one frame; artifact controls change presentation only. */
-function renderCodeFrame(
+type ArtifactPreview = {
+  available: boolean;
+  presentation: ArtifactFence['presentation'];
+  content?: string;
+};
+
+/** Visual-only frames retain raw source for rendering and failure recovery, without code UI. */
+function renderCodeFrame(code: string, language: string, artifact?: ArtifactPreview): string {
+  const visual = artifact?.available && artifact.presentation === 'visual';
+  const attributes = artifact
+    ? ` data-artifact="${language}" data-presentation="${visual ? 'visual' : 'code'}"`
+    : '';
+  const content = visual
+    ? `<div data-code-panel="render">${artifact.content ?? ''}</div>`
+    : renderCodeFrameContents(code, language, artifact);
+  return `<div class="markdown-code-frame"${attributes}${visual ? ` data-artifact-source="${escapeAttribute(code)}"` : ''}>${content}</div>\n`;
+}
+
+/** Source fallback markup for the audited MarkdownHtml sink, built only after a visual fails. */
+export function renderArtifactFallback(code: string, language: string): string {
+  return renderCodeFrameContents(code, language, { available: false, presentation: 'code' });
+}
+
+function renderCodeFrameContents(
   code: string,
   language: string,
-  artifact?: { available: boolean; render: boolean; content?: string }
+  artifact?: ArtifactPreview
 ): string {
-  const rendered = artifact?.available && artifact.render;
   const sourceLabel = escapeAttribute(m('common.code_source'));
   const renderLabel = escapeAttribute(m('common.code_render'));
   const tabs = artifact
-    ? `<div role="tablist" aria-label="${escapeAttribute(language)}"><button type="button" role="tab" data-code-tab="source" aria-label="${sourceLabel}" title="${sourceLabel}" aria-selected="${!rendered}" tabindex="${rendered ? -1 : 0}"><span class="iconify icon-[uil--brackets-curly] text-sm" aria-hidden="true"></span></button><button type="button" role="tab" data-code-tab="render" aria-label="${renderLabel}" title="${renderLabel}" aria-selected="${!!rendered}" tabindex="${rendered ? 0 : -1}"${artifact.available ? '' : ' disabled'}><span class="iconify icon-[uil--eye] text-sm" aria-hidden="true"></span></button></div>`
+    ? `<div role="tablist" aria-label="${escapeAttribute(language)}"><button type="button" role="tab" data-code-tab="source" aria-label="${sourceLabel}" title="${sourceLabel}" aria-selected="true" tabindex="0"><span class="iconify icon-[uil--brackets-curly] text-sm" aria-hidden="true"></span></button><button type="button" role="tab" data-code-tab="render" aria-label="${renderLabel}" title="${renderLabel}" aria-selected="false" tabindex="-1"${artifact.available ? '' : ' disabled'}><span class="iconify icon-[uil--eye] text-sm" aria-hidden="true"></span></button></div>`
     : '';
-  return `<div class="markdown-code-frame group/preview"${artifact ? ` data-artifact="${language}" data-presentation="${artifact.render ? 'visual' : 'code'}"` : ''}><div class="markdown-code-header"><span class="markdown-code-language">${escapeHtml(language)}</span>${tabs}${renderCodeCopyButton()}</div><div data-code-panel="source"${rendered ? ' hidden' : ''}>${renderCodeFence(code, language)}</div>${artifact ? `<div data-code-panel="render"${rendered ? '' : ' hidden'}>${artifact.content ?? ''}</div><p class="markdown-code-error" role="status"${artifact.available ? ' hidden' : ''}>${escapeHtml(m('common.code_render_failed'))}</p>` : ''}</div>\n`;
+  return `<div class="markdown-code-header"><span class="markdown-code-language">${escapeHtml(language)}</span>${tabs}${renderCodeCopyButton()}</div><div data-code-panel="source">${renderCodeFence(code, language)}</div>${artifact ? `<div data-code-panel="render" hidden>${artifact.content ?? ''}</div><p class="markdown-code-error" role="status"${artifact.available ? ' hidden' : ''}>${escapeHtml(m('common.code_render_failed'))}</p>` : ''}`;
 }
 
 function renderCodeFence(code: string, rawLanguage: string): string {
@@ -519,27 +541,27 @@ function initialize(): void {
   md.use(emojiPlugin);
   md.renderer.rules.fence = (tokens, index, _options, env) => {
     const token = tokens[index];
-    const hint = /^(svg|mermaid|ansi)(\s+rendered)?$/i.exec(token.info.trim());
+    const hint = parseArtifactFence(token.info);
     const language = normalizeCodeLanguage(token.info);
     if (!hint) return renderCodeFrame(token.content, language);
-    const render = !!hint[2];
+    const { presentation } = hint;
     if (language === 'mermaid') {
       const count = (env[mermaidPreviewCountKey] as number | undefined) ?? 0;
       const available = count < MAX_MERMAID_PREVIEWS && isMermaidSourceAllowed(token.content);
       if (available) env[mermaidPreviewCountKey] = count + 1;
-      return renderCodeFrame(token.content, language, { available, render });
+      return renderCodeFrame(token.content, language, { available, presentation });
     }
     // SVG stays an image resource, never inline HTML, an object, or an iframe.
     if (language === 'svg') {
       const count = (env[svgPreviewCountKey] as number | undefined) ?? 0;
       const available = count < MAX_SVG_PREVIEWS && token.content.length <= MAX_SVG_SOURCE_LENGTH;
       if (available) env[svgPreviewCountKey] = count + 1;
-      return renderCodeFrame(token.content, language, { available, render });
+      return renderCodeFrame(token.content, language, { available, presentation });
     }
     const art: string | undefined = env[ansiArtKey]?.get(token);
     return renderCodeFrame(token.content, language, {
       available: art !== undefined,
-      render,
+      presentation,
       content:
         art === undefined
           ? ''

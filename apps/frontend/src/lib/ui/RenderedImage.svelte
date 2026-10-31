@@ -9,6 +9,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   import ZoomableImage from './ZoomableImage.svelte';
 
   let { image }: { image: HTMLImageElement } = $props();
+  const descriptionId = $props.id();
   let width = $state(1);
   let height = $state(1);
   let ready = $state(false);
@@ -68,6 +69,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   type="button"
   class="rendered-image relative mx-auto block max-h-[min(30rem,60vh)] min-h-11 max-w-full min-w-11 cursor-zoom-in overflow-hidden p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-default"
   aria-label={m('ui.image_modal.open_larger')}
+  aria-describedby={descriptionId}
   disabled={!ready}
   onclick={openViewer}
   {@attach consumeMessageGestures}
@@ -76,6 +78,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
 >
   <span class="absolute inset-0 flex items-center justify-center" {@attach preview}></span>
 </button>
+<span id={descriptionId} class="sr-only">{image.alt}</span>
 
 {#if viewer}
   <div class="font-sans text-base" {@attach portal}>

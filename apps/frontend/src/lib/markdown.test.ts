@@ -42,7 +42,9 @@ describe('renderMarkdown', () => {
         const html = await renderMarkdown(
           '```' + language + ' ' + modifier + '\n' + source + '\n```'
         );
-        expect(html).toContain('data-code-panel="source" hidden');
+        expect(html).toContain('data-presentation="visual"');
+        expect(html).not.toContain('data-code-panel="source"');
+        expect(html).not.toContain('data-code-tab');
         expect(html).toContain(`data-artifact="${language}"`);
       }
       for (const modifier of ['render', 'rendered extra']) {
@@ -93,7 +95,7 @@ describe('renderMarkdown', () => {
   describe('SVG previews', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"><text>Hi &amp; bye</text></svg>\n';
 
-    it('uses the rendered hint only to select the initial tab and keeps source escaped', async () => {
+    it('uses the rendered hint for visual-only output and keeps recovery source escaped', async () => {
       for (const info of ['svg', 'xml', 'svg renderer', 'svg rendered extra']) {
         expect(await renderMarkdown('```' + info + '\n' + svg + '```')).not.toContain('<img');
       }
@@ -101,12 +103,12 @@ describe('renderMarkdown', () => {
       expect(html).toContain('data-artifact="svg"');
       expect(html).not.toContain('<img');
       expect(html).not.toContain('<details>');
-      expect(html).toContain('data-code-panel="source" hidden');
+      expect(html).not.toContain('data-code-panel="source"');
       expect(await renderMarkdown('```svg\n' + svg + '```')).toContain(
         'data-code-panel="render" hidden'
       );
       expect(html).not.toContain('<svg');
-      expect(html).toContain('data-copy-source="&lt;svg');
+      expect(html).toContain('data-artifact-source="&lt;svg');
     });
 
     it('supports nested fences and limits preview count and source length', async () => {
@@ -121,7 +123,7 @@ describe('renderMarkdown', () => {
       ).toContain('data-artifact="svg"');
       expect(
         (await renderMarkdown(Array(5).fill(fence).join('\n\n'))).match(
-          /data-code-panel="source" hidden/g
+          /data-presentation="visual"/g
         )
       ).toHaveLength(4);
       expect(await renderMarkdown('```svg rendered\n' + 'x'.repeat(100_001) + '\n```')).toContain(

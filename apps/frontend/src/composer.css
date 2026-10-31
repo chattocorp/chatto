@@ -20,11 +20,20 @@
   }
 
   & .ProseMirror pre code {
-    @apply block max-h-96 overflow-auto;
+    @apply block min-w-max;
     font-size: inherit;
     line-height: inherit;
     color: var(--composer-code-text);
     white-space: pre;
+  }
+
+  & .composer-code-body {
+    @apply relative preview-content;
+  }
+
+  & .composer-code-viewport {
+    /* Keep both scroll edges visible inside the editor's 12.5 rem viewport. */
+    @apply max-h-40 overflow-auto px-3 py-2;
   }
 
   & .cm-code-fence {
