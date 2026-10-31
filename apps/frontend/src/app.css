@@ -1813,7 +1813,7 @@
 
 /* Mention styling in messages */
 .mention {
-  @apply cursor-pointer rounded-sm bg-action/20 px-0.5 font-semibold text-action;
+  @apply cursor-pointer rounded-sm bg-action/10 px-0.5 font-semibold text-action;
 }
 
 .mention-self {
@@ -2015,11 +2015,11 @@
 @utility segmented-control-group {
   @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
 
-  & > fieldset {
+  & > [role='radiogroup'] {
     @apply w-max flex-auto;
   }
 
-  & > fieldset > label {
+  & > [role='radiogroup'] > label {
     @apply grow;
   }
 
@@ -2749,6 +2749,53 @@
     calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)))
   );
   bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
+}
+
+/* TouchPressFeedback marks only the innermost action for a primary pointer press.
+ * Do not wait for native :active, which can start after touch release. */
+@layer utilities {
+  [data-touch-ripple-host] {
+    position: relative;
+  }
+
+  .touch-ripple {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+    @variant motion-reduce {
+      display: none;
+    }
+  }
+
+  .touch-ripple-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+  }
+
+  [data-touch-pressed]:not(:disabled, [aria-disabled='true']) {
+    opacity: 0.65;
+    @variant motion-safe {
+      /* Keep the separate translate property available for control positioning. */
+      transform: translate(1px, 1px);
+    }
+    /* A short tap must not finish before the feedback becomes visible. */
+    transition-duration: 0s;
+  }
+
+  /* Relative offsets move inline fragments without changing line wrapping. */
+  [data-touch-pressed][data-press-inline] {
+    @variant motion-safe {
+      position: relative;
+      left: 1px;
+      top: 1px;
+      transform: none;
+    }
+  }
 }
 
 @layer base {

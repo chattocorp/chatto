@@ -11,9 +11,15 @@
 
 <!-- @component Single-line MOTD preview. The owner opens the full message. -->
 <div class="flex min-w-0 flex-1 justify-center">
-  <div data-testid="motd-content" class="app-header-text-action max-w-full text-sm" dir="auto">
+  <div
+    data-testid="motd-content"
+    data-press-surface
+    class="app-header-text-action max-w-full text-sm"
+    dir="auto"
+  >
     <!-- Keep the modal trigger and Markdown links as separate controls. -->
     <button
+      data-press-feedback="surface"
       type="button"
       class="absolute inset-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-action"
       aria-label={m('common.message_of_the_day')}

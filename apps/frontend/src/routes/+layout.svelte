@@ -16,6 +16,7 @@
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
   import { provideKeyboardShortcuts } from '$lib/keyboardShortcuts';
   import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
+  import TouchPressFeedback from '$lib/components/TouchPressFeedback.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
@@ -142,6 +143,7 @@
   <GlobalKeyboardShortcuts />
 {/if}
 <InputModalityTracker />
+<TouchPressFeedback />
 <ServerRuntimeCoordinator />
 <NotificationSync />
 <UpdateNotifier />
