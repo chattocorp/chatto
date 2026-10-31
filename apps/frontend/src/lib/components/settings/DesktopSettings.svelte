@@ -1,6 +1,14 @@
 <!-- @component App-wide update controls backed by the optional desktop host capability. -->
 <script lang="ts">
-  import { Panel, PageTitle, PaneContent, PaneHeader, Hint, LoadingFog } from '$lib/ui';
+  import {
+    Panel,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    Hint,
+    LoadingFog,
+    ProgressBar
+  } from '$lib/ui';
   import { Button, Checkbox, Select } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { desktopUpdates, type DesktopUpdates } from '$lib/desktop/updates.svelte';
@@ -36,12 +44,7 @@
               {/if}
             </div>
             {#if state.status === 'downloading' && state.progress !== null}
-              <progress
-                class="w-full accent-action"
-                max="100"
-                value={state.progress}
-                aria-label={statusText}>{state.progress}%</progress
-              >
+              <ProgressBar value={state.progress} label={statusText} />
             {/if}
             {#if updates.failed && state.status !== 'error'}
               <Hint>{m('settings.desktop.status.error')}</Hint>

@@ -79,7 +79,7 @@ describe('Desktop settings', () => {
     };
     const install = vi.spyOn(updates, 'install').mockResolvedValue();
     const view = render(DesktopSettings, { updates });
-    await expect.element(view.getByRole('progressbar')).toHaveAttribute('value', '42');
+    await expect.element(view.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42');
     await expect.element(view.getByRole('button', { name: 'Check for updates' })).toBeDisabled();
     updates.status = { ...updates.status, revision: 2, status: 'ready', busy: false };
     await expect
