@@ -15,6 +15,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
+	"github.com/chatto-chat/chatto/experimental/gobotto/memorytree"
 )
 
 // Kind identifies a runtime event. Only Started creates a session.
@@ -32,11 +33,14 @@ const (
 	Evicted
 	TitleChanged
 	Inspected
+	MemoryChanged
 )
 
 // Event carries host-authored operational text. Text must never contain chat
 // content, credentials, or unfiltered external errors. Session is a local counter.
 type Event struct {
+	// Memory is private browser data, never operational log text.
+	Memory  *memorytree.Snapshot
 	Kind    Kind
 	Session uint64
 	// HumanID matches the persistent snapshot name; it contains no user data.
@@ -160,6 +164,10 @@ func compactTokens(n int64) string {
 }
 
 type model struct {
+	memoryMode      bool
+	typesMode       bool
+	types           typeBrowser
+	memory          memoryBrowser
 	requestQuit     func()
 	quitting        bool
 	workerStopped   bool
@@ -257,6 +265,67 @@ type clipboardResult struct {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if e, ok := msg.(Event); ok && e.Kind == MemoryChanged {
+		if e.Memory != nil {
+			m.memory.snapshot = *e.Memory
+			m.memory.ready = true
+			m.memory.refresh(m.width, m.height)
+			m.types.refresh(m.memory.snapshot, m.width, m.height)
+		}
+		return m, waitEvent(m.events)
+	}
+	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "m" {
+		m.typesMode = false
+		m.memoryMode = !m.memoryMode
+		m.memory.refresh(m.width, m.height)
+		return m, nil
+	}
+	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "t" {
+		m.typesMode = !m.typesMode
+		m.memoryMode = false
+		m.types.refresh(m.memory.snapshot, m.width, m.height)
+		return m, nil
+	}
+	if click, ok := msg.(tea.MouseClickMsg); ok && click.Button == tea.MouseLeft && click.Y == 0 {
+		if mode, hit := m.modeAt(click.X); hit {
+			m.memoryMode, m.typesMode = mode == 1, mode == 2
+			m.memory.refresh(m.width, m.height)
+			m.types.refresh(m.memory.snapshot, m.width, m.height)
+			return m, nil
+		}
+	}
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.memory.refresh(size.Width, size.Height)
+		m.types.refresh(m.memory.snapshot, size.Width, size.Height)
+	}
+	if m.typesMode {
+		switch v := msg.(type) {
+		case tea.KeyPressMsg:
+			if v.String() != "q" && v.String() != "Q" && v.String() != "shift+q" && v.String() != "ctrl+c" {
+				if v.String() == "enter" {
+					m.showTypeRecords()
+				} else {
+					m.types.update(msg, m.memory.snapshot, m.width, m.height)
+				}
+				return m, nil
+			}
+		case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
+			m.types.update(msg, m.memory.snapshot, m.width, m.height)
+			return m, nil
+		}
+	}
+	if m.memoryMode {
+		switch v := msg.(type) {
+		case tea.KeyPressMsg:
+			if v.String() != "q" && v.String() != "Q" && v.String() != "shift+q" && v.String() != "ctrl+c" {
+				m.memory.update(msg, m.width, m.height)
+				return m, nil
+			}
+		case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
+			m.memory.update(msg, m.width, m.height)
+			return m, nil
+		}
+	}
 	switch msg := msg.(type) {
 	case inspectorTick:
 		if time.Now().After(m.clipboardUntil) {
@@ -690,6 +759,12 @@ func (m *model) refreshLogs(follow bool) {
 }
 
 func (m *model) View() tea.View {
+	if m.typesMode {
+		return m.typesView()
+	}
+	if m.memoryMode {
+		return m.memoryView()
+	}
 	var content string
 	if m.width < 36 || m.height < 12 {
 		message := "Gobotto · enlarge terminal to 36×12\nq quit"
@@ -698,12 +773,7 @@ func (m *model) View() tea.View {
 		}
 		content = lipgloss.NewStyle().MaxWidth(max(1, m.width)).MaxHeight(max(1, m.height)).Render(message)
 	} else {
-		brand := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EEAD4")).Render(" GOBOTTO")
-		status := lipgloss.NewStyle().Foreground(lipgloss.Color("#8593A4")).Render("  ·  " + m.status)
-		if m.quitting {
-			status = "  ·  Waiting for active turn to finish before quitting…"
-		}
-		header := lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(1).Render(brand + status)
+		header := m.navigation()
 		topTitle := fmt.Sprintf("Sessions · %d retained", len(m.sessions))
 		if s := m.selected(); s != nil && s.pending > 0 {
 			topTitle += fmt.Sprintf(" · %d messages pending", s.pending)

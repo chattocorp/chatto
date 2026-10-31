@@ -244,6 +244,7 @@ func (s *Store) load() ([]*conversation, error) {
 				c.model.RecordDelivery(errors.New("interrupted"))
 			}
 		}
+		c.recoverDeliveredReply()
 		result = append(result, c)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].id < result[j].id })

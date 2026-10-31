@@ -13,6 +13,14 @@ The experimental Gobotto bot and Chatto Go SDK also use the Gorilla WebSocket,
 Go Protobuf, Bubble Tea, Bubbles, Lip Gloss, and go-toml dependencies listed below.
 Gobotto uses atotto/clipboard (https://github.com/atotto/clipboard), licensed under
 the BSD 3-Clause License, for local clipboard access.
+Gobotto's Markdown rendering also uses:
+- Glamour (https://github.com/charmbracelet/glamour) - MIT License
+- Chroma (https://github.com/alecthomas/chroma) - MIT License
+- Goldmark Emoji (https://github.com/yuin/goldmark-emoji) - MIT License
+- Bluemonday (https://github.com/microcosm-cc/bluemonday) - BSD-3-Clause
+- Douceur (https://github.com/aymerick/douceur) - MIT License
+- Gorilla CSS (https://github.com/gorilla/css) - BSD-3-Clause
+- Regexp2 (https://github.com/dlclark/regexp2) - MIT License
 
 Slack conversion data:
 
@@ -72,6 +80,15 @@ Server and CLI Go Components:
 - LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
 - Model Context Protocol Go SDK
   (https://github.com/modelcontextprotocol/go-sdk) - MIT License
+- Modernc SQLite, libc, mathutil, and memory (https://modernc.org/sqlite,
+  https://modernc.org/libc, https://modernc.org/mathutil,
+  https://modernc.org/memory) - BSD-3-Clause
+- SQLite (https://sqlite.org/) - Public Domain
+- Go strftime (https://github.com/ncruces/go-strftime) - MIT License
+- Go humanize (https://github.com/dustin/go-humanize) - MIT License
+- Go isatty (https://github.com/mattn/go-isatty) - MIT License
+- Google UUID (https://github.com/google/uuid) - BSD-3-Clause
+- Big FFT (https://github.com/remyoudompheng/bigfft) - BSD-3-Clause
 - JSON Schema Go (https://github.com/google/jsonschema-go) - MIT License
 - Segment encoding and asm (https://github.com/segmentio/encoding,
   https://github.com/segmentio/asm) - MIT License

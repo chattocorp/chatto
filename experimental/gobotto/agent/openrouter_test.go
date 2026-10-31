@@ -32,6 +32,25 @@ func TestTruncatedToolCallNeverExecutes(t *testing.T) {
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+func TestBudgetWrapUpDisablesToolChoice(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		var input map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Fatal(err)
+		}
+		if input["tool_choice"] != "none" {
+			t.Fatal("wrap-up did not disable tool choice")
+		}
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"Partial work completed."}}]}`))}, nil
+	})
+	ctx := context.WithValue(context.Background(), textOnlyKey{}, true)
+	if _, err := OpenRouter("test", "test/model", "session", nil)(ctx, []Message{textMessage("user", "summarize")}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOpenRouterWireContract(t *testing.T) {
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
