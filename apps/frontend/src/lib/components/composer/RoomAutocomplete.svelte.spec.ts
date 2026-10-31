@@ -19,7 +19,7 @@ function room(id: string, name: string, type = RoomKind.CHANNEL): RoomListItem {
 }
 
 describe('RoomAutocomplete', () => {
-  it('finds names with spaces through fuzzy search and accepts them with Space', () => {
+  it('finds names with spaces through fuzzy search and accepts them with Enter', () => {
     const onSelect = vi.fn();
     const { container, component } = render(RoomAutocomplete, {
       query: 'designteam',
@@ -29,10 +29,10 @@ describe('RoomAutocomplete', () => {
     });
     expect(container.querySelectorAll('button')).toHaveLength(1);
     expect(container.textContent).toContain('Design Team');
-    const event = new KeyboardEvent('keydown', { key: ' ', cancelable: true });
+    const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
     expect(component.handleKeyDown(event)).toBe(true);
     expect(event.defaultPrevented).toBe(true);
-    expect(onSelect).toHaveBeenCalledWith('1', ' ');
+    expect(onSelect).toHaveBeenCalledWith('1', 'Enter');
   });
 
   it('shows a globe for universal rooms and a hash for ordinary channels', () => {

@@ -16,7 +16,7 @@ the message body.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. Prefix matches rank higher than substring matches.
 - While the room list loads, autocomplete combines loaded members with server search results.
 - In a thread composer, thread participants rank above other matching members. An exact login or display-name match ranks first. The current user does not get this priority. Tab completion uses the same order as the popup.
-- Space confirms the highlighted autocomplete result and appends one space. Enter and Tab confirm without adding whitespace or sending the message. Repeated Tab presses cycle through matching mentions. Pointer selection appends a space.
+- Enter and Tab confirm the highlighted autocomplete result without adding whitespace or sending the message. Space remains available for typing and closes the suggestions. Repeated Tab presses cycle through matching mentions. Pointer selection appends a space.
 - `@username` mentions select that human or bot account when it is a current
   room member. Universal room implicit members count as room members;
   notification policy still decides whether to create an occurrence.

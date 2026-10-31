@@ -13,7 +13,7 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
 **Props:**
 - `items` - Array of items to display
 - `getKey` - Function to extract a unique key from each item
-- `selectKeys` - Which keys trigger selection (default: Space, Enter and Tab)
+- `selectKeys` - Which keys trigger selection (default: Enter and Tab)
 - `onSelect` - Callback when an item is selected (receives item and the key used)
 - `onClose` - Callback to close the popup
 - `testid` - Optional data-testid for e2e tests
@@ -42,7 +42,7 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
   let {
     items,
     getKey,
-    selectKeys = [' ', 'Enter', 'Tab'],
+    selectKeys = ['Enter', 'Tab'],
     onSelect,
     onClose,
     testid,

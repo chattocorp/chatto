@@ -616,13 +616,49 @@ describe('MessageComposer', () => {
 
   describe('form rendering', () => {
     it.each([
+      ['markdown', '#', 'room'],
+      ['visual', '#', 'room'],
+      ['markdown', '@', 'mention'],
+      ['visual', '@', 'mention'],
+      ['markdown', '@ali', 'mention'],
+      ['visual', '@ali', 'mention']
+    ] as const)('keeps %s text %s when Space is typed', async (kind, trigger, picker) => {
+      userPreferences.composerEditor = kind;
+      roomStateMock.members = [roomMember('alice')];
+      server.scope.store.roomList.rooms.push({
+        id: 'R123456789abcde',
+        name: 'Design Team',
+        type: RoomKind.CHANNEL,
+        isUniversal: false,
+        viewerIsMember: false,
+        viewerCanJoinRoom: true,
+        viewerCanManageRoom: false,
+        members: []
+      });
+      const { container } = renderMessageComposer({ roomId: 'bare-trigger' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, `See ${trigger}`);
+      // Bare @ opens suggestions only when the composer enables openOnAt.
+      if (trigger !== '@') {
+        await vi.waitFor(() =>
+          expect(container.querySelector(`[data-testid="${picker}-autocomplete"]`)).toBeTruthy()
+        );
+      }
+      await userEvent.keyboard(' ');
+      await tick();
+      expect(container.querySelector(`[data-testid="${picker}-autocomplete"]`)).toBeNull();
+      expect(editor.textContent).toBe(`See ${trigger} `);
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
       ['markdown', ' '],
       ['markdown', 'Enter'],
       ['markdown', 'Tab'],
       ['visual', ' '],
       ['visual', 'Enter'],
       ['visual', 'Tab']
-    ] as const)('accepts a room in %s with %s without sending', async (kind, key) => {
+    ] as const)('handles room completion in %s with %s without sending', async (kind, key) => {
       userPreferences.composerEditor = kind;
       const targetRoomId = 'R123456789abcde';
       const url = `https://rooms.example.test/chat/-/${targetRoomId}`;
@@ -655,13 +691,18 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(container.querySelector('[data-testid="room-autocomplete"]')).toBeTruthy()
       );
-      await pressEditorKey(editor, key);
+      if (key === ' ') {
+        await userEvent.keyboard(' ');
+        await tick();
+      } else {
+        await pressEditorKey(editor, key);
+      }
       expect(mutationMock).not.toHaveBeenCalled();
       expect(container.querySelector('[data-testid="room-autocomplete"]')).toBeNull();
       // Ignore visual-editor decorations; assert the actual editable text.
       const content = editor.cloneNode(true) as HTMLElement;
       content.querySelectorAll('.ProseMirror-widget').forEach((node) => node.remove());
-      expect(content.textContent).toBe(url + (key === ' ' ? ' ' : ''));
+      expect(content.textContent).toBe(key === ' ' ? '#designteam ' : url);
     });
 
     it('renders the TipTap editor', async () => {
