@@ -5,7 +5,7 @@ import { ConnectError, Code } from '@connectrpc/connect';
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
 import { AccountCreationPolicy } from '@chatto/api-types/api/v1/server_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
-import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { mockService } from '$lib/test-utils';
 import { queryClient } from '$lib/query/client';
 import RegistrationPage from './+page.svelte';
@@ -18,6 +18,7 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Registration' 
 
 const settings = mockService(AdminServerService);
 const refreshProfile = vi.fn().mockResolvedValue(undefined);
+let server: TestServerScope;
 beforeAll(() => loadLocaleMessages('en-GB'));
 beforeEach(() => {
   vi.clearAllMocks();
@@ -28,9 +29,16 @@ beforeEach(() => {
   settings.updateServerConfig.mockReturnValue({
     config: { registration: { admission: AccountCreationPolicy.INVITE_ONLY } }
   });
-  createTestServerScope({
+  server = createTestServerScope({
     permissions: { canManageServer: true, canManageInvites: true },
-    serverInfo: { refreshProfile, directRegistrationEnabled: true, authProviders: [] },
+    serverInfo: {
+      refreshProfile,
+      directRegistrationEnabled: true,
+      authProviders: [
+        { id: 'company', label: 'Company SSO', autoProvision: true },
+        { id: 'existing', label: 'Existing accounts only', autoProvision: false }
+      ]
+    },
     routes: (router) => router.service(AdminServerService, settings)
   });
 });
@@ -39,6 +47,11 @@ afterEach(() => queryClient.clear());
 describe('Registration settings', () => {
   it('saves admission changes without embedding invitation controls', async () => {
     const view = render(RegistrationPage);
+    await expect.element(view.getByText('Email and password', { exact: true })).toBeVisible();
+    await expect.element(view.getByText('Company SSO', { exact: true })).toBeVisible();
+    await expect
+      .element(view.getByText('Existing accounts only', { exact: true }))
+      .not.toBeInTheDocument();
     await expect.element(view.getByRole('radio', { name: /^Open Registration/ })).toBeChecked();
     await expect.element(view.getByRole('link', { name: 'Invites' })).not.toBeInTheDocument();
     await expect.element(view.getByRole('table')).not.toBeInTheDocument();
@@ -56,6 +69,24 @@ describe('Registration settings', () => {
     await userEvent.click(view.getByRole('radio', { name: /^Open Registration/ }));
     await expect.element(view.getByRole('radio', { name: /^Open Registration/ })).toBeChecked();
     await expect.element(view.getByRole('link', { name: 'Invites' })).not.toBeInTheDocument();
+  });
+
+  it('explains when neither mode has an enabled signup method', async () => {
+    Object.assign(server.scope.store.serverInfo, {
+      directRegistrationEnabled: false,
+      authProviders: [{ id: 'existing', label: 'Existing accounts only', autoProvision: false }]
+    });
+    const view = render(RegistrationPage);
+    await expect
+      .element(
+        view.getByText(
+          'No signup methods are enabled. Users cannot create accounts in either mode.'
+        )
+      )
+      .toBeVisible();
+    await expect
+      .element(view.getByText('Email and password', { exact: true }))
+      .not.toBeInTheDocument();
   });
 
   it('keeps the previous mode when saving fails', async () => {
