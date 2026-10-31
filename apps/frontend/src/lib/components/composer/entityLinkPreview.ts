@@ -99,7 +99,8 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
                 const component = mount(EntityLink, {
                   target: preview,
                   context,
-                  props: { href }
+                  // The composer owns automatic preview requests for draft URLs.
+                  props: { href, loadWhenVisible: false }
                 });
                 preview.addEventListener(
                   'click',

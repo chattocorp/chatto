@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "更新",
+      "subtitle": "此安裝的更新",
+      "updates": "應用程式更新",
+      "unavailable": "此安裝不支援自動更新。",
+      "version": "已安裝版本：{version}",
+      "ready_link": "更新已就緒",
+      "restart_warning": "重新啟動會結束進行中的通話和螢幕分享。",
+      "restart": "重新啟動以更新",
+      "check": "檢查更新",
+      "preferences": "更新偏好設定",
+      "automatic": "自動檢查並下載",
+      "channel": "發布頻道",
+      "stable": "穩定版",
+      "beta": "測試版",
+      "channel_help": "穩定版自動更新會在36小時內逐步發布。手動檢查和測試版不受此延遲限制。切換至穩定版不會安裝較舊版本。",
+      "privacy": "更新會連線至GitHub，GitHub會收到你的IP位址和更新請求。Chatto不會傳送帳號或已連線伺服器的資訊。",
+      "status": {
+        "idle": "已準備好檢查更新。",
+        "checking": "正在檢查更新…",
+        "downloading": "正在下載更新…",
+        "ready": "已準備好重新啟動。",
+        "current": "此頻道沒有較新的更新。",
+        "error": "更新操作失敗，請重試。",
+        "changed": "可用版本已變更，請重新檢查。",
+        "installing": "正在準備重新啟動…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "管理密碼、電子郵件地址和登入方式。",
@@ -11,7 +39,8 @@
         "general": "伺服器識別資訊、品牌與訊息",
         "neighbors": "在你的公開目錄中推廣友好的 Chatto 伺服器",
         "members": "檢視及管理伺服器成員與角色",
-        "invitations": "建立和管理用來接納新帳戶的連結。",
+        "registration": "控制新帳戶如何加入此伺服器。",
+        "invitations": "建立和管理邀請碼。",
         "rooms": "建立、編輯、整理及封存聊天室",
         "moderation": "檢視生效中的聊天室暫停加入紀錄",
         "permissions": "管理伺服器全域的角色預設值",

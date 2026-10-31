@@ -50,11 +50,15 @@ export class LinkPreviewState {
 
   async fetchPreview(url: string): Promise<void> {
     this.fetchingURLs.add(url);
-
-    const preview = await this.getAPI().fetchLinkPreview(url);
-
-    this.fetchingURLs.delete(url);
-    this.previews.set(url, preview);
+    try {
+      const preview = await this.getAPI().fetchLinkPreview(url);
+      this.previews.set(url, preview);
+    } catch {
+      // Metadata is optional. Keep the URL usable and avoid retries on each edit.
+      this.previews.set(url, null);
+    } finally {
+      this.fetchingURLs.delete(url);
+    }
   }
 
   dismissPreview(url: string): void {

@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cdp, page, userEvent } from 'vitest/browser';
 import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
-import { createRawSnippet, tick, type ComponentProps } from 'svelte';
+import { createRawSnippet, flushSync, tick, type ComponentProps } from 'svelte';
+import { loadEditor } from './loadEditor';
 import { SvelteMap } from 'svelte/reactivity';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import ReplyFocusTestHarness from './ReplyFocusTestHarness.svelte';
@@ -248,6 +249,8 @@ async function findEditor(container: Element, testid = 'message-input'): Promise
   await vi.waitFor(() => expect(q(container, `[data-testid="${testid}"]`)).toBeTruthy(), {
     timeout: 5000
   });
+  // A cached editor mounts synchronously, before its scheduled autofocus completes.
+  await settleEditorFocus();
   return q(container, `[data-testid="${testid}"]`)!;
 }
 
@@ -473,6 +476,17 @@ describe('MessageComposer', () => {
     sessionStorage.clear();
     vi.clearAllMocks();
   });
+
+  it.each(['visual', 'markdown'] as const)(
+    'mounts a loaded %s editor without a pending frame',
+    async (kind) => {
+      userPreferences.composerEditor = kind;
+      await loadEditor(kind);
+      const { container } = renderMessageComposer({ roomId: 'loaded-editor' });
+      flushSync();
+      expect(container.querySelector('[data-testid="message-input"]')).not.toBeNull();
+    }
+  );
 
   describe.each(['visual', 'markdown'] as const)('%s emoji picker', (kind) => {
     it.each([false, true])(

@@ -14,9 +14,6 @@ export type WordmarkParticle = {
   z: number;
   size: number;
   opacity: number;
-  sparkles: boolean;
-  sparkleDelay: number;
-  sparkleDuration: number;
   burstDistance: number;
   fallbackAngle: number;
   burstRotation: number;
@@ -361,8 +358,6 @@ export function createWordmarkParticles(): WordmarkParticle[] {
           const offsetX = x - 0.5;
           const offsetY = (y - 0.5) * 1.4;
           const vectorLength = Math.hypot(offsetX, offsetY) || 1;
-          const sparkleSeed = glyphIndex * 97 + rowIndex * 31 + columnIndex * 17 + layerIndex * 13;
-          const frontFacing = layerIndex === layerDepths.length - 1;
 
           return {
             id: `${glyphIndex}-${rowIndex}-${columnIndex}-${layerIndex}`,
@@ -375,9 +370,6 @@ export function createWordmarkParticles(): WordmarkParticle[] {
             z: depth,
             size: 0.62 + layerIndex * 0.1 + variation,
             opacity: 0.35 + layerIndex * 0.21,
-            sparkles: frontFacing && sparkleSeed % 6 === 0,
-            sparkleDelay: -((sparkleSeed * 37) % 8000),
-            sparkleDuration: (7 + (sparkleSeed % 7)) * 1000,
             burstDistance:
               180 + ((glyphIndex * 13 + rowIndex * 7 + columnIndex * 5 + layerIndex) % 7) * 20,
             fallbackAngle: Math.atan2(offsetY / vectorLength, offsetX / vectorLength),
@@ -729,19 +721,4 @@ export function explosionFrame(progress: number, destination?: ExplosionFrame): 
   result.scaleDelta = 0;
   result.opacity = 0;
   return result;
-}
-
-export function sparkleStrength(
-  now: number,
-  delay: number,
-  duration: number,
-  enabled: boolean
-): number {
-  if (!enabled || duration <= 0) return 0;
-  const cycle = (((now - delay) % duration) + duration) % duration;
-  const progress = cycle / duration;
-  if (progress < 0.61 || progress >= 0.88) return 0;
-  if (progress < 0.64) return (progress - 0.61) / 0.03;
-  if (progress <= 0.68) return 1;
-  return 1 - (progress - 0.68) / 0.2;
 }

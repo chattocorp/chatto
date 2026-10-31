@@ -37,7 +37,7 @@ func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
 
-	state, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	state, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -79,12 +79,12 @@ func TestInvitationNotesValidateAndSurviveColdReplay(t *testing.T) {
 	adminID := invitationAdmin(t, c)
 	ctx := testContext(t)
 	for _, note := range []string{strings.Repeat("a", 251), strings.Repeat("界", 251), string([]byte{0xff})} {
-		if _, err := c.CreateInvitationCode(ctx, adminID, nil, note); !errors.Is(err, ErrInvalidArgument) {
+		if _, err := c.CreateInvitationCode(ctx, adminID, note); !errors.Is(err, ErrInvalidArgument) {
 			t.Fatalf("invalid note: got %v, want invalid argument", err)
 		}
 	}
 	for _, note := range []string{"", "  \t", "  For the design team  ", strings.Repeat("界", 250)} {
-		state, err := c.CreateInvitationCode(ctx, adminID, nil, note)
+		state, err := c.CreateInvitationCode(ctx, adminID, note)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -129,7 +129,7 @@ func TestManagedProviderSignupRequiresInvitation(t *testing.T) {
 	if _, err := c.CreateUserForExternalIdentity(ctx, "ignored", "", flow); !errors.Is(err, ErrInvitationInvalid) {
 		t.Fatalf("managed signup without code: got %v, want invalid invitation", err)
 	}
-	invitation, err := c.CreateInvitationCode(ctx, adminID, nil, "For new member")
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "For new member")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestInvitationCodeIndexRefreshesFromProjectedInvitations(t *testing.T) {
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
 
-	first, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	first, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation first: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestInvitationCodeIndexRefreshesFromProjectedInvitations(t *testing.T) {
 		t.Fatalf("ValidateInvitationCode first = %q, %v; want %q, nil", got, err, first.ID)
 	}
 
-	second, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	second, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation second: %v", err)
 	}
@@ -181,8 +181,7 @@ func TestInvitationAdmissionDoesNotConsumeAndRejectsExpiry(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
-	expiry := time.Now().Add(time.Hour)
-	invitation, err := c.CreateInvitationCode(ctx, adminID, &expiry, "")
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +197,10 @@ func TestInvitationAdmissionDoesNotConsumeAndRejectsExpiry(t *testing.T) {
 	if err != nil || state.Used {
 		t.Fatalf("validation consumed invitation: %v", err)
 	}
-	if _, err := c.invitationModel.validateIDAt(invitation.ID, expiry); !errors.Is(err, ErrInvitationInvalid) {
+	if invitation.ExpiresAt == nil || !invitation.ExpiresAt.Equal(invitation.CreatedAt.Add(7*24*time.Hour)) {
+		t.Fatal("server must set expiry to exactly seven days after creation")
+	}
+	if _, err := c.invitationModel.validateIDAt(invitation.ID, *invitation.ExpiresAt); !errors.Is(err, ErrInvitationInvalid) {
 		t.Fatalf("expired admission: %v", err)
 	}
 }
@@ -214,10 +216,10 @@ func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *te
 		t.Fatalf("CreateUser member: %v", err)
 	}
 
-	if _, err := c.CreateInvitationCode(ctx, member.Id, nil, ""); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := c.CreateInvitationCode(ctx, member.Id, ""); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("member CreateInvitation error = %v, want ErrPermissionDenied", err)
 	}
-	state, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	state, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -247,7 +249,7 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
-	invitation, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -315,7 +317,7 @@ func TestFailedSignupDoesNotConsumeInvitation(t *testing.T) {
 	if _, err := c.CreateVerifiedUser(ctx, SystemActorID, "existing-invite-email", "Existing Invite Email", "password123", "claimed@example.test"); err != nil {
 		t.Fatalf("CreateVerifiedUser existing: %v", err)
 	}
-	invitation, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}

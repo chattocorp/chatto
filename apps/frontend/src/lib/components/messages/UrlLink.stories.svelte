@@ -8,6 +8,12 @@
 </script>
 
 {#snippet examples()}
+  <p>
+    Release: <UrlLink
+      href="https://www.alchemy-cms.com/news/alchemy-8-4-released"
+      title="Alchemy 8.4 released"
+    />.
+  </p>
   <p>Please join <UrlLink href={longLink} /> and visit <UrlLink href="https://example.com" />.</p>
   <p>
     Documentation: <UrlLink
@@ -22,6 +28,7 @@
   <p>
     Page title: <UrlLink href="https://example.com/guide" title="Getting started with Chatto" />.
   </p>
+  <p>Loading metadata: <UrlLink href="https://example.com/guide" loading />.</p>
   <p>
     Long title: <UrlLink
       href="https://example.com/guide"

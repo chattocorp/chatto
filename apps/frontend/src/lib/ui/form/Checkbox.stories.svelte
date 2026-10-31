@@ -28,7 +28,34 @@
   let c = $state(false);
   let d = $state(false);
   let loadingValue = $state(true);
+  let saved = $state(false);
+  let saveError = $state('');
 </script>
+
+<Story name="Save before committing" asChild>
+  <Checkbox
+    id="async-save"
+    label="Automatic updates"
+    checked={saved}
+    onCheckedChange={async (value) => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      saved = value;
+    }}
+  />
+</Story>
+
+<Story name="Failed save keeps the committed value" asChild>
+  <Checkbox
+    id="failed-save"
+    label="Automatic updates"
+    checked
+    error={saveError}
+    onCheckedChange={async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      saveError = 'Could not save. Try again.';
+    }}
+  />
+</Story>
 
 <Story
   name="Default"

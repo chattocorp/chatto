@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -78,8 +79,74 @@ func (c *ChattoCore) CreateHistoricalOperatorUser(ctx context.Context, key, logi
 	if o.resource != "" {
 		return c.GetUser(ctx, o.resource)
 	}
+	if NormalizeDisplayName(display) == "" {
+		display = strings.TrimSpace(login)
+	}
 	user, err := c.createUserWithOptions(ctx, SystemActorID, login, display, "", userCreationOptions{
 		importEmails: nonemptyOperatorEmail(email), importReceipt: o.receipt, importContext: &evtv1.ImportContext{HiddenTimeline: true, UnknownTime: true},
+	})
+	if err != nil {
+		if loadErr := o.load(ctx); loadErr != nil {
+			return nil, loadErr
+		}
+		if o.resource != "" {
+			return c.GetUser(ctx, o.resource)
+		}
+	}
+	return user, err
+}
+
+// HistoricalUserInput describes an imported account, not a source-platform
+// identity. BotOwnerID selects bot creation and must name an active human.
+type HistoricalUserInput struct {
+	Login, DisplayName, Email, BotOwnerID string
+	Deactivated                           bool
+}
+
+// ImportHistoricalUser creates an account and its initial status in one batch.
+// It never issues credentials or changes the status of an existing account.
+func (c *ChattoCore) ImportHistoricalUser(ctx context.Context, key string, input HistoricalUserInput) (*readmodel.User, error) {
+	if input.BotOwnerID == "" && !input.Deactivated {
+		// Preserve the original active-human receipt fingerprint.
+		return c.CreateHistoricalOperatorUser(ctx, key, input.Login, input.DisplayName, input.Email)
+	}
+	if input.BotOwnerID != "" && input.Email != "" {
+		return nil, invalidArgument("bots cannot have verified emails")
+	}
+	o, err := c.operatorOperation(ctx, key, "ImportUser", input)
+	if err != nil {
+		return nil, err
+	}
+	if o.resource != "" {
+		return c.GetUser(ctx, o.resource)
+	}
+	var authorize func() error
+	if input.BotOwnerID != "" {
+		authorize = func() error {
+			owner, err := c.GetUser(ctx, input.BotOwnerID)
+			if err != nil {
+				return err
+			}
+			if owner.GetIsBot() || owner.GetDeleted() || owner.GetDeactivated() {
+				return invalidArgument("bot owner must be an active human")
+			}
+			return nil
+		}
+	}
+	if authorize != nil {
+		if err := authorize(); err != nil {
+			return nil, err
+		}
+	}
+	display := input.DisplayName
+	if NormalizeDisplayName(display) == "" {
+		display = strings.TrimSpace(input.Login)
+	}
+	user, err := c.createUserWithOptions(ctx, SystemActorID, input.Login, display, "", userCreationOptions{
+		isBot: input.BotOwnerID != "", botOwnerID: input.BotOwnerID, credentialFreeBot: true,
+		initialDeactivated: input.Deactivated, authorize: authorize,
+		importEmails: nonemptyOperatorEmail(input.Email), importReceipt: o.receipt,
+		importContext: &evtv1.ImportContext{HiddenTimeline: true, UnknownTime: true},
 	})
 	if err != nil {
 		if loadErr := o.load(ctx); loadErr != nil {

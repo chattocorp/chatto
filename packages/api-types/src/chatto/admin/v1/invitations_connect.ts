@@ -7,7 +7,9 @@ import { CreateInvitationCodeRequest, CreateInvitationCodeResponse, GetInvitatio
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Issues and manages registration codes. All methods require user.manage-invites.
+ * Issues and manages registration codes. user.invite permits access to own codes.
+ * Effective user.manage-invites permits access to all codes and requires
+ * privileged mode for human sessions.
  * External systems can issue codes with an authorized API credential.
  *
  * @generated from service chatto.admin.v1.AdminInvitationCodeService
@@ -16,7 +18,7 @@ export const AdminInvitationCodeService = {
   typeName: "chatto.admin.v1.AdminInvitationCodeService",
   methods: {
     /**
-     * Lists current and historical codes.
+     * Lists visible current and historical codes. Pagination and totals include only visible codes.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes
      */
@@ -27,7 +29,7 @@ export const AdminInvitationCodeService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads a code by ID. Returns NOT_FOUND for an unknown ID.
+     * Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode
      */
@@ -38,7 +40,8 @@ export const AdminInvitationCodeService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a code. Not idempotent: retrying creates another code.
+     * Creates a code that expires seven days after creation for every caller.
+     * Not idempotent: retrying creates another code.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode
      */
@@ -50,6 +53,7 @@ export const AdminInvitationCodeService = {
     },
     /**
      * Revokes a code without deleting its history. Repeating revocation is safe.
+     * Returns NOT_FOUND for an unknown or inaccessible ID.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode
      */

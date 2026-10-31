@@ -564,10 +564,11 @@
       "total": "{count} användare totalt"
     },
     "invitations": {
+      "management_help": "Inbjudningskoder låter andra gå med på den här servern.",
       "created_by": "Skapad av",
       "note_label": "Anteckning (valfritt)",
       "note_placeholder": "Till Alex från designteamet",
-      "note_description": "Endast inbjudningsadministratörer kan se denna anteckning.",
+      "note_description": "Du och inbjudningsadministratörer kan se denna anteckning.",
       "note_too_long": "Använd högst 250 tecken.",
       "usage": "Nya koder gäller i 7 dagar och ger ett konto vardera. Kopiera en kod och skicka den till mottagaren. Koden används först när registreringen lyckas.",
       "create_title": "Skapa kod",

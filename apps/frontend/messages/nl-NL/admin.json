@@ -564,10 +564,11 @@
       "total": "{count} gebruiker(s) totaal"
     },
     "invitations": {
+      "management_help": "Met uitnodigingscodes kunnen andere mensen lid worden van deze server.",
       "created_by": "Gemaakt door",
       "note_label": "Notitie (optioneel)",
       "note_placeholder": "Voor Alex van het ontwerpteam",
-      "note_description": "Alleen uitnodigingsbeheerders kunnen deze notitie zien.",
+      "note_description": "Jij en uitnodigingsbeheerders kunnen deze notitie zien.",
       "note_too_long": "Gebruik maximaal 250 tekens.",
       "usage": "Nieuwe codes verlopen na 7 dagen en zijn elk voor één account. Kopieer een code en stuur deze naar de ontvanger. De code wordt pas gebruikt als de registratie slaagt.",
       "create_title": "Code maken",

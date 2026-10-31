@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Atualizações",
+      "subtitle": "Atualizações desta instalação",
+      "updates": "Atualizações da aplicação",
+      "unavailable": "As atualizações automáticas não estão disponíveis nesta instalação.",
+      "version": "Versão instalada: {version}",
+      "ready_link": "Atualização pronta",
+      "restart_warning": "Reiniciar termina as chamadas ativas e a partilha de ecrã.",
+      "restart": "Reiniciar para atualizar",
+      "check": "Procurar atualizações",
+      "preferences": "Preferências de atualização",
+      "automatic": "Procurar e transferir automaticamente",
+      "channel": "Canal de versões",
+      "stable": "Estável",
+      "beta": "Beta",
+      "channel_help": "As atualizações estáveis automáticas são distribuídas ao longo de 36 horas. As verificações manuais e Beta ignoram esta espera. Mudar para Estável nunca instala uma versão anterior.",
+      "privacy": "As atualizações contactam o GitHub, que recebe o seu endereço IP e os pedidos de atualização. O Chatto não envia informações de contas nem de servidores ligados.",
+      "status": {
+        "idle": "Pronto para procurar atualizações.",
+        "checking": "A procurar atualizações…",
+        "downloading": "A transferir atualização…",
+        "ready": "Pronto para reiniciar.",
+        "current": "Não existe uma atualização mais recente neste canal.",
+        "error": "A operação de atualização falhou. Tente novamente.",
+        "changed": "A versão disponível mudou. Verifique novamente.",
+        "installing": "A preparar o reinício…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Gira a sua palavra-passe, os endereços de e-mail e os métodos de início de sessão.",
@@ -11,7 +39,8 @@
         "general": "Identidade, marca e mensagens do servidor",
         "neighbors": "Divulgue servidores Chatto amigos no seu diretório público",
         "members": "Visualizar e gerir os membros do servidor e as suas funções",
-        "invitations": "Crie e faça a gestão de ligações que permitem criar novas contas.",
+        "registration": "Controle como novas contas aderem a este servidor.",
+        "invitations": "Crie e faça a gestão de códigos de convite.",
         "rooms": "Criar, editar, organizar e arquivar salas",
         "moderation": "Rever suspensões ativas das salas",
         "permissions": "Gerir padrões de funções em todo o servidor",

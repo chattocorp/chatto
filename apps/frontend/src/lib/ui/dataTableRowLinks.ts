@@ -15,12 +15,7 @@ const INTERACTIVE_SELECTOR =
  * Returns the row link that a pointer event on a passive part of a row should
  * activate, or null when the event belongs to something else.
  */
-function rowLinkFor(body: HTMLElement, event: MouseEvent): HTMLAnchorElement | null {
-  if (event.defaultPrevented) return null;
-
-  const target = event.target;
-  if (!(target instanceof Element)) return null;
-
+export function rowLinkForTarget(body: HTMLElement, target: Element): HTMLAnchorElement | null {
   const row = target.closest('tr');
   if (!row || !body.contains(row)) return null;
   // Only look inside the row: a scroll container around the table can be
@@ -48,11 +43,16 @@ function rowLinkFor(body: HTMLElement, event: MouseEvent): HTMLAnchorElement | n
  * containing block of an absolutely positioned overlay.
  */
 export const forwardRowClicks: Attachment<HTMLElement> = (body) => {
+  function rowLinkFor(event: MouseEvent) {
+    if (event.defaultPrevented || !(event.target instanceof Element)) return null;
+    return rowLinkForTarget(body, event.target);
+  }
+
   function activate(event: MouseEvent) {
     if (event.type === 'click' && event.button !== 0) return;
     if (event.type === 'auxclick' && event.button !== 1) return;
 
-    const link = rowLinkFor(body, event);
+    const link = rowLinkFor(event);
     if (!link) return;
 
     // Ending a drag selection inside the row fires a click; keep the selection.
@@ -70,7 +70,7 @@ export const forwardRowClicks: Attachment<HTMLElement> = (body) => {
   // A middle press on a linked row opens a tab, so it must not also start the
   // browser's autoscroll mode.
   function preventAutoscroll(event: MouseEvent) {
-    if (event.button === 1 && rowLinkFor(body, event)) event.preventDefault();
+    if (event.button === 1 && rowLinkFor(event)) event.preventDefault();
   }
 
   const listeners = [

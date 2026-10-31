@@ -3,14 +3,23 @@ import { getContext, setContext } from 'svelte';
 import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
 
 type PreviewLookup = (href: string) => LinkPreviewView | null | undefined;
+type PreviewContext = { lookup: PreviewLookup; isLoading: (href: string) => boolean };
 const key = Symbol('inline link preview');
 
 /** Provide a reactive lookup scoped to one message or composer. */
-export function provideLinkPreview(lookup: PreviewLookup): void {
-  setContext(key, lookup);
+export function provideLinkPreview(
+  lookup: PreviewLookup,
+  isLoading: (href: string) => boolean = () => false
+): void {
+  setContext<PreviewContext>(key, { lookup, isLoading });
 }
 
 /** Read existing metadata; absence of a provider never triggers a request. */
-export function useLinkPreview(): PreviewLookup {
-  return getContext<PreviewLookup | undefined>(key) ?? (() => undefined);
+export function useLinkPreview(): PreviewContext {
+  return (
+    getContext<PreviewContext | undefined>(key) ?? {
+      lookup: () => undefined,
+      isLoading: () => false
+    }
+  );
 }

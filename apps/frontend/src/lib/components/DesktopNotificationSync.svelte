@@ -4,7 +4,6 @@
   import type { NotificationOccurrenceItem } from '@chatto/client/api/notifications';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { goto } from '$app/navigation';
-  import { m } from '$lib/i18n/messages';
   import { serverUi } from '$lib/state/server/serverUi';
   import {
     eligibleNotificationAlerts,
@@ -17,6 +16,7 @@
   } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { NotificationArrivals } from '$lib/desktop/notificationArrivals';
+  import { desktopNotificationContent } from '$lib/desktop/notificationContent';
   import {
     desktopNotifications,
     showDesktopNotification,
@@ -46,6 +46,7 @@
         if (event.privacy) reset();
       }),
       store.onRoomAccessLost(clear),
+      store.onUserDeleted(clear),
       store.onPermissionsChanged(clear),
       store.onSessionEnded(reset)
     ];
@@ -83,7 +84,7 @@
     const target = { ...row, actor: null, room: row.room ? { id: row.room.id, name: '' } : null };
     void showDesktopNotification(
       id,
-      m('settings.notifications.title'),
+      desktopNotificationContent(store, row),
       () => {
         void open(target).catch(() => console.error('Could not open the notification.'));
       },
@@ -107,7 +108,11 @@
     reconcileDesktopNotifications(owner, notifications);
     if (!desktopNotifications.enabled) return;
     const eligible = eligibleNotificationAlerts(store.serverId, store, fresh).filter(
-      (row) => row.targetSupported
+      (row) =>
+        row.targetSupported &&
+        row.unread &&
+        notifications.canDisplayOccurrence(row) &&
+        (!row.expiresAt || Date.parse(row.expiresAt) > Date.now())
     );
     for (const row of eligible) show(row);
     if (eligible.length) {

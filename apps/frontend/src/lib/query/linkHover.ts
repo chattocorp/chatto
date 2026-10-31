@@ -1,4 +1,4 @@
-/** Lazily observe server-fetched metadata after a link's first hover. */
+/** Share server-fetched metadata between visible link pills and hover cards. */
 import { QueryObserver } from '@tanstack/svelte-query';
 import { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';
 import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
@@ -14,7 +14,7 @@ export function observeLinkHover(
 ): () => void {
   const observer = new QueryObserver(queryClient, {
     queryKey: [...serverSessionQueryRoot(scope.serverId, scope.connection), 'link-hover', href],
-    queryFn: () => scope.connection.getAPI(createLinkPreviewAPI).fetchLinkPreview(href),
+    queryFn: () => scope.connection.getAPI(createLinkPreviewAPI).fetchLinkMetadata(href),
     staleTime: 5 * 60_000,
     gcTime: 5 * 60_000,
     retry: false,

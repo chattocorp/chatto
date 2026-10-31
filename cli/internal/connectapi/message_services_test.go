@@ -22,6 +22,7 @@ import (
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestMessageServiceInteractionPostingCapability(t *testing.T) {
@@ -141,6 +142,35 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	}
 	if resp.Msg.GetPreviewToken() == "" {
 		t.Fatalf("PreviewToken is empty")
+	}
+
+	js, err := jetstream.New(env.nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeStream, err := js.Stream(env.ctx, "KV_RUNTIME_STATE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := runtimeStream.GetLastMsgForSubject(env.ctx, "$KV.RUNTIME_STATE.link_preview_token.>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	display, err := env.messages.FetchLinkPreview(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.FetchLinkPreviewRequest{
+		Url: server.URL + "/article", OmitPreviewToken: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if display.Msg.GetPreview().GetTitle() != "Connect Preview" || display.Msg.GetPreviewToken() != "" {
+		t.Fatal("display read must return metadata without a composer token")
+	}
+	after, err := runtimeStream.GetLastMsgForSubject(env.ctx, "$KV.RUNTIME_STATE.link_preview_token.>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Sequence != before.Sequence {
+		t.Fatal("display read wrote an unused composer token")
 	}
 
 	room := env.createJoinedRoom("message-preview-token")

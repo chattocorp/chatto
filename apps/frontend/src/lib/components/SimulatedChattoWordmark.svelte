@@ -44,7 +44,6 @@
     rebuildStitchFrame,
     rayExitDistance,
     smokeFrame,
-    sparkleStrength,
     type ProjectedParticle,
     type ExplosionFrame,
     type ProjectionRotation,
@@ -612,7 +611,11 @@
       requestDraw();
       return;
     }
-    lastDrawnAt = Number.isFinite(lastDrawnAt) ? now - (elapsedSinceLastDraw % frameInterval) : now;
+    // Use the same tolerance as the gate above. An early frame must advance
+    // the clock too, or the next callback draws the same interval again.
+    lastDrawnAt = Number.isFinite(lastDrawnAt)
+      ? lastDrawnAt + Math.floor((elapsedSinceLastDraw + 1) / frameInterval) * frameInterval
+      : now;
 
     if (reducedMotion) {
       currentRotateX = targetRotateX;
@@ -688,6 +691,7 @@
         for (const activeBurst of activeBursts) {
           const { frame, progress } = activeBurst;
           const vector = activeBurst.vectors[index];
+          if (vector.force === 0) continue;
           burstX += vector.x * frame.offset;
           burstY += ballisticDisplacement(vector.y, vector.gravity, frame.offset);
           burstRotation += vector.rotation * frame.rotation;
@@ -742,15 +746,6 @@
       const y = position.y + burstY + hoverY;
       const scale =
         position.scale * construction.scale * rebuildScale * Math.max(0.15, 1 + burstScaleDelta);
-      const sparkle =
-        reducedMotion || narrowTouchProfile
-          ? 0
-          : sparkleStrength(
-              now,
-              particle.sparkleDelay,
-              particle.sparkleDuration,
-              particle.sparkles
-            );
       const opacity = particle.opacity * construction.opacity * burstOpacity;
       if (opacity <= 0.002) continue;
       const constructionGlow = narrowTouchProfile ? 0 : Math.max(construction.glow, rebuildGlow);
@@ -773,9 +768,6 @@
       if (constructionGlow > 0) {
         context.shadowColor = `rgb(42 226 255 / ${constructionGlow})`;
         context.shadowBlur = 20 * constructionGlow;
-      }
-      if (sparkle > 0) {
-        context.filter = `brightness(${1 - sparkle}) invert(${sparkle}) drop-shadow(0 0 ${7 * sparkle}px rgb(255 255 255 / ${0.95 * sparkle}))`;
       }
       context.drawImage(
         sprite.canvas,
@@ -1101,6 +1093,7 @@
 {/if}
 
 <div
+  data-press-feedback="none"
   class={[
     'relative touch-manipulation overflow-hidden rounded-lg bg-black select-none',
     contained ? 'h-full w-full' : 'aspect-[5/1] w-[min(82vw,42rem)] max-w-full'

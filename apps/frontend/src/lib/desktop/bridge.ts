@@ -3,8 +3,10 @@ import type {
   NativeScreenSharePublisherRequest,
   NativeScreenShareSourceResponse
 } from './nativeScreenShare';
+import type { DesktopUpdatesBridge } from './updates.svelte';
 
 export interface ChattoDesktopBridge {
+  updates?: DesktopUpdatesBridge;
   /** Native alerts carry opaque click IDs, never host-provided navigation URLs. */
   notifications?: {
     show(request: { id: string; title: string; body: string }): Promise<void>;

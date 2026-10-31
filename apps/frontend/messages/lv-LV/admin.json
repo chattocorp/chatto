@@ -575,10 +575,11 @@
       "total": "Kopā {count} lietotājs(-i)."
     },
     "invitations": {
+      "management_help": "Ielūgumu kodi ļauj citiem cilvēkiem pievienoties šim serverim.",
       "created_by": "Izveidoja",
       "note_label": "Piezīme (neobligāta)",
       "note_placeholder": "Aleksam no dizaina komandas",
-      "note_description": "Šo piezīmi var redzēt tikai ielūgumu pārvaldnieki.",
+      "note_description": "Šo piezīmi varat redzēt jūs un ielūgumu pārvaldnieki.",
       "note_too_long": "Izmantojiet ne vairāk kā 250 rakstzīmes.",
       "usage": "Jaunie kodi ir derīgi 7 dienas, un katrs ļauj izveidot vienu kontu. Kopējiet kodu un nosūtiet to saņēmējam. Kods tiek izmantots tikai pēc veiksmīgas reģistrācijas.",
       "create_title": "Izveidot kodu",

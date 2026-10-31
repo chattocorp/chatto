@@ -12,6 +12,9 @@ message FetchLinkPreviewRequest {
     (buf.validate.field).string.min_len = 1,
     (buf.validate.field).string.max_len = 2048
   ];
+  // Set for display-only reads to skip creation of a message-composer token.
+  // Older servers can ignore this field and still return a token.
+  bool omit_preview_token = 2;
 }
 
 // Link preview metadata used by message composers and room timeline events.
@@ -110,6 +113,6 @@ message FetchLinkPreviewResponse {
   // Preview metadata, or absent when the URL cannot be previewed.
   LinkPreview preview = 1;
   // Short-lived opaque token to pass to CreateMessage.link_preview_token when
-  // the user posts this preview.
+  // the user posts this preview. Empty when omit_preview_token is true.
   string preview_token = 2;
 }

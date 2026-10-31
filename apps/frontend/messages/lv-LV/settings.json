@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Atjauninājumi",
+      "subtitle": "Šīs instalācijas atjauninājumi",
+      "updates": "Lietotnes atjauninājumi",
+      "unavailable": "Šajā instalācijā automātiskie atjauninājumi nav pieejami.",
+      "version": "Instalētā versija: {version}",
+      "ready_link": "Atjauninājums gatavs",
+      "restart_warning": "Restartēšana beidz aktīvos zvanus un ekrāna kopīgošanu.",
+      "restart": "Restartēt, lai atjauninātu",
+      "check": "Pārbaudīt atjauninājumus",
+      "preferences": "Atjauninājumu iestatījumi",
+      "automatic": "Automātiski pārbaudīt un lejupielādēt",
+      "channel": "Laidienu kanāls",
+      "stable": "Stabils",
+      "beta": "Beta",
+      "channel_help": "Automātiskie stabilie atjauninājumi tiek izplatīti 36 stundu laikā. Manuālās pārbaudes un Beta apiet šo aizkavi. Pāreja uz Stabils nekad neinstalē vecāku versiju.",
+      "privacy": "Atjauninājumi sazinās ar GitHub, kas saņem jūsu IP adresi un atjauninājumu pieprasījumus. Chatto nesūta konta vai pievienoto serveru informāciju.",
+      "status": {
+        "idle": "Gatavs pārbaudīt atjauninājumus.",
+        "checking": "Pārbauda atjauninājumus…",
+        "downloading": "Lejupielādē atjauninājumu…",
+        "ready": "Gatavs restartēšanai.",
+        "current": "Šajā kanālā nav jaunāka atjauninājuma.",
+        "error": "Atjaunināšanas darbība neizdevās. Mēģiniet vēlreiz.",
+        "changed": "Pieejamais laidiens ir mainījies. Pārbaudiet vēlreiz.",
+        "installing": "Sagatavo restartēšanu…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Pārvaldiet paroli, e-pasta adreses un pierakstīšanās metodes.",
@@ -11,7 +39,8 @@
         "general": "Servera identitāte, zīmols un ziņojumi",
         "neighbors": "Popularizējiet draudzīgus Chatto serverus savā publiskajā katalogā",
         "members": "Skatiet un pārvaldiet servera dalībniekus un viņu lomas",
-        "invitations": "Izveidojiet un pārvaldiet saites, ar kurām var pievienoties jauni konti.",
+        "registration": "Nosakiet, kā jauni konti pievienojas šim serverim.",
+        "invitations": "Izveidojiet un pārvaldiet ielūgumu kodus.",
         "rooms": "Izveidojiet, rediģējiet, kārtojiet un arhivējiet telpas",
         "moderation": "Pārskatīt aktīvos telpu piekļuves apturējumus",
         "permissions": "Pārvaldiet servera mēroga lomu noklusējuma iestatījumus",

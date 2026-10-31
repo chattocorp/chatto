@@ -79,6 +79,15 @@ function createStore(
 }
 
 describe('RoomMembersStore', () => {
+  it('gets bounded bare-mention suggestions without starting a directory scan', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('alice')], true, 500)]);
+    const store = new RoomMembersStore('room', api);
+    expect((await store.searchMembers('')).map((member) => member.id)).toEqual(['alice']);
+    expect(api.listRoomMembers).toHaveBeenCalledExactlyOnceWith('room', '', 10, 0);
+    expect(api.listOnlineRoomMembers).not.toHaveBeenCalled();
+    expect(store.hasFirstPage).toBe(false);
+    expect(store.hasLoadedAll).toBe(false);
+  });
   it('discards a read in progress and starts no reads after dispose', async () => {
     const page = deferred<MemberDirectoryPage>();
     const api = new FakeMemberDirectoryAPI([page.promise, pageResult([user('u2')])]);

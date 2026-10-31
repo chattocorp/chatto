@@ -90,7 +90,7 @@ class FileCache:
 
     def _open(self, url):
         for _ in range(6):
-            validate_url(url)
+            self.validate_url(url)
             try:
                 return self.opener.open(urllib.request.Request(url, headers={"Accept-Encoding": "identity"}), timeout=30)
             except urllib.error.HTTPError as error:
@@ -102,6 +102,8 @@ class FileCache:
                     raise FileUnavailable("invalid_download_redirect") from None
                 url = urllib.parse.urljoin(url, target)
         raise FileUnavailable("too_many_download_redirects")
+
+    validate_url = staticmethod(validate_url)
 
     def get(self, item):
         if item.get("mode") == "tombstone":
@@ -134,7 +136,7 @@ class FileCache:
         url = item.get("url_private_download") or item.get("url_private")
         if not isinstance(url, str) or not url:
             raise FileUnavailable("no_download_url")
-        validate_url(url)
+        self.validate_url(url)
         if self.downloaded_bytes >= self.max_download_bytes:
             raise FileUnavailable("download_budget_exceeded")
         filename = (item.get("name") or "attachment").replace("\\", "/").rsplit("/", 1)[-1]

@@ -158,4 +158,19 @@ describe('LinkPreviewState', () => {
     expect(state.fetchingURLs.size).toBe(0);
     expect(state.dismissedURLs.size).toBe(0);
   });
+
+  it('clears loading and keeps a URL fallback when a scheduled preview request fails', async () => {
+    vi.useFakeTimers();
+    const url = 'https://example.com/guide';
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockRejectedValue(new Error('unavailable'));
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
+    const cleanup = state.scheduleDetection(url, false);
+    await vi.advanceTimersByTimeAsync(500);
+    cleanup();
+
+    expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(url);
+    expect(state.fetchingURLs.has(url)).toBe(false);
+    expect(state.previews.get(url)).toBeNull();
+    expect(state.buildToken()).toBeNull();
+  });
 });

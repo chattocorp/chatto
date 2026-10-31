@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-29
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -98,8 +98,10 @@ system-browser authentication, and clean-machine media behavior are hardened.
   replace each other. Deployment tools select the intended release.
 - Tagged macOS apps, Windows NSIS installer copies, and Linux AppImages can download
   whole-app updates from GitHub. The frontend stays local and bundled. The
-  Updates menu offers Stable or Beta, manual checks, and an automatic-check
-  setting. Prerelease builds default to Beta; stable builds default to Stable.
+  **App Preferences → Updates** shows the installed version, update status,
+  download progress, Stable or Beta, manual checks, and an automatic-check
+  setting. The native Updates menu uses the same settings and updater.
+  Prerelease builds default to Beta; stable builds default to Stable.
   A saved channel choice takes precedence. Stable rolls out over 36 hours. Beta and manual
   checks bypass this delay. Switching to Stable never installs an older version.
   The restart action is hidden until an update is ready and shows its version.
@@ -107,8 +109,18 @@ system-browser authentication, and clean-machine media behavior are hardened.
   not install updates. Existing builds need one manual upgrade to obtain this
   behavior. Windows ZIP and Linux tarball updates remain manual.
 - GitHub receives update requests and the user's IP address, but no Chatto
-  account or connected-server information. The Updates menu explains this
-  connection and lets users disable automatic checks and downloads.
+  account or connected-server information. Updates preferences and the Updates menu explain this
+  connection and let users disable automatic checks and downloads.
+- An update-ready link in the Application Header opens Updates preferences.
+  Background checks do not open a dialog. Restart still requires confirmation
+  and warns that active calls and screen sharing will end.
+- Updates preferences are independent of the selected server and remain
+  available without a server connection. All desktop builds show the page in
+  navigation. Development builds and installations without automatic updates show
+  their installed version and an unavailable message, without update controls.
+  Browsers hide the entry; direct entry explains that automatic updates are
+  unavailable. Other native features keep their controls in the
+  relevant feature, such as notifications or screen sharing (ADR-072).
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
 - Local macOS development bundles can use the separate **Chatto Dev**
@@ -355,7 +367,7 @@ depend on the renderer being alive.
 **Why:** The app is self-contained. A disk image gives users a familiar way to
 install it without installation scripts or additional system services.
 **Tradeoff:** Installation requires a manual drag to Applications. Subsequent
-updates use the Updates menu and require a restart.
+updates use Updates preferences or the Updates menu and require a restart.
 
 ### 11. Update the complete desktop app through GitHub
 

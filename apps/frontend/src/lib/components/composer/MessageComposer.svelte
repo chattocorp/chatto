@@ -21,7 +21,6 @@
   import { slowModeRemainingSeconds as remainingSlowModeSeconds } from '$lib/slowMode';
   import { Code, ConnectError } from '@chatto/client/api/connect';
   import { SvelteDate } from 'svelte/reactivity';
-  import type { Component } from 'svelte';
   import EmojiAutocomplete from './EmojiAutocomplete.svelte';
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import RoomAutocomplete from './RoomAutocomplete.svelte';
@@ -32,16 +31,8 @@
   import ComposerToolbar from './ComposerToolbar.svelte';
   import ComposerModeIndicators from './ComposerModeIndicators.svelte';
   import { MessageComposerState, type MessageComposerProps } from './messageComposerState.svelte';
-  import type { ComposerEditorProps } from './editorTypes';
-  import { userPreferences, type ComposerEditorKind } from '$lib/state/userPreferences.svelte';
-
-  const editorLoaders: Record<
-    ComposerEditorKind,
-    () => Promise<{ default: Component<ComposerEditorProps> }>
-  > = {
-    visual: () => import('./TipTapEditor.svelte'),
-    markdown: () => import('./MarkdownEditor.svelte')
-  };
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
+  import { loadEditor } from './loadEditor';
   const serverScope = useServerScope();
   const stores = serverScope.store;
   const serverInfo = stores.serverInfo;
@@ -100,7 +91,7 @@
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
   let slowModeBadge: { highlight: () => void } | undefined = $state();
-  const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
+  const editorModule = $derived(loadEditor(userPreferences.composerEditor));
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
   let descriptionAttachmentIndex = $state<number | null>(null);
@@ -138,7 +129,10 @@
   const composerContext = getComposerContext();
   const replyState = $derived(composerContext.replyState);
   const membersStore = useRoomMembersStore();
-  provideLinkPreview((href) => composer.linkPreviews.previews.get(href));
+  provideLinkPreview(
+    (href) => composer.linkPreviews.previews.get(href),
+    (href) => composer.linkPreviews.fetchingURLs.has(href)
+  );
   const composer = new MessageComposerState({
     draftReplies: serverUi(stores).draftReplies,
     getRoomId: () => roomId,

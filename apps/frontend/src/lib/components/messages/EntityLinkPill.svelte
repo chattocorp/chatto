@@ -1,5 +1,6 @@
 <!-- @component A native entity link. Menu state exists only while its entity and session are available. -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { ResolvedPathname } from '$app/types';
   import type { EntityLink } from '$lib/chatLinks';
   import type { ServerStateStore } from '@chatto/client/server/store';
@@ -20,7 +21,8 @@
     user,
     room,
     store,
-    logoUrl
+    logoUrl,
+    sheetPreview
   }: {
     target: EntityLink;
     path: ResolvedPathname;
@@ -31,6 +33,8 @@
     room?: RoomListItem;
     store?: ServerStateStore;
     logoUrl?: string | null;
+    /** Preview and navigation actions for the touch menu. */
+    sheetPreview?: Snippet<[() => void]>;
   } = $props();
   let menu = $state<ContextMenuTriggerDetails | null>(null);
   const trigger = contextMenuTrigger((details) => (menu = details));
@@ -90,7 +94,15 @@
 {#if menu && store}
   {#await Promise.all( [import('./EntityLinkMenu.svelte'), import('$lib/state/server/ServerScopeProvider.svelte')] ) then [actions, scope]}
     <scope.default serverId={target.serverId} {store} connection={store.connection}>
-      <actions.default {target} {user} {room} {name} {menu} onclose={() => (menu = null)} />
+      <actions.default
+        {target}
+        {user}
+        {room}
+        {name}
+        {menu}
+        {sheetPreview}
+        onclose={() => (menu = null)}
+      />
     </scope.default>
   {/await}
 {/if}

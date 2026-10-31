@@ -1,5 +1,6 @@
 <!-- @component Entity actions in the target server's scope. Loaded only when a link menu opens. -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { EntityLink } from '$lib/chatLinks';
@@ -42,7 +43,8 @@
     room,
     name,
     menu,
-    onclose
+    onclose,
+    sheetPreview
   }: {
     target: EntityLink;
     user?: UserAvatarUserView;
@@ -50,6 +52,7 @@
     name: string;
     menu: ContextMenuTriggerDetails;
     onclose: () => void;
+    sheetPreview?: Snippet<[() => void]>;
   } = $props();
   const scope = useServerScope();
   const { serverId, store } = scope;
@@ -95,6 +98,7 @@
       onclose();
     }}
     onClose={onclose}
+    header={menu.presentation === 'sheet' && sheetPreview ? previewHeader : undefined}
   />
 {:else if dialog === 'archive' && room}
   <ConfirmDialog
@@ -118,6 +122,7 @@
   />
 {:else}
   <ContextMenu
+    role={menu.presentation === 'sheet' ? 'dialog' : 'menu'}
     position={menu.position}
     presentation={menu.presentation}
     ariaLabel={room
@@ -125,6 +130,7 @@
       : m('room_list.server_actions', { server: name })}
     {onclose}
   >
+    {#if menu.presentation === 'sheet'}{@render previewHeader()}{/if}
     {#if room}
       <RoomContextMenu
         isRoomMember={room.viewerIsMember === true}
@@ -198,3 +204,7 @@
     {/if}
   </ContextMenu>
 {/if}
+
+{#snippet previewHeader()}
+  {@render sheetPreview?.(onclose)}
+{/snippet}

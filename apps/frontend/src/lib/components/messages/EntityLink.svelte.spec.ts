@@ -140,10 +140,10 @@ it.each(['ltr', 'rtl'])(
         ? host.getBoundingClientRect().left > title.getBoundingClientRect().left
         : host.getBoundingClientRect().left < title.getBoundingClientRect().left
     ).toBe(true);
-    // A standalone link can use the wider message instead of keeping a fixed cap.
+    // Long titles stay compact even when the message column is wide.
     container.style.width = '900px';
-    expect(anchor.getBoundingClientRect().width).toBeGreaterThan(800);
-    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(900);
+    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(448);
+    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
   }
 );
 
@@ -486,6 +486,38 @@ describe('entity links in messages', () => {
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="copy-room-id"]')).toBeNull()
     );
+  });
+
+  it.each([
+    ['room', `${origin}/chat/-/${roomId}`, 'Copy room ID'],
+    ['server', origin, 'Server information'],
+    ['user', `${origin}/chat/-/user/${userId}`, 'Copy user ID']
+  ])('keeps the %s actions below a touch preview in one sheet', async (_kind, href, action) => {
+    const { container } = render(MessageContent, { body: href });
+    await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
+    const link = container.querySelector('.entity-link')!;
+    link.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'touch',
+        pointerId: 1,
+        isPrimary: true
+      })
+    );
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-touch-preview"]')).not.toBeNull()
+    );
+    expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+    expect(container.querySelector('dialog')?.textContent).toContain(action);
+    expect(container.querySelector('dialog')?.textContent).toContain('Open link');
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    link.dispatchEvent(
+      new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 1 })
+    );
+    const release = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(release);
+    expect(release.defaultPrevented).toBe(true);
+    expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
   });
 
   it.each([

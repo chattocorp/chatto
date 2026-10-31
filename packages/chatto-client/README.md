@@ -132,6 +132,13 @@ does not read the thread again for each change.
 
 Use `readThread` instead when you need one snapshot and no live updates.
 
+`rooms.members(roomId)` returns a member store without starting a directory
+scan. Call `store.loadRoomMembers(roomId)` when a consumer needs the full list;
+the server store defers this request until room access is known. Use
+`members.searchMembers(query)` for bounded suggestions without loading the full
+list. An empty query returns a bounded page of suggestions. Recovery refreshes
+only explicitly requested directories.
+
 ### Readiness and failures
 
 - `ready()` rejects when the server rejects the key, when the server is

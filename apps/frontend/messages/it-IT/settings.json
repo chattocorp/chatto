@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Aggiornamenti",
+      "subtitle": "Aggiornamenti di questa installazione",
+      "updates": "Aggiornamenti dell’applicazione",
+      "unavailable": "Gli aggiornamenti automatici non sono disponibili in questa installazione.",
+      "version": "Versione installata: {version}",
+      "ready_link": "Aggiornamento pronto",
+      "restart_warning": "Il riavvio termina le chiamate attive e la condivisione dello schermo.",
+      "restart": "Riavvia per aggiornare",
+      "check": "Cerca aggiornamenti",
+      "preferences": "Preferenze degli aggiornamenti",
+      "automatic": "Cerca e scarica automaticamente",
+      "channel": "Canale delle versioni",
+      "stable": "Stabile",
+      "beta": "Beta",
+      "channel_help": "Gli aggiornamenti stabili automatici vengono distribuiti nell’arco di 36 ore. I controlli manuali e Beta ignorano questa attesa. Il passaggio a Stabile non installa mai una versione precedente.",
+      "privacy": "Gli aggiornamenti contattano GitHub, che riceve il tuo indirizzo IP e le richieste di aggiornamento. Chatto non invia informazioni sull’account o sui server connessi.",
+      "status": {
+        "idle": "Pronto a cercare aggiornamenti.",
+        "checking": "Ricerca aggiornamenti…",
+        "downloading": "Download dell’aggiornamento…",
+        "ready": "Pronto al riavvio.",
+        "current": "Non è disponibile un aggiornamento più recente su questo canale.",
+        "error": "L’operazione di aggiornamento non è riuscita. Riprova.",
+        "changed": "La versione disponibile è cambiata. Controlla di nuovo.",
+        "installing": "Preparazione al riavvio…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Gestisci password, indirizzi e-mail e metodi di accesso.",
@@ -11,7 +39,8 @@
         "general": "Identità del server, branding e messaggi",
         "neighbors": "Pubblica server Chatto amici nella directory pubblica",
         "members": "Visualizza e gestisci i membri del server e i loro ruoli",
-        "invitations": "Crea e gestisci i link che permettono di creare nuovi account.",
+        "registration": "Controlla come i nuovi account si uniscono a questo server.",
+        "invitations": "Crea e gestisci i codici di invito.",
         "rooms": "Crea, modifica, organizza e archivia le stanze",
         "moderation": "Esamina le sospensioni attive dalle stanze",
         "permissions": "Gestisci le impostazioni predefinite dei ruoli a livello di server",

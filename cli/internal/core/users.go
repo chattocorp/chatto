@@ -50,7 +50,11 @@ type userCreationOptions struct {
 	botOwnerID    string
 	botAPIKeyOut  *string
 	botAPIKeyName string
-	authorize     func() error
+	// Historical bots have no initial API key. Normal bot creation still issues one.
+	credentialFreeBot bool
+	// initialDeactivated commits the initial status with account creation.
+	initialDeactivated bool
+	authorize          func() error
 	// importReceipt commits identity mapping with account creation. Retain keys
 	// after an ambiguous acknowledgement so a resumed import can hydrate it.
 	importReceipt func(string) evtstream.BatchEntry
@@ -77,7 +81,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		return nil, err
 	}
 	if isBot {
-		if strings.TrimSpace(options.botOwnerID) == "" || password != "" || options.verifiedEmail != "" || options.external != nil || options.invitationID != "" {
+		if strings.TrimSpace(options.botOwnerID) == "" || password != "" || options.verifiedEmail != "" || len(options.importEmails) != 0 || options.external != nil || options.invitationID != "" {
 			return nil, ErrInvalidArgument
 		}
 	}
@@ -134,10 +138,11 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		CreatedAt:      now,
 		IsBot:          isBot,
 		BotOwnerUserId: options.botOwnerID,
+		Deactivated:    options.initialDeactivated,
 	}
 	var botAPIKey string
 	var botAPIKeyVerifier []byte
-	if isBot {
+	if isBot && !options.credentialFreeBot {
 		options.botAPIKeyName = normalizedBotAPIKeyName(options.botAPIKeyName)
 		var err error
 		botAPIKey, err = NewBotAPIKey(userID)
@@ -216,7 +221,14 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		Subject: agg.Subject(evtstream.EventUserAccountCreated),
 		Event:   accountCreated,
 	}}
-	if isBot {
+	if options.initialDeactivated {
+		deactivation := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserAccountDeactivationChanged{
+			UserAccountDeactivationChanged: &evtv1.UserAccountDeactivationChangedEvent{UserId: userID, Deactivated: true},
+		}})
+		deactivation.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.Subject(evtstream.EventUserAccountDeactivationChanged), Event: deactivation})
+	}
+	if isBot && !options.credentialFreeBot {
 		keyCreated := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyCreated{
 			BotApiKeyCreated: &evtv1.BotApiKeyCreatedEvent{
 				UserId: userID, Verifier: botAPIKeyVerifier,

@@ -1,5 +1,5 @@
 import '../../../app.css';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Checkbox from './Checkbox.svelte';
 
@@ -99,4 +99,32 @@ it('keeps native focus inside its row when nested in a scrolled pane', async () 
     await screen.unmount();
     outer.remove();
   }
+});
+
+describe('Checkbox', () => {
+  it('keeps ordinary immediate changes and calls the event handler', async () => {
+    const onchange = vi.fn();
+    const view = render(Checkbox, { id: 'ordinary', label: 'Option', onchange });
+    await view.getByText('Option').click();
+    await expect.element(view.getByRole('checkbox')).toBeChecked();
+    expect(onchange).toHaveBeenCalledOnce();
+  });
+
+  it('retains committed state while saving and after rejection', async () => {
+    let reject: (error: Error) => void = () => {};
+    const onCheckedChange = vi.fn(
+      () =>
+        new Promise<void>((_resolve, fail) => {
+          reject = fail;
+        })
+    );
+    const view = render(Checkbox, { id: 'saved', label: 'Option', checked: true, onCheckedChange });
+    await view.getByText('Option').click();
+    await expect.element(view.getByRole('checkbox')).toBeDisabled();
+    await expect.element(view.getByRole('checkbox')).toBeChecked();
+    expect(onCheckedChange).toHaveBeenCalledWith(false);
+    reject(new Error('save failed'));
+    await expect.element(view.getByRole('checkbox')).toBeEnabled();
+    await expect.element(view.getByRole('checkbox')).toBeChecked();
+  });
 });

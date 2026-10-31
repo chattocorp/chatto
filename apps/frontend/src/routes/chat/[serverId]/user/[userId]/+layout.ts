@@ -4,9 +4,13 @@ import { userConversationRoomId } from '$lib/navigation/conversationPath';
 import { createRoomCommandAPI } from '@chatto/client/api/rooms';
 import { navigating } from '$app/state';
 import type { LayoutLoad } from './$types';
+import { loadEditor } from '$lib/components/composer/loadEditor';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 /** Resolve only the recipient: thread navigation keeps the conversation and composer. */
 export const load: LayoutLoad = async ({ params, parent, depends }) => {
+  // Overlap the selected editor download with conversation startup; a failure must not block it.
+  void Promise.resolve(loadEditor(userPreferences.composerEditor)).catch(() => {});
   const committed = navigating.complete;
   await parent();
   depends('chatto:conversation');
@@ -36,7 +40,6 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
       }
       if (!roomId) throw new Error('Conversation is unavailable');
       await store.ensureRoomAvailable(roomId);
-      store.loadRoomMembers(roomId);
       return roomId;
     } catch {
       return null;

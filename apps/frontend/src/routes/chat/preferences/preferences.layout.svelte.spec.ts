@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AppPreferencesLayout from './+layout.svelte';
+import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 const mocks = vi.hoisted(() => ({
   pathname: '/chat/preferences',
@@ -37,6 +38,7 @@ describe('App Preferences layout', () => {
     mocks.pathname = '/chat/preferences';
     mocks.authenticatedServerId = undefined;
     mocks.goto.mockReset();
+    desktopUpdates.status = null;
   });
 
   it('uses the shared sidebar shell with section navigation', async () => {
@@ -65,5 +67,26 @@ describe('App Preferences layout', () => {
     await expect.poll(() => mocks.goto.mock.calls.length).toBe(1);
     expect(mocks.goto).toHaveBeenCalledWith(destination, { replaceState: true });
     expect(container.querySelector('[data-testid="server-sidebar"]')).toBeNull();
+  });
+
+  it('keeps Updates preferences independent of an authenticated server', async () => {
+    mocks.pathname = '/chat/preferences/desktop';
+    mocks.authenticatedServerId = 'remote';
+    desktopUpdates.status = {
+      revision: 0,
+      version: '0.5.0',
+      status: 'unavailable',
+      busy: false,
+      progress: null,
+      availableVersion: null,
+      automatic: false,
+      channel: 'stable'
+    };
+    const { getByRole } = render(AppPreferencesLayout);
+    await expect.element(getByRole('heading', { name: 'App Preferences' })).toBeVisible();
+    await expect
+      .element(getByRole('link', { name: 'Updates' }))
+      .toHaveAttribute('href', '/chat/preferences/desktop');
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

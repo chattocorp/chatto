@@ -25,15 +25,14 @@ and remounts. Departure cancels only the old room's request.
 
   onMount(() => {
     const selectedRoomId = roomId;
-    const restoreLatest = () => {
-      if (!navigation.highlightFor(selectedRoomId, null)) {
-        store.restoreProjectedRoomWindow(selectedRoomId);
-      }
-    };
-    restoreLatest();
+    if (!navigation.highlightFor(selectedRoomId, null)) {
+      store.restoreProjectedRoomWindow(selectedRoomId);
+    }
     return () => {
       if (!isActive(selectedRoomId)) navigation.clearMainHighlight(selectedRoomId);
-      restoreLatest();
+      if (!navigation.highlightFor(selectedRoomId, null)) {
+        store.cancelProjectedRoomJump(selectedRoomId);
+      }
     };
   });
 </script>

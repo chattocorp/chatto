@@ -14,6 +14,8 @@ import {
 } from '@chatto/client/api/notifications';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import DesktopNotificationSync from './DesktopNotificationSync.svelte';
+import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+import { desktopNotificationContent } from '$lib/desktop/notificationContent';
 vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => ({ disableRoomCallWideFor: vi.fn() })
 }));
@@ -80,20 +82,23 @@ function fixture() {
   };
   rows.set([row('old', 100)]);
   const resetListeners = new Set<(event: { privacy: boolean }) => void>();
+  const getEventById = vi.fn<(_id: string) => TimelineEventView | null>(() => null);
   const store = {
     serverId: 'inactive-server',
     viewerId: 'viewer',
     isAuthenticated: true,
     notifications,
+    knownMessage: (_roomId: string, eventId: string) => getEventById(eventId),
     onReset: (callback: (event: { privacy: boolean }) => void) => {
       resetListeners.add(callback);
       return () => resetListeners.delete(callback);
     },
     onRoomAccessLost: () => () => {},
+    onUserDeleted: () => () => {},
     onPermissionsChanged: () => () => {},
     onSessionEnded: () => () => {}
   } as unknown as ServerStateStore;
-  return { rows, store, resetListeners };
+  return { rows, store, resetListeners, getEventById };
 }
 
 describe('DesktopNotificationSync', () => {
@@ -130,7 +135,8 @@ describe('DesktopNotificationSync', () => {
     f.rows.set([row('new', 101), row('old', 100)]);
     await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
     expect(mocks.sound).toHaveBeenCalledOnce();
-    expect(mocks.show.mock.calls[0]).not.toContain('private room');
+    expect(mocks.show.mock.calls[0][0].body).toBe('#private room');
+    expect(mocks.show.mock.calls[0][0].title).toBe('New activity');
     f.rows.set([row('new', 101, { unread: false })]);
     await vi.waitFor(() =>
       expect(mocks.clear).toHaveBeenCalledWith([mocks.show.mock.calls[0][0].id])
@@ -184,6 +190,83 @@ describe('DesktopNotificationSync', () => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
     expect(mocks.show).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    [NotificationSignalKind.DIRECT_MESSAGE, 'Alice sent you a DM'],
+    [NotificationSignalKind.DIRECT_MENTION, 'Alice mentioned you'],
+    [NotificationSignalKind.ROLE_MENTION, 'Alice mentioned you'],
+    [NotificationSignalKind.HERE, 'Alice mentioned you'],
+    [NotificationSignalKind.ALL, 'Alice mentioned you'],
+    [NotificationSignalKind.REPLY, 'Alice replied to you'],
+    [NotificationSignalKind.FOLLOWED_THREAD, 'Alice replied in a thread you follow'],
+    [NotificationSignalKind.ROOM_MESSAGE, 'Alice posted a new message'],
+    [NotificationSignalKind.FOLLOWED_ROOM, 'Alice posted a new message'],
+    [NotificationSignalKind.ROOM_INVITATION, 'Alice invited you to a room'],
+    [NotificationSignalKind.REACTION, 'Alice reacted with 👍']
+  ] as const)('formats %s from occurrence data without loading a message', (signalKind, title) => {
+    const f = fixture();
+    const item = row('new', 101, {
+      signalKind,
+      actor: {
+        id: 'alice',
+        login: 'alice',
+        displayName: 'Alice',
+        deleted: false,
+        avatarUrl: null,
+        bio: null,
+        timezone: null,
+        presenceStatus: PresenceStatus.ONLINE,
+        customStatus: null
+      },
+      reactionEmoji: 'thumbsup',
+      eventId: signalKind === NotificationSignalKind.ROOM_INVITATION ? '' : 'new'
+    });
+    expect(desktopNotificationContent(f.store, item)).toEqual({
+      title,
+      body: signalKind === NotificationSignalKind.DIRECT_MESSAGE ? '' : '#private room'
+    });
+    // The fixture exposes no request API or store-creation method.
+  });
+
+  it('uses a loaded message immediately and does not repeat an alert when content changes', async () => {
+    const f = fixture();
+    const message = {
+      id: 'new',
+      createdAt: new Date().toISOString(),
+      event: {
+        kind: 'messagePosted',
+        roomId: 'room',
+        body: 'Ready for review',
+        attachments: [],
+        reactions: [],
+        replyCount: 0,
+        threadParticipants: []
+      }
+    } satisfies TimelineEventView;
+    f.getEventById.mockReturnValue(message);
+    render(DesktopNotificationSync, { store: f.store });
+    await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
+    f.rows.set([row('new', 101)]);
+    await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
+    expect(mocks.show.mock.calls[0][0].body).toBe('#private room\nReady for review');
+    f.getEventById.mockReturnValue(null);
+    f.rows.set([row('new', 101)]);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(mocks.show).toHaveBeenCalledOnce();
+    expect(mocks.sound).toHaveBeenCalledOnce();
+
+    f.getEventById.mockReturnValue({ ...message, actorResolution: 'deleted' });
+    expect(desktopNotificationContent(f.store, row('new', 101)).body).toBe('#private room');
+    f.getEventById.mockReturnValue({
+      ...message,
+      event: { ...message.event, deletedAt: new Date().toISOString() }
+    });
+    expect(desktopNotificationContent(f.store, row('new', 101)).body).toBe('#private room');
+    f.store.notifications.revokedRoomIds.add('room');
+    f.getEventById.mockClear();
+    expect(desktopNotificationContent(f.store, row('new', 101)).body).toBe('#private room');
+    expect(f.getEventById).not.toHaveBeenCalled();
   });
 
   it('retains and opens an alert that falls outside the loaded page', async () => {

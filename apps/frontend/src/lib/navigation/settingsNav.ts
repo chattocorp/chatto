@@ -2,6 +2,7 @@ import { resolve } from '$app/paths';
 import { m } from '$lib/i18n/messages';
 import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 import type { NavGroup, NavItem } from '$lib/components/SidebarNav.svelte';
+import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 /** Navigation details shared by the sidebar and the descriptive Overview cards. */
 type SettingsNavItem = NavItem & { description?: string };
@@ -65,6 +66,14 @@ export function getSettingsNavGroups(
       icon: 'iconify icon-[uil--headphones]'
     }
   ];
+
+  if (desktopUpdates.available)
+    appPreferenceNavItems.push({
+      href: resolve('/chat/preferences/desktop'),
+      label: m('settings.desktop.title'),
+      description: m('settings.desktop.subtitle'),
+      icon: 'iconify icon-[uil--desktop]'
+    });
 
   return [
     {

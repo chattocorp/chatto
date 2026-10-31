@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Aktualizacje",
+      "subtitle": "Aktualizacje tej instalacji",
+      "updates": "Aktualizacje aplikacji",
+      "unavailable": "Automatyczne aktualizacje nie są dostępne w tej instalacji.",
+      "version": "Zainstalowana wersja: {version}",
+      "ready_link": "Aktualizacja gotowa",
+      "restart_warning": "Ponowne uruchomienie kończy aktywne rozmowy i udostępnianie ekranu.",
+      "restart": "Uruchom ponownie, aby zaktualizować",
+      "check": "Sprawdź aktualizacje",
+      "preferences": "Ustawienia aktualizacji",
+      "automatic": "Sprawdzaj i pobieraj automatycznie",
+      "channel": "Kanał wydań",
+      "stable": "Stabilny",
+      "beta": "Beta",
+      "channel_help": "Automatyczne stabilne aktualizacje są udostępniane przez 36 godzin. Ręczne sprawdzanie i Beta pomijają to opóźnienie. Zmiana na Stabilny nigdy nie instaluje starszej wersji.",
+      "privacy": "Aktualizacje łączą się z GitHub, który otrzymuje twój adres IP i żądania aktualizacji. Chatto nie wysyła danych kont ani połączonych serwerów.",
+      "status": {
+        "idle": "Gotowość do sprawdzenia aktualizacji.",
+        "checking": "Sprawdzanie aktualizacji…",
+        "downloading": "Pobieranie aktualizacji…",
+        "ready": "Gotowość do ponownego uruchomienia.",
+        "current": "W tym kanale nie ma nowszej aktualizacji.",
+        "error": "Operacja aktualizacji nie powiodła się. Spróbuj ponownie.",
+        "changed": "Dostępna wersja uległa zmianie. Sprawdź ponownie.",
+        "installing": "Przygotowywanie ponownego uruchomienia…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Zarządzaj hasłem, adresami e-mail i metodami logowania.",
@@ -11,7 +39,8 @@
         "general": "Tożsamość serwera, marka i wiadomości",
         "neighbors": "Promuj zaprzyjaźnione serwery Chatto w swoim publicznym katalogu",
         "members": "Przeglądaj i zarządzaj członkami serwera i ich rolami",
-        "invitations": "Twórz linki, przez które mogą dołączać nowe konta, i zarządzaj nimi.",
+        "registration": "Określ, jak nowe konta dołączają do tego serwera.",
+        "invitations": "Twórz kody zaproszeń i zarządzaj nimi.",
         "rooms": "Twórz, edytuj, organizuj i archiwizuj pokoje",
         "moderation": "Sprawdź aktywne zawieszenia dostępu do pokoi",
         "permissions": "Zarządzaj domyślnymi rolami na całym serwerze",

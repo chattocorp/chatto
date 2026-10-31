@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Aktualizace",
+      "subtitle": "Aktualizace této instalace",
+      "updates": "Aktualizace aplikace",
+      "unavailable": "Automatické aktualizace nejsou v této instalaci dostupné.",
+      "version": "Nainstalovaná verze: {version}",
+      "ready_link": "Aktualizace je připravena",
+      "restart_warning": "Restart ukončí aktivní hovory a sdílení obrazovky.",
+      "restart": "Restartovat a aktualizovat",
+      "check": "Vyhledat aktualizace",
+      "preferences": "Nastavení aktualizací",
+      "automatic": "Automaticky vyhledávat a stahovat",
+      "channel": "Kanál vydání",
+      "stable": "Stabilní",
+      "beta": "Beta",
+      "channel_help": "Automatické stabilní aktualizace se distribuují během 36 hodin. Ruční kontroly a Beta toto zpoždění obcházejí. Přepnutí na Stabilní nikdy nenainstaluje starší verzi.",
+      "privacy": "Aktualizace kontaktují GitHub, který obdrží vaši IP adresu a požadavky na aktualizace. Chatto neposílá údaje o účtu ani připojených serverech.",
+      "status": {
+        "idle": "Připraveno vyhledat aktualizace.",
+        "checking": "Vyhledávání aktualizací…",
+        "downloading": "Stahování aktualizace…",
+        "ready": "Připraveno k restartu.",
+        "current": "V tomto kanálu není dostupná novější aktualizace.",
+        "error": "Aktualizace se nezdařila. Zkuste to znovu.",
+        "changed": "Dostupné vydání se změnilo. Zkontrolujte znovu.",
+        "installing": "Příprava restartu…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Spravujte heslo, e-mailové adresy a způsoby přihlášení.",
@@ -11,7 +39,8 @@
         "general": "Identita serveru, branding a zprávy",
         "neighbors": "Propagujte spřátelené servery Chatto ve svém veřejném adresáři",
         "members": "Zobrazení a správa členů serveru a jejich rolí",
-        "invitations": "Vytvářejte a spravujte odkazy, přes které se mohou registrovat nové účty.",
+        "registration": "Určete, jak se k tomuto serveru připojují nové účty.",
+        "invitations": "Vytvářejte a spravujte kódy pozvánek.",
         "rooms": "Vytvářejte, upravujte, organizujte a archivujte místnosti",
         "moderation": "Zkontrolovat aktivní pozastavení přístupu do místností",
         "permissions": "Spravujte výchozí hodnoty rolí na celém serveru",

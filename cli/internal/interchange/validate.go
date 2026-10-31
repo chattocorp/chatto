@@ -109,6 +109,11 @@ func (a *Archive) validateReferences() error {
 	if len(paths)+len(names) != len(a.sums) {
 		return fail("unlisted asset file")
 	}
+	for _, u := range a.Users {
+		if u.AvatarAssetID != "" && !assets[u.AvatarAssetID] {
+			return fail("unknown user avatar asset")
+		}
+	}
 	checkContent := func(c Content) error {
 		if c.Status == "available" {
 			if strings.TrimSpace(c.Body.Text) == "" && len(c.AssetIDs) == 0 {

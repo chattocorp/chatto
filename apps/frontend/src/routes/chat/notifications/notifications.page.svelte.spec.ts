@@ -5,6 +5,8 @@ import '../../../app.css';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { desktopNotificationContent } from '$lib/desktop/notificationContent';
+import type { ServerStateStore } from '@chatto/client/server/store';
 import {
   NotificationAttentionLevel,
   NotificationSignalKind,
@@ -368,6 +370,33 @@ describe('notifications page', () => {
     });
     expect(mocks.goto).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [NotificationSignalKind.DIRECT_MENTION, 'New activity'],
+    [NotificationSignalKind.REACTION, '[deleted user] reacted with 👍']
+  ] as const)(
+    'shares the missing-actor summary with desktop for %s',
+    async (signalKind, expected) => {
+      const occurrence: NotificationOccurrenceItem = {
+        ...mocks.occurrence,
+        signalKind,
+        actor: null,
+        reactionEmoji: 'thumbsup'
+      };
+      retainProjection([occurrence]);
+      const { container } = render(NotificationsPage);
+      const desktopStore = {
+        notifications: mocks.store.notifications,
+        knownMessage: () => undefined
+      } as unknown as ServerStateStore;
+      expect(desktopNotificationContent(desktopStore, occurrence).title).toBe(expected);
+      await vi.waitFor(() =>
+        expect(q(container, '[data-testid="notification-content"]')?.textContent).toContain(
+          expected
+        )
+      );
+    }
+  );
 
   it('renders read and unread notifications in one list', async () => {
     const readOccurrence = {

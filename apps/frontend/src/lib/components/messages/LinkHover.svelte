@@ -1,10 +1,13 @@
-<!-- @component Delayed link hover card. Metadata stays subscribed after hover so URL pills can reuse its title. -->
+<!-- @component Shared metadata for a link pill and its delayed hover card. Automatic pills subscribe when visible. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { useLinkPreview } from './linkPreviewContext';
   import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
-  import { FloatingPopover } from '$lib/ui';
+  import { ContextMenu, FloatingPopover, contextMenuTrigger } from '$lib/ui';
+  import { on } from 'svelte/events';
+  import { m } from '$lib/i18n/messages';
+  import LinkPreviewActions from './LinkPreviewActions.svelte';
   import { hasServerScope, useServerScope } from '$lib/state/server/scope.svelte';
   import LinkHoverContent, { type HoverIdentity } from './LinkHoverContent.svelte';
   import { handleRenderedLinkClick, renderedLinkTarget } from '$lib/navigation/renderedLink';
@@ -12,14 +15,17 @@
   let {
     href,
     local,
+    loadWhenVisible = false,
     children
   }: {
     href: string;
     local?: HoverIdentity;
-    children: Snippet<[string | undefined]>;
+    /** Load a posted pill's title when it enters the viewport, before hover. */
+    loadWhenVisible?: boolean;
+    children: Snippet<[string | undefined, boolean, Snippet<[() => void]>]>;
   } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
-  const existingPreview = useLinkPreview();
+  const { lookup: existingPreview, isLoading: existingLoading } = useLinkPreview();
   const cardId = $props.id();
   const destination = $derived(renderedLinkTarget(href));
   let trigger: HTMLSpanElement | undefined;
@@ -30,6 +36,9 @@
   let fetchedPreview = $state.raw<LinkPreviewView | null>();
   const preview = $derived(existingPreview(href) ?? fetchedPreview);
   let loading = $state(false);
+  let sheetOpen = $state(false);
+  // Input modality is event bookkeeping, not rendered state.
+  let touchInput = false;
   const pageTitle = $derived(
     preview?.socialPost?.contentWarning || preview?.socialPost?.quotedPost?.contentWarning
       ? undefined
@@ -39,11 +48,15 @@
     clearTimeout(timer);
     clearTimeout(closeTimer);
     anchor = null;
+    sheetOpen = false;
   }
   function keepOpen() {
     clearTimeout(closeTimer);
   }
   function leave() {
+    // Opening a modal moves focus off the trigger. Touch sheets close through
+    // their own dismissal controls, never through the hover leave timer.
+    if (sheetOpen) return;
     // Pointer movement must not dismiss the card while its link has keyboard focus.
     if (trigger?.matches(':focus-within') || card?.matches(':focus-within')) return;
     clearTimeout(closeTimer);
@@ -68,12 +81,16 @@
     const stopRemoval = registerQueryCacheRemovalListener((serverId) => {
       if (serverId !== scope?.serverId) return;
       generation++;
+      visibility?.disconnect();
       stopPreview?.();
       stopPreview = undefined;
       started = false;
       fetchedPreview = undefined;
       loading = false;
       close();
+      // Permission changes keep the timeline mounted. Reauthorize visible pills
+      // after the shared cache has been cleared; hidden pills wait for visibility.
+      visibility?.observe(node);
     });
     async function loadPreview() {
       if (identity || !scope || started || existingPreview(url)) return;
@@ -97,6 +114,7 @@
     const link = node.querySelector('a');
     const title = link?.getAttribute('title');
     const enter = () => {
+      if (sheetOpen || touchInput) return;
       // The hover card replaces the browser tooltip; do not display both.
       link?.removeAttribute('title');
       clearTimeout(timer);
@@ -111,24 +129,57 @@
       clearTimeout(timer);
       leave();
     };
-    node.addEventListener('mouseenter', enter);
-    node.addEventListener('mouseleave', exit);
-    node.addEventListener('focusin', enter);
-    node.addEventListener('focusout', exit);
-    node.addEventListener('click', close);
-    node.addEventListener('contextmenu', close);
+    const closeHover = () => {
+      if (!sheetOpen) close();
+    };
+    const cleanups = [
+      on(node, 'mouseenter', enter),
+      on(node, 'mouseleave', exit),
+      on(node, 'focusin', enter),
+      on(node, 'focusout', exit),
+      on(node, 'click', close),
+      on(node, 'contextmenu', closeHover),
+      on(node, 'pointerdown', (event) => {
+        touchInput = event.pointerType === 'touch';
+        if (touchInput) closeHover();
+      }),
+      // Mouse pointer entry precedes mouseenter, so hover works immediately
+      // when a hybrid-device user switches from touch to a mouse.
+      on(node, 'pointerover', (event) => {
+        if (event.pointerType === 'mouse') touchInput = false;
+      })
+    ];
+    // Entity pills already own a long-press menu. They render the same preview
+    // snippet in that menu, so only ordinary links need this trigger.
+    const stopTouch = link?.hasAttribute('data-entity-kind')
+      ? undefined
+      : contextMenuTrigger(
+          () => {
+            close();
+            sheetOpen = true;
+            void loadPreview();
+          },
+          { touchOnly: true }
+        )(node);
+    // Visibility owns this query subscription: virtualized/off-screen links do
+    // not need metadata until their pills enter the viewport. Hover reuses it.
+    const visibility = loadWhenVisible
+      ? new IntersectionObserver((entries) => {
+          if (disposed || !entries.some((entry) => entry.isIntersecting)) return;
+          visibility?.disconnect();
+          void loadPreview();
+        })
+      : undefined;
+    visibility?.observe(node);
     return () => {
+      stopTouch?.();
+      for (const cleanup of cleanups) cleanup();
       disposed = true;
+      visibility?.disconnect();
       stopPreview?.();
       stopRemoval();
       if (title != null) link?.setAttribute('title', title);
       close();
-      node.removeEventListener('mouseenter', enter);
-      node.removeEventListener('mouseleave', exit);
-      node.removeEventListener('focusin', enter);
-      node.removeEventListener('focusout', exit);
-      node.removeEventListener('click', close);
-      node.removeEventListener('contextmenu', close);
     };
   }
 
@@ -147,6 +198,7 @@
 
 <svelte:window
   onkeydown={(event) => {
+    touchInput = false;
     if (event.key === 'Escape') {
       if (document.activeElement === card) trigger?.querySelector('a')?.focus();
       // Restoring focus can schedule another open; cancel that timer too.
@@ -154,7 +206,25 @@
     }
   }}
 />
-<span {@attach attachTrigger}>{@render children(pageTitle)}</span>{#if anchor}
+{#snippet sheetPreview(onclose: () => void)}
+  <div class="preview-frame" data-testid="link-touch-preview">
+    <LinkHoverContent {href} {local} {preview} {loading} />
+  </div>
+  <LinkPreviewActions {href} {onclose} />
+{/snippet}
+
+<span class="link-preview-trigger" data-link-preview-trigger {@attach attachTrigger}
+  >{@render children(pageTitle, loading || existingLoading(href), sheetPreview)}</span
+>{#if sheetOpen}
+  <ContextMenu
+    presentation="sheet"
+    role="dialog"
+    ariaLabel={m('preview.open_link')}
+    onclose={close}
+  >
+    {@render sheetPreview(close)}
+  </ContextMenu>
+{:else if anchor}
   <FloatingPopover
     animate
     {anchor}
@@ -178,11 +248,7 @@
         if (event.button === 1) activate(event);
       }}
     >
-      {#if local}
-        <LinkHoverContent {href} {local} />
-      {:else}
-        <LinkHoverContent {href} {preview} {loading} />
-      {/if}
+      <LinkHoverContent {href} {local} {preview} {loading} />
     </a>
   </FloatingPopover>
 {/if}

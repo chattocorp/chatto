@@ -136,7 +136,6 @@ func (a *API) Handlers() []Handler {
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	invitationCodePath, invitationCodeHandler := adminv1connect.NewAdminInvitationCodeServiceHandler(&adminInvitationCodeService{api: a}, options...)
-	memberInvitationPath, memberInvitationHandler := apiv1connect.NewInvitationCodeServiceHandler(&invitationCodeService{api: a}, options...)
 	adminOAuthClientPath, adminOAuthClientHandler := adminv1connect.NewAdminOAuthClientServiceHandler(&adminOAuthClientService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminUserServiceHandler(&adminUserManagementService{api: a}, options...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(&serverService{api: a}, uploadOptions...)
@@ -183,7 +182,6 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: invitationCodePath, Handler: invitationCodeHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: memberInvitationPath, Handler: memberInvitationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminOAuthClientPath, Handler: adminOAuthClientHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRoomLayoutPath, Handler: adminRoomLayoutHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -223,7 +221,9 @@ func (a *API) publicHandlerOptions(readMaxBytes int) []connect.HandlerOption {
 func (a *API) OperatorHandlers() []Handler {
 	options := HandlerOptionsForWebserver(a.config.Webserver)
 	assetOptions := handlerOptionsWithReadMax(assetUploadRequestMaxBytes(), a.config.Webserver)
-	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
+	// Allow a bounded avatar payload, including JSON's base64 overhead.
+	userOptions := handlerOptionsWithReadMax(core.MaxHistoricalAvatarBytes*4/3+MaxRequestMessageBytes, a.config.Webserver)
+	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, userOptions...)
 	roomPath, roomHandler := operatorv1connect.NewOperatorRoomServiceHandler(&operatorRoomService{api: a}, options...)
 	assetPath, assetHandler := operatorv1connect.NewOperatorAssetServiceHandler(&operatorAssetService{api: a}, assetOptions...)
 	messagePath, messageHandler := operatorv1connect.NewOperatorMessageServiceHandler(&operatorMessageService{api: a}, options...)

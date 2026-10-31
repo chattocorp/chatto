@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Inviter personer",
-      "create": "Opprett kode",
-      "description": "Del koden og serveradressen. Den gir tilgang til én konto og utløper etter sju dager.",
-      "once": "Kopier koden før du lukker. Du kan ikke se den igjen."
-    },
     "privileged_mode": {
       "enable": "Aktiver privilegert modus",
       "disable": "Deaktiver privilegert modus",
@@ -190,6 +184,7 @@
       "event_log": "Hendelseslogg",
       "system": "System",
       "back_to_server": "Gå tilbake til server",
+      "invites": "Invitasjoner",
       "registration": "Registrering"
     }
   }

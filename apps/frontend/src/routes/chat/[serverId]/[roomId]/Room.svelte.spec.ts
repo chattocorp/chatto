@@ -1,10 +1,12 @@
 import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { tick } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import ContextMenu from '$lib/ui/ContextMenu.svelte';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomKind, RoomNotice } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomNoticeStore } from '@chatto/client/room/notice';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
@@ -61,6 +63,7 @@ const mocks = vi.hoisted(() => ({
   roomMessages: vi.fn(),
   roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
+  cancelProjectedRoomJump: vi.fn(),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -464,7 +467,8 @@ beforeEach(() => {
         pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false })
       },
       roomSearch: () => ({}),
-      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow
+      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
+      cancelProjectedRoomJump: mocks.cancelProjectedRoomJump
     }
   });
   mocks.roomKind = RoomKind.CHANNEL;
@@ -592,14 +596,22 @@ describe('Room interaction bundles', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('restores projected windows through the store that mounted them', async () => {
+  it('restores rooms on entry and cancels on departure without loading the hidden room', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
 
     await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
 
+    await rendered.rerender({ roomId: 'room-2' });
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-2');
+    expect(mocks.cancelProjectedRoomJump).toHaveBeenCalledExactlyOnceWith('room-1');
+
     rendered.unmount();
     expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
-    expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-1');
+    expect(mocks.cancelProjectedRoomJump).toHaveBeenLastCalledWith('room-2');
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(3));
   });
 
   it('does not mount a thread or load the closed sidebar on a room route', async () => {
@@ -968,6 +980,31 @@ describe('Room interaction bundles', () => {
 });
 
 describe('Room local message echo', () => {
+  it('requests members for notice mentions while Members is closed, and releases the notice subscription', async () => {
+    const loadMembers = vi.fn();
+    const release = vi.fn();
+    let acceptNotice: (notice: RoomNotice | null) => void = () => {};
+    server.scope.store.loadRoomMembers = loadMembers;
+    server.scope.store.projection.rooms.set(
+      'room-1',
+      new RoomWithViewerState({ viewerState: { isMember: true } })
+    );
+    const notice = new RoomNoticeStore(server.scope.connection, 'room-1');
+    vi.spyOn(notice, 'retain').mockImplementation((onChange) => {
+      if (onChange) acceptNotice = onChange;
+      onChange?.(new RoomNotice({ body: 'Welcome' }));
+      return release;
+    });
+    server.scope.store.rooms.notice = () => notice;
+    appUi.closeDesktopRoomSidebarPanel();
+    const view = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    expect(loadMembers).not.toHaveBeenCalled();
+    acceptNotice(new RoomNotice({ body: 'Ask @alice' }));
+    expect(loadMembers).toHaveBeenCalledExactlyOnceWith('room-1');
+    await view.unmount();
+    expect(release).toHaveBeenCalledOnce();
+  });
   it.each(['system', 'test-user'])(
     'marks a visible arrival by %s read through its event ID',
     async (actorId) => {
@@ -1370,6 +1407,7 @@ describe('Room local message echo', () => {
     await tick();
     expect(highlights.current).toBe(request);
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+    expect(mocks.cancelProjectedRoomJump).not.toHaveBeenCalled();
     recoveringSnapshot.set(false);
     await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledTimes(2));
     resolveFirst(page);
@@ -1765,6 +1803,36 @@ describe('Room local message echo', () => {
     rendered.unmount();
     expect(release).toHaveBeenCalledTimes(2);
   });
+
+  it.each(['desktop', 'mobile'] as const)(
+    'reopens the loaded %s sidebar without mounting a loading placeholder',
+    async (presentation) => {
+      stubMatchMedia(presentation === 'desktop');
+      const open = () =>
+        presentation === 'desktop'
+          ? appUi.openDesktopRoomSidebarPanel('files')
+          : appUi.openMobileRoomSidebarPanel('files');
+      const close = () =>
+        presentation === 'desktop'
+          ? appUi.closeDesktopRoomSidebarPanel()
+          : appUi.closeMobileRoomSidebarPanel();
+      const selector = `[data-testid="room-sidebar-${presentation}-pane"]`;
+      open();
+      const { container } = render(Room, { props: { roomId: 'room-1' } });
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="close-room-sidebar"]')).not.toBeNull()
+      );
+
+      flushSync(close);
+      expect(container.querySelector(selector)).toBeNull();
+      flushSync(open);
+
+      const pane = container.querySelector(selector);
+      expect(pane).not.toBeNull();
+      expect(pane?.querySelector('[data-loading-fog]')).toBeNull();
+      expect(pane?.querySelector('[data-testid="close-room-sidebar"]')).not.toBeNull();
+    }
+  );
 
   it('closes the thread when pressing inside the app sidebar or server gutter', async () => {
     render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });

@@ -139,6 +139,7 @@ the handle claims drag gestures; content retains native scrolling.
 {#snippet handle()}
   {#if sheet}
     <button
+      data-press-feedback="none"
       use:panGesture={{
         axis: 'y',
         enabled: () => !closing,

@@ -11,6 +11,7 @@
   import { serverRegistry } from '$lib/client';
   import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import { m } from '$lib/i18n/messages';
+  import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
   let { children }: { children?: Snippet } = $props();
 
@@ -29,7 +30,16 @@
       href: resolve('/chat/preferences/composer'),
       label: m('settings.app_preferences.composer.title'),
       icon: 'iconify icon-[uil--edit]'
-    }
+    },
+    ...(desktopUpdates.available
+      ? [
+          {
+            href: resolve('/chat/preferences/desktop'),
+            label: m('settings.desktop.title'),
+            icon: 'iconify icon-[uil--desktop]'
+          }
+        ]
+      : [])
   ]);
 
   const authenticatedServerId = $derived.by(() => {
@@ -39,6 +49,7 @@
   });
 
   const canonicalPreferencePath = $derived.by(() => {
+    if (page.url.pathname === resolve('/chat/preferences/desktop')) return null;
     if (!authenticatedServerId) return null;
     const suffix = page.url.pathname.endsWith('/language')
       ? '/language'
