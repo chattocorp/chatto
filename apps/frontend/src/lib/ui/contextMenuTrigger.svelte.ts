@@ -62,6 +62,15 @@ export function contextMenuTrigger(
       suppressClickTimer = window.setTimeout(clearClickSuppression, 1000);
     }
 
+    function finishTouch(): void {
+      // A held finger can outlast the fallback timer. Suppress the release
+      // click even when the user keeps holding after the sheet opens.
+      if (openedDuringTouch) armClickSuppression();
+      openedDuringTouch = false;
+      cancelLongPress();
+      touchSequence = false;
+    }
+
     const cleanups = [
       on(node, 'contextmenu', (event) => {
         const fromTouch = touchSequence || openedDuringTouch || suppressClick;
@@ -108,20 +117,8 @@ export function contextMenuTrigger(
           touchSequence = false;
         }
       }),
-      on(node, 'pointerup', () => {
-        // A held finger can outlast the fallback timer. Suppress the release
-        // click even when the user keeps holding after the sheet opens.
-        if (openedDuringTouch) armClickSuppression();
-        openedDuringTouch = false;
-        cancelLongPress();
-        touchSequence = false;
-      }),
-      on(node, 'pointercancel', () => {
-        if (openedDuringTouch) armClickSuppression();
-        openedDuringTouch = false;
-        cancelLongPress();
-        touchSequence = false;
-      })
+      on(node, 'pointerup', finishTouch),
+      on(node, 'pointercancel', finishTouch)
     ];
 
     return () => {

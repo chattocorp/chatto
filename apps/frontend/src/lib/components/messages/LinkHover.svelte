@@ -122,22 +122,25 @@
       clearTimeout(timer);
       leave();
     };
-    node.addEventListener('mouseenter', enter);
-    node.addEventListener('mouseleave', exit);
-    node.addEventListener('focusin', enter);
-    node.addEventListener('focusout', exit);
-    node.addEventListener('click', close);
     const closeHover = () => {
       if (!sheetOpen) close();
     };
-    node.addEventListener('contextmenu', closeHover);
-    const stopPointer = on(node, 'pointerdown', (event) => {
-      touchInput = event.pointerType === 'touch';
-      if (touchInput) closeHover();
-    });
-    const stopMouse = on(node, 'pointermove', (event) => {
-      if (event.pointerType === 'mouse') touchInput = false;
-    });
+    const cleanups = [
+      on(node, 'mouseenter', enter),
+      on(node, 'mouseleave', exit),
+      on(node, 'focusin', enter),
+      on(node, 'focusout', exit),
+      on(node, 'click', close),
+      on(node, 'contextmenu', closeHover),
+      on(node, 'pointerdown', (event) => {
+        touchInput = event.pointerType === 'touch';
+        if (touchInput) closeHover();
+      }),
+      on(node, 'pointermove', (event) => {
+        if (event.pointerType === 'mouse') touchInput = false;
+      }),
+      on(node, 'touchstart', (event) => event.stopPropagation())
+    ];
     // Entity pills already own a long-press menu. They render the same preview
     // snippet in that menu, so only ordinary links need this trigger.
     const stopTouch = link?.hasAttribute('data-entity-kind')
@@ -150,23 +153,14 @@
           },
           { touchOnly: true }
         )(node);
-    const stopTouchStart = on(node, 'touchstart', (event) => event.stopPropagation());
     return () => {
       stopTouch?.();
-      stopTouchStart();
-      stopPointer();
-      stopMouse();
+      for (const cleanup of cleanups) cleanup();
       disposed = true;
       stopPreview?.();
       stopRemoval();
       if (title != null) link?.setAttribute('title', title);
       close();
-      node.removeEventListener('mouseenter', enter);
-      node.removeEventListener('mouseleave', exit);
-      node.removeEventListener('focusin', enter);
-      node.removeEventListener('focusout', exit);
-      node.removeEventListener('click', close);
-      node.removeEventListener('contextmenu', closeHover);
     };
   }
 
@@ -235,11 +229,7 @@
         if (event.button === 1) activate(event);
       }}
     >
-      {#if local}
-        <LinkHoverContent {href} {local} />
-      {:else}
-        <LinkHoverContent {href} {preview} {loading} />
-      {/if}
+      <LinkHoverContent {href} {local} {preview} {loading} />
     </a>
   </FloatingPopover>
 {/if}
