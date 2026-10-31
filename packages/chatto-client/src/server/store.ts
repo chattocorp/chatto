@@ -762,6 +762,11 @@ export class ServerStateStore {
     void this.#rooms.loaded(roomId)?.messages?.restoreLatestWindow();
   }
 
+  /** Cancel a room's pending historical jump without creating a timeline or fetching messages. */
+  cancelProjectedRoomJump(roomId: string): void {
+    this.#rooms.loaded(roomId)?.messages?.cancelPendingHistoricalJump();
+  }
+
   private updateRoomMembership(roomId: string, userId: string, joined: boolean): void {
     const store = this.#rooms.loaded(roomId)?.members;
     if (!store) return;

@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => ({
   roomMessages: vi.fn(),
   roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
+  cancelProjectedRoomJump: vi.fn(),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -464,7 +465,8 @@ beforeEach(() => {
         pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false })
       },
       roomSearch: () => ({}),
-      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow
+      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
+      cancelProjectedRoomJump: mocks.cancelProjectedRoomJump
     }
   });
   mocks.roomKind = RoomKind.CHANNEL;
@@ -592,14 +594,22 @@ describe('Room interaction bundles', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('restores projected windows through the store that mounted them', async () => {
+  it('restores rooms on entry and cancels on departure without loading the hidden room', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
 
     await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
 
+    await rendered.rerender({ roomId: 'room-2' });
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-2');
+    expect(mocks.cancelProjectedRoomJump).toHaveBeenCalledExactlyOnceWith('room-1');
+
     rendered.unmount();
     expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
-    expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-1');
+    expect(mocks.cancelProjectedRoomJump).toHaveBeenLastCalledWith('room-2');
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(3));
   });
 
   it('does not mount a thread or load the closed sidebar on a room route', async () => {
@@ -1370,6 +1380,7 @@ describe('Room local message echo', () => {
     await tick();
     expect(highlights.current).toBe(request);
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+    expect(mocks.cancelProjectedRoomJump).not.toHaveBeenCalled();
     recoveringSnapshot.set(false);
     await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledTimes(2));
     resolveFirst(page);
