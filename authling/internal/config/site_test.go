@@ -12,6 +12,7 @@ func TestSiteConfiguration(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`[site]
 name = "Example accounts"
 description = "One account for our apps."
+introduction = "Welcome to our community."
 [http]
 public_url = "https://accounts.example.com"
 [nats.embedded]
@@ -23,17 +24,18 @@ enabled = true
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Site.Name != "Example accounts" || cfg.Site.Description != "One account for our apps." {
+	if cfg.Site.Name != "Example accounts" || cfg.Site.Description != "One account for our apps." || cfg.Site.Introduction != "Welcome to our community." {
 		t.Fatal("TOML site settings were not loaded")
 	}
 	t.Setenv("AUTHLING_SITE_NAME", " chatto.id ")
 	t.Setenv("AUTHLING_SITE_DESCRIPTION", " Your account for Chatto. ")
+	t.Setenv("AUTHLING_SITE_INTRODUCTION", " Sign in to continue. ")
 	cfg, err = Read(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	site := cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault())
-	if site.Name != "chatto.id" || site.Description != "Your account for Chatto." {
+	if site.Name != "chatto.id" || site.Description != "Your account for Chatto." || site.Introduction != "Sign in to continue." {
 		t.Fatalf("resolved site = %+v", site)
 	}
 	if cfg.HTTP.PublicURLOrDefault() != "https://accounts.example.com" {

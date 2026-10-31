@@ -23,6 +23,7 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/passwordreset"
 	"github.com/chattocorp/chatto/authling/internal/registration"
 	"github.com/chattocorp/chatto/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/sitesettings"
 )
 
 //go:embed assets
@@ -41,6 +42,7 @@ type Dependencies struct {
 	Administration config.AdministrationConfig
 	// Site is display text shared by every browser page.
 	Site           config.SiteConfig
+	SiteSettings   *sitesettings.Service
 	Accounts       *accounts.Service
 	Authentication *authentication.Service
 	Registration   *registration.Service
@@ -106,6 +108,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	mountDeletion(mux, deps, publicOrigin)
 	mountAccount(mux, deps, publicOrigin)
 	mountAdministration(mux, deps)
+	mountAppearance(mux, deps, publicOrigin)
 	mountProfile(mux, deps, publicOrigin)
 	mountPasswordChange(mux, deps, publicOrigin)
 	mountEmailChange(mux, deps, publicOrigin)
@@ -120,7 +123,19 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	}
 	site := deps.Site.Resolve(deps.PublicURL)
 	return securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), siteContextKey{}, site)))
+		current := site
+		// OIDC protocol endpoints and versioned assets do not depend on branding.
+		_, pattern := mux.Handler(r)
+		if deps.SiteSettings != nil && pattern != "/" && pattern != "GET /assets/" {
+			snapshot, err := deps.SiteSettings.Read(r.Context())
+			if err != nil {
+				w.Header().Set("Cache-Control", "no-store")
+				http.Error(w, "site settings unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			current = snapshot.Site
+		}
+		handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), siteContextKey{}, current)))
 	}))
 }
 
@@ -175,7 +190,7 @@ func rejectSilentRequest(w http.ResponseWriter, r *http.Request, service *oidcpr
 }
 
 func loginReturnPath(candidate string) string {
-	if candidate == accountPasswordPath || candidate == "/admin" {
+	if candidate == accountPasswordPath || candidate == "/admin" || candidate == appearancePath {
 		return candidate
 	}
 	return ""

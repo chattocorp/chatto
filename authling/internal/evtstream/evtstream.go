@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/chattocorp/chatto/authling/internal/config"
 	"strings"
 
 	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
@@ -17,6 +18,7 @@ const (
 	accountSubjectPrefix   = "authling.evt.account."
 	accountRegistrySubject = "authling.evt.account-registry"
 	issuerSubject          = "authling.evt.issuer"
+	siteSettingsSubject    = "authling.evt.site-settings"
 	// AccountSubjectFilter contains every account aggregate.
 	AccountSubjectFilter = accountSubjectPrefix + "*"
 )
@@ -24,6 +26,17 @@ const (
 // IssuerSubject is the singleton aggregate that permanently identifies this
 // Authling deployment as one OpenID Connect issuer.
 func IssuerSubject() string { return issuerSubject }
+
+// SiteSettingsSubject identifies the singleton presentation-settings aggregate.
+func SiteSettingsSubject() string { return siteSettingsSubject }
+
+// AppendSiteSettingsChanged appends a replacement at the editor's observed tail.
+func (p *Publisher) AppendSiteSettingsChanged(ctx context.Context, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	if event.GetSiteSettingsChanged() == nil || event.GetSiteSettingsChanged().GetPreviousRevision() != expectedTail {
+		return events.StreamPosition{}, fmt.Errorf("settings change requires the expected prior revision")
+	}
+	return p.appendAtPosition(ctx, siteSettingsSubject, event, expectedTail)
+}
 
 // IssuerTail returns the singleton issuer aggregate's current OCC token.
 func (p *Publisher) IssuerTail(ctx context.Context) (uint64, error) {
@@ -330,6 +343,16 @@ func validate(event *corev1.Event) error {
 		return fmt.Errorf("Authling event created_at: %w", err)
 	}
 	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_SiteSettingsChanged:
+		change := payload.SiteSettingsChanged
+		if !strings.HasPrefix(change.GetActorAccountId(), "acc_") || !validSubjectToken(change.GetActorAccountId()) || change.GetSettings() == nil {
+			return fmt.Errorf("invalid site settings change envelope")
+		}
+		settings := change.GetSettings()
+		text := config.SiteConfig{Name: settings.GetName(), Description: settings.GetDescription(), Introduction: settings.GetIntroduction()}
+		if strings.TrimSpace(text.Name) == "" || text.Validate() != nil {
+			return fmt.Errorf("invalid site settings text")
+		}
 	case *corev1.Event_AdministratorChanged:
 		if !validSubjectToken(payload.AdministratorChanged.GetAccountId()) {
 			return fmt.Errorf("administrator change account id is invalid")

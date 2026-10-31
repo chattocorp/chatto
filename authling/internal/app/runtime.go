@@ -26,6 +26,7 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/passwordreset"
 	"github.com/chattocorp/chatto/authling/internal/registration"
 	"github.com/chattocorp/chatto/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/sitesettings"
 	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/chattocorp/chatto/authling/internal/web"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -46,6 +47,8 @@ type Runtime struct {
 
 	// Accounts is Authling's account command and read boundary.
 	Accounts *accounts.Service
+	// SiteSettings owns live public presentation configuration.
+	SiteSettings *sitesettings.Service
 	// Registration owns the verified-email signup workflow.
 	Registration *registration.Service
 	// PasswordReset owns verified-email password recovery.
@@ -183,16 +186,31 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	}, accountService.RequireActive, accountService.EmailAddress)
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService, vault)
 	authenticationService := authentication.New(stores.RuntimeState, workflowKey, accountService)
+	siteHandle, err := events.NewDecodedProjectionHandle(js, stream, sitesettings.NewProjection(), evtstream.Decode, projectorOptions)
+	if err != nil {
+		return closeOnError(fmt.Errorf("construct site settings projector: %w", err))
+	}
+	siteService := sitesettings.New(publisher, siteHandle, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()), func(ctx context.Context, actor string) error {
+		access, err := accountService.Administrator(ctx, actor, cfg.Administration.AdminEmails)
+		if err != nil {
+			return err
+		}
+		if !access.Allowed() {
+			return sitesettings.ErrForbidden
+		}
+		return nil
+	})
 	return &Runtime{
 		connection:       connection,
 		erasureProjector: erasureHandle.Projector(),
 		Erasure:          erasureService,
-		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector()},
+		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector(), siteHandle.Projector()},
 		issuer:           issuerService,
 		Accounts:         accountService,
-		Registration:     registration.New(stores.RuntimeState, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
-		PasswordReset:    passwordreset.New(stores.RuntimeState, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
-		EmailChange:      emailchange.New(stores.RuntimeState, workflowKey, sender, accountService, authenticationService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name, emailChangeOptions...),
+		SiteSettings:     siteService,
+		Registration:     registration.New(stores.RuntimeState, workflowKey, sender, accountService, siteService),
+		PasswordReset:    passwordreset.New(stores.RuntimeState, workflowKey, sender, accountService, siteService),
+		EmailChange:      emailchange.New(stores.RuntimeState, workflowKey, sender, accountService, authenticationService, siteService, emailChangeOptions...),
 		Authentication:   authenticationService,
 		Sessions:         sessionService,
 		Authorizations:   authorizationService,
@@ -303,6 +321,7 @@ func serveRuntime(ctx context.Context, cfg config.Config, logger *slog.Logger, r
 		Handler: web.Handler(web.Dependencies{
 			Administration:    cfg.Administration,
 			Site:              cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()),
+			SiteSettings:      runtime.SiteSettings,
 			Accounts:          runtime.Accounts,
 			Authentication:    runtime.Authentication,
 			Registration:      runtime.Registration,

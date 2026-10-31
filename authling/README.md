@@ -275,19 +275,24 @@ Configure the public site name separately from the Authling software name:
 [site]
 name = "chatto.id"
 description = "Your account for Chatto."
+introduction = "Welcome back. Sign in to continue."
 ```
 
-`AUTHLING_SITE_NAME` and `AUTHLING_SITE_DESCRIPTION` override these TOML values.
+`AUTHLING_SITE_NAME`, `AUTHLING_SITE_DESCRIPTION`, and
+`AUTHLING_SITE_INTRODUCTION` override these TOML defaults.
 The name appears in page headers, page titles, account messages, and transactional
 email subjects and bodies. The optional description appears in page metadata.
 The root URL sends visitors to sign-in, or to their account if already signed in.
 Values are plain text; HTML is escaped. Names allow up to 120
-Unicode characters and descriptions up to 500, with no control characters.
+Unicode characters; descriptions and sign-in introductions allow up to 500
+each, with no control characters or line breaks.
 Leading and trailing spaces are removed.
 
 When the name is empty, the site uses the hostname from `http.public_url` (or the
 local listener default). An empty description is omitted. Request host headers
-do not set the display name. Restart Authling after changing these settings.
+do not set the display name. A blank introduction uses the standard sign-in copy.
+Restart Authling after changing these configuration defaults. Once an
+administrator saves Appearance, saved values take precedence over these defaults.
 Display settings do not change the issuer URL, account IDs, client names, SMTP
 sender address, or authentication policy. Set `smtp.from` separately to use your
 site's sender name and address.
@@ -323,9 +328,19 @@ address receives it. Removing the configuration also removes the override.
 Neither action removes a separate stored administrator assignment. The override
 does not bypass login or account deletion.
 
-This first administration surface cannot edit users, administrator flags, or
-site settings. Use the configured email list to enable access. Administration
-does not grant roles or permissions in connected applications.
+Select **Appearance** to edit the site name, description, and sign-in
+introduction.
+**Save changes** applies the text immediately and preserves it across restarts.
+Each save records the administrator, time, and replacement settings in the event
+history. A browser history viewer is not yet
+available.
+If another administrator has saved first, compare the saved settings before
+starting a new edit. Only public text belongs in these fields.
+
+Upgrade all replicas before using Appearance; older versions continue to use
+configuration defaults. The interface cannot edit users or administrator flags.
+Use the configured email list to enable access. Administration does not grant
+roles or permissions in connected applications.
 
 ## OpenID Connect
 

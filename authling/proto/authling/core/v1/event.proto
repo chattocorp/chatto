@@ -38,7 +38,23 @@ message Event {
     EmailReleasedEvent email_released = 116;
     AccountErasedEvent account_erased = 117;
     AdministratorChangedEvent administrator_changed = 118;
+    SiteSettingsChangedEvent site_settings_changed = 119;
   }
+}
+
+// SiteSettingsChangedEvent records an administrator's replacement settings.
+// Public display text is stored directly. The envelope records time.
+message SiteSettingsChangedEvent {
+  string actor_account_id = 1;
+  uint64 previous_revision = 2;
+  SiteSettings settings = 3;
+}
+
+// SiteSettings contains public display text, not private account data.
+message SiteSettings {
+  string name = 1;
+  string description = 2;
+  string introduction = 3;
 }
 
 // AdministratorChangedEvent replaces an account's stored administrator flag.
