@@ -1,7 +1,7 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
-import type { SocialPostPreviewView } from '../timeline/linkPreviews.js';
+import type { LinkPreviewView, SocialPostPreviewView } from '../timeline/linkPreviews.js';
 
 export type ComposerLinkPreview = {
   url: string;
@@ -19,6 +19,15 @@ export type ComposerLinkPreview = {
 export function createLinkPreviewAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MessageService, config);
   return {
+    /** Read display metadata without creating an unused composer token on supporting servers. */
+    async fetchLinkMetadata(
+      url: string,
+      options?: { signal?: AbortSignal }
+    ): Promise<LinkPreviewView | null> {
+      const response = await client.fetchLinkPreview({ url, omitPreviewToken: true }, options);
+      return response.preview ? previewFields(response.preview) : null;
+    },
+    /** Fetch metadata and a token for attaching the preview to a new message. */
     async fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null> {
       const response = await client.fetchLinkPreview({ url });
       return composerLinkPreview(response.preview, response.previewToken);
@@ -31,9 +40,13 @@ function composerLinkPreview(
   previewToken: string
 ): ComposerLinkPreview | null {
   if (!preview || !previewToken) return null;
+  return { ...previewFields(preview), previewToken };
+}
+
+/** Normalize the shared metadata independently of composer-token availability. */
+function previewFields(preview: LinkPreview): Omit<ComposerLinkPreview, 'previewToken'> {
   return {
     url: preview.url,
-    previewToken,
     title: preview.title || null,
     description: preview.description || null,
     imageUrl: preview.imageUrl || null,

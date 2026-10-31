@@ -72,7 +72,7 @@ their normal lifetimes; this policy controls new network connections.
 
 ### 6. Message posting uses server-issued preview tokens
 
-**Decision:** `MessageService.FetchLinkPreview` returns display metadata plus a short-lived opaque token. `MessageService.CreateMessage` accepts only that token for link previews and never accepts client-provided title, description, image asset ID, site name, or embed metadata.
+**Decision:** `MessageService.FetchLinkPreview` returns display metadata plus a short-lived opaque token by default. Display-only callers set `omit_preview_token` to avoid creating an unused composer token. `MessageService.CreateMessage` accepts only that token for link previews and never accepts client-provided title, description, image asset ID, site name, or embed metadata.
 **Why:** The composer still needs preview metadata to let the author accept or dismiss the card, but trusting the same client to send final metadata would allow spoofed titles, descriptions, and image asset references.
 **Tradeoff:** Posting a preview depends on the cached server preview and token still being valid. If either expires, the client must fetch the preview again before sending it.
 

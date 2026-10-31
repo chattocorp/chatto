@@ -3690,9 +3690,10 @@ Complete reaction membership is available by paging this collection.
 
 ### FetchLinkPreview
 
-Fetches and caches metadata for a composer URL. Authentication is required
+Fetches and caches metadata for a URL. Authentication is required
 to avoid exposing the preview fetcher as an unauthenticated network proxy.
-Successful responses include a short-lived token accepted by CreateMessage.
+Successful responses include a short-lived token accepted by CreateMessage,
+unless omit_preview_token is set for a display-only read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
@@ -3707,6 +3708,7 @@ Request to fetch server-side link preview metadata for a URL.
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | URL to preview. |
+| `omit_preview_token` | `bool` | Set for display-only reads to skip creation of a message-composer token. Older servers can ignore this field and still return a token. |
 
 
 <a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
@@ -3718,7 +3720,7 @@ Result of fetching link preview metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. Empty when omit_preview_token is true. |
 
 
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>

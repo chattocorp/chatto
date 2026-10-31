@@ -78,6 +78,9 @@
       fetchedPreview = undefined;
       loading = false;
       close();
+      // Permission changes keep the timeline mounted. Reauthorize visible pills
+      // after the shared cache has been cleared; hidden pills wait for visibility.
+      visibility?.observe(node);
     });
     async function loadPreview() {
       if (identity || !scope || started || existingPreview(url)) return;
@@ -125,8 +128,7 @@
     // not need metadata until their pills enter the viewport. Hover reuses it.
     const visibility = loadWhenVisible
       ? new IntersectionObserver((entries) => {
-          if (disposed || generation !== 0 || !entries.some((entry) => entry.isIntersecting))
-            return;
+          if (disposed || !entries.some((entry) => entry.isIntersecting)) return;
           visibility?.disconnect();
           void loadPreview();
         })

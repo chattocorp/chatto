@@ -8,7 +8,10 @@ import { applyAnimationPreference } from '$lib/dom/motionPreference';
 import LinkHover from './LinkHover.svelte';
 import LinkTitleTestHarness from './LinkTitleTestHarness.svelte';
 import MessageContent from '../MessageContent.svelte';
-import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import {
+  removeRegisteredServerQueries,
+  refreshRegisteredServerQueries
+} from '$lib/query/cacheRegistry';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -27,7 +30,7 @@ beforeEach(() => {
     description: 'Details',
     imageUrl: null
   });
-  createTestServerScope({ api: { fetchLinkPreview } });
+  createTestServerScope({ api: { fetchLinkMetadata: fetchLinkPreview } });
 });
 afterEach(() => {
   applyAnimationPreference('automatic');
@@ -179,15 +182,24 @@ it('uses existing metadata immediately and truncates long titles without fetchin
   expect(fetchLinkPreview).not.toHaveBeenCalled();
 });
 
-it('clears a fetched pill title at the server privacy boundary', async () => {
-  const scope = createTestServerScope({ api: { fetchLinkPreview } });
-  const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
-  const trigger = container.querySelector('.url-link')!;
-  await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
-  removeRegisteredServerQueries(scope.serverId);
-  await vi.waitFor(() => expect(trigger.textContent).toContain('example.test'));
-  expect(trigger.textContent).not.toContain('A useful guide');
-});
+it.each([removeRegisteredServerQueries, refreshRegisteredServerQueries])(
+  'reloads a visible pill without hover after %s',
+  async (reset) => {
+    const scope = createTestServerScope({ api: { fetchLinkMetadata: fetchLinkPreview } });
+    const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
+    const trigger = container.querySelector('.url-link')!;
+    await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
+    fetchLinkPreview.mockResolvedValue({ url: href, title: 'Reauthorized title' });
+    await reset(scope.serverId);
+    await vi.waitFor(() => expect(trigger.textContent).toContain('Reauthorized title'));
+    expect(fetchLinkPreview).toHaveBeenCalledTimes(2);
+    expect(trigger.textContent).not.toContain('A useful guide');
+    fetchLinkPreview.mockResolvedValue({ url: href, title: 'Another permission change' });
+    await reset(scope.serverId);
+    await vi.waitFor(() => expect(trigger.textContent).toContain('Another permission change'));
+    expect(fetchLinkPreview).toHaveBeenCalledTimes(3);
+  }
+);
 
 it('does not reveal a title protected by a social content warning', async () => {
   fetchLinkPreview.mockResolvedValue({
@@ -204,19 +216,22 @@ it('does not reveal a title protected by a social content warning', async () => 
 });
 
 it('ignores a pending response after the server session is cleared', async () => {
-  const scope = createTestServerScope({ api: { fetchLinkPreview } });
+  const scope = createTestServerScope({ api: { fetchLinkMetadata: fetchLinkPreview } });
   let resolve!: (value: unknown) => void;
-  fetchLinkPreview.mockReturnValue(
+  fetchLinkPreview.mockReturnValueOnce(
     new Promise((done) => {
       resolve = done;
     })
   );
   const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
   await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
+  fetchLinkPreview.mockResolvedValue({ url: href, title: 'Fresh authorized title' });
   removeRegisteredServerQueries(scope.serverId);
   resolve({ url: href, title: 'Old session title' });
   await tick();
-  expect(container.querySelector('.url-link')?.textContent).toContain('example.test');
+  await vi.waitFor(() =>
+    expect(container.querySelector('.url-link')?.textContent).toContain('Fresh authorized title')
+  );
   expect(container.textContent).not.toContain('Old session title');
 });
 it.each([
