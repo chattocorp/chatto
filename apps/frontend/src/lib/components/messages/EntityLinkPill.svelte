@@ -37,7 +37,7 @@
     sheetPreview?: Snippet<[() => void]>;
   } = $props();
   let menu = $state<ContextMenuTriggerDetails | null>(null);
-  const trigger = contextMenuTrigger((details) => (menu = details));
+  const trigger = contextMenuTrigger((details) => (menu = details), { touchOnly: true });
 
   function openKeyboardMenu(event: KeyboardEvent) {
     if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;

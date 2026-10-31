@@ -138,7 +138,11 @@
       on(node, 'focusin', enter),
       on(node, 'focusout', exit),
       on(node, 'click', close),
-      on(node, 'contextmenu', closeHover),
+      on(node, 'contextmenu', (event) => {
+        // Keep the browser's link menu instead of opening the message menu.
+        if (!touchInput) event.stopPropagation();
+        closeHover();
+      }),
       on(node, 'pointerdown', (event) => {
         touchInput = event.pointerType === 'touch';
         if (touchInput) closeHover();
@@ -244,6 +248,7 @@
       onfocus={keepOpen}
       onblur={leave}
       onclick={activate}
+      oncontextmenu={(event) => event.stopPropagation()}
       onauxclick={(event) => {
         if (event.button === 1) activate(event);
       }}

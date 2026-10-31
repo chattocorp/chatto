@@ -278,14 +278,14 @@ it.each(['tap', 'scroll', 'cancel'])('does not preview during a touch %s', async
   }
 });
 
-it('keeps ordinary desktop context menus with their message owner', () => {
+it('keeps the native desktop link menu out of the message menu', () => {
   const { container } = render(LinkHover, { href, children });
   const parentMenu = vi.fn();
   container.addEventListener('contextmenu', parentMenu);
   const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
   container.querySelector('a')!.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
-  expect(parentMenu).toHaveBeenCalledOnce();
+  expect(parentMenu).not.toHaveBeenCalled();
 });
 it('reuses a fetched title without replacing the focused anchor or its destination', async () => {
   const { container } = render(LinkTitleTestHarness, { href });
@@ -385,7 +385,7 @@ it.each([
   ['click', {}],
   ['click', { ctrlKey: true }],
   ['auxclick', { button: 1 }]
-] as const)('opens the whole card with %s %j', async (type, options) => {
+] as const)('leaves the whole card navigation native with %s %j', async (type, options) => {
   const open = vi.spyOn(window, 'open').mockReturnValue(null);
   const { container } = render(LinkHover, { href, children });
   container.classList.add('prose');
@@ -400,10 +400,20 @@ it.each([
   expect(card.rel).toBe('noopener noreferrer');
   expect(card.dataset.contentHref).toBe(href);
   expect(getComputedStyle(card).textDecorationLine).toBe('none');
+  let prevented: boolean | undefined;
+  document.addEventListener(
+    type,
+    (event) => {
+      prevented = event.defaultPrevented;
+      event.preventDefault();
+    },
+    { once: true }
+  );
   card
     .querySelector('.font-semibold')!
     .dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...options }));
-  expect(open).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+  expect(prevented).toBe(false);
+  expect(open).not.toHaveBeenCalled();
   await vi.waitFor(() =>
     expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
   );
