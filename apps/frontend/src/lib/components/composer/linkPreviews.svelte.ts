@@ -1,6 +1,6 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { extractURLs } from '$lib/linkPreview';
-import { parseMessageLink } from '$lib/chatLinks';
+import { parseEntityLink, parseMessageLink } from '$lib/chatLinks';
 import type { ComposerLinkPreview } from '@chatto/client/api/linkPreviews';
 
 type LinkPreviewAPI = {
@@ -29,7 +29,12 @@ export class LinkPreviewState {
     }
 
     this.#urlDetectionTimeout = setTimeout(() => {
-      const urls = extractURLs(message).filter((u) => !this.dismissedURLs.has(u));
+      // Entity pills already show these resources. Skip them before selecting
+      // the first URL so a later web link can still receive an attachment.
+      const urls = extractURLs(message, Infinity)
+        .filter((url) => !parseEntityLink(url))
+        .slice(0, 1)
+        .filter((url) => !this.dismissedURLs.has(url));
       this.detectedURLs = urls;
 
       for (const url of urls) {
