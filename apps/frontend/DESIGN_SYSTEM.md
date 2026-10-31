@@ -588,8 +588,10 @@ as metadata.
 When a page title is available, show it in the main section and
 the hostname in a darker, muted trailing section. Tuck the hostname section
 behind the title's rounded trailing edge, using the shared 6px pill radius.
-All sections belong to one link. The title truncates first; keep the hostname section within 40% of the
-pill. URL pills have a maximum width of 28rem and must fit within the available
+All sections belong to one link. The title truncates first. URL hostname sections
+use their natural width, with at least 3rem left for the title on narrow lines.
+Entity metadata stays within 40% of the pill.
+URL pills have a maximum width of 28rem and must fit within the available
 width. Entity pills can use the full available width. Neither the pill nor its
 lighter title section stretches past its content.
 Without a title, use the hostname as the primary label. Show the standard external-link
