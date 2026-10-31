@@ -84,7 +84,7 @@ export function createDesktopUpdates({
       downloaded = undefined;
       pending = undefined;
       publish('error');
-      void notify('error');
+      void notify('install-error');
     }
   });
   updater.on('update-downloaded', (info) => {
@@ -230,7 +230,14 @@ export function createUpdateInstallRequest(updates, confirm) {
     try {
       if (!(await confirm(before.availableVersion))) return;
       const after = updates.snapshot();
-      if (after.busy || after.status !== 'ready' || after.revision !== before.revision) return;
+      // A completed background check can publish the same ready release again.
+      if (
+        after.busy ||
+        after.status !== 'ready' ||
+        after.availableVersion !== before.availableVersion ||
+        after.channel !== before.channel
+      )
+        return;
       await updates.install();
     } finally {
       confirming = false;

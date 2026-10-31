@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
+import { createUpdateNotifier } from './update_notifications.mjs';
 import {
   createDesktopUpdates,
   createUpdateInstallRequest,
@@ -22,7 +23,7 @@ test('development installations expose their version without enabling update ope
   stop();
 });
 
-function fixture(overrides = {}) {
+function fixture(overrides = {}, notify) {
   const updater = new EventEmitter();
   const notifications = [];
   const saved = [];
@@ -53,7 +54,7 @@ function fixture(overrides = {}) {
     updater,
     preferences,
     save: async (value) => saved.push(value),
-    notify: async (...args) => notifications.push(args),
+    notify: notify ?? (async (...args) => notifications.push(args)),
     now: () => Date.parse('2026-10-29T18:00:00Z')
   });
   return {
@@ -221,7 +222,7 @@ test('asynchronous native installation failure is reported and unlocks checks', 
   await f.controller.install();
   assert.equal(await f.controller.setPreference('channel', 'beta'), false);
   f.updater.emit('error', new Error('Native signature verification failed'));
-  assert.equal(f.notifications.at(-1)[0], 'error');
+  assert.equal(f.notifications.at(-1)[0], 'install-error');
   assert.equal(await f.controller.setPreference('channel', 'beta'), true);
 });
 
@@ -287,3 +288,49 @@ test('restart confirmation is serialized and cannot install a changed target', a
   await accepted;
   assert.equal(f.counts().installs, 1);
 });
+
+test('late native install failure shows one sanitized dialog after the restart request returns', async () => {
+  const dialogs = [];
+  const notify = createUpdateNotifier({
+    Notification: { isSupported: () => false },
+    dialog: { showMessageBox: async (options) => dialogs.push(options) }
+  });
+  const f = fixture({}, notify);
+  await f.controller.check(true);
+  const request = createUpdateInstallRequest(f.controller, async () => true);
+  await request();
+  assert.equal(dialogs.length, 0);
+  f.updater.emit('error', new Error('private installer path'));
+  f.updater.emit('error', new Error('duplicate native error'));
+  await new Promise(setImmediate);
+  assert.deepEqual(dialogs, [
+    {
+      type: 'error',
+      message: 'Chatto could not install this update. Check for updates again.'
+    }
+  ]);
+  assert.equal(f.controller.snapshot().status, 'error');
+  assert.equal(f.controller.snapshot().busy, false);
+});
+
+for (const nextVersion of ['0.6.0', '0.6.1'])
+  test(`confirmation after a background check of ${nextVersion} preserves the confirmed target`, async () => {
+    const f = fixture();
+    await f.controller.check();
+    let confirm;
+    const request = createUpdateInstallRequest(
+      f.controller,
+      () =>
+        new Promise((resolve) => {
+          confirm = resolve;
+        })
+    );
+    const before = f.controller.snapshot();
+    const pending = request();
+    f.updater.result = { isUpdateAvailable: true, updateInfo: { version: nextVersion } };
+    await f.controller.check();
+    assert.ok(f.controller.snapshot().revision > before.revision);
+    confirm(true);
+    await pending;
+    assert.equal(f.counts().installs, nextVersion === '0.6.0' ? 1 : 0);
+  });

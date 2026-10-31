@@ -11,6 +11,7 @@ import {
   updatePreferences
 } from './updates.mjs';
 import { hasWindowsUninstaller } from './update_installation.mjs';
+import { createUpdateNotifier } from './update_notifications.mjs';
 
 /** Enable downloads only in supported release installations; all builds expose their version. */
 export async function configureUpdateMenu(packageJson) {
@@ -57,15 +58,7 @@ export async function configureUpdateMenu(packageJson) {
     preferences,
     save,
     version: packageJson.version,
-    notify: async (state, version, isManual) => {
-      if (state === 'ready' && !isManual) {
-        if (Notification.isSupported())
-          new Notification({
-            title: 'Chatto update ready',
-            body: `Chatto ${version} is ready. Open Updates preferences to restart and install it.`
-          }).show();
-      }
-    }
+    notify: createUpdateNotifier({ Notification, dialog })
   });
   const requestInstall = createUpdateInstallRequest(updates, async (version) => {
     const { response } = await dialog.showMessageBox({
