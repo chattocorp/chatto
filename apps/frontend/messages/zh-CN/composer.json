@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "默认显示预览",
     "insert_emoji": "插入表情符号",
     "attach_file": "添加文件",
     "formatting_options": "格式选项",

@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "Показувати попередній перегляд за замовчуванням",
     "insert_emoji": "Вставити емодзі",
     "attach_file": "Прикріпити файл",
     "formatting_options": "Параметри форматування",

@@ -75,11 +75,14 @@ export function attachCodeFrames(html: string, scope: string) {
             image.decoding = 'async';
             image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
           }
-          const { ZoomableImage } = await import('$lib/ui/attachments');
+          const { RenderedImage } = await import('$lib/ui/attachments');
           if (signal.aborted) return;
-          const canvas = mount(ZoomableImage, {
+          const canvas = mount(RenderedImage, {
             target: renderPanel,
-            props: { image, inline: true, onerror: fail }
+            props: {
+              image,
+              controlsTarget: frame.querySelector<HTMLElement>('.markdown-code-header')!
+            }
           });
           canvases.push(() => {
             void unmount(canvas);

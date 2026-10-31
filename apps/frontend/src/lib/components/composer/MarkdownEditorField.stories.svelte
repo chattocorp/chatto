@@ -65,7 +65,7 @@
   <MarkdownEditorField bind:value={mermaid} editorKind="visual" label="Flight plan" />
 </Story>
 
-<Story name="Render by default" asChild>
+<Story name="Visual block" asChild>
   <MarkdownEditorField bind:value={renderedMermaid} editorKind="visual" label="Diagram" />
 </Story>
 

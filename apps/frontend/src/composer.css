@@ -5,7 +5,7 @@
   --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
   & .ProseMirror pre {
-    @apply relative w-full code-frame bg-transparent p-0 font-mono text-sm;
+    @apply code-frame w-full;
     overflow: clip;
     line-height: 1.5;
     direction: ltr;
@@ -20,7 +20,7 @@
   }
 
   & .ProseMirror pre code {
-    @apply block max-h-96 overflow-auto bg-transparent px-3 py-2;
+    @apply block max-h-96 overflow-auto;
     font-size: inherit;
     line-height: inherit;
     color: var(--composer-code-text);
@@ -29,15 +29,13 @@
 
   & .cm-code-fence {
     box-sizing: border-box;
-    border-inline: 1px solid var(--message-code-surface, var(--color-surface));
+    border-inline: 4px solid var(--color-surface);
     padding-inline: 0.75rem;
-    background: transparent;
+    background: var(--color-background);
   }
 
   & .cm-code-fence-open {
-    @apply mt-2 rounded-t-md border-t font-mono text-xs leading-4 text-muted;
-    border-color: var(--message-code-surface, var(--color-surface));
-    background: var(--message-code-surface, var(--color-surface));
+    @apply mt-2 rounded-t-lg bg-surface shell-lighting font-mono text-xs leading-4 text-muted;
     min-height: 1.5rem;
     padding-block: 0.25rem;
   }
@@ -51,8 +49,7 @@
   }
 
   & .cm-code-fence-close {
-    @apply mb-2 rounded-b-md border-b pb-1 font-mono text-xs text-muted;
-    border-color: var(--message-code-surface, var(--color-surface));
+    @apply mb-2 rounded-b-lg border-b-4 border-surface pb-1 font-mono text-xs text-muted;
   }
 
   & .ProseMirror blockquote,

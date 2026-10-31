@@ -363,6 +363,8 @@ the same API as the visual editor while keeping the stored Markdown visible.
   function contentAttributes(label: string, dataTestid?: string) {
     return EditorView.contentAttributes.of({
       role: 'textbox',
+      // Keep long source blocks reachable by keyboard inside CodeMirror's scroller.
+      tabindex: '0',
       'aria-label': label,
       'aria-multiline': 'true',
       spellcheck: 'true',

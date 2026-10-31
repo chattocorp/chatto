@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "Zobrazit náhled ve výchozím nastavení",
     "insert_emoji": "Vložte emoji",
     "attach_file": "Připojit soubor",
     "formatting_options": "Možnosti formátování",

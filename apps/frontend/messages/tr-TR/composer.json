@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "Varsayılan olarak önizlemeyi göster",
     "insert_emoji": "Emoji ekleyin",
     "attach_file": "Dosya ekle",
     "formatting_options": "Biçimlendirme seçenekleri",

@@ -44,6 +44,9 @@ describe('MarkdownEditorField mention lifecycle', () => {
       flushSync();
       expect(first.container.querySelector('[contenteditable="true"]')).not.toBeNull();
       await tick();
+      expect(
+        first.container.querySelector('[contenteditable="true"]')?.getAttribute('aria-label')
+      ).toBe('First');
       expect(first.container.querySelector('[contenteditable="true"]')?.textContent).toContain(
         'First draft'
       );

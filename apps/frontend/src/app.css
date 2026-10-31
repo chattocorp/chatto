@@ -1949,7 +1949,6 @@
 
   & > code {
     @apply block preview-content overflow-x-auto px-3 py-2;
-    padding-inline-end: 5.5rem;
     color: var(--composer-code-text);
     font-size: inherit;
     line-height: inherit;
@@ -2062,18 +2061,21 @@
 
 @utility image-canvas-fade {
   @apply scroll-edge-fade;
-  --tw-gradient-from: var(--message-code-background, var(--color-background));
+  --tw-gradient-from: color-mix(
+    in srgb,
+    var(--message-code-background, var(--color-background)) 50%,
+    transparent
+  );
 }
 
 /* Shared code chrome for messages and both composer implementations. */
 @utility code-frame {
-  @apply min-w-0 overflow-hidden rounded-md border shadow-xs;
-  border-color: var(--message-code-surface, var(--color-surface));
+  @apply preview-code min-w-0;
 }
 
 @utility code-frame-header {
-  @apply flex h-6 items-center justify-end gap-1 px-2 py-0.5 font-sans text-xs leading-4 text-muted;
-  background-color: var(--message-code-surface, var(--color-surface));
+  /* Balance the frame's 4px top rim when centring controls above the inset. */
+  @apply flex h-6 items-center justify-end gap-1 px-2 pt-0 pb-1 font-sans text-xs leading-4 text-muted;
 }
 
 @utility code-line-number {
@@ -2089,17 +2091,6 @@
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
   @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
-  /* Code chrome stays one surface above its message, including held menus. */
-  --message-code-surface: var(--color-surface);
-  --message-code-background: var(--color-background);
-  @variant hover {
-    --message-code-surface: var(--color-surface-emphasized);
-    --message-code-background: var(--color-surface);
-  }
-  &.bg-surface {
-    --message-code-surface: var(--color-surface-emphasized);
-    --message-code-background: var(--color-surface);
-  }
 }
 
 @utility inline-end-overlay-shadow {
@@ -2513,7 +2504,6 @@
  */
 @utility chat-input-surface {
   @apply min-h-12 shell-surface;
-  --message-code-surface: var(--color-surface-emphasized);
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */

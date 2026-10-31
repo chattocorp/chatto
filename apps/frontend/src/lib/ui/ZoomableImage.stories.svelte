@@ -23,9 +23,3 @@
     <ZoomableImage {src} alt="Eight checkpoints" onerror={() => {}} />
   </div>
 </Story>
-
-<Story name="Inline diagram" asChild>
-  <div class="w-full max-w-xl code-frame">
-    <ZoomableImage {src} alt="Eight checkpoints" inline onerror={() => {}} />
-  </div>
-</Story>

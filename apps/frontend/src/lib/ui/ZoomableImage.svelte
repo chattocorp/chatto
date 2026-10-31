@@ -1,34 +1,42 @@
 <!-- @component
-Shared image stage for the attachment viewer and inline SVG/Mermaid previews.
-Inline stages fill their frame, start fitted and pan on normal wheel
-input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds.
+Attachment viewer image stage with wheel/pinch zoom, bounded panning and Fit.
+Controls live in the viewer footer when one is provided through context.
 -->
 <script module lang="ts">
+  /** Allow shrinking below the fitted size without making the image disappear. */
+  const MIN_ZOOM = 0.25;
   /** Maximum magnification relative to the fitted image. */
   const MAX_ZOOM = 16;
 </script>
 
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
-  import { on } from 'svelte/events';
+  import { getContext } from 'svelte';
   import { m } from '$lib/i18n/messages';
+  import { imageControlsContext } from './AttachmentModal.svelte';
 
   let {
     src = '',
     alt = '',
-    image,
-    inline = false,
     onerror
   }: {
     src?: string;
     alt?: string;
-    /** Reuse an existing image, including its theme updates and load listeners. */
-    image?: HTMLImageElement;
-    inline?: boolean;
     onerror: () => void;
   } = $props();
 
   let stage: HTMLDivElement;
+  const viewerControls = getContext<(() => HTMLElement | undefined) | undefined>(
+    imageControlsContext
+  );
+
+  /** Relocate the one shared toolbar; its lifecycle and state stay with this canvas. */
+  function placeControls(node: HTMLDivElement) {
+    const target = viewerControls?.();
+    if (!target) return;
+    target.prepend(node);
+    return () => node.remove();
+  }
   let zoom = $state(1);
   let offsetX = $state(0);
   let offsetY = $state(0);
@@ -61,7 +69,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
 
   /** Adjust the offset so the stage point under the cursor stays fixed. */
   function zoomAt(requested: number, clientX?: number, clientY?: number) {
-    const next = Math.max(1, Math.min(MAX_ZOOM, requested));
+    const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, requested));
     if (next === zoom) return;
     const rect = stage.getBoundingClientRect();
     const x = (clientX ?? rect.left + rect.width / 2) - rect.left - rect.width / 2;
@@ -98,7 +106,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     const update = () => {
       naturalWidth = image.naturalWidth;
       naturalHeight = image.naturalHeight;
-      // Inline aspect ratio changes must reach layout before measuring bounds.
+      // Image dimensions must reach layout before measuring bounds.
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(measureStage);
     };
@@ -111,28 +119,6 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     };
   }
 
-  function existingImage(node: HTMLDivElement) {
-    if (!image) return;
-    image.classList.add('image-canvas-asset');
-    image.dataset.canvasImage = '';
-    image.draggable = false;
-    node.append(image);
-    const cleanup = measureImage(image);
-    return () => {
-      cleanup();
-      image.remove();
-    };
-  }
-
-  /** Consume message activation gestures after the canvas controls handle them. */
-  function containMessageGestures(node: HTMLDivElement) {
-    if (!inline) return;
-    const cleanups = (
-      ['click', 'dblclick', 'mousedown', 'mouseup', 'touchstart', 'touchend'] as const
-    ).map((type) => on(node, type, (event) => event.stopPropagation()));
-    return () => cleanups.forEach((cleanup) => cleanup());
-  }
-
   function wheelZoom(node: HTMLDivElement) {
     function wheel(event: WheelEvent) {
       if (!naturalWidth || !naturalHeight) return;
@@ -142,17 +128,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
           : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
             ? stageHeight
             : 1;
-      if (inline && !event.ctrlKey && !event.metaKey) {
-        const previousX = offsetX;
-        const previousY = offsetY;
-        const horizontal = event.shiftKey && !event.deltaX;
-        clampPan(
-          offsetX - (horizontal ? event.deltaY : event.deltaX) * unit,
-          offsetY - (horizontal ? 0 : event.deltaY) * unit
-        );
-        // At an edge, leave the wheel to the conversation's native scrolling.
-        if (offsetX === previousX && offsetY === previousY) return;
-      } else zoomAt(zoom * Math.exp(-event.deltaY * unit * 0.002), event.clientX, event.clientY);
+      zoomAt(zoom * Math.exp(-event.deltaY * unit * 0.002), event.clientX, event.clientY);
       event.preventDefault();
       event.stopPropagation();
     }
@@ -188,7 +164,6 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
   function pointerdown(event: PointerEvent) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     pointers.set(event.pointerId, position(event));
-    if (inline) stage.focus({ preventScroll: true });
     stage.setPointerCapture(event.pointerId);
   }
 
@@ -222,9 +197,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
   }
 
   function keydown(event: KeyboardEvent) {
-    const active = inline
-      ? stage?.parentElement?.contains(document.activeElement)
-      : stage?.closest('dialog')?.open;
+    const active = stage?.closest('dialog')?.open;
     if (!active || event.altKey || event.ctrlKey || event.metaKey) return;
     if (
       event.target instanceof Element &&
@@ -234,10 +207,6 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     if (event.key === '+' || event.key === '=') zoomAt(zoom + 0.25);
     else if (event.key === '-') zoomAt(zoom - 0.25);
     else if (event.key === '0') fit();
-    else if (inline && event.key === 'ArrowDown') clampPan(offsetX, offsetY - 40);
-    else if (inline && event.key === 'ArrowUp') clampPan(offsetX, offsetY + 40);
-    else if (inline && event.key === 'ArrowRight') clampPan(offsetX - 40, offsetY);
-    else if (inline && event.key === 'ArrowLeft') clampPan(offsetX + 40, offsetY);
     else return;
     event.preventDefault();
   }
@@ -246,12 +215,9 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
 <svelte:window onkeydown={keydown} />
 
 <div
-  class={[
-    'image-canvas relative flex min-h-0 w-full flex-col',
-    inline ? 'mx-auto text-text' : 'h-full bg-black text-white'
-  ]}
+  class="image-canvas relative flex h-full min-h-0 w-full flex-col bg-black text-white"
   data-sidebar-swipe-ignore
-  {@attach containMessageGestures}
+  style:--message-code-background="#000"
 >
   <div
     bind:this={stage}
@@ -262,11 +228,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     tabindex="-1"
     aria-label={m('ui.image_modal.fallback_alt')}
     dir="ltr"
-    class={[
-      'relative min-h-0 touch-none overflow-hidden select-none',
-      inline ? 'max-h-[min(30rem,60vh)] w-full' : 'flex-1'
-    ]}
-    style:aspect-ratio={inline ? `${naturalWidth || 1} / ${naturalHeight || 1}` : undefined}
+    class="relative min-h-0 flex-1 touch-none overflow-hidden select-none"
     style:cursor={zoom > 1 ? (pointers.size ? 'grabbing' : 'grab') : 'zoom-in'}
     onpointerdown={pointerdown}
     onpointermove={pointermove}
@@ -279,64 +241,55 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
       class="image-canvas-layer absolute inset-0"
       style={`transform: translate(${offsetX}px, ${offsetY}px) scale(${zoom})`}
     >
-      {#if image}
-        <div class="contents" {@attach existingImage}></div>
-      {:else}
-        <img
-          {src}
-          {alt}
-          draggable="false"
-          data-canvas-image
-          class="image-canvas-asset"
-          {@attach measureImage}
-          {onerror}
-        />
-      {/if}
+      <img
+        {src}
+        {alt}
+        draggable="false"
+        data-canvas-image
+        class="image-canvas-asset"
+        {@attach measureImage}
+        {onerror}
+      />
     </div>
-    {#if inline}
-      <span
-        aria-hidden="true"
-        class={[
-          'image-canvas-fade inset-x-0 top-0 h-8 bg-gradient-to-b',
-          offsetY >= limits.y - 1 && 'opacity-0'
-        ]}
-      ></span>
-      <span
-        aria-hidden="true"
-        class={[
-          'image-canvas-fade inset-x-0 bottom-0 h-8 bg-gradient-to-t',
-          offsetY <= -limits.y + 1 && 'opacity-0'
-        ]}
-      ></span>
-      <span
-        aria-hidden="true"
-        class={[
-          'image-canvas-fade inset-y-0 start-0 w-8 bg-gradient-to-r',
-          offsetX >= limits.x - 1 && 'opacity-0'
-        ]}
-      ></span>
-      <span
-        aria-hidden="true"
-        class={[
-          'image-canvas-fade inset-y-0 end-0 w-8 bg-gradient-to-l',
-          offsetX <= -limits.x + 1 && 'opacity-0'
-        ]}
-      ></span>
-    {/if}
+    <span
+      aria-hidden="true"
+      class={[
+        'image-canvas-fade inset-x-0 top-0 h-8 bg-gradient-to-b',
+        offsetY >= limits.y - 1 && 'opacity-0'
+      ]}
+    ></span>
+    <span
+      aria-hidden="true"
+      class={[
+        'image-canvas-fade inset-x-0 bottom-0 h-8 bg-gradient-to-t',
+        offsetY <= -limits.y + 1 && 'opacity-0'
+      ]}
+    ></span>
+    <span
+      aria-hidden="true"
+      class={[
+        'image-canvas-fade inset-y-0 start-0 w-8 bg-gradient-to-r',
+        offsetX >= limits.x - 1 && 'opacity-0'
+      ]}
+    ></span>
+    <span
+      aria-hidden="true"
+      class={[
+        'image-canvas-fade inset-y-0 end-0 w-8 bg-gradient-to-l',
+        offsetX <= -limits.x + 1 && 'opacity-0'
+      ]}
+    ></span>
   </div>
   <div
-    class={[
-      'flex items-center justify-center gap-1 px-2 py-1',
-      inline
-        ? 'absolute inset-x-2 bottom-2 z-40 mx-auto w-fit max-w-full shell-surface text-xs'
-        : 'shrink-0'
-    ]}
+    {@attach placeControls}
+    class="flex shrink-0 items-center gap-1 bg-background p-1 text-xs text-text"
   >
     <button
       type="button"
-      class={inline ? 'mini-icon-action' : 'icon-action text-white'}
+      class="mini-icon-action"
       aria-label={m('ui.image_modal.zoom_out')}
-      disabled={zoom <= 1}
+      title={m('ui.image_modal.zoom_out')}
+      disabled={zoom <= MIN_ZOOM}
       onclick={() => zoomAt(zoom - 0.25)}
     >
       <span class="iconify icon-[uil--minus] text-xl" aria-hidden="true"></span>
@@ -344,8 +297,9 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     <output class="w-14 text-center tabular-nums" aria-live="polite">{percent}%</output>
     <button
       type="button"
-      class={inline ? 'mini-icon-action' : 'icon-action text-white'}
+      class="mini-icon-action"
       aria-label={m('ui.image_modal.zoom_in')}
+      title={m('ui.image_modal.zoom_in')}
       disabled={zoom >= MAX_ZOOM}
       onclick={() => zoomAt(zoom + 0.25)}
     >
@@ -353,9 +307,13 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     </button>
     <button
       type="button"
-      class={['ms-2 btn-secondary', inline && 'btn-compact']}
+      class="ms-2 mini-icon-action px-1"
+      aria-label={m('ui.image_modal.fit')}
+      title={m('ui.image_modal.fit')}
       disabled={zoom === 1}
-      onclick={fit}>{m('ui.image_modal.fit')}</button
+      onclick={fit}
     >
+      {m('ui.image_modal.fit')}
+    </button>
   </div>
 </div>

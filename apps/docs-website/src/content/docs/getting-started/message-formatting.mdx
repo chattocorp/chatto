@@ -248,9 +248,9 @@ flowchart LR
 
 Chatto renders diagrams locally with [Pele](https://pele.run/). It does not send
 the source to a rendering service. Diagrams follow your theme. Large SVG and
-Mermaid previews use a bounded canvas: scroll or drag to move around, and pinch
-or use Ctrl-wheel to zoom. The zoom buttons and **Fit** control are also available.
-At an edge, wheel scrolling continues through the conversation. Add `accTitle`
+Mermaid previews fit inside the message. Select **Open larger** to pan and zoom
+in the image viewer. Its footer has zoom controls and **Fit**, which restores the
+complete image. Scrolling over an embedded preview scrolls the conversation. Add `accTitle`
 and `accDescr` to describe a Mermaid diagram for screen readers.
 
 Links, external images, and source configuration are disabled. Invalid or
@@ -273,7 +273,10 @@ message body:
 ```
 ````
 
-The image appears in the shared code frame with **Source** and **Render** tabs.
+The image appears as a visual preview. Hover over it, focus its controls, or use
+a touch screen to access **Open larger**, **Source**, **Render**, and **Copy**.
+Plain `svg`, `mermaid`, and `ansi` fences show code first with a preview option.
+In the visual composer, choose **Code** or **Visual** to set this presentation.
 If the image cannot load, Chatto shows its source instead. Transparent areas
 keep the message background. Include the SVG namespace shown above. Keep images,
 styles, and fonts inside the SVG: external resources do not load. Scripts and

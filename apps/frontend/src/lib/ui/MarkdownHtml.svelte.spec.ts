@@ -29,6 +29,52 @@ let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Mermaid previews', () => {
   it.each(['svg', 'mermaid', 'ansi'])(
+    'distinguishes code and visual presentation for %s',
+    async (language) => {
+      const source =
+        language === 'svg'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"/>'
+          : language === 'mermaid'
+            ? 'flowchart LR\nA-->B'
+            : 'ART';
+      const { container } = render(MarkdownHtml, {
+        html: await renderMarkdown(
+          '```' +
+            language +
+            '\n' +
+            source +
+            '\n```\n\n```' +
+            language +
+            ' rendered\n' +
+            source +
+            '\n```'
+        )
+      });
+      container.classList.add('prose');
+      const [code, visual] = [...container.querySelectorAll<HTMLElement>('[data-artifact]')];
+      expect(code.dataset.presentation).toBe('code');
+      expect(visual.dataset.presentation).toBe('visual');
+      expect(getComputedStyle(code.querySelector('.markdown-code-header')!).position).toBe(
+        'static'
+      );
+      expect(getComputedStyle(visual.querySelector('.markdown-code-header')!).position).toBe(
+        'absolute'
+      );
+      expect(getComputedStyle(visual.querySelector('.markdown-code-language')!).display).toBe(
+        'none'
+      );
+      await userEvent.click(visual.querySelector('[data-code-tab="source"]')!);
+      expect(getComputedStyle(visual.querySelector('.markdown-code-header')!).position).toBe(
+        'static'
+      );
+      expect(getComputedStyle(visual.querySelector('.markdown-code-language')!).display).not.toBe(
+        'none'
+      );
+      expect(visual.dataset.presentation).toBe('visual');
+    }
+  );
+
+  it.each(['svg', 'mermaid', 'ansi'])(
     'keeps %s source available through independent keyboard tabs',
     async (language) => {
       const source =
@@ -113,14 +159,14 @@ describe('Mermaid previews', () => {
       expect(getComputedStyle(block).overflowY).toBe('hidden');
       expect(block.scrollHeight).toBeLessThanOrEqual(block.clientHeight + 1);
       expect(block.scrollWidth).toBeLessThanOrEqual(block.clientWidth + 1);
-      const stage = block.querySelector<HTMLElement>('.image-canvas [role="group"]')!;
+      const stage = block.querySelector<HTMLElement>('.rendered-image')!;
       expect(stage.getBoundingClientRect().width).toBeLessThanOrEqual(320);
       await expect.poll(() => stage.clientHeight).toBeGreaterThan(0);
       expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6) + 1);
-      expect(block.querySelector('button[aria-label="Zoom in"]')).not.toBeNull();
-      expect(block.querySelector('output')?.textContent).toBe('100%');
+      expect(block.querySelector('button[aria-label="Zoom in"]')).toBeNull();
+      expect(block.querySelector('[data-open-larger]')).not.toBeNull();
       expect(image.getBoundingClientRect().height).toBeLessThanOrEqual(stage.clientHeight + 1);
-      expect(stage.clientWidth).toBe(block.clientWidth);
+      expect(stage.clientWidth).toBe(block.clientWidth - 8);
       expect(block.hasAttribute('tabindex')).toBe(false);
     }
   );
@@ -165,19 +211,16 @@ describe('Mermaid previews', () => {
     expect(image.alt).toBe('Flight plan. Launch then orbit');
     expect(container.querySelector('svg')).toBeNull();
     expect(container.querySelector<HTMLElement>('[data-code-panel="source"]')?.hidden).toBe(true);
-    const zoomIn = container.querySelector<HTMLButtonElement>('[aria-label="Zoom in"]')!;
-    await userEvent.click(zoomIn);
-    const zoom = container.querySelector('output')!.textContent;
     await userEvent.click(container.querySelector('[data-code-tab="source"]')!);
     await userEvent.click(container.querySelector('[data-code-tab="render"]')!);
-    await expect.poll(() => container.querySelector('output')?.textContent).toBe(zoom);
+    expect(container.querySelector('img')).toBe(image);
     const before = image.src;
     const previous = document.documentElement.dataset.theme;
     try {
       document.documentElement.dataset.theme = previous === 'dark' ? 'light' : 'dark';
       await expect.poll(() => image.src).not.toBe(before);
       expect(container.querySelector('img')).toBe(image);
-      expect(container.querySelector('output')?.textContent).toBe(zoom);
+      expect(container.querySelector('[aria-label="Zoom in"]')).toBeNull();
     } finally {
       if (previous === undefined) delete document.documentElement.dataset.theme;
       else document.documentElement.dataset.theme = previous;
@@ -458,7 +501,7 @@ describe('MarkdownHtml code copy', () => {
     ['light', true],
     ['dark', true]
   ] as const)(
-    'keeps code chrome above the message surface in %s mode with touch=%s',
+    'uses the shared preview frame and inset in %s mode with touch=%s',
     async (theme, touch) => {
       const root = document.documentElement;
       const previous = root.dataset.theme;
@@ -478,24 +521,32 @@ describe('MarkdownHtml code copy', () => {
         container.classList.add('prose', 'message-row');
         const frame = container.querySelector<HTMLElement>('.markdown-code-frame')!;
         const header = container.querySelector<HTMLElement>('.markdown-code-header')!;
+        const reference = document.createElement('div');
+        reference.className = 'preview-frame';
+        outside.append(reference);
+        const inset = document.createElement('div');
+        inset.className = 'preview-content';
+        reference.append(inset);
+        const panel = frame.querySelector<HTMLElement>('[data-code-panel="source"]')!;
+        const checkFrame = () => {
+          for (const property of [
+            'borderTopColor',
+            'borderRadius',
+            'backgroundColor',
+            'paddingTop'
+          ] as const)
+            expect(getComputedStyle(frame)[property]).toBe(getComputedStyle(reference)[property]);
+          for (const property of ['backgroundColor', 'borderRadius', 'boxShadow'] as const)
+            expect(getComputedStyle(panel)[property]).toBe(getComputedStyle(inset)[property]);
+        };
         await userEvent.hover(outside);
         expect(container.matches(':hover')).toBe(false);
-        const normal = getComputedStyle(header).backgroundColor;
-        expect(getComputedStyle(frame).borderTopColor).toBe(normal);
+        checkFrame();
         await userEvent.hover(header);
-        const highlighted = getComputedStyle(header).backgroundColor;
-        // Tailwind applies hover colors only when the primary input supports it.
-        // Headless CI can report no hover even with touch emulation disabled.
-        if (matchMedia('(hover: hover)').matches) expect(highlighted).not.toBe(normal);
-        else expect(highlighted).toBe(normal);
-        expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
+        checkFrame();
         container.classList.add('bg-surface');
         await userEvent.hover(outside);
-        const held = getComputedStyle(header).backgroundColor;
-        expect(held).not.toBe(normal);
-        expect(getComputedStyle(frame).borderTopColor).toBe(held);
-        container.classList.remove('bg-surface');
-        expect(getComputedStyle(header).backgroundColor).toBe(normal);
+        checkFrame();
       } finally {
         await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
         outside.remove();

@@ -168,8 +168,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       return;
     }
     activeCodeBlockSelectorPosition = {
-      right: frameRect.right - preRect.right + 1,
-      top: Math.max(preRect.top + 1, viewport.top) - frameRect.top
+      right: frameRect.right - preRect.right + 5,
+      top: Math.max(preRect.top + 5, viewport.top) - frameRect.top
     };
   }
 
@@ -685,7 +685,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   ></div>
 
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
-    <div class="absolute z-10 code-frame-header rounded-tr-md" style={codeLanguageSelectStyle}>
+    <div
+      class="absolute z-10 code-frame-header rounded-tr-md bg-surface"
+      style={codeLanguageSelectStyle}
+    >
       <div
         class="group relative inline-flex h-5 items-center gap-1 font-mono text-xs tracking-wide text-muted uppercase focus-within:text-text focus-within:outline-2 focus-within:outline-action hover:text-text"
       >
@@ -708,14 +711,21 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       {#if activeArtifactHint}
         <button
           type="button"
-          class="code-render-toggle mini-icon-action size-5"
-          title={m('composer.render_by_default')}
-          aria-label={m('composer.render_by_default')}
+          class="code-render-toggle mini-icon-action h-5 px-1"
+          aria-pressed={!renderByDefault}
+          disabled={!editable || readOnly}
+          onclick={() => setCodeBlockLanguage(activeCodeLanguage!, false)}
+        >
+          {m('composer.presentation_code')}
+        </button>
+        <button
+          type="button"
+          class="code-render-toggle mini-icon-action h-5 px-1"
           aria-pressed={renderByDefault}
           disabled={!editable || readOnly}
-          onclick={() => setCodeBlockLanguage(activeCodeLanguage!, !renderByDefault)}
+          onclick={() => setCodeBlockLanguage(activeCodeLanguage!, true)}
         >
-          <span aria-hidden="true" class="iconify icon-[uil--eye] text-sm"></span>
+          {m('composer.presentation_visual')}
         </button>
       {/if}
     </div>

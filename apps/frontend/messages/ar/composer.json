@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "العرض افتراضيًا",
     "insert_emoji": "أدرج رمزًا تعبيريًا",
     "attach_file": "قم بإرفاق الملف",
     "formatting_options": "خيارات التنسيق",

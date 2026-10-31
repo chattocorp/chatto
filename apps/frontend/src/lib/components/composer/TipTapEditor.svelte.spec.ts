@@ -46,9 +46,8 @@ describe('Composer artifact controls', () => {
     expect(getComputedStyle(pre).borderTopColor).not.toBe(
       getComputedStyle(container).backgroundColor
     );
-    expect(getComputedStyle(pre).borderTopColor).toBe(
-      getComputedStyle(pre, '::before').backgroundColor
-    );
+    expect(getComputedStyle(pre).paddingTop).toBe('4px');
+    expect(getComputedStyle(pre.querySelector('code')!).borderRadius).toBe('6px');
   });
 
   it('uses a top header while keeping code editable', async () => {
@@ -65,15 +64,13 @@ describe('Composer artifact controls', () => {
     await userEvent.click(code);
     expect(code.textContent).toBe('flowchart LR\n\nA-->B');
     expect(getComputedStyle(pre, '::before').height).toBe('24px');
-    expect(getComputedStyle(pre).borderTopColor).toBe(
-      getComputedStyle(pre, '::before').backgroundColor
-    );
+    expect(getComputedStyle(pre).paddingTop).toBe('4px');
     const controls = container
       .querySelector('[name="composer-code-language"]')!
       .closest('.code-frame-header')!;
     expect(
       Math.abs(controls.getBoundingClientRect().top - pre.getBoundingClientRect().top)
-    ).toBeLessThan(2);
+    ).toBeLessThan(6);
     await userEvent.keyboard('{Home}');
     api!.insertText('new\n');
     await expect.poll(() => code.textContent).toContain('new\n');
@@ -93,7 +90,7 @@ describe('Composer artifact controls', () => {
       const source = language === 'mermaid' ? 'flowchart LR\nA-->B' : 'source';
       api!.setContent('```' + language + '\n' + source + '\n```');
       await userEvent.click(container.querySelector('pre code')!);
-      const toggle = page.getByRole('button', { name: 'Render by default' });
+      const toggle = page.getByRole('button', { name: 'Visual', exact: true });
       await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
       await userEvent.click(toggle);
       expect(updates.at(-1)?.trimEnd()).toBe('```' + language + ' rendered\n' + source + '\n```');
@@ -106,7 +103,7 @@ describe('Composer artifact controls', () => {
           .poll(() => container.querySelector('.hljs-keyword')?.textContent)
           .toBe('flowchart');
       }
-      await userEvent.click(toggle);
+      await userEvent.click(page.getByRole('button', { name: 'Code', exact: true }));
       expect(updates.at(-1)?.trimEnd()).toBe('```' + language + '\n' + source + '\n```');
       api!.setContent('```' + language + ' rendered\n' + source + '\n```');
       await userEvent.click(container.querySelector('pre code')!);
@@ -121,7 +118,7 @@ describe('Composer artifact controls', () => {
       );
       await userEvent.selectOptions(select, 'js');
       expect(updates.at(-1)?.trimEnd()).toBe('```js\n' + source + '\n```');
-      expect(container.querySelector('button[aria-label="Render by default"]')).toBeNull();
+      expect(container.querySelector('.code-render-toggle')).toBeNull();
     }
   );
 });

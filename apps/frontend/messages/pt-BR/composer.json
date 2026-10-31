@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "Mostrar prévia por padrão",
     "insert_emoji": "Inserir emoji",
     "attach_file": "Anexar arquivo",
     "formatting_options": "Opções de formatação",

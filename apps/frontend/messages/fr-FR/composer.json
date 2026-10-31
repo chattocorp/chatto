@@ -1,6 +1,5 @@
 {
   "composer": {
-    "render_by_default": "Afficher le rendu par défaut",
     "insert_emoji": "Insérer un emoji",
     "attach_file": "Joindre un fichier",
     "formatting_options": "Options de mise en forme",
