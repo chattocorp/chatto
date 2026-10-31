@@ -577,10 +577,9 @@ const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"\x18GetInvitationCodeRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"e\n" +
 	"\x19GetInvitationCodeResponse\x12H\n" +
-	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"M\n" +
+	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\";\n" +
 	"\x1bCreateInvitationCodeRequest\x12\x1c\n" +
-	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01R\x04noteJ\x04\b\x01\x10\x02R\n" +
-	"expires_at\"h\n" +
+	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01R\x04note\"h\n" +
 	"\x1cCreateInvitationCodeResponse\x12H\n" +
 	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"6\n" +
 	"\x1bRevokeInvitationCodeRequest\x12\x17\n" +

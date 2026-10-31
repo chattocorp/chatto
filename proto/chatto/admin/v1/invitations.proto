@@ -49,8 +49,6 @@ message GetInvitationCodeResponse {
 }
 // Creates one single-use code. The server sets expiry to seven days after creation.
 message CreateInvitationCodeRequest {
-  reserved 1;
-  reserved "expires_at";
   // Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
   // Visible to the creator and invitation managers; it does not bind the code to a recipient.
   string note = 2 [(buf.validate.field).string.max_len = 250];
