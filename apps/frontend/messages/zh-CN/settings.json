@@ -1,7 +1,7 @@
 {
   "settings": {
     "desktop": {
-      "title": "桌面版",
+      "title": "更新",
       "subtitle": "此安装的更新",
       "updates": "应用更新",
       "unavailable": "此安装不支持自动更新。",

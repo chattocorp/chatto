@@ -98,7 +98,7 @@ system-browser authentication, and clean-machine media behavior are hardened.
   replace each other. Deployment tools select the intended release.
 - Tagged macOS apps, Windows NSIS installer copies, and Linux AppImages can download
   whole-app updates from GitHub. The frontend stays local and bundled. The
-  **App Preferences → Desktop** shows the installed version, update status,
+  **App Preferences → Updates** shows the installed version, update status,
   download progress, Stable or Beta, manual checks, and an automatic-check
   setting. The native Updates menu uses the same settings and updater.
   Prerelease builds default to Beta; stable builds default to Stable.
@@ -109,12 +109,12 @@ system-browser authentication, and clean-machine media behavior are hardened.
   not install updates. Existing builds need one manual upgrade to obtain this
   behavior. Windows ZIP and Linux tarball updates remain manual.
 - GitHub receives update requests and the user's IP address, but no Chatto
-  account or connected-server information. Desktop preferences and the Updates menu explain this
+  account or connected-server information. Updates preferences and the Updates menu explain this
   connection and let users disable automatic checks and downloads.
-- An update-ready link in the Application Header opens Desktop preferences.
+- An update-ready link in the Application Header opens Updates preferences.
   Background checks do not open a dialog. Restart still requires confirmation
   and warns that active calls and screen sharing will end.
-- Desktop preferences are independent of the selected server and remain
+- Updates preferences are independent of the selected server and remain
   available without a server connection. Navigation appears only when the host
   provides updates. Direct entry without that capability explains that automatic
   updates are unavailable. Other native features keep their controls in the
@@ -365,7 +365,7 @@ depend on the renderer being alive.
 **Why:** The app is self-contained. A disk image gives users a familiar way to
 install it without installation scripts or additional system services.
 **Tradeoff:** Installation requires a manual drag to Applications. Subsequent
-updates use Desktop preferences or the Updates menu and require a restart.
+updates use Updates preferences or the Updates menu and require a restart.
 
 ### 11. Update the complete desktop app through GitHub
 

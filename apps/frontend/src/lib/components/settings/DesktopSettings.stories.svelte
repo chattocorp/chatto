@@ -3,7 +3,7 @@
   import DesktopSettings from './DesktopSettings.svelte';
   import { DesktopUpdates, type DesktopUpdateStatus } from '$lib/desktop/updates.svelte';
 
-  const { Story } = defineMeta({ title: 'Settings/Desktop', component: DesktopSettings });
+  const { Story } = defineMeta({ title: 'Settings/Updates', component: DesktopSettings });
 
   /** Static host snapshots never contact an updater or install a release. */
   function preview(status: DesktopUpdateStatus['status'] | null) {

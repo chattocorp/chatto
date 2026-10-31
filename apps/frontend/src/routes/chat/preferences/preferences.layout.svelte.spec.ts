@@ -67,7 +67,7 @@ describe('App Preferences layout', () => {
     expect(container.querySelector('[data-testid="server-sidebar"]')).toBeNull();
   });
 
-  it('keeps Desktop preferences independent of an authenticated server', async () => {
+  it('keeps Updates preferences independent of an authenticated server', async () => {
     mocks.pathname = '/chat/preferences/desktop';
     mocks.authenticatedServerId = 'remote';
     const { getByRole } = render(AppPreferencesLayout);

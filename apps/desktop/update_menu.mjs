@@ -53,7 +53,7 @@ export async function configureUpdateMenu(packageJson) {
         if (Notification.isSupported())
           new Notification({
             title: 'Chatto update ready',
-            body: `Chatto ${version} is ready. Open Desktop preferences to restart and install it.`
+            body: `Chatto ${version} is ready. Open Updates preferences to restart and install it.`
           }).show();
       }
     }
@@ -105,7 +105,7 @@ export async function configureUpdateMenu(packageJson) {
           const state = updates.snapshot();
           const messages = {
             current: 'No newer update is available on this channel.',
-            ready: `Chatto ${state.availableVersion} is ready. Open Desktop preferences to restart and install it.`,
+            ready: `Chatto ${state.availableVersion} is ready. Open Updates preferences to restart and install it.`,
             error: 'Chatto could not complete the update. Try again later.'
           };
           if (messages[state.status])

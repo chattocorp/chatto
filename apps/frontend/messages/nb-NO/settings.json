@@ -1,7 +1,7 @@
 {
   "settings": {
     "desktop": {
-      "title": "Skrivebord",
+      "title": "Oppdateringer",
       "subtitle": "Oppdateringer for denne installasjonen",
       "updates": "Appoppdateringer",
       "unavailable": "Automatiske oppdateringer er ikke tilgjengelige i denne installasjonen.",
