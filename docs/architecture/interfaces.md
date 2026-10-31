@@ -172,7 +172,7 @@ also expose a disconnect hint; it is not mutation authorization. See
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
 | `chatto.discovery.v1` | `ServerDiscoveryService`                                                                                                                                                                                                                                                                                                                                         | Public discovery                                                                                           |
 | `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
-| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
+| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                     | Authenticated user; methods enforce administrative permissions                                             |
 
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
 change the caller's private availability across devices. `RefreshPresence`
@@ -425,6 +425,14 @@ commit. Author key provisioning remains part of encryption preparation.
 
 `ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
 retains that ID for retries; receipts from older servers return no event ID.
+
+`OperatorUserService.ImportUser` creates historical human or bot accounts without
+credentials. Initial deactivation and the permanent retry receipt commit with
+account creation. It does not change existing accounts.
+
+`OperatorUserService.ImportUserAvatar` accepts at most 5 MiB of local image bytes.
+It commits an avatar fact and retry receipt together when the user has no avatar.
+An existing avatar is preserved with a receipt. The server does not fetch URLs.
 
 `OperatorMessageService.ImportReaction` accepts individual room join and leave
 event IDs for historical imports, without live delivery or notifications.

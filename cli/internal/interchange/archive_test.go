@@ -55,6 +55,9 @@ func TestArchiveRejectsBrokenReferencesAndIntegrityWithoutContentInErrors(t *tes
 	}{
 		{"files/asset-1.txt", func([]byte) []byte { return []byte("private content") }},
 		{"events.jsonl", func(b []byte) []byte { return []byte(strings.ReplaceAll(string(b), `"user-2"`, `"private-user"`)) }},
+		{"users.jsonl", func(b []byte) []byte {
+			return []byte(strings.Replace(string(b), `"emails":[]`, `"emails":[],"avatar_asset_id":"private-avatar"`, 1))
+		}},
 		{"manifest.json", func(b []byte) []byte { return []byte(strings.ReplaceAll(string(b), `"version": 1`, `"version": 2`)) }},
 	} {
 		dir := copyExample(t)

@@ -35,6 +35,47 @@ message CreateUserResponse {
   chatto.admin.v1.AdminMember member = 1;
 }
 
+// Creates a historical account without credentials. Existing accounts are not
+// changed. The receipt and initial account state commit atomically.
+message ImportUserRequest {
+  // Required non-zero UUID. Reuse it only with exactly the same input.
+  string operation_key = 1 [(buf.validate.field).string.uuid = true];
+  // Required destination username.
+  string login = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 64
+  }];
+  // Defaults to login when empty.
+  string display_name = 3 [(buf.validate.field).string.max_len = 80];
+  // Human accounts only. The ordinary email uniqueness rules apply.
+  string verified_email = 4 [(buf.validate.field).string.max_len = 320];
+  // Empty for humans. For bots, an existing active human who owns the account.
+  string bot_owner_user_id = 5;
+  // Initial account status. No credentials or sessions are imported.
+  bool deactivated = 6;
+}
+
+// Imported account, or the result of an exact retry.
+message ImportUserResponse {
+  // Created member row, including account kind and status.
+  chatto.admin.v1.AdminMember member = 1;
+}
+
+// Imports a local avatar image without overwriting an existing avatar.
+message ImportUserAvatarRequest {
+  // Required permanent retry key, bound to user ID and image bytes.
+  string operation_key = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Original image, at most 5 MiB. Normal avatar processing applies.
+  bytes image = 3 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 5242880
+  }];
+}
+
+// Successful import or preservation of an existing avatar.
+message ImportUserAvatarResponse {}
+
 // Request operator-visible user rows.
 message ListUsersRequest {
   // Case-insensitive login/display-name search term. Empty disables search.
@@ -241,6 +282,10 @@ message UnlinkUserExternalIdentityResponse {}
 service OperatorUserService {
   // Creates a user as a local operator.
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  // Imports one account with permanent retry protection, without credentials.
+  rpc ImportUser(ImportUserRequest) returns (ImportUserResponse);
+  // Sets an avatar only when absent. Existing avatars are never overwritten.
+  rpc ImportUserAvatar(ImportUserAvatarRequest) returns (ImportUserAvatarResponse);
   // Lists users for operator inspection.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   // Gets one user plus role/permission metadata for operator inspection.

@@ -221,7 +221,9 @@ func (a *API) publicHandlerOptions(readMaxBytes int) []connect.HandlerOption {
 func (a *API) OperatorHandlers() []Handler {
 	options := HandlerOptionsForWebserver(a.config.Webserver)
 	assetOptions := handlerOptionsWithReadMax(assetUploadRequestMaxBytes(), a.config.Webserver)
-	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
+	// Allow a bounded avatar payload, including JSON's base64 overhead.
+	userOptions := handlerOptionsWithReadMax(core.MaxHistoricalAvatarBytes*4/3+MaxRequestMessageBytes, a.config.Webserver)
+	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, userOptions...)
 	roomPath, roomHandler := operatorv1connect.NewOperatorRoomServiceHandler(&operatorRoomService{api: a}, options...)
 	assetPath, assetHandler := operatorv1connect.NewOperatorAssetServiceHandler(&operatorAssetService{api: a}, assetOptions...)
 	messagePath, messageHandler := operatorv1connect.NewOperatorMessageServiceHandler(&operatorMessageService{api: a}, options...)
