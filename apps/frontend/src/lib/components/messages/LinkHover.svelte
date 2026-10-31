@@ -136,10 +136,11 @@
         touchInput = event.pointerType === 'touch';
         if (touchInput) closeHover();
       }),
-      on(node, 'pointermove', (event) => {
+      // Mouse pointer entry precedes mouseenter, so hover works immediately
+      // when a hybrid-device user switches from touch to a mouse.
+      on(node, 'pointerover', (event) => {
         if (event.pointerType === 'mouse') touchInput = false;
-      }),
-      on(node, 'touchstart', (event) => event.stopPropagation())
+      })
     ];
     // Entity pills already own a long-press menu. They render the same preview
     // snippet in that menu, so only ordinary links need this trigger.

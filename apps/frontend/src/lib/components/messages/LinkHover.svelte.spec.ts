@@ -72,7 +72,8 @@ it('opens one persistent touch sheet and consumes the native menu and release cl
   await tick();
   expect(nativeMenu.defaultPrevented).toBe(true);
   expect(click.defaultPrevented).toBe(true);
-  expect(parentTouch).not.toHaveBeenCalled();
+  // The app shell still needs the touch sequence for sidebar swipes.
+  expect(parentTouch).toHaveBeenCalledOnce();
   expect(parentMenu).not.toHaveBeenCalled();
   expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
   expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
@@ -89,6 +90,19 @@ it('opens one persistent touch sheet and consumes the native menu and release cl
   (copy as HTMLButtonElement).click();
   await vi.waitFor(() => expect(container.querySelector('dialog')).toBeNull());
   expect(write).toHaveBeenCalledWith(href);
+});
+
+it('shows a hover card on the first mouse entry after touch input', async () => {
+  const { container } = render(LinkHover, { href, children, local: { name: 'Room' } });
+  const link = container.querySelector('a')!;
+  touchPointer(link, 'pointerdown');
+  touchPointer(link, 'pointerup');
+  // Pointer entry precedes mouseenter; pointermove comes later.
+  link.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }));
+  hover(container);
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull()
+  );
 });
 
 it('suppresses release navigation after holding longer than the click fallback timer', async () => {
