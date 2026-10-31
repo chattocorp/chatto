@@ -34,6 +34,8 @@ func TestIntegrationRelationshipReads(t *testing.T) {
 		require.NoError(t, err)
 	}
 	slices.Sort(ids)
+	participantIDs := append(slices.Clone(ids), env.viewer.Id)
+	slices.Sort(participantIDs)
 	for _, offset := range []int32{0, 4, 7} {
 		page := &apiv1.PageRequest{Limit: 4, Offset: offset}
 		reactions, err := env.messages.ListReactionUsers(ctx, connect.NewRequest(&apiv1.ListReactionUsersRequest{RoomId: room.Id, MessageEventId: root.Id, Emoji: "thumbsup", Page: page}))
@@ -42,9 +44,9 @@ func TestIntegrationRelationshipReads(t *testing.T) {
 		require.NoError(t, err)
 		want := ids[int(offset):min(int(offset)+4, len(ids))]
 		require.Equal(t, want, reactions.Msg.UserIds)
-		require.Equal(t, want, participants.Msg.UserIds)
+		require.Equal(t, participantIDs[int(offset):min(int(offset)+4, len(participantIDs))], participants.Msg.UserIds)
 		require.EqualValues(t, 7, reactions.Msg.Page.TotalCount)
-		require.EqualValues(t, 7, participants.Msg.Page.TotalCount)
+		require.EqualValues(t, 8, participants.Msg.Page.TotalCount)
 		require.Equal(t, offset == 0, reactions.Msg.Page.HasMore)
 		require.Equal(t, offset == 0, participants.Msg.Page.HasMore)
 	}
@@ -130,7 +132,7 @@ func TestIntegrationReactionAliasesAndRetractions(t *testing.T) {
 	require.Equal(t, connect.CodeNotFound, errorCode(err))
 	participants, err := env.threads.ListThreadParticipants(ctx, connect.NewRequest(&apiv1.ListThreadParticipantsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
 	require.NoError(t, err)
-	require.Empty(t, participants.Msg.UserIds)
+	require.Equal(t, []string{env.viewer.Id}, participants.Msg.UserIds)
 }
 
 func TestIntegrationReadsThroughJSON(t *testing.T) {

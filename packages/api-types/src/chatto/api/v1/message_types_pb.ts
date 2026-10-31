@@ -590,16 +590,15 @@ export class ThreadSummary extends Message$1<ThreadSummary> {
   lastReplyAt?: Timestamp;
 
   /**
-   * Preview of up to twelve user IDs that have participated in this message's
-   * thread.
+   * Preview of up to twelve distinct thread authors, excluding erased users.
+   * The root author appears first, followed by current reply authors.
    *
    * @generated from field: repeated string participant_preview_user_ids = 4;
    */
   participantPreviewUserIds: string[] = [];
 
   /**
-   * Total number of distinct users that have participated in this message's
-   * thread.
+   * Total number of distinct root and current reply authors, excluding erased users.
    *
    * @generated from field: int32 participant_count = 5;
    */

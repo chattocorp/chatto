@@ -694,10 +694,10 @@ func (p *ThreadProjection) ReplyCount(rootEventID string) int {
 	return summary.replyCount
 }
 
-// ThreadMetadata returns cached display metadata for a thread. The projection
-// keeps this summary updated as thread events arrive, so callers do not need to
-// scan the full reply timeline for every followed-thread list item.
-func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
+// ThreadMetadata combines the cached reply summary with the root author from
+// Room Timeline. Pass an empty rootAuthorID when the root author is unavailable.
+// Root identity is not duplicated in this projection's state.
+func (p *ThreadProjection) ThreadMetadata(rootEventID, rootAuthorID string) *ThreadMetadata {
 	p.RLock()
 	defer p.RUnlock()
 	summary := p.summaryLocked(rootEventID)
@@ -708,14 +708,8 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 		Exists:             true,
 		ReplyCount:         summary.replyCount,
 		LatestReplyEventID: p.eventIDs.Resolve(summary.latestReply),
-		ParticipantCount:   len(summary.participants),
 	}
-	if preview := summary.participants[:min(len(summary.participants), maxThreadParticipants)]; len(preview) > 0 {
-		metadata.ParticipantIDs = make([]string, len(preview))
-		for i, participant := range preview {
-			metadata.ParticipantIDs[i] = p.principalIDs.Resolve(participant.actor)
-		}
-	}
+	metadata.ParticipantIDs, metadata.ParticipantCount = p.participantsIncludingRootLocked(summary, rootAuthorID, maxThreadParticipants)
 	if summary.lastReplyAt != 0 {
 		at := projectionTime(summary.lastReplyAt)
 		metadata.LastReplyAt = &at
@@ -840,18 +834,55 @@ func (p *ThreadProjection) Stats() (threads int, entries int, replies int) {
 	return threads, entries, replies
 }
 
-// ParticipantIDs returns the complete current reply-author set, independent of
-// the bounded display preview. Retractions and key shredding update this set.
-func (p *ThreadProjection) ParticipantIDs(rootEventID string) []string {
+// ParticipantIDs returns the root author and current reply authors once each,
+// independent of the bounded display preview. Erased authors are excluded.
+// Pass an empty rootAuthorID when Room Timeline cannot resolve the root author.
+func (p *ThreadProjection) ParticipantIDs(rootEventID, rootAuthorID string) []string {
 	p.RLock()
 	defer p.RUnlock()
 	summary := p.summaryLocked(rootEventID)
 	if summary == nil {
 		return nil
 	}
-	ids := make([]string, len(summary.participants))
-	for i, participant := range summary.participants {
-		ids[i] = p.principalIDs.Resolve(participant.actor)
-	}
+	ids, _ := p.participantsIncludingRootLocked(summary, rootAuthorID, len(summary.participants)+1)
 	return ids
+}
+
+// participantsIncludingRootLocked puts the root author first and counts each
+// author once, even when the root author replied beyond the preview limit.
+// The caller holds p.RLock. Erased root authors must never reappear in reads.
+func (p *ThreadProjection) participantsIncludingRootLocked(summary *threadSummary, rootAuthorID string, limit int) ([]string, int) {
+	if _, erased := p.shreddedUsers[rootAuthorID]; erased {
+		rootAuthorID = ""
+	}
+	count := len(summary.participants)
+	rootActor, _ := p.principalIDs.Lookup(rootAuthorID)
+	if rootAuthorID != "" {
+		_, replied := summary.participantIndex[rootActor]
+		if summary.participantIndex == nil {
+			replied = slices.ContainsFunc(summary.participants, func(participant threadParticipant) bool {
+				return participant.actor == rootActor
+			})
+		}
+		if !replied {
+			count++
+		}
+	}
+	if count == 0 {
+		return nil, 0
+	}
+	ids := make([]string, 0, min(count, limit))
+	if rootAuthorID != "" {
+		ids = append(ids, rootAuthorID)
+	}
+	for _, participant := range summary.participants {
+		if len(ids) == limit {
+			break
+		}
+		id := p.principalIDs.Resolve(participant.actor)
+		if id != rootAuthorID {
+			ids = append(ids, id)
+		}
+	}
+	return ids, count
 }

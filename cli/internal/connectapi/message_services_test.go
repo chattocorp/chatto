@@ -814,6 +814,9 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 	if thread.GetReplyCount() != 0 {
 		t.Fatalf("reply count = %d, want 0", thread.GetReplyCount())
 	}
+	if thread.GetParticipantCount() != 1 || len(thread.GetParticipantPreviewUserIds()) != 1 || thread.GetParticipantPreviewUserIds()[0] != env.viewer.Id {
+		t.Fatalf("empty thread participants = %v (count %d), want root author", thread.GetParticipantPreviewUserIds(), thread.GetParticipantCount())
+	}
 	if state := thread.GetViewerState(); state == nil || !state.GetIsFollowing() {
 		t.Fatalf("viewer state = %+v, want following", state)
 	}
@@ -2209,11 +2212,11 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	if thread.GetReplyCount() != 1 {
 		t.Fatalf("reply count = %d, want 1", thread.GetReplyCount())
 	}
-	if got := thread.GetParticipantCount(); got != 1 {
-		t.Fatalf("thread participant count = %d, want 1", got)
+	if got := thread.GetParticipantCount(); got != 2 {
+		t.Fatalf("thread participant count = %d, want 2", got)
 	}
-	if got := thread.GetParticipantPreviewUserIds(); len(got) != 1 || got[0] != replier.Id {
-		t.Fatalf("thread participant preview = %v, want [%s]", got, replier.Id)
+	if got := thread.GetParticipantPreviewUserIds(); len(got) != 2 || got[0] != env.viewer.Id || got[1] != replier.Id {
+		t.Fatalf("thread participant preview = %v, want [%s %s]", got, env.viewer.Id, replier.Id)
 	}
 	if len(message.Reactions) != 1 {
 		t.Fatalf("reaction summaries = %d, want 1", len(message.Reactions))

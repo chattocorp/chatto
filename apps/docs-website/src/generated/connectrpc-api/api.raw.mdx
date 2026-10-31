@@ -3234,8 +3234,8 @@ Accessible thread read states in first-seen request order.
 
 ### ListThreadParticipants
 
-Lists distinct authors of non-retracted replies, excluding erased users.
-The root author is included only if they also replied. Requires the same
+Lists the root author and distinct authors of non-retracted replies,
+excluding erased users. Each author appears once. Requires the same
 membership and message-read access as GetThreadEvents.
 
 ```http
@@ -3259,7 +3259,8 @@ Request a complete thread participant collection, ordered by user ID ascending.
 
 #### Result: ListThreadParticipantsResponse
 
-A page of distinct reply authors. An empty thread returns an empty page.
+A page of distinct thread authors. A thread without replies includes its
+root author unless that user has been erased.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -5671,8 +5672,8 @@ Aggregated state for one message thread.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve user IDs that have participated in this message's thread. |
-| `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve distinct thread authors, excluding erased users. The root author appears first, followed by current reply authors. |
+| `participant_count` | `int32` | Total number of distinct root and current reply authors, excluding erased users. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
 
 

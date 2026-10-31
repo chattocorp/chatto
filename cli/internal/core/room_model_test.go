@@ -2,12 +2,73 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/stretchr/testify/require"
 )
+
+func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
+	t.Parallel()
+	for _, replyCount := range []int{0, 2, 60} {
+		t.Run(fmt.Sprintf("replies-%d", replyCount), func(t *testing.T) {
+			timeline := NewRoomTimelineProjection()
+			threads := NewThreadProjection()
+			model := &RoomModel{timeline: detachedTestProjectionHandle(timeline), threads: detachedTestProjectionHandle(threads)}
+			// Historical imports use the mapped message author, not the operator.
+			root := postedEvent(postedOpts{envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "OPERATOR", at: 1})
+			root.GetMessagePosted().AuthorId = "AUTHOR"
+			facts := []*evtv1.Event{root, threadCreatedEvent("THREAD", "R1", "ROOT", "AUTHOR", 2)}
+			for i := range replyCount {
+				id := fmt.Sprintf("REPLY-%02d", i)
+				facts = append(facts, postedEvent(postedOpts{envelopeID: id, eventID: id, roomID: "R1", actorID: fmt.Sprintf("U%02d", i), inThread: "ROOT", at: i + 3}))
+			}
+			applyAll(t, timeline, facts)
+			applyAll(t, threads, facts)
+			check := func(wantCount, wantReplies int) {
+				t.Helper()
+				metadata := model.threadMetadata("ROOT")
+				require.True(t, metadata.Exists)
+				require.Equal(t, wantReplies, metadata.ReplyCount)
+				require.Equal(t, wantCount, metadata.ParticipantCount)
+				require.Len(t, metadata.ParticipantIDs, min(wantCount, maxThreadParticipants))
+				require.Equal(t, "AUTHOR", metadata.ParticipantIDs[0])
+				ids := threads.ParticipantIDs("ROOT", model.threadRootAuthorID("ROOT"))
+				require.Len(t, ids, wantCount)
+				require.Equal(t, "AUTHOR", ids[0])
+			}
+			check(replyCount+1, replyCount)
+			// A late root-author reply must not increase the participant count,
+			// including when that author falls outside the reply preview.
+			seq := uint64(len(facts) + 1)
+			reply := postedEvent(postedOpts{envelopeID: "AUTHOR-REPLY", eventID: "AUTHOR-REPLY", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 100})
+			require.NoError(t, threads.Apply(reply, seq))
+			check(replyCount+1, replyCount+1)
+			for _, projection := range []interface {
+				Snapshot() ([]byte, error)
+				Restore([]byte) error
+			}{timeline, threads} {
+				snapshot, err := projection.Snapshot()
+				require.NoError(t, err)
+				require.NoError(t, projection.Restore(snapshot))
+			}
+			check(replyCount+1, replyCount+1)
+			require.NoError(t, threads.Apply(retractedEvent("RETRACT", "AUTHOR-REPLY", "R1", "AUTHOR", "removed", 101), seq+1))
+			check(replyCount+1, replyCount)
+			shred := userKeyShreddedSnapshotTestEvent("SHRED", "AUTHOR")
+			require.NoError(t, timeline.Apply(shred, seq+2))
+			require.NoError(t, threads.Apply(shred, seq+2))
+			metadata := model.threadMetadata("ROOT")
+			require.Equal(t, replyCount, metadata.ParticipantCount)
+			require.NotContains(t, metadata.ParticipantIDs, "AUTHOR")
+			require.NotContains(t, threads.ParticipantIDs("ROOT", model.threadRootAuthorID("ROOT")), "AUTHOR")
+			require.False(t, model.threadMetadata("MISSING").Exists)
+		})
+	}
+}
 
 func TestNewRoomModelWiresDependencies(t *testing.T) {
 	t.Parallel()

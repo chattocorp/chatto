@@ -662,11 +662,10 @@ type ThreadSummary struct {
 	ReplyCount int32 `protobuf:"varint,2,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
 	// Creation time of the most recent reply in this message's thread.
 	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
-	// Preview of up to twelve user IDs that have participated in this message's
-	// thread.
+	// Preview of up to twelve distinct thread authors, excluding erased users.
+	// The root author appears first, followed by current reply authors.
 	ParticipantPreviewUserIds []string `protobuf:"bytes,4,rep,name=participant_preview_user_ids,json=participantPreviewUserIds,proto3" json:"participant_preview_user_ids,omitempty"`
-	// Total number of distinct users that have participated in this message's
-	// thread.
+	// Total number of distinct root and current reply authors, excluding erased users.
 	ParticipantCount int32 `protobuf:"varint,5,opt,name=participant_count,json=participantCount,proto3" json:"participant_count,omitempty"`
 	// State resolved for the current user.
 	ViewerState   *ThreadViewerState `protobuf:"bytes,6,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`

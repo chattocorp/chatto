@@ -17,7 +17,8 @@ type ThreadMetadata struct {
 	LastReplyAt        *time.Time
 	LatestReplyEventID string
 	ParticipantIDs     []string
-	// ParticipantCount counts all current reply authors, beyond the preview limit.
+	// ParticipantCount counts the root author and current reply authors once each,
+	// excluding erased users, beyond the preview limit.
 	ParticipantCount int
 }
 
@@ -33,7 +34,8 @@ type FollowedThread struct {
 	// RootCreatedAt is the root message creation time, independent of replies.
 	RootCreatedAt  *time.Time
 	ParticipantIDs []string
-	// ParticipantCount counts all current reply authors, beyond the preview limit.
+	// ParticipantCount counts the root author and current reply authors once each,
+	// excluding erased users, beyond the preview limit.
 	ParticipantCount   int
 	LatestReplyEventID string
 	HasUnreadReplies   bool
@@ -345,7 +347,7 @@ func setRoomEventsResultCursors(result *RoomEventsResult) {
 }
 
 // GetThreadMetadata returns existence, reply count, last reply timestamp, and
-// participants for a thread root message. Derived from ThreadProjection. Root
+// participants for a thread root message. Derived from Threads and Room Timeline. Root
 // event IDs are globally unique, so no room scope is needed. The result is
 // never nil; Exists is false for an unknown root.
 func (c *ChattoCore) GetThreadMetadata(rootEventID string) *ThreadMetadata {
