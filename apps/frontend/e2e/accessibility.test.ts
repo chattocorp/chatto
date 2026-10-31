@@ -69,6 +69,36 @@ async function scanRoute(page: Page, state: string, route: string): Promise<void
 }
 
 test.describe('Route accessibility', () => {
+  test('touch link preview sheet meets WCAG A and AA rules', async ({
+    page,
+    chatPage,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await roomPage.sendMessage(`[Preview destination](${serverURL})`, 'Preview destination');
+    await page.setViewportSize({ width: 390, height: 600 });
+    const link = roomPage
+      .getMessage('Preview destination')
+      .locator.getByRole('link', { name: 'Preview destination', exact: true });
+    await link.dispatchEvent('pointerdown', {
+      pointerType: 'touch',
+      pointerId: 1,
+      isPrimary: true,
+      bubbles: true
+    });
+    const sheet = page.getByRole('dialog', { name: 'Open link', exact: true });
+    await expect(sheet).toBeVisible();
+    await link.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 1, bubbles: true });
+    await expectNoAccessibilityViolations(page, 'touch link preview', 'dialog[open]');
+    await expect(sheet.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
+    await sheet.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await expect(sheet).toBeHidden();
+    await expect(link).toBeVisible();
+  });
+
   test('member invitation dialog meets WCAG A and AA rules', async ({ page, chatPage }) => {
     await loginAsAdmin(page);
     await connectPost(page, 'chatto.admin.v1.AdminServerService/UpdateServerConfig', {

@@ -37,6 +37,117 @@ afterEach(() => {
 function hover(container: HTMLElement) {
   container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
 }
+
+/** Dispatch a touch pointer without changing the browser's mouse capability. */
+function touchPointer(link: Element, type: string, clientX = 20) {
+  link.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerType: 'touch',
+      pointerId: 1,
+      isPrimary: true,
+      clientX,
+      clientY: 20
+    })
+  );
+}
+
+it('opens one persistent touch sheet and consumes the native menu and release click', async () => {
+  const { container } = render(LinkHover, { href, children });
+  const link = container.querySelector('a')!;
+  const parentTouch = vi.fn();
+  const parentMenu = vi.fn();
+  container.addEventListener('touchstart', parentTouch);
+  container.addEventListener('contextmenu', parentMenu);
+  touchPointer(link, 'pointerdown');
+  link.focus();
+  link.dispatchEvent(new Event('touchstart', { bubbles: true }));
+  await vi.waitFor(() => expect(container.querySelector('dialog[open]')).not.toBeNull());
+  const nativeMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+  link.dispatchEvent(nativeMenu);
+  touchPointer(link, 'pointerup');
+  const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+  link.dispatchEvent(click);
+  await tick();
+  expect(nativeMenu.defaultPrevented).toBe(true);
+  expect(click.defaultPrevented).toBe(true);
+  expect(parentTouch).not.toHaveBeenCalled();
+  expect(parentMenu).not.toHaveBeenCalled();
+  expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+  expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+  await vi.waitFor(() =>
+    expect(container.querySelector('dialog')?.textContent).toContain('A useful guide')
+  );
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  expect(container.querySelector('dialog[open]')).not.toBeNull();
+  expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href);
+  const copy = [...container.querySelectorAll('dialog button')].find((button) =>
+    button.textContent?.includes('Copy link')
+  )!;
+  const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  (copy as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(container.querySelector('dialog')).toBeNull());
+  expect(write).toHaveBeenCalledWith(href);
+});
+
+it('suppresses release navigation after holding longer than the click fallback timer', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const { container } = render(LinkHover, { href, children, local: { name: 'Room' } });
+    const link = container.querySelector('a')!;
+    touchPointer(link, 'pointerdown');
+    vi.advanceTimersByTime(2000);
+    await tick();
+    touchPointer(link, 'pointerup');
+    const release = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(release);
+    expect(release.defaultPrevented).toBe(true);
+    expect(container.querySelector('dialog[open]')).not.toBeNull();
+    const nextClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const deliberateClick = vi.fn((event: MouseEvent) => {
+      expect(event.defaultPrevented).toBe(false);
+      // The fixture is a native anchor. Keep the test iframe on its origin.
+      event.preventDefault();
+    });
+    link.addEventListener('click', deliberateClick, { once: true });
+    link.dispatchEvent(nextClick);
+    expect(deliberateClick).toHaveBeenCalledOnce();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each(['tap', 'scroll', 'cancel'])('does not preview during a touch %s', async (gesture) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const { container } = render(LinkHover, { href, children });
+    const link = container.querySelector('a')!;
+    touchPointer(link, 'pointerdown');
+    if (gesture === 'scroll') touchPointer(link, 'pointermove', 50);
+    else touchPointer(link, gesture === 'tap' ? 'pointerup' : 'pointercancel');
+    // Compatibility mouse/focus events must not open a hover card on touch.
+    hover(container);
+    link.focus();
+    vi.advanceTimersByTime(600);
+    await tick();
+    expect(container.querySelector('dialog')).toBeNull();
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('keeps ordinary desktop context menus with their message owner', () => {
+  const { container } = render(LinkHover, { href, children });
+  const parentMenu = vi.fn();
+  container.addEventListener('contextmenu', parentMenu);
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+  container.querySelector('a')!.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  expect(parentMenu).toHaveBeenCalledOnce();
+});
 it('reuses a fetched title without replacing the focused anchor or its destination', async () => {
   const { container } = render(LinkTitleTestHarness, { href });
   const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;

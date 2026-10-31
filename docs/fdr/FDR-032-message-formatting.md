@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -43,6 +43,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Hovering or focusing a pill or an explicit HTTP(S) Markdown link opens a delayed card. Explicit links retain their authored labels, formatting, title attributes, and navigation behavior. Recognized entity cards use local names, images, and descriptions. Other cards request metadata through the current server's existing link-preview endpoint by default. Page images fill the card width above the title and description. A compact footer shows the hostname and path; the full URL remains available to assistive technology and through the copy-link action. Loading and unavailable results have dedicated layouts. Images use the returned server-managed assets; cards do not embed third-party players. Requests share a session-scoped cache. Escape, leaving the card, navigation, or unmounting dismisses it. Existing composer preview requests are unchanged. Remote Chatto discovery is deferred.
 - The entire hover card is a native link, including its image and footer. It uses the trigger's navigation rules and supports modified clicks. Keyboard focus keeps it open; Escape closes it and returns focus to the trigger. Interactive cards do not use tooltip semantics.
   Message pills with a known author say “Message from {name}”. Linked message previews show the message date and time with the viewer's date and time settings. Local hover cards also show the timestamp when the message is available.
+- On touch input, a long-press opens a bottom sheet with the same preview and actions to open or copy the link. Entity pills keep their existing actions below the preview. A normal tap opens the destination immediately. Moving the finger cancels the pending preview, so readers can scroll. Releasing a long-press does not open the destination. Only one sheet opens; a handled long-press suppresses the native context menu and the surrounding message menu. The sheet stays open until dismissed or an action is selected.
 - Right-clicking an ordinary link in a message body opens the message menu. **Copy Link** copies that link's URL; **Copy Message Link** copies the message permalink.
 - The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
 - The app applies the sending keys to every registered Chatto server. Return sends by default. People can select the platform modifier plus Return instead.
