@@ -30,6 +30,20 @@ describe('MarkdownEditorField mention lifecycle', () => {
     setReactiveLocale('en-GB');
   });
 
+  it('finds suggestions for bare @ without a loaded member list', async () => {
+    const searchMembers = vi.fn(async () => [bob]);
+    render(MarkdownEditorField, {
+      editorKind: 'markdown',
+      label: 'Notice',
+      placeholder: 'Write a notice',
+      mentions: { members: [], searchMembers }
+    });
+    await page.getByRole('textbox', { name: 'Write a notice', exact: true }).fill('@');
+    await expect.poll(() => searchMembers.mock.calls.length).toBe(1);
+    expect(searchMembers).toHaveBeenCalledWith('');
+    await expect.element(page.getByTestId('mention-autocomplete')).toHaveTextContent('Bob Example');
+  });
+
   it.each(['markdown', 'visual'] as const)(
     'closes the picker and discards pending search when the %s draft is replaced',
     async (editorKind) => {

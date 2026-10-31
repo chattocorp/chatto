@@ -9,6 +9,41 @@ describe('AppUiState', () => {
     sessionStorage.clear();
   });
 
+  it('requests only visible Members on navigation, panel actions, and viewport changes', () => {
+    let desktop = false;
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      () => ({ matches: desktop }) as MediaQueryList
+    );
+    const request = vi.fn();
+    const appUi = new AppUiState(request);
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.loadVisibleRoomMembers();
+    appUi.openMobileRoomSidebarPanel('files');
+    expect(request).not.toHaveBeenCalled();
+    appUi.openMobileRoomSidebarPanel('members');
+    expect(request).toHaveBeenLastCalledWith({ serverId: 'server-a', roomId: 'room-1' });
+    request.mockClear();
+    appUi.closeMobileRoomSidebarPanel();
+    desktop = true;
+    appUi.loadVisibleRoomMembers();
+    expect(request).toHaveBeenCalledOnce();
+    request.mockClear();
+    appUi.closeDesktopRoomSidebarPanel();
+    appUi.loadVisibleRoomMembers();
+    appUi.openDesktopRoomSidebarPanel('files');
+    appUi.loadVisibleRoomMembers();
+    expect(request).not.toHaveBeenCalled();
+    appUi.openDesktopRoomSidebarPanel('members');
+    expect(request).toHaveBeenCalledOnce();
+    request.mockClear();
+    appUi.openMemberProfile('peer', 'desktop');
+    appUi.loadVisibleRoomMembers();
+    expect(request).not.toHaveBeenCalled();
+    appUi.backToRoomMembers('desktop');
+    expect(request).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
+  });
+
   it('tracks the active chat route scope', () => {
     const appUi = new AppUiState();
 
