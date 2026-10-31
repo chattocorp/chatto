@@ -66,10 +66,11 @@ Editors do not show line numbers. The visual editor places
 its language selector and Code / Visual choice in the header. The Markdown
 editor keeps the fence text editable.
 
-Scrollable message and visual-editor code blocks use the shared edge gradients. Fades show only
+Scrollable message code blocks use the shared edge gradients. Fades show only
 where more content is available, including horizontal ANSI output. They follow
-the content background and stay below the code header. Visual-editor code viewports
-fit inside the editor so both scroll edges remain visible.
+the content background and stay below the code header. Composer code blocks never
+scroll internally. They expand to fit their content and wrap long lines without
+changing the saved source. The visual composer owns scrolling and its edge fades.
 
 ### 1. Plain-text Markdown is the interchange format
 

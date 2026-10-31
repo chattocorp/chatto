@@ -25,6 +25,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import { Plugin, PluginKey } from '@tiptap/pm/state';
   import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded } from '$lib/codeHighlighting';
   import { m } from '$lib/i18n/messages';
+  import { ScrollFader } from '$lib/ui';
   import type {
     ComposerEditorApi,
     ComposerEditorProps,
@@ -75,6 +76,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }: ComposerEditorProps = $props();
 
   let editorElement = $state<HTMLDivElement>();
+  let editorViewport = $state<HTMLDivElement>();
   let editorFrameElement = $state<HTMLDivElement>();
   let editor = $state<Editor | null>(null);
   let activeCodeBlockLanguage = $state<string | null>(null);
@@ -125,7 +127,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   function updateActiveCodeBlockSelectorPosition(e: Editor) {
-    if (!editorFrameElement || !editorElement || !e.isActive('codeBlock')) {
+    if (!editorFrameElement || !editorViewport || !e.isActive('codeBlock')) {
       activeCodeBlockSelectorPosition = null;
       return;
     }
@@ -159,7 +161,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
     const frameRect = editorFrameElement.getBoundingClientRect();
     const preRect = preElement.getBoundingClientRect();
-    const viewport = editorElement.getBoundingClientRect();
+    const viewport = editorViewport.getBoundingClientRect();
     if (preRect.bottom < viewport.top + 24 || preRect.top >= viewport.bottom) {
       activeCodeBlockSelectorPosition = null;
       return;
@@ -671,14 +673,24 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     </div>
   {/if}
 
-  <div
-    bind:this={editorElement}
+  <ScrollFader
+    top
+    bottom
+    mask
+    maskSize="1rem"
+    keyboardFocusable={false}
+    bind:scrollEl={editorViewport}
+    scrollClass="composer-scroll-viewport max-h-50 min-h-8 py-1"
     onscroll={() => editor && updateActiveControls(editor)}
-    class={[
-      'composer-code-palette tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text select-text',
-      !editable && 'cursor-not-allowed'
-    ]}
-  ></div>
+  >
+    <div
+      bind:this={editorElement}
+      class={[
+        'composer-code-palette tiptap-editor min-w-0 bg-transparent text-text select-text',
+        !editable && 'cursor-not-allowed'
+      ]}
+    ></div>
+  </ScrollFader>
 
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
     <div

@@ -30,7 +30,6 @@ import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import { lowlight, normalizeCodeLanguage, resolveCodeLanguage } from '$lib/codeHighlighting';
 import { createCodeLanguageDetectionPlugin } from './codeLanguageDetection';
-import { codeBlockView } from './codeBlockView';
 import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
 import { FootnoteDefinition, FootnoteReference } from './footnotes';
 
@@ -89,7 +88,6 @@ const editorCodeHighlighting = {
 };
 
 export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
-  addNodeView: () => codeBlockView,
   addProseMirrorPlugins() {
     return [...(this.parent?.() ?? []), createCodeLanguageDetectionPlugin()];
   },

@@ -13,27 +13,21 @@
   }
 
   & .ProseMirror pre::before {
-    @apply sticky -top-1 z-1 code-frame-header font-mono tracking-wide uppercase;
-    /* Cover the editor's py-1 inset when code scrolls under the header. */
+    @apply sticky top-0 z-1 code-frame-header bg-surface font-mono tracking-wide uppercase;
+    /* Keep source text behind the pinned header while the composer scrolls. */
     content: attr(data-language);
     pointer-events: none;
   }
 
   & .ProseMirror pre code {
-    @apply block min-w-max;
+    @apply block min-w-0;
     font-size: inherit;
     line-height: inherit;
     color: var(--composer-code-text);
-    white-space: pre;
-  }
-
-  & .composer-code-body {
-    @apply relative preview-content;
-  }
-
-  & .composer-code-viewport {
-    /* Keep both scroll edges visible inside the editor's 12.5 rem viewport. */
-    @apply max-h-40 overflow-auto px-3 py-2;
+    /* Only the composer scrolls. Wrap long SVG attributes without changing source. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow: visible;
   }
 
   & .cm-code-fence {

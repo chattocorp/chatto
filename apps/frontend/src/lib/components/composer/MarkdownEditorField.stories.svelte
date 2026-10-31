@@ -62,17 +62,18 @@
   <MarkdownEditorField bind:value={mermaid} editorKind="markdown" label="Flight plan" />
 </Story>
 
-<Story name="Scrollable code" asChild>
+<Story name="Long SVG code" asChild>
   <MarkdownEditorField
-    value={'```javascript\n' +
+    value={'```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1000">\n' +
       Array.from(
         { length: 40 },
-        (_, i) => `const checkpoint${i} = "${'cargo inspected; '.repeat(8)}";`
+        (_, i) =>
+          `<text x="482" y="${32 + i * 20}" fill="#f0f3ff" font-size="26" font-weight="600" id="${'long-svg-attribute'.repeat(8)}">The void has a little guy. No thoughts. Just bioluminescence.</text>`
       ).join('\n') +
-      '\n```'}
+      '\n</svg>\n```'}
     editorKind="visual"
-    label="Cargo manifest"
-    maxlength={10000}
+    label="Scene source"
+    maxlength={20000}
   />
 </Story>
 

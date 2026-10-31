@@ -34,49 +34,49 @@ it('opens a registered Chatto link from the composer through local routing', asy
 });
 
 describe('Composer artifact controls', () => {
-  it('tracks code overflow without adding fade content to the editable document', async () => {
-    let api: ComposerEditorApi | undefined;
-    const updates: string[] = [];
-    const { container } = render(TipTapEditor, {
-      onReady: (ready) => (api = ready),
-      onUpdate: (markdown) => updates.push(markdown)
-    });
-    container.style.width = '320px';
-    await vi.waitFor(() => expect(api).toBeDefined());
-    const source = Array.from({ length: 50 }, (_, i) => `// ${i} ${'wide code '.repeat(20)}`).join(
-      '\n'
-    );
-    api!.setContent('```javascript\n' + source + '\n```');
-    const viewport = container.querySelector<HTMLElement>('.composer-code-viewport')!;
-    const pre = container.querySelector('pre')!;
-    const visible = (edge: string) =>
-      !pre.querySelector(`.markdown-code-fade-${edge}`)!.classList.contains('opacity-0');
-    await expect.poll(() => visible('bottom') && visible('right')).toBe(true);
-    expect(viewport.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      container.querySelector('.tiptap-editor')!.getBoundingClientRect().bottom
-    );
-    expect(visible('top')).toBe(false);
-    expect(visible('left')).toBe(false);
-    viewport.scrollTo(viewport.scrollWidth, viewport.scrollHeight);
-    await expect
-      .poll(() => visible('top') && visible('left') && !visible('bottom') && !visible('right'))
-      .toBe(true);
-    expect(pre.querySelector('code .markdown-code-fade')).toBeNull();
-    api!.focus('start');
-    api!.insertText('// edited\n');
-    await expect
-      .poll(() => updates.at(-1)?.trimEnd())
-      .toBe('```javascript\n// edited\n' + source + '\n```');
-    api!.setContent('```javascript\nshort\n```');
-    await expect
-      .poll(() =>
-        [...container.querySelectorAll('.markdown-code-fade')].every((fade) =>
-          fade.classList.contains('opacity-0')
-        )
-      )
-      .toBe(true);
-    expect(container.querySelector('code')?.textContent).toBe('short');
-  });
+  it.each(['svg', 'mermaid', 'ansi', 'javascript'])(
+    'expands and wraps %s code while only the composer scrolls',
+    async (language) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      const { container } = render(TipTapEditor, {
+        onReady: (ready) => (api = ready),
+        onUpdate: (markdown) => updates.push(markdown)
+      });
+      container.style.width = '320px';
+      await vi.waitFor(() => expect(api).toBeDefined());
+      const source = Array.from(
+        { length: 50 },
+        (_, i) =>
+          `<text id="${'long-attribute'.repeat(20)}" x="482" y="${i * 20}">The void has a little guy.</text>`
+      ).join('\n');
+      const hint = language === 'javascript' ? language : `${language} rendered`;
+      api!.setContent('```' + hint + '\n' + source + '\n```');
+      const viewport = container.querySelector<HTMLElement>('.composer-scroll-viewport')!;
+      const pre = container.querySelector('pre')!;
+      const code = pre.querySelector('code')!;
+      expect(pre.clientHeight).toBeGreaterThan(viewport.clientHeight);
+      expect(code.scrollWidth).toBeLessThanOrEqual(code.clientWidth + 1);
+      expect(code.scrollHeight).toBeLessThanOrEqual(code.clientHeight + 1);
+      expect(getComputedStyle(code).overflow).toBe('visible');
+      expect(pre.querySelector('.markdown-code-fade, .composer-code-viewport')).toBeNull();
+      viewport.scrollTo(0, viewport.scrollHeight);
+      await expect.poll(() => viewport.scrollTop).toBeGreaterThan(0);
+      expect(pre.scrollTop).toBe(0);
+      expect(code.scrollTop).toBe(0);
+      await expect
+        .poll(() => getComputedStyle(viewport).maskImage)
+        .toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+      api!.focus('start');
+      api!.insertText('  ');
+      await expect
+        .poll(() => updates.at(-1)?.trimEnd())
+        .toBe('```' + hint + '\n  ' + source + '\n```');
+      api!.setContent('```' + hint + '\nshort\n```');
+      await expect.poll(() => viewport.scrollHeight).toBeLessThanOrEqual(viewport.clientHeight);
+      expect(container.querySelector('code')?.textContent).toBe('short');
+    }
+  );
 
   it('keeps code frames visible on the chat composer surface', async () => {
     let api: ComposerEditorApi | undefined;
@@ -91,7 +91,7 @@ describe('Composer artifact controls', () => {
       getComputedStyle(container).backgroundColor
     );
     expect(getComputedStyle(pre).paddingTop).toBe('4px');
-    expect(getComputedStyle(pre.querySelector('.composer-code-body')!).borderRadius).toBe('6px');
+    expect(getComputedStyle(pre.querySelector('code')!).borderRadius).toBe('6px');
   });
 
   it('uses a top header while keeping code editable', async () => {
