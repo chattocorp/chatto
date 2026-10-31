@@ -154,6 +154,7 @@ func (p *UserAuthProjection) Apply(event *evtv1.Event, seq uint64) error {
 			}
 			delete(p.accountAccessWatchers, value.GetUserId())
 			if value.GetDeactivated() {
+				p.closeBotAPIKeyWatchersLocked(value.GetUserId())
 				// Resolve current ownership at the transition. A bot can have
 				// changed owners since its realtime connection opened.
 				for botID, bot := range p.users {
@@ -608,7 +609,7 @@ func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier [
 	p.Lock()
 	u := p.users[userID]
 	active := false
-	if u != nil && !u.deleted && u.isBot && p.users[u.botOwnerUserID] != nil && !p.users[u.botOwnerUserID].deactivated {
+	if u != nil && !u.deleted && !u.deactivated && u.isBot && p.users[u.botOwnerUserID] != nil && !p.users[u.botOwnerUserID].deactivated {
 		for _, credential := range u.botAPIKeys {
 			if bytes.Equal(credential.verifier, verifier) {
 				active = true

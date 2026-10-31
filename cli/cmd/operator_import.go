@@ -9,7 +9,11 @@ import (
 
 func init() { operatorCmd.AddCommand(newOperatorImportCommand()) }
 
-type importNaming struct{ ChannelPrefix, ChannelSuffix, UsernamePrefix, UsernameSuffix string }
+type importNaming struct {
+	ChannelPrefix, ChannelSuffix, UsernamePrefix, UsernameSuffix string
+	// Omit the empty option to retain existing archive journal bindings.
+	BotOwner string `json:",omitempty"`
+}
 type importResult struct {
 	Users     int  `json:"users"`
 	Rooms     int  `json:"rooms"`
@@ -57,5 +61,6 @@ func newOperatorImportCommand() *cobra.Command {
 	c.Flags().StringVar(&naming.ChannelSuffix, "channel-suffix", "", "suffix imported channel names")
 	c.Flags().StringVar(&naming.UsernamePrefix, "username-prefix", "", "prefix imported usernames")
 	c.Flags().StringVar(&naming.UsernameSuffix, "username-suffix", "", "suffix imported usernames")
+	c.Flags().StringVar(&naming.BotOwner, "bot-owner", "", "override the server owner for imported bots with an existing active human username")
 	return c
 }

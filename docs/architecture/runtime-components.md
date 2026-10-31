@@ -7,6 +7,11 @@ provide permanent exact retry protection with atomic EVT batches. The server
 has no archive parser or import session. These operations add no background
 worker or runtime unit.
 
+Historical account creation uses the normal user creation batch. It can omit
+the initial bot API key and include `UserAccountDeactivationChanged` before the
+receipt. Bot ownership is checked under the account creation OCC boundary.
+Bot authentication rejects a deactivated bot as well as a deactivated owner.
+
 This file lists the server-side components of the Chatto process: the core
 facade, runtime units, models, publishers, and workers. It does not list
 client runtimes (the bundled frontend, the desktop and mobile shells, and

@@ -3,9 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/interchange"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	op "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
@@ -13,6 +17,63 @@ type importUserMatch struct {
 	leader  int
 	account string
 	emails  []string
+}
+
+// resolveBotOwner uses the current server owner by default. Persisting the
+// selected ID before account creation keeps retries independent of later role
+// or username changes. Multiple owners require an explicit choice.
+func (m *cliArchiveImport) resolveBotOwner(ctx context.Context) error {
+	lookup := &op.GetUserRequest{}
+	if id := m.progress.values["bot-owner"]; id != "" {
+		lookup.UserId = id
+	} else if m.naming.BotOwner != "" {
+		lookup.Login = m.naming.BotOwner
+	} else {
+		for offset := int32(0); ; {
+			res, err := m.userAPI.ListUsers(ctx, operatorRequest(&op.ListUsersRequest{Page: &apiv1.PageRequest{Limit: 100, Offset: offset}}))
+			if err != nil {
+				return fmt.Errorf("resolve server owner: %w", err)
+			}
+			for _, member := range res.Msg.GetUsers() {
+				u := member.GetUser()
+				if slices.Contains(member.GetRoles(), core.RoleOwner) && u.GetId() != "" && !u.GetDeleted() && !u.GetDeactivated() && u.GetBot() == nil {
+					if lookup.UserId != "" && lookup.UserId != u.GetId() {
+						return fmt.Errorf("multiple active server owners; select one with --bot-owner")
+					}
+					lookup.UserId = u.GetId()
+				}
+			}
+			if !res.Msg.GetPage().GetHasMore() {
+				break
+			}
+			if len(res.Msg.GetUsers()) == 0 {
+				return fmt.Errorf("server returned an empty owner lookup page with more results")
+			}
+			offset += int32(len(res.Msg.GetUsers()))
+		}
+		if lookup.UserId == "" {
+			return fmt.Errorf("no active server owner; configure one or select an active human with --bot-owner")
+		}
+	}
+	res, err := m.userAPI.GetUser(ctx, operatorRequest(lookup))
+	if err != nil {
+		return fmt.Errorf("resolve bot owner: %w", err)
+	}
+	u := res.Msg.GetMember().GetUser()
+	if u.GetId() == "" || u.GetDeleted() || u.GetDeactivated() || u.GetBot() != nil {
+		return fmt.Errorf("bot owner must be an active human")
+	}
+	m.botOwnerID = u.GetId()
+	return nil
+}
+
+// importUsername retains supplied names and gives nameless integrations a stable
+// destination name. Normal collision checks apply to generated names too.
+func (m *cliArchiveImport) importUsername(u interchange.User) string {
+	if u.Username != nil {
+		return m.username(*u.Username)
+	}
+	return m.username("bot-" + importRef(u.ID)[:24])
 }
 
 // matchUsers resolves connected email identities before writes. A component
@@ -55,8 +116,8 @@ func (m *cliArchiveImport) matchUsers(ctx context.Context) error {
 			}
 			if err == nil {
 				user := response.Msg.GetMember().GetUser()
-				if user.GetDeleted() || user.GetBot() != nil {
-					return fmt.Errorf("users.jsonl record %d: matched account is not an active human", i+1)
+				if user.GetDeleted() || user.GetBot() != nil || u.Kind != "human" {
+					return fmt.Errorf("users.jsonl record %d: email matching requires human accounts", i+1)
 				}
 				owner := response.Msg.GetMember().GetUser().GetId()
 				if old := owners[i]; old != "" && old != owner {
@@ -82,6 +143,9 @@ func (m *cliArchiveImport) matchUsers(ctx context.Context) error {
 	emails := map[int]map[string]bool{}
 	for i, u := range m.archive.Users {
 		leader := root(i)
+		if u.Kind != m.archive.Users[leader].Kind || u.Status != m.archive.Users[leader].Status {
+			return fmt.Errorf("users.jsonl record %d: shared email identities have conflicting account kinds or statuses", i+1)
+		}
 		p := &m.userMatches[leader]
 		if owner := owners[i]; owner != "" {
 			if p.account != "" && p.account != owner {

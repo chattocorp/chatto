@@ -223,7 +223,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 		return nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
-	if err != nil || !bot.GetIsBot() {
+	if err != nil || !bot.GetIsBot() || bot.GetDeactivated() {
 		return nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
@@ -263,7 +263,7 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
-	if err != nil || !bot.GetIsBot() {
+	if err != nil || !bot.GetIsBot() || bot.GetDeactivated() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())

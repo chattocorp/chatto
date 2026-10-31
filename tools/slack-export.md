@@ -103,6 +103,19 @@ Default file downloads contact only `files.slack.com` and
 `files-origin.slack.com`. Slack receives the requests and the machine's public
 IP address. File URL credentials go only to those file hosts; no bearer token
 or cookies are sent for downloads. No Chatto-operated service receives data.
+
+Add `--download-avatars` to download profile images. The converter selects
+`image_original` first, then tries exported thumbnails from largest to smallest
+if the preferred image is unavailable or exceeds the byte limit.
+It contacts `avatars.slack-edge.com`, `a.slack-edge.com`, and `secure.gravatar.com`.
+Gravatar can redirect Slack default avatars through the WordPress image CDN at
+`i0.wp.com`, `i1.wp.com`, or `i2.wp.com`; only paths for the listed source hosts
+are accepted. These services see the requested URLs and the downloader's IP
+address. No Slack bearer token or cookies are sent. Every redirect is checked.
+The private avatar cache is separate from attachment downloads. Each image is
+limited to 5 MiB; one run downloads at most 1 GiB of avatar bytes. Failed or skipped
+avatars are reported as omissions. `--report-only` never downloads avatars.
+`--skip-files` controls attachments only; avatar downloads remain explicit.
 `uv` can contact the Python package registry to install the pinned validator
 and its dependencies. Schema validation itself makes no network requests.
 
@@ -152,7 +165,7 @@ history stop conversion.
 
 - `--allow-missing-files` writes unavailable asset records when files cannot be
   downloaded. It does not invent placeholder message text.
-- `--skip-files --allow-missing-files` skips all downloads and records files as
+- `--skip-files --allow-missing-files` skips attachment downloads and records files as
   unavailable.
 - `--allow-attachment-summaries` retains supported attachment text and links,
   with a declared loss of layout and embedded media.
@@ -170,8 +183,11 @@ chatto operator import /path/to/new-chatto-archive --accept-omissions
 ```
 
 The converter can represent more data than the initial native importer accepts.
-In particular, that importer currently rejects bots, deactivated accounts,
-private channels, and unavailable files. The CLI streams events and files to
+The importer supports bots and deactivated accounts. Bots belong to the current
+server owner automatically. Use `--bot-owner` to choose an active human when
+multiple owners exist or to override the default. Imported
+bots have no credentials. Private channels and unavailable files remain
+unsupported. The CLI streams events and files to
 individual Operator APIs. There is no total archive size or record-count limit;
 one JSON record is limited to 1 MiB. Shared files are supported. See the
 [current import limits](../schema/interchange/README.md) before loading it.

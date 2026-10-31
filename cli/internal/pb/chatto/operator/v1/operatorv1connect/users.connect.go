@@ -36,6 +36,12 @@ const (
 	// OperatorUserServiceCreateUserProcedure is the fully-qualified name of the OperatorUserService's
 	// CreateUser RPC.
 	OperatorUserServiceCreateUserProcedure = "/chatto.operator.v1.OperatorUserService/CreateUser"
+	// OperatorUserServiceImportUserProcedure is the fully-qualified name of the OperatorUserService's
+	// ImportUser RPC.
+	OperatorUserServiceImportUserProcedure = "/chatto.operator.v1.OperatorUserService/ImportUser"
+	// OperatorUserServiceImportUserAvatarProcedure is the fully-qualified name of the
+	// OperatorUserService's ImportUserAvatar RPC.
+	OperatorUserServiceImportUserAvatarProcedure = "/chatto.operator.v1.OperatorUserService/ImportUserAvatar"
 	// OperatorUserServiceListUsersProcedure is the fully-qualified name of the OperatorUserService's
 	// ListUsers RPC.
 	OperatorUserServiceListUsersProcedure = "/chatto.operator.v1.OperatorUserService/ListUsers"
@@ -78,6 +84,10 @@ const (
 type OperatorUserServiceClient interface {
 	// Creates a user as a local operator.
 	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
+	// Imports one account with permanent retry protection, without credentials.
+	ImportUser(context.Context, *connect.Request[v1.ImportUserRequest]) (*connect.Response[v1.ImportUserResponse], error)
+	// Sets an avatar only when absent. Existing avatars are never overwritten.
+	ImportUserAvatar(context.Context, *connect.Request[v1.ImportUserAvatarRequest]) (*connect.Response[v1.ImportUserAvatarResponse], error)
 	// Lists users for operator inspection.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// Gets one user plus role/permission metadata for operator inspection.
@@ -120,6 +130,18 @@ func NewOperatorUserServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+OperatorUserServiceCreateUserProcedure,
 			connect.WithSchema(operatorUserServiceMethods.ByName("CreateUser")),
+			connect.WithClientOptions(opts...),
+		),
+		importUser: connect.NewClient[v1.ImportUserRequest, v1.ImportUserResponse](
+			httpClient,
+			baseURL+OperatorUserServiceImportUserProcedure,
+			connect.WithSchema(operatorUserServiceMethods.ByName("ImportUser")),
+			connect.WithClientOptions(opts...),
+		),
+		importUserAvatar: connect.NewClient[v1.ImportUserAvatarRequest, v1.ImportUserAvatarResponse](
+			httpClient,
+			baseURL+OperatorUserServiceImportUserAvatarProcedure,
+			connect.WithSchema(operatorUserServiceMethods.ByName("ImportUserAvatar")),
 			connect.WithClientOptions(opts...),
 		),
 		listUsers: connect.NewClient[v1.ListUsersRequest, v1.ListUsersResponse](
@@ -200,6 +222,8 @@ func NewOperatorUserServiceClient(httpClient connect.HTTPClient, baseURL string,
 // operatorUserServiceClient implements OperatorUserServiceClient.
 type operatorUserServiceClient struct {
 	createUser                 *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
+	importUser                 *connect.Client[v1.ImportUserRequest, v1.ImportUserResponse]
+	importUserAvatar           *connect.Client[v1.ImportUserAvatarRequest, v1.ImportUserAvatarResponse]
 	listUsers                  *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
 	getUser                    *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
 	assignRole                 *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
@@ -217,6 +241,16 @@ type operatorUserServiceClient struct {
 // CreateUser calls chatto.operator.v1.OperatorUserService.CreateUser.
 func (c *operatorUserServiceClient) CreateUser(ctx context.Context, req *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
 	return c.createUser.CallUnary(ctx, req)
+}
+
+// ImportUser calls chatto.operator.v1.OperatorUserService.ImportUser.
+func (c *operatorUserServiceClient) ImportUser(ctx context.Context, req *connect.Request[v1.ImportUserRequest]) (*connect.Response[v1.ImportUserResponse], error) {
+	return c.importUser.CallUnary(ctx, req)
+}
+
+// ImportUserAvatar calls chatto.operator.v1.OperatorUserService.ImportUserAvatar.
+func (c *operatorUserServiceClient) ImportUserAvatar(ctx context.Context, req *connect.Request[v1.ImportUserAvatarRequest]) (*connect.Response[v1.ImportUserAvatarResponse], error) {
+	return c.importUserAvatar.CallUnary(ctx, req)
 }
 
 // ListUsers calls chatto.operator.v1.OperatorUserService.ListUsers.
@@ -286,6 +320,10 @@ func (c *operatorUserServiceClient) UnlinkUserExternalIdentity(ctx context.Conte
 type OperatorUserServiceHandler interface {
 	// Creates a user as a local operator.
 	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
+	// Imports one account with permanent retry protection, without credentials.
+	ImportUser(context.Context, *connect.Request[v1.ImportUserRequest]) (*connect.Response[v1.ImportUserResponse], error)
+	// Sets an avatar only when absent. Existing avatars are never overwritten.
+	ImportUserAvatar(context.Context, *connect.Request[v1.ImportUserAvatarRequest]) (*connect.Response[v1.ImportUserAvatarResponse], error)
 	// Lists users for operator inspection.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// Gets one user plus role/permission metadata for operator inspection.
@@ -324,6 +362,18 @@ func NewOperatorUserServiceHandler(svc OperatorUserServiceHandler, opts ...conne
 		OperatorUserServiceCreateUserProcedure,
 		svc.CreateUser,
 		connect.WithSchema(operatorUserServiceMethods.ByName("CreateUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operatorUserServiceImportUserHandler := connect.NewUnaryHandler(
+		OperatorUserServiceImportUserProcedure,
+		svc.ImportUser,
+		connect.WithSchema(operatorUserServiceMethods.ByName("ImportUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operatorUserServiceImportUserAvatarHandler := connect.NewUnaryHandler(
+		OperatorUserServiceImportUserAvatarProcedure,
+		svc.ImportUserAvatar,
+		connect.WithSchema(operatorUserServiceMethods.ByName("ImportUserAvatar")),
 		connect.WithHandlerOptions(opts...),
 	)
 	operatorUserServiceListUsersHandler := connect.NewUnaryHandler(
@@ -402,6 +452,10 @@ func NewOperatorUserServiceHandler(svc OperatorUserServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case OperatorUserServiceCreateUserProcedure:
 			operatorUserServiceCreateUserHandler.ServeHTTP(w, r)
+		case OperatorUserServiceImportUserProcedure:
+			operatorUserServiceImportUserHandler.ServeHTTP(w, r)
+		case OperatorUserServiceImportUserAvatarProcedure:
+			operatorUserServiceImportUserAvatarHandler.ServeHTTP(w, r)
 		case OperatorUserServiceListUsersProcedure:
 			operatorUserServiceListUsersHandler.ServeHTTP(w, r)
 		case OperatorUserServiceGetUserProcedure:
@@ -437,6 +491,14 @@ type UnimplementedOperatorUserServiceHandler struct{}
 
 func (UnimplementedOperatorUserServiceHandler) CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.CreateUser is not implemented"))
+}
+
+func (UnimplementedOperatorUserServiceHandler) ImportUser(context.Context, *connect.Request[v1.ImportUserRequest]) (*connect.Response[v1.ImportUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.ImportUser is not implemented"))
+}
+
+func (UnimplementedOperatorUserServiceHandler) ImportUserAvatar(context.Context, *connect.Request[v1.ImportUserAvatarRequest]) (*connect.Response[v1.ImportUserAvatarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.ImportUserAvatar is not implemented"))
 }
 
 func (UnimplementedOperatorUserServiceHandler) ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error) {

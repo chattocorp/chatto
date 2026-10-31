@@ -1,7 +1,7 @@
 # FDR-053: History Import and Export
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -40,8 +40,21 @@ subset and implementation limits.
 - Missing files and other losses will be explicit. Import will not silently
   rename users, merge accounts, make private rooms public, or discard records.
 - Import will not send historical notifications, invitations, or webhooks.
+- User records can reference avatar assets. Imports fill empty avatars and
+  preserve existing ones under user-aggregate concurrency checks. Both assignment
+  and preservation commit permanent receipts; retries cannot restore an image
+  cleared after import. Images use the normal avatar processing pipeline.
+- New accounts can be humans or bots, active or deactivated. Creation and initial
+  deactivation commit atomically with the operation receipt. Imported bots receive
+  no credentials and belong to the current active human server owner by default.
+  `--bot-owner` can select another active human and is required when multiple
+  owners exist. The selected owner ID is saved before creation for stable retries.
+  Bots with no source username receive a deterministic `bot-` name derived from
+  the source ID. Deleted accounts remain unsupported.
 - The operator importer trusts source emails. It matches existing accounts by
-  trimmed, case-insensitive email and preserves their profiles and credentials.
+  trimmed, case-insensitive email and preserves their profiles, credentials, and
+  activation status. Bot accounts cannot have email claims. Source records sharing
+  email identities must have the same kind and status.
   Unowned emails become verified addresses; shared source emails resolve to one
   account. Conflicting existing owners stop validation before writes. The first
   source record supplies the profile of a new account. Names alone never match
