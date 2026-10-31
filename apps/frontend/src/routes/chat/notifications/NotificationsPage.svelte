@@ -1,5 +1,6 @@
 <script lang="ts">
   import { conversationPath } from '$lib/navigation/conversationPath';
+  import { notificationActivitySummary } from '$lib/notifications/activitySummary';
   import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
@@ -357,9 +358,7 @@
     const actor = occurrence.actor ? accountNameToken(0) : undefined;
     if (signalKind === NotificationSignalKind.REACTION) {
       const reactionOccurrence = group.occurrences.find((item) => item.actor) ?? occurrence;
-      const reactionActor = reactionOccurrence.actor
-        ? accountNameToken(0)
-        : m('common.deleted_user');
+      const reactionActor = reactionOccurrence.actor ? accountNameToken(0) : undefined;
       const emojis = [
         ...new Set(
           group.occurrences
@@ -369,45 +368,15 @@
         )
       ];
       const emoji = emojis.join(' ');
-      if (emoji) {
-        const values = { actor: reactionActor, emoji };
-        const participants = new Set(
-          group.occurrences.map((item) => item.actor?.id ?? 'deleted-user')
-        );
-        return participants.size > 1
-          ? m('chat.notifications.summary.reaction_group', values)
-          : m('chat.notifications.summary.reaction', values);
-      }
-      return m('chat.notifications.summary.activity', { actor: reactionActor });
+      const participants = new Set(
+        group.occurrences.map((item) => item.actor?.id ?? 'deleted-user')
+      );
+      return notificationActivitySummary(signalKind, reactionActor, {
+        emoji,
+        multipleActors: participants.size > 1
+      });
     }
-    if (!actor) return m('chat.notifications.activity');
-    if (signalKind === NotificationSignalKind.ROOM_INVITATION) {
-      return m('chat.notifications.summary.room_invitation', { actor });
-    }
-    if (signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
-      return m('chat.notifications.summary.direct_message', { actor });
-    }
-    if (signalKind === NotificationSignalKind.ROOM_MESSAGE) {
-      return m('chat.notifications.summary.new_message', { actor });
-    }
-    if (signalKind === NotificationSignalKind.REPLY) {
-      return m('chat.notifications.summary.reply', { actor });
-    }
-    if (
-      signalKind === NotificationSignalKind.DIRECT_MENTION ||
-      signalKind === NotificationSignalKind.ROLE_MENTION ||
-      signalKind === NotificationSignalKind.HERE ||
-      signalKind === NotificationSignalKind.ALL
-    ) {
-      return m('chat.notifications.summary.mention', { actor });
-    }
-    if (signalKind === NotificationSignalKind.FOLLOWED_THREAD) {
-      return m('chat.notifications.summary.followed_thread', { actor });
-    }
-    if (signalKind === NotificationSignalKind.FOLLOWED_ROOM) {
-      return m('chat.notifications.summary.new_message', { actor });
-    }
-    return m('chat.notifications.summary.activity', { actor });
+    return notificationActivitySummary(signalKind, actor);
   }
 
   function summaryAccounts(group: NotificationGroupItem) {

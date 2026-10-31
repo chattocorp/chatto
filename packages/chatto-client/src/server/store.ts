@@ -776,26 +776,33 @@ export class ServerStateStore {
     );
   }
 
-  /** Request members after navigation; recovery can complete the load later. */
+  /** Request a directory for a consumer; recovery can complete the load later. */
   loadRoomMembers(roomId: string): void {
     const members = this.#rooms.members(roomId);
-    if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
-    if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
-    members.ensureLoaded();
+    members.ensureLoaded({
+      defer:
+        this.#realtimeSnapshotPending ||
+        this.checkingPermissions ||
+        !this.projection.rooms.get(roomId)?.viewerState?.isMember
+    });
   }
 
-  /** Navigation can create a member store while recovery awaits its earlier reads. */
+  /** Consumers can request a directory while recovery awaits its earlier reads. */
   private loadPendingRoomMembers(): void {
     if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
     for (const members of this.accessibleMemberStores()) members.ensureLoaded();
   }
 
-  /** A requested or cached list does not grant access, including on invitation routes. */
+  /** Only requested directories need refreshes; a request does not grant room access. */
   private accessibleMemberStores() {
     return this.#rooms
       .entries()
       .flatMap(([roomId, { members }]) =>
-        members && this.projection.rooms.get(roomId)?.viewerState?.isMember ? [members] : []
+        members &&
+        members.hasRequestedList &&
+        this.projection.rooms.get(roomId)?.viewerState?.isMember
+          ? [members]
+          : []
       );
   }
 
@@ -804,6 +811,7 @@ export class ServerStateStore {
     const members = this.#rooms.loaded(roomId)?.members;
     if (!members) return;
     members.resetProjectionState();
+    if (!members.hasRequestedList) return;
     if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
     if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
     this.trackProjectionReconciliation(
@@ -850,7 +858,8 @@ export class ServerStateStore {
 
   /** Reacquire cached members and mounted resources after access returns. */
   private restoreRoomAccess(roomId: string): void {
-    if (this.#rooms.loaded(roomId)?.members) this.loadRoomMembers(roomId);
+    const members = this.#rooms.loaded(roomId)?.members;
+    if (members?.hasRequestedList) this.loadRoomMembers(roomId);
     this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);
@@ -994,6 +1003,11 @@ export class ServerStateStore {
     const check = ++this.#permissionCheckGeneration;
     const generation = this.#realtimeProjectionGeneration;
     this.checkingPermissions = true;
+    // Mention-only caches have no directory to reauthorize, but their searches
+    // and in-flight responses must still cross this permission boundary.
+    for (const members of this.#rooms.all('members')) {
+      if (!members.hasRequestedList) members.resetProjectionState();
+    }
     const current = () =>
       check === this.#permissionCheckGeneration &&
       generation === this.#realtimeProjectionGeneration;

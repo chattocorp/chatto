@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -22,9 +22,16 @@ targets, unread counts, read state, or deletion semantics.
 
 - Desktop users can enable native OS alerts with **Push notifications on this
   device**. Consent starts off and applies to all signed-in servers on that
-  device. A local test checks OS delivery. Alerts contain generic text without
-  message previews. They use the existing live updates and notification polls;
+  device. A local test checks OS delivery. The client builds alert text from the
+  actor, activity, and room in the notification. Activity labels use the same
+  translations as the notification list. A message preview appears only when
+  its text is already available in a local room or thread timeline.
+  The local OS receives this content and can show it on the lock screen,
+  subject to OS notification settings. Alerts use existing live updates and notification polls;
   inactive servers do not gain persistent connections or additional polls.
+  Alert formatting does not request content or create timeline stores. An
+  unloaded message still produces an immediate activity summary. Desktop does
+  not change notification API responses or Web Push formatting.
   New Important occurrences that need attention can alert after the initial
   notification list loads. Older pages, repeated reads, Ambient occurrences,
   and occurrences observed during Do Not Disturb do not alert. Each eligible
@@ -34,7 +41,7 @@ targets, unread counts, read state, or deletion semantics.
   occurrence missing from a partial page remains unknown. Its alert and click
   target stay available until handling or expiry is confirmed, or until the
   device's limit of 64 retained alerts removes the oldest alert. Retained targets
-  contain no actor or room display text.
+  contain no actor or room display text or message previews.
 - On macOS, closing the desktop window keeps Chatto running. The Dock reopens
   the window. **Command-Q** quits the app and stops new alerts. On Windows and
   Linux, closing the main window quits the app. Chatto adds no menu bar or

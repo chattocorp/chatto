@@ -36,10 +36,12 @@ async function render(
 
 describe('resolveRenderedMentions', () => {
   const members = [member('alice', 'Alice'), member('bob', 'Bob')];
-  const aliceMention = '<span class="mention" data-user-id="alice" dir="auto">@Alice</span>';
-  const bobMention = '<span class="mention" data-user-id="bob" dir="auto">@Bob</span>';
+  const aliceMention =
+    '<span class="mention" data-user-id="alice" data-press-feedback="" dir="auto">@Alice</span>';
+  const bobMention =
+    '<span class="mention" data-user-id="bob" data-press-feedback="" dir="auto">@Bob</span>';
   const selfMention =
-    '<span class="mention mention-self" data-user-id="alice" dir="auto">@Alice</span>';
+    '<span class="mention mention-self" data-user-id="alice" data-press-feedback="" dir="auto">@Alice</span>';
 
   it('resolves a member mention', async () => {
     expect(await render('Hello @alice!', members)).toBe(`<p>Hello ${aliceMention}!</p>\n`);
@@ -48,7 +50,7 @@ describe('resolveRenderedMentions', () => {
   it('shows the current display name while keeping the original member target', async () => {
     const result = await render('Hello @hendrik!', [member('hendrik', 'Hendrik Mans')]);
     expect(result).toContain(
-      '<span class="mention" data-user-id="hendrik" dir="auto">@Hendrik Mans</span>'
+      '<span class="mention" data-user-id="hendrik" data-press-feedback="" dir="auto">@Hendrik Mans</span>'
     );
     expect(result).not.toContain('@hendrik');
   });
@@ -59,7 +61,9 @@ describe('resolveRenderedMentions', () => {
       member('bob', '')
     ]);
     expect(result).toContain('@&lt;Alice &amp; Bob&gt;</span>');
-    expect(result).toContain('<span class="mention" data-user-id="bob" dir="auto">@bob</span>');
+    expect(result).toContain(
+      '<span class="mention" data-user-id="bob" data-press-feedback="" dir="auto">@bob</span>'
+    );
   });
 
   it('turns unknown handles into plain text', async () => {

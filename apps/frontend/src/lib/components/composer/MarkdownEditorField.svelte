@@ -105,7 +105,7 @@ external value changes, such as a successful save, update the mounted editor.
     const query = autocomplete.mention?.query;
     const source = mentions;
     const search = source.searchMembers;
-    if (!query || !search) return;
+    if (query === undefined || !search) return;
     searchDebounce.run(() => {
       void search(query)
         .then((results) => {

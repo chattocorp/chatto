@@ -377,6 +377,168 @@ describe('VoiceCallState', () => {
     vi.unstubAllGlobals();
   });
 
+  describe('browser audio session', () => {
+    let audioSession: { type: string };
+    let states: VoiceCallState[];
+
+    beforeEach(() => {
+      states = [];
+      let type = 'ambient';
+      audioSession = {
+        get type() {
+          return type;
+        },
+        set type(value: string) {
+          calls.push(`audioSession:${value}`);
+          type = value;
+        }
+      };
+      vi.stubGlobal(
+        'navigator',
+        Object.create(navigator, {
+          audioSession: { value: audioSession },
+          mediaSession: { value: navigator.mediaSession }
+        })
+      );
+    });
+
+    afterEach(() => {
+      for (const state of states) state.dispose();
+    });
+
+    function createState() {
+      const state = createPermittedCallState(createVoiceCallClient());
+      states.push(state);
+      return state;
+    }
+
+    it('requests call audio before connecting, retains it while muted, and restores on leave', async () => {
+      const state = createState();
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(audioSession.type).toBe('play-and-record');
+      expect(calls.indexOf('audioSession:play-and-record')).toBeLessThan(calls.indexOf('connect'));
+      expect(lastRoomOptions?.disconnectOnPageLeave).toBe(true);
+      await state.toggleMute();
+      expect(state.isMuted).toBe(true);
+      expect(audioSession.type).toBe('play-and-record');
+      await state.leave();
+      expect(audioSession.type).toBe('ambient');
+      state.dispose();
+      expect(calls.filter((call) => call === 'audioSession:ambient')).toHaveLength(1);
+    });
+
+    it('requests call audio for listen-only members without enabling their microphone', async () => {
+      vi.stubGlobal('navigator', Object.create(navigator, { mediaSession: { value: undefined } }));
+      const state = new VoiceCallState(createVoiceCallClient(), () => ({
+        start: true,
+        join: true,
+        voice: false,
+        camera: false,
+        screenshare: false
+      }));
+      states.push(state);
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(audioSession.type).toBe('play-and-record');
+      expect(state.isMuted).toBe(true);
+      expect(lastRoom!.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+      roomEventHandlers.get('Disconnected')?.();
+      expect(audioSession.type).toBe('ambient');
+    });
+
+    it('retains call audio when joining with the microphone muted', async () => {
+      const preferences = new CallPreferencesState('audio-session-join-muted');
+      preferences.setJoinMuted(true);
+      const state = new VoiceCallState(
+        createVoiceCallClient(),
+        () => ({
+          start: true,
+          join: true,
+          voice: true,
+          camera: true,
+          screenshare: true
+        }),
+        preferences
+      );
+      states.push(state);
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.isMuted).toBe(true);
+      expect(audioSession.type).toBe('play-and-record');
+      expect(lastRoom!.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+      await state.leave();
+      expect(audioSession.type).toBe('ambient');
+    });
+
+    it('restores the previous type when connecting fails', async () => {
+      audioSession.type = 'playback';
+      connectFailure = new Error('connect failed');
+      await expect(createState().join('wss://livekit.example.test', 'R1')).rejects.toThrow(
+        'connect failed'
+      );
+      expect(audioSession.type).toBe('playback');
+    });
+
+    it('restores during disposal of a pending join and does not reactivate on completion', async () => {
+      connectGate = deferredVoid();
+      const state = createState();
+      const joining = state.join('wss://livekit.example.test', 'R1');
+      await vi.waitFor(() => expect(calls).toContain('connect'));
+      expect(audioSession.type).toBe('play-and-record');
+      state.dispose();
+      expect(audioSession.type).toBe('ambient');
+      connectGate.resolve();
+      await joining;
+      expect(audioSession.type).toBe('ambient');
+      expect(state.connected).toBe(false);
+    });
+
+    it('does not let stale cleanup reset a replacement call', async () => {
+      const first = createState();
+      await first.join('wss://livekit.example.test', 'R1');
+      const second = createState();
+      await second.join('wss://livekit.example.test', 'R2');
+      first.dispose();
+      expect(audioSession.type).toBe('play-and-record');
+      second.dispose();
+      expect(audioSession.type).toBe('ambient');
+    });
+
+    it('preserves a different audio intent set during the call', async () => {
+      const state = createState();
+      await state.join('wss://livekit.example.test', 'R1');
+      audioSession.type = 'playback';
+      await state.leave();
+      expect(audioSession.type).toBe('playback');
+    });
+
+    it('allows calls when Audio Session is absent', async () => {
+      vi.stubGlobal('navigator', Object.create(navigator, { audioSession: { value: undefined } }));
+      const state = createState();
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.connected).toBe(true);
+      await state.leave();
+      expect(audioSession.type).toBe('ambient');
+    });
+
+    it('allows calls and cleanup when the browser rejects type changes', async () => {
+      const setter = vi.spyOn(audioSession, 'type', 'set').mockImplementation(() => {
+        throw new DOMException('Unsupported', 'NotSupportedError');
+      });
+      const state = createState();
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.connected).toBe(true);
+      await state.leave();
+      setter.mockRestore();
+
+      await state.join('wss://livekit.example.test', 'R1');
+      const restoreSetter = vi.spyOn(audioSession, 'type', 'set').mockImplementation(() => {
+        throw new DOMException('Unavailable', 'InvalidStateError');
+      });
+      await state.leave();
+      expect(state.connected).toBe(false);
+      restoreSetter.mockRestore();
+    });
+  });
+
   describe('system media controls', () => {
     const handlers = new Map<string, () => void>();
     let states: VoiceCallState[];

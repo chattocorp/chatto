@@ -1064,6 +1064,34 @@ the effective app motion preference requests reduced motion.
 - Updating numeric columns and counters use `tabular-nums`.
 - Interactive transitions must name their properties. Never use Tailwind's
   bare `transition` utility or `transition-all`.
+- On primary touch, mouse, or pen input, semantic actions use an immediate opacity change and a 1 px
+  shift down and right while pressed. The shared rule covers buttons, links, menu and tab actions,
+  and checkbox/radio labels. Disabled controls and editable content are excluded.
+  `TouchPressFeedback` marks only the innermost action. Release, cancellation,
+  movement of 10 px, and lost window focus clear the feedback. It does not
+  prevent native input behavior or capture pointers. The shift does not change
+  layout spacing. A soft ripple expands from the touch point and fades over
+  420 ms. Its own layer clips to the control's rounded shape; other content
+  stays unclipped. The ripple finishes after release. Movement, cancellation,
+  another press, and lost focus remove it. Reduced motion keeps the opacity
+  feedback without the shift or ripple.
+  Native buttons, links, checkboxes, radios, and ARIA action roles receive
+  feedback automatically. Custom actions, including clickable user mentions,
+  opt in with `data-press-feedback`. Use `data-press-feedback="none"` on drag
+  handles, backdrops, or a subtree that must not receive feedback. Text fields,
+  editable content, disabled controls, and plain message text are excluded.
+  Native inputs without a wrapping label keep the fade and shift, since they
+  cannot contain a ripple layer. Do not delay an action or menu dismissal to
+  finish a ripple; a removed control takes its ripple with it.
+  Put `data-press-surface` on visible content and `data-press-feedback="surface"`
+  on a transparent overlay or proxy action that controls it. Nested actions
+  keep their own feedback. Server cards and the message-of-the-day preview use
+  this pattern. Reply-preview rows also mark their complete click target.
+  Linked `DataTable` rows share the row-click rules and clip one ripple across
+  their cells. Other controls in a row retain their own feedback. Inline links
+  and mentions use relative offsets for the push-in, so line wrapping stays
+  unchanged. Ripple layers sit above control fills; segmented labels share
+  the radius of their visible option face.
 - Press feedback uses `active:scale-[0.96]` where it does not interfere with
   drag, resize, or text-selection behavior.
 - Shared buttons fade disabled/pending opacity over 150 ms in both directions.

@@ -31,6 +31,43 @@
 </Story>
 
 <Story
+  name="Touch preview"
+  asChild
+  play={async ({ canvas }) => {
+    const link = canvas.getByRole('link');
+    link.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'touch',
+        pointerId: 1,
+        isPrimary: true
+      })
+    );
+    await expect(await canvas.findByTestId('link-touch-preview')).toBeVisible();
+    link.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerType: 'touch',
+        pointerId: 1
+      })
+    );
+  }}
+>
+  <div class="prose p-4">
+    <LinkHover
+      {href}
+      local={{
+        name: '# Development',
+        server: 'Chatto community',
+        description: 'Discuss features, share progress, and help build Chatto.'
+      }}
+    >
+      <UrlLink {href} />
+    </LinkHover>
+  </div>
+</Story>
+
+<Story
   name="Authored Markdown link"
   asChild
   play={async ({ canvas }) => {

@@ -16,6 +16,7 @@
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
   import { provideKeyboardShortcuts } from '$lib/keyboardShortcuts';
   import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
+  import TouchPressFeedback from '$lib/components/TouchPressFeedback.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
@@ -29,7 +30,7 @@
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
-  import { provideAppUiState } from '$lib/state/appUi.svelte';
+  import { AppUiState, provideAppUiState } from '$lib/state/appUi.svelte';
   import ServerRuntimeCoordinator from '$lib/state/server/ServerRuntimeCoordinator.svelte';
   import { ToastContainer } from '$lib/ui/toast';
   import { AppHeader, Frame } from '$lib/ui';
@@ -50,7 +51,11 @@
   }
 
   setAuthServerInfo(() => data.serverInfo);
-  const appUi = provideAppUiState();
+  const appUi = provideAppUiState(
+    new AppUiState(({ serverId, roomId }) => {
+      serverRegistry.tryGetStore(serverId)?.loadRoomMembers(roomId);
+    })
+  );
   provideKeyboardShortcuts();
   beforeNavigate(() => navigationVisits.leave());
   let stopPageFade = () => {};
@@ -127,7 +132,7 @@
     if (to?.route.id?.startsWith('/chat/[serverId]/user/[userId]') && page.params.userId)
       recentQuickSwitcher.record(userPath(activeServerId, page.params.userId));
     // The room can mount after this event while the server completes its snapshot.
-    if (activeRoomId) serverRegistry.tryGetStore(activeServerId)?.loadRoomMembers(activeRoomId);
+    appUi.loadVisibleRoomMembers();
     if (sidebarNav.isMobile) sidebarNav.close();
     // Only a completed exit changes the active catalogs; canceled navigation
     // must leave management ready for subsequent language changes.
@@ -138,10 +143,13 @@
   });
 </script>
 
+<svelte:window onresize={() => appUi.loadVisibleRoomMembers()} />
+
 {#if !standaloneOAuth}
   <GlobalKeyboardShortcuts />
 {/if}
 <InputModalityTracker />
+<TouchPressFeedback />
 <ServerRuntimeCoordinator />
 <NotificationSync />
 <UpdateNotifier />

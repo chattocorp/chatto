@@ -60,6 +60,11 @@ export type RoomMembersStoreOptions = {
  * its loading state is complete.
  */
 export class RoomMembersStore {
+  #listRequested = false;
+  /** A full list was requested, independently of bounded mention searches. Survives recovery. */
+  get hasRequestedList(): boolean {
+    return this.#listRequested;
+  }
   readonly #projectedMemberIds: () => readonly string[] | null;
   /**
    * The complete membership from the realtime projection, or null when the
@@ -256,8 +261,11 @@ export class RoomMembersStore {
     }
   }
 
-  ensureLoaded(): void {
+  /** Request the directory; defer its read while the server verifies access. */
+  ensureLoaded({ defer = false }: { defer?: boolean } = {}): void {
+    this.#listRequested = true;
     if (
+      defer ||
       !this.roomId ||
       this.isInitialLoading ||
       this.isBackgroundLoading ||
@@ -291,6 +299,7 @@ export class RoomMembersStore {
     reauthorize?: boolean;
     minimumCursor?: string;
   } = {}): Promise<void> {
+    this.#listRequested = true;
     if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
@@ -328,9 +337,10 @@ export class RoomMembersStore {
     }
   }
 
+  /** Search a bounded page without requesting the directory. Empty text supplies bare-@ suggestions. */
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
     const normalizedSearch = search.trim();
-    if (!normalizedSearch || this.hasLoadedAll || this.#disposed || !this.roomId || !this.api) {
+    if (this.hasLoadedAll || this.#disposed || !this.roomId || !this.api) {
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
 

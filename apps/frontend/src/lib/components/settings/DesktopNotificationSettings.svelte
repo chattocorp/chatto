@@ -18,7 +18,11 @@
     sent = false;
     try {
       clearDesktopNotifications(['test']);
-      await showDesktopNotification('test', m('settings.notifications.push.test_sent'), () => {});
+      await showDesktopNotification(
+        'test',
+        { title: 'Chatto', body: m('settings.notifications.push.test_sent') },
+        () => {}
+      );
       sent = true;
     } catch {
       failed = true;

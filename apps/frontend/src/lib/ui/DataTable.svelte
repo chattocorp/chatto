@@ -179,7 +179,7 @@ buttons, and context menus in the row keep their own behaviour.
         {@render header()}
       </tr>
     </thead>
-    <tbody class="bg-background" {@attach forwardRowClicks}>
+    <tbody class="bg-background" data-table-row-links {@attach forwardRowClicks}>
       {#each items as item, index (keyFn(item, index))}
         {#if shouldRenderGroup(item, index)}
           <tr class="border-b border-border bg-surface/80">

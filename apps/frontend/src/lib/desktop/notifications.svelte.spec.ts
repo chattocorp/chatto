@@ -12,6 +12,22 @@ afterEach(() => {
 });
 
 describe('desktop notification bridge', () => {
+  it('bounds long server text to native IPC limits without splitting emoji', async () => {
+    const show = vi.fn(async () => {});
+    window.chattoDesktop = {
+      notifications: { show, clear: vi.fn(), onClick: () => () => {} }
+    };
+    await showDesktopNotification(
+      'long',
+      { title: 'a'.repeat(254) + '😀extra', body: 'b'.repeat(1022) + '😀extra' },
+      () => {}
+    );
+    expect(show).toHaveBeenCalledWith({
+      id: 'long',
+      title: 'a'.repeat(254) + '…',
+      body: 'b'.repeat(1022) + '…'
+    });
+  });
   it('uses one global capacity and clears an owner without clearing another account', async () => {
     const clear = vi.fn();
     window.chattoDesktop = {
@@ -20,10 +36,15 @@ describe('desktop notification bridge', () => {
     const firstOwner = {};
     const secondOwner = {};
     for (let index = 0; index < 65; index++) {
-      await showDesktopNotification(String(index), 'Notifications', () => {}, {
-        owner: index < 64 ? firstOwner : secondOwner,
-        occurrenceId: String(index)
-      });
+      await showDesktopNotification(
+        String(index),
+        { title: 'Chatto', body: 'Notifications' },
+        () => {},
+        {
+          owner: index < 64 ? firstOwner : secondOwner,
+          occurrenceId: String(index)
+        }
+      );
     }
     expect(clear).toHaveBeenCalledWith(['0']);
     clear.mockClear();
@@ -53,11 +74,11 @@ describe('desktop notification bridge', () => {
     const first = vi.fn();
     const second = vi.fn();
     desktopNotifications.enabled = true;
-    await showDesktopNotification('first', 'Notifications', first);
+    await showDesktopNotification('first', { title: 'Chatto', body: 'Notifications' }, first);
     clicked?.('first');
     clicked?.('first');
     expect(first).toHaveBeenCalledOnce();
-    await showDesktopNotification('second', 'Notifications', second);
+    await showDesktopNotification('second', { title: 'Chatto', body: 'Notifications' }, second);
     desktopNotifications.enabled = false;
     clicked?.('second');
     expect(second).not.toHaveBeenCalled();
@@ -82,9 +103,9 @@ describe('desktop notification bridge', () => {
     };
     const dispose = listenForDesktopNotificationClicks();
     const callback = vi.fn();
-    await expect(showDesktopNotification('failed', 'Notifications', callback)).rejects.toThrow(
-      'denied'
-    );
+    await expect(
+      showDesktopNotification('failed', { title: 'Chatto', body: 'Notifications' }, callback)
+    ).rejects.toThrow('denied');
     clicked?.('failed');
     expect(callback).not.toHaveBeenCalled();
     dispose();

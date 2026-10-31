@@ -98,6 +98,7 @@ card. Callers supply trusted badges and actions through explicit props.
 </script>
 
 <article
+  data-press-surface
   class={[
     '@container/card relative isolate flex h-full min-w-0 flex-col overflow-hidden inset-frame text-start shadow-[var(--depth-shadow-sm)]',
     interactive && !disabled && 'shimmer-group hover-lift'
@@ -109,6 +110,7 @@ card. Callers supply trusted badges and actions through explicit props.
     <!-- eslint-disable svelte/no-navigation-without-resolve -- href is a caller-provided destination -->
     <a
       bind:this={cardAction}
+      data-press-feedback="surface"
       {href}
       target={opensInNewTab ? '_blank' : undefined}
       rel={opensInNewTab ? 'noopener noreferrer' : undefined}
@@ -122,6 +124,7 @@ card. Callers supply trusted badges and actions through explicit props.
   {:else if onactivate}
     <button
       bind:this={cardAction}
+      data-press-feedback="surface"
       type="button"
       onclick={onactivate}
       {disabled}
@@ -198,6 +201,7 @@ card. Callers supply trusted badges and actions through explicit props.
       aria-labelledby={`${titleId} ${titleId}-host`}
       keyboardFocusable={!!profile?.description}
       data-testid="server-card-description"
+      data-press-feedback={interactive && !disabled ? 'surface' : undefined}
     >
       {#if profile?.description}
         <p class="text-xs wrap-anywhere whitespace-pre-wrap text-muted @min-[16rem]/card:text-sm">

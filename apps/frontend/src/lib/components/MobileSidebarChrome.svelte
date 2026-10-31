@@ -28,6 +28,7 @@
     type="button"
     data-app-sidebar="true"
     data-testid="mobile-sidebar-backdrop"
+    data-press-feedback="none"
     class={[
       'fixed inset-x-0 mobile-sidebar-insets z-40 touch-none bg-black/50 md:hidden',
       !dragging &&
