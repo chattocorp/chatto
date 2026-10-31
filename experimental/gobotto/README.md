@@ -4,6 +4,81 @@ Gobotto is an experimental Go bot for Chatto. It keeps one OpenRouter model
 conversation per Chatto thread. A ping or DM starts a turn in that conversation.
 The model posts a reply or reacts with an emoji. The Go client API is unstable.
 
+When a new session opens, Gobotto immediately attempts an 👀 reaction on the
+triggering message. This acknowledgement does not wait for the model. A failed
+acknowledgement does not stop the turn and is not retried. Later messages and
+restored sessions do not repeat this acknowledgement.
+
+While a turn reads context, runs the model, or uses tools, Gobotto sends a typing
+indicator in that thread and refreshes it every two seconds. Refreshes stop
+before reply or reaction delivery, and on failure or cancellation. Typing errors
+do not stop a turn. Chatto clears the indicator on a message or after six seconds
+without a refresh; reactions and failed turns can leave it visible until expiry.
+Debounce waits and session-title generation do not send typing indicators.
+
+## Web access and MCP
+
+The checked-in configuration enables Exa search and page fetching through its
+hosted MCP server. No key is required for its rate-limited free access. To use
+authenticated access, set `EXA_API_KEY` in `.env`; this can incur Exa charges.
+
+```toml
+[mcp.servers.exa]
+url = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa"
+tools = ["web_search_exa", "web_fetch_exa"]
+
+[mcp.servers.exa.optional_headers_from_env]
+x-api-key = "EXA_API_KEY"
+```
+
+Remove the server section to disable it. Restart after configuration changes.
+An unset or empty optional environment variable omits the header. Credentials
+stay in HTTP headers; do not put keys in the endpoint URL or tool arguments.
+The allowlist stays the same when a key is added, so Exa's research agent is not
+enabled. See [Exa's MCP documentation](https://exa.ai/docs/get-started/exa-mcp).
+
+Additional servers use the same configuration shape. Gobotto supports MCP
+Streamable HTTP over HTTPS, with HTTP allowed for loopback development servers.
+Each server needs an explicit nonempty tool list. Optional credential headers
+are `Authorization`, `x-api-key`, or `api-key`, sourced from environment variables.
+OAuth, local subprocess servers, remote prompts, sampling, and interactive
+elicitation are not supported. Configured tools are available to all conversation
+participants; configure only capabilities that they are permitted to use.
+
+Gobotto discovers remote tools at startup and assigns names such as
+`mcp_exa__web_search_exa`. The model receives only a compact name list and two
+functions: `mcp_discover` returns one tool's description and argument schema;
+`mcp_call` executes it. Chatto and memory tools remain directly available.
+Schemas are loaded into conversation history only when needed and can be reused
+across turns and restarts when their revision matches the current name list.
+A changed revision tells the model to discover that tool again.
+First use adds a local discovery step and another
+model request. This reduces the always-present MCP tool payload, especially in
+conversations that do not use web access. Once all schemas have been requested,
+they remain in history; this does not guarantee lower total tokens for every run.
+Definitions and ordering stay fixed until restart.
+Startup fails if a server cannot connect or an allowed tool is missing. After
+a transport failure, the next explicit call reconnects and verifies that tool
+definitions have not changed. The failed call is not retried automatically.
+
+Remote discovery and tool calls have 30-second timeouts. Responses are limited to 4 MiB
+on the wire and 24,000 bytes of extracted content per tool result. Results mark
+truncation and omitted non-text blocks. Text, embedded text resources, and links
+are supported; structured JSON is used when no text is available. Remote tool
+errors remain actionable results, marked as failures in the turn log. Local
+schema discovery does not contact the server and returns one startup definition,
+bounded to 32,000 bytes before the discovery-result envelope.
+
+Search queries and requested URLs go to Exa, which also sees the bot server's
+outbound IP address. Exa fetches requested pages on the bot's behalf. Returned
+content goes to the configured model through OpenRouter and is retained in the
+local session record. Other MCP servers receive their tool arguments and the
+bot's outbound IP. Gobotto does not send the conversation transcript to MCP
+servers. Internal instructions tell the model to minimize arguments, treat web
+content as untrusted data, and cite source links. These instructions are not an
+access-control boundary; operators must choose trusted servers and allowed tools.
+Exa charges are separate from the OpenRouter cost shown in the stats panel.
+
 ## Run
 
 Create a bot and API key in Chatto. Give the bot access to a test room and
@@ -12,11 +87,11 @@ permission to read messages, post thread replies, and add reactions.
 Copy `.env.example` to `.env` in this directory and fill in these values.
 The local `mise.toml` loads `.env` automatically. Git ignores `.env`.
 
-| Variable | Value |
-| --- | --- |
-| `CHATTO_URL` | Server origin, such as `https://chat.example.com` |
-| `CHATTO_API_KEY` | Bot API key |
-| `OPENROUTER_API_KEY` | OpenRouter API key |
+| Variable             | Value                                             |
+| -------------------- | ------------------------------------------------- |
+| `CHATTO_URL`         | Server origin, such as `https://chat.example.com` |
+| `CHATTO_API_KEY`     | Bot API key                                       |
+| `OPENROUTER_API_KEY` | OpenRouter API key                                |
 
 From the repository root:
 
@@ -53,6 +128,52 @@ optional; an empty value uses only Gobotto's internal instructions. API keys sta
 in `.env`. `OPENROUTER_MODEL` is no longer read: move your selection to
 `conversation.model` if it differs from the included configuration.
 
+`conversation.max_output_tokens` optionally sets a positive per-completion output
+budget. By default, Gobotto omits `max_tokens` and applies no output cap of its own;
+provider defaults and model limits still apply. Choose a value supported by the model if you set a cap. Provider-counted reasoning
+also consumes this budget. Longer brain definitions can require more output than
+ordinary replies. If the provider reports an output-limit stop, the inspector
+shows the cause and setting to change. Gobotto records usage but does not execute
+partial tool calls, deliver partial replies, or retry automatically.
+
+Model failures retain safe diagnostics in turn records and operational logs:
+HTTP status codes, connection failures, timeouts, invalid JSON, and provider error
+codes. Raw provider error bodies, request URLs, and credentials are not logged.
+Response-read failures also record HTTP status and protocol, bytes read, declared
+content length, and compression state. Error classification distinguishes
+truncated bodies, HTTP/2 resets and GOAWAY codes, timeouts, connection resets,
+and compression failures. These records help diagnose transport failures without
+retaining response content. Gobotto does not retry paid requests automatically.
+Older records with only `Model request failed` cannot recover the original cause.
+
+Optional reasoning settings apply to conversation completions:
+
+```toml
+[conversation.reasoning]
+effort = "medium"
+# Alternatively, replace effort with max_tokens = 2048.
+# enabled = true
+# exclude = false
+```
+
+Omit the section to preserve provider defaults. `effort` accepts `none`, `minimal`,
+`low`, `medium`, `high`, `xhigh`, or `max`; the selected model may support only a
+subset. Use either `effort` or a positive `max_tokens` reasoning budget, not both.
+If you set an output cap, the reasoning budget must be smaller than
+`conversation.max_output_tokens` to leave room for tool arguments and replies.
+`enabled = false` requests reasoning
+off where supported. Gobotto rejects contradictory settings before connecting.
+`exclude = true` hides returned reasoning; it does not disable reasoning or save
+its tokens. These controls do not change the separate title model's configuration.
+See [OpenRouter's reasoning controls](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)
+for model-specific support.
+
+The inspector shows reported reasoning tokens separately as part of output, not
+an additional charge or token total. Session totals retain them across restarts.
+Missing telemetry appears as `reasoning n/a`; mixed reporting appears as partial.
+Old snapshots do not contain reasoning counts, so their totals remain partial
+when new counts arrive. Token counts are separate from the text of model reasoning.
+
 Gobotto reads `gobotto.toml` from its working directory at startup. Set
 `GOBOTTO_CONFIG` to select another file. Invalid TOML, unknown fields, and missing
 model IDs stop startup before connecting to Chatto or OpenRouter.
@@ -67,6 +188,13 @@ Restart after edits. Prompt changes apply to the next turn of both new and
 restored sessions without discarding conversation history. They change the prompt
 prefix and can reduce cache hits initially. Changing the model selects a separate
 session storage namespace. The previous model's saved sessions remain on disk.
+
+### Conversation context
+
+Each message batch includes the current UTC timestamp for calendar questions.
+The internal prompt directs the model to use verified `@usernames` in replies,
+keep raw user IDs internal, and avoid inventing handles when none are available.
+This does not add a user-profile lookup tool.
 
 ### Owners
 
@@ -89,10 +217,102 @@ owner list supersedes historical owner labels after a configuration change.
 Message text, quoted instructions, and claims of ownership cannot change this list.
 Other users can still converse with Gobotto. Reply and reaction targets do not change.
 
-This setting supplies owner recognition to the model; it does not add privileged
-tools. Future privileged actions must check the requesting user's identity in host
-code. Owner IDs and per-message author metadata are sent to OpenRouter with model
+Brain creation and archival require a triggering batch in which every message
+author is an owner. Document use follows each brain's prompt guidance. Owner IDs and per-message author metadata are sent to OpenRouter with model
 context and stored in private session transcripts, not operational logs.
+
+### Means collections
+
+Configure a directory where Gobotto can manage brains:
+
+```toml
+[memory]
+directory = "./brains"
+```
+
+Owners can ask Gobotto to create a brain, for example: “Create a project notebook
+that anyone can read and contribute to.” The `memory_brain_create` tool accepts a
+name, title, description, JSON Schema, and Markdown instructions. Gobotto builds
+the `MEANS.md` frontmatter; means validates the schema. Invalid arguments can be
+corrected in the same turn when the tool reports `retryable: true` and
+`mutated: false`. After a CLI failure, Gobotto permits correction only if it can
+remove the empty reservation directory, proving no collection files were created.
+Partial writes remain uncertain and block retries.
+`memory_brain_archive` moves a brain into `.archive/` inside the directory;
+it removes the brain from discovery but retains its files for manual recovery.
+Only owner-only triggering batches receive these lifecycle tools. Each brain can
+have one successful lifecycle change per turn. Uncertain mutations are not retried.
+
+Gobotto discovers immediate child directories with a regular `MEANS.md`, excluding
+hidden directories and symlinks. Names follow the same rules as fixed bindings.
+The current catalog is included in every turn, including new and restored
+sessions. Creation and archival become visible without a restart. Full guidance
+is retrieved through `memory_info`; the host requires this before document access.
+
+Each brain's Markdown guidance defines who may read or write, when to remember
+information, and how to use it. Document tools are available to non-owners too.
+The agent applies these rules using trusted author IDs and owner flags for each
+message. These prompt rules are behavioral guidance, not data isolation. Catalogs
+are shared across sessions, and retrieved content remains in saved transcripts.
+Do not use brains for secrets or private user data.
+
+Bind existing means collections in `gobotto.toml`:
+
+```toml
+[[memory.collections]]
+name = "preferences"
+path = "./memory/preferences"
+writable = true
+
+[[memory.collections]]
+name = "reference"
+path = "./memory/reference"
+```
+
+Initialize each collection with means before you start Gobotto. Each path must
+contain `MEANS.md`. Relative paths resolve from the configuration file's directory.
+Names must be unique and use lowercase letters, digits, underscores, or hyphens,
+starting with a letter (maximum 64 characters). Restart to apply configuration
+changes. The `means` executable must be on `PATH` when collections are configured.
+Without collections or a managed directory, Gobotto does not require means.
+
+Collection metadata comes from `MEANS.md` through `means info`. The catalog reads
+each collection's current title and description. The collection-info tool returns
+its complete Markdown instructions and schema as well. Keep this content in the
+collection; `gobotto.toml` contains only the binding name, path, and write access.
+
+Fixed bindings cannot be archived through tools. `writable` defaults to `false`
+and remains a hard write limit for these bindings. Within that limit, their
+Markdown guidance governs document use, just as for managed brains. Fixed and
+managed collection names must not collide.
+
+The agent can discover collections, inspect their schemas and instructions, search,
+and read documents. Authorized turns can create and update documents. Before a
+write, the agent must inspect the collection. Updates require the hash from a
+document read in the same turn; means rejects conflicting changes. Update bodies
+replace the full body, while application data follows means' field-patch rules.
+The agent cannot supply collection paths, change existing schemas, delete
+individual documents, or run shell commands. Creation and archival are limited to
+the managed directory.
+
+Search uses full-text matching and returns up to 20 documents. Each command has a
+20-second timeout, a 64 KiB output limit, and a 32 KiB tool-argument limit. Large
+results fail instead of being added to the model context. Calls execute one at a
+time. A repeated identical successful write in the same turn returns its receipt.
+After an uncertain write, further writes in that turn are blocked.
+
+Memory tool results appear in the turn inspector and private session transcript.
+Completed receipts are saved before the next model request. A later model or
+Chatto failure does not undo a memory write. Started turns are not replayed after
+a crash. Verify the collection before requesting another write after an uncertain
+result. Removing a collection from configuration does not remove its previously
+retrieved content from saved conversations.
+
+Retrieved content is sent to OpenRouter as model context. Means runs with the
+local means configuration and inherited environment. If means embeddings are
+enabled, writes can also send document content to its configured embedding
+provider and incur charges. Gobotto itself requests lexical search only. Disable
+embeddings in means if you want collection operations to remain local.
 
 ### Session titles
 
@@ -111,7 +331,8 @@ are saved in snapshots and shown in the session list. The lower pane keeps the
 stable, copyable session ID; filenames do not change.
 
 The request includes up to 6,000 characters of message excerpts, excludes system
-instructions and model reasoning, and allows up to 64 output tokens. It uses the
+instructions and model reasoning, and sends no output-token cap. Provider defaults
+and model limits apply. Displayed titles remain limited to 60 characters. It uses the
 same OpenRouter key but the configured title model and its provider. Reported
 title tokens and cost are included in session totals. Titles are private display
 data and are not added to operational logs or sent to Chatto.
@@ -129,29 +350,41 @@ A `+` after cost means the total is partial. Further messages in that thread reu
 the same row. The default top pane uses at most eight rows; dragging the divider
 overrides this limit and preserves your chosen split during terminal resizes.
 The default view has sessions across the top, a turn list at the lower left,
-and details for the selected turn at the lower right. Click a turn to inspect it.
-The lower toolbar switches between the inspector and a separate operational log.
-New sessions do not change your selection. Logs follow new entries until you scroll up.
+and stats above a larger log for the selected turn at the lower right.
+The turn log shows one row per event, including incoming messages and outgoing
+replies or reactions. Provider names and timings stay on the event row. Long
+rows do not wrap; use Left/Right in the focused log to scroll horizontally.
+Click a turn to inspect it. Use `l` for the separate operational log and `i`
+to return; there is no mode toolbar. Operational logs follow new entries until
+you scroll up.
 The selected session has a full-row background. Click a session to select it,
 click either pane to focus it, and use the mouse wheel over a pane to navigate.
 Drag either border between the panes to resize them. Each pane keeps at least
 two content rows; the chosen split is retained when the terminal resizes.
 
-| Key | Action |
-| --- | --- |
+| Key                | Action                                                          |
+| ------------------ | --------------------------------------------------------------- |
 | Up/Down or `k`/`j` | Select a session or turn, or scroll the focused detail/log view |
-| Tab or Shift-Tab | Cycle focus through sessions, turns, and details |
-| `i` / `l` | Show the inspector / operational log |
-| `[` / `]` | Select the previous / next turn |
-| Enter | Expand or collapse message and tool details |
-| `c` / `y` | Copy the selected turn's response / input messages |
-| Page Up/Page Down | Scroll details or logs |
-| End or `G` | Select the latest turn, or follow the latest log |
-| Home or `g` | Jump to the first retained log when the log pane has focus |
-| `q` or Ctrl-C | Quit, cancel active work, and close the connection |
+| Tab or Shift-Tab   | Cycle focus through sessions, turns, and details                |
+| `i` / `l`          | Show the inspector / operational log                            |
+| `[` / `]`          | Select the previous / next turn                                 |
+| Enter              | Expand or collapse message and tool details                     |
+| `c` / `y`          | Copy the selected turn's response / input messages              |
+| Page Up/Page Down  | Scroll details or logs                                          |
+| End or `G`         | Select the latest turn, or follow the latest log                |
+| Home or `g`        | Jump to the first retained log when the log pane has focus      |
+| `q` or Ctrl-C      | Finish the active turn, then quit                               |
+| Shift-Q            | Cancel active work and quit immediately                         |
 
 The view resizes with the terminal and needs at least 36 columns and 12 rows.
+Normal quit keeps the UI open with a waiting message while the active turn
+finishes. No queued turns start during shutdown. Queued messages remain in the
+persistent inbox for restart. Press Shift-Q to cancel instead; Gobotto still
+closes connections and saves session state before it exits.
 It retains up to 100 sessions and 200 operational log entries per session.
+Newly added sessions become selected and visible in the top pane. The lower
+panes and copyable session ID switch with that selection. Updates to existing
+sessions preserve your selection.
 Logs and inspection records survive restarts. Each session keeps up to 50 turn
 records, trimming older records when their encoded size exceeds 2 MiB; the newest
 turn is always kept. Inputs are bounded to 10,000 characters per message, and tool
@@ -197,13 +430,15 @@ their next turn begins the inspection history.
 - Each room/thread pair has one retained session for the connected bot identity.
   A top-level message is its own thread root, including in DMs. Replies in that
   thread reuse its session. Separate top-level messages remain separate threads.
-- Each new message in an existing session's thread starts or resets a two-second
+- Each new message in an existing session's thread starts or resets a configurable
   debounce, including messages without a mention and messages from other
-  participants. This also applies to restored sessions. A batch waits for two
-  seconds of quiet. Messages received during a model
+  participants. This also applies to restored sessions. Set `debounce = "4s"`
+  under `[conversation]` to choose the quiet period. Omission defaults to four
+  seconds; values must be positive durations, such as `750ms` or `6s`.
+  Messages received during a model
   turn queue for the next turn. Their window elapses while the current turn runs.
 - One model turn runs at a time across the bot. Ready batches run in deadline
-  order; a busy model can delay execution beyond the two-second collection window.
+  order; a busy model can delay execution beyond the configured collection window.
   The realtime reader keeps receiving messages during model work.
 - Before a thread's first model request, the session reads its root and up to
   50 recent replies. Older history can be omitted. Incoming messages already in
@@ -226,13 +461,18 @@ their next turn begins the inspection history.
   The UI reports disconnection and recovery. Gobotto saves the replay cursor and
   incoming messages together, then resumes from that cursor after reconnect or
   restart. Queued turns wait until replay reaches the live boundary and retain
-  the two-second debounce. Heartbeats refresh the saved cursor during idle time.
+  the configured debounce. Heartbeats refresh the saved cursor during idle time.
   Authentication and protocol rejection stop intake instead of retrying forever.
 - Chatto cursors expire after 15 minutes. If replay is unavailable, Gobotto reports
   a gap and refreshes retained thread context before its next use. Messages missed
   in that gap do not automatically trigger turns. First startup without a cursor
   starts at the live boundary. Recovery does not scan all old threads for work.
 - Message edits/retractions and room-access changes invalidate affected context.
+  Edits and retractions are matched to the thread root, retained context, queued
+  messages, and active batch. Changes to unrelated messages in the same room do
+  not cancel an active model request. Missing targets and context reads still in
+  progress use conservative room-wide handling. Cancellation records identify
+  whether the trigger was an edit, retraction, room change, or access change.
   Account deletion and viewer-permission changes invalidate all sessions. Active
   affected turns are cancelled and their queued input is discarded. The next
   message in that thread loads a fresh authorized snapshot. These events do not start

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -36,6 +37,9 @@ type Usage struct {
 	Input, CachedInput, Output int64
 	// CacheKnown distinguishes a reported zero from absent cache telemetry.
 	CacheKnown bool
+	// Reasoning counts a subset of Output; absence is not a reported zero.
+	Reasoning      int64
+	ReasoningKnown bool
 	// Provider and RequestID identify the serving endpoint and generation for audits.
 	Provider, RequestID string
 	// Cost is the OpenRouter account charge; nil means it was not reported.
@@ -44,9 +48,34 @@ type Usage struct {
 
 var emojiName = regexp.MustCompile(`^[A-Za-z0-9_+\-]{1,128}$`)
 
+// ErrOutputLimit means the provider truncated a completion. Its partial output
+// must never be delivered or executed, though reported usage still applies.
+var ErrOutputLimit = errors.New("model output token limit reached; check the configured cap and provider limits")
+
+// CompletionOptions controls the per-request generation budget.
+type CompletionOptions struct {
+	// MaxOutputTokens includes reasoning tokens where counted by the provider.
+	// Zero omits the cap. Provider defaults and model limits still apply.
+	MaxOutputTokens int
+	Reasoning       *ReasoningOptions
+}
+
+// ReasoningOptions maps the optional unified OpenRouter reasoning controls.
+// Nil booleans preserve provider defaults, including when false is meaningful.
+type ReasoningOptions struct {
+	Enabled   *bool  `json:"enabled,omitempty"`
+	Effort    string `json:"effort,omitempty"`
+	MaxTokens *int   `json:"max_tokens,omitempty"`
+	Exclude   *bool  `json:"exclude,omitempty"`
+}
+
 // OpenRouter returns a completion function using a fixed OpenRouter endpoint.
 // The model is explicit because price, availability, and tool support vary.
-func OpenRouter(key, model, sessionID string, report func(Usage)) Complete {
+func OpenRouter(key, model, sessionID string, report func(Usage), options ...CompletionOptions) Complete {
+	maxOutputTokens := 0
+	if len(options) > 0 && options[0].MaxOutputTokens > 0 {
+		maxOutputTokens = options[0].MaxOutputTokens
+	}
 	return func(ctx context.Context, messages []Message) (Message, error) {
 		var out struct {
 			ID       string `json:"id"`
@@ -56,9 +85,12 @@ func OpenRouter(key, model, sessionID string, report func(Usage)) Complete {
 				Finish  string  `json:"finish_reason"`
 			} `json:"choices"`
 			Usage *wireUsage `json:"usage"`
+			Error *struct {
+				Code json.RawMessage `json:"code"`
+			} `json:"error"`
 		}
 		input := map[string]any{
-			"model": model, "messages": messages, "max_tokens": 2048,
+			"model": model, "messages": messages,
 			"session_id": sessionID,
 			"tools": []any{map[string]any{"type": "function", "function": map[string]any{
 				"name": "read_thread", "description": "Read the most recent messages in this conversation. Older messages can be omitted.",
@@ -67,6 +99,15 @@ func OpenRouter(key, model, sessionID string, report func(Usage)) Complete {
 				"name": "react_to_ping", "description": "Finish by reacting to the latest triggering message in the batch instead of posting text. This can be an ordinary thread reply without a mention. Use an emoji name such as thumbsup, heart, eyes, or white_check_mark, without colons.",
 				"parameters": map[string]any{"type": "object", "properties": map[string]any{"emoji": map[string]any{"type": "string"}}, "required": []string{"emoji"}, "additionalProperties": false},
 			}}},
+		}
+		if maxOutputTokens > 0 {
+			input["max_tokens"] = maxOutputTokens
+		}
+		for _, tool := range turnTools(ctx) {
+			input["tools"] = append(input["tools"].([]any), map[string]any{"type": "function", "function": map[string]any{"name": tool.Name, "description": tool.Description, "parameters": tool.Parameters}})
+		}
+		if len(options) > 0 && options[0].Reasoning != nil {
+			input["reasoning"] = options[0].Reasoning
 		}
 		// Claude requires an explicit cache hint. Other model families keep their
 		// provider's implicit caching behavior; session_id helps preserve routing.
@@ -80,11 +121,24 @@ func OpenRouter(key, model, sessionID string, report func(Usage)) Complete {
 			report(out.Usage.report(out.Provider, out.ID))
 		}
 		if len(out.Choices) != 1 {
-			return nil, errors.New("expected one model completion")
+			if out.Error != nil {
+				var code int
+				if json.Unmarshal(out.Error.Code, &code) == nil && code >= 100 && code <= 599 {
+					return nil, modelFailure(fmt.Sprintf("Model API error %d", code))
+				}
+				return nil, modelFailure("Model API returned an error")
+			}
+			return nil, modelFailure("Expected one model completion")
 		}
 		choice := out.Choices[0]
+		if choice.Finish == "length" {
+			return nil, ErrOutputLimit
+		}
 		if choice.Finish != "stop" && choice.Finish != "tool_calls" {
-			return nil, errors.New("model did not finish normally")
+			if choice.Finish == "content_filter" {
+				return nil, modelFailure("Model completion stopped by content filter")
+			}
+			return nil, modelFailure("Model completion returned an unexpected finish reason")
 		}
 		return choice.Message, nil
 	}
@@ -185,7 +239,7 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 	messages := append([]Message(nil), base...)
 	defer func() {
 		if turnErr != nil {
-			s.messages = append(base, textMessage("user", "The previous model turn failed. No output was delivered by that turn."))
+			s.messages = append(base, textMessage("user", "The previous model turn failed. No Chatto output was delivered by that turn. Completed memory operations in this transcript still apply; do not repeat them."))
 		}
 	}()
 	toolsUsed := 0
@@ -239,7 +293,41 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 			finish := func(state, result string) {
 				observe(ToolEvent{Name: call.Function.Name, Arguments: call.Function.Arguments, State: state, Result: result, Duration: time.Since(started)})
 			}
-			result := `{"error":"Unknown tool or invalid arguments. Use read_thread with {}, or call react_to_ping alone with an emoji name."}`
+			result := `{"error":"Unknown tool or invalid arguments. Call one available tool at a time with its declared arguments."}`
+			var extra *Tool
+			for _, tool := range turnTools(ctx) {
+				if tool.Name == call.Function.Name {
+					extra = &tool
+					break
+				}
+			}
+			if extra != nil && len(calls) == 1 {
+				result, toolErr := extra.Execute(ctx, json.RawMessage(call.Function.Arguments))
+				if toolErr != nil {
+					// Safe fixed feedback; subprocess errors may include private data.
+					result = `{"error":"Memory operation failed or its result is uncertain. Do not repeat a write automatically; read the collection to verify it."}`
+				}
+				tool := textMessage("tool", result)
+				tool["tool_call_id"], _ = json.Marshal(call.ID)
+				messages = append(messages, tool)
+				// Preserve completed capability receipts even if a later model call
+				// fails. Rolling back to the original input would hide durable writes.
+				base = append([]Message(nil), messages...)
+				s.messages = messages
+				if toolErr != nil {
+					finish("failed", result)
+				} else {
+					var envelope struct {
+						Status string `json:"status"`
+					}
+					state := "complete"
+					if json.Unmarshal([]byte(result), &envelope) == nil && (envelope.Status == "rejected" || envelope.Status == "failed") {
+						state = envelope.Status
+					}
+					finish(state, result)
+				}
+				continue
+			}
 			var args map[string]json.RawMessage
 			if call.Function.Name == "react_to_ping" && len(calls) == 1 && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && len(args) == 1 {
 				var emoji string

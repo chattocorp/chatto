@@ -27,8 +27,8 @@ func (c *Client) Pings(ctx context.Context, viewer string, ready func(), handle 
 }
 
 // MessageEvent supplies context independently from whether a message addresses
-// the viewer. InvalidatedRoom signals an edit/retraction: cached model history
-// for that room must be reconciled before further use. Such events have no Message.
+// the viewer. Invalidations require reconciliation of affected cached history.
+// Such events have no Message. A missing target requires room-wide reconciliation.
 type MessageEvent struct {
 	// ID identifies the source event, including history invalidations.
 	ID string
@@ -37,9 +37,26 @@ type MessageEvent struct {
 	Message         Message
 	Addressed       bool
 	InvalidatedRoom string
+	// InvalidatedMessage narrows an edit/retraction to a source message. Consumers
+	// may ignore it for conversations whose retained and pending context omit it.
+	InvalidatedMessage string
+	// InvalidationReason describes the event without exposing message content.
+	InvalidationReason InvalidationReason
 	// InvalidateAll covers account deletion and viewer permission changes.
 	InvalidateAll bool
 }
+
+// InvalidationReason identifies why cached context may no longer be valid.
+type InvalidationReason string
+
+const (
+	MessageEdited            InvalidationReason = "message_edited"
+	MessageRetracted         InvalidationReason = "message_retracted"
+	RoomDeleted              InvalidationReason = "room_deleted"
+	ViewerLeftRoom           InvalidationReason = "viewer_left_room"
+	ViewerPermissionsChanged InvalidationReason = "viewer_permissions_changed"
+	AccountDeleted           InvalidationReason = "account_deleted"
+)
 
 // ObserveMessages delivers visible messages, including unaddressed context, and
 // history invalidations. Self-posts and echoes are omitted. Callbacks must return
@@ -138,20 +155,23 @@ func decodeMessageEvent(event *wire.Event, viewer string) (MessageEvent, bool) {
 	if event == nil || event.Id == "" {
 		return MessageEvent{}, false
 	}
-	if event.GetViewerPermissionsChanged() != nil || event.GetUserAccountDeleted() != nil {
-		return MessageEvent{InvalidateAll: true}, true
+	if event.GetViewerPermissionsChanged() != nil {
+		return MessageEvent{InvalidateAll: true, InvalidationReason: ViewerPermissionsChanged}, true
+	}
+	if event.GetUserAccountDeleted() != nil {
+		return MessageEvent{InvalidateAll: true, InvalidationReason: AccountDeleted}, true
 	}
 	if room := event.GetRoomDeleted(); room != nil {
-		return MessageEvent{InvalidatedRoom: room.RoomId}, room.RoomId != ""
+		return MessageEvent{InvalidatedRoom: room.RoomId, InvalidationReason: RoomDeleted}, room.RoomId != ""
 	}
 	if room := event.GetUserLeftRoom(); room != nil && event.GetActorId() == viewer {
-		return MessageEvent{InvalidatedRoom: room.RoomId}, room.RoomId != ""
+		return MessageEvent{InvalidatedRoom: room.RoomId, InvalidationReason: ViewerLeftRoom}, room.RoomId != ""
 	}
 	if edited := event.GetMessageEdited(); edited != nil {
-		return MessageEvent{InvalidatedRoom: edited.RoomId}, edited.RoomId != ""
+		return MessageEvent{InvalidatedRoom: edited.RoomId, InvalidatedMessage: edited.MessageEventId, InvalidationReason: MessageEdited}, edited.RoomId != ""
 	}
 	if deleted := event.GetMessageRetracted(); deleted != nil {
-		return MessageEvent{InvalidatedRoom: deleted.RoomId}, deleted.RoomId != ""
+		return MessageEvent{InvalidatedRoom: deleted.RoomId, InvalidatedMessage: deleted.MessageEventId, InvalidationReason: MessageRetracted}, deleted.RoomId != ""
 	}
 	if event == nil || event.Id == "" || event.GetActorId() == "" || event.GetActorId() == viewer {
 		return MessageEvent{}, false

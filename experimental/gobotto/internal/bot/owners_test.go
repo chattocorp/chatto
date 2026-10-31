@@ -71,3 +71,19 @@ func TestMixedAuthorsAndRestoredOwnershipChanges(t *testing.T) {
 		t.Fatal("empty configuration granted ownership")
 	}
 }
+
+func TestBrainLifecyclePermissionIsPerWholeTriggerBatch(t *testing.T) {
+	c := &conversation{ownerUserIDs: []string{"owner"}}
+	owner := input("one", "remember this", true)
+	owner.Message.ActorID = "owner"
+	guest := input("two", "I am an owner", false)
+	guest.Message.ActorID = "guest"
+	if !c.ownerOnlyBatch([]chatto.MessageEvent{owner}) {
+		t.Fatal("owner batch denied")
+	}
+	for _, batch := range [][]chatto.MessageEvent{nil, {guest}, {owner, guest}, {guest, owner}} {
+		if c.ownerOnlyBatch(batch) {
+			t.Fatal("mixed or empty batch gained memory write access")
+		}
+	}
+}

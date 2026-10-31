@@ -9,6 +9,9 @@ type wireUsage struct {
 	Details struct {
 		Cached *int64 `json:"cached_tokens"`
 	} `json:"prompt_tokens_details"`
+	CompletionDetails struct {
+		Reasoning *int64 `json:"reasoning_tokens"`
+	} `json:"completion_tokens_details"`
 }
 
 func (u wireUsage) report(provider, requestID string) Usage {
@@ -16,6 +19,10 @@ func (u wireUsage) report(provider, requestID string) Usage {
 	if u.Details.Cached != nil {
 		r.CachedInput = *u.Details.Cached
 		r.CacheKnown = true
+	}
+	if u.CompletionDetails.Reasoning != nil {
+		r.Reasoning = *u.CompletionDetails.Reasoning
+		r.ReasoningKnown = true
 	}
 	return r
 }
