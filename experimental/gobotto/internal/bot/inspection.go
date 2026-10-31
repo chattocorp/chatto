@@ -20,6 +20,18 @@ func (c *conversation) inspect(update func(*inspection.Turn)) {
 	}
 }
 
+// recoverDeliveredReply fills only the latest confirmed delivered turn. Earlier,
+// interrupted, and uncertain turns must not borrow a later transcript's output.
+func (c *conversation) recoverDeliveredReply() {
+	if c.model == nil || len(c.records) == 0 {
+		return
+	}
+	t := &c.records[len(c.records)-1]
+	if t.Number == c.turns && t.State == "delivered" && t.Response == "" && t.Emoji == "" {
+		t.Response = c.model.LastDeliveredReply()
+	}
+}
+
 func (c *conversation) step(kind, name string) int {
 	if runes := []rune(name); len(runes) > 80 {
 		name = string(runes[:80]) + "…"

@@ -83,6 +83,11 @@ ChattoBot and does not replace the supported TypeScript client.
   the Go SDK. Gobotto matches them against conversation roots and retained, queued,
   or active message IDs. Unrelated changes in the same room do not cancel model
   requests. Missing targets and context reads in progress remain conservative.
+  For an edit with a known message fingerprint, Gobotto re-reads the thread before
+  cancelling. If the model-visible fields are unchanged, the turn continues;
+  link-preview changes alone do not invalidate it. Delivery waits for verification.
+  Failed, missing, or changed reads retain cancellation, with a five-second read
+  timeout. Retractions and access changes still invalidate without this check.
   Cancellation causes appear in the turn inspector and session log.
   The next message in that thread loads a fresh authorized snapshot. Retention and
   input buffers are bounded; automatic summarization remains open work.
@@ -163,6 +168,80 @@ ChattoBot and does not replace the supported TypeScript client.
    request. History invalidations and eviction deliberately discard cached state.
 
 ## Permissions and Configuration
+
+The bundled configuration now selects an experimental SQLite memory tree. Means
+is paused without changing its files; `memory.backend` selects `tree`, `means`,
+or `disabled`, with means retained as the default for old configurations. The
+independent `memorytree` Go package uses a CGO-free SQLite driver. One root holds
+mutable personality preferences, subordinate to host and operator instructions.
+Each turn receives the current root and immediate-child index. Tools disclose
+deeper nodes, search subtrees by text/type/data field, and inspect immutable
+versioned schemas. Indexes omit undisclosed content and report immediate visible
+child counts. No embeddings or external schema fetches are used.
+
+Every node must carry a type, positive schema version, and structured data object
+that validates against that version. Fresh databases seed only the typed agent
+root; the model defines use-case types instead of receiving a generic note type.
+Existing schemas and nodes remain unchanged. The internal prompt teaches schema
+design for retrieval and updates without prescribing capability-specific fields.
+Schema usefulness remains a model decision, not a runtime constraint.
+
+Published schema versions cannot be replaced. Owners can publish consecutive new
+versions, including incompatible versions, without changing existing records.
+Ordinary updates cannot change a record's type/version. An explicit owner-only
+`migrate` operation validates transformed data against the target version and
+commits one record with its before/after journal. Failure leaves the record intact.
+This protects stored data without requiring general JSON Schema compatibility
+analysis. It does not claim backward compatibility or atomic migration of a whole
+collection. Type lookup and search support exact version filters for mixed-version
+data; richer field queries remain future work.
+
+Memory can describe reusable procedures as well as facts. The agent chooses types,
+schemas, and hierarchy in response to owner requests; no capability type or folder
+layout is prescribed. Any node can carry owner-approved guidance through an
+`instructions` flag. Only owners can create or change such nodes. Existing nodes
+default to data; the root retains its personality role. Approved guidance can
+describe participation rules, storage, retrieval, and verification procedures.
+The model applies those participation rules using current author identities;
+they are not database access controls. Ordinary data and external text cannot
+introduce behavior or grant authority. Host rules always take precedence.
+Procedures must describe verified storage and search locations in the committed
+tree. Research guidance requires provenance and distinguishes verified facts from
+unverified recollection; this remains model behavior, not factual validation by
+the runtime.
+
+Atomic writes preserve stable IDs, require current revisions, reject cycles and
+missing parents, and record before/after content in a durable journal. Root moves
+and archival are forbidden. Archival retains complete subtrees for restoration;
+there is no permanent deletion. Owner-only batches can change root/agent nodes,
+types, record migrations, instruction nodes, placement, and archival state. Ordinary document reads,
+creation, and updates remain available to participants, subject to model-applied
+guidance. Memory is not a per-user privacy boundary.
+The database binds to one authenticated bot/server pair. Root/index and retrieved
+content are sent to OpenRouter. Tree size and disclosure limits are documented in
+the Gobotto README; the journal is not pruned automatically.
+
+The terminal switches between Activity, Memory, and Types through header tabs.
+`m` opens Memory and `t` opens Types; repeating the active shortcut returns to
+Activity. Types lists every schema version with active and archived record counts,
+a field summary, structural differences from the preceding stored version, and
+the full schema. It does not infer semantic compatibility. Enter opens Memory
+filtered to that exact type/version; Escape restores the full tree. Versions
+without records remain visible, and live updates preserve the selected version.
+Memory browsing has a selectable expandable tree, node content and schema details,
+and an archive toggle. It is read-only and preserves activity processing and quit
+controls. This prototype does not migrate existing means documents.
+
+Agent turns allow eight executed tools and twelve model work steps, with one
+additional text-only completion reserved for a progress report. Batched calls are
+rejected without execution and do not consume the tool allowance. Rejections still
+consume model steps. Wrap-up disables tool choice; attempted calls at that point
+do not execute and produce a fixed partial-progress reply. Completed actions are
+not rolled back or replayed. The existing three-minute deadline still applies.
+
+The latest delivered turn's missing inspector response can be recovered on reload
+only from a terminal assistant text reply followed by the successful host delivery
+receipt. Uncertain, interrupted, and older turns are not inferred from that reply.
 
 Conversation completions have an optional output budget and optional
 OpenRouter reasoning controls. Omitted controls preserve provider defaults.

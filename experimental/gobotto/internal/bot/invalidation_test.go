@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -33,6 +34,87 @@ func TestMessageInvalidationScope(t *testing.T) {
 	c.contextReady.Store(false)
 	if !c.affectedBy(chatto.MessageEvent{InvalidatedRoom: "room", InvalidatedMessage: "unknown", InvalidationReason: chatto.MessageEdited}, true, nil) {
 		t.Fatal("context read race must invalidate conservatively")
+	}
+}
+
+type editClient struct {
+	*fakeClient
+	current chatto.Message
+	missing bool
+	fail    bool
+}
+
+func (f *editClient) Thread(context.Context, string, string, string) (chatto.Page, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reads++
+	if f.reads == 1 {
+		return chatto.Page{Messages: []chatto.Message{input("first", "start", true).Message}}, nil
+	}
+	if f.fail {
+		return chatto.Page{}, errors.New("unavailable")
+	}
+	if f.missing {
+		return chatto.Page{}, nil
+	}
+	return chatto.Page{Messages: []chatto.Message{f.current}}, nil
+}
+
+func TestEditChecksModelVisibleContent(t *testing.T) {
+	for _, kind := range []string{"preview", "text", "deleted", "missing", "unavailable"} {
+		t.Run(kind, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				f := &editClient{fakeClient: newFake(), current: input("first", "start", true).Message, missing: kind == "missing", fail: kind == "unavailable"}
+				if kind == "text" {
+					f.current.Body = "changed"
+				}
+				if kind == "deleted" {
+					f.current.DeletedAt = "deleted"
+				}
+				started := make(chan context.Context, 1)
+				release := make(chan struct{})
+				done := make(chan error, 1)
+				go func() {
+					done <- Run(ctx, f, chatto.Profile{ID: "bot"}, func(string, func(agent.Usage)) agent.Complete {
+						return func(ctx context.Context, _ []agent.Message) (agent.Message, error) {
+							started <- ctx
+							select {
+							case <-ctx.Done():
+								return nil, ctx.Err()
+							case <-release:
+								return answer(), nil
+							}
+						}
+					}, func(tui.Event) {})
+				}()
+				<-f.ready
+				f.events <- input("first", "start", true)
+				synctest.Wait()
+				time.Sleep(batchWindow)
+				synctest.Wait()
+				modelCtx := <-started
+				f.events <- chatto.MessageEvent{InvalidatedRoom: "room", InvalidatedMessage: "first", InvalidationReason: chatto.MessageEdited}
+				synctest.Wait()
+				if (modelCtx.Err() == nil) != (kind == "preview") {
+					t.Fatal("wrong edit cancellation decision", kind, modelCtx.Err())
+				}
+				if kind == "preview" {
+					close(release)
+					synctest.Wait()
+					<-f.posts
+				} else {
+					select {
+					case <-f.posts:
+						t.Fatal("changed context delivered")
+					default:
+					}
+				}
+				cancel()
+				<-done
+			})
+		})
 	}
 }
 

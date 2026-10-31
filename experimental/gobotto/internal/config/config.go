@@ -29,6 +29,9 @@ type Config struct {
 
 // Memory binds fixed collections and an optional directory for managed brains.
 type Memory struct {
+	// Backend selects means (legacy default), tree, or disabled.
+	Backend     string       `toml:"backend"`
+	Database    string       `toml:"database"`
 	Directory   string       `toml:"directory"`
 	Collections []Collection `toml:"collections"`
 }
@@ -96,6 +99,24 @@ func Load(path string) (Config, error) {
 	slices.Sort(cfg.OwnerUserIDs)
 	cfg.OwnerUserIDs = slices.Compact(cfg.OwnerUserIDs)
 	names := map[string]bool{}
+	if cfg.Memory.Backend == "" {
+		cfg.Memory.Backend = "means"
+	}
+	if !slices.Contains([]string{"means", "tree", "disabled"}, cfg.Memory.Backend) {
+		return Config{}, errors.New("memory.backend must be means, tree, or disabled")
+	}
+	if cfg.Memory.Backend == "tree" {
+		if cfg.Memory.Database == "" {
+			cfg.Memory.Database = ".gobotto/memory.sqlite"
+		}
+		if !filepath.IsAbs(cfg.Memory.Database) {
+			cfg.Memory.Database = filepath.Join(filepath.Dir(path), cfg.Memory.Database)
+		}
+		cfg.Memory.Database, err = filepath.Abs(cfg.Memory.Database)
+		if err != nil {
+			return Config{}, errors.New("invalid memory database path")
+		}
+	}
 	if cfg.Memory.Directory != "" {
 		if !filepath.IsAbs(cfg.Memory.Directory) {
 			cfg.Memory.Directory = filepath.Join(filepath.Dir(path), cfg.Memory.Directory)

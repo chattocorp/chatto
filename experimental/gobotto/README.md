@@ -221,7 +221,120 @@ Brain creation and archival require a triggering batch in which every message
 author is an owner. Document use follows each brain's prompt guidance. Owner IDs and per-message author metadata are sent to OpenRouter with model
 context and stored in private session transcripts, not operational logs.
 
-### Means collections
+### Tree memory experiment
+
+The included configuration selects one SQLite memory tree and pauses means:
+
+```toml
+[memory]
+backend = "tree"
+database = ".gobotto/memory.sqlite"
+```
+
+The database path is relative to `gobotto.toml`. The driver is pure Go;
+`CGO_ENABLED=0` builds are supported. Existing means collections stay on disk and
+are not imported or modified. Set `backend = "means"` and restore your previous
+`directory` or collection bindings to use means again. Set `backend = "disabled"`
+to expose neither memory backend. Old configurations without `backend` use means.
+
+The root node holds mutable personality preferences. Its content and the titles
+and summaries of its immediate children enter the system prompt each turn.
+Host rules and operator instructions take precedence. Any node can hold
+owner-approved operating guidance with `instructions = true`; no capability type
+or folder layout is required. Other nodes hold data, not operating instructions.
+The agent develops procedures, schemas, and organization to support owner requests.
+Its top-level summaries should help future sessions discover what it can do.
+Indexes omit bodies and structured data and include immediate visible child counts.
+The agent reads relevant guidance and searches or explores descendants before
+answering questions about remembered knowledge. A memory change updates the system prefix on the next turn and can
+reduce prompt-cache hits. Restored conversations receive the current root too.
+
+Tools read nodes, list children, search a subtree, inspect type schemas, read the
+change journal, and apply changes. Search supports text, type name, schema version,
+and equality on one top-level structured-data field. Schema lookup supports exact
+type and version filters. Node IDs survive moves and renames.
+Sibling position controls order; equal positions use ID order. Updates require
+the revision returned by a read. Every node, including the root and instruction
+nodes, requires a type ID, schema version, and structured data object that validates
+against that version's JSON Schema. New databases contain only the bootstrap
+`agent` type with a required `purpose` field. The agent must define suitable types
+for new use cases; generic `note` types are no longer seeded. Existing databases
+keep all their schemas and content, including legacy generic types.
+
+Types use immutable, consecutive versions starting at 1. A published version cannot
+be replaced, even with a compatible schema. Owners can publish new versions,
+including incompatible ones. Existing nodes keep their original versions. This
+preserves old data; it does not prove that two schemas are backward compatible.
+External schema references are rejected; schema validation makes no network requests.
+
+The agent is instructed to design structured fields for identification, retrieval,
+relationships, and provenance. Markdown holds narrative detail. This design guidance
+is applied by the model; the runtime validates the schema and data, not their
+usefulness. No capability types or application-specific fields are prescribed.
+
+The agent must verify that saved procedures describe the committed tree, including
+the location used for storage and subtree search. Research guidance calls for
+structured provenance, source URLs and verification dates for web-derived facts,
+and explicit labels for unverified recollection. These are model instructions;
+schema validation alone does not establish factual accuracy.
+
+An ordinary `update` cannot change a node's type or version. Owners use `migrate`
+with the current revision, target type/version, and full transformed content. Each
+migration validates the target data and atomically preserves the node's ID and
+location while recording before/after content in the journal. Rejected migrations
+leave the record unchanged. Archived records must be restored first. Multiple
+versions can coexist during migration; there is no atomic all-records migration.
+
+Participants can use capabilities and contribute ordinary data according to their
+approved guidance; the default is to allow contributions. These participation
+rules guide the model, not database access controls. Shared memory remains readable
+by all conversations. Only batches
+whose authors are all configured owners can change personality or agent nodes,
+create or change instruction nodes, define types, migrate records, move nodes, archive subtrees,
+or restore them. An owner's request for a new use case can authorize its supporting
+procedures and schemas. Ordinary data cannot introduce capabilities or change
+participation rules. Adding data under an existing parent is a contribution,
+not reorganization. Existing nodes remain data unless an owner authorizes promotion;
+the root retains its personality role. Shared memory is not private per-user storage. Retrieved
+content goes to OpenRouter and saved conversation transcripts. Do not store secrets.
+
+Writes and their before/after journal records commit in one transaction. The
+runtime rejects missing parents, cycles, stale revisions, and root moves or
+archival. Archival hides a subtree without deleting it; restore the archived
+ancestor to reveal its descendants. The journal retains previous content for
+recovery through a revision-checked update. There is no permanent-delete tool.
+Uncertain mutations are not retried; identical successful writes in one turn
+reuse their receipts. The database is bound to its first authenticated bot and
+server, independently of the conversation model.
+
+The prototype limits the tree to 4,096 nodes, 64 levels, 64 active children per
+parent, and 128 type versions. Titles allow 120 bytes, summaries 240, and body/data
+12,000 each. Root body/data limits are 4,000/2,000 bytes. Reads disclose one node;
+child/search results use 32-item pages, types use eight-item pages, and history
+uses one-change pages. Search scans the local tree; there are no embeddings.
+The journal has no automatic pruning. Back up the database while Gobotto is
+stopped. It contains private memory and historical content in plaintext.
+
+Click **Activity**, **Memory**, or **Types** in the header to switch views.
+Press `m` for Memory or `t` for Types; pressing the active view's key returns
+to Activity. The Types tab count is the number of distinct types.
+The Memory view has an expandable tree and a node-detail pane with content,
+structured data, type schema, and revision. Click a row to select and expand it;
+use Up/Down and Enter/Left/Right for keyboard navigation. Tab changes focus,
+the mouse wheel scrolls the pane under the pointer, and `a` includes archives.
+Types lists schema versions, newest first within each type, with record counts.
+Click a version or use the arrow keys to select it. The detail pane shows field
+types, required fields, descriptions, structural differences from the preceding
+stored version, and the full JSON Schema. Differences are not a compatibility
+verdict. Tab changes pane focus; the mouse wheel scrolls the pane beneath it.
+Enter opens Memory filtered to records using the selected type and version,
+including archived records. Escape returns to the full tree. Empty and unused
+versions remain inspectable. Selection survives live memory updates.
+
+Activity continues while browsing. Both browsers are read-only; ask Gobotto to
+change memory through chat. Normal and forced quit work in all three views.
+
+### Means collections (optional legacy backend)
 
 Configure a directory where Gobotto can manage brains:
 
@@ -452,9 +565,16 @@ their next turn begins the inspection history.
 - Assistant messages, reasoning metadata, tool calls, tool results, and delivery
   receipts stay in the transcript. The bot's own realtime posts are not inserted
   again. A failed tool turn does not leave an incomplete tool exchange.
-- The model cannot choose another destination or use shell, file, or web tools.
-- Each turn has a three-minute timeout, at most eight model requests, and at
-  most eight tool calls. Each model response has a 2,048-token output limit.
+- The model cannot choose another Chatto destination. External tools are limited
+  to configured capabilities; shell and arbitrary file access are not supplied.
+- Each turn has a three-minute timeout, at most eight executed tool calls, and
+  at most twelve model work steps plus one final text-only completion. Batched
+  calls are rejected before execution with explicit feedback and do not consume
+  the execution allowance. Repeated rejections still consume model work steps.
+  At the limit, the bot reports completed and unfinished work from tool receipts.
+  If the model attempts another tool during wrap-up, the host delivers a fixed
+  partial-progress notice without executing it. Model output-token caps follow
+  the conversation configuration; no cap is supplied by default.
 - A failed turn is logged without private data; the bot continues listening.
   There are no automatic retries. A failed write can have reached Chatto.
 - A disconnected realtime socket reconnects with exponential backoff and jitter.
@@ -468,6 +588,11 @@ their next turn begins the inspection history.
   in that gap do not automatically trigger turns. First startup without a cursor
   starts at the live boundary. Recovery does not scan all old threads for work.
 - Message edits/retractions and room-access changes invalidate affected context.
+  Before invalidating for an edit, Gobotto re-reads the thread and compares the
+  affected message's model-visible fields. An unchanged message, such as one
+  whose link preview was removed, leaves the active turn and transcript intact.
+  Delivery waits for this check. Missing messages, changed content, or a failed
+  verification still invalidate context; the check has a five-second timeout.
   Edits and retractions are matched to the thread root, retained context, queued
   messages, and active batch. Changes to unrelated messages in the same room do
   not cancel an active model request. Missing targets and context reads still in

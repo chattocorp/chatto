@@ -29,8 +29,9 @@ model = "openai/gpt-6-luna"
 system_prompt = "Use a short, specific title in the conversation's language."
 
 [memory]
-# Owners can create and archive brains here. Each MEANS.md governs brain use.
-directory = "./brains"
+# The tree experiment leaves existing means brains untouched.
+backend = "tree"
+database = ".gobotto/memory.sqlite"
 
 [mcp.servers.exa]
 url = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa"

@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -15,7 +16,9 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/mcpclient"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/treememory"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
+	"github.com/chatto-chat/chatto/experimental/gobotto/memorytree"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
 
@@ -37,9 +40,21 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	memories, err := memory.New(cfg.Memory.Collections, cfg.Memory.Directory)
-	if err != nil {
-		return err
+	var memories *memory.Manager
+	var tree *treememory.Manager
+	if cfg.Memory.Backend == "means" {
+		memories, err = memory.New(cfg.Memory.Collections, cfg.Memory.Directory)
+		if err != nil {
+			return err
+		}
+	}
+	if cfg.Memory.Backend == "tree" {
+		db, openErr := memorytree.Open(cfg.Memory.Database, "Be helpful, curious, and concise. Learn useful facts and organize them for later recall.")
+		if openErr != nil {
+			return errors.New("cannot open tree memory database")
+		}
+		defer db.Close()
+		tree = &treememory.Manager{Store: db}
 	}
 	settings := map[string]string{}
 	for _, name := range []string{"CHATTO_URL", "CHATTO_API_KEY", "OPENROUTER_API_KEY"} {
@@ -61,6 +76,18 @@ func run(ctx context.Context) error {
 		viewer, err := c.Viewer(ctx)
 		if err != nil {
 			return err
+		}
+		if tree != nil {
+			binding := sha256.Sum256([]byte(strings.TrimRight(settings["CHATTO_URL"], "/") + "\x00" + viewer.ID))
+			if err := tree.Store.BindIdentity(ctx, fmt.Sprintf("%x", binding)); err != nil {
+				return errors.New("tree memory identity check failed; use a separate database for each bot/server")
+			}
+			tree.Changed = func(s memorytree.Snapshot) { emit(tui.Event{Kind: tui.MemoryChanged, Memory: &s}) }
+			s, err := tree.Store.Snapshot(ctx)
+			if err != nil {
+				return errors.New("cannot load tree memory")
+			}
+			tree.Changed(s)
 		}
 		dir := os.Getenv("GOBOTTO_SESSION_DIR")
 		if dir == "" {
@@ -86,6 +113,6 @@ func run(ctx context.Context) error {
 				options.Reasoning = &agent.ReasoningOptions{Enabled: r.Enabled, Effort: r.Effort, MaxTokens: r.MaxTokens, Exclude: r.Exclude}
 			}
 			return agent.OpenRouter(settings["OPENROUTER_API_KEY"], cfg.Conversation.Model, id, usage, options)
-		}, emit, bot.Options{Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
+		}, emit, bot.Options{Tree: tree, Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
 	})
 }
