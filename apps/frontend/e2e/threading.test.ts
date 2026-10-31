@@ -738,6 +738,10 @@ test.describe('Message Threading', () => {
     // Thread should be closed and URL should not contain thread
     await roomPage.expectThreadRouteClosed();
     await expect(page.getByRole('heading', { name: /^Thread in #/ })).not.toBeVisible();
+
+    await page.goForward();
+    await roomPage.expectThreadRouteActive();
+    await roomPage.expectTextInThreadPane(rootMessage);
   });
 
   test('direct thread URL navigation opens the thread pane', async ({
