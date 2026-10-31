@@ -111,7 +111,7 @@
 
   <button
     type="button"
-    class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-start opacity-75 hover:text-text"
+    class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-start hover:text-text"
     aria-label={jumpLabel}
     title={jumpLabel}
   >

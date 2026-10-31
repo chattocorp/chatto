@@ -1813,7 +1813,7 @@
 
 /* Mention styling in messages */
 .mention {
-  @apply cursor-pointer rounded-sm bg-action/20 px-0.5 font-semibold text-action;
+  @apply cursor-pointer rounded-sm bg-action/10 px-0.5 font-semibold text-action;
 }
 
 .mention-self {
@@ -2015,11 +2015,11 @@
 @utility segmented-control-group {
   @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
 
-  & > fieldset {
+  & > [role='radiogroup'] {
     @apply w-max flex-auto;
   }
 
-  & > fieldset > label {
+  & > [role='radiogroup'] > label {
     @apply grow;
   }
 
