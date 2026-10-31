@@ -86,7 +86,7 @@ func OpenRouterTitles(key, model, preferences string) TitleGenerator {
 			prompt += "\nTitle preferences:\n" + preferences
 		}
 		err := postJSON(ctx, "https://openrouter.ai/api/v1/chat/completions", key, map[string]any{
-			"model": model, "max_tokens": 64, "messages": []Message{textMessage("system", prompt), textMessage("user", strings.Join(snippets, "\n\n"))},
+			"model": model, "messages": []Message{textMessage("system", prompt), textMessage("user", strings.Join(snippets, "\n\n"))},
 		}, &out)
 		result := TitleResult{}
 		if out.Usage != nil {

@@ -30,7 +30,9 @@ func TestRespondReadsBoundThreadAndPostsAnswer(t *testing.T) {
 			t.Error("destination changed")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		if strings.HasSuffix(r.URL.Path, "/GetThreadEvents") {
+		if strings.HasSuffix(r.URL.Path, "/RefreshTypingIndicator") {
+			_, _ = w.Write([]byte(`{}`))
+		} else if strings.HasSuffix(r.URL.Path, "/GetThreadEvents") {
 			reads++
 			_, _ = w.Write([]byte(`{"page":{"events":[{"messagePosted":{"message":{"body":"context"}}}],"hasOlder":true}}`))
 		} else if strings.HasSuffix(r.URL.Path, "/CreateMessage") {
@@ -128,6 +130,11 @@ func TestRealtimeMessageReadsThreadAndReactsWithoutPosting(t *testing.T) {
 					t.Error("wrong room")
 				}
 				switch {
+				case strings.HasSuffix(r.URL.Path, "/RefreshTypingIndicator"):
+					if input["threadRootEventId"] != "ping" {
+						t.Error("wrong typing thread")
+					}
+					_, _ = w.Write([]byte(`{}`))
 				case strings.HasSuffix(r.URL.Path, "/GetThreadEvents"):
 					reads++
 					if input["threadRootEventId"] != "ping" {

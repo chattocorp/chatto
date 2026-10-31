@@ -1,5 +1,21 @@
 package bot
 
+import chatto "github.com/chattocorp/chatto/experimental/chatto-go"
+
+// ownerOnlyBatch rejects mixed authors, including messages already deduplicated
+// into initial context. Ownership never carries over from prior turns.
+func (c *conversation) ownerOnlyBatch(batch []chatto.MessageEvent) bool {
+	if len(batch) == 0 {
+		return false
+	}
+	for _, e := range batch {
+		if !c.isOwner(e.Message.ActorID) {
+			return false
+		}
+	}
+	return true
+}
+
 // triggerAuthor binds recognition to a server-supplied author of one message.
 // This metadata is model context, not authorization for privileged tool calls.
 type triggerAuthor struct {

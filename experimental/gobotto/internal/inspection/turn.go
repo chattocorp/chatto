@@ -14,6 +14,9 @@ type Usage struct {
 	Known, CostKnown, CostMissing bool
 	// CacheKnown is false for missing telemetry and legacy records with ambiguous zeros.
 	CacheKnown bool
+	// Reasoning is included in Output; false means absent or legacy telemetry.
+	Reasoning      int64
+	ReasoningKnown bool
 }
 
 // Step records one externally observable operation, without model reasoning.

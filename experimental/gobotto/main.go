@@ -13,6 +13,8 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/bot"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/mcpclient"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
@@ -35,6 +37,10 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	memories, err := memory.New(cfg.Memory.Collections, cfg.Memory.Directory)
+	if err != nil {
+		return err
+	}
 	settings := map[string]string{}
 	for _, name := range []string{"CHATTO_URL", "CHATTO_API_KEY", "OPENROUTER_API_KEY"} {
 		settings[name] = strings.TrimSpace(os.Getenv(name))
@@ -47,6 +53,11 @@ func run(ctx context.Context) error {
 		return err
 	}
 	return tui.Run(ctx, func(ctx context.Context, emit tui.Emit) error {
+		external, err := mcpclient.Open(ctx, cfg.MCP)
+		if err != nil {
+			return err
+		}
+		defer external.Close()
 		viewer, err := c.Viewer(ctx)
 		if err != nil {
 			return err
@@ -67,7 +78,14 @@ func run(ctx context.Context) error {
 			titles = agent.OpenRouterTitles(settings["OPENROUTER_API_KEY"], cfg.Titles.Model, cfg.Titles.SystemPrompt)
 		}
 		return bot.Run(ctx, c, viewer, func(id string, usage func(agent.Usage)) agent.Complete {
-			return agent.OpenRouter(settings["OPENROUTER_API_KEY"], cfg.Conversation.Model, id, usage)
-		}, emit, bot.Options{Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
+			options := agent.CompletionOptions{}
+			if cfg.Conversation.MaxOutputTokens != nil {
+				options.MaxOutputTokens = *cfg.Conversation.MaxOutputTokens
+			}
+			if r := cfg.Conversation.Reasoning; r != nil {
+				options.Reasoning = &agent.ReasoningOptions{Enabled: r.Enabled, Effort: r.Effort, MaxTokens: r.MaxTokens, Exclude: r.Exclude}
+			}
+			return agent.OpenRouter(settings["OPENROUTER_API_KEY"], cfg.Conversation.Model, id, usage, options)
+		}, emit, bot.Options{Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
 	})
 }

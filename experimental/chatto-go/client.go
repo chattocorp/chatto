@@ -163,6 +163,16 @@ func (c *Client) call(ctx context.Context, method string, input, output any) err
 	return httpjson.Post(ctx, c.endpoint+method, c.token, input, output)
 }
 
+// RefreshTypingIndicator publishes live typing activity for the authenticated
+// user. Pass an empty root for the room timeline, or a thread-root event ID.
+// Refresh at most once every two seconds. Stop refreshing when work ends;
+// receivers clear typing after a matching message or six seconds of inactivity.
+func (c *Client) RefreshTypingIndicator(ctx context.Context, room, root string) error {
+	return c.call(ctx, "RoomService/RefreshTypingIndicator", map[string]string{
+		"roomId": room, "threadRootEventId": root,
+	}, &struct{}{})
+}
+
 // React adds the authenticated user's reaction to a message. Chatto expects an emoji
 // name such as "thumbsup", without surrounding colons, rather than a glyph.
 func (c *Client) React(ctx context.Context, room, message, emoji string) error {
