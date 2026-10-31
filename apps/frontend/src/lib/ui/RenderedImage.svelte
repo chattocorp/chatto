@@ -8,8 +8,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   import AttachmentModal from './AttachmentModal.svelte';
   import ZoomableImage from './ZoomableImage.svelte';
 
-  let { image, controlsTarget }: { image: HTMLImageElement; controlsTarget: HTMLElement } =
-    $props();
+  let { image }: { image: HTMLImageElement } = $props();
   let width = $state(1);
   let height = $state(1);
   let ready = $state(false);
@@ -17,7 +16,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   let viewerError = $state(false);
   let portalReady = $state(false);
 
-  function preview(node: HTMLDivElement) {
+  function preview(node: HTMLSpanElement) {
     const update = () => {
       width = image.naturalWidth || 1;
       height = image.naturalHeight || 1;
@@ -25,6 +24,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
     };
     image.classList.add('image-canvas-asset');
     image.dataset.canvasImage = '';
+    image.draggable = false;
     node.append(image);
     image.addEventListener('load', update);
     if (image.complete) update();
@@ -34,19 +34,16 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
     };
   }
 
-  /** Actions live in the owner's preview visor or code header. */
-  function actions(node: HTMLDivElement) {
-    controlsTarget.prepend(node);
-    const cleanups = ['click', 'mousedown', 'mouseup', 'touchstart', 'touchend'].map((type) =>
+  /** Keep image activation out of message gestures, but preserve native scrolling. */
+  function consumeMessageGestures(node: HTMLButtonElement) {
+    const cleanups = ['mousedown', 'mouseup', 'touchstart', 'touchend'].map((type) =>
       on(node, type, (event) => event.stopPropagation())
     );
-    return () => {
-      cleanups.forEach((cleanup) => cleanup());
-      node.remove();
-    };
+    return () => cleanups.forEach((cleanup) => cleanup());
   }
 
-  function openViewer() {
+  function openViewer(event: MouseEvent) {
+    event.stopPropagation();
     viewerError = false;
     portalReady = false;
     // Snapshot the rendered image; opening never uploads it or reparses its source.
@@ -61,24 +58,17 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   }
 </script>
 
-<div
-  class="rendered-image relative max-h-[min(30rem,60vh)] min-h-24 w-full overflow-hidden"
+<button
+  type="button"
+  class="rendered-image relative block max-h-[min(30rem,60vh)] w-full cursor-zoom-in overflow-hidden p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-default"
+  aria-label={m('ui.image_modal.open_larger')}
+  disabled={!ready}
+  onclick={openViewer}
+  {@attach consumeMessageGestures}
   style:aspect-ratio={`${width} / ${height}`}
 >
-  <div class="absolute inset-0" {@attach preview}></div>
-</div>
-<div class="me-auto flex items-center" data-inline-image-controls {@attach actions}>
-  <button
-    type="button"
-    data-open-larger
-    class="mini-icon-action h-5 gap-1 whitespace-nowrap"
-    disabled={!ready}
-    onclick={openViewer}
-  >
-    <span class="iconify icon-[uil--expand-arrows-alt] text-sm" aria-hidden="true"></span>
-    {m('ui.image_modal.open_larger')}
-  </button>
-</div>
+  <span class="absolute inset-0" {@attach preview}></span>
+</button>
 
 {#if viewer}
   <div class="font-sans text-base" {@attach portal}>

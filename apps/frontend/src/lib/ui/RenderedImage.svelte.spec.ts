@@ -2,18 +2,17 @@ import '../../app.css';
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import { on } from 'svelte/events';
 import RenderedImage from './RenderedImage.svelte';
 
 const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"/>')}`;
 
 describe('RenderedImage', () => {
   it('leaves scrolling alone and opens a separate zoomable viewer outside Markdown', async () => {
-    const header = document.createElement('div');
-    document.body.append(header);
     const image = new Image();
     image.src = src;
     image.alt = 'Diagram';
-    const view = render(RenderedImage, { image, controlsTarget: header });
+    const view = render(RenderedImage, { image });
     view.container.classList.add('prose');
     view.container.style.width = '400px';
     try {
@@ -29,9 +28,11 @@ describe('RenderedImage', () => {
       image.dispatchEvent(wheel);
       expect(wheel.defaultPrevented).toBe(false);
       const parentClick = vi.fn();
-      header.addEventListener('click', parentClick);
-      const opener = header.querySelector('button')!;
-      await userEvent.click(opener);
+      // Observe after delegated Svelte handlers, as the message row does.
+      const stopObserving = on(view.container, 'click', parentClick);
+      const opener = view.container.querySelector('button')!;
+      expect(opener.textContent?.trim()).toBe('');
+      await userEvent.click(image);
       expect(parentClick).not.toHaveBeenCalled();
       const dialog = document.querySelector('dialog')!;
       await expect.poll(() => dialog.matches(':modal')).toBe(true);
@@ -47,11 +48,11 @@ describe('RenderedImage', () => {
       await expect.poll(() => document.activeElement).toBe(opener);
       await userEvent.click(opener);
       await expect.poll(() => document.querySelector('dialog:modal')).not.toBeNull();
-      await view.unmount();
-      expect(document.querySelector('dialog')).toBeNull();
-      expect(header.childElementCount).toBe(0);
+      expect(parentClick).not.toHaveBeenCalled();
+      stopObserving();
     } finally {
-      header.remove();
+      await view.unmount();
     }
+    expect(document.querySelector('dialog')).toBeNull();
   });
 });

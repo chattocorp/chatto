@@ -658,9 +658,10 @@ Do not use `role="tooltip"` for this interactive surface or nest links inside it
 visual composer. Keep its geometry in `app.css`, rather than separate editor
 and message recipes. `code-frame` adds the artifact layout to this primitive;
 the thin header holds the language, copy action, and Source/Render controls.
-Source and rendered panels use `preview-content`. Visual fences use the shared
-`preview-toolbar` visor without a language label. SVG and Mermaid show fitted
-images with an Open larger action; pan and zoom belong to the attachment viewer.
+Source and rendered panels use `preview-content`. Visual fences show only their
+output, with no header, tabs, copy action or overlay. SVG and Mermaid show fitted
+images that open the attachment viewer when clicked or activated with the keyboard.
+Pan and zoom belong to that viewer.
 Zoom controls and the text Fit action sit in that viewer's footer. ANSI art
 keeps its fixed terminal colors on the inset canvas. Composer link attachments
 use a `preview-content` row inside `preview-frame`, like posted preview cards.

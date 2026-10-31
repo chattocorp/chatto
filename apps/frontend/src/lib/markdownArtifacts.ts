@@ -79,10 +79,7 @@ export function attachCodeFrames(html: string, scope: string) {
           if (signal.aborted) return;
           const canvas = mount(RenderedImage, {
             target: renderPanel,
-            props: {
-              image,
-              controlsTarget: frame.querySelector<HTMLElement>('.markdown-code-header')!
-            }
+            props: { image }
           });
           canvases.push(() => {
             void unmount(canvas);
@@ -101,9 +98,12 @@ export function attachCodeFrames(html: string, scope: string) {
         tab.id = `${id}-tab`;
         tab.setAttribute('aria-controls', id);
         panels[i].id = id;
-        panels[i].role = 'tabpanel';
-        panels[i].setAttribute('aria-labelledby', tab.id);
-        panels[i].tabIndex = 0;
+        // Visuals have no visible tabs. Their image button (or ANSI code) owns focus.
+        if (frame.dataset.presentation !== 'visual' || i === 0) {
+          panels[i].role = 'tabpanel';
+          panels[i].setAttribute('aria-labelledby', tab.id);
+          panels[i].tabIndex = 0;
+        }
         tab.addEventListener(
           'click',
           (event) => {

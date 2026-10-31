@@ -57,20 +57,20 @@ describe('Mermaid previews', () => {
       expect(getComputedStyle(code.querySelector('.markdown-code-header')!).position).toBe(
         'static'
       );
-      expect(getComputedStyle(visual.querySelector('.markdown-code-header')!).position).toBe(
-        'absolute'
-      );
-      expect(getComputedStyle(visual.querySelector('.markdown-code-language')!).display).toBe(
-        'none'
-      );
-      await userEvent.click(visual.querySelector('[data-code-tab="source"]')!);
-      expect(getComputedStyle(visual.querySelector('.markdown-code-header')!).position).toBe(
-        'static'
-      );
-      expect(getComputedStyle(visual.querySelector('.markdown-code-language')!).display).not.toBe(
-        'none'
-      );
-      expect(visual.dataset.presentation).toBe('visual');
+      expect(getComputedStyle(visual.querySelector('.markdown-code-header')!).display).toBe('none');
+      await expect
+        .element(visual.querySelector<HTMLElement>('[data-markdown-copy]')!)
+        .not.toBeVisible();
+      await expect
+        .element(visual.querySelector<HTMLElement>('[data-code-tab="source"]')!)
+        .not.toBeVisible();
+      await expect
+        .element(visual.querySelector<HTMLElement>('[data-code-tab="render"]')!)
+        .not.toBeVisible();
+      await userEvent.click(code.querySelector('[data-code-tab="render"]')!);
+      await expect
+        .element(code.querySelector<HTMLElement>('[data-code-tab="source"]')!)
+        .toBeVisible();
     }
   );
 
@@ -125,8 +125,9 @@ describe('Mermaid previews', () => {
 
   it('does not switch back to Render when a pending image finishes', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```')
+      html: await renderMarkdown('```mermaid\nflowchart LR\nA-->B\n```')
     });
+    await userEvent.click(container.querySelector('[data-code-tab="render"]')!);
     await expect
       .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
       .toBeGreaterThan(0);
@@ -164,7 +165,7 @@ describe('Mermaid previews', () => {
       await expect.poll(() => stage.clientHeight).toBeGreaterThan(0);
       expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6) + 1);
       expect(block.querySelector('button[aria-label="Zoom in"]')).toBeNull();
-      expect(block.querySelector('[data-open-larger]')).not.toBeNull();
+      expect(block.querySelector('button.rendered-image')).not.toBeNull();
       expect(image.getBoundingClientRect().height).toBeLessThanOrEqual(stage.clientHeight + 1);
       expect(stage.clientWidth).toBe(block.clientWidth - 8);
       expect(block.hasAttribute('tabindex')).toBe(false);
@@ -199,9 +200,10 @@ describe('Mermaid previews', () => {
   it('loads a real worker result as an image with accessible text and updates its theme', async () => {
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown(
-        '```mermaid rendered\nflowchart LR\naccTitle: Flight plan\naccDescr: Launch then orbit\nA[Launch] --> B[Orbit]\n```'
+        '```mermaid\nflowchart LR\naccTitle: Flight plan\naccDescr: Launch then orbit\nA[Launch] --> B[Orbit]\n```'
       )
     });
+    await userEvent.click(container.querySelector('[data-code-tab="render"]')!);
     await expect
       .poll(
         () => container.querySelector<HTMLImageElement>('.markdown-mermaid-preview')?.naturalWidth
@@ -446,10 +448,11 @@ describe('MarkdownHtml code copy', () => {
 
   it('updates source and ANSI fades when switching tabs', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi rendered\n' + 'X'.repeat(70) + '\n```')
+      html: await renderMarkdown('```ansi\n' + 'X'.repeat(70) + '\n```')
     });
     container.classList.add('prose');
     container.style.width = '240px';
+    await userEvent.click(container.querySelector('[data-code-tab="render"]')!);
     const renderedFade = container.querySelector('.markdown-ansi .markdown-code-fade-right')!;
     await expect.poll(() => renderedFade.classList.contains('opacity-0')).toBe(false);
     expect(getComputedStyle(renderedFade).getPropertyValue('--tw-gradient-from').trim()).toBe(
@@ -611,7 +614,7 @@ describe('MarkdownHtml code copy', () => {
     for (const type of events) container.removeEventListener(type, parentGesture);
   });
 
-  it('renders SVG inside a shared frame with source and copy controls', async () => {
+  it('renders visual SVG without source or copy controls over the image', async () => {
     const source =
       '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>\n';
     const { container } = render(MarkdownHtml, {
@@ -626,7 +629,7 @@ describe('MarkdownHtml code copy', () => {
     expect(container.querySelector('details, summary')).toBeNull();
     await expect
       .element(container.querySelector<HTMLButtonElement>('button[data-markdown-copy]')!)
-      .toBeVisible();
+      .not.toBeVisible();
     expect(getComputedStyle(image.parentElement!).borderTopWidth).toBe('0px');
     expect(getComputedStyle(image).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     expect(getComputedStyle(image).outlineStyle).toBe('none');
@@ -637,7 +640,11 @@ describe('MarkdownHtml code copy', () => {
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown('```svg rendered\n<svg broken\n```')
     });
+    container.classList.add('prose');
     await expect.element(container.querySelector('code')!).toBeVisible();
+    await expect
+      .element(container.querySelector<HTMLElement>('[data-markdown-copy]')!)
+      .toBeVisible();
     expect(container.querySelector<HTMLElement>('[data-code-panel="render"]')?.hidden).toBe(true);
     expect(container.querySelector('code')?.textContent).toBe('<svg broken');
   });
@@ -691,9 +698,10 @@ describe('MarkdownHtml code copy', () => {
   it('renders ANSI screen cells in the browser and copies the original escape codes', async () => {
     const source = '\x1b[31mwrong\rART\x1b[K\r\n';
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi rendered\n' + source + '```')
+      html: await renderMarkdown('```ansi\n' + source + '```')
     });
     container.classList.add('prose');
+    await userEvent.click(container.querySelector('[data-code-tab="render"]')!);
     const code = container.querySelector('.markdown-ansi code')!;
     expect(code.textContent?.trim()).toBe('ART');
     expect(getComputedStyle(code.querySelector('span[style]')!).color).toBe('rgb(170, 0, 0)');

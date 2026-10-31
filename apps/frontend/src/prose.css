@@ -169,21 +169,12 @@
     @apply code-frame-header;
   }
 
-  /* A visual uses the same discreet visor as image previews. Source inspection
-     restores the code header without changing the author's presentation choice. */
+  /* Visual fences show only their output. A render failure reveals the source
+     and its controls so the message remains readable and copyable. */
   & [data-presentation='visual']:has([data-code-panel='render']:not([hidden])) {
     & .markdown-code-header {
-      @apply preview-toolbar h-auto;
-    }
-    & .markdown-code-language {
       display: none;
     }
-  }
-
-  &
-    .markdown-code-frame:has([data-code-panel='source']:not([hidden]))
-    [data-inline-image-controls] {
-    display: none;
   }
 
   & [data-code-panel] {
@@ -194,7 +185,7 @@
     @apply flex items-center gap-1;
   }
 
-  & .markdown-code-header button:not([data-open-larger]) {
+  & .markdown-code-header button {
     @apply mini-icon-action size-5 items-center justify-center disabled:cursor-default disabled:opacity-50;
   }
 
