@@ -1,3 +1,23 @@
+/** Expose installed-version information without loading an updater or contacting a feed. */
+export function unavailableDesktopUpdates(version) {
+  return {
+    snapshot: () => ({
+      revision: 0,
+      version,
+      status: 'unavailable',
+      busy: false,
+      progress: null,
+      availableVersion: null,
+      automatic: false,
+      channel: updatePreferences(undefined, 0, version).channel
+    }),
+    subscribe: () => () => {},
+    check: async () => false,
+    setPreference: async () => false,
+    install: async () => false
+  };
+}
+
 /** Own update checks and installation. Only an explicit user action restarts Chatto. */
 export function createDesktopUpdates({
   updater,

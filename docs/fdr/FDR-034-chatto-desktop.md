@@ -115,9 +115,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Background checks do not open a dialog. Restart still requires confirmation
   and warns that active calls and screen sharing will end.
 - Updates preferences are independent of the selected server and remain
-  available without a server connection. Navigation appears only when the host
-  provides updates. Direct entry without that capability explains that automatic
-  updates are unavailable. Other native features keep their controls in the
+  available without a server connection. All desktop builds show the page in
+  navigation. Development builds and installations without automatic updates show
+  their installed version and an unavailable message, without update controls.
+  Browsers hide the entry; direct entry explains that automatic updates are
+  unavailable. Other native features keep their controls in the
   relevant feature, such as notifications or screen sharing (ADR-072).
 - The application requires a network connection. It does not provide an
   offline Chatto experience.

@@ -5,6 +5,7 @@ const statusSchema = z.object({
   revision: z.number().int().nonnegative(),
   version: z.string().min(1).max(128),
   status: z.enum([
+    'unavailable',
     'idle',
     'checking',
     'downloading',
@@ -41,6 +42,7 @@ export class DesktopUpdates {
   private bridge: DesktopUpdatesBridge | undefined;
   private generation = 0;
 
+  /** Host update information exists even when this installation cannot update itself. */
   get available() {
     return this.status !== null;
   }
@@ -89,7 +91,8 @@ export class DesktopUpdates {
   }
 
   private async run(action: (bridge: DesktopUpdatesBridge) => Promise<unknown>) {
-    if (!this.bridge || !this.available || this.busy) return;
+    if (!this.bridge || !this.available || this.status?.status === 'unavailable' || this.busy)
+      return;
     const generation = this.generation;
     this.pending = true;
     this.failed = false;

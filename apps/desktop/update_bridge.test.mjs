@@ -25,7 +25,7 @@ test('update IPC rejects untrusted callers before and after async setup', async 
   assert.equal(calls, 0);
 });
 
-test('unsupported installations return null and operation errors are sanitized', async () => {
+test('absent controllers return null and operation errors are sanitized', async () => {
   for (const controller of [
     null,
     {

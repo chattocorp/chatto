@@ -7,7 +7,13 @@
 
   let { updates = desktopUpdates }: { updates?: DesktopUpdates } = $props();
   const state = $derived(updates.status);
-  const statusText = $derived(state ? m(`settings.desktop.status.${state.status}`) : '');
+  const statusText = $derived(
+    state?.status === 'unavailable'
+      ? m('settings.desktop.unavailable')
+      : state
+        ? m(`settings.desktop.status.${state.status}`)
+        : ''
+  );
 </script>
 
 <PageTitle title={m('settings.desktop.title')} scope="app" />
@@ -47,7 +53,7 @@
                   >{m('settings.desktop.restart')}</Button
                 >
               </div>
-            {:else}
+            {:else if state.status !== 'unavailable'}
               <div>
                 <Button disabled={updates.busy} onclick={() => updates.check()}
                   >{m('settings.desktop.check')}</Button
@@ -57,7 +63,7 @@
           </div>
         {/if}
       </Panel>
-      {#if state}
+      {#if state && state.status !== 'unavailable'}
         <Panel title={m('settings.desktop.preferences')} icon="iconify icon-[uil--setting]">
           <div class="flex max-w-md flex-col gap-4">
             <Checkbox

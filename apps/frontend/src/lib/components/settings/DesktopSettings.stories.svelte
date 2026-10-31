@@ -29,7 +29,8 @@
 <Story name="Checking" args={{ updates: preview('checking') }} />
 <Story name="Up to date" args={{ updates: preview('current') }} />
 <Story name="Failed" args={{ updates: preview('error') }} />
-<Story name="Unavailable" args={{ updates: preview(null) }} />
+<Story name="Unavailable" args={{ updates: preview('unavailable') }} />
+<Story name="Browser" args={{ updates: preview(null) }} />
 <Story name="Narrow" asChild>
   <div class="flex h-96 w-80 max-w-full">
     <DesktopSettings updates={preview('ready')} />

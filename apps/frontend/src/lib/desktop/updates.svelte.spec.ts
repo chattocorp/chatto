@@ -33,6 +33,22 @@ function fixture() {
 }
 
 describe('desktop update state', () => {
+  it('keeps the page available for a disabled updater without sending commands', async () => {
+    const f = fixture();
+    f.bridge.getStatus = async () => ({ ...initial, status: 'unavailable', automatic: false });
+    const updates = new DesktopUpdates();
+    const dispose = updates.start(f.bridge);
+    await expect.poll(() => updates.loading).toBe(false);
+    expect(updates.available).toBe(true);
+    expect(updates.status?.version).toBe('0.5.0');
+    await updates.check();
+    await updates.setAutomatic(true);
+    await updates.install();
+    expect(f.bridge.check).not.toHaveBeenCalled();
+    expect(f.bridge.setPreference).not.toHaveBeenCalled();
+    expect(f.bridge.install).not.toHaveBeenCalled();
+    dispose();
+  });
   it('keeps newer events when the initial snapshot arrives late and cleans up on disposal', async () => {
     const f = fixture();
     let read: (value: unknown) => void = () => {};

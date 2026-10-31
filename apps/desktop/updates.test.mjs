@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
-import { createDesktopUpdates, createUpdateInstallRequest, updatePreferences } from './updates.mjs';
+import {
+  createDesktopUpdates,
+  createUpdateInstallRequest,
+  unavailableDesktopUpdates,
+  updatePreferences
+} from './updates.mjs';
+
+test('development installations expose their version without enabling update operations', async () => {
+  const updates = unavailableDesktopUpdates('0.5.0-beta.27');
+  const before = updates.snapshot();
+  assert.equal(before.version, '0.5.0-beta.27');
+  assert.equal(before.status, 'unavailable');
+  assert.equal(before.automatic, false);
+  assert.equal(await updates.check(true), false);
+  assert.equal(await updates.setPreference('automatic', true), false);
+  assert.equal(await updates.install(), false);
+  assert.deepEqual(updates.snapshot(), before);
+  const stop = updates.subscribe(() => assert.fail('A disabled updater must not emit changes'));
+  stop();
+});
 
 function fixture(overrides = {}) {
   const updater = new EventEmitter();

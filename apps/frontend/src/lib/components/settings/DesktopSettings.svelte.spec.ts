@@ -4,6 +4,27 @@ import DesktopSettings from './DesktopSettings.svelte';
 import { DesktopUpdates } from '$lib/desktop/updates.svelte';
 
 describe('Desktop settings', () => {
+  it('shows the installed version in development without live update controls', async () => {
+    const updates = new DesktopUpdates();
+    updates.loading = false;
+    updates.status = {
+      revision: 0,
+      version: '0.5.0-beta.27',
+      status: 'unavailable',
+      busy: false,
+      progress: null,
+      availableVersion: null,
+      automatic: false,
+      channel: 'beta'
+    };
+    const view = render(DesktopSettings, { updates });
+    await expect.element(view.getByText('Installed version: 0.5.0-beta.27')).toBeVisible();
+    await expect
+      .element(view.getByText('Automatic updates are not available in this installation.'))
+      .toBeVisible();
+    await expect.element(view.getByRole('button')).not.toBeInTheDocument();
+    await expect.element(view.getByRole('checkbox')).not.toBeInTheDocument();
+  });
   it('keeps the committed checkbox value when the host rejects saving it', async () => {
     const updates = new DesktopUpdates();
     const dispose = updates.start({

@@ -43,6 +43,7 @@ import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.m
 import { passwordLogin } from './password_login.mjs';
 import { configureUpdateMenu } from './update_menu.mjs';
 import { configureUpdateBridge } from './update_bridge.mjs';
+import { unavailableDesktopUpdates } from './updates.mjs';
 import { configureBackgroundWindow } from './background.mjs';
 import { configureDesktopNotifications } from './notifications.mjs';
 
@@ -162,7 +163,7 @@ async function start() {
   // Update setup errors must not prevent local startup or expose request URLs.
   const updateController = configureUpdateMenu(packageJson).catch(() => {
     console.error('Update setup failed.');
-    return null;
+    return unavailableDesktopUpdates(packageJson.version);
   });
   configureUpdateBridge({
     ipcMain,

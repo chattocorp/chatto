@@ -110,7 +110,9 @@ updates roll out over 36 hours; manual checks and Beta bypass this delay.
 Users can disable automatic checks and downloads in Updates preferences or the Updates menu.
 Updates preferences show the installed version, status, and download progress.
 The update-ready link in the application header opens this page. The page works
-without a connected server. It appears in navigation only when updates are supported.
+without a connected server. All desktop builds show it in navigation. Local builds
+and installations without automatic updates show the installed version and an
+unavailable message, without update controls. Browsers hide the navigation entry.
 The restart action appears only when an update is ready and shows its version.
 Select **Restart to update** in Updates preferences or **Restart to Install [version]**
 in the Updates menu, then confirm the restart. An ordinary quit
