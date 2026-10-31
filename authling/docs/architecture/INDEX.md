@@ -168,9 +168,9 @@ private-listener, storage-path, logging, and deployment policy.
 commands. The key bucket is a separate, exceptionally sensitive backup and
 restore boundary.
 
-Both KV buckets allow direct gets, so any replica can answer a plain `Get`. A
+The KV buckets allow direct gets, so any replica can answer a plain `Get`. A
 follower can lag behind a committed write and return an older revision or no
-entry. `storage.OpenStores` binds both buckets through
+entry. `storage.OpenStores` binds all buckets through
 `github.com/chattocorp/chatto/pkg/jetstreamutil`, so `Get` reads through the
 stream leader and observes every committed write. Watchers and key listings
 still read from any replica. The bucket's `Create` also checks for a delete
@@ -201,6 +201,7 @@ token-safe vocabulary.
 |-------|---------|-----------|----------|
 | `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID, envelope creation time, and encrypted local credential fields including the preferred username |
 | `PasswordResetRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-event IDs; the envelope ID identifies the audit request |
+| `SiteSettingsChangedEvent` | `authling.evt.site-settings` | Site settings | Actor account ID, prior revision, public replacement name, description, and introduction; envelope records time and event ID |
 | `PasswordChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, prior-credential, ceremony, and optional reset-request references plus the replacement encrypted password verifier |
 | `EmailChangeRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and reauthenticated credential-event IDs |
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
@@ -315,11 +316,27 @@ Unversioned asset URLs require cache revalidation with an ETag. Missing files an
 unknown versions are not cached. HTML and authentication responses retain
 `Cache-Control: no-store`.
 
-The `site` configuration supplies a public name and optional description through
-TOML or environment variables. The name defaults to the configured public
-hostname, never a request header. Each HTTP handler attaches its resolved display
-settings to request context for the shared page layout. Transactional email
-workflows receive the same resolved name. Display text does not change issuer or
+The `site` configuration supplies default public name, description, and sign-in
+introduction through TOML or environment variables. The name defaults to the
+configured public hostname, never a request header. `internal/sitesettings`
+captures the settings subject tail and waits for its required in-memory
+projection before returning current values. Browser handlers attach these
+values to request context; email workflows resolve them before composition.
+Configuration defaults apply only before the first settings event.
+
+`GET /admin/appearance` and `POST /admin/appearance` require current administrator
+access. POST also requires a matching origin and a bounded form body. Save checks
+administrator access again, then appends a `SiteSettingsChangedEvent` with
+subject-level OCC. The event records actor ID, time, previous revision, and
+public replacement values in plaintext. Conflicts synchronize the projection again and
+preserve input without retrying the edit. Successful saves wait for local
+application. The projection validates the predecessor
+chain, envelope, and text constraints during live processing and cold replay.
+Settings history has no encryption-key dependency and remains after account
+erasure. No new storage resource or external connection is added.
+See [ADR-009](../adr/ADR-009-live-presentation-settings.md) for rollout rules.
+
+Display text does not change issuer or
 client identity. Forms use a compact layout; account settings use a wider layout
 with separate profile, security, connected-app, session, and deletion sections.
 See [FDR-014](../fdr/FDR-014-site-identity.md).

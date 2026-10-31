@@ -44,6 +44,53 @@ func TestAppendAccountCreatedUsesAggregateOCC(t *testing.T) {
 	}
 }
 
+func TestSiteSettingsAggregateOCCAndEnvelopeValidation(t *testing.T) {
+	connection, err := natsruntime.Open(t.Context(), config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = connection.Close() })
+	js, stream, err := storage.Open(t.Context(), connection.NATS, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher := NewPublisher(events.NewEncodedEventLog(js, stream, slog.New(slog.NewTextHandler(io.Discard, nil))))
+	makeEvent := func(id string, previous uint64) *corev1.Event {
+		return &corev1.Event{Id: id, CreatedAt: timestamppb.Now(), Event: &corev1.Event_SiteSettingsChanged{SiteSettingsChanged: &corev1.SiteSettingsChangedEvent{
+			ActorAccountId: "acc_admin", PreviousRevision: previous, Settings: &corev1.SiteSettings{Name: "Public name"},
+		}}}
+	}
+	if _, err := publisher.AppendSiteSettingsChanged(t.Context(), makeEvent("evt_first", 0), 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := publisher.AppendSiteSettingsChanged(t.Context(), makeEvent("evt_stale", 0), 0); !errors.Is(err, events.ErrConflict) {
+		t.Fatalf("stale append: %v", err)
+	}
+	tail, err := publisher.LastSubjectSeq(t.Context(), SiteSettingsSubject())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := publisher.AppendSiteSettingsChanged(t.Context(), makeEvent("evt_next", tail), tail); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*corev1.SiteSettingsChangedEvent){
+		func(e *corev1.SiteSettingsChangedEvent) { e.ActorAccountId = "admin@example.invalid" },
+		func(e *corev1.SiteSettingsChangedEvent) { e.Settings = nil },
+		func(e *corev1.SiteSettingsChangedEvent) { e.Settings.Name = "" },
+		func(e *corev1.SiteSettingsChangedEvent) { e.Settings.Introduction = "line\nbreak" },
+	} {
+		e := makeEvent("evt_invalid", tail)
+		mutate(e.GetSiteSettingsChanged())
+		data, err := proto.Marshal(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Decode(data); err == nil {
+			t.Fatal("malformed settings envelope accepted")
+		}
+	}
+}
+
 func TestAppendPasswordChangedUsesObservedAccountTail(t *testing.T) {
 	connection, err := natsruntime.Open(t.Context(), config.NATSConfig{
 		Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()},

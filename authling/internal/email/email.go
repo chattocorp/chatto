@@ -20,6 +20,11 @@ type Sender interface {
 	SendContext(context.Context, Message) error
 }
 
+// SiteIdentity resolves current public branding before composing a message.
+type SiteIdentity interface {
+	Name(context.Context) (string, error)
+}
+
 // Mailer delivers through configured SMTP.
 type Mailer struct{ config config.SMTPConfig }
 

@@ -39,7 +39,7 @@ current runtime in `docs/architecture/`.
 
 ## Later user interface work
 
-- [ ] Extend the read-only admin directory with user management and editable site settings
+- [ ] Extend the read-only admin directory with user management
 - [ ] Before exposing administrator-flag changes, add recent-authentication checks, last-admin protection, and actor audit records
 - [ ] Design MFA-recovery, consent, and account-linking experiences
 

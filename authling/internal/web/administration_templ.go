@@ -81,7 +81,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = ui.Heading("Registered users").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ui.SectionHeading("Registered users").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -285,7 +285,7 @@ func administrationPage(signedInAs string, rows []accounts.RegisteredAccount, co
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageLayout("Administration", signedInAs, true, true).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = administrationWorkspace(signedInAs, "users").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

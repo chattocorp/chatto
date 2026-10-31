@@ -6,9 +6,9 @@ import (
 )
 
 templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, configured, laterPage bool, nextURL string) {
-	@pageLayout("Administration", signedInAs, true, true) {
+	@administrationWorkspace(signedInAs, "users") {
 		<div class="panel">
-			@ui.Heading("Registered users") {
+			@ui.SectionHeading("Registered users") {
 				<p>Accounts registered with { siteFromContext(ctx).Name }.</p>
 			}
 			<div class="mt-6">

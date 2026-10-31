@@ -10,17 +10,17 @@ import (
 templ accountPage(data accountPageData) {
 	@accountWorkspace("Your account", data.signedInAs, data.section, data.administrator) {
 		if data.passwordChanged {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your password was changed. Your other browser sessions on { siteFromContext(ctx).Name } were signed out.</p>
 			}
 		}
 		if data.emailChanged {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your email address was changed. Use your new email address the next time you sign in.</p>
 			}
 		}
 		if data.profileUpdated {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your profile was updated.</p>
 			}
 		}
@@ -30,27 +30,27 @@ templ accountPage(data accountPageData) {
 			}
 		}
 		if data.sessionRevoked {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>The other browser session was signed out.</p>
 			}
 		}
 		if data.otherSessionsRevoked {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>Your other browser sessions were signed out.</p>
 			}
 		}
 		if data.sessionMissing {
-			@ui.Notice(ui.Neutral) {
+			@ui.Toast(ui.Neutral) {
 				<p>That browser session is no longer active.</p>
 			}
 		}
 		if data.appRevoked {
-			@ui.Notice(ui.Success) {
+			@ui.Toast(ui.Success) {
 				<p>The app’s authorization was revoked. It must ask for access again in a future authorization flow.</p>
 			}
 		}
 		if data.appMissing {
-			@ui.Notice(ui.Neutral) {
+			@ui.Toast(ui.Neutral) {
 				<p>That app is no longer authorized.</p>
 			}
 		}
@@ -84,7 +84,7 @@ templ accountPage(data accountPageData) {
 				<h2 id="security-heading" class="settings-heading">Security</h2>
 				<p class="settings-description">Keep your sign-in details up to date.</p>
 				<div class="settings-actions">
-					<a class="settings-link" href="/account/password"><span>Change password</span><span aria-hidden="true">›</span></a>
+					<a class="button button-secondary" href="/account/password">Change password</a>
 				</div>
 			</section>
 		}
@@ -128,36 +128,35 @@ templ accountPage(data accountPageData) {
 			<section class="panel">
 				<h2 class="settings-heading">Sessions</h2>
 				<p class="settings-description">Review your sign-ins on { siteFromContext(ctx).Name }. We do not store browser names, IP addresses, or locations.</p>
-				<div class="mt-5 space-y-3">
-					for _, browserSession := range data.browserSessions {
-						<div class="settings-item">
-							<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
-								<div>
-									<div class="flex flex-wrap items-center gap-2">
-										<p class="font-semibold">Browser session</p>
-										if browserSession.Current {
-											@ui.Badge("This browser")
-										}
-									</div>
-									<dl class="mt-2 space-y-1 text-muted">
-										<div><dt class="inline">Started:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.CreatedAt) }</dd></div>
-										<div><dt class="inline">Last active:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.LastSeenAt) }</dd></div>
-										<div><dt class="inline">Expires:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.ExpiresAt) }</dd></div>
-									</dl>
-								</div>
-								if !browserSession.Current {
-									<form class="w-full sm:w-auto" method="post" action="/account/sessions/revoke">
-										<input type="hidden" name="session_id" value={ browserSession.ID }/>
-										<button class="button button-danger button-compact w-full whitespace-nowrap sm:w-auto" type="submit">Sign out</button>
-									</form>
-								}
-							</div>
-						</div>
+				<div class="mt-5">
+					@ui.DataTable("Browser sessions", []string{"Session", "Started", "Last active", "Expires", "Action"}) {
+						for _, browserSession := range data.browserSessions {
+							<tr class="whitespace-nowrap">
+								<th scope="row" class="font-medium">
+									if browserSession.Current {
+										@ui.Badge("This browser")
+									} else {
+										Other browser
+									}
+								</th>
+								<td>@sessionTimestamp(browserSession.CreatedAt)</td>
+								<td>@sessionTimestamp(browserSession.LastSeenAt)</td>
+								<td>@sessionTimestamp(browserSession.ExpiresAt)</td>
+								<td class="text-right">
+									if !browserSession.Current {
+										<form method="post" action="/account/sessions/revoke">
+											<input type="hidden" name="session_id" value={ browserSession.ID }/>
+											<button class="button button-danger button-compact" type="submit">Sign out</button>
+										</form>
+									}
+								</td>
+							</tr>
+						}
 					}
 				</div>
 				if hasOtherBrowserSession(data.browserSessions) {
-					<form class="mt-4" method="post" action="/account/sessions/revoke-others">
-						<button class="button button-danger w-full" type="submit">Sign out all other browsers</button>
+					<form class="mt-4 flex justify-end" method="post" action="/account/sessions/revoke-others">
+						<button class="button button-danger button-compact" type="submit">Sign out all other browsers</button>
 					</form>
 				}
 			</section>
@@ -183,4 +182,11 @@ func hasOtherBrowserSession(browserSessions []sessions.BrowserSession) bool {
 
 func formatSessionTime(value time.Time) string {
 	return value.UTC().Format("2 Jan 2006, 15:04 UTC")
+}
+
+templ sessionTimestamp(value time.Time) {
+	<time class="tabular-nums" datetime={ value.UTC().Format(time.RFC3339) } title={ formatSessionTime(value) }>
+		<span class="block">{ value.UTC().Format("2 Jan 2006") }</span>
+		<span class="block text-muted">{ value.UTC().Format("15:04 UTC") }</span>
+	</time>
 }

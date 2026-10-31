@@ -65,7 +65,7 @@ type Service struct {
 	kv              storage.KeyValue
 	key             []byte
 	sender          email.Sender
-	siteName        string // Public service name used only in email copy.
+	site            email.SiteIdentity
 	accounts        *accounts.Service
 	authentication  *authentication.Service
 	deliveryBudget  *storage.DeliveryBudget
@@ -88,12 +88,12 @@ func WithClock(now func() time.Time) Option {
 }
 
 // New constructs the verified email-change workflow.
-func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, siteName string, options ...Option) *Service {
+func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, site email.SiteIdentity, options ...Option) *Service {
 	service := &Service{
 		kv:             kv,
 		key:            append([]byte(nil), key...),
 		sender:         sender,
-		siteName:       siteName,
+		site:           site,
 		accounts:       accountService,
 		authentication: authenticationService,
 		deliveryBudget: storage.NewDeliveryBudget(kv, storage.DeliveryPolicy{
@@ -116,6 +116,10 @@ func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *a
 // six-digit code to the requested address. Claimed and available addresses
 // follow the same delivery path.
 func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail string) (string, error) {
+	siteName, err := s.site.Name(ctx)
+	if err != nil {
+		return "", err
+	}
 	newEmail, err := normalizeAndValidateEmail(rawNewEmail)
 	if err != nil {
 		return "", err
@@ -156,8 +160,8 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err != nil {
 		return "", fmt.Errorf("store email change flow: %w", err)
 	}
-	body := fmt.Sprintf("Your %s email change code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", s.siteName, code)
-	if err := s.send(ctx, email.Message{To: newEmail, Subject: "Your " + s.siteName + " email change code", Body: body}); err != nil {
+	body := fmt.Sprintf("Your %s email change code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", siteName, code)
+	if err := s.send(ctx, email.Message{To: newEmail, Subject: "Your " + siteName + " email change code", Body: body}); err != nil {
 		_ = s.kv.Delete(ctx, key)
 		return "", fmt.Errorf("deliver email change code: %w", err)
 	}
@@ -248,14 +252,17 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 }
 
 func (s *Service) finishCommitted(key string, revision uint64, state flowState, account accounts.Account) (Completion, error) {
-	message := email.Message{
-		To:      state.Target.OldEmail,
-		Subject: "Your " + s.siteName + " email address changed",
-		Body:    fmt.Sprintf("The email address for your %s account was changed. If you did not make this change, contact the operator of this service immediately.\n", s.siteName),
-	}
 	notificationContext, cancel := context.WithTimeout(context.Background(), oldAddressNotificationTimeout)
 	defer cancel()
-	notificationErr := s.send(notificationContext, message)
+	siteName, notificationErr := s.site.Name(notificationContext)
+	message := email.Message{
+		To:      state.Target.OldEmail,
+		Subject: "Your " + siteName + " email address changed",
+		Body:    fmt.Sprintf("The email address for your %s account was changed. If you did not make this change, contact the operator of this service immediately.\n", siteName),
+	}
+	if notificationErr == nil {
+		notificationErr = s.send(notificationContext, message)
+	}
 	cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), completionCleanupTimeout)
 	defer cleanupCancel()
 	_ = s.kv.Delete(cleanupContext, key, jetstream.LastRevision(revision))

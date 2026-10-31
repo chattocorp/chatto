@@ -49,20 +49,20 @@ type Service struct {
 	kv              storage.KeyValue
 	key             []byte
 	sender          email.Sender
-	siteName        string // Public service name used only in email copy.
+	site            email.SiteIdentity
 	accounts        *accounts.Service
 	deliveryBudget  *storage.DeliveryBudget
 	deliverySlots   chan struct{}
 	completionSlots chan struct{}
 }
 
-// New constructs the signup workflow with a resolved public site name for email.
-func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *accounts.Service, siteName string) *Service {
+// New constructs the signup workflow with a live public-name source for email.
+func New(kv storage.KeyValue, key []byte, sender email.Sender, accountService *accounts.Service, site email.SiteIdentity) *Service {
 	return &Service{
 		kv:       kv,
 		key:      append([]byte(nil), key...),
 		sender:   sender,
-		siteName: siteName,
+		site:     site,
 		accounts: accountService,
 		deliveryBudget: storage.NewDeliveryBudget(kv, storage.DeliveryPolicy{
 			GlobalKey:      "signup-limit.global",
@@ -83,6 +83,10 @@ func (s *Service) PasswordMinimumLength() int { return s.accounts.PasswordMinimu
 // Claimed and available addresses take the same delivery path. Uniqueness is
 // revealed to neither the sender nor the browser response.
 func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
+	siteName, err := s.site.Name(ctx)
+	if err != nil {
+		return "", err
+	}
 	normalized, err := normalizeAndValidateEmail(rawEmail)
 	if err != nil {
 		return "", err
@@ -115,8 +119,8 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err != nil {
 		return "", fmt.Errorf("store signup flow: %w", err)
 	}
-	body := fmt.Sprintf("Your %s verification code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", s.siteName, code)
-	if err := s.send(ctx, email.Message{To: normalized, Subject: "Your " + s.siteName + " verification code", Body: body}); err != nil {
+	body := fmt.Sprintf("Your %s verification code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", siteName, code)
+	if err := s.send(ctx, email.Message{To: normalized, Subject: "Your " + siteName + " verification code", Body: body}); err != nil {
 		_ = s.kv.Delete(ctx, key)
 		return "", fmt.Errorf("deliver verification code: %w", err)
 	}

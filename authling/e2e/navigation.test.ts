@@ -99,6 +99,33 @@ test('failed login keeps the document and displays the server error', async ({ p
   await expect(page.getByRole('textbox', { name: 'Password', exact: true })).toHaveValue('');
 });
 
+test('settling a login response cannot steal focus from the password field', async ({ page }) => {
+  await page.goto('/login');
+  await page.evaluate(() => {
+    // Focus immediately after the swap returns, before a delayed settle task.
+    document.addEventListener(
+      'htmx:afterSwap',
+      () => {
+        queueMicrotask(() => document.querySelector<HTMLInputElement>('#password')?.focus());
+      },
+      { once: true }
+    );
+    document.addEventListener(
+      'htmx:afterSettle',
+      () => {
+        setTimeout(() => {
+          document.documentElement.dataset.settledFocus = document.activeElement?.id;
+        }, 0);
+      },
+      { once: true }
+    );
+  });
+  await page.getByLabel('Email address').fill('missing@example.invalid');
+  await page.getByLabel('Password', { exact: true }).fill('incorrect-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-settled-focus', 'password');
+});
+
 test('a login network failure shows feedback without retrying credentials', async ({ page }) => {
   await page.goto('/login');
   let submissions = 0;
@@ -158,7 +185,7 @@ test('profile validation and saving keep the document and expose pending state',
   } finally {
     releaseRequest();
   }
-  await expect(page).toHaveURL(/\/account\?profile_updated=1$/);
+  await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole('status')).toContainText('Your profile was updated.');
   await expect(page.locator('html')).toHaveAttribute('data-navigation-marker', 'original');
   await page.getByRole('link', { name: 'Edit profile', exact: true }).click();
