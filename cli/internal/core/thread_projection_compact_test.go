@@ -31,7 +31,7 @@ func TestThreadProjection_ParticipantPreviewKeepsFirstReplyOrder(t *testing.T) {
 	if p.summaryByThread[root].participantIndex == nil {
 		t.Fatalf("summary with %d authors has no participant index", len(authors))
 	}
-	metadata := p.ThreadMetadata("ROOT")
+	metadata := p.ThreadMetadata("ROOT", "")
 	if !slices.Equal(metadata.ParticipantIDs, authors[:maxThreadParticipants]) || metadata.ParticipantCount != len(authors) {
 		t.Fatalf("preview=%v count=%d; want first %d authors and %d", metadata.ParticipantIDs, metadata.ParticipantCount, maxThreadParticipants, len(authors))
 	}
@@ -47,12 +47,12 @@ func TestThreadProjection_ParticipantPreviewKeepsFirstReplyOrder(t *testing.T) {
 	}
 	// The preview follows first visible replies, so the first author moves to
 	// the position of their remaining reply.
-	metadata = p.ThreadMetadata("ROOT")
+	metadata = p.ThreadMetadata("ROOT", "")
 	want := authors[2 : maxThreadParticipants+2]
 	if !slices.Equal(metadata.ParticipantIDs, want) || metadata.ParticipantCount != len(authors)-1 || metadata.ReplyCount != len(authors)-1 {
 		t.Fatalf("after retractions preview=%v count=%d replies=%d; want %v, %d, %d", metadata.ParticipantIDs, metadata.ParticipantCount, metadata.ReplyCount, want, len(authors)-1, len(authors)-1)
 	}
-	if got := p.ParticipantIDs("ROOT"); len(got) != len(authors)-1 || slices.Contains(got, authors[1]) || got[len(got)-1] != authors[0] {
+	if got := p.ParticipantIDs("ROOT", ""); len(got) != len(authors)-1 || slices.Contains(got, authors[1]) || got[len(got)-1] != authors[0] {
 		t.Fatalf("ParticipantIDs = %v, want all authors except %s", got, authors[1])
 	}
 }

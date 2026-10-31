@@ -117,7 +117,7 @@ func BenchmarkProjectionReadsFromStore(b *testing.B) {
 	b.Run("threads/ThreadMetadata", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := range b.N {
-			threads.ThreadMetadata(queries.threadRoots[i%len(queries.threadRoots)])
+			threads.ThreadMetadata(queries.threadRoots[i%len(queries.threadRoots)], "")
 		}
 	})
 	b.Run("reactions/Reactions", func(b *testing.B) {

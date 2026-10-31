@@ -36,8 +36,8 @@ func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t
 		RoomId: "ROOM", AuthorId: "REACTOR", InThread: imported.Id, HistoricalImport: true,
 	}}})
 	require.NoError(t, p.Apply(reply, 3))
-	require.Equal(t, 1, p.ThreadMetadata(imported.Id).ReplyCount)
-	require.Equal(t, []string{"REACTOR"}, p.ParticipantIDs(imported.Id))
+	require.Equal(t, 1, p.ThreadMetadata(imported.Id, "").ReplyCount)
+	require.Equal(t, []string{"REACTOR"}, p.ParticipantIDs(imported.Id, ""))
 	require.False(t, p.HasInteraction("REACTOR", "ROOM", imported.Id))
 	snapshot, err := p.Snapshot()
 	if err != nil {
@@ -51,7 +51,7 @@ func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t
 	if !ok || rootID != imported.Id || restored.HasInteraction("AUTHOR", "ROOM", imported.Id) {
 		t.Fatal("snapshot changed historical thread state")
 	}
-	require.Equal(t, p.ThreadMetadata(imported.Id), restored.ThreadMetadata(imported.Id))
+	require.Equal(t, p.ThreadMetadata(imported.Id, ""), restored.ThreadMetadata(imported.Id, ""))
 	require.False(t, restored.HasInteraction("REACTOR", "ROOM", imported.Id))
 	require.Empty(t, restored.ThreadFollowers("ROOM", imported.Id))
 }
@@ -396,7 +396,7 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	if got := p.ReplyCount("ROOT"); got != 2 {
 		t.Errorf("ReplyCount = %d, want 2", got)
 	}
-	metadata := p.ThreadMetadata("ROOT")
+	metadata := p.ThreadMetadata("ROOT", "")
 	if metadata.ReplyCount != 2 {
 		t.Errorf("ThreadMetadata ReplyCount = %d, want 2", metadata.ReplyCount)
 	}
@@ -423,7 +423,7 @@ func TestThreadProjection_LatestReplyUsesStreamOrderDespiteClockSkew(t *testing.
 		postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	})
 
-	metadata := p.ThreadMetadata("ROOT")
+	metadata := p.ThreadMetadata("ROOT", "")
 	if got, want := metadata.LatestReplyEventID, "ENV-R2"; got != want {
 		t.Fatalf("LatestReplyEventID = %q, want stream-latest %q", got, want)
 	}
@@ -441,7 +441,7 @@ func TestThreadProjection_LatestReplyRetainsZeroTimestampEvent(t *testing.T) {
 	latest.CreatedAt = nil
 	applyAll(t, p, []*evtv1.Event{first, latest})
 
-	metadata := p.ThreadMetadata("ROOT")
+	metadata := p.ThreadMetadata("ROOT", "")
 	if got, want := metadata.LatestReplyEventID, "ENV-R2"; got != want {
 		t.Fatalf("LatestReplyEventID = %q, want stream-latest %q", got, want)
 	}
@@ -528,7 +528,7 @@ func TestThreadProjection_RetractOfReplyFoldsIntoSummary(t *testing.T) {
 	if got := p.ReplyCount("ROOT"); got != 0 {
 		t.Errorf("ReplyCount after retract = %d, want 0", got)
 	}
-	metadata := p.ThreadMetadata("ROOT")
+	metadata := p.ThreadMetadata("ROOT", "")
 	if metadata.ReplyCount != 0 {
 		t.Errorf("ThreadMetadata ReplyCount after retract = %d, want 0", metadata.ReplyCount)
 	}
@@ -604,7 +604,7 @@ func TestThreadProjection_MetadataRecomputesWhenLatestReplyRetracted(t *testing.
 		retractedEvent("ENV-RETRACT-R2", "ENV-R2", "R1", "MOD", "spam", 4),
 	})
 
-	metadata := p.ThreadMetadata("ROOT")
+	metadata := p.ThreadMetadata("ROOT", "")
 	if metadata.ReplyCount != 1 {
 		t.Fatalf("ReplyCount = %d, want 1", metadata.ReplyCount)
 	}
@@ -797,10 +797,10 @@ func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
 		events = append(events, postedEvent(postedOpts{envelopeID: id, eventID: id, roomID: "R1", actorID: fmt.Sprintf("U%02d", i), inThread: "ROOT", at: i + 3}))
 	}
 	applyAll(t, p, events)
-	if got := len(p.ParticipantIDs("ROOT")); got != 60 {
+	if got := len(p.ParticipantIDs("ROOT", "")); got != 60 {
 		t.Fatalf("participants = %d, want 60", got)
 	}
-	if got := p.ThreadMetadata("ROOT"); got.ParticipantCount != 60 || len(got.ParticipantIDs) != 50 {
+	if got := p.ThreadMetadata("ROOT", ""); got.ParticipantCount != 60 || len(got.ParticipantIDs) != 50 {
 		t.Fatalf("metadata count=%d preview=%d", got.ParticipantCount, len(got.ParticipantIDs))
 	}
 	snapshot, err := p.Snapshot()
@@ -811,7 +811,7 @@ func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
 	if err := restored.Restore(snapshot); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(restored.ParticipantIDs("ROOT")); got != 60 {
+	if got := len(restored.ParticipantIDs("ROOT", "")); got != 60 {
 		t.Fatalf("restored participants = %d, want 60", got)
 	}
 	if err := restored.Apply(retractedEvent("RETRACT", "REPLY-59", "R1", "U59", "removed", 70), 64); err != nil {
@@ -820,11 +820,11 @@ func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
 	if err := restored.Apply(userKeyShreddedSnapshotTestEvent("SHRED", "U58"), 65); err != nil {
 		t.Fatal(err)
 	}
-	ids := restored.ParticipantIDs("ROOT")
+	ids := restored.ParticipantIDs("ROOT", "")
 	if len(ids) != 58 || slices.Contains(ids, "U59") || slices.Contains(ids, "U58") || slices.Contains(ids, "AUTHOR") {
 		t.Fatalf("participants after removal = %v", ids)
 	}
-	if restored.ThreadMetadata("ROOT").ParticipantCount != 58 {
+	if restored.ThreadMetadata("ROOT", "").ParticipantCount != 58 {
 		t.Fatal("participant count did not follow removals")
 	}
 }

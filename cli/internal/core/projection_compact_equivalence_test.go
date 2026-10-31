@@ -527,14 +527,14 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 
 	th := c.threads
 	for _, id := range h.messages {
-		metadata := th.ThreadMetadata(id)
+		metadata := th.ThreadMetadata(id, "")
 		lastReply := "<nil>"
 		if metadata.LastReplyAt != nil {
 			lastReply = metadata.LastReplyAt.String()
 		}
 		line("thread %s: events=%+v exists=%v replies=%d metadata=%v,%d,%s,%d,%v,%s participants=%v",
 			id, th.ThreadEvents(id), th.ThreadExists(id), th.ReplyCount(id), metadata.Exists, metadata.ReplyCount,
-			metadata.LatestReplyEventID, metadata.ParticipantCount, metadata.ParticipantIDs, lastReply, th.ParticipantIDs(id))
+			metadata.LatestReplyEventID, metadata.ParticipantCount, metadata.ParticipantIDs, lastReply, th.ParticipantIDs(id, ""))
 		for _, roomID := range h.rooms {
 			root, ok := th.ThreadRootForMessage(roomID, id)
 			line("thread root %s in %s: %s %v followers=%v", id, roomID, root, ok, th.ThreadFollowers(roomID, id))

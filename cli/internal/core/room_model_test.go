@@ -36,7 +36,7 @@ func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
 				require.Equal(t, wantCount, metadata.ParticipantCount)
 				require.Len(t, metadata.ParticipantIDs, min(wantCount, maxThreadParticipants))
 				require.Equal(t, "AUTHOR", metadata.ParticipantIDs[0])
-				ids := threads.participantIDsIncludingRoot("ROOT", model.threadRootAuthorID("ROOT"))
+				ids := threads.ParticipantIDs("ROOT", model.threadRootAuthorID("ROOT"))
 				require.Len(t, ids, wantCount)
 				require.Equal(t, "AUTHOR", ids[0])
 			}
@@ -64,7 +64,7 @@ func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
 			metadata := model.threadMetadata("ROOT")
 			require.Equal(t, replyCount, metadata.ParticipantCount)
 			require.NotContains(t, metadata.ParticipantIDs, "AUTHOR")
-			require.NotContains(t, threads.participantIDsIncludingRoot("ROOT", model.threadRootAuthorID("ROOT")), "AUTHOR")
+			require.NotContains(t, threads.ParticipantIDs("ROOT", model.threadRootAuthorID("ROOT")), "AUTHOR")
 			require.False(t, model.threadMetadata("MISSING").Exists)
 		})
 	}

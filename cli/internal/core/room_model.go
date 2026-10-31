@@ -336,7 +336,7 @@ func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
 }
 
 func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {
-	return m.threads.Projection().metadataIncludingRoot(rootEventID, m.threadRootAuthorID(rootEventID))
+	return m.threads.Projection().ThreadMetadata(rootEventID, m.threadRootAuthorID(rootEventID))
 }
 
 // threadRootAuthorID reads the displayed author, including mapped import authors.
@@ -399,5 +399,5 @@ func (m *RoomModel) threadParticipantIDs(ctx context.Context, rootID string) ([]
 	if err := m.threads.Projector().WaitForCurrent(ctx); err != nil {
 		return nil, err
 	}
-	return m.threads.Projection().participantIDsIncludingRoot(rootID, m.threadRootAuthorID(rootID)), nil
+	return m.threads.Projection().ParticipantIDs(rootID, m.threadRootAuthorID(rootID)), nil
 }
