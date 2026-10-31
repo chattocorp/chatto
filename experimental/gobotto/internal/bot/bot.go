@@ -42,27 +42,29 @@ type threadKey struct{ room, root string }
 type conversation struct {
 	// Shared membership index allows intake to scope invalidations while the
 	// worker owns the transcript. Ready is false while a snapshot is loading.
-	contextIDs           sync.Map
-	contextReady         atomic.Bool
-	id                   uint64
-	humanID              string
-	title                string
-	titleAttempted       bool
-	records              []inspection.Turn // owned by the manager when idle, by the worker during a turn
-	emitInspection       func(inspection.Turn)
-	logMu                sync.Mutex
-	logs                 []inspection.Log
-	queuedAt             time.Time
-	identity             agent.Identity
-	ownerUserIDs         []string // current startup config; never inherited from a session or thread
-	memory               *memory.Manager
-	tools                []agent.Tool // immutable startup capabilities, shared by conversations
-	systemPrompt         string
-	key                  threadKey
-	model                *agent.Session
-	complete             agent.Complete
-	seen                 map[string]bool       // worker-owned IDs already supplied to the model
-	current              map[string]string     // fingerprints for offline edit/deletion detection
+	contextIDs     sync.Map
+	contextReady   atomic.Bool
+	id             uint64
+	humanID        string
+	title          string
+	titleAttempted bool
+	records        []inspection.Turn // owned by the manager when idle, by the worker during a turn
+	emitInspection func(inspection.Turn)
+	logMu          sync.Mutex
+	logs           []inspection.Log
+	queuedAt       time.Time
+	identity       agent.Identity
+	ownerUserIDs   []string // current startup config; never inherited from a session or thread
+	memory         *memory.Manager
+	tools          []agent.Tool // immutable startup capabilities, shared by conversations
+	systemPrompt   string
+	key            threadKey
+	model          *agent.Session
+	complete       agent.Complete
+	seen           map[string]bool   // worker-owned IDs already supplied to the model
+	current        map[string]string // fingerprints for offline edit/deletion detection
+	// editCheck prevents delivery while intake verifies a metadata-only edit.
+	editCheck            sync.RWMutex
 	pending              []chatto.MessageEvent // manager-owned while the worker runs
 	deadline             time.Time
 	used                 time.Time
@@ -207,11 +209,11 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	var active *conversation
 	var stopTurn context.CancelCauseFunc
 	bind := func(c *conversation) {
-		for id := range c.current {
-			c.contextIDs.Store(id, true)
+		for id, hash := range c.current {
+			c.contextIDs.Store(id, hash)
 		}
 		for id := range c.seen {
-			c.contextIDs.Store(id, true)
+			c.contextIDs.LoadOrStore(id, true)
 		}
 		c.contextReady.Store(c.model != nil)
 		c.emitInspection = func(turn inspection.Turn) { emit(tui.Event{Kind: tui.Inspected, Session: c.id, Inspection: &turn}) }
@@ -369,6 +371,17 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			if e.InvalidatedRoom != "" || e.InvalidateAll {
 				for _, c := range sessions {
 					if c.affectedBy(e, active == c, activeBatch) {
+						if e.InvalidationReason == chatto.MessageEdited {
+							c.editCheck.Lock()
+							unchanged := c.unchangedEdit(ctx, client, e, activeBatch)
+							if !unchanged && active == c {
+								stopTurn(invalidationCause(e))
+							}
+							c.editCheck.Unlock()
+							if unchanged {
+								continue
+							}
+						}
 						if err := store.finish(c.pending); err != nil {
 							return err
 						}
@@ -671,7 +684,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			if m.ID != "" {
 				refreshed = append(refreshed, m.ID)
 				latest[m.ID] = fingerprint(m)
-				c.contextIDs.Store(m.ID, true)
+				c.contextIDs.Store(m.ID, latest[m.ID])
 			}
 		}
 		c.contextReady.Store(true)
@@ -745,7 +758,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			c.current = map[string]string{}
 		}
 		c.current[m.ID] = fingerprint(m)
-		c.contextIDs.Store(m.ID, true)
+		c.contextIDs.Store(m.ID, c.current[m.ID])
 		if !c.seen[m.ID] {
 			input.Messages = append(input.Messages, m)
 			c.seen[m.ID] = true
@@ -774,6 +787,8 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			return nil, errBudget
 		}
 		index := c.step("model", "Completion")
+		// Preserve per-completion controls, including the final text-only
+		// budget wrap-up, instead of replacing them with the turn context.
 		result, err := c.complete(ctx, messages)
 		if c.storeErr != nil {
 			c.finishStep(index, "failed", "Usage checkpoint failed")
@@ -845,6 +860,8 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			c.current[id] = value
 		}
 	}
+	c.editCheck.RLock()
+	defer c.editCheck.RUnlock()
 	if err := ctx.Err(); err != nil {
 		c.model.RecordDelivery(err)
 		return err
@@ -880,7 +897,11 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		return err
 	}
 	c.finishStep(delivery, "complete", "Delivered to Chatto")
-	c.inspect(func(t *inspection.Turn) { t.State = "delivered" })
+	c.inspect(func(t *inspection.Turn) {
+		t.State = "delivered"
+		// Record the actual delivered action at the delivery boundary too.
+		t.Response, t.Emoji = outcome.Body, outcome.Emoji
+	})
 	if outcome.Emoji != "" {
 		report("Reaction added")
 	} else {

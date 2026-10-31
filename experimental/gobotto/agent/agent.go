@@ -18,6 +18,11 @@ type Message map[string]json.RawMessage
 // Complete supplies the next assistant message. Implementations must honor cancellation.
 type Complete func(context.Context, []Message) (Message, error)
 
+type textOnlyKey struct{}
+
+const maxTurnTools = 8
+const maxTurnSteps = 12
+
 // ReadThread reads only the host-selected thread. The model cannot choose a destination.
 type ReadThread func(context.Context) (string, error)
 
@@ -105,6 +110,9 @@ func OpenRouter(key, model, sessionID string, report func(Usage), options ...Com
 		}
 		for _, tool := range turnTools(ctx) {
 			input["tools"] = append(input["tools"].([]any), map[string]any{"type": "function", "function": map[string]any{"name": tool.Name, "description": tool.Description, "parameters": tool.Parameters}})
+		}
+		if textOnly, _ := ctx.Value(textOnlyKey{}).(bool); textOnly {
+			input["tool_choice"] = "none"
 		}
 		if len(options) > 0 && options[0].Reasoning != nil {
 			input["reasoning"] = options[0].Reasoning
@@ -215,7 +223,8 @@ func (s *Session) Size() int { data, _ := json.Marshal(s.messages); return len(d
 
 // Turn bootstraps history once, then appends input and complete assistant/tool
 // messages. Failed model turns retain the input with a fixed failure notice,
-// without incomplete tool exchanges. Each turn is bounded to eight model calls.
+// without incomplete tool exchanges. Tool work is bounded separately from model
+// attempts; one final text-only completion reports partial progress at the limit.
 func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, input string, observers ...func(ToolEvent)) (outcome Outcome, turnErr error) {
 	observe := func(e ToolEvent) {
 		for _, fn := range observers {
@@ -243,11 +252,17 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 		}
 	}()
 	toolsUsed := 0
-	for range 8 {
+	for step := 0; step <= maxTurnSteps; step++ {
 		if err := ctx.Err(); err != nil {
 			return Outcome{}, err
 		}
-		msg, err := complete(ctx, messages)
+		textOnly := toolsUsed >= maxTurnTools || step == maxTurnSteps
+		completionCtx := ctx
+		if textOnly {
+			messages = append(messages, textMessage("user", "Host work limit reached for this turn. Do not call tools. Give a concise progress report based only on the receipts: what completed, what remains unfinished, and any uncertainty. Completed actions remain in effect. Do not claim the whole task finished unless the receipts support that."))
+			completionCtx = context.WithValue(ctx, textOnlyKey{}, true)
+		}
+		msg, err := complete(completionCtx, messages)
 		if err != nil {
 			return Outcome{}, err
 		}
@@ -266,6 +281,13 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 		if raw := msg["tool_calls"]; len(raw) > 0 && json.Unmarshal(raw, &calls) != nil {
 			return Outcome{}, errors.New("invalid tool calls")
 		}
+		if textOnly && len(calls) > 0 {
+			// Providers can ignore tool_choice. Never execute work after the cap
+			// or retain an assistant tool call without a matching result.
+			body := "I reached this turn's work limit. Any completed actions remain in effect, but I haven't finished the task."
+			s.messages = append(messages, textMessage("assistant", body))
+			return Outcome{Body: body}, nil
+		}
 		if len(calls) == 0 {
 			var content string
 			if json.Unmarshal(msg["content"], &content) != nil || strings.TrimSpace(content) == "" {
@@ -276,10 +298,6 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 			}
 			s.messages = append(messages, msg)
 			return Outcome{Body: content}, nil
-		}
-		toolsUsed += len(calls)
-		if toolsUsed > 8 {
-			return Outcome{}, errors.New("tool call limit reached")
 		}
 		messages = append(messages, msg)
 		seen := map[string]bool{}
@@ -293,6 +311,14 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 			finish := func(state, result string) {
 				observe(ToolEvent{Name: call.Function.Name, Arguments: call.Function.Arguments, State: state, Result: result, Duration: time.Since(started)})
 			}
+			if len(calls) > 1 {
+				result := `{"status":"rejected","mutated":false,"error":"Multiple tool calls in one response are not supported. None of these calls ran. Call one tool at a time."}`
+				tool := textMessage("tool", result)
+				tool["tool_call_id"], _ = json.Marshal(call.ID)
+				messages = append(messages, tool)
+				finish("rejected", result)
+				continue
+			}
 			result := `{"error":"Unknown tool or invalid arguments. Call one available tool at a time with its declared arguments."}`
 			var extra *Tool
 			for _, tool := range turnTools(ctx) {
@@ -302,6 +328,7 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				}
 			}
 			if extra != nil && len(calls) == 1 {
+				toolsUsed++
 				result, toolErr := extra.Execute(ctx, json.RawMessage(call.Function.Arguments))
 				if toolErr != nil {
 					// Safe fixed feedback; subprocess errors may include private data.
@@ -339,6 +366,7 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				}
 			}
 			if call.Function.Name == "read_thread" && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && args != nil && len(args) == 0 {
+				toolsUsed++
 				result, err = read(ctx)
 				if err != nil {
 					finish("failed", "Thread read failed")
@@ -371,6 +399,28 @@ func (s *Session) RecordDelivery(err error) {
 	} else {
 		s.messages = append(s.messages, textMessage("user", text))
 	}
+}
+
+// LastDeliveredReply recovers only a terminal text reply with an immediately
+// following successful host receipt. It never infers delivery from model claims.
+func (s *Session) LastDeliveredReply() string {
+	if len(s.messages) < 2 || s.pendingTool != "" {
+		return ""
+	}
+	receipt, reply := s.messages[len(s.messages)-1], s.messages[len(s.messages)-2]
+	var role, content, replyRole, body string
+	_ = json.Unmarshal(receipt["role"], &role)
+	_ = json.Unmarshal(receipt["content"], &content)
+	_ = json.Unmarshal(reply["role"], &replyRole)
+	_ = json.Unmarshal(reply["content"], &body)
+	var calls []json.RawMessage
+	if raw := reply["tool_calls"]; len(raw) > 0 && json.Unmarshal(raw, &calls) != nil {
+		return ""
+	}
+	if role == "user" && content == "Output delivered to Chatto." && replyRole == "assistant" && len(calls) == 0 {
+		return body
+	}
+	return ""
 }
 
 func textMessage(role, content string) Message {
