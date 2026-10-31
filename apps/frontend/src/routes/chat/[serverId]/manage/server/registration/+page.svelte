@@ -9,11 +9,9 @@
   import { createQuery } from '$lib/query/client';
 
   const scope = useServerScope();
-  const permissions = $derived(scope.store.permissions);
   const settings = createQuery(() => ({
     queryKey: adminQueryKeys.registrationSettings(scope.serverId, scope.connection),
-    queryFn: ({ signal }) => scope.connection.getAPI(createRegistrationSettingsAPI).get({ signal }),
-    enabled: permissions.canManageServer
+    queryFn: ({ signal }) => scope.connection.getAPI(createRegistrationSettingsAPI).get({ signal })
   }));
 </script>
 
@@ -26,14 +24,12 @@
   <PaneHeader title={m('chat.management_nav.registration')} />
   <PaneContent>
     <div class="flex flex-col gap-6">
-      {#if permissions.canManageServer}
-        <SignupMethods />
-        <RegistrationSettings
-          admission={settings.data}
-          loading={settings.isPending}
-          error={settings.error}
-        />
-      {/if}
+      <SignupMethods />
+      <RegistrationSettings
+        admission={settings.data}
+        loading={settings.isPending}
+        error={settings.error}
+      />
     </div>
   </PaneContent>
 </div>
