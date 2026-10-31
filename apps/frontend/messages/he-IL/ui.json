@@ -65,6 +65,7 @@
       "loading": "טוען..."
     },
     "image_modal": {
+      "open_larger": "פתח בתצוגה גדולה",
       "previous": "תמונה קודמת",
       "next": "התמונה הבאה",
       "fallback_alt": "תמונה",

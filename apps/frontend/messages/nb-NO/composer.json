@@ -1,5 +1,7 @@
 {
   "composer": {
+    "presentation_code": "Kode",
+    "presentation_visual": "Visuell",
     "insert_emoji": "Sett inn emoji",
     "attach_file": "Legg ved fil",
     "formatting_options": "Formateringsalternativer",

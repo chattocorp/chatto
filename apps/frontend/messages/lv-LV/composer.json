@@ -1,5 +1,7 @@
 {
   "composer": {
+    "presentation_code": "Kods",
+    "presentation_visual": "Grafika",
     "insert_emoji": "Ievietot emocijzīmi",
     "attach_file": "Pievienojiet failu",
     "formatting_options": "Formatēšanas opcijas",

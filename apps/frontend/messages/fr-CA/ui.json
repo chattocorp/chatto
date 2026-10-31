@@ -64,6 +64,7 @@
       "loading": "Chargement..."
     },
     "image_modal": {
+      "open_larger": "Agrandir",
       "previous": "Image précédente",
       "next": "Image suivante",
       "fallback_alt": "Image",

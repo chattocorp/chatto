@@ -1,5 +1,7 @@
 {
   "composer": {
+    "presentation_code": "קוד",
+    "presentation_visual": "חזותי",
     "insert_emoji": "הוסף אימוג׳י",
     "attach_file": "צרף קובץ",
     "formatting_options": "אפשרויות עיצוב",

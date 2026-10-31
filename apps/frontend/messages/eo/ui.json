@@ -64,6 +64,7 @@
       "loading": "Ŝarĝante..."
     },
     "image_modal": {
+      "open_larger": "Malfermi pli grande",
       "previous": "Antaŭa bildo",
       "next": "Sekva bildo",
       "fallback_alt": "Bildo",

@@ -68,6 +68,7 @@
       "loading": "..."
     },
     "image_modal": {
+      "open_larger": "افتح بحجم أكبر",
       "previous": "الصورة السابقة",
       "next": "الصورة التالية",
       "fallback_alt": "صورة",
