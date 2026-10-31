@@ -65,6 +65,11 @@ after it applies all earlier frames and this marker. The other server frames
 are `event`, `heartbeat`, and `close`. All terminal protocol results use
 `close`. WebSocket control frames provide ping and pong behavior.
 
+Credential watchers cancel authorized work before they write the credential
+close frame. If this cancellation closes the event stream, the handler leaves
+the close frame to the watcher. An unexpected stream closure while the context
+is active sends a temporary failure with reconnect enabled.
+
 ## Public events
 
 `room_notice_changed` identifies a channel whose current notice changed. It is
