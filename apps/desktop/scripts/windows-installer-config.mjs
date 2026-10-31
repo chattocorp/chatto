@@ -16,10 +16,24 @@ export function windowsInstallerConfig(version, sign) {
     publish: null,
     forceCodeSigning: Boolean(sign),
     win: {
-      target: [{ target: 'nsis', arch: ['x64'] }],
+      target: [
+        { target: 'nsis', arch: ['x64'] },
+        { target: 'msi', arch: ['x64'] }
+      ],
       icon: 'icons/icon.ico',
       signExecutable: Boolean(sign),
       signtoolOptions: sign ? { sign, signingHashAlgorithms: ['sha256'] } : undefined
+    },
+    msi: {
+      artifactName: `chatto-desktop_${version}_Windows_X64_Setup.msi`,
+      // Keep this identity stable across releases; MSI owns managed upgrades.
+      upgradeCode: 'D3DBF560-E6EB-4BD1-ABFE-D3C01F63BB54',
+      perMachine: true,
+      oneClick: false,
+      runAfterFinish: false,
+      createDesktopShortcut: false,
+      createStartMenuShortcut: true,
+      shortcutName: 'Chatto'
     },
     nsis: {
       artifactName: `chatto-desktop_${version}_Windows_X64_Setup.exe`,

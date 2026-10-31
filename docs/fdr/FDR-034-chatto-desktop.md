@@ -89,7 +89,14 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Uninstall removes application files and shortcuts but preserves registrations,
   credentials, and preferences. Users must close the ZIP application before
   switching to the installed application. Old extracted folders are not removed.
-- Tagged macOS apps, Windows installer copies, and Linux AppImages can download
+- Managed Windows installations can use a signed, per-machine MSI package.
+  It requires administrator rights, does not start the app after installation,
+  and leaves updates to the deployment tool or administrator. Users remove the
+  previous installation before switching between EXE and MSI packages. Both
+  formats preserve the user's profile on removal. MSI compares the three-part
+  release version; beta and stable packages with the same base version can
+  replace each other. Deployment tools select the intended release.
+- Tagged macOS apps, Windows NSIS installer copies, and Linux AppImages can download
   whole-app updates from GitHub. The frontend stays local and bundled. The
   Updates menu offers Stable or Beta, manual checks, and an automatic-check
   setting. Prerelease builds default to Beta; stable builds default to Stable.
