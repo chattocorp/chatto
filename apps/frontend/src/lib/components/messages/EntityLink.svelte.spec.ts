@@ -489,6 +489,38 @@ describe('entity links in messages', () => {
   });
 
   it.each([
+    ['room', `${origin}/chat/-/${roomId}`, 'Copy room ID'],
+    ['server', origin, 'Server information'],
+    ['user', `${origin}/chat/-/user/${userId}`, 'Copy user ID']
+  ])('keeps the %s actions below a touch preview in one sheet', async (_kind, href, action) => {
+    const { container } = render(MessageContent, { body: href });
+    await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
+    const link = container.querySelector('.entity-link')!;
+    link.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'touch',
+        pointerId: 1,
+        isPrimary: true
+      })
+    );
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-touch-preview"]')).not.toBeNull()
+    );
+    expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+    expect(container.querySelector('dialog')?.textContent).toContain(action);
+    expect(container.querySelector('dialog')?.textContent).toContain('Open link');
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    link.dispatchEvent(
+      new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 1 })
+    );
+    const release = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(release);
+    expect(release.defaultPrevented).toBe(true);
+    expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+  });
+
+  it.each([
     ['server', origin, 'Server information'],
     ['user', `${origin}/chat/-/user/${userId}`, 'Copy user ID']
   ])('opens the %s menu in the linked server scope', async (_kind, href, action) => {

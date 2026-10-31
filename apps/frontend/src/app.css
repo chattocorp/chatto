@@ -1820,6 +1820,12 @@
   @apply bg-attention/20 text-text;
 }
 
+/* These links have a touch preview sheet. Suppress WebKit's native touch
+   callout so it does not compete with that sheet; mouse menus remain native. */
+@utility link-preview-trigger {
+  -webkit-touch-callout: none;
+}
+
 /* Borderless inline links use surface contrast without the Inset Frame's outlines. */
 @utility inline-link-pill {
   --inline-link-radius: 6px;
