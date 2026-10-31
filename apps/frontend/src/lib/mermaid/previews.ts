@@ -101,13 +101,20 @@ export async function createMermaidPreview(
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(themed)}`;
   };
   const observer = new MutationObserver(updateTheme);
-  observer.observe(document.documentElement, { attributes: true });
-  document.documentElement.addEventListener('transitionend', updateTheme);
+  observer.observe(document.documentElement, {
+    attributeFilter: ['data-theme', 'data-accent', 'data-light-tone', 'data-dark-tone', 'style']
+  });
+  const onThemeTransitionEnd = (event: TransitionEvent) => {
+    // Descendant transitions bubble here, but cannot change the root palette.
+    if (event.target !== document.documentElement) return;
+    updateTheme();
+  };
+  document.documentElement.addEventListener('transitionend', onThemeTransitionEnd);
   signal.addEventListener(
     'abort',
     () => {
       observer.disconnect();
-      document.documentElement.removeEventListener('transitionend', updateTheme);
+      document.documentElement.removeEventListener('transitionend', onThemeTransitionEnd);
     },
     { once: true }
   );
