@@ -12,6 +12,12 @@ vi.mock('@chatto/client/api/server', async (importOriginal) => ({
   getPublicServerInfo: mocks.getPublicServerInfo
 }));
 
+// Keep startup's route and registry together; these unrelated route concerns
+// must not start private account requests or load language bundles in this test.
+vi.mock('$lib/auth/loadAuth', () => ({ loadCurrentUser: vi.fn().mockResolvedValue(null) }));
+vi.mock('$lib/i18n/messages', () => ({ preloadPublicLocaleMessages: vi.fn() }));
+vi.mock('$lib/storage/legacySavedViews', () => ({ deleteLegacySavedViews: vi.fn() }));
+
 // A real client like the frontend's, without device storage.
 vi.mock('$lib/client', async () => {
   const { createClient } = await import('@chatto/client');
@@ -24,6 +30,7 @@ vi.mock('$lib/client', async () => {
 });
 
 import { serverRegistry } from '$lib/client';
+import { load } from '../routes/+layout';
 import {
   addSignedOutServer,
   findServerByUrl,
@@ -34,7 +41,19 @@ import {
 const origin = window.location.origin;
 
 function profile(name: string): PublicServerInfo {
-  return { name, iconUrl: null } as PublicServerInfo;
+  return {
+    name,
+    version: '0.5.0',
+    authorizeUrl: '/oauth/authorize',
+    directRegistrationEnabled: true,
+    directLoginEnabled: true,
+    accountCreationPolicy: 'open',
+    welcomeMessage: null,
+    description: null,
+    iconUrl: null,
+    bannerUrl: null,
+    authProviders: []
+  };
 }
 
 function addRemote(id: string, url: string, token: string | null = null): void {
@@ -73,6 +92,11 @@ describe('registerOriginServer', () => {
     await registerOriginServer({ serverInfo: profile('Origin') });
 
     expect(serverRegistry.originServer).toMatchObject({ url: origin, name: 'Origin', token: null });
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+    const info = serverRegistry.getStore(serverRegistry.originServer!.id).serverInfo;
+    expect(info.name).toBe('Origin');
+    expect(info.loading).toBe(false);
+    expect(info.error).toBeNull();
 
     await registerOriginServer({ serverInfo: profile('Other') });
     expect(serverRegistry.servers).toHaveLength(1);
@@ -97,6 +121,7 @@ describe('registerOriginServer', () => {
 
     expect(serverRegistry.originServer?.name).toBe('Discovered');
     expect(serverRegistry.servers).toHaveLength(1);
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
   });
 
   it('settles the unauthenticated origin after it registers it from public data', async () => {
@@ -133,6 +158,48 @@ describe('registerOriginServer', () => {
     await registerOriginServer();
 
     expect(serverRegistry.servers).toHaveLength(0);
+  });
+});
+
+describe('root route and registry discovery', () => {
+  it('reuses fresh origin discovery when registration creates the store', async () => {
+    const info = profile('New origin');
+    mocks.getPublicServerInfo.mockResolvedValue(info);
+
+    const result = await load({ url: new URL('/chat/-', origin) } as never);
+
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ serverInfo: info, user: null });
+    expect(serverRegistry.getStore(serverRegistry.originServer!.id).serverInfo.name).toBe(
+      info.name
+    );
+  });
+
+  it('awaits the registry request for a known origin instead of starting another', async () => {
+    let respond!: (info: PublicServerInfo) => void;
+    mocks.getPublicServerInfo.mockReturnValue(new Promise((resolve) => (respond = resolve)));
+    await registerOriginServer({ signedIn: true });
+    const pending = load({ url: new URL('/chat/-', origin) } as never);
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
+
+    const info = profile('Known origin');
+    respond(info);
+    expect(await pending).toMatchObject({ serverInfo: info });
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the fallback retry after fresh origin discovery fails', async () => {
+    mocks.getPublicServerInfo
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(profile('Recovered'));
+
+    await load({ url: new URL('/chat/-', origin) } as never);
+
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledTimes(2);
+    expect(serverRegistry.originServer?.name).toBe('Recovered');
+    const info = serverRegistry.getStore(serverRegistry.originServer!.id).serverInfo;
+    expect(info.error).toBeNull();
+    expect(info.loading).toBe(false);
   });
 });
 

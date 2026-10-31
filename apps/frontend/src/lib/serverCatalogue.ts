@@ -23,18 +23,26 @@ let originDiscovery: Promise<void> | null = null;
  * Add a server without a session and return its ID, or `undefined` when the
  * registry refused it, for example after the client closed.
  */
-function addServer(url: string, profile: ServerProfile): string | undefined {
+function addServer(
+  url: string,
+  profile: ServerProfile,
+  serverInfo?: PublicServerInfo
+): string | undefined {
   const id = generateServerId(
     url,
     serverRegistry.servers.map((server) => server.id)
   );
-  serverRegistry.addServer({
-    id,
-    url,
-    name: profile.name || 'Chatto',
-    iconUrl: profile.iconUrl ?? null,
-    addedAt: Date.now()
-  });
+  serverRegistry.addServer(
+    {
+      id,
+      url,
+      name: profile.name || 'Chatto',
+      iconUrl: profile.iconUrl ?? null,
+      addedAt: Date.now()
+    },
+    undefined,
+    { serverInfo }
+  );
   return serverRegistry.getServer(id) ? id : undefined;
 }
 
@@ -71,7 +79,7 @@ export async function registerOriginServer({
     return;
   }
   if (serverInfo) {
-    addServer(origin, serverInfo);
+    addServer(origin, serverInfo, serverInfo);
     serverRegistry.settleOriginUnauthenticated();
     return;
   }
@@ -80,7 +88,7 @@ export async function registerOriginServer({
     .then((info) => {
       // Another caller can register the origin while the request runs.
       if (serverRegistry.originServer) return;
-      addServer(origin, info);
+      addServer(origin, info, info);
       serverRegistry.settleOriginUnauthenticated();
     })
     .catch(() => {

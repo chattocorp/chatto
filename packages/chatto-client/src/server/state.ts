@@ -41,6 +41,12 @@ export class ServerInfoState {
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
   #initializing: Promise<void> | null = null;
+  readonly #discoverySignal = signal<PublicServerInfo | null>(null);
+
+  /** Public discovery for startup and session replacement; null after a failed read. */
+  get discovery(): PublicServerInfo | null {
+    return this.error === null ? this.#discoverySignal.get() : null;
+  }
 
   readonly #nameSignal = signal(DEFAULT_SERVER_NAME);
   get name() {
@@ -276,57 +282,51 @@ export class ServerInfoState {
   }
 
   /**
-   * Fetch server info. Idempotent; can be called again to refresh metadata
-   * after live updates.
+   * Fetch server info, sharing the request with concurrent callers. Read
+   * `discovery` for the response or `error` for failure. A later call makes
+   * a fresh request.
    *
    * Sets `loading = true` for the duration so consumers can gate their UI,
    * for example a redirect that waits for server metadata.
    */
-  async init(): Promise<void> {
+  init(): Promise<void> {
     if (this.#initializing) return this.#initializing;
-
-    const initializing = (async () => {
-      this.loading = true;
-      try {
-        await this.refreshProfile();
-      } catch (err) {
-        // Defensive: anything thrown during the query or above .then body.
-        // Don't re-throw — failure is isolated to this server.
-        this.error = err;
-        console.error(`[server:${this.#label}] failed to load server info`, err);
-      } finally {
-        this.loading = false;
-      }
-    })();
-    this.#initializing = initializing;
-    try {
-      await initializing;
-    } finally {
-      if (this.#initializing === initializing) this.#initializing = null;
-    }
+    this.loading = true;
+    this.#initializing = this.refreshProfile().finally(() => {
+      this.loading = false;
+      this.#initializing = null;
+    });
+    return this.#initializing;
   }
 
+  /** Refresh discovery without changing loading; retain the error on failure. */
   async refreshProfile(): Promise<void> {
     try {
       const info = await this.#getPublicServerInfo(this.#label);
-      batch(() => {
-        this.error = null;
-        this.name = info.name;
-        this.version = info.version;
-        this.lastDiscoveredAt = Date.now();
-        this.welcomeMessage = info.welcomeMessage;
-        this.description = info.description;
-        this.iconUrl = info.iconUrl;
-        this.bannerUrl = info.bannerUrl;
-        this.directRegistrationEnabled = info.directRegistrationEnabled;
-        this.directLoginEnabled = info.directLoginEnabled;
-        this.#accountCreationPolicySignal.set(info.accountCreationPolicy);
-        this.#authProvidersSignal.set(info.authProviders);
-      });
+      this.applyDiscovery(info);
     } catch (err) {
       this.error = err;
       console.error(`[server:${this.#label}] failed to load server info`, err);
     }
+  }
+
+  /** Adopt discovery already fetched by a caller, including before registration. */
+  applyDiscovery(info: PublicServerInfo): void {
+    batch(() => {
+      this.#discoverySignal.set(info);
+      this.error = null;
+      this.name = info.name;
+      this.version = info.version;
+      this.lastDiscoveredAt = Date.now();
+      this.welcomeMessage = info.welcomeMessage;
+      this.description = info.description;
+      this.iconUrl = info.iconUrl;
+      this.bannerUrl = info.bannerUrl;
+      this.directRegistrationEnabled = info.directRegistrationEnabled;
+      this.directLoginEnabled = info.directLoginEnabled;
+      this.#accountCreationPolicySignal.set(info.accountCreationPolicy);
+      this.#authProvidersSignal.set(info.authProviders);
+    });
   }
 
   /** Apply the public profile carried by the realtime projection stream. */
