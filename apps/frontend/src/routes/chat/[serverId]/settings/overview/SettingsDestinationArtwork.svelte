@@ -89,6 +89,30 @@
       stroke-width="4"
     />
     <circle cx="240" cy="36" r="8" class="fill-warning stroke-background" stroke-width="3" />
+  {:else if kind === 'desktop'}
+    <g transform="rotate(-5 140 70)">
+      <path d="M118 104v20m44-20v20M96 126h88" class="stroke-border" stroke-width="8" />
+      <rect
+        x="40"
+        y="14"
+        width="200"
+        height="94"
+        rx="12"
+        class="fill-background stroke-border"
+        stroke-width="2"
+      />
+      <rect x="51" y="25" width="178" height="71" rx="6" fill="currentColor" opacity=".08" />
+      <path
+        class="download"
+        d="M140 36v30m-13-12 13 13 13-13"
+        stroke="currentColor"
+        stroke-width="5"
+      />
+      <path d="M104 83h72" stroke="currentColor" stroke-width="6" opacity=".15" />
+      <path class="draw" pathLength="1" d="M104 83h51" stroke="currentColor" stroke-width="6" />
+    </g>
+    <circle cx="226" cy="104" r="23" class="fill-success stroke-background" stroke-width="4" />
+    <path d="m216 104 7 7 13-15" class="stroke-background" stroke-width="4" />
   {:else if kind === 'general'}
     <g transform="rotate(-5 140 70)">
       <rect x="35" y="18" width="210" height="109" rx="13" class="fill-background stroke-border" />
@@ -350,13 +374,27 @@
   .greet,
   .blink,
   .letter,
+  .download,
   .draw,
   .scan {
     animation: pulse 4s ease-in-out infinite;
     animation-delay: var(--delay, 0s);
   }
   :global(a:not(:hover))
-    :is(.pulse, .write, .clock, .ring, .toggle, .signal, .greet, .blink, .letter, .draw, .scan) {
+    :is(
+      .pulse,
+      .write,
+      .clock,
+      .ring,
+      .toggle,
+      .signal,
+      .greet,
+      .blink,
+      .letter,
+      .download,
+      .draw,
+      .scan
+    ) {
     animation-name: none;
   }
   .write {
@@ -387,6 +425,19 @@
   }
   .scan {
     animation-name: scan;
+  }
+  .download {
+    animation-name: download;
+  }
+  @keyframes download {
+    0%,
+    65%,
+    100% {
+      translate: 0 0;
+    }
+    30% {
+      translate: 0 7px;
+    }
   }
   @keyframes pulse {
     0%,
@@ -500,6 +551,7 @@
     .greet,
     .blink,
     .letter,
+    .download,
     .draw,
     .scan {
       animation: none;
