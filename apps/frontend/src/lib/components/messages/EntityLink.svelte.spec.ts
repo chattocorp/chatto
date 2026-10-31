@@ -57,6 +57,21 @@ const avatarUrl =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 let client: ReturnType<typeof createClient>;
 
+/** Observe application cancellation, then stop the test browser from navigating. */
+function expectNativeClick(target: HTMLElement, options: MouseEventInit = {}, type = 'click') {
+  let prevented: boolean | undefined;
+  document.addEventListener(
+    type,
+    (event) => {
+      prevented = event.defaultPrevented;
+      event.preventDefault();
+    },
+    { once: true }
+  );
+  target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...options }));
+  expect(prevented).toBe(false);
+}
+
 function putUser(displayName = 'Alice') {
   client.registry.getStore('known').projection.users.set(
     userId,
@@ -111,8 +126,8 @@ it('marks only links that open a new window and keeps both segments in one link'
   ).toBe(true);
   expect(anchor.querySelector('.url-link-host')?.textContent).toBe('spiegel.de');
   expect(container.querySelectorAll('a')).toHaveLength(1);
-  anchor.querySelector<HTMLElement>('.url-link-host')!.click();
-  expect(open).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+  expectNativeClick(anchor.querySelector<HTMLElement>('.url-link-host')!);
+  expect(open).not.toHaveBeenCalled();
 
   await rerender({ href: `${origin}/chat/-/${roomId}`, title: 'General' });
   expect(anchor.hasAttribute('target')).toBe(false);
@@ -412,8 +427,8 @@ describe('entity links in messages', () => {
     expect(chip.textContent).not.toContain('#section');
     expect(chip.textContent).not.toContain('long-path');
     expect(chip.getBoundingClientRect().width).toBeLessThan(400);
-    chip.click();
-    expect(opened).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+    expectNativeClick(chip);
+    expect(opened).not.toHaveBeenCalled();
     expect(container.querySelectorAll('.url-link')).toHaveLength(1);
     expect(container.textContent).toContain('read the docs');
     expect(container.querySelector('a[href="mailto:reader@example.test"]')).not.toBeNull();
@@ -453,12 +468,17 @@ describe('entity links in messages', () => {
     const link = rendered.container.querySelector<HTMLAnchorElement>('.entity-link')!;
     link.click();
     expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/known.example.test');
-    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
-    expect(opened).toHaveBeenCalledExactlyOnceWith(
-      '/chat/known.example.test',
-      '_blank',
-      'noopener,noreferrer'
-    );
+    for (const options of [
+      { ctrlKey: true },
+      { metaKey: true },
+      { shiftKey: true },
+      { altKey: true }
+    ]) {
+      expectNativeClick(link, options);
+    }
+    expectNativeClick(link, { button: 1 }, 'auxclick');
+    expect(opened).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledTimes(1);
     await rendered.rerender({ body: `${origin}/chat/-/${roomId}` });
     await vi.waitFor(() =>
       expect(rendered.container.querySelector('.entity-link bdi')?.textContent?.trim()).toBe(
@@ -470,18 +490,28 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(rendered.container.querySelectorAll('a')).toHaveLength(0));
   });
 
-  it('opens the room menu instead of the message menu and clears it on access loss', async () => {
+  it('keeps Shift-right-click native and opens ordinary entity actions that clear on access loss', async () => {
     const rendered = render(MessageContent, { body: `${origin}/chat/-/${roomId}` });
     const parentMenu = vi.fn();
     rendered.container.addEventListener('contextmenu', parentMenu);
     await vi.waitFor(() => expect(rendered.container.querySelector('.entity-link')).not.toBeNull());
-    rendered.container
-      .querySelector('.entity-link')!
-      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const link = rendered.container.querySelector('.entity-link')!;
+    const contextmenu = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: true
+    });
+    link.dispatchEvent(contextmenu);
+    expect(contextmenu.defaultPrevented).toBe(false);
+    expect(document.querySelector('[data-testid="copy-room-id"]')).toBeNull();
+    const ordinary = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    link.dispatchEvent(ordinary);
+    expect(ordinary.defaultPrevented).toBe(true);
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
     );
     expect(parentMenu).not.toHaveBeenCalled();
+    expect(rendered.container.textContent).toContain('Shift + right-click for browser menu');
     client.registry.getStore('known').projection.rooms.delete(roomId);
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="copy-room-id"]')).toBeNull()
@@ -528,7 +558,9 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
     container
       .querySelector('.entity-link')!
-      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })
+      );
     await vi.waitFor(() => expect(container.textContent).toContain(action));
   });
 
@@ -539,7 +571,9 @@ describe('entity links in messages', () => {
     container.querySelector('.markdown-html')!.classList.add('prose');
     container
       .querySelector('.entity-link')!
-      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })
+      );
     await vi.waitFor(() => expect(container.querySelector('a.menu-entry')).not.toBeNull());
     expect(getComputedStyle(container.querySelector('a.menu-entry')!).textDecorationLine).toBe(
       'none'
@@ -562,7 +596,9 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
     container
       .querySelector('.entity-link')!
-      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })
+      );
     await vi.waitFor(() => expect(container.textContent).toContain('Copy user ID'));
     expect(container.textContent?.includes('Open conversation')).toBe(allowed);
   });

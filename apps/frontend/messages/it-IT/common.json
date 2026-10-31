@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Maiusc + clic destro per il menu del browser",
     "keyboard_shortcuts": {
       "title": "Scorciatoie da tastiera",
       "app": "App",

@@ -44,9 +44,6 @@
     aria-describedby={descriptionId}
     aria-busy={loading}
     onclick={(event) => handleRenderedLinkClick(event, href)}
-    onauxclick={(event) => {
-      if (event.button === 1) handleRenderedLinkClick(event, href);
-    }}
   >
     <span class="url-link-main">
       {#if loading || destination.target === '_blank'}

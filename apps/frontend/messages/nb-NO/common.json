@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + høyreklikk for nettlesermenyen",
     "keyboard_shortcuts": {
       "title": "Hurtigtaster",
       "app": "App",

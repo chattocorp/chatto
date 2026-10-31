@@ -217,6 +217,7 @@
   }
 
   function openMenuFromMessage(e: MouseEvent) {
+    if (e.shiftKey) return;
     e.preventDefault();
     // A long-press contextmenu can land inside the preview that just opened.
     // Its DOM is still in this row, but the overlay owns this interaction.

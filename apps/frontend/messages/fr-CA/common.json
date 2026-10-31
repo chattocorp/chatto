@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Maj + clic droit pour le menu du navigateur",
     "keyboard_shortcuts": {
       "title": "Raccourcis clavier",
       "app": "Application",

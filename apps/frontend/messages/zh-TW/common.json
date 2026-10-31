@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + 按滑鼠右鍵開啟瀏覽器選單",
     "keyboard_shortcuts": {
       "title": "鍵盤快捷鍵",
       "app": "應用程式",

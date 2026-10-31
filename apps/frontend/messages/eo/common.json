@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Majusklo + dekstra alklako por la retumila menuo",
     "keyboard_shortcuts": {
       "title": "Klavkombinoj",
       "app": "Aplikaĵo",

@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Skift + högerklick för webbläsarens meny",
     "keyboard_shortcuts": {
       "title": "Kortkommandon",
       "app": "App",

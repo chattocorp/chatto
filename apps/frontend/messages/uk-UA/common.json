@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + права кнопка миші відкриває меню браузера",
     "keyboard_shortcuts": {
       "title": "Клавіатурні скорочення",
       "app": "Застосунок",

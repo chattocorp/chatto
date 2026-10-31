@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + prawy przycisk myszy otwiera menu przeglądarki",
     "keyboard_shortcuts": {
       "title": "Skróty klawiszowe",
       "app": "Aplikacja",

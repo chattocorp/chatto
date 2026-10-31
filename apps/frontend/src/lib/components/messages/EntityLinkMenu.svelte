@@ -89,6 +89,7 @@
 
 {#if user}
   <UserContextMenu
+    browserMenuHint
     {user}
     position={menu.position}
     presentation={menu.presentation}
@@ -122,6 +123,7 @@
   />
 {:else}
   <ContextMenu
+    browserMenuHint
     role={menu.presentation === 'sheet' ? 'dialog' : 'menu'}
     position={menu.position}
     presentation={menu.presentation}

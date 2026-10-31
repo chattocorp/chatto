@@ -48,7 +48,6 @@ user types. A social post with a content warning shows no image or post text.
     <a
       {...renderedLinkTarget(preview.url)}
       onclick={(event) => handleRenderedLinkClick(event, preview.url)}
-      onauxclick={(event) => handleRenderedLinkClick(event, preview.url)}
       class="flex min-w-0 flex-1 items-center gap-2"
     >
       <div class="flex h-12 w-12 shrink-0 items-center justify-center preview-thumbnail">

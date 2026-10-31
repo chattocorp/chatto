@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + 右键单击打开浏览器菜单",
     "keyboard_shortcuts": {
       "title": "键盘快捷键",
       "app": "应用",
