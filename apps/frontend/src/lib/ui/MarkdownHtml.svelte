@@ -92,23 +92,10 @@ targets are unique to each component, including when callers reuse rendered HTML
           )
         : [];
     element.addEventListener('click', handleClick);
-    const handleAuxClick = (event: MouseEvent) => {
-      if (event.button !== 1 || !(event.target instanceof Element)) return;
-      const anchor = event.target.closest('a');
-      if (
-        anchor?.href &&
-        !anchor.closest('.footnote-ref') &&
-        !anchor.classList.contains('footnote-backref')
-      ) {
-        handleRenderedLinkClick(event, anchor.dataset.contentHref ?? anchor.href);
-      }
-    };
-    element.addEventListener('auxclick', handleAuxClick);
     return () => {
       for (const cleanup of linkCleanups) cleanup?.();
       feedback.dispose();
       element.removeEventListener('click', handleClick);
-      element.removeEventListener('auxclick', handleAuxClick);
     };
   }
 </script>

@@ -138,6 +138,7 @@
       on(node, 'focusin', enter),
       on(node, 'focusout', exit),
       on(node, 'click', close),
+      on(node, 'contextmenu', closeHover),
       on(node, 'pointerdown', (event) => {
         touchInput = event.pointerType === 'touch';
         if (touchInput) closeHover();
@@ -160,14 +161,6 @@
           },
           { touchOnly: true }
         )(node);
-    cleanups.push(
-      on(node, 'contextmenu', (event) => {
-        // Let the touch trigger consume its event first. Shift-right-click
-        // bypasses the surrounding message menu without cancelling the browser menu.
-        if (event.shiftKey) event.stopPropagation();
-        closeHover();
-      })
-    );
     // Visibility owns this query subscription: virtualized/off-screen links do
     // not need metadata until their pills enter the viewport. Hover reuses it.
     const visibility = loadWhenVisible

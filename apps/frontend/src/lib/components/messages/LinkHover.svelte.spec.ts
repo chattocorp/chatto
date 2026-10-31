@@ -280,14 +280,14 @@ it.each(['tap', 'scroll', 'cancel'])('does not preview during a touch %s', async
   }
 });
 
-it.each([false, true])('uses Shift=%s to bypass the message menu', (shiftKey) => {
+it.each([false, true])('leaves Shift=%s context menus to the message owner', (shiftKey) => {
   const { container } = render(LinkHover, { href, children });
   const parentMenu = vi.fn();
   container.addEventListener('contextmenu', parentMenu);
   const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey });
   container.querySelector('a')!.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
-  expect(parentMenu).toHaveBeenCalledTimes(shiftKey ? 0 : 1);
+  expect(parentMenu).toHaveBeenCalledOnce();
 });
 it('reuses a fetched title without replacing the focused anchor or its destination', async () => {
   const { container } = render(LinkTitleTestHarness, { href });

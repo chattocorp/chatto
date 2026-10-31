@@ -55,9 +55,6 @@
   data-entity-server={target.serverId}
   title={href}
   onclick={(event) => handleRenderedLinkClick(event, path)}
-  onauxclick={(event) => {
-    if (event.button === 1) handleRenderedLinkClick(event, path);
-  }}
   onkeydown={openKeyboardMenu}
   oncontextmenu={(event) => {
     event.stopPropagation();

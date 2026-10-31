@@ -22,9 +22,6 @@
   data-content-href={href}
   title={href}
   onclick={(event) => handleRenderedLinkClick(event, destination.href)}
-  onauxclick={(event) => {
-    if (event.button === 1) handleRenderedLinkClick(event, destination.href);
-  }}
 >
   <span class="sr-only">{m('message_preview.open_linked_message')}: </span>
   <span
