@@ -1181,7 +1181,8 @@ type NotificationOccurrence struct {
 	// Source-time visual importance of this occurrence.
 	AttentionLevel NotificationAttentionLevel `protobuf:"varint,7,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.api.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
 	// Current display content, including a bounded message preview when available.
-	// Absent on older servers or for unsupported signals. Do not persist this text.
+	// Included only when include_content is requested. Absent on older servers
+	// or for unsupported signals. Do not persist this text.
 	Content       *NotificationContent `protobuf:"bytes,8,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1277,9 +1278,11 @@ func (x *NotificationOccurrence) GetContent() *NotificationContent {
 type ListNotificationOccurrencesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Defaults to 50 results when absent or limit is zero. Maximum: 100.
-	Page          *PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Page *PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	// Load system-notification text and message previews. Defaults to false.
+	IncludeContent bool `protobuf:"varint,2,opt,name=include_content,json=includeContent,proto3" json:"include_content,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListNotificationOccurrencesRequest) Reset() {
@@ -1317,6 +1320,13 @@ func (x *ListNotificationOccurrencesRequest) GetPage() *PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListNotificationOccurrencesRequest) GetIncludeContent() bool {
+	if x != nil {
+		return x.IncludeContent
+	}
+	return false
 }
 
 // One page of exact notification occurrences.
@@ -1417,6 +1427,8 @@ type GetNotificationOccurrenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required stable occurrence ID.
 	NotificationId string `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	// Load system-notification text and message previews. Defaults to false.
+	IncludeContent bool `protobuf:"varint,2,opt,name=include_content,json=includeContent,proto3" json:"include_content,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1456,6 +1468,13 @@ func (x *GetNotificationOccurrenceRequest) GetNotificationId() string {
 		return x.NotificationId
 	}
 	return ""
+}
+
+func (x *GetNotificationOccurrenceRequest) GetIncludeContent() bool {
+	if x != nil {
+		return x.IncludeContent
+	}
+	return false
 }
 
 // One exact notification occurrence.
@@ -1510,8 +1529,10 @@ type BatchGetNotificationOccurrencesRequest struct {
 	// Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are
 	// omitted. Repeated IDs are de-duplicated in first-seen request order.
 	NotificationIds []string `protobuf:"bytes,1,rep,name=notification_ids,json=notificationIds,proto3" json:"notification_ids,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Load system-notification text and message previews. Defaults to false.
+	IncludeContent bool `protobuf:"varint,2,opt,name=include_content,json=includeContent,proto3" json:"include_content,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *BatchGetNotificationOccurrencesRequest) Reset() {
@@ -1549,6 +1570,13 @@ func (x *BatchGetNotificationOccurrencesRequest) GetNotificationIds() []string {
 		return x.NotificationIds
 	}
 	return nil
+}
+
+func (x *BatchGetNotificationOccurrencesRequest) GetIncludeContent() bool {
+	if x != nil {
+		return x.IncludeContent
+	}
+	return false
 }
 
 // Exact visible notification occurrences requested by stable ID.
@@ -2624,25 +2652,28 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12R\n" +
 	"\x0fattention_level\x18\a \x01(\x0e2).chatto.api.v1.NotificationAttentionLevelR\x0eattentionLevel\x12<\n" +
-	"\acontent\x18\b \x01(\v2\".chatto.api.v1.NotificationContentR\acontent\"T\n" +
+	"\acontent\x18\b \x01(\v2\".chatto.api.v1.NotificationContentR\acontent\"}\n" +
 	"\"ListNotificationOccurrencesRequest\x12.\n" +
-	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x90\x03\n" +
+	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12'\n" +
+	"\x0finclude_content\x18\x02 \x01(\bR\x0eincludeContent\"\x90\x03\n" +
 	"#ListNotificationOccurrencesResponse\x12G\n" +
 	"\voccurrences\x18\x01 \x03(\v2%.chatto.api.v1.NotificationOccurrenceR\voccurrences\x12+\n" +
 	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\x12!\n" +
 	"\funread_count\x18\x03 \x01(\x05R\vunreadCount\x12@\n" +
 	"\x0enext_expiry_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\fnextExpiryAt\x12X\n" +
 	"\x12room_unread_counts\x18\x05 \x03(\v2*.chatto.api.v1.NotificationRoomUnreadCountR\x10roomUnreadCounts\x124\n" +
-	"\x16important_unread_count\x18\x06 \x01(\x05R\x14importantUnreadCount\"T\n" +
+	"\x16important_unread_count\x18\x06 \x01(\x05R\x14importantUnreadCount\"}\n" +
 	" GetNotificationOccurrenceRequest\x120\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0enotificationId\"j\n" +
+	"\x0fnotification_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0enotificationId\x12'\n" +
+	"\x0finclude_content\x18\x02 \x01(\bR\x0eincludeContent\"j\n" +
 	"!GetNotificationOccurrenceResponse\x12E\n" +
 	"\n" +
 	"occurrence\x18\x01 \x01(\v2%.chatto.api.v1.NotificationOccurrenceR\n" +
-	"occurrence\"e\n" +
+	"occurrence\"\x8e\x01\n" +
 	"&BatchGetNotificationOccurrencesRequest\x12;\n" +
 	"\x10notification_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\b\x01\x10d\"\x04r\x02\x10\x01R\x0fnotificationIds\"r\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\x0fnotificationIds\x12'\n" +
+	"\x0finclude_content\x18\x02 \x01(\bR\x0eincludeContent\"r\n" +
 	"'BatchGetNotificationOccurrencesResponse\x12G\n" +
 	"\voccurrences\x18\x01 \x03(\v2%.chatto.api.v1.NotificationOccurrenceR\voccurrences\"\x8f\x01\n" +
 	"\x1bNotificationRoomUnreadCount\x12\x17\n" +

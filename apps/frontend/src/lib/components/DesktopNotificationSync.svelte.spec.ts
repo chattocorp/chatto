@@ -80,20 +80,30 @@ function fixture() {
   };
   rows.set([row('old', 100)]);
   const resetListeners = new Set<(event: { privacy: boolean }) => void>();
+  const clearListeners = new Set<() => void>();
+  const onClear = (callback: () => void) => {
+    clearListeners.add(callback);
+    return () => clearListeners.delete(callback);
+  };
+  const fetchContent = vi.fn(async (ids: readonly string[]) =>
+    notifications.occurrences.filter((row) => ids.includes(row.id))
+  );
   const store = {
     serverId: 'inactive-server',
     viewerId: 'viewer',
     isAuthenticated: true,
     notifications,
+    connection: { getAPI: () => ({ batchGetNotificationOccurrences: fetchContent }) },
     onReset: (callback: (event: { privacy: boolean }) => void) => {
       resetListeners.add(callback);
       return () => resetListeners.delete(callback);
     },
-    onRoomAccessLost: () => () => {},
-    onPermissionsChanged: () => () => {},
-    onSessionEnded: () => () => {}
+    onRoomAccessLost: onClear,
+    onUserDeleted: onClear,
+    onPermissionsChanged: onClear,
+    onSessionEnded: onClear
   } as unknown as ServerStateStore;
-  return { rows, store, resetListeners };
+  return { rows, store, resetListeners, clearListeners, fetchContent };
 }
 
 describe('DesktopNotificationSync', () => {
@@ -127,6 +137,7 @@ describe('DesktopNotificationSync', () => {
     const view = render(DesktopNotificationSync, { store: f.store });
     await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
     expect(mocks.show).not.toHaveBeenCalled();
+    expect(f.fetchContent).not.toHaveBeenCalled();
     f.rows.set([row('new', 101), row('old', 100)]);
     await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
     expect(mocks.sound).toHaveBeenCalledOnce();
@@ -148,9 +159,11 @@ describe('DesktopNotificationSync', () => {
       title: '@Alice mentioned you in #general',
       body: 'Could you review the release notes?'
     };
-    f.rows.set([row('new', 101, { content })]);
+    f.fetchContent.mockResolvedValue([row('new', 101, { content })]);
+    f.rows.set([row('new', 101)]);
     await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
     expect(mocks.show.mock.calls[0][0]).toMatchObject(content);
+    expect(f.fetchContent).toHaveBeenCalledExactlyOnceWith(['new'], { includeContent: true });
     // Repeated projections must not repeat the alert, even if its content changes.
     f.rows.set([row('new', 101, { content: { ...content, body: 'Edited message' } })]);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -187,8 +200,52 @@ describe('DesktopNotificationSync', () => {
       );
       expect(mocks.show).not.toHaveBeenCalled();
       expect(mocks.sound).not.toHaveBeenCalled();
+      expect(f.fetchContent).not.toHaveBeenCalled();
     }
   );
+
+  it.each([
+    'read',
+    'deleted',
+    'reset',
+    'access',
+    'unmount',
+    'consent',
+    'dnd',
+    'viewed',
+    'server-omitted'
+  ] as const)('discards a pending preview after %s', async (reason) => {
+    const f = fixture();
+    let complete!: (rows: NotificationOccurrenceItem[]) => void;
+    f.fetchContent.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    );
+    const view = render(DesktopNotificationSync, { store: f.store });
+    await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
+    const fresh = row('new', 101);
+    f.rows.set([fresh]);
+    await vi.waitFor(() => expect(f.fetchContent).toHaveBeenCalledOnce());
+    if (reason === 'read') f.rows.set([{ ...fresh, unread: false }]);
+    if (reason === 'deleted') f.rows.set([], false);
+    if (reason === 'reset') for (const reset of f.resetListeners) reset({ privacy: true });
+    if (reason === 'access') for (const clear of f.clearListeners) clear();
+    if (reason === 'unmount') await view.unmount();
+    if (reason === 'consent') {
+      desktopNotifications.enabled = false;
+      desktopNotifications.enabled = true;
+    }
+    if (reason === 'dnd') mocks.presence.status = PresenceStatus.DO_NOT_DISTURB;
+    if (reason === 'viewed') mocks.attention.mockReturnValue(false);
+    complete(reason === 'server-omitted' ? [] : [fresh]);
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    expect(mocks.show).not.toHaveBeenCalled();
+    expect(mocks.sound).not.toHaveBeenCalled();
+  });
 
   it('does not lose its baseline during an ordinary reconnect snapshot', async () => {
     const f = fixture();

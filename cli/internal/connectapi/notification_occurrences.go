@@ -27,11 +27,11 @@ type notificationService struct {
 	assembleOccurrence func(context.Context, *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error)
 }
 
-func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence *notificationv1.NotificationOccurrence, includeContent bool) (*apiv1.NotificationOccurrence, error) {
 	if s.assembleOccurrence != nil {
 		return s.assembleOccurrence(ctx, occurrence)
 	}
-	return newNotificationAssembler(s.api).occurrence(ctx, occurrence)
+	return newNotificationAssembler(s.api, includeContent).occurrence(ctx, occurrence)
 }
 
 func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) error {
@@ -61,7 +61,7 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, occurrence.GetId())
 		return nil, core.ErrNotFound
 	}
-	hydrated, err := s.hydratedOccurrence(ctx, occurrence)
+	hydrated, err := s.hydratedOccurrence(ctx, occurrence, req.Msg.GetIncludeContent())
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	hydrated, err := newNotificationAssembler(s.api).occurrences(ctx, visible)
+	hydrated, err := newNotificationAssembler(s.api, req.Msg.GetIncludeContent()).occurrences(ctx, visible)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	}
 	end := min(total, offset+limit)
 	page := occurrences[offset:end]
-	assembler := newNotificationAssembler(s.api)
+	assembler := newNotificationAssembler(s.api, req.Msg.GetIncludeContent())
 	hydrated, err := assembler.occurrences(ctx, page)
 	if err != nil {
 		return nil, err
@@ -296,7 +296,7 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 	// Hydration may consult unrelated projections and fail. Complete it before
 	// committing the triage mutation so an error response never ambiguously
 	// means that the server may already have marked the occurrence read.
-	item, err := s.hydratedOccurrence(ctx, existing)
+	item, err := s.hydratedOccurrence(ctx, existing, false)
 	if err != nil {
 		return nil, err
 	}

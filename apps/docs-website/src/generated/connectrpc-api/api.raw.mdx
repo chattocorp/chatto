@@ -4246,6 +4246,7 @@ Request one exact notification occurrence by stable ID.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_id` | `string` | Required stable occurrence ID. |
+| `include_content` | `bool` | Load system-notification text and message previews. Defaults to false. |
 
 
 <a id="chatto-api-v1-GetNotificationOccurrenceResponse"></a>
@@ -4281,6 +4282,7 @@ Request an explicit bounded set of notification occurrences.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_ids` | `repeated string` | Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are omitted. Repeated IDs are de-duplicated in first-seen request order. |
+| `include_content` | `bool` | Load system-notification text and message previews. Defaults to false. |
 
 
 <a id="chatto-api-v1-BatchGetNotificationOccurrencesResponse"></a>
@@ -4319,6 +4321,7 @@ Request for one page of notification occurrences.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results when absent or limit is zero. Maximum: 100. |
+| `include_content` | `bool` | Load system-notification text and message previews. Defaults to false. |
 
 
 <a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
@@ -6653,7 +6656,7 @@ One exact Notifications 2.0 source occurrence.
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
-| `content` | [`NotificationContent`](#chatto-api-v1-NotificationContent) | Current display content, including a bounded message preview when available. Absent on older servers or for unsupported signals. Do not persist this text. |
+| `content` | [`NotificationContent`](#chatto-api-v1-NotificationContent) | Current display content, including a bounded message preview when available. Included only when include_content is requested. Absent on older servers or for unsupported signals. Do not persist this text. |
 
 
 

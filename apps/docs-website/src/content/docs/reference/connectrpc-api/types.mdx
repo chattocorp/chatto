@@ -1332,7 +1332,7 @@ One exact Notifications 2.0 source occurrence.
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
-| `content` | [`NotificationContent`](#chatto-api-v1-NotificationContent) | Current display content, including a bounded message preview when available. Absent on older servers or for unsupported signals. Do not persist this text. |
+| `content` | [`NotificationContent`](#chatto-api-v1-NotificationContent) | Current display content, including a bounded message preview when available. Included only when include_content is requested. Absent on older servers or for unsupported signals. Do not persist this text. |
 
 <a id="chatto-api-v1-NotificationPolicy"></a>
 

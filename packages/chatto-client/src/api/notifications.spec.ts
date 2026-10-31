@@ -17,6 +17,7 @@ it('preserves server alert content and supports older servers without it', () =>
 });
 
 const batchDeleteNotificationOccurrences = vi.hoisted(() => vi.fn());
+const batchGetNotificationOccurrences = vi.hoisted(() => vi.fn());
 const getNotificationPolicy = vi.hoisted(() => vi.fn());
 const updateNotificationPolicy = vi.hoisted(() => vi.fn());
 const batchGetNotificationPolicies = vi.hoisted(() => vi.fn());
@@ -25,14 +26,41 @@ vi.mock('./connect.js', () => ({
   createChattoClient: (service: { typeName: string }) =>
     service.typeName === 'chatto.api.v1.NotificationPolicyService'
       ? { batchGetNotificationPolicies, getNotificationPolicy, updateNotificationPolicy }
-      : { batchDeleteNotificationOccurrences }
+      : { batchDeleteNotificationOccurrences, batchGetNotificationOccurrences }
 }));
 
 beforeEach(() => {
   batchDeleteNotificationOccurrences.mockReset();
+  batchGetNotificationOccurrences.mockReset();
   getNotificationPolicy.mockReset();
   updateNotificationPolicy.mockReset();
   batchGetNotificationPolicies.mockReset();
+});
+
+it('loads alert content only on explicit bounded batch reads', async () => {
+  batchGetNotificationOccurrences.mockResolvedValue({ occurrences: [] });
+  const api = createNotificationAPI({} as Parameters<typeof createNotificationAPI>[0]);
+  const signal = new AbortController().signal;
+  await api.batchGetNotificationOccurrences([], { includeContent: true });
+  expect(batchGetNotificationOccurrences).not.toHaveBeenCalled();
+  const ids = Array.from({ length: 101 }, (_, index) => String(index));
+  await api.batchGetNotificationOccurrences([...ids, '0'], { includeContent: true, signal });
+  expect(batchGetNotificationOccurrences).toHaveBeenCalledTimes(2);
+  expect(batchGetNotificationOccurrences).toHaveBeenNthCalledWith(
+    1,
+    { notificationIds: ids.slice(0, 100), includeContent: true },
+    { signal }
+  );
+  expect(batchGetNotificationOccurrences).toHaveBeenNthCalledWith(
+    2,
+    { notificationIds: ['100'], includeContent: true },
+    { signal }
+  );
+  await api.batchGetNotificationOccurrences(['one']);
+  expect(batchGetNotificationOccurrences).toHaveBeenLastCalledWith(
+    { notificationIds: ['one'], includeContent: undefined },
+    { signal: undefined }
+  );
 });
 
 function policyResponse() {

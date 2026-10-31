@@ -46,7 +46,7 @@ export type NotificationOccurrenceItem = {
   /** Invitation identity for the invitation-only room access boundary. */
   invitationId?: string;
   expiresAt?: string;
-  /** Server-formatted native alert text. Absent on older servers; memory only. */
+  /** Opt-in server-formatted alert text. Absent on older servers; memory only. */
   content?: { title: string; body: string };
 };
 
@@ -137,6 +137,26 @@ export function createNotificationAPI(config: ConnectAPIConfig) {
       return mapNotificationOccurrencePage(
         await client.listNotificationOccurrences({ page: { limit, offset } })
       );
+    },
+
+    /** Read exact visible occurrences, optionally with alert previews. Does not update stored pages. */
+    async batchGetNotificationOccurrences(
+      notificationIds: readonly string[],
+      options: { includeContent?: boolean; signal?: AbortSignal } = {}
+    ): Promise<NotificationOccurrenceItem[]> {
+      const ids = [...new Set(notificationIds)];
+      const occurrences: NotificationOccurrenceItem[] = [];
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const response = await client.batchGetNotificationOccurrences(
+          {
+            notificationIds: ids.slice(offset, offset + 100),
+            includeContent: options.includeContent
+          },
+          { signal: options.signal }
+        );
+        occurrences.push(...response.occurrences.map(notificationOccurrence));
+      }
+      return occurrences;
     },
 
     async markNotificationRead(notificationId: string): Promise<NotificationOccurrenceItem> {

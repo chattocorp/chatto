@@ -389,9 +389,11 @@ writes use `NotificationPolicyService`. A pending invitation also permits access
 to that room's notification preferences. Invitation occurrences carry a room
 summary, invitation ID, and expiry, without a message target. Current invitation
 eligibility controls visibility independently of message access.
-Occurrence responses also carry current system-notification content. The
-assembler uses the Web Push formatter and shared preview loader, then checks
-visibility again after hydration. This text is not stored in the notification log.
+Occurrence read requests can opt in to current system-notification content with
+`include_content`. Routine reads and mutation responses do not load previews.
+For opted-in reads, the assembler uses the Web Push formatter and shared preview
+loader, then checks visibility again after hydration. This text is not stored
+in the notification log.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive

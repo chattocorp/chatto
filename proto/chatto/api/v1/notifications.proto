@@ -182,7 +182,8 @@ message NotificationOccurrence {
   // Source-time visual importance of this occurrence.
   NotificationAttentionLevel attention_level = 7;
   // Current display content, including a bounded message preview when available.
-  // Absent on older servers or for unsupported signals. Do not persist this text.
+  // Included only when include_content is requested. Absent on older servers
+  // or for unsupported signals. Do not persist this text.
   NotificationContent content = 8;
 }
 
@@ -190,6 +191,8 @@ message NotificationOccurrence {
 message ListNotificationOccurrencesRequest {
   // Defaults to 50 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 1;
+  // Load system-notification text and message previews. Defaults to false.
+  bool include_content = 2;
 }
 
 // One page of exact notification occurrences.
@@ -214,6 +217,8 @@ message ListNotificationOccurrencesResponse {
 message GetNotificationOccurrenceRequest {
   // Required stable occurrence ID.
   string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Load system-notification text and message previews. Defaults to false.
+  bool include_content = 2;
 }
 
 // One exact notification occurrence.
@@ -233,6 +238,8 @@ message BatchGetNotificationOccurrencesRequest {
       string: {min_len: 1}
     }
   }];
+  // Load system-notification text and message previews. Defaults to false.
+  bool include_content = 2;
 }
 
 // Exact visible notification occurrences requested by stable ID.

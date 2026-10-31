@@ -28,6 +28,10 @@ targets, unread counts, read state, or deletion semantics.
   The local OS receives this content and can show it on the lock screen,
   subject to OS notification settings. Alerts use existing live updates and notification polls;
   inactive servers do not gain persistent connections or additional polls.
+  Routine notification reads do not load message previews. Desktop requests
+  content in batches only for new Important occurrences that need attention.
+  A pending content response cannot show an alert after consent is removed,
+  session or access changes, or the occurrence is handled.
   New Important occurrences that need attention can alert after the initial
   notification list loads. Older pages, repeated reads, Ambient occurrences,
   and occurrences observed during Do Not Disturb do not alert. Each eligible

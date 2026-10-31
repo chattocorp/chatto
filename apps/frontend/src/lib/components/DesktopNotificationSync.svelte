@@ -1,7 +1,8 @@
-<!-- @component Shows native alerts from the existing notification store. Owns no transport or timer. -->
+<!-- @component Shows native alerts for new eligible occurrences, loading previews on demand. -->
 <script lang="ts">
   import type { ServerStateStore } from '@chatto/client/server/store';
   import type { NotificationOccurrenceItem } from '@chatto/client/api/notifications';
+  import { createNotificationAPI } from '@chatto/client/api/notifications';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { goto } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
@@ -29,9 +30,43 @@
   const arrivals = new NotificationArrivals();
   const owner = {};
   let active = true;
+  let generation = 0;
 
   function clear() {
+    generation++;
     clearDesktopNotificationOwner(owner);
+  }
+
+  /** Preview reads belong to this alert batch, not to routine notification polling. */
+  async function showArrivals(rows: NotificationOccurrenceItem[]) {
+    const started = generation;
+    const consent = desktopNotifications.consentRevision;
+    const notifications = store.notifications;
+    const hydrated = await store.connection
+      .getAPI(createNotificationAPI)
+      .batchGetNotificationOccurrences(
+        rows.map((row) => row.id),
+        { includeContent: true }
+      );
+    if (
+      !active ||
+      started !== generation ||
+      !desktopNotifications.enabled ||
+      consent !== desktopNotifications.consentRevision ||
+      !store.isAuthenticated
+    )
+      return;
+    const handled = notifications.knownHandledNotificationIds(hydrated.map((row) => row.id));
+    const eligible = eligibleNotificationAlerts(store.serverId, store, hydrated).filter(
+      (row) =>
+        row.unread &&
+        row.targetSupported &&
+        !handled.has(row.id) &&
+        notifications.canDisplayOccurrence(row) &&
+        (!row.expiresAt || Date.parse(row.expiresAt) > Date.now())
+    );
+    for (const row of eligible) show(row);
+    if (eligible.length) playNotificationAlertSound(store.serverId);
   }
 
   // Store listeners own privacy cleanup for this account-scoped component.
@@ -46,6 +81,7 @@
         if (event.privacy) reset();
       }),
       store.onRoomAccessLost(clear),
+      store.onUserDeleted(clear),
       store.onPermissionsChanged(clear),
       store.onSessionEnded(reset)
     ];
@@ -112,11 +148,12 @@
     reconcileDesktopNotifications(owner, notifications);
     if (!desktopNotifications.enabled) return;
     const eligible = eligibleNotificationAlerts(store.serverId, store, fresh).filter(
-      (row) => row.targetSupported
+      (row) => row.targetSupported && row.unread
     );
-    for (const row of eligible) show(row);
     if (eligible.length) {
-      playNotificationAlertSound(store.serverId);
+      void showArrivals(eligible).catch(() =>
+        console.error('Could not load desktop notification content.')
+      );
     }
   });
 </script>

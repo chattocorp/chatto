@@ -34,7 +34,7 @@ func TestNotificationContentMatchesWebPushAndHidesDeletedMessages(t *testing.T) 
 		t.Fatal(err)
 	}
 	ctx := withCaller(env.ctx, env.viewer)
-	response, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{NotificationId: stored.GetId()}))
+	response, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{NotificationId: stored.GetId(), IncludeContent: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,19 +43,43 @@ func TestNotificationContentMatchesWebPushAndHidesDeletedMessages(t *testing.T) 
 	if content.GetTitle() != want.Title || content.GetBody() != want.Body || content.GetBody() == "" {
 		t.Fatalf("API content differs from Web Push: %v", content)
 	}
-	batch, err := newNotificationAssembler(env.api).occurrences(env.ctx, []*notificationv1.NotificationOccurrence{stored})
+	batch, err := newNotificationAssembler(env.api, true).occurrences(env.ctx, []*notificationv1.NotificationOccurrence{stored})
 	if err != nil || len(batch) != 1 || !proto.Equal(batch[0].GetContent(), content) {
 		t.Fatalf("batch content differs: %v, %v", batch, err)
+	}
+	// Routine list, exact-read, and reconciliation callers must not pay for previews.
+	for _, include := range []bool{false, true} {
+		list, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{IncludeContent: include}))
+		if err != nil || len(list.Msg.GetOccurrences()) != 1 {
+			t.Fatalf("list: %v, %v", list, err)
+		}
+		if (list.Msg.Occurrences[0].Content != nil) != include {
+			t.Fatalf("list content presence does not match opt-in %v", include)
+		}
+		exact, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{NotificationId: stored.GetId(), IncludeContent: include}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (exact.Msg.GetOccurrence().Content != nil) != include {
+			t.Fatalf("get content presence does not match opt-in %v", include)
+		}
+		batch, err := env.notifications.BatchGetNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchGetNotificationOccurrencesRequest{NotificationIds: []string{stored.GetId()}, IncludeContent: include}))
+		if err != nil || len(batch.Msg.GetOccurrences()) != 1 {
+			t.Fatalf("batch: %v, %v", batch, err)
+		}
+		if (batch.Msg.Occurrences[0].Content != nil) != include {
+			t.Fatalf("batch content presence does not match opt-in %v", include)
+		}
 	}
 	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatal(err)
 	}
 	// Hydration must not expose the retained occurrence after its target is deleted.
-	batch, err = newNotificationAssembler(env.api).occurrences(env.ctx, []*notificationv1.NotificationOccurrence{stored})
+	batch, err = newNotificationAssembler(env.api, true).occurrences(env.ctx, []*notificationv1.NotificationOccurrence{stored})
 	if err != nil || len(batch) != 0 {
 		t.Fatalf("deleted content returned: %v, %v", batch, err)
 	}
-	single, err := newNotificationAssembler(env.api).occurrence(env.ctx, stored)
+	single, err := newNotificationAssembler(env.api, true).occurrence(env.ctx, stored)
 	if err != nil || single != nil {
 		t.Fatalf("deleted single content returned: %v, %v", single, err)
 	}

@@ -13,10 +13,14 @@ import (
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
-type notificationAssembler struct{ api *API }
+type notificationAssembler struct {
+	api *API
+	// Preview hydration is an explicit read option, never a cost of routine lists.
+	includeContent bool
+}
 
-func newNotificationAssembler(api *API) *notificationAssembler {
-	return &notificationAssembler{api: api}
+func newNotificationAssembler(api *API, includeContent bool) *notificationAssembler {
+	return &notificationAssembler{api: api, includeContent: includeContent}
 }
 
 func (a *notificationAssembler) actor(ctx context.Context, userID, presence string) (*apiv1.User, error) {
@@ -56,7 +60,7 @@ func (a *notificationAssembler) occurrence(ctx context.Context, occurrence *noti
 		return nil, err
 	}
 	result, err := a.occurrenceWithPresentation(ctx, occurrence, presence)
-	if err != nil || result == nil {
+	if err != nil || result == nil || !a.includeContent {
 		return result, err
 	}
 	visible, err := a.api.core.NotificationOccurrences().VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*notificationv1.NotificationOccurrence{occurrence})
@@ -173,6 +177,9 @@ func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, 
 		return nil, err
 	}
 	result.Actor = actor
+	if !a.includeContent {
+		return result, nil
+	}
 	actorName := actor.GetDisplayName()
 	if actorName == "" {
 		actorName = actor.GetLogin()
@@ -214,7 +221,7 @@ func (a *notificationAssembler) occurrences(ctx context.Context, occurrences []*
 	hydrated, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, occurrences, func(ctx context.Context, _ int, occurrence *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
 		return a.occurrenceWithPresentation(ctx, occurrence, presences[occurrence.GetActorId()])
 	})
-	if err != nil || len(occurrences) == 0 {
+	if err != nil || len(occurrences) == 0 || !a.includeContent {
 		return hydrated, err
 	}
 	// Loading previews can race with deletion or lost access. Recheck the complete
