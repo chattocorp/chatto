@@ -567,6 +567,24 @@ describe('MessageEvent action model integration', () => {
     await vi.waitFor(() => expect(actionOverlays.current).toBeNull());
   });
 
+  it.each(['dialog', 'div popover'])(
+    'ignores context menus retargeted into a child %s',
+    async (surface) => {
+      const actionOverlays = new MessageActionOverlayState();
+      const { container } = render(MessageEventTestHarness, {
+        props: { event: messageEvent(), actionOverlays }
+      });
+      const body = q(container, '[data-testid="message-body"]')!;
+      const tag = surface.split(' ')[0];
+      body.innerHTML = `<${surface}><span>Preview content</span></${tag}>`;
+      const nativeMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      body.querySelector('span')!.dispatchEvent(nativeMenu);
+      flushSync();
+      expect(nativeMenu.defaultPrevented).toBe(true);
+      expect(actionOverlays.current).toBeNull();
+    }
+  );
+
   it('keeps the message menu for a mention without a current member', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;

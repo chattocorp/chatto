@@ -218,6 +218,9 @@
 
   function openMenuFromMessage(e: MouseEvent) {
     e.preventDefault();
+    // A long-press contextmenu can land inside the preview that just opened.
+    // Its DOM is still in this row, but the overlay owns this interaction.
+    if (e.target instanceof Element && e.target.closest('dialog, [popover]')) return;
     // Browsers may synthesize this event during a touch long press, including
     // on hybrid devices; that gesture already owns the action sheet.
     if (longPress.pending || actionOverlayKind === 'sheet') return;

@@ -94,6 +94,15 @@ test.describe('Route accessibility', () => {
     // Hold through both link and message timers. Pointer-only synthetic events
     // miss the browser's touch events and compatibility mouse events.
     await page.waitForTimeout(750);
+    // Chrome's device emulation can retarget the long-press context menu
+    // into the sheet that has just opened, rather than the original link.
+    await page.getByTestId('link-touch-preview').dispatchEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 180,
+      clientY: 300
+    });
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     const sheet = page.getByRole('dialog', { name: 'Open link', exact: true });
     await expect(sheet).toBeVisible();
