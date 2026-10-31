@@ -95,6 +95,12 @@ Registrations, sessions, and preferences remain in the existing profile.
 Older builds without this menu need one manual replacement. Moving the app to the Trash does not erase that
 profile or sign out registered servers.
 
+### Linux downloads
+
+Linux releases provide AppImage and `.tar.gz` downloads for x64 and ARM64.
+Choose `Linux_X64` for x64 systems or `Linux_ARM64` for 64-bit ARM systems.
+Build the AppImage on a Linux host with the same architecture as the bundle.
+
 ### Desktop updates
 
 Tagged macOS apps, Windows NSIS installations, and Linux AppImages use

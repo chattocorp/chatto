@@ -327,6 +327,9 @@ jobs:
           - platform: linux
             os: ubuntu-latest
             artifact-path: apps/desktop/dist/chatto-desktop
+          - platform: linux-arm64
+            os: ubuntu-24.04-arm
+            artifact-path: apps/desktop/dist/chatto-desktop
           - platform: macos
             os: macos-15
             artifact-path: apps/desktop/dist/Chatto.app
@@ -364,6 +367,19 @@ jobs:
       - name: Build Windows installer
         if: runner.os == 'Windows'
         run: mise x -- pnpm --filter chatto-desktop build:windows-installer
+
+      - name: Build Linux AppImage
+        if: runner.os == 'Linux'
+        run: mise x -- pnpm --filter chatto-desktop build:linux-appimage
+
+      - name: Upload Linux AppImage
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-linux-appimage-${{ runner.arch }}
+          path: apps/desktop/dist/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Test Windows installer
         if: runner.os == 'Windows'

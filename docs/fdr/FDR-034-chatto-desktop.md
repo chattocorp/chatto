@@ -62,7 +62,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Acknowledged lifecycle control keeps the UI in a stopping state until the
   helper disconnects its LiveKit companion and exits. Hosts without this
   capability keep the browser's ordinary source chooser.
-- macOS, Windows, and Linux bundles are built in CI. Release macOS artifacts
+- macOS, Windows, and Linux bundles are built in CI. Linux x64 and ARM64
+  builds each provide an AppImage and a tarball. AppImage update manifests
+  select the same architecture as the installed app. Release macOS artifacts
   are Developer ID signed and notarised. Release Windows executables and
   libraries are signed and timestamped through Microsoft Artifact Signing
   before CI packages them. The main application must report ChattoCorp's stable

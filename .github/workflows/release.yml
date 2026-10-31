@@ -216,6 +216,9 @@ jobs:
           - platform: linux
             os: ubuntu-latest
             environment: desktop-signing
+          - platform: linux-arm64
+            os: ubuntu-24.04-arm
+            environment: desktop-signing
           - platform: macos
             os: macos-15
             environment: desktop-signing

@@ -18,7 +18,8 @@ export async function writeUpdateManifests(
   const artifacts = [
     [`${channel}-mac.yml`, `chatto-desktop_${version}_macOS_ARM64.zip`],
     [`${channel}.yml`, `chatto-desktop_${version}_Windows_X64_Setup.exe`],
-    [`${channel}-linux.yml`, `chatto-desktop_${version}_Linux_X64.AppImage`]
+    [`${channel}-linux.yml`, `chatto-desktop_${version}_Linux_X64.AppImage`],
+    [`${channel}-linux-arm64.yml`, `chatto-desktop_${version}_Linux_ARM64.AppImage`]
   ];
   const manifests = await Promise.all(
     artifacts.map(async ([manifest, file]) => {
