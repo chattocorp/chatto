@@ -38,8 +38,8 @@ describe('EmojiAutocomplete', () => {
   it('accepts a fuzzy shortcode without separators', () => {
     const onSelect = vi.fn();
     const { component } = renderAutocomplete({ query: 'headshakingvertically', onSelect });
-    component.handleKeyDown(new KeyboardEvent('keydown', { key: ' ', cancelable: true }));
-    expect(onSelect).toHaveBeenCalledWith('🙂‍↕️', 'head_shaking_vertically', ' ');
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(onSelect).toHaveBeenCalledWith('🙂‍↕️', 'head_shaking_vertically', 'Enter');
   });
   it('opens variants for the chosen result and selects a tone with the keyboard', () => {
     const onSelect = vi.fn();

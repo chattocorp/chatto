@@ -66,7 +66,7 @@ function tabEvent(): KeyboardEvent {
 }
 
 describe('AutocompleteState', () => {
-  it.each([' ', 'Enter', 'Tab', 'click'])(
+  it.each(['Enter', 'Tab', 'click'])(
     'uses the %s selection whitespace rule for all pickers',
     (key) => {
       const fakeEditor = editor('See #gen! later', 8);
@@ -77,7 +77,7 @@ describe('AutocompleteState', () => {
         undefined,
         { rooms: true }
       );
-      const suffix = key === ' ' || key === 'click' ? ' ' : '';
+      const suffix = key === 'click' ? ' ' : '';
       state.update();
       state.selectRoom('https://chat.example/room', key);
       expect(fakeEditor.getText()).toBe(`See https://chat.example/room${suffix}! later`);
@@ -105,7 +105,7 @@ describe('AutocompleteState', () => {
     );
     state.update();
     expect(state.room).toEqual({ query: 'gen', triggerStart: 4 });
-    state.selectRoom('https://chat.example/chat/-/R12345678901234', ' ');
+    state.selectRoom('https://chat.example/chat/-/R12345678901234', 'click');
     expect(fakeEditor.getText()).toBe('See https://chat.example/chat/-/R12345678901234  tomorrow');
     expect(state.room).toBeNull();
     fakeEditor.setText('#');
@@ -164,7 +164,7 @@ describe('AutocompleteState', () => {
       );
       state.update();
       expect(state.emoji?.query).toBe('he');
-      state.selectEmoji('❤️', ' ');
+      state.selectEmoji('❤️', 'click');
       expect(fakeEditor.getText()).toBe(text.slice(0, -3) + '❤️ ');
     }
   );
@@ -391,7 +391,7 @@ describe('AutocompleteState', () => {
     );
 
     state.update();
-    state.selectEmoji('🔥', ' ');
+    state.selectEmoji('🔥', 'click');
 
     expect(fakeEditor.getText()).toBe('hello 🔥 ');
     expect(state.emoji).toBeNull();
