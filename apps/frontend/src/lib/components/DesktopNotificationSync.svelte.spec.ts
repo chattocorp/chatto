@@ -204,48 +204,76 @@ describe('DesktopNotificationSync', () => {
     }
   );
 
-  it.each([
-    'read',
-    'deleted',
-    'reset',
-    'access',
-    'unmount',
-    'consent',
-    'dnd',
-    'viewed',
-    'server-omitted'
-  ] as const)('discards a pending preview after %s', async (reason) => {
+  it('shows one generic alert when preview loading fails, without retaining stale content', async () => {
     const f = fixture();
-    let complete!: (rows: NotificationOccurrenceItem[]) => void;
-    f.fetchContent.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          complete = resolve;
-        })
-    );
-    const view = render(DesktopNotificationSync, { store: f.store });
+    f.fetchContent.mockRejectedValue(new Error('network unavailable'));
+    render(DesktopNotificationSync, { store: f.store });
     await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
-    const fresh = row('new', 101);
+    const fresh = row('new', 101, { content: { title: 'Private title', body: 'Private preview' } });
     f.rows.set([fresh]);
-    await vi.waitFor(() => expect(f.fetchContent).toHaveBeenCalledOnce());
-    if (reason === 'read') f.rows.set([{ ...fresh, unread: false }]);
-    if (reason === 'deleted') f.rows.set([], false);
-    if (reason === 'reset') for (const reset of f.resetListeners) reset({ privacy: true });
-    if (reason === 'access') for (const clear of f.clearListeners) clear();
-    if (reason === 'unmount') await view.unmount();
-    if (reason === 'consent') {
-      desktopNotifications.enabled = false;
-      desktopNotifications.enabled = true;
-    }
-    if (reason === 'dnd') mocks.presence.status = PresenceStatus.DO_NOT_DISTURB;
-    if (reason === 'viewed') mocks.attention.mockReturnValue(false);
-    complete(reason === 'server-omitted' ? [] : [fresh]);
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-    );
-    expect(mocks.show).not.toHaveBeenCalled();
-    expect(mocks.sound).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
+    expect(mocks.show.mock.calls[0][0]).toMatchObject({ title: 'Chatto', body: 'Notifications' });
+    expect(mocks.sound).toHaveBeenCalledOnce();
+    f.rows.set([{ ...fresh }]);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(mocks.show).toHaveBeenCalledOnce();
+    expect(f.fetchContent).toHaveBeenCalledOnce();
   });
+
+  it.each(
+    (
+      [
+        'read',
+        'deleted',
+        'reset',
+        'access',
+        'unmount',
+        'consent',
+        'dnd',
+        'viewed',
+        'server-omitted'
+      ] as const
+    ).flatMap((reason) =>
+      (reason === 'server-omitted' ? [false] : [false, true]).map((fails) => ({ reason, fails }))
+    )
+  )(
+    'discards a pending preview after $reason (request fails: $fails)',
+    async ({ reason, fails }) => {
+      const f = fixture();
+      let complete!: (rows: NotificationOccurrenceItem[]) => void;
+      let reject!: (error: Error) => void;
+      f.fetchContent.mockImplementation(
+        () =>
+          new Promise((resolve, rejectRequest) => {
+            complete = resolve;
+            reject = rejectRequest;
+          })
+      );
+      const view = render(DesktopNotificationSync, { store: f.store });
+      await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
+      const fresh = row('new', 101);
+      f.rows.set([fresh]);
+      await vi.waitFor(() => expect(f.fetchContent).toHaveBeenCalledOnce());
+      if (reason === 'read') f.rows.set([{ ...fresh, unread: false }]);
+      if (reason === 'deleted') f.rows.set([], false);
+      if (reason === 'reset') for (const reset of f.resetListeners) reset({ privacy: true });
+      if (reason === 'access') for (const clear of f.clearListeners) clear();
+      if (reason === 'unmount') await view.unmount();
+      if (reason === 'consent') {
+        desktopNotifications.enabled = false;
+        desktopNotifications.enabled = true;
+      }
+      if (reason === 'dnd') mocks.presence.status = PresenceStatus.DO_NOT_DISTURB;
+      if (reason === 'viewed') mocks.attention.mockReturnValue(false);
+      if (fails) reject(new Error('network unavailable'));
+      else complete(reason === 'server-omitted' ? [] : [fresh]);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      );
+      expect(mocks.show).not.toHaveBeenCalled();
+      expect(mocks.sound).not.toHaveBeenCalled();
+    }
+  );
 
   it('does not lose its baseline during an ordinary reconnect snapshot', async () => {
     const f = fixture();

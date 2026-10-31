@@ -30,6 +30,8 @@ targets, unread counts, read state, or deletion semantics.
   inactive servers do not gain persistent connections or additional polls.
   Routine notification reads do not load message previews. Desktop requests
   content in batches only for new Important occurrences that need attention.
+  If the content request fails, an occurrence that still qualifies shows a
+  generic alert without a preview.
   A pending content response cannot show an alert after consent is removed,
   session or access changes, or the occurrence is handled.
   New Important occurrences that need attention can alert after the initial

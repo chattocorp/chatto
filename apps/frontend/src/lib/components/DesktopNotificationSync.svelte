@@ -37,17 +37,36 @@
     clearDesktopNotificationOwner(owner);
   }
 
-  /** Preview reads belong to this alert batch, not to routine notification polling. */
+  /** Check current eligibility both before loading previews and before delivery. */
+  function eligibleArrivals(rows: NotificationOccurrenceItem[]) {
+    const notifications = store.notifications;
+    const handled = notifications.knownHandledNotificationIds(rows.map((row) => row.id));
+    return eligibleNotificationAlerts(store.serverId, store, rows).filter(
+      (row) =>
+        row.unread &&
+        row.targetSupported &&
+        !handled.has(row.id) &&
+        notifications.canDisplayOccurrence(row) &&
+        (!row.expiresAt || Date.parse(row.expiresAt) > Date.now())
+    );
+  }
+
+  /** Preview reads belong to this alert batch; failures retain generic delivery. */
   async function showArrivals(rows: NotificationOccurrenceItem[]) {
     const started = generation;
     const consent = desktopNotifications.consentRevision;
-    const notifications = store.notifications;
-    const hydrated = await store.connection
-      .getAPI(createNotificationAPI)
-      .batchGetNotificationOccurrences(
-        rows.map((row) => row.id),
-        { includeContent: true }
-      );
+    let hydrated: NotificationOccurrenceItem[];
+    try {
+      hydrated = await store.connection
+        .getAPI(createNotificationAPI)
+        .batchGetNotificationOccurrences(
+          rows.map((row) => row.id),
+          { includeContent: true }
+        );
+    } catch {
+      // A failed preview must not drop the alert or reuse stale display content.
+      hydrated = rows.map((row) => ({ ...row, content: undefined }));
+    }
     if (
       !active ||
       started !== generation ||
@@ -56,15 +75,7 @@
       !store.isAuthenticated
     )
       return;
-    const handled = notifications.knownHandledNotificationIds(hydrated.map((row) => row.id));
-    const eligible = eligibleNotificationAlerts(store.serverId, store, hydrated).filter(
-      (row) =>
-        row.unread &&
-        row.targetSupported &&
-        !handled.has(row.id) &&
-        notifications.canDisplayOccurrence(row) &&
-        (!row.expiresAt || Date.parse(row.expiresAt) > Date.now())
-    );
+    const eligible = eligibleArrivals(hydrated);
     for (const row of eligible) show(row);
     if (eligible.length) playNotificationAlertSound(store.serverId);
   }
@@ -147,12 +158,10 @@
     void notifications.pushRevision;
     reconcileDesktopNotifications(owner, notifications);
     if (!desktopNotifications.enabled) return;
-    const eligible = eligibleNotificationAlerts(store.serverId, store, fresh).filter(
-      (row) => row.targetSupported && row.unread
-    );
+    const eligible = eligibleArrivals(fresh);
     if (eligible.length) {
       void showArrivals(eligible).catch(() =>
-        console.error('Could not load desktop notification content.')
+        console.error('Could not deliver desktop notifications.')
       );
     }
   });
