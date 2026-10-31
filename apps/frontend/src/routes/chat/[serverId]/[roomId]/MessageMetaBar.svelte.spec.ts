@@ -491,16 +491,20 @@ describe('MessageMetaBar', () => {
     flushSync();
     const tooltip = q(container, '[role="tooltip"]')!;
     const names = q(tooltip, '[data-testid="reaction-tooltip-users"]')!;
-    const text = names.firstChild!;
     for (const width of [190, 220, 256]) {
       tooltip.style.width = `${width}px`;
-      const sentence = text.textContent!;
-      for (let index = 0; index < sentence.length; index++) {
-        if (sentence[index] !== ',') continue;
+      for (const text of names.childNodes) {
+        if (text.nodeType !== Node.TEXT_NODE || !text.textContent?.startsWith(',')) continue;
         const range = document.createRange();
-        range.setStart(text, index - 1);
-        range.setEnd(text, index + 1);
-        expect(range.getClientRects()).toHaveLength(1);
+        range.setStart(text, 0);
+        range.setEnd(text, 1);
+        const comma = range.getBoundingClientRect();
+        let previous = text.previousSibling;
+        while (previous && !(previous instanceof HTMLElement)) previous = previous.previousSibling;
+        expect(previous).toBeInstanceOf(HTMLElement);
+        const name = (previous as HTMLElement).getBoundingClientRect();
+        expect(comma.top).toBeLessThan(name.bottom);
+        expect(comma.bottom).toBeGreaterThan(name.top);
       }
     }
   });
@@ -518,7 +522,9 @@ describe('MessageMetaBar', () => {
     );
     flushSync();
     const tooltip = q(container, '[role="tooltip"]')!;
-    expect(q(tooltip, '[data-testid="reaction-tooltip-users"]')?.textContent).toBe(`${name} (BOT)`);
+    expect(q(tooltip, '[data-testid="reaction-tooltip-users"] bdi')?.textContent).toBe(name);
+    expect(q(tooltip, '[data-testid="bot-badge"]')?.textContent).toBe('BOT');
+    expect(tooltip.textContent).not.toContain('(BOT)');
     expect(tooltip.querySelector('img')).toBeNull();
     expect(tooltip.querySelectorAll('strong')).toHaveLength(1);
   });
