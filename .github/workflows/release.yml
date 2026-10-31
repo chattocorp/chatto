@@ -553,6 +553,11 @@ jobs:
           $installer = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.exe)
           if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
           ./tools/test-desktop-windows-installer.ps1 -Installer $installer[0].FullName
+          $msi = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.msi)
+          if ($msi.Count -ne 1) { throw 'Expected one Windows MSI package.' }
+          mise x -- pnpm --filter chatto-desktop build:windows-installer --msi-upgrade-fixture
+          if ($LASTEXITCODE -ne 0) { throw 'MSI upgrade fixture build failed.' }
+          ./tools/test-desktop-windows-msi.ps1 -Installer $msi[0].FullName -PreviousInstaller apps/desktop/dist/msi-upgrade-fixture/upgrade-fixture.msi
 
       - name: Package macOS release
         if: runner.os == 'macOS'
@@ -631,6 +636,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force .context/desktop-release | Out-Null
           Copy-Item apps/desktop/dist/installer/*_Setup.exe .context/desktop-release/
+          Copy-Item apps/desktop/dist/installer/*_Setup.msi .context/desktop-release/
           Compress-Archive `
             -Path "apps/desktop/dist/windows" `
             -DestinationPath ".context/desktop-release/chatto-desktop_$env:VERSION`_Windows_$env:RUNNER_ARCH.zip"

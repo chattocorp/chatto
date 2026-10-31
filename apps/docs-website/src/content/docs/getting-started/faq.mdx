@@ -47,7 +47,14 @@ Chatto Desktop is experimental. Download it from the
 [Chatto releases](https://github.com/chattocorp/chatto/releases).
 On Apple Silicon Macs, you need macOS 13 or later. Open the `.dmg` download and drag **Chatto Desktop** to
 **Applications**. Eject the disk image and open the app from Applications.
-On macOS, installed Windows copies, and Linux AppImages, use the **Updates**
+On Windows, use the `.exe` installer for a per-user installation with automatic
+updates. For managed deployment, use the `.msi` package. It installs for all
+users, requires administrator rights, and needs updates through your deployment
+tools or a newer MSI package. Close Chatto before an MSI upgrade. Remove the
+previous installation before switching between EXE and MSI; removal keeps your
+profile. Do not install both formats on the same machine.
+
+On macOS, Windows EXE installations, and Linux AppImages, use the **Updates**
 menu to check for updates. When a download is ready, **Restart to Install [version]**
 appears in this menu. Select it to install the update. Your registered
 servers and sessions remain available. Older builds without this menu need
