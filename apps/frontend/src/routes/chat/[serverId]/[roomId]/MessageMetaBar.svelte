@@ -303,7 +303,8 @@ local to the footer.
         aria-label={`${getReactionDisplay(reaction.emoji)} ${reaction.count}`}
         aria-pressed={reaction.hasReacted}
       >
-        <span class="max-w-48 truncate" aria-hidden="true"
+        <!-- Give emoji glyphs room above and below the baseline before truncation clips overflow. -->
+        <span class="max-w-48 truncate leading-normal" aria-hidden="true"
           >{getReactionDisplay(reaction.emoji)}</span
         >
         <span class="shrink-0 text-xs" aria-hidden="true">{reaction.count}</span>
