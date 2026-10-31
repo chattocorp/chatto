@@ -3,6 +3,18 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.29](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.28...v0.5.0-beta.29) (2026-10-31)
+
+
+### Features
+
+* **gobotto:** add managed memory, web tools, and turn controls ([#3392](https://github.com/chattocorp/chatto/issues/3392)) ([b85e7c4](https://github.com/chattocorp/chatto/commit/b85e7c44a6f1c76bb4c4dd8709f06c7baad3a77c))
+
+
+### Bug Fixes
+
+* **ci:** download Go dependencies on demand and report disk use ([#3393](https://github.com/chattocorp/chatto/issues/3393)) ([a256979](https://github.com/chattocorp/chatto/commit/a2569799efee8118c659df71e2b99a338248f6e7))
+
 ## [0.5.0-beta.28](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.27...v0.5.0-beta.28) (2026-10-31)
 
 
