@@ -65,27 +65,31 @@
       </Panel>
       {#if state && state.status !== 'unavailable'}
         <Panel title={m('settings.desktop.preferences')} icon="iconify icon-[uil--setting]">
-          <div class="flex max-w-md flex-col gap-4">
-            <Checkbox
-              id="desktop-automatic"
-              label={m('settings.desktop.automatic')}
-              disabled={updates.busy}
-              checked={state.automatic}
-              onCheckedChange={(value) => updates.setAutomatic(value)}
-            />
-            <Select
-              id="desktop-channel"
-              label={m('settings.desktop.channel')}
-              value={state.channel}
-              disabled={updates.busy}
-              options={[
-                { value: 'stable', label: m('settings.desktop.stable') },
-                { value: 'beta', label: m('settings.desktop.beta') }
-              ]}
-              onValueChange={(value) => updates.setChannel(value)}
-            />
-            <p class="text-muted">{m('settings.desktop.channel_help')}</p>
-            <p class="text-muted">{m('settings.desktop.privacy')}</p>
+          <div class="@container">
+            <div
+              class="grid items-start gap-x-8 gap-y-6 @2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+            >
+              <Checkbox
+                id="desktop-automatic"
+                label={m('settings.desktop.automatic')}
+                disabled={updates.busy}
+                checked={state.automatic}
+                onCheckedChange={(value) => updates.setAutomatic(value)}
+              />
+              <p class="text-muted">{m('settings.desktop.privacy')}</p>
+              <Select
+                id="desktop-channel"
+                label={m('settings.desktop.channel')}
+                value={state.channel}
+                disabled={updates.busy}
+                options={[
+                  { value: 'stable', label: m('settings.desktop.stable') },
+                  { value: 'beta', label: m('settings.desktop.beta') }
+                ]}
+                onValueChange={(value) => updates.setChannel(value)}
+              />
+              <p class="text-muted">{m('settings.desktop.channel_help')}</p>
+            </div>
           </div>
         </Panel>
       {/if}
