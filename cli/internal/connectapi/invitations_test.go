@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestMemberInvitationPermissionBoundary(t *testing.T) {
@@ -34,8 +34,7 @@ func TestMemberInvitationPermissionBoundary(t *testing.T) {
 	creator, err := env.core.CreateUser(env.ctx, core.SystemActorID, "other-creator", "Other Creator", "password123")
 	require.NoError(t, err)
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, creator.Id, core.PermUserInvite))
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-	other, err := env.core.CreateInvitationCode(env.ctx, creator.Id, &expiresAt, "Other creator's note")
+	other, err := env.core.CreateInvitationCode(env.ctx, creator.Id, "Other creator's note")
 	require.NoError(t, err)
 	listed, err := env.adminInvitationCodes.ListInvitationCodes(ctx, connect.NewRequest(&adminv1.ListInvitationCodesRequest{Page: &apiv1.PageRequest{Limit: 1}}))
 	require.NoError(t, err)
@@ -53,7 +52,7 @@ func TestMemberInvitationPermissionBoundary(t *testing.T) {
 	}
 	_, err = env.adminInvitationCodes.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: code.GetId()}))
 	require.NoError(t, err)
-	_, err = env.adminInvitationCodes.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: timestamppb.New(expiresAt)}))
+	_, err = env.adminInvitationCodes.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{}))
 	require.NoError(t, err)
 
 	// Management remains privileged even after it is granted to the same member.
@@ -78,31 +77,22 @@ func TestMemberInvitationPermissionBoundary(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMemberInvitationExpiryLimit(t *testing.T) {
+func TestInvitationExpiryIsServerControlledForEveryCaller(t *testing.T) {
 	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserInvite))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageInvites))
-	ctx := withBearerCredential(env.ctx, env.viewer, "member-session")
 	service := env.adminInvitationCodes
-	for _, expiry := range []*timestamppb.Timestamp{nil, timestamppb.New(time.Now().Add(8 * 24 * time.Hour)), timestamppb.New(time.Now().Add(-time.Hour))} {
-		_, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: expiry}))
-		require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
-	}
-	for _, lifetime := range []time.Duration{time.Hour, 7 * 24 * time.Hour} {
-		expiry := timestamppb.New(time.Now().Add(lifetime))
-		created, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: expiry}))
+	request := &adminv1.CreateInvitationCodeRequest{}
+	require.Nil(t, request.ProtoReflect().Descriptor().Fields().ByName("expires_at"))
+	for _, ctx := range []context.Context{
+		withBearerCredential(env.ctx, env.viewer, "member-session"),
+		withArmedBearerCredential(env.ctx, env.viewer, "member-session"),
+	} {
+		created, err := service.CreateInvitationCode(ctx, connect.NewRequest(request))
 		require.NoError(t, err)
-		require.Equal(t, expiry.AsTime(), created.Msg.InvitationCode.ExpiresAt.AsTime())
-	}
-	armed := withArmedBearerCredential(env.ctx, env.viewer, "member-session")
-	for _, expiry := range []*timestamppb.Timestamp{nil, timestamppb.New(time.Now().Add(30 * 24 * time.Hour))} {
-		created, err := service.CreateInvitationCode(armed, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: expiry}))
-		require.NoError(t, err)
-		if expiry == nil {
-			require.Nil(t, created.Msg.InvitationCode.ExpiresAt)
-		} else {
-			require.Equal(t, expiry.AsTime(), created.Msg.InvitationCode.ExpiresAt.AsTime())
-		}
+		code := created.Msg.InvitationCode
+		require.NotNil(t, code.ExpiresAt)
+		require.Equal(t, code.CreatedAt.AsTime().Add(7*24*time.Hour), code.ExpiresAt.AsTime())
 	}
 }

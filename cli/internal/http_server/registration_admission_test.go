@@ -62,11 +62,11 @@ func TestRegistrationAdmissionIsCookieBoundAndKeepsTabSelection(t *testing.T) {
 	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	first, err := c.CreateInvitationCode(ctx, admin.Id, nil, "")
+	first, err := c.CreateInvitationCode(ctx, admin.Id, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := c.CreateInvitationCode(ctx, admin.Id, nil, "")
+	second, err := c.CreateInvitationCode(ctx, admin.Id, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestRegistrationAdmissionBindsSSOWithoutExtendingExpiry(t *testing.T) {
 	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	invitation, err := c.CreateInvitationCode(ctx, admin.Id, nil, "")
+	invitation, err := c.CreateInvitationCode(ctx, admin.Id, "")
 	if err != nil {
 		t.Fatal(err)
 	}

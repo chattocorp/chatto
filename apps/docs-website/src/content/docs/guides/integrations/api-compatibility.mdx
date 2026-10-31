@@ -85,6 +85,11 @@ per account. Reusable links and their pending admission grants are retired.
 See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
 This change does not raise the client connection threshold.
 
+`CreateInvitationCodeRequest.expires_at` has been removed. Stop sending an expiry
+when creating an invitation code. The server sets expiry to exactly seven days
+after creation for every caller, including invitation managers. Read the assigned
+expiry from the returned code. Existing codes keep their recorded expiry.
+
 Management of all invitations requires `user.manage-invites`; `user.invite`
 permits creation and management of own codes through `AdminInvitationCodeService`,
 without privileged mode. `InvitationCodeService` remains available for creation.

@@ -228,7 +228,7 @@ describe('Invitation codes', () => {
     expect(page.container.querySelector('not')).toBeNull();
   });
 
-  it('requires confirmation before creating one code with a seven-day expiry', async () => {
+  it('requires confirmation and leaves expiry to the server', async () => {
     invitations.createInvitationCode.mockReturnValue({
       invitationCode: {
         id: 'new-invitation',
@@ -239,7 +239,6 @@ describe('Invitation codes', () => {
     });
     const page = render(InvitationCodes);
     await expect.element(page.getByText(/New codes expire after 7 days/)).not.toBeInTheDocument();
-    const before = Date.now();
     await userEvent.click(page.getByRole('button', { name: 'Create code', exact: true }));
     const dialog = page.getByRole('dialog', { name: 'Create code', exact: true });
     await expect.element(dialog).toBeVisible();
@@ -251,12 +250,7 @@ describe('Invitation codes', () => {
     );
     await userEvent.click(dialog.getByRole('button', { name: 'Create code', exact: true }));
     await vi.waitFor(() => expect(invitations.createInvitationCode).toHaveBeenCalledOnce());
-    const expiresAt = invitations.createInvitationCode.mock.calls[0][0]
-      .expiresAt!.toDate()
-      .getTime();
-    const week = 7 * 24 * 60 * 60 * 1000;
-    expect(expiresAt).toBeGreaterThanOrEqual(before + week);
-    expect(expiresAt).toBeLessThanOrEqual(Date.now() + week);
+    expect(invitations.createInvitationCode.mock.calls[0][0]).not.toHaveProperty('expiresAt');
     expect(invitations.createInvitationCode.mock.calls[0][0].note).toBe(
       'For Alex from the design team'
     );

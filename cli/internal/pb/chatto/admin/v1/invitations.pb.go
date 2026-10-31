@@ -372,12 +372,9 @@ func (x *GetInvitationCodeResponse) GetInvitationCode() *InvitationCode {
 	return nil
 }
 
-// Creates one code. Every code is single-use, including when expiry is omitted.
+// Creates one single-use code. The server sets expiry to seven days after creation.
 type CreateInvitationCodeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required for user.invite-only callers: must be in the future and within seven days.
-	// Effective user.manage-invites permits a later expiry or omission (no expiry).
-	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
 	// Visible to the creator and invitation managers; it does not bind the code to a recipient.
 	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
@@ -413,13 +410,6 @@ func (x *CreateInvitationCodeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateInvitationCodeRequest.ProtoReflect.Descriptor instead.
 func (*CreateInvitationCodeRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *CreateInvitationCodeRequest) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
 }
 
 func (x *CreateInvitationCodeRequest) GetNote() string {
@@ -587,11 +577,10 @@ const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"\x18GetInvitationCodeRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"e\n" +
 	"\x19GetInvitationCodeResponse\x12H\n" +
-	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"v\n" +
-	"\x1bCreateInvitationCodeRequest\x129\n" +
-	"\n" +
-	"expires_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1c\n" +
-	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01R\x04note\"h\n" +
+	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"M\n" +
+	"\x1bCreateInvitationCodeRequest\x12\x1c\n" +
+	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01R\x04noteJ\x04\b\x01\x10\x02R\n" +
+	"expires_at\"h\n" +
 	"\x1cCreateInvitationCodeResponse\x12H\n" +
 	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"6\n" +
 	"\x1bRevokeInvitationCodeRequest\x12\x17\n" +
@@ -649,22 +638,21 @@ var file_chatto_admin_v1_invitations_proto_depIdxs = []int32{
 	1,  // 5: chatto.admin.v1.ListInvitationCodesResponse.invitation_codes:type_name -> chatto.admin.v1.InvitationCode
 	12, // 6: chatto.admin.v1.ListInvitationCodesResponse.page:type_name -> chatto.api.v1.PageInfo
 	1,  // 7: chatto.admin.v1.GetInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
-	10, // 8: chatto.admin.v1.CreateInvitationCodeRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: chatto.admin.v1.CreateInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
-	1,  // 10: chatto.admin.v1.RevokeInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
-	2,  // 11: chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes:input_type -> chatto.admin.v1.ListInvitationCodesRequest
-	4,  // 12: chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode:input_type -> chatto.admin.v1.GetInvitationCodeRequest
-	6,  // 13: chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode:input_type -> chatto.admin.v1.CreateInvitationCodeRequest
-	8,  // 14: chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode:input_type -> chatto.admin.v1.RevokeInvitationCodeRequest
-	3,  // 15: chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes:output_type -> chatto.admin.v1.ListInvitationCodesResponse
-	5,  // 16: chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode:output_type -> chatto.admin.v1.GetInvitationCodeResponse
-	7,  // 17: chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode:output_type -> chatto.admin.v1.CreateInvitationCodeResponse
-	9,  // 18: chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode:output_type -> chatto.admin.v1.RevokeInvitationCodeResponse
-	15, // [15:19] is the sub-list for method output_type
-	11, // [11:15] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	1,  // 8: chatto.admin.v1.CreateInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
+	1,  // 9: chatto.admin.v1.RevokeInvitationCodeResponse.invitation_code:type_name -> chatto.admin.v1.InvitationCode
+	2,  // 10: chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes:input_type -> chatto.admin.v1.ListInvitationCodesRequest
+	4,  // 11: chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode:input_type -> chatto.admin.v1.GetInvitationCodeRequest
+	6,  // 12: chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode:input_type -> chatto.admin.v1.CreateInvitationCodeRequest
+	8,  // 13: chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode:input_type -> chatto.admin.v1.RevokeInvitationCodeRequest
+	3,  // 14: chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes:output_type -> chatto.admin.v1.ListInvitationCodesResponse
+	5,  // 15: chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode:output_type -> chatto.admin.v1.GetInvitationCodeResponse
+	7,  // 16: chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode:output_type -> chatto.admin.v1.CreateInvitationCodeResponse
+	9,  // 17: chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode:output_type -> chatto.admin.v1.RevokeInvitationCodeResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_invitations_proto_init() }

@@ -1,7 +1,7 @@
 # FDR-036: Invitation Codes
 
 **Status:** Active
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -29,9 +29,9 @@ the API to integrate code issuance with an external system.
 - **Create code** in the table header opens a confirmation dialog. It explains
   that a code expires after seven days, admits one account, and is used only
   after successful signup. Confirmation creates one code and closes the dialog.
-  Invitation managers can use the API to set a different expiry or no expiry.
-  Members must supply a future expiry within seven days; missing or longer
-  expiries are rejected. Active codes can be
+  The server sets expiry to exactly seven days after creation for every caller.
+  Neither the UI nor the creation API accepts an expiry. Existing records keep
+  their recorded expiry. Active codes can be
   copied and revoked; inactive rows show their status without these actions.
 - A creation-time note can identify the intended recipient or purpose. It is
   optional plain text, limited to 250 Unicode characters, and shown beneath the
@@ -51,7 +51,7 @@ the API to integrate code issuance with an external system.
 - Invites remains available when registration is open; signup then ignores codes.
   Codes can be retrieved again while the caller has the required permission.
   No code is stored in browser storage. Chatto does not send codes to recipients.
-- The existing create-only API keeps its seven-day default. Issuance has no
+- The existing create-only API uses the same fixed seven-day lifetime. Issuance has no
   automatic retry. Creators can retrieve a code after a lost response through
   the management API. Changing a creator's permissions or account state does
   not revoke an issued code; an authorized caller can revoke it explicitly.

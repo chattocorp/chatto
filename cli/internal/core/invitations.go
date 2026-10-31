@@ -200,45 +200,35 @@ func (c *ChattoCore) invitationAccess(ctx context.Context, actorID string) (bool
 // InvitationNoteMaxLength is the maximum number of Unicode code points in a creation note.
 const InvitationNoteMaxLength = 250
 
-// CreateInvitationCode grants admission for exactly one new account. Members
-// must supply an expiry within seven days. Managers may omit or extend expiry.
-// Either invitation permission allows creation; the note is optional.
-func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
-	manageAll, err := c.invitationAccess(ctx, actorID)
-	if err != nil {
+// CreateInvitationCode grants admission for exactly one new account for seven
+// days. The server sets expiry for all callers. The note is optional.
+func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, note string) (InvitationState, error) {
+	if _, err := c.invitationAccess(ctx, actorID); err != nil {
 		return InvitationState{}, err
 	}
-	if !manageAll && (expiresAt == nil || expiresAt.After(time.Now().Add(7*24*time.Hour))) {
-		return InvitationState{}, ErrInvalidArgument
-	}
-	return c.createInvitationCode(ctx, actorID, expiresAt, note)
+	return c.createInvitationCode(ctx, actorID, note)
 }
 
-// IssueInvitationCode preserves the create-only API's seven-day default.
+// IssueInvitationCode issues a code with the same fixed seven-day lifetime.
 // Callers can retrieve their own codes through the management API.
 // Like admin creation, this is not idempotent and must not be retried automatically.
 func (c *ChattoCore) IssueInvitationCode(ctx context.Context, actorID string) (InvitationState, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
 	}
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-	return c.createInvitationCode(ctx, actorID, &expiresAt, "")
+	return c.createInvitationCode(ctx, actorID, "")
 }
 
 // createInvitationCode is shared by the separately authorized member and admin operations.
-func (c *ChattoCore) createInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
-	if expiresAt != nil && !expiresAt.After(time.Now()) {
-		return InvitationState{}, ErrInvalidArgument
-	}
+func (c *ChattoCore) createInvitationCode(ctx context.Context, actorID string, note string) (InvitationState, error) {
 	if !utf8.ValidString(note) || utf8.RuneCountInString(note) > InvitationNoteMaxLength {
 		return InvitationState{}, ErrInvalidArgument
 	}
 	id := NewInvitationID()
 	payload := &evtv1.InvitationCreatedEvent{InvitationId: id, Note: strings.TrimSpace(note)}
-	if expiresAt != nil {
-		payload.ExpiresAt = timestamppb.New(*expiresAt)
-	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_InvitationCreated{InvitationCreated: payload}})
+	// Use the same server timestamp for creation and expiry so the lifetime is exact.
+	payload.ExpiresAt = timestamppb.New(event.CreatedAt.AsTime().Add(7 * 24 * time.Hour))
 	agg := evtstream.InvitationAggregate(id)
 	seq, err := c.EventPublisher.AppendAt(ctx, agg.SubjectFor(event), event, events.ExpectFilterSeq(agg.AllEventsFilter(), 0))
 	if err != nil {

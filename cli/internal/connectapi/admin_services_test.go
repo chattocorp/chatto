@@ -88,7 +88,7 @@ func TestExternalIdentityAccountCreationReplacesBoundInvitation(t *testing.T) {
 				}
 				original, err = env.core.GetInvitation(env.ctx, env.viewer.Id, id)
 			} else {
-				original, err = env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
+				original, err = env.core.CreateInvitationCode(env.ctx, env.viewer.Id, "")
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -125,7 +125,7 @@ func TestExternalIdentityAccountCreationReplacesBoundInvitation(t *testing.T) {
 			if err != nil || flow.InvitationID != original.ID {
 				t.Fatalf("failed replacement changed the stored flow: %v", err)
 			}
-			replacement, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
+			replacement, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -275,7 +275,7 @@ func TestExternalIdentityAccountCreationAcceptsCodeAndReportsGate(t *testing.T) 
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatal(err)
 	}
-	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
+	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
+	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}

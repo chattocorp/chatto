@@ -21,8 +21,6 @@
   } from '$lib/utils/formatTime';
 
   const PAGE_SIZE = 20;
-  // Codes created in this screen always expire seven days after issuance.
-  const CODE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
   const NOTE_MAX_LENGTH = 250;
   const serverScope = useServerScope();
   const userSettings = $derived(
@@ -99,7 +97,6 @@
   const createInvitationMutation = createMutation(() => ({
     mutationFn: (note: string) =>
       serverScope.connection.getAPI(createInvitationCodeAPI).create({
-        expiresAt: new Date(Date.now() + CODE_LIFETIME_MS).toISOString(),
         note
       }),
     onSuccess: async () => {

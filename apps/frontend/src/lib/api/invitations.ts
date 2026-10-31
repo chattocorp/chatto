@@ -1,4 +1,3 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { AdminInvitationCodeService } from '@chatto/api-types/admin/v1/invitations_connect';
 import {
   InvitationCodeStatus,
@@ -33,9 +32,8 @@ export function createInvitationCodeAPI(config: ConnectAPIConfig) {
         hasMore: response.page?.hasMore ?? false
       };
     },
-    async create(input: { expiresAt: string | null; note?: string }) {
+    async create(input: { note?: string }) {
       const response = await client.createInvitationCode({
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined,
         note: input.note ?? ''
       });
       if (!response.invitationCode) throw new Error('Invitation-code response was incomplete.');

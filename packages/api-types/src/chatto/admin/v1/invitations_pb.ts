@@ -295,19 +295,11 @@ export class GetInvitationCodeResponse extends Message<GetInvitationCodeResponse
 }
 
 /**
- * Creates one code. Every code is single-use, including when expiry is omitted.
+ * Creates one single-use code. The server sets expiry to seven days after creation.
  *
  * @generated from message chatto.admin.v1.CreateInvitationCodeRequest
  */
 export class CreateInvitationCodeRequest extends Message<CreateInvitationCodeRequest> {
-  /**
-   * Required for user.invite-only callers: must be in the future and within seven days.
-   * Effective user.manage-invites permits a later expiry or omission (no expiry).
-   *
-   * @generated from field: google.protobuf.Timestamp expires_at = 1;
-   */
-  expiresAt?: Timestamp;
-
   /**
    * Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
    * Visible to the creator and invitation managers; it does not bind the code to a recipient.
@@ -324,7 +316,6 @@ export class CreateInvitationCodeRequest extends Message<CreateInvitationCodeReq
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.CreateInvitationCodeRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "expires_at", kind: "message", T: Timestamp },
     { no: 2, name: "note", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

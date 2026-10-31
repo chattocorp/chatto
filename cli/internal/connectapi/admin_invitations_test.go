@@ -3,12 +3,10 @@ package connectapi
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestAdminInvitationCodeServiceLifecycleAndAuthorization(t *testing.T) {
@@ -26,14 +24,11 @@ func TestAdminInvitationCodeServiceLifecycleAndAuthorization(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := withCaller(env.ctx, env.viewer)
-	if _, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: &timestamppb.Timestamp{Seconds: 253402300800}})); errorCode(err) != connect.CodeInvalidArgument {
-		t.Fatalf("invalid expiry error = %v", err)
-	}
 	if _, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{Note: strings.Repeat("界", 251)})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("overlong note error = %v", err)
 	}
 	const note = "For the design team"
-	created, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{ExpiresAt: timestamppb.New(time.Now().Add(24 * time.Hour)), Note: "  " + note + "  "}))
+	created, err := service.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{Note: "  " + note + "  "}))
 	if err != nil {
 		t.Fatal(err)
 	}

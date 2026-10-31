@@ -92,8 +92,7 @@ No message description provided.
 
 ### CreateInvitationCode
 
-Creates a code. Members must supply an expiry within seven days;
-effective invitation managers may omit or extend it.
+Creates a code that expires seven days after creation for every caller.
 Not idempotent: retrying creates another code.
 
 ```http
@@ -104,11 +103,10 @@ POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/CreateInvitationCod
 
 #### Input: CreateInvitationCodeRequest
 
-Creates one code. Every code is single-use, including when expiry is omitted.
+Creates one single-use code. The server sets expiry to seven days after creation.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `expires_at` | `google.protobuf.Timestamp` | Required for user.invite-only callers: must be in the future and within seven days. Effective user.manage-invites permits a later expiry or omission (no expiry). |
 | `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible to the creator and invitation managers; it does not bind the code to a recipient. |
 
 
