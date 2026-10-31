@@ -38,10 +38,42 @@ func TestMouseSelectsVisiblePageAndScrollsLogs(t *testing.T) {
 	}
 }
 
+func TestNewSessionRevealedFromLaterPage(t *testing.T) {
+	m := newModel(nil)
+	for id := uint64(1); id <= 20; id++ {
+		m.apply(Event{Kind: Started, Session: id})
+	}
+	m.list.Select(15)
+	m.refreshLogs(true)
+	m.switchMode(true)
+	if m.list.Paginator.Page == 0 {
+		t.Fatal("test requires an old selection on another page")
+	}
+	id := "warm-wren-04c86adcdb4c"
+	m.apply(Event{Kind: Started, Session: 21, HumanID: id})
+	if m.selected().id != 21 || m.list.Paginator.Page != 0 || !strings.Contains(m.View().Content, id) || !strings.Contains(m.logs.GetContent(), "No recorded turns yet") {
+		t.Fatal("new session and inspector did not become visible together")
+	}
+	copied := ""
+	m.copyText = func(text string) error { copied = text; return nil }
+	_, cmd := m.Update(tea.MouseClickMsg{X: m.turnListWidth() + 16, Y: m.list.Height() + 3, Button: tea.MouseLeft})
+	if cmd == nil {
+		t.Fatal("new session title cannot be copied")
+	}
+	m.Update(cmd())
+	if copied != id {
+		t.Fatal("copied an older session ID")
+	}
+	m.apply(Event{Kind: Log, Session: 1, Text: "Older conversation updated"})
+	if m.selected().id != 21 {
+		t.Fatal("ordinary activity changed selection")
+	}
+}
+
 func TestDividerDragClampsAndSurvivesResize(t *testing.T) {
 	m := newModel(nil)
 	initial := m.list.Height()
-	y := initial + 4 // lower pane's top border, below the view tabs
+	y := initial + 3 // lower pane's top border, immediately below the session pane
 	m.Update(tea.MouseClickMsg{X: 10, Y: y, Button: tea.MouseLeft})
 	m.Update(tea.MouseMotionMsg{X: 10, Y: y + 3, Button: tea.MouseLeft})
 	if m.list.Height() != initial+3 {
@@ -93,9 +125,10 @@ func TestSessionSelectionAndLiveLogs(t *testing.T) {
 	m := newModel(nil)
 	m.apply(Event{Kind: Started, Session: 1, Text: "First session"})
 	m.apply(Event{Kind: Started, Session: 2, Text: "Second session"})
-	if m.selected().id != 1 {
-		t.Fatal("new session stole selection")
+	if m.selected().id != 2 {
+		t.Fatal("new session was not selected")
 	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	if m.selected().id != 2 || !strings.Contains(m.logs.GetContent(), "Second session") {
 		t.Fatal("selection did not switch logs")
@@ -133,11 +166,12 @@ func TestClickSessionTitleCopiesSelectedID(t *testing.T) {
 	id := "calm-otter-012345abcdef"
 	m.apply(Event{Kind: Started, Session: 1, HumanID: id})
 	m.apply(Event{Kind: Started, Session: 2, HumanID: "quiet-fox-abcdef012345"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	copied := ""
 	m.copyText = func(text string) error { copied = text; return nil }
 	for _, height := range []int{24, 40} {
 		m.resize(80, height)
-		_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 4, Button: tea.MouseLeft})
+		_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 3, Button: tea.MouseLeft})
 		if cmd == nil || m.dragging {
 			t.Fatal("name click started dragging instead of copying")
 		}
@@ -147,12 +181,12 @@ func TestClickSessionTitleCopiesSelectedID(t *testing.T) {
 		}
 	}
 	m.copyText = func(string) error { return fmt.Errorf("clipboard failure") }
-	_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 4, Button: tea.MouseLeft})
+	_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 3, Button: tea.MouseLeft})
 	m.Update(cmd())
 	if !strings.Contains(m.View().Content, "Clipboard unavailable") {
 		t.Fatal("clipboard failure reported as success")
 	}
-	_, cmd = m.Update(tea.MouseClickMsg{X: 3 + len(id), Y: m.list.Height() + 4, Button: tea.MouseLeft})
+	_, cmd = m.Update(tea.MouseClickMsg{X: 3 + len(id), Y: m.list.Height() + 3, Button: tea.MouseLeft})
 	if cmd != nil || !m.dragging {
 		t.Fatal("separator outside name no longer drags")
 	}
@@ -245,7 +279,7 @@ func TestQuitCancelsAndJoinsWorker(t *testing.T) {
 		<-ctx.Done()
 		close(stopped)
 		return ctx.Err()
-	}, tea.WithInput(strings.NewReader("q")), tea.WithOutput(io.Discard), tea.WithoutRenderer(), tea.WithoutSignalHandler())
+	}, tea.WithInput(strings.NewReader("Q")), tea.WithOutput(io.Discard), tea.WithoutRenderer(), tea.WithoutSignalHandler())
 	if err != nil {
 		t.Fatal(err)
 	}

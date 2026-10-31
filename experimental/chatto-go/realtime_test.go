@@ -81,12 +81,19 @@ func TestObserveUnaddressedContextAndInvalidations(t *testing.T) {
 		{Id: "delete", Event: &wire.Event_MessageRetracted{MessageRetracted: &wire.MessageChanged{RoomId: "room", MessageEventId: "ping"}}},
 	} {
 		update, ok := messageEvent(event, "bot")
-		if !ok || update.InvalidatedRoom != "room" || update.Addressed {
+		if !ok || update.InvalidatedRoom != "room" || update.InvalidatedMessage != "ping" || update.Addressed {
 			t.Fatal("history invalidation missing")
+		}
+		want := MessageEdited
+		if event.GetMessageRetracted() != nil {
+			want = MessageRetracted
+		}
+		if update.InvalidationReason != want || update.ID != event.Id {
+			t.Fatal("invalidation cause or source ID lost")
 		}
 	}
 	update, ok = messageEvent(&wire.Event{Id: "permissions", Event: &wire.Event_ViewerPermissionsChanged{ViewerPermissionsChanged: &wire.Empty{}}}, "bot")
-	if !ok || !update.InvalidateAll {
+	if !ok || !update.InvalidateAll || update.InvalidationReason != ViewerPermissionsChanged {
 		t.Fatal("permission change did not invalidate context")
 	}
 }

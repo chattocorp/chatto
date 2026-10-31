@@ -26,6 +26,11 @@ Pass the profile's ID to `Pings`. Its callback
 receives DMs and verified mentions. `Message.ThreadRootID()` resolves the
 conversation root. Use `Thread`, `Reply`, and `React` for messaging operations.
 
+Use `RefreshTypingIndicator(ctx, roomID, threadRootID)` for live typing activity.
+An empty thread root targets the room timeline. Refresh at most once every two
+seconds and stop when work ends. Receivers clear typing when the account posts
+in that location or after six seconds without a refresh. There is no stop call.
+
 Use `ObserveMessages` when you also need unaddressed context and invalidations.
 Its `MessageEvent.Addressed` flag distinguishes DMs/verified mentions from other
 visible messages. Self-posts and echoes are omitted. `InvalidatedRoom` signals
@@ -33,6 +38,13 @@ edits, retractions, room deletion, or the viewer leaving a room. `InvalidateAll`
 signals viewer-permission changes or account deletion. Discard or reconcile
 retained context before further use. Keep callbacks short and queue model work
 outside the realtime reader.
+
+For edits and retractions, `InvalidatedMessage` supplies the changed message ID,
+and `InvalidationReason` identifies the event type. Consumers can limit resets to
+conversations that contain that message in retained or pending context. If the
+target is missing or context membership is not yet known, reconcile conservatively.
+Existing consumers that use only `InvalidatedRoom` remain safe but invalidate
+more context than necessary. No server upgrade is required.
 
 `Pings` blocks until cancellation, a connection failure, or a callback error.
 Callbacks run sequentially. Startup is live-only; there is no automatic

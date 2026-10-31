@@ -28,6 +28,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Report disk use before setup
+      if: runner.os == 'Linux'
+      shell: bash
+      run: bash "$GITHUB_WORKSPACE/tools/ci-disk-usage.sh"
+
     - name: Cache Go modules
       if: inputs.install-cli-deps == 'true'
       uses: actions/cache@v5
@@ -106,6 +111,11 @@ runs:
           "${elevate[@]}" timeout 600s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --no-install-recommends -y ffmpeg
         fi
 
+    - name: Report disk use after cache restoration
+      if: runner.os == 'Linux'
+      shell: bash
+      run: bash "$GITHUB_WORKSPACE/tools/ci-disk-usage.sh"
+
     - name: Set up CLI
       if: inputs.install-cli-deps == 'true'
       shell: bash
@@ -131,3 +141,8 @@ runs:
       if: inputs.install-frontend-deps == 'true' && inputs.turbo-remote-cache == 'true'
       shell: bash
       run: echo "TURBO_CACHE=local:rw,remote:rw" >> "$GITHUB_ENV"
+
+    - name: Report disk use after setup
+      if: always() && runner.os == 'Linux'
+      shell: bash
+      run: bash "$GITHUB_WORKSPACE/tools/ci-disk-usage.sh"

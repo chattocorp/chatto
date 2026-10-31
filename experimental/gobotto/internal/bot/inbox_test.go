@@ -118,7 +118,7 @@ func TestRestartDuringDebounceProcessesSavedBatch(t *testing.T) {
 		f = newFake()
 		go func() { done <- Run(ctx, f, chatto.Profile{ID: "bot"}, factory, func(tui.Event) {}, Options{Store: s}) }()
 		<-f.ready
-		time.Sleep(2 * time.Second)
+		time.Sleep(batchWindow)
 		synctest.Wait()
 		select {
 		case target := <-f.posts:
@@ -155,7 +155,7 @@ func TestReplayWaitsForCaughtUpBeforeStartingTurns(t *testing.T) {
 			if err := handle(ctx, input("first", "one", true)); err != nil {
 				return err
 			}
-			time.Sleep(3 * time.Second)
+			time.Sleep(batchWindow + time.Second)
 			if len(f.posts) > 0 {
 				t.Error("model ran before replay completed")
 			}
@@ -174,7 +174,7 @@ func TestReplayWaitsForCaughtUpBeforeStartingTurns(t *testing.T) {
 			}, func(tui.Event) {})
 		}()
 		<-f.ready
-		time.Sleep(2 * time.Second)
+		time.Sleep(batchWindow)
 		synctest.Wait()
 		select {
 		case target := <-f.posts:

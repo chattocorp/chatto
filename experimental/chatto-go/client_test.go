@@ -18,6 +18,11 @@ func TestConnectRequests(t *testing.T) {
 			t.Fatal(err)
 		}
 		switch r.URL.Path {
+		case "/api/connect/chatto.api.v1.RoomService/RefreshTypingIndicator":
+			if input["roomId"] != "room" || input["threadRootEventId"] != "root" {
+				t.Error("incorrect typing destination")
+			}
+			fmtJSON(w, `{}`)
 		case "/api/connect/chatto.api.v1.ViewerService/GetViewer":
 			fmtJSON(w, `{"user":{"profile":{"id":"bot","login":"test-bot","displayName":"Test Bot"}}}`)
 		case "/api/connect/chatto.api.v1.ThreadService/GetThreadEvents":
@@ -41,6 +46,9 @@ func TestConnectRequests(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
+	if err := c.RefreshTypingIndicator(ctx, "room", "root"); err != nil {
+		t.Fatal(err)
+	}
 	profile, err := c.Viewer(ctx)
 	if err != nil || profile.ID != "bot" || profile.Login != "test-bot" || profile.DisplayName != "Test Bot" {
 		t.Fatal("authenticated profile was not decoded")

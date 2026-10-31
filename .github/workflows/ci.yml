@@ -926,6 +926,10 @@ jobs:
           path: apps/frontend/e2e-results.json
           retention-days: 14
 
+      - name: Report disk use after E2E
+        if: always()
+        run: bash "$GITHUB_WORKSPACE/tools/ci-disk-usage.sh"
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
@@ -992,6 +996,10 @@ jobs:
       - name: Run media E2E tests
         run: cd apps/frontend && pnpm exec playwright test --grep @ffmpeg
 
+      - name: Report disk use after media E2E
+        if: always()
+        run: bash "$GITHUB_WORKSPACE/tools/ci-disk-usage.sh"
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
@@ -1042,6 +1050,10 @@ jobs:
       # candidate on the same machine with mise compare-e2e-performance.
       - name: Run large-server E2E performance test
         run: mise test-e2e-performance
+
+      - name: Report disk use after performance E2E
+        if: always()
+        run: bash "$GITHUB_WORKSPACE/tools/ci-disk-usage.sh"
 
       - name: Summarize performance results
         if: ${{ !cancelled() }}

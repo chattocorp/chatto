@@ -30,9 +30,19 @@ type Store struct {
 }
 
 type totals struct {
-	Input, Cached, Output         int64
-	Cost                          float64
-	Known, CostKnown, CostMissing bool
+	Input, Cached, Output            int64
+	Cost                             float64
+	Known, CostKnown, CostMissing    bool
+	Reasoning                        int64
+	ReasoningKnown, ReasoningMissing bool
+}
+
+// addReasoning preserves partial totals, including legacy snapshots without
+// reasoning telemetry. Call before marking overall usage Known for this request.
+func (t *totals) addReasoning(u agent.Usage) {
+	t.ReasoningMissing = t.ReasoningMissing || !u.ReasoningKnown || (t.Known && !t.ReasoningKnown)
+	t.ReasoningKnown = t.ReasoningKnown || u.ReasoningKnown
+	t.Reasoning += u.Reasoning
 }
 
 type savedConversation struct {
