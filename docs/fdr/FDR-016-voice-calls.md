@@ -18,6 +18,14 @@ Rooms support real-time voice conversations with optional camera video and scree
   owns these controls; leaving it clears them. This integration does not
   guarantee that a mobile browser keeps a background call running.
 
+- Calls request a browser audio mode for simultaneous playback and recording
+  where supported, including while muted or listen-only. This helps supported
+  browsers continue call audio in the background without requesting microphone
+  access for listen-only members. Leaving restores the previous audio mode
+  unless another feature has selected a different mode. The browser can still
+  interrupt audio or terminate the page. Closing the page retains explicit
+  call departure behavior.
+
 - Members can see an ongoing call when they join or rejoin its room, including
   when the room becomes universal. They do not need to reconnect or wait for
   the call to restart. A new account can also see an existing call in a
