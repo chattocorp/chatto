@@ -488,6 +488,51 @@ describe('MessageComposer', () => {
     }
   );
 
+  it('keeps the highlighted emoji when Delete changes only text after the cursor', async () => {
+    userPreferences.composerEditor = 'markdown';
+    const { container } = renderMessageComposer({ roomId: 'emoji-highlight' });
+    const editor = await findEditor(container);
+    await userEvent.click(editor);
+    await userEvent.keyboard(':he suffix');
+    await userEvent.keyboard('{Home}{ArrowRight}{ArrowRight}{ArrowRight}{Delete}');
+    expect(editor.textContent).toBe(':hesuffix');
+    const selected = () => container.querySelector('.menu-item-active')?.textContent;
+    await vi.waitFor(() => expect(selected()).toBeTruthy());
+    const first = selected();
+    await userEvent.keyboard('{ArrowDown}');
+    const highlighted = selected();
+    expect(highlighted).not.toBe(first);
+    await userEvent.keyboard('{Delete}');
+    expect(editor.textContent).toBe(':heuffix');
+    expect(selected()).toBe(highlighted);
+  });
+
+  it.each([false, true])(
+    'preserves emoji tone selection across Delete after the cursor with Escape=%s',
+    async (escape) => {
+      userPreferences.composerEditor = 'markdown';
+      const { container } = renderMessageComposer({ roomId: 'emoji-tone-highlight' });
+      const editor = await findEditor(container);
+      await userEvent.click(editor);
+      await userEvent.keyboard(':thum suffix');
+      await userEvent.keyboard(
+        '{Home}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{Delete}'
+      );
+      expect(editor.textContent).toBe(':thumsuffix');
+      const selected = () => container.querySelector('.menu-item-active')?.textContent;
+      await vi.waitFor(() => expect(selected()).toContain(':thumbsup:'));
+      await userEvent.keyboard('{ArrowDown}{Enter}');
+      expect(selected()).toContain('👎');
+      await userEvent.keyboard(escape ? '{Escape}' : '{ArrowDown}');
+      const highlighted = selected();
+      expect(highlighted).toContain(escape ? ':thumbsdown:' : '👎🏻');
+      await userEvent.keyboard('{Delete}');
+      expect(editor.textContent).toBe(':thumuffix');
+      expect(selected()).toBe(highlighted);
+      expect(createMessageConnectMock).not.toHaveBeenCalled();
+    }
+  );
+
   describe.each(['visual', 'markdown'] as const)('%s emoji picker', (kind) => {
     it.each([false, true])(
       'inserts at the selection and restores focus with touch=%s',

@@ -1,5 +1,5 @@
 import type { RoomMember } from '$lib/state/room';
-import { searchEmojis } from '$lib/emoji';
+import { searchEmojis, type EmojiResult } from '$lib/emoji';
 import { emojiShortcodeQuery } from '@chatto/client/messaging/emojiShortcodes';
 import type { ComposerEditorApi } from './editorTypes';
 import { rankMentionCandidates } from './mentionRanking';
@@ -25,7 +25,8 @@ type AutocompleteQuery = {
 
 export class AutocompleteState {
   tabCompletion = $state<TabCompletionState | null>(null);
-  emoji = $state<AutocompleteQuery | null>(null);
+  /** The same matches control popup visibility and populate its list. */
+  emoji = $state.raw<(AutocompleteQuery & { results: EmojiResult[] }) | null>(null);
   emojiRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
   mention = $state<AutocompleteQuery | null>(null);
   mentionRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
@@ -170,10 +171,17 @@ export class AutocompleteState {
   private updateEmoji(): void {
     if (this.options.emojis === false) return;
     const partial = this.getEmojiPartialAtCursor();
-    if (partial && searchEmojis(partial.query, 1).length > 0) {
+    // Keep the result identity so edits outside the query preserve keyboard selection.
+    const results = partial
+      ? partial.query === this.emoji?.query
+        ? this.emoji.results
+        : searchEmojis(partial.query, 10)
+      : [];
+    if (partial && results.length > 0) {
       this.emoji = {
         query: partial.query,
-        triggerStart: partial.start
+        triggerStart: partial.start,
+        results
       };
       this.mention = null;
     } else {
