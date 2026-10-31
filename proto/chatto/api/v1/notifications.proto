@@ -157,6 +157,13 @@ message NotificationSignal {
   }
 }
 
+// Plain-text content for a system notification, shared with Web Push.
+// Text is currently in English. Message previews can be absent when unavailable.
+message NotificationContent {
+  string title = 1;
+  string body = 2;
+}
+
 // One exact Notifications 2.0 source occurrence.
 message NotificationOccurrence {
   // Stable occurrence ID.
@@ -174,6 +181,9 @@ message NotificationOccurrence {
   google.protobuf.Timestamp expires_at = 6;
   // Source-time visual importance of this occurrence.
   NotificationAttentionLevel attention_level = 7;
+  // Current display content, including a bounded message preview when available.
+  // Absent on older servers or for unsupported signals. Do not persist this text.
+  NotificationContent content = 8;
 }
 
 // Request for one page of notification occurrences.

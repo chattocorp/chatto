@@ -46,6 +46,8 @@ export type NotificationOccurrenceItem = {
   /** Invitation identity for the invitation-only room access boundary. */
   invitationId?: string;
   expiresAt?: string;
+  /** Server-formatted native alert text. Absent on older servers; memory only. */
+  content?: { title: string; body: string };
 };
 
 export type NotificationGroupItem = {
@@ -405,6 +407,7 @@ export function notificationOccurrence(
     attentionLevel: notificationAttentionLevel(item.attentionLevel),
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
+    content: item.content ? { title: item.content.title, body: item.content.body } : undefined,
     invitationId: mapped.invitationId,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };

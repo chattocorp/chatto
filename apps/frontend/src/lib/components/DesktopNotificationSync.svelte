@@ -79,11 +79,16 @@
 
   function show(row: NotificationOccurrenceItem) {
     const id = crypto.randomUUID();
-    // Retain routing fields across pagination, without copying actor or room display text.
-    const target = { ...row, actor: null, room: row.room ? { id: row.room.id, name: '' } : null };
+    // Retain routing across pagination without keeping display text or message previews.
+    const target = {
+      ...row,
+      actor: null,
+      content: undefined,
+      room: row.room ? { id: row.room.id, name: '' } : null
+    };
     void showDesktopNotification(
       id,
-      m('settings.notifications.title'),
+      row.content ?? { title: 'Chatto', body: m('settings.notifications.title') },
       () => {
         void open(target).catch(() => console.error('Could not open the notification.'));
       },

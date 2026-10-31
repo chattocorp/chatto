@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -22,8 +22,11 @@ targets, unread counts, read state, or deletion semantics.
 
 - Desktop users can enable native OS alerts with **Push notifications on this
   device**. Consent starts off and applies to all signed-in servers on that
-  device. A local test checks OS delivery. Alerts contain generic text without
-  message previews. They use the existing live updates and notification polls;
+  device. A local test checks OS delivery. Alerts use the same title and message
+  preview as Web Push, including the actor, activity, and room where applicable.
+  This text is currently in English. Older servers keep generic alert text.
+  The local OS receives this content and can show it on the lock screen,
+  subject to OS notification settings. Alerts use existing live updates and notification polls;
   inactive servers do not gain persistent connections or additional polls.
   New Important occurrences that need attention can alert after the initial
   notification list loads. Older pages, repeated reads, Ambient occurrences,
@@ -34,7 +37,7 @@ targets, unread counts, read state, or deletion semantics.
   occurrence missing from a partial page remains unknown. Its alert and click
   target stay available until handling or expiry is confirmed, or until the
   device's limit of 64 retained alerts removes the oldest alert. Retained targets
-  contain no actor or room display text.
+  contain no actor or room display text or message previews.
 - On macOS, closing the desktop window keeps Chatto running. The Dock reopens
   the window. **Command-Q** quits the app and stops new alerts. On Windows and
   Linux, closing the main window quits the app. Chatto adds no menu bar or

@@ -130,7 +130,7 @@ describe('DesktopNotificationSync', () => {
     f.rows.set([row('new', 101), row('old', 100)]);
     await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
     expect(mocks.sound).toHaveBeenCalledOnce();
-    expect(mocks.show.mock.calls[0]).not.toContain('private room');
+    expect(mocks.show.mock.calls[0][0]).toMatchObject({ title: 'Chatto', body: 'Notifications' });
     f.rows.set([row('new', 101, { unread: false })]);
     await vi.waitFor(() =>
       expect(mocks.clear).toHaveBeenCalledWith([mocks.show.mock.calls[0][0].id])
@@ -138,6 +138,25 @@ describe('DesktopNotificationSync', () => {
     expect(mocks.show).toHaveBeenCalledOnce();
     await view.unmount();
     expect(f.resetListeners.size).toBe(0);
+  });
+
+  it('delivers the server Web Push title and message preview unchanged', async () => {
+    const f = fixture();
+    render(DesktopNotificationSync, { store: f.store });
+    await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
+    const content = {
+      title: '@Alice mentioned you in #general',
+      body: 'Could you review the release notes?'
+    };
+    f.rows.set([row('new', 101, { content })]);
+    await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
+    expect(mocks.show.mock.calls[0][0]).toMatchObject(content);
+    // Repeated projections must not repeat the alert, even if its content changes.
+    f.rows.set([row('new', 101, { content: { ...content, body: 'Edited message' } })]);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(mocks.show).toHaveBeenCalledOnce();
+    for (const reset of f.resetListeners) reset({ privacy: true });
+    expect(mocks.clear).toHaveBeenCalledWith([mocks.show.mock.calls[0][0].id]);
   });
 
   it.each(['disabled', 'dnd', 'viewed', 'ambient'] as const)(

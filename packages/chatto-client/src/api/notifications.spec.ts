@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createNotificationAPI,
+  notificationOccurrence,
   groupNotificationOccurrences,
   NotificationAttentionLevel,
   NotificationDeliveryMode,
   NotificationSignalKind,
   type NotificationOccurrenceItem
 } from './notifications.js';
+import { NotificationOccurrence } from '@chatto/api-types/api/v1/notifications_pb';
+
+it('preserves server alert content and supports older servers without it', () => {
+  const content = { title: '@Alice sent you a new DM', body: 'Hello there' };
+  expect(notificationOccurrence(new NotificationOccurrence({ content })).content).toEqual(content);
+  expect(notificationOccurrence(new NotificationOccurrence()).content).toBeUndefined();
+});
 
 const batchDeleteNotificationOccurrences = vi.hoisted(() => vi.fn());
 const getNotificationPolicy = vi.hoisted(() => vi.fn());

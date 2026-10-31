@@ -3,7 +3,10 @@ package connectapi
 import (
 	"context"
 	"errors"
+	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/notificationcontent"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/push"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/parallel"
@@ -52,7 +55,15 @@ func (a *notificationAssembler) occurrence(ctx context.Context, occurrence *noti
 	if err != nil {
 		return nil, err
 	}
-	return a.occurrenceWithPresentation(ctx, occurrence, presence)
+	result, err := a.occurrenceWithPresentation(ctx, occurrence, presence)
+	if err != nil || result == nil {
+		return result, err
+	}
+	visible, err := a.api.core.NotificationOccurrences().VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*notificationv1.NotificationOccurrence{occurrence})
+	if err != nil || len(visible) == 0 {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (a *notificationAssembler) messageReference(ctx context.Context, message *notificationv1.NotificationMessageReference) (*apiv1.NotificationMessageReference, error) {
@@ -162,6 +173,17 @@ func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, 
 		return nil, err
 	}
 	result.Actor = actor
+	actorName := actor.GetDisplayName()
+	if actorName == "" {
+		actorName = actor.GetLogin()
+	}
+	if actorName == "" {
+		actorName = "Someone"
+	}
+	payloadContext := notificationcontent.PayloadContext(ctx, a.api.core, occurrence, log.Default())
+	// Only display text crosses the resource API. Routing remains in the typed signal.
+	payload := push.BuildPayloadFromOccurrence(occurrence, actorName, "", payloadContext)
+	result.Content = &apiv1.NotificationContent{Title: payload.Title, Body: payload.Body}
 	return result, nil
 }
 
@@ -189,7 +211,27 @@ func (a *notificationAssembler) occurrences(ctx context.Context, occurrences []*
 	if err != nil {
 		return nil, err
 	}
-	return parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, occurrences, func(ctx context.Context, _ int, occurrence *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+	hydrated, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, occurrences, func(ctx context.Context, _ int, occurrence *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
 		return a.occurrenceWithPresentation(ctx, occurrence, presences[occurrence.GetActorId()])
 	})
+	if err != nil || len(occurrences) == 0 {
+		return hydrated, err
+	}
+	// Loading previews can race with deletion or lost access. Recheck the complete
+	// batch after hydration, using the same visibility gate as notification reads.
+	visible, err := a.api.core.NotificationOccurrences().VisibleOccurrences(ctx, occurrences[0].GetRecipientId(), occurrences)
+	if err != nil {
+		return nil, err
+	}
+	visibleIDs := make(map[string]bool, len(visible))
+	for _, occurrence := range visible {
+		visibleIDs[occurrence.GetId()] = true
+	}
+	result := make([]*apiv1.NotificationOccurrence, 0, len(hydrated))
+	for _, occurrence := range hydrated {
+		if visibleIDs[occurrence.GetId()] {
+			result = append(result, occurrence)
+		}
+	}
+	return result, nil
 }

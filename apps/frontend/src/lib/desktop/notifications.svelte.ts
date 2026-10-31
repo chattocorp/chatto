@@ -37,10 +37,10 @@ export const desktopNotifications = {
   }
 };
 
-/** Show only generic text. The target remains in this renderer's authenticated session. */
+/** Show plain text. Routing stays in this renderer's authenticated session. */
 export async function showDesktopNotification(
   id: string,
-  body: string,
+  content: { title: string; body: string },
   onClick: () => void,
   context?: DesktopNotificationContext
 ): Promise<void> {
@@ -50,11 +50,21 @@ export async function showDesktopNotification(
   if (callbacks.length >= 64) clearDesktopNotifications([callbacks[0].id]);
   callbacks.push({ id, callback: onClick, context });
   try {
-    await bridge.show({ id, title: 'Chatto', body });
+    await bridge.show({
+      id,
+      title: truncateNotificationText(content.title, 256),
+      body: truncateNotificationText(content.body, 1024)
+    });
   } catch (error) {
     removeCallback(id);
     throw error;
   }
+}
+
+/** Match the native bridge's UTF-16 limits without splitting a surrogate pair. */
+function truncateNotificationText(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  return text.slice(0, limit - 1).replace(/[\uD800-\uDBFF]$/, '') + '…';
 }
 
 /** Clear all handles owned by one account lifecycle, including alerts no longer on the loaded page. */
