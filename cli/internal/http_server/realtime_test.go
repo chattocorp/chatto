@@ -1133,6 +1133,42 @@ func TestRealtimeAccountWatchRejectsCredentialAfterReactivation(t *testing.T) {
 	}
 }
 
+func TestRealtimeEventStreamClosureDuringCredentialRevocation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var frames []*realtimev1.RealtimeServerFrame
+	writeFrame := func(frame *realtimev1.RealtimeServerFrame) error {
+		frames = append(frames, frame)
+		return nil
+	}
+	terminateRealtimeForCredentialRevocation(func() {
+		cancel()
+		// Force the event loop to observe stream closure before the watcher
+		// writes its terminal frame. This ordering caused the CI failure.
+		closeRealtimeForEventStream(ctx, writeFrame)
+	}, writeFrame, func() {})
+	if len(frames) != 1 {
+		t.Fatalf("got %d close frames, want only the credential close", len(frames))
+	}
+	if close := frames[0].GetClose(); close.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || close.GetReconnect() {
+		t.Fatalf("close = %v, want terminal authentication_required", close)
+	}
+}
+
+func TestRealtimeUnexpectedEventStreamClosure(t *testing.T) {
+	var frames []*realtimev1.RealtimeServerFrame
+	closeRealtimeForEventStream(context.Background(), func(frame *realtimev1.RealtimeServerFrame) error {
+		frames = append(frames, frame)
+		return nil
+	})
+	if len(frames) != 1 {
+		t.Fatalf("got %d close frames, want one retryable close", len(frames))
+	}
+	if close := frames[0].GetClose(); close.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE || !close.GetReconnect() || close.GetRetryAfter().AsDuration() != time.Second {
+		t.Fatalf("close = %v, want temporarily_unavailable with retry", close)
+	}
+}
+
 func TestRealtimeWebSocketClosesForAccountDeactivation(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-deactivated", "RT Deactivated", "password123")

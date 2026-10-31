@@ -514,9 +514,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			return
 		case event, ok := <-events:
 			if !ok {
-				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-					Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "event stream closed", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
-				}})
+				closeRealtimeForEventStream(ctx, writeFrame)
 				return
 			}
 			if event.DeliverySeq() > 0 && event.DeliverySeq() <= boundarySequence {
@@ -586,6 +584,19 @@ func realtimeReplayClose(err error) (code realtimev1.RealtimeCloseCode, message 
 
 func shouldCompressRealtimeFrame(compressionEnabled bool, payloadBytes int) bool {
 	return compressionEnabled && payloadBytes >= realtimeCompressionMinBytes
+}
+
+// closeRealtimeForEventStream reports an unexpected stream failure. Credential
+// watchers cancel the context before writing their specific close frame. That
+// cancellation also closes the event stream, and select can choose either ready
+// channel. Leave the close frame to the watcher when cancellation caused it.
+func closeRealtimeForEventStream(ctx context.Context, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
+	if ctx.Err() != nil {
+		return
+	}
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "event stream closed", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
+	}})
 }
 
 func realtimeCredentialDeadline(credential authctx.RuntimeCredential, cookieTTL time.Duration) (time.Time, bool) {
