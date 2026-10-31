@@ -28,6 +28,54 @@ import { testSnippet } from '$lib/test-utils';
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Mermaid previews', () => {
+  it.each([
+    [1200, 600],
+    [480, 960],
+    [640, 640],
+    [10000, 100],
+    [100, 10000],
+    [80, 40],
+    [10, 10]
+  ])(
+    'fits a %s × %s visual frame to its artwork at wide and narrow widths',
+    async (width, height) => {
+      const { container } = render(MarkdownHtml, {
+        html: await renderMarkdown(
+          `\u0060\u0060\u0060svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"/>\n\u0060\u0060\u0060`
+        )
+      });
+      container.classList.add('prose');
+      const frame = container.querySelector<HTMLElement>('[data-artifact]')!;
+      await expect
+        .poll(() => frame.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBe(width);
+      const stage = frame.querySelector<HTMLElement>('.rendered-image')!;
+      for (const availableWidth of [900, 240]) {
+        container.style.width = `${availableWidth}px`;
+        const expectedWidth = Math.max(
+          44,
+          Math.min(width, availableWidth - 10, (Math.min(480, innerHeight * 0.6) * width) / height)
+        );
+        await expect
+          .poll(() => Math.abs(stage.getBoundingClientRect().width - expectedWidth))
+          .toBeLessThan(1);
+        const bounds = stage.getBoundingClientRect();
+        const expectedHeight = Math.max(
+          44,
+          Math.min(480, innerHeight * 0.6, (bounds.width * height) / width)
+        );
+        expect(Math.abs(bounds.height - expectedHeight)).toBeLessThan(2);
+        expect(bounds.width).toBeGreaterThanOrEqual(44);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+        const imageBounds = frame.querySelector('img')!.getBoundingClientRect();
+        expect(imageBounds.width).toBeLessThanOrEqual(width);
+        expect(imageBounds.height).toBeLessThanOrEqual(height);
+        expect(Math.abs(frame.getBoundingClientRect().width - bounds.width - 10)).toBeLessThan(1);
+        expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth + 1);
+      }
+    }
+  );
+
   it.each(['svg', 'mermaid', 'ansi'])(
     'distinguishes code and visual presentation for %s',
     async (language) => {

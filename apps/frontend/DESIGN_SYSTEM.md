@@ -661,6 +661,9 @@ the thin header holds the language, copy action, and Source/Render controls.
 Source and rendered panels use `preview-content`. Visual fences show only their
 output, with no header, tabs, copy action or overlay. SVG and Mermaid show fitted
 images that open the attachment viewer when clicked or activated with the keyboard.
+Their frames follow the image dimensions, bounded by the message width and a
+height of 30 rem or 60 vh, whichever is smaller. Do not enlarge small artwork.
+Keep a 44 px minimum target for tiny or extreme ratios; fit the full image inside it.
 Pan and zoom belong to that viewer.
 Zoom controls and the text Fit action sit in that viewer's footer. ANSI art
 keeps its fixed terminal colors on the inset canvas. Composer link attachments

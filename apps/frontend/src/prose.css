@@ -172,6 +172,9 @@
   /* Visual fences show only their output. A render failure reveals the source
      and its controls so the message remains readable and copyable. */
   & [data-presentation='visual']:has([data-code-panel='render']:not([hidden])) {
+    &:has(.rendered-image) {
+      @apply w-fit max-w-full;
+    }
     & .markdown-code-header {
       display: none;
     }
