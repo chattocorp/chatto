@@ -79,6 +79,25 @@ func TestTurnInspectionCapturesToolsUsageAndDelivery(t *testing.T) {
 	if c.humanID != loaded[0].humanID {
 		t.Fatal("inspection changed identity")
 	}
+	// Reproduce a legacy snapshot whose latest reply is absent only from the
+	// inspector, with a complete assistant message and successful host receipt.
+	c.turns = 1
+	c.records[0].Response = ""
+	if err := s.save(c, false); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = s.load()
+	if err != nil || loaded[0].records[0].Response != "reply" {
+		t.Fatal("confirmed transcript reply not recovered", err)
+	}
+	c.records[0].State = "uncertain"
+	if err := s.save(c, false); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = s.load()
+	if err != nil || loaded[0].records[0].Response != "" {
+		t.Fatal("recovery changed an uncertain turn", err)
+	}
 }
 
 type uncertainDelivery struct{ *fakeClient }

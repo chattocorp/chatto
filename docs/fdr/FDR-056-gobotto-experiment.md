@@ -83,6 +83,11 @@ ChattoBot and does not replace the supported TypeScript client.
   the Go SDK. Gobotto matches them against conversation roots and retained, queued,
   or active message IDs. Unrelated changes in the same room do not cancel model
   requests. Missing targets and context reads in progress remain conservative.
+  For an edit with a known message fingerprint, Gobotto re-reads the thread before
+  cancelling. If the model-visible fields are unchanged, the turn continues;
+  link-preview changes alone do not invalidate it. Delivery waits for verification.
+  Failed, missing, or changed reads retain cancellation, with a five-second read
+  timeout. Retractions and access changes still invalidate without this check.
   Cancellation causes appear in the turn inspector and session log.
   The next message in that thread loads a fresh authorized snapshot. Retention and
   input buffers are bounded; automatic summarization remains open work.
@@ -163,6 +168,17 @@ ChattoBot and does not replace the supported TypeScript client.
    request. History invalidations and eviction deliberately discard cached state.
 
 ## Permissions and Configuration
+
+Agent turns allow eight executed tools and twelve model work steps, with one
+additional text-only completion reserved for a progress report. Batched calls are
+rejected without execution and do not consume the tool allowance. Rejections still
+consume model steps. Wrap-up disables tool choice; attempted calls at that point
+do not execute and produce a fixed partial-progress reply. Completed actions are
+not rolled back or replayed. The existing three-minute deadline still applies.
+
+The latest delivered turn's missing inspector response can be recovered on reload
+only from a terminal assistant text reply followed by the successful host delivery
+receipt. Uncertain, interrupted, and older turns are not inferred from that reply.
 
 Conversation completions have an optional output budget and optional
 OpenRouter reasoning controls. Omitted controls preserve provider defaults.

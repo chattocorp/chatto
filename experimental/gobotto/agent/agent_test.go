@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -86,12 +87,12 @@ func TestLoopLimitAndCancellation(t *testing.T) {
 		return decode(t, `{"role":"assistant","tool_calls":[{"id":"a","type":"function","function":{"name":"read_thread","arguments":"{}"}}]}`), nil
 	}
 	read := func(context.Context) (string, error) { return "{}", nil }
-	if _, err := Run(context.Background(), complete, read, "Hi"); err == nil || calls != 8 {
+	if outcome, err := Run(context.Background(), complete, read, "Hi"); err != nil || calls != 9 || !strings.Contains(outcome.Body, "work limit") {
 		t.Fatalf("calls=%d err=%v", calls, err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := Run(ctx, complete, read, "Hi"); !errors.Is(err, context.Canceled) || calls != 8 {
+	if _, err := Run(ctx, complete, read, "Hi"); !errors.Is(err, context.Canceled) || calls != 9 {
 		t.Fatalf("calls=%d err=%v", calls, err)
 	}
 }

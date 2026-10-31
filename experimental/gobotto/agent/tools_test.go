@@ -56,3 +56,75 @@ func TestCapabilityRejectionRemainsActionable(t *testing.T) {
 		t.Fatalf("incorrect rejection state: %v %v", states, err)
 	}
 }
+
+func TestBatchedRejectionPreservesBudgetAndAllowsWrapUp(t *testing.T) {
+	executed, requests := 0, 0
+	ctx := WithTools(context.Background(), []Tool{{Name: "work", Execute: func(context.Context, json.RawMessage) (string, error) {
+		executed++
+		return `{"status":"complete"}`, nil
+	}}})
+	s := NewSession("context")
+	outcome, err := s.Turn(ctx, func(ctx context.Context, messages []Message) (Message, error) {
+		requests++
+		if requests == 1 {
+			return decode(t, `{"role":"assistant","tool_calls":[{"id":"a","type":"function","function":{"name":"work","arguments":"{}"}},{"id":"b","type":"function","function":{"name":"work","arguments":"{}"}}]}`), nil
+		}
+		if requests == 2 {
+			if executed != 0 {
+				t.Fatal("batched calls executed")
+			}
+			for _, m := range messages[len(messages)-2:] {
+				var feedback string
+				_ = json.Unmarshal(m["content"], &feedback)
+				if !strings.Contains(feedback, "None of these calls ran") {
+					t.Fatal("misleading rejection feedback")
+				}
+			}
+		}
+		if final, _ := ctx.Value(textOnlyKey{}).(bool); final {
+			if executed != maxTurnTools {
+				t.Fatal("rejected batch consumed execution budget")
+			}
+			return textMessage("assistant", "Eight actions completed; verification is still pending."), nil
+		}
+		return decode(t, `{"role":"assistant","tool_calls":[{"id":"work","type":"function","function":{"name":"work","arguments":"{}"}}]}`), nil
+	}, nil, "work")
+	if err != nil || outcome.Body != "Eight actions completed; verification is still pending." || requests != 10 || executed != 8 {
+		t.Fatalf("bad wrap-up: %v, requests=%d, executed=%d", err, requests, executed)
+	}
+}
+
+func TestRepeatedRejectionsHaveFiniteWrapUp(t *testing.T) {
+	requests := 0
+	outcome, err := NewSession("context").Turn(context.Background(), func(ctx context.Context, _ []Message) (Message, error) {
+		requests++
+		if final, _ := ctx.Value(textOnlyKey{}).(bool); final {
+			return textMessage("assistant", "I could not perform the requested operation."), nil
+		}
+		return decode(t, `{"role":"assistant","tool_calls":[{"id":"unknown","type":"function","function":{"name":"missing_tool","arguments":"{}"}}]}`), nil
+	}, nil, "work")
+	if err != nil || outcome.Body == "" || requests != maxTurnSteps+1 {
+		t.Fatal("rejection loop did not terminate with a report", err, requests)
+	}
+}
+
+func TestDeliveredReplyRecoveryRequiresTerminalReceipt(t *testing.T) {
+	s := NewSession("context")
+	s.messages = append(s.messages, textMessage("assistant", "saved reply"))
+	if s.LastDeliveredReply() != "" {
+		t.Fatal("inferred delivery before receipt")
+	}
+	s.RecordDelivery(nil)
+	if s.LastDeliveredReply() != "saved reply" {
+		t.Fatal("lost confirmed reply")
+	}
+	s.messages = append(s.messages, textMessage("user", "next turn"))
+	if s.LastDeliveredReply() != "" {
+		t.Fatal("borrowed an earlier turn's reply")
+	}
+	s.messages = append(s.messages, textMessage("assistant", "uncertain reply"))
+	s.RecordDelivery(errors.New("uncertain"))
+	if s.LastDeliveredReply() != "" {
+		t.Fatal("uncertain receipt treated as successful")
+	}
+}

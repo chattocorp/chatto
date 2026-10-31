@@ -452,9 +452,16 @@ their next turn begins the inspection history.
 - Assistant messages, reasoning metadata, tool calls, tool results, and delivery
   receipts stay in the transcript. The bot's own realtime posts are not inserted
   again. A failed tool turn does not leave an incomplete tool exchange.
-- The model cannot choose another destination or use shell, file, or web tools.
-- Each turn has a three-minute timeout, at most eight model requests, and at
-  most eight tool calls. Each model response has a 2,048-token output limit.
+- The model cannot choose another Chatto destination. External tools are limited
+  to configured capabilities; shell and arbitrary file access are not supplied.
+- Each turn has a three-minute timeout, at most eight executed tool calls, and
+  at most twelve model work steps plus one final text-only completion. Batched
+  calls are rejected before execution with explicit feedback and do not consume
+  the execution allowance. Repeated rejections still consume model work steps.
+  At the limit, the bot reports completed and unfinished work from tool receipts.
+  If the model attempts another tool during wrap-up, the host delivers a fixed
+  partial-progress notice without executing it. Model output-token caps follow
+  the conversation configuration; no cap is supplied by default.
 - A failed turn is logged without private data; the bot continues listening.
   There are no automatic retries. A failed write can have reached Chatto.
 - A disconnected realtime socket reconnects with exponential backoff and jitter.
@@ -468,6 +475,11 @@ their next turn begins the inspection history.
   in that gap do not automatically trigger turns. First startup without a cursor
   starts at the live boundary. Recovery does not scan all old threads for work.
 - Message edits/retractions and room-access changes invalidate affected context.
+  Before invalidating for an edit, Gobotto re-reads the thread and compares the
+  affected message's model-visible fields. An unchanged message, such as one
+  whose link preview was removed, leaves the active turn and transcript intact.
+  Delivery waits for this check. Missing messages, changed content, or a failed
+  verification still invalidate context; the check has a five-second timeout.
   Edits and retractions are matched to the thread root, retained context, queued
   messages, and active batch. Changes to unrelated messages in the same room do
   not cancel an active model request. Missing targets and context reads still in
