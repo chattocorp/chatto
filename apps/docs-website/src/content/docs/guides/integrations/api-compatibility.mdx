@@ -1,6 +1,6 @@
 ---
 title: API Compatibility
-description: Plan for API changes while Chatto is pre-1.0, and migrate integrations from Chatto 0.4 to 0.5.
+description: Plan for API changes while Chatto is pre-1.0, and migrate integrations from Chatto 0.4.26 to 0.5.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
@@ -15,33 +15,6 @@ the realtime protocol in ways that require client changes.
 </Aside>
 
 ## Compatibility policy
-
-Bots can use administrative operations, including cross-account profile and
-avatar updates, bot creation, and bot/key management, with explicit permission
-grants and their owner's authority ceiling. Grant `user.manage-accounts` for
-account updates, `bot.create` for creation, and `bot.manage` for bot management.
-Bot-created accounts belong to the creating bot's human owner. API keys do not
-need interactive privileged mode. No client or stored-data migration is required.
-
-Bots can now call `RoomService.StartDM` under the same rules as humans.
-Creation requires `message.post` at DM scope, with the bot's explicit grant
-and owner authority ceiling. Existing DM lookup does not require posting
-permission. Existing bots with DM posting grants can now initiate conversations.
-No client or stored-data migration is required.
-
-Room notices add `GetNotice`, `PublishNotice`, and `ClearNotice` to
-`RoomService`, plus the `room_notice_changed` realtime event. Existing clients
-need no migration. Notice clients must retain the returned write version and
-send it as `expected_version`. On `ABORTED`, preserve the editor's draft and
-reload before another save. Treat `publication_id` as an opaque dismissal
-revision: corrections preserve it; explicit republishing changes it. Servers
-without these RPCs return `UNIMPLEMENTED`; disable the optional notice controls.
-
-Use `ServerRuntimeConfig.max_upload_size` to validate the size of every
-attachment, including GIFs and videos. The deprecated `max_video_upload_size`
-field now reports the same value. Video upload enablement remains a separate
-check. In `@chatto/client`, use `maxUploadSize`; `maxVideoUploadSize` is a
-deprecated alias of it.
 
 The public API has these tiers:
 
@@ -79,70 +52,6 @@ migration. They are not a complete compatibility report.
 
 ## Check the server version
 
-Invitation management uses `AdminInvitationCodeService`. Integrations that
-used the beta `AdminInviteLinkService` must switch services and issue one code
-per account. Reusable links and their pending admission grants are retired.
-See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
-This change does not raise the client connection threshold.
-
-`CreateInvitationCodeRequest.expires_at` has been removed. Stop sending an expiry
-when creating an invitation code. The server sets expiry to exactly seven days
-after creation for every caller, including invitation managers. Read the assigned
-expiry from the returned code. Existing codes keep their recorded expiry.
-
-Management of all invitations requires `user.manage-invites`; `user.invite`
-permits creation and management of own codes through `AdminInvitationCodeService`,
-without privileged mode. The create-only `chatto.api.v1.InvitationCodeService`
-and `@chatto/client/api/invitations` helper have been removed. Replace calls to
-that service or `createMemberInvitationAPI` with
-`chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode`. This service
-also lets creators retrieve and revoke their own codes.
-Existing server-scope invitation allows and denies are copied to the management
-permission once at startup. Later grants of `user.invite` do not grant management.
-Update integrations that configure permission grants to use the appropriate
-permission. Complete the server upgrade before granting member issuance:
-older replicas still treat `user.invite` as administrative access.
-
-For room membership activity, an absent `Room.show_membership_events` means
-enabled. Do not offer to edit this setting when the field is absent. Supporting
-clients use it only for join/leave rows; older clients can continue to show them.
-No client migration is required for membership state or event delivery.
-
-The bundled client connects to remote servers running `0.5.0-beta.9` or newer.
-The client uses `0.5.0-beta.18` as its full-support version threshold. This version
-adds independent channel and thread slow mode. Between these releases, the client shows a
-warning and attempts normal operation. Select **Server information** in the
-server menu. Its **Compatibility** section shows known feature limitations and
-the required server versions. The page also shows the server hostname and version.
-Affected views link to their section of this page. The page shows one upgrade
-recommendation that resolves all known version limitations. Ask the server
-administrator to upgrade to that version or newer.
-Older
-remote servers show an upgrade screen. The origin server serves its own
-frontend and has no version check.
-
-Thread creation sorting is an additive API extension and does not change the
-minimum server version. Servers without this extension ignore the list `order`
-field and keep activity order. They can reject the `THREAD_CREATED` search
-order. The version threshold does not guarantee support for this extension.
-
-Independent slow mode is also additive. A present `Room.thread_slow_mode_seconds`
-identifies support at runtime. The client's feature compatibility list requires
-`0.5.0-beta.18` for full support, without raising the connection threshold. The field
-selects separate per-user channel and per-thread timers; zero means Off.
-The existing `slow_mode_seconds` and room deadline now apply to root messages.
-Read thread deadlines from message viewer state or thread timeline responses.
-The root starts its author's thread timer. Existing channels adopt their previous
-interval for both settings. When the new room field is absent, keep the older
-server's shared-timer behavior and do not offer the thread setting. Older
-clients can connect to new servers but must update for correct thread countdowns.
-
-Custom suffixes are ignored during comparison: `0.6.1-my-customization`
-compares as `0.6.1`. Release stages remain significant:
-`0.6.1-beta.2-my-customization` compares as `0.6.1-beta.2`. Build metadata
-does not affect comparison. If the version cannot be parsed, the client
-attempts a connection with a warning. The UI shows the original version.
-
 Call `ServerDiscoveryService.GetServer` before sign-in. `profile.version`
 contains the server software version:
 
@@ -172,8 +81,10 @@ The response also contains `login` and `setup_required`.
 - Request realtime protocol version `4`. A server that does not support the
   requested version closes with `REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL`.
 
-The bundled web client uses the same approach. The 0.5 client does not connect
-to 0.4 servers.
+The 0.5 bundled web client does not connect to remote 0.4 servers. Select
+**Server information** in the server menu to see the server version. Its
+**Compatibility** section shows known feature limitations and the required
+server versions. Follow its upgrade recommendation if one appears.
 
 ## Before upgrading
 
@@ -190,6 +101,9 @@ to 0.4 servers.
 </Steps>
 
 ## Migrate from 0.4 to 0.5
+
+This migration starts from **0.4.26**, the last stable 0.4 release. It describes
+the changes needed for 0.5, without intermediate beta migration steps.
 
 Chatto 0.5 has breaking changes in the public API and in the realtime protocol.
 Regenerate every client from the 0.5 protobufs. Regeneration shows most
@@ -208,12 +122,12 @@ to a mix of 0.4 and 0.5 servers. See the
 | Privileged mode | Administrative and moderation permissions are inactive until the user activates them. | Call `ViewerService.ActivatePrivilegedMode` before administrative or moderation calls. Activation lasts 15 minutes and does not extend. See [Privileged mode](/guides/operations/permissions/#privileged-mode). |
 | Message access | Channel messages and realtime message delivery require `message.read`. An upgraded 0.4 server grants it to `everyone` one time. Bots need a direct grant. | Make sure that your account has `message.read`. Without it, message reads fail with a permission error. |
 | Notifications | `NotificationService` uses notification occurrences. `ListNotifications`, `GetNotification`, `BatchGetNotifications`, `DismissNotification`, `DismissAllNotifications`, `HasNotifications`, `ListRoomNotifications`, and `ListRoomNotificationCounts` are removed. | Use `ListNotificationOccurrences`, `GetNotificationOccurrence`, `BatchGetNotificationOccurrences`, `MarkNotificationRead`, and the `Delete…NotificationOccurrence…` methods. Read `unread_count` and `room_unread_counts` from the list response. |
-| Notification settings | `NotificationPreferencesService` and its notification levels are removed. `GetViewer` no longer returns notification preferences. | Use `NotificationPolicyService` with an explicit `NotificationPolicyScope`: server, room group, or room. JSON responses show delivery modes 2 and 3 as `SILENT` and `ALERT`. `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for these values. |
+| Notification settings | `NotificationPreferencesService` and its notification levels are removed. `GetViewer` no longer returns notification preferences. | Use `NotificationPolicyService` with an explicit `NotificationPolicyScope`: server, room group, or room. See [Notification policy](/guides/operations/notifications-web-push/#notification-policy). |
 | Room members | `RoomService.ListMembers` returns `user_ids`, not member rows. | Load profiles with `UserService.BatchGetUsers`, at most 100 IDs for each call. Advance the offset by the number of returned IDs. |
 | Admin members | `AdminUserService.ListMembers` returns `user_ids` and `page`, without member rows or roles. | Load rows and role summaries with `AdminUserService.BatchGetMembers`, at most 100 IDs for each call. |
 | Role members | `AdminRoleService.GetRole` no longer returns `users`. | Page through `AdminRoleService.ListMembers` (default 20, maximum 100). It requires `role.assign`. |
 | Room directory | `RoomDirectoryService.ListRooms` returns pages (default 50, maximum 100) and accepts `archive_filter`, which defaults to active rooms. It also returns accessible empty DMs. | Read pages until `page.hasMore` is false. Set `ROOM_ARCHIVE_FILTER_ARCHIVED` or `ROOM_ARCHIVE_FILTER_ALL` to get archived rooms. Hide a DM when `has_message_history` is false. |
-| Permission reads | `AdminPermissionService` matrices return all matching scopes; decision lists return scope pages. | See [Read permission matrices and decisions](#read-permission-matrices-and-decisions). |
+| Permission reads | `AdminPermissionService` decision lists now return pages of scopes. | See [Read permission decisions](#read-permission-decisions). |
 | Followed threads | In `ListFollowedThreadsRequest`, `unread_only` moved from field 4 to field 5. Field 4 is now `include_direct_message_threads`. The JSON names do not change. | Regenerate binary clients. An old binary client that sends `unread_only` gets DM threads instead of the unread filter. |
 | Thread state | `ThreadViewerState.has_unread` is now `has_unread_replies`. `FollowThread` and `UnfollowThread` no longer return `following`. `MarkThreadAsReadResponse.previous_read_at` is now `previous_last_read_at`, and the response adds `last_read_at`. | Update the names, including the JSON names `hasUnreadReplies` and `previousLastReadAt`. Read `state.following`. |
 | Room moderation | `BanMember`, `UnbanMember`, `ListBans`, and `RoomBan` are removed. | Use `RemoveUser`, `LiftSuspension`, `ListSuspensions`, and `RoomSuspension`. `RemoveUser` requires a reason. Omit the suspension to let the user rejoin, or set `suspension_expires_at` or `suspend_indefinitely`. Universal rooms require a suspension. Existing bans show as suspensions. |
@@ -226,6 +140,7 @@ to a mix of 0.4 and 0.5 servers. See the
 | Generated files | `UserService` moved from `member_directory.proto` to `user_service.proto`. | Update imports that use the generated file name. |
 | Error codes | A username change during the 30-day cooldown returns `FAILED_PRECONDITION`. An unknown permission in `SetRolePermission` or `SetUserPermission` returns `INVALID_ARGUMENT`. Both returned `INTERNAL` before. | Handle these as request errors. Do not retry them unchanged. |
 | Updates | All resource `Update*` RPCs accept `update_mask`. | See [Resource updates in 0.5](#resource-updates-in-05). |
+| Upload limits | `ServerRuntimeConfig.max_video_upload_size` is deprecated and reports the same value as `max_upload_size`. | Use `max_upload_size` to validate every attachment, including GIFs and videos. Check video upload enablement separately. |
 
 ### Renamed methods
 
@@ -280,15 +195,11 @@ sharing, and keeps the time format:
 
 Generated clients use snake_case paths, such as `share_timezone`.
 
-### Read permission matrices and decisions
-
-`GetRolePermissionMatrix` and `GetUserPermissionMatrix` return the complete
-matrix in one response. Do not send `page` or read page metadata for these
-methods. Regenerate clients that use the earlier paginated matrix contract
-and remove their matrix pagination loops.
+### Read permission decisions
 
 `ListRolePermissionDecisions` and `ListUserPermissionDecisions` return pages of
-scopes: 20 by default, and 100 at most.
+scopes: 20 by default, and 100 at most. In 0.4.26, these methods returned all
+decisions in one response. Add pagination to read the complete result.
 
 ```json
 { "roleName": "moderator", "page": { "limit": 20, "offset": 0 } }
