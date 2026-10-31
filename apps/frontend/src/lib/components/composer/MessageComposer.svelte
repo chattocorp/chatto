@@ -301,7 +301,7 @@
         class={[
           'grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1',
           !expandedDraft &&
-            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:comfortable-density:items-center'
+            '@min-[400px]/composer:flex @min-[400px]/composer:items-end @min-[400px]/composer:comfortable-density:items-center'
         ]}
       >
         {#if composer.autocomplete.emoji}
@@ -339,7 +339,7 @@
 
         <CompactActionButton
           touchFriendly
-          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-density:mb-1'}
+          wrapperClass={expandedDraft ? undefined : '@min-[400px]/composer:compact-density:mb-1'}
           label={m('composer.formatting_options')}
           type="button"
           onpointerdown={(event) => event.preventDefault()}
@@ -364,7 +364,7 @@
           {@attach observeEditorHeight}
           class={[
             '-order-1 col-span-2 min-h-9 min-w-0 flex-1 px-0.5 py-0.5',
-            !expandedDraft && '@min-[560px]/composer:order-none'
+            !expandedDraft && '@min-[400px]/composer:order-none'
           ]}
           data-testid="composer-editor-row"
         >
