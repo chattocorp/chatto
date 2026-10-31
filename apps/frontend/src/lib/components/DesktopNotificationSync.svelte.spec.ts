@@ -136,6 +136,7 @@ describe('DesktopNotificationSync', () => {
     await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
     expect(mocks.sound).toHaveBeenCalledOnce();
     expect(mocks.show.mock.calls[0][0].body).toBe('#private room');
+    expect(mocks.show.mock.calls[0][0].title).toBe('New activity');
     f.rows.set([row('new', 101, { unread: false })]);
     await vi.waitFor(() =>
       expect(mocks.clear).toHaveBeenCalledWith([mocks.show.mock.calls[0][0].id])
