@@ -1872,9 +1872,14 @@
   @apply inline-flex shrink-0 items-center self-stretch px-1.5 text-[0.85em] text-muted;
 }
 
-.url-link-host,
 .link-pill-meta {
   @apply max-w-[40%] min-w-0;
+}
+
+.url-link-host {
+  /* Use the host's natural width; reserve room for the title on narrow lines. */
+  min-width: 0;
+  max-width: calc(100% - 3rem);
 }
 
 .link-pill-icon-image {
