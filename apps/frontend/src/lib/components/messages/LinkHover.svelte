@@ -4,7 +4,7 @@
   import { useLinkPreview } from './linkPreviewContext';
   import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
-  import { ContextMenu, FloatingPopover, contextMenuTrigger, MenuItem } from '$lib/ui';
+  import { ContextMenu, FloatingPopover, contextMenuTrigger } from '$lib/ui';
   import { on } from 'svelte/events';
   import { m } from '$lib/i18n/messages';
   import LinkPreviewActions from './LinkPreviewActions.svelte';
@@ -210,7 +210,6 @@
     onclose={close}
   >
     {@render sheetPreview(close)}
-    <MenuItem icon="icon-[uil--times]" onclick={close}>{m('ui.close')}</MenuItem>
   </ContextMenu>
 {:else if anchor}
   <FloatingPopover

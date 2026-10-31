@@ -110,7 +110,7 @@ test.describe('Route accessibility', () => {
     await expectNoAccessibilityViolations(page, 'touch link preview', 'dialog[open]');
     await expect(sheet.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
-    await sheet.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await sheet.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(sheet).toBeHidden();
     await expect(link).toBeVisible();
   });
