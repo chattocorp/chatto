@@ -68,6 +68,8 @@ describe('Desktop settings', () => {
     await view.getByRole('button', { name: 'Restart to update' }).click();
     expect(install).toHaveBeenCalledOnce();
     updates.status = { ...updates.status, revision: 3, status: 'error', availableVersion: null };
+    // A rejected command and the host's failure snapshot must show one error.
+    updates.failed = true;
     await expect.element(view.getByText('The update operation failed. Try again.')).toBeVisible();
     await expect.element(view.getByRole('button', { name: 'Check for updates' })).toBeEnabled();
   });

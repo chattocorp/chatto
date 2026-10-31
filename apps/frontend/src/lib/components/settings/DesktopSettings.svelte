@@ -37,7 +37,7 @@
                 aria-label={statusText}>{state.progress}%</progress
               >
             {/if}
-            {#if updates.failed}
+            {#if updates.failed && state.status !== 'error'}
               <Hint>{m('settings.desktop.status.error')}</Hint>
             {/if}
             {#if state.status === 'ready'}

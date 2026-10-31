@@ -112,7 +112,8 @@ Desktop preferences show the installed version, status, and download progress.
 The update-ready link in the application header opens this page. The page works
 without a connected server. It appears in navigation only when updates are supported.
 The restart action appears only when an update is ready and shows its version.
-Installation requires **Restart to Install [version]** and confirmation. An ordinary quit
+Select **Restart to update** in Desktop preferences or **Restart to Install [version]**
+in the Updates menu, then confirm the restart. An ordinary quit
 does not install an update. The frontend stays bundled and startup uses local files.
 
 GitHub receives the user's IP address and update requests. The updater sends
