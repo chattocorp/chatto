@@ -121,9 +121,13 @@ describe('Composer artifact controls', () => {
     expect(updates.at(-1)).toContain('new\n');
   });
 
-  it.each(['svg', 'mermaid', 'ansi'])(
-    'sets the rendered hint from the visual %s controls',
-    async (language) => {
+  it.each(
+    ['svg', 'mermaid', 'ansi'].flatMap((language) =>
+      [false, true].map((visual) => ({ language, visual }))
+    )
+  )(
+    'shows only the language control and preserves $language presentation (visual: $visual)',
+    async ({ language, visual }) => {
       let api: ComposerEditorApi | undefined;
       const updates: string[] = [];
       const { container } = render(TipTapEditor, {
@@ -132,37 +136,31 @@ describe('Composer artifact controls', () => {
       });
       await vi.waitFor(() => expect(api).toBeDefined());
       const source = language === 'mermaid' ? 'flowchart LR\nA-->B' : 'source';
-      api!.setContent('```' + language + '\n' + source + '\n```');
+      const hint = language + (visual ? ' rendered' : '');
+      api!.setContent('```' + hint + '\n' + source + '\n```');
       await userEvent.click(container.querySelector('pre code')!);
-      const toggle = page.getByRole('button', { name: 'Visual', exact: true });
-      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
-      await userEvent.click(toggle);
-      expect(updates.at(-1)?.trimEnd()).toBe('```' + language + ' rendered\n' + source + '\n```');
-      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
-      expect(
-        container.querySelector<HTMLSelectElement>('select[name="composer-code-language"]')?.value
-      ).toBe(language);
+      const select = container.querySelector<HTMLSelectElement>(
+        'select[name="composer-code-language"]'
+      )!;
+      const header = select.closest('.code-frame-header')!;
+      expect(header.querySelector('button')).toBeNull();
+      expect(header.querySelector('span')?.textContent).toBe(language.toUpperCase());
+      expect(select.value).toBe(language);
       if (language === 'mermaid') {
         await expect
           .poll(() => container.querySelector('.hljs-keyword')?.textContent)
           .toBe('flowchart');
       }
-      await userEvent.click(page.getByRole('button', { name: 'Code', exact: true }));
-      expect(updates.at(-1)?.trimEnd()).toBe('```' + language + '\n' + source + '\n```');
-      api!.setContent('```' + language + ' rendered\n' + source + '\n```');
-      await userEvent.click(container.querySelector('pre code')!);
-      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
-      const select = container.querySelector<HTMLSelectElement>(
-        'select[name="composer-code-language"]'
-      )!;
+      api!.focus('start');
+      api!.insertText(' ');
+      expect(updates.at(-1)?.trimEnd()).toBe('```' + hint + '\n ' + source + '\n```');
       const otherArtifact = language === 'mermaid' ? 'svg' : 'mermaid';
       await userEvent.selectOptions(select, otherArtifact);
       expect(updates.at(-1)?.trimEnd()).toBe(
-        '```' + otherArtifact + ' rendered\n' + source + '\n```'
+        '```' + otherArtifact + (visual ? ' rendered' : '') + '\n ' + source + '\n```'
       );
       await userEvent.selectOptions(select, 'js');
-      expect(updates.at(-1)?.trimEnd()).toBe('```js\n' + source + '\n```');
-      expect(container.querySelector('.code-render-toggle')).toBeNull();
+      expect(updates.at(-1)?.trimEnd()).toBe('```js\n ' + source + '\n```');
     }
   );
 });

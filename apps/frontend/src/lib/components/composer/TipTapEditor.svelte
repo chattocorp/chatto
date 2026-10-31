@@ -93,7 +93,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let hasLinkControls = $derived(activeLinkHref !== null);
   const activeArtifactHint = $derived(parseArtifactFence(activeCodeBlockLanguage));
   const activeCodeLanguage = $derived(activeArtifactHint?.language ?? activeCodeBlockLanguage);
-  const visualPresentation = $derived(activeArtifactHint?.presentation === 'visual');
   let activeCodeBlockLanguageLabel = $derived(
     CODE_LANGUAGE_OPTIONS.find((language) => language.value === activeCodeLanguage)?.label ??
       activeCodeBlockLanguage?.toUpperCase() ??
@@ -224,9 +223,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     }
   }
 
-  function setCodeBlockLanguage(language: string, visual = visualPresentation) {
+  function setCodeBlockLanguage(language: string) {
     if (!editor) return;
-    const hint = formatArtifactFence(language, visual);
+    const hint = formatArtifactFence(language, activeArtifactHint?.presentation === 'visual');
 
     editor
       .chain()
@@ -716,26 +715,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           {/each}
         </select>
       </div>
-      {#if activeArtifactHint}
-        <button
-          type="button"
-          class="code-render-toggle mini-icon-action h-5 px-1"
-          aria-pressed={!visualPresentation}
-          disabled={!editable || readOnly}
-          onclick={() => setCodeBlockLanguage(activeCodeLanguage!, false)}
-        >
-          {m('composer.presentation_code')}
-        </button>
-        <button
-          type="button"
-          class="code-render-toggle mini-icon-action h-5 px-1"
-          aria-pressed={visualPresentation}
-          disabled={!editable || readOnly}
-          onclick={() => setCodeBlockLanguage(activeCodeLanguage!, true)}
-        >
-          {m('composer.presentation_visual')}
-        </button>
-      {/if}
     </div>
   {/if}
 </div>
@@ -743,11 +722,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 <style>
   /* ProseMirror needs explicit outline removal and placeholder styling
 	   that can't be achieved with Tailwind alone (pseudo-elements) */
-  /* The selected presentation also overrides the shared action's hover colour. */
-  .code-render-toggle[aria-pressed='true'] {
-    color: var(--color-action);
-  }
-
   :global(.tiptap-editor .ProseMirror) {
     outline: none;
     word-break: break-word;

@@ -1,7 +1,5 @@
 {
   "composer": {
-    "presentation_code": "Code",
-    "presentation_visual": "Visual",
     "insert_emoji": "Insert emoji",
     "attach_file": "Attach file",
     "formatting_options": "Formatting options",

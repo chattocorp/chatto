@@ -1,7 +1,5 @@
 {
   "composer": {
-    "presentation_code": "Код",
-    "presentation_visual": "Графика",
     "insert_emoji": "Вставить эмодзи",
     "attach_file": "Прикрепить файл",
     "formatting_options": "Параметры форматирования",

@@ -1,7 +1,5 @@
 {
   "composer": {
-    "presentation_code": "コード",
-    "presentation_visual": "ビジュアル",
     "insert_emoji": "絵文字を挿入",
     "attach_file": "ファイルを添付",
     "formatting_options": "書式設定オプション",

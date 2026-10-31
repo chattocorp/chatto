@@ -249,6 +249,7 @@ behavior. Apply those rules when choosing an implementation too.
 - Composer code blocks must never scroll internally. Expand them to fit their
   content and wrap long lines without changing the source. The composer owns
   scrolling and its edge fades; do not add a nested code viewport.
+  In the visual composer, keep code-block headers limited to the language selector.
 - App-wide pan gestures must yield to horizontal scrollers, form and media
   controls, custom drag surfaces, and browser top-layer UI such as dialogs,
   popovers, and fullscreen elements. Mark custom surfaces with the gesture's

@@ -63,7 +63,7 @@ Code blocks use the shared preview frame: a raised surface with a four-pixel rim
 and recessed content. Message artifacts and the visual composer share this frame
 and a thin header; the source editor uses its surfaces around editable fence lines.
 Editors do not show line numbers. The visual editor places
-its language selector and Code / Visual choice in the header. The Markdown
+only its language selector in the header. The Markdown
 editor keeps the fence text editable.
 
 Scrollable message code blocks use the shared edge gradients. Fades show only
@@ -118,7 +118,7 @@ Allow at most four diagrams per message and 10,000 source characters per diagram
 
 Default flowchart groups use the menu frame treatment: a solid surface, a title band, and an inset content area. Frame lighting follows UI Depth and the current theme. Groups with author-specified styles keep their original presentation.
 
-Both editors highlight labelled Mermaid source with a shared, lazily loaded grammar. The visual editor includes Mermaid in its language selector. Mermaid is excluded from automatic language detection so a guess cannot enable diagram rendering. Highlighting does not validate the diagram; Pele validates it when rendering. The visual editor offers Code and Visual choices for SVG, Mermaid and ANSI blocks. Visual writes the rendered hint; Code removes it without changing source. Changing between artifact languages preserves the choice; choosing another language removes it.
+Both editors highlight labelled Mermaid source with a shared, lazily loaded grammar. The visual editor includes Mermaid in its language selector. Mermaid is excluded from automatic language detection so a guess cannot enable diagram rendering. Highlighting does not validate the diagram; Pele validates it when rendering. Composer code-block headers show only the language selector. Add or remove the rendered hint in the Markdown source editor. The visual editor preserves existing hints when editing source or changing between artifact languages; choosing another language removes the hint.
 
 **Why:** Pele supports Mermaid syntax without a remote rendering service. The image boundary also used for SVG prevents active content from entering the application document. Worker termination bounds expensive layout work.
 

@@ -1,7 +1,5 @@
 {
   "composer": {
-    "presentation_code": "Kód",
-    "presentation_visual": "Grafika",
     "insert_emoji": "Vložte emoji",
     "attach_file": "Připojit soubor",
     "formatting_options": "Možnosti formátování",
