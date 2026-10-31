@@ -295,6 +295,12 @@ const server = client.server(serverId);
 A process can have one client with device storage and one for the origin
 server.
 
+If a host fetches discovery before `registry.addServer`, pass that response as
+`serverInfo` in the third argument to avoid another startup request.
+`server.serverInfo.init()` shares an in-flight discovery request. After it
+settles, read `server.serverInfo.discovery` for the response, or `null` on
+failure. A later call makes a fresh request.
+
 ### State of the host
 
 The client keeps server data. A host keeps its own state, such as sidebar

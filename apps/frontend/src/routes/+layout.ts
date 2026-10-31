@@ -22,8 +22,14 @@ export const load: LayoutLoad = async ({ url }) => {
   // Initialise persisted remote sessions before child route loads read them.
   // This is idempotent across SPA navigations.
   serverRegistry.init();
+  const origin = serverRegistry.originServer;
+  const originInfo = origin ? serverRegistry.getStore(origin.id).serverInfo : null;
+  // Registry startup owns discovery for an existing origin. New origins need
+  // discovery before registration; registration adopts that same result.
   const serverInfoPromise = originHasBackend
-    ? getPublicServerInfo(url.origin).catch(() => null)
+    ? originInfo
+      ? originInfo.init().then(() => originInfo.discovery)
+      : getPublicServerInfo(url.origin).catch(() => null)
     : Promise.resolve(null);
   const userPromise = originHasBackend
     ? (async () => {
