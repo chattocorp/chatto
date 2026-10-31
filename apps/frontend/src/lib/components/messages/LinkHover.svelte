@@ -138,11 +138,6 @@
       on(node, 'focusin', enter),
       on(node, 'focusout', exit),
       on(node, 'click', close),
-      on(node, 'contextmenu', (event) => {
-        // Keep the browser's link menu instead of opening the message menu.
-        if (!touchInput) event.stopPropagation();
-        closeHover();
-      }),
       on(node, 'pointerdown', (event) => {
         touchInput = event.pointerType === 'touch';
         if (touchInput) closeHover();
@@ -165,6 +160,14 @@
           },
           { touchOnly: true }
         )(node);
+    cleanups.push(
+      on(node, 'contextmenu', (event) => {
+        // Let the touch trigger consume its native event first. Mouse events
+        // keep the browser's link menu instead of opening the message menu.
+        event.stopPropagation();
+        closeHover();
+      })
+    );
     // Visibility owns this query subscription: virtualized/off-screen links do
     // not need metadata until their pills enter the viewport. Hover reuses it.
     const visibility = loadWhenVisible

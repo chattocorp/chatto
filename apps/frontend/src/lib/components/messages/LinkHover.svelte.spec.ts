@@ -166,6 +166,8 @@ it('opens one persistent touch sheet and consumes the native menu and release cl
   link.focus();
   link.dispatchEvent(new Event('touchstart', { bubbles: true }));
   await vi.waitFor(() => expect(container.querySelector('dialog[open]')).not.toBeNull());
+  // A hybrid device can report mouse movement while the touch menu is open.
+  link.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }));
   const nativeMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
   link.dispatchEvent(nativeMenu);
   touchPointer(link, 'pointerup');
