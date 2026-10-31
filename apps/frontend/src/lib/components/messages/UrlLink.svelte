@@ -63,7 +63,7 @@
       {:else}
         <bdi class="flex min-w-0" dir="ltr">
           <span class="min-w-0 flex-1 truncate">{host}</span>{#if path}<span
-              class="shrink-0 text-muted">{path}</span
+              class="shrink-0 text-text/95">{path}</span
             >{/if}
         </bdi>
       {/if}
