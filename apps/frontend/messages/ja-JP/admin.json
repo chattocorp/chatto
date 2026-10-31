@@ -553,10 +553,11 @@
       "total": "{count} ユーザーの合計"
     },
     "invitations": {
+      "management_help": "招待コードを使うと、他の人がこのサーバーに参加できます。",
       "created_by": "作成者",
       "note_label": "メモ（任意）",
       "note_placeholder": "デザインチームのAlex用",
-      "note_description": "このメモは招待の管理者のみが閲覧できます。",
+      "note_description": "このメモはあなたと招待の管理者が閲覧できます。",
       "note_too_long": "250文字以内で入力してください。",
       "usage": "新しいコードは7日間有効で、それぞれ1つのアカウントを作成できます。コードをコピーして相手に送ってください。登録が成功した時点で使用済みになります。",
       "create_title": "コードを作成",

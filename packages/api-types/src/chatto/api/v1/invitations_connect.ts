@@ -7,8 +7,9 @@ import { CreateInvitationCodeRequest, CreateInvitationCodeResponse } from "./inv
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Member issuance only. Listing, retrieval, and revocation require the separate
- * administrative service and user.manage-invites permission.
+ * Convenience issuance with a seven-day expiry. AdminInvitationCodeService
+ * supports creation, listing, retrieval, and revocation of the caller's own
+ * codes with user.invite, or all codes with effective user.manage-invites.
  *
  * @generated from service chatto.api.v1.InvitationCodeService
  */
@@ -19,7 +20,7 @@ export const InvitationCodeService = {
      * Requires user.invite, without privileged mode. Creates one code with a
      * seven-day expiry. Not idempotent: retrying creates another code. A code is
      * consumed only when account creation succeeds; open registration does not
-     * require or consume codes. Copy the result before dismissing it.
+     * require or consume codes.
      *
      * @generated from rpc chatto.api.v1.InvitationCodeService.CreateInvitationCode
      */

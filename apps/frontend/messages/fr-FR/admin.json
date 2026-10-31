@@ -564,10 +564,11 @@
       "total": "Nombre total d'utilisateurs {count}"
     },
     "invitations": {
+      "management_help": "Les codes d’invitation permettent à d’autres personnes de rejoindre ce serveur.",
       "created_by": "Créé par",
       "note_label": "Note (facultative)",
       "note_placeholder": "Pour Alex de l’équipe de conception",
-      "note_description": "Seuls les gestionnaires des invitations peuvent voir cette note.",
+      "note_description": "Vous et les gestionnaires des invitations pouvez voir cette note.",
       "note_too_long": "Utilisez 250 caractères au maximum.",
       "usage": "Les nouveaux codes expirent après 7 jours et permettent chacun de créer un compte. Copiez un code et envoyez-le à son destinataire. Il est utilisé uniquement lorsque l’inscription réussit.",
       "create_title": "Créer un code",

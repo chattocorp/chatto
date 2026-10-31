@@ -172,7 +172,7 @@
       "user_delete_any": "Permite que uma conta elimine a conta de qualquer membro. Conceda apenas a pessoas que possam decidir remover alguém do servidor.",
       "user_delete_self": "Permite que as pessoas eliminem a própria conta. Negue-a se apenas administradores devem eliminar contas.",
       "user_manage_invites": "Permite que uma conta liste, crie, copie e revogue códigos de convite de utilização única. Pode gerir todos os códigos, não apenas os seus.",
-      "user_invite": "Gere códigos de convite sem acesso administrativo.",
+      "user_invite": "Crie e gira os seus próprios códigos de convite.",
       "user_manage_accounts": "Permite que uma conta crie contas, altere a identidade de contas, reponha palavras-passe, anexe endereços de e-mail verificados e limpe os tempos de espera de início de sessão de outros membros. Também permite adicionar uma conta a uma sala ou removê-la pela linha Inscreveu-se.",
       "user_manage_permissions": "Permite que uma conta altere diretamente as definições de permissões de um membro ou bot, fora das funções. Também é necessária para ver as permissões efetivas de uma pessoa.",
       "bot_create": "As pessoas criam bots que lhes pertencem. Os bots criam bots para o seu proprietário humano. Os novos bots começam sem permissões atribuídas.",

@@ -6,7 +6,7 @@ import {
 } from '@chatto/api-types/admin/v1/invitations_pb';
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 
-/** A single-use account admission code, visible only to invitation managers. */
+/** A single-use account admission code, visible to its creator and invitation managers. */
 export type InvitationCode = {
   id: string;
   code: string;
@@ -15,7 +15,7 @@ export type InvitationCode = {
   expiresAt: string | null;
   status: 'active' | 'expired' | 'used' | 'revoked';
   revokedAt: string | null;
-  /** Plain-text creation note for invitation managers; empty when omitted. */
+  /** Plain-text creation note for the creator and invitation managers; empty when omitted. */
   note: string;
 };
 

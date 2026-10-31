@@ -10,6 +10,7 @@ export type AdminNavPermissions = Pick<
   | 'canManageNeighbors'
   | 'canAdminViewUsers'
   | 'canManageInvites'
+  | 'canInviteUsers'
   | 'canManageRooms'
   | 'canModerateRooms'
   | 'canAdminManageRoles'
@@ -46,10 +47,19 @@ export function getAdminNavItems({
     });
   }
 
-  if (permissions.canManageServer || permissions.canManageInvites) {
+  if (permissions.canManageServer) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/registration', { serverId: serverSegment }),
       label: m('chat.management_nav.registration'),
+      description: m('settings.overview.descriptions.invitations'),
+      icon: 'iconify icon-[uil--envelope-share]'
+    });
+  }
+
+  if (permissions.canInviteUsers || permissions.canManageInvites) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/invites', { serverId: serverSegment }),
+      label: m('chat.management_nav.invites'),
       description: m('settings.overview.descriptions.invitations'),
       icon: 'iconify icon-[uil--envelope-share]'
     });

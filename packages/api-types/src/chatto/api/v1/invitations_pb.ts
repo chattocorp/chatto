@@ -7,8 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * A newly issued single-use code. Unlike the administrative resource, this
- * result is available only at creation; members cannot retrieve it later.
+ * A newly issued single-use code. Creators with user.invite can retrieve it
+ * later through AdminInvitationCodeService.
  *
  * @generated from message chatto.api.v1.IssuedInvitationCode
  */

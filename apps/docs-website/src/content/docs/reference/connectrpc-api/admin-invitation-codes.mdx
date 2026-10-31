@@ -18,14 +18,16 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## AdminInvitationCodeService
 
-Issues and manages registration codes. All methods require user.manage-invites.
+Issues and manages registration codes. user.invite permits access to own codes.
+Effective user.manage-invites permits access to all codes and requires
+privileged mode for human sessions.
 External systems can issue codes with an authorized API credential.
 
 <a id="chatto-admin-v1-AdminInvitationCodeService-ListInvitationCodes"></a>
 
 ### ListInvitationCodes
 
-Lists current and historical codes.
+Lists visible current and historical codes. Pagination and totals include only visible codes.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/ListInvitationCodes
@@ -58,7 +60,7 @@ No message description provided.
 
 ### GetInvitationCode
 
-Reads a code by ID. Returns NOT_FOUND for an unknown ID.
+Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/GetInvitationCode
@@ -105,7 +107,7 @@ Creates one code. Every code is single-use, including when expiry is omitted.
 | Field | Type | Description |
 | --- | --- | --- |
 | `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible only to invitation managers; it does not bind the code to a recipient. |
+| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible to the creator and invitation managers; it does not bind the code to a recipient. |
 
 
 <a id="chatto-admin-v1-CreateInvitationCodeResponse"></a>
@@ -124,6 +126,7 @@ No message description provided.
 ### RevokeInvitationCode
 
 Revokes a code without deleting its history. Repeating revocation is safe.
+Returns NOT_FOUND for an unknown or inaccessible ID.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/RevokeInvitationCode

@@ -147,44 +147,70 @@ func (m *InvitationModel) validateIDAt(id string, now time.Time) (InvitationStat
 	return state, nil
 }
 
+// GetInvitation returns a visible code. Inaccessible and unknown IDs both return ErrNotFound.
 func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
+	manageAll, err := c.invitationAccess(ctx, actorID)
+	if err != nil {
 		return InvitationState{}, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return InvitationState{}, err
 	}
 	state, ok := c.invitationModel.projection.Projection().get(id)
-	if !ok {
+	if !ok || (!manageAll && state.CreatedBy != actorID) {
 		return InvitationState{}, ErrNotFound
 	}
 	return state, nil
 }
 
+// ListInvitations returns all visible codes. Callers must paginate after this ownership filter.
 func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
+	manageAll, err := c.invitationAccess(ctx, actorID)
+	if err != nil {
 		return nil, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return nil, err
 	}
-	return c.invitationModel.projection.Projection().all(), nil
+	states := c.invitationModel.projection.Projection().all()
+	if manageAll {
+		return states, nil
+	}
+	// Filter before transport pagination so counts and offsets reveal only own codes.
+	owned := make([]InvitationState, 0, len(states))
+	for _, state := range states {
+		if state.CreatedBy == actorID {
+			owned = append(owned, state)
+		}
+	}
+	return owned, nil
+}
+
+// invitationAccess grants all-code access only through effective management
+// permission. Without privileged mode, an admin with user.invite can still
+// manage their own codes. Ownership never replaces the permission requirement.
+func (c *ChattoCore) invitationAccess(ctx context.Context, actorID string) (bool, error) {
+	manageAll, err := c.HasServerPermission(ctx, actorID, PermUserManageInvites)
+	if err != nil || manageAll {
+		return manageAll, err
+	}
+	return false, c.requireServerPermission(ctx, actorID, PermUserInvite)
 }
 
 // InvitationNoteMaxLength is the maximum number of Unicode code points in a creation note.
 const InvitationNoteMaxLength = 250
 
 // CreateInvitationCode grants admission for exactly one new account. Expiry and
-// the manager-only note are optional; callers must have user.manage-invites.
+// the note are optional. Either invitation permission allows creation.
 func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
+	if _, err := c.invitationAccess(ctx, actorID); err != nil {
 		return InvitationState{}, err
 	}
 	return c.createInvitationCode(ctx, actorID, expiresAt, note)
 }
 
-// IssueInvitationCode issues a code that expires in seven days. The caller may
-// see this result once, but issuance grants no access to invitation reads.
+// IssueInvitationCode preserves the create-only API's seven-day default.
+// Callers can retrieve their own codes through the management API.
 // Like admin creation, this is not idempotent and must not be retried automatically.
 func (c *ChattoCore) IssueInvitationCode(ctx context.Context, actorID string) (InvitationState, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
@@ -223,8 +249,10 @@ func (c *ChattoCore) createInvitationCode(ctx context.Context, actorID string, e
 	return state, nil
 }
 
+// RevokeInvitation invalidates a visible code and preserves its history. Repeated revocation is safe.
 func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
+	manageAll, err := c.invitationAccess(ctx, actorID)
+	if err != nil {
 		return InvitationState{}, err
 	}
 	agg := evtstream.InvitationAggregate(id)
@@ -237,7 +265,7 @@ func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (
 			return InvitationState{}, err
 		}
 		state, ok := c.invitationModel.projection.Projection().get(id)
-		if !ok {
+		if !ok || (!manageAll && state.CreatedBy != actorID) {
 			return InvitationState{}, ErrNotFound
 		}
 		if state.RevokedAt != nil {

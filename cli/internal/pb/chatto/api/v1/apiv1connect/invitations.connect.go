@@ -43,7 +43,7 @@ type InvitationCodeServiceClient interface {
 	// Requires user.invite, without privileged mode. Creates one code with a
 	// seven-day expiry. Not idempotent: retrying creates another code. A code is
 	// consumed only when account creation succeeds; open registration does not
-	// require or consume codes. Copy the result before dismissing it.
+	// require or consume codes.
 	CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error)
 }
 
@@ -83,7 +83,7 @@ type InvitationCodeServiceHandler interface {
 	// Requires user.invite, without privileged mode. Creates one code with a
 	// seven-day expiry. Not idempotent: retrying creates another code. A code is
 	// consumed only when account creation succeeds; open registration does not
-	// require or consume codes. Copy the result before dismissing it.
+	// require or consume codes.
 	CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error)
 }
 

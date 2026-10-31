@@ -85,8 +85,9 @@ per account. Reusable links and their pending admission grants are retired.
 See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
 This change does not raise the client connection threshold.
 
-Invitation administration now requires `user.manage-invites`; `user.invite`
-only permits creation through `InvitationCodeService`, without privileged mode.
+Management of all invitations requires `user.manage-invites`; `user.invite`
+permits creation and management of own codes through `AdminInvitationCodeService`,
+without privileged mode. `InvitationCodeService` remains available for creation.
 Existing server-scope invitation allows and denies are copied to the management
 permission once at startup. Later grants of `user.invite` do not grant management.
 Update integrations that configure permission grants to use the appropriate

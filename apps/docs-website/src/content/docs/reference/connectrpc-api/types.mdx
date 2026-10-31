@@ -1138,8 +1138,8 @@ Safe summary of one recorded outbound webhook failure.
 
 ### IssuedInvitationCode
 
-A newly issued single-use code. Unlike the administrative resource, this
-result is available only at creation; members cannot retrieve it later.
+A newly issued single-use code. Creators with user.invite can retrieve it
+later through AdminInvitationCodeService.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1744,13 +1744,13 @@ the code can use it; it is not bound to an email address or recipient.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | No field description provided. |
-| `code` | `string` | Recoverable capability, returned only to callers with user.manage-invites. Never log it. |
+| `code` | `string` | Recoverable capability, visible to its creator with user.invite or to invitation managers. Never log it. |
 | `created_by` | `string` | No field description provided. |
 | `created_at` | `google.protobuf.Timestamp` | No field description provided. |
 | `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |
 | `status` | [`InvitationCodeStatus`](#chatto-admin-v1-InvitationCodeStatus) | No field description provided. |
 | `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `note` | `string` | Optional creation-time note for invitation managers. Empty means no note. This does not restrict who can redeem the code. |
+| `note` | `string` | Optional creation-time note for the creator and invitation managers. Empty means no note. This does not restrict who can redeem the code. |
 
 <a id="chatto-admin-v1-AdminRole"></a>
 

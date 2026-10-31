@@ -88,7 +88,7 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
   });
 
-  it('shows Registration for invitation managers', () => {
+  it('shows Invites, but not Registration, for either invitation permission', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
       permissions: permissions({ canViewAdmin: true, canInviteUsers: true })
@@ -99,9 +99,12 @@ describe('getAdminNavItems', () => {
     });
 
     expect(hidden.some((item) => item.label === 'Registration')).toBe(false);
-    expect(visible.find((item) => item.label === 'Registration')?.href).toBe(
-      '/chat/local/manage/server/registration'
-    );
+    expect(visible.some((item) => item.label === 'Registration')).toBe(false);
+    for (const items of [hidden, visible]) {
+      expect(items.find((item) => item.label === 'Invites')?.href).toBe(
+        '/chat/local/manage/server/invites'
+      );
+    }
   });
 
   it('shows Neighbors only for Neighbor managers', () => {

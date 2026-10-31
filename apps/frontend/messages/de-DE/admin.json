@@ -564,10 +564,11 @@
       "total": "{count} Benutzer insgesamt"
     },
     "invitations": {
+      "management_help": "Mit Einladungscodes können andere Personen diesem Server beitreten.",
       "created_by": "Erstellt von",
       "note_label": "Notiz (optional)",
       "note_placeholder": "Für Alex aus dem Designteam",
-      "note_description": "Nur Einladungsverwalter können diese Notiz sehen.",
+      "note_description": "Du und Einladungsverwalter können diese Notiz sehen.",
       "note_too_long": "Verwende höchstens 250 Zeichen.",
       "usage": "Neue Codes gelten 7 Tage und erlauben jeweils ein Konto. Kopiere einen Code und schicke ihn an den Empfänger. Er wird erst bei erfolgreicher Registrierung verbraucht.",
       "create_title": "Code erstellen",

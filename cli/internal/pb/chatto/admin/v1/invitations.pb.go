@@ -85,7 +85,7 @@ func (InvitationCodeStatus) EnumDescriptor() ([]byte, []int) {
 type InvitationCode struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Recoverable capability, returned only to callers with user.manage-invites. Never log it.
+	// Recoverable capability, visible to its creator with user.invite or to invitation managers. Never log it.
 	Code      string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
 	CreatedBy string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -93,7 +93,7 @@ type InvitationCode struct {
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	Status    InvitationCodeStatus   `protobuf:"varint,6,opt,name=status,proto3,enum=chatto.admin.v1.InvitationCodeStatus" json:"status,omitempty"`
 	RevokedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
-	// Optional creation-time note for invitation managers. Empty means no note.
+	// Optional creation-time note for the creator and invitation managers. Empty means no note.
 	// This does not restrict who can redeem the code.
 	Note          string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -377,7 +377,7 @@ type CreateInvitationCodeRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
-	// Visible only to invitation managers; it does not bind the code to a recipient.
+	// Visible to the creator and invitation managers; it does not bind the code to a recipient.
 	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -45,6 +45,40 @@ const invitations = mockService(AdminInvitationCodeService);
 const code = 'ABCD-EFGH-IJKL-MNOP-QRST';
 
 describe('Invitation codes', () => {
+  it('hides other creators immediately when management access is removed', async () => {
+    const profiles = mockService(UserService);
+    profiles.batchGetUsers.mockReturnValue({ users: [] });
+    const server = createTestServerScope({
+      permissions: { canManageInvites: true, canInviteUsers: true },
+      routes: (router) =>
+        router.service(AdminInvitationCodeService, invitations).service(UserService, profiles)
+    });
+    const own = {
+      id: 'own',
+      code: 'OWN-CODE',
+      createdBy: 'viewer-1',
+      createdAt: Timestamp.fromDate(new Date('2026-01-01')),
+      status: InvitationCodeStatus.ACTIVE
+    };
+    invitations.listInvitationCodes.mockReturnValueOnce({
+      invitationCodes: [own, { ...own, id: 'other', code: 'OTHER-CODE', createdBy: 'other' }]
+    });
+    const view = render(InvitationCodes);
+    await expect.element(view.getByText('OTHER-CODE', { exact: true })).toBeVisible();
+    let resolveOwn!: (value: { invitationCodes: (typeof own)[] }) => void;
+    invitations.listInvitationCodes.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOwn = resolve;
+      })
+    );
+    server.permissions.canManageInvites = false;
+    await expect.element(view.getByText('OTHER-CODE', { exact: true })).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(invitations.listInvitationCodes).toHaveBeenCalledTimes(2));
+    resolveOwn({ invitationCodes: [own] });
+    await expect.element(view.getByText('OWN-CODE', { exact: true })).toBeVisible();
+    expect(view.container.textContent).not.toContain('OTHER-CODE');
+  });
+
   it('hydrates creators in a batch and displays their names', async () => {
     const profiles = mockService(UserService);
     profiles.batchGetUsers.mockReturnValue({
@@ -53,6 +87,7 @@ describe('Invitation codes', () => {
     const users = getUserStore('server-1', 'server-1-session');
     users.clear();
     createTestServerScope({
+      permissions: { canManageInvites: true },
       routes: (router) =>
         router.service(AdminInvitationCodeService, invitations).service(UserService, profiles),
       store: { projection: { users } }
@@ -100,6 +135,7 @@ describe('Invitation codes', () => {
     queryClient.clear();
     toast.clear();
     createTestServerScope({
+      permissions: { canManageInvites: true },
       routes: (router) => router.service(AdminInvitationCodeService, invitations)
     });
     invitations.listInvitationCodes.mockReturnValue({

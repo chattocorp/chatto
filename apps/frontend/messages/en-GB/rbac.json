@@ -172,7 +172,7 @@
       "user_delete_any": "Allows an account to delete the account of any member. Give it only to people who can decide to remove someone from the server.",
       "user_delete_self": "Allows people to delete their own account. Deny it if only administrators must delete accounts.",
       "user_manage_invites": "Allows an account to list, create, copy, and revoke single-use invitation codes. It can manage all codes, not only its own.",
-      "user_invite": "Generate invitation codes without admin access.",
+      "user_invite": "Create and manage your own invitation codes.",
       "user_manage_accounts": "Allows an account to create accounts, change account identity, reset passwords, attach verified email addresses, and clear login cooldowns for other members. It also allows adding an account to a room or removing it with the Joined row.",
       "user_manage_permissions": "Allows an account to change the permission settings of one member or bot directly, outside of roles. It is also necessary to see the effective permissions of a person.",
       "bot_create": "Humans create bots that they own. Bots create bots for their human owner. New bots start without permission grants.",

@@ -564,10 +564,11 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
+      "management_help": "Los códigos de invitación permiten que otras personas se unan a este servidor.",
       "created_by": "Creado por",
       "note_label": "Nota (opcional)",
       "note_placeholder": "Para Alex del equipo de diseño",
-      "note_description": "Solo los administradores de invitaciones pueden ver esta nota.",
+      "note_description": "Tú y los administradores de invitaciones pueden ver esta nota.",
       "note_too_long": "Usa 250 caracteres o menos.",
       "usage": "Los códigos nuevos caducan a los 7 días y permiten crear una cuenta cada uno. Copia un código y envíalo a su destinatario. Solo se consume cuando el registro se completa.",
       "create_title": "Crear código",

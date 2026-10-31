@@ -69,27 +69,33 @@ async function scanRoute(page: Page, state: string, route: string): Promise<void
 }
 
 test.describe('Route accessibility', () => {
-  test('member invitation dialog meets WCAG A and AA rules', async ({ page, chatPage }) => {
+  test('Invites and Registration pages meet WCAG A and AA rules', async ({ page }) => {
     await loginAsAdmin(page);
     await connectPost(page, 'chatto.admin.v1.AdminServerService/UpdateServerConfig', {
       registration: { admission: 'ACCOUNT_CREATION_POLICY_INVITE_ONLY' },
       updateMask: 'registration.admission'
     });
     try {
-      await chatPage.goto();
-      await chatPage.enterRoom('general');
-      await page.getByRole('button', { name: 'Invite people', exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: 'Invite people' });
+      await page.goto(routes.serverAdmin('registration'));
+      await settle(page);
+      await expectNoAccessibilityViolations(page, 'registration settings');
+      await page
+        .getByRole('navigation')
+        .getByRole('link', { name: 'Invites', exact: true })
+        .click();
+      await expect(page.getByRole('heading', { name: 'Invites', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Create code', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Create code', exact: true });
       await expect(dialog).toBeVisible();
       await expectNoAccessibilityViolations(page, 'invitation creation', 'dialog[open]');
       await dialog.getByRole('button', { name: 'Create code', exact: true }).click();
-      await expect(dialog.locator('code')).toBeVisible();
-      await expectNoAccessibilityViolations(page, 'issued invitation', 'dialog[open]');
-      await page.goBack();
       await expect(dialog).toBeHidden();
+      await expect(page.locator('table code').first()).toBeVisible();
+      await expectNoAccessibilityViolations(page, 'invitation management');
+      await page.goBack();
+      await expect(page.getByRole('heading', { name: 'Registration', exact: true })).toBeVisible();
       await page.goForward();
-      await expect(dialog.getByRole('button', { name: 'Create code', exact: true })).toBeVisible();
-      await expect(dialog.locator('code')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Invites', exact: true })).toBeVisible();
     } finally {
       await connectPost(page, 'chatto.admin.v1.AdminServerService/UpdateServerConfig', {
         registration: { admission: 'ACCOUNT_CREATION_POLICY_OPEN' },

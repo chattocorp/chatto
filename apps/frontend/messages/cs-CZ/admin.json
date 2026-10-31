@@ -586,10 +586,11 @@
       "total": "Celkem {count} uživatelů"
     },
     "invitations": {
+      "management_help": "Kódy pozvánek umožňují ostatním připojit se k tomuto serveru.",
       "created_by": "Vytvořil",
       "note_label": "Poznámka (volitelná)",
       "note_placeholder": "Pro Alexe z designového týmu",
-      "note_description": "Tuto poznámku vidí pouze správci pozvánek.",
+      "note_description": "Tuto poznámku vidíte vy a správci pozvánek.",
       "note_too_long": "Použijte nejvýše 250 znaků.",
       "usage": "Nové kódy platí 7 dní a každý umožňuje vytvořit jeden účet. Zkopírujte kód a pošlete jej příjemci. Kód se použije až po úspěšné registraci.",
       "create_title": "Vytvořit kód",

@@ -217,9 +217,10 @@ singular and bounded batch reads. These reads use existing message-read
 authorization and do not initialize or advance markers.
 
 `InvitationCodeService` requires `user.invite` and exposes only seven-day code
-creation. It returns a code once without granting administrative reads.
-`AdminInvitationCodeService` requires `user.manage-invites`. It lists, reads, creates,
-and revokes single-use codes with optional expiry. Codes are reconstructed
+creation. `AdminInvitationCodeService` permits callers with `user.invite` to
+list, read, create, and revoke their own codes. Effective `user.manage-invites`
+permits these operations on all codes. Lists filter by ownership before pagination.
+Expiry is optional. Codes are reconstructed
 from durable invitation IDs; raw codes are not stored in `EVT`. The browser
 POST endpoint `/auth/browser/registration-invitation` validates a code and
 stores an expiring admission binding in the signed HttpOnly session.

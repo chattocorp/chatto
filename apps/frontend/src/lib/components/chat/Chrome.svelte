@@ -13,7 +13,6 @@
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import InvitePeopleControl from './InvitePeopleControl.svelte';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
@@ -182,7 +181,6 @@
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />
-        <InvitePeopleControl />
       </nav>
 
       <hr class="border-border" />

@@ -564,10 +564,11 @@
       "total": "{count} kasutaja(t) kokku"
     },
     "invitations": {
+      "management_help": "Kutsekoodid võimaldavad teistel inimestel selle serveriga liituda.",
       "created_by": "Looja",
       "note_label": "Märkus (valikuline)",
       "note_placeholder": "Alexile disainimeeskonnast",
-      "note_description": "Seda märkust näevad ainult kutsete haldajad.",
+      "note_description": "Seda märkust näete teie ja kutsete haldajad.",
       "note_too_long": "Kasuta kuni 250 märki.",
       "usage": "Uued koodid kehtivad 7 päeva ja iga kood lubab luua ühe konto. Kopeerige kood ja saatke see saajale. Kood kasutatakse ära ainult eduka registreerimise korral.",
       "create_title": "Loo kood",

@@ -172,7 +172,7 @@
       "user_delete_any": "Ļauj kontam dzēst jebkura dalībnieka kontu. Piešķiriet to tikai cilvēkiem, kas drīkst lemt par kāda noņemšanu no servera.",
       "user_delete_self": "Ļauj cilvēkiem dzēst savu kontu. Aizliedziet to, ja kontus drīkst dzēst tikai administratori.",
       "user_manage_invites": "Ļauj kontam apskatīt, izveidot, kopēt un atsaukt vienreizlietojamus ielūgumu kodus. Tas var pārvaldīt visus kodus, ne tikai savus.",
-      "user_invite": "Veidojiet uzaicinājuma kodus bez administratora piekļuves.",
+      "user_invite": "Izveidot un pārvaldīt savus uzaicinājumu kodus.",
       "user_manage_accounts": "Ļauj kontam citiem dalībniekiem izveidot kontus, mainīt konta identitāti, atiestatīt paroles, pievienot verificētas e-pasta adreses un notīrīt pieteikšanās gaidīšanas laikus. Tā ļauj arī pievienot kontu telpai vai noņemt to no telpas ar rindu Pievienojās.",
       "user_manage_permissions": "Ļauj kontam tieši mainīt viena dalībnieka vai bota atļauju iestatījumus neatkarīgi no lomām. Tā ir vajadzīga arī, lai redzētu personas spēkā esošās atļaujas.",
       "bot_create": "Cilvēki veido botus, kas pieder viņiem. Boti veido botus savam īpašniekam — cilvēkam. Jauniem botiem nav piešķirtu atļauju.",

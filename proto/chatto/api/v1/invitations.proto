@@ -4,8 +4,8 @@ package chatto.api.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// A newly issued single-use code. Unlike the administrative resource, this
-// result is available only at creation; members cannot retrieve it later.
+// A newly issued single-use code. Creators with user.invite can retrieve it
+// later through AdminInvitationCodeService.
 message IssuedInvitationCode {
   // Opaque invitation identifier, also visible in administrative records.
   string id = 1;
@@ -23,12 +23,13 @@ message CreateInvitationCodeResponse {
   IssuedInvitationCode invitation_code = 1;
 }
 
-// Member issuance only. Listing, retrieval, and revocation require the separate
-// administrative service and user.manage-invites permission.
+// Convenience issuance with a seven-day expiry. AdminInvitationCodeService
+// supports creation, listing, retrieval, and revocation of the caller's own
+// codes with user.invite, or all codes with effective user.manage-invites.
 service InvitationCodeService {
   // Requires user.invite, without privileged mode. Creates one code with a
   // seven-day expiry. Not idempotent: retrying creates another code. A code is
   // consumed only when account creation succeeds; open registration does not
-  // require or consume codes. Copy the result before dismissing it.
+  // require or consume codes.
   rpc CreateInvitationCode(CreateInvitationCodeRequest) returns (CreateInvitationCodeResponse);
 }

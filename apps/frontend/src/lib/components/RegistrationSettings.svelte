@@ -35,7 +35,7 @@
     onSuccess: (value, variables) => {
       if (!session.isCurrent(variables.snapshot)) return;
       queryClient.setQueryData(key, value);
-      // Refresh public admission hints used by member-facing navigation.
+      // Keep the public server profile consistent with the saved admission policy.
       void scope.store.serverInfo.refreshProfile();
       toast.success(m('admin.security.settings_saved'));
     },

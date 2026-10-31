@@ -60,7 +60,7 @@ export class InvitationCode extends Message<InvitationCode> {
   id = "";
 
   /**
-   * Recoverable capability, returned only to callers with user.manage-invites. Never log it.
+   * Recoverable capability, visible to its creator with user.invite or to invitation managers. Never log it.
    *
    * @generated from field: string code = 2;
    */
@@ -94,7 +94,7 @@ export class InvitationCode extends Message<InvitationCode> {
   revokedAt?: Timestamp;
 
   /**
-   * Optional creation-time note for invitation managers. Empty means no note.
+   * Optional creation-time note for the creator and invitation managers. Empty means no note.
    * This does not restrict who can redeem the code.
    *
    * @generated from field: string note = 8;
@@ -307,7 +307,7 @@ export class CreateInvitationCodeRequest extends Message<CreateInvitationCodeReq
 
   /**
    * Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
-   * Visible only to invitation managers; it does not bind the code to a recipient.
+   * Visible to the creator and invitation managers; it does not bind the code to a recipient.
    *
    * @generated from field: string note = 2;
    */

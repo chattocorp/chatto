@@ -58,7 +58,10 @@
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.invitations(serverId, connection),
+      queryKey: [
+        ...adminQueryKeys.invitations(serverId, connection),
+        { all: serverScope.store.permissions.canManageInvites }
+      ],
       queryFn: async ({ pageParam, signal }) => {
         const result = await connection
           .getAPI(createInvitationCodeAPI)
@@ -78,7 +81,13 @@
   });
 
   const invitations = $derived(
-    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.invitationCodes)
+    (invitationsQuery.data?.pages ?? [])
+      .flatMap((page) => page.invitationCodes)
+      .filter(
+        (invitation) =>
+          serverScope.store.permissions.canManageInvites ||
+          invitation.createdBy === serverScope.store.currentUser.user?.id
+      )
   );
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
@@ -256,7 +265,7 @@
   </FormDialog>
 {/if}
 
-{#if revokeTarget}
+{#if revokeTarget && (serverScope.store.permissions.canManageInvites || revokeTarget.createdBy === serverScope.store.currentUser.user?.id)}
   <ConfirmDialog
     title={m('admin.invitations.revoke_title')}
     actionLabel={m('admin.invitations.revoke')}
