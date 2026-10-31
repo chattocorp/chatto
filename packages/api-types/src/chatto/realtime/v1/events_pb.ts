@@ -812,6 +812,53 @@ export class RoomThreadingModeChangedEvent extends Message<RoomThreadingModeChan
 }
 
 /**
+ * RoomMembershipEventsVisibilityChangedEvent changes how clients display room
+ * join/leave activity, including history. Clients must still process membership
+ * events when this setting is false.
+ *
+ * @generated from message chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent
+ */
+export class RoomMembershipEventsVisibilityChangedEvent extends Message<RoomMembershipEventsVisibilityChangedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: bool show_membership_events = 2;
+   */
+  showMembershipEvents = false;
+
+  constructor(data?: PartialMessage<RoomMembershipEventsVisibilityChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomMembershipEventsVisibilityChangedEvent {
+    return new RoomMembershipEventsVisibilityChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomMembershipEventsVisibilityChangedEvent {
+    return new RoomMembershipEventsVisibilityChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomMembershipEventsVisibilityChangedEvent {
+    return new RoomMembershipEventsVisibilityChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomMembershipEventsVisibilityChangedEvent | PlainMessage<RoomMembershipEventsVisibilityChangedEvent> | undefined, b: RoomMembershipEventsVisibilityChangedEvent | PlainMessage<RoomMembershipEventsVisibilityChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomMembershipEventsVisibilityChangedEvent, a, b);
+  }
+}
+
+/**
  * UserJoinedRoomEvent reports that the actor joined a room.
  *
  * @generated from message chatto.realtime.v1.UserJoinedRoomEvent

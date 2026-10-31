@@ -53,8 +53,18 @@ replacement server at the same socket path. The journal contains IDs and hashes,
 not message bodies or copies of files. The CLI sends individual resource
 requests to the Operator API; it does not send the archive as one request.
 
-The first version supports public channels, active human users, known message
-creation times, and available local files. New accounts require usernames.
+The importer supports public channels, human and bot accounts, known message
+creation times, and available local files. New human accounts require usernames.
+It preserves the deactivated status of new accounts. Deleted accounts remain
+unsupported. Bots belong to the current active human server owner automatically.
+If multiple owners exist, select one with `--bot-owner USERNAME`. You can also use
+this option to select another active human. The journal saves the selected owner
+ID for retries. Keep any override unchanged when you resume the import.
+Imported bots receive no API keys or webhooks. Bots without a source username
+receive a stable name that starts with `bot-`; supplied names remain unchanged.
+User records can reference local avatar assets. The importer fills empty avatars
+and preserves existing images, also for email-matched accounts. Images are limited
+to 5 MiB and use normal avatar processing. The importer never fetches avatar URLs.
 It preserves edits, threads, reactions, tombstone snapshots, and membership
 history. Final membership does not create invented join notices. Shared source
 files are uploaded separately for each message. Uploads use normal server media
@@ -68,10 +78,12 @@ The old archive RPC is removed. Update the CLI and server together. Local
 journals cannot resume imports that used the old server-side archive progress.
 
 Email addresses match existing accounts after trimming whitespace and ignoring
-case. Matched accounts keep their usernames, profiles, and credentials; naming
+case. Matched accounts keep their usernames, profiles, credentials, and activation
+status; naming
 prefixes and suffixes apply only to new accounts. Source records sharing emails
 resolve to one account. For a new account, the first record supplies the profile.
-If emails point to different existing accounts, validation fails.
+If emails point to different existing accounts, validation fails. Source records
+sharing emails must have the same kind and status. Bot accounts cannot have emails.
 
 The importer trusts the archive's email claims and adds unowned addresses as
 verified emails. They can enable the configured email sign-in flow. It creates
@@ -262,7 +274,7 @@ chatto operator message import-reaction \
   --user-id USER_ID --emoji heart --json
 ```
 
-The user and message must exist in the specified active channel. The user does not need room membership. Use a supported emoji shortcode, such as `heart`. A channel echo ID resolves to its original thread reply.
+The user and message must exist in the specified active channel. The user does not need room membership. Use a reaction name without surrounding colons, such as `heart` or `party_parrot`. Plain names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens. Known emoji also accept valid skin-tone suffixes, such as `thumbsup::skin-tone-4`, within the same length limit. Names are case-sensitive and remain unchanged. Unknown plain names are accepted; clients can show them as `:name:`. A channel echo ID resolves to its original thread reply.
 
 Historical reactions can also target deleted messages. They remain visible on the native tombstone. Upgrade all replicas before importing reactions on deleted messages.
 

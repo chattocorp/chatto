@@ -34,10 +34,17 @@ test.describe('Emoji autocomplete (composer integration)', () => {
 
     await roomPage.messageInput.press('Enter');
     await expect(popup).not.toBeVisible();
-    await expect(roomPage.messageInput).toHaveText(/👋/);
+    await expect(
+      page.getByRole('button', { name: '👋 Default yellow', exact: true })
+    ).toBeVisible();
+    await expect(roomPage.messageInput).toBeFocused();
+    await roomPage.messageInput.press('ArrowDown');
+    await roomPage.messageInput.press('Tab');
+    await expect(roomPage.messageInput).toHaveText('Hello 👋🏻 ');
+    await expect(roomPage.messageInput).toBeFocused();
 
     await roomPage.messageInput.press('Control+Enter');
-    await expect(page.locator('[role="article"]', { hasText: '👋' })).toBeVisible({
+    await expect(page.locator('[role="article"]', { hasText: 'Hello 👋🏻' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
   });

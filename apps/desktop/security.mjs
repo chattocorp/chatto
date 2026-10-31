@@ -1,7 +1,9 @@
 // Browser copy actions require clipboard-sanitized-write in Electron.
 // Call and video fullscreen controls require the standard fullscreen permission.
+// Electron 45 reports screen sharing separately from camera and microphone access.
 const desktopPermissions = new Set([
   'media',
+  'display-capture',
   'notifications',
   'clipboard-sanitized-write',
   'fullscreen'

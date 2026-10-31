@@ -3,6 +3,15 @@
     "code_source": "Source",
     "code_render": "Render",
     "code_render_failed": "Preview unavailable. The source is still available.",
+    "keyboard_shortcuts": {
+      "title": "Keyboard shortcuts",
+      "app": "App",
+      "undo": "Undo",
+      "redo": "Redo",
+      "new_line": "New line",
+      "edit_last": "Edit last message (empty draft)",
+      "complete": "Complete mention or emoji"
+    },
     "action_unavailable": "This action is currently unavailable.",
     "edit": "Edit",
     "copy_failed": "Could not copy to clipboard. Select the text and copy it manually.",

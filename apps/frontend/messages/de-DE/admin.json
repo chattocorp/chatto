@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kontoerstellung",
+      "open": "Offene Registrierung",
+      "invite_only": "Einladungscode erforderlich",
+      "open_description": "Jeder kann über die konfigurierten Registrierungsmethoden ein Konto erstellen.",
+      "invite_only_description": "Neue Konten benötigen einen einmalig nutzbaren Einladungscode. Bestehende Nutzer können sich weiterhin anmelden.",
+      "methods": "Konfigurierte Registrierungsmethoden",
+      "methods_configuration": "Die Registrierungsmethoden werden in der Hosting-Konfiguration dieses Servers verwaltet.",
+      "email_password": "E-Mail und Passwort",
+      "no_methods": "Keine Registrierungsmethoden sind aktiviert. In keinem der beiden Modi können Nutzer Konten erstellen."
+    },
     "neighbors": {
       "title": "Nachbarn",
       "subtitle": "Bewirb befreundete Chatto-Server in deinem öffentlichen Verzeichnis",
@@ -254,6 +265,10 @@
         "name_title": "Name & Beschreibung",
         "name_subtitle": "Mitglieder sehen beides in der Raumliste und oben im Raum.",
         "visibility_title": "Sichtbarkeit",
+        "membership_events_title": "Mitgliedschaftsaktivität",
+        "show_membership_events": "Beitritte und Austritte anzeigen",
+        "membership_events_description": "Zeige an, wenn Personen diesem Raum beitreten oder ihn verlassen, auch im Verlauf. Ausgeblendete Aktivitäten werden nicht gelöscht.",
+        "membership_events_unavailable": "Aktualisiere diesen Server, um die Anzeige der Mitgliedschaftsaktivität zu ändern.",
         "visibility_subtitle": "Lege fest, wer Mitglied dieses Raums ist.",
         "universal_description": "Jedes Mitglied, das diesem Raum beitreten kann, ist automatisch Mitglied.",
         "visibility_help": "Nutze einen universellen Raum für Neuigkeiten, die alle Mitglieder erhalten müssen, zum Beispiel Ankündigungen. Mitglieder können einen universellen Raum nicht verlassen, aber stummschalten. Wenn du „Universell“ ausschaltest, bleiben die Mitglieder, die vorher beigetreten sind, im Raum.",
@@ -549,36 +564,30 @@
       "total": "{count} Benutzer insgesamt"
     },
     "invitations": {
-      "title": "Einladungslinks",
-      "subtitle": "Erstelle und verwalte Links, die neue Konten zulassen.",
-      "create_title": "Einladungslink erstellen",
-      "max_uses": "Maximale Nutzungen",
-      "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
-      "unlimited_uses": "Unbegrenzte Nutzungen erlauben",
-      "expiry": "Ablauf",
-      "expiry_1d": "1 Tag",
-      "expiry_7d": "7 Tage",
-      "expiry_30d": "30 Tage",
-      "expiry_never": "Nie",
-      "create": "Einladungslink erstellen",
-      "created": "Einladungslink erstellt",
-      "list_title": "Einladungslinks",
-      "empty": "Noch keine Einladungslinks.",
-      "uses": "Nutzungen",
+      "management_help": "Mit Einladungscodes können andere Personen diesem Server beitreten.",
+      "created_by": "Erstellt von",
+      "note_label": "Notiz (optional)",
+      "note_placeholder": "Für Alex aus dem Designteam",
+      "note_description": "Du und Einladungsverwalter können diese Notiz sehen.",
+      "note_too_long": "Verwende höchstens 250 Zeichen.",
+      "usage": "Neue Codes gelten 7 Tage und erlauben jeweils ein Konto. Kopiere einen Code und schicke ihn an den Empfänger. Er wird erst bei erfolgreicher Registrierung verbraucht.",
+      "create_title": "Code erstellen",
+      "create": "Code erstellen",
+      "created": "Einladungscode erstellt",
+      "list_title": "Einladungscodes",
+      "empty": "Noch keine Einladungscodes.",
       "created_at": "Erstellt",
       "actions": "Aktionen",
       "never": "Nie",
-      "copy": "Link kopieren",
-      "copied": "Einladungslink kopiert",
       "revoke": "Widerrufen",
-      "revoked": "Einladungslink widerrufen",
-      "revoke_title": "Einladungslink widerrufen?",
-      "revoke_description": "Dieser Link lässt sofort keine neuen Konten mehr zu.",
+      "revoked": "Einladungscode widerrufen",
+      "revoke_title": "Code widerrufen?",
+      "revoke_description": "Dieser Code erlaubt ab sofort keine neuen Konten mehr.",
       "status": {
         "active": "Aktiv",
         "expired": "Abgelaufen",
-        "exhausted": "Aufgebraucht",
-        "revoked": "Widerrufen"
+        "revoked": "Widerrufen",
+        "used": "Verwendet"
       }
     }
   }

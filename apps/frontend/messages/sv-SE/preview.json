@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Ingen förhandsvisning finns för länken.",
     "dismiss": "Stäng förhandsgranskningen",
     "delete": "Ta bort förhandsvisning",
     "open_link": "Öppna länken",

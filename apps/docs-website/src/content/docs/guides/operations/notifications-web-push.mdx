@@ -24,20 +24,56 @@ Chatto creates persistent notifications for attention-worthy events:
 
 Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and normally expire after 90 days. Invitation notifications disappear when the invitation is accepted, declined, or expires. Read and Delete changes synchronize everywhere for that user.
 
+## Desktop Alerts
+
+In Chatto Desktop, enable **Push notifications on this device** in notification
+settings. The choice applies to every signed-in server on this device. Use
+**Send test notification** to check delivery. If no alert appears, check your
+operating system's notification settings for Chatto.
+
+Desktop alerts identify the actor, activity, and room where applicable. Activity
+labels use your selected language. Alerts include message text when it is
+already loaded in the client; other alerts show the activity summary. Your OS can
+show names and previews on the lock screen; use its notification settings to
+control this. Desktop alerts respect Do Not
+Disturb and apply to new Important notifications that need your attention.
+Alerts from inactive servers can arrive at the next notification poll. Desktop
+alerts do not require the Web Push server configuration below.
+
+On macOS, closing the window keeps Chatto running. Select Chatto in the Dock to
+open it again. **Command-Q** quits the app and stops new alerts. On Windows and
+Linux, closing the main window quits the app. Chatto adds no menu bar or system
+tray icon. Click an alert to open its conversation.
+
 ## Notification Centre
 
 Press **Option/Alt+Shift+Down** to open the next unread notification source
 across your signed-in servers. You can also select **Go to next unread source**
 in the **Cmd/Ctrl+K** quick switcher. Important notifications come first, then
-Ambient notifications. Plain unread dots are excluded. Repeat the shortcut to
+Ambient notifications, then rooms with plain unread dots. Repeat the shortcut to
 visit the remaining sources. It works from the message composer and preserves
 your draft; it is inactive while a dialog is open.
 
-Open the notification centre as its own page from the bell in the app header.
-It shows one chronological list:
+Press **Cmd/Ctrl+Shift+K** to see the available app and message-editor shortcuts.
+The list follows your editor and send-mode preferences. **Escape** closes help
+and returns focus to your previous field. **Cmd/Ctrl+/** still opens room search
+or focuses filters. You can also open **Cmd/Ctrl+K** and select the
+**Keyboard shortcuts** (?) button.
 
-- Unread notifications use orange emphasis for important activity and a neutral indicator for non-interruptive activity such as reactions.
-- Unread notifications show their summary in bold. Read notifications stay in the same chronological list in regular weight.
+Open the notification centre as its own page from the bell in the app header.
+It combines notifications from all your signed-in servers. The current server's
+sidebar stays available, and the back arrow returns to its last room.
+
+Use **All notifications** or **Unread** to select which activity to show. Combine this with
+**Reactions**, **Replies**, or **Mentions** to narrow the list. Replies include
+activity in followed threads. Mentions include direct, role, @here, and @all
+mentions. **Dismiss read** removes read notifications across all servers,
+including those outside the selected filters.
+
+The list is chronological:
+
+- Notification rows use neutral backgrounds for all activity types.
+- Unread notifications show their summary in bold. Read notifications stay in the same chronological list with muted text in regular weight.
 - Delete permanently removes a notification from the list.
 
 Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. Chatto reads only up to the newest message that you can see. If you open an older message, newer notifications stay unread until you scroll to them. Message notifications expire 90 days after their source activity. Invitation notifications open the room welcome screen and become Read after navigation. Reading or deleting the notification does not accept or decline the invitation.
@@ -129,6 +165,8 @@ To enable push notifications, select **Push notifications on this device** in a 
 Push is on for every registered server or for none of them. Each server's notification settings have one checkbox, **Push notifications on this device**. Unchecking it stops push from every server on this device; checking it turns push on again for all servers and asks the browser for permission if necessary.
 
 While push is on, use **Send test notification** in a server's notification settings to check delivery to your devices.
+
+If the browser cannot create a push subscription, Chatto pauses new subscription setup for all servers in that app. The pause remains after a reload and applies to other tabs on the same app origin. Existing subscriptions continue to work. Open notification settings and select **Try Again** to retry setup. If the browser fails again, setup pauses again. Turning push off and on also retries setup, but first removes existing subscriptions. A checked checkbox means push is enabled; wait for **Send test notification** before you test delivery.
 
 When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. While permission is granted, Chatto also registers servers that the user adds or signs in to later, without asking again. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 

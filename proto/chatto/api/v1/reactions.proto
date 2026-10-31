@@ -13,13 +13,18 @@ import "chatto/api/v1/pagination.proto";
 // on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 // current user already has 20 distinct emoji reactions on the canonical
 // message; adding an emoji that already exists remains an idempotent success.
+// Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+// without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+// suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+// Names are case-sensitive and are stored unchanged, including
+// unknown names. Clients can display an unknown name as :name:.
 message AddReactionRequest {
   // Required. Room containing the message event.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. Event ID of the message being reacted to, or a channel echo of
   // the message.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
-  // Required. Emoji shortcode name, such as "thumbsup" or "heart".
+  // Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
   string emoji = 3 [(buf.validate.field).string.min_len = 1];
 }
 
@@ -42,7 +47,7 @@ message RemoveReactionRequest {
   // Required. Event ID of the message whose reaction should be removed, or a
   // channel echo of the message.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
-  // Required. Emoji shortcode name, such as "thumbsup" or "heart".
+  // Required. Exact reaction name returned by the server, without surrounding colons.
   string emoji = 3 [(buf.validate.field).string.min_len = 1];
 }
 
@@ -62,7 +67,7 @@ message ListReactionUsersRequest {
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Message or channel echo ID.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
-  // Emoji shortcode, such as "thumbsup".
+  // Exact reaction name returned by the server, without surrounding colons.
   string emoji = 3 [(buf.validate.field).string.min_len = 1];
   // Defaults to 50 results. Maximum: 100. Zero uses the default.
   PageRequest page = 4;

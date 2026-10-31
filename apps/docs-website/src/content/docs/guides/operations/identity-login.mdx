@@ -1,12 +1,12 @@
 ---
 title: Identity & Login
-description: Configure accounts, email, login providers, invite links, owner recovery, and connections from other Chatto clients.
+description: Configure accounts, email, login providers, invitation codes, owner recovery, and connections from other Chatto clients.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Chatto supports local password accounts, external login providers, email
-verification and password reset, invite links, and owner recovery. This page
+verification and password reset, invitation codes, and owner recovery. This page
 also tells you how other Chatto clients connect to your server.
 
 ## Choose Your Account Model
@@ -213,49 +213,67 @@ verified addresses.
 
 ## Invite-Only Account Creation
 
-<Tabs>
-<TabItem label="TOML">
+Open **Server Admin → Registration → Account creation**. Select **Invite Code
+Required**. The selection saves immediately. This requires the `server.manage` permission. Registration is open
+by default. Changes apply to all replicas without a restart.
 
-```toml
-[auth]
-account_creation_policy = "invite_only"
-```
+The policy at account creation also applies to signups already in progress.
 
-</TabItem>
-<TabItem label="Environment">
-
-```bash
-CHATTO_AUTH_ACCOUNT_CREATION_POLICY=invite_only
-```
-
-</TabItem>
-</Tabs>
-
-Each new self-service account then needs an invite link. This applies to
+Each new self-service account then needs an invitation code. This applies to
 email/password registration and to provider auto-provisioning. Existing users
 can still sign in and link providers. Accounts that operators create are not
 affected.
 
-Administrators with the `user.invite` permission create and revoke links under
-**Server Admin → Invite links**. By default, a link has one use and expires
-after seven days. You can set a different use limit, unlimited uses, a
-different expiry, or no expiry. You can copy an active link again later.
+Administrators with `user.manage-invites` create and revoke codes under
+**Server Admin → Invites**. Each code permits one new account.
+Use **Create code** in the table header, then confirm in the dialog. Each new code expires after seven
+days. Copy an active code and send it through your chosen channel. Chatto does
+not send it for you. The server sets the seven-day expiry for everyone,
+including administrators and API callers. The expiry cannot be configured.
 
-People join through the `/invite/{token}` URL of the link. An invite link gives
-admission, not identity: Chatto still verifies the email address, and the
-provider still authenticates the user. An expired, used, revoked, or incorrect
-link shows as unavailable.
+Members with `user.invite` use the same **Invites** page. They can see, copy,
+and revoke only codes they created. Send the code and server address to the
+recipient. You can return to this page to copy the code again. Invitation
+managers see all codes and their creators.
+
+Code management stays available when registration is open,
+but open signup does not require or consume codes.
+
+Fresh servers grant both permissions to admins. Other members need an explicit
+`user.invite` grant. That permission does not require privileged mode and does
+not grant access to Registration. Management of all codes requires privileged mode.
+
+In Server Admin, you can add an optional note when you create a code, for example to record who
+it is for. Notes accept up to 250 characters and appear beneath the code in the
+table. Creators and invitation managers can read them. A note does not restrict who can
+use the code. API integrations can set the `note` field when creating a code.
+
+People open **Create Account** and enter the code before choosing a signup
+method. Chatto remembers admission during signup and consumes the code only
+when account creation succeeds. Failed signup does not consume it. Chatto
+still verifies the email address or provider identity. A new provider identity
+that enters through **Sign In** must also supply a code before account creation.
+Expired, used, revoked, or incorrect codes show as unavailable.
+
+For external integrations, use
+[`AdminInvitationCodeService`](/reference/connectrpc-api/admin-invitation-codes/)
+with a credential that has `user.invite` to create and manage its own codes, or
+`user.manage-invites` to manage all codes. Do not retry creation automatically:
+each create call issues a separate code. After a lost response, list your codes
+to retrieve the created code. Direct API registration can send `invitationCode` with the email to
+`POST /auth/register`. SSO account creation can send `invitation_code` with
+`CreateExternalIdentityAccount`. Both paths check and consume admission on
+successful account creation.
 
 <Aside type="caution">
-  An invite link gives access to anyone who has it. Chatto removes the token
-  from its request logs. Configure your reverse proxy and CDN to remove the part
-  after `/invite/` from their access logs too.
+  A code grants admission to anyone who has it. Share it only with its intended
+  recipient. Do not put codes in request logs or URLs.
 </Aside>
 
 <Aside type="caution">
   Keep `core.secret_key` the same on all replicas and after a restore. A new
-  key makes all shared invite links invalid. Administrators can then copy new
-  links for the same invites.
+  key makes all shared codes invalid. Administrators can then copy new
+  codes for the same active invitations.
 </Aside>
 
 ## Owner Recovery

@@ -1,0 +1,27 @@
+package web
+
+import "github.com/chattocorp/chatto/authling/internal/web/ui"
+
+templ deleteAccountPage(message string) {
+	@accountTask("Delete account", "", "security") {
+		@ui.SectionHeading("Delete your account")
+		<p class="mt-4 leading-7">This cannot be undone. You will be signed out of { siteFromContext(ctx).Name } on every device. Your private account details will become unreadable when background key erasure finishes. Encrypted history and basic audit records remain.</p>
+		<p class="mt-4 leading-7">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by { siteFromContext(ctx).Name } until they expire.</p>
+		<p class="mt-4 leading-7">Short-lived verification records expire separately. Backup copies follow the operator’s retention policy. You can sign up again with the same email address, but you will get a new account ID.</p>
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/account/delete">
+			@ui.Field("password", "Current password", "", templ.Attributes{"type": "password", "name": "password", "autocomplete": "current-password", "maxlength": "1024", "required": true})
+			<label class="flex items-start gap-3"><input class="mt-1" type="checkbox" name="confirm" value="delete" required/><span>I understand that this permanently deletes my account on { siteFromContext(ctx).Name }.</span></label>
+			<button class="button button-danger w-full" type="submit">Permanently delete account</button>
+			<a class="button button-secondary w-full" href="/account/security">Keep my account</a>
+		</form>
+	}
+}
+
+templ accountDeletedPage() {
+	@publicTask("Account deleted") {
+		@ui.Heading("Your account is closed")
+		<p class="mt-4 leading-7">You can no longer sign in to { siteFromContext(ctx).Name } with this account. We will finish removing access to your private account details automatically.</p>
+		<a class="button button-secondary mt-6 w-full" href="/">Return home</a>
+	}
+}

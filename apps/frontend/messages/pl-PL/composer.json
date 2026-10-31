@@ -1,6 +1,7 @@
 {
   "composer": {
     "render_by_default": "Domyślnie pokaż podgląd",
+    "insert_emoji": "Wstaw emoji",
     "attach_file": "Załącz plik",
     "formatting_options": "Opcje formatowania",
     "send": "Wyślij wiadomość",

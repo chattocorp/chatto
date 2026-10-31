@@ -80,6 +80,9 @@ func (s *HTTPServer) mountConnectHandler(router gin.IRouter, servicePath string,
 	handler := http.StripPrefix(connectAPIPrefix, withEmptyConnectGETMessage(serviceHandler))
 	router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
+		if s.requestIsSameOrigin(c.Request) {
+			req = req.WithContext(connectapi.WithRegistrationAdmissionCompleter(req.Context(), func(invitationID string) { clearRegistrationAdmission(c, invitationID) }))
+		}
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(c.Request)))
 		req = req.WithContext(connectapi.WithBrowserSessionCreator(req.Context(), func(ctx context.Context, userID, source string) (connectapi.BrowserSession, error) {
 			return s.createConnectBrowserSession(c, userID, source)

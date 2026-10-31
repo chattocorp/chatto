@@ -85,20 +85,33 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 		t.Fatalf("CreateRoom: %v", err)
 	}
 	room := createResp.Msg.GetRoom()
+	if room.ShowMembershipEvents == nil || !room.GetShowMembershipEvents() {
+		t.Fatal("created room must explicitly enable membership activity")
+	}
 	if room.GetId() == "" || room.GetKind() != apiv1.RoomKind_ROOM_KIND_CHANNEL || room.GetGroupId() != groupID || !room.GetUniversal() || room.GetThreadingMode() != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED {
 		t.Fatalf("created room = %+v", room)
 	}
 
 	updateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
-		RoomId:      room.GetId(),
-		Name:        new("Connect / renamed!"),
-		Description: new("updated through ConnectRPC"),
+		RoomId:               room.GetId(),
+		Name:                 new("Connect / renamed!"),
+		Description:          new("updated through ConnectRPC"),
+		ShowMembershipEvents: new(false),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}
 	if updateResp.Msg.GetRoom().GetName() != "Connect / renamed!" {
 		t.Fatalf("UpdateRoom name = %q, want flexible name", updateResp.Msg.GetRoom().GetName())
+	}
+	if updateResp.Msg.GetRoom().ShowMembershipEvents == nil || updateResp.Msg.GetRoom().GetShowMembershipEvents() {
+		t.Fatal("room update must preserve explicit false")
+	}
+	reset, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"show_membership_events"}},
+	}))
+	if err != nil || !reset.Msg.GetRoom().GetShowMembershipEvents() {
+		t.Fatalf("reset membership activity: %v", err)
 	}
 	encouraged := apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED
 	threadingResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
@@ -690,13 +703,14 @@ func TestRoomServiceStartDM(t *testing.T) {
 	botCtx := withCaller(env.ctx, bot.User)
 	for name, participantIDs := range map[string][]string{
 		"self":     nil,
+		"new":      {participant.Id},
 		"existing": {env.viewer.GetId()},
 	} {
-		t.Run("bot cannot start "+name+" DM", func(t *testing.T) {
+		t.Run("bot can start "+name+" DM", func(t *testing.T) {
 			if _, err := env.rooms.StartDM(botCtx, connect.NewRequest(&apiv1.StartDMRequest{
 				ParticipantIds: participantIDs,
-			})); errorCode(err) != connect.CodePermissionDenied {
-				t.Fatalf("bot StartDM code = %v, want permission denied", errorCode(err))
+			})); err != nil {
+				t.Fatalf("bot StartDM: %v", err)
 			}
 		})
 	}

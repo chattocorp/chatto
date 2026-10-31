@@ -60,7 +60,7 @@ func TestSessionLifecycleAndEncryptedStorage(t *testing.T) {
 	}
 }
 
-func TestSessionEnforcesIdleAndAbsoluteLifetimes(t *testing.T) {
+func TestSessionRemembersIdleBrowsersFor90DaysWithoutSliding(t *testing.T) {
 	service, _, cleanup := testService(t)
 	defer cleanup()
 	started := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
@@ -71,9 +71,9 @@ func TestSessionEnforcesIdleAndAbsoluteLifetimes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now = started.Add(InactivityLifetime)
-	if _, err := service.Validate(t.Context(), idleToken); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("idle validation error = %v, want ErrNotFound", err)
+	now = started.Add(89 * 24 * time.Hour)
+	if _, err := service.Validate(t.Context(), idleToken); err != nil {
+		t.Fatalf("idle browser was not remembered: %v", err)
 	}
 
 	now = started
@@ -81,12 +81,15 @@ func TestSessionEnforcesIdleAndAbsoluteLifetimes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for now = started.Add(50 * time.Minute); now.Before(started.Add(AbsoluteLifetime)); now = now.Add(50 * time.Minute) {
+	for now = started.Add(30 * 24 * time.Hour); now.Before(started.Add(90 * 24 * time.Hour)); now = now.Add(30 * 24 * time.Hour) {
 		if _, err := service.Validate(t.Context(), absoluteToken); err != nil {
 			t.Fatalf("validate active session at %v: %v", now, err)
 		}
 	}
-	now = started.Add(AbsoluteLifetime)
+	now = started.Add(90 * 24 * time.Hour)
+	if _, err := service.Validate(t.Context(), idleToken); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("idle session exceeded 90 days: %v", err)
+	}
 	if _, err := service.Validate(t.Context(), absoluteToken); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("absolute validation error = %v, want ErrNotFound", err)
 	}
@@ -110,7 +113,7 @@ func TestInspectDoesNotExtendSessionActivity(t *testing.T) {
 	if !inspected.LastSeenAt.Equal(started) {
 		t.Fatalf("passive inspection changed last seen to %v", inspected.LastSeenAt)
 	}
-	now = started.Add(InactivityLifetime)
+	now = started.Add(AbsoluteLifetime)
 	if _, err := service.Inspect(t.Context(), token); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("idle passive inspection error = %v, want ErrNotFound", err)
 	}

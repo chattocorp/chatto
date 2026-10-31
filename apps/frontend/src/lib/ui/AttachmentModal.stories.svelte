@@ -44,13 +44,18 @@
 </script>
 
 <Story name="Image gallery" asChild>
-  <button
-    class="btn-action"
-    onclick={() => {
-      index = 0;
-      open = true;
-    }}>Open gallery</button
-  >
+  <div class="flex gap-3">
+    {#each images as image, position (image.id)}
+      <button
+        class="block h-25 w-40 overflow-hidden rounded-lg"
+        aria-label={`Open ${image.filename}`}
+        onclick={() => {
+          index = position;
+          open = true;
+        }}><img src={image.url} alt={image.filename} class="h-full w-full object-cover" /></button
+      >
+    {/each}
+  </div>
   {#if open}
     <AttachmentModal
       filename={images[index].filename}
@@ -61,9 +66,13 @@
       downloadUrl={images[index].url}
       {index}
       count={images.length}
-      onnavigate={(direction) => (index = (index + direction + images.length) % images.length)}
+      onnavigate={(direction) => {
+        index = (index + direction + images.length) % images.length;
+      }}
       ondownload={() => {}}
-      onclose={() => (open = false)}
+      onclose={() => {
+        open = false;
+      }}
     >
       {#key images[index].id}
         <AttachmentPreview

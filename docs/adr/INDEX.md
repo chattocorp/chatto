@@ -85,7 +85,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-067](ADR-067-electron-desktop-client.md)                            | Package Chatto Desktop with Electron                             | Partially superseded | 2026-08-08 |
 | [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md)   | Select Event Mutation Consistency Boundaries Explicitly          | Partially superseded | 2026-08-10 |
 | [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md)                | Manage Durable Consumer Lifecycles Explicitly                    | Accepted             | 2026-08-11 |
-| [ADR-070](ADR-070-deterministic-invite-link-capabilities.md)             | Derive Invite-Link Capabilities from Durable EVT Identity        | Accepted             | 2026-08-11 |
+| [ADR-070](ADR-070-deterministic-invite-link-capabilities.md)             | Derive Invitation Capabilities from Durable EVT Identity         | Accepted             | 2026-08-11 |
 | [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md)                 | Identify Open OAuth Clients through CIMD                         | Accepted             | 2026-08-11 |
 | [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md)  | Optional Host Capabilities in the Shared Frontend                | Accepted             | 2026-08-13 |
 | [ADR-073](ADR-073-define-the-loom-architecture.md)                       | Define the Loom Architecture                                     | Accepted             | 2026-08-14 |
@@ -132,6 +132,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-115](ADR-115-in-process-domain-services.md)                         | In-Process Domain Services                                       | Accepted             | 2026-10-12 |
 | [ADR-116](ADR-116-consume-internal-packages-from-source.md)              | Consume Internal TypeScript Packages from Source                 | Accepted             | 2026-10-18 |
 | [ADR-117](ADR-117-message-post-idempotency.md)                           | Message Post Idempotency in Runtime State                        | Accepted             | 2026-10-08 |
-| [ADR-118](ADR-118-synchronized-chatto-desktop-releases.md)               | Synchronize Chatto and Desktop Releases                          | Accepted             | 2026-10-25 |
+| [ADR-118](ADR-118-synchronized-chatto-desktop-releases.md)               | Synchronize Chatto and Desktop Releases                          | Partially superseded | 2026-10-25 |
 | [ADR-119](ADR-119-portable-history-interchange.md)                       | Portable History Interchange                                    | Accepted             | 2026-10-26 |
 | [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                    | Accepted             | 2026-10-27 |
+| [ADR-121](ADR-121-github-desktop-updates.md)                             | Publish Complete GitHub Releases for Desktop Updates             | Accepted             | 2026-10-29 |

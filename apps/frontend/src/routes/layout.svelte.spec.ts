@@ -17,7 +17,8 @@ const { mocks } = vi.hoisted(() => ({
     deactivateManagementLocaleMessages: vi.fn(async () => {}),
     appUi: {
       setActiveRoomScope: vi.fn(),
-      setActiveServer: vi.fn()
+      setActiveServer: vi.fn(),
+      loadVisibleRoomMembers: vi.fn()
     },
     originClient: {
       showConnectionLostIcon: false,
@@ -131,6 +132,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({
+  AppUiState: class {},
   getAppUiState: () => mocks.appUi,
   provideAppUiState: () => mocks.appUi
 }));
@@ -199,6 +201,54 @@ function touch(type: string, x: number, y = 120) {
     changedTouches: [contact]
   });
 }
+
+describe('main-view navigation fade', () => {
+  it('fades channel and page changes but leaves thread and query navigation steady', () => {
+    mocks.onNavigate.mockClear();
+    renderLayout();
+    const navigate = mocks.onNavigate.mock.calls[0][0];
+    const room = {
+      url: new URL('https://chat.example.test/chat/server/room'),
+      route: { id: '/chat/[serverId]/[roomId]' },
+      params: { serverId: 'server', roomId: 'room' }
+    };
+    expect(navigate({ from: null, to: room })).toBeUndefined();
+    expect(navigate({ from: room, to: null })).toBeUndefined();
+    expect(
+      navigate({ from: room, to: { ...room, url: new URL(`${room.url}?filter=1`) } })
+    ).toBeUndefined();
+    expect(
+      navigate({
+        from: room,
+        to: {
+          ...room,
+          url: new URL(`${room.url}/thread`),
+          route: { id: '/chat/[serverId]/[roomId]/[threadId]' }
+        }
+      })
+    ).toBeUndefined();
+    expect(
+      navigate({
+        from: room,
+        to: {
+          ...room,
+          url: new URL('https://chat.example.test/chat/server/other'),
+          params: { ...room.params, roomId: 'other' }
+        }
+      })
+    ).toBeTypeOf('function');
+    expect(
+      navigate({
+        from: room,
+        to: {
+          url: new URL('https://chat.example.test/chat/server/manage/server'),
+          route: { id: '/chat/[serverId]/manage/server' },
+          params: { serverId: 'server' }
+        }
+      })
+    ).toBeTypeOf('function');
+  });
+});
 
 describe('OAuth page layout', () => {
   beforeEach(() => {
@@ -279,6 +329,38 @@ describe('OAuth page layout', () => {
     const view = renderLayout();
     await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
     await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
+  });
+});
+
+describe('room member navigation boundary', () => {
+  it('checks visible member demand on entry, room changes, and resize', async () => {
+    const loadRoomMembers = vi.fn();
+    vi.mocked(serverRegistry.tryGetStore).mockReturnValue({
+      loadRoomMembers,
+      serverInfo: {},
+      currentUser: { user: null }
+    } as never);
+    page.route.id = '/chat/[serverId]/[roomId]';
+    Object.assign(page, { params: { serverId: '-', roomId: 'room-1' } });
+    try {
+      renderLayout();
+      const navigate = mocks.afterNavigate.mock.calls.at(-1)![0];
+      await navigate({ from: null, to: { route: page.route } });
+      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledOnce();
+
+      page.route.id = '/chat/[serverId]/[roomId]/[threadId]';
+      Object.assign(page, { params: { serverId: '-', roomId: 'room-2', threadId: 'thread' } });
+      await tick();
+      await navigate({ from: null, to: { route: page.route } });
+      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledTimes(2);
+      window.dispatchEvent(new Event('resize'));
+      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledTimes(3);
+      expect(loadRoomMembers).not.toHaveBeenCalled();
+    } finally {
+      page.route.id = '/';
+      Object.assign(page, { params: {} });
+      vi.mocked(serverRegistry.tryGetStore).mockReturnValue(undefined);
+    }
   });
 });
 

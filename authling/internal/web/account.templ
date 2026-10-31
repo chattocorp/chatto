@@ -1,0 +1,186 @@
+package web
+
+import (
+	"github.com/chattocorp/chatto/authling/internal/sessions"
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+	"slices"
+	"time"
+)
+
+templ accountPage(data accountPageData) {
+	@accountWorkspace("Your account", data.signedInAs, data.section, data.administrator) {
+		if data.passwordChanged {
+			@ui.Notice(ui.Success) {
+				<p>Your password was changed. Your other browser sessions on { siteFromContext(ctx).Name } were signed out.</p>
+			}
+		}
+		if data.emailChanged {
+			@ui.Notice(ui.Success) {
+				<p>Your email address was changed. Use your new email address the next time you sign in.</p>
+			}
+		}
+		if data.profileUpdated {
+			@ui.Notice(ui.Success) {
+				<p>Your profile was updated.</p>
+			}
+		}
+		if data.notificationFailed {
+			@ui.Notice(ui.Warning) {
+				<p>We couldn’t send a security notice to your previous address. Your email address was still changed.</p>
+			}
+		}
+		if data.sessionRevoked {
+			@ui.Notice(ui.Success) {
+				<p>The other browser session was signed out.</p>
+			}
+		}
+		if data.otherSessionsRevoked {
+			@ui.Notice(ui.Success) {
+				<p>Your other browser sessions were signed out.</p>
+			}
+		}
+		if data.sessionMissing {
+			@ui.Notice(ui.Neutral) {
+				<p>That browser session is no longer active.</p>
+			}
+		}
+		if data.appRevoked {
+			@ui.Notice(ui.Success) {
+				<p>The app’s authorization was revoked. It must ask for access again in a future authorization flow.</p>
+			}
+		}
+		if data.appMissing {
+			@ui.Notice(ui.Neutral) {
+				<p>That app is no longer authorized.</p>
+			}
+		}
+		if data.section == "profile" {
+			<section class="panel" aria-labelledby="profile-heading">
+				<h2 id="profile-heading" class="settings-heading">Profile</h2>
+				<p class="settings-description">Choose how you appear in connected apps.</p>
+				<dl class="identity-details">
+					<div><dt>Email address</dt><dd>{ data.signedInAs }</dd></div>
+					<div><dt>Preferred username</dt><dd>{ data.profile.PreferredUsername }</dd></div>
+					<div>
+						<dt>Full name</dt>
+						<dd>
+							if data.profile.FullName != "" {
+								{ data.profile.FullName }
+							} else {
+								<span class="text-muted">Not set</span>
+							}
+						</dd>
+					</div>
+					<div><dt>Account ID</dt><dd><code class="break-all">{ data.accountID }</code></dd></div>
+				</dl>
+				<div class="mt-6 flex flex-wrap gap-3">
+					<a class="button button-primary" href="/account/profile">Edit profile</a>
+					<a class="button button-secondary" href="/account/email">Change email address</a>
+				</div>
+			</section>
+		}
+		if data.section == "security" {
+			<section class="panel" aria-labelledby="security-heading">
+				<h2 id="security-heading" class="settings-heading">Security</h2>
+				<p class="settings-description">Keep your sign-in details up to date.</p>
+				<div class="settings-actions">
+					<a class="settings-link" href="/account/password"><span>Change password</span><span aria-hidden="true">›</span></a>
+				</div>
+			</section>
+		}
+		if data.section == "apps" {
+			<section class="panel">
+				<h2 class="settings-heading">Connected apps</h2>
+				<p class="settings-description">Apps you allowed to access your { siteFromContext(ctx).Name } account. Each app can read the information listed below. Revoking access makes the app ask again next time. It does not sign you out of the app or invalidate tokens it already has.</p>
+				if len(data.authorizationGrants) == 0 {
+					<p class="mt-4 text-muted">You haven’t authorized any apps yet.</p>
+				} else {
+					<div class="mt-5 space-y-3">
+						for _, grant := range data.authorizationGrants {
+							<div class="settings-item">
+								<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+									<div class="min-w-0">
+										<p class="font-semibold">{ grant.ClientName }</p>
+										<p class="mt-1 break-words text-muted">{ grant.ClientHost }</p>
+										<p class="mt-2 text-muted">
+											Account ID
+											if slices.Contains(grant.Scopes, "profile") {
+												<span>, username and full name</span>
+											}
+											if slices.Contains(grant.Scopes, "email") {
+												<span>, verified email address</span>
+											}
+										</p>
+										<p class="mt-2 text-muted">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
+									</div>
+									<form class="w-full sm:w-auto" method="post" action="/account/authorizations/revoke">
+										<input type="hidden" name="grant_id" value={ grant.ID }/>
+										<button class="button button-danger button-compact w-full whitespace-nowrap sm:w-auto" type="submit">Revoke access</button>
+									</form>
+								</div>
+							</div>
+						}
+					</div>
+				}
+			</section>
+		}
+		if data.section == "sessions" {
+			<section class="panel">
+				<h2 class="settings-heading">Sessions</h2>
+				<p class="settings-description">Review your sign-ins on { siteFromContext(ctx).Name }. We do not store browser names, IP addresses, or locations.</p>
+				<div class="mt-5 space-y-3">
+					for _, browserSession := range data.browserSessions {
+						<div class="settings-item">
+							<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+								<div>
+									<div class="flex flex-wrap items-center gap-2">
+										<p class="font-semibold">Browser session</p>
+										if browserSession.Current {
+											@ui.Badge("This browser")
+										}
+									</div>
+									<dl class="mt-2 space-y-1 text-muted">
+										<div><dt class="inline">Started:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.CreatedAt) }</dd></div>
+										<div><dt class="inline">Last active:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.LastSeenAt) }</dd></div>
+										<div><dt class="inline">Expires:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.ExpiresAt) }</dd></div>
+									</dl>
+								</div>
+								if !browserSession.Current {
+									<form class="w-full sm:w-auto" method="post" action="/account/sessions/revoke">
+										<input type="hidden" name="session_id" value={ browserSession.ID }/>
+										<button class="button button-danger button-compact w-full whitespace-nowrap sm:w-auto" type="submit">Sign out</button>
+									</form>
+								}
+							</div>
+						</div>
+					}
+				</div>
+				if hasOtherBrowserSession(data.browserSessions) {
+					<form class="mt-4" method="post" action="/account/sessions/revoke-others">
+						<button class="button button-danger w-full" type="submit">Sign out all other browsers</button>
+					</form>
+				}
+			</section>
+		}
+		if data.section == "security" {
+			<section class="panel mt-6" aria-labelledby="delete-heading">
+				<h2 id="delete-heading" class="settings-heading">Delete account</h2>
+				<p class="settings-description">Permanently close your account on { siteFromContext(ctx).Name }.</p>
+				<a class="button button-danger button-compact mt-4" href="/account/delete">Delete account</a>
+			</section>
+		}
+	}
+}
+
+func hasOtherBrowserSession(browserSessions []sessions.BrowserSession) bool {
+	for _, browserSession := range browserSessions {
+		if !browserSession.Current {
+			return true
+		}
+	}
+	return false
+}
+
+func formatSessionTime(value time.Time) string {
+	return value.UTC().Format("2 Jan 2006, 15:04 UTC")
+}

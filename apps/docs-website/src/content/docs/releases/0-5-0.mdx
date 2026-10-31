@@ -169,9 +169,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     login.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Invite links">
-    Create single-use or reusable [invite links](/guides/operations/identity-login/#invite-only-account-creation) with an expiry date. Set account
-    creation to invite-only to admit new members only through these links.
+  <ReleaseFeatureCard title="Invitation codes">
+    Create [single-use invitation codes](/guides/operations/identity-login/#invite-only-account-creation)
+    with optional expiry. Set account creation to invite-only to require a code
+    before signup. Issue codes in Server Admin or through the API.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Room management where the room is">
@@ -313,14 +314,14 @@ does not return.
 Do these steps on every upgraded server:
 
 - **Grant `user.invite` and `bot.manage`** to the admin role if administrators
-  must manage invite links and bots.
+  must manage invitation codes and bots.
 - **Grant `bot.create`** to the roles that can create bots. A new server grants
   it only to `admin`.
 - **Grant `room.manage`** to delegated room managers. Room group management
   used `role.manage` in 0.4.
-- **Allow `message.post` for `admin` in the `announcements` room** if
-  administrators must post there. A new server has this grant, but an upgraded
-  server does not.
+- **Allow `message.post` for `admin` and `owner` in the `announcements` room**
+  if they must post there without privileged mode. A new server has these
+  grants, but an upgraded server keeps its current settings.
 - **Check thread posting.** `message.post` now also allows thread replies. A
   0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
   allows replies.
@@ -330,9 +331,9 @@ Do these steps on every upgraded server:
 Administrators, moderators, and the owner must now enable privileged mode before
 they use their administrative permissions. This also applies to custom
 `room.create` grants. Owners also need privileged mode to see, join, or read
-rooms that deny these actions to `everyone`, and to post in the announcements
-room. Give an owner the `admin` role or a room-level allow if they need this
-access during normal use.
+rooms that deny these actions to `everyone` when no explicit grant allows
+access. Give the `owner` role a room-level allow if owners need this access
+during normal use.
 
 See [Permissions](/guides/operations/permissions/) for the complete list.
 

@@ -6,6 +6,13 @@
       "confirmation": "I 15 minuter aktiverar detta de ytterligare behörigheter som du har tilldelats på den här servern."
     },
     "notifications": {
+      "all_notifications": "Alla aviseringar",
+      "all_types": "Alla typer",
+      "filter_status": "Status",
+      "filter_type": "Typ",
+      "reactions": "Reaktioner",
+      "replies": "Svar",
+      "mentions": "Omnämnanden",
       "next_unread_source": "Gå till nästa olästa källa",
       "no_unread": "Inga olästa aviseringar",
       "title": "Aviseringar",
@@ -40,6 +47,7 @@
       "administration": "Serveradministration"
     },
     "user_menu": {
+      "edit_profile": "Redigera profil",
       "profile": "Användarprofil",
       "send_message": "Öppna konversation",
       "view_profile": "Visa profil",
@@ -53,6 +61,9 @@
       "details": "Serveruppgifter"
     },
     "compatibility": {
+      "older_frontend": "Din app stöder inte alla funktioner på den här servern",
+      "frontend_upgrade": "Du använder appversion {version}. Uppdatera appen eller be administratören för servern som tillhandahåller appen att uppdatera den. Tillgång till funktioner beror också på serverinställningar och dina behörigheter.",
+      "frontend_requires": "Kräver appversion {version} eller senare",
       "title": "Kompatibilitet",
       "view": "Visa kompatibilitet",
       "limited": "Äldre serverversion",
@@ -173,7 +184,8 @@
       "event_log": "Händelselogg",
       "system": "System",
       "back_to_server": "Återgå till servern",
-      "invitations": "Inbjudningslänkar"
+      "invites": "Inbjudningar",
+      "registration": "Registrering"
     }
   }
 }

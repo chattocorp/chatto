@@ -357,7 +357,24 @@ test.describe('Markdown composer on touch devices', () => {
     await roomPage.messageInput.pressSequentially(second);
     await expect(roomPage.getMessage(first).locator).not.toBeVisible();
 
-    await roomPage.sendButton.click();
+    await page.getByRole('button', { name: 'Formatting options', exact: true }).tap();
+    const formatting = page.getByTestId('composer-formatting-toolbar').getByRole('button');
+    await expect(formatting).toHaveCount(12);
+    for (const width of [390, 768, 1280, 1920]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expect(roomPage.sendButton).toHaveCSS('height', '44px');
+      await expect
+        .poll(() =>
+          formatting.evaluateAll((buttons) =>
+            buttons.map((button) => button.getBoundingClientRect().height)
+          )
+        )
+        .toEqual(Array(12).fill(44));
+      await expect(roomPage.messageInput).toContainText(first);
+      await expect(roomPage.messageInput).toContainText(second);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    }
+    await roomPage.sendButton.tap({ position: { x: 22, y: 42 } });
     await expect(roomPage.getMessage(second).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 });
@@ -388,14 +405,22 @@ test.describe('Composer links', () => {
       );
     }, url);
 
-    const link = roomPage.messageInput.locator('a');
-    await expect(link).toHaveText(url);
+    const link = roomPage.messageInput.locator('.url-link');
+    await expect(link).toHaveText('www.spiegel.de');
     await expect(link).toHaveAttribute('href', url);
+    await expect(link).toHaveAttribute('title', url);
 
     await roomPage.messageInput.pressSequentially(' after');
 
-    await expect(link).toHaveText(url);
-    await expect(roomPage.messageInput).toHaveText(`${url} after`);
+    await expect(link).toHaveText('www.spiegel.de');
+    await expect(roomPage.messageInput.locator('a:not(.url-link)')).toHaveText(url);
+    await expect(roomPage.messageInput).toContainText(' after');
+    await roomPage.messageInput.press('Control+Enter');
+    const posted = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`.url-link[data-content-href="${url}"]`) });
+    await expect(posted).toBeVisible();
+    await expect(posted).toContainText(' after');
   });
 });
 

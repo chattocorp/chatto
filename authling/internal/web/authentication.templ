@@ -1,0 +1,48 @@
+package web
+
+import (
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+	"net/url"
+	"strconv"
+)
+
+templ loginPage(message, oidcRequest, returnPath string) {
+	@layout("Sign in", "") {
+		@ui.Heading("Sign in") {
+			<p>Sign in to { siteFromContext(ctx).Name } with your email address and password.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/login" hx-boost={ strconv.FormatBool(oidcRequest == "") } hx-push-url="true" hx-disabled-elt="find button[type='submit']">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			if returnPath != "" {
+				<input type="hidden" name="return_to" value={ returnPath }/>
+			}
+			@ui.Field("email", "Email address", "", templ.Attributes{"type": "email", "name": "email", "autocomplete": "email", "autofocus": true, "required": true})
+			@ui.Field("password", "Password", "", templ.Attributes{"type": "password", "name": "password", "autocomplete": "current-password", "maxlength": "1024", "required": true})
+			<button class="button button-primary w-full" type="submit">Sign in</button>
+		</form>
+		<div class="mt-2 flex justify-center">
+			<a class="button button-quiet" href={ passwordResetURL(oidcRequest) }>Forgot your password?</a>
+		</div>
+		<footer class="card-footer">
+			<p class="text-muted">No account yet?</p>
+			<a class="button button-secondary w-full sm:w-auto" href={ signupURL(oidcRequest) }>Create account</a>
+		</footer>
+	}
+}
+
+func signupURL(oidcRequest string) string {
+	if oidcRequest == "" {
+		return "/signup"
+	}
+	return "/signup?id=" + url.QueryEscape(oidcRequest)
+}
+
+func passwordResetURL(oidcRequest string) string {
+	if oidcRequest == "" {
+		return "/password-reset"
+	}
+	return "/password-reset?id=" + url.QueryEscape(oidcRequest)
+}

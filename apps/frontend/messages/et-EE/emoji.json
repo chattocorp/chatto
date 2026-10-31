@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{users} reageerisid: {emoji}",
+    "tone_default": "Vaikimisi kollane",
+    "tone_light": "Hele",
+    "tone_medium_light": "Keskmiselt hele",
+    "tone_medium": "Keskmine",
+    "tone_medium_dark": "Keskmiselt tume",
+    "tone_dark": "Tume",
     "search_placeholder": "Otsi emotikone...",
     "no_results": "Emotikone ei leitud",
     "recently_used": "Hiljuti kasutatud"

@@ -1,0 +1,242 @@
+{
+  "de": {
+    "threadViews": {
+      "name": "Getrennte Thread-Ansichten",
+      "description": "Zeige gefolgte Threads getrennt von Threads an, die du gestartet hast."
+    },
+    "independentSlowMode": {
+      "name": "Unabhängiger langsamer Modus",
+      "description": "Verwende getrennte Wartezeiten für Kanalnachrichten und Thread-Antworten."
+    }
+  },
+  "fr": {
+    "threadViews": {
+      "name": "Vues séparées des fils",
+      "description": "Affichez les fils suivis séparément de ceux que vous avez créés."
+    },
+    "independentSlowMode": {
+      "name": "Mode lent indépendant",
+      "description": "Utilisez des délais distincts pour les messages du canal et les réponses dans les fils."
+    }
+  },
+  "es": {
+    "threadViews": {
+      "name": "Vistas de hilos separadas",
+      "description": "Consulta los hilos que sigues por separado de los que has iniciado."
+    },
+    "independentSlowMode": {
+      "name": "Modo lento independiente",
+      "description": "Usa tiempos de espera separados para los mensajes del canal y las respuestas en hilos."
+    }
+  },
+  "nl": {
+    "threadViews": {
+      "name": "Afzonderlijke threadweergaven",
+      "description": "Bekijk gevolgde threads apart van threads die je zelf bent gestart."
+    },
+    "independentSlowMode": {
+      "name": "Onafhankelijke langzame modus",
+      "description": "Gebruik afzonderlijke wachttijden voor kanaalberichten en threadantwoorden."
+    }
+  },
+  "sv": {
+    "threadViews": {
+      "name": "Separata trådvyer",
+      "description": "Visa följda trådar separat från trådar du har startat."
+    },
+    "independentSlowMode": {
+      "name": "Oberoende långsamt läge",
+      "description": "Använd separata väntetider för kanalmeddelanden och trådsvar."
+    }
+  },
+  "pt": {
+    "threadViews": {
+      "name": "Vistas de tópicos separadas",
+      "description": "Veja os tópicos seguidos separadamente dos que iniciou."
+    },
+    "independentSlowMode": {
+      "name": "Modo lento independente",
+      "description": "Use intervalos separados para mensagens do canal e respostas em tópicos."
+    }
+  },
+  "pt-BR": {
+    "threadViews": {
+      "name": "Visualizações de tópicos separadas",
+      "description": "Veja os tópicos que você segue separadamente dos que iniciou."
+    },
+    "independentSlowMode": {
+      "name": "Modo lento independente",
+      "description": "Use intervalos separados para mensagens do canal e respostas em tópicos."
+    }
+  },
+  "nb": {
+    "threadViews": {
+      "name": "Separate trådvisninger",
+      "description": "Vis fulgte tråder separat fra tråder du har startet."
+    },
+    "independentSlowMode": {
+      "name": "Uavhengig langsom modus",
+      "description": "Bruk separate ventetider for kanalmeldinger og trådsvar."
+    }
+  },
+  "pl": {
+    "threadViews": {
+      "name": "Oddzielne widoki wątków",
+      "description": "Wyświetlaj obserwowane wątki oddzielnie od tych, które zaczynasz."
+    },
+    "independentSlowMode": {
+      "name": "Niezależny tryb powolny",
+      "description": "Używaj oddzielnych czasów oczekiwania dla wiadomości na kanale i odpowiedzi w wątkach."
+    }
+  },
+  "uk": {
+    "threadViews": {
+      "name": "Окремі перегляди гілок",
+      "description": "Переглядайте відстежувані гілки окремо від тих, які ви створили."
+    },
+    "independentSlowMode": {
+      "name": "Незалежний повільний режим",
+      "description": "Використовуйте окремі інтервали очікування для повідомлень каналу та відповідей у гілках."
+    }
+  },
+  "it": {
+    "threadViews": {
+      "name": "Viste separate delle discussioni",
+      "description": "Visualizza le discussioni che segui separatamente da quelle che hai avviato."
+    },
+    "independentSlowMode": {
+      "name": "Modalità lenta indipendente",
+      "description": "Usa intervalli separati per i messaggi del canale e le risposte nelle discussioni."
+    }
+  },
+  "lv": {
+    "threadViews": {
+      "name": "Atsevišķi pavedienu skati",
+      "description": "Skatiet pavedienus, kuriem sekojat, atsevišķi no jūsu sāktajiem pavedieniem."
+    },
+    "independentSlowMode": {
+      "name": "Neatkarīgs lēnais režīms",
+      "description": "Izmantojiet atsevišķus gaidīšanas intervālus kanāla ziņojumiem un atbildēm pavedienos."
+    }
+  },
+  "et": {
+    "threadViews": {
+      "name": "Eraldi lõimevaated",
+      "description": "Vaadake jälgitavaid lõimi eraldi enda alustatud lõimedest."
+    },
+    "independentSlowMode": {
+      "name": "Sõltumatu aeglane režiim",
+      "description": "Kasutage kanalisõnumite ja lõimevastuste jaoks eraldi ooteaegu."
+    }
+  },
+  "tr": {
+    "threadViews": {
+      "name": "Ayrı konu görünümleri",
+      "description": "Takip ettiğiniz konuları başlattığınız konulardan ayrı görüntüleyin."
+    },
+    "independentSlowMode": {
+      "name": "Bağımsız yavaş mod",
+      "description": "Kanal mesajları ve konu yanıtları için ayrı bekleme süreleri kullanın."
+    }
+  },
+  "cs": {
+    "threadViews": {
+      "name": "Oddělené pohledy na vlákna",
+      "description": "Zobrazte sledovaná vlákna odděleně od vláken, která jste založili."
+    },
+    "independentSlowMode": {
+      "name": "Nezávislý pomalý režim",
+      "description": "Používejte samostatné čekací doby pro zprávy v kanálu a odpovědi ve vláknech."
+    }
+  },
+  "ru": {
+    "threadViews": {
+      "name": "Отдельные списки веток",
+      "description": "Просматривайте отслеживаемые ветки отдельно от созданных вами."
+    },
+    "independentSlowMode": {
+      "name": "Независимый медленный режим",
+      "description": "Используйте отдельные интервалы ожидания для сообщений канала и ответов в ветках."
+    }
+  },
+  "el": {
+    "threadViews": {
+      "name": "Ξεχωριστές προβολές νημάτων",
+      "description": "Προβάλετε τα νήματα που ακολουθείτε ξεχωριστά από εκείνα που ξεκινήσατε."
+    },
+    "independentSlowMode": {
+      "name": "Ανεξάρτητη αργή λειτουργία",
+      "description": "Χρησιμοποιήστε ξεχωριστούς χρόνους αναμονής για μηνύματα καναλιού και απαντήσεις σε νήματα."
+    }
+  },
+  "ar": {
+    "threadViews": {
+      "name": "طرق عرض منفصلة للمواضيع",
+      "description": "اعرض المواضيع التي تتابعها بشكل منفصل عن المواضيع التي بدأتها."
+    },
+    "independentSlowMode": {
+      "name": "وضع بطيء مستقل",
+      "description": "استخدم فترات انتظار منفصلة لرسائل القناة والردود في المواضيع."
+    }
+  },
+  "he": {
+    "threadViews": {
+      "name": "תצוגות נפרדות לשרשורים",
+      "description": "הצג שרשורים שאתה עוקב אחריהם בנפרד משרשורים שפתחת."
+    },
+    "independentSlowMode": {
+      "name": "מצב איטי נפרד",
+      "description": "השתמש בזמני המתנה נפרדים להודעות בערוץ ולתגובות בשרשורים."
+    }
+  },
+  "ja": {
+    "threadViews": {
+      "name": "スレッドの個別表示",
+      "description": "フォロー中のスレッドと自分が開始したスレッドを分けて表示します。"
+    },
+    "independentSlowMode": {
+      "name": "独立した低速モード",
+      "description": "チャンネルのメッセージとスレッドの返信に、それぞれ異なる待機時間を設定できます。"
+    }
+  },
+  "zh": {
+    "threadViews": {
+      "name": "独立的主题视图",
+      "description": "分别查看你关注的主题和你发起的主题。"
+    },
+    "independentSlowMode": {
+      "name": "独立慢速模式",
+      "description": "为频道消息和主题回复使用不同的等待时间。"
+    }
+  },
+  "zh-Hant": {
+    "threadViews": {
+      "name": "獨立的討論串檢視",
+      "description": "分別查看你追蹤的討論串和你發起的討論串。"
+    },
+    "independentSlowMode": {
+      "name": "獨立慢速模式",
+      "description": "為頻道訊息和討論串回覆使用不同的等待時間。"
+    }
+  },
+  "eo": {
+    "threadViews": {
+      "name": "Apartaj fadenaj vidoj",
+      "description": "Vidu sekvatajn fadenojn aparte de fadenoj, kiujn vi komencis."
+    },
+    "independentSlowMode": {
+      "name": "Sendependa malrapida reĝimo",
+      "description": "Uzu apartajn atendotempojn por kanalaj mesaĝoj kaj fadenaj respondoj."
+    }
+  },
+  "zh-TW": {
+    "threadViews": {
+      "name": "獨立的討論串檢視",
+      "description": "分別查看你追蹤的討論串和你發起的討論串。"
+    },
+    "independentSlowMode": {
+      "name": "獨立慢速模式",
+      "description": "為頻道訊息和討論串回覆使用不同的等待時間。"
+    }
+  }
+}

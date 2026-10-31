@@ -1,6 +1,7 @@
 <script lang="ts">
   import RoomNoticeBanner from './RoomNoticeBanner.svelte';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
+  import { extractMentions } from '$lib/mentions';
   import { timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -25,17 +26,16 @@
     type RoomSidebarPresentation
   } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch';
-  import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { userPreferences, type ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
-  import { LoadingFog, PageTitle, PaneHeader, HeaderIconButton, LoadRetry } from '$lib/ui';
+  import { PageTitle, PaneHeader, HeaderIconButton } from '$lib/ui';
   import { tick } from 'svelte';
   import ConversationPane from './ConversationPane.svelte';
+  import ThreadPane from './ThreadPane.svelte';
   import RoomWindowLifecycle from './RoomWindowLifecycle.svelte';
   import RoomRouteHighlight from './RoomRouteHighlight.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
@@ -51,17 +51,6 @@
   import type { ThreadOpenOptions } from './threadOpenOptions';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { recentThreadRootCandidate } from './recentThreadRoot';
-
-  let threadPaneModule: Promise<typeof import('./ThreadPane.svelte')> | null = null;
-  let threadPaneLoadAttempt = $state(0);
-
-  function loadThreadPane(_attempt: number) {
-    threadPaneModule ??= import('./ThreadPane.svelte').catch((error: unknown) => {
-      threadPaneModule = null;
-      throw error;
-    });
-    return threadPaneModule;
-  }
 
   let {
     roomId,
@@ -146,18 +135,23 @@
       ? stores.rooms.notice(roomId)
       : null
   );
-  const retainNotice: Attachment = () => roomNoticeStore?.retain();
+  const retainNotice: Attachment = () => {
+    const notice = roomNoticeStore;
+    const server = stores;
+    const id = roomId;
+    // The subscription owns its reads; the attachment tracks only its room/store.
+    return untrack(() =>
+      notice?.retain((value) => {
+        if (value?.body && extractMentions(value.body).length) server.loadRoomMembers(id);
+      })
+    );
+  };
   const noticeMentions: MarkdownMentionOptions = $derived({
     members: roomMembersStore.members,
     roles: stores.mentionRoles.roles,
     viewerLogin: stores.currentUser.user?.login,
     searchMembers: (query: string) => roomMembersStore.searchMembers(query),
     onMentionClick: (userId: string) => appUi.openMemberProfile(userId)
-  });
-
-  $effect(() => {
-    if (!stores.isAuthenticated) return;
-    void stores.mentionRoles.refresh();
   });
 
   // Room permissions — derived reactively, no $effect needed
@@ -273,13 +267,8 @@
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   const messageSearchAvailable = $derived(
-    serverUi(stores).messageSearch.statusError ||
-      (serverUi(stores).messageSearch.statusLoaded &&
-        serverUi(stores).messageSearch.status.state !== MessageSearchState.DISABLED)
+    serverUi(stores).messageSearch.availability.showSearchControls
   );
-  $effect(() => {
-    if (stores.isAuthenticated) void serverUi(stores).messageSearch.ensureStatus();
-  });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
   const defaultDesktopRoomSidebarPanel = $derived(room.roomData && !room.isDM ? 'members' : null);
@@ -377,15 +366,6 @@
     onOpenProfile: (userId: string) => appUi.openMemberProfile(userId),
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
-
-  // A DM's projection has every member, so its store has a first page at once.
-  // A reset discards a load in progress or a failed load; the load then starts again.
-  const loadRoomMembers: Attachment = () => {
-    const store = roomMembersStore;
-    if (!store.hasFirstPage && !store.isInitialLoading && !store.loadError) {
-      untrack(() => store.ensureLoaded());
-    }
-  };
 
   const syncRoomFiles: Attachment = () => {
     const store = roomFilesStore;
@@ -536,6 +516,8 @@
   onkeydown={(e) => {
     // The modal owns keyboard actions while the room remains visible behind it.
     if (page.state.modal) return;
+    // An open menu or sheet consumes Escape before the underlying room panels.
+    if (e.key === 'Escape' && document.querySelector(':popover-open, dialog[open]')) return;
     handleWindowKeydown(e);
     if (e.defaultPrevented) return;
 
@@ -553,7 +535,7 @@
   onpointerdowncapture={(e) => {
     // Check before the menu's outside-pointer handler removes it. One press
     // dismisses only the menu, not the room overlay underneath it.
-    if (document.querySelector('[role="menu"]:popover-open')) return;
+    if (document.querySelector(':popover-open')) return;
 
     if (hasMobileRoomSidebar && e.button === 0) {
       const target = e.target as HTMLElement;
@@ -617,7 +599,6 @@
 {#if room.roomData !== null}
   <div
     class="flex min-h-0 min-w-0 flex-1"
-    {@attach loadRoomMembers}
     {@attach syncRoomFiles}
     {@attach syncRoomPins}
     {@attach syncRoomCallWide}
@@ -639,6 +620,7 @@
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
+        data-navigation-content
         inert={(threadId && canReadMessages && !splitThreadLayout) || hasMobileRoomSidebar
           ? true
           : undefined}
@@ -755,68 +737,35 @@
       </ConversationPane>
 
       {#if threadId && (room.roomData || stores.realtimeSync.isRecoveringSnapshot) && canReadMessages}
-        {#await loadThreadPane(threadPaneLoadAttempt)}
-          <div
-            class={[
-              // Start transparent. When the chunk loads quickly, the real pane
-              // replaces this placeholder before it becomes visible.
-              'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background p-4 transition-opacity motion-reduce:transition-none starting:opacity-0',
-              splitThreadLayout
-                ? 'relative w-[var(--thread-pane-width)] shrink-0'
-                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
-            ]}
-            data-testid="thread-pane"
-            style:--thread-pane-width={`${threadPaneWidth.value}px`}
-          >
-            <LoadingFog class="min-h-0 w-full flex-1" />
-          </div>
-        {:then { default: ThreadPane }}
-          <ThreadPane
-            {roomId}
-            roomName={room.isDM ? presentation.title : (room.roomData?.room.name ?? '')}
-            isDirectMessage={room.isDM}
-            threadRootEventId={threadId}
-            onClose={closeThread}
-            canPostInThread={!!room.roomData?.canPostInThread &&
-              threadingMode !== RoomThreadingMode.DISABLED}
-            canAttach={!!room.roomData?.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
-            canEchoMessage={!!room.roomData?.canEchoMessage &&
-              !!room.roomData?.canPostMessage &&
-              threadingMode !== RoomThreadingMode.DISABLED}
-            slowModeSeconds={room.roomData?.room.threadSlowModeSeconds ??
-              room.roomData?.room.slowModeSeconds ??
-              0}
-            independentSlowMode={room.roomData?.room.threadSlowModeSeconds !== undefined}
-            slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
-            slowModeBypassed={!!room.roomData?.canManageRoom ||
-              !!room.roomData?.canManageOthersMessage}
-            highlight={room.roomData?.room.id === roomId
-              ? navigation.highlightFor(roomId, threadId)
-              : null}
-            composerInput={navigation.composerInputFor(roomId, threadId)}
-            presentation={threadPanePresentation}
-            {threadingMode}
-            onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
-            onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
-            onComposerInputConsumed={(input) => navigation.clearComposerInput(input)}
-          />
-        {:catch}
-          <div
-            class={[
-              'flex min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background',
-              splitThreadLayout
-                ? 'relative w-[var(--thread-pane-width)] shrink-0'
-                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
-            ]}
-            data-testid="thread-pane"
-            style:--thread-pane-width={`${threadPaneWidth.value}px`}
-          >
-            <LoadRetry
-              onretry={() => (threadPaneLoadAttempt += 1)}
-              secondaryAction={{ label: m('room.thread.close'), onclick: closeThread }}
-            />
-          </div>
-        {/await}
+        <ThreadPane
+          {roomId}
+          roomName={room.isDM ? presentation.title : (room.roomData?.room.name ?? '')}
+          isDirectMessage={room.isDM}
+          threadRootEventId={threadId}
+          onClose={closeThread}
+          canPostInThread={!!room.roomData?.canPostInThread &&
+            threadingMode !== RoomThreadingMode.DISABLED}
+          canAttach={!!room.roomData?.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
+          canEchoMessage={!!room.roomData?.canEchoMessage &&
+            !!room.roomData?.canPostMessage &&
+            threadingMode !== RoomThreadingMode.DISABLED}
+          slowModeSeconds={room.roomData?.room.threadSlowModeSeconds ??
+            room.roomData?.room.slowModeSeconds ??
+            0}
+          independentSlowMode={room.roomData?.room.threadSlowModeSeconds !== undefined}
+          slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
+          slowModeBypassed={!!room.roomData?.canManageRoom ||
+            !!room.roomData?.canManageOthersMessage}
+          highlight={room.roomData?.room.id === roomId
+            ? navigation.highlightFor(roomId, threadId)
+            : null}
+          composerInput={navigation.composerInputFor(roomId, threadId)}
+          presentation={threadPanePresentation}
+          {threadingMode}
+          onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
+          onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
+          onComposerInputConsumed={(input) => navigation.clearComposerInput(input)}
+        />
       {/if}
 
       <RoomSidebarPane

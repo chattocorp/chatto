@@ -47,6 +47,28 @@ function activeLabel(container: HTMLElement): string | null {
 }
 
 describe('AutocompletePopup', () => {
+  it('Space remains available for typing after navigating suggestions', () => {
+    const onSelect = vi.fn();
+    const { component } = renderPopup({ items: items('a', 'b'), onSelect });
+    press(component, 'ArrowDown');
+    const { ev, handled } = press(component, ' ');
+    expect(handled).toBe(false);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('does not accept a choice while an IME composition is active', () => {
+    const onSelect = vi.fn();
+    const { component } = renderPopup({ items: items('a'), onSelect });
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      isComposing: true,
+      cancelable: true
+    });
+    expect(component.handleKeyDown(event)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
   describe('rendering', () => {
     it('renders nothing when items list is empty', () => {
       const { container } = renderPopup({ items: [] });
@@ -66,6 +88,16 @@ describe('AutocompletePopup', () => {
   });
 
   describe('keyboard navigation', () => {
+    it('keeps the keyboard highlight until the pointer actually moves', () => {
+      const { container } = renderPopup({ items: items('a', 'b') });
+      const second = container.querySelectorAll('button')[1];
+      second.dispatchEvent(new MouseEvent('mouseenter'));
+      flushSync();
+      expect(activeLabel(container)).toBe('a');
+      second.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+      flushSync();
+      expect(activeLabel(container)).toBe('b');
+    });
     it('ArrowDown advances to the next item and consumes the event', () => {
       const { container, component } = renderPopup({ items: items('a', 'b', 'c') });
       const { ev, handled } = press(component, 'ArrowDown');
@@ -173,7 +205,8 @@ describe('AutocompletePopup', () => {
         const active = container.querySelector<HTMLElement>('.menu-item-active');
         expect(activeLabel(container)).toBe('b');
         expect(spy).toHaveBeenCalledTimes(1);
-        expect(spy.mock.instances[0]).toBe(active);
+        // Scroll the complete row so attached variant controls remain visible.
+        expect(spy.mock.instances[0]).toBe(active?.closest('li'));
         expect(spy).toHaveBeenCalledWith({ block: 'nearest' });
       } finally {
         spy.mockRestore();

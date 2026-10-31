@@ -12,7 +12,7 @@ addresses, or locations to make the list more descriptive.
 
 ## Behavior
 
-- The account page lists every currently valid first-party browser session for
+- The Sessions tab at `/account/sessions` lists every currently valid first-party browser session for
   the signed-in account. The current browser appears first and is labelled
   explicitly.
 - Each row shows when the session started, when it was last active, and its
@@ -46,7 +46,7 @@ source of truth. Replaying the latest KV value for each key reconstructs the
 entire disposable index after restart.
 
 **Tradeoff:** Every replica holds metadata for all live browser sessions. The
-index is bounded by the 24-hour absolute session lifetime, and Authling must
+index is bounded by the 90-day absolute session lifetime, and Authling must
 replay it before becoming ready.
 
 ### 2. Keep public session IDs separate from bearers and storage keys

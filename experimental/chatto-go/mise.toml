@@ -1,0 +1,16 @@
+min_version = "2026.8.9"
+
+[tools]
+go = "1.27.3"
+buf = "latest"
+
+[env]
+GOWORK = "off"
+
+[tasks.check]
+description = "Test and vet the experimental Chatto Go SDK"
+run = ["go test -race ./...", "go vet ./..."]
+
+[tasks.codegen]
+description = "Generate private realtime protobuf types"
+run = "buf generate internal/wire --template buf.gen.yaml"

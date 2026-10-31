@@ -64,7 +64,8 @@ The new execution uses fresh input and retained state. `ctx.run.resumed` is fals
 that flag identifies recovery after server interruption. Completed, failed, and
 cancelled executions are not restarted automatically. Their handles do not
 control later executions. Earlier inputs, results, and events remain in the
-journal; the console shows the latest execution and total usage across executions.
+journal. The console retains logs and timeline activity across executions, with
+total usage. Input, result, and status describe the latest execution.
 
 Sources can find retained runs through `ctx.runs({ includeFinished: true })`.
 Each entry supplies the latest input for application routing. The default

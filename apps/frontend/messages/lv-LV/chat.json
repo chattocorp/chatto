@@ -6,6 +6,13 @@
       "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
     },
     "notifications": {
+      "all_notifications": "Visi paziņojumi",
+      "all_types": "Visi veidi",
+      "filter_status": "Statuss",
+      "filter_type": "Veids",
+      "reactions": "Reakcijas",
+      "replies": "Atbildes",
+      "mentions": "Pieminējumi",
       "next_unread_source": "Pāriet uz nākamo nelasīto avotu",
       "no_unread": "Nav nelasītu paziņojumu",
       "title": "Paziņojumi",
@@ -40,6 +47,7 @@
       "administration": "Servera administrēšana"
     },
     "user_menu": {
+      "edit_profile": "Rediģēt profilu",
       "profile": "Lietotāja profils",
       "send_message": "Atveriet sarunu",
       "view_profile": "Skatīt profilu",
@@ -53,6 +61,9 @@
       "details": "Servera dati"
     },
     "compatibility": {
+      "older_frontend": "Jūsu lietotne neatbalsta visas šī servera funkcijas",
+      "frontend_upgrade": "Jūs izmantojat lietotnes versiju {version}. Atjauniniet lietotni vai lūdziet to darīt tā servera administratoram, kas nodrošina lietotni. Piekļuve funkcijām ir atkarīga arī no servera iestatījumiem un jūsu atļaujām.",
+      "frontend_requires": "Nepieciešama lietotnes versija {version} vai jaunāka",
       "title": "Saderība",
       "view": "Skatīt saderību",
       "limited": "Vecāka servera versija",
@@ -176,7 +187,8 @@
       "event_log": "Notikumu žurnāls",
       "system": "Sistēma",
       "back_to_server": "Atgriezties uz serveri",
-      "invitations": "Uzaicinājumu saites"
+      "invites": "Uzaicinājumi",
+      "registration": "Reģistrācija"
     }
   }
 }

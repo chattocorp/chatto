@@ -695,8 +695,9 @@ mask stay unchanged.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
+| `show_membership_events` | `optional bool` | Whether clients show join/leave activity in this channel's history and live timeline. Requires room.manage. Selecting an absent value resets to true. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -861,10 +862,9 @@ POST /api/connect/chatto.api.v1.RoomService/StartDM
 
 #### Input: StartDMRequest
 
-Request to start a direct-message room for a human caller, or fetch an
-existing one. A human caller can fetch an existing DM without message.post.
-A valid request from a bot receives PERMISSION_DENIED, including when the
-room already exists.
+Request to start a direct-message room, or fetch an existing one.
+Human and bot callers need message.post at DM scope to create a room.
+Participants can fetch an existing DM without message.post.
 New DMs have at most two distinct participants, including the caller.
 Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
 for new group conversations. Existing group DMs remain accessible.
@@ -2599,8 +2599,8 @@ Response after cancelling an upload.
 
 ## BotService
 
-Creates and manages bot accounts owned by human users. Bot API keys cannot
-call this service.
+Creates and manages bot accounts owned by human users. Bot API keys can
+call this service with explicit permissions, bounded by their owner's authority.
 
 <a id="chatto-api-v1-BotService-ListBotWebhookFailures"></a>
 
@@ -2915,7 +2915,8 @@ Response containing accessible bots in first-seen request order.
 
 ### CreateBot
 
-Creates a bot owned by the authenticated human caller. Requires bot.create.
+Creates a bot owned by the human caller or a bot caller's human owner.
+Requires bot.create. The new bot starts without permission grants.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/CreateBot
@@ -2925,7 +2926,7 @@ POST /api/connect/chatto.api.v1.BotService/CreateBot
 
 #### Input: CreateBotRequest
 
-Request creation of a bot owned by the authenticated human caller.
+Request creation of a bot owned by the human caller or a bot caller's human owner.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2984,6 +2985,8 @@ Result of deleting a bot account.
 ### CreateBotApiKey
 
 Creates one named API key. A bot can have at most 20 active API keys.
+Requires bot ownership or bot.manage. The key uses the target bot's authority,
+which can exceed the caller's authority.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/CreateBotApiKey
@@ -3629,7 +3632,7 @@ the original message. Users are ordered by user ID ascending.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Message or channel echo ID. |
-| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `emoji` | `string` | Exact reaction name returned by the server, without surrounding colons. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
 
 
@@ -3649,9 +3652,10 @@ Complete reaction membership is available by paging this collection.
 
 ### FetchLinkPreview
 
-Fetches and caches metadata for a composer URL. Authentication is required
+Fetches and caches metadata for a URL. Authentication is required
 to avoid exposing the preview fetcher as an unauthenticated network proxy.
-Successful responses include a short-lived token accepted by CreateMessage.
+Successful responses include a short-lived token accepted by CreateMessage,
+unless omit_preview_token is set for a display-only read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
@@ -3666,6 +3670,7 @@ Request to fetch server-side link preview metadata for a URL.
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | URL to preview. |
+| `omit_preview_token` | `bool` | Set for display-only reads to skip creation of a message-composer token. Older servers can ignore this field and still return a token. |
 
 
 <a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
@@ -3677,7 +3682,7 @@ Result of fetching link preview metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. Empty when omit_preview_token is true. |
 
 
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>
@@ -4001,12 +4006,17 @@ treats it as an alias for the original thread reply and stores the reaction
 on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 current user already has 20 distinct emoji reactions on the canonical
 message; adding an emoji that already exists remains an idempotent success.
+Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+Names are case-sensitive and are stored unchanged, including
+unknown names. Clients can display an unknown name as :name:.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
 
 
 <a id="chatto-api-v1-AddReactionResponse"></a>
@@ -4047,7 +4057,7 @@ from that original event.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
 <a id="chatto-api-v1-RemoveReactionResponse"></a>
@@ -4734,8 +4744,8 @@ Batch user directory response.
 
 Updates the target user's login, display name, and/or bio. Users can
 update themselves. Updating another human requires user.manage-accounts.
-A human who updates a bot needs ownership of the bot,
-user.manage-accounts, or bot.manage. A bot cannot target another account.
+A caller who updates another bot needs ownership of the bot,
+user.manage-accounts, or bot.manage. Bot callers use the same permission checks.
 A login change returns FAILED_PRECONDITION while the target's
 username-change cooldown is active. A successful login change starts a
 new cooldown. This also applies when a bot owner or bot manager changes a
@@ -4781,9 +4791,9 @@ Result of a user profile update.
 
 Uploads and sets an avatar for the target user. Users can update
 themselves. Updating another human requires user.manage-accounts.
-A human who updates a bot needs ownership of the bot,
+A caller who updates another bot needs ownership of the bot,
 user.manage-accounts, or bot.manage.
-A bot cannot target another account. Unknown or deleted targets return
+Bot callers use the same permission checks. Unknown or deleted targets return
 NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 
 ```http
@@ -5278,7 +5288,7 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
-- user.invite
+- user.manage-invites
 - role.assign
 - role.view
 - role.manage
@@ -5661,7 +5671,7 @@ Aggregated state for one message thread.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve user IDs that have participated in this message's thread. |
 | `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
 
@@ -5936,6 +5946,7 @@ Public room metadata returned by room commands.
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 | `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+| `show_membership_events` | `optional bool` | Whether clients show room join/leave activity. Absence on older servers means true. Membership state and event delivery are not affected. |
 
 
 

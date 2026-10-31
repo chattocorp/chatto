@@ -2,7 +2,7 @@ import { test as base, expect } from '@playwright/test';
 import { startStack, stopStack, type TestStack } from '../../../authling/e2e/fixtures/stack';
 import { waitForVerificationCode } from '../../../authling/e2e/fixtures/mailpit';
 import { serverBaseURLForTest, startServer, stopServer, type ServerInfo } from './fixtures/server';
-import { expectSignedOutViewGone, joinServerAndStartSignIn } from './fixtures/multiServer';
+import { expectSignedOutViewGone, startServerSignIn } from './fixtures/multiServer';
 import * as routes from './routes';
 
 const test = base.extend<{ authling: TestStack; server: ServerInfo }>({
@@ -42,6 +42,64 @@ const test = base.extend<{ authling: TestStack; server: ServerInfo }>({
 });
 
 test.setTimeout(60_000);
+
+test('Desktop registration through SSO stays in one window and returns to the client', async ({
+  page,
+  request,
+  authling,
+  server
+}, testInfo) => {
+  const clientServer = await startServer(testInfo, { instanceId: 'signup-client', portOffset: 5 });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  try {
+    await page.goto(new URL('/signup', authling.baseURL).href);
+    await page.getByLabel('Email address').fill(`desktop-sso-${Date.now()}@example.invalid`);
+    await page.getByRole('button', { name: 'Email me a code' }).click();
+    await page
+      .getByLabel('Verification code')
+      .fill(await waitForVerificationCode(request, authling.mailpitURL));
+    await page.getByRole('button', { name: 'Verify email' }).click();
+    await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple');
+    await page.getByLabel('Confirm password').fill('correct horse battery staple');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.getByRole('link', { name: 'Edit profile' })).toBeVisible();
+
+    await page.addInitScript(() => {
+      window.chattoDesktop = {
+        passwordLogin: async () => {
+          throw new Error('Unexpected password login');
+        }
+      };
+    });
+    await page.goto(`${clientServer.baseURL}/chat/servers`);
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+    await page.getByLabel('Server URL').fill(server.baseURL);
+    await page.getByRole('button', { name: 'Find server' }).click();
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('button', { name: 'Create Account', exact: true }).click();
+    const popup = await popupPromise;
+    popup.on('pageerror', (error) => errors.push(error.message));
+    const nestedPopups: unknown[] = [];
+    popup.on('popup', (nested) => nestedPopups.push(nested));
+    await expect(popup).toHaveURL(/\/register\?redirect=/);
+    await popup.getByRole('link', { name: 'Continue with Authling' }).click();
+    await popup.getByRole('button', { name: 'Authorize' }).click();
+    await expect(popup.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
+    await popup.getByLabel('Username').fill('desktop-sso-user');
+    await popup.getByRole('button', { name: 'Create Account' }).click();
+    await expect(popup.getByRole('button', { name: 'Allow Access' })).toBeVisible();
+    const closed = popup.waitForEvent('close');
+    await popup.getByRole('button', { name: 'Allow Access' }).click();
+    await closed;
+    await expect(page.getByTestId('desktop-server-login')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/);
+    expect(nestedPopups).toHaveLength(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await stopServer(clientServer, testInfo);
+  }
+});
 
 test('transfers an editable Authling profile into a new Chatto account', async ({
   page,
@@ -130,9 +188,10 @@ test('links a remote identity in one popup and refreshes the original client', a
 
     // Establish a real delegated OAuth session for the remote account.
     await clientPage.getByTitle('Add Server').click();
+    await clientPage.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await clientPage.getByLabel('Server URL').fill(server.baseURL);
     await clientPage.getByRole('button', { name: 'Find server' }).click();
-    const authPopup = await joinServerAndStartSignIn(clientPage);
+    const authPopup = await startServerSignIn(clientPage);
     await authPopup.getByLabel('Username or Email').fill('remote-link-user');
     await authPopup.getByLabel('Password', { exact: true }).fill(password);
     await authPopup.getByRole('button', { name: 'Sign In', exact: true }).click();

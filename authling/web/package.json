@@ -14,5 +14,8 @@
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3",
     "vite": "^7.3.6"
+  },
+  "dependencies": {
+    "htmx.org": "2.0.11"
   }
 }

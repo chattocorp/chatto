@@ -170,8 +170,11 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
-	// PermUserInvite allows listing, creating, copying, and revoking invite links.
+	// PermUserInvite allows creating, reading, and revoking one's own invitation codes.
 	PermUserInvite Permission = "user.invite"
+
+	// PermUserManageInvites allows listing, creating, copying, and revoking all codes.
+	PermUserManageInvites Permission = "user.manage-invites"
 
 	// PermUserManageAccounts allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
@@ -184,10 +187,12 @@ const (
 
 	// ===== Bot Account Permissions =====
 
-	// PermBotCreate allows a human user to create bot accounts they own.
+	// PermBotCreate allows bot creation for the caller's human owner (or the
+	// caller itself when human). Newly created bots have no permission grants.
 	PermBotCreate Permission = "bot.create"
 
-	// PermBotManage allows a human user to manage every bot on the server.
+	// PermBotManage allows management of every bot, including issuing keys
+	// that act with the target bot's authority rather than the manager's.
 	PermBotManage Permission = "bot.manage"
 )
 
@@ -251,7 +256,8 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserManageInvites, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
@@ -446,6 +452,7 @@ func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
 		PermUserInvite,
+		PermUserManageInvites,
 		PermRoomCreate,
 		PermRoomJoin,
 		PermRoomList,
@@ -474,7 +481,8 @@ const AnnouncementsRoomName = "announcements"
 
 // DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
 // built-in announcements room. This blocks root posts unless a named role or
-// direct user has a room-local allow. Effective owners bypass the decision.
+// direct user has a room-local allow. Effective owners bypass the decision
+// while privileged mode is active.
 func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
 }

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { ComposerLinkPreview } from '@chatto/client/api/linkPreviews';
 import { LinkPreviewState } from './linkPreviews.svelte';
+import { serverRegistry } from '$lib/client';
+import type { RegisteredServer } from '@chatto/client/server/registry';
 
 type FetchLinkPreview = (url: string) => Promise<ComposerLinkPreview | null>;
 
@@ -11,6 +13,63 @@ function apiWithFetch(fetchLinkPreview: FetchLinkPreview) {
 describe('LinkPreviewState', () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('skips known server, room, and user pills before selecting a web preview', async () => {
+    vi.useFakeTimers();
+    const servers: RegisteredServer[] = ['local', 'remote'].map((id) => ({
+      id,
+      url: id === 'local' ? window.location.origin : 'https://remote.example.com',
+      name: id,
+      iconUrl: null,
+      token: null,
+      userId: null,
+      userLogin: null,
+      userDisplayName: null,
+      userAvatarUrl: null,
+      reauthRequiredAt: null,
+      addedAt: 1
+    }));
+    vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue(servers);
+    vi.spyOn(serverRegistry, 'originServer', 'get').mockReturnValue(servers[0]);
+    vi.spyOn(serverRegistry, 'getServer').mockImplementation((id) =>
+      servers.find((server) => server.id === id)
+    );
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue(null);
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
+
+    for (const server of servers) {
+      for (const path of ['/', '/chat/-', '/chat/-/R123456789abcde', '/chat/-/user/alice']) {
+        const url = `${server.url}${path}`;
+        const cleanup = state.scheduleDetection(url, false);
+        await vi.advanceTimersByTimeAsync(500);
+        cleanup();
+        expect(state.detectedURLs).toEqual([]);
+        expect(state.buildToken()).toBeNull();
+      }
+    }
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
+
+    const cleanup = state.scheduleDetection(
+      `${servers[0].url}/chat/-/R123456789abcde https://example.com/article`,
+      false
+    );
+    await vi.advanceTimersByTimeAsync(500);
+    cleanup();
+    expect(state.detectedURLs).toEqual(['https://example.com/article']);
+    expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith('https://example.com/article');
+  });
+
+  it('keeps previews for unknown server URLs', async () => {
+    vi.useFakeTimers();
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue(null);
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
+    const url = 'https://unknown.example.com/chat/-/R123456789abcde';
+    const cleanup = state.scheduleDetection(url, false);
+    await vi.advanceTimersByTimeAsync(500);
+    cleanup();
+    expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(url);
   });
 
   it('does not fetch OpenGraph data for Chatto message links', async () => {
@@ -98,5 +157,20 @@ describe('LinkPreviewState', () => {
     expect(state.previews.size).toBe(0);
     expect(state.fetchingURLs.size).toBe(0);
     expect(state.dismissedURLs.size).toBe(0);
+  });
+
+  it('clears loading and keeps a URL fallback when a scheduled preview request fails', async () => {
+    vi.useFakeTimers();
+    const url = 'https://example.com/guide';
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockRejectedValue(new Error('unavailable'));
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
+    const cleanup = state.scheduleDetection(url, false);
+    await vi.advanceTimersByTimeAsync(500);
+    cleanup();
+
+    expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(url);
+    expect(state.fetchingURLs.has(url)).toBe(false);
+    expect(state.previews.get(url)).toBeNull();
+    expect(state.buildToken()).toBeNull();
   });
 });

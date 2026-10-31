@@ -21,8 +21,9 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// AdminInviteLinkServiceName is the fully-qualified name of the AdminInviteLinkService service.
-	AdminInviteLinkServiceName = "chatto.admin.v1.AdminInviteLinkService"
+	// AdminInvitationCodeServiceName is the fully-qualified name of the AdminInvitationCodeService
+	// service.
+	AdminInvitationCodeServiceName = "chatto.admin.v1.AdminInvitationCodeService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,173 +34,178 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminInviteLinkServiceListInviteLinksProcedure is the fully-qualified name of the
-	// AdminInviteLinkService's ListInviteLinks RPC.
-	AdminInviteLinkServiceListInviteLinksProcedure = "/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks"
-	// AdminInviteLinkServiceGetInviteLinkProcedure is the fully-qualified name of the
-	// AdminInviteLinkService's GetInviteLink RPC.
-	AdminInviteLinkServiceGetInviteLinkProcedure = "/chatto.admin.v1.AdminInviteLinkService/GetInviteLink"
-	// AdminInviteLinkServiceCreateInviteLinkProcedure is the fully-qualified name of the
-	// AdminInviteLinkService's CreateInviteLink RPC.
-	AdminInviteLinkServiceCreateInviteLinkProcedure = "/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink"
-	// AdminInviteLinkServiceRevokeInviteLinkProcedure is the fully-qualified name of the
-	// AdminInviteLinkService's RevokeInviteLink RPC.
-	AdminInviteLinkServiceRevokeInviteLinkProcedure = "/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink"
+	// AdminInvitationCodeServiceListInvitationCodesProcedure is the fully-qualified name of the
+	// AdminInvitationCodeService's ListInvitationCodes RPC.
+	AdminInvitationCodeServiceListInvitationCodesProcedure = "/chatto.admin.v1.AdminInvitationCodeService/ListInvitationCodes"
+	// AdminInvitationCodeServiceGetInvitationCodeProcedure is the fully-qualified name of the
+	// AdminInvitationCodeService's GetInvitationCode RPC.
+	AdminInvitationCodeServiceGetInvitationCodeProcedure = "/chatto.admin.v1.AdminInvitationCodeService/GetInvitationCode"
+	// AdminInvitationCodeServiceCreateInvitationCodeProcedure is the fully-qualified name of the
+	// AdminInvitationCodeService's CreateInvitationCode RPC.
+	AdminInvitationCodeServiceCreateInvitationCodeProcedure = "/chatto.admin.v1.AdminInvitationCodeService/CreateInvitationCode"
+	// AdminInvitationCodeServiceRevokeInvitationCodeProcedure is the fully-qualified name of the
+	// AdminInvitationCodeService's RevokeInvitationCode RPC.
+	AdminInvitationCodeServiceRevokeInvitationCodeProcedure = "/chatto.admin.v1.AdminInvitationCodeService/RevokeInvitationCode"
 )
 
-// AdminInviteLinkServiceClient is a client for the chatto.admin.v1.AdminInviteLinkService service.
-type AdminInviteLinkServiceClient interface {
-	// Lists invite links. Requires user.invite.
-	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
-	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
-	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
-	// Creates an invite link. Requires user.invite.
-	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
-	// Permanently revokes an invite link while retaining its audit history. Requires user.invite.
-	RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error)
+// AdminInvitationCodeServiceClient is a client for the chatto.admin.v1.AdminInvitationCodeService
+// service.
+type AdminInvitationCodeServiceClient interface {
+	// Lists visible current and historical codes. Pagination and totals include only visible codes.
+	ListInvitationCodes(context.Context, *connect.Request[v1.ListInvitationCodesRequest]) (*connect.Response[v1.ListInvitationCodesResponse], error)
+	// Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
+	GetInvitationCode(context.Context, *connect.Request[v1.GetInvitationCodeRequest]) (*connect.Response[v1.GetInvitationCodeResponse], error)
+	// Creates a code that expires seven days after creation for every caller.
+	// Not idempotent: retrying creates another code.
+	CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error)
+	// Revokes a code without deleting its history. Repeating revocation is safe.
+	// Returns NOT_FOUND for an unknown or inaccessible ID.
+	RevokeInvitationCode(context.Context, *connect.Request[v1.RevokeInvitationCodeRequest]) (*connect.Response[v1.RevokeInvitationCodeResponse], error)
 }
 
-// NewAdminInviteLinkServiceClient constructs a client for the
-// chatto.admin.v1.AdminInviteLinkService service. By default, it uses the Connect protocol with the
-// binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To use the
-// gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewAdminInvitationCodeServiceClient constructs a client for the
+// chatto.admin.v1.AdminInvitationCodeService service. By default, it uses the Connect protocol with
+// the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To use
+// the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewAdminInviteLinkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminInviteLinkServiceClient {
+func NewAdminInvitationCodeServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminInvitationCodeServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	adminInviteLinkServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInviteLinkService").Methods()
-	return &adminInviteLinkServiceClient{
-		listInviteLinks: connect.NewClient[v1.ListInviteLinksRequest, v1.ListInviteLinksResponse](
+	adminInvitationCodeServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInvitationCodeService").Methods()
+	return &adminInvitationCodeServiceClient{
+		listInvitationCodes: connect.NewClient[v1.ListInvitationCodesRequest, v1.ListInvitationCodesResponse](
 			httpClient,
-			baseURL+AdminInviteLinkServiceListInviteLinksProcedure,
-			connect.WithSchema(adminInviteLinkServiceMethods.ByName("ListInviteLinks")),
+			baseURL+AdminInvitationCodeServiceListInvitationCodesProcedure,
+			connect.WithSchema(adminInvitationCodeServiceMethods.ByName("ListInvitationCodes")),
 			connect.WithClientOptions(opts...),
 		),
-		getInviteLink: connect.NewClient[v1.GetInviteLinkRequest, v1.GetInviteLinkResponse](
+		getInvitationCode: connect.NewClient[v1.GetInvitationCodeRequest, v1.GetInvitationCodeResponse](
 			httpClient,
-			baseURL+AdminInviteLinkServiceGetInviteLinkProcedure,
-			connect.WithSchema(adminInviteLinkServiceMethods.ByName("GetInviteLink")),
+			baseURL+AdminInvitationCodeServiceGetInvitationCodeProcedure,
+			connect.WithSchema(adminInvitationCodeServiceMethods.ByName("GetInvitationCode")),
 			connect.WithClientOptions(opts...),
 		),
-		createInviteLink: connect.NewClient[v1.CreateInviteLinkRequest, v1.CreateInviteLinkResponse](
+		createInvitationCode: connect.NewClient[v1.CreateInvitationCodeRequest, v1.CreateInvitationCodeResponse](
 			httpClient,
-			baseURL+AdminInviteLinkServiceCreateInviteLinkProcedure,
-			connect.WithSchema(adminInviteLinkServiceMethods.ByName("CreateInviteLink")),
+			baseURL+AdminInvitationCodeServiceCreateInvitationCodeProcedure,
+			connect.WithSchema(adminInvitationCodeServiceMethods.ByName("CreateInvitationCode")),
 			connect.WithClientOptions(opts...),
 		),
-		revokeInviteLink: connect.NewClient[v1.RevokeInviteLinkRequest, v1.RevokeInviteLinkResponse](
+		revokeInvitationCode: connect.NewClient[v1.RevokeInvitationCodeRequest, v1.RevokeInvitationCodeResponse](
 			httpClient,
-			baseURL+AdminInviteLinkServiceRevokeInviteLinkProcedure,
-			connect.WithSchema(adminInviteLinkServiceMethods.ByName("RevokeInviteLink")),
+			baseURL+AdminInvitationCodeServiceRevokeInvitationCodeProcedure,
+			connect.WithSchema(adminInvitationCodeServiceMethods.ByName("RevokeInvitationCode")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// adminInviteLinkServiceClient implements AdminInviteLinkServiceClient.
-type adminInviteLinkServiceClient struct {
-	listInviteLinks  *connect.Client[v1.ListInviteLinksRequest, v1.ListInviteLinksResponse]
-	getInviteLink    *connect.Client[v1.GetInviteLinkRequest, v1.GetInviteLinkResponse]
-	createInviteLink *connect.Client[v1.CreateInviteLinkRequest, v1.CreateInviteLinkResponse]
-	revokeInviteLink *connect.Client[v1.RevokeInviteLinkRequest, v1.RevokeInviteLinkResponse]
+// adminInvitationCodeServiceClient implements AdminInvitationCodeServiceClient.
+type adminInvitationCodeServiceClient struct {
+	listInvitationCodes  *connect.Client[v1.ListInvitationCodesRequest, v1.ListInvitationCodesResponse]
+	getInvitationCode    *connect.Client[v1.GetInvitationCodeRequest, v1.GetInvitationCodeResponse]
+	createInvitationCode *connect.Client[v1.CreateInvitationCodeRequest, v1.CreateInvitationCodeResponse]
+	revokeInvitationCode *connect.Client[v1.RevokeInvitationCodeRequest, v1.RevokeInvitationCodeResponse]
 }
 
-// ListInviteLinks calls chatto.admin.v1.AdminInviteLinkService.ListInviteLinks.
-func (c *adminInviteLinkServiceClient) ListInviteLinks(ctx context.Context, req *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error) {
-	return c.listInviteLinks.CallUnary(ctx, req)
+// ListInvitationCodes calls chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes.
+func (c *adminInvitationCodeServiceClient) ListInvitationCodes(ctx context.Context, req *connect.Request[v1.ListInvitationCodesRequest]) (*connect.Response[v1.ListInvitationCodesResponse], error) {
+	return c.listInvitationCodes.CallUnary(ctx, req)
 }
 
-// GetInviteLink calls chatto.admin.v1.AdminInviteLinkService.GetInviteLink.
-func (c *adminInviteLinkServiceClient) GetInviteLink(ctx context.Context, req *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error) {
-	return c.getInviteLink.CallUnary(ctx, req)
+// GetInvitationCode calls chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode.
+func (c *adminInvitationCodeServiceClient) GetInvitationCode(ctx context.Context, req *connect.Request[v1.GetInvitationCodeRequest]) (*connect.Response[v1.GetInvitationCodeResponse], error) {
+	return c.getInvitationCode.CallUnary(ctx, req)
 }
 
-// CreateInviteLink calls chatto.admin.v1.AdminInviteLinkService.CreateInviteLink.
-func (c *adminInviteLinkServiceClient) CreateInviteLink(ctx context.Context, req *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error) {
-	return c.createInviteLink.CallUnary(ctx, req)
+// CreateInvitationCode calls chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode.
+func (c *adminInvitationCodeServiceClient) CreateInvitationCode(ctx context.Context, req *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error) {
+	return c.createInvitationCode.CallUnary(ctx, req)
 }
 
-// RevokeInviteLink calls chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink.
-func (c *adminInviteLinkServiceClient) RevokeInviteLink(ctx context.Context, req *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error) {
-	return c.revokeInviteLink.CallUnary(ctx, req)
+// RevokeInvitationCode calls chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode.
+func (c *adminInvitationCodeServiceClient) RevokeInvitationCode(ctx context.Context, req *connect.Request[v1.RevokeInvitationCodeRequest]) (*connect.Response[v1.RevokeInvitationCodeResponse], error) {
+	return c.revokeInvitationCode.CallUnary(ctx, req)
 }
 
-// AdminInviteLinkServiceHandler is an implementation of the chatto.admin.v1.AdminInviteLinkService
-// service.
-type AdminInviteLinkServiceHandler interface {
-	// Lists invite links. Requires user.invite.
-	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
-	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
-	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
-	// Creates an invite link. Requires user.invite.
-	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
-	// Permanently revokes an invite link while retaining its audit history. Requires user.invite.
-	RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error)
+// AdminInvitationCodeServiceHandler is an implementation of the
+// chatto.admin.v1.AdminInvitationCodeService service.
+type AdminInvitationCodeServiceHandler interface {
+	// Lists visible current and historical codes. Pagination and totals include only visible codes.
+	ListInvitationCodes(context.Context, *connect.Request[v1.ListInvitationCodesRequest]) (*connect.Response[v1.ListInvitationCodesResponse], error)
+	// Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
+	GetInvitationCode(context.Context, *connect.Request[v1.GetInvitationCodeRequest]) (*connect.Response[v1.GetInvitationCodeResponse], error)
+	// Creates a code that expires seven days after creation for every caller.
+	// Not idempotent: retrying creates another code.
+	CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error)
+	// Revokes a code without deleting its history. Repeating revocation is safe.
+	// Returns NOT_FOUND for an unknown or inaccessible ID.
+	RevokeInvitationCode(context.Context, *connect.Request[v1.RevokeInvitationCodeRequest]) (*connect.Response[v1.RevokeInvitationCodeResponse], error)
 }
 
-// NewAdminInviteLinkServiceHandler builds an HTTP handler from the service implementation. It
+// NewAdminInvitationCodeServiceHandler builds an HTTP handler from the service implementation. It
 // returns the path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewAdminInviteLinkServiceHandler(svc AdminInviteLinkServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	adminInviteLinkServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInviteLinkService").Methods()
-	adminInviteLinkServiceListInviteLinksHandler := connect.NewUnaryHandler(
-		AdminInviteLinkServiceListInviteLinksProcedure,
-		svc.ListInviteLinks,
-		connect.WithSchema(adminInviteLinkServiceMethods.ByName("ListInviteLinks")),
+func NewAdminInvitationCodeServiceHandler(svc AdminInvitationCodeServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminInvitationCodeServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInvitationCodeService").Methods()
+	adminInvitationCodeServiceListInvitationCodesHandler := connect.NewUnaryHandler(
+		AdminInvitationCodeServiceListInvitationCodesProcedure,
+		svc.ListInvitationCodes,
+		connect.WithSchema(adminInvitationCodeServiceMethods.ByName("ListInvitationCodes")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminInviteLinkServiceGetInviteLinkHandler := connect.NewUnaryHandler(
-		AdminInviteLinkServiceGetInviteLinkProcedure,
-		svc.GetInviteLink,
-		connect.WithSchema(adminInviteLinkServiceMethods.ByName("GetInviteLink")),
+	adminInvitationCodeServiceGetInvitationCodeHandler := connect.NewUnaryHandler(
+		AdminInvitationCodeServiceGetInvitationCodeProcedure,
+		svc.GetInvitationCode,
+		connect.WithSchema(adminInvitationCodeServiceMethods.ByName("GetInvitationCode")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminInviteLinkServiceCreateInviteLinkHandler := connect.NewUnaryHandler(
-		AdminInviteLinkServiceCreateInviteLinkProcedure,
-		svc.CreateInviteLink,
-		connect.WithSchema(adminInviteLinkServiceMethods.ByName("CreateInviteLink")),
+	adminInvitationCodeServiceCreateInvitationCodeHandler := connect.NewUnaryHandler(
+		AdminInvitationCodeServiceCreateInvitationCodeProcedure,
+		svc.CreateInvitationCode,
+		connect.WithSchema(adminInvitationCodeServiceMethods.ByName("CreateInvitationCode")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminInviteLinkServiceRevokeInviteLinkHandler := connect.NewUnaryHandler(
-		AdminInviteLinkServiceRevokeInviteLinkProcedure,
-		svc.RevokeInviteLink,
-		connect.WithSchema(adminInviteLinkServiceMethods.ByName("RevokeInviteLink")),
+	adminInvitationCodeServiceRevokeInvitationCodeHandler := connect.NewUnaryHandler(
+		AdminInvitationCodeServiceRevokeInvitationCodeProcedure,
+		svc.RevokeInvitationCode,
+		connect.WithSchema(adminInvitationCodeServiceMethods.ByName("RevokeInvitationCode")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.admin.v1.AdminInviteLinkService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.admin.v1.AdminInvitationCodeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminInviteLinkServiceListInviteLinksProcedure:
-			adminInviteLinkServiceListInviteLinksHandler.ServeHTTP(w, r)
-		case AdminInviteLinkServiceGetInviteLinkProcedure:
-			adminInviteLinkServiceGetInviteLinkHandler.ServeHTTP(w, r)
-		case AdminInviteLinkServiceCreateInviteLinkProcedure:
-			adminInviteLinkServiceCreateInviteLinkHandler.ServeHTTP(w, r)
-		case AdminInviteLinkServiceRevokeInviteLinkProcedure:
-			adminInviteLinkServiceRevokeInviteLinkHandler.ServeHTTP(w, r)
+		case AdminInvitationCodeServiceListInvitationCodesProcedure:
+			adminInvitationCodeServiceListInvitationCodesHandler.ServeHTTP(w, r)
+		case AdminInvitationCodeServiceGetInvitationCodeProcedure:
+			adminInvitationCodeServiceGetInvitationCodeHandler.ServeHTTP(w, r)
+		case AdminInvitationCodeServiceCreateInvitationCodeProcedure:
+			adminInvitationCodeServiceCreateInvitationCodeHandler.ServeHTTP(w, r)
+		case AdminInvitationCodeServiceRevokeInvitationCodeProcedure:
+			adminInvitationCodeServiceRevokeInvitationCodeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedAdminInviteLinkServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedAdminInviteLinkServiceHandler struct{}
+// UnimplementedAdminInvitationCodeServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminInvitationCodeServiceHandler struct{}
 
-func (UnimplementedAdminInviteLinkServiceHandler) ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.ListInviteLinks is not implemented"))
+func (UnimplementedAdminInvitationCodeServiceHandler) ListInvitationCodes(context.Context, *connect.Request[v1.ListInvitationCodesRequest]) (*connect.Response[v1.ListInvitationCodesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes is not implemented"))
 }
 
-func (UnimplementedAdminInviteLinkServiceHandler) GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.GetInviteLink is not implemented"))
+func (UnimplementedAdminInvitationCodeServiceHandler) GetInvitationCode(context.Context, *connect.Request[v1.GetInvitationCodeRequest]) (*connect.Response[v1.GetInvitationCodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode is not implemented"))
 }
 
-func (UnimplementedAdminInviteLinkServiceHandler) CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.CreateInviteLink is not implemented"))
+func (UnimplementedAdminInvitationCodeServiceHandler) CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode is not implemented"))
 }
 
-func (UnimplementedAdminInviteLinkServiceHandler) RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink is not implemented"))
+func (UnimplementedAdminInvitationCodeServiceHandler) RevokeInvitationCode(context.Context, *connect.Request[v1.RevokeInvitationCodeRequest]) (*connect.Response[v1.RevokeInvitationCodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode is not implemented"))
 }

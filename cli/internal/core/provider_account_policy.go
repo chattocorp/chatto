@@ -138,7 +138,7 @@ func (c *ChattoCore) SyncProviderUsername(ctx context.Context, userID, providerI
 	var source config.AuthProviderConfig
 	for _, provider := range c.config.AuthProviders {
 		if provider.ID == providerID {
-			enabled = provider.ManageUsernames && provider.SyncUsernames
+			enabled = provider.ManageUsernames && provider.UpdateUsernames
 			source = provider
 		}
 	}
@@ -200,6 +200,7 @@ func (c *ChattoCore) createProviderUser(ctx context.Context, login, displayName 
 		}
 		user, err := c.createUserWithOptions(ctx, SystemActorID, login, name, "", userCreationOptions{
 			verifiedEmail: flow.VerifiedEmail, external: flow, invitationID: flow.InvitationID,
+			selfService: true,
 		})
 		if managed && (errors.Is(err, ErrLoginAlreadyTaken) || (number > 1 && errors.Is(err, ErrUsernameBlocked))) {
 			continue

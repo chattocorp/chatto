@@ -1,0 +1,46 @@
+name: Experimental Go
+
+on:
+  pull_request:
+    paths:
+      - 'experimental/**'
+      - '.github/workflows/experimental-go.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'experimental/**'
+      - '.github/workflows/experimental-go.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: experimental-go-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [chatto-go, gobotto]
+    env:
+      GOWORK: 'off'
+    defaults:
+      run:
+        working-directory: experimental/${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: experimental/${{ matrix.module }}/go.mod
+          cache-dependency-path: experimental/*/go.sum
+      - name: Test with race detection
+        run: go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...

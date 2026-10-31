@@ -66,6 +66,132 @@ function tabEvent(): KeyboardEvent {
 }
 
 describe('AutocompleteState', () => {
+  it.each(['Enter', 'Tab', 'click'])(
+    'uses the %s selection whitespace rule for all pickers',
+    (key) => {
+      const fakeEditor = editor('See #gen! later', 8);
+      const state = new AutocompleteState(
+        () => fakeEditor.api,
+        () => [member('alice')],
+        undefined,
+        undefined,
+        { rooms: true }
+      );
+      const suffix = key === 'click' ? ' ' : '';
+      state.update();
+      state.selectRoom('https://chat.example/room', key);
+      expect(fakeEditor.getText()).toBe(`See https://chat.example/room${suffix}! later`);
+      expect(state.room).toBeNull();
+      fakeEditor.setText('@ali');
+      state.update();
+      state.selectMention('alice', key);
+      expect(fakeEditor.getText()).toBe(`@alice${suffix}`);
+      expect(state.mention).toBeNull();
+      fakeEditor.setText(':fi');
+      state.update();
+      state.selectEmoji('🔥', key);
+      expect(fakeEditor.getText()).toBe(`🔥${suffix}`);
+      expect(state.emoji).toBeNull();
+    }
+  );
+  it('replaces only the room query and resets on dismissal and room changes', () => {
+    const fakeEditor = editor('See #gen tomorrow', 8);
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => [],
+      undefined,
+      undefined,
+      { rooms: true }
+    );
+    state.update();
+    expect(state.room).toEqual({ query: 'gen', triggerStart: 4 });
+    state.selectRoom('https://chat.example/chat/-/R12345678901234', 'click');
+    expect(fakeEditor.getText()).toBe('See https://chat.example/chat/-/R12345678901234  tomorrow');
+    expect(state.room).toBeNull();
+    fakeEditor.setText('#');
+    state.update();
+    expect(state.room?.query).toBe('');
+    state.closeRoom();
+    expect(state.room).toBeNull();
+    state.update();
+    state.resetForRoom();
+    expect(state.room).toBeNull();
+  });
+
+  it.each(['# heading', '##', 'word#room', 'https://example.com/#room', '#room\n'])(
+    'does not open a room picker for headings or embedded hashes: %s',
+    (text) => {
+      const fakeEditor = editor(text);
+      const state = new AutocompleteState(
+        () => fakeEditor.api,
+        () => [],
+        undefined,
+        undefined,
+        { rooms: true }
+      );
+      state.update();
+      expect(state.room).toBeNull();
+    }
+  );
+
+  it('keeps room completion disabled in other fields and in code blocks', () => {
+    const fakeEditor = editor('#general');
+    const disabled = new AutocompleteState(
+      () => fakeEditor.api,
+      () => []
+    );
+    disabled.update();
+    expect(disabled.room).toBeNull();
+    fakeEditor.api.isInCodeBlock = () => true;
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => [],
+      undefined,
+      undefined,
+      { rooms: true }
+    );
+    state.update();
+    expect(state.room).toBeNull();
+  });
+
+  it.each(['(:he', '!:he', ':wave::he', '👋:he', ':heart: :he'])(
+    'opens and completes emoji after a valid boundary: %s',
+    (text) => {
+      const fakeEditor = editor(text);
+      const state = new AutocompleteState(
+        () => fakeEditor.api,
+        () => []
+      );
+      state.update();
+      expect(state.emoji?.query).toBe('he');
+      state.selectEmoji('❤️', 'click');
+      expect(fakeEditor.getText()).toBe(text.slice(0, -3) + '❤️ ');
+    }
+  );
+
+  it.each(['hello:he', '_:he', 'é:he', '中:he', '𐐀:he', 'e\u0301:he', ':he\n'])(
+    'does not open emoji autocomplete inside words: %s',
+    (text) => {
+      const fakeEditor = editor(text);
+      const state = new AutocompleteState(
+        () => fakeEditor.api,
+        () => []
+      );
+      state.update();
+      expect(state.emoji).toBeNull();
+    }
+  );
+
+  it.each([':+1', ':-1'])('supports signed emoji aliases: %s', (text) => {
+    const fakeEditor = editor(text);
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => []
+    );
+    state.update();
+    expect(state.emoji?.query).toBe(text.slice(1));
+  });
+
   it('shows mention autocomplete when an @ partial has characters, even before members load', () => {
     const fakeEditor = editor('@');
     const state = new AutocompleteState(
@@ -137,12 +263,13 @@ describe('AutocompleteState', () => {
     const firstTab = tabEvent();
     expect(state.handleTabCompletion(firstTab)).toBe(true);
     expect(firstTab.defaultPrevented).toBe(true);
-    expect(fakeEditor.getText()).toBe('@alice ');
+    expect(fakeEditor.getText()).toBe('@alice');
 
     expect(state.handleTabCompletion(tabEvent())).toBe(true);
-    expect(fakeEditor.getText()).toBe('@alicia ');
+    expect(fakeEditor.getText()).toBe('@alicia');
 
     state.resetTabCompletion();
+    fakeEditor.setText('@alicia ');
     expect(state.handleTabCompletion(tabEvent())).toBe(false);
     expect(fakeEditor.getText()).toBe('@alicia ');
   });
@@ -157,10 +284,10 @@ describe('AutocompleteState', () => {
     );
 
     expect(state.handleTabCompletion(tabEvent())).toBe(true);
-    expect(fakeEditor.getText()).toBe('@alicia ');
+    expect(fakeEditor.getText()).toBe('@alicia');
 
     expect(state.handleTabCompletion(tabEvent())).toBe(true);
-    expect(fakeEditor.getText()).toBe('@alice ');
+    expect(fakeEditor.getText()).toBe('@alice');
   });
 
   it('excludes deleted members from mention Tab completion', () => {
@@ -210,14 +337,14 @@ describe('AutocompleteState', () => {
     );
 
     state.update();
-    state.selectMention('alice', false);
+    state.selectMention('alice', 'Enter');
 
-    expect(fakeEditor.getText()).toBe('@alice ');
+    expect(fakeEditor.getText()).toBe('@alice');
     expect(state.tabCompletion).toBeNull();
 
     fakeEditor.setText('@ali');
     state.update();
-    state.selectMention('alice', true);
+    state.selectMention('alice', 'Tab');
 
     expect(state.tabCompletion?.candidates).toEqual(['alice', 'alicia']);
   });
@@ -231,7 +358,7 @@ describe('AutocompleteState', () => {
 
     const ev = tabEvent();
     expect(state.handleTabCompletion(ev)).toBe(true);
-    expect(fakeEditor.getText()).toBe('Hey @alice ');
+    expect(fakeEditor.getText()).toBe('Hey @alice');
   });
 
   it('completes virtual and role mention handles', () => {
@@ -247,13 +374,13 @@ describe('AutocompleteState', () => {
 
     const firstTab = tabEvent();
     expect(state.handleTabCompletion(firstTab)).toBe(true);
-    expect(fakeEditor.getText()).toBe('@helena ');
+    expect(fakeEditor.getText()).toBe('@helena');
 
     expect(state.handleTabCompletion(tabEvent())).toBe(true);
-    expect(fakeEditor.getText()).toBe('@here ');
+    expect(fakeEditor.getText()).toBe('@here');
 
     expect(state.handleTabCompletion(tabEvent())).toBe(true);
-    expect(fakeEditor.getText()).toBe('@helpdesk ');
+    expect(fakeEditor.getText()).toBe('@helpdesk');
   });
 
   it('selects an emoji by replacing the shortcode before the cursor', () => {
@@ -264,7 +391,7 @@ describe('AutocompleteState', () => {
     );
 
     state.update();
-    state.selectEmoji('🔥');
+    state.selectEmoji('🔥', 'click');
 
     expect(fakeEditor.getText()).toBe('hello 🔥 ');
     expect(state.emoji).toBeNull();

@@ -8,6 +8,7 @@
   import ServerSignedOut from '$lib/components/chat/ServerSignedOut.svelte';
   import { showsServerSignedOut } from '$lib/components/chat/serverSignedOut';
   import { PageTitle } from '$lib/ui';
+  import { isInlineSignInRequested } from '$lib/auth/remoteSignIn.svelte';
 
   let { children } = $props();
 
@@ -32,10 +33,11 @@
   const signedOutRegistration = $derived(
     registration &&
       serverStore &&
-      showsServerSignedOut(registration, {
-        isOrigin: serverRegistry.isOriginServer(serverId),
-        hasDisplayableView: serverStore.realtimeSync.hasDisplayableView
-      })
+      (isInlineSignInRequested(serverId) ||
+        showsServerSignedOut(registration, {
+          isOrigin: serverRegistry.isOriginServer(serverId),
+          hasDisplayableView: serverStore.realtimeSync.hasDisplayableView
+        }))
       ? registration
       : null
   );

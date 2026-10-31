@@ -28,7 +28,34 @@
   let c = $state(false);
   let d = $state(false);
   let loadingValue = $state(true);
+  let saved = $state(false);
+  let saveError = $state('');
 </script>
+
+<Story name="Save before committing" asChild>
+  <Checkbox
+    id="async-save"
+    label="Automatic updates"
+    checked={saved}
+    onCheckedChange={async (value) => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      saved = value;
+    }}
+  />
+</Story>
+
+<Story name="Failed save keeps the committed value" asChild>
+  <Checkbox
+    id="failed-save"
+    label="Automatic updates"
+    checked
+    error={saveError}
+    onCheckedChange={async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      saveError = 'Could not save. Try again.';
+    }}
+  />
+</Story>
 
 <Story
   name="Default"
@@ -132,5 +159,21 @@
       <div class="h-64" aria-hidden="true"></div>
       <Checkbox id="scrolled-story" label="Low-cut filter" />
     </div>
+  </div>
+</Story>
+
+<Story name="Wrapped help text" asChild>
+  <div class="flex max-w-xs flex-col gap-2">
+    <Checkbox
+      id="wrapped-checked"
+      label="Email notifications"
+      description="Send an email when someone mentions you while you are away from this server."
+      checked
+    />
+    <Checkbox
+      id="wrapped-unchecked"
+      label="Show my time zone"
+      description="Other members can see your current local time when they open your profile."
+    />
   </div>
 </Story>

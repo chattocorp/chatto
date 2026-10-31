@@ -24,10 +24,10 @@ Remove both DM-specific permission strings as product and authorization concepts
 - Reading a DM is allowed by room membership alone.
 - Listing DMs returns the DM rooms the caller participates in.
 - Live DM events are filtered by room membership, the same as channel-room events.
-- A human can start a DM when `message.post` allows it. A bot cannot start or
-  fetch a DM through `RoomService.StartDM`, regardless of its permissions or
-  owner. All participants need `message.post` to send root messages in an
-  existing DM.
+- Humans and bots can start a DM when `message.post` allows it. Bots need an
+  explicit grant within their owner's authority. Participants can fetch an
+  existing DM without posting permission. All participants need `message.post`
+  to send root messages in an existing DM.
 - DMs do not support threads. This is a room-kind invariant enforced by the
   message operation model and low-level Core write path, not an RBAC decision.
   Flat reply attribution remains available in DMs.

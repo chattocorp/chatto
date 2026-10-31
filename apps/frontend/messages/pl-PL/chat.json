@@ -6,6 +6,13 @@
       "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
     },
     "notifications": {
+      "all_notifications": "Wszystkie powiadomienia",
+      "all_types": "Wszystkie typy",
+      "filter_status": "Stan",
+      "filter_type": "Typ",
+      "reactions": "Reakcje",
+      "replies": "Odpowiedzi",
+      "mentions": "Wzmianki",
       "next_unread_source": "Przejdź do następnego nieprzeczytanego źródła",
       "no_unread": "Brak nieprzeczytanych powiadomień",
       "title": "Powiadomienia",
@@ -40,6 +47,7 @@
       "administration": "Administracja serwerem"
     },
     "user_menu": {
+      "edit_profile": "Edytuj profil",
       "profile": "Profil użytkownika",
       "send_message": "Otwórz rozmowę",
       "view_profile": "Zobacz profil",
@@ -53,6 +61,9 @@
       "details": "Szczegóły serwera"
     },
     "compatibility": {
+      "older_frontend": "Twoja aplikacja nie obsługuje wszystkich funkcji tego serwera",
+      "frontend_upgrade": "Używasz aplikacji w wersji {version}. Zaktualizuj ją lub poproś administratora serwera, który ją udostępnia, o aktualizację. Dostęp do funkcji zależy też od ustawień serwera i Twoich uprawnień.",
+      "frontend_requires": "Wymaga aplikacji w wersji {version} lub nowszej",
       "title": "Zgodność",
       "view": "Sprawdź zgodność",
       "limited": "Starsza wersja serwera",
@@ -179,7 +190,8 @@
       "event_log": "Dziennik zdarzeń",
       "system": "System",
       "back_to_server": "Wróć do serwera",
-      "invitations": "Linki z zaproszeniem"
+      "invites": "Zaproszenia",
+      "registration": "Rejestracja"
     }
   }
 }

@@ -128,6 +128,47 @@ func TestProjectionThreadScopeIncludesRootAndRepliesAcrossEditsAndRestore(t *tes
 	}
 }
 
+func TestProjectionQueryPagination(t *testing.T) {
+	index, err := blevesearch.NewMemOnly(newIndexMapping(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = index.Close() })
+	for i, body := range []string{"needle", "needle", "needle", "needle extra words", "needle extra words", "needle extra words and more"} {
+		id := fmt.Sprintf("message-%d", i)
+		require.NoError(t, index.Index(messageDocumentID(id), messageDocument{
+			MessageID: id, RoomID: "room", AuthorID: "author", Body: body,
+			CreatedAt: time.Unix(int64(i/2), 0), Visible: true,
+		}))
+	}
+	projection := &Projection{index: index}
+	for _, order := range []searchv1.SearchOrder{searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, searchv1.SearchOrder_SEARCH_ORDER_NEWEST} {
+		t.Run(order.String(), func(t *testing.T) {
+			request := &searchv1.QueryRequest{RequiredTerms: []string{"needle"}, Order: order, PageSize: 100}
+			all, err := projection.query(context.Background(), request)
+			require.NoError(t, err)
+			require.Len(t, all.Hits, 6)
+			for _, size := range []uint32{1, 2, 4} {
+				t.Run(fmt.Sprintf("page-size-%d", size), func(t *testing.T) {
+					request.PageSize = size
+					request.Cursor = nil
+					var ids []string
+					for page := 0; ; page++ {
+						require.Less(t, page, 6, "pagination must terminate")
+						response, err := projection.query(context.Background(), request)
+						require.NoError(t, err)
+						require.NotEmpty(t, response.Hits, "each cursor must reach more results")
+						ids = append(ids, hitIDs(response)...)
+						if len(response.NextCursor) == 0 {
+							break
+						}
+						request.Cursor = response.NextCursor
+					}
+					require.Equal(t, hitIDs(all), ids)
+				})
+			}
+		})
+	}
+}
+
 func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
@@ -199,47 +240,55 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	require.Equal(t, uint64(7), checkpoint.CutoffSequence)
 }
 
-func TestProjectionStartupBatchCommitsMessageAndCheckpointOnce(t *testing.T) {
-	key, err := encryption.GenerateKey()
-	require.NoError(t, err)
-	directory := t.TempDir() + "/index"
-	projection, err := NewProjection(directory, []string{"de", "en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
-	require.NoError(t, err)
-	request := events.ProjectionCheckpointRequest{
-		ProjectionKey: "message_search", ContractID: projection.CheckpointContractID(),
-		StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd",
-		FirstSequence: 1, LastSequence: 2,
+func TestProjectionBatchCommitsMessageAndCheckpointOnce(t *testing.T) {
+	for _, live := range []bool{false, true} {
+		t.Run(fmt.Sprintf("live=%t", live), func(t *testing.T) {
+			key, err := encryption.GenerateKey()
+			require.NoError(t, err)
+			directory := t.TempDir() + "/index"
+			projection, err := NewProjection(directory, []string{"de", "en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+			require.NoError(t, err)
+			request := events.ProjectionCheckpointRequest{
+				ProjectionKey: "message_search", ContractID: projection.CheckpointContractID(),
+				StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd",
+				FirstSequence: 1, LastSequence: 2,
+			}
+			_, err = projection.RestoreCheckpoint(context.Background(), request)
+			require.NoError(t, err)
+			batches := 0
+			projection.commitBatch = func(batch *blevesearch.Batch) error {
+				batches++
+				return projection.index.Batch(batch)
+			}
+
+			createdAt := time.Unix(100, 0)
+			bodyEvent := legacyBodyEvent(t, key, "M1", "B1", "R1", "U1", "batched searchable body", createdAt, nil)
+			postedEvent := messagePostedEvent("M1", "R1", "U1", createdAt)
+			apply := projection.ApplyStartupBatch
+			if live {
+				apply = projection.ApplyLiveBatch
+			}
+			require.NoError(t, apply([]evtstream.SequencedEvent{
+				{Event: bodyEvent, Sequence: 1},
+				{Event: postedEvent, Sequence: 2},
+			}))
+			require.Equal(t, 1, batches)
+
+			response, err := projection.query(context.Background(), &searchv1.QueryRequest{
+				RequiredTerms: []string{"batched"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+			})
+			require.NoError(t, err)
+			require.Equal(t, []string{"M1"}, hitIDs(response))
+			require.NoError(t, projection.Close())
+
+			projection, err = NewProjection(directory, []string{"de", "en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = projection.Close() })
+			checkpoint, err := projection.RestoreCheckpoint(context.Background(), request)
+			require.NoError(t, err)
+			require.Equal(t, uint64(2), checkpoint.CutoffSequence)
+		})
 	}
-	_, err = projection.RestoreCheckpoint(context.Background(), request)
-	require.NoError(t, err)
-	batches := 0
-	projection.commitBatch = func(batch *blevesearch.Batch) error {
-		batches++
-		return projection.index.Batch(batch)
-	}
-
-	createdAt := time.Unix(100, 0)
-	bodyEvent := legacyBodyEvent(t, key, "M1", "B1", "R1", "U1", "batched searchable body", createdAt, nil)
-	postedEvent := messagePostedEvent("M1", "R1", "U1", createdAt)
-	require.NoError(t, projection.ApplyStartupBatch([]evtstream.SequencedEvent{
-		{Event: bodyEvent, Sequence: 1},
-		{Event: postedEvent, Sequence: 2},
-	}))
-	require.Equal(t, 1, batches)
-
-	response, err := projection.query(context.Background(), &searchv1.QueryRequest{
-		RequiredTerms: []string{"batched"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
-	})
-	require.NoError(t, err)
-	require.Equal(t, []string{"M1"}, hitIDs(response))
-	require.NoError(t, projection.Close())
-
-	projection, err = NewProjection(directory, []string{"de", "en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = projection.Close() })
-	checkpoint, err := projection.RestoreCheckpoint(context.Background(), request)
-	require.NoError(t, err)
-	require.Equal(t, uint64(2), checkpoint.CutoffSequence)
 }
 
 func TestProjectionStartupBatchAppliesDeletesAgainstPendingMessages(t *testing.T) {
@@ -970,7 +1019,7 @@ func applyLegacyBody(t *testing.T, projection *Projection, key []byte, messageID
 	require.NoError(t, projection.Apply(legacyBodyEvent(t, key, messageID, bodyEventID, roomID, authorID, text, createdAt, assetIDs), seq))
 }
 
-func legacyBodyEvent(t *testing.T, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, assetIDs []string) *evtv1.Event {
+func legacyBodyEvent(t testing.TB, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, assetIDs []string) *evtv1.Event {
 	t.Helper()
 	encrypted, err := encryption.Encrypt(key, []byte(text))
 	require.NoError(t, err)

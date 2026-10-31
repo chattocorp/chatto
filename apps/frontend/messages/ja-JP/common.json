@@ -3,6 +3,15 @@
     "code_source": "ソース",
     "code_render": "表示",
     "code_render_failed": "プレビューを表示できません。ソースは引き続き利用できます。",
+    "keyboard_shortcuts": {
+      "title": "キーボードショートカット",
+      "app": "アプリ",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "new_line": "改行",
+      "edit_last": "最後のメッセージを編集（下書きが空の場合）",
+      "complete": "メンションまたは絵文字を補完"
+    },
     "action_unavailable": "現在、この操作は利用できません。",
     "edit": "編集",
     "copy_failed": "クリップボードにコピーできませんでした。テキストを選択して手動でコピーしてください。",

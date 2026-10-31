@@ -25,6 +25,7 @@ preview on screen.
   import { buildMessageLinkPath, type MessageLink } from '$lib/chatLinks';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { m } from '$lib/i18n/messages';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { createQuery } from '$lib/query/client';
   import {
     fetchMessagePreview,
@@ -43,7 +44,7 @@ preview on screen.
     withAssetUrlRetryParam
   } from '@chatto/client/attachments/attachmentUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
-  import { ScrollFader } from '$lib/ui';
+  import { ScrollFader, PreviewToolbar, PreviewAction } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import DeletedUserLabel from './DeletedUserLabel.svelte';
@@ -235,44 +236,41 @@ preview on screen.
         })
       : m('message_preview.open_linked_message')}
     data-testid="message-preview-card"
-    class="group/preview relative embed-frame flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col"
+    class="group/preview relative my-1.5 flex w-full max-w-[min(32rem,100%)] cursor-pointer flex-col gap-1 preview-frame text-sm"
     onclick={openPreview}
     onkeydown={handlePreviewKeydown}
   >
-    <div class="flex min-w-0 flex-col">
-      <div
-        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-emphasized/60 px-3 py-2"
-      >
-        <div class="flex min-w-0 flex-1 flex-col gap-1">
-          {#if spaceName || roomName}
-            <span class="truncate text-xs tracking-wide text-muted">
-              {#if spaceName}<bdi>{spaceName}</bdi>{/if}
-              {#if spaceName && roomName}&nbsp;·&nbsp;{/if}
-              {#if roomName}<bdi>#{roomName}</bdi>{/if}
-            </span>
-          {/if}
-          <div class="flex min-w-0 items-center gap-2">
-            {#if preview.actor && !preview.actor.deleted}
-              <UserAvatar user={preview.actor} size="xs" />
-              <AccountName
-                name={displayName ?? ''}
-                identity={preview.actor}
-                class="text-sm font-medium"
-              />
-            {:else}
-              <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
-            {/if}
-          </div>
-        </div>
+    <div class="flex min-w-0 items-center gap-2 px-2 py-1.5">
+      <div class="flex min-w-0 items-center gap-2">
+        {#if preview.actor && !preview.actor.deleted}
+          <UserAvatar user={preview.actor} size="xs" />
+          <AccountName
+            name={displayName ?? ''}
+            identity={preview.actor}
+            class="text-sm font-medium"
+          />
+        {:else}
+          <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
+        {/if}
       </div>
+      <time datetime={preview.createdAt} class="ms-auto min-w-0 text-end text-xs text-muted"
+        >{formatDateTime(
+          preview.createdAt,
+          timeFormatSettingsFor(store?.currentUser.user?.settings)
+        )}</time
+      >
+      <span class="iconify icon-[uil--comment-alt-message] shrink-0 text-muted" aria-hidden="true"
+      ></span>
+    </div>
+    <div class="flex min-w-0 flex-col preview-content">
       {#if hasBody}
         <ScrollFader
           top
           bottom
           fill={false}
           fadeHeight="h-5"
-          fadeColorClass="from-surface via-surface/80"
-          scrollClass={compact ? 'max-h-12' : 'max-h-52'}
+          fadeColorClass="from-background via-background/80"
+          scrollClass={compact ? 'max-h-12' : 'max-h-32'}
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent body={bodyMarkdown} viewerLogin={store?.currentUser.user?.login} />
@@ -298,9 +296,7 @@ preview on screen.
           {#each preview.attachments.slice(0, 4) as attachment (attachment.id)}
             {@const thumbnailUrl = previewThumbnailUrl(attachment)}
             {#if thumbnailUrl}
-              <div
-                class="relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border"
-              >
+              <div class="relative h-12 w-12 shrink-0 preview-thumbnail">
                 <img
                   src={thumbnailUrl}
                   alt={attachment.description || attachment.filename}
@@ -321,7 +317,7 @@ preview on screen.
               </div>
             {:else}
               <div
-                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-emphasized text-xs text-muted"
+                class="flex h-12 w-12 items-center justify-center preview-thumbnail text-xs text-muted"
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span class="iconify icon-[uil--play] text-lg" aria-hidden="true"></span>
@@ -346,19 +342,21 @@ preview on screen.
         </div>
       {/if}
     </div>
+    {#if spaceName || roomName}
+      <div class="flex min-w-0 items-center gap-2 px-2 py-1.5 text-muted">
+        <span class="iconify icon-[uil--comments] shrink-0" aria-hidden="true"></span>
+        <span class="min-w-0 flex-1 truncate">
+          {#if roomName}<bdi>{roomName}</bdi>{/if}
+          {#if spaceName && roomName}&nbsp;·&nbsp;{/if}
+          {#if spaceName}<bdi>{spaceName}</bdi>{/if}
+        </span>
+        <span class="iconify icon-[uil--arrow-up-right] shrink-0" aria-hidden="true"></span>
+      </div>
+    {/if}
     {#if showDismiss && onDismiss}
-      <button
-        type="button"
-        onclick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onDismiss?.();
-        }}
-        class="embed-control-button"
-        aria-label={m('preview.dismiss')}
-      >
-        <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
-      </button>
+      <PreviewToolbar>
+        <PreviewAction onclick={onDismiss} label={m('preview.dismiss')} icon="icon-[uil--times]" />
+      </PreviewToolbar>
     {/if}
   </div>
 {/if}

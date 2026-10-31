@@ -3,6 +3,7 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { startOGMockServer, type OGMockServer } from './fixtures/ogMockServer';
 import { TIMEOUTS } from './constants';
+import { getIdsFromUrlViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
 
 let ogServer: OGMockServer;
 
@@ -43,10 +44,12 @@ test.describe('Automatic URL links', () => {
     await chatPage.enterRoom('general');
 
     const messageText = 'Visit www.example.com for details';
-    await roomPage.sendMessage(messageText);
+    // URL pills include a hidden full-URL description between visible text nodes.
+    // Locate the message by its prose, then assert the link separately.
+    await roomPage.sendMessage(messageText, 'Visit');
 
     // The message should be rendered with the bare domain as a clickable link
-    const message = page.locator('[role="article"]', { hasText: messageText });
+    const message = page.locator('[role="article"]', { hasText: 'Visit' });
     const link = message.locator('a[href="https://www.example.com"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(link).toHaveText('www.example.com');
@@ -69,6 +72,50 @@ test.describe('Automatic URL links', () => {
 });
 
 test.describe('Link previews', () => {
+  for (const authored of [false, true]) {
+    test(`${authored ? 'Markdown links fetch' : 'URL pills reuse attached'} hover previews through the server`, async ({
+      page,
+      chatPage,
+      roomPage
+    }) => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+      const testUrl = `${ogServer.baseURL}/og-basic`;
+      if (authored) {
+        const { roomId } = await getIdsFromUrlViaConnect(page);
+        await postMessageViaConnect(page, roomId, `Hover check [the useful guide](${testUrl})`);
+      } else {
+        await roomPage.waitForInputEditable();
+        await roomPage.messageInput.fill(`Hover check ${testUrl}`);
+        await expect(page.getByTestId('composer-link-preview')).toBeVisible();
+        await expect(roomPage.sendButton).toBeEnabled();
+        await roomPage.messageInput.press('Control+Enter');
+      }
+      const chip = authored
+        ? page
+            .locator('[role="article"]')
+            .getByRole('link', { name: 'the useful guide', exact: true })
+        : page.locator(`[role="article"] .url-link[data-content-href="${testUrl}"]`);
+      if (!authored) {
+        await expect(chip.locator('.url-link-main')).toHaveText('Test Page Title');
+        await expect(chip.locator('.url-link-host')).toHaveText(new URL(testUrl).host);
+      }
+      let requests = 0;
+      page.on('request', (request) => {
+        if (request.url().includes('/FetchLinkPreview')) requests++;
+      });
+      await chip.hover();
+      const card = page.getByTestId('link-hover-card');
+      await expect(chip).not.toHaveAttribute('title');
+      await expect(card).toContainText('Test Page Title');
+      await expect(card).toContainText('Test Site');
+      if (authored) await expect(chip).not.toHaveClass(/url-link|entity-link/);
+      expect(requests).toBe(authored ? 1 : 0);
+      await page.keyboard.press('Escape');
+      await expect(card).not.toBeVisible();
+    });
+  }
   test('link preview card appears on posted message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -87,7 +134,9 @@ test.describe('Link previews', () => {
 
     // Now send — the preview data is included in the mutation
     await roomPage.messageInput.press('Control+Enter');
-    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    const postedMessage = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`a[data-content-href="${testUrl}"]`) });
     await expect(postedMessage).toBeVisible();
 
     // The preview should be visible on the posted message (stored at post-time)
@@ -139,7 +188,9 @@ test.describe('Link previews', () => {
 
     // Send the message (preview data included in mutation)
     await roomPage.messageInput.press('Control+Enter');
-    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    const postedMessage = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`a[data-content-href="${testUrl}"]`) });
     await expect(postedMessage).toBeVisible();
 
     // Wait for the preview to appear on the posted message
@@ -186,7 +237,9 @@ test.describe('Link previews', () => {
 
     // Send the message (preview data included in mutation)
     await roomPage.messageInput.press('Control+Enter');
-    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    const postedMessage = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`a[data-content-href="${firstUrl}"]`) });
     await expect(postedMessage).toBeVisible();
 
     // Wait for the first preview to appear

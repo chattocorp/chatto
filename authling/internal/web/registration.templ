@@ -1,0 +1,67 @@
+package web
+
+import (
+	"github.com/chattocorp/chatto/authling/internal/web/ui"
+	"strconv"
+)
+
+templ signupPage(message, oidcRequest string) {
+	@layout("Create your account", "") {
+		@ui.Heading("Create your account") {
+			<p>We’ll email you a six-digit verification code.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/signup">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			@ui.Field("email", "Email address", "", templ.Attributes{"type": "email", "name": "email", "autocomplete": "email", "required": true})
+			<button class="button button-primary w-full" type="submit">Email me a code</button>
+		</form>
+	}
+}
+
+templ codePage(flow, message, oidcRequest string) {
+	@layout("Verify your email", "") {
+		@ui.Heading("Check your email") {
+			<p>If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/signup/verify">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<input type="hidden" name="flow" value={ flow }/>
+			@ui.CodeField("Verification code", true)
+			<button class="button button-primary w-full" type="submit">Verify email</button>
+		</form>
+	}
+}
+
+templ passwordPage(flow, message string, passwordMinimumLength int, oidcRequest string) {
+	@layout("Choose a password", "") {
+		@ui.Heading("Choose a password") {
+			<p>Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/signup/complete">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<input type="hidden" name="flow" value={ flow }/>
+			@ui.Field("password", "Password", "", templ.Attributes{"type": "password", "name": "password", "autocomplete": "new-password", "minlength": strconv.Itoa(passwordMinimumLength), "maxlength": "1024", "required": true})
+			@ui.Field("password_confirmation", "Confirm password", "", templ.Attributes{"type": "password", "name": "password_confirmation", "autocomplete": "new-password", "minlength": strconv.Itoa(passwordMinimumLength), "maxlength": "1024", "required": true})
+			<button class="button button-primary w-full" type="submit">Create account</button>
+		</form>
+	}
+}
+
+templ accountCreatedPage(accountID string) {
+	@layout("Account created", "") {
+		@ui.Heading("Your account is ready") {
+			<p>Your email was verified and your account was created.</p>
+		}
+		<p class="mt-6 text-muted">Account ID: <code>{ accountID }</code></p>
+		<a class="button button-primary mt-6" href="/login">Sign in</a>
+	}
+}

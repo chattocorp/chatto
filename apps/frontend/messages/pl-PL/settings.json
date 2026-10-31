@@ -1,5 +1,59 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Aktualizacje",
+      "subtitle": "Aktualizacje tej instalacji",
+      "updates": "Aktualizacje aplikacji",
+      "unavailable": "Automatyczne aktualizacje nie są dostępne w tej instalacji.",
+      "version": "Zainstalowana wersja: {version}",
+      "ready_link": "Aktualizacja gotowa",
+      "restart_warning": "Ponowne uruchomienie kończy aktywne rozmowy i udostępnianie ekranu.",
+      "restart": "Uruchom ponownie, aby zaktualizować",
+      "check": "Sprawdź aktualizacje",
+      "preferences": "Ustawienia aktualizacji",
+      "automatic": "Sprawdzaj i pobieraj automatycznie",
+      "channel": "Kanał wydań",
+      "stable": "Stabilny",
+      "beta": "Beta",
+      "channel_help": "Automatyczne stabilne aktualizacje są udostępniane przez 36 godzin. Ręczne sprawdzanie i Beta pomijają to opóźnienie. Zmiana na Stabilny nigdy nie instaluje starszej wersji.",
+      "privacy": "Aktualizacje łączą się z GitHub, który otrzymuje twój adres IP i żądania aktualizacji. Chatto nie wysyła danych kont ani połączonych serwerów.",
+      "status": {
+        "idle": "Gotowość do sprawdzenia aktualizacji.",
+        "checking": "Sprawdzanie aktualizacji…",
+        "downloading": "Pobieranie aktualizacji…",
+        "ready": "Gotowość do ponownego uruchomienia.",
+        "current": "W tym kanale nie ma nowszej aktualizacji.",
+        "error": "Operacja aktualizacji nie powiodła się. Spróbuj ponownie.",
+        "changed": "Dostępna wersja uległa zmianie. Sprawdź ponownie.",
+        "installing": "Przygotowywanie ponownego uruchomienia…"
+      }
+    },
+    "overview": {
+      "descriptions": {
+        "account": "Zarządzaj hasłem, adresami e-mail i metodami logowania.",
+        "profile": "Zaktualizuj nazwę, awatar i dane profilu.",
+        "time": "Wybierz sposób wyświetlania dat i godzin przez ten serwer",
+        "notifications": "Skonfiguruj sposób otrzymywania powiadomień",
+        "language": "Wybierz język i sformułowania regionalne dla tej przeglądarki.",
+        "bots": "Twórz konta API i dokładnie kontroluj ich możliwości",
+        "general": "Tożsamość serwera, marka i wiadomości",
+        "neighbors": "Promuj zaprzyjaźnione serwery Chatto w swoim publicznym katalogu",
+        "members": "Przeglądaj i zarządzaj członkami serwera i ich rolami",
+        "registration": "Określ, jak nowe konta dołączają do tego serwera.",
+        "invitations": "Twórz kody zaproszeń i zarządzaj nimi.",
+        "rooms": "Twórz, edytuj, organizuj i archiwizuj pokoje",
+        "moderation": "Sprawdź aktywne zawieszenia dostępu do pokoi",
+        "permissions": "Zarządzaj domyślnymi rolami na całym serwerze",
+        "security": "Ograniczenia rejestracji i ochrona konta",
+        "appearance": "Dostosuj aplikację za pomocą kolorów, motywów i opcji wyświetlania.",
+        "composer": "Wybierz edytor i sposób wysyłania wiadomości.",
+        "voice": "Skonfiguruj mikrofon, głośniki i ustawienia połączeń.",
+        "system": "Sprawdź stan serwera, pamięć i zadania w tle.",
+        "event_log": "Przeglądaj zdarzenia serwera i analizuj zmiany."
+      },
+      "title": "Przegląd",
+      "shield_notice": "Aby użyć dodatkowych uprawnień na tym serwerze, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia."
+    },
     "nav": {
       "title": "Ustawienia",
       "back_to_server": "Powrót do serwera",
@@ -141,6 +195,21 @@
         "dark": {
           "label": "Ciemno",
           "description": "Użyj ciemnego interfejsu w tej przeglądarce"
+        }
+      },
+      "animations": {
+        "title": "Animacje",
+        "automatic": {
+          "label": "Automatycznie",
+          "description": "Używaj systemowego ustawienia ograniczenia ruchu"
+        },
+        "enabled": {
+          "label": "Włączone",
+          "description": "Zawsze pokazuj animacje"
+        },
+        "disabled": {
+          "label": "Wyłączone",
+          "description": "Pokazuj zmiany bez animacji"
         }
       },
       "thread_pane": {

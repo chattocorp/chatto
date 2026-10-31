@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import AppHeader from './AppHeader.svelte';
 import { cdp, page } from 'vitest/browser';
 import '../../app.css';
+import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -85,6 +86,43 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 describe('AppHeader', () => {
+  it('shows an update-ready link only while a host update is ready', async () => {
+    const { getByRole } = render(AppHeader);
+    await expect.element(getByRole('link', { name: 'Update ready' })).not.toBeInTheDocument();
+    desktopUpdates.status = {
+      revision: 1,
+      version: '0.5.0',
+      status: 'ready',
+      busy: false,
+      progress: null,
+      availableVersion: '0.6.0',
+      automatic: true,
+      channel: 'stable'
+    };
+    await expect
+      .element(getByRole('link', { name: 'Update ready' }))
+      .toHaveAttribute('href', '/chat/preferences/desktop');
+    desktopUpdates.status = null;
+    await expect.element(getByRole('link', { name: 'Update ready' })).not.toBeInTheDocument();
+  });
+  it('keeps the current server when opening cross-server notifications', () => {
+    mocks.activeServer = 'remote';
+    mocks.servers = [{ id: 'remote' }];
+    mocks.authenticated = { remote: true };
+    const { container } = render(AppHeader);
+    expect(
+      container.querySelector('a[href="/chat/remote.example.com/notifications"]')
+    ).not.toBeNull();
+    mocks.activeServer = '';
+  });
+
+  it('keeps global notifications available when the origin is signed out', () => {
+    mocks.activeServer = 'origin';
+    mocks.servers = [{ id: 'origin' }, { id: 'remote' }];
+    mocks.authenticated = { remote: true };
+    const { container } = render(AppHeader);
+    expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
+  });
   it('hides on mobile with the keyboard and returns when it closes', async () => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await page.viewport(390, 800);

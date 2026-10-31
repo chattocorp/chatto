@@ -56,18 +56,9 @@
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
+  :global(:root[data-motion='reduced']) {
     .toast-enter {
-      animation: toast-fade-in 120ms ease-out;
-    }
-
-    @keyframes toast-fade-in {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
+      animation: none;
     }
   }
 </style>

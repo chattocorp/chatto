@@ -185,7 +185,7 @@ account.
 - `true`: the user confirms a username, and then Chatto creates the account.
 
 With [invite-only account creation](/guides/operations/identity-login/#invite-only-account-creation),
-new accounts also need an invite link.
+new accounts also need an invitation code.
 
 ## Manage usernames and account links
 
@@ -196,7 +196,7 @@ disconnecting the provider:
 [[auth.providers]]
 # ...
 manage_usernames = true
-sync_usernames = false
+update_usernames = false
 allow_unlinking = false
 # OIDC only; the default is preferred_username.
 username_claim = "preferred_username"
@@ -227,7 +227,7 @@ If the name is taken, Chatto tries `name-2`, `name-3`, and further numbers, up t
 1,000 candidates. It shortens the base when needed to fit the suffix. Missing,
 invalid, or reserved names prevent account creation; correct the provider claim.
 
-Existing usernames stay unchanged by default. Set `sync_usernames = true` to
+Existing usernames stay unchanged by default. Set `update_usernames = true` to
 update them at subsequent sign-ins. This requires `manage_usernames = true`.
 An existing numeric suffix stays unchanged while it matches the provider name.
 If synchronization fails, the existing name stays and sign-in continues. The

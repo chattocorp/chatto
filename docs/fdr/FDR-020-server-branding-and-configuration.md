@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-09-18
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
@@ -20,6 +20,10 @@ Operators can customize how their Chatto server presents itself. The server's na
   Changes broadcast to live clients.
 - **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; the public server profile exposes its canonical URL without transform arguments.
 - **Banner** — shown on the login page and in OG previews. Same upload/serve pipeline as the logo.
+- **Account creation** — the typed `registration.admission` setting selects open
+  registration or invitation-only account creation. It applies to direct signup
+  and new SSO accounts. The default is open. Existing sign-in, provider linking,
+  and operator-created accounts are not affected. See FDR-036.
 - **Blocked usernames** — newline-separated list checked at signup. Matches are rejected before account creation.
 - Text configuration is bounded before storage: server name 80 bytes, description 500 bytes, MOTD 1,000 bytes, welcome message 10,000 bytes, blocked-usernames field 10,000 bytes, and each blocked username no longer than a normal username.
 
@@ -85,9 +89,28 @@ Users open the modal to read the complete message with block formatting.
 **Why:** The frontend needs to know the window to render countdown timers and disable the edit affordance at the right moment, so exposing it through the public API is necessary. But making it operator-tunable opens space for inconsistent UX across servers without clear benefit — and the value isn't sensitive enough to need server-by-server control.
 **Tradeoff:** Operators who want a different window have to recompile. If demand emerges this can be promoted to a config field cheaply.
 
+### 9. Typed sections extend the server settings resource
+
+**Decision:** New settings use typed sections on the existing admin server
+resource. Registration starts with `registration.admission`.
+`UpdateServerConfig` accepts a field mask with that leaf path. Unselected
+fields stay unchanged. A selected absent admission resets to open.
+**Why:** Each settings form can update its fields without replacing other
+sections. Typed fields give validation and a defined API contract.
+**Tradeoff:** Each new setting needs a schema field and domain handling. There
+is no generic string-key settings store.
+
+Admission changes publish `ServerRegistrationAdmissionChangedEvent` on the
+server config aggregate. The config projection and its snapshot retain the
+value. There is no file or environment override. Account creation catches up
+the projection and checks the policy under the same EVT concurrency boundary
+as account creation and invitation redemption. Unknown values reject creation.
+The admin response returns the saved value; public discovery returns the
+effective policy when read. Admission changes do not emit a public profile event.
+
 ## Permissions
 
-- `server.manage` — gates presentation, branding, and security-list mutations (`updateServerConfig`, `admin.updateBlockedUsernames`, `uploadServerLogo`, `uploadServerBanner`, `deleteServerLogo`, `deleteServerBanner`).
+- `server.manage` — gates presentation, branding, admission, and security-list mutations (`updateServerConfig`, `admin.updateBlockedUsernames`, `uploadServerLogo`, `uploadServerBanner`, `deleteServerLogo`, `deleteServerBanner`).
 
 ## Related
 

@@ -6,6 +6,13 @@
       "confirmation": "Per 15 minuti, questa azione attiva le autorizzazioni aggiuntive che ti sono state assegnate su questo server."
     },
     "notifications": {
+      "all_notifications": "Tutte le notifiche",
+      "all_types": "Tutti i tipi",
+      "filter_status": "Stato",
+      "filter_type": "Tipo",
+      "reactions": "Reazioni",
+      "replies": "Risposte",
+      "mentions": "Menzioni",
       "next_unread_source": "Vai alla prossima fonte non letta",
       "no_unread": "Nessuna notifica non letta",
       "title": "Notifiche",
@@ -40,6 +47,7 @@
       "administration": "Amministrazione del server"
     },
     "user_menu": {
+      "edit_profile": "Modifica profilo",
       "profile": "Profilo utente",
       "send_message": "Apri conversazione",
       "view_profile": "Visualizza profilo",
@@ -53,6 +61,9 @@
       "details": "Dettagli del server"
     },
     "compatibility": {
+      "older_frontend": "La tua app non supporta tutte le funzioni di questo server",
+      "frontend_upgrade": "Stai usando la versione {version} dell’app. Aggiornala o chiedi all’amministratore del server che la fornisce di aggiornarla. L’accesso alle funzioni dipende anche dalle impostazioni del server e dai tuoi permessi.",
+      "frontend_requires": "Richiede la versione {version} dell’app o successiva",
       "title": "Compatibilità",
       "view": "Visualizza compatibilità",
       "limited": "Versione del server meno recente",
@@ -173,7 +184,8 @@
       "event_log": "Registro eventi",
       "system": "Sistema",
       "back_to_server": "Ritorna al server",
-      "invitations": "Link di invito"
+      "invites": "Inviti",
+      "registration": "Registrazione"
     }
   }
 }

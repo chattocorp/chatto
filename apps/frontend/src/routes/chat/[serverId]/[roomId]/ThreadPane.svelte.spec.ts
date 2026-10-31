@@ -1,9 +1,10 @@
 import type { DMData } from '$lib/hooks/useRoomData.svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page } from 'vitest/browser';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
 import { THREAD_PANE_MAX_WIDTH } from '$lib/storage/threadPaneWidth';
 import { getToasts, toast } from '$lib/ui/toast';
@@ -15,6 +16,7 @@ import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { signal } from '@chatto/client/reactivity';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RealtimeResourceUpdate } from '@chatto/client/api/realtimeResources';
 import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import {
@@ -37,6 +39,7 @@ const { mocks } = vi.hoisted(() => {
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
       restoreLatestWindow: vi.fn(),
+      cancelPendingHistoricalJump: vi.fn(),
       clearAnchor: vi.fn(),
       setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
@@ -77,6 +80,7 @@ const { mocks } = vi.hoisted(() => {
 let server: TestServerScope;
 const reactionOccurrences = signal<NotificationOccurrenceItem[]>([]);
 const present = signal(true);
+const liveParticipantProfiles = signal<Record<string, { displayName: string; login: string }>>({});
 
 /** The event bus delivers resources after the store has applied their rows. */
 function notifyReactionUpdate() {
@@ -112,6 +116,18 @@ function rootReaction(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: { getStore: () => server.scope.store }
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_id: string, fallback: string | null) => fallback,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
+  getLiveDisplayName: (id: string, fallback: string) =>
+    liveParticipantProfiles.get()[id]?.displayName ?? fallback,
+  getLiveLogin: (id: string, fallback: string) =>
+    liveParticipantProfiles.get()[id]?.login ?? fallback,
+  getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: () => null
 }));
 
 vi.mock('@chatto/client/api/readState', () => ({
@@ -277,9 +293,33 @@ const threadProps = {
   onClose: () => {}
 };
 
+/** A root summary can include participants whose replies are outside the loaded window. */
+function participantRoot(ids: string[], count = ids.length): TimelineEventView {
+  return {
+    id: 'thread-root',
+    createdAt: '2026-10-28T12:00:00Z',
+    event: {
+      kind: TimelineEventKind.MessagePosted,
+      roomId: 'room-1',
+      body: 'Thread root',
+      attachments: [],
+      reactions: [],
+      replyCount: count,
+      threadParticipantCount: count,
+      threadParticipants: ids.map((id) => ({
+        id,
+        login: id,
+        displayName: id,
+        presenceStatus: PresenceStatus.OFFLINE
+      }))
+    }
+  };
+}
+
 describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    liveParticipantProfiles.set({});
     mocks.realUnreadLifecycle = false;
     reactionOccurrences.set([]);
     Object.defineProperty(mocks.appState, 'isPresent', {
@@ -324,6 +364,7 @@ describe('ThreadPane', () => {
               refreshCurrentWindow: mocks.refreshCurrentWindow,
               jumpToMessage: mocks.storeJumpToMessage,
               restoreLatestWindow: mocks.restoreLatestWindow,
+              cancelPendingHistoricalJump: mocks.cancelPendingHistoricalJump,
               clearAnchor: mocks.clearAnchor,
               setThreadRootFollowState: mocks.setThreadRootFollowState,
               loadMore: mocks.loadMore
@@ -350,6 +391,153 @@ describe('ThreadPane', () => {
       following: false,
       state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: false }
     });
+  });
+
+  it('shows participant summary updates and opens profiles from the header', async () => {
+    const onOpenProfile = vi.fn();
+    const rendered = render(ThreadPane, { props: { ...threadProps, onOpenProfile } });
+    expect(
+      rendered.container.querySelector('[data-testid="thread-header-participants"]')
+    ).toBeNull();
+
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob', 'Carol', 'Dave'], 12)];
+    const group = rendered.getByRole('group', { name: 'Thread participants (12)' });
+    await expect.element(group).toBeVisible();
+    await expect.element(group.getByText('+8')).toBeVisible();
+    await expect.element(group.getByRole('button', { name: 'Alice', exact: true })).toBeVisible();
+    await expect.element(group.getByRole('button', { name: 'Carol', exact: true })).toBeVisible();
+    await expect.element(group.getByRole('button', { name: 'Dave', exact: true })).toBeVisible();
+    const bobAvatar = group.getByRole('button', { name: 'Bob', exact: true });
+    await expect.element(bobAvatar).not.toHaveAttribute('title');
+    await bobAvatar.hover();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'Bob' })).toBeVisible();
+    await bobAvatar.click();
+    await expect
+      .element(page.getByRole('tooltip').filter({ hasText: 'Bob' }))
+      .not.toBeInTheDocument();
+    const menu = page.getByRole('dialog', { name: 'User profile' });
+    await expect.element(menu).toBeVisible();
+    expect(onOpenProfile).not.toHaveBeenCalled();
+    await menu.getByRole('button', { name: 'View profile' }).click();
+    expect(onOpenProfile).toHaveBeenCalledWith('Bob');
+
+    mocks.threadStore!.threadEvents = [participantRoot(['Carol'])];
+    await expect
+      .element(rendered.getByRole('group', { name: 'Thread participants (1)' }))
+      .toBeVisible();
+    await expect
+      .element(rendered.getByRole('button', { name: 'Alice', exact: true }))
+      .not.toBeInTheDocument();
+    await rendered.rerender({ ...threadProps, onOpenProfile, threadRootEventId: 'thread-2' });
+    expect(
+      rendered.container.querySelector('[data-testid="thread-header-participants"]')
+    ).toBeNull();
+  });
+
+  it('updates participant labels and an open hint when the live profile changes', async () => {
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice'])];
+    const rendered = render(ThreadPane, { props: threadProps });
+    const group = rendered.getByRole('group', { name: 'Thread participants (1)' });
+    await group.getByRole('button', { name: 'Alice', exact: true }).hover();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'Alice' })).toBeVisible();
+
+    liveParticipantProfiles.set({ Alice: { displayName: 'Alicia', login: 'new-login' } });
+    await expect.element(group.getByRole('button', { name: 'Alicia', exact: true })).toBeVisible();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'Alicia' })).toBeVisible();
+
+    liveParticipantProfiles.set({ Alice: { displayName: '', login: 'new-login' } });
+    await expect
+      .element(group.getByRole('button', { name: 'new-login', exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole('tooltip').filter({ hasText: 'new-login' })).toBeVisible();
+  });
+
+  it('opens the participant menu on right-click and clears it when the participant disappears', async () => {
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob'])];
+    const rendered = render(ThreadPane, { props: threadProps });
+    const group = rendered.getByRole('group', { name: 'Thread participants (2)' });
+    const avatar = group.getByRole('button', { name: 'Bob', exact: true });
+    await avatar.click({ button: 'right' });
+    const menu = page.getByRole('dialog', { name: 'User profile' });
+    await expect.element(menu).toBeVisible();
+    await expect.element(menu.getByText('@Bob', { exact: true })).toBeVisible();
+    await expect.element(avatar).toHaveAttribute('aria-expanded', 'true');
+
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice'])];
+    await expect.element(menu).not.toBeInTheDocument();
+  });
+
+  it('closes the participant menu when switching threads even if the user is in both', async () => {
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice'])];
+    const other = new ThreadPaneTestStore();
+    other.threadEvents = [{ ...participantRoot(['Alice']), id: 'thread-2' }];
+    threadStores.set('thread-2', other);
+    const rendered = render(ThreadPane, { props: threadProps });
+    await rendered.getByRole('group').getByRole('button', { name: 'Alice', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'User profile' });
+    await expect.element(menu).toBeVisible();
+    await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
+    await expect.element(menu).not.toBeInTheDocument();
+  });
+
+  it('does not show participants from a reply when the root is unavailable', async () => {
+    mocks.threadStore!.threadEvents = [{ ...participantRoot(['Alice']), id: 'reply' }];
+    const rendered = render(ThreadPane, { props: threadProps });
+    expect(
+      rendered.container.querySelector('[data-testid="thread-header-participants"]')
+    ).toBeNull();
+  });
+
+  it('keeps a large participant count and header controls inside a narrow pane', async () => {
+    await page.viewport(320, 480);
+    try {
+      mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob', 'Carol', 'Dave'], 10000)];
+      const rendered = render(ThreadPane, {
+        props: { ...threadProps, roomName: 'a-very-long-channel-name-for-the-header' }
+      });
+      const group = rendered.getByRole('group', { name: 'Thread participants (10000)' });
+      await expect.element(group.getByText('+9997')).toBeVisible();
+      const header = q(rendered.container, '[data-page-reveal]')!;
+      for (const button of header.querySelectorAll('button')) {
+        if (!button.getClientRects().length) continue;
+        const rect = button.getBoundingClientRect();
+        expect(rect.left).toBeGreaterThanOrEqual(0);
+        expect(rect.right).toBeLessThanOrEqual(320);
+      }
+      expect(header.scrollWidth).toBeLessThanOrEqual(320);
+    } finally {
+      await page.viewport(1280, 720);
+    }
+  });
+
+  it('adapts the participant preview to pane width as it resizes', async () => {
+    mocks.threadStore!.threadEvents = [
+      participantRoot(
+        Array.from({ length: 20 }, (_, index) => `User ${index}`),
+        10000
+      )
+    ];
+    const rendered = render(ThreadPane, { props: threadProps });
+    const group = rendered.getByRole('group', { name: 'Thread participants (10000)' });
+    const pane = q(rendered.container, '[data-testid="thread-pane"]')!;
+    try {
+      await page.viewport(1280, 720);
+      // Resize the pane within a fixed desktop viewport, as the split-pane handle does.
+      for (const [width, count] of [
+        [640, 12],
+        [480, 8],
+        [360, 5],
+        [320, 3]
+      ]) {
+        pane.style.width = `${width}px`;
+        await expect.element(group.getByText(`+${10000 - count}`)).toBeVisible();
+        expect(group.element().querySelectorAll('button')).toHaveLength(count);
+        const header = q(rendered.container, '[data-page-reveal]')!;
+        expect(header.scrollWidth).toBeLessThanOrEqual(width);
+      }
+    } finally {
+      await page.viewport(1280, 720);
+    }
   });
 
   it('updates the composer when interaction posting is granted and revoked', async () => {
@@ -385,6 +573,38 @@ describe('ThreadPane', () => {
     if (root.kind !== TimelineEventKind.MessagePosted) throw new Error('Expected message');
     root.canReplyInThread = false;
     await expect.element(send).toBeDisabled();
+  });
+
+  it('reveals a different thread without remounting the pane or replaying for content updates', async () => {
+    const rendered = render(ThreadPane, { props: threadProps });
+    await tick();
+    const pane = q(rendered.container, '[data-testid="thread-pane"]') as HTMLElement;
+    const conversation = q(rendered.container, '[data-testid="thread-conversation-pane"]');
+    const animate = vi.spyOn(pane, 'animate');
+    // The initial Svelte fly transition can start after tick on a busy browser.
+    // Count only selection reveals, while still detecting duplicate reveals.
+    const selectionReveals = () =>
+      animate.mock.calls.filter(
+        ([, options]) => typeof options === 'object' && options?.duration === 140
+      );
+    try {
+      await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
+      expect(selectionReveals()).toHaveLength(1);
+      expect(q(rendered.container, '[data-testid="thread-pane"]')).toBe(pane);
+      expect(q(rendered.container, '[data-testid="thread-conversation-pane"]')).toBe(conversation);
+
+      await rendered.rerender({
+        ...threadProps,
+        threadRootEventId: 'thread-2',
+        roomName: 'Renamed',
+        presentation: 'split'
+      });
+      mocks.threadStore!.threadEvents = [...mocks.threadStore!.threadEvents];
+      await tick();
+      expect(selectionReveals()).toHaveLength(1);
+    } finally {
+      animate.mockRestore();
+    }
   });
 
   it('uses the persisted width and accessible resize handle in split layouts', async () => {
@@ -804,16 +1024,20 @@ describe('ThreadPane', () => {
     expect(mocks.clearUnreadMarker).toHaveBeenCalledOnce();
   });
 
-  it('returns each thread to its latest replies when the pane opens, switches, or closes', async () => {
+  it('restores on entry and cancels on departure without loading the hidden thread', async () => {
     const rendered = render(ThreadPane, { props: threadProps });
     await vi.waitFor(() => expect(mocks.restoreLatestWindow).toHaveBeenCalledOnce());
 
-    // Leaving the first thread and opening the second each restore a window.
     await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
-    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(3);
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.cancelPendingHistoricalJump).toHaveBeenCalledOnce();
 
     rendered.unmount();
-    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(4);
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.cancelPendingHistoricalJump).toHaveBeenCalledTimes(2);
+
+    render(ThreadPane, { props: threadProps });
+    await vi.waitFor(() => expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(3));
   });
 
   it('does not jump to a highlight that is cleared before it starts', async () => {

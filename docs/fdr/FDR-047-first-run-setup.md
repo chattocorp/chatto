@@ -96,15 +96,26 @@ unavailable in release builds.
 
 ### Setup belongs to the origin server
 
+The wizard opens with a welcome screen and a **Set up your server** button.
+This gives the installer an introduction before asking for details. The link
+opens the form at `/setup?step=details`. Browser Back returns to the welcome
+screen, Forward restores the form, and reloading keeps the selected step.
+An in-memory draft survives navigation between these steps but not a reload.
+Credentials are not stored in the URL or browser storage. If direct login is
+disabled, the page shows configuration guidance instead of the welcome screen.
 The wizard collects server details and the owner account in one form. Password
-confirmation must match before submission. Account validation errors appear
-below the affected field; connection and setup-state errors apply to the form. The page uses
+confirmation must match before submission. Once the confirmation contains text,
+a mismatch appears below that field and updates when either password changes.
+Account validation errors appear below the affected field; connection and
+setup-state errors apply to the form. The page uses
 the shared initial-load reveal: sections fade and scale in with a short stagger.
 This runs once per full page load on all pages, respects reduced-motion settings,
 and stops on keyboard or pointer input. Client-side navigation does not replay it.
 The wizard uses the normal app header, frame, and server gutter. Selecting an
-uninitialized origin server opens setup instead of sign-in. Users can still add
-other servers and use their accounts on those servers. Setup does not block
+uninitialized origin server opens setup instead of sign-in. Both setup screens
+center their content within the available pane. The form keeps its navigation
+header at the top. On small screens, tall content scrolls from its beginning.
+Users can still add other servers and use their accounts on those servers. Setup does not block
 client-wide navigation or require an account on the origin server.
 
 ### Keep the wizard small

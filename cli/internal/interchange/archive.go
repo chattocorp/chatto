@@ -73,6 +73,8 @@ type User struct {
 	Kind        string   `json:"kind"`
 	Status      string   `json:"status"`
 	Emails      []string `json:"emails"`
+	// AvatarAssetID references original local image bytes in the asset catalog.
+	AvatarAssetID string `json:"avatar_asset_id,omitempty"`
 }
 
 // Room holds authoritative final channel metadata.
@@ -110,7 +112,7 @@ type Content struct {
 	Reason   string   `json:"reason"`
 }
 
-// Reaction is one Unicode sequence and its final set of source reactors.
+// Reaction is one Unicode sequence or reaction name and its final source reactors.
 type Reaction struct {
 	Emoji   string   `json:"emoji"`
 	UserIDs []string `json:"user_ids"`

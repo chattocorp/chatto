@@ -1,0 +1,44 @@
+package web
+
+import "github.com/chattocorp/chatto/authling/internal/web/ui"
+
+templ emailChangePage(message, signedInAs string) {
+	@accountTask("Change your email address", signedInAs, "profile") {
+		@ui.SectionHeading("Change your email address") {
+			<p>Enter your current password, then verify the new address. This signs out your other browser sessions on { siteFromContext(ctx).Name }.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/account/email">
+			@ui.Field("email", "New email address", "", templ.Attributes{"type": "email", "name": "email", "autocomplete": "email", "autofocus": true, "required": true})
+			@ui.Field("password", "Current password", "", templ.Attributes{"type": "password", "name": "password", "autocomplete": "current-password", "maxlength": "1024", "required": true})
+			<button class="button button-primary w-full" type="submit">Email me a change code</button>
+		</form>
+	}
+}
+
+templ emailChangeCodePage(flow, message, signedInAs string) {
+	@accountTask("Verify your new email address", signedInAs, "profile") {
+		@ui.SectionHeading("Check your new email address") {
+			<p>We sent a six-digit code. It expires in 15 minutes.</p>
+		}
+		@ui.Error(message)
+		<form class="form-stack" method="post" action="/account/email/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			@ui.CodeField("Email change code", true)
+			<button class="button button-primary w-full" type="submit">Verify code</button>
+		</form>
+	}
+}
+
+templ emailChangeConfirmPage(flow, message, signedInAs string) {
+	@accountTask("Confirm your email change", signedInAs, "profile") {
+		@ui.SectionHeading("Your new email address is verified") {
+			<p>Confirming will change your sign-in address and sign out your other browser sessions on { siteFromContext(ctx).Name }.</p>
+		}
+		@ui.Error(message)
+		<form class="mt-6" method="post" action="/account/email/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			<button class="button button-primary w-full" type="submit">Change email address</button>
+		</form>
+	}
+}

@@ -6,6 +6,13 @@
       "confirmation": "Por 15 minutos, isso ativa as permissões adicionais atribuídas a você neste servidor."
     },
     "notifications": {
+      "all_notifications": "Todas as notificações",
+      "all_types": "Todos os tipos",
+      "filter_status": "Status",
+      "filter_type": "Tipo",
+      "reactions": "Reações",
+      "replies": "Respostas",
+      "mentions": "Menções",
       "next_unread_source": "Ir para a próxima origem não lida",
       "no_unread": "Nenhuma notificação não lida",
       "title": "Notificações",
@@ -40,6 +47,7 @@
       "administration": "Administração do servidor"
     },
     "user_menu": {
+      "edit_profile": "Editar perfil",
       "profile": "Perfil do usuário",
       "send_message": "Abrir conversa",
       "view_profile": "Ver perfil",
@@ -53,6 +61,9 @@
       "details": "Detalhes do servidor"
     },
     "compatibility": {
+      "older_frontend": "Seu aplicativo não oferece suporte a todos os recursos deste servidor",
+      "frontend_upgrade": "Você usa a versão {version} do aplicativo. Atualize o aplicativo ou peça ao administrador do servidor que o fornece para atualizá-lo. O acesso aos recursos também depende das configurações do servidor e das suas permissões.",
+      "frontend_requires": "Requer a versão {version} do aplicativo ou mais recente",
       "title": "Compatibilidade",
       "view": "Ver compatibilidade",
       "limited": "Versão mais antiga do servidor",
@@ -173,7 +184,8 @@
       "event_log": "Registro de eventos",
       "system": "Sistema",
       "back_to_server": "Retornar ao servidor",
-      "invitations": "Links de convite"
+      "invites": "Convites",
+      "registration": "Cadastro"
     }
   }
 }

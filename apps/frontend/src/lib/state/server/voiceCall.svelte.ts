@@ -3,6 +3,9 @@ import { microphoneMeter } from '$lib/audio/noiseGate';
 import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
 import { participantVolumeGain } from '$lib/audio/participantVolume';
 import { endCallVideo } from '$lib/state/callPictureInPicture';
+import { CallMediaSession } from '$lib/state/callMediaSession';
+import { beginCallAudioSession } from '$lib/state/callAudioSession';
+import { toastError } from '$lib/utils/errorMessage';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -209,6 +212,12 @@ export class VoiceCallState implements CallConnection {
   connecting = $state(false);
   connected = $state(false);
 
+  /** System media controls follow the call, independent of the current route. */
+  private mediaSession: CallMediaSession | null = null;
+
+  /** Restore browser audio intent after this call's media has stopped. */
+  private releaseAudioSession: (() => void) | null = null;
+
   // Audio state
   isMuted = $state(false);
   // True while LiveKit is applying local device enable/disable changes.
@@ -344,6 +353,7 @@ export class VoiceCallState implements CallConnection {
   async reconcilePermissions(): Promise<void> {
     const room = this.room;
     if (!room || !this.roomId) return;
+    this.mediaSession?.setPermissions(this.canUseVoice, this.canUseCamera);
     if (!this.permissionsFor(this.roomId).join) {
       await this.leave();
       return;
@@ -656,6 +666,7 @@ export class VoiceCallState implements CallConnection {
       }
 
       // Create and connect LiveKit room
+      this.releaseAudioSession = beginCallAudioSession();
       this.room = new Room({
         webAudioMix: playbackContext ? { audioContext: playbackContext } : false,
         encryption: {
@@ -735,6 +746,17 @@ export class VoiceCallState implements CallConnection {
         return;
       }
       this.connected = true;
+      this.mediaSession = new CallMediaSession({
+        toggleMicrophone: () => {
+          void this.toggleMute().catch((error) => toastError(error));
+        },
+        toggleCamera: () => {
+          void this.toggleCamera().catch((error) => toastError(error));
+        },
+        hangup: () => {
+          void this.leave().catch((error) => toastError(error));
+        }
+      });
       this.audioPlaybackBlocked = this.playbackContext?.state === 'suspended';
       this.applyAllParticipantAudioVolumes();
       await this.reconcilePermissions();
@@ -1501,6 +1523,10 @@ export class VoiceCallState implements CallConnection {
       )
     ];
     this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
+    this.mediaSession?.update(
+      !isParticipantMuted(this.room.localParticipant),
+      this.isCameraEnabled
+    );
     this.isScreenShareEnabled =
       isParticipantScreenShareEnabled(this.room.localParticipant) ||
       this.isNativeScreenShareEnabled;
@@ -1693,6 +1719,8 @@ export class VoiceCallState implements CallConnection {
   }
 
   private cleanup(): void {
+    this.mediaSession?.dispose();
+    this.mediaSession = null;
     for (const participant of this.participants) {
       if (participant.videoTrack) endCallVideo(participant.videoTrack);
       if (participant.screenShareTrack) endCallVideo(participant.screenShareTrack);
@@ -1731,6 +1759,8 @@ export class VoiceCallState implements CallConnection {
     this.microphoneAudioLevels.clear();
     if (this.playbackContext) void this.playbackContext.close().catch(() => undefined);
     this.playbackContext = null;
+    this.releaseAudioSession?.();
+    this.releaseAudioSession = null;
     this.audioBoostAvailable = false;
     this.audioPlaybackBlocked = false;
     this.outputSelectionAvailable = true;

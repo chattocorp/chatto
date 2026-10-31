@@ -6,6 +6,13 @@
       "confirmation": "15分間、このサーバーで割り当てられている追加の権限を有効にします。"
     },
     "notifications": {
+      "all_notifications": "すべての通知",
+      "all_types": "すべての種類",
+      "filter_status": "状態",
+      "filter_type": "種類",
+      "reactions": "リアクション",
+      "replies": "返信",
+      "mentions": "メンション",
       "next_unread_source": "次の未読の通知元に移動",
       "no_unread": "未読の通知はありません",
       "title": "通知",
@@ -40,6 +47,7 @@
       "administration": "サーバー管理"
     },
     "user_menu": {
+      "edit_profile": "プロフィールを編集",
       "profile": "ユーザープロフィール",
       "send_message": "会話を開く",
       "view_profile": "プロフィールを見る",
@@ -53,6 +61,9 @@
       "details": "サーバーの詳細"
     },
     "compatibility": {
+      "older_frontend": "このアプリはサーバーのすべての機能には対応していません",
+      "frontend_upgrade": "アプリのバージョン {version} を使用しています。アプリを更新するか、アプリを提供するサーバーの管理者に更新を依頼してください。機能へのアクセスは、サーバーの設定と権限にも依存します。",
+      "frontend_requires": "アプリのバージョン {version} 以降が必要です",
       "title": "互換性",
       "view": "互換性を表示",
       "limited": "古いサーバーバージョン",
@@ -173,7 +184,8 @@
       "event_log": "イベントログ",
       "system": "システム",
       "back_to_server": "サーバーに戻る",
-      "invitations": "招待リンク"
+      "invites": "招待",
+      "registration": "登録"
     }
   }
 }

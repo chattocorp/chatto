@@ -77,8 +77,7 @@ const mocks = vi.hoisted(() => ({
       isInitialLoading: false
     },
     messageSearch: {
-      available: true,
-      ensureStatus: vi.fn(),
+      availability: { available: true, ensureStatus: vi.fn() },
       privacyRevision: 0,
       subscribePrivacyInvalidation: vi.fn(
         (listener: (matches: (result: { id: string }) => boolean, force: boolean) => void) => {
@@ -338,8 +337,8 @@ beforeEach(() => {
   mocks.listRoomMembers.mockClear();
   mocks.listUsers.mockClear();
   mocks.searchMessages.mockReset();
-  mocks.store.messageSearch.ensureStatus.mockReset();
-  mocks.store.messageSearch.available = true;
+  mocks.store.messageSearch.availability.ensureStatus.mockReset();
+  mocks.store.messageSearch.availability.available = true;
   mocks.store.messageSearch.privacyRevision = 0;
   mocks.store.messageSearch.subscribePrivacyInvalidation.mockClear();
   mocks.privacyListeners = [];

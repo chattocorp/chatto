@@ -55,6 +55,41 @@ describe('ServerInfoState.init()', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
+  it('refreshes the configured providers with discovery', async () => {
+    const info = publicServerInfo({
+      authProviders: [
+        {
+          id: 'company',
+          type: 'oidc',
+          label: 'Company SSO',
+          loginUrl: '/auth/company',
+          issuerUrl: null,
+          autoProvision: true
+        }
+      ]
+    });
+    const state = new ServerInfoState('https://acme.test', async () => info);
+    await state.init();
+    expect(state.authProviders).toEqual(info.authProviders);
+
+    info.authProviders = [];
+    await state.refreshProfile();
+    expect(state.authProviders).toEqual([]);
+  });
+
+  it('keeps the admission hint unknown until discovery and refreshes it', async () => {
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockResolvedValue(publicServerInfo({ accountCreationPolicy: 'open' }));
+    const state = new ServerInfoState('https://acme.test', loader);
+    expect(state.accountCreationPolicy).toBeNull();
+    await state.init();
+    expect(state.accountCreationPolicy).toBe('open');
+    loader.mockResolvedValue(publicServerInfo({ accountCreationPolicy: 'invite_only' }));
+    await state.refreshProfile();
+    expect(state.accountCreationPolicy).toBe('invite_only');
+  });
+
   it('coalesces concurrent discovery requests', async () => {
     let resolve!: (info: PublicServerInfo) => void;
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockImplementation(
@@ -69,11 +104,50 @@ describe('ServerInfoState.init()', () => {
     const second = state.init();
     expect(loader).toHaveBeenCalledTimes(1);
 
-    resolve(publicServerInfo());
+    const info = publicServerInfo({ setupRequired: true });
+    resolve(info);
     await Promise.all([first, second]);
+    expect(state.discovery).toEqual(info);
 
     expect(state.name).toBe('Acme');
     expect(state.loading).toBe(false);
+  });
+
+  it('shares failure and permits a fresh discovery retry', async () => {
+    const info = publicServerInfo();
+    const loader = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(info);
+    const state = new ServerInfoState('https://acme.test', loader);
+
+    await Promise.all([state.init(), state.init()]);
+    expect(state.discovery).toBeNull();
+    expect(loader).toHaveBeenCalledOnce();
+    expect(state.loading).toBe(false);
+    expect(state.error).toBeInstanceOf(Error);
+    await state.init();
+    expect(state.discovery).toEqual(info);
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(state.error).toBeNull();
+  });
+
+  it('loads and replaces configured providers from public discovery', async () => {
+    const provider = {
+      id: 'chatto-id',
+      type: 'oidc',
+      label: 'Chatto ID',
+      loginUrl: '/auth/providers/chatto-id',
+      issuerUrl: 'https://chatto.id',
+      autoProvision: true
+    };
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockResolvedValue(publicServerInfo({ authProviders: [provider] }));
+    const state = new ServerInfoState('https://acme.test', loader);
+    expect(state.authProviders).toEqual([]);
+    await state.init();
+    expect(state.authProviders).toEqual([provider]);
+    loader.mockResolvedValue(publicServerInfo());
+    await state.refreshProfile();
+    expect(state.authProviders).toEqual([]);
   });
 
   it('refreshes profile fields without toggling initial loading state', async () => {

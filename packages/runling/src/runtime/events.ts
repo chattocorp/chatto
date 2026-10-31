@@ -4,6 +4,8 @@ import type { TokenUsage } from './usage.ts';
 import type { LogFields } from './log-fields.ts';
 
 export type RunlingEventPayload =
+  /** Console history boundary; closes unfinished activities before another execution. */
+  | { type: 'execution.finished' }
   /** Display metadata for the workflow run, independent of task names and routing. */
   | { type: 'run.title'; title: string }
   /** Links a task invocation's message channel to the step that runs the task. */

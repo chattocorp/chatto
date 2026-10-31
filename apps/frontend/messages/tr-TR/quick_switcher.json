@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "Hızlı geçiş",
     "placeholder": "Bir yere mi git, yoksa yaz mı? mesajları aramak için...",
     "no_results": "Sonuç yok",
     "recent": "Son",

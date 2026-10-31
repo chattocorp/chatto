@@ -43,53 +43,51 @@ user types. A social post with a content warning shows no image or post text.
   let failedThumbnailUrl = $state<string | null>(null);
 </script>
 
-<div
-  data-testid="composer-link-preview"
-  class="flex w-full max-w-md min-w-0 items-center gap-2 rounded-md bg-surface p-2"
->
-  <a
-    {...renderedLinkTarget(preview.url)}
-    onclick={(event) => handleRenderedLinkClick(event, preview.url)}
-    onauxclick={(event) => handleRenderedLinkClick(event, preview.url)}
-    class="flex min-w-0 flex-1 items-center gap-2"
-  >
-    <div
-      class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-emphasized"
+<div data-testid="composer-link-preview" class="w-full max-w-md min-w-0 preview-frame">
+  <div class="flex min-w-0 items-center gap-2 preview-content px-2 py-1.5">
+    <a
+      {...renderedLinkTarget(preview.url)}
+      onclick={(event) => handleRenderedLinkClick(event, preview.url)}
+      onauxclick={(event) => handleRenderedLinkClick(event, preview.url)}
+      class="flex min-w-0 flex-1 items-center gap-2"
     >
-      {#if thumbnailUrl && failedThumbnailUrl !== thumbnailUrl}
-        <img
-          src={thumbnailUrl}
-          alt=""
-          class="h-full w-full object-cover"
-          onerror={() => (failedThumbnailUrl = thumbnailUrl)}
-        />
-      {:else}
-        <span
-          class={[
-            'iconify text-lg text-muted',
-            concealed
-              ? 'icon-[uil--eye-slash]'
-              : preview.embedType === 'youtube'
-                ? 'icon-[uil--play]'
-                : 'icon-[uil--link]'
-          ]}
-          aria-hidden="true"
-        ></span>
-      {/if}
-    </div>
-    <div class="flex min-w-0 flex-1 flex-col">
-      <span class="truncate text-sm text-muted" dir="auto">{preview.siteName || urlParts.host}</span
-      >
-      <span class="truncate text-sm font-medium text-text" dir="auto">{title}</span>
-    </div>
-  </a>
-  <button
-    type="button"
-    onclick={onDismiss}
-    class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger touch-input:h-11 touch-input:w-11"
-    aria-label={m('preview.dismiss')}
-    title={m('preview.dismiss')}
-  >
-    <span class="iconify icon-[uil--times] text-base" aria-hidden="true"></span>
-  </button>
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center preview-thumbnail">
+        {#if thumbnailUrl && failedThumbnailUrl !== thumbnailUrl}
+          <img
+            src={thumbnailUrl}
+            alt=""
+            class="h-full w-full object-cover"
+            onerror={() => (failedThumbnailUrl = thumbnailUrl)}
+          />
+        {:else}
+          <span
+            class={[
+              'iconify text-lg text-muted',
+              concealed
+                ? 'icon-[uil--eye-slash]'
+                : preview.embedType === 'youtube'
+                  ? 'icon-[uil--play]'
+                  : 'icon-[uil--link]'
+            ]}
+            aria-hidden="true"
+          ></span>
+        {/if}
+      </div>
+      <div class="flex min-w-0 flex-1 flex-col">
+        <span class="truncate text-sm text-muted" dir="auto"
+          >{preview.siteName || urlParts.host}</span
+        >
+        <span class="truncate text-sm font-medium text-text" dir="auto">{title}</span>
+      </div>
+    </a>
+    <button
+      type="button"
+      onclick={onDismiss}
+      class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger comfortable-density:h-11 comfortable-density:w-11"
+      aria-label={m('preview.dismiss')}
+      title={m('preview.dismiss')}
+    >
+      <span class="iconify icon-[uil--times] text-base" aria-hidden="true"></span>
+    </button>
+  </div>
 </div>

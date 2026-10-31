@@ -140,7 +140,7 @@ message ThreadSummary {
   int32 reply_count = 2;
   // Creation time of the most recent reply in this message's thread.
   google.protobuf.Timestamp last_reply_at = 3;
-  // Preview of up to five user IDs that have participated in this message's
+  // Preview of up to twelve user IDs that have participated in this message's
   // thread.
   repeated string participant_preview_user_ids = 4;
   // Total number of distinct users that have participated in this message's

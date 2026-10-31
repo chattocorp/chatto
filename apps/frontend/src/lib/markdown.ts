@@ -9,6 +9,7 @@ import { configureMarkdownLinks } from './markdownLinks';
 import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
+import { emojiPlugin } from './markdownEmoji';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
@@ -323,7 +324,7 @@ function renderPlainCodeLines(code: string): string[] {
 
 function renderCodeCopyButton(): string {
   const label = escapeAttribute(m('common.copy_to_clipboard'));
-  return `<button type="button" class="markdown-code-copy mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span></button>`;
+  return `<button type="button" class="markdown-code-copy copy-feedback mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span data-copy-icon class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span><span data-copy-check class="iconify icon-[uil--check] text-sm text-action" aria-hidden="true"></span></button>`;
 }
 
 /** All code shares one frame; artifact controls change presentation only. */
@@ -515,6 +516,7 @@ function initialize(): void {
   // Recognize @mentions in the token tree after linkify, so URLs, links,
   // code, and blockquotes keep their text. See `$lib/markdownMentions`.
   md.use(mentionPlugin);
+  md.use(emojiPlugin);
   md.renderer.rules.fence = (tokens, index, _options, env) => {
     const token = tokens[index];
     const hint = /^(svg|mermaid|ansi)(\s+rendered)?$/i.exec(token.info.trim());
@@ -573,6 +575,9 @@ function initialize(): void {
       if (!/^mailto:/i.test(href)) {
         const target = renderedLinkTarget(href);
         token.attrSet('data-content-href', href);
+        if (token.markup === 'linkify' || token.markup === 'autolink') {
+          token.attrSet('data-entity-autolink', '');
+        }
         token.attrSet('href', target.href);
         if (target.target) token.attrSet('target', target.target);
         if (target.rel) token.attrSet('rel', target.rel);

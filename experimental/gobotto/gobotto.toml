@@ -1,0 +1,17 @@
+# Exact Chatto user IDs. Empty means no owners; names and handles do not count.
+owner_user_ids = ["UNvUOdWvzSh19fb"]
+
+[conversation]
+# OpenRouter model ID. API keys stay in .env.
+model = "z-ai/glm-5.3-flash"
+
+# Your bot's tone, purpose, and preferences. Gobotto supplies Chatto identity,
+# thread context, tool rules, and delivery instructions separately.
+system_prompt = """
+Be friendly, direct, and concise. Match the conversation's language and tone.
+Use an emoji reaction when a short acknowledgment is enough.
+"""
+
+[titles]
+model = "openai/gpt-6-luna"
+system_prompt = "Use a short, specific title in the conversation's language."

@@ -6,6 +6,13 @@
       "confirmation": "Hiermee schakel je gedurende 15 minuten de extra machtigingen in die je op deze server hebt gekregen."
     },
     "notifications": {
+      "all_notifications": "Alle meldingen",
+      "all_types": "Alle typen",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reacties",
+      "replies": "Antwoorden",
+      "mentions": "Vermeldingen",
       "next_unread_source": "Ga naar de volgende ongelezen bron",
       "no_unread": "Geen ongelezen meldingen",
       "title": "Meldingen",
@@ -40,6 +47,7 @@
       "administration": "Serverbeheer"
     },
     "user_menu": {
+      "edit_profile": "Profiel bewerken",
       "profile": "Gebruikersprofiel",
       "send_message": "Gesprek openen",
       "view_profile": "Profiel bekijken",
@@ -53,6 +61,9 @@
       "details": "Servergegevens"
     },
     "compatibility": {
+      "older_frontend": "Je app ondersteunt niet alle functies op deze server",
+      "frontend_upgrade": "Je gebruikt appversie {version}. Werk je app bij of vraag de beheerder van de server die je app levert om deze bij te werken. Toegang tot functies hangt ook af van serverinstellingen en je rechten.",
+      "frontend_requires": "Vereist appversie {version} of nieuwer",
       "title": "Compatibiliteit",
       "view": "Compatibiliteit bekijken",
       "limited": "Oudere serverversie",
@@ -173,7 +184,8 @@
       "event_log": "Gebeurtenislogboek",
       "system": "Systeem",
       "back_to_server": "Terug naar de server",
-      "invitations": "Uitnodigingslinks"
+      "invites": "Uitnodigingen",
+      "registration": "Registratie"
     }
   }
 }

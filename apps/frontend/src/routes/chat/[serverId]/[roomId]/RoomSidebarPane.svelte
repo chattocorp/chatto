@@ -1,22 +1,27 @@
+<script module lang="ts">
+  type SidebarModule = typeof import('./RoomSidebar.svelte');
+  // Share component code, not pane state. Reopens can render the resolved module
+  // directly instead of entering the pending branch of a new import promise.
+  let roomSidebarModule: SidebarModule | Promise<SidebarModule> | null = null;
+
+  function loadRoomSidebar(_attempt: number) {
+    roomSidebarModule ??= import('./RoomSidebar.svelte')
+      .then((module) => (roomSidebarModule = module))
+      .catch((error: unknown) => {
+        roomSidebarModule = null;
+        throw error;
+      });
+    return roomSidebarModule;
+  }
+</script>
+
 <script lang="ts">
   import type { ComponentProps } from 'svelte';
   import type RoomSidebar from './RoomSidebar.svelte';
-  import { fly } from 'svelte/transition';
   import { m } from '$lib/i18n/messages';
-  import { fromInlineEndOffset } from '$lib/i18n/direction';
-  import { expoOutTransition } from '$lib/ui/motion';
   import { LoadingFog, LoadRetry } from '$lib/ui';
 
-  let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
   let roomSidebarLoadAttempt = $state(0);
-
-  function loadRoomSidebar(_attempt: number) {
-    roomSidebarModule ??= import('./RoomSidebar.svelte').catch((error: unknown) => {
-      roomSidebarModule = null;
-      throw error;
-    });
-    return roomSidebarModule;
-  }
 
   let {
     presentation,
@@ -50,7 +55,6 @@
     <div
       class="absolute inset-y-0 end-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] lg:hidden"
       data-testid="room-sidebar-mobile-pane"
-      transition:fly={{ x: fromInlineEndOffset(300), ...expoOutTransition() }}
     >
       {@render sidebar(sidebarProps)}
     </div>

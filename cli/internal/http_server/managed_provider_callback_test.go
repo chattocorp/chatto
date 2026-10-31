@@ -128,7 +128,7 @@ func TestManagedOIDCCallbackUsernameSync(t *testing.T) {
 			issuer.tokenClaims = map[string]any{"name": "Person", "preferred_username": tc.claim}
 			provider := config.AuthProviderConfig{
 				ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
-				ClientID: "client-id", ClientSecret: "client-secret", ManageUsernames: true, SyncUsernames: tc.sync,
+				ClientID: "client-id", ClientSecret: "client-secret", ManageUsernames: true, UpdateUsernames: tc.sync,
 			}
 			s := setupOAuthServerWithAuth(t, config.AuthConfig{Providers: []config.AuthProviderConfig{provider}})
 			s.setupOIDCRoutes()

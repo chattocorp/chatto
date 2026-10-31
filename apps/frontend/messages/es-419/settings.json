@@ -1,5 +1,59 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Actualizaciones",
+      "subtitle": "Actualizaciones de esta instalación",
+      "updates": "Actualizaciones de la aplicación",
+      "unavailable": "Las actualizaciones automáticas no están disponibles en esta instalación.",
+      "version": "Versión instalada: {version}",
+      "ready_link": "Actualización lista",
+      "restart_warning": "Reiniciar finaliza las llamadas activas y la pantalla compartida.",
+      "restart": "Reiniciar para actualizar",
+      "check": "Buscar actualizaciones",
+      "preferences": "Preferencias de actualización",
+      "automatic": "Buscar y descargar automáticamente",
+      "channel": "Canal de versiones",
+      "stable": "Estable",
+      "beta": "Beta",
+      "channel_help": "Las actualizaciones estables automáticas se distribuyen durante 36 horas. Las comprobaciones manuales y Beta omiten esta espera. Cambiar a Estable nunca instala una versión anterior.",
+      "privacy": "Las actualizaciones contactan con GitHub, que recibe tu dirección IP y las solicitudes de actualización. Chatto no envía información de cuentas ni de servidores conectados.",
+      "status": {
+        "idle": "Listo para buscar actualizaciones.",
+        "checking": "Buscando actualizaciones…",
+        "downloading": "Descargando actualización…",
+        "ready": "Listo para reiniciar.",
+        "current": "No hay una actualización más reciente en este canal.",
+        "error": "La operación de actualización falló. Inténtalo de nuevo.",
+        "changed": "La versión disponible cambió. Comprueba de nuevo.",
+        "installing": "Preparando el reinicio…"
+      }
+    },
+    "overview": {
+      "descriptions": {
+        "account": "Gestiona tu contraseña, direcciones de correo y métodos de inicio de sesión.",
+        "profile": "Actualiza tu nombre, avatar y detalles del perfil.",
+        "time": "Elige cómo muestra este servidor las fechas y horas para ti",
+        "notifications": "Configura cómo recibes notificaciones",
+        "language": "Elija el idioma y la redacción regional para este navegador.",
+        "bots": "Crea cuentas API y controla exactamente lo que pueden hacer",
+        "general": "Identidad del servidor, marca y mensajes",
+        "neighbors": "Publica servidores de Chatto amigos en tu directorio público",
+        "members": "Ver y administrar los miembros del servidor y sus roles",
+        "registration": "Controla cómo se unen las cuentas nuevas a este servidor.",
+        "invitations": "Crea y administra códigos de invitación.",
+        "rooms": "Crear, editar, organizar y archivar salas",
+        "moderation": "Revisar las suspensiones activas de salas",
+        "permissions": "Administrar los valores predeterminados de roles en todo el servidor",
+        "security": "Restricciones de registro y protección de cuenta",
+        "appearance": "Personaliza la aplicación con colores, temas y opciones de visualización.",
+        "composer": "Elige tu editor y cómo envías los mensajes.",
+        "voice": "Configura tu micrófono, altavoces y preferencias de llamadas.",
+        "system": "Comprueba el estado del servidor, el almacenamiento y las tareas en segundo plano.",
+        "event_log": "Explora los eventos del servidor e investiga los cambios."
+      },
+      "title": "Resumen",
+      "shield_notice": "Para usar tus permisos adicionales en este servidor, activa el modo privilegiado con el botón del escudo junto a tu nombre."
+    },
     "nav": {
       "title": "Configuración",
       "back_to_server": "Volver al servidor",
@@ -141,6 +195,21 @@
         "dark": {
           "label": "Oscuro",
           "description": "Usa la interfaz oscura en este navegador"
+        }
+      },
+      "animations": {
+        "title": "Animaciones",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir la preferencia del sistema de reducir el movimiento"
+        },
+        "enabled": {
+          "label": "Activadas",
+          "description": "Mostrar siempre las animaciones"
+        },
+        "disabled": {
+          "label": "Desactivadas",
+          "description": "Mostrar cambios sin animaciones"
         }
       },
       "thread_pane": {

@@ -108,4 +108,8 @@ message ImportRoomEventRequest {
 }
 
 // Successful historical channel operation.
-message ImportRoomEventResponse {}
+message ImportRoomEventResponse {
+  // Committed room event ID, stable across retries; usable as a reaction target
+  // for join/leave events. Empty for receipts created by older servers.
+  string event_id = 1;
+}

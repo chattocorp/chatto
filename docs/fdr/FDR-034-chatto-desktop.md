@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -13,18 +13,40 @@ system-browser authentication, and clean-machine media behavior are hardened.
 
 ## Behavior
 
-- The application is named **Chatto Desktop** and presents the same interface,
+- Mouse back and forward buttons navigate the main window's history. On macOS,
+  this includes navigation gestures sent by mouse software such as Options+.
+  Keyboard navigation uses `Alt+Left` and `Alt+Right` on Windows/Linux, or
+  `Cmd+[` and `Cmd+]` on macOS. Navigation stops at either end of the history.
+- The application is named **Chatto** and presents the same interface,
   routes, translations, and client-server compatibility behavior as the
   official standalone frontend.
 - People can register and switch between multiple Chatto servers through the
   existing client registry. Registrations, credentials, and browser-managed
   preferences persist across application launches in an app-specific profile.
 - On launch, restored authenticated servers reconcile in the background so the
-  welcome screen can show their availability without selecting one. Desktop
-  remains on the welcome screen until the person chooses a server.
-- Connecting a server starts Chatto's PKCE-protected OAuth flow in a separate
-  Electron window. The remote server continues to own the visible sign-in and
-  consent pages.
+  Server Directory shows saved servers without selecting one. Desktop reopens
+  the last selected server and its remembered room. Without a saved server,
+  it starts on the directory, with direct address lookup available. It does not
+  register its application origin as a Chatto server. See FDR-042.
+- A signed-out server shows a password form in the main window when the server
+  permits password login. Desktop sends the password only to the selected
+  server and stores its renewable session. It does not store the password.
+  Configured provider buttons appear above the password form. Selecting one
+  starts the server's PKCE-protected OAuth flow with that provider selected.
+  The provider still owns its login page in a separate window. Servers that
+  do not support the provider hint show their normal login page instead.
+  **Continue in the browser** opens the existing PKCE-protected OAuth window
+  for external providers, account creation, and password recovery. Browser
+  deployments continue to use the server-owned OAuth pages for remote login.
+- The sign-in screen reuses the web authentication layout and server branding.
+  When direct registration is enabled, **Create account** opens the server's
+  registration page with a pending PKCE authorization. The person enters the
+  emailed verification code and account details in that window. After any
+  required consent, the window closes and Desktop opens the new account.
+  Servers that do not support the signup hint show their login page instead.
+  Switching between registration, login, and SSO keeps the authorization
+  continuation. Registration and invitation rules remain server-owned.
+  **Remove server** remains in the server context menu, outside the sign-in form.
 - Voice calls, camera video, screen sharing, and media-device selection use
   Electron's bundled Chromium WebRTC implementation. Camera and microphone
   requests use operating-system permission prompts; screen sharing requires an
@@ -51,9 +73,13 @@ system-browser authentication, and clean-machine media behavior are hardened.
   changelog, and `v{version}` tag. Each release embeds the frontend from that
   commit and displays the shared version. Manual verification builds display
   a development version and abbreviated commit SHA.
-- Desktop downloads are attached to the Chatto release. Signing failures can
-  delay those downloads, but do not block server publication. Matching desktop
+- Desktop downloads are attached to the Chatto release. Signing failures keep
+  the shared GitHub release in draft. Matching desktop
   and server versions are not required; existing compatibility rules apply.
+- macOS users can download a signed, notarised disk image and drag the app to
+  Applications. The ZIP remains available. Both downloads use the same profile;
+  replacement preserves registrations, sessions, and preferences. Removing the
+  app does not erase the profile or sign out registered servers.
 - Windows users can install through a self-contained installer without
   administrator rights. It adds a Start menu shortcut and a Windows Settings
   uninstall entry. Running a newer installer updates the application while
@@ -63,10 +89,41 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Uninstall removes application files and shortcuts but preserves registrations,
   credentials, and preferences. Users must close the ZIP application before
   switching to the installed application. Old extracted folders are not removed.
-  Updates remain manual.
+- Managed Windows installations can use a signed, per-machine MSI package.
+  It requires administrator rights, does not start the app after installation,
+  and leaves updates to the deployment tool or administrator. Users remove the
+  previous installation before switching between EXE and MSI packages. Both
+  formats preserve the user's profile on removal. MSI compares the three-part
+  release version; beta and stable packages with the same base version can
+  replace each other. Deployment tools select the intended release.
+- Tagged macOS apps, Windows NSIS installer copies, and Linux AppImages can download
+  whole-app updates from GitHub. The frontend stays local and bundled. The
+  **App Preferences → Updates** shows the installed version, update status,
+  download progress, Stable or Beta, manual checks, and an automatic-check
+  setting. The native Updates menu uses the same settings and updater.
+  Prerelease builds default to Beta; stable builds default to Stable.
+  A saved channel choice takes precedence. Stable rolls out over 36 hours. Beta and manual
+  checks bypass this delay. Switching to Stable never installs an older version.
+  The restart action is hidden until an update is ready and shows its version.
+  Installation requires an explicit restart confirmation; ordinary quit does
+  not install updates. Existing builds need one manual upgrade to obtain this
+  behavior. Windows ZIP and Linux tarball updates remain manual.
+- GitHub receives update requests and the user's IP address, but no Chatto
+  account or connected-server information. Updates preferences and the Updates menu explain this
+  connection and let users disable automatic checks and downloads.
+- An update-ready link in the Application Header opens Updates preferences.
+  Background checks do not open a dialog. Restart still requires confirmation
+  and warns that active calls and screen sharing will end.
+- Updates preferences are independent of the selected server and remain
+  available without a server connection. All desktop builds show the page in
+  navigation. Development builds and installations without automatic updates show
+  their installed version and an unavailable message, without update controls.
+  Browsers hide the entry; direct entry explains that automatic updates are
+  unavailable. Other native features keep their controls in the
+  relevant feature, such as notifications or screen sharing (ADR-072).
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
-- Local macOS development bundles can use the separate **Chatto Desktop Dev**
+- Local macOS development bundles can use the separate **Chatto Dev**
   identity, helper identity, and app-data directory. This keeps development
   permissions and sessions separate from the official app. Ad-hoc signed
   rebuilds can still require a new permission grant; a stable signing
@@ -180,13 +237,25 @@ remote server navigation. Chatto servers trust only its exact callback path.
 clients using this identity require the corresponding Chatto 0.5 server
 behavior.
 
-### 4. Keep the browser OAuth-window flow
+### 4. Inline password login with server-owned OAuth as an alternative
 
-**Decision:** Both browser and Electron deployments use the frontend's ordinary
-`window.open()` authorization flow and the same PKCE and callback handling.
-**Why:** Electron implements browser popup windows, so the desktop host no
-longer needs the privileged CEF bridge introduced by the Deno prototype.
-**Tradeoff:** Some providers still require a system-browser flow, and the host
+**Decision:** Desktop offers password login inside the selected server's view
+through a narrow host capability (ADR-072). It uses the server's existing
+programmatic password sessions, including renewal and revocation. These
+sessions have no OAuth client grant or client-consent step. Server password
+policy still applies. The server cannot identify an official Desktop binary
+from this request. The web frontend does not offer direct remote login.
+**Why:** Users can sign in without leaving the main app, while each server
+keeps an independent session. A late response cannot replace a session after
+the user leaves the form, removes the server, or replaces its session.
+**Tradeoff:** Users trust the installed app with their server password.
+External provider buttons send only the configured provider ID to the Chatto
+server, which owns provider selection and account mapping. Registration and
+recovery also use the server-owned OAuth window and its existing PKCE and
+callback handling. Selecting a provider contacts that provider and reveals
+the user's IP address to it. No provider connection starts from displaying
+the buttons alone. Some providers
+require a future system-browser flow, and the host
 must tightly constrain popup and navigation behavior. The host opens a new
 window only on the frontend's `/servers/authorize` launch page and sends all
 other window requests to the system browser.
@@ -199,8 +268,8 @@ uses the shared version for its frontend. See ADR-118.
 **Why:** Users can compare desktop and web frontend versions directly, and
 maintainers prepare one release instead of two.
 **Tradeoff:** Each release requires desktop builds and signing approvals, and
-desktop-only fixes also advance the Chatto version. Desktop uploads can arrive
-after server publication so signing failures do not block security fixes.
+desktop-only fixes also advance the Chatto version. Desktop build and signing
+failures delay GitHub publication, including server fixes. See ADR-121.
 
 ### 6. Build all supported host bundles and sign trusted releases
 
@@ -209,8 +278,8 @@ protected release workflow Developer ID signs and notarises macOS, and uses
 Microsoft Artifact Signing with GitHub OpenID Connect to sign Windows PE files.
 It validates macOS acceptance, every Windows signature and timestamp, and the
 main application's publisher subject before packaging. Bundled third-party
-libraries may retain their original valid publisher. Linux remains unsigned
-until its update-capable package and trust model are selected.
+libraries may retain their original valid publisher. Linux AppImage updates
+use HTTPS and manifest checksums without a separate publisher signature.
 **Why:** Cross-platform builds catch packaging drift and let contributors test
 the application before release credentials are available. Managed Windows
 signing keeps the private key out of GitHub while a protected environment and
@@ -292,21 +361,38 @@ need a small server-side fan-out abstraction when Desktop background delivery
 is implemented. That work is deferred; current Desktop notifications still
 depend on the renderer being alive.
 
+### 10. Use a drag-to-Applications disk image on macOS
+
+**Decision:** Provide a signed and notarised DMG alongside the ZIP download.
+**Why:** The app is self-contained. A disk image gives users a familiar way to
+install it without installation scripts or additional system services.
+**Tradeoff:** Installation requires a manual drag to Applications. Subsequent
+updates use Updates preferences or the Updates menu and require a restart.
+
+### 11. Update the complete desktop app through GitHub
+
+**Decision:** Use GitHub releases for Stable and Beta updates. Keep releases
+in draft until server and desktop artifacts are ready. See ADR-121.
+**Why:** This uses the existing release system and keeps the frontend, native
+helpers, and desktop bridge on the same version.
+**Tradeoff:** Installed updaters depend on the GitHub repository identity.
+Frontend-only changes require an app update. Existing users need one manual
+upgrade before automatic downloads become available.
+
 ## Related
 
 The iOS shell shares the frontend but uses native system authentication. See
 [FDR-048](FDR-048-chatto-mobile.md) and
 [ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases), ADR-121 (complete GitHub releases for desktop updates)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-013 (Web Push Notifications), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
 
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
-- Which automatic-update strategy and macOS/Linux installers should follow the
-  Windows installer and downloadable archives.
+- Which Linux distribution packages should accompany the AppImage and tarball.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
 - Which higher native screen-share quality profiles should be offered once representative

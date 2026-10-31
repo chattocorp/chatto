@@ -27,6 +27,7 @@ func v05UpgradePermissions() []Permission {
 		PermMessageReadInteractions,
 		PermMessagePostInInteractions,
 		PermUserInvite,
+		PermUserManageInvites,
 		PermBotCreate,
 		PermBotManage,
 	}

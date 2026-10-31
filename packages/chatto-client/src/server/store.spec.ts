@@ -1325,18 +1325,26 @@ describe('ServerStateStore privileged mode', () => {
     expect(reloadUnchanged).not.toHaveBeenCalled();
   });
 
-  it('restores the latest window only of a room timeline that exists', async () => {
+  it('restores or cancels only a room timeline that exists', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const restore = vi.spyOn(MessagesStore.prototype, 'restoreLatestWindow');
+    const cancel = vi.spyOn(MessagesStore.prototype, 'cancelPendingHistoricalJump');
     // A new timeline reads the latest window itself, so nothing is created.
     store.restoreProjectedRoomWindow('R1');
+    store.cancelProjectedRoomJump('R1');
     expect(restore).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
 
-    store.rooms.messages('R1');
+    const timeline = store.rooms.messages('R1');
     await flushPromises();
+    store.cancelProjectedRoomJump('R1');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(cancel.mock.contexts[0]).toBe(timeline);
+    expect(restore).not.toHaveBeenCalled();
     store.restoreProjectedRoomWindow('R1');
     expect(restore).toHaveBeenCalledOnce();
     restore.mockRestore();
+    cancel.mockRestore();
     store.dispose();
   });
 
@@ -1503,6 +1511,304 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('discards mention-only reads at a permission boundary without starting a scan', async () => {
+    apiMocks.listRoomMembers.mockClear();
+    const store = makeStore(new FakeServerConnection([]));
+    const members = store.rooms.members('room');
+    const gate = deferred<MemberDirectoryPage>();
+    apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
+    const search = members.searchMembers('alice');
+    const refresh = vi.spyOn(members, 'refresh');
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+      })
+    );
+    gate.resolve({ members: [], memberIds: ['late'], totalCount: 1, hasMore: false });
+    expect(await search).toEqual([]);
+    await store.waitForRealtimeReconciliation();
+    await members.searchMembers('alice');
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(members.hasRequestedList).toBe(false);
+    store.dispose();
+  });
+  it('does not scan a mention-only member store during snapshot recovery or access restoration', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = new RoomWithViewerState({
+      room: new Room({ id: 'room' }),
+      viewerState: { isMember: true }
+    });
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room])] : []
+    );
+    const members = store.rooms.members('room');
+    await members.searchMembers('alice');
+    apiMocks.listRoomMembers.mockClear();
+    store.realtimeSync.beginCatchUp();
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    await store.completeRealtimeCatchUp('snapshot-cursor');
+    store.realtimeSync.markCaughtUp('snapshot-cursor');
+    expect(apiMocks.listRoomMembers).not.toHaveBeenCalled();
+    for (const isMember of [false, true]) {
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          resource: roomResource([
+            new RoomWithViewerState({ room: room.room, viewerState: { isMember } })
+          ])
+        })
+      );
+    }
+    await flushPromises();
+    expect(apiMocks.listRoomMembers).not.toHaveBeenCalled();
+    store.loadRoomMembers('room');
+    await flushPromises();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+  it.each(['reset', 'access loss', 'dispose'] as const)(
+    'discards a cold member read completed after %s',
+    async (boundary) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const room = new RoomWithViewerState({
+        room: new Room({ id: 'room' }),
+        viewerState: { isMember: true }
+      });
+      apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+        family === 'rooms' ? [roomResource([room])] : []
+      );
+      const gate = deferred<MemberDirectoryPage>();
+      apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
+      store.realtimeSync.beginCatchUp();
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+      store.loadRoomMembers('room');
+      const members = store.rooms.members('room');
+      await store.completeRealtimeCatchUp('snapshot-cursor');
+      store.realtimeSync.markCaughtUp('snapshot-cursor');
+      expect(members.isInitialLoading).toBe(true);
+
+      if (boundary === 'dispose') store.dispose();
+      else if (boundary === 'reset') {
+        store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+      } else {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            resource: roomResource([
+              new RoomWithViewerState({
+                room: room.room,
+                viewerState: { isMember: false }
+              })
+            ])
+          })
+        );
+      }
+      gate.resolve({ members: [], memberIds: ['late-member'], totalCount: 1, hasMore: false });
+      await flushPromises();
+      expect(members.hasFirstPage).toBe(false);
+      expect(members.totalCount).toBe(0);
+      store.dispose();
+    }
+  );
+
+  it.each(['first', 'later'] as const)(
+    'completes cold catch-up while the %s member page is pending',
+    async (pendingPage) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const room = new RoomWithViewerState({
+        room: new Room({ id: 'room' }),
+        viewerState: { isMember: true }
+      });
+      apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+        family === 'rooms' ? [roomResource([room])] : []
+      );
+      const gate = deferred<MemberDirectoryPage>();
+      apiMocks.listRoomMembers.mockClear();
+      if (pendingPage === 'later') {
+        apiMocks.listRoomMembers.mockResolvedValueOnce({
+          members: [],
+          memberIds: ['first-member'],
+          consumedCount: 1,
+          totalCount: 2,
+          hasMore: true
+        });
+      }
+      apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
+      store.realtimeSync.beginCatchUp();
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+      store.loadRoomMembers('room');
+      store.loadRoomMembers('inaccessible');
+      const catchUp = store.completeRealtimeCatchUp('snapshot-cursor').then(() => {
+        store.realtimeSync.markCaughtUp('snapshot-cursor');
+      });
+      try {
+        await vi.waitFor(() => expect(store.realtimeSync.hasDisplayableView).toBe(true));
+        expect(store.rooms.members('room').hasLoadedAll).toBe(false);
+        expect(store.rooms.members('inaccessible').hasFirstPage).toBe(false);
+        expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(pendingPage === 'first' ? 1 : 2);
+        expect(apiMocks.listRoomMembers).toHaveBeenLastCalledWith(
+          'room',
+          '',
+          250,
+          pendingPage === 'first' ? 0 : 1,
+          { minimumCursor: 'snapshot-cursor' }
+        );
+        gate.resolve({ members: [], totalCount: 2, hasMore: false });
+        await vi.waitFor(() => expect(store.rooms.members('room').hasLoadedAll).toBe(true));
+      } finally {
+        gate.resolve({ members: [], totalCount: 0, hasMore: false });
+        await catchUp;
+        store.dispose();
+      }
+    }
+  );
+
+  it.each([true, false])(
+    'loads a new member store once, with room access already known: %s',
+    async (known) => {
+      apiMocks.listRoomMembers.mockClear();
+      const store = makeStore(new FakeServerConnection([]));
+      const room = new RoomWithViewerState({
+        room: new Room({ id: 'room' }),
+        viewerState: { isMember: true }
+      });
+      if (known) store.projection.rooms.set('room', room);
+      store.loadRoomMembers('room');
+      if (!known) {
+        expect(apiMocks.listRoomMembers).not.toHaveBeenCalled();
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({ resource: roomResource([room]) })
+        );
+      }
+      await flushPromises();
+      expect(store.rooms.members('room').hasLoadedAll).toBe(true);
+      store.loadRoomMembers('room');
+      store.loadRoomMembers('room');
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce();
+      store.dispose();
+    }
+  );
+
+  it.each(['snapshot', 'permission check'] as const)(
+    'does not start a navigation or membership read during a %s',
+    async (phase) => {
+      apiMocks.listRoomMembers.mockClear();
+      const store = makeStore(new FakeServerConnection([]));
+      const room = new RoomWithViewerState({
+        room: new Room({ id: 'room', universal: true }),
+        viewerState: { isMember: true }
+      });
+      const invited = new RoomWithViewerState({
+        room: new Room({ id: 'invited' }),
+        viewerState: { isMember: false }
+      });
+      store.loadRoomMembers('invited');
+      store.projection.rooms.set('room', room);
+      await store.rooms.members('room').loadInitial();
+      const gate = deferred<void>();
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        await gate.promise;
+        return family === 'rooms' ? [roomResource([room, invited])] : [];
+      });
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate(
+          phase === 'snapshot'
+            ? { reset: true }
+            : {
+                event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+              }
+        )
+      );
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          cursor: 'role-change',
+          event: new RealtimeEvent({
+            event: { case: 'roleAssigned', value: { userId: 'U2', roleName: 'helper' } }
+          })
+        })
+      );
+      store.loadRoomMembers('room');
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce();
+      gate.resolve();
+      if (phase === 'snapshot') await store.completeRealtimeCatchUp('snapshot-cursor');
+      else await store.waitForRealtimeReconciliation();
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+      store.dispose();
+    }
+  );
+
+  it.each(['snapshot', 'permission check'] as const)(
+    'loads members requested while a %s awaits an earlier member list',
+    async (phase) => {
+      const store = makeStore(new FakeServerConnection([]));
+      store.realtimeSync.markCaughtUp('previous-cursor');
+      const rooms = ['first', 'late'].map(
+        (id) => new RoomWithViewerState({ room: new Room({ id }), viewerState: { isMember: true } })
+      );
+      for (const room of rooms) store.projection.rooms.set(room.room!.id, room);
+      await store.rooms.members('first').loadInitial();
+      const gate = deferred<MemberDirectoryPage>();
+      apiMocks.listRoomMembers.mockClear();
+      apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
+      apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+        family === 'rooms' ? [roomResource(rooms)] : []
+      );
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate(
+          phase === 'snapshot'
+            ? { reset: true }
+            : {
+                event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+              }
+        )
+      );
+      const recovery =
+        phase === 'snapshot'
+          ? store.completeRealtimeCatchUp('snapshot-cursor')
+          : store.waitForRealtimeReconciliation();
+      await vi.waitFor(() => expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce());
+      store.loadRoomMembers('late');
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledOnce();
+      gate.resolve({ members: [], totalCount: 0, hasMore: false });
+      await recovery;
+      await flushPromises();
+      expect(store.rooms.members('late').hasLoadedAll).toBe(true);
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+      store.dispose();
+    }
+  );
+
+  it('refreshes cached universal membership at the event cursor', async () => {
+    apiMocks.listRoomMembers.mockClear();
+    const store = makeStore(new FakeServerConnection([]));
+    for (const id of ['first', 'second']) {
+      store.projection.rooms.set(
+        id,
+        new RoomWithViewerState({
+          room: new Room({ id, universal: true }),
+          viewerState: { isMember: true }
+        })
+      );
+      await store.rooms.members(id).loadInitial();
+    }
+    apiMocks.listRoomMembers.mockClear();
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'role-change',
+        event: new RealtimeEvent({
+          event: { case: 'roleAssigned', value: { userId: 'U2', roleName: 'helper' } }
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+    for (const id of ['first', 'second']) {
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledWith(id, '', 250, 0, {
+        minimumCursor: 'role-change'
+      });
+    }
+    store.dispose();
+  });
+
   it('keeps projected DM member IDs before their shared profiles arrive', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.projection.rooms.set(
@@ -2212,8 +2518,15 @@ describe('ServerStateStore unified realtime resources', () => {
     const search = vi.fn();
     store.onPermissionsChanged(search);
     const members = vi.spyOn(store.rooms.members('R1'), 'refresh').mockResolvedValue();
+    store.loadRoomMembers('R1');
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
       if (family === 'viewer') throw new Error('viewer offline');
+      if (family === 'rooms')
+        return [
+          roomResource([
+            new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true } })
+          ])
+        ];
       return [];
     });
     store.realtimeProjectionHandler(
@@ -3081,6 +3394,16 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
     const store = makeStore(new FakeServerConnection([]));
+    store.realtimeSync.markCaughtUp('previous-cursor');
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms'
+        ? [
+            roomResource([
+              new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true } })
+            ])
+          ]
+        : []
+    );
     const messages = store.rooms.messages('R1');
     const members = store.rooms.members('R1');
     const timelineRead = deferred<boolean>();
@@ -3089,6 +3412,7 @@ describe('ServerStateStore unified realtime resources', () => {
       .spyOn(messages, 'hydrateRealtimeProjection')
       .mockReturnValue(timelineRead.promise);
     const refreshMembers = vi.spyOn(members, 'refresh').mockReturnValue(membershipRead.promise);
+    store.loadRoomMembers('R1');
     await flushPromises();
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
     store.projection.users.set(
@@ -3673,6 +3997,25 @@ describe('ServerStateStore unified realtime resources', () => {
     };
   }
 
+  it('reads known messages across loaded room and thread timelines without creating stores', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const createRoom = vi.spyOn(store.rooms, 'messages');
+    expect(store.knownMessage('unopened', 'M1')).toBeUndefined();
+    expect(createRoom).not.toHaveBeenCalled();
+    const room = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'ROOT');
+    await flushPromises(20);
+    room.ingestEvent(postedRow('M1'));
+    thread.events = [postedRow('ROOT')];
+    expect(store.knownMessage('R1', 'M1')?.id).toBe('M1');
+    expect(store.knownMessage('R1', 'ROOT')?.id).toBe('ROOT');
+    expect(store.knownMessage('other-room', 'M1')).toBeUndefined();
+    room.clearForAccessRevocation();
+    thread.clearForAccessRevocation();
+    expect(store.knownMessage('R1', 'M1')).toBeUndefined();
+    expect(store.knownMessage('R1', 'ROOT')).toBeUndefined();
+  });
+
   it('refreshes the window around a loaded message after another local message change', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const room = store.rooms.messages('R1');
@@ -3885,6 +4228,30 @@ describe('ServerStateStore unified realtime resources', () => {
       undefined,
       expect.any(Function)
     );
+  });
+
+  it('refreshes room state for membership display changes without treating them as timeline rows', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const refresh = apiMocks.readRealtimeResource;
+    const messages = store.rooms.messages('R1');
+    const refreshWindow = vi.spyOn(messages, 'refreshCurrentWindow');
+    await flushPromises();
+    refresh.mockClear();
+    refreshWindow.mockClear();
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'DISPLAY',
+          event: {
+            case: 'roomMembershipEventsVisibilityChanged',
+            value: { roomId: 'R1', showMembershipEvents: false }
+          }
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(refresh).toHaveBeenCalledWith('rooms', undefined);
+    expect(refreshWindow).not.toHaveBeenCalled();
   });
 
   it('refreshes independent thread deadlines without using the settings event as a message anchor', async () => {

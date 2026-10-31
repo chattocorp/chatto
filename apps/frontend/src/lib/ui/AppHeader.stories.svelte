@@ -2,6 +2,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import AppHeader from './AppHeader.svelte';
   import PaneHeader from './PaneHeader.svelte';
+  import { DesktopUpdates } from '$lib/desktop/updates.svelte';
 
   const { Story } = defineMeta({
     title: 'UI/App header',
@@ -9,6 +10,28 @@
     tags: ['autodocs']
   });
 </script>
+
+<script lang="ts">
+  // Isolated preview state never starts a native updater or changes other stories.
+  const updates = new DesktopUpdates();
+  updates.loading = false;
+  updates.status = {
+    revision: 1,
+    version: '0.5.0-beta.27',
+    status: 'ready',
+    busy: false,
+    progress: null,
+    availableVersion: '0.5.0-beta.28',
+    automatic: true,
+    channel: 'beta'
+  };
+</script>
+
+<Story name="Update ready" asChild>
+  <div class="max-w-4xl bg-background">
+    <AppHeader {updates} />
+  </div>
+</Story>
 
 <Story name="Unauthenticated shell" asChild>
   <div class="max-w-4xl rounded-lg bg-background p-2 ring-1 ring-border">

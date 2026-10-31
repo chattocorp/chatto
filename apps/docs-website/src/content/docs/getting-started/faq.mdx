@@ -43,9 +43,44 @@ When you use more than one community, the Chatto client connects to each server 
 
 ## Is there a desktop app? Are there mobile apps?
 
-Not yet. Dedicated desktop and mobile apps are planned, but we do not have an estimated release date for them.
+Chatto Desktop is experimental. Download it from the
+[Chatto releases](https://github.com/chattocorp/chatto/releases).
+On Apple Silicon Macs, you need macOS 13 or later. Open the `.dmg` download and drag **Chatto Desktop** to
+**Applications**. Eject the disk image and open the app from Applications.
+On Windows, use the `.exe` installer for a per-user installation with automatic
+updates. For managed deployment, use the `.msi` package. It installs for all
+users, requires administrator rights, and needs updates through your deployment
+tools or a newer MSI package. Close Chatto before an MSI upgrade. Remove the
+previous installation before switching between EXE and MSI; removal keeps your
+profile. Do not install both formats on the same machine.
 
-In the meantime, Chatto is an excellent Progressive Web App (PWA) on both desktop and mobile devices. You can install it from a supported browser or add it to your Home Screen, then launch it like any other app. Installed PWAs also support features such as app badges and [push notifications](/guides/operations/notifications-web-push/) where the operating system and browser allow them.
+On macOS, Windows EXE installations, and Linux AppImages, open **App Preferences → Updates**
+to check for updates and see download progress. An update-ready icon in the
+application header opens this page. Select **Restart to update** and confirm
+the restart to install the update. Restarting ends active calls and screen sharing.
+The native **Updates** menu provides the same actions. Your registered
+servers and sessions remain available. Older builds without this menu need
+one manual upgrade. Windows ZIP and Linux tarball downloads use manual updates.
+These installations still show the Updates page and installed version, with a
+message that automatic updates are unavailable.
+
+Updates download from GitHub, which receives your IP address and update
+requests. You can disable automatic checks and downloads in Updates preferences
+or the Updates menu.
+Prerelease builds default to Beta; stable builds default to Stable. Your saved
+channel choice is kept when you upgrade. Select Beta to receive test releases. Switching
+back to Stable does not install an older version. The frontend stays local;
+starting the app does not require a connection to GitHub.
+
+Use your mouse's back and forward buttons to navigate in Chatto Desktop.
+You can also use `Alt+Left` and `Alt+Right` on Windows/Linux, or `Cmd+[` and
+`Cmd+]` on macOS.
+
+You can also use Chatto as a Progressive Web App (PWA) on desktop and mobile
+devices. Install it from a supported browser or add it to your Home Screen,
+then launch it like any other app. Installed PWAs also support features such
+as app badges and [push notifications](/guides/operations/notifications-web-push/)
+where the operating system and browser allow them.
 
 For mobile installation steps, see [Install Chatto on Your Phone](/getting-started/install-pwa/). The guide covers Safari on iOS and Chrome or Firefox on Android.
 
@@ -55,8 +90,10 @@ No. Chatto does not store your chats on your device. The installed app requires 
 
 ## Can I disable the startup animations?
 
-Enable reduced motion in your operating system or browser. Chatto then shows a
-static loading background and skips the page entrance animation.
+Open **App Preferences → Appearance → Animations** and select **Disabled**.
+Chatto then shows a static loading background and skips the page entrance
+animation. **Automatic**, the default, follows the reduced-motion preference
+of your operating system or browser.
 
 The loading screen follows your selected light or dark theme. The page entrance
 animation runs once when you open or reload the app. It does not repeat when

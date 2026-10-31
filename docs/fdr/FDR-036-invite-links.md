@@ -1,125 +1,125 @@
-# FDR-036: Invite Links
+# FDR-036: Invitation Codes
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
-Invite links let operators restrict new account creation without tying
-admission to email. Administrators can create reusable links with optional
-expiry and use limits, copy them again later, and revoke them. The
-feature applies consistently to direct email/password registration and
-external-provider auto-provisioning while leaving sign-in to existing accounts
-unchanged.
+Invitation codes let administrators control who can create an account. Each
+code permits one new account through any enabled signup method. Open servers
+do not require codes. Administrators can distribute codes themselves or use
+the API to integrate code issuance with an external system.
 
 ## Behavior
 
-- Operators choose an `open` or `invite_only` account-creation policy in server
-  configuration. `open` is the default.
-- In `invite_only` mode, every new self-service account requires a valid
-  invite link. Direct registration still verifies the submitted email, and
-  external providers still verify their own identity; an invite link proves
-  admission rather than identity.
-- Existing accounts can always sign in or link another sign-in method without
-  an invite link. Accounts created through operator tooling also bypass
-  invite-link admission.
-- An invite link can have a maximum number of uses, an expiry time, both, or
-  neither. A link with neither remains valid until revoked.
-- The administration interface defaults new invite links to one use and seven
-  days. Administrators can deliberately select unlimited uses or no expiry.
-- Administrators can list invite links, see their current status and use count,
-  copy the same link again, and revoke an active link.
-- Revoked, expired, exhausted, malformed, and unknown invite links all fail
-  with the same public-facing unavailable-link result.
-- Opening an invite link while the server is open does not consume it.
-- Invite-link use and account creation succeed together. A failed account
-  creation does not consume a use, and concurrent signups cannot exceed a use
-  limit.
-- Changing the server secret invalidates previously shared invite links.
-  Active link records remain visible, and administrators can copy newly
-  derived links for them.
+- Operators select `open` or `invite_only` account creation. The default is
+  `open`. The setting applies only to new self-service accounts.
+- On invite-only servers, Create Account asks for a code before showing email
+  registration or eligible SSO providers. Validation does not reserve or
+  consume a code.
+- The browser remembers admission for 30 minutes across reloads and email
+  retries. Started email and SSO flows keep their own invitation. A code
+  entered in another tab does not replace that invitation.
+- A new SSO identity that enters through Sign In must supply a code before
+  account creation. Existing-account sign-in, account linking, and
+  operator-created accounts require no code.
+- Each code permits exactly one account. The account and code use succeed
+  together. Failed signup does not consume the code. Concurrent signups with
+  one code can create at most one account.
+- **Create code** in the table header opens a confirmation dialog. It explains
+  that a code expires after seven days, admits one account, and is used only
+  after successful signup. Confirmation creates one code and closes the dialog.
+  The server sets expiry to exactly seven days after creation for every caller.
+  Neither the UI nor the creation API accepts an expiry. Existing records keep
+  their recorded expiry. Active codes can be
+  copied and revoked; inactive rows show their status without these actions.
+- A creation-time note can identify the intended recipient or purpose. It is
+  optional plain text, limited to 250 Unicode characters, and shown beneath the
+  code. Surrounding whitespace is removed. Creators and invitation managers can read
+  notes through the app or API; the event log omits them. A note does not restrict
+  who can redeem the code. Existing codes have no note.
+- **Server Admin → Registration**, directly below General, contains the admission
+  setting. Radio options select **Open Registration** or
+  **Invite Code Required** and save immediately. The page lists enabled signup
+  methods: email/password registration and providers that can create accounts.
+  Registration requires `server.manage`.
+- **Server Admin → Invites** contains code management. Members with `user.invite`
+  can list, read, create, copy, and revoke their own codes. Users with effective
+  `user.manage-invites` can manage all codes. The table shows each creator's avatar
+  and name in a separate column. The API applies the same ownership boundary,
+  including pagination totals. Other users' codes return not found.
+- Invites remains available when registration is open; signup then ignores codes.
+  Codes can be retrieved again while the caller has the required permission.
+  No code is stored in browser storage. Chatto does not send codes to recipients.
+- Issuance has no automatic retry. Creators can retrieve a code after a lost response through
+  the management API. Changing a creator's permissions or account state does
+  not revoke an issued code; an authorized caller can revoke it explicitly.
+- Expired, used, revoked, malformed, and unknown codes show the same public
+  error. A code is checked again when the account is created.
+- Changing the server secret invalidates distributed codes. Administrators
+  can copy newly derived codes for records that remain active.
 
 ## Design Decisions
 
-### 1. Admission policy is static operator configuration
+### 1. Each code admits one account
 
-**Decision:** The initial policy is configured as `open` or `invite_only` by
-the server operator and takes effect when replicas load configuration.
-**Why:** Admission policy is deployment posture, like enabled authentication
-methods, and operators must be able to establish it before any administrator
-account or UI is available.
-**Tradeoff:** Administrators cannot switch policy from the application, and
-operators must keep the value consistent across replicas.
+**Decision:** Remove reusable links and use limits. Every code is single-use.
+The unused beta link system has no compatibility or migration support. Its
+removed `max_uses` protobuf field number and name stay reserved.
+**Why:** Chatto supports open registration. Invitations serve controlled
+account creation rather than general community discovery.
+**Tradeoff:** Administrators must issue one code per intended new account.
 
-### 2. Invite links are identity-provider neutral
+### 2. Admission is separate from identity
 
-**Decision:** One invite-link mechanism gates both direct registration and
-external-provider auto-provisioning, including providers that do not supply an
-email address.
-**Why:** Admission and identity proof are separate concerns. A shareable link
-works for every supported account-creation path and does not make email a
-hidden requirement for SSO.
-**Tradeoff:** Email-targeted delivery and recipient restrictions are deferred.
+**Decision:** Apply the same gate to email registration and SSO provisioning.
+**Why:** A code grants admission. Existing email and provider identity checks
+still apply.
+**Tradeoff:** Email-less direct registration and email-domain policies need
+separate work. They are not part of this change.
 
-### 3. Invite links remain recoverable
+### 3. Validation does not consume a code
 
-**Decision:** Administrators with `user.invite` can copy an invite link
-again after creation.
-**Why:** Invite links are routinely shared through several channels, and a
-show-once secret creates unnecessary recovery and support friction.
-**Tradeoff:** Anyone who gains invite-link management access can obtain every
-active link, so the permission is intentionally broad and
-security-sensitive.
+**Decision:** Consume the code only with successful account creation.
+**Why:** Email delivery, provider callbacks, and account validation can fail.
+Retries must remain possible. ADR-070 defines the atomic commit boundary.
+**Tradeoff:** Validation does not guarantee admission if another person uses
+the same code first.
 
-### 4. Constraints and redemption are durable facts
+### 4. Authorized users can recover codes
 
-**Decision:** Creation, redemption, and revocation are retained as durable
-history, with expiry and exhaustion derived from those facts and current time.
-**Why:** Use limits are correctness rules across replicas, and operators need
-an auditable explanation of an invite link's state. This follows ADR-033.
-**Tradeoff:** Invite-link reads require an event projection rather than a simple
-mutable row.
+**Decision:** Creators with `user.invite` can copy their active codes again.
+Holders of effective `user.manage-invites` can copy all active codes.
+**Why:** Users choose their own distribution method and may need to
+send a code again. ADR-070 avoids storing raw codes in durable history.
+**Tradeoff:** Management permission grants access to all active codes.
 
-### 5. Links use compact deterministic capabilities
+## Gates
 
-**Decision:** Each link uses a fixed 16-character URL-safe opaque capability
-deterministically derived from its public invitation ID with a
-purpose-separated server-secret key. The bearer token is not stored as an
-event.
-**Why:** Administrators can reconstruct the same link without persisting a
-bearer capability in event history and backups. Purpose separation prevents
-the root secret's other uses from sharing this signing domain.
-**Tradeoff:** Rotating the server secret invalidates links that have already
-been shared, even though their durable records remain active. Resolving the
-opaque capability also requires a derived lookup over projected invitations.
-
-### 6. Redemption shares the account-creation commit
-
-**Decision:** The invitation redemption fact and the new account's durable
-creation facts are committed atomically under the existing whole-`EVT`
-account-uniqueness guard, which also covers concurrent invitation changes.
-**Why:** Reserving or consuming an invitation earlier can burn a use when a
-later signup step fails. Consuming it later can exceed a use limit under
-concurrent replicas. The shared commit satisfies both invariants.
-**Tradeoff:** Account-creation paths must assemble their durable verified
-factor before publishing rather than adding it through a later best-effort
-write.
-
-### 7. Existing installations do not receive a permission backfill
-
-**Decision:** `user.invite` belongs to the default administrator role on new
-servers. Existing custom/default roles are not rewritten automatically;
-effective owners retain their normal override and may grant it.
-**Why:** Chatto does not mutate operator-managed RBAC policy when new
-permissions are introduced. This matches FDR-001.
-**Tradeoff:** A non-owner administrator on an upgraded server may need an owner
-to grant the new permission.
-
-## Permissions
-
-- `user.invite` — list, create, copy, and revoke invite links.
+- `registration.admission = invite_only` in the admin server resource requires
+  a code for new self-service accounts. A server manager changes this under
+  **Server Admin → Registration → Account creation**. The default is open.
+  `ServerRegistrationAdmissionChangedEvent` stores the change in EVT.
+  Enabled signup methods remain separate settings.
+- `server.manage` permits admission changes. Account creation checks the current
+  policy under stream-wide EVT OCC, including after a retry. A pending signup
+  has no exemption. When the policy is open, a supplied code is not consumed.
+- `user.invite` permits creation and management of own codes without privileged mode.
+- `user.manage-invites` permits all administrative code operations and requires
+  privileged mode for human sessions. It does not include `user.invite`.
+- Fresh bootstrap grants both permissions to admins and neither to everyone.
+  On upgrade, current server-scope `user.invite` allows and denies are copied
+  once to `user.manage-invites`. The original decisions remain. Any historical
+  decision for the new permission closes this upgrade gate. An empty upgrade
+  records an explicit clear for everyone to prevent future member grants from
+  becoming management grants after restart. The copy uses whole-RBAC OCC.
 
 ## Related
 
-- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070
+- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-070
 - **FDRs:** FDR-001, FDR-018, FDR-020, FDR-023, FDR-028, FDR-031
+
+## Deferred Work
+
+Code handoff through registration URLs, email-less direct signup, email-domain
+restrictions, and cross-replica rate limiting are separate changes.

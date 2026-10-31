@@ -1,5 +1,59 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Oppdateringer",
+      "subtitle": "Oppdateringer for denne installasjonen",
+      "updates": "Appoppdateringer",
+      "unavailable": "Automatiske oppdateringer er ikke tilgjengelige i denne installasjonen.",
+      "version": "Installert versjon: {version}",
+      "ready_link": "Oppdatering klar",
+      "restart_warning": "Omstart avslutter aktive samtaler og skjermdeling.",
+      "restart": "Start på nytt for å oppdatere",
+      "check": "Se etter oppdateringer",
+      "preferences": "Oppdateringsinnstillinger",
+      "automatic": "Søk og last ned automatisk",
+      "channel": "Utgivelseskanal",
+      "stable": "Stabil",
+      "beta": "Beta",
+      "channel_help": "Automatiske stabile oppdateringer fordeles over 36 timer. Manuelle kontroller og Beta hopper over ventetiden. Bytte til Stabil installerer aldri en eldre versjon.",
+      "privacy": "Oppdateringer kontakter GitHub, som mottar IP-adressen din og oppdateringsforespørsler. Chatto sender ingen kontoopplysninger eller informasjon om tilkoblede servere.",
+      "status": {
+        "idle": "Klar til å se etter oppdateringer.",
+        "checking": "Ser etter oppdateringer…",
+        "downloading": "Laster ned oppdatering…",
+        "ready": "Klar til å starte på nytt.",
+        "current": "Ingen nyere oppdatering er tilgjengelig i denne kanalen.",
+        "error": "Oppdateringshandlingen mislyktes. Prøv igjen.",
+        "changed": "Den tilgjengelige versjonen er endret. Sjekk igjen.",
+        "installing": "Forbereder omstart…"
+      }
+    },
+    "overview": {
+      "descriptions": {
+        "account": "Administrer passordet ditt, e-postadressene dine og påloggingsmetodene.",
+        "profile": "Oppdater navnet ditt, avataren din og profilopplysningene dine.",
+        "time": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
+        "notifications": "Konfigurer hvordan du mottar varsler",
+        "language": "Velg språk og regionale ordlyd for denne nettleseren.",
+        "bots": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre",
+        "general": "Serveridentitet, merkevarebygging og meldinger",
+        "neighbors": "Promoter vennlige Chatto-servere i den offentlige katalogen din",
+        "members": "Se og administrer tjenermedlemmer og deres roller",
+        "registration": "Bestem hvordan nye kontoer blir med på denne serveren.",
+        "invitations": "Opprett og administrer invitasjonskoder.",
+        "rooms": "Opprett, rediger, organiser og arkiver rom",
+        "moderation": "Se aktive utestengelser fra rom",
+        "permissions": "Administrer standarder for roller for hele serveren",
+        "security": "Registreringsbegrensninger og kontobeskyttelse",
+        "appearance": "Tilpass appen med farger, temaer og visningsvalg.",
+        "composer": "Velg meldingsredigerer og hvordan du sender meldinger.",
+        "voice": "Sett opp mikrofon, høyttalere og samtaleinnstillinger.",
+        "system": "Kontroller serverstatus, lagring og bakgrunnsoppgaver.",
+        "event_log": "Utforsk serverhendelser og undersøk endringer."
+      },
+      "title": "Oversikt",
+      "shield_notice": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å bruke de ekstra tillatelsene dine på denne serveren."
+    },
     "nav": {
       "title": "Innstillinger",
       "back_to_server": "Tilbake til server",
@@ -141,6 +195,21 @@
         "dark": {
           "label": "Mørkt",
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
+        }
+      },
+      "animations": {
+        "title": "Animasjoner",
+        "automatic": {
+          "label": "Automatisk",
+          "description": "Følg systemets innstilling for redusert bevegelse"
+        },
+        "enabled": {
+          "label": "Aktivert",
+          "description": "Vis alltid animasjoner"
+        },
+        "disabled": {
+          "label": "Deaktivert",
+          "description": "Vis endringer uten animasjoner"
         }
       },
       "thread_pane": {

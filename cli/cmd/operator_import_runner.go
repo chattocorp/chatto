@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -30,6 +31,8 @@ type cliArchiveImport struct {
 	users, rooms, messages, authors map[string]string
 	assets                          map[string]interchange.Asset
 	userMatches                     []importUserMatch
+	legacyMessageBatches            bool
+	botOwnerID                      string
 }
 
 // importRef keeps arbitrary source identifiers private and unambiguous in keys.
@@ -79,7 +82,8 @@ func sortedImportKeys[V any](values map[string]V) []string {
 }
 
 // run resolves identities before writes, then applies each source operation in
-// order. A durable local mapping is written before dependent calls are made.
+// order. Non-replayable mappings are synced before dependent calls. History
+// results use grouped checkpoints and stable keys backed by server receipts.
 func (m *cliArchiveImport) run(ctx context.Context, validateOnly, acceptOmissions bool) error {
 	if m.progress.values["complete"] == "true" {
 		return nil
@@ -92,6 +96,11 @@ func (m *cliArchiveImport) run(ctx context.Context, validateOnly, acceptOmission
 	}
 	if len(m.archive.Manifest.Omissions) > 0 && !acceptOmissions {
 		return errors.New("archive declares omissions; pass --accept-omissions")
+	}
+	if m.botOwnerID != "" {
+		if err := m.progress.put("bot-owner", m.botOwnerID); err != nil {
+			return err
+		}
 	}
 	for i, u := range m.archive.Users {
 		key := "user/" + importRef(u.ID)
@@ -110,11 +119,27 @@ func (m *cliArchiveImport) run(ctx context.Context, validateOnly, acceptOmission
 				if len(match.emails) > 0 {
 					email = match.emails[0]
 				}
-				res, err := m.userAPI.CreateUser(ctx, operatorRequest(&op.CreateUserRequest{Login: m.username(*u.Username), DisplayName: u.DisplayName, VerifiedEmail: email, OperationKey: m.progress.operation(key)}))
+				var err error
+				if u.Kind == "human" && u.Status == "active" {
+					res, createErr := m.userAPI.CreateUser(ctx, operatorRequest(&op.CreateUserRequest{Login: m.importUsername(u), DisplayName: u.DisplayName, VerifiedEmail: email, OperationKey: m.progress.operation(key)}))
+					err = createErr
+					if err == nil {
+						id = res.Msg.GetMember().GetUser().GetId()
+					}
+				} else {
+					owner := ""
+					if u.Kind == "bot" {
+						owner = m.botOwnerID
+					}
+					res, createErr := m.userAPI.ImportUser(ctx, operatorRequest(&op.ImportUserRequest{Login: m.importUsername(u), DisplayName: u.DisplayName, VerifiedEmail: email, OperationKey: m.progress.operation(key), BotOwnerUserId: owner, Deactivated: u.Status == "deactivated"}))
+					err = createErr
+					if err == nil {
+						id = res.Msg.GetMember().GetUser().GetId()
+					}
+				}
 				if err != nil {
 					return fmt.Errorf("import user record %d: %w", i+1, err)
 				}
-				id = res.Msg.GetMember().GetUser().GetId()
 			}
 			if err := m.progress.put(key, id); err != nil {
 				return err
@@ -128,6 +153,9 @@ func (m *cliArchiveImport) run(ctx context.Context, validateOnly, acceptOmission
 				}
 			}
 		}
+	}
+	if err := m.importAvatars(ctx); err != nil {
+		return err
 	}
 	for i, r := range m.archive.Rooms {
 		key := "room/" + importRef(r.ID)
@@ -160,18 +188,26 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 	userNames := map[string]bool{}
 	roomNames := map[string]bool{}
 	for i, u := range m.archive.Users {
-		if u.Kind != "human" || u.Status != "active" {
-			return fmt.Errorf("users.jsonl record %d: only active human accounts are supported", i+1)
+		if (u.Kind != "human" && u.Kind != "bot") || (u.Status != "active" && u.Status != "deactivated") {
+			return fmt.Errorf("users.jsonl record %d: unsupported account kind or status", i+1)
+		}
+		if u.Kind == "bot" && len(u.Emails) != 0 {
+			return fmt.Errorf("users.jsonl record %d: bot accounts cannot have emails", i+1)
 		}
 		match := m.userMatches[i]
 		if match.account != "" || match.leader < i || m.progress.values["user/"+importRef(u.ID)] != "" {
 			continue
 		}
-		if u.Username == nil {
+		if u.Kind == "bot" && m.botOwnerID == "" {
+			if err := m.resolveBotOwner(ctx); err != nil {
+				return err
+			}
+		}
+		if u.Username == nil && u.Kind != "bot" {
 			return fmt.Errorf("users.jsonl record %d: new account needs a username", i+1)
 		}
-		name := m.username(*u.Username)
-		if core.ValidateLogin(name) != nil || strings.TrimSpace(name) != name || core.ValidateDisplayName(u.DisplayName) != nil {
+		name := m.importUsername(u)
+		if core.ValidateLogin(name) != nil || strings.TrimSpace(name) != name || core.ValidateDisplayName(u.DisplayName) != nil || utf8.RuneCountInString(u.DisplayName) > core.MaxDisplayNameLength {
 			return fmt.Errorf("users.jsonl record %d: unsupported destination name", i+1)
 		}
 		lower := strings.ToLower(name)
@@ -213,18 +249,28 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 		}
 	}
 	usedAssets := map[string]bool{}
+	for i, u := range m.archive.Users {
+		if u.AvatarAssetID == "" {
+			continue
+		}
+		a := m.assets[u.AvatarAssetID]
+		if a.Storage.Size < 1 || a.Storage.Size > core.MaxHistoricalAvatarBytes {
+			return fmt.Errorf("users.jsonl record %d: avatar exceeds the supported byte size", i+1)
+		}
+		usedAssets[u.AvatarAssetID] = true
+	}
 	err := m.archive.VisitEvents(func(e interchange.Event) error {
 		d := e.Data
 		for _, id := range d.Content.AssetIDs {
 			usedAssets[id] = true
 		}
 		if strings.HasPrefix(e.Type, "reaction.") {
-			if _, err := core.HistoricalEmojiName(d.Emoji); err != nil {
+			if _, err := core.HistoricalReactionName(d.Emoji); err != nil {
 				return err
 			}
 		}
 		for _, r := range d.Reactions {
-			if _, err := core.HistoricalEmojiName(r.Emoji); err != nil {
+			if _, err := core.HistoricalReactionName(r.Emoji); err != nil {
 				return err
 			}
 		}

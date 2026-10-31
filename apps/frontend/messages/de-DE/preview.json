@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Für diesen Link ist keine Vorschau verfügbar.",
     "dismiss": "Vorschau ausblenden",
     "delete": "Vorschau löschen",
     "open_link": "Link öffnen",

@@ -14,12 +14,16 @@ import {
   Menu,
   MenuItem,
   net,
+  Notification,
   protocol,
   session,
   shell
 } from 'electron';
-import { APP_ORIGIN, createFrontendProtocolHandler } from './frontend_protocol.mjs';
+import { createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
+import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
+import { configureNativeNavigation } from './native_navigation.mjs';
+import { configureLastServer } from './last_server.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
@@ -36,12 +40,16 @@ import packageJson from './package.json' with { type: 'json' };
 import { desktopBuildProfile } from './build_profile.mjs';
 import { StreamDiagnostics } from './stream_diagnostics.mjs';
 import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
+import { passwordLogin } from './password_login.mjs';
+import { configureUpdateMenu } from './update_menu.mjs';
+import { configureUpdateBridge } from './update_bridge.mjs';
+import { unavailableDesktopUpdates } from './updates.mjs';
+import { configureBackgroundWindow } from './background.mjs';
+import { configureDesktopNotifications } from './notifications.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
-if (buildProfile.variant === 'development') {
-  app.setName(buildProfile.productName);
-  app.setPath('userData', path.join(app.getPath('appData'), buildProfile.productName));
-}
+app.setName(buildProfile.productName);
+app.setPath('userData', path.join(app.getPath('appData'), buildProfile.userDataName));
 const streamDiagnostics = new StreamDiagnostics();
 let screenShareMode = defaultScreenShareMode;
 
@@ -117,17 +125,63 @@ async function start() {
   );
   configureSession(session.defaultSession);
   configureGameCaptureIPC();
+  ipcMain.handle('chatto:password-login', (event, request) => {
+    if (
+      !mainWindow ||
+      event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame ||
+      !hasAppOrigin(event.senderFrame.url)
+    ) {
+      throw new Error('Password sign-in is available only to the Chatto renderer.');
+    }
+    return passwordLogin(request);
+  });
   mainWindow = createMainWindow();
+  const background = configureBackgroundWindow({
+    app,
+    window: mainWindow
+  });
+  const notifications = configureDesktopNotifications({
+    ipcMain,
+    Notification,
+    getWindow: () => mainWindow,
+    open: background.open,
+    isTrusted: (event) =>
+      Boolean(
+        mainWindow &&
+        event.sender === mainWindow.webContents &&
+        event.senderFrame === mainWindow.webContents.mainFrame &&
+        hasAppOrigin(event.senderFrame.url)
+      )
+  });
+  mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+    if (isMainFrame && !isInPlace) notifications.clear();
+  });
+  mainWindow.webContents.on('render-process-gone', () => notifications.clear());
+  app.on('before-quit', () => notifications.clear());
   configureDiagnosticsMenu();
+  // Update setup errors must not prevent local startup or expose request URLs.
+  const updateController = configureUpdateMenu(packageJson).catch(() => {
+    console.error('Update setup failed.');
+    return unavailableDesktopUpdates(packageJson.version);
+  });
+  configureUpdateBridge({
+    ipcMain,
+    controller: updateController,
+    isTrusted: (event) =>
+      Boolean(
+        mainWindow &&
+        !mainWindow.isDestroyed() &&
+        event.sender === mainWindow.webContents &&
+        event.senderFrame === mainWindow.webContents.mainFrame &&
+        hasAppOrigin(event.senderFrame.url)
+      ),
+    send: (state) => {
+      if (mainWindow && !mainWindow.isDestroyed() && hasAppOrigin(mainWindow.webContents.getURL()))
+        mainWindow.webContents.send('chatto:updates:changed', state);
+    }
+  });
 
-  app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  });
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createMainWindow();
-  });
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
   });
@@ -431,7 +485,7 @@ async function runMacOSCaptureProbeList() {
 
 function createMainWindow() {
   const window = new BrowserWindow({
-    title: 'Chatto Desktop',
+    title: 'Chatto',
     width: 1280,
     height: 820,
     minWidth: 800,
@@ -446,6 +500,8 @@ function createMainWindow() {
   });
 
   protectNavigation(window);
+  protectReloadShortcuts(window.webContents, app.isPackaged);
+  configureNativeNavigation(window);
   window.on('closed', () => {
     if (mainWindow === window) {
       cancelActiveGameCaptureSourceList();
@@ -453,15 +509,20 @@ function createMainWindow() {
       mainWindow = undefined;
     }
   });
-  window.loadURL(APP_ORIGIN);
+  window.loadURL(
+    configureLastServer(window.webContents, path.join(app.getPath('userData'), 'last-server.json'))
+  );
   return window;
 }
 
 function mainWindowWebPreferences() {
   const preferences = secureWebPreferences();
-  if (isGameCaptureAvailable()) {
-    preferences.preload = path.join(desktopRoot, 'preload.cjs');
-  }
+  // Hidden windows still receive notifications and maintain authenticated connections.
+  preferences.backgroundThrottling = false;
+  preferences.preload = path.join(desktopRoot, 'preload.cjs');
+  preferences.additionalArguments = isGameCaptureAvailable()
+    ? ['--chatto-native-screen-share']
+    : [];
   return preferences;
 }
 
@@ -658,15 +719,19 @@ function configureDiagnosticsMenu() {
         {
           label: 'Copy Screen Sharing Diagnostics',
           click: () => {
-            clipboard.writeText(
-              streamDiagnostics.report({
-                version: app.getVersion(),
-                electron: process.versions.electron,
-                platform: process.platform,
-                arch: process.arch,
-                variant: buildProfile.variant
-              })
-            );
+            void clipboard
+              .writeText(
+                streamDiagnostics.report({
+                  version: app.getVersion(),
+                  electron: process.versions.electron,
+                  platform: process.platform,
+                  arch: process.arch,
+                  variant: buildProfile.variant
+                })
+              )
+              .catch(() => {
+                dialog.showErrorBox('Copy failed', 'Could not copy screen sharing diagnostics.');
+              });
           }
         },
         { type: 'separator' },

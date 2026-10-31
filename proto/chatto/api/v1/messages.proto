@@ -259,9 +259,10 @@ service MessageService {
   // a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
   rpc ListReactionUsers(ListReactionUsersRequest) returns (ListReactionUsersResponse);
 
-  // Fetches and caches metadata for a composer URL. Authentication is required
+  // Fetches and caches metadata for a URL. Authentication is required
   // to avoid exposing the preview fetcher as an unauthenticated network proxy.
-  // Successful responses include a short-lived token accepted by CreateMessage.
+  // Successful responses include a short-lived token accepted by CreateMessage,
+  // unless omit_preview_token is set for a display-only read.
   rpc FetchLinkPreview(FetchLinkPreviewRequest) returns (FetchLinkPreviewResponse);
   // Creates a message for the current user. The user must be a room member and
   // must have message.post for room messages. Thread replies require read

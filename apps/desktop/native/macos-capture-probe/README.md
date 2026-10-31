@@ -197,7 +197,7 @@ mise desktop-build
 ```
 
 This places the executable in a background application at
-`Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app`. The helper has
+`Chatto.app/Contents/Helpers/Chatto Capture Helper.app`. The helper has
 the stable bundle identifier `run.chatto.desktop.capture-helper`, and the
 packager signs it in dependency order with the rest of the Electron bundle.
 Local and pull-request artifacts use ad-hoc signing; release artifacts use a
@@ -215,7 +215,7 @@ the ad-hoc development default.
 To make the packaged parent launch the helper and list capture sources:
 
 ```sh
-'apps/desktop/dist/Chatto Desktop.app/Contents/MacOS/Chatto Desktop' \
+'apps/desktop/dist/Chatto.app/Contents/MacOS/Chatto' \
   --chatto-macos-capture-probe-list
 ```
 
@@ -227,7 +227,7 @@ To exercise the packaged proof of concept, first open the game or other window
 to capture, then launch a new Chatto Desktop instance through Launch Services:
 
 ```sh
-open -n "apps/desktop/dist/Chatto Desktop.app" \
+open -n "apps/desktop/dist/Chatto.app" \
   --args --chatto-macos-capture-poc
 ```
 

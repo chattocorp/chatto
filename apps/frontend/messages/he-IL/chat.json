@@ -6,6 +6,13 @@
       "confirmation": "למשך 15 דקות, פעולה זו מפעילה את ההרשאות הנוספות שהוקצו לך בשרת זה."
     },
     "notifications": {
+      "all_notifications": "כל ההתראות",
+      "all_types": "כל הסוגים",
+      "filter_status": "מצב",
+      "filter_type": "סוג",
+      "reactions": "תגובות רגש",
+      "replies": "תשובות",
+      "mentions": "אזכורים",
       "next_unread_source": "עבור למקור הבא שלא נקרא",
       "no_unread": "אין התראות שלא נקראו",
       "title": "התראות",
@@ -40,6 +47,7 @@
       "administration": "ניהול שרת"
     },
     "user_menu": {
+      "edit_profile": "ערוך פרופיל",
       "profile": "פרופיל משתמש",
       "send_message": "פתח שיחה",
       "view_profile": "הצגת פרופיל",
@@ -53,6 +61,9 @@
       "details": "פרטי השרת"
     },
     "compatibility": {
+      "older_frontend": "האפליקציה שלך לא תומכת בכל התכונות בשרת הזה",
+      "frontend_upgrade": "אתה משתמש בגרסה {version} של האפליקציה. עדכן את האפליקציה או בקש ממנהל השרת שמספק אותה לעדכן אותה. הגישה לתכונות תלויה גם בהגדרות השרת ובהרשאות שלך.",
+      "frontend_requires": "נדרשת גרסה {version} של האפליקציה או חדשה יותר",
       "title": "תאימות",
       "view": "הצג תאימות",
       "limited": "גרסת שרת ישנה יותר",
@@ -176,7 +187,8 @@
       "event_log": "יומן אירועים",
       "system": "מערכת",
       "back_to_server": "חזור לשרת",
-      "invitations": "קישורי הזמנה"
+      "invites": "הזמנות",
+      "registration": "הרשמה"
     }
   }
 }

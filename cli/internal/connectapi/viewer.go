@@ -30,7 +30,7 @@ const (
 	viewerCapabilityAdminViewSystem  = "admin.view-system"
 	viewerCapabilityAdminViewAudit   = string(core.PermAdminAuditView)
 	viewerCapabilityManageUserPerms  = string(core.PermUserManagePermissions)
-	viewerCapabilityManageInvites    = string(core.PermUserInvite)
+	viewerCapabilityManageInvites    = string(core.PermUserManageInvites)
 )
 
 func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.GetViewerRequest]) (*connect.Response[apiv1.GetViewerResponse], error) {
@@ -307,7 +307,7 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		var err error
-		canManageInvites, err = api.core.HasServerPermission(groupCtx, userID, core.PermUserInvite)
+		canManageInvites, err = api.core.HasServerPermission(groupCtx, userID, core.PermUserManageInvites)
 		return err
 	})
 	group.Go(func() error {

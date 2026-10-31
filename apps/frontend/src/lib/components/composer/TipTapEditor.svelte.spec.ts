@@ -968,3 +968,33 @@ describe('TipTapEditor read-only state', () => {
     expect(editor.element().lastElementChild?.tagName).toBe('P');
   });
 });
+
+describe('Composer emoji shortcodes', () => {
+  it.each([TipTapEditor, MarkdownEditor])(
+    'preserves shortcodes through editing, reopening, and quote insertion',
+    async (Component) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      render(Component, {
+        placeholder: 'Emoji editor',
+        onReady: (ready) => (api = ready),
+        onUpdate: (markdown) => updates.push(markdown)
+      });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      const source = ':wave: :woman_health_worker: :+1: :foo: 👋 `:heart:`.';
+      api!.setContent(source);
+      api!.focus('end');
+      api!.insertText(' :heart:');
+      await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source} :heart:`));
+
+      const saved = updates.at(-1)!;
+      api!.setContent('');
+      api!.setContent(saved);
+      api!.focus('end');
+      api!.insertQuote(':wave: :foo:');
+      await vi.waitFor(() => expect(updates.at(-1)).toContain('> :wave: :foo:'));
+      expect(updates.at(-1)).toContain(saved);
+      expect(renderInlineMarkdown(saved)).toBe('👋 👩‍⚕️ 👍 :foo: 👋 <code>:heart:</code>. ❤️');
+    }
+  );
+});

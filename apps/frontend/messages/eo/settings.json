@@ -1,5 +1,59 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Ĝisdatigoj",
+      "subtitle": "Ĝisdatigoj por ĉi tiu instalaĵo",
+      "updates": "Aplikaĵaj ĝisdatigoj",
+      "unavailable": "Aŭtomataj ĝisdatigoj ne disponeblas en ĉi tiu instalaĵo.",
+      "version": "Instalita versio: {version}",
+      "ready_link": "Ĝisdatigo preta",
+      "restart_warning": "Restartigo finas aktivajn vokojn kaj ekrankundividon.",
+      "restart": "Restartigi por ĝisdatigi",
+      "check": "Kontroli ĝisdatigojn",
+      "preferences": "Preferoj pri ĝisdatigoj",
+      "automatic": "Aŭtomate kontroli kaj elŝuti",
+      "channel": "Eldona kanalo",
+      "stable": "Stabila",
+      "beta": "Beta",
+      "channel_help": "Aŭtomataj stabilaj ĝisdatigoj distribuiĝas dum 36 horoj. Manaj kontroloj kaj Beta preterpasas la prokraston. Ŝanĝo al Stabila neniam instalas pli malnovan version.",
+      "privacy": "Ĝisdatigoj kontaktas GitHub, kiu ricevas vian IP-adreson kaj ĝisdatigajn petojn. Chatto sendas neniujn kontajn aŭ konektitservilajn informojn.",
+      "status": {
+        "idle": "Preta por kontroli ĝisdatigojn.",
+        "checking": "Kontrolante ĝisdatigojn…",
+        "downloading": "Elŝutante ĝisdatigon…",
+        "ready": "Preta por restartigi.",
+        "current": "Neniu pli nova ĝisdatigo disponeblas en ĉi tiu kanalo.",
+        "error": "La ĝisdatiga operacio malsukcesis. Provu denove.",
+        "changed": "La disponebla eldono ŝanĝiĝis. Kontrolu denove.",
+        "installing": "Preparante restartigon…"
+      }
+    },
+    "overview": {
+      "descriptions": {
+        "account": "Administru vian pasvorton, retpoŝtadresojn kaj ensalutmetodojn.",
+        "profile": "Ĝisdatigu vian nomon, avataron kaj profilajn detalojn.",
+        "time": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
+        "notifications": "Agordu kiel vi ricevas sciigojn",
+        "language": "Elektu la lingvon kaj regionan vortumon por ĉi tiu retumilo.",
+        "bots": "Kreu API-kontojn kaj kontrolu precize kion ili povas fari",
+        "general": "Servila identeco, marko kaj mesaĝoj",
+        "neighbors": "Reklamu amikajn Chatto-servilojn en via publika katalogo",
+        "members": "Rigardu kaj administru servilmembrojn kaj iliajn rolojn",
+        "registration": "Regu kiel novaj kontoj aliĝas al ĉi tiu servilo.",
+        "invitations": "Kreu kaj administru invitkodojn.",
+        "rooms": "Krei, redakti, organizi kaj arkivi ĉambrojn",
+        "moderation": "Revizii aktivajn ĉambrajn suspendadojn",
+        "permissions": "Administri defaŭltojn de roloj tutserviloj",
+        "security": "Limigoj de registriĝo kaj protekto de konto",
+        "appearance": "Agordu la apon per koloroj, etosoj kaj montraj opcioj.",
+        "composer": "Elektu vian mesaĝredaktilon kaj kiel vi sendas mesaĝojn.",
+        "voice": "Agordu vian mikrofonon, laŭtparolilojn kaj alvokajn preferojn.",
+        "system": "Kontrolu servilan staton, stokadon kaj fonajn taskojn.",
+        "event_log": "Esploru servilajn eventojn kaj ekzamenu ŝanĝojn."
+      },
+      "title": "Superrigardo",
+      "shield_notice": "Por uzi viajn aldonajn permesojn en ĉi tiu servilo, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo."
+    },
     "nav": {
       "title": "Agordoj",
       "back_to_server": "Reen al Servilo",
@@ -141,6 +195,21 @@
         "dark": {
           "label": "Mallumo",
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
+        }
+      },
+      "animations": {
+        "title": "Animacioj",
+        "automatic": {
+          "label": "Aŭtomate",
+          "description": "Sekvi la sisteman preferon pri reduktita movado"
+        },
+        "enabled": {
+          "label": "Ŝaltitaj",
+          "description": "Ĉiam montri animaciojn"
+        },
+        "disabled": {
+          "label": "Malŝaltitaj",
+          "description": "Montri ŝanĝojn sen animacioj"
         }
       },
       "thread_pane": {

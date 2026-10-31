@@ -261,8 +261,9 @@ mask stay unchanged.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
+| `show_membership_events` | `optional bool` | Whether clients show join/leave activity in this channel's history and live timeline. Requires room.manage. Selecting an absent value resets to true. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -427,10 +428,9 @@ POST /api/connect/chatto.api.v1.RoomService/StartDM
 
 #### Input: StartDMRequest
 
-Request to start a direct-message room for a human caller, or fetch an
-existing one. A human caller can fetch an existing DM without message.post.
-A valid request from a bot receives PERMISSION_DENIED, including when the
-room already exists.
+Request to start a direct-message room, or fetch an existing one.
+Human and bot callers need message.post at DM scope to create a room.
+Participants can fetch an existing DM without message.post.
 New DMs have at most two distinct participants, including the caller.
 Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
 for new group conversations. Existing group DMs remain accessible.

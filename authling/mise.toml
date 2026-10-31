@@ -91,6 +91,7 @@ sources = [
     "go.sum",
     "**/*.go",
     "!**/*_test.go",
+    "internal/web/assets/**/*",
     "../pkg/**/*.go",
     "!../pkg/**/*_test.go",
     "../pkg/*/go.mod",
@@ -100,12 +101,22 @@ sources = [
 ]
 outputs = ["bin/authling"]
 
+[tasks.build-dev]
+description = "Build Authling with development-only account bootstrap"
+depends = ["deps-go", "codegen-templates", "build-web"]
+# Keep tagged and release binaries separate, including their source caches.
+run = "go build -trimpath -tags bootstrap -o bin/authling-dev ./cmd/authling"
+sources = ["go.mod", "go.sum", "**/*.go", "internal/web/assets/**/*", "../pkg/**/*.go", "../pkg/*/go.mod", "../pkg/*/go.sum", "../go.work", "../go.work.sum"]
+outputs = ["bin/authling-dev"]
+
 [tasks.test]
 description = "Run Authling tests standalone and in the repository workspace"
 depends = ["deps-go", "codegen-templates", "build-web"]
 run = [
     "GOWORK=off go test -trimpath ./...",
     "go test -trimpath ./...",
+    "GOWORK=off go test -trimpath -tags bootstrap ./...",
+    "go test -trimpath -tags bootstrap ./...",
 ]
 sources = [
     "go.mod",
@@ -124,6 +135,8 @@ depends = ["deps-go", "codegen-templates", "build-web"]
 run = [
     "GOWORK=off go vet ./...",
     "go vet ./...",
+    "GOWORK=off go vet -tags bootstrap ./...",
+    "go vet -tags bootstrap ./...",
 ]
 
 [tasks.test-e2e]
@@ -183,7 +196,19 @@ run = "exec mailpit --smtp \"127.0.0.1:$AUTHLING_DEV_MAILPIT_SMTP_PORT\" --liste
 
 [tasks.dev]
 description = "Run Authling and its local Mailpit dependency"
-run = { tasks = ["mailpit", "authling run"] }
+run = { tasks = ["mailpit", "dev-server"] }
+
+[tasks.dev-server]
+description = "Run Authling with Alice and Bob development accounts"
+depends = ["build-dev"]
+env = {
+  AUTHLING_BOOTSTRAP_ENABLED = "true",
+  AUTHLING_ADMIN_EMAILS = "{{env.AUTHLING_ADMIN_EMAILS | default(value='alice@alice.com')}}",
+  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value='8080')}}",
+  AUTHLING_HTTP_PUBLIC_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='8080')}}",
+  AUTHLING_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% else %}1025{% endif %}",
+}
+run = "exec bin/authling-dev run"
 
 [tasks.clean]
 description = "Clean Authling build artifacts"

@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "建立帳戶",
+      "open": "開放註冊",
+      "invite_only": "需要邀請碼",
+      "open_description": "任何人都可以透過已設定的註冊方式建立帳號。",
+      "invite_only_description": "新帳號需要一次性邀請碼。現有使用者仍可登入。",
+      "methods": "已設定的註冊方式",
+      "methods_configuration": "註冊方式在此伺服器的託管設定中管理。",
+      "email_password": "電子郵件和密碼",
+      "no_methods": "未啟用任何註冊方式。使用者在兩種模式下都無法建立帳號。"
+    },
     "neighbors": {
       "title": "鄰居",
       "subtitle": "在你的公開目錄中推廣友好的 Chatto 伺服器",
@@ -254,6 +265,10 @@
         "name_title": "名稱和描述",
         "name_subtitle": "成員會在聊天室清單和聊天室頂端看到這些資訊。",
         "visibility_title": "可見範圍",
+        "membership_events_title": "成員活動",
+        "show_membership_events": "顯示加入及離開事件",
+        "membership_events_description": "顯示人們加入或離開此聊天室的時間，包括歷史記錄。隱藏此活動不會將其刪除。",
+        "membership_events_unavailable": "更新此伺服器以變更成員活動的顯示方式。",
         "visibility_subtitle": "選擇誰是此聊天室的成員。",
         "universal_description": "每位可以加入此聊天室的成員都會自動成為其成員。",
         "visibility_help": "對於所有成員都必須收到的消息（例如公告），請使用全員聊天室。成員無法離開全員聊天室，但可以將其設為靜音。如果關閉全員模式，先前加入的成員仍會留在聊天室中。",
@@ -538,36 +553,30 @@
       "total": "共 {count} 位使用者"
     },
     "invitations": {
-      "title": "邀請連結",
-      "subtitle": "建立和管理用來接納新帳戶的連結。",
-      "create_title": "建立邀請連結",
-      "max_uses": "最多使用次數",
-      "max_uses_error": "請輸入不小於 1 的整數。",
-      "unlimited_uses": "允許無限次使用",
-      "expiry": "有效期限",
-      "expiry_1d": "1 天",
-      "expiry_7d": "7 天",
-      "expiry_30d": "30 天",
-      "expiry_never": "永不過期",
-      "create": "建立邀請連結",
-      "created": "已建立邀請連結",
-      "list_title": "邀請連結",
-      "empty": "尚無邀請連結。",
-      "uses": "使用次數",
+      "management_help": "邀請碼可讓其他人加入此伺服器。",
+      "created_by": "建立者",
+      "note_label": "備註（選填）",
+      "note_placeholder": "給設計團隊的 Alex",
+      "note_description": "你和邀請管理員可以查看此備註。",
+      "note_too_long": "請使用不超過 250 個字元。",
+      "usage": "新邀請碼有效期為 7 天，每個邀請碼只能建立一個帳號。複製邀請碼並傳送給接收者。只有註冊成功後，邀請碼才會被使用。",
+      "create_title": "建立邀請碼",
+      "create": "建立邀請碼",
+      "created": "已建立邀請碼",
+      "list_title": "邀請碼",
+      "empty": "尚無邀請碼。",
       "created_at": "建立時間",
       "actions": "操作",
       "never": "永不",
-      "copy": "複製連結",
-      "copied": "已複製邀請連結",
       "revoke": "撤銷",
-      "revoked": "已撤銷邀請連結",
-      "revoke_title": "要撤銷邀請連結嗎？",
-      "revoke_description": "此連結將立即停止接納新帳戶。",
+      "revoked": "已撤銷邀請碼",
+      "revoke_title": "撤銷邀請碼？",
+      "revoke_description": "此邀請碼將立即停止允許建立新帳號。",
       "status": {
         "active": "有效",
         "expired": "已過期",
-        "exhausted": "已用完",
-        "revoked": "已撤銷"
+        "revoked": "已撤銷",
+        "used": "已使用"
       }
     }
   }

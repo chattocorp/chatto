@@ -129,6 +129,110 @@ describe('renderMarkdown', () => {
       );
     });
   });
+  describe('emoji shortcodes', () => {
+    it('renders skin-tone compounds only in prose and retains invalid combinations', async () => {
+      const source =
+        ':thumbsup::skin-tone-4: :woman_health_worker::skin-tone-5: :heart::skin-tone-4: `:wave::skin-tone-2:`';
+      const expected = '👍🏽 👩🏾‍⚕️ :heart::skin-tone-4: <code>:wave::skin-tone-2:</code>';
+      expect(renderInlineMarkdown(source)).toBe(expected);
+      expect(await renderMarkdown(source)).toBe(`<p>${expected}</p>\n`);
+      const url = 'https://example.com/:wave::skin-tone-4:';
+      expect(await renderMarkdown(url)).toContain(`>${url}</a>`);
+    });
+
+    it('requires Unicode word boundaries without blocking punctuation or adjacent tags', async () => {
+      const source =
+        'omg:poop:foo hello:wave: :wave:hello ' +
+        'é:wave: :wave:中 𐐀:wave: :wave:𝟙 e\u0301:wave: :wave:\u0301 ' +
+        '(:poop:)! :wave::heart:';
+      const expected = source.replace('(:poop:)! :wave::heart:', '(💩)! 👋❤️');
+      expect(renderInlineMarkdown(source)).toBe(expected);
+      expect(await renderMarkdown(source)).toBe(`<p>${expected}</p>\n`);
+    });
+
+    it.each(['_:+1:', ':heart:_'])(
+      'keeps a tag beside a literal underscore: %s',
+      async (source) => {
+        expect(renderInlineMarkdown(source)).toBe(source);
+        expect(await renderMarkdown(source)).toBe(`<p>${source}</p>\n`);
+      }
+    );
+
+    it('keeps a word boundary when mention parsing splits the text', async () => {
+      const html = await renderMarkdown('@alice:wave: @alice :wave:', { mentions: true });
+      expect(html).toContain('<span data-mention-handle="alice">@alice</span>:wave:');
+      expect(html).toContain('<span data-mention-handle="alice">@alice</span> 👋');
+    });
+
+    it.each([
+      ['https://example.com:wave:', '</a>:wave:'],
+      ['https://example.com :wave:', '</a> 👋'],
+      ['https://example.com!:wave:', '</a>!👋'],
+      ['<https://example.com>:wave:', '</a>👋'],
+      ['[site](https://example.com):wave:', '</a>👋']
+    ])('preserves the source boundary after links: %s', async (source, suffix) => {
+      expect(renderInlineMarkdown(source)).toContain(suffix);
+      expect(await renderMarkdown(source)).toContain(suffix);
+    });
+
+    it('renders a large Markdown attachment without exceeding the argument limit', async () => {
+      const count = 100_000;
+      const html = await renderMarkdown(':wave: '.repeat(count));
+      expect(html.match(/👋/g)).toHaveLength(count);
+      expect(html).not.toContain(':wave:');
+    });
+
+    it('renders aliases and adjacent tags while preserving Unicode and unknown names', async () => {
+      const source = ':wave::heart: :+1: :-1: 👋 :foo: :WAVE: :constructor: :wave';
+      expect(await renderMarkdown(source)).toBe(
+        '<p>👋❤️ 👍 👎 👋 :foo: :WAVE: :constructor: :wave</p>\n'
+      );
+      expect(renderInlineMarkdown(source)).toBe('👋❤️ 👍 👎 👋 :foo: :WAVE: :constructor: :wave');
+    });
+
+    it('renders prose in formatting, quotes, tables, and footnotes', async () => {
+      const html = await renderMarkdown(
+        '**:wave:** _:+1:_\n\n> :heart:\n\n' +
+          '| Emoji |\n| --- |\n| :wave: |\n\nNote[^one]\n\n[^one]: :heart:'
+      );
+      expect(html).toContain('<strong>👋</strong> <em>👍</em>');
+      expect(html).toContain('<blockquote>\n<p>❤️</p>');
+      expect(html).toContain('<td>👋</td>');
+      expect(html).toContain('tabindex="-1"><p>❤️');
+    });
+
+    it('keeps inline, fenced, and indented code literal', async () => {
+      const html = await renderMarkdown('`:wave:`\n\n```text\n:heart:\n```\n\n    :+1:');
+      expect(html).toContain('<code>:wave:</code>');
+      expect(html).toContain('</span>:heart:</span>');
+      expect(html).toContain('</span>:+1:</span>');
+      expect(html).not.toMatch(/👋|❤️|👍/);
+      expect(renderInlineMarkdown('`:wave:`')).toBe('<code>:wave:</code>');
+    });
+
+    it('preserves URL labels, destinations, and titles but renders explicit link labels', async () => {
+      const html = await renderMarkdown(
+        'https://example.com/:wave: <https://example.com/:heart:> ' +
+          '[:+1:](https://example.com/:wave: ":heart:")'
+      );
+      expect(html).toContain('>https://example.com/:wave:</a>');
+      expect(html).toContain('>https://example.com/:heart:</a>');
+      expect(html).toContain('href="https://example.com/:wave:"');
+      expect(html).toContain('title=":heart:"');
+      expect(html).toContain('>👍</a>');
+      expect(html).not.toMatch(/👋|❤️/);
+    });
+
+    it('preserves mentions and escapes HTML around shortcodes', async () => {
+      const html = await renderMarkdown('<script>:wave:</script> @alice :heart:', {
+        mentions: true
+      });
+      expect(html).toContain('&lt;script&gt;👋&lt;/script&gt;');
+      expect(html).toContain('<span data-mention-handle="alice">@alice</span> ❤️');
+      expect(html).not.toContain('<script>');
+    });
+  });
+
   describe('footnotes', () => {
     it('numbers notes in reference order and returns to each repeated reference', async () => {
       const html = await renderMarkdown(

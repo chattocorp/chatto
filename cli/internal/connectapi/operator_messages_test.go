@@ -8,9 +8,81 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func TestOperatorImportReactionChangesSourceTime(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("operator-reaction-batch")
+	service := &operatorMessageService{api: env.api}
+	created := time.Date(2020, 3, 14, 12, 0, 0, 0, time.UTC)
+	post, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: env.viewer.Id, CreatedAt: timestamppb.New(created), Body: "historical body",
+	}))
+	require.NoError(t, err)
+	operation := &operatorv1.HistoricalReactionOperation{
+		MessageId: post.Msg.MessageId, OperationKey: uuid.NewString(), ActorId: env.viewer.Id,
+		OccurredAt: timestamppb.New(created.Add(time.Hour)),
+		Change:     &operatorv1.HistoricalReactionChange{UserId: env.viewer.Id, Emoji: "heart", Present: true},
+	}
+	_, err = service.ImportReactionChanges(env.ctx, connect.NewRequest(&operatorv1.ImportReactionChangesRequest{RoomId: room.Id, Operations: []*operatorv1.HistoricalReactionOperation{operation}}))
+	require.NoError(t, err)
+	facts, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, "evt.room.*.reaction_added")
+	require.NoError(t, err)
+	require.Len(t, facts, 1)
+	require.Equal(t, operation.OccurredAt.AsTime(), facts[0].CreatedAt.AsTime())
+	require.Equal(t, env.viewer.Id, facts[0].GetImportContext().GetSourceActorId())
+	require.False(t, facts[0].GetImportContext().GetUnknownTime())
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	for _, bad := range []*operatorv1.HistoricalReactionOperation{
+		nil,
+		{MessageId: post.Msg.MessageId, OperationKey: uuid.NewString()},
+		{MessageId: post.Msg.MessageId, OperationKey: uuid.NewString(), Change: operation.Change, OccurredAt: &timestamppb.Timestamp{Seconds: 1 << 62}},
+	} {
+		_, err := service.ImportReactionChanges(env.ctx, connect.NewRequest(&operatorv1.ImportReactionChangesRequest{RoomId: room.Id, Operations: []*operatorv1.HistoricalReactionOperation{bad}}))
+		require.Error(t, err)
+	}
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
+
+func TestOperatorImportMembershipEventReactions(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("operator-membership-reactions")
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "joining-user", "Joining User", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, env.core.LeaveRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id))
+	timeline, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id, Limit: 100}))
+	require.NoError(t, err)
+	service := &operatorMessageService{api: env.api}
+	count := 0
+	for _, event := range timeline.Msg.Page.Events {
+		if event.ActorId != actor.Id || (event.GetUserJoinedRoom() == nil && event.GetUserLeftRoom() == nil) {
+			continue
+		}
+		count++
+		// Historical imports accept reactors who are no longer room members.
+		for _, wantAdded := range []bool{true, false} {
+			response, err := service.ImportReaction(env.ctx, connect.NewRequest(&operatorv1.ImportReactionRequest{
+				RoomId: room.Id, MessageEventId: event.Id, UserId: actor.Id, Emoji: "wave",
+			}))
+			require.NoError(t, err)
+			require.Equal(t, wantAdded, response.Msg.Added)
+		}
+		reactions, err := env.core.GetReactions(env.ctx, event.Id)
+		require.NoError(t, err)
+		require.Equal(t, []core.ReactionSummary{{Emoji: "wave", UserIDs: []string{actor.Id}}}, reactions)
+	}
+	require.Equal(t, 2, count)
+}
 
 func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) {
 	t.Parallel()

@@ -18,11 +18,17 @@ targets are unique to each component, including when callers reuse rendered HTML
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { attachCodeFrames } from '$lib/markdownArtifacts';
   import { attachCodeScrollFades } from '$lib/markdownCodeScroll';
+  import type { Attachment } from 'svelte/attachments';
+  import { CopyFeedback } from '$lib/dom/actionFeedback';
+  const feedback = new CopyFeedback();
 
   let {
-    html
+    html,
+    enhanceLink
   }: {
     html: string;
+    /** Optional message-owned enhancement; its lifetime follows this rendered HTML. */
+    enhanceLink?: Attachment<HTMLAnchorElement>;
   } = $props();
 
   const footnoteScope = $props.id();
@@ -72,6 +78,7 @@ targets are unique to each component, including when callers reuse rendered HTML
 
     try {
       await navigator.clipboard.writeText(code);
+      if (button.isConnected) feedback.show(button, m('common.copied_to_clipboard'));
       toast.success(m('common.copied_to_clipboard'));
     } catch {
       toast.error(m('room.message.actions.copy_text_failed'));
@@ -81,6 +88,14 @@ targets are unique to each component, including when callers reuse rendered HTML
   // Markdown actions come from the audited HTML renderer, so they use one
   // delegated listener on this component's DOM root.
   function attachMarkdownActions(element: HTMLDivElement) {
+    // Rerun after the HTML changes, and dispose mounted link content before replacement.
+    const linkCleanups =
+      enhanceLink && html.includes('data-content-href=')
+        ? Array.from(
+            element.querySelectorAll<HTMLAnchorElement>('a[data-content-href]'),
+            enhanceLink
+          )
+        : [];
     element.addEventListener('click', handleClick);
     // Block the message row's long-press/selection gestures, while letting
     // pointer events reach document-level outside-press dismissal handlers.
@@ -104,6 +119,8 @@ targets are unique to each component, including when callers reuse rendered HTML
     };
     element.addEventListener('auxclick', handleAuxClick);
     return () => {
+      for (const cleanup of linkCleanups) cleanup?.();
+      feedback.dispose();
       element.removeEventListener('click', handleClick);
       for (const type of gestures) element.removeEventListener(type, consumeControlGesture);
       element.removeEventListener('auxclick', handleAuxClick);

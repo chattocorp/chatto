@@ -18,7 +18,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 <script lang="ts">
   import { openRenderedLink } from '$lib/navigation/renderedLink';
   import { isAllowedMarkdownLink } from '$lib/markdownLinks';
-  import { tick, untrack } from 'svelte';
+  import { getAllContexts, tick, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
   import { Slice } from '@tiptap/pm/model';
   import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -56,6 +56,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     blockquote: false,
     codeBlock: false
   };
+  const context = getAllContexts();
 
   let {
     placeholder = m('composer.placeholder'),
@@ -311,7 +312,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       const tr = editor.state.tr.addMark(
         activeLinkRange.from,
         activeLinkRange.to,
-        linkType.create({ href })
+        linkType.create({ href, explicitLabel: true })
       );
       editor.view.dispatch(tr);
       editor.commands.focus();
@@ -501,7 +502,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       () =>
         new Editor({
           element: editorElement,
-          extensions: createComposerExtensions(placeholder),
+          extensions: createComposerExtensions(placeholder, context),
           content: '',
           contentType: 'markdown',
           editable,

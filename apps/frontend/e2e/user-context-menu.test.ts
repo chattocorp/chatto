@@ -246,7 +246,7 @@ test.describe('User context menu', () => {
       await expect(profileDialog.getByText(`@${user.login}`)).toBeVisible();
     });
 
-    test('the member menu button opens the profile while the identity stays passive', async ({
+    test('the member identity and menu button both open the profile', async ({
       page,
       chatPage,
       roomPage
@@ -258,11 +258,14 @@ test.describe('User context menu', () => {
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
 
       await roomPage.getMemberDisplayName(user.login).click();
-      await expect(page.getByRole('dialog', { name: 'User profile' })).not.toBeVisible();
+      await expect(page.getByRole('dialog', { name: 'User profile' })).toBeVisible();
+      await page.keyboard.press('Escape');
 
-      // Control the real pointer before checking CSS hover visibility.
+      // Move focus out of the card before checking pointer-only hover visibility.
+      await page.getByRole('textbox', { name: 'Type a message...' }).focus();
       const memberButton = roomPage.memberList.getByRole('button', {
-        name: new RegExp(user.displayName)
+        name: `View profile of ${user.displayName}`,
+        exact: true
       });
       const menuSurface = memberButton.locator('..');
       await page.mouse.move(0, 0);
@@ -342,7 +345,8 @@ test.describe('User context menu', () => {
       // Open user profile from member list
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
       const memberButton = roomPage.memberList.getByRole('button', {
-        name: new RegExp(user.displayName)
+        name: `View profile of ${user.displayName}`,
+        exact: true
       });
       await memberButton.click();
 

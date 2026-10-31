@@ -22,6 +22,7 @@ import (
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestMessageServiceInteractionPostingCapability(t *testing.T) {
@@ -141,6 +142,35 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	}
 	if resp.Msg.GetPreviewToken() == "" {
 		t.Fatalf("PreviewToken is empty")
+	}
+
+	js, err := jetstream.New(env.nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeStream, err := js.Stream(env.ctx, "KV_RUNTIME_STATE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := runtimeStream.GetLastMsgForSubject(env.ctx, "$KV.RUNTIME_STATE.link_preview_token.>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	display, err := env.messages.FetchLinkPreview(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.FetchLinkPreviewRequest{
+		Url: server.URL + "/article", OmitPreviewToken: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if display.Msg.GetPreview().GetTitle() != "Connect Preview" || display.Msg.GetPreviewToken() != "" {
+		t.Fatal("display read must return metadata without a composer token")
+	}
+	after, err := runtimeStream.GetLastMsgForSubject(env.ctx, "$KV.RUNTIME_STATE.link_preview_token.>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Sequence != before.Sequence {
+		t.Fatal("display read wrote an unused composer token")
 	}
 
 	room := env.createJoinedRoom("message-preview-token")
@@ -543,10 +573,39 @@ func TestMessageServiceValidatesEmoji(t *testing.T) {
 	_, err := env.messages.AddReaction(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.AddReactionRequest{
 		RoomId:         room.Id,
 		MessageEventId: event.Id,
-		Emoji:          "totally_bogus",
+		Emoji:          ":invalid:",
 	}))
 	if errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid emoji AddReaction code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
+	}
+}
+
+func TestMessageServiceUnknownReactionName(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("unknown-reaction")
+	event := env.post(room.Id, env.viewer.Id, "react to me", "")
+	ctx := withCaller(env.ctx, env.viewer)
+	added, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId: room.Id, MessageEventId: event.Id, Emoji: "Party_Parrot",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added.Msg.Added || added.Msg.GetReaction().GetEmoji() != "Party_Parrot" || added.Msg.GetReaction().GetCount() != 1 {
+		t.Fatalf("unexpected reaction response: %v", added.Msg)
+	}
+	users, err := env.messages.ListReactionUsers(ctx, connect.NewRequest(&apiv1.ListReactionUsersRequest{
+		RoomId: room.Id, MessageEventId: event.Id, Emoji: "Party_Parrot",
+	}))
+	if err != nil || len(users.Msg.UserIds) != 1 || users.Msg.UserIds[0] != env.viewer.Id {
+		t.Fatalf("reaction users: %v, %v", users, err)
+	}
+	removed, err := env.messages.RemoveReaction(ctx, connect.NewRequest(&apiv1.RemoveReactionRequest{
+		RoomId: room.Id, MessageEventId: event.Id, Emoji: "Party_Parrot",
+	}))
+	if err != nil || !removed.Msg.Removed {
+		t.Fatalf("remove reaction: %v, %v", removed, err)
 	}
 }
 

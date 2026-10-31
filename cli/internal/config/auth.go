@@ -8,9 +8,6 @@ import (
 )
 
 const (
-	AccountCreationPolicyOpen       = "open"
-	AccountCreationPolicyInviteOnly = "invite_only"
-
 	// DefaultEmailOTPTTL is the fallback lifetime for registration and email-verification codes.
 	DefaultEmailOTPTTL = 30 * time.Minute
 
@@ -46,7 +43,7 @@ type AuthProviderConfig struct {
 	AutoProvision           *bool    `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
 	ManageUsernames         bool     `toml:"manage_usernames,commented" comment:"Assign usernames from this provider and prevent local username edits for linked accounts. Default: false."`
 	UsernameClaim           string   `toml:"username_claim,commented" comment:"OIDC top-level string claim for managed usernames. Default: preferred_username. No email or display-name fallback."`
-	SyncUsernames           bool     `toml:"sync_usernames,commented" comment:"Update managed usernames at sign-in. Requires manage_usernames. Default: false; existing names remain unchanged."`
+	UpdateUsernames         bool     `toml:"update_usernames,commented" comment:"Update managed usernames at sign-in. Requires manage_usernames. Default: false; existing names remain unchanged."`
 	AllowUnlinking          *bool    `toml:"allow_unlinking,commented" comment:"Allow users to disconnect this provider if another sign-in method remains. Operators can still disconnect it. Default: true."`
 	// AllowedGroups and GroupsClaim restrict every sign-in and identity link
 	// through this provider. See AdmitsGroups. GroupRoles maps the same groups
@@ -148,23 +145,11 @@ func IsAllowedAuthProviderType(providerType string) bool {
 type AuthConfig struct {
 	DirectRegistration    *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, self-service account creation is disabled; existing accounts can still sign in. Default: true."`
 	DirectLogin           *bool                `toml:"direct_login" env:"CHATTO_AUTH_DIRECT_LOGIN" comment:"Enable direct login with a username or email address and password. When false, users must sign in via configured SSO providers. Default: true."`
-	AccountCreationPolicy string               `toml:"account_creation_policy,commented" env:"CHATTO_AUTH_ACCOUNT_CREATION_POLICY" comment:"Account admission policy: open or invite_only. Default: open. Upgrade every serving replica before enabling invite_only."`
 	TokenTTL              Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"Renewal window for active human sessions and lifetime of each same-origin cookie credential. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
 	AccessTokenTTL        Duration             `toml:"access_token_ttl,commented" env:"CHATTO_AUTH_ACCESS_TOKEN_TTL" comment:"Lifetime for renewable bearer access tokens. Supports human-readable durations like '15m'. Default: 15m."`
 	LoopbackClientEnabled bool                 `toml:"loopback_client_enabled,commented" env:"CHATTO_AUTH_LOOPBACK_CLIENT_ENABLED" comment:"Let a Chatto web client that runs on a local address of the user's device, such as a development server on localhost, sign in to this server. Its sessions end at most 24 hours after sign-in. Disabling this setting also ends existing sessions of that client. Upgrade every serving replica before enabling, and use the same value on every replica; sign-ins made while replicas differ can end. Default: false."`
 	EmailOTP              EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
 	Providers             []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
-}
-
-func (c *AuthConfig) AccountCreationPolicyOrDefault() string {
-	if c.AccountCreationPolicy == "" {
-		return AccountCreationPolicyOpen
-	}
-	return c.AccountCreationPolicy
-}
-
-func (c *AuthConfig) InvitationRequired() bool {
-	return c.AccountCreationPolicyOrDefault() == AccountCreationPolicyInviteOnly
 }
 
 // EmailOTPConfig controls registration and email-verification one-time-password guardrails.

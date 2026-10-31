@@ -2,10 +2,10 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AddressedMessage } from '@chatto/client';
+import type { IncomingMessage } from './messages.ts';
 
 interface Work {
-  message: AddressedMessage;
+  message: IncomingMessage;
   /** Running work can have external effects and must not be repeated automatically. */
   state: 'queued' | 'running';
 }
@@ -50,7 +50,7 @@ export class Delivery {
   get since(): number {
     return this.state.since;
   }
-  get queued(): AddressedMessage[] {
+  get queued(): IncomingMessage[] {
     return this.state.work.filter((item) => item.state === 'queued').map((item) => item.message);
   }
   get uncertain(): number {
@@ -65,13 +65,13 @@ export class Delivery {
   }
 
   /** Keep overflow on disk until the bounded in-memory inbox has capacity. */
-  accept(message: AddressedMessage): void {
+  accept(message: IncomingMessage): void {
     if (this.has(message.id)) return;
     this.save({ ...this.state, work: [...this.state.work, { message, state: 'queued' }] });
   }
 
   /** Call immediately before the first operation that can have external effects. */
-  start(messages: readonly AddressedMessage[]): void {
+  start(messages: readonly IncomingMessage[]): void {
     const ids = new Set(messages.map((item) => item.id));
     this.save({
       ...this.state,
@@ -81,7 +81,7 @@ export class Delivery {
     });
   }
 
-  complete(messages: readonly AddressedMessage[]): void {
+  complete(messages: readonly IncomingMessage[]): void {
     const ids = new Set(messages.map((item) => item.id));
     const completed = { ...this.state.completed };
     for (const id of ids) completed[id] = Date.now();

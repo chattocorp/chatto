@@ -6,6 +6,13 @@
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {
+      "all_notifications": "Alle varsler",
+      "all_types": "Alle typer",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reaksjoner",
+      "replies": "Svar",
+      "mentions": "Omtaler",
       "next_unread_source": "Gå til neste uleste kilde",
       "no_unread": "Ingen uleste varsler",
       "title": "Varsler",
@@ -40,6 +47,7 @@
       "administration": "Serveradministrasjon"
     },
     "user_menu": {
+      "edit_profile": "Rediger profil",
       "profile": "Brukerprofil",
       "send_message": "Åpne samtale",
       "view_profile": "Vis profil",
@@ -53,6 +61,9 @@
       "details": "Serverdetaljer"
     },
     "compatibility": {
+      "older_frontend": "Appen din støtter ikke alle funksjonene på denne serveren",
+      "frontend_upgrade": "Du bruker appversjon {version}. Oppdater appen, eller be administratoren for serveren som leverer appen om å oppdatere den. Tilgang til funksjoner avhenger også av serverinnstillinger og tillatelsene dine.",
+      "frontend_requires": "Krever appversjon {version} eller nyere",
       "title": "Kompatibilitet",
       "view": "Vis kompatibilitet",
       "limited": "Eldre serverversjon",
@@ -173,7 +184,8 @@
       "event_log": "Hendelseslogg",
       "system": "System",
       "back_to_server": "Gå tilbake til server",
-      "invitations": "Invitasjonslenker"
+      "invites": "Invitasjoner",
+      "registration": "Registrering"
     }
   }
 }

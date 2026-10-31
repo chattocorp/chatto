@@ -15,13 +15,17 @@
     <div class="border-b border-border px-4 py-3 font-semibold">Design studio</div>
     <ServerBanner url={artwork} />
     <nav class="sidebar-nav p-2" aria-label="Server navigation">
-      <button type="button" class="sidebar-item">
+      <button type="button" class="sidebar-item" aria-current="page">
         <span class="iconify sidebar-icon icon-[uil--estate]" aria-hidden="true"></span>
         Overview
       </button>
       <button type="button" class="sidebar-item">
-        <span class="iconify sidebar-icon icon-[uil--comment-alt]" aria-hidden="true"></span>
-        General
+        <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
+        Search
+      </button>
+      <button type="button" class="sidebar-item">
+        <span class="iconify sidebar-icon icon-[uil--comment-alt-lines]" aria-hidden="true"></span>
+        Threads
       </button>
     </nav>
   </div>

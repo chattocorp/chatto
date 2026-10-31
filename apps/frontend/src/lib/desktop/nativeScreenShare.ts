@@ -24,7 +24,7 @@ export type NativeScreenShareDisplaySource = NativeScreenShareSourceBase & {
 export type NativeScreenShareSource =
   NativeScreenShareWindowSource | NativeScreenShareDisplaySource;
 
-type NativeScreenShareSourceResponse = {
+export type NativeScreenShareSourceResponse = {
   protocolVersion: 1;
   sources: NativeScreenShareSource[];
 };
@@ -38,20 +38,6 @@ export type NativeScreenSharePublisherRequest = {
   token: string;
   e2eeKey: string;
 };
-
-type ChattoDesktopBridge = {
-  screenShare: {
-    listSources(): Promise<NativeScreenShareSourceResponse>;
-    cancelSourceList?(): void;
-    startPublisher(request: NativeScreenSharePublisherRequest): string;
-  };
-};
-
-declare global {
-  interface Window {
-    chattoDesktop?: ChattoDesktopBridge;
-  }
-}
 
 /**
  * Whether the host provides native screen sharing. Web browsers omit this

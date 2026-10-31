@@ -23,6 +23,8 @@ minimumReleaseAgeExclude:
   - '@earendil-works/pi-mcp@1.0.0'
   - '@earendil-works/pi-telemetry@1.0.0'
   - '@earendil-works/pi-tui@1.0.0'
+  - electron@45.1.0
 
 patchedDependencies:
+  app-builder-lib@26.18.0: patches/app-builder-lib@26.18.0.patch
   virtua@0.54.0: patches/virtua@0.54.0.patch

@@ -1,76 +1,76 @@
-import { Timestamp } from '@bufbuild/protobuf';
-import { AdminInviteLinkService } from '@chatto/api-types/admin/v1/invitations_connect';
+import { AdminInvitationCodeService } from '@chatto/api-types/admin/v1/invitations_connect';
 import {
-  InviteLinkStatus,
-  type InviteLink as APIInviteLink
+  InvitationCodeStatus,
+  type InvitationCode as APIInvitationCode
 } from '@chatto/api-types/admin/v1/invitations_pb';
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 
-export type InviteLink = {
+/** A single-use account admission code, visible to its creator and invitation managers. */
+export type InvitationCode = {
   id: string;
-  link: string;
+  code: string;
   createdBy: string;
   createdAt: string;
-  maxUses: number | null;
   expiresAt: string | null;
-  useCount: number;
-  status: 'active' | 'expired' | 'exhausted' | 'revoked';
+  status: 'active' | 'expired' | 'used' | 'revoked';
   revokedAt: string | null;
+  /** Plain-text creation note for the creator and invitation managers; empty when omitted. */
+  note: string;
 };
 
-export function createInviteLinkAPI(config: ConnectAPIConfig) {
-  const client = createChattoClient(AdminInviteLinkService, config);
+export function createInvitationCodeAPI(config: ConnectAPIConfig) {
+  const client = createChattoClient(AdminInvitationCodeService, config);
   return {
     async list(offset = 0, limit = 100, options: { signal?: AbortSignal } = {}) {
-      const response = await client.listInviteLinks(
+      const response = await client.listInvitationCodes(
         { page: { offset, limit } },
         { signal: options.signal }
       );
       return {
-        inviteLinks: response.inviteLinks.map(mapInviteLink),
+        invitationCodes: response.invitationCodes.map(mapInvitationCode),
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
     },
-    async create(input: { maxUses: number | null; expiresAt: string | null }) {
-      const response = await client.createInviteLink({
-        maxUses: input.maxUses ?? undefined,
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+    async create(input: { note?: string }) {
+      const response = await client.createInvitationCode({
+        note: input.note ?? ''
       });
-      if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
-      return mapInviteLink(response.inviteLink);
+      if (!response.invitationCode) throw new Error('Invitation-code response was incomplete.');
+      return mapInvitationCode(response.invitationCode);
     },
     async revoke(id: string) {
-      const response = await client.revokeInviteLink({ id });
-      if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
-      return mapInviteLink(response.inviteLink);
+      const response = await client.revokeInvitationCode({ id });
+      if (!response.invitationCode) throw new Error('Invitation-code response was incomplete.');
+      return mapInvitationCode(response.invitationCode);
     }
   };
 }
 
-function mapInviteLink(inviteLink: APIInviteLink): InviteLink {
+function mapInvitationCode(invitation: APIInvitationCode): InvitationCode {
   return {
-    id: inviteLink.id,
-    link: inviteLink.link,
-    createdBy: inviteLink.createdBy,
-    createdAt: inviteLink.createdAt?.toDate().toISOString() ?? '',
-    maxUses: inviteLink.maxUses ?? null,
-    expiresAt: inviteLink.expiresAt?.toDate().toISOString() ?? null,
-    useCount: inviteLink.useCount,
-    status: mapInviteLinkStatus(inviteLink.status),
-    revokedAt: inviteLink.revokedAt?.toDate().toISOString() ?? null
+    id: invitation.id,
+    code: invitation.code,
+    createdBy: invitation.createdBy,
+    createdAt: invitation.createdAt?.toDate().toISOString() ?? '',
+    expiresAt: invitation.expiresAt?.toDate().toISOString() ?? null,
+    status: mapInvitationCodeStatus(invitation.status),
+    revokedAt: invitation.revokedAt?.toDate().toISOString() ?? null,
+    note: invitation.note
   };
 }
 
-function mapInviteLinkStatus(status: InviteLinkStatus): InviteLink['status'] {
+function mapInvitationCodeStatus(status: InvitationCodeStatus): InvitationCode['status'] {
   switch (status) {
-    case InviteLinkStatus.EXPIRED:
+    case InvitationCodeStatus.EXPIRED:
       return 'expired';
-    case InviteLinkStatus.EXHAUSTED:
-      return 'exhausted';
-    case InviteLinkStatus.REVOKED:
+    case InvitationCodeStatus.USED:
+      return 'used';
+    case InvitationCodeStatus.REVOKED:
       return 'revoked';
-    default:
+    case InvitationCodeStatus.ACTIVE:
       return 'active';
+    default:
+      throw new Error('Unknown invitation-code status.');
   }
 }

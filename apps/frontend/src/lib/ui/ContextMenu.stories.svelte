@@ -1,6 +1,8 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import { expect, userEvent } from 'storybook/test';
+  import { motionPreference } from '$lib/dom/motionPreference';
+  import { resolve } from '$app/paths';
   import ContextMenu from './ContextMenu.svelte';
   import MenuItem from './MenuItem.svelte';
   import MenuSection from './MenuSection.svelte';
@@ -24,6 +26,7 @@
   let trigger: HTMLButtonElement;
   let open = $state(false);
   let sheetOpen = $state(false);
+  let proseOpen = $state(true);
   let anchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
   function openMenu() {
@@ -39,7 +42,7 @@
   play={async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Open menu' }));
     const menu = canvas.getByRole('menu', { name: 'Example actions' });
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = motionPreference().matches;
     await expect(getComputedStyle(menu).animationName).toBe(
       reducedMotion ? 'none' : 'overlay-enter'
     );
@@ -91,4 +94,32 @@
       </MenuSection>
     </ContextMenu>
   {/if}
+</Story>
+
+<Story name="Inside message prose" asChild>
+  <div class="prose">
+    <div>
+      <p>Server links open the same menu styles as the sidebar.</p>
+      <button class="btn-action" onclick={() => (proseOpen = true)}>Open server menu</button>
+      {#if proseOpen}
+        <ContextMenu
+          position={{ x: 40, y: 120 }}
+          presentation="floating"
+          ariaLabel="Server actions"
+          onclose={() => (proseOpen = false)}
+        >
+          <MenuSection>
+            <MenuItem
+              icon="icon-[uil--info-circle]"
+              href={resolve('/chat/[serverId]/info', { serverId: '-' })}
+              >Server information</MenuItem
+            >
+            <MenuItem icon="icon-[uil--link]">Copy server link</MenuItem>
+            <MenuItem icon="icon-[uil--copy]">Copy server hostname</MenuItem>
+            <MenuItem icon="icon-[uil--check-circle]" disabled>Mark as read</MenuItem>
+          </MenuSection>
+        </ContextMenu>
+      {/if}
+    </div>
+  </div>
 </Story>

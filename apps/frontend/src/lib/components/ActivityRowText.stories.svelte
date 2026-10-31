@@ -11,22 +11,33 @@
 </script>
 
 <Story name="Variants" asChild>
-  <div class="selectable-list max-w-xl">
-    <ActivityListRow onclick={() => undefined}>
+  <div class="selectable-list max-w-5xl">
+    <ActivityListRow rowAttributes={{ class: '@container/activity' }} onclick={() => undefined}>
       <ActivityRowText time="2m ago" emphasized>
         {#snippet title()}Unread activity is bold{/snippet}
-        {#snippet subtitle()}#general{/snippet}
+        {#snippet location()}<bdi dir="auto">#general</bdi>{/snippet}
       </ActivityRowText>
     </ActivityListRow>
-    <ActivityListRow onclick={() => undefined}>
-      <ActivityRowText time="4h ago" trailing="3 replies">
-        {#snippet title()}Read activity keeps the normal text color{/snippet}
-        {#snippet subtitle()}#design · Context for the activity{/snippet}
+    <ActivityListRow rowAttributes={{ class: '@container/activity' }} onclick={() => undefined}>
+      <ActivityRowText time="4h ago">
+        {#snippet title()}Read activity uses muted text{/snippet}
+        {#snippet location()}<bdi dir="auto">#design</bdi>{/snippet}
       </ActivityRowText>
     </ActivityListRow>
     <ActivityListRow onclick={() => undefined}>
       <ActivityRowText time="Yesterday">
-        {#snippet title()}A row without a subtitle{/snippet}
+        {#snippet title()}A row without a location{/snippet}
+      </ActivityRowText>
+    </ActivityListRow>
+  </div>
+</Story>
+
+<Story name="Narrow summary" asChild>
+  <div class="selectable-list w-80 max-w-full">
+    <ActivityListRow rowAttributes={{ class: '@container/activity' }} onclick={() => undefined}>
+      <ActivityRowText time="2m ago" emphasized hideTimeOnNarrow>
+        {#snippet title()}Carlo Zottmann replied in a thread you follow{/snippet}
+        {#snippet location()}<bdi dir="auto">#general</bdi>{/snippet}
       </ActivityRowText>
     </ActivityListRow>
   </div>

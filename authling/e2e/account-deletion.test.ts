@@ -21,9 +21,14 @@ test('deletes an account, denies other browsers, and permits a new identity afte
   await otherPage.getByRole('button', { name: 'Sign in' }).click();
   await expect(otherPage.getByRole('heading', { name: 'Your account' })).toBeVisible();
 
+  await page.getByRole('link', { name: 'Security', exact: true }).click();
   await page.getByRole('link', { name: 'Delete account', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Delete your account' })).toBeVisible();
-  await expect(page.getByText('This does not delete your data or end sessions in other apps.', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText('This does not delete your data or end sessions in other apps.', {
+      exact: false
+    })
+  ).toBeVisible();
   await page.getByLabel('Current password').fill('incorrect password');
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Permanently delete account' }).click();

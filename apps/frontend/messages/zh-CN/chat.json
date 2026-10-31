@@ -6,6 +6,13 @@
       "confirmation": "这会在 15 分钟内启用你在此服务器上获得的额外权限。"
     },
     "notifications": {
+      "all_notifications": "所有通知",
+      "all_types": "所有类型",
+      "filter_status": "状态",
+      "filter_type": "类型",
+      "reactions": "表情回应",
+      "replies": "回复",
+      "mentions": "提及",
       "next_unread_source": "前往下一个未读通知来源",
       "no_unread": "没有未读通知",
       "title": "通知",
@@ -40,6 +47,7 @@
       "administration": "服务器管理"
     },
     "user_menu": {
+      "edit_profile": "编辑个人资料",
       "profile": "用户个人资料",
       "send_message": "打开会话",
       "view_profile": "查看个人资料",
@@ -53,6 +61,9 @@
       "details": "服务器详细信息"
     },
     "compatibility": {
+      "older_frontend": "你的应用不支持此服务器的所有功能",
+      "frontend_upgrade": "你正在使用应用版本 {version}。请更新应用，或请提供应用的服务器管理员更新。功能的使用还取决于服务器设置和你的权限。",
+      "frontend_requires": "需要应用版本 {version} 或更新版本",
       "title": "兼容性",
       "view": "查看兼容性",
       "limited": "较旧的服务器版本",
@@ -173,7 +184,8 @@
       "event_log": "事件日志",
       "system": "系统",
       "back_to_server": "返回服务器",
-      "invitations": "邀请链接"
+      "invites": "邀请",
+      "registration": "注册"
     }
   }
 }

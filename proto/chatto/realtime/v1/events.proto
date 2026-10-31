@@ -125,6 +125,14 @@ message RoomThreadingModeChangedEvent {
   chatto.api.v1.RoomThreadingMode threading_mode = 2;
 }
 
+// RoomMembershipEventsVisibilityChangedEvent changes how clients display room
+// join/leave activity, including history. Clients must still process membership
+// events when this setting is false.
+message RoomMembershipEventsVisibilityChangedEvent {
+  string room_id = 1;
+  bool show_membership_events = 2;
+}
+
 // UserJoinedRoomEvent reports that the actor joined a room.
 message UserJoinedRoomEvent {
   string room_id = 1;

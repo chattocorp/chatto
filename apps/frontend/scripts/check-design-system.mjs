@@ -15,13 +15,15 @@ const styleBlockAllowlist = new Set([
   'src/lib/ui/AppHeader.svelte',
   'src/lib/ui/ModalSurface.svelte',
   'src/lib/ui/Dialog.svelte',
-  'src/lib/ui/toast/ToastContainer.svelte'
+  'src/lib/ui/toast/ToastContainer.svelte',
+  'src/routes/chat/[serverId]/settings/overview/SettingsCardArtwork.svelte',
+  'src/routes/chat/[serverId]/settings/overview/SettingsDestinationArtwork.svelte'
 ]);
 
 // These components own specialized native-dialog behavior. Standard task
 // dialogs must use Dialog, FormDialog, or ConfirmDialog instead.
 const nativeDialogAllowlist = new Set([
-  'src/lib/components/QuickSwitcher.svelte',
+  'src/lib/ui/PaletteDialog.svelte',
   'src/lib/ui/ModalSurface.svelte',
   'src/routes/chat/ModalContainerConfirmDialogMock.svelte',
   'src/routes/chat/ModalContainerDialogMock.svelte',
@@ -29,6 +31,10 @@ const nativeDialogAllowlist = new Set([
 ]);
 
 const checks = [
+  {
+    description: 'retired embed frame; use preview-frame, preview-content, and preview-thumbnail',
+    pattern: /\bembed-frame\b/g
+  },
   {
     description: 'bare transition utilities; name the transitioned properties',
     pattern: /(?:^|\s)transition(?:-all)?(?:\s|$)/g
@@ -151,11 +157,39 @@ async function sourceFiles(directory) {
 
 const failures = [];
 const appCss = await readFile(appCssPath, 'utf8');
+
+// These variants must compose the Inset Frame, not grow independent surface recipes.
+const insetConsumers = {
+  menu: 'inset-frame',
+  'preview-frame': 'inset-frame',
+  'menu-section': 'inset-content',
+  'menu-section-sm': 'inset-content',
+  'preview-content': 'inset-content'
+};
+for (const [consumer, primitive] of Object.entries(insetConsumers)) {
+  const body = appCss.match(new RegExp(`@utility ${consumer} \\{([\\s\\S]*?)\\n\\}`))?.[1] ?? '';
+  const applied = [...body.matchAll(/@apply\s+([^;]+);/g)].flatMap((match) =>
+    match[1].trim().split(/\s+/)
+  );
+  if (!applied.includes(primitive)) {
+    failures.push(`src/app.css: ${consumer} must compose ${primitive}`);
+  }
+  if (
+    applied.some((token) =>
+      /^(?:rounded(?:-|$)|border(?:-|$)|bg-|floating-(?:frame|inset)$)/.test(token)
+    )
+  ) {
+    failures.push(`src/app.css: ${consumer} must inherit its surface recipe from ${primitive}`);
+  }
+}
 const unusedStyleAllowlistEntries = new Set(styleBlockAllowlist);
 
 // Tailwind silently ignores color utilities whose token does not exist, so a
 // typo or a token from another design system renders nothing. Accept only the
-// --color-* tokens that src/app.css defines, plus CSS keywords.
+// --color-* tokens and named utilities that src/app.css defines, plus CSS keywords.
+const semanticUtilities = new Set(
+  [...appCss.matchAll(/@utility\s+([a-z][a-z0-9-]*)\s*\{/g)].map((match) => match[1])
+);
 const colorTokens = new Set([
   ...[...appCss.matchAll(/--color-([a-z0-9-]+)\s*:/g)].map((match) => match[1]),
   'white',
@@ -302,12 +336,17 @@ for (const file of await svelteFiles(sourceRoot)) {
   if (!isTestSupportFile(path)) {
     for (const match of utilitySource.matchAll(colorUtility)) {
       const [, prefix, name] = match;
-      if (colorTokens.has(name) || nonColorSuffixes[prefix].test(name) || paletteName.test(name)) {
+      if (
+        semanticUtilities.has(`${prefix}-${name}`) ||
+        colorTokens.has(name) ||
+        nonColorSuffixes[prefix].test(name) ||
+        paletteName.test(name)
+      ) {
         continue;
       }
       const line = utilitySource.slice(0, match.index).split('\n').length;
       failures.push(
-        `${path}:${line}: unknown color token; use a --color-* token from src/app.css (${match[0].trim()})`
+        `${path}:${line}: unknown color token or utility; use a --color-* token or named utility from src/app.css (${match[0].trim()})`
       );
     }
   }

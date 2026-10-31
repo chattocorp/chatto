@@ -1,6 +1,6 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { extractURLs } from '$lib/linkPreview';
-import { parseMessageLink } from '$lib/chatLinks';
+import { parseEntityLink, parseMessageLink } from '$lib/chatLinks';
 import type { ComposerLinkPreview } from '@chatto/client/api/linkPreviews';
 
 type LinkPreviewAPI = {
@@ -29,7 +29,12 @@ export class LinkPreviewState {
     }
 
     this.#urlDetectionTimeout = setTimeout(() => {
-      const urls = extractURLs(message).filter((u) => !this.dismissedURLs.has(u));
+      // Entity pills already show these resources. Skip them before selecting
+      // the first URL so a later web link can still receive an attachment.
+      const urls = extractURLs(message, Infinity)
+        .filter((url) => !parseEntityLink(url))
+        .slice(0, 1)
+        .filter((url) => !this.dismissedURLs.has(url));
       this.detectedURLs = urls;
 
       for (const url of urls) {
@@ -45,11 +50,15 @@ export class LinkPreviewState {
 
   async fetchPreview(url: string): Promise<void> {
     this.fetchingURLs.add(url);
-
-    const preview = await this.getAPI().fetchLinkPreview(url);
-
-    this.fetchingURLs.delete(url);
-    this.previews.set(url, preview);
+    try {
+      const preview = await this.getAPI().fetchLinkPreview(url);
+      this.previews.set(url, preview);
+    } catch {
+      // Metadata is optional. Keep the URL usable and avoid retries on each edit.
+      this.previews.set(url, null);
+    } finally {
+      this.fetchingURLs.delete(url);
+    }
   }
 
   dismissPreview(url: string): void {

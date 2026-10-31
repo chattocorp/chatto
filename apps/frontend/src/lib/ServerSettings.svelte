@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { untrack } from 'svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import {
@@ -54,15 +53,17 @@
   const loading = $derived(settingsQuery.isPending && snapshot === null);
   const loaded = $derived(snapshot?.viewerCanManageServer ?? false);
 
-  // Form state
-  let name = $state('');
-  let description = $state('');
-  let motd = $state('');
-  let welcomeMessage = $state('');
-  let originalName = $state('');
-  let originalDescription = $state('');
-  let originalMotd = $state('');
-  let originalWelcomeMessage = $state('');
+  // Explicit edits override query snapshots until saved or reverted.
+  let draft = $state<Partial<EditableServerConfig>>({});
+  const name = $derived(draft.name ?? snapshot?.name ?? '');
+  const description = $derived(draft.description ?? snapshot?.description ?? '');
+  const motd = $derived(draft.motd ?? snapshot?.motd ?? '');
+  const welcomeMessage = $derived(draft.welcomeMessage ?? snapshot?.welcomeMessage ?? '');
+
+  function edit(field: keyof EditableServerConfig, value: string) {
+    // A pending save can replace the snapshot, so keep even a revert as an edit.
+    draft[field] = !saving && value === (snapshot?.[field] ?? '') ? undefined : value;
+  }
 
   // Logo state
   const logoUrl = $derived(snapshot?.logoUrl ?? null);
@@ -84,31 +85,11 @@
     return undefined;
   });
   const changed = $derived(
-    name !== originalName ||
-      description !== originalDescription ||
-      motd !== originalMotd ||
-      welcomeMessage !== originalWelcomeMessage
+    name !== (snapshot?.name ?? '') ||
+      description !== (snapshot?.description ?? '') ||
+      motd !== (snapshot?.motd ?? '') ||
+      welcomeMessage !== (snapshot?.welcomeMessage ?? '')
   );
-
-  // Query snapshots are external state. Reconcile each pristine field independently so a
-  // background refresh cannot erase a draft in another field.
-  $effect(() => {
-    const next = snapshot;
-    if (!next) return;
-    untrack(() => {
-      const nextDescription = next.description ?? '';
-      const nextMotd = next.motd ?? '';
-      const nextWelcomeMessage = next.welcomeMessage ?? '';
-      if (name === originalName) name = next.name;
-      if (description === originalDescription) description = nextDescription;
-      if (motd === originalMotd) motd = nextMotd;
-      if (welcomeMessage === originalWelcomeMessage) welcomeMessage = nextWelcomeMessage;
-      originalName = next.name;
-      originalDescription = nextDescription;
-      originalMotd = nextMotd;
-      originalWelcomeMessage = nextWelcomeMessage;
-    });
-  });
 
   $effect(() => {
     if (!snapshot || snapshot.viewerCanManageServer || !serverScope.isCurrent()) return;
@@ -148,19 +129,13 @@
         mergeEditableProfile(current, profile)
       );
 
-      const nextDescription = profile.description ?? '';
-      const nextMotd = profile.motd ?? '';
-      const nextWelcomeMessage = profile.welcomeMessage ?? '';
-      if (name.trim() === variables.input.name) name = profile.name;
-      if (description.trim() === variables.input.description) description = nextDescription;
-      if (motd === variables.input.motd) motd = nextMotd;
+      // Clear only submitted values; a newer edit must survive the response.
+      if (name.trim() === variables.input.name) delete draft.name;
+      if (description.trim() === variables.input.description) delete draft.description;
+      if (motd === variables.input.motd) delete draft.motd;
       if (welcomeMessage === variables.input.welcomeMessage) {
-        welcomeMessage = nextWelcomeMessage;
+        delete draft.welcomeMessage;
       }
-      originalName = profile.name;
-      originalDescription = nextDescription;
-      originalMotd = nextMotd;
-      originalWelcomeMessage = nextWelcomeMessage;
       toast.success(m('common.saved'));
     }
   }));
@@ -232,25 +207,10 @@
 
   // Keep the form serialized even if a privacy generation fences the pending result.
   const saving = $derived(saveMutation.isPending);
-  const uploadingLogo = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'upload-logo'
-  );
-  const deletingLogo = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'delete-logo'
-  );
-  const uploadingBanner = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'upload-banner'
-  );
-  const deletingBanner = $derived(
-    assetMutation.isPending &&
-      session.isCurrent(assetMutation.variables) &&
-      assetMutation.variables.operation === 'delete-banner'
+  const activeAssetOperation = $derived(
+    assetMutation.isPending && session.isCurrent(assetMutation.variables)
+      ? assetMutation.variables.operation
+      : null
   );
   const error = $derived.by(() => {
     if (settingsQuery.error) {
@@ -276,7 +236,8 @@
     });
   }
 
-  function uploadLogoFile(file: File) {
+  function uploadAsset(file: File | undefined, operation: 'upload-logo' | 'upload-banner') {
+    if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error(m('server_settings.invalid_image'));
       return;
@@ -288,18 +249,12 @@
     }
 
     if (!assetMutation.isPending) {
-      assetMutation.mutate({ ...mutationScope(), operation: 'upload-logo', file });
+      assetMutation.mutate({ ...mutationScope(), operation, file });
     }
   }
 
-  function handleLogoUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) uploadLogoFile(file);
-  }
-
   const logoDropZone = dropZone({
-    onDrop: (files) => uploadLogoFile(files[0]),
+    onDrop: (files) => uploadAsset(files[0], 'upload-logo'),
     onDragStateChange: (dragging) => (isDraggingLogo = dragging),
     acceptedTypes: ['image/*']
   });
@@ -309,30 +264,8 @@
     assetMutation.mutate({ ...mutationScope(), operation: 'delete-logo' });
   }
 
-  function uploadBannerFile(file: File) {
-    if (!file.type.startsWith('image/')) {
-      toast.error(m('server_settings.invalid_image'));
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error(m('server_settings.image_too_large'));
-      return;
-    }
-
-    if (!assetMutation.isPending) {
-      assetMutation.mutate({ ...mutationScope(), operation: 'upload-banner', file });
-    }
-  }
-
-  function handleBannerUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) uploadBannerFile(file);
-  }
-
   const bannerDropZone = dropZone({
-    onDrop: (files) => uploadBannerFile(files[0]),
+    onDrop: (files) => uploadAsset(files[0], 'upload-banner'),
     onDragStateChange: (dragging) => (isDraggingBanner = dragging),
     acceptedTypes: ['image/*']
   });
@@ -353,7 +286,7 @@
         <TextInput
           id="name"
           label={m('server_settings.name_label')}
-          bind:value={name}
+          bind:value={() => name, (value) => edit('name', value)}
           required
           disabled={saving}
           error={nameError}
@@ -362,7 +295,7 @@
         <TextArea
           id="description"
           label={m('server_settings.description_label')}
-          bind:value={description}
+          bind:value={() => description, (value) => edit('description', value)}
           maxBytes={MAX_SERVER_DESCRIPTION_BYTES}
           disabled={saving}
           rows={2}
@@ -372,7 +305,7 @@
         <TextInput
           id="motd"
           label={m('common.message_of_the_day')}
-          bind:value={motd}
+          bind:value={() => motd, (value) => edit('motd', value)}
           disabled={saving}
           description={m('server_settings.motd_help')}
         />
@@ -380,7 +313,7 @@
         <TextArea
           id="welcome-message"
           label={m('server_settings.welcome_message_label')}
-          bind:value={welcomeMessage}
+          bind:value={() => welcomeMessage, (value) => edit('welcomeMessage', value)}
           rows={3}
           disabled={saving}
           description={m('server_settings.welcome_message_help')}
@@ -442,11 +375,11 @@
               accept="image/*"
               class="hidden"
               bind:this={logoFileInput}
-              onchange={handleLogoUpload}
+              onchange={(event) => uploadAsset(event.currentTarget.files?.[0], 'upload-logo')}
             />
             <Button
               onclick={() => logoFileInput?.click()}
-              loading={uploadingLogo}
+              loading={activeAssetOperation === 'upload-logo'}
               disabled={assetMutation.isPending}
               loadingText={m('server_settings.uploading')}
             >
@@ -459,7 +392,7 @@
               <Button
                 variant="danger-secondary"
                 onclick={handleLogoDelete}
-                loading={deletingLogo}
+                loading={activeAssetOperation === 'delete-logo'}
                 disabled={assetMutation.isPending}
                 loadingText={m('server_settings.removing')}
               >
@@ -515,11 +448,11 @@
               accept="image/*"
               class="hidden"
               bind:this={bannerFileInput}
-              onchange={handleBannerUpload}
+              onchange={(event) => uploadAsset(event.currentTarget.files?.[0], 'upload-banner')}
             />
             <Button
               onclick={() => bannerFileInput?.click()}
-              loading={uploadingBanner}
+              loading={activeAssetOperation === 'upload-banner'}
               disabled={assetMutation.isPending}
               loadingText={m('server_settings.uploading')}
             >
@@ -534,7 +467,7 @@
               <Button
                 variant="danger-secondary"
                 onclick={handleBannerDelete}
-                loading={deletingBanner}
+                loading={activeAssetOperation === 'delete-banner'}
                 disabled={assetMutation.isPending}
                 loadingText={m('server_settings.removing')}
               >

@@ -6,6 +6,13 @@
       "confirmation": "這會在 15 分鐘內啟用你在此伺服器上獲得的額外權限。"
     },
     "notifications": {
+      "all_notifications": "所有通知",
+      "all_types": "所有類型",
+      "filter_status": "狀態",
+      "filter_type": "類型",
+      "reactions": "表情回應",
+      "replies": "回覆",
+      "mentions": "提及",
       "next_unread_source": "前往下一個未讀通知來源",
       "no_unread": "沒有未讀通知",
       "title": "通知",
@@ -40,6 +47,7 @@
       "administration": "伺服器管理"
     },
     "user_menu": {
+      "edit_profile": "編輯個人資料",
       "profile": "使用者個人檔案",
       "send_message": "開啟對話",
       "view_profile": "查看個人資料",
@@ -53,6 +61,9 @@
       "details": "伺服器詳細資料"
     },
     "compatibility": {
+      "older_frontend": "你的應用程式不支援此伺服器的所有功能",
+      "frontend_upgrade": "你目前使用應用程式版本 {version}。請更新應用程式，或請提供應用程式的伺服器管理員更新。功能的使用也取決於伺服器設定和你的權限。",
+      "frontend_requires": "需要應用程式版本 {version} 或更新版本",
       "title": "相容性",
       "view": "檢視相容性",
       "limited": "較舊的伺服器版本",
@@ -173,7 +184,8 @@
       "event_log": "事件記錄",
       "system": "系統",
       "back_to_server": "返回伺服器",
-      "invitations": "邀請連結"
+      "invites": "邀請",
+      "registration": "註冊"
     }
   }
 }

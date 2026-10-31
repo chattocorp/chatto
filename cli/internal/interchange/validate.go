@@ -109,6 +109,11 @@ func (a *Archive) validateReferences() error {
 	if len(paths)+len(names) != len(a.sums) {
 		return fail("unlisted asset file")
 	}
+	for _, u := range a.Users {
+		if u.AvatarAssetID != "" && !assets[u.AvatarAssetID] {
+			return fail("unknown user avatar asset")
+		}
+	}
 	checkContent := func(c Content) error {
 		if c.Status == "available" {
 			if strings.TrimSpace(c.Body.Text) == "" && len(c.AssetIDs) == 0 {
@@ -314,6 +319,18 @@ func (a *Archive) validateReferences() error {
 						return fail("invalid membership transition")
 					}
 					state[d.UserID] = want
+					emojis := map[string]bool{}
+					for _, reaction := range d.Reactions {
+						if emojis[reaction.Emoji] {
+							return fail("duplicate reaction group")
+						}
+						emojis[reaction.Emoji] = true
+						for _, id := range reaction.UserIDs {
+							if !users[id] {
+								return fail("unknown reactor reference")
+							}
+						}
+					}
 				}
 			default:
 				if metadata[e.RoomID] == nil {

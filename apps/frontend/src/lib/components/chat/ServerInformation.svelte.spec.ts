@@ -81,4 +81,96 @@ describe('ServerInformation', () => {
       .toBeVisible();
     expect(screen.container.textContent).not.toContain('No known compatibility issues');
   });
+
+  it('withholds the success notice when the catalog fails and offers retry', async () => {
+    const retry = vi.fn();
+    const screen = render(ServerInformation, {
+      name: 'Example',
+      host: 'chat.example.test',
+      version: '0.6.0',
+      compatibility: evaluateServerCompatibility({ serverVersion: '0.6.0' }),
+      features: [],
+      frontendFeaturesError: 'Catalog unavailable',
+      onRetryFrontendFeatures: retry
+    });
+    await expect.element(screen.getByText('Catalog unavailable')).toBeVisible();
+    expect(screen.container.textContent).not.toContain('No known compatibility issues');
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('shows unknown future features as plain text and clears guidance after an app update', async () => {
+    const props = {
+      name: 'Example community',
+      host: 'chat.example.test',
+      version: '0.6.0',
+      compatibility: evaluateServerCompatibility({ serverVersion: '0.6.0' }),
+      features: [],
+      frontendVersion: '0.5.0',
+      frontendFeatures: [
+        {
+          id: 'future-feature',
+          name: '<img src=x onerror=alert(1)>',
+          description: '<script>alert(1)</script>',
+          introducedVersion: '0.6.0'
+        }
+      ]
+    };
+    const screen = render(ServerInformation, props);
+    await expect
+      .element(screen.getByText('Your app does not support all features on this server'))
+      .toBeVisible();
+    await expect.element(screen.getByText('Requires app version 0.6.0 or newer')).toBeVisible();
+    const report = screen.container.querySelector('[data-testid="feature-limitations"]');
+    await expect
+      .element(screen.getByRole('heading', { name: 'Affected features (1)' }))
+      .toBeVisible();
+    expect(report?.textContent).toContain('<img src=x onerror=alert(1)>');
+    expect(report?.textContent).toContain('<script>alert(1)</script>');
+    expect(report?.querySelector('img, script')).toBeNull();
+    expect(screen.container.textContent).not.toContain('No known compatibility issues');
+    await screen.rerender({ ...props, frontendVersion: '0.6.0', frontendFeatures: [] });
+    await expect.element(screen.getByText('No known compatibility issues')).toBeVisible();
+    expect(screen.container.querySelector('[data-testid="feature-limitations"]')).toBeNull();
+  });
+
+  it('uses one feature list for both directions and hides it while loading or unreachable', async () => {
+    const props = {
+      name: 'Example',
+      host: 'chat.example.test',
+      version: '0.5.0-beta.11',
+      compatibility: evaluateServerCompatibility({ serverVersion: '0.5.0-beta.11' }),
+      features: limitedServerFeatures('0.5.0-beta.11'),
+      frontendVersion: '0.5.0',
+      frontendFeatures: [
+        {
+          id: 'future',
+          name: 'Future feature',
+          description: 'New functionality.',
+          introducedVersion: '0.6.0'
+        }
+      ]
+    };
+    const screen = render(ServerInformation, props);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Affected features (3)' }))
+      .toBeVisible();
+    const report = screen.container.querySelector('[data-testid="feature-limitations"]');
+    expect(report?.querySelectorAll('section')).toHaveLength(3);
+    expect(report?.querySelector('#threadViews')).not.toBeNull();
+    expect(report?.querySelector('#frontend-future')).not.toBeNull();
+    for (const row of report?.querySelectorAll('section') ?? []) {
+      expect(row.querySelector('h4')?.id).toBe(row.getAttribute('aria-labelledby'));
+      expect(row.querySelectorAll('p')).toHaveLength(2);
+    }
+    await screen.rerender({ ...props, loading: true });
+    expect(screen.container.querySelector('[data-testid="feature-limitations"]')).toBeNull();
+    await screen.rerender({
+      ...props,
+      loading: false,
+      compatibility: { status: 'unreachable', reason: 'unreachable' }
+    });
+    expect(screen.container.querySelector('[data-testid="feature-limitations"]')).toBeNull();
+    expect(screen.container.textContent).not.toContain('Your app does not support');
+  });
 });

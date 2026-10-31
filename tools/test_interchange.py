@@ -82,6 +82,10 @@ def validate_records(records):
         if asset["storage"]["status"] == "unavailable":
             require("files" in omissions, "missing_files_omission")
 
+    for identity in users.values():
+        if "avatar_asset_id" in identity:
+            require(identity["avatar_asset_id"] in assets, "unknown_avatar_asset")
+
     for event in records["events"]:
         kind, room, data = event["type"], event["room_id"], event["data"]
         require(room in rooms, "unknown_room")
@@ -187,6 +191,12 @@ def validate_records(records):
                 require(state.get(data["user_id"], None if partial else False) != wanted,
                         "invalid_membership_transition")
                 state[data["user_id"]] = wanted
+                emojis = set()
+                for reaction in data.get("reactions", []):
+                    require(reaction["emoji"] not in emojis, "duplicate_reaction_group")
+                    emojis.add(reaction["emoji"])
+                    for reactor in reaction["user_ids"]:
+                        user(reactor)
         else:
             field = {"room.name_changed": "name", "room.topic_changed": "topic",
                      "room.purpose_changed": "purpose", "room.archived": "archived",
@@ -259,6 +269,7 @@ class InterchangeContractTests(unittest.TestCase):
             ("duplicate_id", lambda r: r["users"].append(r["users"][0])),
             ("unknown_user", lambda r: r["events"][0]["data"].update(user_id="absent")),
             ("unknown_asset", lambda r: r["events"][2]["data"]["content"].update(asset_ids=["absent"])),
+            ("unknown_avatar_asset", lambda r: r["users"][0].update(avatar_asset_id="absent")),
             ("forward_message_reference", lambda r: r["events"][4]["data"].update(thread_id="future")),
             ("missing_membership_snapshot", lambda r: r["events"].pop()),
             ("snapshot_requires_partial_history", lambda r: r["manifest"].update(history="complete")),

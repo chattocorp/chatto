@@ -68,6 +68,15 @@ test.describe('message search', () => {
     await chatPage.enterRoom('general');
 
     const toggle = page.getByRole('button', { name: 'Search in this room', exact: true });
+    await expect(toggle).toBeVisible();
+    // Chrome already loaded server availability. Opening another search session
+    // must reuse it rather than show a second loading state.
+    const statusRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().endsWith('.MessageSearchService/GetStatus')) {
+        statusRequests.push(request.url());
+      }
+    });
     await toggle.click();
     const input = page.getByTestId('room-search-query');
     await expect(input).toBeFocused();
@@ -84,10 +93,17 @@ test.describe('message search', () => {
     await expect(input).toBeVisible();
     await expect(input).not.toBeFocused();
 
+    await openSearch(page);
+    await page.goBack();
+    await expect(input).toBeVisible();
+    expect(statusRequests).toHaveLength(0);
+
     await page.reload();
     await expect(input).toBeVisible();
     await expect(page.getByTestId('message-input')).toBeFocused();
     await expect(input).not.toBeFocused();
+    await expect(input).toBeEnabled();
+    expect(statusRequests).toHaveLength(1);
   });
 
   test('room search takes focus on mobile button and shortcut opens', async ({

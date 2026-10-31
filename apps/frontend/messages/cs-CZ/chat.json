@@ -6,6 +6,13 @@
       "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
     },
     "notifications": {
+      "all_notifications": "Všechna oznámení",
+      "all_types": "Všechny typy",
+      "filter_status": "Stav",
+      "filter_type": "Typ",
+      "reactions": "Reakce",
+      "replies": "Odpovědi",
+      "mentions": "Zmínky",
       "next_unread_source": "Přejít na další nepřečtený zdroj",
       "no_unread": "Žádná nepřečtená oznámení",
       "title": "Oznámení",
@@ -40,6 +47,7 @@
       "administration": "Správa serveru"
     },
     "user_menu": {
+      "edit_profile": "Upravit profil",
       "profile": "Uživatelský profil",
       "send_message": "Otevřít konverzaci",
       "view_profile": "Zobrazit profil",
@@ -53,6 +61,9 @@
       "details": "Podrobnosti serveru"
     },
     "compatibility": {
+      "older_frontend": "Vaše aplikace nepodporuje všechny funkce tohoto serveru",
+      "frontend_upgrade": "Používáte aplikaci ve verzi {version}. Aktualizujte ji nebo požádejte správce serveru, který ji poskytuje, o aktualizaci. Přístup k funkcím závisí také na nastavení serveru a vašich oprávněních.",
+      "frontend_requires": "Vyžaduje aplikaci ve verzi {version} nebo novější",
       "title": "Kompatibilita",
       "view": "Zobrazit kompatibilitu",
       "limited": "Starší verze serveru",
@@ -173,7 +184,8 @@
       "event_log": "Protokol událostí",
       "system": "Systém",
       "back_to_server": "Návrat na server",
-      "invitations": "Zvací odkazy"
+      "invites": "Pozvánky",
+      "registration": "Registrace"
     }
   }
 }

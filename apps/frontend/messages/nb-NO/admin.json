@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Opprettelse av kontoer",
+      "open": "Åpen registrering",
+      "invite_only": "Invitasjonskode kreves",
+      "open_description": "Alle kan opprette en konto med de konfigurerte registreringsmetodene.",
+      "invite_only_description": "Nye kontoer krever en invitasjonskode som bare kan brukes én gang. Eksisterende brukere kan fortsatt logge inn.",
+      "methods": "Konfigurerte registreringsmetoder",
+      "methods_configuration": "Registreringsmetodene administreres i vertskonfigurasjonen for denne serveren.",
+      "email_password": "E-post og passord",
+      "no_methods": "Ingen registreringsmetoder er aktivert. Brukere kan ikke opprette kontoer i noen av modusene."
+    },
     "neighbors": {
       "title": "Naboer",
       "subtitle": "Promoter vennlige Chatto-servere i den offentlige katalogen din",
@@ -254,6 +265,10 @@
         "name_title": "Navn og beskrivelse",
         "name_subtitle": "Medlemmer ser dette i romlisten og øverst i rommet.",
         "visibility_title": "Synlighet",
+        "membership_events_title": "Medlemsaktivitet",
+        "show_membership_events": "Vis når medlemmer blir med eller forlater",
+        "membership_events_description": "Vis når personer blir med i eller forlater rommet, også i historikken. Å skjule aktiviteten sletter den ikke.",
+        "membership_events_unavailable": "Oppdater serveren for å endre hvordan medlemsaktivitet vises.",
         "visibility_subtitle": "Velg hvem som er medlem av dette rommet.",
         "universal_description": "Alle medlemmer som kan bli med i dette rommet, er automatisk medlemmer.",
         "visibility_help": "Bruk et universelt rom for nyheter som alle medlemmer må få, for eksempel kunngjøringer. Medlemmer kan ikke forlate et universelt rom, men de kan dempe det. Hvis du slår av universell, blir medlemmene som ble med tidligere, værende i rommet.",
@@ -549,36 +564,30 @@
       "total": "{count} bruker(e) totalt"
     },
     "invitations": {
-      "title": "Invitasjonslenker",
-      "subtitle": "Opprett og administrer lenker som slipper inn nye kontoer.",
-      "create_title": "Opprett invitasjonslenke",
-      "max_uses": "Maks antall bruk",
-      "max_uses_error": "Skriv inn et heltall på minst 1.",
-      "unlimited_uses": "Tillat ubegrenset bruk",
-      "expiry": "Utløp",
-      "expiry_1d": "1 dag",
-      "expiry_7d": "7 dager",
-      "expiry_30d": "30 dager",
-      "expiry_never": "Aldri",
-      "create": "Opprett invitasjonslenke",
-      "created": "Invitasjonslenke opprettet",
-      "list_title": "Invitasjonslenker",
-      "empty": "Ingen invitasjonslenker ennå.",
-      "uses": "Bruk",
+      "management_help": "Invitasjonskoder lar andre bli med på denne serveren.",
+      "created_by": "Opprettet av",
+      "note_label": "Merknad (valgfritt)",
+      "note_placeholder": "Til Alex fra designteamet",
+      "note_description": "Du og invitasjonsadministratorer kan se denne merknaden.",
+      "note_too_long": "Bruk høyst 250 tegn.",
+      "usage": "Nye koder utløper etter 7 dager og gir tilgang til én konto hver. Kopier en kode og send den til mottakeren. Koden brukes først når registreringen lykkes.",
+      "create_title": "Opprett kode",
+      "create": "Opprett kode",
+      "created": "Invitasjonskode opprettet",
+      "list_title": "Invitasjonskoder",
+      "empty": "Ingen invitasjonskoder ennå.",
       "created_at": "Opprettet",
       "actions": "Handlinger",
       "never": "Aldri",
-      "copy": "Kopier lenke",
-      "copied": "Invitasjonslenke kopiert",
       "revoke": "Trekk tilbake",
-      "revoked": "Invitasjonslenke trukket tilbake",
-      "revoke_title": "Trekke tilbake invitasjonslenken?",
-      "revoke_description": "Denne lenken slutter umiddelbart å slippe inn nye kontoer.",
+      "revoked": "Invitasjonskode tilbakekalt",
+      "revoke_title": "Tilbakekalle kode?",
+      "revoke_description": "Denne koden slutter umiddelbart å gi adgang til nye kontoer.",
       "status": {
         "active": "Aktiv",
         "expired": "Utløpt",
-        "exhausted": "Oppbrukt",
-        "revoked": "Trukket tilbake"
+        "revoked": "Trukket tilbake",
+        "used": "Brukt"
       }
     }
   }

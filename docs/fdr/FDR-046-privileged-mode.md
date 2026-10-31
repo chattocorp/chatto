@@ -15,6 +15,7 @@ server session when they need them.
   user has an elevation-required permission entitlement. This includes owner
   entitlement and explicit allows at any scope. A deny can still prevent an
   explicit allow from becoming effective.
+- Settings Overview shows a notice when the mode is available but inactive. It directs the user to the shield button beside their name to activate additional permissions. The notice disappears while the mode is active.
 - Activating the mode requires a confirmation.
 - The mode activates all elevation-required permissions that the user is
   entitled to use. It does not activate a role and does not add a grant.
@@ -81,7 +82,7 @@ The initial catalog requires privileged mode for these permissions:
 - `message.manage`
 - `role.manage` and `role.assign`
 - `admin.view-users` and `admin.view-audit`
-- `user.invite`, `user.delete-any`, `user.manage-accounts`, and
+- `user.manage-invites`, `user.delete-any`, `user.manage-accounts`, and
   `user.manage-permissions`
 - `bot.manage`
 - owner-only system diagnostics

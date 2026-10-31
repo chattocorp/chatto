@@ -79,6 +79,15 @@ function createStore(
 }
 
 describe('RoomMembersStore', () => {
+  it('gets bounded bare-mention suggestions without starting a directory scan', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('alice')], true, 500)]);
+    const store = new RoomMembersStore('room', api);
+    expect((await store.searchMembers('')).map((member) => member.id)).toEqual(['alice']);
+    expect(api.listRoomMembers).toHaveBeenCalledExactlyOnceWith('room', '', 10, 0);
+    expect(api.listOnlineRoomMembers).not.toHaveBeenCalled();
+    expect(store.hasFirstPage).toBe(false);
+    expect(store.hasLoadedAll).toBe(false);
+  });
   it('discards a read in progress and starts no reads after dispose', async () => {
     const page = deferred<MemberDirectoryPage>();
     const api = new FakeMemberDirectoryAPI([page.promise, pageResult([user('u2')])]);
@@ -667,11 +676,13 @@ describe('RoomMembersStore', () => {
     }
   });
 
-  it('keeps the published first page when background hydration fails', async () => {
+  it('keeps the published first page when background hydration fails and during retry', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const retry = deferred<MemberDirectoryPage>();
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),
-      Promise.reject(new Error('network failed'))
+      Promise.reject(new Error('network failed')),
+      retry.promise
     ]);
     const store = new RoomMembersStore('room-1', fakeAPI);
 
@@ -684,6 +695,15 @@ describe('RoomMembersStore', () => {
       expect(store.hasLoadedAll).toBe(false);
       expect(store.loadError).toMatchObject({ message: 'network failed' });
       expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
+      const loading = store.loadInitial();
+      expect(store.members.map((member) => member.login)).toEqual(['alice']);
+      expect(store.isInitialLoading).toBe(false);
+      expect(store.isBackgroundLoading).toBe(true);
+      retry.resolve(pageResult([user('u1', 'alice'), user('u2', 'bob')]));
+      await loading;
+      expect(store.members.map((member) => member.login)).toEqual(['alice', 'bob']);
+      expect(store.hasLoadedAll).toBe(true);
+      expect(store.isBackgroundLoading).toBe(false);
     } finally {
       consoleErrorSpy.mockRestore();
     }

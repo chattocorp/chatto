@@ -66,6 +66,7 @@
     user,
     presence: livePresence,
     size = 'md',
+    mutedPlaceholder = false,
     showPresence = false,
     showStatus = false,
     useLiveProfile = true,
@@ -75,6 +76,8 @@
     /** Current presence from the owner's server store. Default: the presence in `user`. */
     presence?: PresenceStatus;
     size?: Size;
+    /** Darker placeholder fill for avatars inside emphasized inline pills. */
+    mutedPlaceholder?: boolean;
     showPresence?: boolean;
     showStatus?: boolean;
     /** Disable app-context profile lookups for static directory renderers. */
@@ -130,12 +133,15 @@
       .filter(Boolean)
       .join(' ')
   );
-  const avatarClass = $derived('h-full w-full overflow-hidden rounded-full');
+  const avatarClass = 'h-full w-full overflow-hidden rounded-full';
   const placeholderClass = $derived(
     [
       avatarClass,
       textSizeClasses[size],
-      'flex items-center justify-center bg-surface-emphasized font-semibold text-muted ring-1 ring-inset ring-muted/15'
+      'flex items-center justify-center font-semibold text-text',
+      mutedPlaceholder
+        ? 'bg-[color-mix(in_srgb,var(--color-surface-emphasized),black_20%)]'
+        : 'bg-surface-emphasized ring-1 ring-inset ring-muted/15'
     ]
       .filter(Boolean)
       .join(' ')

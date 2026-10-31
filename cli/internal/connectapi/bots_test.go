@@ -202,15 +202,15 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminView) {
 		t.Fatal("bot unexpectedly granted admin.view capability")
 	}
-	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityDMStart) {
-		t.Fatal("bot unexpectedly granted dm.start capability")
+	if !apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityDMStart) {
+		t.Fatal("bot with message.post missing dm.start capability")
 	}
 
-	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); errorCode(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("bot caller ListBots code = %v, want failed precondition", errorCode(err))
-	}
-	if _, err := service.CreateBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Denied"})); errorCode(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("bot caller CreateBotIncomingWebhook code = %v, want failed precondition", errorCode(err))
+	listed, err = service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{}))
+	require.NoError(t, err)
+	require.Empty(t, listed.Msg.GetBots(), "an ungranted bot owns no bots and cannot list other bots")
+	if _, err := service.CreateBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Denied"})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("ungranted bot caller CreateBotIncomingWebhook code = %v, want permission denied", errorCode(err))
 	}
 
 	deleted, err := service.DeleteBot(ctx, connect.NewRequest(&apiv1.DeleteBotRequest{BotUserId: bot.GetUser().GetId()}))

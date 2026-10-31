@@ -6,6 +6,13 @@
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {
+      "all_notifications": "Ĉiuj sciigoj",
+      "all_types": "Ĉiuj tipoj",
+      "filter_status": "Stato",
+      "filter_type": "Tipo",
+      "reactions": "Reagoj",
+      "replies": "Respondoj",
+      "mentions": "Mencioj",
       "next_unread_source": "Iri al la sekva nelegita fonto",
       "no_unread": "Neniuj nelegitaj sciigoj",
       "title": "Sciigoj",
@@ -40,6 +47,7 @@
       "administration": "Servila administrado"
     },
     "user_menu": {
+      "edit_profile": "Redakti profilon",
       "profile": "Profilo de uzanto",
       "send_message": "Malfermi konversacion",
       "view_profile": "Vidi profilon",
@@ -53,6 +61,9 @@
       "details": "Servilaj detaloj"
     },
     "compatibility": {
+      "older_frontend": "Via aplikaĵo ne subtenas ĉiujn funkciojn de ĉi tiu servilo",
+      "frontend_upgrade": "Vi uzas la version {version} de la aplikaĵo. Ĝisdatigu ĝin aŭ petu la administranton de la servilo, kiu provizas ĝin, ĝisdatigi ĝin. Aliro al funkcioj ankaŭ dependas de la servilaj agordoj kaj viaj permesoj.",
+      "frontend_requires": "Postulas la version {version} de la aplikaĵo aŭ pli novan",
       "title": "Kongrueco",
       "view": "Vidi kongruecon",
       "limited": "Pli malnova servila versio",
@@ -173,7 +184,8 @@
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
       "back_to_server": "Reiru al Servilo",
-      "invitations": "Invitligiloj"
+      "invites": "Invitoj",
+      "registration": "Registrado"
     }
   }
 }

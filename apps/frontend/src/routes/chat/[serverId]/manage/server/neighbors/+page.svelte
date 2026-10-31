@@ -204,7 +204,7 @@ polls the cache briefly after a change. See FDR-042.
 <div class="pane-page">
   <PaneHeader title={m('admin.neighbors.title')} subtitle={m('admin.neighbors.subtitle')} />
 
-  <PaneContent>
+  <PaneContent fluid>
     <div class="flex flex-col gap-6">
       <Panel title={m('admin.neighbors.add_title')} icon="iconify icon-[uil--server-connection]">
         <form
@@ -251,7 +251,7 @@ polls the cache briefly after a change. See FDR-042.
         {:else if neighbors.length === 0}
           <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
         {:else}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div class="grid grid-cols-[repeat(auto-fill,min(100%,18rem))] gap-4">
             {#each neighbors as neighbor (neighbor.id)}
               {#snippet actions()}
                 {#if editTarget?.neighbor.id === neighbor.id}

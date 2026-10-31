@@ -67,7 +67,7 @@ export function publicServerImageURL(serverOrigin: string, source: string | null
 /**
  * Load a public server image without credentials, referrer data, or redirects.
  * The response must identify itself as a supported image type before it reaches
- * the element.
+ * the element. Failed requests emit an error so the caller can show its fallback.
  */
 export function loadPublicServerImage(source: string): Attachment<HTMLImageElement> {
   return (image) => {
@@ -77,12 +77,22 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
 
     void (async () => {
       try {
-        const response = await fetch(source, {
+        const options: RequestInit = {
           credentials: 'omit',
           redirect: 'error',
           referrerPolicy: 'no-referrer',
           signal: controller.signal
-        });
+        };
+        let response: Response;
+        try {
+          response = await fetch(source, options);
+        } catch (error) {
+          if (!(error instanceof TypeError) || controller.signal.aborted) throw error;
+          // Older servers can leave a plain <img> response without CORS headers
+          // in the cache. Retry once with a fresh response, only after failure.
+          // Fetch does not distinguish CORS failures from other network errors.
+          response = await fetch(source, { ...options, cache: 'reload' });
+        }
         const mediaType = response.headers
           .get('content-type')
           ?.split(';', 1)[0]
@@ -90,16 +100,17 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
           .toLowerCase();
         if (!response.ok || !mediaType || !supportedPublicServerImageTypes.has(mediaType)) {
           await response.body?.cancel();
-          return;
+          throw new Error('Public image unavailable');
         }
 
         const imageData = await readBoundedImage(response, mediaType);
-        if (!imageData) return;
+        if (!imageData) throw new Error('Public image exceeds size limit');
         if (controller.signal.aborted) return;
         objectURL = URL.createObjectURL(imageData);
         image.src = objectURL;
       } catch {
-        // Keep the existing image placeholder when the remote image is unavailable.
+        // Disposal must not report failure to a removed or replacement image.
+        if (!controller.signal.aborted) image.dispatchEvent(new Event('error'));
       }
     })();
 

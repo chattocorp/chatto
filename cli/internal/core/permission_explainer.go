@@ -151,7 +151,7 @@ func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID s
 }
 
 func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	if perm == PermBotCreate || perm == PermBotManage {
+	if !botPermissionDelegable(perm) {
 		exp.applyBotPolicyDeny(roomID, "@bot-policy")
 		return nil
 	}

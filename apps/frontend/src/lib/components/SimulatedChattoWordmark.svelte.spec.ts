@@ -44,8 +44,7 @@ import {
   rebuildParticleFrame,
   rebuildStitchFrame,
   rayExitDistance,
-  smokeFrame,
-  sparkleStrength
+  smokeFrame
 } from './simulatedChattoWordmark';
 import { NARROW_TOUCH_QUERY } from '$lib/utils/inputMediaQueries';
 
@@ -534,7 +533,6 @@ describe('SimulatedChattoWordmark', () => {
 
     expect(particles).toHaveLength(600);
     expect(particles.filter((particle) => particle.z === 0)).toHaveLength(150);
-    expect(particles.filter((particle) => particle.sparkles).length).toBeGreaterThan(15);
     expect(new Set(particles.map((particle) => particle.glyph))).toEqual(
       new Set([0, 1, 2, 3, 4, 5])
     );
@@ -722,8 +720,6 @@ describe('SimulatedChattoWordmark', () => {
       scaleDelta: 0,
       opacity: 1
     });
-    expect(sparkleStrength(6600, 0, 10000, true)).toBe(1);
-    expect(sparkleStrength(7800, 0, 10000, true)).toBeCloseTo(0.5);
   });
 
   it('keeps exploded particles hidden until their laser rebuild reaches them', () => {
@@ -776,6 +772,34 @@ describe('SimulatedChattoWordmark', () => {
     expect(smokeFrame(200, 50)?.opacity).toBeGreaterThan(0.5);
     expect(smokeFrame(850, 0)?.opacity).toBeLessThan(0.1);
   });
+});
+
+it.each([60, 120, 144])('keeps idle drawing at 30 FPS on a %i Hz display', async (refreshRate) => {
+  let nextFrame: FrameRequestCallback | undefined;
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    nextFrame = callback;
+    return 1;
+  });
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+  const clearRect = vi.spyOn(CanvasRenderingContext2D.prototype, 'clearRect');
+  const view = render(SimulatedChattoWordmark);
+  try {
+    const start = performance.now() + CONSTRUCTION_DURATION + 100;
+    nextFrame!(start);
+    clearRect.mockClear();
+    for (let index = 1; index <= refreshRate; index += 1) {
+      // Browser timestamps can arrive just before a nominal frame boundary.
+      const callback = nextFrame!;
+      nextFrame = undefined;
+      callback(start + (index * 1000) / refreshRate - 0.2);
+      expect(nextFrame).toBeDefined();
+    }
+    expect(clearRect).toHaveBeenCalledTimes(30);
+  } finally {
+    await view.unmount();
+    vi.restoreAllMocks();
+  }
 });
 
 it('cancels wordmark frames when hidden or detached and resumes only when visible', async () => {

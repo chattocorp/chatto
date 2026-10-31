@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -12,7 +12,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Reply attribution shows the original message text when it has non-whitespace text. Otherwise, one attachment shows an icon and its translated type label (Image, Video, Audio, or File). Multiple attachments show a paperclip icon and the translated attachment count. The label uses loaded message metadata and does not load thumbnails.
 - PDF attachments open automatically in the browser's native PDF viewer when the browser reports inline PDF support. The file type must be PDF; a `.pdf` filename alone does not enable the preview. Browsers without this capability show the download fallback without loading the document. Native controls vary by browser. Download stays available when a document cannot render because the browser does not reliably report these failures to Chatto. Preview requests use the attachment server and its configured storage, with no external document-viewer service.
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
-- A message can have up to 10 attachments. The composer adds only the valid files that fit and shows a warning when it skips extra files. Files still being prepared count toward this limit. A draft change discards unfinished preparation from the previous draft.
+- A message can have up to 10 attachments. The composer adds only the valid files that fit and shows a warning when it skips extra files. Files still being prepared count toward this limit. A draft change discards unfinished preparation from the previous draft. Changing between the visual and Markdown editors keeps the same draft, including files still being prepared.
 - Draft attachments persist across room switches inside the same session.
 - Message attachments are uploaded through `chatto.api.v1.AssetUploadService` before message creation. The browser sends bounded unary chunks with SHA-256 checksums, then calls `MessageService.CreateMessage` with completed attachment asset IDs.
 - A completed asset can be attached only by its uploader and to one exact message. Reusing another member's asset ID, or reusing one's own already-attached asset ID, is rejected.
@@ -27,6 +27,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
 - The room timeline loads attachment images within 960×400 bounds, while the lightbox loads a separate derivative within 2048×2048 bounds. The untouched upload remains available through the viewer’s Download action.
+- The attachment viewer opens and closes with a short zoom and fade. Reduced
+  motion disables the effect.
 - Right-clicking an image attachment in a message opens the message menu with **Copy Image**. It copies the displayed image as PNG. Other message menu actions remain available. The image URL is not offered as a copy action because it contains a temporary access ticket.
 - When enabled, videos and animated GIFs are processed by durable `asset-processing` runtime-unit workers. The processing marker commits atomically with the owning message, so a rejected message cannot create work and an accepted message remains queued while workers are offline. Workers may run inside `chatto run` or as separate `chatto asset-processing` processes.
 - Processing status: durable STARTED / COMPLETED / FAILED outcomes are stored as asset aggregate events (`evt.asset.{assetId}.*`) and delivered through the normal live EVT subscription path after room-membership authorization and the applicable message-read check for the owning thread. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos keep the original message visible and show a processing-failed state, while the retained original remains available through the attachment's original/download action.

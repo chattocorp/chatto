@@ -5,6 +5,27 @@
 @import 'tailwindcss' source('./');
 @import './prose.css';
 @import './composer.css';
+@import './view-transitions.css';
+
+/* Both CSS and JavaScript use the effective app motion policy. */
+@custom-variant motion-reduce (&:where([data-motion='reduced'], [data-motion='reduced'] *));
+@custom-variant motion-safe (&:where([data-motion='full'], [data-motion='full'] *));
+
+/* Keep the timed, static message-location cue; finish other CSS animations
+   immediately so completion events and final states still work. */
+:root[data-motion='reduced'] *:not(.highlight-flash),
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
 
 /* Registered numbers let the whole design system interpolate depth together. */
 @property --depth-strength {
@@ -186,6 +207,10 @@
  * content fitting; only narrow touch-capable windows use mobile presentation. */
 @custom-variant touch-input (@media (any-pointer: coarse));
 @custom-variant compact-input (@media not all and (any-pointer: coarse));
+/* Density follows the primary pointer.
+ * Capability variants above still own gesture and action availability. */
+@custom-variant comfortable-density (@media (pointer: coarse));
+@custom-variant compact-density (@media not all and (pointer: coarse));
 @custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
 @custom-variant desktop-presentation {
   @media (width >= 768px) {
@@ -867,6 +892,9 @@
   &:has([data-pane-content='wide']) {
     --pane-header-max-width: calc(var(--container-pane-wide) - 1rem);
   }
+  &:has([data-pane-content='fluid']) {
+    --pane-header-max-width: 100%;
+  }
 }
 
 /* Panel/card shells provide the outer surface frame. Their content sits on a
@@ -1050,7 +1078,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .loading-fog::before,
   .loading-fog::after {
     animation: none;
@@ -1322,9 +1350,9 @@
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* Keep touch targets available on hybrid devices even when a mouse is present. */
+/* The composer uses the same primary-pointer density as navigation and menus. */
 @utility pill-button-group-touch {
-  @media (any-pointer: coarse) {
+  @variant comfortable-density {
     height: 44px;
     min-height: 44px;
     & > button {
@@ -1662,7 +1690,7 @@
   --tw-ease: var(--motion-easing-feedback);
   transition-duration: var(--motion-duration-feedback);
   transition-timing-function: var(--motion-easing-feedback);
-  @media (prefers-reduced-motion: reduce) {
+  :where([data-motion='reduced']) & {
     /* Zero timing also wins when a property utility follows this utility. */
     --motion-duration-feedback: 0ms;
   }
@@ -1673,7 +1701,7 @@
   &:popover-open {
     animation: overlay-enter var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
   }
-  @media (prefers-reduced-motion: reduce) {
+  :where([data-motion='reduced']) & {
     &:popover-open {
       animation: none;
     }
@@ -1730,7 +1758,9 @@
 
 @utility checkbox-box {
   @apply control-well;
-  @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
+  @apply grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
+  /* Centre the indicator on the first title line, regardless of help-text height. */
+  margin-block-start: calc((1lh - 1.25rem) / 2);
   @apply transition-[background-color,border-color,color] feedback-quick;
 }
 
@@ -1746,7 +1776,7 @@
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
   @apply option-depth;
-  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-start transition-colors feedback-quick;
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 text-start transition-colors feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -1758,6 +1788,8 @@
 @utility choice-indicator {
   @apply control-well;
   @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors feedback-quick;
+  /* Match checkbox alignment to the first title line. */
+  margin-block-start: calc((1lh - 1.25rem) / 2);
 }
 
 @utility choice-indicator-selected {
@@ -1781,11 +1813,96 @@
 
 /* Mention styling in messages */
 .mention {
-  @apply cursor-pointer rounded-sm bg-action/20 px-0.5 font-semibold text-action;
+  @apply cursor-pointer rounded-sm bg-action/10 px-0.5 font-semibold text-action;
 }
 
 .mention-self {
   @apply bg-attention/20 text-text;
+}
+
+/* These links have a touch preview sheet. Suppress WebKit's native touch
+   callout so it does not compete with that sheet; mouse menus remain native. */
+@utility link-preview-trigger {
+  -webkit-touch-callout: none;
+}
+
+/* Borderless inline links use surface contrast without the Inset Frame's outlines. */
+@utility inline-link-pill {
+  --inline-link-radius: 6px;
+  @apply inline-flex cursor-pointer items-baseline gap-1 bg-surface-emphasized px-1.5 align-baseline leading-[1.25] font-normal text-text no-underline transition-[background-color,color] feedback-quick hover:bg-surface-selected hover:text-text-top;
+  border-radius: var(--inline-link-radius);
+}
+
+/* Web and entity links share the same segmented surface. */
+.url-link,
+.entity-link {
+  @apply inline-link-pill max-w-full gap-0 overflow-hidden px-0;
+  --url-link-shade: 3%;
+  --url-link-surface: var(--color-surface-emphasized);
+  /* One dark backing makes all four corners of the raised label visible. */
+  background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
+}
+
+.url-link {
+  max-width: min(100%, 28rem);
+}
+
+.url-link:hover,
+.entity-link:hover {
+  --url-link-surface: var(--color-surface-selected);
+  background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
+}
+
+.url-link-main,
+.link-pill-main {
+  @apply relative inline-flex min-w-0 items-baseline gap-1.5 rounded-[var(--inline-link-radius)] px-1.5 py-px;
+  background-color: var(--url-link-surface);
+  box-shadow:
+    0 0 2px 1px rgb(0 0 0 / 45%),
+    0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.url-link-icon,
+.link-pill-icon {
+  @apply inline-flex shrink-0 items-center self-center text-[0.85em] text-muted;
+}
+
+.url-link-host,
+.link-pill-meta {
+  @apply inline-flex shrink-0 items-center self-stretch px-1.5 text-[0.85em] text-muted;
+}
+
+.link-pill-meta {
+  @apply max-w-[40%] min-w-0;
+}
+
+.url-link-host {
+  /* Use the host's natural width; reserve room for the title on narrow lines. */
+  min-width: 0;
+  max-width: calc(100% - 3rem);
+}
+
+.link-pill-icon-image {
+  @apply size-[1.25em] text-[1em];
+}
+
+.link-pill-main-image {
+  padding-inline-start: 1px;
+}
+
+.url-link-main:has(> .url-link-icon),
+.link-pill-main:has(> .link-pill-icon:not(.link-pill-icon-image)) {
+  padding-inline-start: 4px;
+}
+
+.link-pill-main-avatar {
+  padding-inline-start: 2px;
+}
+
+/* Muted text needs a lighter backing in light mode to retain readable contrast. */
+:root[data-theme='dark'] .url-link,
+:root[data-theme='dark'] .entity-link {
+  --url-link-shade: 20%;
 }
 
 .message-timestamp {
@@ -1796,19 +1913,66 @@
   @apply text-[0.78em] text-muted;
 }
 
-/* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
-@utility embed-frame {
-  @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface shadow-sm outline-[3px] outline-offset-0 outline-surface-strong transition-shadow hover:shadow-md focus-visible:shadow-md;
+/* Inset Frame: the shared shell for menus, palettes, and previews.
+ * Layout, clipping, elevation, and interactions belong to its consumers. */
+@utility inset-frame {
+  @apply rounded-lg border border-text/10 floating-frame text-text;
+  /* A default rim must not override a row's attachment-card or p-* spacing. */
+  :where(&) {
+    @apply p-1;
+  }
 }
 
-@utility embed-control-button {
-  @apply absolute end-1 top-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 focus-visible:opacity-100 active:scale-[0.96] compact-input:hover-actions:opacity-0;
-  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100;
+@utility inset-content {
+  @apply rounded-md bg-background floating-inset;
+}
+
+/* Preview variants add clipping and elevation, never a second frame recipe. */
+@utility preview-frame {
+  @apply overflow-hidden inset-frame shadow-sm;
+}
+
+@utility preview-content {
+  @apply overflow-hidden inset-content;
+}
+
+@utility preview-thumbnail {
+  @apply overflow-hidden inset-content border border-text/10;
+}
+
+/* Posted code and the visual editor share a frame and a scrollable inset canvas. */
+@utility preview-code {
+  @apply relative preview-frame p-1 font-mono text-sm;
+  direction: ltr;
+  unicode-bidi: isolate;
+  line-height: 1.5;
+
+  & > code {
+    @apply block preview-content overflow-x-auto px-3 py-2;
+    padding-inline-end: 5.5rem;
+    color: var(--composer-code-text);
+    font-size: inherit;
+    line-height: inherit;
+    white-space: pre;
+  }
+}
+
+@utility preview-toolbar {
+  /* Use the theme surface so the visor follows light, dark, and contrast settings. */
+  @apply pointer-events-none absolute inset-x-1 top-1 z-10 flex items-center justify-end gap-1 rounded-t-md bg-surface/50 p-1 transition-opacity feedback-quick;
+  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0;
+
+  /* Only the controls intercept clicks; links and media under the visor stay usable. */
+  & > * {
+    @apply pointer-events-auto compact-input:hover-actions:pointer-events-none;
+    @apply group-focus-within/preview:pointer-events-auto group-hover/preview:pointer-events-auto focus-within:pointer-events-auto;
+  }
 }
 
 @utility attachment-action-button {
   /* Pair with a standard button tone; it owns the shared depth and feedback. */
   @apply h-7 min-h-7 w-7 min-w-7 shrink-0 rounded-md p-0 text-sm;
+  @apply icon-action-emphasis;
 }
 
 @utility attachment-card {
@@ -1820,7 +1984,7 @@
 
   /* Put spacing outside the overlay's containing block so the top and end
    * offsets both start at the visible media frame. */
-  & > .embed-frame {
+  & > .preview-frame {
     @apply my-0;
   }
 }
@@ -1830,7 +1994,7 @@
 
   /* Keep the action row above the player's bottom controls, even
    * when a narrow message reduces the video's natural display height. */
-  & > .embed-frame,
+  & > .preview-frame,
   & > video {
     @apply min-h-48;
   }
@@ -1840,9 +2004,44 @@
   @apply transition-colors;
 }
 
+/* Lift a surface directly, or when its enclosing hover-lift-group is hovered. */
+@utility hover-lift {
+  @apply transition-transform duration-150;
+
+  @media (hover: hover) {
+    &:where([data-motion='full'] *):hover,
+    :where([data-motion='full']) .hover-lift-group:hover & {
+      @apply -translate-y-0.5;
+    }
+  }
+}
+
 /* Shimmer hover effect */
 @utility shimmer-hover {
   @apply relative overflow-hidden;
+}
+
+/* Keep adjacent segmented controls content-sized until they wrap. Each control
+   then grows across its line, including its option labels and selection pill. */
+@utility segmented-control-group {
+  @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
+
+  & > [role='radiogroup'] {
+    @apply w-max flex-auto;
+  }
+
+  & > [role='radiogroup'] > label {
+    @apply grow;
+  }
+
+  & > fieldset > label > span {
+    @apply w-full;
+  }
+}
+
+/* Lower-priority metadata retains enough of its inherited color for readable contrast. */
+@utility text-subdued {
+  @apply text-current/90;
 }
 
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
@@ -1915,10 +2114,15 @@
   @apply min-w-0 flex-1 space-y-1;
 }
 
+/* Shared foreground feedback for quiet and filled icon controls. */
+@utility icon-action-emphasis {
+  @apply not-disabled:hover:text-text-top not-disabled:focus-visible:text-text-top;
+}
+
 /* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
 @utility icon-action-feedback {
-  @apply rounded-lg text-muted transition-[background-color,color] feedback-quick;
-  @apply not-disabled:hover:bg-text/5 not-disabled:hover:text-text-top not-disabled:active:bg-text/10;
+  @apply rounded-lg icon-action-emphasis text-muted transition-[background-color,color] feedback-quick;
+  @apply not-disabled:hover:bg-text/5 not-disabled:active:bg-text/10;
   @apply focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
 }
 
@@ -1927,6 +2131,7 @@
    `pane-header-icon-button-active` to mark the selected panel. */
 @utility pane-header-icon-button {
   @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center icon-action-feedback bg-transparent leading-none;
+  @apply comfortable-density:h-11 comfortable-density:w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1936,6 +2141,7 @@
    with a `pane-header` container query when the header has room. */
 @utility pane-header-label-button {
   @apply inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 leading-none whitespace-nowrap;
+  @apply comfortable-density:h-11 comfortable-density:min-w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1991,6 +2197,7 @@
 }
 
 .shimmer-hover:hover::before,
+.shimmer-group:hover .shimmer-hover::before,
 .server-gutter-item:hover::before {
   animation: shimmer-sweep 450ms ease-out forwards;
 }
@@ -2001,29 +2208,68 @@
   }
 }
 
-/* A gutter logo sits inside another shimmer surface; only the outer one sweeps. */
+/* A gutter logo defers to the outer shimmer. */
 .server-gutter-item .shimmer-hover::before {
   display: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .shimmer-hover:hover::before,
+  .shimmer-group:hover .shimmer-hover::before,
   .server-gutter-item:hover::before {
     animation: none;
   }
 }
 
 @utility highlight-flash {
+  --jump-edge: 3px;
   animation: highlight-flash 1.5s ease-out;
+  &:dir(rtl) {
+    --jump-edge: -3px;
+  }
 }
 
 @keyframes highlight-flash {
   0%,
-  15% {
-    background-color: color-mix(in oklch, var(--color-warning) 20%, transparent);
+  30% {
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
   }
   100% {
     background-color: transparent;
+    box-shadow: inset var(--jump-edge) 0 transparent;
+  }
+}
+
+.copy-feedback [data-copy-check],
+.copy-feedback[data-copied] [data-copy-icon] {
+  display: none;
+}
+.copy-feedback[data-copied] [data-copy-check] {
+  display: inline-block;
+  animation: copy-confirmation 160ms ease-out;
+}
+@keyframes copy-confirmation {
+  from {
+    transform: scale(0.75);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes highlight-still {
+  from,
+  to {
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
+  }
+}
+:root[data-motion='reduced'] {
+  .highlight-flash {
+    animation-name: highlight-still;
+  }
+  .copy-feedback[data-copied] [data-copy-check] {
+    animation: none;
   }
 }
 
@@ -2214,7 +2460,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .typing-dot,
   .loading-dot,
   .quick-switcher[open],
@@ -2272,15 +2518,17 @@
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
-  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] feedback-quick;
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center text-3xl transition-[background-color,color] feedback-quick;
   @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
   @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+  /* The 44 px logo has rounded-xl corners inside a 48 px frame. */
+  border-radius: calc(var(--radius-xl) + 2px);
 }
 
 /* Paint above server artwork so image logos and fallback initials get the same rim.
  * The overlay does not intercept links or notification controls. */
 .server-gutter-item::after {
-  @apply pointer-events-none absolute inset-0 z-1 rounded-xl shell-lighting;
+  @apply pointer-events-none absolute inset-0 z-1 rounded-[inherit] shell-lighting;
   content: '';
 }
 
@@ -2302,7 +2550,7 @@
   outline-color: var(--color-action);
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .sidebar-drop-target {
     transition: none;
   }
@@ -2324,6 +2572,11 @@
   --lighting-edge-bottom: var(--frame-edge-shade);
 }
 
+/* Compact informational cards share the same surface as menus and panels. */
+@utility preview-surface {
+  @apply w-72 preview-frame text-sm leading-snug shadow-xl;
+}
+
 /* A soft inner edge makes content sit below the surrounding floating frame. */
 @utility floating-inset {
   @apply surface-lowered;
@@ -2341,10 +2594,6 @@
   padding-inline-start: max(1rem, env(safe-area-inset-left));
   padding-inline-end: max(1rem, env(safe-area-inset-right));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
-
-  & :is(.menu-section, .menu-section-sm) {
-    @apply floating-inset;
-  }
 }
 
 /* The outer app frame meets the window edge without a depth highlight. */
@@ -2424,16 +2673,53 @@
   /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
      (which is pure white in dark mode, not the app's slightly-off neutral-100).
      Menu items that need a different color still override it on their own. */
-  @apply rounded-lg border border-text/10 floating-frame p-1 text-sm text-text shadow-xl;
+  @apply inset-frame text-sm shadow-xl;
+}
 
-  & :is(.menu-section, .menu-section-sm) {
-    @apply floating-inset;
+/* Palettes retain the app header even while their search opens the keyboard. */
+@media (width < 48rem) {
+  body[data-keyboard-open]:has(.palette-dialog[open]) .app-header {
+    display: flex;
   }
 }
 
 /* Quick navigation uses the menu frame with a larger search and result rhythm. */
+@utility palette-dialog {
+  @apply fixed z-60 m-auto mt-[15vh] max-h-none max-w-none overflow-visible;
+  @media (width < 48rem) {
+    --palette-top: max(
+      var(--modal-viewport-top, 0px),
+      calc(var(--app-header-height) + env(safe-area-inset-top, 0px))
+    );
+    margin: 0;
+    top: var(--palette-top);
+    bottom: auto;
+    width: 100%;
+    height: calc(
+      var(--modal-viewport-height, 100dvh) + var(--modal-viewport-top, 0px) - var(--palette-top)
+    );
+    overflow: hidden;
+    &[open]::backdrop {
+      background: transparent;
+    }
+  }
+}
+
 @utility command-palette {
-  @apply flex w-140 max-w-[calc(100vw-2rem)] flex-col gap-1 menu rounded-lg p-1 text-sm;
+  @apply flex min-h-0 w-full flex-col gap-0 bg-background text-base;
+  @media (width < 48rem) {
+    height: 100%;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    & :is(.menu-section, .menu-section-sm) {
+      border-radius: 0;
+      /* Full-pane mobile results remain flat, without desktop inset lighting. */
+      box-shadow: none;
+      outline: none;
+    }
+  }
+  @media (width >= 48rem) {
+    @apply w-140 max-w-[calc(100vw-2rem)] gap-1 menu;
+  }
 }
 
 @utility command-palette-leading {
@@ -2441,7 +2727,16 @@
 }
 
 @utility command-palette-result {
-  @apply menu-entry gap-2 px-2 py-1;
+  @apply menu-entry command-palette-row;
+}
+
+/* Shared geometry for actionable results and noninteractive shortcut rows. */
+@utility command-palette-row {
+  @apply flex min-h-8 items-center gap-2 px-2 py-1 comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
+}
+
+@utility command-palette-heading {
+  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase comfortable-density:px-3;
 }
 
 @utility command-palette-result-active {
@@ -2453,11 +2748,11 @@
 }
 
 @utility menu-section {
-  @apply rounded-md bg-background p-1;
+  @apply inset-content p-1;
 }
 
 @utility menu-section-sm {
-  @apply rounded-md bg-background p-0.5;
+  @apply inset-content p-0.5;
 }
 
 @utility menu-item {
@@ -2473,7 +2768,7 @@
 @utility menu-entry {
   @apply select-none;
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
-  @apply touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
+  @apply comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -2511,6 +2806,53 @@
     calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)))
   );
   bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
+}
+
+/* TouchPressFeedback marks only the innermost action for a primary touch press.
+ * Do not wait for native :active, which can start after touch release. */
+@layer utilities {
+  [data-touch-ripple-host] {
+    position: relative;
+  }
+
+  .touch-ripple {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+    @variant motion-reduce {
+      display: none;
+    }
+  }
+
+  .touch-ripple-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+  }
+
+  [data-touch-pressed]:not(:disabled, [aria-disabled='true']) {
+    opacity: 0.65;
+    @variant motion-safe {
+      /* Keep the separate translate property available for control positioning. */
+      transform: translate(1px, 1px);
+    }
+    /* A short tap must not finish before the feedback becomes visible. */
+    transition-duration: 0s;
+  }
+
+  /* Relative offsets move inline fragments without changing line wrapping. */
+  [data-touch-pressed][data-press-inline] {
+    @variant motion-safe {
+      position: relative;
+      left: 1px;
+      top: 1px;
+      transform: none;
+    }
+  }
 }
 
 @layer base {
@@ -2599,8 +2941,13 @@ body[data-resizing-sidebar] {
   user-select: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    transition: none;
-  }
+:root[data-motion='reduced'] {
+  transition: none;
+}
+/* Keep the editable URL in ProseMirror; hide its anchor too so it is not an empty
+   accessible link. The separate boundary widget preserves caret placement. */
+.composer-entity-preview:has(.entity-link, .url-link) + * .composer-entity-source,
+.composer-entity-preview:has(.entity-link, .url-link) + a:has(.composer-entity-source),
+.composer-entity-preview:has(.entity-link, .url-link) + .composer-entity-source {
+  display: none;
 }

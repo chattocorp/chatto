@@ -12,6 +12,11 @@ The config component uses snapshot contract `v3`. Timezone-clear events retain
 an empty optional value for an explicit browser-default choice. Older snapshots
 are rebuilt from EVT because they represented that choice as an absent value.
 
+The config component also retains registration admission from
+`ServerRegistrationAdmissionChangedEvent`. Its snapshot includes the enum.
+Absent policy defaults to open; unknown values remain intact and account
+creation rejects them. The changed snapshot schema selects a new fingerprint.
+
 Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/internal/core/server_content_view.go`](../../cli/internal/core/server_content_view.go), [`cli/internal/core/room_timeline_projection.go`](../../cli/internal/core/room_timeline_projection.go), [`cli/internal/core/room_timeline_hydrator.go`](../../cli/internal/core/room_timeline_hydrator.go), [`cli/internal/evtstream/reader.go`](../../cli/internal/evtstream/reader.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/component_projection.go`](../../pkg/events/component_projection.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/projectionsnapshot/cohort.go`](../../cli/internal/projectionsnapshot/cohort.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go), and [`proto/chatto/core/projection/v1`](../../proto/chatto/core/projection/v1)
 
 Projections are derived read models rebuilt from an event log. Most live in
@@ -55,10 +60,11 @@ read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
 projector.
 
-`InvitationModel` derives a process-local 16-character invite-token lookup
+`InvitationModel` derives a process-local 20-character invitation-code lookup
 index from the cold-replayed Invitation projection. The index contains no
 additional durable facts or stored bearer values and is rebuilt whenever the
-append-only projected invitation identity count changes.
+append-only projected invitation identity count changes. Each invitation is
+single-use. The projection retains its expiry, used state, and revocation.
 
 `CallModel`, `AssetModel`, and `UserModel` own their projection reads for domain
 logic and API adapters. Call state, assets, user profiles, and content keys are
@@ -135,8 +141,11 @@ the owner. These labels do not change snapshot keys or durable worker names.
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
 not inspect consumer sequence numbers or raw JetStream metadata. An optional
-startup-batch capability groups only the replay through the target captured at
-startup; live events continue through individual `Apply` calls.
+startup-batch capability groups replay through the target captured at startup.
+An independent live-batch capability groups later events by count and a timer.
+Both commit under the apply barrier and advance waiters only after success.
+Buffered live events can be discarded on shutdown and replayed from the last
+committed checkpoint. Projections without either capability use `Apply`.
 
 The ordered replay lifecycle receives decoded application events through
 `events.EventDecoder[E]`. Chatto's `evtstream.NewProjector` constructor
@@ -198,7 +207,10 @@ generation, and user key shredding event families, and uses projector key
 
 During captured startup replay it commits up to 256 ordered events and the
 final checkpoint in one Bleve transaction, including a smaller final batch;
-once current, each relevant live event is committed immediately.
+once current, it commits up to 256 live events per transaction. A 10 ms timer
+flushes smaller batches. This bounds buffer delay, not storage commit time.
+Each batch commits the index changes and final checkpoint together, so a
+restart cannot skip uncommitted events.
 Its checkpoint contract starts with `bleve-message-index-v12-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.
@@ -245,7 +257,9 @@ Snapshot codecs map projection state to dedicated `projection/v1` records;
 transport adapters map read results to public API records. The
 [`snapshot adapters`](../../cli/internal/core/read_model_snapshots.go) exclude
 hydrated login, display name, and bio structurally. Room snapshots retain raw
-threading enum values before read-time normalization. Legacy group and link
+threading enum values before read-time normalization and the room-owned membership
+activity display setting. Creation facts initialize that setting to true, including
+historical creation facts. Legacy group and link
 records live with `RoomLayout` in `runtime_state/v1/legacy_state.proto`. Event-owned
 values stay in `evt/v1/event_values.proto`. See
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
@@ -371,6 +385,8 @@ Reactions interns emoji, user, and room IDs in one table and message IDs in
 the shared event ID table. It keeps the source event ID of each active
 reaction as a string, because each source ID occurs only once. Each message
 has a short slice of active reactions, sorted by emoji and user handles.
+Emoji handles retain exact case-sensitive reaction names, including names outside
+the bundled catalogue. Replay does not resolve aliases or require emoji assets.
 
 Timeline, Threads, and Reactions construct detached read results.
 
@@ -469,7 +485,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Notification list                   | Notifications          | `notifications.signalled`, `notifications.read`, `notifications.removed`, `notifications.alert_resolved`                                                                                                                                         | Current exact occurrence state, minimal anti-recreation tombstones, source-signal stream sequences for secure deletion, semantic expiry, list/count reads, realtime replacement, and push-delivery idempotency                                                                                                                             |
 | User authentication                 | User Auth              | Focused account, password, external-identity, consent, deletion, and key-shredding user facts. Identity unlink events preserve auth generation when `preserve_existing_credentials` is set; historical events without it advance the generation. | `UserModel`; password verifiers, auth generations, external identity links, and OAuth consent keyed by stable client ID (legacy facts by redirect origin); always cold-replayed                                                                                                                                                            |
 | OAuth clients                       | OAuth Clients          | `evt.oauth_client.>`                                                                                                                                                                                                                             | `OAuthClientModel`; validated metadata and callback origins for successfully authorized clients, distinct authorized-user counts, and administrative default/trusted/blocked policy; always cold-replayed                                                                                                                                  |
-| Invitations                         | Invitations            | `evt.invitation.>`                                                                                                                                                                                                                               | `InvitationModel`; immutable constraints, redemption count, revocation state, and administrator listings; always cold-replayed                                                                                                                                                                                                             |
+| Invitations                         | Invitations            | `evt.invitation.>`                                                                                                                                                                                                                               | `InvitationModel`; immutable constraints and manager-only notes, used state, revocation state, and administrator listings; always cold-replayed                                                                                                                                                                                            |
 | Room invitations                    | Room invitations       | `evt.room.>`                                                                                                                                                                                                                                     | `RoomInvitationModel`; participant history and pending room-recipient index; always cold-replayed                                                                                                                                                                                                                                          |
 
 Registered projector keys are used by metrics and automation. Registered names

@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Vytváření účtů",
+      "open": "Otevřená registrace",
+      "invite_only": "Vyžadován kód pozvánky",
+      "open_description": "Kdokoli si může vytvořit účet pomocí nakonfigurovaných způsobů registrace.",
+      "invite_only_description": "Nové účty vyžadují jednorázový kód pozvánky. Stávající uživatelé se mohou nadále přihlašovat.",
+      "methods": "Nakonfigurované způsoby registrace",
+      "methods_configuration": "Způsoby registrace se spravují v konfiguraci hostingu tohoto serveru.",
+      "email_password": "E-mail a heslo",
+      "no_methods": "Nejsou povoleny žádné způsoby registrace. Uživatelé nemohou vytvářet účty v žádném režimu."
+    },
     "neighbors": {
       "title": "Sousedé",
       "subtitle": "Propagujte spřátelené servery Chatto ve svém veřejném adresáři",
@@ -254,6 +265,10 @@
         "name_title": "Název a popis",
         "name_subtitle": "Členové je vidí v seznamu místností a v horní části místnosti.",
         "visibility_title": "Viditelnost",
+        "membership_events_title": "Aktivita členů",
+        "show_membership_events": "Zobrazit příchody a odchody",
+        "membership_events_description": "Zobrazit, kdy se lidé připojí k této místnosti nebo ji opustí, včetně historie. Skrytím se tato aktivita neodstraní.",
+        "membership_events_unavailable": "Chcete-li změnit zobrazení aktivity členů, aktualizujte tento server.",
         "visibility_subtitle": "Určete, kdo je členem této místnosti.",
         "universal_description": "Každý člen, který se může připojit k této místnosti, je automaticky jejím členem.",
         "visibility_help": "Univerzální místnost použijte pro zprávy, které musí dostat všichni členové, například oznámení. Členové nemohou univerzální místnost opustit, ale mohou ji ztlumit. Pokud univerzální režim vypnete, členové, kteří se připojili dříve, v místnosti zůstanou.",
@@ -571,36 +586,30 @@
       "total": "Celkem {count} uživatelů"
     },
     "invitations": {
-      "title": "Zvací odkazy",
-      "subtitle": "Vytvářejte a spravujte odkazy, přes které se mohou registrovat nové účty.",
-      "create_title": "Vytvořit zvací odkaz",
-      "max_uses": "Maximální počet použití",
-      "max_uses_error": "Zadejte celé číslo alespoň 1.",
-      "unlimited_uses": "Povolit neomezený počet použití",
-      "expiry": "Platnost",
-      "expiry_1d": "1 den",
-      "expiry_7d": "7 dní",
-      "expiry_30d": "30 dní",
-      "expiry_never": "Nikdy",
-      "create": "Vytvořit zvací odkaz",
-      "created": "Zvací odkaz vytvořen",
-      "list_title": "Zvací odkazy",
-      "empty": "Zatím žádné zvací odkazy.",
-      "uses": "Použití",
+      "management_help": "Kódy pozvánek umožňují ostatním připojit se k tomuto serveru.",
+      "created_by": "Vytvořil",
+      "note_label": "Poznámka (volitelná)",
+      "note_placeholder": "Pro Alexe z designového týmu",
+      "note_description": "Tuto poznámku vidíte vy a správci pozvánek.",
+      "note_too_long": "Použijte nejvýše 250 znaků.",
+      "usage": "Nové kódy platí 7 dní a každý umožňuje vytvořit jeden účet. Zkopírujte kód a pošlete jej příjemci. Kód se použije až po úspěšné registraci.",
+      "create_title": "Vytvořit kód",
+      "create": "Vytvořit kód",
+      "created": "Kód pozvánky vytvořen",
+      "list_title": "Kódy pozvánek",
+      "empty": "Zatím nejsou žádné kódy pozvánek.",
       "created_at": "Vytvořeno",
       "actions": "Akce",
       "never": "Nikdy",
-      "copy": "Kopírovat odkaz",
-      "copied": "Zvací odkaz zkopírován",
       "revoke": "Odvolat",
-      "revoked": "Zvací odkaz odvolán",
-      "revoke_title": "Odvolat zvací odkaz?",
-      "revoke_description": "Přes tento odkaz se okamžitě přestanou registrovat nové účty.",
+      "revoked": "Kód pozvánky zrušen",
+      "revoke_title": "Zrušit kód?",
+      "revoke_description": "Tento kód okamžitě přestane umožňovat vytváření nových účtů.",
       "status": {
         "active": "Aktivní",
         "expired": "Vypršel",
-        "exhausted": "Vyčerpán",
-        "revoked": "Odvolán"
+        "revoked": "Odvolán",
+        "used": "Použitý"
       }
     }
   }

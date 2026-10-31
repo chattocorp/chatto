@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Accounts aanmaken",
+      "open": "Open registratie",
+      "invite_only": "Uitnodigingscode vereist",
+      "open_description": "Iedereen kan een account aanmaken met de ingestelde registratiemethoden.",
+      "invite_only_description": "Nieuwe accounts vereisen een eenmalige uitnodigingscode. Bestaande gebruikers kunnen zich nog steeds aanmelden.",
+      "methods": "Ingestelde registratiemethoden",
+      "methods_configuration": "Registratiemethoden worden beheerd in de hostingconfiguratie van deze server.",
+      "email_password": "E-mail en wachtwoord",
+      "no_methods": "Er zijn geen registratiemethoden ingeschakeld. Gebruikers kunnen in geen van beide modi accounts aanmaken."
+    },
     "neighbors": {
       "title": "Buren",
       "subtitle": "Promoot bevriende Chatto-servers in je openbare gids",
@@ -254,6 +265,10 @@
         "name_title": "Naam en beschrijving",
         "name_subtitle": "Leden zien deze in de lijst met kamers en bovenaan de kamer.",
         "visibility_title": "Zichtbaarheid",
+        "membership_events_title": "Ledenactiviteit",
+        "show_membership_events": "Toon deelname- en vertrekgebeurtenissen",
+        "membership_events_description": "Toon wanneer mensen deze kamer betreden of verlaten, ook in de geschiedenis. Deze activiteit verbergen verwijdert deze niet.",
+        "membership_events_unavailable": "Werk deze server bij om te wijzigen hoe ledenactiviteit wordt weergegeven.",
         "visibility_subtitle": "Kies wie lid is van deze kamer.",
         "universal_description": "Elk lid dat deze kamer kan betreden, is automatisch lid.",
         "visibility_help": "Gebruik een universele kamer voor nieuws dat alle leden moeten krijgen, zoals aankondigingen. Leden kunnen een universele kamer niet verlaten, maar ze kunnen de kamer dempen. Als je universeel uitzet, blijven de leden die eerder lid werden in de kamer.",
@@ -549,36 +564,30 @@
       "total": "{count} gebruiker(s) totaal"
     },
     "invitations": {
-      "title": "Uitnodigingslinks",
-      "subtitle": "Maak en beheer links waarmee nieuwe accounts kunnen worden aangemaakt.",
-      "create_title": "Uitnodigingslink maken",
-      "max_uses": "Maximaal aantal keer gebruiken",
-      "max_uses_error": "Voer een geheel getal van minstens 1 in.",
-      "unlimited_uses": "Onbeperkt gebruik toestaan",
-      "expiry": "Verloopt",
-      "expiry_1d": "1 dag",
-      "expiry_7d": "7 dagen",
-      "expiry_30d": "30 dagen",
-      "expiry_never": "Nooit",
-      "create": "Uitnodigingslink maken",
-      "created": "Uitnodigingslink gemaakt",
-      "list_title": "Uitnodigingslinks",
-      "empty": "Nog geen uitnodigingslinks.",
-      "uses": "Gebruikt",
+      "management_help": "Met uitnodigingscodes kunnen andere mensen lid worden van deze server.",
+      "created_by": "Gemaakt door",
+      "note_label": "Notitie (optioneel)",
+      "note_placeholder": "Voor Alex van het ontwerpteam",
+      "note_description": "Jij en uitnodigingsbeheerders kunnen deze notitie zien.",
+      "note_too_long": "Gebruik maximaal 250 tekens.",
+      "usage": "Nieuwe codes verlopen na 7 dagen en zijn elk voor één account. Kopieer een code en stuur deze naar de ontvanger. De code wordt pas gebruikt als de registratie slaagt.",
+      "create_title": "Code maken",
+      "create": "Code maken",
+      "created": "Uitnodigingscode gemaakt",
+      "list_title": "Uitnodigingscodes",
+      "empty": "Nog geen uitnodigingscodes.",
       "created_at": "Gemaakt",
       "actions": "Acties",
       "never": "Nooit",
-      "copy": "Link kopiëren",
-      "copied": "Uitnodigingslink gekopieerd",
       "revoke": "Intrekken",
-      "revoked": "Uitnodigingslink ingetrokken",
-      "revoke_title": "Uitnodigingslink intrekken?",
-      "revoke_description": "Met deze link kunnen vanaf nu geen nieuwe accounts meer worden aangemaakt.",
+      "revoked": "Uitnodigingscode ingetrokken",
+      "revoke_title": "Code intrekken?",
+      "revoke_description": "Deze code geeft onmiddellijk geen toegang meer voor nieuwe accounts.",
       "status": {
         "active": "Actief",
         "expired": "Verlopen",
-        "exhausted": "Opgebruikt",
-        "revoked": "Ingetrokken"
+        "revoked": "Ingetrokken",
+        "used": "Gebruikt"
       }
     }
   }

@@ -69,6 +69,140 @@ async function scanRoute(page: Page, state: string, route: string): Promise<void
 }
 
 test.describe('Route accessibility', () => {
+  test('touch link preview sheet meets WCAG A and AA rules', async ({
+    page,
+    chatPage,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await roomPage.sendMessage(`[Preview destination](${serverURL})`, 'Preview destination');
+    await page.setViewportSize({ width: 390, height: 600 });
+    const link = roomPage
+      .getMessage('Preview destination')
+      .locator.getByRole('link', { name: 'Preview destination', exact: true });
+    const touch = await page.context().newCDPSession(page);
+    await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    await link.click({ trial: true });
+    const bounds = await link.boundingBox();
+    expect(bounds).not.toBeNull();
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2 }]
+    });
+    // Hold through both link and message timers. Pointer-only synthetic events
+    // miss the browser's touch events and compatibility mouse events.
+    await page.waitForTimeout(750);
+    // Chrome's device emulation can retarget the long-press context menu
+    // into the sheet that has just opened, rather than the original link.
+    await page.getByTestId('link-touch-preview').dispatchEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 180,
+      clientY: 300
+    });
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const sheet = page.getByRole('dialog', { name: 'Open link', exact: true });
+    await expect(sheet).toBeVisible();
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await expectNoAccessibilityViolations(page, 'touch link preview', 'dialog[open]');
+    await expect(sheet.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
+    await sheet.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(sheet).toBeHidden();
+    await expect(link).toBeVisible();
+  });
+
+  test('Invites and Registration pages meet WCAG A and AA rules', async ({ page }) => {
+    await loginAsAdmin(page);
+    await connectPost(page, 'chatto.admin.v1.AdminServerService/UpdateServerConfig', {
+      registration: { admission: 'ACCOUNT_CREATION_POLICY_INVITE_ONLY' },
+      updateMask: 'registration.admission'
+    });
+    try {
+      await page.goto(routes.serverAdmin('registration'));
+      await settle(page);
+      await expectNoAccessibilityViolations(page, 'registration settings');
+      await page
+        .getByRole('navigation')
+        .getByRole('link', { name: 'Invites', exact: true })
+        .click();
+      await expect(page.getByRole('heading', { name: 'Invites', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Create code', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Create code', exact: true });
+      await expect(dialog).toBeVisible();
+      await expectNoAccessibilityViolations(page, 'invitation creation', 'dialog[open]');
+      await dialog.getByRole('button', { name: 'Create code', exact: true }).click();
+      await expect(dialog).toBeHidden();
+      await expect(page.locator('table code').first()).toBeVisible();
+      await expectNoAccessibilityViolations(page, 'invitation management');
+      await page.goBack();
+      await expect(page.getByRole('heading', { name: 'Registration', exact: true })).toBeVisible();
+      await page.goForward();
+      await expect(page.getByRole('heading', { name: 'Invites', exact: true })).toBeVisible();
+    } finally {
+      await connectPost(page, 'chatto.admin.v1.AdminServerService/UpdateServerConfig', {
+        registration: { admission: 'ACCOUNT_CREATION_POLICY_OPEN' },
+        updateMask: 'registration.admission'
+      });
+    }
+  });
+
+  test('server address dialog meets WCAG A and AA rules', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/chat/servers');
+    const connect = page.getByRole('button', { name: 'Connect by address', exact: true });
+    const grid = page.getByTestId('server-directory-grid');
+    const before = await grid.boundingBox();
+    await connect.click();
+    const dialog = page.getByRole('dialog', { name: 'Connect by address' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel('Server URL')).toBeFocused();
+    expect(await grid.boundingBox()).toEqual(before);
+    await expectNoAccessibilityViolations(page, 'server address dialog', 'dialog[open]');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(connect).toBeFocused();
+    await connect.click();
+    await page.goBack();
+    await expect(dialog).toBeHidden();
+  });
+
+  test('server recommendation info meets WCAG A and AA rules', async ({ page }) => {
+    await page.route(
+      '**/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers',
+      (route) =>
+        route.fulfill({
+          json: {
+            servers: [
+              {
+                origin: 'https://community.example',
+                directNeighbor: true,
+                profile: {
+                  name: 'Community',
+                  version: '0.5.0',
+                  description: 'A place for conversations.\n'.repeat(20)
+                }
+              }
+            ]
+          }
+        })
+    );
+    await page.goto('/chat/servers');
+    const info = page.getByTestId('server-recommendation-source');
+    await info.click();
+    await expect(page.getByRole('dialog', { name: 'About Community' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server recommendation info', 'dialog[open]');
+    await page.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(info).toBeFocused();
+    await info.click();
+    await page.goBack();
+    await expect(page.getByRole('dialog')).toBeHidden();
+  });
+
   test('public authentication routes meet WCAG A and AA rules', async ({ page }) => {
     for (const [state, route, heading] of [
       ['login', routes.login, /sign in/i],
@@ -213,7 +347,7 @@ test.describe('Route accessibility', () => {
       ['bot integrations', `${botRoute}/integrations`],
       ['bot permissions', `${botRoute}/permissions`],
       ['event log', routes.serverAdmin('event-log')],
-      ['invite links', routes.serverAdmin('invite-links')],
+      ['registration settings', routes.serverAdmin('registration')],
       ['moderation', routes.serverAdmin('moderation')],
       ['neighbours', routes.serverAdmin('neighbors')],
       ['security', routes.serverAdminSecurity],
@@ -243,6 +377,11 @@ test.describe('Route accessibility', () => {
     await page.keyboard.press('ControlOrMeta+k');
     await expect(page.getByRole('dialog')).toBeVisible();
     await expectNoAccessibilityViolations(page, 'quick switcher', 'dialog[open]');
+    await page.keyboard.press('Escape');
+
+    await page.keyboard.press('ControlOrMeta+Shift+K');
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'keyboard shortcut help', 'dialog[open]');
     await page.keyboard.press('Escape');
 
     await message.locator.hover({ position: { x: 4, y: 4 } });
@@ -281,10 +420,9 @@ test.describe('Route accessibility', () => {
     await expect(page.getByRole('dialog')).toBeHidden();
 
     await page.getByTitle('Add Server').click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expectNoAccessibilityViolations(page, 'add server dialog', 'dialog[open]');
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server directory');
+    await page.goBack();
 
     await page.locator('[data-testid="server-icon"][href$="/chat/-"]').click({ button: 'right' });
     await expect(page.getByRole('menuitem', { name: 'Sign out of server' })).toBeVisible();

@@ -6,7 +6,8 @@ element. On mobile (touch devices), renders as a bottom sheet. This dual behavio
 ContextMenu, which handles both modes automatically.
 
 The optional profile callback is supplied only by room surfaces. Other uses
-keep the compact menu without a navigation action.
+keep the compact menu. The viewer's own human profile also links to its server's
+profile settings.
 
 **Props:**
 - `user` - The user to display (must include id, login, displayName, presenceStatus)
@@ -67,6 +68,7 @@ keep the compact menu without a navigation action.
     viewerSettings,
     audioSource = 'voiceVolume',
     extraActions,
+    header,
     onSendMessage,
     onBanFromRoom,
     onOpenProfile,
@@ -97,6 +99,8 @@ keep the compact menu without a navigation action.
     audioSource?: ParticipantVolumeControl;
     /** Host-owned actions rendered before profile actions, within this menu's context. */
     extraActions?: Snippet;
+    /** Optional host content before the profile and its actions. */
+    header?: Snippet;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
     onOpenProfile?: (userId: string) => void;
@@ -156,6 +160,13 @@ keep the compact menu without a navigation action.
         })
       : null
   );
+  const editProfileHref = $derived(
+    !user.isBot && !user.deleted && user.id === serverScope.store.accountId
+      ? resolve('/chat/[serverId]/settings/profile', {
+          serverId: serverIdToSegment(serverScope.serverId)
+        })
+      : null
+  );
   function handleSendMessage() {
     onSendMessage?.();
     onClose?.();
@@ -191,6 +202,7 @@ keep the compact menu without a navigation action.
   class={audioParticipant ? 'w-72' : 'w-64'}
   onclose={() => onClose?.()}
 >
+  {@render header?.()}
   <div class="flex items-center gap-3 menu-section p-3 text-start">
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
@@ -228,7 +240,7 @@ keep the compact menu without a navigation action.
 
   {@render extraActions?.()}
 
-  {#if canSendMessage || onOpenProfile || manageBotHref || adminUserHref || canBanFromRoom}
+  {#if canSendMessage || onOpenProfile || editProfileHref || manageBotHref || adminUserHref || canBanFromRoom}
     <MenuSection>
       {#if canSendMessage}
         <MenuItem icon="icon-[uil--comment-alt-message]" onclick={handleSendMessage}>
@@ -238,6 +250,16 @@ keep the compact menu without a navigation action.
       {#if onOpenProfile}
         <MenuItem icon="icon-[uil--user]" onclick={handleOpenProfile}>
           {m('chat.user_menu.view_profile')}
+        </MenuItem>
+      {/if}
+      {#if editProfileHref}
+        <MenuItem
+          href={editProfileHref}
+          icon="icon-[uil--edit]"
+          onclick={() => onClose?.()}
+          dataTestid="edit-own-profile"
+        >
+          {m('chat.user_menu.edit_profile')}
         </MenuItem>
       {/if}
       {#if manageBotHref}

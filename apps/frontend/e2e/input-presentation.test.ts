@@ -30,6 +30,15 @@ for (const input of ['mouse', 'touch'] as const) {
       await chatPage.enterRoom('general');
       const header = page.locator('.app-header');
       const frame = page.getByTestId('app-frame');
+      const expectSidebarTargets = async () => {
+        // Check both consumers of the shared primitive while the sidebar is open.
+        for (const row of [
+          chatPage.getRoomLink('general'),
+          page.getByTestId('server-sidebar').getByRole('link', { name: 'Overview', exact: true })
+        ]) {
+          await expect(row).toHaveCSS('height', '32px');
+        }
+      };
       for (const width of [375, 500, 767, 768, 1024, 500]) {
         await page.setViewportSize({ width, height: 800 });
         const mobile = touch && width < 768;
@@ -41,6 +50,7 @@ for (const input of ['mouse', 'touch'] as const) {
           await expect(chatPage.roomList).not.toBeVisible();
           await toggle.click();
           await expect(chatPage.roomList).toBeVisible();
+          await expectSidebarTargets();
           const headerBox = await header.boundingBox();
           const frameBox = (await frame.boundingBox())!;
           const bottom = touch ? 800 : frameBox.y + frameBox.height;
@@ -81,6 +91,8 @@ for (const input of ['mouse', 'touch'] as const) {
           }
           await toggle.click();
           await expect(chatPage.roomList).not.toBeVisible();
+        } else {
+          await expectSidebarTargets();
         }
         await page.getByRole('button', { name: 'About Chatto', exact: true }).click();
         const dialog = page.getByRole('dialog');
@@ -100,6 +112,7 @@ for (const input of ['mouse', 'touch'] as const) {
       for (const coarse of [!touch, touch]) {
         await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: coarse });
         await expect(frame).toHaveCSS('border-radius', coarse ? '0px' : '16px');
+        await expect(roomLink).toHaveCSS('height', '32px');
         await expect(roomLink).toBeFocused();
         await expect
           .poll(async () => (await page.getByTestId('mobile-sidebar-panel').boundingBox())?.x)

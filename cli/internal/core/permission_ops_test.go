@@ -551,7 +551,7 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 				if role == RoleEveryone && metadata.Permission == PermMessagePost {
 					want = DecisionDeny
 				}
-				if role == RoleAdmin && metadata.Permission == PermMessagePost {
+				if (role == RoleAdmin || role == RoleOwner) && metadata.Permission == PermMessagePost {
 					want = DecisionAllow
 				}
 				if got := core.rbacModel.decision(ScopeRoom, annRoom.Id, role, metadata.Permission); got != want {
@@ -576,8 +576,8 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 	})
 
 	t.Run("owner and admin can post in announcements, moderator and regular member cannot", func(t *testing.T) {
-		// Owner should be able to post
-		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)
+		// Owners can post without privileged mode through their explicit grant.
+		canOwner, err := core.CanPostMessage(withPrivilegedModeEvaluation(ctx, user.Id, false), user.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (owner) failed: %v", err)
 		}

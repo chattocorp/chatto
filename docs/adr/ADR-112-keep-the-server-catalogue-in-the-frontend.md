@@ -63,7 +63,11 @@ Phase 1 (implemented):
 - Origin discovery: the frontend asks its origin for public server data and
   registers the origin as a server (`registerOriginServer` in
   `$lib/serverCatalogue`). The registry's `probeOrigin` and `originProbed` are
-  removed.
+  removed. For a registered origin, route startup shares the client's pending
+  discovery request. For a new origin, registration adopts the response already
+  fetched by the frontend. Successful public discovery survives private session
+  resets; it does not retain account data or authorize a new session. Explicit
+  refresh and recovery still make fresh requests.
 - The Server Directory join: `addSignedOutServer` and `findServerByUrl`.
 - Navigation policy: `firstAuthenticatedServerId`.
 - URL helpers for the catalogue and its display: `canonicalServerOrigin` and

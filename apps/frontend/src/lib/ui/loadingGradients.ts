@@ -1,4 +1,5 @@
 import { simplexNoise2D } from './simplexNoise';
+import { motionPreference } from '$lib/dom/motionPreference';
 
 /**
  * Animate the startup shell until it is removed. Hidden tabs and reduced-motion
@@ -8,7 +9,7 @@ export function startLoadingGradients(shell: HTMLElement): () => void {
   if (!shell.isConnected) return () => {};
 
   const seed = Math.floor(Math.random() * 0x100000000);
-  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const motion = motionPreference();
   let frame: number | undefined;
   let previousTime: number | undefined;
   let elapsed = 0;

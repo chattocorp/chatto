@@ -91,7 +91,7 @@
     hasReacted: false,
     users: [
       { id: 'alice', displayName: 'Alice' },
-      { id: 'bob', displayName: 'Bob' }
+      { id: 'bot', displayName: 'ChattoBot', isBot: true }
     ]
   };
   const highCountReaction: ReactionSummaryView = {

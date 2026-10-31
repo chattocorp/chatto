@@ -1,5 +1,59 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Uppdateringar",
+      "subtitle": "Uppdateringar för den här installationen",
+      "updates": "Appuppdateringar",
+      "unavailable": "Automatiska uppdateringar är inte tillgängliga i den här installationen.",
+      "version": "Installerad version: {version}",
+      "ready_link": "Uppdatering klar",
+      "restart_warning": "Omstart avslutar aktiva samtal och skärmdelning.",
+      "restart": "Starta om för att uppdatera",
+      "check": "Sök efter uppdateringar",
+      "preferences": "Uppdateringsinställningar",
+      "automatic": "Sök och hämta automatiskt",
+      "channel": "Utgivningskanal",
+      "stable": "Stabil",
+      "beta": "Beta",
+      "channel_help": "Automatiska stabila uppdateringar fördelas över 36 timmar. Manuella kontroller och Beta hoppar över fördröjningen. Byte till Stabil installerar aldrig en äldre version.",
+      "privacy": "Uppdateringar kontaktar GitHub, som får din IP-adress och uppdateringsförfrågningar. Chatto skickar ingen konto- eller ansluten serverinformation.",
+      "status": {
+        "idle": "Redo att söka efter uppdateringar.",
+        "checking": "Söker efter uppdateringar…",
+        "downloading": "Hämtar uppdatering…",
+        "ready": "Redo att starta om.",
+        "current": "Ingen nyare uppdatering finns på den här kanalen.",
+        "error": "Uppdateringsåtgärden misslyckades. Försök igen.",
+        "changed": "Den tillgängliga versionen har ändrats. Sök igen.",
+        "installing": "Förbereder omstart…"
+      }
+    },
+    "overview": {
+      "descriptions": {
+        "account": "Hantera ditt lösenord, dina e-postadresser och inloggningsmetoder.",
+        "profile": "Uppdatera ditt namn, din avatar och dina profiluppgifter.",
+        "time": "Välj hur den här servern visar datum och tider för dig",
+        "notifications": "Konfigurera hur du tar emot aviseringar",
+        "language": "Välj språk och regional formulering för den här webbläsaren.",
+        "bots": "Skapa API-konton och kontrollera exakt vad de kan göra",
+        "general": "Serveridentitet, varumärke och meddelanden",
+        "neighbors": "Marknadsför vänliga Chatto-servrar i din offentliga katalog",
+        "members": "Visa och hantera servermedlemmar och deras roller",
+        "registration": "Bestäm hur nya konton går med på den här servern.",
+        "invitations": "Skapa och hantera inbjudningskoder.",
+        "rooms": "Skapa, redigera, organisera och arkivera rum",
+        "moderation": "Granska aktiva avstängningar från rum",
+        "permissions": "Hantera standardinställningar för serveromfattande roller",
+        "security": "Registreringsbegränsningar och kontoskydd",
+        "appearance": "Anpassa appen med färger, teman och visningsalternativ.",
+        "composer": "Välj meddelanderedigerare och hur du skickar meddelanden.",
+        "voice": "Ställ in mikrofon, högtalare och samtalsinställningar.",
+        "system": "Kontrollera serverstatus, lagring och bakgrundsuppgifter.",
+        "event_log": "Utforska serverhändelser och undersök ändringar."
+      },
+      "title": "Översikt",
+      "shield_notice": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att använda dina extra behörigheter på den här servern."
+    },
     "nav": {
       "title": "Inställningar",
       "back_to_server": "Tillbaka till servern",
@@ -141,6 +195,21 @@
         "dark": {
           "label": "Mörkt",
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
+        }
+      },
+      "animations": {
+        "title": "Animationer",
+        "automatic": {
+          "label": "Automatiskt",
+          "description": "Följ systemets inställning för minskad rörelse"
+        },
+        "enabled": {
+          "label": "Aktiverat",
+          "description": "Visa alltid animationer"
+        },
+        "disabled": {
+          "label": "Inaktiverat",
+          "description": "Visa ändringar utan animationer"
         }
       },
       "thread_pane": {

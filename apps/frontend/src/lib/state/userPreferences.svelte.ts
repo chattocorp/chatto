@@ -15,6 +15,11 @@ import {
 import { Codecs, globalSlot } from '@chatto/client/storage/slot';
 import { Capacitor } from '@capacitor/core';
 import { MediaQuery } from 'svelte/reactivity';
+import {
+  applyAnimationPreference,
+  isAnimationPreference,
+  type AnimationPreference
+} from '$lib/dom/motionPreference';
 /** Curated app-wide accents. Keep the first-paint allowlist in app.html in sync. */
 export const accentColors = [
   'blue',
@@ -299,6 +304,7 @@ export type ThreadPanePresentation = 'overlay' | 'split';
 export type EffectiveTheme = 'light' | 'dark';
 
 interface AppPreferences {
+  animations: AnimationPreference;
   displayTheme: DisplayTheme;
   accentColor: AccentColor;
   /** Surface tone for light appearance. */
@@ -323,6 +329,7 @@ export interface LegacyNotificationSoundPreferences {
 interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPreferences {}
 
 const defaultAppPreferences: AppPreferences = {
+  animations: 'automatic',
   displayTheme: 'system',
   accentColor: defaultAccentColor,
   lightSurfaceTone: defaultSurfaceTones.light,
@@ -434,6 +441,7 @@ function loadAppPreferences(): AppPreferences {
     getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultAppPreferences.displayTheme;
   return {
     displayTheme,
+    animations: isAnimationPreference(stored.animations) ? stored.animations : 'automatic',
     accentColor: isAccentColor(stored.accentColor) ? stored.accentColor : defaultAccentColor,
     lightSurfaceTone: isSurfaceTone(stored.lightSurfaceTone)
       ? stored.lightSurfaceTone
@@ -475,6 +483,7 @@ export function getLegacyNotificationSoundPreferences(): LegacyNotificationSound
 export class UserPreferencesState {
   #preferences = $state<AppPreferences>(loadAppPreferences());
   readonly #prefersDark = new MediaQuery('(prefers-color-scheme: dark)', false);
+  readonly #prefersReducedMotion = new MediaQuery('(prefers-reduced-motion: reduce)', false);
   // Keep the legacy fields intact whenever App Preferences are saved so a
   // server first opened later can still migrate the user's previous sound.
   readonly #legacyNotificationSoundPreferences = getLegacyNotificationSoundPreferences();
@@ -483,12 +492,35 @@ export class UserPreferencesState {
     // The HTML bootstrap handles first paint. Reapply the saved value when
     // the client store starts so hydration cannot leave the palette at default.
     applyContrastAge(this.#preferences.contrastAge);
+    applyAnimationPreference(this.#preferences.animations);
     applySurfaceDepth(this.#preferences.surfaceDepth);
     this.#applySurfaceTones();
+    // Read the current system theme again: the early HTML bootstrap can leave
+    // a stale theme. Use the same path as a change in the appearance settings.
+    applyDisplayTheme(this.#preferences.displayTheme);
   }
 
   get displayTheme(): DisplayTheme {
     return this.#preferences.displayTheme;
+  }
+
+  /** Browser-wide animation choice, shared by all connected servers. */
+  get animations(): AnimationPreference {
+    return this.#preferences.animations;
+  }
+
+  set animations(value: AnimationPreference) {
+    this.#preferences.animations = isAnimationPreference(value) ? value : 'automatic';
+    this.#persist();
+    applyAnimationPreference(this.#preferences.animations);
+  }
+
+  /** Effective motion policy for reactive Svelte transition parameters. */
+  get reducedMotion(): boolean {
+    return (
+      this.animations === 'disabled' ||
+      (this.animations === 'automatic' && this.#prefersReducedMotion.current)
+    );
   }
 
   set displayTheme(value: DisplayTheme) {

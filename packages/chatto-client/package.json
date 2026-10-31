@@ -1,6 +1,6 @@
 {
   "name": "@chatto/client",
-  "version": "0.5.0-beta.22",
+  "version": "0.5.0-beta.27",
   "description": "Framework-neutral Chatto client: connections, realtime projection, and reactive stores",
   "license": "Apache-2.0",
   "type": "module",
@@ -44,6 +44,7 @@
     "@chatto/api-types": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",
+    "gemoji": "^8.1.0",
     "js-sha256": "^1.0.0",
     "lru-cache": "^11.5.1",
     "semver": "^7.8.5"

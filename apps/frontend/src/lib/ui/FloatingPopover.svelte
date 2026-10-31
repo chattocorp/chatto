@@ -34,6 +34,10 @@ handling because its dismissal contract varies between tooltips and menus.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
+  import { scale } from 'svelte/transition';
+  import { expoOut, cubicInOut } from 'svelte/easing';
+  import { motionPreference } from '$lib/dom/motionPreference';
+  import { COMPACT_MOTION_DURATION_MS } from './motion';
 
   const PADDING = 8; // Min distance from viewport edge.
   const GAP = 4; // Space between anchor rect and popover (anchor mode).
@@ -43,6 +47,7 @@ handling because its dismissal contract varies between tooltips and menus.
     anchor,
     anchorPlacement = 'bottom',
     open = true,
+    animate = false,
     role,
     ariaLabel,
     id,
@@ -57,6 +62,8 @@ handling because its dismissal contract varies between tooltips and menus.
     anchor?: { top: number; bottom: number; left: number } | null;
     anchorPlacement?: 'top' | 'bottom';
     open?: boolean;
+    /** Zoom-fade when mounted or removed by a parent's conditional block. */
+    animate?: boolean;
     role?: string;
     ariaLabel?: string;
     id?: string;
@@ -75,6 +82,18 @@ handling because its dismissal contract varies between tooltips and menus.
   } = $props();
 
   let node: HTMLDivElement | undefined;
+
+  function zoomFade(
+    element: Element,
+    _: unknown,
+    { direction }: { direction: 'in' | 'out' | 'both' }
+  ) {
+    return scale(element, {
+      start: 0.95,
+      duration: animate && !motionPreference().matches ? COMPACT_MOTION_DURATION_MS : 0,
+      easing: direction === 'out' ? cubicInOut : expoOut
+    });
+  }
 
   function applyPosition(popover = node) {
     if (!popover) return;
@@ -220,6 +239,8 @@ handling because its dismissal contract varies between tooltips and menus.
 </script>
 
 <div
+  in:zoomFade|global
+  out:zoomFade|global
   {@attach syncPopover}
   {@attach observePopoverSize}
   {@attach closeOnOutsideInteraction}

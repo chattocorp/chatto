@@ -3,6 +3,15 @@
     "code_source": "Kaynak",
     "code_render": "Görünüm",
     "code_render_failed": "Önizleme kullanılamıyor. Kaynak hâlâ kullanılabilir.",
+    "keyboard_shortcuts": {
+      "title": "Klavye kısayolları",
+      "app": "Uygulama",
+      "undo": "Geri al",
+      "redo": "Yinele",
+      "new_line": "Yeni satır",
+      "edit_last": "Son mesajı düzenle (boş taslak)",
+      "complete": "Bahsetmeyi veya emojiyi tamamla"
+    },
     "action_unavailable": "Bu işlem şu anda kullanılamıyor.",
     "edit": "Düzenle",
     "copy_failed": "Panoya kopyalanamadı. Metni seçin ve elle kopyalayın.",

@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "创建账户",
+      "open": "开放注册",
+      "invite_only": "需要邀请码",
+      "open_description": "任何人都可以通过已配置的注册方式创建账户。",
+      "invite_only_description": "新账户需要一次性邀请码。现有用户仍可登录。",
+      "methods": "已配置的注册方式",
+      "methods_configuration": "注册方式在此服务器的托管配置中管理。",
+      "email_password": "电子邮件和密码",
+      "no_methods": "未启用任何注册方式。用户在两种模式下都无法创建账户。"
+    },
     "neighbors": {
       "title": "邻居",
       "subtitle": "在你的公开目录中推广友好的 Chatto 服务器",
@@ -254,6 +265,10 @@
         "name_title": "名称和描述",
         "name_subtitle": "成员会在聊天室列表和聊天室顶部看到这些信息。",
         "visibility_title": "可见范围",
+        "membership_events_title": "成员活动",
+        "show_membership_events": "显示加入和离开事件",
+        "membership_events_description": "显示人们加入或离开此聊天室的时间，包括历史记录。隐藏此活动不会将其删除。",
+        "membership_events_unavailable": "更新此服务器以更改成员活动的显示方式。",
         "visibility_subtitle": "选择谁是此聊天室的成员。",
         "universal_description": "每个可以加入此聊天室的成员都会自动成为其成员。",
         "visibility_help": "对于所有成员都必须收到的消息（例如公告），请使用全员聊天室。成员无法退出全员聊天室，但可以将其设为免打扰。如果关闭全员模式，之前加入的成员仍会留在聊天室中。",
@@ -538,36 +553,30 @@
       "total": "共 {count} 名用户"
     },
     "invitations": {
-      "title": "邀请链接",
-      "subtitle": "创建和管理用于接纳新账户的链接。",
-      "create_title": "创建邀请链接",
-      "max_uses": "最大使用次数",
-      "max_uses_error": "请输入不小于 1 的整数。",
-      "unlimited_uses": "允许无限次使用",
-      "expiry": "有效期",
-      "expiry_1d": "1 天",
-      "expiry_7d": "7 天",
-      "expiry_30d": "30 天",
-      "expiry_never": "永不过期",
-      "create": "创建邀请链接",
-      "created": "已创建邀请链接",
-      "list_title": "邀请链接",
-      "empty": "暂无邀请链接。",
-      "uses": "使用次数",
+      "management_help": "邀请码可让其他人加入此服务器。",
+      "created_by": "创建者",
+      "note_label": "备注（可选）",
+      "note_placeholder": "给设计团队的 Alex",
+      "note_description": "你和邀请管理员可以查看此备注。",
+      "note_too_long": "请使用不超过 250 个字符。",
+      "usage": "新邀请码有效期为 7 天，每个邀请码只能创建一个账号。复制邀请码并发送给接收者。只有注册成功后，邀请码才会被使用。",
+      "create_title": "创建邀请码",
+      "create": "创建邀请码",
+      "created": "已创建邀请码",
+      "list_title": "邀请码",
+      "empty": "暂无邀请码。",
       "created_at": "创建时间",
       "actions": "操作",
       "never": "永不",
-      "copy": "复制链接",
-      "copied": "已复制邀请链接",
       "revoke": "撤销",
-      "revoked": "已撤销邀请链接",
-      "revoke_title": "撤销邀请链接？",
-      "revoke_description": "此链接将立即停止接纳新账户。",
+      "revoked": "已撤销邀请码",
+      "revoke_title": "撤销邀请码？",
+      "revoke_description": "此邀请码将立即停止允许创建新账号。",
       "status": {
         "active": "有效",
         "expired": "已过期",
-        "exhausted": "已用完",
-        "revoked": "已撤销"
+        "revoked": "已撤销",
+        "used": "已使用"
       }
     }
   }

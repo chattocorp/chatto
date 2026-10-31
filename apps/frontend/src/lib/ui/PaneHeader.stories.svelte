@@ -8,6 +8,7 @@
     Use PaneHeader for the top bar of a pane, detail view, or narrow workflow. It owns title,
     subtitle, back affordances, and action alignment so headers stay consistent across chat,
     settings, and admin surfaces.
+    Back buttons and actions use 44 px touch targets, including on wide and hybrid devices.
   `.trim();
 
   const { Story } = defineMeta({

@@ -1,6 +1,7 @@
 {
   "composer": {
     "render_by_default": "Standardmäßig darstellen",
+    "insert_emoji": "Emoji einfügen",
     "attach_file": "Datei anhängen",
     "formatting_options": "Formatierungsoptionen",
     "send": "Nachricht senden",

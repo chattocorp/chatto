@@ -28,11 +28,17 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Mention completion can search for names before the room list finishes
   loading. It combines search results with members already loaded in the room.
   Mention completion does not wait for the background member scan.
+- The bundled frontend requests the full directory when Members is visible or
+  a retained notice contains mentions that need member names and profile links.
+  Other hidden panels do not start directory scans. Markdown fields that support bare
+  `@` request a bounded page of suggestions. Typing a name uses directory search.
 - Connected members load independently of the full list. This includes available,
-  away, and do-not-disturb users. The full list continues loading names for
-  mention completion. A failed preview does not stop that full load.
+  away, and do-not-disturb users. A failed preview does not stop the full load
+  requested by the Members panel.
 - Recovery resets and access loss clear retained membership. Changes to
   universal-room eligibility require an authoritative membership read.
+- Retrying a partially loaded member list keeps known members visible while
+  the remaining pages load.
 - The room sidebar member list shows the Online, Bots, and Offline groups in
   one virtualized list. The client mounts only the group headings and member
   rows near the visible part of the list.
@@ -92,8 +98,13 @@ pagination counts IDs even when an account disappears before its row is loaded.
 ### 8. Separate room membership from user profiles
 
 **Decision:** Room membership reads return IDs. The client shares cached user
-profiles across rooms and resolves missing profiles in batches. The room store
-continues background loading so local mention matching has names available.
+profiles across rooms and resolves missing profiles in batches. Once requested,
+the room store completes the directory in the background. Mention search does
+not request that scan. Recovery refreshes requested directories; creating a
+store for search alone does not request a directory.
+On initial server entry, this scan does not block snapshot completion or the
+first message read. Recovery of an existing view still waits for membership
+reads at the snapshot cursor before it declares the view current.
 Reads caused by a room join wait for that join before they load profiles.
 **Why:** A room switch must not repeat profile reads for users the client already
 knows. Each membership page must not decrypt every profile in the room.
@@ -108,7 +119,7 @@ cached profiles between these reads. Realtime presence takes precedence over a
 preview that was already in flight. The full directory determines final membership.
 **Why:** A small online group must not wait behind many offline profiles. Separate
 status reads also supply current presence when a cached name is reused.
-**Tradeoff:** Opening an uncached room starts three additional small list reads.
+**Tradeoff:** Opening Members in an uncached room starts three additional small list reads.
 Presence can change between pages, so the preview is not a fixed snapshot.
 
 ### 10. Virtualize the room member list

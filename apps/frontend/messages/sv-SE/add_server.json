@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Det här verkar inte vara en Chatto-server.",
     "directory": {
+      "added_by_you": "Tillagd av dig",
+      "joined": "Gick med",
+      "needs_login": "Inloggning krävs",
+      "learn_more": "Vill du veta mer?",
+      "learn_more_description": "Upptäck vad Chatto kan göra, lär dig att driva en egen server eller få hjälp.",
+      "welcome_title": "Nu blir chatten på riktigt!",
       "title": "Serverkatalog",
-      "subtitle": "Upptäck andra Chatto-servrar",
-      "lookup_description": "Ange adressen till valfri Chatto-server för att gå med i den.",
+      "lookup_description": "Ange en serveradress för att lägga till den i din katalog och läsa in dess rekommendationer.",
       "find": "Hitta server",
       "connect_by_address": "Anslut med adress",
-      "servers_title": "Rekommenderade servrar",
-      "servers_description": "Rekommenderade av servrar som du har gått med i. Resultaten är inte rangordnade.",
       "recommended_by": "Rekommenderas av {servers}",
-      "more_recommenders_count": {
-        "other": "{count} till"
-      },
-      "joined": "Gick med",
       "join": "Gå med",
       "open": "Öppna",
       "open_in_new_tab": "Öppna i en ny flik",
       "sign_in_unavailable": "Inloggning inte tillgänglig",
       "profile_unavailable": "Den här serverns offentliga profil kunde inte läsas in.",
-      "partial": "Vissa servrar som du har gått med i kunde inte ge sina rekommendationer.",
+      "partial": "Vissa servrar kunde inte ge sina rekommendationer.",
       "unavailable_title": "Katalogen är inte tillgänglig",
-      "unavailable_body": "Servrarna som du har gått med i kunde inte ge sina rekommendationer. Du kan fortfarande ansluta direkt.",
-      "empty_title": "Inga rekommenderade servrar än",
-      "empty_body": "Du kan fortfarande ansluta direkt med en serveradress."
+      "unavailable_body": "Servrarna kunde inte ge sina rekommendationer. Du kan fortfarande ansluta direkt."
     }
   }
 }

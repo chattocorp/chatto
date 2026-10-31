@@ -133,6 +133,7 @@ function managedRoom(
     isUniversal: boolean;
     threadSlowModeSeconds: number;
     threadingMode: RoomThreadingMode;
+    showMembershipEvents: boolean;
     canManageRoom: boolean;
     canManagePermissions: boolean;
   }> = {}
@@ -146,6 +147,7 @@ function managedRoom(
     slowModeSeconds: 0,
     threadSlowModeSeconds: overrides.threadSlowModeSeconds,
     threadingMode: overrides.threadingMode ?? RoomThreadingMode.ENABLED,
+    showMembershipEvents: overrides.showMembershipEvents,
     canManageRoom: overrides.canManageRoom ?? true,
     canManagePermissions: overrides.canManagePermissions ?? true
   };
@@ -196,6 +198,7 @@ type RoomPatch = {
   slowModeSeconds?: number;
   threadSlowModeSeconds?: number;
   threadingMode?: RoomThreadingMode;
+  showMembershipEvents?: boolean;
 };
 
 /**
@@ -220,7 +223,10 @@ function serveRoom(initial: ReturnType<typeof managedRoom>) {
       ...(input.threadSlowModeSeconds !== undefined && {
         threadSlowModeSeconds: input.threadSlowModeSeconds
       }),
-      ...(input.threadingMode !== undefined && { threadingMode: input.threadingMode })
+      ...(input.threadingMode !== undefined && { threadingMode: input.threadingMode }),
+      ...(input.showMembershipEvents !== undefined && {
+        showMembershipEvents: input.showMembershipEvents
+      })
     };
     const response = {
       id: stored.id,
@@ -230,6 +236,7 @@ function serveRoom(initial: ReturnType<typeof managedRoom>) {
       slowModeSeconds: stored.slowModeSeconds,
       threadSlowModeSeconds: stored.threadSlowModeSeconds,
       threadingMode: stored.threadingMode,
+      showMembershipEvents: stored.showMembershipEvents,
       archived: stored.archived
     };
     if (!holdNext) return Promise.resolve(response);
@@ -275,6 +282,40 @@ function roomRemoved(): RealtimeProjectionUpdate {
 }
 
 describe('room management page identity and realtime authority', () => {
+  it('saves and discards only the membership display setting', async () => {
+    serveRoom(managedRoom('general', { showMembershipEvents: true }));
+    const view = renderSections('general');
+    await expect.element(view.getByLabelText('Show join/leave events')).toBeChecked();
+    const checkbox = view.container.querySelector(
+      '#room-settings-membership-events'
+    ) as HTMLInputElement;
+    checkbox.click();
+    flushSync();
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
+    formAction(view.container, '#room-settings-membership-events', 'Discard changes').click();
+    await expect.element(view.getByLabelText('Show join/leave events')).toBeChecked();
+    checkbox.click();
+    submitSection(view.container, '#room-settings-membership-events');
+    await vi.waitFor(() =>
+      expect(mocks.updateRoom).toHaveBeenCalledWith({
+        roomId: 'shared-room',
+        showMembershipEvents: false
+      })
+    );
+    await expect.element(view.getByLabelText('Show join/leave events')).not.toBeChecked();
+    await vi.waitFor(() =>
+      expect(formAction(view.container, '#room-settings-membership-events').disabled).toBe(true)
+    );
+  });
+
+  it('disables membership display editing on older servers', async () => {
+    serveRoom(managedRoom('general'));
+    const view = renderSections('general');
+    await expect.element(view.getByLabelText('Show join/leave events')).toBeDisabled();
+    await expect
+      .element(view.getByText('Update this server to change how membership activity is shown.'))
+      .toBeVisible();
+  });
   afterEach(() => vi.restoreAllMocks());
 
   beforeEach(async () => {
@@ -901,7 +942,7 @@ describe('room management page identity and realtime authority', () => {
     await settle();
     expect(formAction(container, '#room-settings-name').disabled).toBe(true);
     const destination = new URL(
-      'https://server-a.example.test/chat/-/manage/rooms/shared-room/members'
+      'https://server-a.example.test/chat/-/manage/rooms/shared-room/members?filter=active#members'
     );
     const navigation = { type: 'link', cancel, to: { url: destination }, willUnload: false };
     guard(navigation);
@@ -926,7 +967,9 @@ describe('room management page identity and realtime authority', () => {
     );
     (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
     await settle();
-    expect(mocks.goto).toHaveBeenCalledWith(destination.pathname);
+    expect(mocks.goto).toHaveBeenCalledWith(
+      `${destination.pathname}${destination.search}${destination.hash}`
+    );
     expect(resumedCancel).not.toHaveBeenCalled();
     expect(confirm).not.toHaveBeenCalled();
     expect(mocks.updateRoom).not.toHaveBeenCalled();
@@ -987,6 +1030,13 @@ describe('room management page identity and realtime authority', () => {
     const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const cancel = vi.fn();
+    guard({
+      type: 'link',
+      cancel: vi.fn(),
+      to: { url: new URL('https://server-a.example.test/chat/-/overview') }
+    });
+    await settle();
+    expect(document.querySelector('dialog[open]')).not.toBeNull();
     mocks.getRoom.mockResolvedValue(managedRoom('general', { canManageRoom: false }));
     dispatchProjection(roomSnapshot());
     await vi.waitFor(() => expect(container.querySelector('#room-settings-universal')).toBeNull());
@@ -995,5 +1045,6 @@ describe('room management page identity and realtime authority', () => {
     expect(cancel).not.toHaveBeenCalled();
     expect(mocks.goto).toHaveBeenCalled();
     expect(mocks.updateRoom).not.toHaveBeenCalled();
+    expect(document.querySelector('dialog[open]')).toBeNull();
   });
 });

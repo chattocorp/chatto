@@ -12,9 +12,11 @@ export type ContextMenuTriggerDetails = {
 /**
  * Opens a context menu for a native context-menu gesture or a stationary touch long-press.
  * Movement cancels the pending touch gesture so normal sidebar scrolling remains native.
+ * `touchOnly` leaves desktop context menus with the element's existing owner.
  */
 export function contextMenuTrigger(
-  onopen: (details: ContextMenuTriggerDetails) => void
+  onopen: (details: ContextMenuTriggerDetails) => void,
+  options: { touchOnly?: boolean } = {}
 ): Attachment<HTMLElement> {
   return (node) => {
     let timer: number | null = null;
@@ -24,6 +26,22 @@ export function contextMenuTrigger(
     let startX = 0;
     let startY = 0;
     let suppressClick = false;
+    let openedDuringTouch = false;
+
+    function clearClickSuppression(): void {
+      suppressClick = false;
+      if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
+      suppressClickTimer = null;
+      window.removeEventListener('click', discardOpeningClick, true);
+      window.removeEventListener('pointerdown', clearClickSuppression, true);
+      window.removeEventListener('keydown', clearClickSuppression, true);
+    }
+
+    function discardOpeningClick(event: MouseEvent): void {
+      clearClickSuppression();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
 
     function cancelLongPress(): void {
       if (timer !== null) window.clearTimeout(timer);
@@ -33,22 +51,38 @@ export function contextMenuTrigger(
 
     function armClickSuppression(): void {
       suppressClick = true;
+      // A modal can retarget the release click onto its content. Guard the
+      // window, not just the trigger. A new press or key is deliberate input.
+      window.addEventListener('click', discardOpeningClick, true);
+      window.addEventListener('pointerdown', clearClickSuppression, true);
+      window.addEventListener('keydown', clearClickSuppression, true);
       if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
       // Some browsers omit the synthetic click after a native long-press menu.
       // Do not let that suppress a later deliberate click.
-      suppressClickTimer = window.setTimeout(() => {
-        suppressClick = false;
-        suppressClickTimer = null;
-      }, 1000);
+      suppressClickTimer = window.setTimeout(clearClickSuppression, 1000);
+    }
+
+    function finishTouch(): void {
+      // A held finger can outlast the fallback timer. Suppress the release
+      // click even when the user keeps holding after the sheet opens.
+      if (openedDuringTouch) armClickSuppression();
+      openedDuringTouch = false;
+      cancelLongPress();
+      touchSequence = false;
     }
 
     const cleanups = [
       on(node, 'contextmenu', (event) => {
+        const fromTouch = touchSequence || openedDuringTouch || suppressClick;
+        if (options.touchOnly && !fromTouch) return;
         event.preventDefault();
-        const fromTouch = touchSequence || suppressClick;
-        if (fromTouch && suppressClick) return;
+        if (options.touchOnly) event.stopPropagation();
+        if (fromTouch && (openedDuringTouch || suppressClick)) return;
         cancelLongPress();
-        if (fromTouch) armClickSuppression();
+        if (fromTouch) {
+          openedDuringTouch = true;
+          armClickSuppression();
+        }
         onopen({
           position: { x: event.clientX, y: event.clientY },
           presentation: fromTouch ? 'sheet' : 'auto'
@@ -58,12 +92,14 @@ export function contextMenuTrigger(
         if (event.pointerType !== 'touch' || !event.isPrimary) return;
         cancelLongPress();
         touchSequence = true;
+        openedDuringTouch = false;
         pointerId = event.pointerId;
         startX = event.clientX;
         startY = event.clientY;
         timer = window.setTimeout(() => {
           timer = null;
           pointerId = null;
+          openedDuringTouch = true;
           armClickSuppression();
           onopen({
             position: { x: startX, y: startY },
@@ -81,32 +117,13 @@ export function contextMenuTrigger(
           touchSequence = false;
         }
       }),
-      on(node, 'pointerup', () => {
-        cancelLongPress();
-        touchSequence = false;
-      }),
-      on(node, 'pointercancel', () => {
-        cancelLongPress();
-        touchSequence = false;
-      }),
-      on(
-        node,
-        'click',
-        (event) => {
-          if (!suppressClick) return;
-          suppressClick = false;
-          if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
-          suppressClickTimer = null;
-          event.preventDefault();
-          event.stopPropagation();
-        },
-        { capture: true }
-      )
+      on(node, 'pointerup', finishTouch),
+      on(node, 'pointercancel', finishTouch)
     ];
 
     return () => {
       cancelLongPress();
-      if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
+      clearClickSuppression();
       for (const cleanup of cleanups) cleanup();
     };
   };

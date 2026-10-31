@@ -3,6 +3,15 @@
     "code_source": "Source",
     "code_render": "Rendu",
     "code_render_failed": "Aperçu indisponible. La source reste disponible.",
+    "keyboard_shortcuts": {
+      "title": "Raccourcis clavier",
+      "app": "Application",
+      "undo": "Annuler",
+      "redo": "Rétablir",
+      "new_line": "Nouvelle ligne",
+      "edit_last": "Modifier le dernier message (brouillon vide)",
+      "complete": "Compléter une mention ou un émoji"
+    },
     "action_unavailable": "Cette action est actuellement indisponible.",
     "edit": "Modifier",
     "copy_failed": "Impossible de copier dans le presse-papiers. Sélectionnez le texte et copiez-le manuellement.",

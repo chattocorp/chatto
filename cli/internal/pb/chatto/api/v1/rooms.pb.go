@@ -105,9 +105,12 @@ type Room struct {
 	// the interval. Absent on servers without independent thread slow mode.
 	ThreadSlowModeSeconds *uint32 `protobuf:"varint,10,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
 	// When the room was created. Absent when unavailable on an older server.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Whether clients show room join/leave activity. Absence on older servers
+	// means true. Membership state and event delivery are not affected.
+	ShowMembershipEvents *bool `protobuf:"varint,12,opt,name=show_membership_events,json=showMembershipEvents,proto3,oneof" json:"show_membership_events,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Room) Reset() {
@@ -215,6 +218,13 @@ func (x *Room) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *Room) GetShowMembershipEvents() bool {
+	if x != nil && x.ShowMembershipEvents != nil {
+		return *x.ShowMembershipEvents
+	}
+	return false
 }
 
 // Current member-only notice in a channel room.
@@ -813,7 +823,7 @@ type UpdateRoomRequest struct {
 	// New threading policy. Direct-message rooms cannot set this field, and an
 	// explicitly supplied UNSPECIFIED or unknown value is rejected.
 	ThreadingMode *RoomThreadingMode `protobuf:"varint,6,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode,oneof" json:"threading_mode,omitempty"`
-	// Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
+	// Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
 	// Omit to infer populated fields; * selects all editable fields. An explicit
 	// empty mask is invalid. Unselected values are ignored. Selected absent values
 	// reset the field to its default, subject to field validation.
@@ -821,8 +831,11 @@ type UpdateRoomRequest struct {
 	// Per-user interval within each thread. The root starts its author's timer.
 	// Zero disables it. Updating this field does not change the root interval.
 	ThreadSlowModeSeconds *uint32 `protobuf:"varint,8,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Whether clients show join/leave activity in this channel's history and live
+	// timeline. Requires room.manage. Selecting an absent value resets to true.
+	ShowMembershipEvents *bool `protobuf:"varint,9,opt,name=show_membership_events,json=showMembershipEvents,proto3,oneof" json:"show_membership_events,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *UpdateRoomRequest) Reset() {
@@ -909,6 +922,13 @@ func (x *UpdateRoomRequest) GetThreadSlowModeSeconds() uint32 {
 		return *x.ThreadSlowModeSeconds
 	}
 	return 0
+}
+
+func (x *UpdateRoomRequest) GetShowMembershipEvents() bool {
+	if x != nil && x.ShowMembershipEvents != nil {
+		return *x.ShowMembershipEvents
+	}
+	return false
 }
 
 // Result of updating a room.
@@ -1325,10 +1345,9 @@ func (x *JoinRoomGroupResponse) GetJoinedRoomIds() []string {
 	return nil
 }
 
-// Request to start a direct-message room for a human caller, or fetch an
-// existing one. A human caller can fetch an existing DM without message.post.
-// A valid request from a bot receives PERMISSION_DENIED, including when the
-// room already exists.
+// Request to start a direct-message room, or fetch an existing one.
+// Human and bot callers need message.post at DM scope to create a room.
+// Participants can fetch an existing DM without message.post.
 // New DMs have at most two distinct participants, including the caller.
 // Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
 // for new group conversations. Existing group DMs remain accessible.
@@ -2785,7 +2804,7 @@ var File_chatto_api_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd9\x03\n" +
+	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaf\x04\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x17.chatto.api.v1.RoomKindR\x04kind\x12\x12\n" +
@@ -2799,8 +2818,10 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x18thread_slow_mode_seconds\x18\n" +
 	" \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x1b\n" +
-	"\x19_thread_slow_mode_seconds\"\xa0\x01\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\x16show_membership_events\x18\f \x01(\bH\x01R\x14showMembershipEvents\x88\x01\x01B\x1b\n" +
+	"\x19_thread_slow_mode_secondsB\x19\n" +
+	"\x17_show_membership_events\"\xa0\x01\n" +
 	"\n" +
 	"RoomNotice\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x18\n" +
@@ -2835,7 +2856,7 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\tuniversal\x18\x04 \x01(\bR\tuniversal\x12G\n" +
 	"\x0ethreading_mode\x18\x05 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\"=\n" +
 	"\x12CreateRoomResponse\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\xaa\x04\n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\x80\x05\n" +
 	"\x11UpdateRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eH\x00R\x04name\x88\x01\x01\x12/\n" +
@@ -2845,14 +2866,16 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x0ethreading_mode\x18\x06 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeH\x04R\rthreadingMode\x88\x01\x01\x12;\n" +
 	"\vupdate_mask\x18\a \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\x12G\n" +
-	"\x18thread_slow_mode_seconds\x18\b \x01(\rB\t\xbaH\x06*\x04\x18\xe0\xa8\x01H\x05R\x15threadSlowModeSeconds\x88\x01\x01B\a\n" +
+	"\x18thread_slow_mode_seconds\x18\b \x01(\rB\t\xbaH\x06*\x04\x18\xe0\xa8\x01H\x05R\x15threadSlowModeSeconds\x88\x01\x01\x129\n" +
+	"\x16show_membership_events\x18\t \x01(\bH\x06R\x14showMembershipEvents\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\f\n" +
 	"\n" +
 	"_universalB\x14\n" +
 	"\x12_slow_mode_secondsB\x11\n" +
 	"\x0f_threading_modeB\x1b\n" +
-	"\x19_thread_slow_mode_seconds\"=\n" +
+	"\x19_thread_slow_mode_secondsB\x19\n" +
+	"\x17_show_membership_events\"=\n" +
 	"\x12UpdateRoomResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"6\n" +
 	"\x12ArchiveRoomRequest\x12 \n" +

@@ -165,7 +165,8 @@ func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCo
 		}
 	}
 	for _, roomName := range spec.Rooms {
-		if _, err := c.JoinRoom(ctx, bot.User.GetId(), core.KindChannel, bot.User.GetId(), roomsByName[roomName]); err != nil {
+		// The owner adds the bot so configured membership needs no self-join grant.
+		if _, err := c.AddMember(ctx, owner.GetId(), core.KindChannel, roomsByName[roomName], bot.User.GetId()); err != nil {
 			configured = false
 			logger.Error("Failed to join [bootstrap] bot to room", "user_id", bot.User.GetId(), "room", roomName, "error", err)
 		}

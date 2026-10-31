@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "此链接没有可用的预览。",
     "dismiss": "关闭预览",
     "delete": "删除预览",
     "open_link": "打开链接",

@@ -206,22 +206,51 @@ describe('ServerSettings', () => {
     );
   });
 
-  it('updates the cached logo after an upload mutation', async () => {
+  it.each(['logo', 'banner'] as const)('updates the cached %s after an upload', async (asset) => {
     const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
     const { container } = await renderSettings();
-    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const fileInput = container.querySelector<HTMLInputElement>(
+      `[data-testid="${asset}-drop-zone"] input[type="file"]`
+    )!;
     const transfer = new DataTransfer();
-    transfer.items.add(new File(['image'], 'logo.png', { type: 'image/png' }));
+    const file = new File(['image'], `${asset}.png`, { type: 'image/png' });
+    transfer.items.add(file);
     fileInput.files = transfer.files;
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await vi.waitFor(() => expect(mocks.uploadServerLogo).toHaveBeenCalledOnce());
+    const upload = asset === 'logo' ? mocks.uploadServerLogo : mocks.uploadServerBanner;
     await vi.waitFor(() =>
-      expect(queryClient.getQueryData<{ logoUrl: string | null }>(queryKey)?.logoUrl).toBe(
-        'https://cdn.example.test/logo.webp'
-      )
+      expect(upload).toHaveBeenCalledExactlyOnceWith(server.scope.connection.apiConfig, file)
     );
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryData(queryKey)).toMatchObject({
+        [`${asset}Url`]: `https://cdn.example.test/${asset}.webp`
+      })
+    );
+    await expect.element(fileInput).toHaveValue('');
   });
+
+  it.each(['logo', 'banner'] as const)(
+    'rejects invalid and oversized %s uploads',
+    async (asset) => {
+      const { container } = await renderSettings();
+      const input = container.querySelector<HTMLInputElement>(
+        `[data-testid="${asset}-drop-zone"] input[type="file"]`
+      )!;
+      for (const file of [
+        new File(['text'], 'file.txt', { type: 'text/plain' }),
+        new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' })
+      ]) {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        flushSync();
+      }
+      expect(mocks.uploadServerLogo).not.toHaveBeenCalled();
+      expect(mocks.uploadServerBanner).not.toHaveBeenCalled();
+    }
+  );
 
   it('adopts refreshed pristine fields without replacing a dirty draft', async () => {
     const { container } = await renderSettings();
@@ -242,6 +271,64 @@ describe('ServerSettings', () => {
     expect(container.querySelector<HTMLInputElement>('#name')?.value).toBe('Renamed elsewhere');
     expect(textarea.value).toBe('Unsaved draft');
   });
+
+  it('follows refreshed settings again after an edit is reverted', async () => {
+    const { container } = await renderSettings();
+    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
+    inputDescription(textarea, 'Temporary edit');
+    inputDescription(textarea, 'Original description');
+
+    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+    queryClient.setQueryData(queryKey, {
+      ...queryClient.getQueryData<object>(queryKey),
+      description: 'Remote description'
+    });
+    await expect.element(textarea).toHaveValue('Remote description');
+    await expect
+      .element(container.querySelector<HTMLButtonElement>('button[type="submit"]')!)
+      .toBeDisabled();
+  });
+
+  it.each(['Newer draft', 'Original description'])(
+    'keeps newer input "%s" when a pending save returns canonical values',
+    async (newerDescription) => {
+      const saved = {
+        name: 'Canonical server name',
+        description: 'Saved description',
+        motd: '',
+        welcomeMessage: ''
+      };
+      let resolveSave!: (profile: typeof saved) => void;
+      mocks.updateServerConfig.mockReturnValue(new Promise((resolve) => (resolveSave = resolve)));
+      const { container } = await renderSettings();
+      const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
+      inputDescription(textarea, 'Saved description');
+      const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+      container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+      await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledOnce());
+      // Simulate an input event already in flight when the form becomes disabled.
+      inputDescription(textarea, newerDescription);
+      resolveSave(saved);
+
+      await expect
+        .element(container.querySelector<HTMLInputElement>('#name')!)
+        .toHaveValue(saved.name);
+      await expect.element(textarea).toHaveValue(newerDescription);
+      await expect.element(saveButton).toBeEnabled();
+      mocks.updateServerConfig.mockResolvedValue({ ...saved, description: newerDescription });
+      container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+      await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledTimes(2));
+      const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<{ description: string }>(queryKey)?.description).toBe(
+          newerDescription
+        )
+      );
+      queryClient.setQueryData(queryKey, { ...saved, viewerCanManageServer: true });
+      await expect.element(textarea).toHaveValue('Saved description');
+      await expect.element(saveButton).toBeDisabled();
+    }
+  );
 
   it('does not restore settings after the admin cache is purged', async () => {
     let resolveSave!: (profile: {

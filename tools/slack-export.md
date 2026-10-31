@@ -103,6 +103,19 @@ Default file downloads contact only `files.slack.com` and
 `files-origin.slack.com`. Slack receives the requests and the machine's public
 IP address. File URL credentials go only to those file hosts; no bearer token
 or cookies are sent for downloads. No Chatto-operated service receives data.
+
+Add `--download-avatars` to download profile images. The converter selects
+`image_original` first, then tries exported thumbnails from largest to smallest
+if the preferred image is unavailable or exceeds the byte limit.
+It contacts `avatars.slack-edge.com`, `a.slack-edge.com`, and `secure.gravatar.com`.
+Gravatar can redirect Slack default avatars through the WordPress image CDN at
+`i0.wp.com`, `i1.wp.com`, or `i2.wp.com`; only paths for the listed source hosts
+are accepted. These services see the requested URLs and the downloader's IP
+address. No Slack bearer token or cookies are sent. Every redirect is checked.
+The private avatar cache is separate from attachment downloads. Each image is
+limited to 5 MiB; one run downloads at most 1 GiB of avatar bytes. Failed or skipped
+avatars are reported as omissions. `--report-only` never downloads avatars.
+`--skip-files` controls attachments only; avatar downloads remain explicit.
 `uv` can contact the Python package registry to install the pinned validator
 and its dependencies. Schema validation itself makes no network requests.
 
@@ -117,16 +130,42 @@ native interchange events. Channel changes require structured source fields;
 the converter does not extract values from human-readable notice text.
 Every channel ends with an authoritative membership snapshot.
 
+Use `--replace-oversized-messages` to replace converted bodies over 10,000 UTF-8
+bytes with: "This message could not be imported because its converted content
+exceeds the message size limit." This omits the whole body, including attachment
+summary text, but preserves identity, author, timestamps, thread references,
+reactions, and file references. The report lists `oversized_message_body` as an
+omission, and the archive manifest records the replacement count. Without this
+option, oversized bodies block conversion. Other conversion errors still block
+conversion.
+Join/leave events retain their known reactors as reaction snapshots, without
+inventing reaction times. Import requires a destination that returns the event
+ID from `ImportRoomEvent` and accepts membership targets in `ImportReaction`.
+These reactions are stored even though the client does not yet show them.
+Reactions on other channel events stop conversion with
+`channel_event_reactions`. Blocks, attachments, or files on channel events are
+reported separately as `channel_event_content`.
+
 The manifest marks history as partial and capture consistency as unknown.
 Known gaps are declared as omissions. It does not use the conversion time as
 the source capture time. Rich-text conversion keeps the existing supported
 Markdown subset. Rich-text user mentions become literal names because the draft
-format has no structured mention contract. Custom or unknown reaction emoji,
-unresolved references, unsupported blocks, and ambiguous history stop conversion.
+format has no structured mention contract. Custom or unknown reaction names are
+preserved when they use the reaction-name syntax. Their images are not imported;
+clients can show them as `:name:`. Known emoji retain their Unicode representation.
+Slack names and skin-tone suffixes use a pinned `iamcal/emoji-data` lookup,
+including every listed alias, compound sequence, and mixed-tone sequence.
+Resolved Unicode is checked against Chatto's shared emoji catalog. Newer standard
+emoji retain their plain names with a declared missing glyph mapping, separately
+from custom emoji. Unsupported skin-tone sequences stop conversion because native
+reaction validation requires those sequences in the shared catalog. Skin tones
+are never removed or appended to arbitrary emoji.
+Invalid reaction names, unresolved references, unsupported blocks, and ambiguous
+history stop conversion.
 
 - `--allow-missing-files` writes unavailable asset records when files cannot be
   downloaded. It does not invent placeholder message text.
-- `--skip-files --allow-missing-files` skips all downloads and records files as
+- `--skip-files --allow-missing-files` skips attachment downloads and records files as
   unavailable.
 - `--allow-attachment-summaries` retains supported attachment text and links,
   with a declared loss of layout and embedded media.
@@ -144,8 +183,11 @@ chatto operator import /path/to/new-chatto-archive --accept-omissions
 ```
 
 The converter can represent more data than the initial native importer accepts.
-In particular, that importer currently rejects bots, deactivated accounts,
-private channels, and unavailable files. The CLI streams events and files to
+The importer supports bots and deactivated accounts. Bots belong to the current
+server owner automatically. Use `--bot-owner` to choose an active human when
+multiple owners exist or to override the default. Imported
+bots have no credentials. Private channels and unavailable files remain
+unsupported. The CLI streams events and files to
 individual Operator APIs. There is no total archive size or record-count limit;
 one JSON record is limited to 1 MiB. Shared files are supported. See the
 [current import limits](../schema/interchange/README.md) before loading it.
@@ -159,3 +201,24 @@ Run `mise test-slack` and `mise test-interchange` for synthetic tests. Never add
 private Slack exports as repository fixtures. Run `mise codegen-emoji` after
 updating the bundled emoji data; it produces the backend map and the converter's
 JSON map from the same source.
+
+`tools/emoji-additions.json` supplies newer built-in emoji that the released
+gemoji dependency does not contain. Regenerate after changing these entries.
+The generator rejects duplicate names so a dependency update cannot silently
+replace an existing mapping.
+
+The separate `slack-emoji-map.json` contains the standard names from
+[`iamcal/emoji-data`](https://github.com/iamcal/emoji-data), the dataset linked
+by [Slack's formatting documentation](https://docs.slack.dev/messaging/formatting-message-text/#emoji).
+Conversion reads this lookup locally and does not contact GitHub or Slack for
+standard emoji. To regenerate it, run:
+
+```sh
+mise x -- uv run python -B tools/gen-slack-emoji-map.py
+```
+
+Only this maintenance command fetches the public dataset from GitHub. Its source
+revision and SHA-256 are pinned in the generator and recorded in the generated
+file. Update both pins together after reviewing upstream changes. No Slack
+export data is used or sent by the generator. Custom workspace images and aliases
+are not part of this standard catalog.

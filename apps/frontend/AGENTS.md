@@ -14,6 +14,25 @@ Do not generate playground links for code written into this repository.
 
 ## Frontend Review
 
+**Inset Frame** is the canonical name for the raised rim and recessed content
+used by menus, palettes, dialog trays, and previews. See `docs/GLOSSARY.md` at the repository
+root and **Inset Frame** in `DESIGN_SYSTEM.md`. `inset-frame` and `inset-content`
+own the shared geometry and finish. Menu and preview utilities compose them;
+do not copy their border, radius, fill, or lighting into a feature component.
+Use `ContextMenu`/`MenuSection` for menu behavior and preview utilities for
+content. Keep both in the **UI/Inset Frame** Storybook comparison when changing
+the shared treatment.
+
+For images, files, embeds, composer thumbnails, and link hover cards, use the
+preview primitives in `src/app.css`. Read the **Preview surfaces** section in
+`DESIGN_SYSTEM.md` and the **UI/Preview frames** Storybook collection before
+adding a preview surface. Use `preview-frame` for the outer frame,
+`preview-content` for inset content, and `preview-thumbnail` for compact media.
+Do not introduce a separate border, outline, or card recipe for these surfaces.
+Keep native link/button semantics, media sizing, consent, loading, and actions
+with their existing owners. Full-size viewers and identity avatars are separate
+primitives. The design-system check rejects the retired `embed-frame` utility.
+
 Use [chatto-frontend-review](../../.agents/skills/chatto-frontend-review/SKILL.md)
 for every review of frontend code, including self-review before completing a
 change. It owns the review rules for side effects, reactivity, and lifecycle

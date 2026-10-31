@@ -63,6 +63,30 @@ beforeEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('consumes Escape before a focused background input handles it', async () => {
+    const input = document.createElement('input');
+    const onInputKeydown = vi.fn();
+    input.addEventListener('keydown', onInputKeydown);
+    document.body.append(input);
+    try {
+      input.focus();
+      const onclose = vi.fn();
+      renderMenu({ onclose, role: 'dialog' });
+      await tick();
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      });
+      input.dispatchEvent(event);
+      expect(onclose).toHaveBeenCalledOnce();
+      expect(onInputKeydown).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true);
+    } finally {
+      input.remove();
+    }
+  });
+
   it('does not keep an old route visible while its replacement mounts', async () => {
     const { container } = render(ContextMenuRouteTeardownHarness);
 

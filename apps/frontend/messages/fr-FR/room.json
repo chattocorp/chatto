@@ -276,6 +276,7 @@
     "thread": {
       "title": "Sujet dans #{room}",
       "back_to_room": "Retour à la salle",
+      "participants": "Participants au fil ({count})",
       "follow": "Suivre le fil de discussion",
       "unfollow": "Ne plus suivre le fil de discussion",
       "close": "Fermer le fil de discussion",

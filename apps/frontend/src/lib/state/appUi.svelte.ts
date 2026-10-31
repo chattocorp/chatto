@@ -47,6 +47,20 @@ type RoomSidebarProfileRequest = RoomSidebarProfileState & {
  * sidebar and call-wide mode can coordinate without custom event bridges.
  */
 export class AppUiState {
+  constructor(private readonly requestMembers?: (scope: AppRoomScope) => void) {}
+
+  /** Request the visible directory from navigation, panel actions, and viewport events. */
+  loadVisibleRoomMembers(): void {
+    if (!this.requestMembers || this.activeRoomSidebarProfileUserId) return;
+    const scope = this.activeRoomScope;
+    if (!scope) return;
+    const panel =
+      getRoomSidebarPresentation() === 'desktop'
+        ? this.desktopRoomSidebarPanel('members')
+        : this.mobileRoomSidebarPanel;
+    if (panel === 'members') this.requestMembers(scope);
+  }
+
   #activeServerId = $state<string | null>(null);
   #activeRoomId = $state<string | null>(null);
   #desktopRoomSidebarSessionState = $state<Record<string, RoomSidebarPreference>>({});
@@ -144,8 +158,11 @@ export class AppUiState {
   ): void {
     const scope = this.activeRoomScope;
     if (!scope) return;
-    if (presentation === 'desktop') this.openDesktopRoomSidebarPanel('members');
-    else this.openMobileRoomSidebarPanel('members');
+    if (presentation === 'desktop') this.#setDesktopRoomSidebarPanel('members');
+    else {
+      this.#mobileRoomSidebarScope = this.#activeRoomScopeKey;
+      this.#mobileRoomSidebarPanel = 'members';
+    }
     this.#roomSidebarProfile = { ...scope, userId, returnToMembers: true };
     this.disableRoomCallWideForActiveRoom();
   }
@@ -178,6 +195,7 @@ export class AppUiState {
     this.#roomSidebarProfile = null;
     this.#setDesktopRoomSidebarPanel(panel);
     if (panel !== 'call') this.disableRoomCallWideForActiveRoom();
+    this.loadVisibleRoomMembers();
   }
 
   closeDesktopRoomSidebarPanel(): void {
@@ -201,6 +219,7 @@ export class AppUiState {
     this.#roomSidebarProfile = null;
     this.#mobileRoomSidebarScope = scope;
     this.#mobileRoomSidebarPanel = panel;
+    this.loadVisibleRoomMembers();
   }
 
   closeMobileRoomSidebarPanel(): void {
@@ -239,6 +258,7 @@ export class AppUiState {
     if (presentation === 'desktop') {
       this.#setDesktopRoomSidebarPanel(this.activeDesktopRoomSidebarPanel);
     }
+    this.loadVisibleRoomMembers();
   }
 
   /**

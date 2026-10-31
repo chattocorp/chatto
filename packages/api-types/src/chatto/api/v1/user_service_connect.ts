@@ -53,8 +53,8 @@ export const UserService = {
     /**
      * Updates the target user's login, display name, and/or bio. Users can
      * update themselves. Updating another human requires user.manage-accounts.
-     * A human who updates a bot needs ownership of the bot,
-     * user.manage-accounts, or bot.manage. A bot cannot target another account.
+     * A caller who updates another bot needs ownership of the bot,
+     * user.manage-accounts, or bot.manage. Bot callers use the same permission checks.
      * A login change returns FAILED_PRECONDITION while the target's
      * username-change cooldown is active. A successful login change starts a
      * new cooldown. This also applies when a bot owner or bot manager changes a
@@ -74,9 +74,9 @@ export const UserService = {
     /**
      * Uploads and sets an avatar for the target user. Users can update
      * themselves. Updating another human requires user.manage-accounts.
-     * A human who updates a bot needs ownership of the bot,
+     * A caller who updates another bot needs ownership of the bot,
      * user.manage-accounts, or bot.manage.
-     * A bot cannot target another account. Unknown or deleted targets return
+     * Bot callers use the same permission checks. Unknown or deleted targets return
      * NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
      *
      * @generated from rpc chatto.api.v1.UserService.UploadAvatar

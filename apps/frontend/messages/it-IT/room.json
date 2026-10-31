@@ -276,6 +276,7 @@
     "thread": {
       "title": "Discussione in #{room}",
       "back_to_room": "Ritorno in camera",
+      "participants": "Partecipanti alla discussione ({count})",
       "follow": "Segui il filo",
       "unfollow": "Smetti di seguire il thread",
       "close": "Chiudi discussione",

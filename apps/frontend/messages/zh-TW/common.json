@@ -3,6 +3,15 @@
     "code_source": "原始碼",
     "code_render": "呈現",
     "code_render_failed": "無法預覽。原始碼仍可使用。",
+    "keyboard_shortcuts": {
+      "title": "鍵盤快捷鍵",
+      "app": "應用程式",
+      "undo": "復原",
+      "redo": "重做",
+      "new_line": "換行",
+      "edit_last": "編輯最後一則訊息（草稿為空時）",
+      "complete": "完成提及或表情符號"
+    },
     "action_unavailable": "此操作目前無法使用。",
     "edit": "編輯",
     "copy_failed": "無法複製到剪貼簿。請選取文字並手動複製。",

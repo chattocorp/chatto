@@ -77,9 +77,10 @@ type MessageServiceClient interface {
 	// permission to read the message. A missing reaction returns an empty page;
 	// a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
 	ListReactionUsers(context.Context, *connect.Request[v1.ListReactionUsersRequest]) (*connect.Response[v1.ListReactionUsersResponse], error)
-	// Fetches and caches metadata for a composer URL. Authentication is required
+	// Fetches and caches metadata for a URL. Authentication is required
 	// to avoid exposing the preview fetcher as an unauthenticated network proxy.
-	// Successful responses include a short-lived token accepted by CreateMessage.
+	// Successful responses include a short-lived token accepted by CreateMessage,
+	// unless omit_preview_token is set for a display-only read.
 	FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error)
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages. Thread replies require read
@@ -305,9 +306,10 @@ type MessageServiceHandler interface {
 	// permission to read the message. A missing reaction returns an empty page;
 	// a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
 	ListReactionUsers(context.Context, *connect.Request[v1.ListReactionUsersRequest]) (*connect.Response[v1.ListReactionUsersResponse], error)
-	// Fetches and caches metadata for a composer URL. Authentication is required
+	// Fetches and caches metadata for a URL. Authentication is required
 	// to avoid exposing the preview fetcher as an unauthenticated network proxy.
-	// Successful responses include a short-lived token accepted by CreateMessage.
+	// Successful responses include a short-lived token accepted by CreateMessage,
+	// unless omit_preview_token is set for a display-only read.
 	FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error)
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages. Thread replies require read

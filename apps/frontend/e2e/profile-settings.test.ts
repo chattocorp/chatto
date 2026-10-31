@@ -14,6 +14,68 @@ async function setCustomStatus(page: Page, text: string): Promise<void> {
 }
 
 test.describe('Profile Settings', () => {
+  test('cancels and confirms a username change with the current profile draft', async ({
+    page
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settings);
+    const username = page.getByTestId('settings-username');
+    const renamed = `renamed${Date.now()}`;
+    const settings = new SettingsPage(page);
+    await username.fill(`${renamed}x`);
+    await settings.displayNameInput.fill('Updated profile');
+    await settings.saveDisplayNameButton.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(`@${renamed}x`);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(username).toHaveValue(`${renamed}x`);
+    await expect(settings.displayNameInput).toHaveValue('Updated profile');
+
+    await username.fill(renamed);
+    await settings.saveDisplayNameButton.click();
+    await expect(dialog).toContainText(`@${renamed}?`);
+    await dialog.getByRole('button', { name: 'Change username', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText('Profile updated')).toBeVisible();
+    await expect(settings.saveDisplayNameButton).toBeDisabled();
+    await page.reload();
+    await expect(username).toHaveValue(renamed);
+    await expect(settings.displayNameInput).toHaveValue('Updated profile');
+  });
+
+  test('opens settings from own profile menus and returns with updated identity', async ({
+    page,
+    chatPage
+  }) => {
+    const user = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const previousURL = page.url();
+    await page.getByTestId('current-user-identity-card').click({ button: 'right' });
+    const menu = page.getByRole('dialog', { name: 'User profile', exact: true });
+    const edit = menu.getByRole('link', { name: 'Edit profile', exact: true });
+    await expect(edit).toHaveAttribute('href', routes.settings);
+    await edit.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(routes.settings);
+    await expect(menu).not.toBeVisible();
+
+    const settings = new SettingsPage(page);
+    await settings.updateDisplayName('Updated profile shortcut');
+    await page.goBack();
+    await expect(page).toHaveURL(previousURL);
+    await expect(page.getByTestId('current-user-identity-card')).toContainText(
+      'Updated profile shortcut'
+    );
+
+    await page.goto(routes.user(user.id!));
+    await page.getByTestId('profile-user-menu-button').click();
+    await expect(edit).toBeVisible();
+    await edit.click();
+    await expect(page).toHaveURL(routes.settings);
+    await expect(menu).not.toBeVisible();
+    await settings.expectDisplayNameValue('Updated profile shortcut');
+  });
+
   test('syncs custom status changes and clearing across clients of the same user', async ({
     page,
     chatPage,

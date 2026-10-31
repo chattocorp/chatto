@@ -37,7 +37,15 @@ message Event {
     AccountErasureRequestedEvent account_erasure_requested = 115;
     EmailReleasedEvent email_released = 116;
     AccountErasedEvent account_erased = 117;
+    AdministratorChangedEvent administrator_changed = 118;
   }
+}
+
+// AdministratorChangedEvent replaces an account's stored administrator flag.
+// Operator email overrides are configuration, not permanent assignments.
+message AdministratorChangedEvent {
+  string account_id = 1;
+  bool is_administrator = 2;
 }
 
 // ProfileUpdatedEvent replaces the encrypted, non-unique identity hints that

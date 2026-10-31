@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Creación de cuentas",
+      "open": "Registro abierto",
+      "invite_only": "Código de invitación obligatorio",
+      "open_description": "Cualquiera puede crear una cuenta con los métodos de registro configurados.",
+      "invite_only_description": "Las cuentas nuevas necesitan un código de invitación de un solo uso. Los usuarios existentes pueden seguir iniciando sesión.",
+      "methods": "Métodos de registro configurados",
+      "methods_configuration": "Los métodos de registro se gestionan en la configuración de alojamiento de este servidor.",
+      "email_password": "Correo electrónico y contraseña",
+      "no_methods": "No hay métodos de registro habilitados. Los usuarios no pueden crear cuentas en ninguno de los modos."
+    },
     "neighbors": {
       "title": "Vecinos",
       "subtitle": "Publica servidores de Chatto amigos en tu directorio público",
@@ -254,6 +265,10 @@
         "name_title": "Nombre y descripción",
         "name_subtitle": "Los miembros los ven en la lista de salas y en la parte superior de la sala.",
         "visibility_title": "Visibilidad",
+        "membership_events_title": "Actividad de miembros",
+        "show_membership_events": "Mostrar entradas y salidas",
+        "membership_events_description": "Mostrar cuándo las personas entran o salen de esta sala, también en su historial. Ocultar esta actividad no la elimina.",
+        "membership_events_unavailable": "Actualiza este servidor para cambiar cómo se muestra la actividad de miembros.",
         "visibility_subtitle": "Elige quién es miembro de esta sala.",
         "universal_description": "Todos los miembros que pueden unirse a esta sala son miembros automáticamente.",
         "visibility_help": "Usa una sala universal para noticias que deben recibir todos los miembros, como los anuncios. Los miembros no pueden salir de una sala universal, pero sí pueden silenciarla. Si desactivas la opción universal, los miembros que se unieron antes siguen en la sala.",
@@ -549,36 +564,30 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
-      "title": "Enlaces de invitación",
-      "subtitle": "Crea y gestiona enlaces que permiten crear cuentas nuevas.",
-      "create_title": "Crear enlace de invitación",
-      "max_uses": "Usos máximos",
-      "max_uses_error": "Introduce un número entero igual o mayor que 1.",
-      "unlimited_uses": "Permitir usos ilimitados",
-      "expiry": "Caducidad",
-      "expiry_1d": "1 día",
-      "expiry_7d": "7 días",
-      "expiry_30d": "30 días",
-      "expiry_never": "Nunca",
-      "create": "Crear enlace de invitación",
-      "created": "Enlace de invitación creado",
-      "list_title": "Enlaces de invitación",
-      "empty": "Todavía no hay enlaces de invitación.",
-      "uses": "Usos",
+      "management_help": "Los códigos de invitación permiten que otras personas se unan a este servidor.",
+      "created_by": "Creado por",
+      "note_label": "Nota (opcional)",
+      "note_placeholder": "Para Alex del equipo de diseño",
+      "note_description": "Tú y los administradores de invitaciones pueden ver esta nota.",
+      "note_too_long": "Usa 250 caracteres o menos.",
+      "usage": "Los códigos nuevos caducan a los 7 días y permiten crear una cuenta cada uno. Copia un código y envíalo a su destinatario. Solo se consume cuando el registro se completa.",
+      "create_title": "Crear código",
+      "create": "Crear código",
+      "created": "Código de invitación creado",
+      "list_title": "Códigos de invitación",
+      "empty": "Aún no hay códigos de invitación.",
       "created_at": "Creado",
       "actions": "Acciones",
       "never": "Nunca",
-      "copy": "Copiar enlace",
-      "copied": "Enlace de invitación copiado",
       "revoke": "Revocar",
-      "revoked": "Enlace de invitación revocado",
-      "revoke_title": "¿Revocar el enlace de invitación?",
-      "revoke_description": "Este enlace dejará de permitir la creación de cuentas nuevas de inmediato.",
+      "revoked": "Código de invitación revocado",
+      "revoke_title": "¿Revocar código?",
+      "revoke_description": "Este código dejará de permitir cuentas nuevas inmediatamente.",
       "status": {
         "active": "Activo",
         "expired": "Caducado",
-        "exhausted": "Agotado",
-        "revoked": "Revocado"
+        "revoked": "Revocado",
+        "used": "Usado"
       }
     }
   }

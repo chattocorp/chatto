@@ -61,6 +61,65 @@ function setup() {
   };
 }
 
+test('accepts reactions to Botto messages as passive activity in the target thread', async () => {
+  const { event, read, active } = setup();
+  event.event = new RealtimeEvent({
+    event: {
+      case: 'reactionAdded',
+      value: {
+        roomId: 'room',
+        messageEventId: 'target',
+        emoji: 'thinking_face'
+      }
+    }
+  }).event;
+  expect(await read()).toEqual({
+    id: 'incoming',
+    roomId: 'room',
+    threadRootId: 'root',
+    authorId: 'human',
+    body: '',
+    reasons: [],
+    reaction: { messageId: 'target', emoji: 'thinking_face' }
+  });
+  expect(active).not.toHaveBeenCalled();
+});
+
+test('ignores own reactions, removals, and reactions to other authors', async () => {
+  const { event, read, getMessage } = setup();
+  event.event = new RealtimeEvent({
+    event: {
+      case: 'reactionAdded',
+      value: {
+        roomId: 'room',
+        messageEventId: 'target',
+        emoji: '+1'
+      }
+    }
+  }).event;
+  event.actorId = 'bot';
+  expect(await read()).toBeUndefined();
+  expect(getMessage).not.toHaveBeenCalled();
+  event.actorId = 'human';
+  getMessage.mockResolvedValue({
+    message: new Message({ id: 'target', roomId: 'room', actorId: 'someone-else', body: 'Hi' })
+  });
+  expect(await read()).toBeUndefined();
+  event.event = new RealtimeEvent({
+    event: {
+      case: 'reactionRemoved',
+      value: {
+        roomId: 'room',
+        messageEventId: 'target',
+        emoji: '+1'
+      }
+    }
+  }).event;
+  getMessage.mockClear();
+  expect(await read()).toBeUndefined();
+  expect(getMessage).not.toHaveBeenCalled();
+});
+
 test.each([RoomKind.DM, RoomKind.CHANNEL])(
   'accepts image-only messages in DMs and active threads (%s)',
   async (roomKind) => {
@@ -93,6 +152,24 @@ test('ignores explicit thread replies when respond_to excludes reply', async () 
   expect(getMessage).not.toHaveBeenCalled();
   expect(active).not.toHaveBeenCalled();
 });
+
+test.each(['', 'bot', 'human'])(
+  'DM follow-ups stay addressed regardless of reply target: %s',
+  async (targetAuthor) => {
+    const { event, active, getMessage, read } = setup();
+    if (event.event.case !== 'messagePosted') throw new Error('Fixture');
+    event.event.value.roomKind = RoomKind.DM;
+    if (targetAuthor) event.event.value.inReplyTo = 'target';
+    getMessage.mockResolvedValue({
+      message: new Message({ id: 'target', roomId: 'room', actorId: targetAuthor })
+    });
+    expect(await read(undefined, ['direct_message'])).toMatchObject({
+      reasons: ['direct_message']
+    });
+    expect(active).not.toHaveBeenCalled();
+    expect(getMessage).not.toHaveBeenCalled();
+  }
+);
 
 test('answers @here only when respond_to enables it', async () => {
   const { event, active, read } = setup();

@@ -6,6 +6,13 @@
       "confirmation": "Bu işlem, bu sunucuda sana atanmış ek izinleri 15 dakika boyunca etkinleştirir."
     },
     "notifications": {
+      "all_notifications": "Tüm bildirimler",
+      "all_types": "Tüm türler",
+      "filter_status": "Durum",
+      "filter_type": "Tür",
+      "reactions": "Tepkiler",
+      "replies": "Yanıtlar",
+      "mentions": "Bahsetmeler",
       "next_unread_source": "Sonraki okunmamış kaynağa gidin",
       "no_unread": "Okunmamış bildirim yok",
       "title": "Bildirimler",
@@ -40,6 +47,7 @@
       "administration": "Sunucu yönetimi"
     },
     "user_menu": {
+      "edit_profile": "Profili düzenleyin",
       "profile": "Kullanıcı profili",
       "send_message": "Sohbeti açın",
       "view_profile": "Profili görüntüleyin",
@@ -53,6 +61,9 @@
       "details": "Sunucu ayrıntıları"
     },
     "compatibility": {
+      "older_frontend": "Uygulamanız bu sunucudaki tüm özellikleri desteklemiyor",
+      "frontend_upgrade": "Uygulamanın {version} sürümünü kullanıyorsunuz. Uygulamanızı güncelleyin veya uygulamayı sağlayan sunucunun yöneticisinden güncellemesini isteyin. Özelliklere erişim, sunucu ayarlarına ve izinlerinize de bağlıdır.",
+      "frontend_requires": "Uygulamanın {version} veya daha yeni bir sürümünü gerektirir",
       "title": "Uyumluluk",
       "view": "Uyumluluğu görüntüle",
       "limited": "Eski sunucu sürümü",
@@ -173,7 +184,8 @@
       "event_log": "Olay Günlüğü",
       "system": "Sistem",
       "back_to_server": "Sunucuya Geri Dön",
-      "invitations": "Davet bağlantıları"
+      "invites": "Davetler",
+      "registration": "Kayıt"
     }
   }
 }

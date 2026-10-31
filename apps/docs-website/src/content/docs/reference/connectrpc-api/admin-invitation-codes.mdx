@@ -1,0 +1,154 @@
+---
+title: AdminInvitationCodeService
+description: Single-use invitation-code administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminInvitationCodeService"></a>
+
+## AdminInvitationCodeService
+
+Issues and manages registration codes. user.invite permits access to own codes.
+Effective user.manage-invites permits access to all codes and requires
+privileged mode for human sessions.
+External systems can issue codes with an authorized API credential.
+
+<a id="chatto-admin-v1-AdminInvitationCodeService-ListInvitationCodes"></a>
+
+### ListInvitationCodes
+
+Lists visible current and historical codes. Pagination and totals include only visible codes.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/ListInvitationCodes
+```
+
+<a id="chatto-admin-v1-ListInvitationCodesRequest"></a>
+
+#### Input: ListInvitationCodesRequest
+
+Lists codes newest first, with ID as the tie-breaker.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Default limit: 20. Maximum: 100. |
+
+
+<a id="chatto-admin-v1-ListInvitationCodesResponse"></a>
+
+#### Result: ListInvitationCodesResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_codes` | repeated [`InvitationCode`](/reference/connectrpc-api/types/#chatto-admin-v1-InvitationCode) | No field description provided. |
+| `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInvitationCodeService-GetInvitationCode"></a>
+
+### GetInvitationCode
+
+Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/GetInvitationCode
+```
+
+<a id="chatto-admin-v1-GetInvitationCodeRequest"></a>
+
+#### Input: GetInvitationCodeRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetInvitationCodeResponse"></a>
+
+#### Result: GetInvitationCodeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_code` | [`InvitationCode`](/reference/connectrpc-api/types/#chatto-admin-v1-InvitationCode) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInvitationCodeService-CreateInvitationCode"></a>
+
+### CreateInvitationCode
+
+Creates a code that expires seven days after creation for every caller.
+Not idempotent: retrying creates another code.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/CreateInvitationCode
+```
+
+<a id="chatto-admin-v1-CreateInvitationCodeRequest"></a>
+
+#### Input: CreateInvitationCodeRequest
+
+Creates one single-use code. The server sets expiry to seven days after creation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible to the creator and invitation managers; it does not bind the code to a recipient. |
+
+
+<a id="chatto-admin-v1-CreateInvitationCodeResponse"></a>
+
+#### Result: CreateInvitationCodeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_code` | [`InvitationCode`](/reference/connectrpc-api/types/#chatto-admin-v1-InvitationCode) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInvitationCodeService-RevokeInvitationCode"></a>
+
+### RevokeInvitationCode
+
+Revokes a code without deleting its history. Repeating revocation is safe.
+Returns NOT_FOUND for an unknown or inaccessible ID.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/RevokeInvitationCode
+```
+
+<a id="chatto-admin-v1-RevokeInvitationCodeRequest"></a>
+
+#### Input: RevokeInvitationCodeRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-RevokeInvitationCodeResponse"></a>
+
+#### Result: RevokeInvitationCodeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_code` | [`InvitationCode`](/reference/connectrpc-api/types/#chatto-admin-v1-InvitationCode) | No field description provided. |

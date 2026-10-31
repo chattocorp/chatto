@@ -8,10 +8,11 @@ import { fileURLToPath } from 'node:url';
 const oldEventValuesPath = 'chatto/core/evt/v1/models.proto';
 
 /**
- * Accept only the two reviewed source changes from the storage-contract cleanup.
+ * Accept only reviewed storage changes, including the removed beta invitation
+ * use limit (FDR-036). Unrelated field removals must still fail.
  * @param {{path?: string, type: string, message: string}} diagnostic Buf diagnostic.
  */
-export function isReviewedStorageRelocation(diagnostic) {
+export function isReviewedStorageChange(diagnostic) {
   return (
     (diagnostic.type === 'FILE_NO_DELETE' &&
       (diagnostic.path === undefined || diagnostic.path === oldEventValuesPath) &&
@@ -19,7 +20,11 @@ export function isReviewedStorageRelocation(diagnostic) {
     (diagnostic.path === 'chatto/core/runtime_state/v1/legacy_state.proto' &&
       diagnostic.type === 'FIELD_SAME_TYPE' &&
       diagnostic.message ===
-        'Field "1" with name "legacy_sections" on message "RoomLayout" changed type from "chatto.core.evt.v1.RoomGroup" to "chatto.core.runtime_state.v1.RoomGroup".')
+        'Field "1" with name "legacy_sections" on message "RoomLayout" changed type from "chatto.core.evt.v1.RoomGroup" to "chatto.core.runtime_state.v1.RoomGroup".') ||
+    (diagnostic.path === 'chatto/core/evt/v1/invitation_events.proto' &&
+      diagnostic.type === 'FIELD_NO_DELETE' &&
+      diagnostic.message ===
+        'Previously present field "2" with name "max_uses" on message "InvitationCreatedEvent" was deleted.')
   );
 }
 
@@ -85,10 +90,10 @@ function main() {
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
-    const failures = diagnostics.filter((diagnostic) => !isReviewedStorageRelocation(diagnostic));
+    const failures = diagnostics.filter((diagnostic) => !isReviewedStorageChange(diagnostic));
     for (const diagnostic of diagnostics) {
-      if (isReviewedStorageRelocation(diagnostic)) {
-        console.log(`Accepted storage-contract relocation: ${diagnostic.message}`);
+      if (isReviewedStorageChange(diagnostic)) {
+        console.log(`Accepted storage-contract change: ${diagnostic.message}`);
       }
     }
     for (const diagnostic of failures) console.error(JSON.stringify(diagnostic));

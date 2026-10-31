@@ -45,6 +45,20 @@ func historicalEvent(actor string, at *time.Time, hidden bool) (*evtv1.Event, er
 // ImportHistoricalRoomChange applies a single historical room transition. Room
 // name claims use the complete room boundary; no archive state is kept here.
 func (c *ChattoCore) ImportHistoricalRoomChange(ctx context.Context, in HistoricalRoomChange) error {
+	_, err := c.ImportHistoricalRoomEvent(ctx, in)
+	return err
+}
+
+// ImportHistoricalRoomEvent returns the committed event ID, including on retries.
+// Receipts written before event IDs were retained return an empty ID; their
+// transitions are never repeated merely to supply a reaction target.
+func (c *ChattoCore) ImportHistoricalRoomEvent(ctx context.Context, in HistoricalRoomChange) (string, error) {
+	var id string
+	err := c.importHistoricalRoomChange(ctx, in, &id)
+	return id, err
+}
+
+func (c *ChattoCore) importHistoricalRoomChange(ctx context.Context, in HistoricalRoomChange, id *string) error {
 	wait := func() error {
 		pos, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomSubjectFilter())
 		if err != nil {
@@ -61,6 +75,9 @@ func (c *ChattoCore) ImportHistoricalRoomChange(ctx context.Context, in Historic
 			return err
 		}
 		if o.resource != "" {
+			if o.resource != in.RoomID {
+				*id = o.resource
+			}
 			return wait()
 		}
 		pos, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomSubjectFilter())
@@ -127,9 +144,10 @@ func (c *ChattoCore) ImportHistoricalRoomChange(ctx context.Context, in Historic
 		default:
 			return invalidArgument("unsupported historical room change")
 		}
-		entries := []evtstream.BatchEntry{{Subject: evtstream.RoomAggregate(in.RoomID).SubjectFor(e), Event: e, Expect: events.ExpectFilterSeq(evtstream.RoomSubjectFilter(), pos.Seq)}, o.receipt(in.RoomID)}
+		entries := []evtstream.BatchEntry{{Subject: evtstream.RoomAggregate(in.RoomID).SubjectFor(e), Event: e, Expect: events.ExpectFilterSeq(evtstream.RoomSubjectFilter(), pos.Seq)}, o.receipt(e.Id)}
 		_, err = c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
+			*id = e.Id
 			return wait()
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -142,6 +160,9 @@ func (c *ChattoCore) ImportHistoricalRoomChange(ctx context.Context, in Historic
 // ImportHistoricalMessageChange preserves source-time mutations without live
 // effects. Each operation and its permanent retry receipt commit atomically.
 func (c *ChattoCore) ImportHistoricalMessageChange(ctx context.Context, in HistoricalMessageChange) error {
+	if in.Kind == "reaction" {
+		return c.ImportHistoricalReactionChanges(ctx, []HistoricalMessageChange{in})
+	}
 	o, err := c.operatorOperation(ctx, in.OperationKey, "ImportMessageChange", in)
 	if err != nil {
 		return err
@@ -279,23 +300,6 @@ func (c *ChattoCore) ImportHistoricalMessageChange(ctx context.Context, in Histo
 					deleted := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_AssetDeleted{AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: id}}})
 					deletedAssets = append(deletedAssets, evtstream.BatchEntry{Subject: aa.SubjectFor(deleted), Event: deleted, Expect: events.ExpectFilterSeq(aa.AllEventsFilter(), tail.Seq)})
 				}
-			}
-		case "reaction":
-			if _, err = c.GetUser(ctx, in.UserID); err != nil {
-				return err
-			}
-			emoji := in.Emoji
-			if !IsValidEmojiName(emoji) {
-				emoji, err = HistoricalEmojiName(emoji)
-				if err != nil {
-					return err
-				}
-			}
-			if in.Present {
-				e.Event = &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: in.RoomID, MessageEventId: in.MessageID, UserId: in.UserID, Emoji: emoji, HistoricalImport: true}}
-			} else {
-				e.ActorId = in.UserID
-				e.Event = &evtv1.Event_ReactionRemoved{ReactionRemoved: &evtv1.ReactionRemovedEvent{RoomId: in.RoomID, MessageEventId: in.MessageID, Emoji: emoji}}
 			}
 		case "thread":
 			if post.GetMessagePosted().GetInThread() != "" {

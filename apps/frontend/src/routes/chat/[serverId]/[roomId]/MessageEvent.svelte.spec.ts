@@ -18,6 +18,7 @@ import { messageEvent } from './messageEventFixture';
 import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 
 const mocks = vi.hoisted(() => ({
+  touchPrimary: false,
   copyImageToClipboard: vi.fn(),
   actions: {
     addReaction: vi.fn(),
@@ -49,8 +50,8 @@ vi.mock('$lib/utils/inputCapabilities', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/utils/inputCapabilities')>();
   return {
     ...actual,
-    prefersTouchActions: () => false,
-    supportsHoverActions: () => true
+    prefersTouchActions: () => mocks.touchPrimary,
+    supportsHoverActions: () => !mocks.touchPrimary
   };
 });
 
@@ -103,6 +104,7 @@ async function selectPickerEmoji(
 }
 
 beforeEach(() => {
+  mocks.touchPrimary = false;
   vi.clearAllMocks();
   for (const action of Object.values(mocks.actions)) action.mockResolvedValue(undefined);
 });
@@ -519,6 +521,33 @@ describe('MessageEvent action model integration', () => {
     expect(container.querySelector('[role="menu"]')).toBeNull();
   });
 
+  it.each([
+    '<span data-link-preview-trigger><a href="#">Link</a></span>',
+    '<dialog><button>Preview action</button></dialog>',
+    '<div popover><button>Preview action</button></div>'
+  ])('keeps message gestures out of child-owned surfaces: %s', async (html) => {
+    mocks.touchPrimary = true;
+    const actionOverlays = new MessageActionOverlayState();
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), actionOverlays }
+    });
+    const body = q(container, '[data-testid="message-body"]')!;
+    body.innerHTML = html;
+    const child = body.querySelector('a, button')!;
+    vi.useFakeTimers();
+    child.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    child.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    vi.advanceTimersByTime(600);
+    flushSync();
+    expect(actionOverlays.current).toBeNull();
+    // The message body itself still owns a normal long press.
+    body.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    vi.advanceTimersByTime(500);
+    flushSync();
+    expect(actionOverlays.current?.kind).toBe('sheet');
+    vi.useRealTimers();
+  });
+
   it('closes the touch sheet when it is dismissed natively', async () => {
     const actionOverlays = new MessageActionOverlayState();
     const { container } = render(MessageEventTestHarness, {
@@ -537,6 +566,24 @@ describe('MessageEvent action model integration', () => {
     container.querySelector<HTMLDialogElement>('dialog[open]')!.close();
     await vi.waitFor(() => expect(actionOverlays.current).toBeNull());
   });
+
+  it.each(['dialog', 'div popover'])(
+    'ignores context menus retargeted into a child %s',
+    async (surface) => {
+      const actionOverlays = new MessageActionOverlayState();
+      const { container } = render(MessageEventTestHarness, {
+        props: { event: messageEvent(), actionOverlays }
+      });
+      const body = q(container, '[data-testid="message-body"]')!;
+      const tag = surface.split(' ')[0];
+      body.innerHTML = `<${surface}><span>Preview content</span></${tag}>`;
+      const nativeMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      body.querySelector('span')!.dispatchEvent(nativeMenu);
+      flushSync();
+      expect(nativeMenu.defaultPrevented).toBe(true);
+      expect(actionOverlays.current).toBeNull();
+    }
+  );
 
   it('keeps the message menu for a mention without a current member', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });

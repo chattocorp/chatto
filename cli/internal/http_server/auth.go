@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chattocorp/chatto/cli/internal/readmodel"
-
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
@@ -124,37 +122,9 @@ func (s *HTTPServer) emailOTPExpirationText() string {
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
-	// Invite links bind the durable invitation ID to the signed browser session,
-	// then immediately redirect so the bearer token does not remain in the URL.
-	s.router.GET("/invite/:token", func(c *gin.Context) {
-		c.Header("Cache-Control", "no-store")
-		c.Header("Referrer-Policy", "no-referrer")
-		c.Header("X-Robots-Tag", "noindex, nofollow")
-
-		session := sessions.Default(c)
-		session.Delete(accountInvitationSessionKey)
-		destination := "/register"
-		if s.config.Auth.InvitationRequired() {
-			invitationID, err := s.core.ValidateInviteLinkToken(c.Request.Context(), c.Param("token"))
-			if err != nil {
-				if !errors.Is(err, core.ErrInvitationInvalid) {
-					log.Error("Failed to validate invite link", "error", err)
-				}
-				destination = "/register?error=invalid_invitation"
-			} else {
-				session.Set(accountInvitationSessionKey, invitationID)
-				destination = "/register?invited=1"
-			}
-		}
-		if err := session.Save(); err != nil {
-			log.Error("Failed to save invite-link session", "error", err)
-			destination = "/register?error=invalid_invitation"
-		}
-		c.Redirect(http.StatusSeeOther, destination)
-	})
-
 	auth := s.router.Group("/auth")
 	auth.Use(limitLegacyRequestBody())
+	s.setupRegistrationAdmissionRoutes(auth)
 	auth.Use(func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 		c.Next()
@@ -629,7 +599,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		var req struct {
-			Email string `json:"email" binding:"required,email"`
+			Email          string `json:"email" binding:"required,email"`
+			AdmissionID    string `json:"admissionId"`
+			InvitationCode string `json:"invitationCode"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -641,20 +613,24 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		ctx := c.Request.Context()
 		invitationID := ""
-		if s.config.Auth.InvitationRequired() {
-			session := sessions.Default(c)
-			invitationID, _ = session.Get(accountInvitationSessionKey).(string)
-			if invitationID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
-				return
+		if err := s.core.WaitForRegistrationPolicy(ctx); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Registration is temporarily unavailable"})
+			return
+		}
+		if s.core.InvitationRequired() {
+			var err error
+			if req.InvitationCode != "" {
+				invitationID, err = s.core.ValidateInvitationCode(ctx, req.InvitationCode)
+			} else {
+				invitationID, err = s.registrationInvitation(c, req.AdmissionID)
 			}
-
-			// Direct registration carries the invitation forward in the OTP flow,
-			// so it must not remain available to a later provider login in the same
-			// browser session.
-			session.Delete(accountInvitationSessionKey)
-			if err := session.Save(); err != nil {
-				log.Warn("Failed to clear invitation session after direct registration", "error", err)
+			if err != nil {
+				if errors.Is(err, core.ErrInvitationInvalid) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})
+				} else {
+					c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Registration is temporarily unavailable"})
+				}
+				return
 			}
 		}
 
@@ -829,19 +805,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		var user *readmodel.User
-		if s.config.Auth.InvitationRequired() {
-			if tokenData.InvitationID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
-				return
-			}
-			user, err = s.core.CreateVerifiedUserWithInvitation(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
-		} else {
-			user, err = s.core.CreateVerifiedUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email)
-		}
+		user, err := s.core.CreateSelfServiceUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrInvitationInvalid) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})
 				return
 			}
 			if errors.Is(err, core.ErrLoginAlreadyTaken) {
@@ -870,6 +837,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Server membership is implicit; global rooms appear automatically.
+		clearRegistrationAdmission(c, tokenData.InvitationID)
 
 		// Delete registration completion token (consumed)
 		if err := s.core.DeleteRegistrationToken(ctx, req.Token); err != nil {

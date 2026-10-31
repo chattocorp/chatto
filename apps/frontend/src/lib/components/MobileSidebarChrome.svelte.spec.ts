@@ -6,6 +6,7 @@ import { sidebarNav } from '$lib/state/globals.svelte';
 import MobileSidebarChrome from './MobileSidebarChrome.svelte';
 import ServerSidebar from './ServerSidebar.svelte';
 import { cdp, page } from 'vitest/browser';
+import { applyAnimationPreference, watchMotionPreference } from '$lib/dom/motionPreference';
 import '../../app.css';
 
 function resetSidebar() {
@@ -43,16 +44,21 @@ function translation(element: HTMLElement) {
 }
 
 describe('MobileSidebarChrome', () => {
+  let stopMotionWatch: (() => void) | void;
   beforeEach(async () => {
     await page.viewport(390, 844);
     vi.clearAllMocks();
     document.documentElement.dir = 'ltr';
     resetSidebar();
+    applyAnimationPreference('automatic');
+    stopMotionWatch = watchMotionPreference(document.documentElement);
   });
 
   afterEach(async () => {
+    stopMotionWatch?.();
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
     await cdp().send('Emulation.setEmulatedMedia', { features: [] });
+    applyAnimationPreference('automatic');
     document.documentElement.dir = 'ltr';
     await page.viewport(1280, 720);
   });
@@ -95,6 +101,7 @@ describe('MobileSidebarChrome', () => {
         features: [{ name: 'prefers-reduced-motion', value: 'reduce' }]
       });
       expect(matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
+      await expect.poll(() => document.documentElement.dataset.motion).toBe('reduced');
       const { panels } = renderDrawer();
       for (const open of [true, false, true, false]) {
         if (open) sidebarNav.toggle();

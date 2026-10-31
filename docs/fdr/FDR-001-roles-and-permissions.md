@@ -36,7 +36,7 @@ its `room.join` permission. This lets a room manager invite a user who cannot
 join independently. These permissions also authorize removal after join
 permission is lost. Archived channels have no column in this matrix.
 
-Bot owners and human bot managers can manage their bots without `room.manage`.
+Bot owners and callers with `bot.manage` can manage bots without `room.manage`.
 Without an account or room management override, adding a bot requires its
 effective `room.join`, including its owner's ceiling. Suspensions and archived rooms
 prevent adding. Universal membership remains automatic; DMs are excluded.
@@ -100,8 +100,7 @@ the backend permission catalog. Update both catalogs together.
   read authority and includes `message.read-interactions`, which
   supplies authority for related threads only. The same read rules apply in
   DMs after the membership check. `message.post` separately
-  gates root-message posting and permits human users to start DMs. Bot accounts
-  cannot start DMs regardless of their permissions.
+  gates root-message posting and permits humans and bots to start DMs.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners are always entitled to all permissions. The owner override becomes effective only while the human session has privileged mode active. Without it, an owner resolves through direct grants, other roles, and `everyone` like any other user. An effective owner has the durable `owner` role; verified users listed in `owners.emails` in `chatto.toml` are materialized into that role at boot or through retryable durable work after verification.
@@ -183,7 +182,7 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. A new permission that
+**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin` and `owner`. Owners can thus post without privileged mode. Do not reset existing permission state during startup. A new permission that
 gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 - Initialize each missing server-level `everyone` call permission once. Any
@@ -196,6 +195,12 @@ gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 These grants preserve existing capabilities without undoing an operator's
 later decision.
+
+The invitation permission split also copies current server-scope `user.invite`
+allows and denies to `user.manage-invites` once. A historical decision for the
+new permission, including a clear, prevents another copy. The original decisions
+remain as non-privileged issuance grants or denials. Fresh admins receive both;
+everyone receives neither. See [FDR-036](FDR-036-invite-links.md).
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Apart from the explicit upgrade grants above, adding a new code default does not grant it to existing servers or rooms automatically. Changes of meaning, such as `room.manage` for room-group managers, remain manual review items. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
@@ -240,11 +245,11 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   access to the complete thread. An effective `message.read` allow includes
   this permission. Fresh and upgraded servers store only the `message.read`
   grant for `everyone`.
-- `message.post` — post root messages and thread replies, and let human users start DMs.
+- `message.post` — post root messages and thread replies, and let humans and bots start DMs.
   Includes `message.post-in-thread` and `message.post-in-interactions`. A narrow
   deny cannot restrict an effective broad allow.
-  Bot accounts cannot start DMs. Fresh servers grant this permission to
-  `everyone` at server scope. Fresh announcement rooms replace that baseline
+  Bots need an explicit grant within their owner's authority. Fresh servers
+  grant this permission to `everyone` at server scope. Fresh announcement rooms replace that baseline
   with a room-level `everyone` deny and a room-level `admin` allow. Moderators
   and other named roles need their own room-level posting grant.
 - `message.post-in-thread` — reply in any readable thread where room policy permits it.

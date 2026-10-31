@@ -1,5 +1,23 @@
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
+import type { PublicServerFeature } from '../api/server.js';
+
+/**
+ * Features introduced after a bundled frontend release. Unknown feature IDs
+ * are expected. Ignore incomplete entries, unknown versions, and duplicate IDs.
+ * Third-party clients must use their own feature policy instead of this helper.
+ */
+export function limitedFrontendFeatures(
+  catalog: readonly PublicServerFeature[],
+  frontendVersion: string
+): PublicServerFeature[] {
+  const seen = new Set<string>();
+  return catalog.filter((feature) => {
+    if (!feature.id.trim() || !feature.name.trim() || seen.has(feature.id)) return false;
+    seen.add(feature.id);
+    return compareReleaseVersions(frontendVersion, feature.introducedVersion) === -1;
+  });
+}
 
 /**
  * Minimum releases for individual client capabilities. Add an entry when a

@@ -116,6 +116,13 @@ message RoomThreadingModeChangedEvent {
   RoomThreadingMode threading_mode = 2;
 }
 
+// RoomMembershipEventsVisibilityChangedEvent records a channel's display setting.
+// It does not change membership facts, history reads, or realtime delivery.
+message RoomMembershipEventsVisibilityChangedEvent {
+  string room_id = 1;
+  bool show_membership_events = 2;
+}
+
 // ============================================================================
 // ROOM MEMBERSHIP EVENTS
 // ============================================================================

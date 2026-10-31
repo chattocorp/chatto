@@ -7,6 +7,8 @@ sort modes that belong together, such as “All / Unread” or
 selection semantics; the surrounding pill presents the options as one control.
 
 Use `ToggleChip` instead when choices can be toggled independently.
+Place adjacent filters directly in `segmented-control-group` to fill each row
+when the controls wrap.
 -->
 <script lang="ts" generics="T extends string | number">
   import type { Attachment } from 'svelte/attachments';
@@ -33,7 +35,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
   const controlId = $props.id();
   const groupName = `segmented-control-${controlId}`;
 
-  function selectedIndicator(_selectedValue: T): Attachment<HTMLFieldSetElement> {
+  function selectedIndicator(_selectedValue: T): Attachment<HTMLDivElement> {
     return (node) => {
       let frame = 0;
 
@@ -69,22 +71,25 @@ Use `ToggleChip` instead when choices can be toggled independently.
   }
 </script>
 
-<fieldset
+<!-- A normal flex box gives the options and indicator the same content box.
+     Fieldset's anonymous content box prevents their percentage heights from filling the track. -->
+<div
+  role="radiogroup"
+  aria-label={label}
+  aria-disabled={disabled || undefined}
   class={[
-    'group/segmented relative inline-flex h-10 w-fit min-w-0 items-center gap-1 segmented-track p-1',
+    'group/segmented relative inline-flex h-10 w-fit max-w-full min-w-0 items-center gap-1 segmented-track p-1',
     className
   ]}
-  {disabled}
   {@attach selectedIndicator(value)}
 >
-  <legend class="sr-only">{label}</legend>
   <span
     aria-hidden="true"
     class="pointer-events-none absolute inset-y-1 left-0 [width:var(--segmented-indicator-width,0px)] [transform:translateX(var(--segmented-indicator-x,0px))] segmented-selection opacity-0 transition-[width,transform,opacity] duration-[var(--motion-duration-pane)] ease-[var(--ease-out-expo)] group-data-[indicator-ready=true]/segmented:opacity-100 motion-reduce:transition-none"
   ></span>
 
   {#each options as option (option.value)}
-    <label class="relative flex h-full min-w-0 cursor-pointer">
+    <label class="relative flex h-full min-w-0 cursor-pointer rounded-lg">
       <input
         class="peer absolute inset-0 z-20 m-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0 disabled:cursor-not-allowed"
         type="radio"
@@ -99,8 +104,8 @@ Use `ToggleChip` instead when choices can be toggled independently.
           'relative z-10 inline-flex h-full min-w-10 items-center justify-center rounded-lg px-3 text-sm font-medium text-muted transition-[background-color,color] feedback-quick peer-checked:bg-[var(--segmented-fill)] peer-checked:text-text-top group-data-[indicator-ready=true]/segmented:peer-checked:bg-transparent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text'
         ]}
       >
-        {option.label}
+        <span class="min-w-0 truncate" title={option.label}>{option.label}</span>
       </span>
     </label>
   {/each}
-</fieldset>
+</div>

@@ -32,12 +32,15 @@ sessions.
 - Consent disclosure version 2 lists the stable account ID (`sub`), names for
   `profile`, and the current verified address for `email`. It explains that
   access includes later changes to the requested profile and email information.
+  The consent page groups this information by permission. The account ID is
+  available under **Your account ID**. Approval and denial are adjacent actions.
+  A compact page layout keeps the standard consent flow within a small popup.
 - Explicit approval replaces the grant with exactly the approved scopes.
   Subsets can reuse a covering grant; expanded requests require consent.
 - Approval forms carry the disclosure version. The server rejects an outdated
   approval form and asks the person to reload it. Denial remains available.
 - Denying a forced-consent request does not revoke an existing grant.
-- The account page lists active grants with their client name, display host,
+- The Connected apps tab at `/account/apps` lists active grants with their client name, display host,
   recorded scopes, and latest explicit authorization time. Same-origin POST is required to
   revoke one.
 - Revocation affects future authorization decisions immediately after the

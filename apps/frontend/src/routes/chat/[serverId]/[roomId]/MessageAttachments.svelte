@@ -1,7 +1,7 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import { retainPlayback } from '$lib/media/playbackRetention';
-  import { LoadingFog, LoadRetry } from '$lib/ui';
+  import { LoadingFog, LoadRetry, PreviewToolbar, PreviewAction } from '$lib/ui';
   import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
@@ -383,10 +383,7 @@
     });
   }
 
-  function openDeleteConfirmation(attachment: Attachment, event: Event) {
-    // Prevent opening the image modal
-    event.stopPropagation();
-
+  function openDeleteConfirmation(attachment: Attachment) {
     pushState('', {
       modal: {
         type: 'deleteAttachment',
@@ -398,8 +395,7 @@
     });
   }
 
-  function openDescriptionEditor(attachment: Attachment, event: Event) {
-    event.stopPropagation();
+  function openDescriptionEditor(attachment: Attachment) {
     pushState('', {
       modal: {
         type: 'editAttachmentDescription',
@@ -416,33 +412,23 @@
 {#if attachments.length > 0}
   {#snippet deleteAttachmentButton(attachment: Attachment)}
     {#if canDeleteAttachment}
-      <button
-        type="button"
-        onclick={(event) => openDeleteConfirmation(attachment, event)}
-        class="btn-danger-secondary attachment-action-button"
-        aria-label={m('room.attachment.delete_label')}
-        title={m('room.attachment.delete_label')}
-      >
-        <span class="iconify icon-[uil--trash-alt] text-sm" aria-hidden="true"></span>
-      </button>
+      <PreviewAction
+        onclick={() => openDeleteConfirmation(attachment)}
+        label={m('room.attachment.delete_label')}
+        icon="icon-[uil--trash-alt]"
+      />
     {/if}
   {/snippet}
 
   {#snippet editDescriptionButton(attachment: Attachment)}
     {#if canEditAttachmentDescription}
-      <button
-        type="button"
-        onclick={(event) => openDescriptionEditor(attachment, event)}
-        class="btn-secondary attachment-action-button"
-        aria-label={attachment.description
+      <PreviewAction
+        onclick={() => openDescriptionEditor(attachment)}
+        label={attachment.description
           ? m('room.attachment.edit_description')
           : m('room.attachment.add_description')}
-        title={attachment.description
-          ? m('room.attachment.edit_description')
-          : m('room.attachment.add_description')}
-      >
-        <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
-      </button>
+        icon="icon-[uil--file-edit-alt]"
+      />
     {/if}
   {/snippet}
 
@@ -452,21 +438,13 @@
     layout: 'overlay' | 'row' = 'overlay'
   )}
     {#if canDeleteAttachment || showViewer || canEditAttachmentDescription}
-      <div
-        class={[
-          'z-10 flex gap-1',
-          layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 items-center',
-          layout === 'overlay' && 'absolute end-2 top-2',
-          layout !== 'row' &&
-            'transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0'
-        ]}
-      >
+      <PreviewToolbar {layout}>
         {@render deleteAttachmentButton(attachment)}
         {#if showViewer}
           {@render viewAttachmentButton(attachment)}
         {/if}
         {@render editDescriptionButton(attachment)}
-      </div>
+      </PreviewToolbar>
     {/if}
   {/snippet}
 
@@ -481,7 +459,7 @@
           : fallbackSingleThumbDisplay()}
     <div
       class={[
-        'group/attachment attachment-media-frame',
+        'group/preview attachment-media-frame',
         // Reserve room for the action row without changing the image dimensions.
         canDeleteAttachment && canEditAttachmentDescription
           ? 'min-w-19'
@@ -500,7 +478,7 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={imageButtonStyle(display, variant)}
-        class="relative embed-frame block min-w-0 cursor-pointer overflow-hidden"
+        class="relative my-1.5 block min-w-0 cursor-pointer preview-frame overflow-hidden"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -516,7 +494,10 @@
             loading="lazy"
             src={imageUrl}
             alt={attachment.description || attachment.filename}
-            class={['h-full w-full', display.fit === 'contain' ? 'object-contain' : 'object-cover']}
+            class={[
+              'h-full w-full preview-content',
+              display.fit === 'contain' ? 'object-contain' : 'object-cover'
+            ]}
             onload={() => settledImageUrls.set(attachment.id, imageUrl)}
             onerror={() => {
               settledImageUrls.set(attachment.id, imageUrl);
@@ -534,9 +515,7 @@
   {/snippet}
 
   {#snippet viewAttachmentButton(attachment: Attachment)}
-    <button
-      type="button"
-      class="btn-secondary attachment-action-button"
+    <PreviewAction
       onclick={(event) => {
         // Stop inline playback before the viewer creates another player.
         event.currentTarget
@@ -547,12 +526,10 @@
           });
         openAttachmentModal(attachment);
       }}
-      aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
-      title={m('room.attachment.view_label', { filename: attachment.filename })}
+      label={m('room.attachment.view_label', { filename: attachment.filename })}
+      icon="icon-[uil--expand-alt]"
       aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
-    >
-      <span class="iconify icon-[uil--expand-alt] shrink-0" aria-hidden="true"></span>
-    </button>
+    />
   {/snippet}
 
   {#snippet attachmentItem(attachment: Attachment)}
@@ -560,12 +537,12 @@
       {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
         {@const autoLoop = attachment.contentType === 'image/gif'}
         <div
-          class="group/attachment attachment-video-frame"
+          class="group/preview attachment-video-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <LoadingFog class="embed-frame min-h-32 min-w-48" />
+            <LoadingFog class="my-1.5 min-h-32 min-w-48 preview-frame" />
           {:then { default: VideoPlayer }}
             <VideoPlayer
               status={attachment.videoProcessing.status}
@@ -592,7 +569,7 @@
             />
           {:catch}
             <LoadRetry
-              class="embed-frame min-h-32 min-w-48"
+              class="my-1.5 min-h-32 min-w-48 preview-frame"
               onretry={() => (videoPlayerLoadAttempt += 1)}
             />
           {/await}
@@ -608,7 +585,7 @@
           original so the user can at least play it.
         -->
         <div
-          class="group/attachment attachment-video-frame embed-frame"
+          class="group/preview attachment-video-frame my-1.5 preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
@@ -617,7 +594,7 @@
             controls
             preload="metadata"
             src={attachment.url}
-            class="max-h-64 max-w-full object-contain"
+            class="max-h-64 max-w-full preview-content object-contain"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
@@ -627,7 +604,7 @@
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div
-          class="group/attachment embed-frame attachment-card w-[30rem] min-w-0 flex-wrap"
+          class="my-1.5 attachment-card w-[30rem] min-w-0 flex-wrap preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
@@ -646,7 +623,7 @@
           {@render attachmentControls(attachment, true, 'row')}
         </div>
       {:else}
-        <div class="group/attachment embed-frame attachment-card min-w-[min(14rem,100%)]">
+        <div class="my-1.5 attachment-card min-w-[min(14rem,100%)] preview-frame">
           <button
             type="button"
             onclick={() => openAttachmentModal(attachment)}

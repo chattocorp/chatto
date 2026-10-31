@@ -158,6 +158,7 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  invalidateAll: vi.fn(),
   goto: mocks.goto,
   pushState: mocks.pushState
 }));
@@ -303,7 +304,7 @@ describe('ServerSidebarEntry', () => {
     mocks.startRemoteReauthentication.mockReset();
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     mocks.signOutCurrentServer.mockReset();
-    mocks.signOutCurrentServer.mockResolvedValue({ kind: 'soft', serverId: 'origin' });
+    mocks.signOutCurrentServer.mockResolvedValue({ kind: 'soft', serverId: 'remote' });
     mocks.hardRedirectAfterSignOut.mockReset();
     mocks.beginOriginReauthentication.mockReset();
     mocks.isOriginServer.mockReset();
@@ -491,7 +492,12 @@ describe('ServerSidebarEntry', () => {
       copyHostname.closest('.menu-section')!.querySelectorAll('[role="menuitem"]'),
       (item) => item.textContent?.trim()
     );
-    expect(actionLabels).toEqual(['Server information', 'Copy server hostname', 'Mark as read']);
+    expect(actionLabels).toEqual([
+      'Server information',
+      'Copy server link',
+      'Copy server hostname',
+      'Mark as read'
+    ]);
     expect(q(document.body, '[data-testid="move-server-up"]')).toBeNull();
     expect(q(document.body, '[data-testid="move-server-down"]')).toBeNull();
 
@@ -508,6 +514,23 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Copied to clipboard');
     await vi.waitFor(() =>
       expect(q(document.body, '[data-testid="copy-server-hostname"]')).toBeNull()
+    );
+  });
+
+  it('copies the server root link with its scheme and port', async () => {
+    mocks.server.url = 'https://remote.example.com:8443/chat';
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-server-link"]')).not.toBeNull()
+    );
+    (document.querySelector('[data-testid="copy-server-link"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(mocks.writeClipboardText).toHaveBeenCalledWith('https://remote.example.com:8443/')
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-server-link"]')).toBeNull()
     );
   });
 
@@ -558,7 +581,7 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
-  it('signs out the active remote server from its menu and navigates away', async () => {
+  it('signs out the active remote server and returns to its signed-out view', async () => {
     page.params.serverId = 'remote.example.com';
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     q(container, '[data-testid="server-icon"]')?.dispatchEvent(
@@ -577,12 +600,12 @@ describe('ServerSidebarEntry', () => {
 
     await vi.waitFor(() => {
       expect(mocks.signOutCurrentServer).toHaveBeenCalledWith('remote');
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com');
     });
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
   });
 
-  it('signs out an inactive remote server without changing the current route', async () => {
+  it('opens an inactive remote server after signing out of it', async () => {
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     q(container, '[data-testid="server-icon"]')?.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
@@ -593,7 +616,7 @@ describe('ServerSidebarEntry', () => {
     q(document.body, '[data-testid="server-sign-out"]')?.click();
 
     await vi.waitFor(() => expect(mocks.signOutCurrentServer).toHaveBeenCalledWith('remote'));
-    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com');
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
   });
 

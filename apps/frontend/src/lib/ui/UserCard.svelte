@@ -3,7 +3,7 @@
 
 Shared identity row for members, the current user, and call participants.
 Callers own user data, presence, menus, and media. Avatar content must be
-non-interactive when identityAttributes supplies a whole-identity button.
+non-interactive when a menu or identityAttributes supplies a whole-identity button.
 Actions are siblings of that button, so controls never nest inside a button.
 -->
 <script lang="ts">
@@ -63,7 +63,7 @@ Actions are siblings of that button, so controls never nest inside a button.
     children?: Snippet;
     /** Row has sidebar feedback; card uses the bottom-row shell surface. */
     variant?: 'row' | 'card' | 'plain';
-    /** Omit for passive identity text or an independently clickable avatar. */
+    /** Override the identity button attributes. Without a menu, omission keeps the identity passive. */
     identityAttributes?: HTMLButtonAttributes;
     class?: ClassValue;
     nameClass?: ClassValue;
@@ -71,6 +71,18 @@ Actions are siblings of that button, so controls never nest inside a button.
     textTestId?: string;
     secondaryTestId?: string;
   } = $props();
+
+  const identityButton = $derived<HTMLButtonAttributes | undefined>(
+    identityAttributes ??
+      (menu
+        ? {
+            onclick: menu.onclick,
+            disabled: menu.disabled,
+            'aria-haspopup': 'dialog' as const,
+            'aria-expanded': menu.expanded ?? false
+          }
+        : undefined)
+  );
 </script>
 
 {#snippet identityContent()}
@@ -112,13 +124,13 @@ Actions are siblings of that button, so controls never nest inside a button.
     class="relative isolate flex h-12 min-h-12 min-w-0 shrink-0 items-center gap-2 rounded-[inherit] px-2"
   >
     {#if voiceLevel}<VoiceActivity level={voiceLevel} />{/if}
-    {#if identityAttributes}
+    {#if identityButton}
       <button
         type="button"
-        {...identityAttributes}
+        {...identityButton}
         class={[
           'flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-start text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action',
-          identityAttributes.class
+          identityButton.class
         ]}>{@render identityContent()}</button
       >
     {:else}

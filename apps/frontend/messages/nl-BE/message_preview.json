@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Bericht van {name}",
     "attachments_count": { "other": "{count} bijlagen" },
     "attachment_image": "Afbeelding",
     "attachment_video": "Video",

@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Account creation",
+      "open": "Open Registration",
+      "invite_only": "Invite Code Required",
+      "open_description": "Anyone can create an account using the configured signup methods.",
+      "invite_only_description": "New accounts need a single-use invitation code. Existing users can still sign in.",
+      "methods": "Configured signup methods",
+      "methods_configuration": "Signup methods are managed in this server’s hosting configuration.",
+      "email_password": "Email and password",
+      "no_methods": "No signup methods are enabled. Users cannot create accounts in either mode."
+    },
     "neighbors": {
       "title": "Neighbors",
       "subtitle": "Advertise friendly Chatto servers in your public directory",
@@ -254,6 +265,10 @@
         "name_title": "Name & Description",
         "name_subtitle": "Members see these in the room list and at the top of the room.",
         "visibility_title": "Visibility",
+        "membership_events_title": "Membership activity",
+        "show_membership_events": "Show join/leave events",
+        "membership_events_description": "Show when people join or leave this room, including in its history. Hiding this activity does not delete it.",
+        "membership_events_unavailable": "Update this server to change how membership activity is shown.",
         "visibility_subtitle": "Choose who is a member of this room.",
         "universal_description": "Every member who can join this room is a member automatically.",
         "visibility_help": "Use a Universal room for news that all members must get, such as announcements. Members cannot leave a Universal room, but they can mute it. If you turn Universal off, the members who joined before stay in the room.",
@@ -549,36 +564,30 @@
       "total": "{count} user(s) total"
     },
     "invitations": {
-      "title": "Invite links",
-      "subtitle": "Create and manage links that admit new accounts.",
-      "create_title": "Create invite link",
-      "max_uses": "Maximum uses",
-      "max_uses_error": "Enter a whole number of at least 1.",
-      "unlimited_uses": "Allow unlimited uses",
-      "expiry": "Expiry",
-      "expiry_1d": "1 day",
-      "expiry_7d": "7 days",
-      "expiry_30d": "30 days",
-      "expiry_never": "Never",
-      "create": "Create invite link",
-      "created": "Invite link created",
-      "list_title": "Invite links",
-      "empty": "No invite links yet.",
-      "uses": "Uses",
+      "management_help": "Invite codes let other people join this server.",
+      "created_by": "Created by",
+      "note_label": "Note (optional)",
+      "note_placeholder": "For Alex from the design team",
+      "note_description": "You and invitation managers can see this note.",
+      "note_too_long": "Use 250 characters or fewer.",
+      "usage": "New codes expire after 7 days and admit one account each. Copy a code and send it to its recipient. A code is used only when signup succeeds.",
+      "create_title": "Create code",
+      "create": "Create code",
+      "created": "Invitation code created",
+      "list_title": "Invitation codes",
+      "empty": "No invitation codes yet.",
       "created_at": "Created",
       "actions": "Actions",
       "never": "Never",
-      "copy": "Copy link",
-      "copied": "Invite link copied",
       "revoke": "Revoke",
-      "revoked": "Invite link revoked",
-      "revoke_title": "Revoke invite link?",
-      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "revoked": "Invitation code revoked",
+      "revoke_title": "Revoke code?",
+      "revoke_description": "This code will stop admitting new accounts immediately.",
       "status": {
         "active": "Active",
         "expired": "Expired",
-        "exhausted": "Exhausted",
-        "revoked": "Revoked"
+        "revoked": "Revoked",
+        "used": "Used"
       }
     }
   }

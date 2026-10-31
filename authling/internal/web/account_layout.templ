@@ -1,0 +1,57 @@
+package web
+
+import "github.com/chattocorp/chatto/authling/internal/web/ui"
+
+// accountWorkspace keeps section navigation available throughout account tasks.
+// These are ordinary page links, not JavaScript-only tab widgets.
+templ accountWorkspace(title, signedInAs, active string, administrator bool) {
+	@pageLayout(title, signedInAs, true, administrator) {
+		<div class="account-heading">
+			@ui.Heading("Your account") {
+				<p>Your identity on { siteFromContext(ctx).Name }.</p>
+			}
+			<form method="post" action="/logout">
+				<button class="button button-secondary button-compact" type="submit">Sign out</button>
+			</form>
+		</div>
+		<div class="account-sheet">
+			<nav class="account-tabs" aria-label="Account sections">
+				@accountTab("/account", "Profile", "Profile", active == "profile")
+				@accountTab("/account/security", "Security", "Security", active == "security")
+				@accountTab("/account/apps", "Connected apps", "Apps", active == "apps")
+				@accountTab("/account/sessions", "Sessions", "Sessions", active == "sessions")
+			</nav>
+			<div class="account-section">{ children... }</div>
+		</div>
+	}
+}
+
+templ accountTab(href, label, shortLabel string, active bool) {
+	<a
+		class="account-tab"
+		href={ templ.SafeURL(href) }
+		aria-label={ label }
+		if active {
+			aria-current="page"
+		}
+	>
+		<span class="hidden sm:inline">{ label }</span>
+		<span class="sm:hidden">{ shortLabel }</span>
+	</a>
+}
+
+// accountTask keeps the panel full width and its form fields at a readable width.
+templ accountTask(title, signedInAs, active string) {
+	@accountWorkspace(title, signedInAs, active, false) {
+		<section class="panel account-task">{ children... }
+</section>
+	}
+}
+
+// publicTask presents recovery and completion pages without account navigation.
+templ publicTask(title string) {
+	@pageLayout(title, "", true) {
+		<section class="panel account-task">{ children... }
+</section>
+	}
+}

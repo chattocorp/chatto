@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -16,6 +17,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestOperatorImportLostHistoryCheckpoints(t *testing.T) {
+	// Serial: the CLI harness changes command globals and uses shared NATS.
+	env := newOperatorCLITestEnv(t)
+	progress := filepath.Join(t.TempDir(), "progress.jsonl")
+	args := []string{"operator", "import", "../../schema/interchange/v1/examples/conversation", "--accept-omissions", "--progress", progress}
+	env.run(t, args...)
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	raw, err := os.ReadFile(progress)
+	require.NoError(t, err)
+	var retained bytes.Buffer
+	for line := range bytes.SplitSeq(bytes.TrimSpace(raw), []byte{'\n'}) {
+		var entry progressEntry
+		require.NoError(t, json.Unmarshal(line, &entry))
+		// Lose all recoverable history results, including post IDs used by
+		// edits, replies, reactions, and deletes. Keep durable prerequisites.
+		if strings.HasPrefix(entry.Key, "event/") || strings.HasPrefix(entry.Key, "final/") || entry.Key == "complete" {
+			continue
+		}
+		retained.Write(line)
+		retained.WriteByte('\n')
+	}
+	retained.WriteString(`{"key":"crash-tail`)
+	require.NoError(t, os.WriteFile(progress, retained.Bytes(), 0600))
+	env.run(t, args...)
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "recovery must not append duplicate facts or upload files again")
+}
+
 func TestOperatorImportThroughSocket(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
 	removed := httptest.NewRecorder()
@@ -30,7 +61,7 @@ func TestOperatorImportThroughSocket(t *testing.T) {
 		if strings.HasSuffix(r.URL.Path, "/UploadChunk") {
 			uploads.Add(1)
 		}
-		if strings.HasSuffix(r.URL.Path, "/ImportMessage") {
+		if strings.HasSuffix(r.URL.Path, "/ImportMessage") || strings.HasSuffix(r.URL.Path, "/ImportMessages") {
 			posts.Add(1)
 		}
 		baseHandler.ServeHTTP(w, r)
@@ -61,7 +92,7 @@ func TestOperatorImportThroughSocket(t *testing.T) {
 }
 
 func TestOperatorImportLostResponse(t *testing.T) {
-	for _, method := range []string{"CreateUser", "CreateRoom", "CompleteUpload", "ImportMessage", "ImportMessageChange", "ImportRoomEvent"} {
+	for _, method := range []string{"CreateUser", "CreateRoom", "CompleteUpload", "ImportMessage", "ImportMessages", "ImportMessageChange", "ImportRoomEvent"} {
 		t.Run(method, func(t *testing.T) {
 			env := newOperatorCLITestEnv(t)
 			original := env.server.Handler
@@ -150,4 +181,167 @@ func TestOperatorImportRejectsSourceBeforeConnecting(t *testing.T) {
 	command := newOperatorImportCommand()
 	command.SetArgs([]string{"/nonexistent/source"})
 	require.ErrorContains(t, command.Execute(), "source must be a directory")
+}
+
+func TestOperatorImportRejectsLongDisplayNameBeforeWrites(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+	path := filepath.Join(dir, "users.jsonl")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	var user map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &user))
+	user["display_name"] = strings.Repeat("ü", core.MaxDisplayNameLength+1)
+	encoded, err := json.Marshal(user)
+	require.NoError(t, err)
+	lines[0] = string(encoded)
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600))
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	_, err = env.execute(t, "operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress"))
+	require.ErrorContains(t, err, "unsupported destination name")
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
+
+func TestOperatorImportUnknownReactionNames(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+	path := filepath.Join(dir, "events.jsonl")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	// Keep the Unicode fixture unchanged; this copy exercises named snapshots.
+	require.Contains(t, string(raw), "❤️")
+	require.NoError(t, os.WriteFile(path, []byte(strings.ReplaceAll(string(raw), "❤️", "Party_Parrot")), 0600))
+	args := []string{"operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+	env.run(t, args...)
+	facts, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, "evt.room.*.reaction_added")
+	require.NoError(t, err)
+	require.NotEmpty(t, facts)
+	for _, event := range facts {
+		require.Equal(t, "Party_Parrot", event.GetReactionAdded().GetEmoji())
+		reactions, err := env.core.GetReactions(env.ctx, event.GetReactionAdded().GetMessageEventId())
+		require.NoError(t, err)
+		require.Equal(t, "Party_Parrot", reactions[0].Emoji)
+	}
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	env.run(t, args...)
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
+
+func TestOperatorImportMembershipReactions(t *testing.T) {
+	for _, lostResponse := range []string{"ImportRoomEvent", "ImportReaction"} {
+		t.Run(lostResponse, func(t *testing.T) {
+			env := newOperatorCLITestEnv(t)
+			dir := t.TempDir()
+			require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+			path := filepath.Join(dir, "events.jsonl")
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+			lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+			for _, index := range []int{0, 8} {
+				var event map[string]any
+				require.NoError(t, json.Unmarshal([]byte(lines[index]), &event))
+				event["data"].(map[string]any)["reactions"] = []any{map[string]any{"emoji": "👋", "user_ids": []string{"user-1", "user-2"}}}
+				encoded, err := json.Marshal(event)
+				require.NoError(t, err)
+				lines[index] = string(encoded)
+			}
+			require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600))
+			original := env.server.Handler
+			var dropped atomic.Bool
+			env.server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				recorded := httptest.NewRecorder()
+				original.ServeHTTP(recorded, r)
+				if strings.HasSuffix(r.URL.Path, "/"+lostResponse) && recorded.Code == http.StatusOK && !dropped.Swap(true) {
+					connection, _, err := w.(http.Hijacker).Hijack()
+					if err == nil {
+						_ = connection.Close()
+					}
+					return
+				}
+				maps.Copy(w.Header(), recorded.Header())
+				w.WriteHeader(recorded.Code)
+				_, _ = w.Write(recorded.Body.Bytes())
+			})
+			args := []string{"operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+			_, err = env.execute(t, args...)
+			require.Error(t, err, "the first attempt loses a committed response")
+			env.run(t, args...)
+			require.True(t, dropped.Load())
+			facts, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, "evt.room.*.reaction_added")
+			require.NoError(t, err)
+			counts := map[string]int{}
+			for _, fact := range facts {
+				r := fact.GetReactionAdded()
+				if r.Emoji != "wave" {
+					continue
+				}
+				target, err := env.core.GetRoomEventByEventID(env.ctx, core.KindChannel, r.RoomId, r.MessageEventId)
+				require.NoError(t, err)
+				if target.GetUserJoinedRoom() != nil {
+					counts["joined"]++
+				} else if target.GetUserLeftRoom() != nil {
+					counts["left"]++
+				} else {
+					t.Fatal("reaction targeted a message instead of membership")
+				}
+				require.True(t, r.HistoricalImport)
+			}
+			require.Equal(t, map[string]int{"joined": 2, "left": 2}, counts)
+			before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+			require.NoError(t, err)
+			env.run(t, args...)
+			after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+			require.NoError(t, err)
+			require.Equal(t, before, after)
+		})
+	}
+}
+
+func TestOperatorImportMembershipReactionsRequireEventID(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+	path := filepath.Join(dir, "events.jsonl")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	var event map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &event))
+	event["data"].(map[string]any)["reactions"] = []any{map[string]any{"emoji": "wave", "user_ids": []string{"user-2"}}}
+	encoded, err := json.Marshal(event)
+	require.NoError(t, err)
+	lines[0] = string(encoded)
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600))
+	original := env.server.Handler
+	env.server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorded := httptest.NewRecorder()
+		original.ServeHTTP(recorded, r)
+		maps.Copy(w.Header(), recorded.Header())
+		w.Header().Del("Content-Length")
+		w.WriteHeader(recorded.Code)
+		if strings.HasSuffix(r.URL.Path, "/ImportRoomEvent") && recorded.Code == http.StatusOK {
+			// Older servers return an empty protobuf response after committing.
+			return
+		}
+		_, _ = w.Write(recorded.Body.Bytes())
+	})
+	args := []string{"operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+	_, err = env.execute(t, args...)
+	require.ErrorContains(t, err, "membership reactions require an event ID")
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	_, err = env.execute(t, args...)
+	require.ErrorContains(t, err, "membership reactions require an event ID")
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "retry must not repeat the membership transition")
 }

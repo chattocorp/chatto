@@ -178,6 +178,7 @@ and cannot be combined with semantic actions.
   {oncloserequest}
   {onclose}
   autofocusContent
+  mediaViewerMotion={mediaViewer}
   onkeydown={handleKeydown}
   class={sheet
     ? ''
@@ -193,9 +194,9 @@ and cannot be combined with semantic actions.
           ? 'task-sheet sheet-frame w-full'
           : mediaViewer
             ? imageViewer
-              ? 'h-dvh max-h-dvh w-full md:h-[92dvh] md:max-h-[92dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
-              : 'h-dvh max-h-dvh w-full md:h-[85dvh] md:max-h-[85dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
-            : 'max-h-[78vh] w-max rounded-lg border border-text/10 floating-frame p-2'
+              ? 'h-dvh max-h-dvh w-full md:h-[92dvh] md:max-h-[92dvh] md:w-max md:inset-frame md:p-2'
+              : 'h-dvh max-h-dvh w-full md:h-[85dvh] md:max-h-[85dvh] md:w-max md:inset-frame md:p-2'
+            : 'max-h-[78vh] w-max inset-frame p-2'
       ]}
       style:--dialog-baseline-width={imageViewer ? 'min(96vw, 1600px)' : widths[size]}
     >
@@ -204,10 +205,8 @@ and cannot be combined with semantic actions.
         {@attach sheet ? measureChrome : undefined}
         class={[
           'dialog-work-plane flex min-h-0 max-w-full min-w-full flex-1 flex-col overflow-hidden',
-          sheet
-            ? 'sheet-content w-full rounded-md bg-background p-3 floating-inset'
-            : 'w-max bg-background p-3',
-          !sheet && (mediaViewer ? 'md:rounded-md md:floating-inset' : 'rounded-md floating-inset'),
+          sheet ? 'sheet-content w-full inset-content p-3' : 'w-max bg-background p-3',
+          !sheet && (mediaViewer ? 'md:inset-content' : 'inset-content'),
           mediaViewer &&
             'ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]'
         ]}

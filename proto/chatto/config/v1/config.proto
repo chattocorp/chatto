@@ -2,11 +2,12 @@ syntax = "proto3";
 
 package chatto.config.v1;
 
+import "chatto/core/evt/v1/config_events.proto";
+
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1;configv1";
 
 // ServerConfig stores runtime-editable server settings.
-// Stored in INSTANCE_CONFIG KV bucket with key "config.instance" (legacy
-// names retained per ADR-029 to avoid a JetStream migration in this PR).
+// Derived from durable configuration events in EVT.
 message ServerConfig {
   // Welcome message shown on the login page (markdown supported).
   string welcome_message = 1;
@@ -26,4 +27,7 @@ message ServerConfig {
 
   // Server description, used for OG link-preview metadata and the welcome card.
   string description = 7;
+
+  // Admission policy for self-service accounts; absent history means open.
+  chatto.core.evt.v1.RegistrationAdmission registration_admission = 8;
 }

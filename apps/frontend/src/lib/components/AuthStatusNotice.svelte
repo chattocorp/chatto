@@ -3,7 +3,11 @@
   import { serverRegistry } from '$lib/client';
   import { type RegisteredServer } from '@chatto/client/server/registry';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
-  import { isRemoteSignInPending, startRemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
+  import {
+    isInlineSignInRequested,
+    isRemoteSignInPending,
+    startRemoteSignIn
+  } from '$lib/auth/remoteSignIn.svelte';
   import { TopOverlayNotice } from '$lib/ui';
   import { showsServerSignedOut } from '$lib/components/chat/serverSignedOut';
   import { m } from '$lib/i18n/messages';
@@ -17,6 +21,7 @@
     !!activeServer &&
       activeServer.id !== originServer?.id &&
       activeServer.reauthRequiredAt != null &&
+      !isInlineSignInRequested(activeServer.id) &&
       !showsServerSignedOut(activeServer, {
         isOrigin: false,
         hasDisplayableView:

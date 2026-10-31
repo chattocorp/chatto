@@ -283,6 +283,7 @@
     "thread": {
       "title": "Wątek w #{room}",
       "back_to_room": "Powrót do pokoju",
+      "participants": "Uczestnicy wątku ({count})",
       "follow": "Obserwuj wątek",
       "unfollow": "Przestań obserwować wątek",
       "close": "Zamknij wątek",

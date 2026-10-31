@@ -43,7 +43,7 @@ the original message. Users are ordered by user ID ascending.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Message or channel echo ID. |
-| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `emoji` | `string` | Exact reaction name returned by the server, without surrounding colons. |
 | `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
 
 
@@ -63,9 +63,10 @@ Complete reaction membership is available by paging this collection.
 
 ### FetchLinkPreview
 
-Fetches and caches metadata for a composer URL. Authentication is required
+Fetches and caches metadata for a URL. Authentication is required
 to avoid exposing the preview fetcher as an unauthenticated network proxy.
-Successful responses include a short-lived token accepted by CreateMessage.
+Successful responses include a short-lived token accepted by CreateMessage,
+unless omit_preview_token is set for a display-only read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
@@ -80,6 +81,7 @@ Request to fetch server-side link preview metadata for a URL.
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | URL to preview. |
+| `omit_preview_token` | `bool` | Set for display-only reads to skip creation of a message-composer token. Older servers can ignore this field and still return a token. |
 
 
 <a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
@@ -91,7 +93,7 @@ Result of fetching link preview metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. Empty when omit_preview_token is true. |
 
 
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>
@@ -415,12 +417,17 @@ treats it as an alias for the original thread reply and stores the reaction
 on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 current user already has 20 distinct emoji reactions on the canonical
 message; adding an emoji that already exists remains an idempotent success.
+Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+Names are case-sensitive and are stored unchanged, including
+unknown names. Clients can display an unknown name as :name:.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
 
 
 <a id="chatto-api-v1-AddReactionResponse"></a>
@@ -461,7 +468,7 @@ from that original event.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
 <a id="chatto-api-v1-RemoveReactionResponse"></a>

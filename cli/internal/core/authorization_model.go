@@ -87,9 +87,9 @@ func (a *AuthorizationModel) resolveCallPermissions(ctx context.Context, actorID
 	return result, nil
 }
 
-// requireBotManager admits the human owner or a caller with bot management authority.
+// requireBotManager admits the human owner or any caller with bot management authority.
 func (a *AuthorizationModel) requireBotManager(ctx context.Context, actorID, botID string) (*readmodel.User, error) {
-	if err := a.requireHumanUser(ctx, actorID); err != nil {
+	if err := a.requireUser(ctx, actorID); err != nil {
 		return nil, err
 	}
 	bot, err := a.users.GetUser(ctx, botID)
@@ -110,6 +110,16 @@ func (a *AuthorizationModel) requireBotManager(ctx context.Context, actorID, bot
 		return nil, ErrPermissionDenied
 	}
 	return bot, nil
+}
+
+// requireUser checks that an authenticated actor has an existing user record,
+// without restricting the actor's account kind.
+func (a *AuthorizationModel) requireUser(ctx context.Context, userID string) error {
+	if err := requireAuthenticatedActor(userID); err != nil {
+		return err
+	}
+	_, err := a.users.GetUser(ctx, userID)
+	return err
 }
 
 func (a *AuthorizationModel) requireHumanUser(ctx context.Context, userID string) error {

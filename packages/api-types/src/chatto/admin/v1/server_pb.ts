@@ -5,11 +5,93 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
-import { ServerPublicProfile } from "../../api/v1/server_pb.js";
+import { AccountCreationPolicy, ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { ImageUpload } from "../../api/v1/common_pb.js";
 
 /**
- * Runtime-editable server profile settings.
+ * Account creation settings. Admission applies to direct signup and new SSO accounts.
+ *
+ * @generated from message chatto.admin.v1.RegistrationSettings
+ */
+export class RegistrationSettings extends Message<RegistrationSettings> {
+  /**
+   * Effective policy. OPEN permits signup without an invitation.
+   *
+   * @generated from field: chatto.api.v1.AccountCreationPolicy admission = 1;
+   */
+  admission = AccountCreationPolicy.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<RegistrationSettings>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.RegistrationSettings";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "admission", kind: "enum", T: proto3.getEnumType(AccountCreationPolicy) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RegistrationSettings {
+    return new RegistrationSettings().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RegistrationSettings {
+    return new RegistrationSettings().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RegistrationSettings {
+    return new RegistrationSettings().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RegistrationSettings | PlainMessage<RegistrationSettings> | undefined, b: RegistrationSettings | PlainMessage<RegistrationSettings> | undefined): boolean {
+    return proto3.util.equals(RegistrationSettings, a, b);
+  }
+}
+
+/**
+ * Partial registration update. Unselected fields stay unchanged.
+ *
+ * @generated from message chatto.admin.v1.RegistrationSettingsUpdate
+ */
+export class RegistrationSettingsUpdate extends Message<RegistrationSettingsUpdate> {
+  /**
+   * Unspecified or a selected absent value resets admission to OPEN.
+   *
+   * @generated from field: optional chatto.api.v1.AccountCreationPolicy admission = 1;
+   */
+  admission?: AccountCreationPolicy;
+
+  constructor(data?: PartialMessage<RegistrationSettingsUpdate>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.RegistrationSettingsUpdate";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "admission", kind: "enum", T: proto3.getEnumType(AccountCreationPolicy), opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RegistrationSettingsUpdate {
+    return new RegistrationSettingsUpdate().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RegistrationSettingsUpdate {
+    return new RegistrationSettingsUpdate().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RegistrationSettingsUpdate {
+    return new RegistrationSettingsUpdate().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RegistrationSettingsUpdate | PlainMessage<RegistrationSettingsUpdate> | undefined, b: RegistrationSettingsUpdate | PlainMessage<RegistrationSettingsUpdate> | undefined): boolean {
+    return proto3.util.equals(RegistrationSettingsUpdate, a, b);
+  }
+}
+
+/**
+ * Runtime-editable server settings.
  *
  * @generated from message chatto.admin.v1.ServerConfig
  */
@@ -42,6 +124,13 @@ export class ServerConfig extends Message<ServerConfig> {
    */
   welcomeMessage = "";
 
+  /**
+   * Settings for new self-service accounts.
+   *
+   * @generated from field: chatto.admin.v1.RegistrationSettings registration = 5;
+   */
+  registration?: RegistrationSettings;
+
   constructor(data?: PartialMessage<ServerConfig>) {
     super();
     proto3.util.initPartial(data, this);
@@ -54,6 +143,7 @@ export class ServerConfig extends Message<ServerConfig> {
     { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "registration", kind: "message", T: RegistrationSettings },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerConfig {
@@ -74,7 +164,7 @@ export class ServerConfig extends Message<ServerConfig> {
 }
 
 /**
- * Request server profile settings.
+ * Request runtime-editable server settings; requires server.manage.
  *
  * @generated from message chatto.admin.v1.GetServerConfigRequest
  */
@@ -107,13 +197,13 @@ export class GetServerConfigRequest extends Message<GetServerConfigRequest> {
 }
 
 /**
- * Server profile settings plus effective public branding.
+ * Server settings plus effective public branding.
  *
  * @generated from message chatto.admin.v1.GetServerConfigResponse
  */
 export class GetServerConfigResponse extends Message<GetServerConfigResponse> {
   /**
-   * Runtime-editable server profile settings.
+   * Runtime-editable server settings.
    *
    * @generated from field: chatto.admin.v1.ServerConfig config = 1;
    */
@@ -156,7 +246,7 @@ export class GetServerConfigResponse extends Message<GetServerConfigResponse> {
 }
 
 /**
- * Request to update runtime-editable server profile settings.
+ * Request to update runtime-editable server settings; requires server.manage.
  *
  * @generated from message chatto.admin.v1.UpdateServerConfigRequest
  */
@@ -192,7 +282,14 @@ export class UpdateServerConfigRequest extends Message<UpdateServerConfigRequest
   welcomeMessage?: string;
 
   /**
-   * Editable fields to apply or reset: server_name, description, motd, welcome_message.
+   * Partial account creation settings; requires server.manage.
+   *
+   * @generated from field: chatto.admin.v1.RegistrationSettingsUpdate registration = 6;
+   */
+  registration?: RegistrationSettingsUpdate;
+
+  /**
+   * Editable fields to apply or reset: server_name, description, motd, welcome_message, registration.admission.
    * Omit to infer populated fields; * selects all editable fields. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
@@ -213,6 +310,7 @@ export class UpdateServerConfigRequest extends Message<UpdateServerConfigRequest
     { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "registration", kind: "message", T: RegistrationSettingsUpdate },
     { no: 5, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
@@ -234,7 +332,7 @@ export class UpdateServerConfigRequest extends Message<UpdateServerConfigRequest
 }
 
 /**
- * Result of updating runtime-editable server profile settings.
+ * Result of updating runtime-editable server settings.
  *
  * @generated from message chatto.admin.v1.UpdateServerConfigResponse
  */
@@ -247,7 +345,7 @@ export class UpdateServerConfigResponse extends Message<UpdateServerConfigRespon
   publicProfile?: ServerPublicProfile;
 
   /**
-   * Updated runtime-editable server profile settings.
+   * Updated runtime-editable server settings.
    *
    * @generated from field: chatto.admin.v1.ServerConfig config = 2;
    */

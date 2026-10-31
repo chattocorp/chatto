@@ -30,9 +30,10 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Fetches and caches metadata for a composer URL. Authentication is required
+     * Fetches and caches metadata for a URL. Authentication is required
      * to avoid exposing the preview fetcher as an unauthenticated network proxy.
-     * Successful responses include a short-lived token accepted by CreateMessage.
+     * Successful responses include a short-lived token accepted by CreateMessage,
+     * unless omit_preview_token is set for a display-only read.
      *
      * @generated from rpc chatto.api.v1.MessageService.FetchLinkPreview
      */

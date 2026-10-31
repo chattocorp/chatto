@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -16,7 +17,7 @@ func (*ConfigProjection) SnapshotContractID() string { return configSnapshotCont
 func (p *ConfigProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &projectionv1.ConfigProjectionSnapshot{ServerName: p.server.serverName, Description: p.server.description, WelcomeMessage: p.server.welcomeMessage, Motd: p.server.motd, Logo: cloneAssetRecord(p.server.logo), Banner: cloneAssetRecord(p.server.banner)}
+	snapshot := &projectionv1.ConfigProjectionSnapshot{RegistrationAdmission: p.server.registrationAdmission, ServerName: p.server.serverName, Description: p.server.description, WelcomeMessage: p.server.welcomeMessage, Motd: p.server.motd, Logo: cloneAssetRecord(p.server.logo), Banner: cloneAssetRecord(p.server.banner)}
 	if p.server.blockedUsernames != nil {
 		value := *p.server.blockedUsernames
 		snapshot.BlockedUsernames = &value
@@ -64,7 +65,7 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			return fmt.Errorf("unmarshal config snapshot: %w", err)
 		}
 	}
-	server := serverConfigState{serverName: snapshot.GetServerName(), description: snapshot.GetDescription(), welcomeMessage: snapshot.GetWelcomeMessage(), motd: snapshot.GetMotd(), logo: cloneAssetRecord(snapshot.GetLogo()), banner: cloneAssetRecord(snapshot.GetBanner()), neighbors: make(map[string]Neighbor, len(snapshot.GetNeighbors()))}
+	server := serverConfigState{registrationAdmission: snapshot.GetRegistrationAdmission(), serverName: snapshot.GetServerName(), description: snapshot.GetDescription(), welcomeMessage: snapshot.GetWelcomeMessage(), motd: snapshot.GetMotd(), logo: cloneAssetRecord(snapshot.GetLogo()), banner: cloneAssetRecord(snapshot.GetBanner()), neighbors: make(map[string]Neighbor, len(snapshot.GetNeighbors()))}
 	if snapshot.BlockedUsernames != nil {
 		value := snapshot.GetBlockedUsernames()
 		server.blockedUsernames = &value

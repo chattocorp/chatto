@@ -15,6 +15,19 @@ test('allows only required permissions for the desktop origin', () => {
   assert.equal(isDesktopPermissionAllowed('notifications', 'https://chat.example'), false);
 });
 
+test('allows screen capture only for the desktop origin', () => {
+  assert.equal(isDesktopPermissionAllowed('display-capture', 'chatto://desktop'), true);
+  assert.equal(isDesktopPermissionAllowed('display-capture', 'chatto://desktop/chat/room'), true);
+  for (const origin of [
+    'https://chat.example',
+    'chatto://desktop.evil',
+    'https://desktop',
+    'null'
+  ]) {
+    assert.equal(isDesktopPermissionAllowed('display-capture', origin), false);
+  }
+});
+
 test('opens windows only on the desktop authorization launch page', () => {
   assert.equal(isAuthorizationLaunchUrl('chatto://desktop/servers/authorize#launch-id'), true);
   assert.equal(isAuthorizationLaunchUrl('chatto://desktop/servers/authorize?next=x'), false);

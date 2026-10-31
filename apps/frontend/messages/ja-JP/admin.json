@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "アカウント作成",
+      "open": "登録を開放",
+      "invite_only": "招待コードが必要",
+      "open_description": "設定された登録方法を使って、誰でもアカウントを作成できます。",
+      "invite_only_description": "新しいアカウントには1回限りの招待コードが必要です。既存のユーザーは引き続きログインできます。",
+      "methods": "設定された登録方法",
+      "methods_configuration": "登録方法は、このサーバーのホスティング設定で管理されます。",
+      "email_password": "メールアドレスとパスワード",
+      "no_methods": "登録方法が有効になっていません。どちらのモードでもアカウントを作成できません。"
+    },
     "neighbors": {
       "title": "ネイバー",
       "subtitle": "公開ディレクトリで、交流のある Chatto サーバーを紹介します",
@@ -254,6 +265,10 @@
         "name_title": "名前と説明",
         "name_subtitle": "メンバーはルーム一覧とルーム上部でこれらを確認できます。",
         "visibility_title": "表示範囲",
+        "membership_events_title": "メンバーの活動",
+        "show_membership_events": "参加・退出イベントを表示",
+        "membership_events_description": "このルームへの参加や退出を履歴も含めて表示します。この活動を非表示にしても削除はされません。",
+        "membership_events_unavailable": "メンバーの活動の表示方法を変更するには、このサーバーを更新してください。",
         "visibility_subtitle": "このルームのメンバーを選択します。",
         "universal_description": "このルームに参加できるメンバーは全員、自動的にメンバーになります。",
         "visibility_help": "お知らせなど、全メンバーに届ける必要がある情報にはユニバーサルルームを使います。メンバーはユニバーサルルームから退出できませんが、ミュートはできます。ユニバーサルをオフにしても、以前に参加したメンバーはルームに残ります。",
@@ -538,36 +553,30 @@
       "total": "{count} ユーザーの合計"
     },
     "invitations": {
-      "title": "招待リンク",
-      "subtitle": "新しいアカウントを受け入れるリンクを作成、管理します。",
-      "create_title": "招待リンクを作成",
-      "max_uses": "最大使用回数",
-      "max_uses_error": "1 以上の整数を入力してください。",
-      "unlimited_uses": "使用回数を無制限にする",
-      "expiry": "有効期限",
-      "expiry_1d": "1 日",
-      "expiry_7d": "7 日",
-      "expiry_30d": "30 日",
-      "expiry_never": "なし",
-      "create": "招待リンクを作成",
-      "created": "招待リンクを作成しました",
-      "list_title": "招待リンク",
-      "empty": "招待リンクはまだありません。",
-      "uses": "使用回数",
+      "management_help": "招待コードを使うと、他の人がこのサーバーに参加できます。",
+      "created_by": "作成者",
+      "note_label": "メモ（任意）",
+      "note_placeholder": "デザインチームのAlex用",
+      "note_description": "このメモはあなたと招待の管理者が閲覧できます。",
+      "note_too_long": "250文字以内で入力してください。",
+      "usage": "新しいコードは7日間有効で、それぞれ1つのアカウントを作成できます。コードをコピーして相手に送ってください。登録が成功した時点で使用済みになります。",
+      "create_title": "コードを作成",
+      "create": "コードを作成",
+      "created": "招待コードを作成しました",
+      "list_title": "招待コード",
+      "empty": "招待コードはまだありません。",
       "created_at": "作成日",
       "actions": "操作",
       "never": "なし",
-      "copy": "リンクをコピー",
-      "copied": "招待リンクをコピーしました",
       "revoke": "取り消す",
-      "revoked": "招待リンクを取り消しました",
-      "revoke_title": "招待リンクを取り消しますか？",
-      "revoke_description": "このリンクでは、すぐに新しいアカウントを受け入れなくなります。",
+      "revoked": "招待コードを無効にしました",
+      "revoke_title": "コードを無効にしますか？",
+      "revoke_description": "このコードでは直ちに新しいアカウントを作成できなくなります。",
       "status": {
         "active": "有効",
         "expired": "期限切れ",
-        "exhausted": "上限到達",
-        "revoked": "取り消し済み"
+        "revoked": "取り消し済み",
+        "used": "使用済み"
       }
     }
   }

@@ -7,7 +7,7 @@ Chatto stores every message as Markdown. You can write with the visual editor or
 
 ## Choose an editor
 
-Select the App Preferences gear in the Application Header. Settings opens the **Appearance** page for your active server. In **App preferences**, open **Composer**. In **Message editor**, select an option:
+Select the App Preferences gear in the Application Header. Settings opens the **Overview** page for your active server. In **App preferences**, open **Composer**. In **Message editor**, select an option:
 
 - **Markdown** to edit source syntax directly, with Markdown and fenced-code highlighting. This is the default.
 - **Visual** to format text without seeing Markdown markers.
@@ -19,6 +19,28 @@ Select **Formatting options** in the message input to show or hide the toolbar. 
 Both editors provide the same formatting toolbar, mentions, emoji completion, attachments, reply quotes, timestamps, and message editing. The Markdown editor always shows source; it does not include a separate preview.
 
 The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor. Tab still accepts an active mention or emoji suggestion first, and repeated Tab presses cycle through matching mentions.
+
+## Link to a room
+
+Type `#` at the start of a message or after a space to open the room picker.
+Continue typing to find a channel room on the current server. Use the arrow keys
+to select a room, then press Enter or Tab. You can also click a room. Press Escape
+to close the picker.
+
+Search is fuzzy: type `#designteam` to find **Design Team**. Omit spaces from the
+search because Space closes the picker. Universal rooms show a globe;
+other channel rooms show `#`.
+
+The picker inserts a room link. Sent messages show the room's current name when
+the reader can see that room. Direct messages and archived rooms are not listed.
+Both editors support the picker in messages, replies, and edits.
+
+Enter and Tab accept the selected room without
+adding whitespace or sending the message. Mention (`@`) and emoji (`:`) suggestions
+use the same keys. Clicking a suggestion adds a space.
+
+Space types a normal space and closes the suggestions. You can type `#` followed
+by a space to start a Markdown heading.
 
 ## Profile text
 
@@ -42,6 +64,50 @@ On touch-primary devices, Return always edits the message. Use the visible **Sen
 Select an image or file in a message to open the attachment viewer. For an image, use **+**, **−**, or **Fit** to change its size. You can also zoom over the image with a wheel or trackpad, double-click it, or pinch on a touch screen. Drag the image to move it when it is enlarged. Select **Details** to show its description, file type, and size. **Download** saves the original file.
 
 Use the arrow buttons or the left and right arrow keys to move between images in the same message. The viewer fits each new image to the screen. Press Escape to close the viewer.
+
+## Emoji shortcodes
+
+Select **Insert emoji** (the smiley button) beside the attachment and timestamp
+controls to open the emoji picker. Select an emoji to insert it at the cursor or
+replace selected text. This works in both editors, including thread replies and
+message edits.
+
+Type `:wave:`, `:heart:`, or `:+1:` to show 👋, ❤️, or 👍 after sending.
+Names are case-sensitive. Unknown names, such as `:custom-party:`, stay as text.
+You can also type or select Unicode emoji as before.
+
+Add a skin tone with `:thumbsup::skin-tone-4:` to show 👍🏽. Tone numbers range
+from 2 (light) to 6 (dark). Compound emoji also work, for example
+`:woman_health_worker::skin-tone-5:` shows 👩🏾‍⚕️. Unsupported combinations,
+such as `:heart::skin-tone-4:`, stay as text.
+
+In the emoji picker, select an emoji to open its skin-tone choices. Choose yellow
+or one of five skin tones. Back or Escape returns to the previous search. Recently used
+emoji select their exact tone immediately.
+Both the emoji picker and shortcode suggestions use fuzzy search across names,
+aliases, and tags. For example, type `:headshakingvertically` to find
+`:head_shaking_vertically:`. Exact names rank first. You must accept a suggestion
+to insert the emoji; an incomplete shortcode stays as text if you send it as typed.
+
+In autocomplete, accept an emoji with Enter, Tab, or a click to open its skin-tone
+popup. Your saved tone is highlighted. Use Up and Down to choose a tone, then
+Enter or Tab to insert it without a trailing space.
+Escape returns to the emoji suggestions. You can also
+click a tone. Emoji without skin tones insert immediately.
+Chatto remembers the choice in this browser and uses it for supported picker
+and autocomplete choices, including reactions. Recently used emoji keep their
+original tones. A shortcode that you type explicitly keeps its specified tone.
+
+Separate shortcodes from letters, numbers, combining marks, and literal underscores.
+For example, `omg:poop:foo` stays as text, while `omg :poop: foo` shows an emoji.
+Punctuation and adjacent tags work: `(:wave:)!` shows (👋)!, and `:wave::heart:`
+shows 👋❤️. Emoji suggestions use the same opening boundary and appear after
+you type at least two characters of a name.
+
+Shortcodes stay visible as text while you edit. Chatto keeps them in the message
+source, so reopening a message or selecting **Copy message text** retains them.
+Put a shortcode in inline code, such as `` `:wave:` ``, to show it literally.
+Shortcodes in code blocks and URLs stay unchanged.
 
 ## Supported Markdown
 
@@ -87,7 +153,50 @@ SVG, Mermaid, and ANSI blocks also have **Source** and **Render** tabs. They sta
 
 In the visual editor, select an SVG, Mermaid, or ANSI code block and enable **Render by default** beside its language selector. This sets the same `rendered` hint. The editor continues to show source.
 
-Right-click a link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
+Plain URLs to users, rooms, and servers that your client knows appear as pills with
+their current name and avatar or icon. This includes angle-bracket URLs.
+Markdown links such as `[the development channel](URL)` keep their labels and
+normal link display. The visual composer previews plain URLs as pills; select
+a preview to edit its URL. Select a pill in a message to open its destination. Right-click
+or long-press it to open the entity's menu. These links do not notify users
+as mentions do.
+
+Other automatic web links appear as compact chips with a hostname and, when it
+fits, a short, complete path. Long paths and opaque identifiers stay out of the
+label. Long hostnames shorten in the middle, keeping their ending and port visible.
+Query strings and fragments stay out of the label. This also applies to unknown
+or unavailable Chatto destinations and to thread links. Hover over a
+chip to preview the destination, or use **Copy Link** in the message menu for the full URL. The visual
+composer uses the same compact display; select a chip to edit its full URL.
+Posted web-link chips load page details when they enter view. A spinner appears
+while the details load, then the page title appears beside the hostname when
+available. If no title is available, the chip keeps its hostname and short path.
+
+Message links to known servers show a message icon and the room or server name.
+If the message is already in the client's loaded history, the pill also shows
+the author's name and avatar. The attached preview uses a compact inset body;
+scroll inside it to read a long message, or select it to open the original.
+
+Hover over a pill or a Markdown link, or focus it with the keyboard, to inspect
+its destination. Markdown links keep their authored text and formatting.
+Known Chatto entities show locally available details. Web-link cards reuse details
+loaded for their chips. Markdown links with authored labels load details when
+the hover card opens. The message's server receives the URL and fetches
+the details and images; the website sees the server's IP address. Existing
+composer previews are unchanged. Select any part of the hover card to open its
+destination. You can also Tab into the card and press Enter. Press Escape to
+dismiss it and return keyboard focus to the original link.
+
+On a touch screen, press and hold a link to show its preview in a bottom sheet.
+Select **Open link** or **Copy link** below the preview. User, room, and server
+pills also keep their usual actions. Tap outside the sheet or use its close
+control to dismiss it. A normal tap still opens the link immediately. Moving
+your finger scrolls the conversation without opening a preview.
+
+Right-click an ordinary link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
+
+To share a server, right-click its sidebar icon or a server pill and select
+**Copy server link**. This copies the full server URL.
 
 To share a room, right-click its sidebar row and select **Copy room link** from the
 room menu. Copied room and message links use the address of the server that

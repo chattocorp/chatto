@@ -2,7 +2,18 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import ComposerToolbar from './ComposerToolbar.svelte';
 
-  const { Story } = defineMeta({ title: 'Composer/Action toolbar', component: ComposerToolbar });
+  const { Story } = defineMeta({
+    title: 'Composer/Action toolbar',
+    component: ComposerToolbar,
+    parameters: {
+      docs: {
+        description: {
+          component:
+            'Actions use 44 px targets on touch-capable devices at every viewport width. Mouse-only devices keep compact controls. Container width determines wrapping and labels.'
+        }
+      }
+    }
+  });
 </script>
 
 <script lang="ts">
@@ -12,6 +23,7 @@
 <Story name="Narrow actions" asChild>
   <div class="@container/composer chat-input-surface w-80 p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach
@@ -28,6 +40,7 @@
 <Story name="Very narrow thread reply" asChild>
   <div class="@container/composer chat-input-surface w-[180px] p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach
@@ -43,6 +56,7 @@
 <Story name="With labels" asChild>
   <div class="@container/composer flex chat-input-surface w-[640px] justify-end p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach
@@ -59,6 +73,7 @@
 <Story name="Expanded draft actions" asChild>
   <div class="@container/composer chat-input-surface w-[640px] p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach

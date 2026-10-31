@@ -12,7 +12,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   import { createUserAPI, type UserSummary } from '@chatto/client/api/users';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
+  import { getReactionDisplay, getEmojiDisplayName } from '$lib/emoji';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { m } from '$lib/i18n/messages';
   import { createInfiniteQuery } from '$lib/query/client';
@@ -173,13 +173,16 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
           aria-label={`${getEmojiDisplayName(reaction.emoji)} (${reaction.count})`}
           tabindex={index === selectedIndex ? 0 : -1}
           class={[
-            'meta-badge min-h-10 shrink-0 cursor-pointer gap-1.5 px-3 text-sm',
+            'meta-badge min-h-10 max-w-full shrink-0 cursor-pointer gap-1.5 px-3 text-sm',
             index === selectedIndex ? 'border-action/50 text-text' : 'border-transparent text-muted'
           ]}
           onclick={() => selectEmoji(index)}
         >
-          <span aria-hidden="true">{getEmojiByName(reaction.emoji) ?? reaction.emoji}</span>
-          <span aria-hidden="true">{reaction.count}</span>
+          <!-- Give emoji glyphs room above and below the baseline before truncation clips overflow. -->
+          <span class="max-w-48 truncate leading-normal" aria-hidden="true"
+            >{getReactionDisplay(reaction.emoji)}</span
+          >
+          <span class="shrink-0" aria-hidden="true">{reaction.count}</span>
         </button>
       {/each}
     </div>

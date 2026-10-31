@@ -1,11 +1,12 @@
 import '../../app.css';
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { EMOJI_BY_CATEGORY } from '$lib/emoji';
 import { __resetRecentEmojisForTests } from '$lib/state/recentEmojis.svelte';
 import { render } from 'vitest-browser-svelte';
 import EmojiPicker from './EmojiPicker.svelte';
+import { emojiPreferences, EmojiPreferences } from '$lib/state/emojiPreferences.svelte';
 
 const TEST_SERVER_ID = 'test-server';
 
@@ -22,6 +23,7 @@ function renderPicker(
 }
 
 beforeEach(() => {
+  emojiPreferences.tone = 0;
   localStorage.clear();
   __resetRecentEmojisForTests();
 });
@@ -41,6 +43,85 @@ async function type(input: HTMLInputElement, value: string) {
 }
 
 describe('EmojiPicker', () => {
+  it('finds fuzzy names in the full picker search', async () => {
+    const { container } = renderPicker();
+    await type(searchInput(container), 'headshakingvertically');
+    expect(container.querySelector('button[title="head_shaking_vertically"]')).not.toBeNull();
+  });
+  it('fits all six touch targets inside a narrow sheet', async () => {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    const { container } = renderPicker();
+    container.style.width = '286px';
+    (container.querySelector('button[title="wave"]') as HTMLButtonElement).click();
+    flushSync();
+    const picker = container.firstElementChild as HTMLElement;
+    const bounds = picker.getBoundingClientRect();
+    for (const button of container.querySelectorAll('[data-emoji-tone]')) {
+      const rect = button.getBoundingClientRect();
+      expect(rect.width).toBeGreaterThanOrEqual(44);
+      expect(rect.left).toBeGreaterThanOrEqual(bounds.left);
+      expect(rect.right).toBeLessThanOrEqual(bounds.right);
+    }
+    expect(picker.scrollWidth).toBeLessThanOrEqual(picker.clientWidth);
+  });
+  it('offers the selected emoji variants, saves the tone, and keeps exact recents', async () => {
+    const onSelect = vi.fn();
+    localStorage.setItem(`chatto:i:${TEST_SERVER_ID}:recentEmojis`, JSON.stringify(['👋🏻']));
+    const { container } = renderPicker({ onSelect });
+    expect(container.querySelector('[data-emoji-tone]')).toBeNull();
+    const recent = container.querySelector('.grid button') as HTMLButtonElement;
+    expect(recent.textContent?.trim()).toBe('👋🏻');
+    recent.click();
+    expect(onSelect).toHaveBeenLastCalledWith('👋🏻');
+    onSelect.mockClear();
+    await type(searchInput(container), 'wave');
+    (container.querySelector('button[title="wave"]') as HTMLButtonElement).click();
+    flushSync();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(
+      [...container.querySelectorAll('[data-emoji-tone] .text-xl')].map((el) => el.textContent)
+    ).toEqual(['👋', '👋🏻', '👋🏼', '👋🏽', '👋🏾', '👋🏿']);
+    (container.querySelector('[data-emoji-tone="4"]') as HTMLButtonElement).click();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('👋🏽');
+    expect(new EmojiPreferences().tone).toBe(4);
+  });
+  it.each(['Tab', 'Enter'])(
+    'preselects the saved tone and supports arrows and %s confirmation',
+    async (key) => {
+      emojiPreferences.tone = 4;
+      const onSelect = vi.fn();
+      const { container } = renderPicker({ onSelect });
+      await type(searchInput(container), 'thumb');
+      (container.querySelector('button[title="+1::skin-tone-4"]') as HTMLButtonElement).click();
+      flushSync();
+      expect(document.activeElement).toBe(container.querySelector('[data-emoji-tone="4"]'));
+      await userEvent.keyboard('{ArrowDown}');
+      expect(document.activeElement).toBe(container.querySelector('[data-emoji-tone="5"]'));
+      await userEvent.keyboard(`{${key}}`);
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith('👍🏾');
+    }
+  );
+  it.each(['Escape', 'Back'])(
+    '%s restores the previous search and source button without saving a tone',
+    async (method) => {
+      const onClose = vi.fn();
+      const onSelect = vi.fn();
+      const { container } = renderPicker({ onSelect, onClose });
+      await type(searchInput(container), 'thumb');
+      const source = container.querySelector('button[title="-1"]') as HTMLButtonElement;
+      source.click();
+      flushSync();
+      await userEvent.keyboard('{ArrowDown}');
+      if (method === 'Escape') await userEvent.keyboard('{Escape}');
+      else await page.getByRole('button', { name: 'Back', exact: true }).click();
+      expect(searchInput(container).value).toBe('thumb');
+      expect(document.activeElement).toBe(source);
+      expect(container.querySelector('[data-emoji-tone]')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(emojiPreferences.tone).toBe(0);
+    }
+  );
   describe('default state (no search)', () => {
     it('renders the search input', () => {
       const { container } = renderPicker();
@@ -189,6 +270,7 @@ describe('EmojiPicker', () => {
 });
 
 afterEach(async () => {
+  emojiPreferences.tone = 0;
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
   await page.viewport(1280, 720);
 });

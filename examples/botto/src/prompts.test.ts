@@ -59,9 +59,13 @@ test('disabled capabilities do not advertise tools or instruct memory writes', (
   expect(prompt).toContain('Only the operator configuration grants admin authority');
 });
 
-test('subagents share instance and web guidance without inheriting main-agent capabilities', () => {
+test('subagents receive web guidance without the main persona or capabilities', () => {
   const prompt = systemPrompt(settings, { role: 'subagent' });
-  expect(prompt).toContain(settings.systemPrompt);
+  expect(prompt).not.toContain(settings.systemPrompt);
+  expect(prompt).not.toContain('Your name is');
+  expect(systemPrompt(settings, { role: 'subagent', prompt: 'Review the evidence.' })).toContain(
+    '# Profile instructions\n\nReview the evidence.'
+  );
   expect(prompt).toContain('You are a subagent');
   expect(prompt).toContain('Your result goes to the parent');
   expect(prompt).toContain('mcp__exa__');

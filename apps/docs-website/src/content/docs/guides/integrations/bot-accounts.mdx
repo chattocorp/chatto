@@ -30,8 +30,10 @@ permissions and cannot sign in through the login forms.
 </Steps>
 
 On a new server, only the `admin` role has `bot.create`. To let members create
-bots, allow `bot.create` for `everyone` or for a role. The creator of a bot can
-always manage it. Accounts with `bot.manage` can manage all bots and can select
+bots, allow `bot.create` for `everyone` or for a role. A human owner can always
+manage their bots. A bot with an explicit `bot.create` grant can create a bot
+for its own human owner. The new bot starts without permissions. Bot creators
+need `bot.manage` for later management. Accounts with `bot.manage` can manage all bots and can select
 **Reassign owner** to give a bot to another active human account. Reassignment
 keeps the permissions and API keys of the bot. If the previous owner must lose
 access, create a new key and revoke the old one.
@@ -111,9 +113,18 @@ does not mean that the account is verified.
 
 A bot can change its own profile with `UserService.UpdateUserProfile`, and its
 own avatar with `UserService.UploadAvatar` and `UserService.DeleteAvatar`. Send
-the user ID of the bot as `user_id`. The bot cannot change other accounts,
-manage bots or keys, or add a password, session, OAuth token, email, or
-external login.
+the user ID of the bot as `user_id`. To update another account, grant the bot
+`user.manage-accounts`. Bots can also use administrative API operations with
+the required permissions. The owner's authority remains the ceiling, and API
+keys do not require interactive privileged mode.
+
+Grant `bot.manage` to let a bot manage other bots, their permissions, keys,
+webhooks, and ownership. This includes issuing a key for a more powerful bot:
+that key uses the target bot's permissions and owner ceiling. Grant this
+permission only when you intend to delegate that authority.
+
+Bots cannot acquire human passwords, sessions, OAuth tokens, verified emails,
+or external logins. Bots remain owned by human accounts.
 
 `BotService` manages bots, owners, API keys, and incoming webhooks. To read
 the effective permissions of a bot, use
@@ -135,8 +146,10 @@ key.
 
 ## Direct messages
 
-A bot cannot start a DM, and no permission changes this. A human can start a
-DM that includes the bot. To let a bot talk in DMs without channel access,
+A bot can start a DM with `RoomService.StartDM` when it has `message.post`
+at the **Direct messages** scope. It can also use this method to find an
+existing DM without posting permission. To let a bot talk in DMs without
+channel access,
 grant `message.read` and `message.post` at the **Direct messages** scope. The
 owner must have the same permissions at that scope. For a bot that only
 replies, `message.read-interactions` at this scope is enough to read its DMs
@@ -173,7 +186,8 @@ Content-Type: application/json
 - Set `"create_thread": true` to start a thread in a channel room that supports
   threads.
 - The bot must be a member of the room and have `message.post`. A webhook can
-  post to a DM only after a human starts the DM with the bot.
+  post to an existing DM that includes the bot. Use an API key and
+  `RoomService.StartDM` to create the DM first.
 - A successful request returns HTTP 200 with the body `ok`. There is no
   idempotency key, so a retry can post the message two times.
 

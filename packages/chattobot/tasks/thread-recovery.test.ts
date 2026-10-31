@@ -58,7 +58,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
         id: 'fixture',
         async runOutcome(_ctx, prompt, runOptions) {
           prompts.push(prompt);
-          runOptions?.onText?.('What version do you use?');
+          runOptions?.onText?.('What version do you use?', { hasToolCalls: false });
           return {
             outcome: 'completed',
             summary: 'What version do you use?',

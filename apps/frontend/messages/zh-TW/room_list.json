@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "複製伺服器連結",
     "copy_room_link": "複製聊天室連結",
     "show_rooms_in_group": "顯示 {group} 中的更多聊天室（{count}）",
     "hide_rooms_in_group": "隱藏 {group} 中尚未加入的聊天室",

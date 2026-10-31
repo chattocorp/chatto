@@ -1,0 +1,49 @@
+// Package ui contains application-neutral, server-rendered UI primitives.
+// Callers own row contents and data fetching; primitives own shared semantics.
+package ui
+
+import "strconv"
+
+// DataTable renders column headers and caller-supplied body rows. Its labeled,
+// keyboard-focusable scroll region contains wide tables on small screens.
+templ DataTable(label string, columns []string) {
+	<div class="data-table-scroll" role="region" aria-label={ label } tabindex="0">
+		<table class="data-table">
+			<caption class="sr-only">{ label }</caption>
+			<thead>
+				<tr>
+					for _, column := range columns {
+						<th scope="col">{ column }</th>
+					}
+				</tr>
+			</thead>
+			<tbody>{ children... }
+</tbody>
+		</table>
+	</div>
+}
+
+// TableEmpty keeps the empty state inside the table's accessible structure.
+templ TableEmpty(columns int, message string) {
+	<tr><td colspan={ strconv.Itoa(columns) } class="data-table-empty">{ message }</td></tr>
+}
+
+// Badge gives short, non-interactive statuses a consistent visual treatment.
+templ Badge(label string) {
+	<span class="badge">{ label }</span>
+}
+
+// Pagination renders only available cursor navigation. URLs come from trusted
+// server handlers, never from an unvalidated browser return URL.
+templ Pagination(firstURL, nextURL string) {
+	if firstURL != "" || nextURL != "" {
+		<nav class="pagination" aria-label="Pagination">
+			if firstURL != "" {
+				<a class="button button-secondary button-compact" href={ templ.SafeURL(firstURL) }>First page</a>
+			}
+			if nextURL != "" {
+				<a class="button button-secondary button-compact" href={ templ.SafeURL(nextURL) }>Next page</a>
+			}
+		</nav>
+	}
+}

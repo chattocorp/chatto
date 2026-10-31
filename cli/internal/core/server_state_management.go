@@ -11,10 +11,12 @@ import (
 )
 
 type ServerConfigUpdateInput struct {
-	ServerName     *string
-	Description    *string
-	MOTD           *string
-	WelcomeMessage *string
+	// RegistrationAdmission changes only account admission; nil leaves it unchanged.
+	RegistrationAdmission *evtv1.RegistrationAdmission
+	ServerName            *string
+	Description           *string
+	MOTD                  *string
+	WelcomeMessage        *string
 }
 
 func (c *ChattoCore) GetManagedServerConfig(ctx context.Context, actorID string) (*configv1.ServerConfig, error) {
@@ -22,6 +24,9 @@ func (c *ChattoCore) GetManagedServerConfig(ctx context.Context, actorID string)
 		return nil, err
 	}
 
+	if err := c.WaitForRegistrationPolicy(ctx); err != nil {
+		return nil, err
+	}
 	cfg := c.ConfigModel().GetServerConfig()
 	if cfg == nil {
 		return &configv1.ServerConfig{}, nil
@@ -38,6 +43,14 @@ func (c *ChattoCore) UpdateServerConfig(ctx context.Context, actorID string, inp
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
+		}
+		if input.RegistrationAdmission != nil {
+			switch *input.RegistrationAdmission {
+			case evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN, evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY:
+				cfg.RegistrationAdmission = *input.RegistrationAdmission
+			default:
+				return nil, ErrInvalidArgument
+			}
 		}
 		if input.ServerName != nil {
 			cfg.ServerName = *input.ServerName

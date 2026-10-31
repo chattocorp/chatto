@@ -15,7 +15,7 @@
       docs: {
         description: {
           component:
-            'One notification group: cause badge on the actor avatar, short summary, time, and room. When more than one server is signed in, a server logo appears before the avatar and the server name after the room.'
+            'One notification group with an actor avatar and a cause badge. Summaries stay on one line and truncate when needed. Narrow rows hide the time and room. Multiple servers use a logo with a tooltip; the server name remains available to screen readers.'
         }
       }
     }
@@ -34,7 +34,7 @@
   }
 
   const alice = actor('alice', 'Alice', imageAvatar);
-  const bob = actor('bob', 'Bob');
+  const bob = actor('bob', 'Carlo Zottmann');
   const carol = actor('carol', 'Carol');
 
   const token = accountNameToken(0);
@@ -46,7 +46,7 @@
       actor: alice,
       signalKind: NotificationSignalKind.ROOM_INVITATION,
       roomName: 'design-team',
-      time: 'Just now',
+      time: '14:32',
       unread: true,
       important: true
     },
@@ -55,7 +55,7 @@
       actor: bob,
       signalKind: NotificationSignalKind.DIRECT_MESSAGE,
       roomName: null,
-      time: '2m ago',
+      time: '14:30',
       unread: true,
       important: true
     },
@@ -64,7 +64,7 @@
       actor: alice,
       signalKind: NotificationSignalKind.DIRECT_MENTION,
       roomName: 'chatto-development',
-      time: '17m ago',
+      time: '14:15',
       unread: true,
       important: true
     },
@@ -74,7 +74,7 @@
       signalKind: NotificationSignalKind.REACTION,
       reactionEmoji: '❤️',
       roomName: 'chatto-development',
-      time: '4h ago',
+      time: '10:32',
       unread: false,
       important: false
     },
@@ -83,7 +83,7 @@
       actor: bob,
       signalKind: NotificationSignalKind.FOLLOWED_THREAD,
       roomName: 'bug-reports',
-      time: '9h ago',
+      time: '05:32',
       unread: false,
       important: false
     },
@@ -93,7 +93,7 @@
       signalKind: NotificationSignalKind.REACTION,
       reactionEmoji: '👍',
       roomName: 'random-chat',
-      time: '11h ago',
+      time: '03:32 AM',
       unread: false,
       important: false
     }
@@ -112,8 +112,8 @@
   provideUserProfiles();
 </script>
 
-<Story name="Single server" asChild>
-  <div class="selectable-list max-w-2xl">
+{#snippet singleServer()}
+  <div class="selectable-list max-w-5xl">
     {#each rows as row, index (index)}
       <NotificationRow
         {...row}
@@ -123,10 +123,52 @@
       />
     {/each}
   </div>
+{/snippet}
+
+<Story name="Single server" globals={{ theme: 'light' }} asChild>
+  {@render singleServer()}
+</Story>
+
+<Story name="Single server dark" globals={{ theme: 'dark' }} asChild>
+  {@render singleServer()}
+</Story>
+
+<Story name="Narrow rows" asChild>
+  <div class="selectable-list w-80 max-w-full">
+    {#each rows as row, index (index)}
+      <NotificationRow
+        {...row}
+        summaryAccounts={accounts(row.actor)}
+        server={servers[index % servers.length]}
+        onopen={() => undefined}
+        ondismiss={() => undefined}
+      />
+    {/each}
+  </div>
+</Story>
+
+<Story name="Reaction badge alignment" asChild>
+  <div class="selectable-list w-80 max-w-full">
+    {#each ['❤️', '👍', '🤣', '👋', '😍', '🎉', '👍🏽'] as emoji (emoji)}
+      <NotificationRow
+        summary={m('chat.notifications.summary.reaction', { actor: token, emoji })}
+        summaryAccounts={accounts(alice)}
+        actor={alice}
+        signalKind={NotificationSignalKind.REACTION}
+        reactionEmoji={emoji}
+        roomName={null}
+        time="2m ago"
+        unread={false}
+        important={false}
+        onopen={() => undefined}
+        ondismiss={() => undefined}
+      />
+    {/each}
+  </div>
 </Story>
 
 <Story name="Multiple servers" asChild>
-  <div class="selectable-list max-w-2xl">
+  <div class="selectable-list max-w-5xl">
     {#each rows as row, index (index)}
       <NotificationRow
         {...row}

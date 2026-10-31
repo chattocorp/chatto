@@ -1156,9 +1156,21 @@ func TestRealtimeWebSocketClosesForAccountDeactivation(t *testing.T) {
 	if err := env.core.SetUserDeactivated(env.ctx, manager.GetId(), viewer.GetId(), true); err != nil {
 		t.Fatal(err)
 	}
-	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
-		t.Fatal("deactivation did not promptly close the authenticated socket")
+	// Live frames can already be queued when account invalidation closes the
+	// stream. Require the terminal close within one deadline, not as the next frame.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			t.Fatal("deactivation did not promptly close the authenticated socket")
+		}
+		if frame.GetClose() == nil {
+			continue
+		}
+		if frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
+			t.Fatalf("deactivation close = %+v, want terminal authentication_required", frame.GetClose())
+		}
+		return
 	}
 }
 

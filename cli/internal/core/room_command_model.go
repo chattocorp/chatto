@@ -81,6 +81,8 @@ type RoomUpdateInput struct {
 	// ThreadSlowModeSeconds changes the independent per-thread interval.
 	ThreadSlowModeSeconds *uint32
 	ThreadingMode         *evtv1.RoomThreadingMode
+	// ShowMembershipEvents changes timeline display without changing membership facts.
+	ShowMembershipEvents *bool
 }
 
 type RoomIDInput struct {
@@ -157,7 +159,7 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 	if err != nil {
 		return nil, err
 	}
-	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadSlowModeSeconds == nil && input.ThreadingMode == nil {
+	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadSlowModeSeconds == nil && input.ThreadingMode == nil && input.ShowMembershipEvents == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
 	}
 	if input.SlowModeSeconds != nil && *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
@@ -231,7 +233,15 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 		if input.ThreadingMode != nil && *input.ThreadingMode != EffectiveRoomThreadingMode(room) {
 			add(&evtv1.Event{Event: &evtv1.Event_RoomThreadingModeChanged{RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{RoomId: input.RoomID, ThreadingMode: *input.ThreadingMode}}})
 		}
+		if input.ShowMembershipEvents != nil && *input.ShowMembershipEvents != room.ShowMembershipEvents {
+			add(&evtv1.Event{Event: &evtv1.Event_RoomMembershipEventsVisibilityChanged{
+				RoomMembershipEventsVisibilityChanged: &evtv1.RoomMembershipEventsVisibilityChangedEvent{
+					RoomId: input.RoomID, ShowMembershipEvents: *input.ShowMembershipEvents,
+				},
+			}})
+		}
 		if len(entries) == 0 {
+			// Unchanged settings do not append another fact.
 			return room, nil
 		}
 		entries[0].Expect = events.ExpectFilterSeq(filter, position.Seq)
@@ -403,14 +413,9 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if len(input.ParticipantIDs) > MaxDMParticipants-1 {
 		return nil, false, invalidArgument("DM conversations are limited to 10 participants")
 	}
-	isBot, _, accountExists := s.users.isBotAndOwner(input.ActorID)
+	_, _, accountExists := s.users.isBotAndOwner(input.ActorID)
 	if !accountExists {
 		return nil, false, ErrNotFound
-	}
-	// Bots cannot use StartDM as a lookup operation. This prevents an existing
-	// membership from becoming a bot-discoverable DM directory.
-	if isBot {
-		return nil, false, ErrPermissionDenied
 	}
 	room, found, err := s.findDM(ctx, input.ActorID, input.ParticipantIDs)
 	if err != nil {

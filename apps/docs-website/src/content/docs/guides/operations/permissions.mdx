@@ -42,7 +42,9 @@ setting is **Allow**, **Deny**, or **Inherit**.
 
 Bots do not get permissions from `everyone` or from other roles. A bot has only
 the permissions that you allow directly on the bot, and never more than its
-owner has. See [Bot accounts](/guides/integrations/bot-accounts/).
+owner has. This includes administrative permissions. `bot.manage` also permits
+issuing credentials for other bots, which use those bots' permissions and
+owner ceilings. See [Bot accounts](/guides/integrations/bot-accounts/).
 
 ## Built-in roles
 
@@ -53,13 +55,13 @@ roles does not change which setting wins.
 | ---- | --------------------------------------- |
 | `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
 | `moderator` | `message.manage`, `message.pin`, `room.remove-member` |
-| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
+| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-invites`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
 | `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
 Moderators and admins get their member permissions from `everyone`. A new
 server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone` and allows it for `admin`. Owners can post there
-only in privileged mode.
+`message.post` for `everyone` and allows it for `admin` and `owner`. Owners can
+post there without privileged mode.
 
 ## Privileged mode
 
@@ -132,7 +134,8 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
-| `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
+| `user.invite` | S | No | Create, list, copy, and revoke your own invitation codes. |
+| `user.manage-invites` | S | Yes | List, create, copy, and revoke all invitation codes. |
 | `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
 | `user.manage-permissions` | S | Yes | Change the permission settings of one user. |
 | `user.delete-any` | S | Yes | Delete any account. |
@@ -158,9 +161,9 @@ DMs use the `message.*` and `call.*` permissions at the **Direct messages**
 scope. No `room.*` permission applies to DMs. If you do not set a Direct
 messages value, the Server setting applies.
 
-- Only people can start a DM. They need `message.post`. A bot cannot start a
-  DM, even with `message.post`. After a person starts a DM with a bot, the bot
-  can use the DM permissions that you allow for it.
+- People and bots need `message.post` to start a DM. Bots need an explicit
+  grant, bounded by their owner's authority. This also lets existing bots
+  with DM posting permission initiate conversations.
 - A participant with `message.manage` can edit or delete the messages of other
   participants. Nobody can moderate a DM that they are not part of.
 
@@ -248,13 +251,14 @@ the 0.4 behavior:
 
 Make these changes on an upgraded server:
 
-- **Allow `user.invite` and `bot.manage`** for `admin` if admins must manage
-  invite links and bots.
+- **Allow `user.manage-invites` and `bot.manage`** for `admin` if admins must manage
+  invitation codes and bots.
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.
-- **Allow `message.post`** for `admin` in the `announcements` room if admins
-  must post there. Until you do this, admins cannot post there.
+- **Allow `message.post`** for `admin` and `owner` in the `announcements` room
+  if they must post there without privileged mode. New servers have these
+  grants; existing servers keep their current settings.
 - **Check `message.post`.** It now also allows thread replies, so a deny of
   `message.post-in-thread` does not stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
@@ -264,9 +268,9 @@ Make these changes on an upgraded server:
   Administrators, moderators, and owners must now enable
   [privileged mode](#privileged-mode) to use their administrative permissions.
   This also applies to custom `room.create` grants. Owners also need privileged
-  mode to see, join, or read rooms that deny this to `everyone`, and to post in
-  the `announcements` room. Give an owner the `admin` role or a room-level allow
-  if they need this access during normal use.
+  mode to see, join, or read rooms that deny this to `everyone` when no explicit
+  grant allows access. Give the `owner` role a room-level allow if owners need
+  this access during normal use.
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.

@@ -77,6 +77,7 @@ const { mocks } = vi.hoisted(() => ({
 vi.mock('$app/environment', () => ({ browser: true, dev: true, building: false, version: 'test' }));
 
 vi.mock('$app/navigation', () => ({
+  invalidateAll: vi.fn(),
   goto: mocks.goto,
   pushState: vi.fn(),
   replaceState: vi.fn()
@@ -337,8 +338,10 @@ describe('server route authentication privacy', () => {
     });
 
     await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
-    await expect.element(page.getByRole('button', { name: 'Log in to server' })).toBeVisible();
-    await expect.element(page.getByRole('button', { name: 'Remove server' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Continue on server' })).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Remove server' }))
+      .not.toBeInTheDocument();
     expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
   });

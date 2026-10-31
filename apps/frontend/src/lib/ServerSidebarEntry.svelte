@@ -31,6 +31,7 @@
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
   import { copyToClipboard } from '$lib/utils/copyToClipboard';
+  import { copyServerLinkToClipboard } from '$lib/copyChatLink';
   import { notificationPath } from '$lib/notificationPath';
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -215,25 +216,18 @@
 
   async function handleSignOut(): Promise<void> {
     if (signingOut || !stores.isAuthenticated) return;
-    const wasActive = isActiveServer;
     closeContextMenu();
     signingOut = true;
     try {
       const navigation = await clientAccount.signOutCurrentServer(serverId);
       if (!navigation) return;
+      const href = navigation.serverId
+        ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
+        : resolve('/');
       if (navigation.kind === 'hard') {
-        const href = wasActive
-          ? navigation.serverId
-            ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
-            : resolve('/')
-          : window.location.pathname + window.location.search + window.location.hash;
         hardRedirectAfterSignOut(href);
-      } else if (wasActive) {
-        await goto(
-          navigation.serverId
-            ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
-            : resolve('/')
-        );
+      } else {
+        await goto(href);
       }
     } catch {
       toast.error(m('common.error.network'));
@@ -364,6 +358,16 @@
         {m('chat.server_info.title')}
       </MenuItem>
       {#if host}
+        <MenuItem
+          icon="icon-[uil--link]"
+          dataTestid="copy-server-link"
+          onclick={() => {
+            void copyServerLinkToClipboard(serverId);
+            closeContextMenu();
+          }}
+        >
+          {m('room_list.copy_server_link')}
+        </MenuItem>
         <MenuItem
           icon="icon-[uil--copy]"
           onclick={() => void handleCopyServerHostname()}

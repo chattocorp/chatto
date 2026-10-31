@@ -6,6 +6,13 @@
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
+      "all_notifications": "Alle Benachrichtigungen",
+      "all_types": "Alle Typen",
+      "filter_status": "Status",
+      "filter_type": "Typ",
+      "reactions": "Reaktionen",
+      "replies": "Antworten",
+      "mentions": "Erwähnungen",
       "next_unread_source": "Zur nächsten ungelesenen Quelle",
       "no_unread": "Keine ungelesenen Benachrichtigungen",
       "title": "Benachrichtigungen",
@@ -20,10 +27,10 @@
       "unread": "Ungelesen",
       "activity": "Neue Aktivität",
       "summary": {
-        "direct_message": "{actor} hat dir eine Direktnachricht gesendet",
-        "reaction": "{actor} hat mit {emoji} auf deine Nachricht reagiert",
-        "reaction_group": "{actor} und andere haben mit {emoji} auf deine Nachricht reagiert",
-        "reply": "{actor} hat auf deine Nachricht geantwortet",
+        "direct_message": "{actor} hat dir geschrieben",
+        "reaction": "{actor} reagierte mit {emoji}",
+        "reaction_group": "{actor} und andere reagierten mit {emoji}",
+        "reply": "{actor} hat dir geantwortet",
         "mention": "{actor} hat dich erwähnt",
         "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst",
         "new_message": "{actor} hat eine neue Nachricht gepostet",
@@ -40,6 +47,7 @@
       "administration": "Serveradministration"
     },
     "user_menu": {
+      "edit_profile": "Profil bearbeiten",
       "profile": "Benutzerprofil",
       "send_message": "Unterhaltung öffnen",
       "view_profile": "Profil anzeigen",
@@ -53,6 +61,9 @@
       "details": "Serverdetails"
     },
     "compatibility": {
+      "older_frontend": "Deine App unterstützt nicht alle Funktionen dieses Servers",
+      "frontend_upgrade": "Du verwendest App-Version {version}. Aktualisiere deine App oder bitte den Administrator des Servers, der deine App bereitstellt, um eine Aktualisierung. Der Zugriff auf Funktionen hängt auch von den Servereinstellungen und deinen Berechtigungen ab.",
+      "frontend_requires": "Erfordert App-Version {version} oder neuer",
       "title": "Kompatibilität",
       "view": "Kompatibilität anzeigen",
       "limited": "Ältere Serverversion",
@@ -173,7 +184,8 @@
       "event_log": "Ereignisprotokoll",
       "system": "System",
       "back_to_server": "Zurück zum Server",
-      "invitations": "Einladungslinks"
+      "invites": "Einladungen",
+      "registration": "Registrierung"
     }
   }
 }

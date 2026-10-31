@@ -44,7 +44,16 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 					values = desc.Fields().ByName(spec.container).Message()
 				}
 				for name := range strings.FieldsSeq(spec.fields) {
-					require.NotNil(t, values.Fields().ByName(protoreflect.Name(name)), "%s.%s", desc.FullName(), name)
+					leaf := values
+					parts := strings.Split(name, ".")
+					for i, part := range parts {
+						field := leaf.Fields().ByName(protoreflect.Name(part))
+						require.NotNil(t, field, "%s.%s", desc.FullName(), name)
+						if i < len(parts)-1 {
+							leaf = field.Message()
+							require.NotNil(t, leaf, "%s.%s must have message parents", desc.FullName(), name)
+						}
+					}
 				}
 				// Every endpoint supports wildcard expansion and rejects an explicit empty mask.
 				request := dynamicpb.NewMessage(desc)
@@ -60,6 +69,34 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 		return true
 	})
 	require.Len(t, seen, len(updateMaskSpecs), "mask registry must contain only mounted resource updates")
+}
+
+func TestRoomMembershipEventsUpdateMask(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name  string
+		value *bool
+		mask  []string
+		want  *bool
+	}{
+		{"false", new(false), []string{"show_membership_events"}, new(false)},
+		{"reset", nil, []string{"show_membership_events"}, new(true)},
+		{"unselected", new(false), []string{"description"}, nil},
+		{"inferred", new(false), nil, new(false)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := &apiv1.UpdateRoomRequest{RoomId: "room", ShowMembershipEvents: test.value}
+			if test.mask != nil {
+				request.UpdateMask = &fieldmaskpb.FieldMask{Paths: test.mask}
+			}
+			masked, err := normalizeUpdateMask(request)
+			require.NoError(t, err)
+			require.Equal(t, test.want, masked.ShowMembershipEvents)
+			// Interceptor and handler both normalize; defaults must remain stable.
+			require.NoError(t, applyUpdateMask(masked))
+			require.Equal(t, test.want, masked.ShowMembershipEvents)
+		})
+	}
 }
 
 func TestUpdateMaskSelectionAndIsolation(t *testing.T) {
@@ -139,8 +176,20 @@ func TestResourceUpdatesThroughJSON(t *testing.T) {
 	call("api.v1.UserService", "UpdateUserProfile", `{"userId":"`+env.viewer.Id+`","updateMask":"login"}`, 400)
 	require.NoError(t, env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermServerManage))
 	admin := "admin.v1.AdminServerService"
+	call(admin, "UpdateServerConfig", `{"serverName":"Policy test","registration":{"admission":"ACCOUNT_CREATION_POLICY_INVITE_ONLY"}}`, 200)
+	result := call(admin, "UpdateServerConfig", `{"description":"Updated profile","registration":{"admission":999},"updateMask":"description"}`, 200)
+	config := result["config"].(map[string]any)
+	require.Equal(t, "Policy test", config["serverName"])
+	require.Equal(t, "ACCOUNT_CREATION_POLICY_INVITE_ONLY", config["registration"].(map[string]any)["admission"])
+	result = call(admin, "UpdateServerConfig", `{"updateMask":"registration.admission"}`, 200)
+	config = result["config"].(map[string]any)
+	require.Equal(t, "ACCOUNT_CREATION_POLICY_OPEN", config["registration"].(map[string]any)["admission"])
+	require.Equal(t, "Policy test", config["serverName"])
+	require.Equal(t, "Updated profile", config["description"])
+	call(admin, "UpdateServerConfig", `{"registration":{"admission":999},"updateMask":"registration.admission"}`, 400)
+	call(admin, "UpdateServerConfig", `{"registration":{"admission":"ACCOUNT_CREATION_POLICY_INVITE_ONLY"},"updateMask":"registration"}`, 400)
 	call(admin, "UpdateBlockedUsernames", `{"blockedUsernames":["blocked-name"],"updateMask":"blockedUsernames"}`, 200)
-	result := call(admin, "UpdateBlockedUsernames", `{"blockedUsernames":[],"updateMask":"blockedUsernames"}`, 200)
+	result = call(admin, "UpdateBlockedUsernames", `{"blockedUsernames":[],"updateMask":"blockedUsernames"}`, 200)
 	require.Empty(t, result["blockedUsernames"])
 	policy := "api.v1.NotificationPolicyService"
 	call(policy, "UpdateNotificationPolicy", `{"scope":{"server":{}},"overrides":{"directMessages":"NOTIFICATION_DELIVERY_MODE_OFF","replies":"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION"},"updateMask":"directMessages,replies"}`, 200)

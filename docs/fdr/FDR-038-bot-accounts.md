@@ -7,8 +7,9 @@
 
 Bot accounts let people run integrations as clearly identified Chatto users
 without sharing a human login credential. A bot can use the normal public API
-within an explicit permission allowlist, but it cannot sign in as a person or
-exercise more authority than its human owner currently possesses.
+within an explicit permission allowlist, bounded by its human owner's current
+authority. It cannot sign in as a person. A `bot.manage` grant includes issuing
+credentials for other bots; those credentials use the target bot's authority.
 
 ## Behavior
 
@@ -134,7 +135,7 @@ exercise more authority than its human owner currently possesses.
   Chatto posts its formatted message, including firing or resolved status.
 - An incoming webhook uses stable room IDs. It can select any channel room
   where the bot is a member and has the normal posting permissions. It can
-  select an existing human-started DM that contains the bot. It cannot create
+  select an existing DM that contains the bot. It cannot create
   or find a DM. It can create or reply in a DM thread when its DM-scoped
   allowlist and owner ceiling permit it.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
@@ -174,9 +175,9 @@ exercise more authority than its human owner currently possesses.
   change takes effect immediately after confirmation. Cancel leaves membership
   unchanged; grants stay unchanged.
   `user.manage-accounts` or `room.manage` for the room can override a
-  missing join permission. Otherwise adding the bot requires the acting human's
+  missing join permission. Otherwise adding the bot requires the acting caller's
   effective `room.join`. The bot's own `room.join` controls self-service joins,
-  not additions by its owner or a human bot manager. Bans and archived
+  not additions by its owner or a caller with `bot.manage`. Bans and archived
   rooms prevent joining. Bot owners do not need `room.manage`. Removal does
   not require `room.join`. Archived channels have no matrix column; their
   permissions and membership stay unchanged. Unarchiving restores their columns
@@ -188,17 +189,17 @@ exercise more authority than its human owner currently possesses.
   includes the narrow permission. Each grant is bounded by sufficient
   effective authority on its owner. DM membership remains necessary, and the
   bot also needs a DM-scoped broad or interaction read grant.
-- A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
-  has `message.post` or the DM already exists. A human must start a DM that
-  includes the bot. The bot can then interact in that DM through its normal
-  message permissions.
+- A bot can start a DM with an explicit `message.post` grant at DM scope,
+  bounded by its owner's authority. It can fetch an existing DM through
+  `RoomService.StartDM` without posting permission, like a human participant.
 - Bot permissions are granted explicitly at their applicable server, room
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current RBAC entitlement allow
   it at that scope. The owner ceiling does not depend on privileged mode in
   any human session. Bot permission inspection uses the same rule.
-- Granting an elevation-required permission requires the acting human to have
-  that permission active at the target scope. Clearing a grant uses the normal
+- Granting an elevation-required permission requires the acting caller to have
+  that permission active at the target scope. Human callers need privileged
+  mode; bot callers use their explicit grant and owner ceiling. Clearing a grant uses the normal
   bot management checks and does not require activation of that permission.
 - Bot permission mutations accept only allow or clear; explicit denials are
   rejected. The editor therefore presents each applicable permission as
@@ -219,32 +220,38 @@ exercise more authority than its human owner currently possesses.
   the normal room-directory policy to both the bot owner and the managing
   caller. It exposes the complete directory group layout, including empty
   groups, so group-scoped permissions such as `room.create` remain usable.
-- A human user with `bot.manage` can manage any bot. Changes made by a global
+- A human or bot with `bot.manage` can manage any bot. Changes made by a global
   bot manager remain bounded by that bot's owner's permission ceiling.
-- A human user with `bot.manage` can reassign a bot to another active human
+- A human or bot with `bot.manage` can reassign a bot to another active human
   account. Ownership alone does not authorize reassignment, and the recipient
   does not need to accept it or hold `bot.create`.
 - Reassignment preserves the bot's configured permission allowlist and active
   API keys. Effective permissions immediately use the new owner's permission
   ceiling. The previous owner loses owner-derived management access, while the
   new owner gains it; either person may still have independent `bot.manage`.
-- Bot accounts cannot create, own, or manage other bots, even if a
-  bot-management permission appears in their stored allowlist.
+- Bots can create and manage bots with explicit `bot.create` and `bot.manage`
+  grants, bounded by their human owner's authority. A bot-created account
+  belongs to the creating bot's human owner and starts without grants.
+  Bots cannot own bots. Reassignment during creation rejects a stale owner
+  choice with a conflict; the caller can retry.
+- `bot.manage` includes creating and revoking keys and webhooks. A caller can
+  issue a key for a bot with greater authority than its own. This is part of
+  the permission's authority, and applies equally to human and bot callers.
 - Bots cannot have passwords, verified emails, external identities, browser
   sessions, OAuth access tokens, password-reset flows, or other human sign-in
-  methods. A bot API key can update its own public profile and avatar through
-  `UserService`. It cannot change ownership, permissions, or API keys.
-- A bot owner, a human with `bot.manage`, or a human with
+  methods. A bot API key can use administrative operations with the same
+  permission checks as a human. It does not need interactive privileged mode.
+- A bot owner, a caller with `bot.manage`, or a caller with
   `user.manage-accounts` can change a bot's login, display name, and bio, and
-  can upload or delete its avatar. A login change by the owner or a human with
+  can upload or delete its avatar. A login change by the owner or a caller with
   `bot.manage` checks and starts the 30-day username cooldown of the bot. A
-  human with `user.manage-accounts` bypasses the cooldown. A case-only change
+  caller with `user.manage-accounts` bypasses the cooldown. A case-only change
   does not check or start it. The owner and bot managers can see the start of
   the cooldown through `BotService`, without `admin.view-users`. The bot detail page
   asks for confirmation before a login change that starts the cooldown, and it
   locks the username field while the cooldown runs. `Bot.last_login_change`
-  reports the start of the cooldown. A bot cannot target another account.
-- Bots cannot request their own deletion. Only their owner or a human user with
+  reports the start of the cooldown. These rules apply to human and bot callers.
+- Bots cannot use the human account-deletion flow. Their owner or a caller with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
   behavior. Deleting a human owner also deletes every bot they own at deletion
@@ -305,16 +312,16 @@ must show the owner's ceiling and explain unavailable cells.
 
 ### 5. Bot creation is administrative by default
 
-**Decision:** `bot.create` lets a human create bots, ownership lets them manage
-their existing bots, and `bot.manage` lets a human manage any bot. Fresh RBAC
+**Decision:** `bot.create` lets humans and bots create bots. Human ownership
+permits management of existing bots, and `bot.manage` permits management of any bot. Fresh RBAC
 state grants `bot.create` and `bot.manage` to `admin`. Effective owners receive
-both through the normal virtual owner override. Bots do not inherit `everyone`
-and cannot exercise either capability themselves. Upgraded 0.4 servers receive
+both through the normal virtual owner override. Bots need explicit grants for
+these capabilities and do not inherit `everyone`. Upgraded 0.4 servers receive
 neither grant (ADR-113).
 **Why:** A bot holds API credentials and acts for its owner. Operators decide
-which members may create one. Creators must not lose access to revoke keys or
-delete an existing bot just because their ability to create more bots is
-revoked.
+which members may create one. Human owners retain management access if their
+ability to create more bots is revoked. Bot creators need `bot.manage` for
+later management; sharing a human owner grants no implicit access.
 **Tradeoff:** Servers that want members to create bots must grant `bot.create`
 to `everyone` or to a role. Startup does not reconcile later default changes.
 Bot-management authorization also has an ownership path alongside the
@@ -337,7 +344,7 @@ revocation for that key.
 
 ### 7. Administrative reassignment preserves running integrations
 
-**Decision:** A human with `bot.manage` can reassign a bot directly to another
+**Decision:** A caller with `bot.manage` can reassign a bot directly to another
 active human account. Reassignment keeps the configured permission allowlist
 and active API keys, while immediately applying the new owner's permission
 ceiling. User-family OCC serializes reassignment with deletion of the previous
@@ -365,17 +372,15 @@ across existing and future surfaces.
 **Tradeoff:** Older clients that do not understand the additive bot marker will
 render a bot like an ordinary user until they are upgraded.
 
-### 9. Bots cannot start DMs
+### 9. Bots use normal DM permissions
 
-**Decision:** Bot account kind always denies `RoomService.StartDM`. This rule
-applies before RBAC and has no owner override. A human can start a DM with a
-bot, after which DM membership and normal message permissions apply.
-**Why:** An automation credential must not create an unsolicited private
-conversation. The account-kind rule is visible and cannot be enabled by an
-incorrect permission grant.
-**Tradeoff:** A bot cannot use the idempotent start operation to get an
-existing DM. It must use the room state that Chatto sends after a human starts
-the DM.
+**Decision:** Bots can start DMs with `message.post` at DM scope, subject to
+explicit grants and the owner's authority ceiling. Existing DM lookup does
+not require posting permission. New group DMs remain unsupported.
+**Why:** Workflows such as invoice approval need bots to contact people.
+An account-kind restriction does not prevent spam from human credentials.
+**Tradeoff:** Existing bots with DM posting authority can initiate contact.
+There is no separate permission or approval step for initiation.
 
 ### 10. Semantic public events are the bot activation contract
 
@@ -446,7 +451,7 @@ Row actions use icons with accessible labels and hover hints.
 Pause and resume preserve credentials. Resume accepts
 only new messages and does not revive cancelled retries. Revocation stops one
 endpoint permanently; an HTTP request already in flight can still finish.
-Paused endpoints count toward the limit. Bot accounts cannot manage endpoints.
+Paused endpoints count toward the limit. Bots can manage endpoints with `bot.manage`.
 The UI uses the same collection and dialog layout as API keys and incoming
 webhooks, with toast feedback for completed actions.
 
@@ -463,7 +468,8 @@ edit. Retracted or inaccessible messages are not sent.
 
 ## Permissions
 
-- `bot.create` — create bot accounts and become their owner.
+- `bot.create` — create bot accounts. Human callers become the owner; bot
+  callers use their current human owner.
 - `bot.manage` — view and manage every bot on the server, including reassigning
   its owner, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
@@ -497,7 +503,7 @@ permission row is seeded.
 
 Bot ownership authorizes management of the owner's existing bots without a
 separate permission. Effective owners retain their normal all-permissions
-override, but bots themselves cannot exercise bot-management operations.
+override. Bot callers need explicit grants within their owner's authority.
 
 ## API Compatibility
 
@@ -516,9 +522,8 @@ render bot accounts as ordinary users, and the bundled client does not call
 bot-management operations on an older server.
 
 Operators must replace all replicas before they create or revoke bot
-credentials, reassign bot ownership, or depend on the rule that bots cannot
-start DMs. An older replica can omit newer bot facts or accept the earlier DM
-behavior. Updated servers continue to accept the first longer bot-key format
+credentials or reassign bot ownership. An older replica can omit newer bot
+facts. Updated servers continue to accept the first longer bot-key format
 while issuing the current shorter format. Exact field, method, event, and
 version-gate details belong in the public schema and API compatibility guide.
 

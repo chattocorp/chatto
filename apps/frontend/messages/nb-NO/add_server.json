@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Dette ser ikke ut til å være en Chatto-server.",
     "directory": {
+      "added_by_you": "Lagt til av deg",
+      "joined": "Ble med",
+      "needs_login": "Innlogging kreves",
+      "learn_more": "Vil du vite mer?",
+      "learn_more_description": "Oppdag hva Chatto kan gjøre, lær å drive din egen server eller få hjelp.",
+      "welcome_title": "Nå blir chatten på ekte!",
       "title": "Serverkatalog",
-      "subtitle": "Oppdag andre Chatto-servere",
-      "lookup_description": "Skriv inn adressen til en hvilken som helst Chatto-server for å bli med.",
+      "lookup_description": "Skriv inn en serveradresse for å legge den til i katalogen din og laste inn anbefalingene.",
       "find": "Finn server",
       "connect_by_address": "Koble til med adresse",
-      "servers_title": "Anbefalte servere",
-      "servers_description": "Anbefalt av servere du har blitt med i. Resultatene er ikke rangert.",
       "recommended_by": "Anbefalt av {servers}",
-      "more_recommenders_count": {
-        "other": "{count} til"
-      },
-      "joined": "Ble med",
       "join": "Bli med",
       "open": "Åpne",
       "open_in_new_tab": "Åpne i ny fane",
       "sign_in_unavailable": "Innlogging utilgjengelig",
       "profile_unavailable": "Den offentlige profilen til denne serveren kunne ikke lastes inn.",
-      "partial": "Noen servere du har blitt med i, kunne ikke gi anbefalingene sine.",
+      "partial": "Noen servere kunne ikke gi anbefalingene sine.",
       "unavailable_title": "Katalogen er utilgjengelig",
-      "unavailable_body": "Serverne du har blitt med i, kunne ikke gi anbefalingene sine. Du kan fortsatt koble til direkte.",
-      "empty_title": "Ingen anbefalte servere ennå",
-      "empty_body": "Du kan fortsatt koble til direkte med en serveradresse."
+      "unavailable_body": "Serverne kunne ikke gi anbefalingene sine. Du kan fortsatt koble til direkte."
     }
   }
 }

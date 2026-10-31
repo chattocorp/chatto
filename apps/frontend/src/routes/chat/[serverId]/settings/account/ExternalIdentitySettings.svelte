@@ -19,6 +19,7 @@
   } from '$lib/api/externalIdentities';
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import { providerIcon } from '$lib/auth/providerIcon';
   import { createQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/client';
@@ -257,21 +258,6 @@
       canUsePasswordProof,
       linkedIdentities.length
     );
-  }
-
-  function providerIcon(type: string): string {
-    switch (type) {
-      case 'github':
-        return 'icon-[mdi--github]';
-      case 'gitlab':
-        return 'icon-[mdi--gitlab]';
-      case 'google':
-        return 'icon-[mdi--google]';
-      case 'discord':
-        return 'icon-[mdi--discord]';
-      default:
-        return 'icon-[mdi--shield-account]';
-    }
   }
 
   async function startProviderLink(

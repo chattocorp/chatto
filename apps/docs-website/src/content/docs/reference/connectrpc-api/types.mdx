@@ -33,6 +33,7 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 | `choose_username` | optional [`UsernameChoiceAvailability`](#chatto-auth-v1-UsernameChoiceAvailability) | Whether the user can choose a username. When externally managed, the server assigns it and ignores client input. The login hint is not a reservation. |
+| `invitation_required` | `bool` | A create flow must first supply an invitation code. Existing-account sign-in is unaffected. |
 
 <a id="chatto-discovery-v1-NeighborhoodServer"></a>
 
@@ -46,6 +47,21 @@ One server in the Neighborhood of the called server.
 | `profile` | `chatto.api.v1.ServerPublicProfile` | Public profile that the called server loaded. The welcome message is absent. The logo and banner URLs are server-relative paths of copies on the called server. Resolve them against the origin of the called server. |
 | `direct_neighbor` | `bool` | Whether the called server advertises this server as a Neighbor. |
 | `recommended_by_origins` | `repeated string` | Canonical origins of other servers in the same response that mutually recommend this server. The list does not include the called server. |
+
+<a id="chatto-discovery-v1-ServerFeature"></a>
+
+### ServerFeature
+
+A product feature that an older frontend can describe without knowing its
+implementation. This is upgrade guidance, not permission, configuration,
+API negotiation, or a minimum version required to connect.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable feature identifier. Clients must accept previously unknown IDs. |
+| `name` | `string` | Localised display name. Render as plain text, never HTML or Markdown. |
+| `description` | `string` | Localised explanation for users. Render as plain text. |
+| `introduced_version` | `string` | First Chatto release with support for this feature in the server and bundled frontend. Third-party clients use the ID with their own support policy instead. |
 
 <a id="chatto-api-v1-PageInfo"></a>
 
@@ -151,7 +167,7 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
-- user.invite
+- user.manage-invites
 - role.assign
 - role.view
 - role.manage
@@ -492,7 +508,7 @@ Aggregated state for one message thread.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve user IDs that have participated in this message's thread. |
 | `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
 
@@ -733,6 +749,7 @@ Public room metadata returned by room commands.
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 | `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+| `show_membership_events` | `optional bool` | Whether clients show room join/leave activity. Absence on older servers means true. Membership state and event delivery are not affected. |
 
 <a id="chatto-api-v1-RoomNotice"></a>
 
@@ -1704,24 +1721,23 @@ Filter for owner/auditor event-log inspection.
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
 
-<a id="chatto-admin-v1-InviteLink"></a>
+<a id="chatto-admin-v1-InvitationCode"></a>
 
-### InviteLink
+### InvitationCode
 
-An administrator-visible invite link. The link is a bearer capability and
-is returned only to callers with user.invite.
+Permission to create one account on an invite-only server. Anyone who holds
+the code can use it; it is not bound to an email address or recipient.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Durable identifier used for administrative operations. |
-| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `id` | `string` | No field description provided. |
+| `code` | `string` | Recoverable capability, visible to its creator with user.invite or to invitation managers. Never log it. |
 | `created_by` | `string` | No field description provided. |
 | `created_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `max_uses` | `optional uint32` | No field description provided. |
-| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `use_count` | `uint32` | No field description provided. |
-| `status` | [`InviteLinkStatus`](#chatto-admin-v1-InviteLinkStatus) | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |
+| `status` | [`InvitationCodeStatus`](#chatto-admin-v1-InvitationCodeStatus) | No field description provided. |
 | `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `note` | `string` | Optional creation-time note for the creator and invitation managers. Empty means no note. This does not restrict who can redeem the code. |
 
 <a id="chatto-admin-v1-AdminRole"></a>
 
@@ -1978,11 +1994,31 @@ One server advertised in the public Neighbor directory.
 | `origin` | `string` | Canonical HTTP or HTTPS server origin. |
 | `revision` | `string` | Opaque revision required for update and delete requests. |
 
+<a id="chatto-admin-v1-RegistrationSettings"></a>
+
+### RegistrationSettings
+
+Account creation settings. Admission applies to direct signup and new SSO accounts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `admission` | `chatto.api.v1.AccountCreationPolicy` | Effective policy. OPEN permits signup without an invitation. |
+
+<a id="chatto-admin-v1-RegistrationSettingsUpdate"></a>
+
+### RegistrationSettingsUpdate
+
+Partial registration update. Unselected fields stay unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `admission` | `optional chatto.api.v1.AccountCreationPolicy` | Unspecified or a selected absent value resets admission to OPEN. |
+
 <a id="chatto-admin-v1-ServerConfig"></a>
 
 ### ServerConfig
 
-Runtime-editable server profile settings.
+Runtime-editable server settings.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1990,6 +2026,7 @@ Runtime-editable server profile settings.
 | `description` | `string` | Short server description for OG link-preview metadata. |
 | `motd` | `string` | Message of the day for the authenticated header. |
 | `welcome_message` | `string` | Welcome message shown on the login page. |
+| `registration` | [`RegistrationSettings`](#chatto-admin-v1-RegistrationSettings) | Settings for new self-service accounts. |
 
 
 
@@ -2416,19 +2453,19 @@ Result of the LiveKit server API check.
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED` | `4` | LiveKit rejected the configured API key or secret. |
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR` | `5` | The server at the URL replied with an unexpected error. |
 
-<a id="chatto-admin-v1-InviteLinkStatus"></a>
+<a id="chatto-admin-v1-InvitationCodeStatus"></a>
 
-### InviteLinkStatus
+### InvitationCodeStatus
 
-Current lifecycle state of an invite link.
+Current state of a single-use registration code.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
-| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
-| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
-| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
-| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
+| `INVITATION_CODE_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITATION_CODE_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITATION_CODE_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITATION_CODE_STATUS_USED` | `3` | No value description provided. |
+| `INVITATION_CODE_STATUS_REVOKED` | `4` | No value description provided. |
 
 <a id="chatto-admin-v1-OauthClientPolicy"></a>
 

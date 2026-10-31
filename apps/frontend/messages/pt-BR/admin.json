@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Criação de contas",
+      "open": "Cadastro aberto",
+      "invite_only": "Código de convite obrigatório",
+      "open_description": "Qualquer pessoa pode criar uma conta usando os métodos de cadastro configurados.",
+      "invite_only_description": "Novas contas precisam de um código de convite de uso único. Usuários existentes podem continuar entrando.",
+      "methods": "Métodos de cadastro configurados",
+      "methods_configuration": "Os métodos de cadastro são gerenciados na configuração de hospedagem deste servidor.",
+      "email_password": "E-mail e senha",
+      "no_methods": "Nenhum método de cadastro está habilitado. Usuários não podem criar contas em nenhum dos modos."
+    },
     "neighbors": {
       "title": "Vizinhos",
       "subtitle": "Divulgue servidores Chatto amigos no seu diretório público",
@@ -254,6 +265,10 @@
         "name_title": "Nome e descrição",
         "name_subtitle": "Os membros veem essas informações na lista de salas e no topo da sala.",
         "visibility_title": "Visibilidade",
+        "membership_events_title": "Atividade dos membros",
+        "show_membership_events": "Mostrar entradas e saídas",
+        "membership_events_description": "Mostrar quando as pessoas entram ou saem desta sala, inclusive no histórico. Ocultar esta atividade não a exclui.",
+        "membership_events_unavailable": "Atualize este servidor para alterar como a atividade dos membros é exibida.",
         "visibility_subtitle": "Escolha quem é membro desta sala.",
         "universal_description": "Todos os membros que podem entrar nesta sala são membros automaticamente.",
         "visibility_help": "Use uma sala universal para notícias que todos os membros precisam receber, como anúncios. Os membros não podem sair de uma sala universal, mas podem silenciá-la. Se você desativar a opção universal, os membros que entraram antes continuam na sala.",
@@ -549,36 +564,30 @@
       "total": "Total de usuários {count}"
     },
     "invitations": {
-      "title": "Links de convite",
-      "subtitle": "Crie e gerencie links que permitem criar novas contas.",
-      "create_title": "Criar link de convite",
-      "max_uses": "Número máximo de usos",
-      "max_uses_error": "Digite um número inteiro igual ou maior que 1.",
-      "unlimited_uses": "Permitir usos ilimitados",
-      "expiry": "Validade",
-      "expiry_1d": "1 dia",
-      "expiry_7d": "7 dias",
-      "expiry_30d": "30 dias",
-      "expiry_never": "Nunca",
-      "create": "Criar link de convite",
-      "created": "Link de convite criado",
-      "list_title": "Links de convite",
-      "empty": "Ainda não há links de convite.",
-      "uses": "Usos",
+      "management_help": "Os códigos de convite permitem que outras pessoas entrem neste servidor.",
+      "created_by": "Criado por",
+      "note_label": "Nota (opcional)",
+      "note_placeholder": "Para Alex da equipe de design",
+      "note_description": "Você e os gerentes de convites podem ver esta nota.",
+      "note_too_long": "Use no máximo 250 caracteres.",
+      "usage": "Novos códigos expiram após 7 dias e permitem uma conta cada. Copie um código e envie ao destinatário. Ele só é usado quando o cadastro é concluído.",
+      "create_title": "Criar código",
+      "create": "Criar código",
+      "created": "Código de convite criado",
+      "list_title": "Códigos de convite",
+      "empty": "Ainda não há códigos de convite.",
       "created_at": "Criado",
       "actions": "Ações",
       "never": "Nunca",
-      "copy": "Copiar link",
-      "copied": "Link de convite copiado",
       "revoke": "Revogar",
-      "revoked": "Link de convite revogado",
-      "revoke_title": "Revogar link de convite?",
-      "revoke_description": "Este link deixará de permitir a criação de novas contas imediatamente.",
+      "revoked": "Código de convite revogado",
+      "revoke_title": "Revogar código?",
+      "revoke_description": "Este código deixará de permitir novas contas imediatamente.",
       "status": {
         "active": "Ativo",
         "expired": "Expirado",
-        "exhausted": "Esgotado",
-        "revoked": "Revogado"
+        "revoked": "Revogado",
+        "used": "Usado"
       }
     }
   }

@@ -7,6 +7,19 @@ function permissions(overrides: Partial<ServerPermissions> = {}): ServerPermissi
 }
 
 describe('getAdminNavItems', () => {
+  it('describes Registration separately from invitation code management', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageServer: true, canManageInvites: true })
+    });
+    expect(items.find((item) => item.label === 'Registration')?.description).toBe(
+      'Control how new accounts join this server.'
+    );
+    expect(items.find((item) => item.label === 'Invites')?.description).toBe(
+      'Create and manage invitation codes.'
+    );
+  });
+
   it('lists nothing until the viewer permissions load', () => {
     expect(
       getAdminNavItems({ serverSegment: 'local', permissions: NO_SERVER_PERMISSIONS })
@@ -88,20 +101,23 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
   });
 
-  it('shows Invite links only for invitation managers', () => {
+  it('shows Invites, but not Registration, for either invitation permission', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
-      permissions: permissions({ canViewAdmin: true })
+      permissions: permissions({ canViewAdmin: true, canInviteUsers: true })
     });
     const visible = getAdminNavItems({
       serverSegment: 'local',
       permissions: permissions({ canViewAdmin: true, canManageInvites: true })
     });
 
-    expect(hidden.some((item) => item.label === 'Invite links')).toBe(false);
-    expect(visible.find((item) => item.label === 'Invite links')?.href).toBe(
-      '/chat/local/manage/server/invite-links'
-    );
+    expect(hidden.some((item) => item.label === 'Registration')).toBe(false);
+    expect(visible.some((item) => item.label === 'Registration')).toBe(false);
+    for (const items of [hidden, visible]) {
+      expect(items.find((item) => item.label === 'Invites')?.href).toBe(
+        '/chat/local/manage/server/invites'
+      );
+    }
   });
 
   it('shows Neighbors only for Neighbor managers', () => {
@@ -129,6 +145,7 @@ describe('getAdminNavItems', () => {
     expect(items.find((item) => item.label === 'General')?.href).toBe(
       '/chat/local/manage/server/general'
     );
+    expect(items.slice(0, 2).map((item) => item.label)).toEqual(['General', 'Registration']);
     expect(items.find((item) => item.label === 'Rooms')?.href).toBe('/chat/local/manage/rooms');
   });
 });

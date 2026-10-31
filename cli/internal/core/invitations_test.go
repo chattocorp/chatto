@@ -8,6 +8,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/config"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func invitationAdmin(t *testing.T, c *ChattoCore) string {
@@ -20,72 +24,184 @@ func invitationAdmin(t *testing.T, c *ChattoCore) string {
 	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
+	if _, err := c.UpdateServerConfig(ctx, admin.Id, ServerConfigUpdateInput{RegistrationAdmission: new(evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY)}); err != nil {
+		t.Fatal(err)
+	}
 	return admin.Id
 }
 
-func TestInviteLinkTokensAreCompactDeterministicAndSecretBound(t *testing.T) {
+func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
 	t.Parallel()
 
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
 
-	state, err := c.CreateInvitation(ctx, adminID, nil, nil)
+	state, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	firstPath := c.InvitationLinkPath(state.ID)
-	first := strings.TrimPrefix(firstPath, "/invite/")
-	if len(first) != 16 || !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(first) {
-		t.Fatalf("invite-link token = %q, want 16 URL-safe characters", first)
+	first := c.InvitationCode(state.ID)
+	if !regexp.MustCompile(`^[A-Z2-7]{4}(-[A-Z2-7]{4}){4}$`).MatchString(first) {
+		t.Fatal("invitation code does not have five groups of four base32 characters")
 	}
 	if strings.Contains(first, state.ID) {
-		t.Fatalf("invite-link token %q exposes invitation ID %q", first, state.ID)
+		t.Fatal("invitation code exposes its public ID")
 	}
-	if second := c.InvitationLinkPath(state.ID); second != firstPath {
-		t.Fatalf("InvitationLinkPath changed: %q != %q", second, firstPath)
+	if second := c.InvitationCode(state.ID); second != first {
+		t.Fatal("InvitationCode changed")
 	}
-	if got, err := c.ValidateInviteLinkToken(ctx, first); err != nil || got != state.ID {
-		t.Fatalf("ValidateInviteLinkToken = %q, %v; want %q, nil", got, err, state.ID)
+	if got, err := c.ValidateInvitationCode(ctx, first); err != nil || got != state.ID {
+		t.Fatalf("ValidateInvitationCode = %q, %v; want %q, nil", got, err, state.ID)
 	}
 	for _, invalid := range []string{"short", strings.Repeat("!", 16), first + "A"} {
-		if _, err := c.ValidateInviteLinkToken(ctx, invalid); !errors.Is(err, ErrInvitationInvalid) {
-			t.Errorf("ValidateInviteLinkToken(%q) error = %v, want ErrInvitationInvalid", invalid, err)
+		if _, err := c.ValidateInvitationCode(ctx, invalid); !errors.Is(err, ErrInvitationInvalid) {
+			t.Errorf("invalid code error = %v, want ErrInvitationInvalid", err)
 		}
 	}
 
-	rotated := newInvitationModel(c.EventPublisher, c.invitationModel.projection, "rotated-secret")
-	if _, err := rotated.validateLinkTokenAt(first, time.Now()); !errors.Is(err, ErrInvitationInvalid) {
+	rotated := newInvitationModel(c.invitationModel.projection, "rotated-secret")
+	if _, err := rotated.resolveCode(strings.ReplaceAll(first, "-", "")); !errors.Is(err, ErrInvitationInvalid) {
 		t.Fatalf("rotated secret validation error = %v, want ErrInvitationInvalid", err)
 	}
-	if rotated.LinkToken(state.ID) == first {
-		t.Fatal("rotating the root secret did not change the invite link")
+	if rotated.code(state.ID) == first {
+		t.Fatal("rotating the root secret did not change the invitation code")
+	}
+	if got, err := c.ValidateInvitationCode(ctx, "  "+strings.ToLower(strings.ReplaceAll(first, "-", " "))+"  "); err != nil || got != state.ID {
+		t.Fatalf("case and space normalization: %v", err)
 	}
 }
 
-func TestInviteLinkTokenIndexRefreshesFromProjectedInvitations(t *testing.T) {
+func TestInvitationNotesValidateAndSurviveColdReplay(t *testing.T) {
+	t.Parallel()
+	ns, _ := testutil.StartNATS(t)
+	c := startReplica(t, ns, testCoreConfig())
+	adminID := invitationAdmin(t, c)
+	ctx := testContext(t)
+	for _, note := range []string{strings.Repeat("a", 251), strings.Repeat("界", 251), string([]byte{0xff})} {
+		if _, err := c.CreateInvitationCode(ctx, adminID, note); !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("invalid note: got %v, want invalid argument", err)
+		}
+	}
+	for _, note := range []string{"", "  \t", "  For the design team  ", strings.Repeat("界", 250)} {
+		state, err := c.CreateInvitationCode(ctx, adminID, note)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state.Note != strings.TrimSpace(note) {
+			t.Fatal("note was not normalized and projected")
+		}
+	}
+	states, err := c.ListInvitations(ctx, adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(states) != 4 {
+		t.Fatalf("invalid notes created codes: got %d codes", len(states))
+	}
+	// Invitations are cold-replayed, not restored from a projection snapshot.
+	replayed := startReplica(t, ns, testCoreConfig())
+	for _, state := range states {
+		got, err := replayed.GetInvitation(ctx, adminID, state.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Note != state.Note {
+			t.Fatal("cold replay lost the creation note")
+		}
+		revoked, err := replayed.RevokeInvitation(ctx, adminID, state.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if revoked.Note != state.Note {
+			t.Fatal("revocation lost the creation note")
+		}
+	}
+}
+
+func TestManagedProviderSignupRequiresInvitation(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	adminID := invitationAdmin(t, c)
+	ctx := testContext(t)
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "oidc", IssuerURL: "https://company.example", ManageUsernames: true}}
+	flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "oidc", Issuer: "https://company.example", Subject: "new-subject", ProviderUsername: "new-member"}
+	if _, err := c.CreateUserForExternalIdentity(ctx, "ignored", "", flow); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("managed signup without code: got %v, want invalid invitation", err)
+	}
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "For new member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow.InvitationID = invitation.ID
+	user, err := c.CreateUserForExternalIdentity(ctx, "ignored", "", flow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user.Login != "new-member" {
+		t.Fatalf("managed username = %q", user.Login)
+	}
+	state, err := c.GetInvitation(ctx, adminID, invitation.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.Used || state.Note != invitation.Note {
+		t.Fatal("managed signup did not retain and consume the invitation")
+	}
+}
+
+func TestInvitationCodeIndexRefreshesFromProjectedInvitations(t *testing.T) {
 	t.Parallel()
 
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
 
-	first, err := c.CreateInvitation(ctx, adminID, nil, nil)
+	first, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation first: %v", err)
 	}
-	firstToken := strings.TrimPrefix(c.InvitationLinkPath(first.ID), "/invite/")
-	if got, err := c.ValidateInviteLinkToken(ctx, firstToken); err != nil || got != first.ID {
-		t.Fatalf("ValidateInviteLinkToken first = %q, %v; want %q, nil", got, err, first.ID)
+	firstToken := c.InvitationCode(first.ID)
+	if got, err := c.ValidateInvitationCode(ctx, firstToken); err != nil || got != first.ID {
+		t.Fatalf("ValidateInvitationCode first = %q, %v; want %q, nil", got, err, first.ID)
 	}
 
-	second, err := c.CreateInvitation(ctx, adminID, nil, nil)
+	second, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation second: %v", err)
 	}
-	secondToken := strings.TrimPrefix(c.InvitationLinkPath(second.ID), "/invite/")
-	if got, err := c.ValidateInviteLinkToken(ctx, secondToken); err != nil || got != second.ID {
-		t.Fatalf("ValidateInviteLinkToken second = %q, %v; want %q, nil", got, err, second.ID)
+	secondToken := c.InvitationCode(second.ID)
+	if got, err := c.ValidateInvitationCode(ctx, secondToken); err != nil || got != second.ID {
+		t.Fatalf("ValidateInvitationCode second = %q, %v; want %q, nil", got, err, second.ID)
+	}
+}
+
+func TestInvitationAdmissionDoesNotConsumeAndRejectsExpiry(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	adminID := invitationAdmin(t, c)
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := c.ValidateInvitationAdmission(ctx, invitation.ID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.ValidateInvitationCode(ctx, c.InvitationCode(invitation.ID)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state, err := c.GetInvitation(ctx, adminID, invitation.ID)
+	if err != nil || state.Used {
+		t.Fatalf("validation consumed invitation: %v", err)
+	}
+	if invitation.ExpiresAt == nil || !invitation.ExpiresAt.Equal(invitation.CreatedAt.Add(7*24*time.Hour)) {
+		t.Fatal("server must set expiry to exactly seven days after creation")
+	}
+	if _, err := c.invitationModel.validateIDAt(invitation.ID, *invitation.ExpiresAt); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("expired admission: %v", err)
 	}
 }
 
@@ -100,11 +216,10 @@ func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *te
 		t.Fatalf("CreateUser member: %v", err)
 	}
 
-	if _, err := c.CreateInvitation(ctx, member.Id, nil, nil); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := c.CreateInvitationCode(ctx, member.Id, ""); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("member CreateInvitation error = %v, want ErrPermissionDenied", err)
 	}
-	maxUses := uint32(2)
-	state, err := c.CreateInvitation(ctx, adminID, &maxUses, nil)
+	state, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -122,9 +237,9 @@ func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *te
 	if len(listed) != 1 || listed[0].ID != state.ID || listed[0].RevokedAt == nil {
 		t.Fatalf("ListInvitations = %+v, want retained revoked invitation %q", listed, state.ID)
 	}
-	token := strings.TrimPrefix(c.InvitationLinkPath(state.ID), "/invite/")
-	if _, err := c.ValidateInviteLinkToken(ctx, token); !errors.Is(err, ErrInvitationInvalid) {
-		t.Fatalf("revoked ValidateInviteLinkToken error = %v, want ErrInvitationInvalid", err)
+	token := c.InvitationCode(state.ID)
+	if _, err := c.ValidateInvitationCode(ctx, token); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("revoked ValidateInvitationCode error = %v, want ErrInvitationInvalid", err)
 	}
 }
 
@@ -134,8 +249,7 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
-	maxUses := uint32(1)
-	invitation, err := c.CreateInvitation(ctx, adminID, &maxUses, nil)
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -148,7 +262,7 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			_, err := c.CreateVerifiedUserWithInvitation(
+			_, err := c.CreateSelfServiceUser(
 				ctx,
 				SystemActorID,
 				fmt.Sprintf("invite-racer-%d", i),
@@ -183,8 +297,14 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 	if err != nil {
 		t.Fatalf("GetInvitation: %v", err)
 	}
-	if state.UseCount != 1 || InvitationStatusAt(state, time.Now()) != InvitationStatusExhausted {
-		t.Fatalf("invitation state = %+v, want one use and exhausted", state)
+	if !state.Used || InvitationStatusAt(state, time.Now()) != InvitationStatusUsed {
+		t.Fatalf("invitation state = %+v, want used", state)
+	}
+	// A consumed code stays used after its expiry date.
+	past := time.Now().Add(-time.Hour)
+	state.ExpiresAt = &past
+	if InvitationStatusAt(state, time.Now()) != InvitationStatusUsed {
+		t.Fatal("used code became expired")
 	}
 }
 
@@ -197,20 +317,19 @@ func TestFailedSignupDoesNotConsumeInvitation(t *testing.T) {
 	if _, err := c.CreateVerifiedUser(ctx, SystemActorID, "existing-invite-email", "Existing Invite Email", "password123", "claimed@example.test"); err != nil {
 		t.Fatalf("CreateVerifiedUser existing: %v", err)
 	}
-	maxUses := uint32(1)
-	invitation, err := c.CreateInvitation(ctx, adminID, &maxUses, nil)
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
 
-	if _, err := c.CreateVerifiedUserWithInvitation(ctx, SystemActorID, "failed-invite", "Failed Invite", "password123", "claimed@example.test", invitation.ID); !errors.Is(err, ErrEmailAlreadyVerified) {
-		t.Fatalf("CreateVerifiedUserWithInvitation error = %v, want ErrEmailAlreadyVerified", err)
+	if _, err := c.CreateSelfServiceUser(ctx, SystemActorID, "failed-invite", "Failed Invite", "password123", "claimed@example.test", invitation.ID); !errors.Is(err, ErrEmailAlreadyVerified) {
+		t.Fatalf("CreateSelfServiceUser error = %v, want ErrEmailAlreadyVerified", err)
 	}
 	state, err := c.GetInvitation(ctx, adminID, invitation.ID)
 	if err != nil {
 		t.Fatalf("GetInvitation: %v", err)
 	}
-	if state.UseCount != 0 || InvitationStatusAt(state, time.Now()) != InvitationStatusActive {
+	if state.Used || InvitationStatusAt(state, time.Now()) != InvitationStatusActive {
 		t.Fatalf("invitation state after failed signup = %+v, want unused and active", state)
 	}
 	if _, err := c.GetUserByLogin(ctx, "failed-invite"); !errors.Is(err, ErrNotFound) {

@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Creazione degli account",
+      "open": "Registrazione aperta",
+      "invite_only": "Codice d'invito obbligatorio",
+      "open_description": "Chiunque può creare un account con i metodi di registrazione configurati.",
+      "invite_only_description": "I nuovi account richiedono un codice d'invito monouso. Gli utenti esistenti possono continuare ad accedere.",
+      "methods": "Metodi di registrazione configurati",
+      "methods_configuration": "I metodi di registrazione sono gestiti nella configurazione di hosting di questo server.",
+      "email_password": "Email e password",
+      "no_methods": "Nessun metodo di registrazione è abilitato. Gli utenti non possono creare account in nessuna delle due modalità."
+    },
     "neighbors": {
       "title": "Vicini",
       "subtitle": "Pubblica server Chatto amici nella directory pubblica",
@@ -254,6 +265,10 @@
         "name_title": "Nome e descrizione",
         "name_subtitle": "I membri li vedono nell’elenco delle stanze e in cima alla stanza.",
         "visibility_title": "Visibilità",
+        "membership_events_title": "Attività dei membri",
+        "show_membership_events": "Mostra ingressi e uscite",
+        "membership_events_description": "Mostra quando le persone entrano o escono da questa stanza, anche nella cronologia. Nascondere questa attività non la elimina.",
+        "membership_events_unavailable": "Aggiorna questo server per modificare la visualizzazione dell’attività dei membri.",
         "visibility_subtitle": "Scegli chi è membro di questa stanza.",
         "universal_description": "Ogni membro che può entrare in questa stanza ne è membro automaticamente.",
         "visibility_help": "Usa una stanza universale per le notizie che tutti i membri devono ricevere, come gli annunci. I membri non possono lasciare una stanza universale, ma possono silenziarla. Se disattivi l’opzione universale, i membri entrati prima restano nella stanza.",
@@ -549,36 +564,30 @@
       "total": "{count} utenti totali"
     },
     "invitations": {
-      "title": "Link di invito",
-      "subtitle": "Crea e gestisci i link che permettono di creare nuovi account.",
-      "create_title": "Crea link di invito",
-      "max_uses": "Utilizzi massimi",
-      "max_uses_error": "Inserisci un numero intero pari ad almeno 1.",
-      "unlimited_uses": "Consenti utilizzi illimitati",
-      "expiry": "Scadenza",
-      "expiry_1d": "1 giorno",
-      "expiry_7d": "7 giorni",
-      "expiry_30d": "30 giorni",
-      "expiry_never": "Mai",
-      "create": "Crea link di invito",
-      "created": "Link di invito creato",
-      "list_title": "Link di invito",
-      "empty": "Ancora nessun link di invito.",
-      "uses": "Utilizzi",
+      "management_help": "I codici di invito consentono ad altre persone di unirsi a questo server.",
+      "created_by": "Creato da",
+      "note_label": "Nota (facoltativa)",
+      "note_placeholder": "Per Alex del team di design",
+      "note_description": "Tu e i gestori degli inviti potete vedere questa nota.",
+      "note_too_long": "Usa al massimo 250 caratteri.",
+      "usage": "I nuovi codici scadono dopo 7 giorni e consentono un account ciascuno. Copia un codice e invialo al destinatario. Viene utilizzato solo al completamento della registrazione.",
+      "create_title": "Crea codice",
+      "create": "Crea codice",
+      "created": "Codice di invito creato",
+      "list_title": "Codici di invito",
+      "empty": "Nessun codice di invito ancora.",
       "created_at": "Creato",
       "actions": "Azioni",
       "never": "Mai",
-      "copy": "Copia link",
-      "copied": "Link di invito copiato",
       "revoke": "Revoca",
-      "revoked": "Link di invito revocato",
-      "revoke_title": "Revocare il link di invito?",
-      "revoke_description": "Questo link smetterà subito di permettere la creazione di nuovi account.",
+      "revoked": "Codice di invito revocato",
+      "revoke_title": "Revocare il codice?",
+      "revoke_description": "Questo codice smetterà immediatamente di consentire nuovi account.",
       "status": {
         "active": "Attivo",
         "expired": "Scaduto",
-        "exhausted": "Esaurito",
-        "revoked": "Revocato"
+        "revoked": "Revocato",
+        "used": "Usato"
       }
     }
   }

@@ -68,7 +68,7 @@ function renderPostedVideo({
 }
 
 function frame(container: HTMLElement): HTMLElement {
-  const element = container.querySelector<HTMLElement>('.embed-frame');
+  const element = container.querySelector<HTMLElement>('.preview-frame');
   expect(element).not.toBeNull();
   return element!;
 }
@@ -108,8 +108,9 @@ describe('VideoPlayer', () => {
     expect(videoFrame.getAttribute('style')).toContain('aspect-ratio: 480 / 270');
     expect(fog?.getAttribute('aria-label')).toBe(label);
     await expect.poll(() => fog?.getBoundingClientRect().width).toBeGreaterThan(0);
-    expect(fog?.getBoundingClientRect().width).toBeCloseTo(videoFrame.clientWidth, 0);
-    expect(fog?.getBoundingClientRect().height).toBeCloseTo(videoFrame.clientHeight, 0);
+    // The loading canvas fills the content box inside the shared 4px preview rim.
+    expect(fog?.getBoundingClientRect().width).toBeCloseTo(videoFrame.clientWidth - 8, 0);
+    expect(fog?.getBoundingClientRect().height).toBeCloseTo(videoFrame.clientHeight - 8, 0);
   });
 
   it('initializes the HLS provider for a newly processed HLS-only video', async () => {

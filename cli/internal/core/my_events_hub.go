@@ -635,6 +635,7 @@ func realtimeEVTRequiresSnapshot(subject, eventType string) bool {
 func isKnownNonSnapshotServerConfigEventType(eventType string) bool {
 	switch eventType {
 	case evtstream.EventServerBlockedUsernamesChanged,
+		evtstream.EventServerRegistrationAdmissionChanged,
 		evtstream.EventServerNeighborCreated,
 		evtstream.EventServerNeighborOriginChanged,
 		evtstream.EventServerNeighborTestimonialChanged,
@@ -1102,7 +1103,8 @@ func isRoomDirectoryProjectionEvent(event *evtv1.Event) bool {
 		*evtv1.Event_RoomUnarchived,
 		*evtv1.Event_RoomUniversalChanged,
 		*evtv1.Event_RoomSlowModeChanged,
-		*evtv1.Event_RoomThreadingModeChanged:
+		*evtv1.Event_RoomThreadingModeChanged,
+		*evtv1.Event_RoomMembershipEventsVisibilityChanged:
 		return true
 	default:
 		return false

@@ -1,0 +1,16 @@
+min_version = "2026.8.9"
+
+[tools]
+go = "1.27.3"
+
+[env]
+_.file = ".env"
+GOWORK = "off"
+
+[tasks.gobotto]
+description = "Build and run Gobotto"
+dir = "{{config_root}}"
+run = """
+go build -o bin/gobotto .
+exec ./bin/gobotto
+"""

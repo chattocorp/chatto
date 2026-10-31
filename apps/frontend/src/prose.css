@@ -60,7 +60,7 @@
   }
 
   /* Links */
-  & a {
+  & a:not(.entity-link, .url-link, .menu-entry, .link-hover-card) {
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -346,10 +346,17 @@
   }
 
   /* Images */
-  & img:not([data-canvas-image]) {
+  &
+    img:not(
+      [data-canvas-image],
+      .entity-link img,
+      .link-hover-card img,
+      .preview-frame img,
+      .preview-thumbnail
+    ) {
+    @apply preview-frame;
     max-width: 100%;
     height: auto;
-    border-radius: 0.375rem;
   }
 
   /* Tables */

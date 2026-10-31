@@ -499,8 +499,8 @@ export class QuickSwitcherModel {
     const searches = instances.map(async (instance): Promise<QuickSwitcherItem[]> => {
       const store = serverRegistry.tryGetStore(instance.id);
       if (!store?.serverInfo.canConnect) return [];
-      await serverUi(store).messageSearch.ensureStatus();
-      if (!serverUi(store).messageSearch.available) return [];
+      await serverUi(store).messageSearch.availability.ensureStatus();
+      if (!serverUi(store).messageSearch.availability.available) return [];
 
       const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
       try {

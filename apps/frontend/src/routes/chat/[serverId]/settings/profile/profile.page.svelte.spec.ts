@@ -169,7 +169,10 @@ describe('Profile settings page', () => {
     const { container } = render(ProfilePage);
     await settle();
     await expect.poll(() => q(container, '[data-testid="settings-bio"]')).not.toBeNull();
-    (q(container, 'button[aria-label="Bold"]') as HTMLButtonElement).click();
+    const bold = q(container, 'button[aria-label="Bold"]') as HTMLButtonElement;
+    // Editor DOM can mount before onReady enables its formatting controls.
+    await expect.element(bold).toBeEnabled();
+    bold.click();
     const input = await pasteBio(container, 'Visual bio');
     expect(input.classList.contains('tiptap')).toBe(true);
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
@@ -249,6 +252,11 @@ describe('Profile settings page', () => {
 
     const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
     setInputValue(usernameInput, 'alice2');
+    setInputValue(
+      q(container, 'input[placeholder="Enter your display name"]') as HTMLInputElement,
+      '  Updated Alice  '
+    );
+    await pasteBio(container, 'Updated bio');
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
@@ -266,11 +274,52 @@ describe('Profile settings page', () => {
 
     await vi.waitFor(() => {
       expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
-        displayName: undefined,
+        displayName: 'Updated Alice',
         login: 'alice2',
-        bio: undefined
+        bio: 'Updated bio'
       });
     });
+  });
+
+  it('rebuilds confirmation after cancellation and requires confirmation again after failure', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+    const username = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
+    const displayName = q(
+      container,
+      'input[placeholder="Enter your display name"]'
+    ) as HTMLInputElement;
+    const save = q(container, 'button[type="submit"]') as HTMLButtonElement;
+    setInputValue(username, 'alice2');
+    setInputValue(displayName, 'Canceled name');
+    save.click();
+    await settle();
+    await expect.element(q(container, 'dialog')).toHaveTextContent('@alice2');
+    [...container.querySelectorAll<HTMLButtonElement>('dialog button')]
+      .find((button) => button.textContent?.trim() === 'Cancel')!
+      .click();
+    await expect.element(username).toHaveValue('alice2');
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
+
+    setInputValue(username, 'alice3');
+    setInputValue(displayName, 'Alice');
+    mocks.updateProfile.mockRejectedValueOnce(new Error('Offline'));
+    save.click();
+    await settle();
+    await expect.element(q(container, 'dialog')).toHaveTextContent('@alice3');
+    (q(container, 'dialog button[type="submit"]') as HTMLButtonElement).click();
+    await expect.element(q(container, 'form')).toHaveTextContent('Offline');
+    expect(mocks.updateProfile).toHaveBeenCalledExactlyOnceWith('user-1', { login: 'alice3' });
+    await expect.element(username).toHaveValue('alice3');
+
+    save.click();
+    await settle();
+    await expect.element(q(container, 'dialog')).toHaveTextContent('@alice3');
+    expect(mocks.updateProfile).toHaveBeenCalledOnce();
+    (q(container, 'dialog button[type="submit"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.updateProfile).toHaveBeenCalledTimes(2));
+    await expect.element(save).toBeDisabled();
+    expect(container.querySelector('dialog[open]')).toBeNull();
   });
 
   it('keeps the username cooldown for a regular user', async () => {

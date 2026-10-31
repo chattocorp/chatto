@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "Snabbväxlare",
     "placeholder": "Gå någonstans eller skriv ? för att söka meddelanden...",
     "no_results": "Inga resultat",
     "recent": "Nyligen",

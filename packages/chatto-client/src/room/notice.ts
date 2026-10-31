@@ -4,10 +4,12 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { batch, signal } from '../reactivity/index.js';
 import { createRoomNoticesAPI, type RoomNoticesAPI } from '../api/roomNotices.js';
 import type { ServerConnection } from '../server/serverConnection.js';
+import { StoreEvent } from '../server/storeEvents.js';
 
 /** Retained, memory-only notice state, with stale-response and access-loss fences. */
 export class RoomNoticeStore {
   readonly #notice = signal<RoomNotice | null>(null);
+  readonly #changes = new StoreEvent<[RoomNotice | null]>();
   readonly #error = signal<unknown>(null);
   readonly #supported = signal(true);
   readonly #accessEpoch = signal(0);
@@ -41,14 +43,17 @@ export class RoomNoticeStore {
     return this.#accessEpoch.get();
   }
 
-  /** Loads on first mount and refreshes after returning to a room. */
-  retain(): () => void {
+  /** Loads on first retain. An optional listener receives current content and accepted changes until release. */
+  retain(onChange?: (notice: RoomNotice | null) => void): () => void {
+    onChange?.(this.notice);
+    const unsubscribe = onChange ? this.#changes.subscribe(onChange) : undefined;
     this.#retained++;
     if (this.#retained === 1) void this.refresh();
     let retained = true;
     return () => {
       if (retained) {
         retained = false;
+        unsubscribe?.();
         this.#retained = Math.max(0, this.#retained - 1);
       }
     };
@@ -79,7 +84,7 @@ export class RoomNoticeStore {
       // all pending writes have returned, so a subsequent read includes it.
       if (!this.#pendingWrites) this.#minimumCursor = undefined;
       batch(() => {
-        this.#notice.set(notice);
+        this.#setNotice(notice);
         this.#error.set(null);
         this.#supported.set(true);
       });
@@ -87,7 +92,7 @@ export class RoomNoticeStore {
       if (generation !== this.#generation || request.signal.aborted) return;
       if (error instanceof ConnectError && error.code === Code.Unimplemented) {
         this.#supported.set(false);
-        this.#notice.set(null);
+        this.#setNotice(null);
         return;
       }
       if (
@@ -131,7 +136,7 @@ export class RoomNoticeStore {
     this.#generation++;
     this.#request?.abort();
     batch(() => {
-      this.#notice.set(notice);
+      this.#setNotice(notice);
       this.#error.set(null);
       this.#supported.set(true);
     });
@@ -156,7 +161,7 @@ export class RoomNoticeStore {
     this.#blocked = true;
     batch(() => {
       this.#accessEpoch.set(this.#accessEpoch.get() + 1);
-      this.#notice.set(null);
+      this.#setNotice(null);
       this.#error.set(null);
     });
   }
@@ -171,5 +176,11 @@ export class RoomNoticeStore {
   dispose(): void {
     this.reset(true);
     this.#retained = 0;
+    this.#changes.clear();
+  }
+
+  #setNotice(notice: RoomNotice | null): void {
+    this.#notice.set(notice);
+    this.#changes.emit(notice);
   }
 }

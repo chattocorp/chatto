@@ -12,8 +12,9 @@ export default defineConfig({
     emptyOutDir: true,
     outDir: resolve(root, '../internal/web/assets'),
     rollupOptions: {
-      input: resolve(root, 'src/app.css'),
+      input: resolve(root, 'src/app.js'),
       output: {
+        entryFileNames: 'app.js',
         assetFileNames: '[name][extname]'
       }
     }

@@ -17,12 +17,10 @@ import (
 )
 
 const (
-	// AbsoluteLifetime forces a full authentication ceremony each day.
-	AbsoluteLifetime = 24 * time.Hour
-	// InactivityLifetime expires a session that has not served a request.
-	InactivityLifetime = time.Hour
-	touchInterval      = 5 * time.Minute
-	tokenBytes         = 32
+	// AbsoluteLifetime remembers a browser for 90 days without sliding on activity.
+	AbsoluteLifetime = 90 * 24 * time.Hour
+	touchInterval    = 5 * time.Minute
+	tokenBytes       = 32
 )
 
 // ErrNotFound deliberately combines absent, expired, and malformed browser
@@ -152,13 +150,13 @@ func (s *Service) create(ctx context.Context, accountID string, expectedVersion 
 	return token, state, nil
 }
 
-// Validate authenticates a bearer and advances its inactivity frontier at a
+// Validate authenticates a bearer and records its last activity at a
 // bounded cadence. Absolute expiry never slides.
 func (s *Service) Validate(ctx context.Context, token string) (Session, error) {
 	return s.validate(ctx, token, true)
 }
 
-// Inspect authenticates a bearer without extending its inactivity lifetime.
+// Inspect authenticates a bearer without changing its last activity time.
 // Long-lived connections use it for passive revocation and expiry checks.
 func (s *Service) Inspect(ctx context.Context, token string) (Session, error) {
 	return s.validate(ctx, token, false)
@@ -175,7 +173,7 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Sessi
 			return Session{}, err
 		}
 		now := s.now().UTC()
-		if !now.Before(state.ExpiresAt) || now.Sub(state.LastSeenAt) >= InactivityLifetime {
+		if !now.Before(state.ExpiresAt) {
 			_ = s.kv.Delete(ctx, key)
 			return Session{}, ErrNotFound
 		}

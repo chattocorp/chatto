@@ -3,59 +3,64 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateInviteLinkRequest, CreateInviteLinkResponse, GetInviteLinkRequest, GetInviteLinkResponse, ListInviteLinksRequest, ListInviteLinksResponse, RevokeInviteLinkRequest, RevokeInviteLinkResponse } from "./invitations_pb.js";
+import { CreateInvitationCodeRequest, CreateInvitationCodeResponse, GetInvitationCodeRequest, GetInvitationCodeResponse, ListInvitationCodesRequest, ListInvitationCodesResponse, RevokeInvitationCodeRequest, RevokeInvitationCodeResponse } from "./invitations_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Manages the invite links used for invite-only account admission.
+ * Issues and manages registration codes. user.invite permits access to own codes.
+ * Effective user.manage-invites permits access to all codes and requires
+ * privileged mode for human sessions.
+ * External systems can issue codes with an authorized API credential.
  *
- * @generated from service chatto.admin.v1.AdminInviteLinkService
+ * @generated from service chatto.admin.v1.AdminInvitationCodeService
  */
-export const AdminInviteLinkService = {
-  typeName: "chatto.admin.v1.AdminInviteLinkService",
+export const AdminInvitationCodeService = {
+  typeName: "chatto.admin.v1.AdminInvitationCodeService",
   methods: {
     /**
-     * Lists invite links. Requires user.invite.
+     * Lists visible current and historical codes. Pagination and totals include only visible codes.
      *
-     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.ListInviteLinks
+     * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes
      */
-    listInviteLinks: {
-      name: "ListInviteLinks",
-      I: ListInviteLinksRequest,
-      O: ListInviteLinksResponse,
+    listInvitationCodes: {
+      name: "ListInvitationCodes",
+      I: ListInvitationCodesRequest,
+      O: ListInvitationCodesResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+     * Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
      *
-     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.GetInviteLink
+     * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode
      */
-    getInviteLink: {
-      name: "GetInviteLink",
-      I: GetInviteLinkRequest,
-      O: GetInviteLinkResponse,
+    getInvitationCode: {
+      name: "GetInvitationCode",
+      I: GetInvitationCodeRequest,
+      O: GetInvitationCodeResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Creates an invite link. Requires user.invite.
+     * Creates a code that expires seven days after creation for every caller.
+     * Not idempotent: retrying creates another code.
      *
-     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.CreateInviteLink
+     * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode
      */
-    createInviteLink: {
-      name: "CreateInviteLink",
-      I: CreateInviteLinkRequest,
-      O: CreateInviteLinkResponse,
+    createInvitationCode: {
+      name: "CreateInvitationCode",
+      I: CreateInvitationCodeRequest,
+      O: CreateInvitationCodeResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+     * Revokes a code without deleting its history. Repeating revocation is safe.
+     * Returns NOT_FOUND for an unknown or inaccessible ID.
      *
-     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink
+     * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.RevokeInvitationCode
      */
-    revokeInviteLink: {
-      name: "RevokeInviteLink",
-      I: RevokeInviteLinkRequest,
-      O: RevokeInviteLinkResponse,
+    revokeInvitationCode: {
+      name: "RevokeInvitationCode",
+      I: RevokeInvitationCodeRequest,
+      O: RevokeInvitationCodeResponse,
       kind: MethodKind.Unary,
     },
   }

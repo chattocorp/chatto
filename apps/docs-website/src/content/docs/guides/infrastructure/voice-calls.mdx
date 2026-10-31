@@ -7,6 +7,18 @@ import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Chatto supports real-time voice and video calls inside rooms using [LiveKit](https://livekit.io/), an open-source WebRTC media server. When enabled, any room member can start or join a call directly from the room header.
 
+Supported browsers let you mute or unmute your microphone, toggle your camera,
+and hang up through system media controls. Available controls depend on your
+browser and device. The controls show the Chatto name without room or participant
+names. They do not guarantee that a call continues when you switch apps or lock
+your phone.
+
+Where supported, Chatto also requests a call audio mode to help audio continue
+in the background, including while you are muted or listening only. This does
+not enable your microphone. The mode can affect audio routing and volume;
+test your speaker or Bluetooth headset when switching apps. Leaving the call
+restores the previous audio mode unless another feature has changed it.
+
 ## How It Works
 
 LiveKit runs as a **separate service** alongside Chatto. Chatto handles authentication and call state, while LiveKit handles the WebRTC media transport:

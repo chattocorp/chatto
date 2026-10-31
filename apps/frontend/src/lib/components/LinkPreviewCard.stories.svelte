@@ -63,6 +63,21 @@
   };
 </script>
 
+<Story
+  name="Text preview with delete action"
+  args={{
+    preview: {
+      url: 'https://example.com',
+      title: 'Chatto Preview Next',
+      description: 'Come join our community!',
+      siteName: 'Chatto Preview Next',
+      imageUrl: null
+    },
+    showDismiss: false,
+    canDelete: true
+  }}
+/>
+
 <Story name="Bluesky post" asChild>
   <div class="max-w-2xl p-4">
     <LinkPreviewCard preview={socialPost} showDismiss={false} />

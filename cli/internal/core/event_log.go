@@ -356,7 +356,7 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 	}, nil
 }
 
-// marshalEventLogPayloadJSON redacts credential verifiers from the public
+// marshalEventLogPayloadJSON redacts credential verifiers and invitation notes from the public
 // audit API without changing the durable event used by projections and replay.
 func marshalEventLogPayloadJSON(event *evtv1.Event) ([]byte, error) {
 	redacted, ok := proto.Clone(event).(*evtv1.Event)
@@ -380,6 +380,10 @@ func marshalEventLogPayloadJSON(event *evtv1.Event) ([]byte, error) {
 	}
 	if webhookRotated := redacted.GetBotIncomingWebhookRotated(); webhookRotated != nil {
 		webhookRotated.Verifier = nil
+	}
+	// Event-log access does not grant invitation-management permission.
+	if invitationCreated := redacted.GetInvitationCreated(); invitationCreated != nil {
+		invitationCreated.Note = ""
 	}
 
 	return protojson.MarshalOptions{

@@ -3,7 +3,9 @@
 </script>
 
 <script lang="ts">
+  import { provideLinkPreview } from '$lib/components/messages/linkPreviewContext';
   import ComposerStatusRow from './ComposerStatusRow.svelte';
+  import ComposerShortcutHints from './ComposerShortcutHints.svelte';
   import SlowModeBadge from './SlowModeBadge.svelte';
   import { createMessageAPI } from '@chatto/client/api/messages';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -19,25 +21,18 @@
   import { slowModeRemainingSeconds as remainingSlowModeSeconds } from '$lib/slowMode';
   import { Code, ConnectError } from '@chatto/client/api/connect';
   import { SvelteDate } from 'svelte/reactivity';
-  import type { Component } from 'svelte';
   import EmojiAutocomplete from './EmojiAutocomplete.svelte';
   import MentionAutocomplete from './MentionAutocomplete.svelte';
+  import RoomAutocomplete from './RoomAutocomplete.svelte';
+  import { buildRoomLinkURL } from '$lib/chatLinks';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
   import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
   import ComposerToolbar from './ComposerToolbar.svelte';
   import ComposerModeIndicators from './ComposerModeIndicators.svelte';
   import { MessageComposerState, type MessageComposerProps } from './messageComposerState.svelte';
-  import type { ComposerEditorProps } from './editorTypes';
-  import { userPreferences, type ComposerEditorKind } from '$lib/state/userPreferences.svelte';
-
-  const editorLoaders: Record<
-    ComposerEditorKind,
-    () => Promise<{ default: Component<ComposerEditorProps> }>
-  > = {
-    visual: () => import('./TipTapEditor.svelte'),
-    markdown: () => import('./MarkdownEditor.svelte')
-  };
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
+  import { loadEditor } from './loadEditor';
   const serverScope = useServerScope();
   const stores = serverScope.store;
   const serverInfo = stores.serverInfo;
@@ -96,7 +91,7 @@
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
   let slowModeBadge: { highlight: () => void } | undefined = $state();
-  const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
+  const editorModule = $derived(loadEditor(userPreferences.composerEditor));
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
   let descriptionAttachmentIndex = $state<number | null>(null);
@@ -134,6 +129,10 @@
   const composerContext = getComposerContext();
   const replyState = $derived(composerContext.replyState);
   const membersStore = useRoomMembersStore();
+  provideLinkPreview(
+    (href) => composer.linkPreviews.previews.get(href),
+    (href) => composer.linkPreviews.fetchingURLs.has(href)
+  );
   const composer = new MessageComposerState({
     draftReplies: serverUi(stores).draftReplies,
     getRoomId: () => roomId,
@@ -236,6 +235,7 @@
     }
   }}
 >
+  <ComposerShortcutHints disabled={composer.inputDisabled} />
   <ComposerLinkPreview state={composer.linkPreviews} />
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
@@ -301,14 +301,14 @@
         class={[
           'grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1',
           !expandedDraft &&
-            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:mobile-presentation:items-center'
+            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:comfortable-density:items-center'
         ]}
       >
         {#if composer.autocomplete.emoji}
           <EmojiAutocomplete
             bind:this={composer.autocomplete.emojiRef}
             query={composer.autocomplete.emoji.query}
-            onSelect={(emoji) => composer.autocomplete.selectEmoji(emoji)}
+            onSelect={(emoji, _name, key) => composer.autocomplete.selectEmoji(emoji, key)}
             onClose={() => composer.autocomplete.closeEmoji()}
           />
         {/if}
@@ -320,16 +320,25 @@
             members={composer.mentionCandidates}
             roles={composer.mentionRoles}
             prioritizedUserIds={composer.mentionPriorityUserIds}
-            onSelect={(login, viaTab) => composer.autocomplete.selectMention(login, viaTab)}
+            onSelect={(login, key) => composer.autocomplete.selectMention(login, key)}
             onClose={() => composer.autocomplete.closeMention()}
           />
         {/if}
 
+        {#if composer.autocomplete.room}
+          <RoomAutocomplete
+            bind:this={composer.autocomplete.roomRef}
+            query={composer.autocomplete.room.query}
+            rooms={stores.roomList.rooms}
+            onSelect={(roomId, key) =>
+              composer.autocomplete.selectRoom(buildRoomLinkURL(serverScope.serverId, roomId), key)}
+            onClose={() => composer.autocomplete.closeRoom()}
+          />
+        {/if}
+
         <CompactActionButton
-          wrapperClass={[
-            'mobile-presentation:pill-button-group-touch',
-            !expandedDraft && '@min-[560px]/composer:desktop-presentation:mb-1'
-          ]}
+          touchFriendly
+          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-density:mb-1'}
           label={m('composer.formatting_options')}
           type="button"
           onpointerdown={(event) => event.preventDefault()}
@@ -380,6 +389,7 @@
         </div>
 
         <ComposerToolbar
+          serverId={serverScope.serverId}
           editorApi={composer.editorApi}
           inputDisabled={composer.inputDisabled}
           {canAttach}

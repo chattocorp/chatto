@@ -1,5 +1,16 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kontode loomine",
+      "open": "Avatud registreerimine",
+      "invite_only": "Kutsekood on nõutav",
+      "open_description": "Igaüks saab luua konto seadistatud registreerimisviisidega.",
+      "invite_only_description": "Uued kontod vajavad ühekordset kutsekoodi. Olemasolevad kasutajad saavad endiselt sisse logida.",
+      "methods": "Seadistatud registreerimisviisid",
+      "methods_configuration": "Registreerimisviise hallatakse selle serveri majutuse seadistuses.",
+      "email_password": "E-post ja parool",
+      "no_methods": "Ükski registreerimisviis pole lubatud. Kasutajad ei saa kummaski režiimis kontosid luua."
+    },
     "neighbors": {
       "title": "Naabrid",
       "subtitle": "Tutvustage sõbralikke Chatto servereid oma avalikus kataloogis",
@@ -254,6 +265,10 @@
         "name_title": "Nimi ja kirjeldus",
         "name_subtitle": "Liikmed näevad neid ruumide loendis ja ruumi ülaosas.",
         "visibility_title": "Nähtavus",
+        "membership_events_title": "Liikmete tegevus",
+        "show_membership_events": "Näita liitumisi ja lahkumisi",
+        "membership_events_description": "Näita, millal inimesed selle toaga liituvad või sellest lahkuvad, ka ajaloos. Selle tegevuse peitmine ei kustuta seda.",
+        "membership_events_unavailable": "Liikmete tegevuse kuvamise muutmiseks uuenda seda serverit.",
         "visibility_subtitle": "Valige, kes on selle ruumi liige.",
         "universal_description": "Iga liige, kes saab selle ruumiga liituda, on automaatselt selle liige.",
         "visibility_help": "Kasutage universaalset tuba uudiste jaoks, mis peavad jõudma kõigi liikmeteni, näiteks teadaanded. Liikmed ei saa universaalsest toast lahkuda, kuid nad saavad selle vaigistada. Kui lülitate universaalsuse välja, jäävad varem liitunud liikmed ruumi.",
@@ -549,36 +564,30 @@
       "total": "{count} kasutaja(t) kokku"
     },
     "invitations": {
-      "title": "Kutselingid",
-      "subtitle": "Looge ja hallake linke, mille kaudu saavad liituda uued kontod.",
-      "create_title": "Loo kutselink",
-      "max_uses": "Kasutuskordi kõige rohkem",
-      "max_uses_error": "Sisestage täisarv, mis on vähemalt 1.",
-      "unlimited_uses": "Luba piiramatu kasutus",
-      "expiry": "Aegumine",
-      "expiry_1d": "1 päev",
-      "expiry_7d": "7 päeva",
-      "expiry_30d": "30 päeva",
-      "expiry_never": "Mitte kunagi",
-      "create": "Loo kutselink",
-      "created": "Kutselink loodud",
-      "list_title": "Kutselingid",
-      "empty": "Kutselinke veel pole.",
-      "uses": "Kasutusi",
+      "management_help": "Kutsekoodid võimaldavad teistel inimestel selle serveriga liituda.",
+      "created_by": "Looja",
+      "note_label": "Märkus (valikuline)",
+      "note_placeholder": "Alexile disainimeeskonnast",
+      "note_description": "Seda märkust näete teie ja kutsete haldajad.",
+      "note_too_long": "Kasuta kuni 250 märki.",
+      "usage": "Uued koodid kehtivad 7 päeva ja iga kood lubab luua ühe konto. Kopeerige kood ja saatke see saajale. Kood kasutatakse ära ainult eduka registreerimise korral.",
+      "create_title": "Loo kood",
+      "create": "Loo kood",
+      "created": "Kutsekood loodud",
+      "list_title": "Kutsekoodid",
+      "empty": "Kutsekoode veel pole.",
       "created_at": "Loodud",
       "actions": "Toimingud",
       "never": "Mitte kunagi",
-      "copy": "Kopeeri link",
-      "copied": "Kutselink kopeeritud",
       "revoke": "Tühista",
-      "revoked": "Kutselink tühistatud",
-      "revoke_title": "Kas tühistada kutselink?",
-      "revoke_description": "Selle lingi kaudu ei saa kohe enam uusi kontosid liituda.",
+      "revoked": "Kutsekood tühistatud",
+      "revoke_title": "Tühistada kood?",
+      "revoke_description": "See kood ei luba enam kohe uusi kontosid luua.",
       "status": {
         "active": "Aktiivne",
         "expired": "Aegunud",
-        "exhausted": "Ammendatud",
-        "revoked": "Tühistatud"
+        "revoked": "Tühistatud",
+        "used": "Kasutatud"
       }
     }
   }

@@ -63,8 +63,6 @@ type oidcDiscovery struct {
 	authMethod   string
 }
 
-const accountInvitationSessionKey = "account_invitation_id"
-
 // init discovers the issuer once. Concurrent callers share one attempt, so an
 // unavailable issuer delays each sign-in by at most one request timeout.
 func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) (*oidcDiscovery, error) {
@@ -273,9 +271,8 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
-		invitationID, _ := session.Get(accountInvitationSessionKey).(string)
-		session.Delete(accountInvitationSessionKey)
-		if s.config.Auth.InvitationRequired() && invitationID != "" {
+		invitationID, _ := s.registrationInvitation(c, c.Query("admission"))
+		if invitationID != "" {
 			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
 		} else {
 			session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
@@ -379,7 +376,9 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "error", safeOAuthError(errCode))
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_denied")
+		// Both sign-in and linking can run in a popup. Return the error to
+		// its saved callback so the opening window can finish the attempt.
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_denied"))
 		return
 	}
 
@@ -394,7 +393,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID)
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
 		return
 	}
 	deleteProviderExchangeState(session, providerRuntime.config.ID)
@@ -994,17 +993,15 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
 		return
 	}
-	if s.config.Auth.InvitationRequired() {
-		if invitationID == "" {
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=invalid_invitation")
-			return
-		}
-		flow.InvitationID = invitationID
-	}
+	flow.InvitationID = invitationID
 	token, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	if err != nil {
 		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
+	}
+	if s.core.InvitationRequired() && invitationID == "" {
+		c.Redirect(http.StatusTemporaryRedirect, "/register?external_identity="+url.QueryEscape(token))
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
