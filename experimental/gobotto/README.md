@@ -574,6 +574,9 @@ text, credentials, or provider response bodies.
 
 ## Development
 
+Read [AGENTS.md](AGENTS.md) for development boundaries and runtime invariants.
+Gobotto does not use FDRs; keep its documentation in this directory.
+
 ```sh
 GOWORK=off mise x -- go test -race ./...
 GOWORK=off mise x -- go vet ./...

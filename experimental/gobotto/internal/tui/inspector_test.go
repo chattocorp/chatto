@@ -151,7 +151,7 @@ func TestTurnListMouseSelectionAndIndependentScroll(t *testing.T) {
 	// Select a row on a later page; mouse coordinates stay relative to that page.
 	m.turnList.Select(22)
 	first := m.turnList.Paginator.Page * m.turnList.Paginator.PerPage
-	m.Update(tea.MouseClickMsg{X: 4, Y: m.list.Height() + 4, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: 4, Y: m.list.Height() + 3, Button: tea.MouseLeft})
 	if m.turnList.Index() != first || m.inspectedTurn().Number != 30-first || !m.turnsFocused {
 		t.Fatal("mouse did not select visible turn")
 	}
@@ -161,7 +161,7 @@ func TestTurnListMouseSelectionAndIndependentScroll(t *testing.T) {
 	}
 	copied := ""
 	m.copyText = func(text string) error { copied = text; return nil }
-	_, cmd := m.Update(tea.MouseClickMsg{X: m.turnListWidth() + 16, Y: m.list.Height() + 3, Button: tea.MouseLeft})
+	_, cmd := m.Update(tea.MouseClickMsg{X: m.turnListWidth() + 16, Y: m.list.Height() + 2, Button: tea.MouseLeft})
 	if cmd == nil {
 		t.Fatal("detail-pane title is not copyable")
 	}

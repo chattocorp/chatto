@@ -21,7 +21,7 @@ func TestMouseSelectsVisiblePageAndScrollsLogs(t *testing.T) {
 	// Select a row on a later list page; mouse coordinates address visible rows.
 	m.list.Select(7)
 	first := m.list.Paginator.Page * m.list.Paginator.PerPage
-	m.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: 5, Y: 1, Button: tea.MouseLeft})
 	if m.list.Index() != first || !strings.Contains(m.logs.GetContent(), fmt.Sprintf("Session %d", m.sessions[first].id)) {
 		t.Fatal("clicked row did not select its session and logs")
 	}
@@ -56,7 +56,7 @@ func TestNewSessionRevealedFromLaterPage(t *testing.T) {
 	}
 	copied := ""
 	m.copyText = func(text string) error { copied = text; return nil }
-	_, cmd := m.Update(tea.MouseClickMsg{X: m.turnListWidth() + 16, Y: m.list.Height() + 3, Button: tea.MouseLeft})
+	_, cmd := m.Update(tea.MouseClickMsg{X: m.turnListWidth() + 16, Y: m.list.Height() + 2, Button: tea.MouseLeft})
 	if cmd == nil {
 		t.Fatal("new session title cannot be copied")
 	}
@@ -73,7 +73,7 @@ func TestNewSessionRevealedFromLaterPage(t *testing.T) {
 func TestDividerDragClampsAndSurvivesResize(t *testing.T) {
 	m := newModel(nil)
 	initial := m.list.Height()
-	y := initial + 3 // lower pane's top border, immediately below the session pane
+	y := initial + 2 // lower pane's top border, immediately below the session pane
 	m.Update(tea.MouseClickMsg{X: 10, Y: y, Button: tea.MouseLeft})
 	m.Update(tea.MouseMotionMsg{X: 10, Y: y + 3, Button: tea.MouseLeft})
 	if m.list.Height() != initial+3 {
@@ -171,7 +171,7 @@ func TestClickSessionTitleCopiesSelectedID(t *testing.T) {
 	m.copyText = func(text string) error { copied = text; return nil }
 	for _, height := range []int{24, 40} {
 		m.resize(80, height)
-		_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 3, Button: tea.MouseLeft})
+		_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 2, Button: tea.MouseLeft})
 		if cmd == nil || m.dragging {
 			t.Fatal("name click started dragging instead of copying")
 		}
@@ -181,12 +181,12 @@ func TestClickSessionTitleCopiesSelectedID(t *testing.T) {
 		}
 	}
 	m.copyText = func(string) error { return fmt.Errorf("clipboard failure") }
-	_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 3, Button: tea.MouseLeft})
+	_, cmd := m.Update(tea.MouseClickMsg{X: 3, Y: m.list.Height() + 2, Button: tea.MouseLeft})
 	m.Update(cmd())
 	if !strings.Contains(m.View().Content, "Clipboard unavailable") {
 		t.Fatal("clipboard failure reported as success")
 	}
-	_, cmd = m.Update(tea.MouseClickMsg{X: 3 + len(id), Y: m.list.Height() + 3, Button: tea.MouseLeft})
+	_, cmd = m.Update(tea.MouseClickMsg{X: 3 + len(id), Y: m.list.Height() + 2, Button: tea.MouseLeft})
 	if cmd != nil || !m.dragging {
 		t.Fatal("separator outside name no longer drags")
 	}

@@ -227,8 +227,8 @@ func (m *model) resize(width, height int) {
 	m.width, m.height = width, height
 	m.logs.SoftWrap = !m.inspectMode
 	m.logs.SetHorizontalStep(8)
-	// Header, footer, and the two pane borders use six rows in total.
-	available := max(4, height-6)
+	// The footer and the two pane borders use five rows in total.
+	available := max(4, height-5)
 	top := min(available-2, max(2, int(math.Round(float64(available)*m.split))))
 	if !m.splitCustomized {
 		top = min(top, 8)
@@ -283,7 +283,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.width < 36 || m.height < 12 || msg.Button != tea.MouseLeft || msg.X < 1 || msg.X >= m.width-1 {
 			return m, nil
 		}
-		divider := m.list.Height() + 2
+		divider := m.list.Height() + 1
 		if m.inspectMode && msg.Y >= divider+2 && msg.Y < m.height-2 {
 			m.turnsFocused = msg.X < 2+m.turnListWidth()
 			if m.turnsFocused {
@@ -313,9 +313,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dragY, m.dragTop = msg.Y, m.list.Height()
 			return m, nil
 		}
-		if msg.Y >= 2 && msg.Y < divider {
+		if msg.Y >= 1 && msg.Y < divider {
 			m.logsFocused = false
-			row := msg.Y - 2
+			row := msg.Y - 1
 			index := m.list.Paginator.Page*m.list.Paginator.PerPage + row
 			if row >= 0 && index < len(m.sessions) {
 				m.list.Select(index)
@@ -340,8 +340,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.width < 36 || m.height < 12 || msg.X < 1 || msg.X >= m.width-1 || m.dragging {
 			return m, nil
 		}
-		divider := m.list.Height() + 2
-		if msg.Y >= 2 && msg.Y < divider {
+		divider := m.list.Height() + 1
+		if msg.Y >= 1 && msg.Y < divider {
 			previous := m.selected()
 			if msg.Button == tea.MouseWheelUp {
 				m.list.CursorUp()
@@ -503,7 +503,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // dragDivider uses the original grab position so either border row can be
 // grabbed without jumping. Out-of-bounds motion clamps to the pane minimums.
 func (m *model) dragDivider(y int) {
-	available := max(4, m.height-6)
+	available := max(4, m.height-5)
 	top := min(available-2, max(2, m.dragTop+y-m.dragY))
 	follow := m.logs.AtBottom()
 	m.split = float64(top) / float64(available)
@@ -700,10 +700,6 @@ func (m *model) View() tea.View {
 	} else {
 		brand := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EEAD4")).Render(" GOBOTTO")
 		status := lipgloss.NewStyle().Foreground(lipgloss.Color("#8593A4")).Render("  ·  " + m.status)
-		if m.quitting {
-			status = "  ·  Waiting for active turn to finish before quitting…"
-		}
-		header := lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(1).Render(brand + status)
 		topTitle := fmt.Sprintf("Sessions · %d retained", len(m.sessions))
 		if s := m.selected(); s != nil && s.pending > 0 {
 			topTitle += fmt.Sprintf(" · %d messages pending", s.pending)
@@ -749,12 +745,19 @@ func (m *model) View() tea.View {
 		if m.quitting {
 			help = " Waiting for active turn · Shift-Q quit immediately"
 		}
-		footer := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).MaxWidth(m.width).MaxHeight(1).Render(help)
+		if !m.quitting && m.clipboardNotice == "" && lipgloss.Width(brand+status+"  "+help) > m.width {
+			help = " · tab pane · q quit"
+		}
+		footerText := brand + status + "  " + lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(help)
+		if m.quitting {
+			footerText = help
+		}
+		footer := lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(1).Render(footerText)
 		lowerBody := renderPane(bottomTitle, m.logs.View(), m.width, m.logsFocused)
 		if m.inspectMode {
 			lowerBody = m.inspectorPanes(bottomTitle)
 		}
-		content = lipgloss.JoinVertical(lipgloss.Left, header, renderPane(topTitle, topBody, m.width, !m.logsFocused), lowerBody, footer)
+		content = lipgloss.JoinVertical(lipgloss.Left, renderPane(topTitle, topBody, m.width, !m.logsFocused), lowerBody, footer)
 	}
 	v := tea.NewView(content)
 	v.AltScreen = true
