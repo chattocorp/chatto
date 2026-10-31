@@ -16,7 +16,7 @@ on:
 
 concurrency:
   # PRs share a group so superseded revisions are cancelled. Pushes use their
-  # immutable commit SHA so every main commit can publish an image.
+  # immutable commit SHA so each selected main commit can publish an image.
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -31,14 +31,14 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
+      chatto: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
       desktop: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
-      authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
-      translatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.translatto == 'true' }}
-      runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
-      chattobot: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
-      botto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.botto == 'true' }}
-      docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
+      authling: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
+      translatto: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.translatto == 'true' }}
+      runling: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
+      chattobot: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
+      botto: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.botto == 'true' }}
+      docs: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
       # Push filters use git; pull request filters use the GitHub API.
       - name: Checkout for push change detection
@@ -122,6 +122,8 @@ jobs:
               - '!examples/botto/**'
               - '!tools/test-desktop-*'
               - '!{docs,.agents,.claude,.conductor}/**'
+              # Experimental modules have their own workflow.
+              - '!experimental/**'
               - '!*.md'
               - '!.release-please-manifest.json'
 
@@ -196,7 +198,8 @@ jobs:
       - run: mise test-chattobot
 
   build-main-image-contexts:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: changes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.chatto == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -1088,8 +1091,9 @@ jobs:
           retention-days: 30
 
   publish-main-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.chatto == 'true'
     needs:
+      - changes
       - build-main-image-contexts
       - license-check
       - workflow-lint
