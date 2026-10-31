@@ -94,7 +94,11 @@ not report subjects or payloads.
 ConnectAPI does not read the component directly. `RoomModel` is the sole
 production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared
-content-view projector. Threads also derives channel-room and DM message-to-root
+content-view projector. Participant reads combine the root author from Room
+Timeline with the distinct current reply authors from Threads. Previews put the
+root author first; counts and paginated lists include each author once and omit
+erased users. This read composition does not add snapshot state.
+Threads also derives channel-room and DM message-to-root
 mappings and account-to-thread interaction relationships from message-post
 facts. It also consumes room join, leave, and stored suspension facts to derive DM-received
 relationships for the other participants at the time of each post. Threads

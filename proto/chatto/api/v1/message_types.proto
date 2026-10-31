@@ -140,11 +140,10 @@ message ThreadSummary {
   int32 reply_count = 2;
   // Creation time of the most recent reply in this message's thread.
   google.protobuf.Timestamp last_reply_at = 3;
-  // Preview of up to twelve user IDs that have participated in this message's
-  // thread.
+  // Preview of up to twelve distinct thread authors, excluding erased users.
+  // The root author appears first, followed by current reply authors.
   repeated string participant_preview_user_ids = 4;
-  // Total number of distinct users that have participated in this message's
-  // thread.
+  // Total number of distinct root and current reply authors, excluding erased users.
   int32 participant_count = 5;
   // State resolved for the current user.
   ThreadViewerState viewer_state = 6;

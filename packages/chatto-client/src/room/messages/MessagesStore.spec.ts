@@ -3044,6 +3044,48 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it.each(['other', 'root', 'deleted-root'])(
+    'includes the root author once when the first live reply arrives: %s',
+    async (author) => {
+      const store = new MessagesStore(
+        new FakeQueryClient() as unknown as ServerConnection,
+        () => null,
+        { roomId: 'room-1' },
+        fakeTimelineAPI()
+      );
+      await settle();
+      const rootActor = {
+        id: 'root',
+        login: 'root',
+        displayName: 'Root',
+        presenceStatus: PresenceStatus.OFFLINE,
+        deleted: author === 'deleted-root'
+      };
+      store.ingestEvent({ ...threadMessageEvent('t1'), actorId: 'root', actor: rootActor });
+      const replyActor = {
+        id: author === 'root' ? 'root' : 'other',
+        login: 'reply',
+        displayName: 'Reply',
+        presenceStatus: PresenceStatus.OFFLINE
+      };
+      const reply = {
+        ...threadMessageEvent('r1', 't1'),
+        actorId: replyActor.id,
+        actor: replyActor
+      };
+      store.ingestEvent(reply);
+      store.ingestEvent(reply);
+      expect(store.rootEvents[0].event).toMatchObject({
+        replyCount: 1,
+        threadParticipants:
+          author === 'other'
+            ? [rootActor, replyActor]
+            : [author === 'root' ? rootActor : replyActor]
+      });
+      store.dispose();
+    }
+  );
+
   it('soft-refreshes the latest room window without entering initial loading', async () => {
     const fake = new FakeQueryClient([
       roomEventsResult({

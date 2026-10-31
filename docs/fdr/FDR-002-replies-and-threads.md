@@ -23,9 +23,11 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - A message jump marks its destination with a soft accent fill and a leading-edge
   marker, then fades the cue. With reduced motion, the cue stays still before it
   clears. Repeating a jump marks the destination again.
-- Integrations can read all distinct authors of current thread replies in
-  bounded pages. Retracted replies and erased authors do not contribute. The
-  root author is included only if they also replied. Counts cover the full set.
+- Integrations can read the root author and all distinct authors of current
+  thread replies in bounded pages. Retracted replies and erased authors do not
+  contribute. Each author counts once, including when the root author also
+  replies. Counts cover the full set. A thread without replies includes its
+  root author unless that user has been erased.
 - Integrations can read their own stored room and thread read positions, one
   target at a time or in bounded batches. A read does not mark content as read
   or initialize a missing position. These positions are separate from
@@ -62,8 +64,9 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   for this preview. The total count can be larger.
   Left-click, right-click, or long-press an avatar to
   open the user context menu. The menu includes the full profile action.
-  Participants are authors of current replies; the root author appears only
-  if they also replied. The preview stays compact to leave room for header controls.
+  Participants are the root author and authors of current replies. The root
+  author appears first and counts once, including when they also reply.
+  Erased authors are excluded. The preview stays compact to leave room for header controls.
 - A root message with an attached thread does not group with adjacent messages
   from the same author. The root and the next message show a full author header.
   This also applies to an empty thread. Plain messages inside a thread can still

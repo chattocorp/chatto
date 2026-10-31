@@ -42,8 +42,8 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists distinct authors of non-retracted replies, excluding erased users.
-     * The root author is included only if they also replied. Requires the same
+     * Lists the root author and distinct authors of non-retracted replies,
+     * excluding erased users. Each author appears once. Requires the same
      * membership and message-read access as GetThreadEvents.
      *
      * @generated from rpc chatto.api.v1.ThreadService.ListThreadParticipants
