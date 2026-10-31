@@ -18,6 +18,7 @@ describe('RenderedImage', () => {
     view.container.style.width = '400px';
     try {
       await expect.poll(() => image.naturalWidth).toBe(400);
+      expect(getComputedStyle(image).touchAction).toBe('auto');
       expect(view.container.querySelector('[aria-label="Zoom in"]')).toBeNull();
       const wheel = new WheelEvent('wheel', {
         deltaY: 100,

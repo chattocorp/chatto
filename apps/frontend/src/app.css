@@ -2056,7 +2056,7 @@
 }
 
 @utility image-canvas-asset {
-  @apply m-0 block h-full w-full max-w-none touch-none object-contain outline-none;
+  @apply m-0 block h-full w-full max-w-none object-contain outline-none;
 }
 
 @utility image-canvas-fade {
