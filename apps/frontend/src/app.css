@@ -2761,7 +2761,7 @@
   bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
 }
 
-/* TouchPressFeedback marks only the innermost action for a primary pointer press.
+/* TouchPressFeedback marks only the innermost action for a primary touch press.
  * Do not wait for native :active, which can start after touch release. */
 @layer utilities {
   [data-touch-ripple-host] {
