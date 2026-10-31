@@ -98,4 +98,23 @@ describe('ANSI art', () => {
       'markdown-ansi'
     );
   });
+
+  it('does not spend artwork slots on unsupported ANSI fence hints', async () => {
+    const hints = [
+      'ansi title',
+      'ansi render',
+      'ansi rendered extra',
+      'ansi',
+      'ansi rendered',
+      'ANSI',
+      'ANSI RENDERED',
+      'ansi'
+    ];
+    const html = await renderMarkdown(
+      hints.map((hint, index) => '```' + hint + '\nblock ' + index + '\n```').join('\n\n')
+    );
+    expect(html.match(/markdown-ansi/g)).toHaveLength(4);
+    expect(html.match(/data-artifact="ansi"/g)).toHaveLength(5);
+    expect(html.match(/ disabled/g)).toHaveLength(1);
+  });
 });

@@ -481,8 +481,7 @@ function initialize(): void {
   md = new MarkdownIt({
     html: false, // Disable HTML tags in source
     linkify: true, // Auto-convert URLs to links
-    breaks: true, // Convert \n to <br>
-    highlight: renderCodeFence
+    breaks: true // Convert \n to <br>
   });
 
   configureMarkdownLinks(md);
@@ -659,7 +658,7 @@ export async function renderMarkdown(
     // Work from parsed fences so quoted/list blocks work and inline examples do
     // not load the terminal parser. Keep the results local to this render call.
     const fences = tokens.filter(
-      (token) => token.type === 'fence' && normalizeCodeLanguage(token.info) === 'ansi'
+      (token) => token.type === 'fence' && parseArtifactFence(token.info)?.language === 'ansi'
     );
     if (fences.length) {
       const { renderAnsiArt, MAX_SOURCE_LENGTH } = await import('$lib/ansiArt');
