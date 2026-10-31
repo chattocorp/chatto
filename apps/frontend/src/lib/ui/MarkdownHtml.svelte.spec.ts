@@ -268,6 +268,21 @@ describe('Mermaid previews', () => {
 });
 const writeText = vi.fn<(_: string) => Promise<void>>();
 
+/** Observe application cancellation before blocking navigation in the test browser. */
+function expectNativeClick(anchor: HTMLAnchorElement, type = 'click', button = 0) {
+  let prevented: boolean | undefined;
+  document.addEventListener(
+    type,
+    (event) => {
+      prevented = event.defaultPrevented;
+      event.preventDefault();
+    },
+    { once: true }
+  );
+  anchor.dispatchEvent(new MouseEvent(type, { button, bubbles: true, cancelable: true }));
+  expect(prevented).toBe(false);
+}
+
 beforeEach(() => {
   navigationMocks.goto.mockReset();
   navigationMocks.registered = true;
@@ -294,21 +309,17 @@ describe('MarkdownHtml link navigation', () => {
   );
 
   it.each([true, false])(
-    'resolves middle-click with the current registration after rendering (initially %s)',
+    'leaves middle-click on the rendered destination native after registration changes (initially %s)',
     async (registered) => {
       navigationMocks.registered = registered;
       const url = 'https://bar.com/chat/-/overview';
       const { container } = render(MarkdownHtml, { html: await renderMarkdown(`[Go](${url})`) });
       navigationMocks.registered = !registered;
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
-      container
-        .querySelector('a')!
-        .dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }));
-      expect(open).toHaveBeenCalledWith(
-        registered ? url : '/chat/bar.com/overview',
-        '_blank',
-        'noopener,noreferrer'
-      );
+      const anchor = container.querySelector('a')!;
+      expectNativeClick(anchor, 'auxclick', 1);
+      expect(anchor.getAttribute('href')).toBe(registered ? '/chat/bar.com/overview' : url);
+      expect(open).not.toHaveBeenCalled();
       expect(navigationMocks.goto).not.toHaveBeenCalled();
     }
   );
@@ -335,9 +346,12 @@ describe('MarkdownHtml link navigation', () => {
   ])('opens other destinations externally: %s', async (url) => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     const { container } = render(MarkdownHtml, { html: await renderMarkdown(`[Go](${url})`) });
-    await userEvent.click(container.querySelector('a')!);
+    const anchor = container.querySelector('a')!;
+    expectNativeClick(anchor);
+    expect(anchor.href).toBe(url);
+    expect(anchor.target).toBe('_blank');
     expect(navigationMocks.goto).not.toHaveBeenCalled();
-    expect(open).toHaveBeenCalledWith(url, '_blank', 'noopener,noreferrer');
+    expect(open).not.toHaveBeenCalled();
   });
 });
 

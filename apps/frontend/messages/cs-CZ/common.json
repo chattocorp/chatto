@@ -3,6 +3,7 @@
     "code_source": "Zdroj",
     "code_render": "Náhled",
     "code_render_failed": "Náhled není dostupný. Zdroj je stále k dispozici.",
+    "browser_menu_hint": "Shift + pravé tlačítko myši otevře nabídku prohlížeče",
     "keyboard_shortcuts": {
       "title": "Klávesové zkratky",
       "app": "Aplikace",

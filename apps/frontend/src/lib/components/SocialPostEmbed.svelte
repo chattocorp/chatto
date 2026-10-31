@@ -79,7 +79,6 @@ preview-card styling. Its parent owns shared link-preview actions.
     <a
       {...renderedLinkTarget(url)}
       onclick={(event) => handleRenderedLinkClick(event, url)}
-      onauxclick={(event) => handleRenderedLinkClick(event, url)}
       class="flex min-w-0 items-center gap-2.5"
     >
       {#if post.author?.avatarUrl}
@@ -162,7 +161,6 @@ preview-card styling. Its parent owns shared link-preview actions.
             event.stopPropagation();
             handleRenderedLinkClick(event, externalURL);
           }}
-          onauxclick={(event) => handleRenderedLinkClick(event, externalURL)}
         >
           {#if post.externalLink.imageUrl}
             <img
@@ -195,7 +193,6 @@ preview-card styling. Its parent owns shared link-preview actions.
           <a
             {...renderedLinkTarget(post.quotedPost.url)}
             onclick={(event) => handleRenderedLinkClick(event, quotedURL)}
-            onauxclick={(event) => handleRenderedLinkClick(event, quotedURL)}
             class="flex min-w-0 items-center gap-2"
           >
             {#if post.quotedPost.author?.avatarUrl}
@@ -253,7 +250,6 @@ preview-card styling. Its parent owns shared link-preview actions.
                   <a
                     {...renderedLinkTarget(post.quotedPost.url)}
                     onclick={(event) => handleRenderedLinkClick(event, quotedURL)}
-                    onauxclick={(event) => handleRenderedLinkClick(event, quotedURL)}
                   >
                     <img
                       src={image.url}
@@ -272,7 +268,6 @@ preview-card styling. Its parent owns shared link-preview actions.
               <a
                 {...renderedLinkTarget(post.quotedPost.externalLink.url)}
                 onclick={(event) => handleRenderedLinkClick(event, externalURL)}
-                onauxclick={(event) => handleRenderedLinkClick(event, externalURL)}
                 class="flex min-w-0 gap-2 preview-thumbnail p-2"
               >
                 {#if post.quotedPost.externalLink.imageUrl}

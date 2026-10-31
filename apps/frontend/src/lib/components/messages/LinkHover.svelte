@@ -244,6 +244,7 @@
       onfocus={keepOpen}
       onblur={leave}
       onclick={activate}
+      oncontextmenu={(event) => event.stopPropagation()}
       onauxclick={(event) => {
         if (event.button === 1) activate(event);
       }}

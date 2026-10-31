@@ -3,6 +3,7 @@
     "code_source": "Quelltext",
     "code_render": "Darstellung",
     "code_render_failed": "Vorschau nicht verfügbar. Der Quelltext ist weiterhin verfügbar.",
+    "browser_menu_hint": "Umschalt + Rechtsklick für das Browsermenü",
     "keyboard_shortcuts": {
       "title": "Tastenkürzel",
       "app": "App",

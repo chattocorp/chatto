@@ -166,6 +166,8 @@ it('opens one persistent touch sheet and consumes the native menu and release cl
   link.focus();
   link.dispatchEvent(new Event('touchstart', { bubbles: true }));
   await vi.waitFor(() => expect(container.querySelector('dialog[open]')).not.toBeNull());
+  // A hybrid device can report mouse movement while the touch menu is open.
+  link.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }));
   const nativeMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
   link.dispatchEvent(nativeMenu);
   touchPointer(link, 'pointerup');
@@ -278,11 +280,11 @@ it.each(['tap', 'scroll', 'cancel'])('does not preview during a touch %s', async
   }
 });
 
-it('keeps ordinary desktop context menus with their message owner', () => {
+it.each([false, true])('leaves Shift=%s context menus to the message owner', (shiftKey) => {
   const { container } = render(LinkHover, { href, children });
   const parentMenu = vi.fn();
   container.addEventListener('contextmenu', parentMenu);
-  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey });
   container.querySelector('a')!.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
   expect(parentMenu).toHaveBeenCalledOnce();
@@ -385,7 +387,7 @@ it.each([
   ['click', {}],
   ['click', { ctrlKey: true }],
   ['auxclick', { button: 1 }]
-] as const)('opens the whole card with %s %j', async (type, options) => {
+] as const)('leaves the whole card navigation native with %s %j', async (type, options) => {
   const open = vi.spyOn(window, 'open').mockReturnValue(null);
   const { container } = render(LinkHover, { href, children });
   container.classList.add('prose');
@@ -400,10 +402,20 @@ it.each([
   expect(card.rel).toBe('noopener noreferrer');
   expect(card.dataset.contentHref).toBe(href);
   expect(getComputedStyle(card).textDecorationLine).toBe('none');
+  let prevented: boolean | undefined;
+  document.addEventListener(
+    type,
+    (event) => {
+      prevented = event.defaultPrevented;
+      event.preventDefault();
+    },
+    { once: true }
+  );
   card
     .querySelector('.font-semibold')!
     .dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...options }));
-  expect(open).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+  expect(prevented).toBe(false);
+  expect(open).not.toHaveBeenCalled();
   await vi.waitFor(() =>
     expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
   );

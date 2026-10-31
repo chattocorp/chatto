@@ -3,6 +3,7 @@
     "code_source": "Código",
     "code_render": "Vista",
     "code_render_failed": "Vista previa no disponible. El código sigue disponible.",
+    "browser_menu_hint": "Mayús + clic derecho para el menú del navegador",
     "keyboard_shortcuts": {
       "title": "Atajos de teclado",
       "app": "Aplicación",

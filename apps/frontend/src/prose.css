@@ -206,7 +206,7 @@
     @apply m-0 px-3 py-2 text-sm text-muted;
   }
 
-  /* Code scrolls inside its pane; image artifacts own a separate pan/zoom stage. */
+  /* Code scrolls inside its pane; image artifacts fit inside their preview. */
   & pre.markdown-code {
     @apply relative m-0 overflow-hidden rounded-none px-3 py-2;
     background: transparent;

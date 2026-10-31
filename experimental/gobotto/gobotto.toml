@@ -2,6 +2,8 @@
 owner_user_ids = ["UNvUOdWvzSh19fb"]
 
 [conversation]
+# Quiet period after the latest message. Omit to use 4s.
+debounce = "4s"
 # OpenRouter model ID. API keys stay in .env.
 model = "z-ai/glm-5.3-flash"
 
@@ -12,6 +14,27 @@ Be friendly, direct, and concise. Match the conversation's language and tone.
 Use an emoji reaction when a short acknowledgment is enough.
 """
 
+# Optional reasoning controls; supported settings depend on the model/provider.
+# Omit this section to retain provider defaults. Use effort OR max_tokens.
+[conversation.reasoning]
+effort = "low"
+
+# effort = "medium"
+# Alternative to effort: max_tokens = 2048
+# enabled = true
+# exclude = false
+
 [titles]
 model = "openai/gpt-6-luna"
 system_prompt = "Use a short, specific title in the conversation's language."
+
+[memory]
+# Owners can create and archive brains here. Each MEANS.md governs brain use.
+directory = "./brains"
+
+[mcp.servers.exa]
+url = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa"
+tools = ["web_search_exa", "web_fetch_exa"]
+
+[mcp.servers.exa.optional_headers_from_env]
+x-api-key = "EXA_API_KEY"

@@ -17,7 +17,7 @@ func TestTitleRequestIsBoundedAndIndependent(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if string(body["model"]) != `"test/title-model"` || string(body["max_tokens"]) != "64" || body["tools"] != nil {
+		if string(body["model"]) != `"test/title-model"` || body["max_tokens"] != nil || body["tools"] != nil {
 			t.Fatal("incorrect title request")
 		}
 		if !strings.Contains(string(body["messages"]), "Cache performance") || strings.Contains(string(body["messages"]), "PRIVATE_INSTRUCTIONS") || strings.Contains(string(body["messages"]), "PRIVATE_REASONING") {

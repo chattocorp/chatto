@@ -3,6 +3,7 @@
     "code_source": "Kaynak",
     "code_render": "Görünüm",
     "code_render_failed": "Önizleme kullanılamıyor. Kaynak hâlâ kullanılabilir.",
+    "browser_menu_hint": "Tarayıcı menüsü için Shift + sağ tıklama",
     "keyboard_shortcuts": {
       "title": "Klavye kısayolları",
       "app": "Uygulama",

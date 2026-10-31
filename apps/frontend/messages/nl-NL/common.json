@@ -3,6 +3,7 @@
     "code_source": "Bron",
     "code_render": "Weergave",
     "code_render_failed": "Voorbeeld niet beschikbaar. De bron blijft beschikbaar.",
+    "browser_menu_hint": "Shift + rechtermuisklik voor het browsermenu",
     "keyboard_shortcuts": {
       "title": "Sneltoetsen",
       "app": "App",

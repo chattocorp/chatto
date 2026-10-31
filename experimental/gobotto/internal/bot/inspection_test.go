@@ -14,6 +14,20 @@ import (
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
 
+func TestOutputLimitIsVisibleInInspection(t *testing.T) {
+	c := &conversation{key: threadKey{"room", "root"}, records: []inspection.Turn{{Number: 1, State: "running"}}}
+	c.complete = func(context.Context, []agent.Message) (agent.Message, error) { return nil, agent.ErrOutputLimit }
+	var logged string
+	err := respond(context.Background(), newFake(), c, []chatto.MessageEvent{input("message", "create a brain", true)}, func(s string) { logged = s })
+	if !errors.Is(err, agent.ErrOutputLimit) || c.records[0].Failure != agent.ErrOutputLimit.Error() || logged != agent.ErrOutputLimit.Error() {
+		t.Fatal("output limit hidden by generic failure")
+	}
+	last := c.records[0].Steps[len(c.records[0].Steps)-1]
+	if last.Kind != "model" || last.State != "failed" || last.Detail != agent.ErrOutputLimit.Error() {
+		t.Fatal("inspector lost model stop reason")
+	}
+}
+
 func TestTurnInspectionCapturesToolsUsageAndDelivery(t *testing.T) {
 	s, err := OpenStore(t.TempDir(), "server", "bot", "model")
 	if err != nil {

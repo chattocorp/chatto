@@ -46,7 +46,9 @@ type Event struct {
 	Text  string
 	At    time.Time
 	// Provider-reported token deltas. CachedInput is included in Input.
-	Input, CachedInput, Output int64
+	Input, CachedInput, Output       int64
+	Reasoning                        int64
+	ReasoningKnown, ReasoningMissing bool
 	// Cost is the reported account charge for this request, or nil if unknown.
 	Cost *float64
 	// Restore metadata; ordinary events leave these at their zero values.
@@ -63,22 +65,24 @@ const maxSessions = 100
 const maxLogs = 200
 
 type session struct {
-	id                       uint64
-	humanID                  string
-	title                    string
-	started                  time.Time
-	state                    string
-	logs                     []string
-	turns                    int
-	input, cached, output    int64
-	usageKnown               bool
-	cost                     float64
-	costKnown, costMissing   bool
-	records                  []inspection.Turn
-	inspected                int
-	expanded                 bool
-	logOffset, inspectOffset int
-	pending                  int
+	id                               uint64
+	humanID                          string
+	title                            string
+	started                          time.Time
+	state                            string
+	logs                             []string
+	turns                            int
+	input, cached, output            int64
+	reasoning                        int64
+	reasoningKnown, reasoningMissing bool
+	usageKnown                       bool
+	cost                             float64
+	costKnown, costMissing           bool
+	records                          []inspection.Turn
+	inspected                        int
+	expanded                         bool
+	logOffset, inspectOffset         int
+	pending                          int
 }
 
 func (s *session) FilterValue() string { return "" }
@@ -156,6 +160,9 @@ func compactTokens(n int64) string {
 }
 
 type model struct {
+	requestQuit     func()
+	quitting        bool
+	workerStopped   bool
 	copyText        func(string) error
 	clipboardNotice string
 	clipboardUntil  time.Time
@@ -163,6 +170,7 @@ type model struct {
 	list            list.Model
 	turnList        list.Model
 	logs            viewport.Model
+	stats           viewport.Model
 	sessions        []*session // newest first; all mutation belongs to the UI goroutine
 	width, height   int
 	logsFocused     bool
@@ -190,6 +198,9 @@ func newModel(events <-chan tea.Msg) *model {
 	v.FillHeight = true
 	m := &model{events: events, list: l, logs: v, status: "Connecting to Chatto…", width: 80, height: 24, split: 1.0 / 3, copyText: clipboard.WriteAll}
 	m.turnList = newTurnList()
+	m.stats = viewport.New()
+	m.stats.SoftWrap = true
+	m.stats.FillHeight = true
 	m.resize(80, 24)
 	m.refreshLogs(true)
 	return m
@@ -214,11 +225,16 @@ func (m *model) selected() *session {
 
 func (m *model) resize(width, height int) {
 	m.width, m.height = width, height
+	m.logs.SoftWrap = !m.inspectMode
+	m.logs.SetHorizontalStep(8)
 	// Header, footer, and the two pane borders use six rows in total.
-	available := max(4, height-7)
+	available := max(4, height-6)
 	top := min(available-2, max(2, int(math.Round(float64(available)*m.split))))
 	if !m.splitCustomized {
 		top = min(top, 8)
+	}
+	if m.inspectMode {
+		top = min(top, max(1, available-4))
 	}
 	m.list.SetSize(max(1, width-4), top)
 	m.logs.SetWidth(max(1, width-4))
@@ -227,7 +243,11 @@ func (m *model) resize(width, height int) {
 		left := m.turnListWidth()
 		m.turnList.SetSize(left, max(1, available-top))
 		m.logs.SetWidth(max(1, width-left-9))
-		m.logs.SetHeight(max(1, available-top))
+		// The extra pair of borders separates fixed turn statistics from the log.
+		body := max(2, available-top-2)
+		m.stats.SetWidth(m.logs.Width())
+		m.stats.SetHeight(max(1, min(6, body/3)))
+		m.logs.SetHeight(max(1, body-m.stats.Height()))
 	}
 }
 
@@ -264,18 +284,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		divider := m.list.Height() + 2
-		if msg.Y == divider+1 {
-			if msg.X >= 2 && msg.X < 8 {
-				m.switchMode(false)
-			} else if msg.X >= 8 && msg.X < 21 {
-				m.switchMode(true)
-			}
-			return m, nil
-		}
-		if m.inspectMode && msg.Y >= divider+3 && msg.Y < m.height-2 {
+		if m.inspectMode && msg.Y >= divider+2 && msg.Y < m.height-2 {
 			m.turnsFocused = msg.X < 2+m.turnListWidth()
 			if m.turnsFocused {
-				row := msg.Y - (divider + 3)
+				row := msg.Y - (divider + 2)
 				index := m.turnList.Paginator.Page*m.turnList.Paginator.PerPage + row
 				if row >= 0 && index < len(m.turnList.Items()) {
 					m.turnList.Select(index)
@@ -289,14 +301,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Give the visible name priority over separator dragging.
 		nameX, nameWidth := 3, m.width-6
 		if m.inspectMode {
-			nameX = m.turnListWidth() + 8
-			nameWidth = m.logs.Width() - 2
+			nameX = m.turnListWidth() + 16
+			nameWidth = max(0, m.logs.Width()-10)
 		}
-		if s := m.selected(); s != nil && msg.Y == divider+2 && msg.X >= nameX && msg.X < nameX+min(lipgloss.Width(s.humanID), nameWidth) {
+		if s := m.selected(); s != nil && msg.Y == divider+1 && msg.X >= nameX && msg.X < nameX+min(lipgloss.Width(s.humanID), nameWidth) {
 			id, copyText := s.humanID, m.copyText
 			return m, func() tea.Msg { return clipboardResult{id: id, err: copyText(id)} }
 		}
-		if msg.Y == divider || msg.Y == divider+2 {
+		if msg.Y == divider || msg.Y == divider+1 {
 			m.dragging = true
 			m.dragY, m.dragTop = msg.Y, m.list.Height()
 			return m, nil
@@ -350,6 +362,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			var cmd tea.Cmd
+			if m.inspectMode && msg.Y < divider+2+m.stats.Height() {
+				m.stats, cmd = m.stats.Update(msg)
+				return m, cmd
+			}
 			m.logs, cmd = m.logs.Update(msg)
 			return m, cmd
 		}
@@ -358,6 +374,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.apply(msg)
 		return m, waitEvent(m.events)
 	case finished:
+		m.workerStopped = true
+		if m.quitting {
+			return m, tea.Quit
+		}
 		m.status = "Stopped · q to exit"
 		if msg.err != nil {
 			m.status = "Connection stopped · q to exit and restart"
@@ -410,6 +430,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "q", "ctrl+c":
+			if m.workerStopped || m.requestQuit == nil {
+				return m, tea.Quit
+			}
+			if !m.quitting {
+				m.quitting = true
+				m.requestQuit()
+			}
+			return m, nil
+		case "Q", "shift+q":
 			return m, tea.Quit
 		case "tab", "shift+tab":
 			if m.inspectMode {
@@ -474,7 +503,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // dragDivider uses the original grab position so either border row can be
 // grabbed without jumping. Out-of-bounds motion clamps to the pane minimums.
 func (m *model) dragDivider(y int) {
-	available := max(4, m.height-7)
+	available := max(4, m.height-6)
 	top := min(available-2, max(2, m.dragTop+y-m.dragY))
 	follow := m.logs.AtBottom()
 	m.split = float64(top) / float64(available)
@@ -494,6 +523,7 @@ func (m *model) apply(event Event) {
 	selected := m.selected()
 	follow := !m.inspectMode && m.logs.AtBottom()
 	var target *session
+	added := false
 	for _, s := range m.sessions {
 		if s.id == event.Session {
 			target = s
@@ -501,6 +531,7 @@ func (m *model) apply(event Event) {
 		}
 	}
 	if event.Kind == Started && target == nil {
+		added = true
 		target = &session{id: event.Session, started: event.At, state: "running", turns: event.Turns}
 		target.humanID = event.HumanID
 		target.title = event.Title
@@ -578,6 +609,9 @@ func (m *model) apply(event Event) {
 		target.state = "running"
 		target.turns++
 	case Tokens:
+		target.reasoning += event.Reasoning
+		target.reasoningMissing = target.reasoningMissing || event.ReasoningMissing || !event.ReasoningKnown
+		target.reasoningKnown = target.reasoningKnown || event.ReasoningKnown
 		target.costMissing = target.costMissing || event.CostMissing
 		target.usageKnown = true
 		target.input += event.Input
@@ -619,6 +653,11 @@ func (m *model) apply(event Event) {
 		}
 	}
 	m.list.SetItems(items) // filtering is disabled, so this requires no command
+	// Bring a newly added conversation into view, including when the old
+	// selection was on a later page. Ordinary updates keep manual selection.
+	if added {
+		index = 0
+	}
 	m.list.Select(index)
 	if m.selected() != selected {
 		m.refreshLogs(true)
@@ -629,6 +668,9 @@ func (m *model) apply(event Event) {
 
 func (m *model) refreshLogs(follow bool) {
 	text := ""
+	if m.selected() == nil {
+		m.stats.SetContent("")
+	}
 	if s := m.selected(); s != nil {
 		if m.inspectMode {
 			text = m.inspectorContent(s)
@@ -640,6 +682,7 @@ func (m *model) refreshLogs(follow bool) {
 	if follow {
 		if m.inspectMode {
 			m.logs.GotoTop()
+			m.stats.GotoTop()
 		} else {
 			m.logs.GotoBottom()
 		}
@@ -649,12 +692,22 @@ func (m *model) refreshLogs(follow bool) {
 func (m *model) View() tea.View {
 	var content string
 	if m.width < 36 || m.height < 12 {
-		content = lipgloss.NewStyle().MaxWidth(max(1, m.width)).MaxHeight(max(1, m.height)).Render("Gobotto · enlarge terminal to 36×12\nq quit")
+		message := "Gobotto · enlarge terminal to 36×12\nq quit"
+		if m.quitting {
+			message = "Finishing active turn…\nShift-Q quit now"
+		}
+		content = lipgloss.NewStyle().MaxWidth(max(1, m.width)).MaxHeight(max(1, m.height)).Render(message)
 	} else {
 		brand := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EEAD4")).Render(" GOBOTTO")
 		status := lipgloss.NewStyle().Foreground(lipgloss.Color("#8593A4")).Render("  ·  " + m.status)
+		if m.quitting {
+			status = "  ·  Waiting for active turn to finish before quitting…"
+		}
 		header := lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(1).Render(brand + status)
 		topTitle := fmt.Sprintf("Sessions · %d retained", len(m.sessions))
+		if s := m.selected(); s != nil && s.pending > 0 {
+			topTitle += fmt.Sprintf(" · %d messages pending", s.pending)
+		}
 		bottomTitle := "Session logs"
 		if s := m.selected(); s != nil {
 			bottomTitle = fmt.Sprintf("%s · %s", s.humanID, s.state)
@@ -671,6 +724,7 @@ func (m *model) View() tea.View {
 			} else {
 				bottomTitle += " · cost n/a"
 			}
+			bottomTitle += " · " + reasoningLabel(s.reasoning, s.reasoningKnown, s.reasoningMissing)
 		}
 		if m.inspectMode {
 			if s := m.selected(); s != nil {
@@ -692,24 +746,15 @@ func (m *model) View() tea.View {
 		if m.clipboardNotice != "" {
 			help = " " + m.clipboardNotice + " · click name to copy · q quit"
 		}
+		if m.quitting {
+			help = " Waiting for active turn · Shift-Q quit immediately"
+		}
 		footer := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).MaxWidth(m.width).MaxHeight(1).Render(help)
-		logTab, inspectTab := " Log ", " Inspector "
-		activeTab := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EEAD4"))
-		if m.inspectMode {
-			inspectTab = activeTab.Render(inspectTab)
-		} else {
-			logTab = activeTab.Render(logTab)
-		}
-		toolbar := logTab + " " + inspectTab
-		if s := m.selected(); s != nil && s.pending > 0 {
-			toolbar += fmt.Sprintf(" · %d messages pending", s.pending)
-		}
-		toolbar = lipgloss.NewStyle().MaxWidth(m.width - 4).MaxHeight(1).Render(toolbar)
 		lowerBody := renderPane(bottomTitle, m.logs.View(), m.width, m.logsFocused)
 		if m.inspectMode {
 			lowerBody = m.inspectorPanes(bottomTitle)
 		}
-		content = lipgloss.JoinVertical(lipgloss.Left, header, renderPane(topTitle, topBody, m.width, !m.logsFocused), "  "+toolbar, lowerBody, footer)
+		content = lipgloss.JoinVertical(lipgloss.Left, header, renderPane(topTitle, topBody, m.width, !m.logsFocused), lowerBody, footer)
 	}
 	v := tea.NewView(content)
 	v.AltScreen = true

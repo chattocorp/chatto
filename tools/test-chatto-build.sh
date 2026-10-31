@@ -25,12 +25,18 @@ run_chatto() {
 		cat "$log" >&2
 		exit 1
 	fi
+	# Builds fetch their own modules; setup must not prefetch the full graph.
+	if grep -Fq '[deps-cli]' "$log"; then
+		cat "$log" >&2
+		echo 'Chatto build unexpectedly invoked deps-cli.' >&2
+		exit 1
+	fi
 }
 
 assert_skipped() {
 	local log="$1" output task
 	output="$(< "$log")"
-	for task in deps-frontend deps-cli sync-cli-legal build-frontend build-dev-cli; do
+	for task in deps-frontend sync-cli-legal build-frontend build-dev-cli; do
 		if [[ "$output" != *"[$task] sources up-to-date, skipping"* ]]; then
 			cat "$log" >&2
 			echo "Unchanged task did not skip: $task" >&2

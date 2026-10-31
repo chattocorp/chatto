@@ -22,9 +22,21 @@ export function openRenderedLink(href: string, newWindow = false): void {
   }
 }
 
-/** Navigate with the current catalogue, including links rendered before registration. */
+/** Route plain Chatto clicks locally; leave external links and browser gestures native. */
 export function handleRenderedLinkClick(event: MouseEvent, href: string): void {
-  if (event.defaultPrevented || event.button > 1 || /^mailto:/i.test(href)) return;
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  )
+    return;
+  const path = resolveChatRoute(href);
+  if (path === null) return;
+  // Keep a non-null ResolvedPathname binding for navigation's type-aware lint rule.
+  const localPath = path;
   event.preventDefault();
-  openRenderedLink(href, event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1);
+  void goto(localPath);
 }

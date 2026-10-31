@@ -3,6 +3,7 @@
     "code_source": "Avots",
     "code_render": "Skats",
     "code_render_failed": "Priekšskatījums nav pieejams. Avots joprojām ir pieejams.",
+    "browser_menu_hint": "Shift + labais klikšķis atver pārlūka izvēlni",
     "keyboard_shortcuts": {
       "title": "Tastatūras īsinājumtaustiņi",
       "app": "Lietotne",

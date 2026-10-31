@@ -30,6 +30,18 @@ func displayText(text string) string {
 	}, text)
 }
 
+// reasoningLabel distinguishes absent telemetry from a reported zero.
+func reasoningLabel(tokens int64, known, partial bool) string {
+	if !known {
+		return "reasoning n/a"
+	}
+	label := fmt.Sprintf("%d reasoning", tokens)
+	if partial {
+		label += " (partial)"
+	}
+	return label
+}
+
 func excerpt(text string, expanded bool) string {
 	text = displayText(text)
 	if expanded {
@@ -96,9 +108,11 @@ func (m *model) moveTurn(delta int) {
 	s.inspected = s.records[index].Number
 	m.refreshLogs(false)
 	m.logs.GotoTop()
+	m.stats.GotoTop()
 }
 
 func (m *model) inspectorContent(s *session) string {
+	m.stats.SetContent("")
 	items := make([]list.Item, 0, len(s.records))
 	selected := 0
 	for i := len(s.records) - 1; i >= 0; i-- {
@@ -121,7 +135,6 @@ func (m *model) inspectorContent(s *session) string {
 		return "No recorded turns yet. Older sessions gain inspection records on their next turn."
 	}
 	var parts []string
-	wrap := lipgloss.NewStyle().Width(m.logs.Width()).MaxWidth(m.logs.Width())
 	for i := len(s.records) - 1; i >= 0; i-- {
 		t := s.records[i]
 		if t.Number != s.inspected {
@@ -134,44 +147,22 @@ func (m *model) inspectorContent(s *session) string {
 		if t.State == "interrupted" && t.Finished.IsZero() {
 			duration = 0
 		}
-		heading := fmt.Sprintf("Turn %d    %s    %s", t.Number, t.Started.Format("15:04:05"), duration.Round(time.Millisecond))
-		style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#AEB8C5"))
-		block := style.Width(m.logs.Width()).MaxWidth(m.logs.Width()).MaxHeight(1).Render(heading)
+		block := ""
+		stats := turnStats{input: "—", output: "—", cache: "cache n/a", cost: "cost n/a", reasoning: "reasoning n/a"}
 		if t.Number == s.inspected {
 			var body strings.Builder
-			inputLabel := "Incoming message"
-			if len(t.Inputs) != 1 {
-				inputLabel = fmt.Sprintf("%d incoming messages", len(t.Inputs))
-			}
-			fmt.Fprintf(&body, "\n%s\n", inspectorSection(inputLabel, m.logs.Width()))
 			for _, input := range t.Inputs {
-				body.WriteString(inspectorQuote(excerpt(input.Text, s.expanded), m.logs.Width(), "#8593A4") + "\n")
+				body.WriteString(logEvent("←", "Input", excerpt(input.Text, s.expanded), "#8593A4") + "\n")
 			}
-			outcome := "Working"
-			if t.State != "running" {
-				outcome = "No response"
+			writeOutput := func() {
+				if t.Response != "" {
+					body.WriteString(logEvent("→", "Output ("+t.State+")", excerpt(t.Response, s.expanded), "#5EEAD4") + "\n")
+				}
+				if t.Emoji != "" {
+					body.WriteString(logEvent("→", "Reaction ("+t.State+")", reactionGlyph(t.Emoji)+" :"+t.Emoji+":", "#5EEAD4") + "\n")
+				}
 			}
-			if t.Response != "" {
-				outcome = "Reply"
-			}
-			if t.Emoji != "" {
-				outcome = "Reaction"
-			}
-			fmt.Fprintf(&body, "\n%s\n", inspectorSection(outcome+"  /  "+t.State, m.logs.Width()))
-			if t.Response != "" {
-				body.WriteString(inspectorQuote(excerpt(t.Response, s.expanded), m.logs.Width(), "#5EEAD4") + "\n")
-			}
-			if t.Emoji != "" {
-				fmt.Fprintf(&body, "  %s  :%s:\n", reactionGlyph(t.Emoji), displayText(t.Emoji))
-			}
-			if t.Failure != "" {
-				body.WriteString(inspectorQuote(displayText(t.Failure), m.logs.Width(), "#F38BA8") + "\n")
-			}
-			fmt.Fprintf(&body, "\n%s\n", inspectorSection("Execution", m.logs.Width()))
-			fmt.Fprintf(&body, "  ◷  Batch wait    %s\n", t.Wait.Round(time.Millisecond))
-			if t.Model != "" {
-				fmt.Fprintf(&body, "  %s\n", lipgloss.NewStyle().Foreground(lipgloss.Color("#8593A4")).Render(displayText(t.Model)))
-			}
+			outputWritten := false
 			var usage inspection.Usage
 			cacheComplete := true
 			calls, reads, titleCalls := 0, 0, 0
@@ -191,7 +182,7 @@ func (m *model) inspectorContent(s *session) string {
 				if step.State == "running" {
 					mark, color = "◌", "#5EEAD4"
 				}
-				if step.State == "failed" || step.State == "uncertain" || step.State == "interrupted" || step.State == "rejected" {
+				if step.State == "failed" || step.State == "uncertain" || step.State == "interrupted" || step.State == "rejected" || step.State == "cancelled" {
 					mark, color = "!", "#F38BA8"
 					name += " (" + step.State + ")"
 				}
@@ -199,15 +190,20 @@ func (m *model) inspectorContent(s *session) string {
 				if elapsed < time.Millisecond {
 					elapsedText = "<1ms"
 				}
-				fmt.Fprintf(&body, "  %s  %s    %s\n", lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(mark), displayText(name), elapsedText)
+				detail := elapsedText
 				if step.Provider != "" {
-					fmt.Fprintf(&body, "     %s\n", lipgloss.NewStyle().Foreground(lipgloss.Color("#8593A4")).Render("via "+displayText(step.Provider)))
+					detail += " · via " + step.Provider
 				}
 				if s.expanded && step.RequestID != "" {
-					fmt.Fprintf(&body, "      Request: %s\n", displayText(step.RequestID))
+					detail += " · Request: " + step.RequestID
 				}
 				if s.expanded && step.Detail != "" {
-					fmt.Fprintf(&body, "      %s\n", displayText(step.Detail))
+					detail += " · " + step.Detail
+				}
+				body.WriteString(logEvent(mark, name, detail, color) + "\n")
+				if step.Kind == "delivery" && !outputWritten {
+					writeOutput()
+					outputWritten = true
 				}
 				if step.Kind == "model" {
 					calls++
@@ -225,37 +221,53 @@ func (m *model) inspectorContent(s *session) string {
 				usage.Input += u.Input
 				usage.Cached += u.Cached
 				usage.Output += u.Output
+				usage.Reasoning += u.Reasoning
+				usage.ReasoningKnown = usage.ReasoningKnown || u.ReasoningKnown
 				usage.Cost += u.Cost
 				usage.Known = usage.Known || u.Known
 				usage.CostKnown = usage.CostKnown || u.CostKnown
 				usage.CostMissing = usage.CostMissing || u.CostMissing
 			}
-			fmt.Fprintf(&body, "\n%s\n", inspectorSection("Usage", m.logs.Width()))
+			if !outputWritten {
+				writeOutput()
+			}
+			if t.Failure != "" {
+				body.WriteString(logEvent("!", "Failure", t.Failure, "#F38BA8") + "\n")
+			}
 			if usage.Known {
 				percent := float64(0)
 				if usage.Input > 0 {
 					percent = 100 * float64(usage.Cached) / float64(usage.Input)
 				}
 				cache := fmt.Sprintf("%d cached (%.0f%%)", usage.Cached, percent)
+				stats.cacheValue = fmt.Sprintf("%.0f%%", percent)
 				if !cacheComplete {
+					stats.cacheValue = "—"
 					cache = "cache n/a"
 					if usage.Cached > 0 {
 						cache = fmt.Sprintf("%d cached (partial)", usage.Cached)
 					}
 				}
-				fmt.Fprintf(&body, "  %d input    %d output    %d %s\n  %s", usage.Input, usage.Output, calls+titleCalls, pluralCalls(calls+titleCalls), cache)
-				if usage.CostKnown {
-					fmt.Fprintf(&body, " · $%.6f", usage.Cost)
-					if usage.CostMissing {
-						body.WriteString(" (partial)")
+				reasoningMissing := false
+				for _, step := range t.Steps {
+					if (step.Kind == "model" || step.Kind == "title") && !step.Usage.ReasoningKnown {
+						reasoningMissing = true
 					}
-				} else {
-					body.WriteString(" · cost n/a")
 				}
-				body.WriteString("\n")
-			} else {
-				body.WriteString("  Not reported\n")
+				stats.input = groupedTokens(usage.Input)
+				stats.output = groupedTokens(usage.Output)
+				stats.cache = cache
+				stats.reasoning = reasoningLabel(usage.Reasoning, usage.ReasoningKnown, reasoningMissing)
+				if usage.CostKnown {
+					stats.cost = fmt.Sprintf("$%.6f", usage.Cost)
+					if usage.CostMissing {
+						stats.costDetail = "Partial · some unreported"
+					} else {
+						stats.costDetail = "Reported by provider"
+					}
+				}
 			}
+			stats.calls = calls + titleCalls
 			if reads > 0 {
 				fmt.Fprintf(&body, "  NOTE  %d thread refresh(es) requested despite supplied context\n", reads)
 			}
@@ -277,8 +289,9 @@ func (m *model) inspectorContent(s *session) string {
 				body.WriteString("  NOTE  Multiple model calls for a reaction\n")
 			}
 			content := body.String()
-			block += "\n" + wrap.Render(content)
+			block = strings.TrimSuffix(content, "\n")
 		}
+		m.stats.SetContent(renderTurnStats(t, duration, stats, m.stats.Width()))
 		parts = append(parts, block)
 	}
 	return strings.Join(parts, "\n")
@@ -290,16 +303,12 @@ type turnItem struct {
 	state   string
 }
 
-// inspectorSection separates conversation, execution, and accounting without
-// applying syntax-like highlighting to user-controlled message text.
-func inspectorSection(title string, width int) string {
-	label := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#DCE5EF")).Render(title)
-	rule := lipgloss.NewStyle().Foreground(lipgloss.Color("#465363")).Render(strings.Repeat("─", max(0, width-lipgloss.Width(label)-3)))
-	return label + "  " + rule
-}
-
-func inspectorQuote(text string, width int, color string) string {
-	return lipgloss.NewStyle().BorderLeft(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(color)).PaddingLeft(1).Width(max(1, width)).Render(text)
+// logEvent keeps each event on one physical row. Full content stays copyable;
+// the viewport supports horizontal scrolling for long expanded entries.
+func logEvent(mark, label, detail, color string) string {
+	flat := func(text string) string { return strings.Join(strings.Fields(displayText(text)), " ") }
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
+	return style.Render(mark+" "+flat(label)) + "  ·  " + flat(detail)
 }
 
 func pluralCalls(n int) string {
@@ -356,15 +365,20 @@ func (m *model) selectTurnRow() {
 	s.inspected = item.number
 	m.refreshLogs(false)
 	m.logs.GotoTop()
+	m.stats.GotoTop()
 }
 
 func (m *model) inspectorPanes(title string) string {
 	leftWidth := m.turnListWidth()
 	left := m.turnList.View()
 	if len(m.turnList.Items()) == 0 {
-		left = lipgloss.NewStyle().Width(leftWidth).Height(m.logs.Height()).Render("")
+		left = lipgloss.NewStyle().Width(leftWidth).Height(m.turnList.Height()).Render("")
 	}
 	left = renderPane(fmt.Sprintf("Turns · %d", len(m.turnList.Items())), left, leftWidth+4, m.logsFocused && m.turnsFocused)
-	right := renderPane(title, m.logs.View(), m.width-leftWidth-5, m.logsFocused && !m.turnsFocused)
+	rightWidth := m.width - leftWidth - 5
+	focused := m.logsFocused && !m.turnsFocused
+	right := lipgloss.JoinVertical(lipgloss.Left,
+		renderPane("Stats · "+title, m.stats.View(), rightWidth, focused),
+		renderPane("Log", m.logs.View(), rightWidth, focused))
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, " ", right)
 }

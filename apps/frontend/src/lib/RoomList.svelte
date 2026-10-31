@@ -1153,7 +1153,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       }}
       onauxclick={(event) => {
         if (!target.valid) event.preventDefault();
-        else handleRenderedLinkClick(event, target.href);
       }}
     >
       <span

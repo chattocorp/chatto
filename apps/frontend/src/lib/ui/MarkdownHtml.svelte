@@ -106,24 +106,11 @@ targets are unique to each component, including when callers reuse rendered HTML
       }
     };
     for (const type of gestures) element.addEventListener(type, consumeControlGesture);
-    const handleAuxClick = (event: MouseEvent) => {
-      if (event.button !== 1 || !(event.target instanceof Element)) return;
-      const anchor = event.target.closest('a');
-      if (
-        anchor?.href &&
-        !anchor.closest('.footnote-ref') &&
-        !anchor.classList.contains('footnote-backref')
-      ) {
-        handleRenderedLinkClick(event, anchor.dataset.contentHref ?? anchor.href);
-      }
-    };
-    element.addEventListener('auxclick', handleAuxClick);
     return () => {
       for (const cleanup of linkCleanups) cleanup?.();
       feedback.dispose();
       element.removeEventListener('click', handleClick);
       for (const type of gestures) element.removeEventListener(type, consumeControlGesture);
-      element.removeEventListener('auxclick', handleAuxClick);
     };
   }
 </script>

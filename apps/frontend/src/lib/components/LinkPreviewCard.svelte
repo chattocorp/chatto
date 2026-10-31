@@ -120,7 +120,6 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     <a
       {...renderedLinkTarget(preview.url)}
       onclick={(event) => handleRenderedLinkClick(event, preview.url)}
-      onauxclick={(event) => handleRenderedLinkClick(event, preview.url)}
       data-testid="link-preview-card"
       class="flex flex-col"
       oncontextmenu={handleContextMenu}

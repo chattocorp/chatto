@@ -13,10 +13,11 @@ export type ContextMenuTriggerDetails = {
  * Opens a context menu for a native context-menu gesture or a stationary touch long-press.
  * Movement cancels the pending touch gesture so normal sidebar scrolling remains native.
  * `touchOnly` leaves desktop context menus with the element's existing owner.
+ * `nativeOnShift` leaves Shift-right-click to the browser.
  */
 export function contextMenuTrigger(
   onopen: (details: ContextMenuTriggerDetails) => void,
-  options: { touchOnly?: boolean } = {}
+  options: { touchOnly?: boolean; nativeOnShift?: boolean } = {}
 ): Attachment<HTMLElement> {
   return (node) => {
     let timer: number | null = null;
@@ -73,6 +74,7 @@ export function contextMenuTrigger(
 
     const cleanups = [
       on(node, 'contextmenu', (event) => {
+        if (options.nativeOnShift && event.shiftKey) return;
         const fromTouch = touchSequence || openedDuringTouch || suppressClick;
         if (options.touchOnly && !fromTouch) return;
         event.preventDefault();

@@ -3,6 +3,7 @@
     "code_source": "Source",
     "code_render": "Rendu",
     "code_render_failed": "Aperçu indisponible. La source reste disponible.",
+    "browser_menu_hint": "Maj + clic droit pour le menu du navigateur",
     "keyboard_shortcuts": {
       "title": "Raccourcis clavier",
       "app": "Application",

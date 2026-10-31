@@ -3,6 +3,55 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.28](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.27...v0.5.0-beta.28) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **invites:** manage own codes with fixed server expiry ([#3379](https://github.com/chattocorp/chatto/issues/3379))
+* **invites:** add member invitation code issuance ([#3348](https://github.com/chattocorp/chatto/issues/3348))
+
+### Features
+
+* **desktop:** add update controls to app preferences ([#3375](https://github.com/chattocorp/chatto/issues/3375)) ([bd05e7e](https://github.com/chattocorp/chatto/commit/bd05e7e996ee6870c0f7ef109d91f0da0766af62))
+* **desktop:** publish Windows MSI installers ([#3368](https://github.com/chattocorp/chatto/issues/3368)) ([cf71218](https://github.com/chattocorp/chatto/commit/cf71218cc5762ba53cbc298407eb1c92a91989ef))
+* **frontend:** add consistent pointer press feedback ([#3376](https://github.com/chattocorp/chatto/issues/3376)) ([488e6d8](https://github.com/chattocorp/chatto/commit/488e6d81aac404ae856b0a04c2e16b8ff2c2aaf8))
+* **frontend:** integrate system media controls for calls ([#3374](https://github.com/chattocorp/chatto/issues/3374)) ([2fd7667](https://github.com/chattocorp/chatto/commit/2fd7667f34809a2756efc68ee18abbf66605ff10))
+* **frontend:** redesign the role details panel ([#3349](https://github.com/chattocorp/chatto/issues/3349)) ([48370ad](https://github.com/chattocorp/chatto/commit/48370ad8331307149152922504149bcb47c07694))
+* **frontend:** unify preview toolbars and icon actions ([#3354](https://github.com/chattocorp/chatto/issues/3354)) ([be57a23](https://github.com/chattocorp/chatto/commit/be57a23de7f27c2e4f1f9fa8a3f4706dfba15fc3))
+* **gobotto:** add experimental Go bot harness and Chatto SDK ([#3371](https://github.com/chattocorp/chatto/issues/3371)) ([6f59ed4](https://github.com/chattocorp/chatto/commit/6f59ed475a5e340c72f64d675ff4b80fa90bfae0))
+* **import:** preserve bots, deactivated accounts, and avatars ([#3373](https://github.com/chattocorp/chatto/issues/3373)) ([b03f7a9](https://github.com/chattocorp/chatto/commit/b03f7a916bce30acbb5a63b2e8111d726e71a0ae))
+* **invites:** add member invitation code issuance ([#3348](https://github.com/chattocorp/chatto/issues/3348)) ([c781d6c](https://github.com/chattocorp/chatto/commit/c781d6c08d2121ed4591e741c7cc1073af65fa4b))
+* **invites:** manage own codes with fixed server expiry ([#3379](https://github.com/chattocorp/chatto/issues/3379)) ([ecfbba0](https://github.com/chattocorp/chatto/commit/ecfbba0711caa65fad66714280be6b2d79ce1020))
+
+
+### Bug Fixes
+
+* **client:** keep member scans off cold room startup ([#3355](https://github.com/chattocorp/chatto/issues/3355)) ([4e7a28f](https://github.com/chattocorp/chatto/commit/4e7a28f01977d5415c9e5a16670929ecd11dffda))
+* **client:** share startup discovery across route and session owners ([#3358](https://github.com/chattocorp/chatto/issues/3358)) ([6af967b](https://github.com/chattocorp/chatto/commit/6af967bd231f4839392cb77ae952921550207cef))
+* **desktop:** format notification content from local client data ([#3359](https://github.com/chattocorp/chatto/issues/3359)) ([e5a4381](https://github.com/chattocorp/chatto/commit/e5a4381003eab2905d3b10dbe0f71d398d5ce2be))
+* **dev:** restrict bootstrap bot permissions to interactions ([#3350](https://github.com/chattocorp/chatto/issues/3350)) ([50a01f2](https://github.com/chattocorp/chatto/commit/50a01f23f81b6afa5cf950edf0c72be25124d631))
+* **frontend:** keep link pills compact and show metadata loading ([#3380](https://github.com/chattocorp/chatto/issues/3380)) ([cc8058d](https://github.com/chattocorp/chatto/commit/cc8058dd281754f0756fa608195dd0272b74b0b2))
+* **frontend:** keep Space available while typing suggestions ([#3366](https://github.com/chattocorp/chatto/issues/3366)) ([f7d8cf7](https://github.com/chattocorp/chatto/commit/f7d8cf7ee410256b4bbb6e42acf343d4c827047c))
+* **frontend:** limit press and ripple feedback to touch input ([#3388](https://github.com/chattocorp/chatto/issues/3388)) ([cf05869](https://github.com/chattocorp/chatto/commit/cf05869f250df488dea65ac03c4cad6f05759337))
+* **frontend:** prevent early link hostname truncation ([#3391](https://github.com/chattocorp/chatto/issues/3391)) ([6a2b533](https://github.com/chattocorp/chatto/commit/6a2b533a1feaef53f6c78e4322c016fe271e5b83))
+* **frontend:** prevent reaction emoji clipping on iOS ([#3385](https://github.com/chattocorp/chatto/issues/3385)) ([7a674be](https://github.com/chattocorp/chatto/commit/7a674be041632a34340b3351d0c815228911f24e))
+* **frontend:** reduce easter egg game rendering work ([#3387](https://github.com/chattocorp/chatto/issues/3387)) ([1690963](https://github.com/chattocorp/chatto/commit/1690963b4c18a5892c4ae9831306c9ea5f0b76f0))
+* **frontend:** request call audio sessions for background playback ([#3377](https://github.com/chattocorp/chatto/issues/3377)) ([057c48a](https://github.com/chattocorp/chatto/commit/057c48ac8bce8d2b995e084f175a63b63c825347))
+* **frontend:** reuse loaded room sidebar on reopen ([#3378](https://github.com/chattocorp/chatto/issues/3378)) ([fe52df8](https://github.com/chattocorp/chatto/commit/fe52df87be263b75a6507ed8ab71a8c7176c7c1f))
+* **frontend:** show link previews in touch action sheets ([#3367](https://github.com/chattocorp/chatto/issues/3367)) ([639a7cc](https://github.com/chattocorp/chatto/commit/639a7cc6f164429558424545e625d3abc467dd58))
+* **frontend:** skip preview attachments for Chatto entity links ([#3364](https://github.com/chattocorp/chatto/issues/3364)) ([25447fe](https://github.com/chattocorp/chatto/commit/25447fe3eff1ac682f1f04fc5c7521d449b1e74d))
+* **frontend:** stop loading room messages on departure ([#3372](https://github.com/chattocorp/chatto/issues/3372)) ([fcefe70](https://github.com/chattocorp/chatto/commit/fcefe702bec226026d3c389c4d3ee5d1067831c8))
+* **frontend:** stop loading thread replies on pane departure ([#3365](https://github.com/chattocorp/chatto/issues/3365)) ([d6372bc](https://github.com/chattocorp/chatto/commit/d6372bc9ab4253b40f139a6ad1b5986f6e1d4945))
+* **frontend:** use bot badges in reaction tooltips ([#3370](https://github.com/chattocorp/chatto/issues/3370)) ([1af5638](https://github.com/chattocorp/chatto/commit/1af5638244723af991f51aa842b624fc12792ad3))
+* **release:** gate client publication on release approval ([#3357](https://github.com/chattocorp/chatto/issues/3357)) ([dd23e90](https://github.com/chattocorp/chatto/commit/dd23e90f3093b38dc0d287179b1a9df742eafb82))
+
+
+### Performance Improvements
+
+* **frontend:** load room directories only when requested ([#3383](https://github.com/chattocorp/chatto/issues/3383)) ([9a9cc73](https://github.com/chattocorp/chatto/commit/9a9cc73b103a218ce6f04feaa4eb7fbb90e4d4f2))
+* **frontend:** share and preload selected composer editor ([#3386](https://github.com/chattocorp/chatto/issues/3386)) ([13c91e1](https://github.com/chattocorp/chatto/commit/13c91e10919da6250987ea4c26b03e32d2398909))
+
 ## [0.5.0-beta.27](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.26...v0.5.0-beta.27) (2026-10-30)
 
 

@@ -3,6 +3,7 @@
     "code_source": "מקור",
     "code_render": "תצוגה",
     "code_render_failed": "התצוגה המקדימה אינה זמינה. המקור עדיין זמין.",
+    "browser_menu_hint": "Shift + לחיצה ימנית לפתיחת תפריט הדפדפן",
     "keyboard_shortcuts": {
       "title": "קיצורי מקלדת",
       "app": "יישום",

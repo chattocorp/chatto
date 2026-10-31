@@ -37,7 +37,7 @@
     sheetPreview?: Snippet<[() => void]>;
   } = $props();
   let menu = $state<ContextMenuTriggerDetails | null>(null);
-  const trigger = contextMenuTrigger((details) => (menu = details));
+  const trigger = contextMenuTrigger((details) => (menu = details), { nativeOnShift: true });
 
   function openKeyboardMenu(event: KeyboardEvent) {
     if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
@@ -55,11 +55,11 @@
   data-entity-server={target.serverId}
   title={href}
   onclick={(event) => handleRenderedLinkClick(event, path)}
-  onauxclick={(event) => {
-    if (event.button === 1) handleRenderedLinkClick(event, path);
-  }}
   onkeydown={openKeyboardMenu}
-  oncontextmenu={(event) => event.stopPropagation()}
+  oncontextmenu={(event) => {
+    event.stopPropagation();
+    if (event.shiftKey) menu = null;
+  }}
   ontouchstart={(event) => event.stopPropagation()}
   {@attach trigger}
 >

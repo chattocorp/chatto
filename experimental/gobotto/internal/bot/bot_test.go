@@ -50,11 +50,15 @@ func (f *fakeClient) Reply(_ context.Context, _, _, target, _, _ string) error {
 	f.posts <- target
 	return nil
 }
-func (f *fakeClient) React(_ context.Context, _, target, _ string) error {
+func (f *fakeClient) React(_ context.Context, _, target, emoji string) error {
+	if emoji == "eyes" {
+		return nil
+	}
 	f.posts <- target
 	return nil
 }
-func (f *fakeClient) readCount() int { f.mu.Lock(); defer f.mu.Unlock(); return f.reads }
+func (f *fakeClient) readCount() int                                               { f.mu.Lock(); defer f.mu.Unlock(); return f.reads }
+func (f *fakeClient) RefreshTypingIndicator(context.Context, string, string) error { return nil }
 func input(id, body string, addressed bool) chatto.MessageEvent {
 	return chatto.MessageEvent{Message: chatto.Message{ID: id, Body: body, ActorID: "human", RoomID: "room", ThreadRootEventID: "root"}, Addressed: addressed}
 }
@@ -78,7 +82,7 @@ func TestBatchingAndAppendOnlyConversation(t *testing.T) {
 					requests <- append([]agent.Message(nil), m...)
 					return answer(), nil
 				}
-			}, func(tui.Event) {}, Options{SystemPrompt: "Configured operator tone", Titles: func(context.Context, agent.Snapshot) (agent.TitleResult, error) {
+			}, func(tui.Event) {}, Options{Debounce: 2 * time.Second, SystemPrompt: "Configured operator tone", Titles: func(context.Context, agent.Snapshot) (agent.TitleResult, error) {
 				titleCalls++
 				if len(f.posts) == 0 {
 					t.Error("title request preceded delivery")
@@ -208,14 +212,14 @@ func TestMessagesArrivingDuringTurnDoNotOverlapOrWaitAgain(t *testing.T) {
 		<-f.ready
 		f.events <- input("first", "first", true)
 		synctest.Wait()
-		time.Sleep(2 * time.Second)
+		time.Sleep(batchWindow)
 		synctest.Wait()
 		if <-started != 1 {
 			t.Fatal("missing first turn")
 		}
 		f.events <- input("later", "later", false)
 		synctest.Wait()
-		time.Sleep(3 * time.Second)
+		time.Sleep(batchWindow + time.Second)
 		select {
 		case <-started:
 			t.Fatal("concurrent turn in same thread")
@@ -261,7 +265,7 @@ func TestHistoryInvalidationCancelsOldTurnAndReloads(t *testing.T) {
 		<-f.ready
 		f.events <- input("first", "first", true)
 		synctest.Wait()
-		time.Sleep(2 * time.Second)
+		time.Sleep(batchWindow)
 		synctest.Wait()
 		<-started
 		f.events <- chatto.MessageEvent{InvalidatedRoom: "room"}
@@ -273,7 +277,7 @@ func TestHistoryInvalidationCancelsOldTurnAndReloads(t *testing.T) {
 		}
 		f.events <- input("fresh", "fresh", true)
 		synctest.Wait()
-		time.Sleep(2 * time.Second)
+		time.Sleep(batchWindow)
 		synctest.Wait()
 		<-started
 		<-f.posts
@@ -313,7 +317,7 @@ func TestThreadIsolationAndSelfMessages(t *testing.T) {
 		f.events <- b
 		f.events <- self
 		synctest.Wait()
-		time.Sleep(2 * time.Second)
+		time.Sleep(batchWindow)
 		synctest.Wait()
 		for range 2 {
 			payload := <-requests

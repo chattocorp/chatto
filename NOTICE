@@ -72,6 +72,10 @@ Server and CLI Go Components:
 - LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
 - Model Context Protocol Go SDK
   (https://github.com/modelcontextprotocol/go-sdk) - MIT License
+- JSON Schema Go (https://github.com/google/jsonschema-go) - MIT License
+- Segment encoding and asm (https://github.com/segmentio/encoding,
+  https://github.com/segmentio/asm) - MIT License
+- URI Template (https://github.com/yosida95/uritemplate) - BSD-3-Clause
 - NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
 - opengraph (https://github.com/otiai10/opengraph) - MIT License

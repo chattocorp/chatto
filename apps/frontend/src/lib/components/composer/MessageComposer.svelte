@@ -308,6 +308,7 @@
           <EmojiAutocomplete
             bind:this={composer.autocomplete.emojiRef}
             query={composer.autocomplete.emoji.query}
+            results={composer.autocomplete.emoji.results}
             onSelect={(emoji, _name, key) => composer.autocomplete.selectEmoji(emoji, key)}
             onClose={() => composer.autocomplete.closeEmoji()}
           />

@@ -735,7 +735,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 <style>
   /* ProseMirror needs explicit outline removal and placeholder styling
 	   that can't be achieved with Tailwind alone (pseudo-elements) */
-  /* The selected state also overrides the shared icon's hover colour. */
+  /* The selected presentation also overrides the shared action's hover colour. */
   .code-render-toggle[aria-pressed='true'] {
     color: var(--color-action);
   }

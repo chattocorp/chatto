@@ -3,6 +3,7 @@
     "code_source": "Kilde",
     "code_render": "Visning",
     "code_render_failed": "Forhåndsvisningen er utilgjengelig. Kilden er fortsatt tilgjengelig.",
+    "browser_menu_hint": "Shift + høyreklikk for nettlesermenyen",
     "keyboard_shortcuts": {
       "title": "Hurtigtaster",
       "app": "App",

@@ -380,15 +380,17 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
-  it('lets a right-click on a rendered link reach the message row', async () => {
+  it.each([false, true])('leaves Shift=%s context menus to the message owner', async (shiftKey) => {
     const rendered = renderMessage('[Example **site**](https://example.com/path)');
     await expect.poll(() => q(rendered.container, 'a strong')).toBeTruthy();
     const nestedText = q(rendered.container, 'a strong')!;
     const contextMenu = vi.fn();
     rendered.container.addEventListener('contextmenu', contextMenu);
 
-    nestedText.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey });
+    nestedText.dispatchEvent(event);
 
+    expect(event.defaultPrevented).toBe(false);
     expect(contextMenu).toHaveBeenCalledOnce();
   });
 
@@ -746,27 +748,32 @@ describe('MessageContent component', () => {
     expect(window.open).not.toHaveBeenCalled();
   });
 
-  it('opens same-origin non-allow-listed links in a new window', async () => {
-    const href = `${window.location.origin}/settings`;
-    const { container } = renderMessage(`[settings](${href})`);
+  it.each(['/settings', 'https://example.com/docs'])(
+    'leaves non-Chatto navigation to the browser for %s',
+    async (url) => {
+      const href = new URL(url, window.location.origin).href;
+      const { container } = renderMessage(`[external](${href})`);
 
-    await expect.poll(() => q(container, 'a')).toBeTruthy();
-    q(container, 'a')!.click();
+      await expect.poll(() => q(container, 'a')).toBeTruthy();
+      const anchor = q(container, 'a') as HTMLAnchorElement;
+      let prevented: boolean | undefined;
+      document.addEventListener(
+        'click',
+        (event) => {
+          prevented = event.defaultPrevented;
+          event.preventDefault();
+        },
+        { once: true }
+      );
+      anchor.click();
 
-    expect(mocks.goto).not.toHaveBeenCalled();
-    expect(window.open).toHaveBeenCalledWith(href, '_blank', 'noopener,noreferrer');
-  });
-
-  it('opens external links in a new window', async () => {
-    const href = 'https://example.com/docs';
-    const { container } = renderMessage(`[external](${href})`);
-
-    await expect.poll(() => q(container, 'a')).toBeTruthy();
-    q(container, 'a')!.click();
-
-    expect(mocks.goto).not.toHaveBeenCalled();
-    expect(window.open).toHaveBeenCalledWith(href, '_blank', 'noopener,noreferrer');
-  });
+      expect(prevented).toBe(false);
+      expect(anchor.href).toBe(href);
+      expect(anchor.target).toBe('_blank');
+      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(window.open).not.toHaveBeenCalled();
+    }
+  );
 
   it('renders fenced code blocks with highlighted markup and hides raw fences', async () => {
     const { container } = renderMessage('```javascript\nconst x = 1;\n```');

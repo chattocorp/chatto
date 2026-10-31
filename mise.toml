@@ -147,7 +147,10 @@ run = { task = "deps-*" }
 
 [tasks.setup-cli]
 description = "Set up the CLI module"
-depends = ["deps-cli", "sync-cli-legal"]
+# Builds and tests download the modules they need. Prefetching the complete
+# dependency graph also downloads unused tool dependencies in workspace mode.
+# Keep deps-cli available for explicit prefetching, such as offline work.
+depends = ["sync-cli-legal"]
 
 [tasks.setup-appconfig]
 description = "Set up the application configuration module"
