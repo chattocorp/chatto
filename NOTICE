@@ -11,6 +11,8 @@ each artifact.
 
 The experimental Gobotto bot and Chatto Go SDK also use the Gorilla WebSocket,
 Go Protobuf, Bubble Tea, Bubbles, Lip Gloss, and go-toml dependencies listed below.
+Gobotto uses atotto/clipboard (https://github.com/atotto/clipboard), licensed under
+the BSD 3-Clause License, for local clipboard access.
 
 Slack conversion data:
 
