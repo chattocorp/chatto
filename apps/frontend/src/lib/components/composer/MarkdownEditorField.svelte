@@ -6,14 +6,12 @@ owns the draft and save operation. Editor changes preserve the current draft;
 external value changes, such as a successful save, update the mounted editor.
 -->
 <script lang="ts">
-  import type { Component } from 'svelte';
   import { m } from '$lib/i18n/messages';
   import { LoadingFog } from '$lib/ui';
   import type { ComposerEditorKind } from '$lib/state/userPreferences.svelte';
   import ComposerFormattingToolbar from '$lib/components/composer/ComposerFormattingToolbar.svelte';
   import type {
     ComposerEditorApi,
-    ComposerEditorProps,
     ComposerFormattingState
   } from '$lib/components/composer/editorTypes';
   import { emptyComposerIndentState } from '$lib/components/composer/editorTypes';
@@ -22,6 +20,7 @@ external value changes, such as a successful save, update the mounted editor.
   import type { MarkdownMentionOptions } from './mentionOptions';
   import type { RoomMember } from '$lib/state/room';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
+  import { loadEditor } from './loadEditor';
 
   let {
     value = $bindable(''),
@@ -58,14 +57,7 @@ external value changes, such as a successful save, update the mounted editor.
     mentions?: MarkdownMentionOptions;
   } = $props();
 
-  const loaders: Record<
-    ComposerEditorKind,
-    () => Promise<{ default: Component<ComposerEditorProps> }>
-  > = {
-    visual: () => import('$lib/components/composer/TipTapEditor.svelte'),
-    markdown: () => import('$lib/components/composer/MarkdownEditor.svelte')
-  };
-  const editorModule = $derived(loaders[editorKind]());
+  const editorModule = $derived(loadEditor(editorKind));
   const id = $props.id();
   const characterCount = $derived([...(trimWhitespaceForCount ? value.trim() : value)].length);
   let editorApi = $state.raw<ComposerEditorApi | null>(null);

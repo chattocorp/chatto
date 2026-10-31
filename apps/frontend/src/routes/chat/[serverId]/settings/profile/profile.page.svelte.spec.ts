@@ -169,7 +169,10 @@ describe('Profile settings page', () => {
     const { container } = render(ProfilePage);
     await settle();
     await expect.poll(() => q(container, '[data-testid="settings-bio"]')).not.toBeNull();
-    (q(container, 'button[aria-label="Bold"]') as HTMLButtonElement).click();
+    const bold = q(container, 'button[aria-label="Bold"]') as HTMLButtonElement;
+    // Editor DOM can mount before onReady enables its formatting controls.
+    await expect.element(bold).toBeEnabled();
+    bold.click();
     const input = await pasteBio(container, 'Visual bio');
     expect(input.classList.contains('tiptap')).toBe(true);
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
