@@ -139,6 +139,12 @@ the server store defers this request until room access is known. Use
 list. An empty query returns a bounded page of suggestions. Recovery refreshes
 only explicitly requested directories.
 
+For rendered mentions, call `members.retainMentions(handles)` and release the
+returned subscription when the content leaves the view. Read `mentionMembers`
+for current profiles. These shared, room-scoped lookups search only matching
+pages and do not request the full directory. Missing handles stay plain text.
+Access and membership changes discard cached matches and fence older reads.
+
 ### Readiness and failures
 
 - `ready()` rejects when the server rejects the key, when the server is

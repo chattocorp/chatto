@@ -28,8 +28,12 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Mention completion can search for names before the room list finishes
   loading. It combines search results with members already loaded in the room.
   Mention completion does not wait for the background member scan.
-- The bundled frontend requests the full directory when Members is visible or
-  a retained notice contains mentions that need member names and profile links.
+- The bundled frontend requests the full directory when Members is visible.
+  Visible messages, thread replies, pins, and room notices retain lookup interest
+  in their mention handles. Shared room lookups search matching pages, accept only
+  exact login or display-name matches, and use current cached profiles. Closing
+  content releases its interest. Access and membership changes invalidate matches
+  and pending reads. Mention rendering works with Members closed.
   Other hidden panels do not start directory scans. Markdown fields that support bare
   `@` request a bounded page of suggestions. Typing a name uses directory search.
 - Connected members load independently of the full list. This includes available,

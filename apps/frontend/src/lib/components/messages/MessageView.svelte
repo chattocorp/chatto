@@ -13,6 +13,7 @@ identity, body rendering, and row geometry consistent.
   import type { ClassValue } from 'svelte/elements';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { RoomMember } from '$lib/state/room';
+  import type { RoomMembersStore } from '@chatto/client/room/members';
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
@@ -37,6 +38,7 @@ identity, body rendering, and row geometry consistent.
     class: className,
     rowClass,
     members = [],
+    mentionStore,
     roleHandles = [],
     timestampSettings,
     timestampLocale,
@@ -77,6 +79,8 @@ identity, body rendering, and row geometry consistent.
     class?: ClassValue;
     rowClass?: ClassValue;
     members?: RoomMember[];
+    /** Shared lookup owner for user mentions in this message. */
+    mentionStore?: RoomMembersStore;
     roleHandles?: string[];
     timestampSettings?: TimeFormatSettings;
     timestampLocale?: string;
@@ -222,6 +226,7 @@ identity, body rendering, and row geometry consistent.
         <div bind:this={bodyElement} class="pointer-fine:select-text">
           <MessageContent
             {body}
+            {mentionStore}
             {members}
             {roleHandles}
             {edited}

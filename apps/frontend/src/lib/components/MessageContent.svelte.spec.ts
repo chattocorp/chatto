@@ -5,6 +5,11 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RoomMembersStore } from '@chatto/client/room/members';
+import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+import { fakeServer, mockService, receivedRequest } from '@chatto/client/testing/fakeServer';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 
 import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
@@ -813,6 +818,48 @@ describe('MessageContent component', () => {
   });
 
   describe('mention wiring', () => {
+    it('loads only visible handles with the directory closed and shares them across content', async () => {
+      const rooms = mockService(RoomService);
+      const users = mockService(UserService);
+      rooms.listMembers.mockReturnValue({
+        userIds: ['alice'],
+        page: { hasMore: false, totalCount: 1n }
+      });
+      users.batchGetUsers.mockReturnValue({
+        users: [{ user: { id: 'alice', login: 'alice', displayName: 'Alice Smith' } }]
+      });
+      const api = createMemberDirectoryAPI(
+        fakeServer((router) => {
+          router.service(RoomService, rooms);
+          router.service(UserService, users);
+        })
+      );
+      const mentionStore = new RoomMembersStore('room', api);
+      const onMentionClick = vi.fn();
+      const first = render(MessageContent, {
+        body: 'Hello @alice!',
+        mentionStore,
+        viewerLogin: 'alice',
+        onMentionClick
+      });
+      const second = render(MessageContent, { body: 'Thread reply to @ALICE', mentionStore });
+      await expect
+        .poll(() => q(first.container, '.mention-self')?.textContent)
+        .toBe('@Alice Smith');
+      await expect.poll(() => q(second.container, '.mention')?.textContent).toBe('@Alice Smith');
+      expect(rooms.listMembers).toHaveBeenCalledTimes(1);
+      expect(receivedRequest(rooms.listMembers)).toMatchObject({ roomId: 'room', search: 'alice' });
+      expect(mentionStore.hasRequestedList).toBe(false);
+      expect(mentionStore.members).toEqual([]);
+      q(first.container, '.mention')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(onMentionClick).toHaveBeenCalledWith('alice', expect.any(DOMRect));
+      await first.rerender({ body: '`@alice` @all', mentionStore, roleHandles: [] });
+      await expect.poll(() => q(first.container, '.mention-broadcast')?.textContent).toBe('@all');
+      expect(rooms.listMembers).toHaveBeenCalledTimes(1);
+      await second.unmount();
+      await expect.poll(() => mentionStore.mentionMembers).toEqual([]);
+      mentionStore.dispose();
+    });
     // resolveRenderedMentions itself is exhaustively tested in
     // $lib/mentions.svelte.test.ts. These tests assert that MessageContent renders
     // mention candidates and resolves them, i.e. that the mention class shows up

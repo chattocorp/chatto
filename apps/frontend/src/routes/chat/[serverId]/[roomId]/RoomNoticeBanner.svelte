@@ -115,6 +115,7 @@
               dir="auto"
             >
               <MessageContent
+                mentionStore={mentions?.memberStore}
                 body={notice.body}
                 members={mentions?.members}
                 roleHandles={mentions?.roles?.map((role) => role.name)}

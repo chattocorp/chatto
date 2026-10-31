@@ -33,7 +33,7 @@ export function useRoomMembersStore(): () => RoomMembersStore {
 }
 
 export function getRoomMembers(): RoomMember[] {
-  return getRoomMembersStore().members;
+  return getRoomMembersStore().mentionMembers;
 }
 
 const [getRoomPermissionsState, setRoomPermissionsState] = createContext<{

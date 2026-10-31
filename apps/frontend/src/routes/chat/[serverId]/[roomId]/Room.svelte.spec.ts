@@ -980,7 +980,7 @@ describe('Room interaction bundles', () => {
 });
 
 describe('Room local message echo', () => {
-  it('requests members for notice mentions while Members is closed, and releases the notice subscription', async () => {
+  it('retains notices without requesting the member directory while Members is closed', async () => {
     const loadMembers = vi.fn();
     const release = vi.fn();
     let acceptNotice: (notice: RoomNotice | null) => void = () => {};
@@ -1001,7 +1001,7 @@ describe('Room local message echo', () => {
     await tick();
     expect(loadMembers).not.toHaveBeenCalled();
     acceptNotice(new RoomNotice({ body: 'Ask @alice' }));
-    expect(loadMembers).toHaveBeenCalledExactlyOnceWith('room-1');
+    expect(loadMembers).not.toHaveBeenCalled();
     await view.unmount();
     expect(release).toHaveBeenCalledOnce();
   });

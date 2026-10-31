@@ -8,6 +8,7 @@
   import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import {
     getRoomMembers,
+    getRoomMembersStore,
     getMentionRoles,
     getComposerContext,
     type MessagesStore,
@@ -85,6 +86,7 @@
   const canUseHoverActions = supportsHoverActions();
   // Wrap in $derived to ensure reactivity when the member list changes
   const members = $derived(getRoomMembers());
+  const mentionStore = $derived(getRoomMembersStore());
   const mentionRoleHandles = $derived(
     getMentionRoles()
       .filter((role) => role.pingable && role.name !== 'everyone')
@@ -453,6 +455,7 @@
 
 {#if msg}
   <MessageView
+    {mentionStore}
     eventId={event.id}
     actor={target.actor}
     displayName={target.displayName}

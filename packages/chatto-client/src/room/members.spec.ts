@@ -79,6 +79,104 @@ function createStore(
 }
 
 describe('RoomMembersStore', () => {
+  it('does not resolve a departed member from an older page', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('alice')])]);
+    const store = new RoomMembersStore('room', api);
+    await store.applyMembership('alice', false, 'leave-cursor');
+    store.retainMentions(['alice']);
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveResolved());
+    expect(store.mentionMembers).toEqual([]);
+    expect(api.listRoomMembers).toHaveBeenCalledWith(
+      'room',
+      'alice',
+      250,
+      0,
+      expect.objectContaining({ minimumCursor: 'leave-cursor' })
+    );
+  });
+
+  it('uses current profile names and discards matches after a rename', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('alice')]), pageResult([])]);
+    const store = new RoomMembersStore('room', api);
+    store.retainMentions(['alice']);
+    await vi.waitFor(() => expect(store.mentionMembers).toHaveLength(1));
+    store.updateUsers([user('alice', 'renamed')]);
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
+    expect(store.mentionMembers).toEqual([]);
+  });
+
+  it('stops matching-page pagination when the last consumer leaves', async () => {
+    const pending = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([pending.promise]);
+    const store = new RoomMembersStore('room', api);
+    const release = store.retainMentions(['alice']);
+    release();
+    pending.resolve(pageResult([user('not-alice')], true, 2));
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveResolved());
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
+    expect(store.mentionMembers).toEqual([]);
+  });
+
+  it('resolves shared visible handles beyond the first matching page without loading the directory', async () => {
+    const first = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([first.promise, pageResult([user('alice')])]);
+    const store = new RoomMembersStore('room', api);
+    const release = store.retainMentions(['ALICE']);
+    const releaseAgain = store.retainMentions(['alice']);
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
+    first.resolve(pageResult([user('not-alice')], true, 2));
+    await vi.waitFor(() =>
+      expect(store.mentionMembers.map((member) => member.id)).toEqual(['alice'])
+    );
+    expect(api.listRoomMembers).toHaveBeenLastCalledWith(
+      'room',
+      'alice',
+      250,
+      1,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(store.members).toEqual([]);
+    expect(store.hasRequestedList).toBe(false);
+    expect(api.listOnlineRoomMembers).not.toHaveBeenCalled();
+    release();
+    expect(store.mentionMembers).toHaveLength(1);
+    releaseAgain();
+    expect(store.mentionMembers).toEqual([]);
+    store.retainMentions(['alice']);
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(2);
+  });
+
+  it('caches missing mentions and retries them after a membership change', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([]), pageResult([user('alice')])]);
+    const store = new RoomMembersStore('room', api);
+    const release = store.retainMentions(['alice']);
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveResolved());
+    release();
+    store.retainMentions(['alice']);
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
+    await store.applyMembership('alice', true);
+    await vi.waitFor(() => expect(store.mentionMembers).toHaveLength(1));
+    expect(store.hasRequestedList).toBe(false);
+  });
+
+  it('fences stale mention reads and waits for restored access before retrying', async () => {
+    const allowed = signal(true);
+    const stale = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([stale.promise, pageResult([user('bob')])]);
+    const store = new RoomMembersStore('room', api, { canResolveMentions: () => allowed.get() });
+    store.retainMentions(['bob']);
+    allowed.set(false);
+    store.resetProjectionState();
+    stale.resolve(pageResult([user('bob')]));
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveResolved());
+    expect(store.mentionMembers).toEqual([]);
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
+    allowed.set(true);
+    store.resumeMentions();
+    await vi.waitFor(() => expect(store.mentionMembers).toHaveLength(1));
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(2);
+  });
+
   it('gets bounded bare-mention suggestions without starting a directory scan', async () => {
     const api = new FakeMemberDirectoryAPI([pageResult([user('alice')], true, 500)]);
     const store = new RoomMembersStore('room', api);
