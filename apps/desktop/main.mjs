@@ -13,6 +13,7 @@ import {
   MessageChannelMain,
   Menu,
   MenuItem,
+  nativeTheme,
   net,
   Notification,
   protocol,
@@ -490,7 +491,9 @@ function createMainWindow() {
     height: 820,
     minWidth: 800,
     minHeight: 600,
-    backgroundColor: '#111827',
+    show: false,
+    // Match the frontend's default loading colours before its first paint.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#f3f4f6',
     // Let the app header share the title area with the native window buttons.
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset', titleBarOverlay: true }
@@ -499,6 +502,8 @@ function createMainWindow() {
     webPreferences: mainWindowWebPreferences()
   });
 
+  // The first page paint includes the user's saved theme and loading palette.
+  window.once('ready-to-show', () => window.show());
   protectNavigation(window);
   protectReloadShortcuts(window.webContents, app.isPackaged);
   configureNativeNavigation(window);
