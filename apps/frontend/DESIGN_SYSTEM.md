@@ -594,7 +594,10 @@ width. Entity pills can use the full available width. Neither the pill nor its
 lighter title section stretches past its content.
 Without a title, use the hostname as the primary label. Show the standard external-link
 icon before the title, inside the lighter section, only when navigation opens a new window.
-While composer or hover metadata is loading, show a spinner in the icon position.
+Posted URL pills load missing metadata when they enter the viewport. Show a
+spinner in the icon position while metadata is loading, then show the page title
+when available. The hover card reuses the same metadata. Composer previews keep
+their existing request flow.
 Keep URL paths muted. Show only short, complete paths that fit beside
 it; omit long paths and opaque identifiers. Shorten long hostnames in the middle
 so their ending and port remain visible. Entity avatars and server icons have a

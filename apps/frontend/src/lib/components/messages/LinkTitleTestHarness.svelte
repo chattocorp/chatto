@@ -7,15 +7,21 @@
   let {
     href,
     preview,
-    loading = false
-  }: { href: string; preview?: LinkPreviewView; loading?: boolean } = $props();
+    loading = false,
+    loadWhenVisible = false
+  }: {
+    href: string;
+    preview?: LinkPreviewView;
+    loading?: boolean;
+    loadWhenVisible?: boolean;
+  } = $props();
   provideLinkPreview(
     (url) => (preview?.url === url ? preview : undefined),
     (url) => url === href && loading
   );
 </script>
 
-<LinkHover {href}>
+<LinkHover {href} {loadWhenVisible}>
   {#snippet children(title, loading)}
     <UrlLink {href} {title} {loading} />
   {/snippet}

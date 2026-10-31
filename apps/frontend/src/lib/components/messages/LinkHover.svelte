@@ -1,4 +1,4 @@
-<!-- @component Delayed link hover card. Metadata stays subscribed after hover so URL pills can reuse its title. -->
+<!-- @component Shared metadata for a link pill and its delayed hover card. Automatic pills subscribe when visible. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { useLinkPreview } from './linkPreviewContext';
@@ -12,10 +12,13 @@
   let {
     href,
     local,
+    loadWhenVisible = false,
     children
   }: {
     href: string;
     local?: HoverIdentity;
+    /** Load a posted pill's title when it enters the viewport, before hover. */
+    loadWhenVisible?: boolean;
     children: Snippet<[string | undefined, boolean]>;
   } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
@@ -68,6 +71,7 @@
     const stopRemoval = registerQueryCacheRemovalListener((serverId) => {
       if (serverId !== scope?.serverId) return;
       generation++;
+      visibility?.disconnect();
       stopPreview?.();
       stopPreview = undefined;
       started = false;
@@ -117,8 +121,20 @@
     node.addEventListener('focusout', exit);
     node.addEventListener('click', close);
     node.addEventListener('contextmenu', close);
+    // Visibility owns this query subscription: virtualized/off-screen links do
+    // not need metadata until their pills enter the viewport. Hover reuses it.
+    const visibility = loadWhenVisible
+      ? new IntersectionObserver((entries) => {
+          if (disposed || generation !== 0 || !entries.some((entry) => entry.isIntersecting))
+            return;
+          visibility?.disconnect();
+          void loadPreview();
+        })
+      : undefined;
+    visibility?.observe(node);
     return () => {
       disposed = true;
+      visibility?.disconnect();
       stopPreview?.();
       stopRemoval();
       if (title != null) link?.setAttribute('title', title);

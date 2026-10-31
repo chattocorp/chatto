@@ -1,4 +1,4 @@
-/** Lazily observe server-fetched metadata after a link's first hover. */
+/** Share server-fetched metadata between visible link pills and hover cards. */
 import { QueryObserver } from '@tanstack/svelte-query';
 import { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';
 import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';

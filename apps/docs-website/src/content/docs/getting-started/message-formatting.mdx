@@ -164,6 +164,9 @@ Query strings and fragments stay out of the label. This also applies to unknown
 or unavailable Chatto destinations and to thread links. Hover over a
 chip to preview the destination, or use **Copy Link** in the message menu for the full URL. The visual
 composer uses the same compact display; select a chip to edit its full URL.
+Posted web-link chips load page details when they enter view. A spinner appears
+while the details load, then the page title appears beside the hostname when
+available. If no title is available, the chip keeps its hostname and short path.
 
 Message links to known servers show a message icon and the room or server name.
 If the message is already in the client's loaded history, the pill also shows
@@ -172,8 +175,9 @@ scroll inside it to read a long message, or select it to open the original.
 
 Hover over a pill or a Markdown link, or focus it with the keyboard, to inspect
 its destination. Markdown links keep their authored text and formatting.
-Known Chatto entities show locally available details. Other URLs load page details
-automatically when the hover card opens. The message's server receives the URL and fetches
+Known Chatto entities show locally available details. Web-link cards reuse details
+loaded for their chips. Markdown links with authored labels load details when
+the hover card opens. The message's server receives the URL and fetches
 the details and images; the website sees the server's IP address. Existing
 composer previews are unchanged. Select any part of the hover card to open its
 destination. You can also Tab into the card and press Enter. Press Escape to

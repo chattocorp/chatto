@@ -13,7 +13,11 @@
   import LinkHover from './LinkHover.svelte';
   import { hasServerScope, useServerScope } from '$lib/state/server/scope.svelte';
 
-  let { href, children: authoredLabel }: { href: string; children?: Snippet } = $props();
+  let {
+    href,
+    children: authoredLabel,
+    loadWhenVisible = true
+  }: { href: string; children?: Snippet; loadWhenVisible?: boolean } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
   const target = $derived(parseEntityLink(href));
   const message = $derived(target ? null : parseMessageLink(href));
@@ -57,6 +61,7 @@
 {:else}
   <LinkHover
     {href}
+    loadWhenVisible={loadWhenVisible && !authoredLabel}
     local={target && server
       ? {
           kind: target.kind,

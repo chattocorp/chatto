@@ -7,6 +7,7 @@ import { queryClient } from '$lib/query/queryClient';
 import { applyAnimationPreference } from '$lib/dom/motionPreference';
 import LinkHover from './LinkHover.svelte';
 import LinkTitleTestHarness from './LinkTitleTestHarness.svelte';
+import MessageContent from '../MessageContent.svelte';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 
 vi.mock(
@@ -37,6 +38,69 @@ afterEach(() => {
 function hover(container: HTMLElement) {
   container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
 }
+it('loads a posted URL pill without hover and shares its request with the hover card', async () => {
+  let resolve!: (value: unknown) => void;
+  fetchLinkPreview.mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    })
+  );
+  const { container } = render(MessageContent, { body: href });
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
+  const pill = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  expect(pill.getAttribute('aria-busy')).toBe('true');
+  expect(pill.querySelector('.animate-spin')).not.toBeNull();
+  expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+  hover(container);
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull()
+  );
+  expect(fetchLinkPreview).toHaveBeenCalledTimes(1);
+  resolve({ url: href, title: 'Automatically loaded title' });
+  await vi.waitFor(() => expect(pill.textContent).toContain('Automatically loaded title'));
+  expect(pill.getAttribute('aria-busy')).toBe('false');
+  expect(pill.href).toBe(href);
+});
+
+it('waits until a posted pill enters the viewport', async () => {
+  const target = document.createElement('div');
+  target.style.cssText = 'position:fixed;top:200vh';
+  document.body.append(target);
+  try {
+    render(MessageContent, { target, props: { body: href } });
+    await vi.waitFor(() => expect(target.querySelector('.url-link')).not.toBeNull());
+    // Wait for the initial intersection notification before checking the request.
+    await new Promise<void>((resolve) => {
+      const observer = new IntersectionObserver(() => {
+        observer.disconnect();
+        resolve();
+      });
+      observer.observe(target);
+    });
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
+    target.style.top = '0';
+    await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
+  } finally {
+    target.remove();
+  }
+});
+
+it('keeps authored Markdown labels lazy until interaction', async () => {
+  const { container } = render(MessageContent, { body: `[Read the guide](${href})` });
+  await vi.waitFor(() => expect(container.querySelector('a')?.textContent).toBe('Read the guide'));
+  await new Promise<void>((resolve) => {
+    const observer = new IntersectionObserver(() => {
+      observer.disconnect();
+      resolve();
+    });
+    observer.observe(container);
+  });
+  expect(fetchLinkPreview).not.toHaveBeenCalled();
+  container.querySelector('a')!.focus();
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
+  expect(container.querySelector('a')?.textContent).toBe('Read the guide');
+});
+
 it.each(['success', 'failure'])('shows a pill spinner until metadata fetch %s', async (outcome) => {
   let resolve!: (value: unknown) => void;
   let reject!: (reason: Error) => void;
@@ -117,8 +181,7 @@ it('uses existing metadata immediately and truncates long titles without fetchin
 
 it('clears a fetched pill title at the server privacy boundary', async () => {
   const scope = createTestServerScope({ api: { fetchLinkPreview } });
-  const { container } = render(LinkTitleTestHarness, { href });
-  hover(container);
+  const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
   const trigger = container.querySelector('.url-link')!;
   await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
   removeRegisteredServerQueries(scope.serverId);
@@ -148,8 +211,7 @@ it('ignores a pending response after the server session is cleared', async () =>
       resolve = done;
     })
   );
-  const { container } = render(LinkTitleTestHarness, { href });
-  hover(container);
+  const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
   await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
   removeRegisteredServerQueries(scope.serverId);
   resolve({ url: href, title: 'Old session title' });
