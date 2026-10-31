@@ -15,6 +15,7 @@ export const codeBlockView: NodeViewRenderer = ({ node }) => {
   dom.append(body);
   const updateLanguage = (language: string | null) => {
     const normalized = normalizeCodeLanguage(language);
+    if (dom.dataset.language === normalized) return;
     dom.dataset.language = normalized;
     code.className = `language-${normalized}`;
   };
