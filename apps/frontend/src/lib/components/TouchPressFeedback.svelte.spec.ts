@@ -76,11 +76,18 @@ it('shows immediate feedback only on the innermost action and clears it on relea
   expect(element('action').hasAttribute('data-touch-pressed')).toBe(false);
 });
 
-it.each(['touch', 'mouse', 'pen'])('shows feedback for primary %s presses', (pointerType) => {
+it('shows feedback for primary touch presses', () => {
   render(TouchPressFeedback);
-  pointer('pointerdown', element('action'), { pointerType });
+  pointer('pointerdown', element('action'));
   expect(element('action').hasAttribute('data-touch-pressed')).toBe(true);
   expect(element('action').querySelector('.touch-ripple')).not.toBeNull();
+});
+
+it.each(['mouse', 'pen', ''])('skips feedback for non-touch pointer type "%s"', (pointerType) => {
+  render(TouchPressFeedback);
+  pointer('pointerdown', element('action'), { pointerType });
+  expect(element('action').hasAttribute('data-touch-pressed')).toBe(false);
+  expect(element('action').querySelector('.touch-ripple')).toBeNull();
 });
 
 it('excludes secondary buttons, disabled controls, editable content, and opted-out surfaces', () => {

@@ -1,6 +1,6 @@
 <!--
 @component
-Shows immediate feedback for primary pointer presses on semantic actions. Mount once at
+Shows immediate feedback for primary touch presses on semantic actions. Mount once at
 the app root. Movement, cancellation, release, and lost focus clear the cue;
 this component never captures pointers or prevents native input behavior. A
 clipped ripple finishes after release, but cancels on movement or interruption.
@@ -96,7 +96,7 @@ ancestor for feedback. This keeps transparent hit areas and visible content alig
 
   function start(event: PointerEvent) {
     clear();
-    if (!event.isPrimary || event.button !== 0) return;
+    if (event.pointerType !== 'touch' || !event.isPrimary || event.button !== 0) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (
