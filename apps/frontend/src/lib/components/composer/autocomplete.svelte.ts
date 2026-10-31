@@ -171,7 +171,12 @@ export class AutocompleteState {
   private updateEmoji(): void {
     if (this.options.emojis === false) return;
     const partial = this.getEmojiPartialAtCursor();
-    const results = partial ? searchEmojis(partial.query, 10) : [];
+    // Keep the result identity so edits outside the query preserve keyboard selection.
+    const results = partial
+      ? partial.query === this.emoji?.query
+        ? this.emoji.results
+        : searchEmojis(partial.query, 10)
+      : [];
     if (partial && results.length > 0) {
       this.emoji = {
         query: partial.query,
