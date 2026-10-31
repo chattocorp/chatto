@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "邀请他人",
-      "create": "创建邀请码",
-      "description": "分享邀请码和服务器地址。此码可创建一个账号，七天后过期。",
-      "once": "请在关闭前复制此码。你将无法再次查看。"
-    },
     "privileged_mode": {
       "enable": "启用特权模式",
       "disable": "停用特权模式",
@@ -190,6 +184,7 @@
       "event_log": "事件日志",
       "system": "系统",
       "back_to_server": "返回服务器",
+      "invites": "邀请",
       "registration": "注册"
     }
   }

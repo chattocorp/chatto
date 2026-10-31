@@ -172,7 +172,7 @@
       "user_delete_any": "Lubab kontol kustutada ükskõik millise liikme konto. Andke see ainult inimestele, kes võivad otsustada kellegi serverist eemaldamise üle.",
       "user_delete_self": "Lubab inimestel kustutada oma konto. Keelake see, kui kontosid peavad kustutama ainult administraatorid.",
       "user_manage_invites": "Lubab kontol loetleda, luua, kopeerida ja tühistada ühekordseid kutsekoode. See saab hallata kõiki koode, mitte ainult enda omi.",
-      "user_invite": "Looge kutsekoode ilma haldusõigusteta.",
+      "user_invite": "Loo ja halda enda kutsekoode.",
       "user_manage_accounts": "Lubab kontol luua teistele liikmetele kontosid, muuta konto identiteeti, lähtestada paroole, lisada kinnitatud e-posti aadresse ja tühistada sisselogimise ooteaegu. Samuti lubab see lisada konto ruumi või eemaldada selle ruumist rea Liitunud kaudu.",
       "user_manage_permissions": "Lubab kontol muuta ühe liikme või boti õiguste seadeid otse, rollidest eraldi. Seda on vaja ka inimese kehtivate õiguste nägemiseks.",
       "bot_create": "Inimesed loovad endale kuuluvaid bote. Botid loovad bote oma inimesest omanikule. Uutel botidel pole määratud õigusi.",

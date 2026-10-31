@@ -27,7 +27,7 @@
       "user_delete_any": "Forigu la konton de alia uzanto",
       "user_delete_self": "Forigu vian propran konton",
       "user_manage_invites": "Kreu kaj administru kodojn. Ĉiu kodo permesas unu novan konton.",
-      "user_invite": "Kreu invitkodojn sen administra aliro.",
+      "user_invite": "Krei kaj administri viajn proprajn invitkodojn.",
       "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
       "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas",
       "bot_create": "Krei robotajn kontojn",

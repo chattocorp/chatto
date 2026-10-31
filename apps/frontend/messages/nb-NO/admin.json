@@ -564,10 +564,11 @@
       "total": "{count} bruker(e) totalt"
     },
     "invitations": {
+      "management_help": "Invitasjonskoder lar andre bli med på denne serveren.",
       "created_by": "Opprettet av",
       "note_label": "Merknad (valgfritt)",
       "note_placeholder": "Til Alex fra designteamet",
-      "note_description": "Bare invitasjonsadministratorer kan se denne merknaden.",
+      "note_description": "Du og invitasjonsadministratorer kan se denne merknaden.",
       "note_too_long": "Bruk høyst 250 tegn.",
       "usage": "Nye koder utløper etter 7 dager og gir tilgang til én konto hver. Kopier en kode og send den til mottakeren. Koden brukes først når registreringen lykkes.",
       "create_title": "Opprett kode",

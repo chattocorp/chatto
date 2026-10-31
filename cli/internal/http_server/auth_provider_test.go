@@ -586,7 +586,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(t.Context(), admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, nil, "")
+	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}

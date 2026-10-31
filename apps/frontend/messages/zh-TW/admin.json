@@ -553,10 +553,11 @@
       "total": "共 {count} 位使用者"
     },
     "invitations": {
+      "management_help": "邀請碼可讓其他人加入此伺服器。",
       "created_by": "建立者",
       "note_label": "備註（選填）",
       "note_placeholder": "給設計團隊的 Alex",
-      "note_description": "只有邀請管理員可以查看此備註。",
+      "note_description": "你和邀請管理員可以查看此備註。",
       "note_too_long": "請使用不超過 250 個字元。",
       "usage": "新邀請碼有效期為 7 天，每個邀請碼只能建立一個帳號。複製邀請碼並傳送給接收者。只有註冊成功後，邀請碼才會被使用。",
       "create_title": "建立邀請碼",

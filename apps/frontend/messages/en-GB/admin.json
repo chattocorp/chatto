@@ -564,10 +564,11 @@
       "total": "{count} user(s) total"
     },
     "invitations": {
+      "management_help": "Invite codes let other people join this server.",
       "created_by": "Created by",
       "note_label": "Note (optional)",
       "note_placeholder": "For Alex from the design team",
-      "note_description": "Only invitation managers can see this note.",
+      "note_description": "You and invitation managers can see this note.",
       "note_too_long": "Use 250 characters or fewer.",
       "usage": "New codes expire after 7 days and admit one account each. Copy a code and send it to its recipient. A code is used only when signup succeeds.",
       "create_title": "Create code",

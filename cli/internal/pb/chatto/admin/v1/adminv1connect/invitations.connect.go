@@ -51,13 +51,15 @@ const (
 // AdminInvitationCodeServiceClient is a client for the chatto.admin.v1.AdminInvitationCodeService
 // service.
 type AdminInvitationCodeServiceClient interface {
-	// Lists current and historical codes.
+	// Lists visible current and historical codes. Pagination and totals include only visible codes.
 	ListInvitationCodes(context.Context, *connect.Request[v1.ListInvitationCodesRequest]) (*connect.Response[v1.ListInvitationCodesResponse], error)
-	// Reads a code by ID. Returns NOT_FOUND for an unknown ID.
+	// Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
 	GetInvitationCode(context.Context, *connect.Request[v1.GetInvitationCodeRequest]) (*connect.Response[v1.GetInvitationCodeResponse], error)
-	// Creates a code. Not idempotent: retrying creates another code.
+	// Creates a code that expires seven days after creation for every caller.
+	// Not idempotent: retrying creates another code.
 	CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error)
 	// Revokes a code without deleting its history. Repeating revocation is safe.
+	// Returns NOT_FOUND for an unknown or inaccessible ID.
 	RevokeInvitationCode(context.Context, *connect.Request[v1.RevokeInvitationCodeRequest]) (*connect.Response[v1.RevokeInvitationCodeResponse], error)
 }
 
@@ -130,13 +132,15 @@ func (c *adminInvitationCodeServiceClient) RevokeInvitationCode(ctx context.Cont
 // AdminInvitationCodeServiceHandler is an implementation of the
 // chatto.admin.v1.AdminInvitationCodeService service.
 type AdminInvitationCodeServiceHandler interface {
-	// Lists current and historical codes.
+	// Lists visible current and historical codes. Pagination and totals include only visible codes.
 	ListInvitationCodes(context.Context, *connect.Request[v1.ListInvitationCodesRequest]) (*connect.Response[v1.ListInvitationCodesResponse], error)
-	// Reads a code by ID. Returns NOT_FOUND for an unknown ID.
+	// Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
 	GetInvitationCode(context.Context, *connect.Request[v1.GetInvitationCodeRequest]) (*connect.Response[v1.GetInvitationCodeResponse], error)
-	// Creates a code. Not idempotent: retrying creates another code.
+	// Creates a code that expires seven days after creation for every caller.
+	// Not idempotent: retrying creates another code.
 	CreateInvitationCode(context.Context, *connect.Request[v1.CreateInvitationCodeRequest]) (*connect.Response[v1.CreateInvitationCodeResponse], error)
 	// Revokes a code without deleting its history. Repeating revocation is safe.
+	// Returns NOT_FOUND for an unknown or inaccessible ID.
 	RevokeInvitationCode(context.Context, *connect.Request[v1.RevokeInvitationCodeRequest]) (*connect.Response[v1.RevokeInvitationCodeResponse], error)
 }
 

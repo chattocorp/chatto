@@ -178,7 +178,7 @@ it('opens one persistent touch sheet and consumes the native menu and release cl
   expect(parentTouch).toHaveBeenCalledOnce();
   expect(parentMenu).not.toHaveBeenCalled();
   expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
-  // An outgoing hover card stays in the DOM until its enabled transition ends.
+  // A mouse hover card can remain in the DOM until its exit animation ends.
   await vi.waitFor(() =>
     expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
   );

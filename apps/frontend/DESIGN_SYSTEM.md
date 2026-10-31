@@ -588,8 +588,10 @@ as metadata.
 When a page title is available, show it in the main section and
 the hostname in a darker, muted trailing section. Tuck the hostname section
 behind the title's rounded trailing edge, using the shared 6px pill radius.
-All sections belong to one link. The title truncates first; keep the hostname section within 40% of the
-pill. URL pills have a maximum width of 28rem and must fit within the available
+All sections belong to one link. The title truncates first. URL hostname sections
+use their natural width, with at least 3rem left for the title on narrow lines.
+Entity metadata stays within 40% of the pill.
+URL pills have a maximum width of 28rem and must fit within the available
 width. Entity pills can use the full available width. Neither the pill nor its
 lighter title section stretches past its content.
 Without a title, use the hostname as the primary label. Show the standard external-link
@@ -1074,7 +1076,7 @@ the effective app motion preference requests reduced motion.
 - Updating numeric columns and counters use `tabular-nums`.
 - Interactive transitions must name their properties. Never use Tailwind's
   bare `transition` utility or `transition-all`.
-- On primary touch, mouse, or pen input, semantic actions use an immediate opacity change and a 1 px
+- On primary touch input, semantic actions use an immediate opacity change and a 1 px
   shift down and right while pressed. The shared rule covers buttons, links, menu and tab actions,
   and checkbox/radio labels. Disabled controls and editable content are excluded.
   `TouchPressFeedback` marks only the innermost action. Release, cancellation,
@@ -1084,7 +1086,8 @@ the effective app motion preference requests reduced motion.
   420 ms. Its own layer clips to the control's rounded shape; other content
   stays unclipped. The ripple finishes after release. Movement, cancellation,
   another press, and lost focus remove it. Reduced motion keeps the opacity
-  feedback without the shift or ripple.
+  feedback without the shift or ripple. Mouse and pen input do not trigger these effects,
+  including on devices that also support touch.
   Native buttons, links, checkboxes, radios, and ARIA action roles receive
   feedback automatically. Custom actions, including clickable user mentions,
   opt in with `data-press-feedback`. Use `data-press-feedback="none"` on drag

@@ -564,10 +564,11 @@
       "total": "Total de usuários {count}"
     },
     "invitations": {
+      "management_help": "Os códigos de convite permitem que outras pessoas entrem neste servidor.",
       "created_by": "Criado por",
       "note_label": "Nota (opcional)",
       "note_placeholder": "Para Alex da equipe de design",
-      "note_description": "Somente gerentes de convites podem ver esta nota.",
+      "note_description": "Você e os gerentes de convites podem ver esta nota.",
       "note_too_long": "Use no máximo 250 caracteres.",
       "usage": "Novos códigos expiram após 7 dias e permitem uma conta cada. Copie um código e envie ao destinatário. Ele só é usado quando o cadastro é concluído.",
       "create_title": "Criar código",

@@ -1,11 +1,5 @@
 {
   "chat": {
-    "invitation": {
-      "title": "Pozvat lidi",
-      "create": "Vytvořit kód",
-      "description": "Sdílejte kód a adresu serveru. Umožní vytvořit jeden účet a vyprší za sedm dní.",
-      "once": "Před zavřením kód zkopírujte. Znovu jej již nezobrazíte."
-    },
     "privileged_mode": {
       "enable": "Zapnout privilegovaný režim",
       "disable": "Vypnout privilegovaný režim",
@@ -190,6 +184,7 @@
       "event_log": "Protokol událostí",
       "system": "Systém",
       "back_to_server": "Návrat na server",
+      "invites": "Pozvánky",
       "registration": "Registrace"
     }
   }

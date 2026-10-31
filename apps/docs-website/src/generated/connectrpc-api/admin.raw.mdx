@@ -167,14 +167,16 @@ Result of reading one durable EVT entry.
 
 ## AdminInvitationCodeService
 
-Issues and manages registration codes. All methods require user.manage-invites.
+Issues and manages registration codes. user.invite permits access to own codes.
+Effective user.manage-invites permits access to all codes and requires
+privileged mode for human sessions.
 External systems can issue codes with an authorized API credential.
 
 <a id="chatto-admin-v1-AdminInvitationCodeService-ListInvitationCodes"></a>
 
 ### ListInvitationCodes
 
-Lists current and historical codes.
+Lists visible current and historical codes. Pagination and totals include only visible codes.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/ListInvitationCodes
@@ -207,7 +209,7 @@ No message description provided.
 
 ### GetInvitationCode
 
-Reads a code by ID. Returns NOT_FOUND for an unknown ID.
+Reads a code by ID. Returns NOT_FOUND for an unknown or inaccessible ID.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/GetInvitationCode
@@ -239,7 +241,8 @@ No message description provided.
 
 ### CreateInvitationCode
 
-Creates a code. Not idempotent: retrying creates another code.
+Creates a code that expires seven days after creation for every caller.
+Not idempotent: retrying creates another code.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/CreateInvitationCode
@@ -249,12 +252,11 @@ POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/CreateInvitationCod
 
 #### Input: CreateInvitationCodeRequest
 
-Creates one code. Every code is single-use, including when expiry is omitted.
+Creates one single-use code. The server sets expiry to seven days after creation.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible only to invitation managers; it does not bind the code to a recipient. |
+| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible to the creator and invitation managers; it does not bind the code to a recipient. |
 
 
 <a id="chatto-admin-v1-CreateInvitationCodeResponse"></a>
@@ -273,6 +275,7 @@ No message description provided.
 ### RevokeInvitationCode
 
 Revokes a code without deleting its history. Repeating revocation is safe.
+Returns NOT_FOUND for an unknown or inaccessible ID.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/RevokeInvitationCode
@@ -2480,13 +2483,13 @@ the code can use it; it is not bound to an email address or recipient.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | No field description provided. |
-| `code` | `string` | Recoverable capability, returned only to callers with user.manage-invites. Never log it. |
+| `code` | `string` | Recoverable capability, visible to its creator with user.invite or to invitation managers. Never log it. |
 | `created_by` | `string` | No field description provided. |
 | `created_at` | `google.protobuf.Timestamp` | No field description provided. |
 | `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |
 | `status` | [`InvitationCodeStatus`](#chatto-admin-v1-InvitationCodeStatus) | No field description provided. |
 | `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
-| `note` | `string` | Optional creation-time note for invitation managers. Empty means no note. This does not restrict who can redeem the code. |
+| `note` | `string` | Optional creation-time note for the creator and invitation managers. Empty means no note. This does not restrict who can redeem the code. |
 
 
 

@@ -27,7 +27,7 @@
       "user_delete_any": "Delete another user's account",
       "user_delete_self": "Delete your own account",
       "user_manage_invites": "Create and manage codes. Each code admits one new account.",
-      "user_invite": "Generate invitation codes without admin access.",
+      "user_invite": "Create and manage your own invitation codes.",
       "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
       "user_manage_permissions": "Edit direct per-user permission overrides",
       "bot_create": "Create bot accounts",

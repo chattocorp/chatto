@@ -1,4 +1,3 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { AdminInvitationCodeService } from '@chatto/api-types/admin/v1/invitations_connect';
 import {
   InvitationCodeStatus,
@@ -6,7 +5,7 @@ import {
 } from '@chatto/api-types/admin/v1/invitations_pb';
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 
-/** A single-use account admission code, visible only to invitation managers. */
+/** A single-use account admission code, visible to its creator and invitation managers. */
 export type InvitationCode = {
   id: string;
   code: string;
@@ -15,7 +14,7 @@ export type InvitationCode = {
   expiresAt: string | null;
   status: 'active' | 'expired' | 'used' | 'revoked';
   revokedAt: string | null;
-  /** Plain-text creation note for invitation managers; empty when omitted. */
+  /** Plain-text creation note for the creator and invitation managers; empty when omitted. */
   note: string;
 };
 
@@ -33,9 +32,8 @@ export function createInvitationCodeAPI(config: ConnectAPIConfig) {
         hasMore: response.page?.hasMore ?? false
       };
     },
-    async create(input: { expiresAt: string | null; note?: string }) {
+    async create(input: { note?: string }) {
       const response = await client.createInvitationCode({
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined,
         note: input.note ?? ''
       });
       if (!response.invitationCode) throw new Error('Invitation-code response was incomplete.');

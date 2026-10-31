@@ -48,11 +48,7 @@ func (s *adminInvitationCodeService) CreateInvitationCode(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
-	expiresAt, err := apiTimestampToTime(req.Msg.GetExpiresAt())
-	if err != nil {
-		return nil, err
-	}
-	state, err := s.api.core.CreateInvitationCode(ctx, caller.UserID, expiresAt, req.Msg.GetNote())
+	state, err := s.api.core.CreateInvitationCode(ctx, caller.UserID, req.Msg.GetNote())
 	if err != nil {
 		return nil, err
 	}

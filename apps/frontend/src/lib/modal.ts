@@ -21,8 +21,6 @@ export type ChatModal =
   | { type: 'motd'; motd: string }
   /** Rendered by the active invitation-code table that opened it. */
   | { type: 'createInvitationCode'; serverId: string; creatorId: string }
-  /** Contains no secret; each mounting starts with an empty issuance dialog. */
-  | { type: 'issueInvitationCode'; serverId: string }
   /** Rendered by the active room's notice panel so access loss also removes its draft. */
   | (RoomModalTarget & { type: 'roomNoticeEditor'; editorId: string })
   | (RoomModalTarget & { type: 'leaveRoom'; roomName: string })

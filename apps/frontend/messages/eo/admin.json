@@ -564,10 +564,11 @@
       "total": "{count} uzanto(j) entute"
     },
     "invitations": {
+      "management_help": "Invitkodoj ebligas al aliaj homoj aliĝi al ĉi tiu servilo.",
       "created_by": "Kreita de",
       "note_label": "Noto (nedeviga)",
       "note_placeholder": "Por Alex el la dezajna teamo",
-      "note_description": "Nur administrantoj de invitoj povas vidi ĉi tiun noton.",
+      "note_description": "Vi kaj administrantoj de invitoj povas vidi ĉi tiun noton.",
       "note_too_long": "Uzu maksimume 250 signojn.",
       "usage": "Novaj kodoj validas dum 7 tagoj kaj ĉiu permesas unu konton. Kopiu kodon kaj sendu ĝin al la ricevonto. Kodo estas uzita nur post sukcesa registriĝo.",
       "create_title": "Krei kodon",

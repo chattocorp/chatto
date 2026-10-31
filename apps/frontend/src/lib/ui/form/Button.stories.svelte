@@ -10,7 +10,8 @@
     strongest applicable tone for the action. Labelled buttons share the rounded-xl radius
     of chat input surfaces; icon-only buttons keep rounded-md corners. Filled buttons have a
     quiet shell lighting without a cast shadow. Ghost buttons stay flat; disabled buttons lose the raised finish.
-    Press a button with touch, mouse, or pen to see opacity feedback and a 1 px push down and right.
+    Press a button with touch to see opacity feedback and a 1 px push down and right.
+    Mouse and pen input do not trigger these effects.
     A ripple expands from the touch point and finishes after release.
     Reduced motion keeps the opacity feedback without the shift or ripple.
     Disabled and loading buttons keep their existing opacity while pressed.

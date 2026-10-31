@@ -27,7 +27,7 @@
       "user_delete_any": "Konto eines anderen Benutzers löschen",
       "user_delete_self": "Eigenes Konto löschen",
       "user_manage_invites": "Codes erstellen und verwalten. Jeder Code erlaubt ein neues Konto.",
-      "user_invite": "Erstelle Einladungscodes ohne Adminzugriff.",
+      "user_invite": "Eigene Einladungscodes erstellen und verwalten.",
       "user_manage_accounts": "Benutzer erstellen, Kontoidentität bearbeiten, Passwörter zurücksetzen, verifizierte E-Mails hinzufügen und Login-Sperren zurücksetzen",
       "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten",
       "bot_create": "Bot-Konten erstellen",
