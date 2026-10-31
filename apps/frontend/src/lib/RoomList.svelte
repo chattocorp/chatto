@@ -13,13 +13,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { goto, pushState } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { m } from '$lib/i18n/messages';
+  import { roomIcon } from '$lib/render/roomIcon';
   import {
     normalizeSidebarLinkURL,
     sidebarLinkAnchorAttributes,
@@ -68,7 +69,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
   import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
-  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
+  import {
+    archiveRoomFromMenu,
+    joinRoomFromMenu,
+    openLeaveRoomDialog,
+    openRoomSettings
+  } from '$lib/navigation/roomActions';
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
@@ -99,7 +105,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
-  const roomCommandAPI = serverScope.connection.getAPI(createRoomCommandAPI);
   const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
   /**
    * Whether sidebar entries and groups can be reordered by drag and drop.
@@ -502,17 +507,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function archiveRoom(): Promise<void> {
     if (!archiveRoomTarget) return;
-    try {
-      await roomCommandAPI.archiveRoom(archiveRoomTarget.id);
-      toast.success(m('room.management.room_archived'));
+    if (await archiveRoomFromMenu(serverScope, archiveRoomTarget.id)) {
       archiveRoomDialogVisible = false;
       archiveRoomTarget = null;
-    } catch (error) {
-      toast.error(
-        m('room.management.archive_room_failed', {
-          error: errorMessage(error)
-        })
-      );
     }
   }
 
@@ -538,41 +535,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   function handleLeaveRoom(room: RoomsListItem): void {
     roomContextMenu = null;
-    pushState('', {
-      modal: {
-        type: 'leaveRoom',
-        serverId: activeServerId,
-        roomId: room.id,
-        roomName: room.name
-      }
-    });
+    openLeaveRoomDialog(activeServerId, room);
   }
 
   function handleConfigureRoom(room: RoomsListItem): void {
     roomContextMenu = null;
-    void goto(
-      resolve('/chat/[serverId]/manage/rooms/[roomId]', {
-        serverId: serverSegment,
-        roomId: room.id
-      })
-    );
+    openRoomSettings(activeServerId, room.id);
   }
 
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     roomContextMenu = null;
-    if (room.viewerInvitation) {
-      await goto(conversationPath(activeServerId, room.id, { store: stores }));
-      return;
-    }
-    const result = await serverUi(stores).roomDirectory.joinRoom(room.id);
-    if (!serverScope.isCurrent()) return;
-    if (result.ok) {
-      toast.success(m('room.join.success', { room: room.name }));
-      return;
-    }
-
-    toast.error(m('room.join.failed'));
-    console.error('Error joining room:', result.error);
+    await joinRoomFromMenu(serverScope, room);
   }
 
   // --- Derived layout helpers ---
@@ -1045,26 +1018,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {:else}
       <span class="relative flex size-5 shrink-0 items-center justify-center">
         {#if isJoined}
-          {#if room.isUniversal}
-            <span
-              class={[
-                'iconify sidebar-icon icon-[uil--globe] transition-opacity feedback-quick',
-                showUnread ? 'text-text-top' : 'text-muted',
-                showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
-              ]}
-              role="img"
-              aria-label={m('room.directory.universal')}
-              title={m('room.directory.universal_title')}
-            ></span>
-          {:else}
-            <span
-              class={[
-                'sidebar-icon transition-opacity feedback-quick',
-                showUnread ? 'text-text-top' : 'text-muted',
-                showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
-              ]}>#</span
-            >
-          {/if}
+          {@const icon = roomIcon(room)}
+          <span
+            class={[
+              'sidebar-icon transition-opacity feedback-quick',
+              icon.className,
+              showUnread ? 'text-text-top' : 'text-muted',
+              showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
+            ]}
+            role={room.isUniversal ? 'img' : undefined}
+            aria-label={room.isUniversal ? m('room.directory.universal') : undefined}
+            title={room.isUniversal ? m('room.directory.universal_title') : undefined}
+            >{icon.text}</span
+          >
         {:else if room.viewerInvitation}
           <span
             class="iconify sidebar-icon icon-[uil--envelope-alt] text-action"

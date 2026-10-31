@@ -39,6 +39,7 @@ const { mocks } = vi.hoisted(() => {
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
       restoreLatestWindow: vi.fn(),
+      cancelPendingHistoricalJump: vi.fn(),
       clearAnchor: vi.fn(),
       setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
@@ -363,6 +364,7 @@ describe('ThreadPane', () => {
               refreshCurrentWindow: mocks.refreshCurrentWindow,
               jumpToMessage: mocks.storeJumpToMessage,
               restoreLatestWindow: mocks.restoreLatestWindow,
+              cancelPendingHistoricalJump: mocks.cancelPendingHistoricalJump,
               clearAnchor: mocks.clearAnchor,
               setThreadRootFollowState: mocks.setThreadRootFollowState,
               loadMore: mocks.loadMore
@@ -1022,16 +1024,20 @@ describe('ThreadPane', () => {
     expect(mocks.clearUnreadMarker).toHaveBeenCalledOnce();
   });
 
-  it('returns each thread to its latest replies when the pane opens, switches, or closes', async () => {
+  it('restores on entry and cancels on departure without loading the hidden thread', async () => {
     const rendered = render(ThreadPane, { props: threadProps });
     await vi.waitFor(() => expect(mocks.restoreLatestWindow).toHaveBeenCalledOnce());
 
-    // Leaving the first thread and opening the second each restore a window.
     await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
-    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(3);
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.cancelPendingHistoricalJump).toHaveBeenCalledOnce();
 
     rendered.unmount();
-    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(4);
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.cancelPendingHistoricalJump).toHaveBeenCalledTimes(2);
+
+    render(ThreadPane, { props: threadProps });
+    await vi.waitFor(() => expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(3));
   });
 
   it('does not jump to a highlight that is cleared before it starts', async () => {

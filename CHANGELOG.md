@@ -3,6 +3,33 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.27](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.26...v0.5.0-beta.27) (2026-10-30)
+
+
+### Features
+
+* **bots:** allow permission-gated administrative operations ([#3325](https://github.com/chattocorp/chatto/issues/3325)) ([0a1df24](https://github.com/chattocorp/chatto/commit/0a1df24564359739df5d435dd8fa917a9625b146))
+* **desktop:** add native notifications using existing polling ([#3335](https://github.com/chattocorp/chatto/issues/3335)) ([d0a9fa2](https://github.com/chattocorp/chatto/commit/d0a9fa203c5a6e8612bb0c1b39bcde44ef18ae2f))
+* **frontend:** add an own-profile edit shortcut ([#3345](https://github.com/chattocorp/chatto/issues/3345)) ([f9591c5](https://github.com/chattocorp/chatto/commit/f9591c5f15973e5766c0d885ec59f0db5ed9ae76))
+* **frontend:** add link pills, hover previews, and shared inset frames ([#3124](https://github.com/chattocorp/chatto/issues/3124)) ([3582239](https://github.com/chattocorp/chatto/commit/35822397ce9270e465b93763b5cf85935d424495))
+* **frontend:** add room autocomplete and unify picker behavior ([#3342](https://github.com/chattocorp/chatto/issues/3342)) ([1c0ee25](https://github.com/chattocorp/chatto/commit/1c0ee25ab9692288beb35f8c0fa014986249455f))
+* **frontend:** add settings overview and shield mode notice ([#3307](https://github.com/chattocorp/chatto/issues/3307)) ([2e6c639](https://github.com/chattocorp/chatto/commit/2e6c639099e23e2e510eea068224e565493b51b2))
+* **frontend:** unify link pills and destination metadata ([#3331](https://github.com/chattocorp/chatto/issues/3331)) ([05c24b0](https://github.com/chattocorp/chatto/commit/05c24b01722de0dab22c1e389b41a42325de536c))
+
+
+### Bug Fixes
+
+* **frontend:** align server icon frame corner radii ([#3336](https://github.com/chattocorp/chatto/issues/3336)) ([02c6062](https://github.com/chattocorp/chatto/commit/02c606296055ad7fb069ab9bb5812259f986f957))
+* **frontend:** continue backfill through deleted message pages ([#3343](https://github.com/chattocorp/chatto/issues/3343)) ([11529d4](https://github.com/chattocorp/chatto/commit/11529d4c4dd2e90cf0163de7895519615d414fda))
+* **frontend:** improve settings overview column layouts ([#3337](https://github.com/chattocorp/chatto/issues/3337)) ([54d9d35](https://github.com/chattocorp/chatto/commit/54d9d356d44e4268e880243287ca6af54816775b))
+* **frontend:** keep link pill cursor transitions visible ([#3341](https://github.com/chattocorp/chatto/issues/3341)) ([b0f3373](https://github.com/chattocorp/chatto/commit/b0f33736d389c43f0fbed04e21a434e0c6c82236))
+* **threads:** omit fully deleted followed threads ([#3344](https://github.com/chattocorp/chatto/issues/3344)) ([9daf554](https://github.com/chattocorp/chatto/commit/9daf554856497ffc169b7ee07657ba9518c2bc49))
+
+
+### Performance Improvements
+
+* **import:** read operation receipts by exact subject ([#3328](https://github.com/chattocorp/chatto/issues/3328)) ([113bd26](https://github.com/chattocorp/chatto/commit/113bd26ba4ea020dcd590db9f01e4fdbe5508c2a))
+
 ## [0.5.0-beta.26](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.25...v0.5.0-beta.26) (2026-10-30)
 
 

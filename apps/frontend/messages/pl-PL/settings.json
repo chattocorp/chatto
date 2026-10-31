@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Zarządzaj hasłem, adresami e-mail i metodami logowania.",
+        "profile": "Zaktualizuj nazwę, awatar i dane profilu.",
+        "time": "Wybierz sposób wyświetlania dat i godzin przez ten serwer",
+        "notifications": "Skonfiguruj sposób otrzymywania powiadomień",
+        "language": "Wybierz język i sformułowania regionalne dla tej przeglądarki.",
+        "bots": "Twórz konta API i dokładnie kontroluj ich możliwości",
+        "general": "Tożsamość serwera, marka i wiadomości",
+        "neighbors": "Promuj zaprzyjaźnione serwery Chatto w swoim publicznym katalogu",
+        "members": "Przeglądaj i zarządzaj członkami serwera i ich rolami",
+        "invitations": "Twórz linki, przez które mogą dołączać nowe konta, i zarządzaj nimi.",
+        "rooms": "Twórz, edytuj, organizuj i archiwizuj pokoje",
+        "moderation": "Sprawdź aktywne zawieszenia dostępu do pokoi",
+        "permissions": "Zarządzaj domyślnymi rolami na całym serwerze",
+        "security": "Ograniczenia rejestracji i ochrona konta",
+        "appearance": "Dostosuj aplikację za pomocą kolorów, motywów i opcji wyświetlania.",
+        "composer": "Wybierz edytor i sposób wysyłania wiadomości.",
+        "voice": "Skonfiguruj mikrofon, głośniki i ustawienia połączeń.",
+        "system": "Sprawdź stan serwera, pamięć i zadania w tle.",
+        "event_log": "Przeglądaj zdarzenia serwera i analizuj zmiany."
+      },
+      "title": "Przegląd",
+      "shield_notice": "Aby użyć dodatkowych uprawnień na tym serwerze, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia."
+    },
     "nav": {
       "title": "Ustawienia",
       "back_to_server": "Powrót do serwera",

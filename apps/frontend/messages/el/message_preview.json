@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "Μήνυμα από {name}",
     "attachments_count": {
       "one": "{count} συνημμένο",
       "other": "{count} συνημμένα"

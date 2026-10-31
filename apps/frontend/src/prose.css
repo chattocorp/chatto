@@ -60,7 +60,7 @@
   }
 
   /* Links */
-  & a {
+  & a:not(.entity-link, .url-link, .menu-entry, .link-hover-card) {
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -163,34 +163,23 @@
 
   /* Keep code scrolling inside the block so the controls stay fixed. */
   & pre.markdown-code {
-    @apply relative overflow-hidden border border-surface-emphasized px-3 py-2 shadow-xs;
-    background: transparent;
-    color: var(--composer-code-text);
-    line-height: 1.5;
-  }
-
-  & pre.markdown-code > code {
-    display: block;
-    overflow-x: auto;
-    line-height: inherit;
-    /* Allow the final characters to scroll clear of the language and copy controls. */
-    padding-inline-end: 5.5rem;
+    @apply preview-code;
   }
 
   & pre.markdown-code > .markdown-code-actions {
-    @apply absolute right-0 bottom-0 z-10 flex items-center gap-1.5 rounded-tl-md bg-surface-emphasized px-2 py-1;
+    @apply absolute right-1 bottom-1 z-10 flex items-center gap-1.5 rounded-tl-md rounded-br-md bg-surface px-2 py-1;
     white-space: normal;
   }
 
   /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */
   & pre.markdown-ansi {
-    background: #000;
-    color: #aaa;
     line-height: 1;
     font-variant-ligatures: none;
   }
 
   & pre.markdown-ansi > code {
+    background: #000;
+    color: #aaa;
     max-height: 32rem;
     overflow: auto;
     white-space: pre;
@@ -288,10 +277,10 @@
   }
 
   /* Images */
-  & img {
+  & img:not(.entity-link img, .link-hover-card img, .preview-frame img, .preview-thumbnail) {
+    @apply preview-frame;
     max-width: 100%;
     height: auto;
-    border-radius: 0.375rem;
   }
 
   /* Tables */

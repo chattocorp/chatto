@@ -11,6 +11,8 @@ import { render } from 'vitest-browser-svelte';
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { AdminInvitationCodeService } from '@chatto/api-types/admin/v1/invitations_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { getUserStore } from '@chatto/client/server/users';
 import { InvitationCodeStatus } from '@chatto/api-types/admin/v1/invitations_pb';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -43,6 +45,54 @@ const invitations = mockService(AdminInvitationCodeService);
 const code = 'ABCD-EFGH-IJKL-MNOP-QRST';
 
 describe('Invitation codes', () => {
+  it('hydrates creators in a batch and displays their names', async () => {
+    const profiles = mockService(UserService);
+    profiles.batchGetUsers.mockReturnValue({
+      users: [{ user: { id: 'creator', displayName: 'Bob', login: 'bob' } }]
+    });
+    const users = getUserStore('server-1', 'server-1-session');
+    users.clear();
+    createTestServerScope({
+      routes: (router) =>
+        router.service(AdminInvitationCodeService, invitations).service(UserService, profiles),
+      store: { projection: { users } }
+    });
+    invitations.listInvitationCodes.mockReturnValue({
+      invitationCodes: [
+        {
+          id: 'first',
+          code,
+          status: InvitationCodeStatus.ACTIVE,
+          createdBy: 'creator',
+          createdAt: Timestamp.fromDate(new Date('2026-01-01'))
+        },
+        {
+          id: 'second',
+          code,
+          status: InvitationCodeStatus.ACTIVE,
+          createdBy: 'creator',
+          createdAt: Timestamp.fromDate(new Date('2026-01-01'))
+        }
+      ]
+    });
+    const { container } = render(InvitationCodes);
+    await vi.waitFor(() =>
+      expect(
+        [...container.querySelectorAll('[data-testid="user-identity"] bdi')].filter(
+          (node) => node.textContent === 'Bob'
+        )
+      ).toHaveLength(2)
+    );
+    expect(profiles.batchGetUsers).toHaveBeenCalledOnce();
+    expect(profiles.batchGetUsers.mock.calls[0][0].userIds).toEqual(['creator']);
+    expect(container.querySelectorAll('[data-testid="user-identity"]')).toHaveLength(2);
+    expect(container.querySelectorAll('thead th')).toHaveLength(5);
+    expect(
+      container.querySelector('tbody tr td:nth-child(3) [data-testid="user-identity"]')
+    ).not.toBeNull();
+    users.clear();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     route.state = signal<App.PageState>({});

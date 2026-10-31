@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Inviti homojn",
+      "create": "Krei kodon",
+      "description": "Kunhavigu la kodon kaj la servilan adreson. Ĝi permesas unu konton kaj eksvalidiĝas post sep tagoj.",
+      "once": "Kopiu ĉi tiun kodon antaŭ ol fermi. Vi ne povos vidi ĝin denove."
+    },
     "privileged_mode": {
       "enable": "Ŝalti privilegian reĝimon",
       "disable": "Malŝalti privilegian reĝimon",
@@ -47,6 +53,7 @@
       "administration": "Servila administrado"
     },
     "user_menu": {
+      "edit_profile": "Redakti profilon",
       "profile": "Profilo de uzanto",
       "send_message": "Malfermi konversacion",
       "view_profile": "Vidi profilon",

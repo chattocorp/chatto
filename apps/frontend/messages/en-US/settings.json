@@ -1,5 +1,11 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "appearance": "Make the app your own with colors, themes, and display options.",
+        "rooms": "Create, edit, organize, and archive rooms"
+      }
+    },
     "profile": {
       "status": {
         "template": {

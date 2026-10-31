@@ -1,0 +1,52 @@
+---
+title: InvitationCodeService
+description: Member issuance of single-use invitation codes.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-InvitationCodeService"></a>
+
+## InvitationCodeService
+
+Member issuance only. Listing, retrieval, and revocation require the separate
+administrative service and user.manage-invites permission.
+
+<a id="chatto-api-v1-InvitationCodeService-CreateInvitationCode"></a>
+
+### CreateInvitationCode
+
+Requires user.invite, without privileged mode. Creates one code with a
+seven-day expiry. Not idempotent: retrying creates another code. A code is
+consumed only when account creation succeeds; open registration does not
+require or consume codes. Copy the result before dismissing it.
+
+```http
+POST /api/connect/chatto.api.v1.InvitationCodeService/CreateInvitationCode
+```
+
+<a id="chatto-api-v1-CreateInvitationCodeRequest"></a>
+
+#### Input: CreateInvitationCodeRequest
+
+Creates one invitation for the authenticated caller. No recipient is bound to it.
+
+
+<a id="chatto-api-v1-CreateInvitationCodeResponse"></a>
+
+#### Result: CreateInvitationCodeResponse
+
+The code is returned only by this creation operation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_code` | [`IssuedInvitationCode`](/reference/connectrpc-api/types/#chatto-api-v1-IssuedInvitationCode) | No field description provided. |

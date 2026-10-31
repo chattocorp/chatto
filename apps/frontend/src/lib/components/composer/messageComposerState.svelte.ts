@@ -183,7 +183,8 @@ export class MessageComposerState {
       () => this.editorApi,
       () => this.mentionCandidates,
       () => this.mentionRoles,
-      () => this.mentionPriorityUserIds
+      () => this.mentionPriorityUserIds,
+      { rooms: true }
     );
     this.submission = new ComposerSubmissionState({
       getAPI: dependencies.getMessageAPI,
@@ -402,6 +403,9 @@ export class MessageComposerState {
       return true;
     }
     if (this.autocomplete.mention?.query && this.autocomplete.mentionRef?.handleKeyDown(event)) {
+      return true;
+    }
+    if (this.autocomplete.room && this.autocomplete.roomRef?.handleKeyDown(event)) {
       return true;
     }
     if (event.key === 'Enter' && this.#handleEnter(event)) return true;

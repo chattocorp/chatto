@@ -6,7 +6,7 @@ Shows matching emojis when typing :shortcode in chat input.
 
 **Props:**
 - `query` - Current search query (without the leading colon)
-- `onSelect` - Callback when an emoji is selected
+- `onSelect` - Callback with the emoji, name, and final selection key
 - `onClose` - Callback to close the popup
 -->
 <script lang="ts">
@@ -18,7 +18,7 @@ Shows matching emojis when typing :shortcode in chat input.
 
   type Props = {
     query: string;
-    onSelect: (emoji: string, name: string) => void;
+    onSelect: (emoji: string, name: string, key: string) => void;
     onClose: () => void;
   };
 
@@ -44,14 +44,14 @@ Shows matching emojis when typing :shortcode in chat input.
     return (qualifying ? tonePopup : searchPopup)?.handleKeyDown(event) ?? false;
   }
 
-  function handleSelect(result: EmojiResult, _key: string) {
+  function handleSelect(result: EmojiResult, key: string) {
     if (emojiToneBase(result.name)) {
       previousKey = result.name;
       qualifying = result;
       return;
     }
     const choice = emojiWithTone(result.name, emojiPreferences.tone);
-    onSelect(choice.emoji, choice.name);
+    onSelect(choice.emoji, choice.name, key);
   }
 </script>
 
@@ -62,16 +62,17 @@ Shows matching emojis when typing :shortcode in chat input.
     items={[...emojiTones]}
     getKey={(option) => String(option.tone)}
     initialSelectedKey={String(emojiPreferences.tone)}
-    onSelect={(option) => {
+    onSelect={(option, key) => {
       const choice = emojiWithTone(chosen.name, option.tone);
       emojiPreferences.tone = option.tone;
-      onSelect(choice.emoji, choice.name);
+      onSelect(choice.emoji, choice.name, key);
     }}
     onClose={() => (qualifying = null)}
-    class="md:w-80"
   >
     {#snippet item({ item: option })}
-      <span class="text-xl">{emojiWithTone(chosen.name, option.tone).emoji}</span>
+      <span class="flex h-6 w-6 shrink-0 items-center justify-center text-xl"
+        >{emojiWithTone(chosen.name, option.tone).emoji}</span
+      >
       <span class="text-sm text-text">{m(`emoji.${option.label}`)}</span>
     {/snippet}
   </AutocompletePopup>
@@ -81,14 +82,12 @@ Shows matching emojis when typing :shortcode in chat input.
     items={results}
     getKey={(r) => r.name}
     initialSelectedKey={previousKey}
-    selectKeys={['Enter', 'Tab']}
     onSelect={handleSelect}
     {onClose}
-    class="md:w-80"
   >
     {#snippet item({ item: result })}
       {@const choice = emojiWithTone(result.name, emojiPreferences.tone)}
-      <span class="text-xl">{choice.emoji}</span>
+      <span class="flex h-6 w-6 shrink-0 items-center justify-center text-xl">{choice.emoji}</span>
       <span class="min-w-0 truncate text-sm text-text"
         >:{emojiToName(result.emoji) ?? result.name}:</span
       >

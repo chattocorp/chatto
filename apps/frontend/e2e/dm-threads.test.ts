@@ -6,6 +6,7 @@ import { DMPage } from './pages/DMPage';
 import { MyThreadsPage } from './pages/MyThreadsPage';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
+import { getIdsFromUrlViaConnect } from './fixtures/connectHelpers';
 
 test.describe('Direct-message threads', () => {
   test('creates, replies to, follows, and lists a DM thread', async ({
@@ -19,7 +20,7 @@ test.describe('Direct-message threads', () => {
       const room = await new DMPage(pageB).startConversation(userA.login);
       let creations = 0;
       pageB.on('request', (request) => {
-        if (request.url().endsWith('/RoomService/StartDM')) creations++;
+        if (request.url().endsWith('/chatto.api.v1.RoomService/StartDM')) creations++;
       });
       const rootText = `DM thread root ${Date.now()}`;
       const replyText = `DM thread reply ${Date.now()}`;
@@ -47,6 +48,17 @@ test.describe('Direct-message threads', () => {
       await room.expectTextInThreadPane(rootText);
       await expect(pageB).not.toHaveURL(/\/m\//);
       await room.expectThreadPaneFollowing();
+
+      // Old room-based DM links must go straight to the canonical thread URL.
+      const { roomId } = await getIdsFromUrlViaConnect(pageB);
+      const visits: string[] = [];
+      pageB.on('framenavigated', (frame) => {
+        if (frame === pageB.mainFrame()) visits.push(new URL(frame.url()).pathname);
+      });
+      await pageB.goto(routes.messageLink(roomId, rootId));
+      await expect(pageB).toHaveURL(new RegExp(`${routes.user(userA.id!)}/${rootId}$`));
+      await room.expectTextInThreadPane(rootText);
+      expect(visits).not.toContain(`${routes.user(userA.id!)}/m/${rootId}`);
 
       const myThreads = new MyThreadsPage(pageB);
       await myThreads.goto();

@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Podgląd tego odnośnika jest niedostępny.",
     "dismiss": "Odrzuć podgląd",
     "delete": "Usuń podgląd",
     "open_link": "Otwórz link",

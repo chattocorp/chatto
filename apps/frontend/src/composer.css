@@ -27,7 +27,7 @@
     text-decoration: underline;
   }
 
-  & .ProseMirror a,
+  & .ProseMirror a:not(.entity-link, .url-link, .menu-entry, .link-hover-card),
   & .cm-format-link,
   & .cm-link-label {
     color: var(--color-link);

@@ -1067,8 +1067,8 @@ test.describe('Server Permission Enforcement', () => {
       // General stays hidden without server.manage.
       await serverAdminPage.expectSettingsLinkVisible();
       await serverAdminPage.settingsLink.click();
-      await page.waitForURL(routes.settingsAppearance);
-      await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+      await page.waitForURL(routes.settingsOverview);
+      await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
       await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectGeneralNavNotVisible();
     });
@@ -1252,9 +1252,11 @@ test.describe('Server Permission Enforcement', () => {
       // Bots stays available to every signed-in human for owned bots, so the
       // administration entry remains while room management stays hidden.
       await serverAdminPage.settingsLink.click();
-      await page.waitForURL(routes.settingsAppearance);
-      await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
+      await page.waitForURL(routes.settingsOverview);
+      await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+      await expect(
+        page.getByTestId('server-sidebar').getByRole('link', { name: 'Bots', exact: true })
+      ).toBeVisible();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 
@@ -1283,7 +1285,7 @@ test.describe('Server Permission Enforcement', () => {
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
       await serverAdminPage.settingsLink.click();
-      await expect(page.getByRole('link', { name: 'Rooms', exact: true })).toBeVisible();
+      await expect(serverAdminPage.roomsNavItem).toBeVisible();
     });
   });
 });

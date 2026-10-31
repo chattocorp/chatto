@@ -14,6 +14,7 @@ import {
   Menu,
   MenuItem,
   net,
+  Notification,
   protocol,
   session,
   shell
@@ -41,6 +42,8 @@ import { StreamDiagnostics } from './stream_diagnostics.mjs';
 import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
 import { passwordLogin } from './password_login.mjs';
 import { configureUpdateMenu } from './update_menu.mjs';
+import { configureBackgroundWindow } from './background.mjs';
+import { configureDesktopNotifications } from './notifications.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 app.setName(buildProfile.productName);
@@ -132,18 +135,32 @@ async function start() {
     return passwordLogin(request);
   });
   mainWindow = createMainWindow();
+  const background = configureBackgroundWindow({
+    app,
+    window: mainWindow
+  });
+  const notifications = configureDesktopNotifications({
+    ipcMain,
+    Notification,
+    getWindow: () => mainWindow,
+    open: background.open,
+    isTrusted: (event) =>
+      Boolean(
+        mainWindow &&
+        event.sender === mainWindow.webContents &&
+        event.senderFrame === mainWindow.webContents.mainFrame &&
+        hasAppOrigin(event.senderFrame.url)
+      )
+  });
+  mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+    if (isMainFrame && !isInPlace) notifications.clear();
+  });
+  mainWindow.webContents.on('render-process-gone', () => notifications.clear());
+  app.on('before-quit', () => notifications.clear());
   configureDiagnosticsMenu();
   // Update setup errors must not prevent local startup or expose request URLs.
   void configureUpdateMenu(packageJson).catch(() => console.error('Update setup failed.'));
 
-  app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  });
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createMainWindow();
-  });
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
   });
@@ -479,6 +496,8 @@ function createMainWindow() {
 
 function mainWindowWebPreferences() {
   const preferences = secureWebPreferences();
+  // Hidden windows still receive notifications and maintain authenticated connections.
+  preferences.backgroundThrottling = false;
   preferences.preload = path.join(desktopRoot, 'preload.cjs');
   preferences.additionalArguments = isGameCaptureAvailable()
     ? ['--chatto-native-screen-share']

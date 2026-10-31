@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "Pro tento odkaz není dostupný náhled.",
     "dismiss": "Zavřít náhled",
     "delete": "Smazat náhled",
     "open_link": "Otevřít odkaz",

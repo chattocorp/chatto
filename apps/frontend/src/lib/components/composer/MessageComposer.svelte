@@ -3,6 +3,7 @@
 </script>
 
 <script lang="ts">
+  import { provideLinkPreview } from '$lib/components/messages/linkPreviewContext';
   import ComposerStatusRow from './ComposerStatusRow.svelte';
   import ComposerShortcutHints from './ComposerShortcutHints.svelte';
   import SlowModeBadge from './SlowModeBadge.svelte';
@@ -23,6 +24,8 @@
   import type { Component } from 'svelte';
   import EmojiAutocomplete from './EmojiAutocomplete.svelte';
   import MentionAutocomplete from './MentionAutocomplete.svelte';
+  import RoomAutocomplete from './RoomAutocomplete.svelte';
+  import { buildRoomLinkURL } from '$lib/chatLinks';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
   import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
@@ -135,6 +138,7 @@
   const composerContext = getComposerContext();
   const replyState = $derived(composerContext.replyState);
   const membersStore = useRoomMembersStore();
+  provideLinkPreview((href) => composer.linkPreviews.previews.get(href));
   const composer = new MessageComposerState({
     draftReplies: serverUi(stores).draftReplies,
     getRoomId: () => roomId,
@@ -310,7 +314,7 @@
           <EmojiAutocomplete
             bind:this={composer.autocomplete.emojiRef}
             query={composer.autocomplete.emoji.query}
-            onSelect={(emoji) => composer.autocomplete.selectEmoji(emoji)}
+            onSelect={(emoji, _name, key) => composer.autocomplete.selectEmoji(emoji, key)}
             onClose={() => composer.autocomplete.closeEmoji()}
           />
         {/if}
@@ -322,8 +326,19 @@
             members={composer.mentionCandidates}
             roles={composer.mentionRoles}
             prioritizedUserIds={composer.mentionPriorityUserIds}
-            onSelect={(login, viaTab) => composer.autocomplete.selectMention(login, viaTab)}
+            onSelect={(login, key) => composer.autocomplete.selectMention(login, key)}
             onClose={() => composer.autocomplete.closeMention()}
+          />
+        {/if}
+
+        {#if composer.autocomplete.room}
+          <RoomAutocomplete
+            bind:this={composer.autocomplete.roomRef}
+            query={composer.autocomplete.room.query}
+            rooms={stores.roomList.rooms}
+            onSelect={(roomId, key) =>
+              composer.autocomplete.selectRoom(buildRoomLinkURL(serverScope.serverId, roomId), key)}
+            onClose={() => composer.autocomplete.closeRoom()}
           />
         {/if}
 

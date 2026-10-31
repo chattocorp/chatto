@@ -21,7 +21,8 @@ to also check that the tag matches the package version.
 
 Release-please gives the client, Chatto server, frontend, and desktop the same
 version and release PR. Client changes contribute to the root changelog.
-Tags use `v<VERSION>`. The `publish-chatto-client.yml` workflow
+Tags use `v<VERSION>`. After the `chatto-release` approval job succeeds,
+`release.yml` calls the reusable `publish-chatto-client.yml` workflow. It
 checks and saves a tarball, then publishes that exact artifact. Manual workflow
 runs verify and save an artifact without publishing it. Prereleases use the npm
 `next` tag; stable releases use `latest`. npm publication runs independently of
@@ -34,7 +35,9 @@ the existing compatibility rules still apply.
 
 Before automated publication, configure an npm trusted publisher for
 `@chatto/client`: owner `chattocorp`, repository `chatto`, workflow
-`publish-chatto-client.yml`, environment `npm`. Allow `npm publish`.
+`release.yml`, environment `npm`. Allow `npm publish`. Replace the previous
+`publish-chatto-client.yml` trusted publisher before the next release: npm
+checks the calling workflow identity for reusable workflows.
 See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 Configure it when the release is ready, because a new configuration must
 complete its first successful publication within two days.

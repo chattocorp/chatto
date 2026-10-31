@@ -3156,6 +3156,44 @@ permission allowlist are unchanged.
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
 
 
+<a id="chatto-api-v1-InvitationCodeService"></a>
+
+## InvitationCodeService
+
+Member issuance only. Listing, retrieval, and revocation require the separate
+administrative service and user.manage-invites permission.
+
+<a id="chatto-api-v1-InvitationCodeService-CreateInvitationCode"></a>
+
+### CreateInvitationCode
+
+Requires user.invite, without privileged mode. Creates one code with a
+seven-day expiry. Not idempotent: retrying creates another code. A code is
+consumed only when account creation succeeds; open registration does not
+require or consume codes. Copy the result before dismissing it.
+
+```http
+POST /api/connect/chatto.api.v1.InvitationCodeService/CreateInvitationCode
+```
+
+<a id="chatto-api-v1-CreateInvitationCodeRequest"></a>
+
+#### Input: CreateInvitationCodeRequest
+
+Creates one invitation for the authenticated caller. No recipient is bound to it.
+
+
+<a id="chatto-api-v1-CreateInvitationCodeResponse"></a>
+
+#### Result: CreateInvitationCodeResponse
+
+The code is returned only by this creation operation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_code` | [`IssuedInvitationCode`](#chatto-api-v1-IssuedInvitationCode) | No field description provided. |
+
+
 <a id="chatto-api-v1-ThreadService"></a>
 
 ## ThreadService
@@ -5286,7 +5324,7 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
-- user.invite
+- user.manage-invites
 - role.assign
 - role.view
 - role.manage
@@ -6384,6 +6422,21 @@ Safe summary of one recorded outbound webhook failure.
 | `http_status` | `uint32` | Zero if no HTTP response was received. |
 | `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
 | `source_event_id` | `string` | Source message ID associated with this delivery. |
+
+
+
+<a id="chatto-api-v1-IssuedInvitationCode"></a>
+
+### IssuedInvitationCode
+
+A newly issued single-use code. Unlike the administrative resource, this
+result is available only at creation; members cannot retrieve it later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Opaque invitation identifier, also visible in administrative records. |
+| `code` | `string` | Share this secret with the recipient. Never log or persist it in client storage. |
+| `expires_at` | `google.protobuf.Timestamp` | The code expires seven days after creation. |
 
 
 

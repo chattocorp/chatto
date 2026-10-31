@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Administru vian pasvorton, retpoŝtadresojn kaj ensalutmetodojn.",
+        "profile": "Ĝisdatigu vian nomon, avataron kaj profilajn detalojn.",
+        "time": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
+        "notifications": "Agordu kiel vi ricevas sciigojn",
+        "language": "Elektu la lingvon kaj regionan vortumon por ĉi tiu retumilo.",
+        "bots": "Kreu API-kontojn kaj kontrolu precize kion ili povas fari",
+        "general": "Servila identeco, marko kaj mesaĝoj",
+        "neighbors": "Reklamu amikajn Chatto-servilojn en via publika katalogo",
+        "members": "Rigardu kaj administru servilmembrojn kaj iliajn rolojn",
+        "invitations": "Kreu kaj administru ligilojn, per kiuj novaj kontoj povas aliĝi.",
+        "rooms": "Krei, redakti, organizi kaj arkivi ĉambrojn",
+        "moderation": "Revizii aktivajn ĉambrajn suspendadojn",
+        "permissions": "Administri defaŭltojn de roloj tutserviloj",
+        "security": "Limigoj de registriĝo kaj protekto de konto",
+        "appearance": "Agordu la apon per koloroj, etosoj kaj montraj opcioj.",
+        "composer": "Elektu vian mesaĝredaktilon kaj kiel vi sendas mesaĝojn.",
+        "voice": "Agordu vian mikrofonon, laŭtparolilojn kaj alvokajn preferojn.",
+        "system": "Kontrolu servilan staton, stokadon kaj fonajn taskojn.",
+        "event_log": "Esploru servilajn eventojn kaj ekzamenu ŝanĝojn."
+      },
+      "title": "Superrigardo",
+      "shield_notice": "Por uzi viajn aldonajn permesojn en ĉi tiu servilo, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo."
+    },
     "nav": {
       "title": "Agordoj",
       "back_to_server": "Reen al Servilo",

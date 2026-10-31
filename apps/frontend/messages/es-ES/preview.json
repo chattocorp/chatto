@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "No hay vista previa disponible para este enlace.",
     "dismiss": "Descartar vista previa",
     "delete": "Eliminar vista previa",
     "open_link": "Abrir enlace",

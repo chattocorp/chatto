@@ -18,36 +18,88 @@ type MessageSearchOptions = {
   preserveQuery?: boolean;
 };
 
-/** Server-scoped search availability and transient query results. */
-export class MessageSearchStore {
-  readonly #statusSignal = signal<MessageSearchStatus>(EMPTY_STATUS);
+/** Availability shared by all search sessions on one server. */
+export class MessageSearchAvailability {
+  readonly #statusSignal = signal<MessageSearchStatus | null>(null);
   get status(): MessageSearchStatus {
-    return this.#statusSignal.get();
-  }
-  set status(value: MessageSearchStatus) {
-    this.#statusSignal.set(value);
+    return this.#statusSignal.get() ?? EMPTY_STATUS;
   }
   readonly #statusLoadingSignal = signal(false);
   get statusLoading() {
     return this.#statusLoadingSignal.get();
   }
-  set statusLoading(value) {
-    this.#statusLoadingSignal.set(value);
-  }
-  readonly #statusLoadedSignal = signal(false);
   get statusLoaded() {
-    return this.#statusLoadedSignal.get();
-  }
-  set statusLoaded(value) {
-    this.#statusLoadedSignal.set(value);
+    return this.#statusSignal.get() !== null;
   }
   readonly #statusErrorSignal = signal(false);
   get statusError() {
     return this.#statusErrorSignal.get();
   }
-  set statusError(value) {
-    this.#statusErrorSignal.set(value);
+
+  private statusRequestId = 0;
+  private statusPromise: Promise<void> | null = null;
+
+  constructor(
+    private readonly api: MessageSearchAPI,
+    private readonly canLoad: () => boolean
+  ) {}
+
+  get available(): boolean {
+    return (
+      this.status.state === MessageSearchState.READY ||
+      this.status.state === MessageSearchState.DEGRADED
+    );
   }
+
+  /** Keep search entry points visible during indexing or errors so users can retry. */
+  get showSearchControls(): boolean {
+    return (
+      this.statusError || (this.statusLoaded && this.status.state !== MessageSearchState.DISABLED)
+    );
+  }
+
+  /** Load once per session; concurrent callers share the pending request. */
+  async ensureStatus(force = false): Promise<void> {
+    if (!this.canLoad()) return;
+    if ((this.statusLoaded && !force) || this.statusPromise)
+      return this.statusPromise ?? Promise.resolve();
+    const requestId = ++this.statusRequestId;
+    this.#statusLoadingSignal.set(true);
+    this.#statusErrorSignal.set(false);
+    const promise = Promise.resolve()
+      .then(() => this.api.getStatus())
+      .then((status) => {
+        if (requestId !== this.statusRequestId || !this.canLoad()) return;
+        this.#statusSignal.set(status);
+      })
+      .catch(() => {
+        if (requestId === this.statusRequestId) this.#statusErrorSignal.set(true);
+      })
+      .finally(() => {
+        if (requestId !== this.statusRequestId) return;
+        this.#statusLoadingSignal.set(false);
+        this.statusPromise = null;
+      });
+    this.statusPromise = promise;
+    return promise;
+  }
+
+  async refreshStatus(): Promise<void> {
+    await this.ensureStatus(true);
+  }
+
+  /** Fence pending responses when the server session ends. */
+  reset(): void {
+    this.statusRequestId++;
+    this.#statusSignal.set(null);
+    this.#statusLoadingSignal.set(false);
+    this.#statusErrorSignal.set(false);
+    this.statusPromise = null;
+  }
+}
+
+/** Independent transient query results, with shared server availability. */
+export class MessageSearchStore {
   readonly #resultsSignal = signal<MessageSearchResult[]>([]);
   get results(): MessageSearchResult[] {
     return this.#resultsSignal.get();
@@ -114,57 +166,16 @@ export class MessageSearchStore {
   }
 
   private requestId = 0;
-  private statusRequestId = 0;
   private activeInput: Omit<MessageSearchInput, 'cursor'> | null = null;
-  private statusPromise: Promise<void> | null = null;
-  private statusNeedsRefresh = false;
   private privacyInvalidationListeners = new Set<
     (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
   >();
 
   constructor(
     private readonly api: MessageSearchAPI,
-    private readonly canLoad: () => boolean = () => true
+    private readonly canLoad: () => boolean = () => true,
+    readonly availability = new MessageSearchAvailability(api, canLoad)
   ) {}
-
-  get available(): boolean {
-    return (
-      this.status.state === MessageSearchState.READY ||
-      this.status.state === MessageSearchState.DEGRADED
-    );
-  }
-
-  async ensureStatus(): Promise<void> {
-    if (!this.canLoad()) return;
-    if ((this.statusLoaded && !this.statusNeedsRefresh) || this.statusPromise)
-      return this.statusPromise ?? Promise.resolve();
-    this.statusNeedsRefresh = false;
-    const requestId = ++this.statusRequestId;
-    this.statusLoading = true;
-    this.statusError = false;
-    const promise = Promise.resolve()
-      .then(() => this.api.getStatus())
-      .then((status) => {
-        if (requestId !== this.statusRequestId || !this.canLoad()) return;
-        this.status = status;
-        this.statusLoaded = true;
-      })
-      .catch(() => {
-        if (requestId === this.statusRequestId) this.statusError = true;
-      })
-      .finally(() => {
-        if (requestId !== this.statusRequestId) return;
-        this.statusLoading = false;
-        this.statusPromise = null;
-      });
-    this.statusPromise = promise;
-    return promise;
-  }
-
-  async refreshStatus(): Promise<void> {
-    this.statusNeedsRefresh = true;
-    await this.ensureStatus();
-  }
 
   async search(
     input: Omit<MessageSearchInput, 'cursor'>,
@@ -323,13 +334,6 @@ export class MessageSearchStore {
 
   reset(): void {
     this.clearResults();
-    this.statusRequestId++;
-    this.status = EMPTY_STATUS;
-    this.statusLoaded = false;
-    this.statusLoading = false;
-    this.statusError = false;
-    this.statusPromise = null;
-    this.statusNeedsRefresh = false;
     this.invalidatePrivacyConsumers(() => false, true);
   }
 }

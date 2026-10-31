@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Mensen uitnodigen",
+      "create": "Code maken",
+      "description": "Deel de code en het serveradres. De code geeft toegang voor één account en verloopt na zeven dagen.",
+      "once": "Kopieer deze code voordat je sluit. Je kunt hem niet opnieuw bekijken."
+    },
     "privileged_mode": {
       "enable": "Bevoorrechte modus inschakelen",
       "disable": "Bevoorrechte modus uitschakelen",
@@ -47,6 +53,7 @@
       "administration": "Serverbeheer"
     },
     "user_menu": {
+      "edit_profile": "Profiel bewerken",
       "profile": "Gebruikersprofiel",
       "send_message": "Gesprek openen",
       "view_profile": "Profiel bekijken",

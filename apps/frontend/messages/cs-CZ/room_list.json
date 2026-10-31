@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Zkopírovat odkaz na server",
     "copy_room_link": "Zkopírovat odkaz na místnost",
     "show_rooms_in_group": "Zobrazit další místnosti ve skupině {group} ({count})",
     "hide_rooms_in_group": "Skrýt místnosti ve skupině {group}, do kterých jste se nepřipojili",

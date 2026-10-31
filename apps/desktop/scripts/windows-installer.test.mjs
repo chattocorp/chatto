@@ -79,6 +79,15 @@ test('stable and beta installers share identity, executable, and profile-preserv
   assert.equal(beta.publish, null);
   assert.equal(beta.nsis.differentialPackage, false);
   assert.equal(beta.nsis.artifactName, 'chatto-desktop_0.5.0-beta.21_Windows_X64_Setup.exe');
+  assert.deepEqual(beta.win.target, [
+    { target: 'nsis', arch: ['x64'] },
+    { target: 'msi', arch: ['x64'] }
+  ]);
+  assert.equal(beta.msi.upgradeCode, stable.msi.upgradeCode);
+  assert.equal(beta.msi.upgradeCode, 'D3DBF560-E6EB-4BD1-ABFE-D3C01F63BB54');
+  assert.equal(beta.msi.perMachine, true);
+  assert.equal(beta.msi.runAfterFinish, false);
+  assert.equal(beta.msi.artifactName, 'chatto-desktop_0.5.0-beta.21_Windows_X64_Setup.msi');
 });
 
 test('release signing requires the provided hook and SHA-256; CI is explicitly unsigned', () => {

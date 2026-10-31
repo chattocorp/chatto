@@ -331,7 +331,7 @@
 
 {#if status === 'COMPLETED' && selectedVariant && autoLoop}
   <!-- Converted GIFs use a native <video> for reliable autoplay + loop behavior. -->
-  <div class="embed-frame" style={frameStyle}>
+  <div class="my-1.5 preview-frame" style={frameStyle}>
     <video
       autoplay
       loop
@@ -340,14 +340,14 @@
       data-autoloop
       onerror={handlePlayerError}
       onloadedmetadata={handleVideoMetadata}
-      class="block h-full w-full object-contain"
+      class="block h-full w-full preview-content object-contain"
       aria-describedby={describedBy}
     >
       <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
     </video>
   </div>
 {:else if status === 'COMPLETED' && playbackSource && elementsReady}
-  <div class="embed-frame" style={frameStyle}>
+  <div class="my-1.5 preview-frame" style={frameStyle}>
     <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
     <media-player
       {@attach attachMediaPlayer}
@@ -356,7 +356,7 @@
       stream-type="on-demand"
       playsinline
       onerror={handlePlayerError}
-      class="block h-full w-full"
+      class="block h-full w-full preview-content"
       aria-describedby={describedBy}
     >
       <media-provider>
@@ -392,13 +392,13 @@
     </media-player>
   </div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
-  <div class="embed-frame" style={frameStyle}>
+  <div class="my-1.5 preview-frame" style={frameStyle}>
     <VideoProcessingPlaceholder
       label={status === 'PENDING' ? m('media.video_queued') : m('media.video_processing')}
     />
   </div>
 {:else if status === 'FAILED'}
-  <div class="embed-frame flex items-center gap-3 px-4 py-3" style={frameStyle}>
+  <div class="my-1.5 flex items-center gap-3 preview-frame px-4 py-3" style={frameStyle}>
     <span aria-hidden="true" class="iconify icon-[uil--exclamation-triangle] text-lg text-danger"
     ></span>
     <div class="text-sm text-muted">
@@ -409,7 +409,7 @@
     </div>
   </div>
 {:else}
-  <div class="embed-frame flex items-center gap-2 px-3 py-2">
+  <div class="my-1.5 flex items-center gap-2 preview-frame px-3 py-2">
     <span aria-hidden="true" class="iconify icon-[uil--video] text-lg text-muted"></span>
     <span class="text-sm">{filename}</span>
   </div>

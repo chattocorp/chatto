@@ -14,7 +14,7 @@ describe('settings redirect routes', () => {
   beforeEach(() => mocks.redirect.mockReset());
 
   it.each([
-    ['settings root', settingsRootLoad, '/chat/remote/settings/appearance'],
+    ['settings root', settingsRootLoad, '/chat/remote/settings/overview'],
     ['0.4 preferences', legacyTimeLoad, '/chat/remote/settings/time']
   ])('redirects %s to its named route', (_name, load, destination) => {
     load({

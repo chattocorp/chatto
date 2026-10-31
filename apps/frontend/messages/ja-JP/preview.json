@@ -1,5 +1,6 @@
 {
   "preview": {
+    "hover_unavailable": "このリンクのプレビューはありません。",
     "dismiss": "プレビューを閉じる",
     "delete": "プレビューを削除",
     "open_link": "リンクを開く",

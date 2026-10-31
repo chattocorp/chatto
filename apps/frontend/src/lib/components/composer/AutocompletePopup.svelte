@@ -87,6 +87,7 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
   });
 
   export function handleKeyDown(event: KeyboardEvent): boolean {
+    if (event.isComposing) return false;
     if (items.length === 0) return false;
 
     switch (event.key) {
@@ -119,7 +120,10 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
     <FloatingPopover {anchor} anchorPlacement="top">
       <div
         data-testid={testid}
-        class={['flex max-h-80 w-[var(--autocomplete-anchor-width)] flex-col menu', className]}
+        class={[
+          'flex max-h-80 w-[var(--autocomplete-anchor-width)] flex-col menu text-sm md:w-80',
+          className
+        ]}
         style:--autocomplete-anchor-width={`${anchor.width}px`}
       >
         <!-- Scroll inside the section so the frame's inset and border stay visible. -->

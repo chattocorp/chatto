@@ -14,9 +14,11 @@ Include this component once in the application root so signed-out pages also cle
 <script lang="ts">
   import { serverRegistry, eventBusManager } from '$lib/client';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
-  import { playNotificationSound } from '$lib/audio/notificationSounds';
-  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
+  import {
+    eligibleNotificationAlerts,
+    notificationAlertsMuted,
+    playNotificationAlertSound
+  } from '$lib/notifications/notificationAlerts';
   import {
     listenForAppBadgeRefresh,
     updateAppBadge,
@@ -26,10 +28,18 @@ Include this component once in the application root so signed-out pages also cle
   import Interval from '$lib/lifecycle/Interval.svelte';
   import PushNotificationSync from './PushNotificationSync.svelte';
   import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
-  import { presencePreferences } from '$lib/state/server/presencePreference';
-  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import {
+    desktopNotifications,
+    hasDesktopNotifications,
+    listenForDesktopNotificationClicks
+  } from '$lib/desktop/notifications.svelte';
+  import DesktopNotificationSync from './DesktopNotificationSync.svelte';
+
+  $effect(() => listenForDesktopNotificationClicks());
 
   const reconciliationIntervalMs = 60_000;
+  // Skip only near-simultaneous reads, so a missed hint still recovers on the next minute tick.
+  const recentNotificationReadMs = 5_000;
   const rememberedNotificationIds = 256;
 
   // Subscribe to notification events on all authenticated instance buses.
@@ -44,16 +54,7 @@ Include this component once in the application root so signed-out pages also cle
       const bus = eventBusManager.getBus(instance.id);
       if (!bus) continue;
       const handledNotificationIds: string[] = [];
-      const notificationPreferences = getServerNotificationPreferences(instance.id);
-      const viewerId = stores.viewerId;
       const accountId = stores.accountId;
-      function isDoNotDisturb() {
-        return (
-          viewerId &&
-          presencePreferences.get({ serverId: instance.id, userId: viewerId }).status ===
-            PresenceStatus.DO_NOT_DISTURB
-        );
-      }
       let active = true;
       let checkingSound = false;
       const pendingCreations: string[] = [];
@@ -69,12 +70,12 @@ Include this component once in the application root so signed-out pages also cle
           // A snapshot reset can cancel this read.
         }
         // Ambient notifications keep their badges but never trigger local audio.
-        const hasAudibleCreation = stores.notifications.occurrences.some(
-          (row) =>
-            pendingCreations.includes(row.id) &&
-            serverUi(stores).attention.needsAttention(row) &&
-            row.attentionLevel === NotificationAttentionLevel.IMPORTANT
-        );
+        const hasAudibleCreation =
+          eligibleNotificationAlerts(
+            instance.id,
+            stores,
+            stores.notifications.occurrences.filter((row) => pendingCreations.includes(row.id))
+          ).length > 0;
         pendingCreations.length = 0;
         checkingSound = false;
         if (
@@ -82,14 +83,12 @@ Include this component once in the application root so signed-out pages also cle
           !active ||
           !stores.isAuthenticated ||
           stores.accountId !== accountId ||
-          isDoNotDisturb() ||
           !hasAudibleCreation
         )
           return;
-        playNotificationSound(
-          notificationPreferences.notificationSound,
-          notificationPreferences.notificationSoundFilters
-        );
+        // Desktop alerts own their sound for both live and polled updates.
+        if (hasDesktopNotifications() && desktopNotifications.enabled) return;
+        playNotificationAlertSound(instance.id);
       }
 
       const handler: ProjectionHandler = (event) => {
@@ -101,7 +100,7 @@ Include this component once in the application root so signed-out pages also cle
         handledNotificationIds.push(notificationId);
         if (handledNotificationIds.length > rememberedNotificationIds)
           handledNotificationIds.shift();
-        if (isDoNotDisturb()) return;
+        if (notificationAlertsMuted(instance.id, stores)) return;
         pendingCreations.push(notificationId);
         if (pendingCreations.length > rememberedNotificationIds) pendingCreations.shift();
         // Several causes can describe one activity. Play once per completed batch.
@@ -155,6 +154,9 @@ Include this component once in the application root so signed-out pages also cle
   {#if stores.isAuthenticated}
     {#if stores.accountId}
       {#key stores.accountId}
+        {#if hasDesktopNotifications()}
+          <DesktopNotificationSync store={stores} />
+        {/if}
         <PushNotificationSync
           serverUrl={instance.url}
           recipientId={stores.accountId}
@@ -165,7 +167,7 @@ Include this component once in the application root so signed-out pages also cle
     <!-- Core NATS invalidations are latency hints; the notification stream is authoritative. -->
     <Interval
       milliseconds={reconciliationIntervalMs}
-      ontick={() => void stores.notifications.reconcile()}
+      ontick={() => void stores.notifications.reconcile(recentNotificationReadMs)}
     />
 
     <!-- Stream expiry has no per-message projection callback. -->

@@ -1,5 +1,6 @@
 {
   "message_preview": {
+    "message_from": "{name} からのメッセージ",
     "attachments_count": { "other": "{count} 添付ファイル" },
     "attachment_image": "画像",
     "attachment_video": "動画",

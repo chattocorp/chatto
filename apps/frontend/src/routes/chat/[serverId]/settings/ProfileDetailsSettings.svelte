@@ -8,7 +8,7 @@
   import { usernameChangeUnavailableMessage } from '$lib/actionAvailability';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { Code, ConnectError } from '@connectrpc/connect';
-  import type { UserAPI } from '@chatto/client/api/users';
+  import type { UpdateUserProfileInput, UserAPI } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
@@ -45,10 +45,8 @@
   let error = $state('');
   let successMessage = $state('');
   let localLastLoginChange = $state<Date | null>(null);
-  let showLoginConfirm = $state(false);
-  let pendingDisplayName = $state<string | undefined>(undefined);
-  let pendingLogin = $state<string | undefined>(undefined);
-  let pendingBio = $state<string | undefined>(undefined);
+  // The validated patch awaiting username-change confirmation.
+  let pendingUpdate = $state<UpdateUserProfileInput | null>(null);
   let now = $state(Date.now());
 
   const viewerLastLoginChange = $derived(
@@ -79,17 +77,16 @@
   async function handleSubmit(event: Event) {
     event.preventDefault();
 
-    let normalizedDisplayName: string | undefined;
+    const input: UpdateUserProfileInput = {};
     if (displayNameModified) {
       const validation = validateAndNormalizeDisplayName(displayName);
       if (!validation.valid) {
         error = validation.error ?? m('settings.profile.display_name.invalid');
         return;
       }
-      normalizedDisplayName = validation.normalized;
+      input.displayName = validation.normalized;
     }
 
-    let normalizedLogin: string | undefined;
     if (loginModified) {
       if (!canChangeUsername(usernameAvailability)) {
         error = usernameChangeUnavailableMessage(usernameAvailability);
@@ -100,69 +97,55 @@
         error = validation.error ?? m('settings.profile.username.invalid');
         return;
       }
-      normalizedLogin = validation.normalized;
+      input.login = validation.normalized;
     }
 
-    let normalizedBio: string | undefined;
     if (bioModified) {
       const validation = validateAndNormalizeBio(bio);
       if (!validation.valid) {
         error = validation.error ?? m('settings.profile.save_failed');
         return;
       }
-      normalizedBio = validation.normalized;
+      input.bio = validation.normalized;
     }
 
-    if (!normalizedDisplayName && !normalizedLogin && normalizedBio === undefined) return;
+    if (!input.displayName && !input.login && input.bio === undefined) return;
 
-    if (normalizedLogin) {
-      pendingDisplayName = normalizedDisplayName;
-      pendingLogin = normalizedLogin;
-      pendingBio = normalizedBio;
-      showLoginConfirm = true;
+    if (input.login) {
+      pendingUpdate = input;
       return;
     }
 
-    await saveProfile(normalizedDisplayName, undefined, normalizedBio);
+    await saveProfile(input);
   }
 
   async function confirmLoginChange() {
-    showLoginConfirm = false;
-    await saveProfile(pendingDisplayName, pendingLogin, pendingBio);
-    pendingDisplayName = undefined;
-    pendingLogin = undefined;
+    if (!pendingUpdate) return;
+    const input = pendingUpdate;
+    pendingUpdate = null;
+    await saveProfile(input);
   }
 
-  async function saveProfile(
-    normalizedDisplayName: string | undefined,
-    normalizedLogin: string | undefined,
-    normalizedBio?: string
-  ) {
+  async function saveProfile(input: UpdateUserProfileInput) {
     const userId = serverScope.store.accountId;
     if (!userId) return;
     // Case-only renames and account-manager renames do not start the cooldown.
     const startedCooldown =
-      !!normalizedLogin &&
-      !canBypassLoginCooldown &&
-      startsLoginCooldown(baseline.login, normalizedLogin);
+      !!input.login && !canBypassLoginCooldown && startsLoginCooldown(baseline.login, input.login);
     isSaving = true;
     error = '';
     successMessage = '';
 
     try {
-      const refreshActions = !!normalizedLogin && !!currentUser.user?.actions;
-      const updated = await getUserAPI().updateUserProfile(userId, {
-        displayName: normalizedDisplayName,
-        login: normalizedLogin,
-        bio: normalizedBio
-      });
+      const refreshActions = !!input.login && !!currentUser.user?.actions;
+      const updated = await getUserAPI().updateUserProfile(userId, input);
 
       currentUser.update(userId, (user) => ({
         displayName: updated.displayName,
         login: updated.login,
         bio: updated.bio ?? '',
         lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange,
-        actions: normalizedLogin ? undefined : user.actions
+        actions: input.login ? undefined : user.actions
       }));
 
       baseline = {
@@ -241,19 +224,20 @@
   </Form>
 </Panel>
 
-<ConfirmDialog
-  bind:visible={showLoginConfirm}
-  title={m('settings.profile.username.confirm_title')}
-  tone="info"
-  actionLabel={m('settings.profile.username.confirm_button')}
-  actionIcon="iconify icon-[uil--check]"
-  onconfirm={confirmLoginChange}
-  onclose={() => (showLoginConfirm = false)}
->
-  <p>
-    {m('settings.profile.username.confirm_prompt', { login: pendingLogin ?? '' })}
-  </p>
-  {#if !canBypassLoginCooldown}
-    <p class="mt-3">{m('settings.profile.username.confirm_cooldown')}</p>
-  {/if}
-</ConfirmDialog>
+{#if pendingUpdate}
+  <ConfirmDialog
+    title={m('settings.profile.username.confirm_title')}
+    tone="info"
+    actionLabel={m('settings.profile.username.confirm_button')}
+    actionIcon="iconify icon-[uil--check]"
+    onconfirm={confirmLoginChange}
+    onclose={() => (pendingUpdate = null)}
+  >
+    <p>
+      {m('settings.profile.username.confirm_prompt', { login: pendingUpdate.login ?? '' })}
+    </p>
+    {#if !canBypassLoginCooldown}
+      <p class="mt-3">{m('settings.profile.username.confirm_cooldown')}</p>
+    {/if}
+  </ConfirmDialog>
+{/if}

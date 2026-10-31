@@ -535,6 +535,9 @@ function initialize(): void {
       if (!/^mailto:/i.test(href)) {
         const target = renderedLinkTarget(href);
         token.attrSet('data-content-href', href);
+        if (token.markup === 'linkify' || token.markup === 'autolink') {
+          token.attrSet('data-entity-autolink', '');
+        }
         token.attrSet('href', target.href);
         if (target.target) token.attrSet('target', target.target);
         if (target.rel) token.attrSet('rel', target.rel);

@@ -35,6 +35,12 @@ function shortcodes(container: HTMLElement): string[] {
 }
 
 describe('EmojiAutocomplete', () => {
+  it('accepts a fuzzy shortcode without separators', () => {
+    const onSelect = vi.fn();
+    const { component } = renderAutocomplete({ query: 'headshakingvertically', onSelect });
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(onSelect).toHaveBeenCalledWith('🙂‍↕️', 'head_shaking_vertically', 'Enter');
+  });
   it('opens variants for the chosen result and selects a tone with the keyboard', () => {
     const onSelect = vi.fn();
     const { container, component } = renderAutocomplete({ query: 'Thum', onSelect });
@@ -51,7 +57,7 @@ describe('EmojiAutocomplete', () => {
     }
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
     expect(onSelect).toHaveBeenCalledOnce();
-    expect(onSelect).toHaveBeenCalledWith('👎🏽', '-1::skin-tone-4');
+    expect(onSelect).toHaveBeenCalledWith('👎🏽', '-1::skin-tone-4', 'Enter');
     expect(emojiPreferences.tone).toBe(4);
   });
 
@@ -59,7 +65,7 @@ describe('EmojiAutocomplete', () => {
     const onSelect = vi.fn();
     const { component } = renderAutocomplete({ query: 'smile', onSelect });
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
-    expect(onSelect).toHaveBeenCalledExactlyOnceWith('😄', 'smile');
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('😄', 'smile', 'Enter');
   });
   it('inserts a variant without moving focus or the editor cursor before the callback', async () => {
     const editor = document.createElement('input');
@@ -76,7 +82,7 @@ describe('EmojiAutocomplete', () => {
       expect(document.activeElement).toBe(editor);
       expect(editor.selectionStart).toBe(5);
       expect(onSelect).toHaveBeenCalledOnce();
-      expect(onSelect).toHaveBeenCalledWith('👋🏿', 'wave::skin-tone-6');
+      expect(onSelect).toHaveBeenCalledWith('👋🏿', 'wave::skin-tone-6', 'click');
     } finally {
       editor.remove();
     }
@@ -94,7 +100,7 @@ describe('EmojiAutocomplete', () => {
     expect(container.querySelector('.menu-item-active')?.textContent).toContain('👋🏾');
     expect(onSelect).not.toHaveBeenCalled();
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
-    expect(onSelect).toHaveBeenCalledWith('👋🏾', 'wave::skin-tone-5');
+    expect(onSelect).toHaveBeenCalledWith('👋🏾', 'wave::skin-tone-5', 'Tab');
   });
   it('Escape returns to the selected emoji without inserting or changing the saved tone', () => {
     const onSelect = vi.fn();
@@ -125,7 +131,7 @@ describe('EmojiAutocomplete', () => {
     await rerender({ query: 'fire', onSelect, onClose: () => {} });
     expect(shortcodes(container)[0]).toBe('fire');
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
-    expect(onSelect).toHaveBeenCalledWith('🔥', 'fire');
+    expect(onSelect).toHaveBeenCalledWith('🔥', 'fire', 'Enter');
   });
   describe('search', () => {
     it('renders nothing when no emoji matches', () => {

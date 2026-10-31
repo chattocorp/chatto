@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Convidar pessoas",
+      "create": "Criar código",
+      "description": "Partilhe o código e o endereço do servidor. Permite criar uma conta e expira após sete dias.",
+      "once": "Copie este código antes de fechar. Não poderá voltar a vê-lo."
+    },
     "privileged_mode": {
       "enable": "Ativar modo privilegiado",
       "disable": "Desativar modo privilegiado",
@@ -47,6 +53,7 @@
       "administration": "Administração do servidor"
     },
     "user_menu": {
+      "edit_profile": "Editar perfil",
       "profile": "Perfil de utilizador",
       "send_message": "Abrir conversa",
       "view_profile": "Ver perfil",

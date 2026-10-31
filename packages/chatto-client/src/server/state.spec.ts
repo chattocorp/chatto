@@ -104,11 +104,29 @@ describe('ServerInfoState.init()', () => {
     const second = state.init();
     expect(loader).toHaveBeenCalledTimes(1);
 
-    resolve(publicServerInfo());
+    const info = publicServerInfo({ setupRequired: true });
+    resolve(info);
     await Promise.all([first, second]);
+    expect(state.discovery).toEqual(info);
 
     expect(state.name).toBe('Acme');
     expect(state.loading).toBe(false);
+  });
+
+  it('shares failure and permits a fresh discovery retry', async () => {
+    const info = publicServerInfo();
+    const loader = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(info);
+    const state = new ServerInfoState('https://acme.test', loader);
+
+    await Promise.all([state.init(), state.init()]);
+    expect(state.discovery).toBeNull();
+    expect(loader).toHaveBeenCalledOnce();
+    expect(state.loading).toBe(false);
+    expect(state.error).toBeInstanceOf(Error);
+    await state.init();
+    expect(state.discovery).toEqual(info);
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(state.error).toBeNull();
   });
 
   it('loads and replaces configured providers from public discovery', async () => {

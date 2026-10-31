@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Administrer passordet ditt, e-postadressene dine og påloggingsmetodene.",
+        "profile": "Oppdater navnet ditt, avataren din og profilopplysningene dine.",
+        "time": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
+        "notifications": "Konfigurer hvordan du mottar varsler",
+        "language": "Velg språk og regionale ordlyd for denne nettleseren.",
+        "bots": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre",
+        "general": "Serveridentitet, merkevarebygging og meldinger",
+        "neighbors": "Promoter vennlige Chatto-servere i den offentlige katalogen din",
+        "members": "Se og administrer tjenermedlemmer og deres roller",
+        "invitations": "Opprett og administrer lenker som slipper inn nye kontoer.",
+        "rooms": "Opprett, rediger, organiser og arkiver rom",
+        "moderation": "Se aktive utestengelser fra rom",
+        "permissions": "Administrer standarder for roller for hele serveren",
+        "security": "Registreringsbegrensninger og kontobeskyttelse",
+        "appearance": "Tilpass appen med farger, temaer og visningsvalg.",
+        "composer": "Velg meldingsredigerer og hvordan du sender meldinger.",
+        "voice": "Sett opp mikrofon, høyttalere og samtaleinnstillinger.",
+        "system": "Kontroller serverstatus, lagring og bakgrunnsoppgaver.",
+        "event_log": "Utforsk serverhendelser og undersøk endringer."
+      },
+      "title": "Oversikt",
+      "shield_notice": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å bruke de ekstra tillatelsene dine på denne serveren."
+    },
     "nav": {
       "title": "Innstillinger",
       "back_to_server": "Tilbake til server",

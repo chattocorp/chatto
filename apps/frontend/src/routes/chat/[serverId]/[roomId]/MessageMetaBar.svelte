@@ -9,7 +9,8 @@ context-menu, and touch surfaces. Thread navigation and tooltip state remain
 local to the footer.
 -->
 <script lang="ts">
-  import { formatAccountName } from '@chatto/client/timeline/accountName';
+  import { accountNameToken, isBotAccount } from '@chatto/client/timeline/accountName';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { conversationPath } from '$lib/navigation/conversationPath';
   import { on } from 'svelte/events';
@@ -347,10 +348,14 @@ local to the footer.
   {#if tooltipReaction}
     {@const tooltipUsers = reactionTooltipUsers(tooltipReaction)}
     {@const glyph = getEmojiByName(tooltipReaction.emoji)}
-    {@const names = tooltipUsers.users.map((user) => formatAccountName(user.displayName, user))}
-    {@const usersText = new Intl.ListFormat(getReactiveLocale(), { type: 'conjunction' }).format(
-      tooltipUsers.remaining ? [...names, `+${tooltipUsers.remaining}`] : names
-    )}
+    {@const accounts = tooltipUsers.users.map((user) => ({
+      name: user.displayName,
+      identity: user
+    }))}
+    {@const names = accounts.map((_, index) => accountNameToken(index))}
+    {@const userParts = new Intl.ListFormat(getReactiveLocale(), {
+      type: 'conjunction'
+    }).formatToParts(tooltipUsers.remaining ? [...names, `+${tooltipUsers.remaining}`] : names)}
     <!-- Split only translation placeholders, before inserting any user-controlled text. -->
     {@const sentenceParts = m('emoji.reaction_summary', {
       emoji: '{emoji}',
@@ -370,7 +375,14 @@ local to the footer.
             >
           {:else if part === '{users}'}<span
               class="break-words"
-              data-testid="reaction-tooltip-users">{usersText}</span
+              data-testid="reaction-tooltip-users"
+              >{#each userParts as userPart, partIndex (partIndex)}{@const account =
+                  accounts[
+                    names.indexOf(userPart.value)
+                  ]}{#if userPart.type === 'element' && account}{#if isBotAccount(account.identity)}<AccountName
+                      name={account.name}
+                      identity={account.identity}
+                    />{:else}<bdi>{account.name}</bdi>{/if}{:else}{userPart.value}{/if}{/each}</span
             >
           {:else}{part}{/if}
         {/each}

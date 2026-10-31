@@ -167,7 +167,7 @@ Result of reading one durable EVT entry.
 
 ## AdminInvitationCodeService
 
-Issues and manages registration codes. All methods require user.invite.
+Issues and manages registration codes. All methods require user.manage-invites.
 External systems can issue codes with an authorized API credential.
 
 <a id="chatto-admin-v1-AdminInvitationCodeService-ListInvitationCodes"></a>
@@ -2480,7 +2480,7 @@ the code can use it; it is not bound to an email address or recipient.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | No field description provided. |
-| `code` | `string` | Recoverable capability, returned only to callers with user.invite. Never log it. |
+| `code` | `string` | Recoverable capability, returned only to callers with user.manage-invites. Never log it. |
 | `created_by` | `string` | No field description provided. |
 | `created_at` | `google.protobuf.Timestamp` | No field description provided. |
 | `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |

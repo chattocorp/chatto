@@ -12,7 +12,7 @@
 
 <button
   type="button"
-  class="embed-frame"
+  class="my-1.5 preview-frame"
   data-testid="message-attachments-video-player"
   data-hls-url={hlsUrl ?? ''}
   data-auto-loop={autoLoop}

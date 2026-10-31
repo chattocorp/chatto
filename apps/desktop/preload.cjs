@@ -53,6 +53,22 @@ ipcRenderer.on(gameCapturePublisherChannel, (event, message) => {
 contextBridge.exposeInMainWorld(
   'chattoDesktop',
   Object.freeze({
+    notifications: Object.freeze({
+      show: (request) =>
+        ipcRenderer.invoke('chatto:notifications:show', {
+          id: request?.id,
+          title: request?.title,
+          body: request?.body
+        }),
+      clear: (ids) => ipcRenderer.send('chatto:notifications:clear', ids),
+      onClick: (callback) => {
+        const listener = (_event, id) => {
+          if (typeof id === 'string') callback(id);
+        };
+        ipcRenderer.on('chatto:notifications:click', listener);
+        return () => ipcRenderer.removeListener('chatto:notifications:click', listener);
+      }
+    }),
     passwordLogin: (request) =>
       ipcRenderer.invoke('chatto:password-login', {
         serverUrl: request?.serverUrl,

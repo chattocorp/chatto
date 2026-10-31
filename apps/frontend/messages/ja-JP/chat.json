@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "メンバーを招待",
+      "create": "コードを作成",
+      "description": "コードとサーバーのアドレスを共有してください。1つのアカウントを作成でき、7日後に期限切れになります。",
+      "once": "閉じる前にこのコードをコピーしてください。再表示はできません。"
+    },
     "privileged_mode": {
       "enable": "特権モードを有効にする",
       "disable": "特権モードを無効にする",
@@ -47,6 +53,7 @@
       "administration": "サーバー管理"
     },
     "user_menu": {
+      "edit_profile": "プロフィールを編集",
       "profile": "ユーザープロフィール",
       "send_message": "会話を開く",
       "view_profile": "プロフィールを見る",

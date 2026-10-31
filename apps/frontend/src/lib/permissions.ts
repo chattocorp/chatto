@@ -169,6 +169,10 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('permissions.descriptions.user_invite'),
     help: () => m('rbac.permission_help.user_invite')
   },
+  'user.manage-invites': {
+    description: () => m('permissions.descriptions.user_manage_invites'),
+    help: () => m('rbac.permission_help.user_manage_invites')
+  },
   'user.manage-accounts': {
     description: () => m('permissions.descriptions.user_manage_accounts'),
     help: () => m('rbac.permission_help.user_manage_accounts')

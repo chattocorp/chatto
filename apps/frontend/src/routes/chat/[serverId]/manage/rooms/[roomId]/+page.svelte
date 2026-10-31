@@ -9,9 +9,8 @@ change the settings goes to the Members section instead.
   import { errorMessage } from '$lib/utils/errorMessage';
   import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { beforeNavigate, goto } from '$app/navigation';
-  import type { BeforeNavigate } from '@sveltejs/kit';
-  import { base, resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { m } from '$lib/i18n/messages';
@@ -21,7 +20,7 @@ change the settings goes to the Members section instead.
   import { createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { toast } from '$lib/ui/toast';
-  import { ConfirmDialog } from '$lib/ui';
+  import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
   import { applyRoomSettingsResponse, type RoomSettingsPatch } from './roomSettings';
   import RoomNameSettingsPanel from './RoomNameSettingsPanel.svelte';
   import RoomSlowModeSettingsPanel from './RoomSlowModeSettingsPanel.svelte';
@@ -39,65 +38,6 @@ change the settings goes to the Members section instead.
   let slowModeSection = $state<SettingsSection>();
   let threadingSection = $state<SettingsSection>();
   let membershipEventsSection = $state<SettingsSection>();
-  let pendingNavigation = $state<BeforeNavigate | null>(null);
-  // Approval applies only to the resumed destination, not to later navigation attempts.
-  let approvedDestination: string | null = null;
-  let approvedUnload = false;
-
-  beforeNavigate((navigation) => {
-    const { cancel, type, to } = navigation;
-    if (type === 'leave' && approvedUnload) {
-      approvedUnload = false;
-      return;
-    }
-    if (to && approvedDestination === to.url.href) {
-      approvedDestination = null;
-      return;
-    }
-    // Permission loss must still be able to remove this editor and its private drafts.
-    if (!detail.canManageRoom) {
-      pendingNavigation = null;
-      return;
-    }
-    const dirty = [
-      nameSection,
-      visibilitySection,
-      slowModeSection,
-      threadingSection,
-      membershipEventsSection
-    ].some((section) => section?.hasChanges());
-    if (!dirty) return;
-    cancel();
-    // Closing or reloading a tab must use the browser's native unload warning.
-    if (type !== 'leave' && to) pendingNavigation ??= navigation;
-  });
-
-  /** Resumes the selected destination without prompting twice or adding a back-history entry. */
-  async function discardAndLeave(): Promise<void> {
-    const navigation = pendingNavigation;
-    pendingNavigation = null;
-    if (!navigation?.to) return;
-    if (navigation.type === 'popstate' && navigation.delta) {
-      approvedDestination = navigation.to.url.href;
-      window.history.go(navigation.delta);
-    } else if (navigation.willUnload) {
-      approvedUnload = true;
-      window.location.assign(navigation.to.url.href);
-    } else {
-      approvedDestination = navigation.to.url.href;
-      try {
-        const { pathname, search, hash } = navigation.to.url;
-        // The captured URL already contains the deployment base. Resolve the app-relative path.
-        const path = pathname.slice(base.length) || '/';
-        await goto(resolve(`${path}${search}${hash}` as '/'));
-      } catch {
-        // Another navigation guard can still cancel. Keep this page's drafts intact.
-      } finally {
-        approvedDestination = null;
-      }
-    }
-  }
-
   type UpdateRoomVariables = RoomMutationScope & { patch: RoomSettingsPatch };
 
   // Only managers can change the settings. Other viewers of the page may
@@ -162,18 +102,19 @@ change the settings goes to the Members section instead.
   }
 </script>
 
+<UnsavedChangesGuard
+  enabled={detail.canManageRoom}
+  hasChanges={() =>
+    [
+      nameSection,
+      visibilitySection,
+      slowModeSection,
+      threadingSection,
+      membershipEventsSection
+    ].some((section) => section?.hasChanges())}
+/>
+
 {#if detail.canManageRoom}
-  {#if pendingNavigation}
-    <ConfirmDialog
-      title={m('admin.rooms_admin.settings.discard_changes')}
-      tone="warning"
-      actionLabel={m('admin.rooms_admin.settings.discard_changes')}
-      onconfirm={discardAndLeave}
-      onclose={() => (pendingNavigation = null)}
-    >
-      {m('admin.rooms_admin.settings.unsaved_changes')}
-    </ConfirmDialog>
-  {/if}
   {#key detail.room.id}
     <RoomNameSettingsPanel bind:this={nameSection} room={detail.room} onSave={saveSettings} />
     <RoomVisibilitySettingsPanel

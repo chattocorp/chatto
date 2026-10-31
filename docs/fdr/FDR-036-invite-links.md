@@ -1,7 +1,7 @@
 # FDR-036: Invitation Codes
 
 **Status:** Active
-**Last reviewed:** 2026-10-29
+**Last reviewed:** 2026-10-30
 
 ## Overview
 
@@ -46,6 +46,19 @@ the API to integrate code issuance with an external system.
   these controls. Existing codes remain unchanged.
 - Administrators can list, read, create, copy, and revoke codes. The API
   offers the same operations. Chatto does not send codes to recipients.
+- Members with `user.invite` select **Invite people** in the server sidebar
+  when public discovery reports invite-only registration. The action is hidden
+  for open registration and while the policy is unknown.
+  A modal creates one code with a seven-day expiry and shows it with Copy.
+  Closing the modal discards the code. Back, Forward, reload, permission loss,
+  and account changes do not recover it. Members cannot list, retrieve, or
+  revoke codes, including their own. No code is stored in browser storage.
+- Administrators see member-created codes and their creators in Registration.
+  Member issuance does not accept a note or custom expiry. The API can still
+  create a code while registration is open; signup then ignores it.
+  Issuance has no automatic retry: a lost response can leave a code visible
+  only to managers. Changing the creator's permissions or account state does
+  not revoke an issued code; managers can revoke it explicitly.
 - Expired, used, revoked, malformed, and unknown codes show the same public
   error. A code is checked again when the account is created.
 - Changing the server secret invalidates distributed codes. Administrators
@@ -80,7 +93,7 @@ the same code first.
 
 ### 4. Administrators can recover codes
 
-**Decision:** Holders of `user.invite` can copy active codes again.
+**Decision:** Holders of `user.manage-invites` can copy active codes again.
 **Why:** Administrators choose their own distribution method and may need to
 send a code again. ADR-070 avoids storing raw codes in durable history.
 **Tradeoff:** This permission grants access to all active codes.
@@ -95,7 +108,15 @@ send a code again. ADR-070 avoids storing raw codes in durable history.
 - `server.manage` permits admission changes. Account creation checks the current
   policy under stream-wide EVT OCC, including after a retry. A pending signup
   has no exemption. When the policy is open, a supplied code is not consumed.
-- `user.invite` permits code management. Existing RBAC grants remain in use.
+- `user.invite` permits member issuance without privileged mode.
+- `user.manage-invites` permits all administrative code operations and requires
+  privileged mode for human sessions. It does not include `user.invite`.
+- Fresh bootstrap grants both permissions to admins and neither to everyone.
+  On upgrade, current server-scope `user.invite` allows and denies are copied
+  once to `user.manage-invites`. The original decisions remain. Any historical
+  decision for the new permission closes this upgrade gate. An empty upgrade
+  records an explicit clear for everyone to prevent future member grants from
+  becoming management grants after restart. The copy uses whole-RBAC OCC.
 
 ## Related
 

@@ -43,6 +43,11 @@ async function type(input: HTMLInputElement, value: string) {
 }
 
 describe('EmojiPicker', () => {
+  it('finds fuzzy names in the full picker search', async () => {
+    const { container } = renderPicker();
+    await type(searchInput(container), 'headshakingvertically');
+    expect(container.querySelector('button[title="head_shaking_vertically"]')).not.toBeNull();
+  });
   it('fits all six touch targets inside a narrow sheet', async () => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
     const { container } = renderPicker();

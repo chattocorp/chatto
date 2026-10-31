@@ -1,4 +1,4 @@
-import { fuzzyMatch } from '$lib/fuzzyMatch';
+import { fuzzyMatch, fuzzyMatchAny } from '$lib/fuzzyMatch';
 
 export type Searchable = {
   label: string;
@@ -27,14 +27,10 @@ export function scoreItem(query: string, item: Searchable): number | null {
 
   let total = 0;
   for (const token of tokens) {
-    const labelScore = fuzzyMatch(token, item.label) ?? 0;
+    const identityScore = fuzzyMatchAny(token, [item.label, ...(item.searchTerms ?? [])]) ?? 0;
     const detailScore = (fuzzyMatch(token, item.detail) ?? 0) * DETAIL_WEIGHT;
     const serverScore = (fuzzyMatch(token, item.serverName) ?? 0) * INSTANCE_WEIGHT;
-    const identityScore = Math.max(
-      0,
-      ...(item.searchTerms ?? []).map((term) => fuzzyMatch(token, term) ?? 0)
-    );
-    const tokenBest = Math.max(labelScore, identityScore, detailScore, serverScore);
+    const tokenBest = Math.max(identityScore, detailScore, serverScore);
     if (tokenBest === 0) return null;
     total += tokenBest;
   }

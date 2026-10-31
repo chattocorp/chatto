@@ -9,7 +9,7 @@ Shows matching room members when typing @username in chat input.
 - `members` - Room members to search through
 - `roles` - Mentionable roles
 - `prioritizedUserIds` - Users that rank first among matches, such as thread participants
-- `onSelect` - Callback when a member is selected (receives login and whether Tab was used)
+- `onSelect` - Callback when a member is selected (receives handle and selection key)
 - `onClose` - Callback to close the popup
 -->
 <script lang="ts">
@@ -27,7 +27,7 @@ Shows matching room members when typing @username in chat input.
     roles?: MentionRole[];
     /** Users that rank first among matches, such as thread participants. */
     prioritizedUserIds?: ReadonlySet<string>;
-    onSelect: (handle: string, viaTab: boolean) => void;
+    onSelect: (handle: string, key: string) => void;
     onClose: () => void;
   };
 
@@ -44,7 +44,7 @@ Shows matching room members when typing @username in chat input.
   }
 
   function handleSelect(result: MentionResult, key: string) {
-    onSelect(result.handle, key === 'Tab');
+    onSelect(result.handle, key);
   }
 </script>
 
@@ -52,11 +52,9 @@ Shows matching room members when typing @username in chat input.
   bind:this={popupRef}
   items={results}
   getKey={(r) => `${r.type}:${r.handle}`}
-  selectKeys={['Enter', 'Tab']}
   onSelect={handleSelect}
   {onClose}
   testid="mention-autocomplete"
-  class="md:w-72"
 >
   {#snippet item({ item: result })}
     {#if result.type === 'user'}

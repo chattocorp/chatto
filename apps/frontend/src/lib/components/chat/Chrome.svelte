@@ -13,8 +13,8 @@
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch';
-  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
+  import InvitePeopleControl from './InvitePeopleControl.svelte';
+  import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
   import {
@@ -43,51 +43,6 @@
   const isSettingsMode = $derived(page.url.pathname.startsWith(settingsPrefix));
   const isServerSettingsMode = $derived(isSettingsMode || isManageMode);
 
-  const userPreferenceNavItems = $derived([
-    {
-      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
-      label: m('settings.nav.account'),
-      icon: 'iconify icon-[uil--setting]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment }),
-      label: m('settings.nav.profile'),
-      icon: 'iconify icon-[uil--user]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/time', { serverId: serverSegment }),
-      label: m('settings.preferences.title'),
-      icon: 'iconify icon-[uil--clock]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
-      label: m('settings.nav.notifications'),
-      icon: 'iconify icon-[uil--bell]'
-    }
-  ]);
-  const appPreferenceNavItems = $derived([
-    {
-      href: resolve(DEFAULT_SERVER_SETTINGS_ROUTE, { serverId: serverSegment }),
-      label: m('settings.app_preferences.appearance.title'),
-      icon: 'iconify icon-[uil--palette]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/language', { serverId: serverSegment }),
-      label: m('settings.preferences.language.title'),
-      icon: 'iconify icon-[uil--language]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/composer', { serverId: serverSegment }),
-      label: m('settings.app_preferences.composer.title'),
-      icon: 'iconify icon-[uil--edit]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/voice', { serverId: serverSegment }),
-      label: m('voice.preferences.title'),
-      icon: 'iconify icon-[uil--headphones]'
-    }
-  ]);
-
   // Detect if we're on the server Overview page
   const isHomeActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]/overview', { serverId: serverSegment })
@@ -98,15 +53,12 @@
   // Wait for remote discovery, but allow best-effort feature requests.
   const serverCanConnect = $derived(activeStore.serverInfo.canConnect);
   const messageSearchAvailable = $derived(
-    serverCanConnect &&
-      (serverUi(activeStore).messageSearch.statusError ||
-        (serverUi(activeStore).messageSearch.statusLoaded &&
-          serverUi(activeStore).messageSearch.status.state !== MessageSearchState.DISABLED))
+    serverCanConnect && serverUi(activeStore).messageSearch.availability.showSearchControls
   );
 
   $effect(() => {
     if (serverCanConnect && activeStore.isAuthenticated)
-      void serverUi(activeStore).messageSearch.ensureStatus();
+      void serverUi(activeStore).messageSearch.availability.ensureStatus();
   });
 
   // Detect if we're on the My Threads page
@@ -172,24 +124,14 @@
             ]
           : []
   );
-  const settingsNavGroups = $derived([
+  const settingsNavGroups = $derived(
+    getSettingsNavGroups(serverScope.serverId, serverSegment, managementNavItems)
+  );
+  const overviewNavItems = $derived([
     {
-      label: m('settings.nav.app_preferences'),
-      items: appPreferenceNavItems,
-      persistKey: serverStorageKey(serverScope.serverId, 'collapsible:settings:app-preferences')
-    },
-    {
-      label: m('settings.nav.your_account'),
-      items: userPreferenceNavItems,
-      persistKey: serverStorageKey(serverScope.serverId, 'collapsible:settings:your-account')
-    },
-    {
-      label: m('settings.nav.server_configuration'),
-      items: managementNavItems,
-      persistKey: serverStorageKey(
-        serverScope.serverId,
-        'collapsible:settings:server-configuration'
-      )
+      href: resolve(DEFAULT_SERVER_SETTINGS_ROUTE, { serverId: serverSegment }),
+      label: m('settings.overview.title'),
+      icon: 'iconify icon-[uil--setting]'
     }
   ]);
 </script>
@@ -201,6 +143,7 @@
     <SidebarNav
       title={m('settings.nav.title')}
       subtitle={serverName ?? activeStore.serverInfo.name}
+      items={overviewNavItems}
       groups={settingsNavGroups}
       backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
       backLabel={m('settings.nav.back_to_server')}
@@ -239,6 +182,7 @@
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />
+        <InvitePeopleControl />
       </nav>
 
       <hr class="border-border" />

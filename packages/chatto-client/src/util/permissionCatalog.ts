@@ -191,6 +191,10 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   },
   'user.invite': {
     category: 'user',
+    scopes: ['server']
+  },
+  'user.manage-invites': {
+    category: 'user',
     scopes: ['server'],
     privileged: true
   },

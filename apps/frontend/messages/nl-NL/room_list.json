@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Serverlink kopiëren",
     "copy_room_link": "Kopieer ruimtelink",
     "show_rooms_in_group": "Meer kamers in {group} tonen ({count})",
     "hide_rooms_in_group": "Niet-deelgenomen kamers in {group} verbergen",

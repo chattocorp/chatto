@@ -148,7 +148,7 @@ func (m *InvitationModel) validateIDAt(id string, now time.Time) (InvitationStat
 }
 
 func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
 		return InvitationState{}, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
@@ -162,7 +162,7 @@ func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (Inv
 }
 
 func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
 		return nil, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
@@ -175,11 +175,27 @@ func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]Inv
 const InvitationNoteMaxLength = 250
 
 // CreateInvitationCode grants admission for exactly one new account. Expiry and
-// the manager-only note are optional; all callers must have user.invite permission.
+// the manager-only note are optional; callers must have user.manage-invites.
 func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
+	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
+		return InvitationState{}, err
+	}
+	return c.createInvitationCode(ctx, actorID, expiresAt, note)
+}
+
+// IssueInvitationCode issues a code that expires in seven days. The caller may
+// see this result once, but issuance grants no access to invitation reads.
+// Like admin creation, this is not idempotent and must not be retried automatically.
+func (c *ChattoCore) IssueInvitationCode(ctx context.Context, actorID string) (InvitationState, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
 	}
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+	return c.createInvitationCode(ctx, actorID, &expiresAt, "")
+}
+
+// createInvitationCode is shared by the separately authorized member and admin operations.
+func (c *ChattoCore) createInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
 	if expiresAt != nil && !expiresAt.After(time.Now()) {
 		return InvitationState{}, ErrInvalidArgument
 	}
@@ -208,7 +224,7 @@ func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, e
 }
 
 func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserManageInvites); err != nil {
 		return InvitationState{}, err
 	}
 	agg := evtstream.InvitationAggregate(id)

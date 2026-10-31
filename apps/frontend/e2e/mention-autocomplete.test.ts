@@ -46,8 +46,8 @@ test.describe('Mention autocomplete', () => {
     await roomPage.messageInput.pressSequentially(partialMention);
     await roomPage.messageInput.press('Tab');
 
-    await expect(roomPage.messageInput).toHaveText(`@${user.login} `);
-    await roomPage.messageInput.pressSequentially('hello');
+    await expect(roomPage.messageInput).toHaveText(`@${user.login}`);
+    await roomPage.messageInput.pressSequentially(' hello');
     await roomPage.messageInput.press('Control+Enter');
 
     await expect(

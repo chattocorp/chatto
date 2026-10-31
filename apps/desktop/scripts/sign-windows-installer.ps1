@@ -1,4 +1,4 @@
-# Sign each generated NSIS executable before it is embedded or published.
+# Sign each generated NSIS executable and MSI package before publication.
 param([Parameter(Mandatory)][string]$File)
 $ErrorActionPreference = 'Stop'
 

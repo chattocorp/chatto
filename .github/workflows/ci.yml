@@ -369,13 +369,20 @@ jobs:
           $installer = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.exe)
           if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
           ./tools/test-desktop-windows-installer.ps1 -Installer $installer[0].FullName
+          $msi = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.msi)
+          if ($msi.Count -ne 1) { throw 'Expected one Windows MSI package.' }
+          mise x -- pnpm --filter chatto-desktop build:windows-installer --msi-upgrade-fixture
+          if ($LASTEXITCODE -ne 0) { throw 'MSI upgrade fixture build failed.' }
+          ./tools/test-desktop-windows-msi.ps1 -Installer $msi[0].FullName -PreviousInstaller apps/desktop/dist/msi-upgrade-fixture/upgrade-fixture.msi
 
       - name: Upload unsigned Windows installer
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
           name: chatto-desktop-windows-installer-unsigned
-          path: apps/desktop/dist/installer/*_Setup.exe
+          path: |
+            apps/desktop/dist/installer/*_Setup.exe
+            apps/desktop/dist/installer/*_Setup.msi
           if-no-files-found: error
           retention-days: 7
 

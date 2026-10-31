@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Sunucu bağlantısını kopyalayın",
     "copy_room_link": "Oda bağlantısını kopyalayın",
     "show_rooms_in_group": "{group} grubunda daha fazla oda göster ({count})",
     "hide_rooms_in_group": "{group} grubunda katılmadığın odaları gizle",

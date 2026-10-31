@@ -1,5 +1,30 @@
 {
   "settings": {
+    "overview": {
+      "descriptions": {
+        "account": "Manage your password, email addresses, and sign-in methods.",
+        "profile": "Update your name, avatar, and profile details.",
+        "time": "Choose how this server displays dates and times for you",
+        "notifications": "Configure how you receive notifications",
+        "language": "Choose the language and regional wording for this browser.",
+        "bots": "Create API accounts and control exactly what they can do",
+        "general": "Server identity, branding, and messages",
+        "neighbors": "Advertise friendly Chatto servers in your public directory",
+        "members": "View and manage server members and their roles",
+        "invitations": "Create and manage links that admit new accounts.",
+        "rooms": "Create, edit, organise, and archive rooms",
+        "moderation": "Review active room suspensions",
+        "permissions": "Manage server-wide role defaults",
+        "security": "Sign-up restrictions and account protection",
+        "appearance": "Make the app your own with colours, themes, and display options.",
+        "composer": "Choose your message editor and how you send messages.",
+        "voice": "Set up your microphone, speakers, and call preferences.",
+        "system": "Check server health, storage, and background tasks.",
+        "event_log": "Explore server events and investigate changes."
+      },
+      "title": "Overview",
+      "shield_notice": "To use your additional permissions on this server, activate Shield Mode with the shield button beside your name."
+    },
     "nav": {
       "title": "Settings",
       "back_to_server": "Back to Server",

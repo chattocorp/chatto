@@ -48,8 +48,13 @@ approval to make the GitHub Release public. Publication credentials are
 repository secrets; do not move them into `chatto-release`, because the
 publication job does not enter that environment. Signing secrets and Windows
 OIDC configuration remain in their existing environments. Keep the required
-reviewers and branch/tag policies on all three environments. The client npm
-workflow keeps its separate publication process.
+reviewers and branch/tag policies on all three environments.
+
+The same `approve-release` job also gates the client npm workflow. After approval,
+the client builds and publishes independently of the server and desktop builds.
+The npm job keeps its `npm` environment. Configure its trusted publisher with
+the calling workflow `release.yml`; see
+[client maintenance](../packages/chatto-client/MAINTAINING.md).
 
 Publication across GitHub and GHCR is not atomic. If publication fails, some
 images or assets can already be available. Rerun the failed jobs on the same

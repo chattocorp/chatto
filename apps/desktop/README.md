@@ -42,6 +42,31 @@ popup support for the same PKCE and
 `chatto://desktop` client identity and exact callback; bearer-authenticated API
 and realtime access requires no server origin configuration.
 
+## Notifications and background operation
+
+On macOS, closing the main window hides it and keeps Chatto running. Select
+Chatto in the Dock to open the window again. **Command-Q** quits the app and
+stops its connections and new alerts. On Windows and Linux, closing the main
+window quits the app. Chatto adds no menu bar or system tray icon.
+
+In notification settings, enable **Push notifications on this device** to allow
+native desktop alerts. This choice applies to every signed-in server and starts
+off. Use **Send test notification** to check OS delivery. macOS notification
+tests require a signed application. OS notification settings can block alerts.
+
+Native alerts use the existing notification resource reads. The selected server
+keeps its normal live connection; inactive servers keep their normal polling
+schedule. Desktop alerts do not open additional connections or add polling.
+An inactive server's alert can therefore arrive at the next poll.
+
+Only new Important notifications that still need attention produce alerts.
+Do Not Disturb suppresses alerts. Initial history and older pages do not produce
+alerts. Alerts contain generic text, without message previews. Click an alert
+to open its conversation and highlight its message. Reading or removing an
+occurrence, signing out, or losing access clears its retained alert when the
+client observes that change. Fully quitting stops new alerts. Delivery uses no
+external push provider; browser Web Push is separate.
+
 ## Run it
 
 From the repository root:
@@ -133,6 +158,20 @@ Use **Updates → Release Channel** to select Stable or Beta, and the **Updates*
 menu to check for updates and restart to install them. If an older installation
 has no Updates menu, close Chatto and run a newer installer once.
 ZIP copies do not support automatic updates.
+
+For managed deployment, use `chatto-desktop_<version>_Windows_X64_Setup.msi`.
+This package installs for all users and requires administrator rights. To install
+it silently, run `msiexec /i "path\to\Chatto_Setup.msi" /qn /norestart` from an
+elevated terminal. The MSI does not start Chatto after installation and does not
+use the application's automatic updater. Deploy newer MSI packages through your
+management tools, or run them manually with Chatto closed.
+
+Remove an existing EXE installation before switching to MSI, or remove MSI
+before switching to EXE. Do not install both formats on the same machine.
+Removal preserves the profile. MSI uses the three-part release version for
+upgrade comparisons: beta builds and the stable build with the same base
+version can replace each other. Deployment tools must select the intended
+release; MSI does not enforce beta ordering within that base version.
 
 The installer uses the same profile as the ZIP application. Existing server
 registrations and sessions remain available. Quit the ZIP application before
@@ -262,11 +301,17 @@ mise x -- pnpm --filter chatto-desktop build:windows-installer
 ```
 
 The output is in `apps/desktop/dist/installer/`. electron-builder wraps the
-existing bundle in a per-user NSIS installer. The application ID
+existing bundle in a per-user NSIS installer and a per-machine MSI package.
+Both release installers use the Windows signing hook. The application ID
 `run.chatto.desktop` is the persistent upgrade identity; do not change it between
 releases. CI tests silent installation, reinstall, shortcut and uninstall
 registration, removal, and profile preservation on a disposable Windows runner.
 PR installer artifacts are explicitly labelled unsigned.
+The MSI `upgradeCode` in `scripts/windows-installer-config.mjs` is also a
+persistent identity; do not change it. CI tests MSI installation, machine-wide
+registration, shortcuts, upgrade from a synthetic older package, repair,
+removal, and profile preservation. The unsigned upgrade fixture is not published.
+Before release, also test an upgrade from an older signed MSI on Windows.
 
 ### Configure macOS release signing
 

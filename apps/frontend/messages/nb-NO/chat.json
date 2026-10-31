@@ -1,5 +1,11 @@
 {
   "chat": {
+    "invitation": {
+      "title": "Inviter personer",
+      "create": "Opprett kode",
+      "description": "Del koden og serveradressen. Den gir tilgang til én konto og utløper etter sju dager.",
+      "once": "Kopier koden før du lukker. Du kan ikke se den igjen."
+    },
     "privileged_mode": {
       "enable": "Aktiver privilegert modus",
       "disable": "Deaktiver privilegert modus",
@@ -47,6 +53,7 @@
       "administration": "Serveradministrasjon"
     },
     "user_menu": {
+      "edit_profile": "Rediger profil",
       "profile": "Brukerprofil",
       "send_message": "Åpne samtale",
       "view_profile": "Vis profil",
