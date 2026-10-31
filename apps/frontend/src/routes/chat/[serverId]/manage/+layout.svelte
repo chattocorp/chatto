@@ -24,6 +24,7 @@
     const botsBase = serverBase + '/bots';
     const membersBase = serverBase + '/members';
     const registrationBase = serverBase + '/registration';
+    const invitesBase = serverBase + '/invites';
     const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
     const roomGroupsBase = manageBase + '/room-groups';
     const moderationBase = serverBase + '/moderation';
@@ -55,7 +56,10 @@
     }
 
     if (pathname.startsWith(registrationBase)) {
-      return () => permissions.canManageServer || permissions.canManageInvites;
+      return () => permissions.canManageServer;
+    }
+    if (pathname.startsWith(invitesBase)) {
+      return () => permissions.canInviteUsers || permissions.canManageInvites;
     }
 
     // The room collection is a server-wide layout editor. Individual room

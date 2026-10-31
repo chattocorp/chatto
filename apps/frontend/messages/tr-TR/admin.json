@@ -564,10 +564,11 @@
       "total": "Toplam {count} kullanıcı(lar)"
     },
     "invitations": {
+      "management_help": "Davet kodları, diğer kişilerin bu sunucuya katılmasını sağlar.",
       "created_by": "Oluşturan",
       "note_label": "Not (isteğe bağlı)",
       "note_placeholder": "Tasarım ekibinden Alex için",
-      "note_description": "Bu notu yalnızca davet yöneticileri görebilir.",
+      "note_description": "Bu notu siz ve davet yöneticileri görebilirsiniz.",
       "note_too_long": "En fazla 250 karakter kullanın.",
       "usage": "Yeni kodlar 7 gün sonra sona erer ve her biri bir hesap için geçerlidir. Bir kodu kopyalayıp alıcısına gönderin. Kod yalnızca kayıt başarılı olduğunda kullanılır.",
       "create_title": "Kod oluştur",

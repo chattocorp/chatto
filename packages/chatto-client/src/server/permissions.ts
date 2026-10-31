@@ -20,7 +20,7 @@ export type ServerPermissions = ViewerCapabilities & {
   canCreateBots: boolean;
   /** Effective server-wide `bot.manage`. */
   canManageBots: boolean;
-  /** Effective server-wide `user.invite`; does not grant administrative reads. */
+  /** Effective server-wide `user.invite`; create and manage own invitation codes. */
   canInviteUsers: boolean;
 };
 

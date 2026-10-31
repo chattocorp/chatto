@@ -225,24 +225,27 @@ can still sign in and link providers. Accounts that operators create are not
 affected.
 
 Administrators with `user.manage-invites` create and revoke codes under
-**Server Admin → Registration**. Each code permits one new account.
+**Server Admin → Invites**. Each code permits one new account.
 Use **Create code** in the table header, then confirm in the dialog. Each new code expires after seven
 days. Copy an active code and send it through your chosen channel. Chatto does
-not send it for you. The API supports other expiry times or no expiry.
+not send it for you. The server sets the seven-day expiry for everyone,
+including administrators and API callers. The expiry cannot be configured.
 
-On invite-only servers, members with `user.invite` can select **Invite people** in the server sidebar,
-then **Create code**. Copy the code before closing the modal: it is shown only
-once. Send the code and server address to the recipient. No admin access is
-needed. Administrators can see the code and its creator in Registration.
-Members cannot retrieve or revoke codes after closing the modal.
+Members with `user.invite` use the same **Invites** page. They can see, copy,
+and revoke only codes they created. Send the code and server address to the
+recipient. You can return to this page to copy the code again. Invitation
+managers see all codes and their creators.
+
+Code management stays available when registration is open,
+but open signup does not require or consume codes.
 
 Fresh servers grant both permissions to admins. Other members need an explicit
 `user.invite` grant. That permission does not require privileged mode and does
-not grant access to Registration. Management still requires privileged mode.
+not grant access to Registration. Management of all codes requires privileged mode.
 
 In Server Admin, you can add an optional note when you create a code, for example to record who
 it is for. Notes accept up to 250 characters and appear beneath the code in the
-table. Only invitation managers can read them. A note does not restrict who can
+table. Creators and invitation managers can read them. A note does not restrict who can
 use the code. API integrations can set the `note` field when creating a code.
 
 People open **Create Account** and enter the code before choosing a signup
@@ -254,11 +257,10 @@ Expired, used, revoked, or incorrect codes show as unavailable.
 
 For external integrations, use
 [`AdminInvitationCodeService`](/reference/connectrpc-api/admin-invitation-codes/)
-with a credential that has `user.manage-invites`. For creation without management
-access, use [`InvitationCodeService`](/reference/connectrpc-api/invitation-codes/)
-with `user.invite`. Do not retry creation automatically: a lost response can
-leave a code that only an administrator can retrieve. Each create call issues a separate
-code. Direct API registration can send `invitationCode` with the email to
+with a credential that has `user.invite` to create and manage its own codes, or
+`user.manage-invites` to manage all codes. Do not retry creation automatically:
+each create call issues a separate code. After a lost response, list your codes
+to retrieve the created code. Direct API registration can send `invitationCode` with the email to
 `POST /auth/register`. SSO account creation can send `invitation_code` with
 `CreateExternalIdentityAccount`. Both paths check and consume admission on
 successful account creation.

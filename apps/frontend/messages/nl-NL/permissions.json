@@ -27,7 +27,7 @@
       "user_delete_any": "Verwijder het account van een andere gebruiker",
       "user_delete_self": "Verwijder je eigen account",
       "user_manage_invites": "Maak en beheer codes. Elke code geeft toegang voor één nieuw account.",
-      "user_invite": "Maak uitnodigingscodes zonder beheerderstoegang.",
+      "user_invite": "Maak en beheer je eigen uitnodigingscodes.",
       "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
       "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker",
       "bot_create": "Botaccounts maken",

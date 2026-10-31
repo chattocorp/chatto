@@ -85,8 +85,18 @@ per account. Reusable links and their pending admission grants are retired.
 See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
 This change does not raise the client connection threshold.
 
-Invitation administration now requires `user.manage-invites`; `user.invite`
-only permits creation through `InvitationCodeService`, without privileged mode.
+`CreateInvitationCodeRequest.expires_at` has been removed. Stop sending an expiry
+when creating an invitation code. The server sets expiry to exactly seven days
+after creation for every caller, including invitation managers. Read the assigned
+expiry from the returned code. Existing codes keep their recorded expiry.
+
+Management of all invitations requires `user.manage-invites`; `user.invite`
+permits creation and management of own codes through `AdminInvitationCodeService`,
+without privileged mode. The create-only `chatto.api.v1.InvitationCodeService`
+and `@chatto/client/api/invitations` helper have been removed. Replace calls to
+that service or `createMemberInvitationAPI` with
+`chatto.admin.v1.AdminInvitationCodeService.CreateInvitationCode`. This service
+also lets creators retrieve and revoke their own codes.
 Existing server-scope invitation allows and denies are copied to the management
 permission once at startup. Later grants of `user.invite` do not grant management.
 Update integrations that configure permission grants to use the appropriate

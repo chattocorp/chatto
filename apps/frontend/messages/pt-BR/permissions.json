@@ -27,7 +27,7 @@
       "user_delete_any": "Excluir conta de outro usuário",
       "user_delete_self": "Exclua sua própria conta",
       "user_manage_invites": "Crie e gerencie códigos. Cada código permite criar uma conta.",
-      "user_invite": "Gere códigos de convite sem acesso administrativo.",
+      "user_invite": "Crie e gerencie seus próprios códigos de convite.",
       "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
       "user_manage_permissions": "Editar substituições de permissão direta por usuário",
       "bot_create": "Criar contas de bot",

@@ -564,10 +564,11 @@
       "total": "Total de utilizadores {count}"
     },
     "invitations": {
+      "management_help": "Os códigos de convite permitem que outras pessoas adiram a este servidor.",
       "created_by": "Criado por",
       "note_label": "Nota (opcional)",
       "note_placeholder": "Para Alex da equipa de design",
-      "note_description": "Apenas os gestores de convites podem ver esta nota.",
+      "note_description": "Tu e os gestores de convites podem ver esta nota.",
       "note_too_long": "Utilize no máximo 250 caracteres.",
       "usage": "Os novos códigos expiram após 7 dias e permitem uma conta cada. Copie um código e envie-o ao destinatário. Só é utilizado quando o registo é concluído.",
       "create_title": "Criar código",

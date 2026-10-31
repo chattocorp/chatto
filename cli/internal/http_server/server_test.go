@@ -552,7 +552,7 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	invitation, err := chattoCore.CreateInvitationCode(ctx, admin.Id, nil, "")
+	invitation, err := chattoCore.CreateInvitationCode(ctx, admin.Id, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}

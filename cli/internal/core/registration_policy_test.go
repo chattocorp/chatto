@@ -63,7 +63,7 @@ func TestRegistrationAdmissionRecomposesAfterPolicyChange(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
-	invitation, err := c.CreateInvitationCode(ctx, adminID, nil, "")
+	invitation, err := c.CreateInvitationCode(ctx, adminID, "")
 	require.NoError(t, err)
 	attempts := 0
 	_, err = c.createUserWithOptions(ctx, SystemActorID, "policy-retry", "Policy Retry", "password123", userCreationOptions{

@@ -16,8 +16,6 @@ export * from '@chatto/api-types/api/v1/bots_connect';
 export * from '@chatto/api-types/api/v1/bots_pb';
 export * from '@chatto/api-types/api/v1/common_pb';
 export * from '@chatto/api-types/api/v1/external_identities_pb';
-export * from '@chatto/api-types/api/v1/invitations_connect';
-export * from '@chatto/api-types/api/v1/invitations_pb';
 export * from '@chatto/api-types/api/v1/link_previews_pb';
 export * from '@chatto/api-types/api/v1/member_directory_pb';
 export * from '@chatto/api-types/api/v1/message_search_connect';

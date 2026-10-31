@@ -1,7 +1,7 @@
 # FDR-036: Invitation Codes
 
 **Status:** Active
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -29,36 +29,31 @@ the API to integrate code issuance with an external system.
 - **Create code** in the table header opens a confirmation dialog. It explains
   that a code expires after seven days, admits one account, and is used only
   after successful signup. Confirmation creates one code and closes the dialog.
-  The API can set a different expiry or no expiry. Active codes can be
+  The server sets expiry to exactly seven days after creation for every caller.
+  Neither the UI nor the creation API accepts an expiry. Existing records keep
+  their recorded expiry. Active codes can be
   copied and revoked; inactive rows show their status without these actions.
 - A creation-time note can identify the intended recipient or purpose. It is
   optional plain text, limited to 250 Unicode characters, and shown beneath the
-  code. Surrounding whitespace is removed. Only invitation managers can read
+  code. Surrounding whitespace is removed. Creators and invitation managers can read
   notes through the app or API; the event log omits them. A note does not restrict
   who can redeem the code. Existing codes have no note.
 - **Server Admin → Registration**, directly below General, contains the admission
-  setting and code management. Radio options select **Open Registration** or
+  setting. Radio options select **Open Registration** or
   **Invite Code Required** and save immediately. The page lists enabled signup
   methods: email/password registration and providers that can create accounts.
-  Each section requires its own permission.
-- While registration is open, the code panel stays visible but faded, with
-  Create, Copy, and Revoke disabled. Saving Invite Code Required activates
-  these controls. Existing codes remain unchanged.
-- Administrators can list, read, create, copy, and revoke codes. The API
-  offers the same operations. Chatto does not send codes to recipients.
-- Members with `user.invite` select **Invite people** in the server sidebar
-  when public discovery reports invite-only registration. The action is hidden
-  for open registration and while the policy is unknown.
-  A modal creates one code with a seven-day expiry and shows it with Copy.
-  Closing the modal discards the code. Back, Forward, reload, permission loss,
-  and account changes do not recover it. Members cannot list, retrieve, or
-  revoke codes, including their own. No code is stored in browser storage.
-- Administrators see member-created codes and their creators in Registration.
-  Member issuance does not accept a note or custom expiry. The API can still
-  create a code while registration is open; signup then ignores it.
-  Issuance has no automatic retry: a lost response can leave a code visible
-  only to managers. Changing the creator's permissions or account state does
-  not revoke an issued code; managers can revoke it explicitly.
+  Registration requires `server.manage`.
+- **Server Admin → Invites** contains code management. Members with `user.invite`
+  can list, read, create, copy, and revoke their own codes. Users with effective
+  `user.manage-invites` can manage all codes. The table shows each creator's avatar
+  and name in a separate column. The API applies the same ownership boundary,
+  including pagination totals. Other users' codes return not found.
+- Invites remains available when registration is open; signup then ignores codes.
+  Codes can be retrieved again while the caller has the required permission.
+  No code is stored in browser storage. Chatto does not send codes to recipients.
+- Issuance has no automatic retry. Creators can retrieve a code after a lost response through
+  the management API. Changing a creator's permissions or account state does
+  not revoke an issued code; an authorized caller can revoke it explicitly.
 - Expired, used, revoked, malformed, and unknown codes show the same public
   error. A code is checked again when the account is created.
 - Changing the server secret invalidates distributed codes. Administrators
@@ -91,12 +86,13 @@ Retries must remain possible. ADR-070 defines the atomic commit boundary.
 **Tradeoff:** Validation does not guarantee admission if another person uses
 the same code first.
 
-### 4. Administrators can recover codes
+### 4. Authorized users can recover codes
 
-**Decision:** Holders of `user.manage-invites` can copy active codes again.
-**Why:** Administrators choose their own distribution method and may need to
+**Decision:** Creators with `user.invite` can copy their active codes again.
+Holders of effective `user.manage-invites` can copy all active codes.
+**Why:** Users choose their own distribution method and may need to
 send a code again. ADR-070 avoids storing raw codes in durable history.
-**Tradeoff:** This permission grants access to all active codes.
+**Tradeoff:** Management permission grants access to all active codes.
 
 ## Gates
 
@@ -108,7 +104,7 @@ send a code again. ADR-070 avoids storing raw codes in durable history.
 - `server.manage` permits admission changes. Account creation checks the current
   policy under stream-wide EVT OCC, including after a retry. A pending signup
   has no exemption. When the policy is open, a supplied code is not consumed.
-- `user.invite` permits member issuance without privileged mode.
+- `user.invite` permits creation and management of own codes without privileged mode.
 - `user.manage-invites` permits all administrative code operations and requires
   privileged mode for human sessions. It does not include `user.invite`.
 - Fresh bootstrap grants both permissions to admins and neither to everyone.

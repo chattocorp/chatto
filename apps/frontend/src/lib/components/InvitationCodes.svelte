@@ -21,8 +21,6 @@
   } from '$lib/utils/formatTime';
 
   const PAGE_SIZE = 20;
-  // Codes created in this screen always expire seven days after issuance.
-  const CODE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
   const NOTE_MAX_LENGTH = 250;
   const serverScope = useServerScope();
   const userSettings = $derived(
@@ -54,11 +52,23 @@
     if (creatingCode) history.back();
   }
 
+  function canAccess(invitation: InvitationCode): boolean {
+    const permissions = serverScope.store.permissions;
+    return (
+      permissions.canManageInvites ||
+      (permissions.canInviteUsers &&
+        invitation.createdBy === serverScope.store.currentUser.user?.id)
+    );
+  }
+
   const invitationsQuery = createInfiniteQuery(() => {
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.invitations(serverId, connection),
+      queryKey: [
+        ...adminQueryKeys.invitations(serverId, connection),
+        { all: serverScope.store.permissions.canManageInvites }
+      ],
       queryFn: async ({ pageParam, signal }) => {
         const result = await connection
           .getAPI(createInvitationCodeAPI)
@@ -78,7 +88,7 @@
   });
 
   const invitations = $derived(
-    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.invitationCodes)
+    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.invitationCodes).filter(canAccess)
   );
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
@@ -87,7 +97,6 @@
   const createInvitationMutation = createMutation(() => ({
     mutationFn: (note: string) =>
       serverScope.connection.getAPI(createInvitationCodeAPI).create({
-        expiresAt: new Date(Date.now() + CODE_LIFETIME_MS).toISOString(),
         note
       }),
     onSuccess: async () => {
@@ -256,8 +265,10 @@
   </FormDialog>
 {/if}
 
+<!-- A permission-driven close must reach onclose and discard the old target. -->
 {#if revokeTarget}
   <ConfirmDialog
+    visible={canAccess(revokeTarget)}
     title={m('admin.invitations.revoke_title')}
     actionLabel={m('admin.invitations.revoke')}
     loading={revokeMutation.isPending}

@@ -171,7 +171,7 @@ also expose a disconnect hint; it is not mutation authorization. See
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
 | `chatto.discovery.v1` | `ServerDiscoveryService`                                                                                                                                                                                                                                                                                                                                         | Public discovery                                                                                           |
-| `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `InvitationCodeService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
+| `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
 | `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
 
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
@@ -216,10 +216,11 @@ resource remains description-free.
 singular and bounded batch reads. These reads use existing message-read
 authorization and do not initialize or advance markers.
 
-`InvitationCodeService` requires `user.invite` and exposes only seven-day code
-creation. It returns a code once without granting administrative reads.
-`AdminInvitationCodeService` requires `user.manage-invites`. It lists, reads, creates,
-and revokes single-use codes with optional expiry. Codes are reconstructed
+`AdminInvitationCodeService` permits callers with `user.invite` to
+list, read, create, and revoke their own codes. Effective `user.manage-invites`
+permits these operations on all codes. Lists filter by ownership before pagination.
+The server sets expiry to seven days after creation for every caller; creation
+requests contain no expiry field. Codes are reconstructed
 from durable invitation IDs; raw codes are not stored in `EVT`. The browser
 POST endpoint `/auth/browser/registration-invitation` validates a code and
 stores an expiring admission binding in the signed HttpOnly session.

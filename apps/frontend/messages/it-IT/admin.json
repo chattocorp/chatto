@@ -564,10 +564,11 @@
       "total": "{count} utenti totali"
     },
     "invitations": {
+      "management_help": "I codici di invito consentono ad altre persone di unirsi a questo server.",
       "created_by": "Creato da",
       "note_label": "Nota (facoltativa)",
       "note_placeholder": "Per Alex del team di design",
-      "note_description": "Solo i gestori degli inviti possono vedere questa nota.",
+      "note_description": "Tu e i gestori degli inviti potete vedere questa nota.",
       "note_too_long": "Usa al massimo 250 caratteri.",
       "usage": "I nuovi codici scadono dopo 7 giorni e consentono un account ciascuno. Copia un codice e invialo al destinatario. Viene utilizzato solo al completamento della registrazione.",
       "create_title": "Crea codice",

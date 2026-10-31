@@ -45,6 +45,74 @@ const invitations = mockService(AdminInvitationCodeService);
 const code = 'ABCD-EFGH-IJKL-MNOP-QRST';
 
 describe('Invitation codes', () => {
+  it('does not reopen a revoked-access confirmation when management returns', async () => {
+    const profiles = mockService(UserService);
+    profiles.batchGetUsers.mockReturnValue({ users: [] });
+    const server = createTestServerScope({
+      permissions: { canManageInvites: true, canInviteUsers: true },
+      routes: (router) =>
+        router.service(AdminInvitationCodeService, invitations).service(UserService, profiles)
+    });
+    invitations.listInvitationCodes.mockReturnValue({
+      invitationCodes: [
+        {
+          id: 'other',
+          code,
+          createdBy: 'other',
+          status: InvitationCodeStatus.ACTIVE,
+          createdAt: Timestamp.fromDate(new Date('2026-01-01'))
+        }
+      ]
+    });
+    const view = render(InvitationCodes);
+    await userEvent.click(view.getByRole('button', { name: 'Revoke', exact: true }));
+    await expect.element(view.getByRole('dialog', { name: 'Revoke code?' })).toBeVisible();
+    server.permissions.canManageInvites = false;
+    await expect
+      .element(view.getByRole('dialog', { name: 'Revoke code?' }))
+      .not.toBeInTheDocument();
+    server.permissions.canManageInvites = true;
+    await expect.element(view.getByRole('button', { name: 'Revoke', exact: true })).toBeVisible();
+    await expect
+      .element(view.getByRole('dialog', { name: 'Revoke code?' }))
+      .not.toBeInTheDocument();
+    expect(invitations.revokeInvitationCode).not.toHaveBeenCalled();
+  });
+
+  it('hides other creators immediately when management access is removed', async () => {
+    const profiles = mockService(UserService);
+    profiles.batchGetUsers.mockReturnValue({ users: [] });
+    const server = createTestServerScope({
+      permissions: { canManageInvites: true, canInviteUsers: true },
+      routes: (router) =>
+        router.service(AdminInvitationCodeService, invitations).service(UserService, profiles)
+    });
+    const own = {
+      id: 'own',
+      code: 'OWN-CODE',
+      createdBy: 'viewer-1',
+      createdAt: Timestamp.fromDate(new Date('2026-01-01')),
+      status: InvitationCodeStatus.ACTIVE
+    };
+    invitations.listInvitationCodes.mockReturnValueOnce({
+      invitationCodes: [own, { ...own, id: 'other', code: 'OTHER-CODE', createdBy: 'other' }]
+    });
+    const view = render(InvitationCodes);
+    await expect.element(view.getByText('OTHER-CODE', { exact: true })).toBeVisible();
+    let resolveOwn!: (value: { invitationCodes: (typeof own)[] }) => void;
+    invitations.listInvitationCodes.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOwn = resolve;
+      })
+    );
+    server.permissions.canManageInvites = false;
+    await expect.element(view.getByText('OTHER-CODE', { exact: true })).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(invitations.listInvitationCodes).toHaveBeenCalledTimes(2));
+    resolveOwn({ invitationCodes: [own] });
+    await expect.element(view.getByText('OWN-CODE', { exact: true })).toBeVisible();
+    expect(view.container.textContent).not.toContain('OTHER-CODE');
+  });
+
   it('hydrates creators in a batch and displays their names', async () => {
     const profiles = mockService(UserService);
     profiles.batchGetUsers.mockReturnValue({
@@ -53,6 +121,7 @@ describe('Invitation codes', () => {
     const users = getUserStore('server-1', 'server-1-session');
     users.clear();
     createTestServerScope({
+      permissions: { canManageInvites: true },
       routes: (router) =>
         router.service(AdminInvitationCodeService, invitations).service(UserService, profiles),
       store: { projection: { users } }
@@ -100,6 +169,7 @@ describe('Invitation codes', () => {
     queryClient.clear();
     toast.clear();
     createTestServerScope({
+      permissions: { canManageInvites: true },
       routes: (router) => router.service(AdminInvitationCodeService, invitations)
     });
     invitations.listInvitationCodes.mockReturnValue({
@@ -158,7 +228,7 @@ describe('Invitation codes', () => {
     expect(page.container.querySelector('not')).toBeNull();
   });
 
-  it('requires confirmation before creating one code with a seven-day expiry', async () => {
+  it('requires confirmation and leaves expiry to the server', async () => {
     invitations.createInvitationCode.mockReturnValue({
       invitationCode: {
         id: 'new-invitation',
@@ -169,7 +239,6 @@ describe('Invitation codes', () => {
     });
     const page = render(InvitationCodes);
     await expect.element(page.getByText(/New codes expire after 7 days/)).not.toBeInTheDocument();
-    const before = Date.now();
     await userEvent.click(page.getByRole('button', { name: 'Create code', exact: true }));
     const dialog = page.getByRole('dialog', { name: 'Create code', exact: true });
     await expect.element(dialog).toBeVisible();
@@ -181,12 +250,7 @@ describe('Invitation codes', () => {
     );
     await userEvent.click(dialog.getByRole('button', { name: 'Create code', exact: true }));
     await vi.waitFor(() => expect(invitations.createInvitationCode).toHaveBeenCalledOnce());
-    const expiresAt = invitations.createInvitationCode.mock.calls[0][0]
-      .expiresAt!.toDate()
-      .getTime();
-    const week = 7 * 24 * 60 * 60 * 1000;
-    expect(expiresAt).toBeGreaterThanOrEqual(before + week);
-    expect(expiresAt).toBeLessThanOrEqual(Date.now() + week);
+    expect(invitations.createInvitationCode.mock.calls[0][0]).not.toHaveProperty('expiresAt');
     expect(invitations.createInvitationCode.mock.calls[0][0].note).toBe(
       'For Alex from the design team'
     );
