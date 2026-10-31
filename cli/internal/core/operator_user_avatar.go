@@ -51,14 +51,20 @@ func (c *ChattoCore) ImportHistoricalUserAvatar(ctx context.Context, key, userID
 		}
 		entries := []evtstream.BatchEntry{}
 		used = current == nil && asset != nil
-		resultID := userID
-		if used {
-			resultID = asset.GetId()
-			event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_AssetCreated{AssetCreated: &evtv1.AssetCreatedEvent{Asset: asset, OriginalBinaryAvailable: true, UserId: userID}}, ImportContext: &evtv1.ImportContext{HiddenTimeline: true, UnknownTime: true}})
-			entries = append(entries, evtstream.BatchEntry{Subject: evtstream.UserAggregate(userID).SubjectFor(event), Event: event})
+		if !used {
+			// A receipt-only batch must keep its create-once subject guard.
+			// The user batch helper replaces the first entry's guard with OCC.
+			return nil, nil
 		}
-		return append(entries, operation.receipt(resultID)), nil
+		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_AssetCreated{AssetCreated: &evtv1.AssetCreatedEvent{Asset: asset, OriginalBinaryAvailable: true, UserId: userID}}, ImportContext: &evtv1.ImportContext{HiddenTimeline: true, UnknownTime: true}})
+		entries = append(entries, evtstream.BatchEntry{Subject: evtstream.UserAggregate(userID).SubjectFor(event), Event: event})
+		return append(entries, operation.receipt(asset.GetId())), nil
 	})
+	if err == nil && !used {
+		// Preservation changes no user state, so it needs only the receipt's
+		// uniqueness guard. A later avatar clear must not undo this decision.
+		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{operation.receipt(userID)})
+	}
 	if err != nil {
 		// Retain uploaded bytes on ambiguous commits. Deleting them could break
 		// an avatar that another replica already observes.

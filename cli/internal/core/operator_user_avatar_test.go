@@ -4,6 +4,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,11 @@ func TestImportHistoricalAvatarRetryAndPreservation(t *testing.T) {
 	}
 	require.NoError(t, <-errors)
 	require.NoError(t, <-errors)
+	// A losing concurrent attempt must not append a second receipt when it
+	// observes the winner's avatar and changes from assignment to preservation.
+	receipts, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.Aggregate{Type: "operator_operation", ID: key}.Subject("operator_operation_completed"))
+	require.NoError(t, err)
+	require.Len(t, receipts, 1)
 	avatar, err := c.GetUserAvatar(ctx, bot.Id)
 	require.NoError(t, err)
 	require.NotNil(t, avatar)
