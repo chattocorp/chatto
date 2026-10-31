@@ -1272,18 +1272,6 @@ An `@here` message that included the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
-<a id="chatto-api-v1-NotificationContent"></a>
-
-### NotificationContent
-
-Plain-text content for a system notification, shared with Web Push.
-Text is currently in English. Message previews can be absent when unavailable.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `title` | `string` | No field description provided. |
-| `body` | `string` | No field description provided. |
-
 <a id="chatto-api-v1-NotificationDeliveryModes"></a>
 
 ### NotificationDeliveryModes
@@ -1332,7 +1320,6 @@ One exact Notifications 2.0 source occurrence.
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
-| `content` | [`NotificationContent`](#chatto-api-v1-NotificationContent) | Current display content, including a bounded message preview when available. Included only when include_content is requested. Absent on older servers or for unsupported signals. Do not persist this text. |
 
 <a id="chatto-api-v1-NotificationPolicy"></a>
 

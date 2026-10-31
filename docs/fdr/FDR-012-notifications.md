@@ -22,18 +22,16 @@ targets, unread counts, read state, or deletion semantics.
 
 - Desktop users can enable native OS alerts with **Push notifications on this
   device**. Consent starts off and applies to all signed-in servers on that
-  device. A local test checks OS delivery. Alerts use the same title and message
-  preview as Web Push, including the actor, activity, and room where applicable.
-  This text is currently in English. Older servers keep generic alert text.
+  device. A local test checks OS delivery. The client builds alert text from the
+  actor, activity, and room in the notification. Activity labels use the same
+  translations as the notification list. A message preview appears only when
+  its text is already available in a local room or thread timeline.
   The local OS receives this content and can show it on the lock screen,
   subject to OS notification settings. Alerts use existing live updates and notification polls;
   inactive servers do not gain persistent connections or additional polls.
-  Routine notification reads do not load message previews. Desktop requests
-  content in batches only for new Important occurrences that need attention.
-  If the content request fails, an occurrence that still qualifies shows a
-  generic alert without a preview.
-  A pending content response cannot show an alert after consent is removed,
-  session or access changes, or the occurrence is handled.
+  Alert formatting does not request content or create timeline stores. An
+  unloaded message still produces an immediate activity summary. Desktop does
+  not change notification API responses or Web Push formatting.
   New Important occurrences that need attention can alert after the initial
   notification list loads. Older pages, repeated reads, Ambient occurrences,
   and occurrences observed during Do Not Disturb do not alert. Each eligible

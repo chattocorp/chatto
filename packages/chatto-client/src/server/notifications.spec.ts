@@ -79,7 +79,6 @@ function makeAPI(
   } = {}
 ): MockNotificationAPI {
   return {
-    batchGetNotificationOccurrences: vi.fn().mockResolvedValue([]),
     listNotificationOccurrences: vi.fn().mockImplementation(async () => {
       if (options.notificationsError) throw options.notificationsError;
       return notificationPage(options.notifications ?? page([]));

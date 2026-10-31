@@ -854,52 +854,6 @@ export class NotificationSignal extends Message<NotificationSignal> {
 }
 
 /**
- * Plain-text content for a system notification, shared with Web Push.
- * Text is currently in English. Message previews can be absent when unavailable.
- *
- * @generated from message chatto.api.v1.NotificationContent
- */
-export class NotificationContent extends Message<NotificationContent> {
-  /**
-   * @generated from field: string title = 1;
-   */
-  title = "";
-
-  /**
-   * @generated from field: string body = 2;
-   */
-  body = "";
-
-  constructor(data?: PartialMessage<NotificationContent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationContent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationContent {
-    return new NotificationContent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationContent {
-    return new NotificationContent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationContent {
-    return new NotificationContent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: NotificationContent | PlainMessage<NotificationContent> | undefined, b: NotificationContent | PlainMessage<NotificationContent> | undefined): boolean {
-    return proto3.util.equals(NotificationContent, a, b);
-  }
-}
-
-/**
  * One exact Notifications 2.0 source occurrence.
  *
  * @generated from message chatto.api.v1.NotificationOccurrence
@@ -955,15 +909,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
    */
   attentionLevel = NotificationAttentionLevel.UNSPECIFIED;
 
-  /**
-   * Current display content, including a bounded message preview when available.
-   * Included only when include_content is requested. Absent on older servers
-   * or for unsupported signals. Do not persist this text.
-   *
-   * @generated from field: chatto.api.v1.NotificationContent content = 8;
-   */
-  content?: NotificationContent;
-
   constructor(data?: PartialMessage<NotificationOccurrence>) {
     super();
     proto3.util.initPartial(data, this);
@@ -979,7 +924,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
     { no: 5, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "expires_at", kind: "message", T: Timestamp },
     { no: 7, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
-    { no: 8, name: "content", kind: "message", T: NotificationContent },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrence {
@@ -1012,13 +956,6 @@ export class ListNotificationOccurrencesRequest extends Message<ListNotification
    */
   page?: PageRequest;
 
-  /**
-   * Load system-notification text and message previews. Defaults to false.
-   *
-   * @generated from field: bool include_content = 2;
-   */
-  includeContent = false;
-
   constructor(data?: PartialMessage<ListNotificationOccurrencesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1028,7 +965,6 @@ export class ListNotificationOccurrencesRequest extends Message<ListNotification
   static readonly typeName = "chatto.api.v1.ListNotificationOccurrencesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "page", kind: "message", T: PageRequest },
-    { no: 2, name: "include_content", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationOccurrencesRequest {
@@ -1144,13 +1080,6 @@ export class GetNotificationOccurrenceRequest extends Message<GetNotificationOcc
    */
   notificationId = "";
 
-  /**
-   * Load system-notification text and message previews. Defaults to false.
-   *
-   * @generated from field: bool include_content = 2;
-   */
-  includeContent = false;
-
   constructor(data?: PartialMessage<GetNotificationOccurrenceRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1160,7 +1089,6 @@ export class GetNotificationOccurrenceRequest extends Message<GetNotificationOcc
   static readonly typeName = "chatto.api.v1.GetNotificationOccurrenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "include_content", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationOccurrenceRequest {
@@ -1235,13 +1163,6 @@ export class BatchGetNotificationOccurrencesRequest extends Message<BatchGetNoti
    */
   notificationIds: string[] = [];
 
-  /**
-   * Load system-notification text and message previews. Defaults to false.
-   *
-   * @generated from field: bool include_content = 2;
-   */
-  includeContent = false;
-
   constructor(data?: PartialMessage<BatchGetNotificationOccurrencesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1251,7 +1172,6 @@ export class BatchGetNotificationOccurrencesRequest extends Message<BatchGetNoti
   static readonly typeName = "chatto.api.v1.BatchGetNotificationOccurrencesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "notification_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 2, name: "include_content", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetNotificationOccurrencesRequest {

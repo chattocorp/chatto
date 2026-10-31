@@ -44,7 +44,6 @@ Request one exact notification occurrence by stable ID.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_id` | `string` | Required stable occurrence ID. |
-| `include_content` | `bool` | Load system-notification text and message previews. Defaults to false. |
 
 
 <a id="chatto-api-v1-GetNotificationOccurrenceResponse"></a>
@@ -80,7 +79,6 @@ Request an explicit bounded set of notification occurrences.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_ids` | `repeated string` | Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are omitted. Repeated IDs are de-duplicated in first-seen request order. |
-| `include_content` | `bool` | Load system-notification text and message previews. Defaults to false. |
 
 
 <a id="chatto-api-v1-BatchGetNotificationOccurrencesResponse"></a>
@@ -119,7 +117,6 @@ Request for one page of notification occurrences.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 50 results when absent or limit is zero. Maximum: 100. |
-| `include_content` | `bool` | Load system-notification text and message previews. Defaults to false. |
 
 
 <a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>

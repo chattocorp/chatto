@@ -20,8 +20,6 @@ const slot = globalSlot('desktopNotifications', false, Codecs.boolean);
 // Bounded imperative handles, not UI state: changes must not trigger render effects.
 const callbacks: { id: string; callback: () => void; context?: DesktopNotificationContext }[] = [];
 let enabled = $state(slot.get());
-// Invalidates pending preview reads even when consent is disabled and enabled again.
-let consentRevision = 0;
 
 function removeCallback(id: string): (() => void) | undefined {
   const index = callbacks.findIndex((entry) => entry.id === id);
@@ -29,14 +27,10 @@ function removeCallback(id: string): (() => void) | undefined {
 }
 
 export const desktopNotifications = {
-  get consentRevision() {
-    return consentRevision;
-  },
   get enabled() {
     return enabled;
   },
   set enabled(value: boolean) {
-    if (value !== enabled) consentRevision++;
     enabled = value;
     slot.set(value);
     if (!value) clearDesktopNotifications(callbacks.map((entry) => entry.id));

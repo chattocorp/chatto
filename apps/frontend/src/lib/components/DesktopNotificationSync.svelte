@@ -1,11 +1,9 @@
-<!-- @component Shows native alerts for new eligible occurrences, loading previews on demand. -->
+<!-- @component Shows native alerts from the existing notification store. Owns no transport or timer. -->
 <script lang="ts">
   import type { ServerStateStore } from '@chatto/client/server/store';
   import type { NotificationOccurrenceItem } from '@chatto/client/api/notifications';
-  import { createNotificationAPI } from '@chatto/client/api/notifications';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { goto } from '$app/navigation';
-  import { m } from '$lib/i18n/messages';
   import { serverUi } from '$lib/state/server/serverUi';
   import {
     eligibleNotificationAlerts,
@@ -18,6 +16,7 @@
   } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { NotificationArrivals } from '$lib/desktop/notificationArrivals';
+  import { desktopNotificationContent } from '$lib/desktop/notificationContent';
   import {
     desktopNotifications,
     showDesktopNotification,
@@ -30,54 +29,9 @@
   const arrivals = new NotificationArrivals();
   const owner = {};
   let active = true;
-  let generation = 0;
 
   function clear() {
-    generation++;
     clearDesktopNotificationOwner(owner);
-  }
-
-  /** Check current eligibility both before loading previews and before delivery. */
-  function eligibleArrivals(rows: NotificationOccurrenceItem[]) {
-    const notifications = store.notifications;
-    const handled = notifications.knownHandledNotificationIds(rows.map((row) => row.id));
-    return eligibleNotificationAlerts(store.serverId, store, rows).filter(
-      (row) =>
-        row.unread &&
-        row.targetSupported &&
-        !handled.has(row.id) &&
-        notifications.canDisplayOccurrence(row) &&
-        (!row.expiresAt || Date.parse(row.expiresAt) > Date.now())
-    );
-  }
-
-  /** Preview reads belong to this alert batch; failures retain generic delivery. */
-  async function showArrivals(rows: NotificationOccurrenceItem[]) {
-    const started = generation;
-    const consent = desktopNotifications.consentRevision;
-    let hydrated: NotificationOccurrenceItem[];
-    try {
-      hydrated = await store.connection
-        .getAPI(createNotificationAPI)
-        .batchGetNotificationOccurrences(
-          rows.map((row) => row.id),
-          { includeContent: true }
-        );
-    } catch {
-      // A failed preview must not drop the alert or reuse stale display content.
-      hydrated = rows.map((row) => ({ ...row, content: undefined }));
-    }
-    if (
-      !active ||
-      started !== generation ||
-      !desktopNotifications.enabled ||
-      consent !== desktopNotifications.consentRevision ||
-      !store.isAuthenticated
-    )
-      return;
-    const eligible = eligibleArrivals(hydrated);
-    for (const row of eligible) show(row);
-    if (eligible.length) playNotificationAlertSound(store.serverId);
   }
 
   // Store listeners own privacy cleanup for this account-scoped component.
@@ -126,16 +80,11 @@
 
   function show(row: NotificationOccurrenceItem) {
     const id = crypto.randomUUID();
-    // Retain routing across pagination without keeping display text or message previews.
-    const target = {
-      ...row,
-      actor: null,
-      content: undefined,
-      room: row.room ? { id: row.room.id, name: '' } : null
-    };
+    // Retain routing fields across pagination, without copying actor or room display text.
+    const target = { ...row, actor: null, room: row.room ? { id: row.room.id, name: '' } : null };
     void showDesktopNotification(
       id,
-      row.content ?? { title: 'Chatto', body: m('settings.notifications.title') },
+      desktopNotificationContent(store, row),
       () => {
         void open(target).catch(() => console.error('Could not open the notification.'));
       },
@@ -158,11 +107,16 @@
     void notifications.pushRevision;
     reconcileDesktopNotifications(owner, notifications);
     if (!desktopNotifications.enabled) return;
-    const eligible = eligibleArrivals(fresh);
+    const eligible = eligibleNotificationAlerts(store.serverId, store, fresh).filter(
+      (row) =>
+        row.targetSupported &&
+        row.unread &&
+        notifications.canDisplayOccurrence(row) &&
+        (!row.expiresAt || Date.parse(row.expiresAt) > Date.now())
+    );
+    for (const row of eligible) show(row);
     if (eligible.length) {
-      void showArrivals(eligible).catch(() =>
-        console.error('Could not deliver desktop notifications.')
-      );
+      playNotificationAlertSound(store.serverId);
     }
   });
 </script>
