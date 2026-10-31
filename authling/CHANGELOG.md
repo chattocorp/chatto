@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.1.0-alpha.3](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.2...authling/v0.1.0-alpha.3) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **events:** move JetStream client helpers into pkg/jetstreamutil ([#2832](https://github.com/chattocorp/chatto/issues/2832))
+* **events:** stop guarding writes that do not depend on state ([#2826](https://github.com/chattocorp/chatto/issues/2826))
+* **events:** one OCC guard type for every write ([#2825](https://github.com/chattocorp/chatto/issues/2825))
+* **events:** slog logging, projector options at construction, one constructor rule ([#2824](https://github.com/chattocorp/chatto/issues/2824))
+
+### Features
+
+* **authling:** add administration and modernize the browser UI ([#3320](https://github.com/chattocorp/chatto/issues/3320)) ([c2c4ad3](https://github.com/chattocorp/chatto/commit/c2c4ad3acb41bbc33d404740958484a8828638ff))
+* **authling:** refine account UI and remember browser sessions ([#3326](https://github.com/chattocorp/chatto/issues/3326)) ([ac61e7a](https://github.com/chattocorp/chatto/commit/ac61e7a88972a21ad37acbf4401940a48655e088))
+* **dev:** expose Paseo workspaces through stable HTTPS routes ([#2903](https://github.com/chattocorp/chatto/issues/2903)) ([fd7a3dd](https://github.com/chattocorp/chatto/commit/fd7a3dd5676c6b69b285212f23abf93decb86286))
+* **events:** extract typed ID interning for projections ([#2864](https://github.com/chattocorp/chatto/issues/2864)) ([8bd9dbf](https://github.com/chattocorp/chatto/commit/8bd9dbf68954754e640b800658239714b9ec2651))
+
+
+### Bug Fixes
+
+* **authling:** classify storage conflicts consistently and share counter and key helpers ([#2861](https://github.com/chattocorp/chatto/issues/2861)) ([8d24b32](https://github.com/chattocorp/chatto/commit/8d24b32ac9069486654e45dbf7f03120a217eb2b))
+* **authling:** read key-value state through the stream leader ([#2836](https://github.com/chattocorp/chatto/issues/2836)) ([4840de3](https://github.com/chattocorp/chatto/commit/4840de36452a0e0de754050bd4d06de893e0987a))
+* classify JetStream conflicts consistently and drop Authling's raw KV writes ([#2837](https://github.com/chattocorp/chatto/issues/2837)) ([df07391](https://github.com/chattocorp/chatto/commit/df07391f4e3e3aa7140d070ba821c6402b39ee99))
+* **codegen:** build protobuf generators before running Buf ([#3108](https://github.com/chattocorp/chatto/issues/3108)) ([e03c379](https://github.com/chattocorp/chatto/commit/e03c3795723e84e6d565d4a4de749e19cdcfbf02))
+* **dev:** keep Authling state per port, reset it, and document client placement ([#2764](https://github.com/chattocorp/chatto/issues/2764)) ([d49c2b5](https://github.com/chattocorp/chatto/commit/d49c2b5c32f909f34a86f1bf857ea58616defe64))
+* **test:** remove leftover stream directories in the shared NATS reset ([#2863](https://github.com/chattocorp/chatto/issues/2863)) ([09d01aa](https://github.com/chattocorp/chatto/commit/09d01aa2eaadf4a5b8474460575d23597c2c6332))
+
+
+### Performance Improvements
+
+* **events:** stop guarding writes that do not depend on state ([#2826](https://github.com/chattocorp/chatto/issues/2826)) ([11acb9c](https://github.com/chattocorp/chatto/commit/11acb9c4967180c74a4df48654972e362269a595))
+
+
+### Code Refactoring
+
+* **events:** move JetStream client helpers into pkg/jetstreamutil ([#2832](https://github.com/chattocorp/chatto/issues/2832)) ([8bed0d5](https://github.com/chattocorp/chatto/commit/8bed0d59145ebb30d592446f4ccb0dc1c854b10b))
+* **events:** one OCC guard type for every write ([#2825](https://github.com/chattocorp/chatto/issues/2825)) ([6a64332](https://github.com/chattocorp/chatto/commit/6a6433258fc7e2a23f3c7251213eda6b7d5033cd))
+* **events:** slog logging, projector options at construction, one constructor rule ([#2824](https://github.com/chattocorp/chatto/issues/2824)) ([bf065a9](https://github.com/chattocorp/chatto/commit/bf065a9ff8c8f3493021b2e03672f1549f5d193d))
+
 ## [0.1.0-alpha.2](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.1...authling/v0.1.0-alpha.2) (2026-09-25)
 
 
