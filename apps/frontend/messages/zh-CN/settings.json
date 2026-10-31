@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "桌面版",
+      "subtitle": "此安装的更新",
+      "updates": "应用更新",
+      "unavailable": "此安装不支持自动更新。",
+      "version": "已安装版本：{version}",
+      "ready_link": "更新已就绪",
+      "restart_warning": "重启会结束正在进行的通话和屏幕共享。",
+      "restart": "重启以更新",
+      "check": "检查更新",
+      "preferences": "更新偏好设置",
+      "automatic": "自动检查并下载",
+      "channel": "发布频道",
+      "stable": "稳定版",
+      "beta": "测试版",
+      "channel_help": "稳定版自动更新会在36小时内逐步发布。手动检查和测试版不受此延迟限制。切换至稳定版不会安装较旧版本。",
+      "privacy": "更新会连接GitHub，GitHub会收到你的IP地址和更新请求。Chatto不会发送账号或已连接服务器的信息。",
+      "status": {
+        "idle": "已准备好检查更新。",
+        "checking": "正在检查更新…",
+        "downloading": "正在下载更新…",
+        "ready": "已准备好重启。",
+        "current": "此频道没有较新的更新。",
+        "error": "更新操作失败，请重试。",
+        "changed": "可用版本已变更，请重新检查。",
+        "installing": "正在准备重启…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "管理密码、电子邮件地址和登录方式。",

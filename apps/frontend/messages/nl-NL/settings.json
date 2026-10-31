@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Desktop",
+      "subtitle": "Updates voor deze installatie",
+      "updates": "App-updates",
+      "unavailable": "Automatische updates zijn niet beschikbaar in deze installatie.",
+      "version": "Geïnstalleerde versie: {version}",
+      "ready_link": "Update gereed",
+      "restart_warning": "Opnieuw starten beëindigt actieve gesprekken en schermdelen.",
+      "restart": "Herstarten voor update",
+      "check": "Zoeken naar updates",
+      "preferences": "Updatevoorkeuren",
+      "automatic": "Automatisch zoeken en downloaden",
+      "channel": "Releasekanaal",
+      "stable": "Stabiel",
+      "beta": "Bèta",
+      "channel_help": "Automatische stabiele updates worden over 36 uur verspreid. Handmatige controles en Bèta slaan deze wachttijd over. Overschakelen naar Stabiel installeert nooit een oudere versie.",
+      "privacy": "Updates maken contact met GitHub, dat je IP-adres en updateverzoeken ontvangt. Chatto verstuurt geen accountgegevens of informatie over verbonden servers.",
+      "status": {
+        "idle": "Klaar om naar updates te zoeken.",
+        "checking": "Zoeken naar updates…",
+        "downloading": "Update downloaden…",
+        "ready": "Klaar om opnieuw te starten.",
+        "current": "Er is geen nieuwere update beschikbaar op dit kanaal.",
+        "error": "De updateactie is mislukt. Probeer het opnieuw.",
+        "changed": "De beschikbare versie is gewijzigd. Controleer opnieuw.",
+        "installing": "Herstart voorbereiden…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Beheer je wachtwoord, e-mailadressen en aanmeldmethoden.",

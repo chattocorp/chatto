@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Desktop",
+      "subtitle": "Atualizações desta instalação",
+      "updates": "Atualizações do aplicativo",
+      "unavailable": "As atualizações automáticas não estão disponíveis nesta instalação.",
+      "version": "Versão instalada: {version}",
+      "ready_link": "Atualização pronta",
+      "restart_warning": "Reiniciar encerra chamadas ativas e o compartilhamento de tela.",
+      "restart": "Reiniciar para atualizar",
+      "check": "Buscar atualizações",
+      "preferences": "Preferências de atualização",
+      "automatic": "Buscar e baixar automaticamente",
+      "channel": "Canal de versões",
+      "stable": "Estável",
+      "beta": "Beta",
+      "channel_help": "As atualizações estáveis automáticas são distribuídas em 36 horas. As verificações manuais e Beta ignoram essa espera. Mudar para Estável nunca instala uma versão anterior.",
+      "privacy": "As atualizações contatam o GitHub, que recebe seu endereço IP e pedidos de atualização. O Chatto não envia informações de contas nem de servidores conectados.",
+      "status": {
+        "idle": "Pronto para buscar atualizações.",
+        "checking": "Buscando atualizações…",
+        "downloading": "Baixando atualização…",
+        "ready": "Pronto para reiniciar.",
+        "current": "Não há atualização mais recente neste canal.",
+        "error": "A operação de atualização falhou. Tente novamente.",
+        "changed": "A versão disponível mudou. Verifique novamente.",
+        "installing": "Preparando a reinicialização…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Gerencie sua senha, endereços de e-mail e métodos de login.",

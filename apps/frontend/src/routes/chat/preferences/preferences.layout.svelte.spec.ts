@@ -66,4 +66,12 @@ describe('App Preferences layout', () => {
     expect(mocks.goto).toHaveBeenCalledWith(destination, { replaceState: true });
     expect(container.querySelector('[data-testid="server-sidebar"]')).toBeNull();
   });
+
+  it('keeps Desktop preferences independent of an authenticated server', async () => {
+    mocks.pathname = '/chat/preferences/desktop';
+    mocks.authenticatedServerId = 'remote';
+    const { getByRole } = render(AppPreferencesLayout);
+    await expect.element(getByRole('heading', { name: 'App Preferences' })).toBeVisible();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
 });

@@ -89,7 +89,8 @@ Open the disk image and drag **Chatto** to **Applications**. Eject the
 disk image, then open the app from Applications. Release disk images and apps
 are Developer ID signed and notarised. The ZIP download remains available.
 
-Use the **Updates** menu to check, select Stable or Beta, and restart to install.
+Open **App Preferences → Desktop** to check, select Stable or Beta, and restart
+to install. The native **Updates** menu provides the same actions.
 Registrations, sessions, and preferences remain in the existing profile.
 Older builds without this menu need one manual replacement. Moving the app to the Trash does not erase that
 profile or sign out registered servers.
@@ -106,7 +107,10 @@ channel choice takes precedence. Beta includes beta and subsequent stable
 releases. Switching to Stable does not downgrade an installed beta. Automatic
 checks start 30 seconds after launch and repeat every 30 minutes. Stable
 updates roll out over 36 hours; manual checks and Beta bypass this delay.
-Users can disable automatic checks and downloads in the Updates menu.
+Users can disable automatic checks and downloads in Desktop preferences or the Updates menu.
+Desktop preferences show the installed version, status, and download progress.
+The update-ready link in the application header opens this page. The page works
+without a connected server. It appears in navigation only when updates are supported.
 The restart action appears only when an update is ready and shows its version.
 Installation requires **Restart to Install [version]** and confirmation. An ordinary quit
 does not install an update. The frontend stays bundled and startup uses local files.
@@ -154,8 +158,9 @@ replace these interactive checks.
 Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
 and run it. The installer installs for the current Windows user without
 administrator rights and adds a **Chatto** Start menu shortcut.
-Use **Updates → Release Channel** to select Stable or Beta, and the **Updates**
-menu to check for updates and restart to install them. If an older installation
+Use **App Preferences → Desktop** or **Updates → Release Channel** to select
+Stable or Beta. Desktop preferences and the **Updates** menu let you check for
+updates and restart to install them. If an older installation
 has no Updates menu, close Chatto and run a newer installer once.
 ZIP copies do not support automatic updates.
 

@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Töölaud",
+      "subtitle": "Selle paigalduse uuendused",
+      "updates": "Rakenduse uuendused",
+      "unavailable": "Automaatsed uuendused pole selles paigalduses saadaval.",
+      "version": "Paigaldatud versioon: {version}",
+      "ready_link": "Uuendus on valmis",
+      "restart_warning": "Taaskäivitamine lõpetab aktiivsed kõned ja ekraani jagamise.",
+      "restart": "Taaskäivita uuendamiseks",
+      "check": "Otsi uuendusi",
+      "preferences": "Uuenduste eelistused",
+      "automatic": "Otsi ja laadi automaatselt alla",
+      "channel": "Väljalaskekanal",
+      "stable": "Stabiilne",
+      "beta": "Beeta",
+      "channel_help": "Automaatsed stabiilsed uuendused jaotatakse 36 tunni jooksul. Käsitsi kontrollimine ja Beeta jätavad selle viivituse vahele. Stabiilsele üleminek ei paigalda kunagi vanemat versiooni.",
+      "privacy": "Uuendused võtavad ühendust GitHubiga, mis saab teie IP-aadressi ja uuenduspäringud. Chatto ei saada konto ega ühendatud serverite teavet.",
+      "status": {
+        "idle": "Valmis uuendusi otsima.",
+        "checking": "Uuenduste otsimine…",
+        "downloading": "Uuenduse allalaadimine…",
+        "ready": "Valmis taaskäivitamiseks.",
+        "current": "Selles kanalis pole uuemat uuendust.",
+        "error": "Uuendustoiming ebaõnnestus. Proovige uuesti.",
+        "changed": "Saadaolev väljalase muutus. Kontrollige uuesti.",
+        "installing": "Taaskäivituse ettevalmistamine…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Hallake parooli, e-posti aadresse ja sisselogimisviise.",

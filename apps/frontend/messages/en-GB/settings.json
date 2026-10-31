@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Desktop",
+      "subtitle": "Updates for this installation",
+      "updates": "Application updates",
+      "unavailable": "Automatic updates are not available in this installation.",
+      "version": "Installed version: {version}",
+      "ready_link": "Update ready",
+      "restart_warning": "Restarting ends active calls and screen sharing.",
+      "restart": "Restart to update",
+      "check": "Check for updates",
+      "preferences": "Update preferences",
+      "automatic": "Automatically check and download",
+      "channel": "Release channel",
+      "stable": "Stable",
+      "beta": "Beta",
+      "channel_help": "Stable automatic updates roll out over 36 hours. Manual checks and Beta bypass this delay. Switching to Stable never installs an older version.",
+      "privacy": "Updates contact GitHub, which receives your IP address and update requests. Chatto sends no account or connected-server information.",
+      "status": {
+        "idle": "Ready to check for updates.",
+        "checking": "Checking for updates…",
+        "downloading": "Downloading update…",
+        "ready": "Ready to restart.",
+        "current": "No newer update is available on this channel.",
+        "error": "The update operation failed. Try again.",
+        "changed": "The available release changed. Check again.",
+        "installing": "Preparing to restart…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Manage your password, email addresses, and sign-in methods.",

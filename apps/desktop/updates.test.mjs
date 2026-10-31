@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
-import { createDesktopUpdates, updatePreferences } from './updates.mjs';
+import { createDesktopUpdates, createUpdateInstallRequest, updatePreferences } from './updates.mjs';
 
 function fixture(overrides = {}) {
   const updater = new EventEmitter();
@@ -57,6 +57,63 @@ test('background downloads never restart; explicit installation revalidates the 
   assert.equal(f.updater.allowDowngrade, false);
   await f.controller.install();
   assert.deepEqual(f.counts(), { installs: 1, downloads: 1, checks: 3 });
+});
+
+test('snapshots report serialized progress, preferences and completion without private data', async () => {
+  const f = fixture();
+  const states = [];
+  const stop = f.controller.subscribe((state) => states.push(state));
+  let complete;
+  f.updater.downloadUpdate = () =>
+    new Promise((resolve) => {
+      complete = resolve;
+    });
+  const checking = f.controller.check(true);
+  await new Promise(setImmediate);
+  assert.equal(f.controller.snapshot().status, 'downloading');
+  assert.equal(f.controller.snapshot().busy, true);
+  f.updater.emit('download-progress', { percent: 42.8, url: 'secret' });
+  assert.equal(f.controller.snapshot().progress, 42);
+  await f.controller.check(true);
+  await f.controller.install();
+  assert.equal(await f.controller.setPreference('automatic', false), false);
+  f.updater.emit('update-downloaded', { version: '0.6.0' });
+  complete();
+  await checking;
+  assert.equal(f.controller.snapshot().status, 'ready');
+  assert.equal(f.controller.snapshot().busy, false);
+  assert.equal('bucket' in f.controller.snapshot(), false);
+  assert.equal('url' in f.controller.snapshot(), false);
+  assert.ok(
+    states.every((state, index) => index === 0 || state.revision > states[index - 1].revision)
+  );
+  await f.controller.setPreference('channel', 'beta');
+  assert.equal(f.controller.snapshot().channel, 'beta');
+  assert.equal(f.controller.snapshot().availableVersion, null);
+  stop();
+  const count = states.length;
+  await f.controller.setPreference('automatic', false);
+  assert.equal(states.length, count);
+});
+
+test('failed preference persistence keeps the committed preference and unlocks retry', async () => {
+  const updater = new EventEmitter();
+  let fail = true;
+  const controller = createDesktopUpdates({
+    updater,
+    preferences: updatePreferences({}, 0.5, '0.5.0'),
+    save: async () => {
+      if (fail) throw new Error('private path');
+    },
+    notify: async () => {}
+  });
+  await assert.rejects(controller.setPreference('channel', 'beta'), /Could not save/);
+  assert.equal(controller.snapshot().channel, 'stable');
+  assert.equal(controller.snapshot().status, 'error');
+  assert.equal(controller.snapshot().busy, false);
+  fail = false;
+  assert.equal(await controller.setPreference('channel', 'beta'), true);
+  assert.equal(controller.snapshot().channel, 'beta');
 });
 
 for (const result of [
@@ -181,4 +238,33 @@ test('initial channel follows the release version, including prereleases with bu
       );
     }
   }
+});
+
+test('restart confirmation is serialized and cannot install a changed target', async () => {
+  const f = fixture();
+  await f.controller.check();
+  let confirm;
+  let prompts = 0;
+  const request = createUpdateInstallRequest(f.controller, () => {
+    prompts++;
+    return new Promise((resolve) => {
+      confirm = resolve;
+    });
+  });
+  const first = request();
+  await request();
+  assert.equal(prompts, 1);
+  await f.controller.setPreference('channel', 'beta');
+  confirm(true);
+  await first;
+  assert.equal(f.counts().installs, 0);
+  await f.controller.check();
+  const cancelled = request();
+  confirm(false);
+  await cancelled;
+  assert.equal(f.counts().installs, 0);
+  const accepted = request();
+  confirm(true);
+  await accepted;
+  assert.equal(f.counts().installs, 1);
 });

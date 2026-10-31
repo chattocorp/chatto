@@ -1,5 +1,33 @@
 {
   "settings": {
+    "desktop": {
+      "title": "Labortablo",
+      "subtitle": "Ĝisdatigoj por ĉi tiu instalaĵo",
+      "updates": "Aplikaĵaj ĝisdatigoj",
+      "unavailable": "Aŭtomataj ĝisdatigoj ne disponeblas en ĉi tiu instalaĵo.",
+      "version": "Instalita versio: {version}",
+      "ready_link": "Ĝisdatigo preta",
+      "restart_warning": "Restartigo finas aktivajn vokojn kaj ekrankundividon.",
+      "restart": "Restartigi por ĝisdatigi",
+      "check": "Kontroli ĝisdatigojn",
+      "preferences": "Preferoj pri ĝisdatigoj",
+      "automatic": "Aŭtomate kontroli kaj elŝuti",
+      "channel": "Eldona kanalo",
+      "stable": "Stabila",
+      "beta": "Beta",
+      "channel_help": "Aŭtomataj stabilaj ĝisdatigoj distribuiĝas dum 36 horoj. Manaj kontroloj kaj Beta preterpasas la prokraston. Ŝanĝo al Stabila neniam instalas pli malnovan version.",
+      "privacy": "Ĝisdatigoj kontaktas GitHub, kiu ricevas vian IP-adreson kaj ĝisdatigajn petojn. Chatto sendas neniujn kontajn aŭ konektitservilajn informojn.",
+      "status": {
+        "idle": "Preta por kontroli ĝisdatigojn.",
+        "checking": "Kontrolante ĝisdatigojn…",
+        "downloading": "Elŝutante ĝisdatigon…",
+        "ready": "Preta por restartigi.",
+        "current": "Neniu pli nova ĝisdatigo disponeblas en ĉi tiu kanalo.",
+        "error": "La ĝisdatiga operacio malsukcesis. Provu denove.",
+        "changed": "La disponebla eldono ŝanĝiĝis. Kontrolu denove.",
+        "installing": "Preparante restartigon…"
+      }
+    },
     "overview": {
       "descriptions": {
         "account": "Administru vian pasvorton, retpoŝtadresojn kaj ensalutmetodojn.",

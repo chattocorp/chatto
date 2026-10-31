@@ -12,6 +12,7 @@
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import MotdContent from '$lib/ui/MotdContent.svelte';
   import { SERVER_SETTINGS_ROOT_ROUTE } from '$lib/navigation/settingsRoutes';
+  import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
   // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
@@ -150,6 +151,16 @@
 
   <!-- Client version and About action -->
   <div class="flex shrink-0 items-center gap-3">
+    {#if desktopUpdates.status?.status === 'ready'}
+      <a
+        href={resolve('/chat/preferences/desktop')}
+        class="app-header-icon text-action"
+        title={m('settings.desktop.ready_link')}
+        aria-label={m('settings.desktop.ready_link')}
+      >
+        <span class="iconify icon-[uil--download-alt] text-lg" aria-hidden="true"></span>
+      </a>
+    {/if}
     {#if version}
       <!-- Wide viewports have room to show the client version next to the About action. -->
       <span class="hidden text-sm tabular-nums md:inline" data-testid="app-header-version"
