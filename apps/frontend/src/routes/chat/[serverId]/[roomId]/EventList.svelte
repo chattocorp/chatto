@@ -21,7 +21,7 @@
     type TimelineEventView
   } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
-  import { getComposerContext, getRoomMembers, getRoomPermissions } from '$lib/state/room';
+  import { getComposerContext, getRoomMentionMembers, getRoomPermissions } from '$lib/state/room';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import RoomEvent from './RoomEvent.svelte';
   import MessageUserOverlays from './MessageUserOverlays.svelte';
@@ -162,7 +162,7 @@
   const stores = serverScope.store;
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
-  const roomMembers = $derived(getRoomMembers());
+  const roomMembers = $derived(getRoomMentionMembers());
   const userInteractions = new MessageUserInteractionState(() => roomMembers);
   const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
   const showMembershipEvents = $derived(

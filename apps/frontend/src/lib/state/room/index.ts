@@ -20,6 +20,7 @@ export {
   createRoomMembers,
   setRoomMembersStore,
   getRoomMembers,
+  getRoomMentionMembers,
   getRoomMembersStore,
   useRoomMembersStore,
   createMentionRoles,

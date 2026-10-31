@@ -13,7 +13,12 @@ message presentation. Each message row itself opens the original message.
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
-  import { getRoomMembers, type RoomMember, type RoomPinsStore } from '$lib/state/room';
+  import {
+    getRoomMembers,
+    getRoomMembersStore,
+    type RoomMember,
+    type RoomPinsStore
+  } from '$lib/state/room';
   import { mapOptionalUserSummary } from '@chatto/client/api/userSummary';
   import type { UserSummary } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -32,6 +37,7 @@ message presentation. Each message row itself opens the original message.
 
   const serverScope = useServerScope();
   const members = $derived(getRoomMembers());
+  const mentionStore = $derived(getRoomMembersStore());
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
@@ -126,6 +132,7 @@ message presentation. Each message row itself opens the original message.
               <div class="pointer-events-none" inert data-room-pin-preview>
                 <ClampedMessagePreview>
                   <MessageView
+                    {mentionStore}
                     eventId={message.id}
                     {actor}
                     displayName={actor?.displayName || actor?.login || m('common.unknown')}

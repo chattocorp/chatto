@@ -79,6 +79,8 @@ export type RoomStoresOptions = {
   viewerId: () => string | null;
   /** The complete member IDs of a room from the realtime projection, or null. */
   projectedMemberIds: (roomId: string) => readonly string[] | null;
+  /** Gate mention lookups while room authority is absent or being checked. */
+  canResolveMentions?: (roomId: string) => boolean;
   /** The number of recently used rooms and threads to keep; see {@link KeepRecent}. */
   keepRecent?: KeepRecent;
 };
@@ -258,6 +260,7 @@ export class RoomStores {
     if (entry.members) return entry.members;
     return (entry.members = new RoomMembersStore(roomId, this.#options.connection, {
       presence: this.#options.presence,
+      canResolveMentions: () => this.#options.canResolveMentions?.(roomId) ?? true,
       projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
     }));
   }

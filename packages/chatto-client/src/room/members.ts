@@ -12,6 +12,7 @@ import {
 import type { ServerConnection } from '../server/serverConnection.js';
 import type { UserAvatarUserView } from '../timeline/users.js';
 import { getUserStore, type UserStore } from '../server/users.js';
+import { MentionLookups } from './mentionLookups.js';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
@@ -40,6 +41,8 @@ function pageIds(page: MemberDirectoryPage): string[] {
 
 /** Optional collaborators of a {@link RoomMembersStore}. */
 export type RoomMembersStoreOptions = {
+  /** Read reactive access state: whether the viewer's room access is ready for mention reads. */
+  canResolveMentions?: () => boolean;
   /** The server's presence owner, which receives fresh presence from preview reads. */
   presence?: ServerPresence | null;
   /**
@@ -60,6 +63,29 @@ export type RoomMembersStoreOptions = {
  * its loading state is complete.
  */
 export class RoomMembersStore {
+  readonly #mentions: MentionLookups;
+  readonly #canResolveMentions: () => boolean;
+  readonly #mentionMembersComputed = computed(() => {
+    // Keep the data dependencies even while access is deferred. Snapshot
+    // recovery can complete between reads without a reactive access flag.
+    const ids = [...new Set([...(this.#projected ?? this.#memberIds), ...this.#mentions.ids])];
+    return this.#canResolveMentions() ? this.resolveIds(ids) : [];
+  });
+
+  /** Known directory members plus users resolved for visible mentions. */
+  get mentionMembers(): RoomMember[] {
+    return this.#mentionMembersComputed.get();
+  }
+
+  /** Retain only the handles in visible content; does not request the directory. */
+  retainMentions(handles: readonly string[]): () => void {
+    return this.#mentions.retain(handles);
+  }
+
+  /** Resume visible mention reads after access or recovery checks finish. */
+  resumeMentions(): void {
+    this.#mentions.resume();
+  }
   #listRequested = false;
   /** A full list was requested, independently of bounded mention searches. Survives recovery. */
   get hasRequestedList(): boolean {
@@ -208,6 +234,11 @@ export class RoomMembersStore {
     this.roomId = roomId;
     this.#presence = options.presence ?? null;
     this.#projectedMemberIds = options.projectedMemberIds ?? (() => null);
+    this.#canResolveMentions = options.canResolveMentions ?? (() => true);
+    this.#mentions = new MentionLookups(
+      (handle, signal) => this.lookupMention(handle, signal),
+      this.#canResolveMentions
+    );
     if (!source) {
       this.api = null;
     } else if ('listRoomMembers' in source) {
@@ -216,6 +247,38 @@ export class RoomMembersStore {
       this.api = source.getAPI(createMemberDirectoryAPI);
       if (source.serverId) this.#users = getUserStore(source.serverId, source.queryScope);
     }
+  }
+
+  /** Search only matching pages; a substring match is not itself a valid mention. */
+  private async lookupMention(handle: string, signal: AbortSignal): Promise<string | null> {
+    const matches = (member: RoomMember) =>
+      !member.deleted &&
+      this.#membershipChanges.get(member.id) !== false &&
+      (member.login.toLowerCase() === handle || member.displayName.toLowerCase() === handle);
+    const known = this.members.find(matches);
+    if (known) return known.id;
+    if (this.hasLoadedAll || !this.api || !this.roomId) return null;
+    let offset = 0;
+    while (!signal.aborted) {
+      const page = await this.api.listRoomMembers(
+        this.roomId,
+        handle,
+        ROOM_MEMBERS_PAGE_SIZE,
+        offset,
+        {
+          signal,
+          minimumCursor: this.#minimumCursor
+        }
+      );
+      signal.throwIfAborted();
+      this.recordPageProfiles(page.members);
+      const match = this.resolveIds(pageIds(page)).find(matches);
+      if (match) return match.id;
+      const consumed = page.consumedCount ?? pageIds(page).length;
+      if (!page.hasMore || !consumed) return null;
+      offset += consumed;
+    }
+    return null;
   }
 
   get filteredMembers(): RoomMember[] {
@@ -301,6 +364,7 @@ export class RoomMembersStore {
   } = {}): Promise<void> {
     this.#listRequested = true;
     if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
+    this.#mentions.invalidate();
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = !this.#hasFirstPage;
@@ -333,6 +397,7 @@ export class RoomMembersStore {
         this.#fullScanFinished = true;
         this.#isInitialLoading = false;
         this.#isBackgroundLoading = false;
+        this.#mentions.resume();
       }
     }
   }
@@ -397,7 +462,11 @@ export class RoomMembersStore {
   /** Standalone fixtures receive profile changes here; connected rooms use UserStore. */
   updateUsers(users: DirectoryMember[]): void {
     this.#searchCache.clear();
-    if (this.#users) return;
+    this.#mentions.invalidate();
+    if (this.#users) {
+      this.#mentions.resume();
+      return;
+    }
     for (const user of users) {
       this.#standaloneProfiles.set(user.id, {
         member: user,
@@ -412,6 +481,7 @@ export class RoomMembersStore {
         }
       }
     }
+    this.#mentions.resume();
   }
 
   /** Apply membership deltas even while this room is not mounted. A delta
@@ -422,6 +492,7 @@ export class RoomMembersStore {
     this.#membershipChanges.set(userId, joined);
     if (!joined && !this.#users) this.#standaloneProfiles.delete(userId);
     this.#searchCache.clear();
+    this.#mentions.invalidate();
     if (this.#isInitialLoading || this.#isBackgroundLoading) {
       await this.refresh();
       return;
@@ -430,8 +501,10 @@ export class RoomMembersStore {
     if (!joined) {
       this.#memberIds = this.#memberIds.filter((id) => id !== userId);
       if (exists) this.#totalCount = Math.max(0, this.#totalCount - 1);
+      this.#mentions.resume();
       return;
     }
+    this.#mentions.resume();
     if (exists || !this.#hasFirstPage) return;
     if (this.#users) {
       // Realtime owns profile hydration. Membership can publish its ID now.
@@ -458,8 +531,9 @@ export class RoomMembersStore {
   }
 
   /** Discard snapshots after a recovery gap or an authorization boundary. */
-  resetProjectionState(): void {
+  resetProjectionState(minimumCursor?: string): void {
     this.reset();
+    this.#minimumCursor = minimumCursor;
   }
 
   /**
@@ -468,6 +542,7 @@ export class RoomMembersStore {
    */
   dispose(): void {
     this.#disposed = true;
+    this.#mentions.dispose();
     this.#loadId++;
   }
 
@@ -588,6 +663,7 @@ export class RoomMembersStore {
   }
 
   private reset(): void {
+    this.#mentions.invalidate();
     this.#loadId++;
     this.#memberIds = [];
     this.#standaloneProfiles.clear();

@@ -6,7 +6,10 @@
 <script lang="ts">
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import { MarkdownHtml, ContextMenu } from '$lib/ui';
-  import { resolveRenderedMentions, type RoomMember } from '$lib/mentions';
+  import { extractMentions, resolveRenderedMentions, type RoomMember } from '$lib/mentions';
+  import type { RoomMembersStore } from '@chatto/client/room/members';
+  import type { Attachment } from 'svelte/attachments';
+  import { untrack } from 'svelte';
   import { formatRelativeMessageTimestamp, wrapMessageTimestamps } from '$lib/messageTimestamps';
   import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { getLocale } from '$lib/i18n/runtime';
@@ -36,6 +39,7 @@
   let {
     body,
     members = [],
+    mentionStore,
     roleHandles = [],
     edited = false,
     echoedToChannel = false,
@@ -46,6 +50,8 @@
   }: {
     body: string;
     members?: RoomMember[];
+    /** Room lookup owner; retain handles only while this content is mounted. */
+    mentionStore?: RoomMembersStore;
     roleHandles?: string[];
     edited?: boolean;
     echoedToChannel?: boolean;
@@ -54,6 +60,22 @@
     timestampLocale?: string;
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
   } = $props();
+  const resolvedMembers = $derived(mentionStore?.mentionMembers ?? members);
+  const mentionHandles = $derived(
+    extractMentions(body).filter(
+      (handle) =>
+        !['all', 'here', ...roleHandles.map((role) => role.toLowerCase())].includes(
+          handle.toLowerCase()
+        )
+    )
+  );
+  const retainMentions: Attachment = () => {
+    const store = mentionStore;
+    const handles = mentionHandles;
+    // This subscription belongs to the rendered content. Its internal cache
+    // reads must not cause the attachment to release and retain it again.
+    return untrack(() => store?.retainMentions(handles));
+  };
   let activeTimestamp = $state<ActiveTimestamp | null>(null);
   const liveNow = new SvelteDate();
   const activeTimestampLocale = $derived(timestampLocale ?? getLocale());
@@ -179,8 +201,14 @@
   }
 </script>
 
-<div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick}>
-  {#await render(body, members, roleHandles, edited, echoedToChannel, viewerLogin, timestampSettings, timestampLocale)}
+<div
+  {@attach retainMentions}
+  class="prose max-w-none min-w-0"
+  dir="auto"
+  role="presentation"
+  onclick={handleContentClick}
+>
+  {#await render(body, resolvedMembers, roleHandles, edited, echoedToChannel, viewerLogin, timestampSettings, timestampLocale)}
     {body}
   {:then html}
     <MarkdownHtml {html} {enhanceLink} />

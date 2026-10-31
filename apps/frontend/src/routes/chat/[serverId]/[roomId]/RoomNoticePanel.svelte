@@ -106,6 +106,7 @@
       {:else if notice.body}
         <div class="min-w-0" dir="auto">
           <MessageContent
+            mentionStore={mentions?.memberStore}
             body={notice.body}
             members={mentions?.members}
             roleHandles={mentions?.roles?.map((role) => role.name)}

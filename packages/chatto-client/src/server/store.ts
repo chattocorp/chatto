@@ -356,6 +356,10 @@ export class ServerStateStore {
       presence: this.presence,
       realtimeViewerId: () => this.realtimeViewerId(),
       viewerId: () => this.viewerId,
+      canResolveMentions: (roomId) =>
+        !this.#realtimeSnapshotPending &&
+        !this.checkingPermissions &&
+        Boolean(this.projection.rooms.get(roomId)?.viewerState?.isMember),
       projectedMemberIds: (roomId) => {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
@@ -790,6 +794,7 @@ export class ServerStateStore {
   /** Consumers can request a directory while recovery awaits its earlier reads. */
   private loadPendingRoomMembers(): void {
     if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
+    for (const members of this.#rooms.all('members')) members.resumeMentions();
     for (const members of this.accessibleMemberStores()) members.ensureLoaded();
   }
 
@@ -810,7 +815,8 @@ export class ServerStateStore {
   private invalidateRoomMembership(roomId: string): void {
     const members = this.#rooms.loaded(roomId)?.members;
     if (!members) return;
-    members.resetProjectionState();
+    members.resetProjectionState(this.#currentEventMinimumCursor);
+    members.resumeMentions();
     if (!members.hasRequestedList) return;
     if (this.#realtimeSnapshotPending || this.checkingPermissions) return;
     if (!this.projection.rooms.get(roomId)?.viewerState?.isMember) return;
@@ -859,6 +865,7 @@ export class ServerStateStore {
   /** Reacquire cached members and mounted resources after access returns. */
   private restoreRoomAccess(roomId: string): void {
     const members = this.#rooms.loaded(roomId)?.members;
+    members?.resumeMentions();
     if (members?.hasRequestedList) this.loadRoomMembers(roomId);
     this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);

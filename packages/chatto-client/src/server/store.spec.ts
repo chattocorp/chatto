@@ -1511,6 +1511,65 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('resumes retained mention lookups after cold recovery and access restoration without a directory scan', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = new RoomWithViewerState({
+      room: new Room({ id: 'room' }),
+      viewerState: { isMember: true }
+    });
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room])] : []
+    );
+    apiMocks.listRoomMembers.mockClear();
+    apiMocks.listRoomMembers.mockResolvedValue({
+      members: [],
+      memberIds: ['alice'],
+      totalCount: 1,
+      hasMore: false
+    });
+    apiMocks.readRealtimeUsers.mockResolvedValue([
+      new RealtimeResourceUpdate({
+        resource: {
+          case: 'users',
+          value: {
+            users: [
+              new DirectoryMember({ user: { id: 'alice', login: 'alice', displayName: 'Alice' } })
+            ]
+          }
+        }
+      })
+    ]);
+    store.realtimeSync.beginCatchUp();
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    store.projection.users.set(
+      'alice',
+      new DirectoryMember({ user: { id: 'alice', login: 'alice', displayName: 'Alice' } })
+    );
+    const members = store.rooms.members('room');
+    const release = members.retainMentions(['alice']);
+    expect(members.mentionMembers).toEqual([]);
+    expect(apiMocks.listRoomMembers).not.toHaveBeenCalled();
+    await store.completeRealtimeCatchUp('snapshot-cursor');
+    store.realtimeSync.markCaughtUp('snapshot-cursor');
+    await flushPromises();
+    expect(members.mentionMembers.map((member) => member.id)).toEqual(['alice']);
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(1);
+    expect(apiMocks.listRoomMembers.mock.calls[0]?.slice(0, 4)).toEqual(['room', 'alice', 250, 0]);
+    for (const isMember of [false, true]) {
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          resource: roomResource([
+            new RoomWithViewerState({ room: room.room, viewerState: { isMember } })
+          ])
+        })
+      );
+      await flushPromises();
+      expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(isMember ? 2 : 1);
+    }
+    expect(members.hasRequestedList).toBe(false);
+    release();
+    store.dispose();
+  });
   it('discards mention-only reads at a permission boundary without starting a scan', async () => {
     apiMocks.listRoomMembers.mockClear();
     const store = makeStore(new FakeServerConnection([]));
