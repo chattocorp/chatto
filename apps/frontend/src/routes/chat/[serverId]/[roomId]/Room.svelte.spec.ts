@@ -4,7 +4,9 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import ContextMenu from '$lib/ui/ContextMenu.svelte';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomKind, RoomNotice } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomNoticeStore } from '@chatto/client/room/notice';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
@@ -978,6 +980,31 @@ describe('Room interaction bundles', () => {
 });
 
 describe('Room local message echo', () => {
+  it('requests members for notice mentions while Members is closed, and releases the notice subscription', async () => {
+    const loadMembers = vi.fn();
+    const release = vi.fn();
+    let acceptNotice: (notice: RoomNotice | null) => void = () => {};
+    server.scope.store.loadRoomMembers = loadMembers;
+    server.scope.store.projection.rooms.set(
+      'room-1',
+      new RoomWithViewerState({ viewerState: { isMember: true } })
+    );
+    const notice = new RoomNoticeStore(server.scope.connection, 'room-1');
+    vi.spyOn(notice, 'retain').mockImplementation((onChange) => {
+      if (onChange) acceptNotice = onChange;
+      onChange?.(new RoomNotice({ body: 'Welcome' }));
+      return release;
+    });
+    server.scope.store.rooms.notice = () => notice;
+    appUi.closeDesktopRoomSidebarPanel();
+    const view = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    expect(loadMembers).not.toHaveBeenCalled();
+    acceptNotice(new RoomNotice({ body: 'Ask @alice' }));
+    expect(loadMembers).toHaveBeenCalledExactlyOnceWith('room-1');
+    await view.unmount();
+    expect(release).toHaveBeenCalledOnce();
+  });
   it.each(['system', 'test-user'])(
     'marks a visible arrival by %s read through its event ID',
     async (actorId) => {
