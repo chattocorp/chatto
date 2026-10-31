@@ -16,10 +16,10 @@
   }: {
     href: string;
     local?: HoverIdentity;
-    children: Snippet<[string | undefined]>;
+    children: Snippet<[string | undefined, boolean]>;
   } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
-  const existingPreview = useLinkPreview();
+  const { lookup: existingPreview, isLoading: existingLoading } = useLinkPreview();
   const cardId = $props.id();
   const destination = $derived(renderedLinkTarget(href));
   let trigger: HTMLSpanElement | undefined;
@@ -154,7 +154,8 @@
     }
   }}
 />
-<span {@attach attachTrigger}>{@render children(pageTitle)}</span>{#if anchor}
+<span {@attach attachTrigger}>{@render children(pageTitle, loading || existingLoading(href))}</span
+>{#if anchor}
   <FloatingPopover
     animate
     {anchor}

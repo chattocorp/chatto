@@ -1837,6 +1837,10 @@
   background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
+.url-link {
+  max-width: min(100%, 28rem);
+}
+
 .url-link:hover,
 .entity-link:hover {
   --url-link-surface: var(--color-surface-selected);

@@ -3,7 +3,11 @@
   import { parseWebLink } from '$lib/navigation/webLink';
   import { handleRenderedLinkClick, renderedLinkTarget } from '$lib/navigation/renderedLink';
 
-  let { href, title }: { href: string; title?: string } = $props();
+  let {
+    href,
+    title,
+    loading = false
+  }: { href: string; title?: string; loading?: boolean } = $props();
   const descriptionId = $props.id();
   const url = $derived(parseWebLink(href));
   const destination = $derived(renderedLinkTarget(href));
@@ -38,15 +42,20 @@
     data-content-href={href}
     title={href}
     aria-describedby={descriptionId}
+    aria-busy={loading}
     onclick={(event) => handleRenderedLinkClick(event, href)}
     onauxclick={(event) => {
       if (event.button === 1) handleRenderedLinkClick(event, href);
     }}
   >
     <span class="url-link-main">
-      {#if destination.target === '_blank'}
+      {#if loading || destination.target === '_blank'}
         <span class="url-link-icon" aria-hidden="true">
-          <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
+          {#if loading}
+            <span class="iconify icon-[uil--spinner-alt] animate-spin" aria-hidden="true"></span>
+          {:else}
+            <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
+          {/if}
         </span>
       {/if}
       {#if hasTitle}

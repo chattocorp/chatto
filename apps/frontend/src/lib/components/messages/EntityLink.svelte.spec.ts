@@ -140,10 +140,10 @@ it.each(['ltr', 'rtl'])(
         ? host.getBoundingClientRect().left > title.getBoundingClientRect().left
         : host.getBoundingClientRect().left < title.getBoundingClientRect().left
     ).toBe(true);
-    // A standalone link can use the wider message instead of keeping a fixed cap.
+    // Long titles stay compact even when the message column is wide.
     container.style.width = '900px';
-    expect(anchor.getBoundingClientRect().width).toBeGreaterThan(800);
-    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(900);
+    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(448);
+    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
   }
 );
 

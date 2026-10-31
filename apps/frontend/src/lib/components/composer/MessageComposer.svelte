@@ -138,7 +138,10 @@
   const composerContext = getComposerContext();
   const replyState = $derived(composerContext.replyState);
   const membersStore = useRoomMembersStore();
-  provideLinkPreview((href) => composer.linkPreviews.previews.get(href));
+  provideLinkPreview(
+    (href) => composer.linkPreviews.previews.get(href),
+    (href) => composer.linkPreviews.fetchingURLs.has(href)
+  );
   const composer = new MessageComposerState({
     draftReplies: serverUi(stores).draftReplies,
     getRoomId: () => roomId,

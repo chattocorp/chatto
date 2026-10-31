@@ -22,6 +22,7 @@
   <p>
     Page title: <UrlLink href="https://example.com/guide" title="Getting started with Chatto" />.
   </p>
+  <p>Loading metadata: <UrlLink href="https://example.com/guide" loading />.</p>
   <p>
     Long title: <UrlLink
       href="https://example.com/guide"

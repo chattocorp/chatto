@@ -81,7 +81,7 @@
         }
       : undefined}
   >
-    {#snippet children(pageTitle)}
+    {#snippet children(pageTitle, loading)}
       {#if authoredLabel}
         {@render authoredLabel()}
       {:else if known && target && path}
@@ -102,7 +102,7 @@
           />
         {/key}
       {:else}
-        <UrlLink {href} title={pageTitle} />
+        <UrlLink {href} title={pageTitle} {loading} />
       {/if}
     {/snippet}
   </LinkHover>

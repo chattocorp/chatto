@@ -37,6 +37,42 @@ afterEach(() => {
 function hover(container: HTMLElement) {
   container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
 }
+it.each(['success', 'failure'])('shows a pill spinner until metadata fetch %s', async (outcome) => {
+  let resolve!: (value: unknown) => void;
+  let reject!: (reason: Error) => void;
+  fetchLinkPreview.mockReturnValue(
+    new Promise((done, fail) => {
+      resolve = done;
+      reject = fail;
+    })
+  );
+  const { container } = render(LinkTitleTestHarness, { href });
+  const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  expect(trigger.getAttribute('aria-busy')).toBe('false');
+  hover(container);
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
+  expect(trigger.getAttribute('aria-busy')).toBe('true');
+  expect(trigger.querySelector('.url-link-icon .animate-spin')).not.toBeNull();
+  expect(trigger.href).toBe(href);
+  if (outcome === 'success') resolve({ url: href, title: 'Loaded title' });
+  else reject(new Error('unavailable'));
+  await vi.waitFor(() => expect(trigger.getAttribute('aria-busy')).toBe('false'));
+  expect(trigger.querySelector('.animate-spin')).toBeNull();
+  expect(trigger.querySelector('.url-link-icon')).not.toBeNull();
+  expect(trigger.textContent).toContain(outcome === 'success' ? 'Loaded title' : 'example.test');
+});
+
+it('reflects metadata loading from the composer without a hover request', async () => {
+  const { container, rerender } = render(LinkTitleTestHarness, { href, loading: true });
+  const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  expect(trigger.getAttribute('aria-busy')).toBe('true');
+  expect(trigger.querySelector('.url-link-icon .animate-spin')).not.toBeNull();
+  await rerender({ href, loading: false });
+  expect(trigger.getAttribute('aria-busy')).toBe('false');
+  expect(trigger.querySelector('.animate-spin')).toBeNull();
+  expect(fetchLinkPreview).not.toHaveBeenCalled();
+});
+
 it('reuses a fetched title without replacing the focused anchor or its destination', async () => {
   const { container } = render(LinkTitleTestHarness, { href });
   const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
