@@ -108,7 +108,7 @@
   play={async ({ canvasElement }) => {
     const container = canvasElement.querySelector<HTMLElement>('[data-filter-demo]')!;
     const group = container.querySelector<HTMLElement>('.segmented-control-group')!;
-    const controls = [...group.querySelectorAll('fieldset')];
+    const controls = [...group.querySelectorAll<HTMLElement>('[role="radiogroup"]')];
     container.style.width = '900px';
     await waitFor(() => {
       expect(controls[0].getBoundingClientRect().top).toBe(controls[1].getBoundingClientRect().top);

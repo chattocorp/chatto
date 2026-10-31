@@ -2751,6 +2751,53 @@
   bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
 }
 
+/* TouchPressFeedback marks only the innermost action for a primary pointer press.
+ * Do not wait for native :active, which can start after touch release. */
+@layer utilities {
+  [data-touch-ripple-host] {
+    position: relative;
+  }
+
+  .touch-ripple {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+    @variant motion-reduce {
+      display: none;
+    }
+  }
+
+  .touch-ripple-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+  }
+
+  [data-touch-pressed]:not(:disabled, [aria-disabled='true']) {
+    opacity: 0.65;
+    @variant motion-safe {
+      /* Keep the separate translate property available for control positioning. */
+      transform: translate(1px, 1px);
+    }
+    /* A short tap must not finish before the feedback becomes visible. */
+    transition-duration: 0s;
+  }
+
+  /* Relative offsets move inline fragments without changing line wrapping. */
+  [data-touch-pressed][data-press-inline] {
+    @variant motion-safe {
+      position: relative;
+      left: 1px;
+      top: 1px;
+      transform: none;
+    }
+  }
+}
+
 @layer base {
   /* Match the focus-visible variant: hide the browser's default focus outline
      after pointer input. Text entry keeps it, as browsers always show focus

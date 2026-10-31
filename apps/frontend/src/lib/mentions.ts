@@ -85,6 +85,7 @@ function resolveMention(
       currentUserLogin && member.login.toLowerCase() === currentUserLogin.toLowerCase();
     span.className = isSelfMention ? 'mention mention-self' : 'mention';
     span.setAttribute('data-user-id', member.id);
+    span.setAttribute('data-press-feedback', '');
     span.setAttribute('dir', 'auto');
     span.textContent = `@${member.displayName.trim() || member.login}`;
     return span;

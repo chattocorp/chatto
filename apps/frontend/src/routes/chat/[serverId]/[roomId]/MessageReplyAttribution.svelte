@@ -55,6 +55,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   data-testid="reply-attribution"
+  data-press-feedback
   title={m('room.message.meta.in_reply_to')}
   class={[
     'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
