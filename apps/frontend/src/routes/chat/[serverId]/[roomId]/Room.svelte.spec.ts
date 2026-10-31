@@ -1,7 +1,7 @@
 import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { tick } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import ContextMenu from '$lib/ui/ContextMenu.svelte';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
@@ -1776,6 +1776,36 @@ describe('Room local message echo', () => {
     rendered.unmount();
     expect(release).toHaveBeenCalledTimes(2);
   });
+
+  it.each(['desktop', 'mobile'] as const)(
+    'reopens the loaded %s sidebar without mounting a loading placeholder',
+    async (presentation) => {
+      stubMatchMedia(presentation === 'desktop');
+      const open = () =>
+        presentation === 'desktop'
+          ? appUi.openDesktopRoomSidebarPanel('files')
+          : appUi.openMobileRoomSidebarPanel('files');
+      const close = () =>
+        presentation === 'desktop'
+          ? appUi.closeDesktopRoomSidebarPanel()
+          : appUi.closeMobileRoomSidebarPanel();
+      const selector = `[data-testid="room-sidebar-${presentation}-pane"]`;
+      open();
+      const { container } = render(Room, { props: { roomId: 'room-1' } });
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="close-room-sidebar"]')).not.toBeNull()
+      );
+
+      flushSync(close);
+      expect(container.querySelector(selector)).toBeNull();
+      flushSync(open);
+
+      const pane = container.querySelector(selector);
+      expect(pane).not.toBeNull();
+      expect(pane?.querySelector('[data-loading-fog]')).toBeNull();
+      expect(pane?.querySelector('[data-testid="close-room-sidebar"]')).not.toBeNull();
+    }
+  );
 
   it('closes the thread when pressing inside the app sidebar or server gutter', async () => {
     render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });

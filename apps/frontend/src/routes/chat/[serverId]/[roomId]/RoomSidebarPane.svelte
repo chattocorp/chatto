@@ -1,19 +1,27 @@
+<script module lang="ts">
+  type SidebarModule = typeof import('./RoomSidebar.svelte');
+  // Share component code, not pane state. Reopens can render the resolved module
+  // directly instead of entering the pending branch of a new import promise.
+  let roomSidebarModule: SidebarModule | Promise<SidebarModule> | null = null;
+
+  function loadRoomSidebar(_attempt: number) {
+    roomSidebarModule ??= import('./RoomSidebar.svelte')
+      .then((module) => (roomSidebarModule = module))
+      .catch((error: unknown) => {
+        roomSidebarModule = null;
+        throw error;
+      });
+    return roomSidebarModule;
+  }
+</script>
+
 <script lang="ts">
   import type { ComponentProps } from 'svelte';
   import type RoomSidebar from './RoomSidebar.svelte';
   import { m } from '$lib/i18n/messages';
   import { LoadingFog, LoadRetry } from '$lib/ui';
 
-  let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
   let roomSidebarLoadAttempt = $state(0);
-
-  function loadRoomSidebar(_attempt: number) {
-    roomSidebarModule ??= import('./RoomSidebar.svelte').catch((error: unknown) => {
-      roomSidebarModule = null;
-      throw error;
-    });
-    return roomSidebarModule;
-  }
 
   let {
     presentation,
