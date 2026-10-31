@@ -82,15 +82,22 @@ test.describe('Route accessibility', () => {
     const link = roomPage
       .getMessage('Preview destination')
       .locator.getByRole('link', { name: 'Preview destination', exact: true });
-    await link.dispatchEvent('pointerdown', {
-      pointerType: 'touch',
-      pointerId: 1,
-      isPrimary: true,
-      bubbles: true
+    const touch = await page.context().newCDPSession(page);
+    await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    await link.click({ trial: true });
+    const bounds = await link.boundingBox();
+    expect(bounds).not.toBeNull();
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2 }]
     });
+    // Hold through both link and message timers. Pointer-only synthetic events
+    // miss the browser's touch events and compatibility mouse events.
+    await page.waitForTimeout(750);
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     const sheet = page.getByRole('dialog', { name: 'Open link', exact: true });
     await expect(sheet).toBeVisible();
-    await link.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 1, bubbles: true });
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
     await expectNoAccessibilityViolations(page, 'touch link preview', 'dialog[open]');
     await expect(sheet.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();

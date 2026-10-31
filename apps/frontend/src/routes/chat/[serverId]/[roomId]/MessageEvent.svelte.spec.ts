@@ -18,6 +18,7 @@ import { messageEvent } from './messageEventFixture';
 import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 
 const mocks = vi.hoisted(() => ({
+  touchPrimary: false,
   copyImageToClipboard: vi.fn(),
   actions: {
     addReaction: vi.fn(),
@@ -49,8 +50,8 @@ vi.mock('$lib/utils/inputCapabilities', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/utils/inputCapabilities')>();
   return {
     ...actual,
-    prefersTouchActions: () => false,
-    supportsHoverActions: () => true
+    prefersTouchActions: () => mocks.touchPrimary,
+    supportsHoverActions: () => !mocks.touchPrimary
   };
 });
 
@@ -103,6 +104,7 @@ async function selectPickerEmoji(
 }
 
 beforeEach(() => {
+  mocks.touchPrimary = false;
   vi.clearAllMocks();
   for (const action of Object.values(mocks.actions)) action.mockResolvedValue(undefined);
 });
@@ -517,6 +519,33 @@ describe('MessageEvent action model integration', () => {
 
     await vi.waitFor(() => expect(actionSheetButton(container, 'Copy message link')).toBeTruthy());
     expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it.each([
+    '<span data-link-preview-trigger><a href="#">Link</a></span>',
+    '<dialog><button>Preview action</button></dialog>',
+    '<div popover><button>Preview action</button></div>'
+  ])('keeps message gestures out of child-owned surfaces: %s', async (html) => {
+    mocks.touchPrimary = true;
+    const actionOverlays = new MessageActionOverlayState();
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), actionOverlays }
+    });
+    const body = q(container, '[data-testid="message-body"]')!;
+    body.innerHTML = html;
+    const child = body.querySelector('a, button')!;
+    vi.useFakeTimers();
+    child.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    child.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    vi.advanceTimersByTime(600);
+    flushSync();
+    expect(actionOverlays.current).toBeNull();
+    // The message body itself still owns a normal long press.
+    body.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    vi.advanceTimersByTime(500);
+    flushSync();
+    expect(actionOverlays.current?.kind).toBe('sheet');
+    vi.useRealTimers();
   });
 
   it('closes the touch sheet when it is dismissed natively', async () => {

@@ -28,6 +28,21 @@ export function contextMenuTrigger(
     let suppressClick = false;
     let openedDuringTouch = false;
 
+    function clearClickSuppression(): void {
+      suppressClick = false;
+      if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
+      suppressClickTimer = null;
+      window.removeEventListener('click', discardOpeningClick, true);
+      window.removeEventListener('pointerdown', clearClickSuppression, true);
+      window.removeEventListener('keydown', clearClickSuppression, true);
+    }
+
+    function discardOpeningClick(event: MouseEvent): void {
+      clearClickSuppression();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+
     function cancelLongPress(): void {
       if (timer !== null) window.clearTimeout(timer);
       timer = null;
@@ -36,13 +51,15 @@ export function contextMenuTrigger(
 
     function armClickSuppression(): void {
       suppressClick = true;
+      // A modal can retarget the release click onto its content. Guard the
+      // window, not just the trigger. A new press or key is deliberate input.
+      window.addEventListener('click', discardOpeningClick, true);
+      window.addEventListener('pointerdown', clearClickSuppression, true);
+      window.addEventListener('keydown', clearClickSuppression, true);
       if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
       // Some browsers omit the synthetic click after a native long-press menu.
       // Do not let that suppress a later deliberate click.
-      suppressClickTimer = window.setTimeout(() => {
-        suppressClick = false;
-        suppressClickTimer = null;
-      }, 1000);
+      suppressClickTimer = window.setTimeout(clearClickSuppression, 1000);
     }
 
     const cleanups = [
@@ -104,25 +121,12 @@ export function contextMenuTrigger(
         openedDuringTouch = false;
         cancelLongPress();
         touchSequence = false;
-      }),
-      on(
-        node,
-        'click',
-        (event) => {
-          if (!suppressClick) return;
-          suppressClick = false;
-          if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
-          suppressClickTimer = null;
-          event.preventDefault();
-          event.stopPropagation();
-        },
-        { capture: true }
-      )
+      })
     ];
 
     return () => {
       cancelLongPress();
-      if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer);
+      clearClickSuppression();
       for (const cleanup of cleanups) cleanup();
     };
   };

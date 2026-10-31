@@ -142,7 +142,15 @@
   }
 
   // Touch handlers for mobile
-  function handleTouchStart() {
+  function handleTouchStart(event: TouchEvent | MouseEvent) {
+    // Link previews and top-layer surfaces own their gestures even though
+    // their DOM remains inside this message row. Compatibility mouse events
+    // after a touch release can target the newly opened sheet.
+    if (
+      event.target instanceof Element &&
+      event.target.closest('[data-link-preview-trigger], dialog, [popover]')
+    )
+      return;
     if (actionOverlayKind === 'sheet') return;
     longPress.start();
   }
@@ -168,7 +176,7 @@
     if (!prefersTouch || canUseHoverActions) return;
     // Only handle left mouse button
     if (e.button !== 0) return;
-    handleTouchStart();
+    handleTouchStart(e);
   }
 
   function handleMouseUp(event: MouseEvent) {

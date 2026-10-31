@@ -118,6 +118,26 @@ it('suppresses release navigation after holding longer than the click fallback t
   }
 });
 
+it('discards a release click retargeted into the sheet, then permits a new deliberate press', async () => {
+  const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  const { container } = render(LinkHover, { href, children, local: { name: 'Room' } });
+  touchPointer(container.querySelector('a')!, 'pointerdown');
+  const action = await vi.waitFor(() => {
+    const button = [...container.querySelectorAll<HTMLButtonElement>('dialog button')].find(
+      (button) => button.textContent?.trim() === 'Open link'
+    );
+    expect(button).toBeDefined();
+    return button!;
+  });
+  action.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  expect(open).not.toHaveBeenCalled();
+  expect(container.querySelector('dialog[open]')).not.toBeNull();
+  touchPointer(action, 'pointerdown');
+  touchPointer(action, 'pointerup');
+  action.click();
+  expect(open).toHaveBeenCalledExactlyOnceWith(href, '_blank', 'noopener,noreferrer');
+});
+
 it.each(['tap', 'scroll', 'cancel'])('does not preview during a touch %s', async (gesture) => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   try {

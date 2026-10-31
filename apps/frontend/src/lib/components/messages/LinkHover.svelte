@@ -200,7 +200,7 @@
   <LinkPreviewActions {href} {onclose} />
 {/snippet}
 
-<span class="link-preview-trigger" {@attach attachTrigger}
+<span class="link-preview-trigger" data-link-preview-trigger {@attach attachTrigger}
   >{@render children(pageTitle, sheetPreview)}</span
 >{#if sheetOpen}
   <ContextMenu
