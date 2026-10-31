@@ -9,6 +9,9 @@ Dependency manifests and lockfiles in this repository remain the authoritative
 set of third-party packages, including transitive dependencies, used to build
 each artifact.
 
+The experimental Gobotto bot and Chatto Go SDK also use the Gorilla WebSocket,
+Go Protobuf, Bubble Tea, Bubbles, Lip Gloss, and go-toml dependencies listed below.
+
 Slack conversion data:
 
 - emoji-data (https://github.com/iamcal/emoji-data) - MIT License

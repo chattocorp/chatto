@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package chatto.sdk.wire;
+option go_package = "github.com/chattocorp/chatto/experimental/chatto-go/internal/wire";
+
+import "google/protobuf/duration.proto";
+
+// Wire-compatible subset of proto/chatto/realtime/v1/{realtime,events}.proto.
+// Field numbers and types must match those public schemas. Unknown fields are
+// ignored. This is private decoding machinery, not a new server protocol.
+message Subscribe {
+  uint32 protocol_version = 1;
+  optional string bearer_token = 2;
+  optional string resume_cursor = 3;
+  uint32 initial_state = 4;
+}
+
+message Frame {
+  oneof frame {
+    Event event = 1;
+    Heartbeat heartbeat = 2;
+    Close close = 3;
+    CaughtUp caught_up = 4;
+  }
+}
+
+message Event {
+  string id = 1;
+  optional string actor_id = 3;
+  optional string cursor = 4;
+  oneof event {
+    RoomChanged room_deleted = 12;
+    RoomChanged user_left_room = 19;
+    MessagePosted message_posted = 24;
+    MessageChanged message_edited = 25;
+    MessageChanged message_retracted = 26;
+    Empty user_account_deleted = 48;
+    Empty viewer_permissions_changed = 67;
+  }
+}
+
+// Both public edit and retraction events identify a room and message.
+message MessageChanged { string room_id = 1; string message_event_id = 2; }
+message RoomChanged { string room_id = 1; }
+message Empty {}
+
+message MessagePosted {
+  string room_id = 1;
+  string in_reply_to = 2;
+  string thread_root_event_id = 3;
+  string echo_of_event_id = 5;
+  repeated Mention mentions = 7;
+  optional string body_plaintext = 8;
+  RoomKind room_kind = 9;
+}
+
+// Matches chatto.api.v1.RoomKind in proto/chatto/api/v1/rooms.proto.
+enum RoomKind {
+  ROOM_KIND_UNSPECIFIED = 0;
+  ROOM_KIND_CHANNEL = 1;
+  ROOM_KIND_DM = 2;
+}
+
+message Mention {
+  oneof cause {
+    Direct direct = 2;
+    Role role = 3;
+    Here here = 4;
+    All all = 5;
+  }
+  bool includes_viewer = 6;
+}
+message Direct { string user_id = 1; }
+message Role { string role_name = 1; }
+message Here {}
+message All {}
+message Heartbeat { string cursor = 1; }
+message CaughtUp { string cursor = 1; uint32 recovery = 2; }
+message Close { uint32 code = 1; bool reconnect = 3; google.protobuf.Duration retry_after = 4; }
