@@ -36,14 +36,14 @@ draft's inset, with a quiet cancel control for pointer and keyboard users.
     data-testid="reply-indicator"
     class={[
       'relative flex min-w-0 items-center gap-2 ps-0.5 text-xs text-muted',
-      !expandedDraft && '@min-[560px]/composer:ps-8.5'
+      !expandedDraft && '@min-[400px]/composer:ps-8.5'
     ]}
   >
     <span
       aria-hidden="true"
       class={[
         'iconify absolute start-1 icon-[uil--corner-up-left] hidden rtl:-scale-x-100',
-        !expandedDraft && '@min-[560px]/composer:block'
+        !expandedDraft && '@min-[400px]/composer:block'
       ]}
     ></span>
     <span class="min-w-0 flex-1 truncate">
@@ -64,14 +64,14 @@ draft's inset, with a quiet cancel control for pointer and keyboard users.
     data-testid="edit-indicator"
     class={[
       'relative flex min-w-0 items-center gap-2 ps-0.5 text-xs text-muted',
-      !expandedDraft && '@min-[560px]/composer:ps-8.5'
+      !expandedDraft && '@min-[400px]/composer:ps-8.5'
     ]}
   >
     <span
       aria-hidden="true"
       class={[
         'iconify absolute start-1 icon-[uil--pen] hidden',
-        !expandedDraft && '@min-[560px]/composer:block'
+        !expandedDraft && '@min-[400px]/composer:block'
       ]}
     ></span>
     <span class="min-w-0 flex-1">{m('composer.editing')}</span>

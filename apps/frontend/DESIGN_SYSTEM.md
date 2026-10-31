@@ -257,10 +257,11 @@ Reply and edit indicators sit above the formatting toolbar and the input
 surface, directly on the room work plane, without a fill. The composer grows
 upwards when they appear, so the input does not move.
 
-Below 560 px of composer content width, the editor uses the full inner width.
+Below 400 px of composer content width, the editor uses the full inner width.
 The formatting toggle sits below it at the start of the surface. Attachment,
 timestamp, thread options, and Send stay together at the end. Groups wrap in very narrow
-panes. Wider composers keep inline actions. Layout and labels use the named
+panes. Wider composers keep inline actions, with button labels from 560 px.
+Layout and labels use the named
 `composer` container.
 
 In wider panes, a draft that grows beyond one text line also moves the actions
