@@ -380,19 +380,22 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
-  it('preserves the native menu for a rendered link instead of the message menu', async () => {
-    const rendered = renderMessage('[Example **site**](https://example.com/path)');
-    await expect.poll(() => q(rendered.container, 'a strong')).toBeTruthy();
-    const nestedText = q(rendered.container, 'a strong')!;
-    const contextMenu = vi.fn();
-    rendered.container.addEventListener('contextmenu', contextMenu);
+  it.each([false, true])(
+    'uses Shift=%s to select the rendered link menu owner',
+    async (shiftKey) => {
+      const rendered = renderMessage('[Example **site**](https://example.com/path)');
+      await expect.poll(() => q(rendered.container, 'a strong')).toBeTruthy();
+      const nestedText = q(rendered.container, 'a strong')!;
+      const contextMenu = vi.fn();
+      rendered.container.addEventListener('contextmenu', contextMenu);
 
-    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-    nestedText.dispatchEvent(event);
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey });
+      nestedText.dispatchEvent(event);
 
-    expect(event.defaultPrevented).toBe(false);
-    expect(contextMenu).not.toHaveBeenCalled();
-  });
+      expect(event.defaultPrevented).toBe(false);
+      expect(contextMenu).toHaveBeenCalledTimes(shiftKey ? 0 : 1);
+    }
+  );
 
   it('does not render encoded non-breaking spaces as tall message content', async () => {
     const body = `Magnets, how\n\ndo they work?\n\n- ONCE\n- TWICE\n- THRICE\n\nA haiku by a professional chef,\n\nthis was\n${'&nbsp;\n'.repeat(500)}`;

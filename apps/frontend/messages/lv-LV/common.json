@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + labais klikšķis atver pārlūka izvēlni",
     "keyboard_shortcuts": {
       "title": "Tastatūras īsinājumtaustiņi",
       "app": "Lietotne",

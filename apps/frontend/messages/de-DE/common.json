@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Umschalt + Rechtsklick für das Browsermenü",
     "keyboard_shortcuts": {
       "title": "Tastenkürzel",
       "app": "App",

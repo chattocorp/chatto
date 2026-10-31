@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Mayús + clic derecho para el menú del navegador",
     "keyboard_shortcuts": {
       "title": "Atajos de teclado",
       "app": "Aplicación",

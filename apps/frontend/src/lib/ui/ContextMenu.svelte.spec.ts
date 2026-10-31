@@ -63,6 +63,15 @@ beforeEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('shows the browser-menu hint only in floating menus that opt in', async () => {
+    const { container, rerender } = renderMenu({ browserMenuHint: true });
+    expect(container.textContent).toContain('Shift + right-click for browser menu');
+    await rerender({ browserMenuHint: true, presentation: 'sheet' });
+    expect(container.textContent).not.toContain('Shift + right-click for browser menu');
+    await rerender({ browserMenuHint: false, presentation: 'floating' });
+    expect(container.textContent).not.toContain('Shift + right-click for browser menu');
+  });
+
   it('consumes Escape before a focused background input handles it', async () => {
     const input = document.createElement('input');
     const onInputKeydown = vi.fn();

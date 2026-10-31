@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + pravé tlačítko myši otevře nabídku prohlížeče",
     "keyboard_shortcuts": {
       "title": "Klávesové zkratky",
       "app": "Aplikace",

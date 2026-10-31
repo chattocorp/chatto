@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + clique direito para o menu do navegador",
     "keyboard_shortcuts": {
       "title": "Atalhos de teclado",
       "app": "Aplicativo",

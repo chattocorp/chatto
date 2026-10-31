@@ -27,6 +27,7 @@ picker uses it to fill the sheet width.
   import type { Snippet } from 'svelte';
   import BottomSheet from './BottomSheet.svelte';
   import FloatingPopover from './FloatingPopover.svelte';
+  import { m } from '$lib/i18n/messages';
   import { provideMenuContext } from './menuContext.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
 
@@ -38,6 +39,7 @@ picker uses it to fill the sheet width.
     role = 'menu',
     ariaLabel,
     presentation = 'auto',
+    browserMenuHint = false,
     class: className,
     scrollDismissal = 'all',
     onclose,
@@ -50,6 +52,8 @@ picker uses it to fill the sheet width.
     role?: string;
     ariaLabel?: string;
     presentation?: ContextMenuPresentation;
+    /** Show the native-menu shortcut only when the trigger supports Shift-right-click. */
+    browserMenuHint?: boolean;
     class?: string;
     scrollDismissal?: 'all' | 'user' | 'none';
     onclose: () => void;
@@ -112,6 +116,9 @@ picker uses it to fill the sheet width.
   >
     <div class="flex flex-col gap-1">
       {@render children()}
+      {#if browserMenuHint}
+        <div class="max-w-72 px-2 py-1 text-muted">{m('common.browser_menu_hint')}</div>
+      {/if}
     </div>
   </FloatingPopover>
 {/if}

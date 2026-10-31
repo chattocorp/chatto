@@ -651,6 +651,14 @@ describe('MessageEvent action model integration', () => {
     const body = q(rendered.container, '[data-testid="message-body"]')!;
     body.innerHTML = '<a href="/linked/path"><strong>Linked text</strong></a>';
     const link = q(body, 'a') as HTMLAnchorElement;
+    const nativeMenu = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: true
+    });
+    q(body, 'strong')!.dispatchEvent(nativeMenu);
+    expect(nativeMenu.defaultPrevented).toBe(false);
+    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
     const click = new MouseEvent('contextmenu', {
       bubbles: true,
       cancelable: true,

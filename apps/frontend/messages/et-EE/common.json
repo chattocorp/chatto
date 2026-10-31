@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + paremklõps avab brauseri menüü",
     "keyboard_shortcuts": {
       "title": "Klaviatuuri otseteed",
       "app": "Rakendus",

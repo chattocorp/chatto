@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + right-click for browser menu",
     "keyboard_shortcuts": {
       "title": "Keyboard shortcuts",
       "app": "App",

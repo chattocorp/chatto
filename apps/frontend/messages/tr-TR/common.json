@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Tarayıcı menüsü için Shift + sağ tıklama",
     "keyboard_shortcuts": {
       "title": "Klavye kısayolları",
       "app": "Uygulama",

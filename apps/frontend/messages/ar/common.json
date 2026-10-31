@@ -1,5 +1,6 @@
 {
   "common": {
+    "browser_menu_hint": "Shift + النقر بزر الفأرة الأيمن لفتح قائمة المتصفح",
     "keyboard_shortcuts": {
       "title": "اختصارات لوحة المفاتيح",
       "app": "التطبيق",

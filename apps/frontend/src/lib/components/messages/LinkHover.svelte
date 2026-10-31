@@ -162,9 +162,9 @@
         )(node);
     cleanups.push(
       on(node, 'contextmenu', (event) => {
-        // Let the touch trigger consume its native event first. Mouse events
-        // keep the browser's link menu instead of opening the message menu.
-        event.stopPropagation();
+        // Let the touch trigger consume its event first. Shift-right-click
+        // bypasses the surrounding message menu without cancelling the browser menu.
+        if (event.shiftKey) event.stopPropagation();
         closeHover();
       })
     );

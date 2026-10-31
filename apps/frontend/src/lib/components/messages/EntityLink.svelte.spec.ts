@@ -490,23 +490,28 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(rendered.container.querySelectorAll('a')).toHaveLength(0));
   });
 
-  it('keeps right-click native and opens keyboard entity actions that clear on access loss', async () => {
+  it('keeps Shift-right-click native and opens ordinary entity actions that clear on access loss', async () => {
     const rendered = render(MessageContent, { body: `${origin}/chat/-/${roomId}` });
     const parentMenu = vi.fn();
     rendered.container.addEventListener('contextmenu', parentMenu);
     await vi.waitFor(() => expect(rendered.container.querySelector('.entity-link')).not.toBeNull());
     const link = rendered.container.querySelector('.entity-link')!;
-    const contextmenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    const contextmenu = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: true
+    });
     link.dispatchEvent(contextmenu);
     expect(contextmenu.defaultPrevented).toBe(false);
     expect(document.querySelector('[data-testid="copy-room-id"]')).toBeNull();
-    link.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })
-    );
+    const ordinary = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    link.dispatchEvent(ordinary);
+    expect(ordinary.defaultPrevented).toBe(true);
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
     );
     expect(parentMenu).not.toHaveBeenCalled();
+    expect(rendered.container.textContent).toContain('Shift + right-click for browser menu');
     client.registry.getStore('known').projection.rooms.delete(roomId);
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="copy-room-id"]')).toBeNull()

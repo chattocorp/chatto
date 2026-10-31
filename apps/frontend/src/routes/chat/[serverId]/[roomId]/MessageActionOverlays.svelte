@@ -132,7 +132,12 @@ when the virtualizer unmounts the row of its message. `EventList` renders it onl
 {/snippet}
 
 {#if overlay?.kind === 'menu'}
-  <ContextMenu position={overlay.position} class="min-w-72" onclose={() => close('menu')}>
+  <ContextMenu
+    browserMenuHint
+    position={overlay.position}
+    class="min-w-72"
+    onclose={() => close('menu')}
+  >
     {@render actionMenu('menu')}
   </ContextMenu>
 {:else if overlay?.kind === 'sheet'}
