@@ -115,7 +115,7 @@
   asChild
   play={async ({ canvasElement }) => {
     await waitFor(() => expect(canvasElement.querySelectorAll('pre')).toHaveLength(2));
-    const frames = [...canvasElement.querySelectorAll('pre')];
+    const frames = [...canvasElement.querySelectorAll('.markdown-code-frame, .ProseMirror pre')];
     for (const frame of frames) {
       await expect(frame.textContent).toContain('IO.puts("moo")');
       await expect(getComputedStyle(frame).paddingTop).toBe('4px');
@@ -124,9 +124,9 @@
     await expect(getComputedStyle(frames[0]).backgroundColor).toBe(
       getComputedStyle(frames[1]).backgroundColor
     );
-    await expect(getComputedStyle(frames[0].querySelector('code')!).backgroundColor).toBe(
-      getComputedStyle(frames[1].querySelector('code')!).backgroundColor
-    );
+    await expect(
+      getComputedStyle(frames[0].querySelector('[data-code-panel="source"]')!).backgroundColor
+    ).toBe(getComputedStyle(frames[1].querySelector('code')!).backgroundColor);
   }}
 >
   <div class="flex max-w-xl flex-col gap-5 p-4">

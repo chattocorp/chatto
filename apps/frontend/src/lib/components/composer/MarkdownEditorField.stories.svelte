@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, waitFor } from 'storybook/test';
   import MarkdownEditorField from './MarkdownEditorField.svelte';
   import type { MarkdownMentionOptions } from './mentionOptions';
 
@@ -61,7 +62,16 @@
   <MarkdownEditorField bind:value={mermaid} editorKind="markdown" label="Flight plan" />
 </Story>
 
-<Story name="Mermaid visual editor" asChild>
+<Story
+  name="Mermaid visual editor"
+  asChild
+  play={async ({ canvasElement }) => {
+    // Wait for lazy highlighting so the accessibility scan checks its colours.
+    await waitFor(() =>
+      expect(canvasElement.querySelector('.hljs-comment')).toHaveTextContent('Cargo inspection')
+    );
+  }}
+>
   <MarkdownEditorField bind:value={mermaid} editorKind="visual" label="Flight plan" />
 </Story>
 
