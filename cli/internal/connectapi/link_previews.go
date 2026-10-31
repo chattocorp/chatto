@@ -21,6 +21,11 @@ func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Requ
 	if preview == nil {
 		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{}), nil
 	}
+	if req.Msg.GetOmitPreviewToken() {
+		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{
+			Preview: apiLinkPreview(ctx, s.api, preview),
+		}), nil
+	}
 	tokenURL := preview.GetUrl()
 	if tokenURL == "" {
 		tokenURL = req.Msg.Url

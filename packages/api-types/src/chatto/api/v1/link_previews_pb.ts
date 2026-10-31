@@ -19,6 +19,14 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
    */
   url = "";
 
+  /**
+   * Set for display-only reads to skip creation of a message-composer token.
+   * Older servers can ignore this field and still return a token.
+   *
+   * @generated from field: bool omit_preview_token = 2;
+   */
+  omitPreviewToken = false;
+
   constructor(data?: PartialMessage<FetchLinkPreviewRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -28,6 +36,7 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
   static readonly typeName = "chatto.api.v1.FetchLinkPreviewRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "omit_preview_token", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FetchLinkPreviewRequest {
@@ -490,7 +499,7 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
 
   /**
    * Short-lived opaque token to pass to CreateMessage.link_preview_token when
-   * the user posts this preview.
+   * the user posts this preview. Empty when omit_preview_token is true.
    *
    * @generated from field: string preview_token = 2;
    */

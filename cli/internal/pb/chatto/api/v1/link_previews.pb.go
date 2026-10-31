@@ -27,9 +27,12 @@ const (
 type FetchLinkPreviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// URL to preview.
-	Url           string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Set for display-only reads to skip creation of a message-composer token.
+	// Older servers can ignore this field and still return a token.
+	OmitPreviewToken bool `protobuf:"varint,2,opt,name=omit_preview_token,json=omitPreviewToken,proto3" json:"omit_preview_token,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *FetchLinkPreviewRequest) Reset() {
@@ -67,6 +70,13 @@ func (x *FetchLinkPreviewRequest) GetUrl() string {
 		return x.Url
 	}
 	return ""
+}
+
+func (x *FetchLinkPreviewRequest) GetOmitPreviewToken() bool {
+	if x != nil {
+		return x.OmitPreviewToken
+	}
+	return false
 }
 
 // Link preview metadata used by message composers and room timeline events.
@@ -555,7 +565,7 @@ type FetchLinkPreviewResponse struct {
 	// Preview metadata, or absent when the URL cannot be previewed.
 	Preview *LinkPreview `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
 	// Short-lived opaque token to pass to CreateMessage.link_preview_token when
-	// the user posts this preview.
+	// the user posts this preview. Empty when omit_preview_token is true.
 	PreviewToken  string `protobuf:"bytes,2,opt,name=preview_token,json=previewToken,proto3" json:"preview_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -609,10 +619,11 @@ var File_chatto_api_v1_link_previews_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"7\n" +
+	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"e\n" +
 	"\x17FetchLinkPreviewRequest\x12\x1c\n" +
 	"\x03url\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"\xbc\x03\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\x12,\n" +
+	"\x12omit_preview_token\x18\x02 \x01(\bR\x10omitPreviewToken\"\xbc\x03\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +

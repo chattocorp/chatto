@@ -66,6 +66,29 @@ describe('createLinkPreviewAPI', () => {
     await expect(api.fetchLinkPreview('https://example.com/missing')).resolves.toBeNull();
   });
 
+  it.each(['', 'legacy-composer-token'])(
+    'reads display metadata without requiring a token (%s)',
+    async (previewToken) => {
+      mocks.fetchLinkPreview.mockReturnValue(
+        new FetchLinkPreviewResponse({
+          preview: new LinkPreview({ url: 'https://example.com/story', title: 'Story' }),
+          previewToken
+        })
+      );
+      const result = await linkPreviewAPI().fetchLinkMetadata('https://example.com/story');
+      expect(result).toMatchObject({ title: 'Story', url: 'https://example.com/story' });
+      expect(result).not.toHaveProperty('previewToken');
+      expect(receivedRequest(mocks.fetchLinkPreview)).toMatchObject({ omitPreviewToken: true });
+    }
+  );
+
+  it('returns null for unavailable display metadata', async () => {
+    mocks.fetchLinkPreview.mockReturnValue(new FetchLinkPreviewResponse());
+    await expect(
+      linkPreviewAPI().fetchLinkMetadata('https://example.com/missing')
+    ).resolves.toBeNull();
+  });
+
   it('maps a native Bluesky post snapshot', async () => {
     mocks.fetchLinkPreview.mockReturnValue(
       new FetchLinkPreviewResponse({
