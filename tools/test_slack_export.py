@@ -22,6 +22,17 @@ spec.loader.exec_module(exporter)
 
 
 class SlackArchiveTests(unittest.TestCase):
+    def test_avatar_asset_in_archive(self):
+        from types import SimpleNamespace
+        self.data['users.json'][0]['profile']['image_512'] = 'https://avatars.slack-edge.com/example'
+        plan = self.plan()
+        ready = {'filename':'avatar','content_type':'image/png','size':3,'sha256':hashlib.sha256(b'png').hexdigest(),'path':'cached'}
+        records, copies = exporter.build_archive(plan, avatars=SimpleNamespace(ready={'U1':ready}))
+        validate_records(records)
+        self.assertEqual(records['users'][0]['avatar_asset_id'], 'avatar:U1')
+        self.assertEqual(len(copies),1)
+        self.assertFalse(any('avatars' in o['reason'] for o in records['manifest']['omissions']))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

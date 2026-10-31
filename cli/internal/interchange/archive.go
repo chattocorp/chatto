@@ -73,6 +73,8 @@ type User struct {
 	Kind        string   `json:"kind"`
 	Status      string   `json:"status"`
 	Emails      []string `json:"emails"`
+	// AvatarAssetID references original local image bytes in the asset catalog.
+	AvatarAssetID string `json:"avatar_asset_id,omitempty"`
 }
 
 // Room holds authoritative final channel metadata.

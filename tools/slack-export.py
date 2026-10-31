@@ -21,6 +21,7 @@ import uuid
 from slack_apply import ApplyError, OversizedBodyError, CHANNEL_NOTICES, convert, fingerprint
 from slack_api import SlackAPI, enrich_users, read_token
 from slack_files import FileCache, FileImports, file_inventory, file_references
+from slack_avatars import AvatarDownloads
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
@@ -162,7 +163,7 @@ def prepare_message(original):
 
 
 def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=False,
-                      allow_missing_files=False, replace_oversized_messages=False):
+                      allow_missing_files=False, replace_oversized_messages=False, download_avatars=False):
     """Scan independent source records without downloads or destination writes.
 
     References are one-based positions in the reader's ordered message list,
@@ -191,7 +192,7 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
         if issues.get(code):
             add("blockers", code, issues[code])
     add("omissions", "incomplete_source_history")
-    for code, count in (("avatars", sum(u["has_avatar"] for u in plan["users"])),
+    for code, count in (("avatars", 0 if download_avatars else sum(u["has_avatar"] for u in plan["users"])),
                         ("integration_logs", plan["ignored_integration_logs"]),
                         ("incomplete_thread_replies", issues.get("incomplete_thread_replies", 0)),
                         ("incomplete_reaction_users", issues.get("incomplete_reaction_users", 0))):
@@ -290,7 +291,7 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
 
 
 def build_archive(plan, downloads=None, *, allow_missing_files=False,
-                  allow_attachment_summaries=False, skip_canvases=False, replace_oversized_messages=False):
+                  allow_attachment_summaries=False, skip_canvases=False, replace_oversized_messages=False, avatars=None):
     """Build portable records and a file-copy list. Never call a destination API.
 
     Slack message rows are final observations, not edit/reaction history.
@@ -346,7 +347,19 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                        "media_type": (ready or {}).get("content_type") or item.get("mimetype") or "application/octet-stream",
                        "storage": storage})
     omit("files", "Source files are unavailable or downloads were explicitly skipped.", unavailable)
-    omit("unsupported", "User avatars are not included.", sum(u["has_avatar"] for u in plan["users"]))
+    for user in users:
+        ready = avatars.ready.get(user['id']) if avatars else None
+        if ready:
+            key = 'avatar:' + user['id']
+            if key in inventory:
+                raise ApplyError("Avatar asset identifier conflicts with a source file.")
+            path = 'files/' + hashlib.sha256(key.encode()).hexdigest()
+            user['avatar_asset_id'] = key
+            assets.append({'id': key, 'filename': 'avatar', 'media_type': ready['content_type'],
+                           'storage': {'status': 'available', 'path': path, 'size': ready['size'], 'sha256': ready['sha256']}})
+            copies[path] = ready
+    omit("files", "User avatars were unavailable or downloads were not requested.",
+         sum(u['has_avatar'] and (not avatars or u['source_id'] not in avatars.ready) for u in plan['users']))
     omit("unsupported", "Canvas contents are not included.", len(plan["canvases"]))
     omit("unsupported", "Integration logs are not included.", plan["ignored_integration_logs"])
     omit("history", "The source reports replies outside the exported history.", issues.get("incomplete_thread_replies", 0))
@@ -549,6 +562,7 @@ def main():
     credentials.add_argument("--slack-token-file", type=Path)
     credentials.add_argument("--slack-token-stdin", action="store_true")
     parser.add_argument("--skip-files", action="store_true", help="do not download; requires --allow-missing-files")
+    parser.add_argument("--download-avatars", action="store_true", help="download avatar images from Slack CDN and Gravatar without credentials")
     parser.add_argument("--allow-missing-files", action="store_true")
     parser.add_argument("--allow-attachment-summaries", action="store_true")
     parser.add_argument("--skip-canvases", action="store_true")
@@ -590,7 +604,7 @@ def main():
         stage = "source_scan"
         report = conversion_report(plan, allow_attachment_summaries=args.allow_attachment_summaries,
                                    skip_canvases=args.skip_canvases, allow_missing_files=args.allow_missing_files,
-                                   replace_oversized_messages=args.replace_oversized_messages)
+                                   replace_oversized_messages=args.replace_oversized_messages, download_avatars=args.download_avatars)
         if report["blockers"]:
             report["status"] = "blocked"
             print("Conversion blocked; see conversion report.", file=sys.stderr)
@@ -610,10 +624,14 @@ def main():
         report["file_checks"] = "skipped" if args.skip_files else "complete"
         if downloads:
             report["file_failures"] = dict(collections.Counter(downloads.failures.values()))
+        stage = "avatar_downloads"
+        avatars = AvatarDownloads(plan['users'], source.progress_directory(args.archive)/'avatars') if args.download_avatars else None
+        if avatars:
+            report['avatar_downloads'] = {'available': len(avatars.ready), 'failures': dict(collections.Counter(avatars.failures.values()))}
         stage = "archive_validation"
         records, copies = build_archive(plan, downloads, allow_missing_files=args.allow_missing_files,
             allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases,
-            replace_oversized_messages=args.replace_oversized_messages)
+            replace_oversized_messages=args.replace_oversized_messages, avatars=avatars)
         report["archive_omissions"] = records["manifest"]["omissions"]
         stage = "archive_write"
         write_archive(args.output, records, copies)

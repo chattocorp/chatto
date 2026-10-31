@@ -162,6 +162,244 @@ func (x *CreateUserResponse) GetMember() *v1.AdminMember {
 	return nil
 }
 
+// Creates a historical account without credentials. Existing accounts are not
+// changed. The receipt and initial account state commit atomically.
+type ImportUserRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required non-zero UUID. Reuse it only with exactly the same input.
+	OperationKey string `protobuf:"bytes,1,opt,name=operation_key,json=operationKey,proto3" json:"operation_key,omitempty"`
+	// Required destination username.
+	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Defaults to login when empty.
+	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Human accounts only. The ordinary email uniqueness rules apply.
+	VerifiedEmail string `protobuf:"bytes,4,opt,name=verified_email,json=verifiedEmail,proto3" json:"verified_email,omitempty"`
+	// Empty for humans. For bots, an existing active human who owns the account.
+	BotOwnerUserId string `protobuf:"bytes,5,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3" json:"bot_owner_user_id,omitempty"`
+	// Initial account status. No credentials or sessions are imported.
+	Deactivated   bool `protobuf:"varint,6,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportUserRequest) Reset() {
+	*x = ImportUserRequest{}
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportUserRequest) ProtoMessage() {}
+
+func (x *ImportUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportUserRequest.ProtoReflect.Descriptor instead.
+func (*ImportUserRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ImportUserRequest) GetOperationKey() string {
+	if x != nil {
+		return x.OperationKey
+	}
+	return ""
+}
+
+func (x *ImportUserRequest) GetLogin() string {
+	if x != nil {
+		return x.Login
+	}
+	return ""
+}
+
+func (x *ImportUserRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *ImportUserRequest) GetVerifiedEmail() string {
+	if x != nil {
+		return x.VerifiedEmail
+	}
+	return ""
+}
+
+func (x *ImportUserRequest) GetBotOwnerUserId() string {
+	if x != nil {
+		return x.BotOwnerUserId
+	}
+	return ""
+}
+
+func (x *ImportUserRequest) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
+}
+
+// Imported account, or the result of an exact retry.
+type ImportUserResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Created member row, including account kind and status.
+	Member        *v1.AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportUserResponse) Reset() {
+	*x = ImportUserResponse{}
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportUserResponse) ProtoMessage() {}
+
+func (x *ImportUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportUserResponse.ProtoReflect.Descriptor instead.
+func (*ImportUserResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ImportUserResponse) GetMember() *v1.AdminMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+// Imports a local avatar image without overwriting an existing avatar.
+type ImportUserAvatarRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required permanent retry key, bound to user ID and image bytes.
+	OperationKey string `protobuf:"bytes,1,opt,name=operation_key,json=operationKey,proto3" json:"operation_key,omitempty"`
+	UserId       string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Original image, at most 5 MiB. Normal avatar processing applies.
+	Image         []byte `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportUserAvatarRequest) Reset() {
+	*x = ImportUserAvatarRequest{}
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportUserAvatarRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportUserAvatarRequest) ProtoMessage() {}
+
+func (x *ImportUserAvatarRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportUserAvatarRequest.ProtoReflect.Descriptor instead.
+func (*ImportUserAvatarRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ImportUserAvatarRequest) GetOperationKey() string {
+	if x != nil {
+		return x.OperationKey
+	}
+	return ""
+}
+
+func (x *ImportUserAvatarRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ImportUserAvatarRequest) GetImage() []byte {
+	if x != nil {
+		return x.Image
+	}
+	return nil
+}
+
+// Successful import or preservation of an existing avatar.
+type ImportUserAvatarResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportUserAvatarResponse) Reset() {
+	*x = ImportUserAvatarResponse{}
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportUserAvatarResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportUserAvatarResponse) ProtoMessage() {}
+
+func (x *ImportUserAvatarResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportUserAvatarResponse.ProtoReflect.Descriptor instead.
+func (*ImportUserAvatarResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{5}
+}
+
 // Request operator-visible user rows.
 type ListUsersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -175,7 +413,7 @@ type ListUsersRequest struct {
 
 func (x *ListUsersRequest) Reset() {
 	*x = ListUsersRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[2]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -187,7 +425,7 @@ func (x *ListUsersRequest) String() string {
 func (*ListUsersRequest) ProtoMessage() {}
 
 func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[2]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -200,7 +438,7 @@ func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersRequest.ProtoReflect.Descriptor instead.
 func (*ListUsersRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{2}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListUsersRequest) GetSearch() string {
@@ -232,7 +470,7 @@ type ListUsersResponse struct {
 
 func (x *ListUsersResponse) Reset() {
 	*x = ListUsersResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[3]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -244,7 +482,7 @@ func (x *ListUsersResponse) String() string {
 func (*ListUsersResponse) ProtoMessage() {}
 
 func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[3]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -257,7 +495,7 @@ func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersResponse.ProtoReflect.Descriptor instead.
 func (*ListUsersResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{3}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListUsersResponse) GetUsers() []*v1.AdminMember {
@@ -296,7 +534,7 @@ type GetUserRequest struct {
 
 func (x *GetUserRequest) Reset() {
 	*x = GetUserRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[4]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -308,7 +546,7 @@ func (x *GetUserRequest) String() string {
 func (*GetUserRequest) ProtoMessage() {}
 
 func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[4]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -321,7 +559,7 @@ func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserRequest.ProtoReflect.Descriptor instead.
 func (*GetUserRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{4}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetUserRequest) GetUserId() string {
@@ -360,7 +598,7 @@ type GetUserResponse struct {
 
 func (x *GetUserResponse) Reset() {
 	*x = GetUserResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[5]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -372,7 +610,7 @@ func (x *GetUserResponse) String() string {
 func (*GetUserResponse) ProtoMessage() {}
 
 func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[5]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,7 +623,7 @@ func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserResponse.ProtoReflect.Descriptor instead.
 func (*GetUserResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{5}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetUserResponse) GetMember() *v1.AdminMember {
@@ -422,7 +660,7 @@ type AssignRoleRequest struct {
 
 func (x *AssignRoleRequest) Reset() {
 	*x = AssignRoleRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[6]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -434,7 +672,7 @@ func (x *AssignRoleRequest) String() string {
 func (*AssignRoleRequest) ProtoMessage() {}
 
 func (x *AssignRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[6]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -447,7 +685,7 @@ func (x *AssignRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignRoleRequest.ProtoReflect.Descriptor instead.
 func (*AssignRoleRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{6}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AssignRoleRequest) GetUserId() string {
@@ -475,7 +713,7 @@ type AssignRoleResponse struct {
 
 func (x *AssignRoleResponse) Reset() {
 	*x = AssignRoleResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[7]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +725,7 @@ func (x *AssignRoleResponse) String() string {
 func (*AssignRoleResponse) ProtoMessage() {}
 
 func (x *AssignRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[7]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +738,7 @@ func (x *AssignRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignRoleResponse.ProtoReflect.Descriptor instead.
 func (*AssignRoleResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{7}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AssignRoleResponse) GetMember() *v1.AdminMember {
@@ -523,7 +761,7 @@ type RevokeRoleRequest struct {
 
 func (x *RevokeRoleRequest) Reset() {
 	*x = RevokeRoleRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[8]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +773,7 @@ func (x *RevokeRoleRequest) String() string {
 func (*RevokeRoleRequest) ProtoMessage() {}
 
 func (x *RevokeRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[8]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +786,7 @@ func (x *RevokeRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeRoleRequest.ProtoReflect.Descriptor instead.
 func (*RevokeRoleRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{8}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RevokeRoleRequest) GetUserId() string {
@@ -576,7 +814,7 @@ type RevokeRoleResponse struct {
 
 func (x *RevokeRoleResponse) Reset() {
 	*x = RevokeRoleResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[9]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -588,7 +826,7 @@ func (x *RevokeRoleResponse) String() string {
 func (*RevokeRoleResponse) ProtoMessage() {}
 
 func (x *RevokeRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[9]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -601,7 +839,7 @@ func (x *RevokeRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeRoleResponse.ProtoReflect.Descriptor instead.
 func (*RevokeRoleResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{9}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RevokeRoleResponse) GetMember() *v1.AdminMember {
@@ -626,7 +864,7 @@ type UpdateUserRequest struct {
 
 func (x *UpdateUserRequest) Reset() {
 	*x = UpdateUserRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[10]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +876,7 @@ func (x *UpdateUserRequest) String() string {
 func (*UpdateUserRequest) ProtoMessage() {}
 
 func (x *UpdateUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[10]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +889,7 @@ func (x *UpdateUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserRequest.ProtoReflect.Descriptor instead.
 func (*UpdateUserRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{10}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateUserRequest) GetUserId() string {
@@ -688,7 +926,7 @@ type UpdateUserResponse struct {
 
 func (x *UpdateUserResponse) Reset() {
 	*x = UpdateUserResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[11]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +938,7 @@ func (x *UpdateUserResponse) String() string {
 func (*UpdateUserResponse) ProtoMessage() {}
 
 func (x *UpdateUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[11]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +951,7 @@ func (x *UpdateUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserResponse.ProtoReflect.Descriptor instead.
 func (*UpdateUserResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{11}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateUserResponse) GetUser() *v11.User {
@@ -743,7 +981,7 @@ type SetUserPasswordRequest struct {
 
 func (x *SetUserPasswordRequest) Reset() {
 	*x = SetUserPasswordRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[12]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -755,7 +993,7 @@ func (x *SetUserPasswordRequest) String() string {
 func (*SetUserPasswordRequest) ProtoMessage() {}
 
 func (x *SetUserPasswordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[12]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -768,7 +1006,7 @@ func (x *SetUserPasswordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserPasswordRequest.ProtoReflect.Descriptor instead.
 func (*SetUserPasswordRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{12}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SetUserPasswordRequest) GetUserId() string {
@@ -796,7 +1034,7 @@ type SetUserPasswordResponse struct {
 
 func (x *SetUserPasswordResponse) Reset() {
 	*x = SetUserPasswordResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[13]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +1046,7 @@ func (x *SetUserPasswordResponse) String() string {
 func (*SetUserPasswordResponse) ProtoMessage() {}
 
 func (x *SetUserPasswordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[13]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +1059,7 @@ func (x *SetUserPasswordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserPasswordResponse.ProtoReflect.Descriptor instead.
 func (*SetUserPasswordResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{13}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SetUserPasswordResponse) GetMember() *v1.AdminMember {
@@ -842,7 +1080,7 @@ type DeleteUserRequest struct {
 
 func (x *DeleteUserRequest) Reset() {
 	*x = DeleteUserRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[14]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1092,7 @@ func (x *DeleteUserRequest) String() string {
 func (*DeleteUserRequest) ProtoMessage() {}
 
 func (x *DeleteUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[14]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1105,7 @@ func (x *DeleteUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserRequest.ProtoReflect.Descriptor instead.
 func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{14}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeleteUserRequest) GetUserId() string {
@@ -888,7 +1126,7 @@ type DeleteUserResponse struct {
 
 func (x *DeleteUserResponse) Reset() {
 	*x = DeleteUserResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[15]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -900,7 +1138,7 @@ func (x *DeleteUserResponse) String() string {
 func (*DeleteUserResponse) ProtoMessage() {}
 
 func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[15]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -913,7 +1151,7 @@ func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserResponse.ProtoReflect.Descriptor instead.
 func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{15}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteUserResponse) GetDeleted() bool {
@@ -936,7 +1174,7 @@ type AddVerifiedEmailRequest struct {
 
 func (x *AddVerifiedEmailRequest) Reset() {
 	*x = AddVerifiedEmailRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[16]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -948,7 +1186,7 @@ func (x *AddVerifiedEmailRequest) String() string {
 func (*AddVerifiedEmailRequest) ProtoMessage() {}
 
 func (x *AddVerifiedEmailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[16]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,7 +1199,7 @@ func (x *AddVerifiedEmailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddVerifiedEmailRequest.ProtoReflect.Descriptor instead.
 func (*AddVerifiedEmailRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{16}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AddVerifiedEmailRequest) GetUserId() string {
@@ -989,7 +1227,7 @@ type AddVerifiedEmailResponse struct {
 
 func (x *AddVerifiedEmailResponse) Reset() {
 	*x = AddVerifiedEmailResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[17]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1001,7 +1239,7 @@ func (x *AddVerifiedEmailResponse) String() string {
 func (*AddVerifiedEmailResponse) ProtoMessage() {}
 
 func (x *AddVerifiedEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[17]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1014,7 +1252,7 @@ func (x *AddVerifiedEmailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddVerifiedEmailResponse.ProtoReflect.Descriptor instead.
 func (*AddVerifiedEmailResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{17}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AddVerifiedEmailResponse) GetMember() *v1.AdminMember {
@@ -1035,7 +1273,7 @@ type ClearUsernameCooldownRequest struct {
 
 func (x *ClearUsernameCooldownRequest) Reset() {
 	*x = ClearUsernameCooldownRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[18]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1047,7 +1285,7 @@ func (x *ClearUsernameCooldownRequest) String() string {
 func (*ClearUsernameCooldownRequest) ProtoMessage() {}
 
 func (x *ClearUsernameCooldownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[18]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1060,7 +1298,7 @@ func (x *ClearUsernameCooldownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearUsernameCooldownRequest.ProtoReflect.Descriptor instead.
 func (*ClearUsernameCooldownRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{18}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ClearUsernameCooldownRequest) GetUserId() string {
@@ -1081,7 +1319,7 @@ type ClearUsernameCooldownResponse struct {
 
 func (x *ClearUsernameCooldownResponse) Reset() {
 	*x = ClearUsernameCooldownResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[19]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1093,7 +1331,7 @@ func (x *ClearUsernameCooldownResponse) String() string {
 func (*ClearUsernameCooldownResponse) ProtoMessage() {}
 
 func (x *ClearUsernameCooldownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[19]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1106,7 +1344,7 @@ func (x *ClearUsernameCooldownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearUsernameCooldownResponse.ProtoReflect.Descriptor instead.
 func (*ClearUsernameCooldownResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{19}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ClearUsernameCooldownResponse) GetCleared() bool {
@@ -1139,7 +1377,7 @@ type UserExternalIdentity struct {
 
 func (x *UserExternalIdentity) Reset() {
 	*x = UserExternalIdentity{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[20]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1151,7 +1389,7 @@ func (x *UserExternalIdentity) String() string {
 func (*UserExternalIdentity) ProtoMessage() {}
 
 func (x *UserExternalIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[20]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1164,7 +1402,7 @@ func (x *UserExternalIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserExternalIdentity.ProtoReflect.Descriptor instead.
 func (*UserExternalIdentity) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{20}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *UserExternalIdentity) GetProviderId() string {
@@ -1219,7 +1457,7 @@ type ListUserExternalIdentitiesRequest struct {
 
 func (x *ListUserExternalIdentitiesRequest) Reset() {
 	*x = ListUserExternalIdentitiesRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[21]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1231,7 +1469,7 @@ func (x *ListUserExternalIdentitiesRequest) String() string {
 func (*ListUserExternalIdentitiesRequest) ProtoMessage() {}
 
 func (x *ListUserExternalIdentitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[21]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +1482,7 @@ func (x *ListUserExternalIdentitiesRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListUserExternalIdentitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListUserExternalIdentitiesRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{21}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListUserExternalIdentitiesRequest) GetUserId() string {
@@ -1264,7 +1502,7 @@ type ListUserExternalIdentitiesResponse struct {
 
 func (x *ListUserExternalIdentitiesResponse) Reset() {
 	*x = ListUserExternalIdentitiesResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[22]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1276,7 +1514,7 @@ func (x *ListUserExternalIdentitiesResponse) String() string {
 func (*ListUserExternalIdentitiesResponse) ProtoMessage() {}
 
 func (x *ListUserExternalIdentitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[22]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1289,7 +1527,7 @@ func (x *ListUserExternalIdentitiesResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListUserExternalIdentitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListUserExternalIdentitiesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{22}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListUserExternalIdentitiesResponse) GetIdentities() []*UserExternalIdentity {
@@ -1314,7 +1552,7 @@ type LinkUserExternalIdentityRequest struct {
 
 func (x *LinkUserExternalIdentityRequest) Reset() {
 	*x = LinkUserExternalIdentityRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[23]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1326,7 +1564,7 @@ func (x *LinkUserExternalIdentityRequest) String() string {
 func (*LinkUserExternalIdentityRequest) ProtoMessage() {}
 
 func (x *LinkUserExternalIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[23]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1339,7 +1577,7 @@ func (x *LinkUserExternalIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkUserExternalIdentityRequest.ProtoReflect.Descriptor instead.
 func (*LinkUserExternalIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{23}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *LinkUserExternalIdentityRequest) GetUserId() string {
@@ -1373,7 +1611,7 @@ type LinkUserExternalIdentityResponse struct {
 
 func (x *LinkUserExternalIdentityResponse) Reset() {
 	*x = LinkUserExternalIdentityResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[24]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1385,7 +1623,7 @@ func (x *LinkUserExternalIdentityResponse) String() string {
 func (*LinkUserExternalIdentityResponse) ProtoMessage() {}
 
 func (x *LinkUserExternalIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[24]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1398,7 +1636,7 @@ func (x *LinkUserExternalIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkUserExternalIdentityResponse.ProtoReflect.Descriptor instead.
 func (*LinkUserExternalIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{24}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *LinkUserExternalIdentityResponse) GetIdentity() *UserExternalIdentity {
@@ -1421,7 +1659,7 @@ type UnlinkUserExternalIdentityRequest struct {
 
 func (x *UnlinkUserExternalIdentityRequest) Reset() {
 	*x = UnlinkUserExternalIdentityRequest{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[25]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1433,7 +1671,7 @@ func (x *UnlinkUserExternalIdentityRequest) String() string {
 func (*UnlinkUserExternalIdentityRequest) ProtoMessage() {}
 
 func (x *UnlinkUserExternalIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[25]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1446,7 +1684,7 @@ func (x *UnlinkUserExternalIdentityRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use UnlinkUserExternalIdentityRequest.ProtoReflect.Descriptor instead.
 func (*UnlinkUserExternalIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{25}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *UnlinkUserExternalIdentityRequest) GetUserId() string {
@@ -1472,7 +1710,7 @@ type UnlinkUserExternalIdentityResponse struct {
 
 func (x *UnlinkUserExternalIdentityResponse) Reset() {
 	*x = UnlinkUserExternalIdentityResponse{}
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[26]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1484,7 +1722,7 @@ func (x *UnlinkUserExternalIdentityResponse) String() string {
 func (*UnlinkUserExternalIdentityResponse) ProtoMessage() {}
 
 func (x *UnlinkUserExternalIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_operator_v1_users_proto_msgTypes[26]
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1497,7 +1735,7 @@ func (x *UnlinkUserExternalIdentityResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use UnlinkUserExternalIdentityResponse.ProtoReflect.Descriptor instead.
 func (*UnlinkUserExternalIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{26}
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{30}
 }
 
 var File_chatto_operator_v1_users_proto protoreflect.FileDescriptor
@@ -1514,7 +1752,21 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"role_names\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10\x14R\troleNames\x12#\n" +
 	"\roperation_key\x18\x06 \x01(\tR\foperationKey\"J\n" +
 	"\x12CreateUserResponse\x124\n" +
-	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"Z\n" +
+	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x8d\x02\n" +
+	"\x11ImportUserRequest\x12-\n" +
+	"\roperation_key\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\foperationKey\x12\x1f\n" +
+	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05login\x12*\n" +
+	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12/\n" +
+	"\x0everified_email\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xc0\x02R\rverifiedEmail\x12)\n" +
+	"\x11bot_owner_user_id\x18\x05 \x01(\tR\x0ebotOwnerUserId\x12 \n" +
+	"\vdeactivated\x18\x06 \x01(\bR\vdeactivated\"J\n" +
+	"\x12ImportUserResponse\x124\n" +
+	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x8e\x01\n" +
+	"\x17ImportUserAvatarRequest\x12-\n" +
+	"\roperation_key\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\foperationKey\x12 \n" +
+	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\"\n" +
+	"\x05image\x18\x03 \x01(\fB\f\xbaH\tz\a\x10\x01\x18\x80\x80\xc0\x02R\x05image\"\x1a\n" +
+	"\x18ImportUserAvatarResponse\"Z\n" +
 	"\x10ListUsersRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12.\n" +
 	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x9f\x01\n" +
@@ -1593,10 +1845,13 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"!UnlinkUserExternalIdentityRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12*\n" +
 	"\fsubject_hash\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\"$\n" +
-	"\"UnlinkUserExternalIdentityResponse2\x91\v\n" +
+	"\"UnlinkUserExternalIdentityResponse2\xdd\f\n" +
 	"\x13OperatorUserService\x12[\n" +
 	"\n" +
-	"CreateUser\x12%.chatto.operator.v1.CreateUserRequest\x1a&.chatto.operator.v1.CreateUserResponse\x12X\n" +
+	"CreateUser\x12%.chatto.operator.v1.CreateUserRequest\x1a&.chatto.operator.v1.CreateUserResponse\x12[\n" +
+	"\n" +
+	"ImportUser\x12%.chatto.operator.v1.ImportUserRequest\x1a&.chatto.operator.v1.ImportUserResponse\x12m\n" +
+	"\x10ImportUserAvatar\x12+.chatto.operator.v1.ImportUserAvatarRequest\x1a,.chatto.operator.v1.ImportUserAvatarResponse\x12X\n" +
 	"\tListUsers\x12$.chatto.operator.v1.ListUsersRequest\x1a%.chatto.operator.v1.ListUsersResponse\x12R\n" +
 	"\aGetUser\x12\".chatto.operator.v1.GetUserRequest\x1a#.chatto.operator.v1.GetUserResponse\x12[\n" +
 	"\n" +
@@ -1628,89 +1883,98 @@ func file_chatto_operator_v1_users_proto_rawDescGZIP() []byte {
 	return file_chatto_operator_v1_users_proto_rawDescData
 }
 
-var file_chatto_operator_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_chatto_operator_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_chatto_operator_v1_users_proto_goTypes = []any{
 	(*CreateUserRequest)(nil),                  // 0: chatto.operator.v1.CreateUserRequest
 	(*CreateUserResponse)(nil),                 // 1: chatto.operator.v1.CreateUserResponse
-	(*ListUsersRequest)(nil),                   // 2: chatto.operator.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),                  // 3: chatto.operator.v1.ListUsersResponse
-	(*GetUserRequest)(nil),                     // 4: chatto.operator.v1.GetUserRequest
-	(*GetUserResponse)(nil),                    // 5: chatto.operator.v1.GetUserResponse
-	(*AssignRoleRequest)(nil),                  // 6: chatto.operator.v1.AssignRoleRequest
-	(*AssignRoleResponse)(nil),                 // 7: chatto.operator.v1.AssignRoleResponse
-	(*RevokeRoleRequest)(nil),                  // 8: chatto.operator.v1.RevokeRoleRequest
-	(*RevokeRoleResponse)(nil),                 // 9: chatto.operator.v1.RevokeRoleResponse
-	(*UpdateUserRequest)(nil),                  // 10: chatto.operator.v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil),                 // 11: chatto.operator.v1.UpdateUserResponse
-	(*SetUserPasswordRequest)(nil),             // 12: chatto.operator.v1.SetUserPasswordRequest
-	(*SetUserPasswordResponse)(nil),            // 13: chatto.operator.v1.SetUserPasswordResponse
-	(*DeleteUserRequest)(nil),                  // 14: chatto.operator.v1.DeleteUserRequest
-	(*DeleteUserResponse)(nil),                 // 15: chatto.operator.v1.DeleteUserResponse
-	(*AddVerifiedEmailRequest)(nil),            // 16: chatto.operator.v1.AddVerifiedEmailRequest
-	(*AddVerifiedEmailResponse)(nil),           // 17: chatto.operator.v1.AddVerifiedEmailResponse
-	(*ClearUsernameCooldownRequest)(nil),       // 18: chatto.operator.v1.ClearUsernameCooldownRequest
-	(*ClearUsernameCooldownResponse)(nil),      // 19: chatto.operator.v1.ClearUsernameCooldownResponse
-	(*UserExternalIdentity)(nil),               // 20: chatto.operator.v1.UserExternalIdentity
-	(*ListUserExternalIdentitiesRequest)(nil),  // 21: chatto.operator.v1.ListUserExternalIdentitiesRequest
-	(*ListUserExternalIdentitiesResponse)(nil), // 22: chatto.operator.v1.ListUserExternalIdentitiesResponse
-	(*LinkUserExternalIdentityRequest)(nil),    // 23: chatto.operator.v1.LinkUserExternalIdentityRequest
-	(*LinkUserExternalIdentityResponse)(nil),   // 24: chatto.operator.v1.LinkUserExternalIdentityResponse
-	(*UnlinkUserExternalIdentityRequest)(nil),  // 25: chatto.operator.v1.UnlinkUserExternalIdentityRequest
-	(*UnlinkUserExternalIdentityResponse)(nil), // 26: chatto.operator.v1.UnlinkUserExternalIdentityResponse
-	(*v1.AdminMember)(nil),                     // 27: chatto.admin.v1.AdminMember
-	(*v11.PageRequest)(nil),                    // 28: chatto.api.v1.PageRequest
-	(*v11.Role)(nil),                           // 29: chatto.api.v1.Role
-	(*v11.PageInfo)(nil),                       // 30: chatto.api.v1.PageInfo
-	(*v1.AdminRole)(nil),                       // 31: chatto.admin.v1.AdminRole
-	(*v11.User)(nil),                           // 32: chatto.api.v1.User
+	(*ImportUserRequest)(nil),                  // 2: chatto.operator.v1.ImportUserRequest
+	(*ImportUserResponse)(nil),                 // 3: chatto.operator.v1.ImportUserResponse
+	(*ImportUserAvatarRequest)(nil),            // 4: chatto.operator.v1.ImportUserAvatarRequest
+	(*ImportUserAvatarResponse)(nil),           // 5: chatto.operator.v1.ImportUserAvatarResponse
+	(*ListUsersRequest)(nil),                   // 6: chatto.operator.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),                  // 7: chatto.operator.v1.ListUsersResponse
+	(*GetUserRequest)(nil),                     // 8: chatto.operator.v1.GetUserRequest
+	(*GetUserResponse)(nil),                    // 9: chatto.operator.v1.GetUserResponse
+	(*AssignRoleRequest)(nil),                  // 10: chatto.operator.v1.AssignRoleRequest
+	(*AssignRoleResponse)(nil),                 // 11: chatto.operator.v1.AssignRoleResponse
+	(*RevokeRoleRequest)(nil),                  // 12: chatto.operator.v1.RevokeRoleRequest
+	(*RevokeRoleResponse)(nil),                 // 13: chatto.operator.v1.RevokeRoleResponse
+	(*UpdateUserRequest)(nil),                  // 14: chatto.operator.v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),                 // 15: chatto.operator.v1.UpdateUserResponse
+	(*SetUserPasswordRequest)(nil),             // 16: chatto.operator.v1.SetUserPasswordRequest
+	(*SetUserPasswordResponse)(nil),            // 17: chatto.operator.v1.SetUserPasswordResponse
+	(*DeleteUserRequest)(nil),                  // 18: chatto.operator.v1.DeleteUserRequest
+	(*DeleteUserResponse)(nil),                 // 19: chatto.operator.v1.DeleteUserResponse
+	(*AddVerifiedEmailRequest)(nil),            // 20: chatto.operator.v1.AddVerifiedEmailRequest
+	(*AddVerifiedEmailResponse)(nil),           // 21: chatto.operator.v1.AddVerifiedEmailResponse
+	(*ClearUsernameCooldownRequest)(nil),       // 22: chatto.operator.v1.ClearUsernameCooldownRequest
+	(*ClearUsernameCooldownResponse)(nil),      // 23: chatto.operator.v1.ClearUsernameCooldownResponse
+	(*UserExternalIdentity)(nil),               // 24: chatto.operator.v1.UserExternalIdentity
+	(*ListUserExternalIdentitiesRequest)(nil),  // 25: chatto.operator.v1.ListUserExternalIdentitiesRequest
+	(*ListUserExternalIdentitiesResponse)(nil), // 26: chatto.operator.v1.ListUserExternalIdentitiesResponse
+	(*LinkUserExternalIdentityRequest)(nil),    // 27: chatto.operator.v1.LinkUserExternalIdentityRequest
+	(*LinkUserExternalIdentityResponse)(nil),   // 28: chatto.operator.v1.LinkUserExternalIdentityResponse
+	(*UnlinkUserExternalIdentityRequest)(nil),  // 29: chatto.operator.v1.UnlinkUserExternalIdentityRequest
+	(*UnlinkUserExternalIdentityResponse)(nil), // 30: chatto.operator.v1.UnlinkUserExternalIdentityResponse
+	(*v1.AdminMember)(nil),                     // 31: chatto.admin.v1.AdminMember
+	(*v11.PageRequest)(nil),                    // 32: chatto.api.v1.PageRequest
+	(*v11.Role)(nil),                           // 33: chatto.api.v1.Role
+	(*v11.PageInfo)(nil),                       // 34: chatto.api.v1.PageInfo
+	(*v1.AdminRole)(nil),                       // 35: chatto.admin.v1.AdminRole
+	(*v11.User)(nil),                           // 36: chatto.api.v1.User
 }
 var file_chatto_operator_v1_users_proto_depIdxs = []int32{
-	27, // 0: chatto.operator.v1.CreateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	28, // 1: chatto.operator.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
-	27, // 2: chatto.operator.v1.ListUsersResponse.users:type_name -> chatto.admin.v1.AdminMember
-	29, // 3: chatto.operator.v1.ListUsersResponse.roles:type_name -> chatto.api.v1.Role
-	30, // 4: chatto.operator.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
-	27, // 5: chatto.operator.v1.GetUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	31, // 6: chatto.operator.v1.GetUserResponse.roles:type_name -> chatto.admin.v1.AdminRole
-	27, // 7: chatto.operator.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
-	27, // 8: chatto.operator.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
-	32, // 9: chatto.operator.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
-	27, // 10: chatto.operator.v1.UpdateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	27, // 11: chatto.operator.v1.SetUserPasswordResponse.member:type_name -> chatto.admin.v1.AdminMember
-	27, // 12: chatto.operator.v1.AddVerifiedEmailResponse.member:type_name -> chatto.admin.v1.AdminMember
-	20, // 13: chatto.operator.v1.ListUserExternalIdentitiesResponse.identities:type_name -> chatto.operator.v1.UserExternalIdentity
-	20, // 14: chatto.operator.v1.LinkUserExternalIdentityResponse.identity:type_name -> chatto.operator.v1.UserExternalIdentity
-	0,  // 15: chatto.operator.v1.OperatorUserService.CreateUser:input_type -> chatto.operator.v1.CreateUserRequest
-	2,  // 16: chatto.operator.v1.OperatorUserService.ListUsers:input_type -> chatto.operator.v1.ListUsersRequest
-	4,  // 17: chatto.operator.v1.OperatorUserService.GetUser:input_type -> chatto.operator.v1.GetUserRequest
-	6,  // 18: chatto.operator.v1.OperatorUserService.AssignRole:input_type -> chatto.operator.v1.AssignRoleRequest
-	8,  // 19: chatto.operator.v1.OperatorUserService.RevokeRole:input_type -> chatto.operator.v1.RevokeRoleRequest
-	10, // 20: chatto.operator.v1.OperatorUserService.UpdateUser:input_type -> chatto.operator.v1.UpdateUserRequest
-	12, // 21: chatto.operator.v1.OperatorUserService.SetUserPassword:input_type -> chatto.operator.v1.SetUserPasswordRequest
-	14, // 22: chatto.operator.v1.OperatorUserService.DeleteUser:input_type -> chatto.operator.v1.DeleteUserRequest
-	16, // 23: chatto.operator.v1.OperatorUserService.AddVerifiedEmail:input_type -> chatto.operator.v1.AddVerifiedEmailRequest
-	18, // 24: chatto.operator.v1.OperatorUserService.ClearUsernameCooldown:input_type -> chatto.operator.v1.ClearUsernameCooldownRequest
-	21, // 25: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:input_type -> chatto.operator.v1.ListUserExternalIdentitiesRequest
-	23, // 26: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:input_type -> chatto.operator.v1.LinkUserExternalIdentityRequest
-	25, // 27: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:input_type -> chatto.operator.v1.UnlinkUserExternalIdentityRequest
-	1,  // 28: chatto.operator.v1.OperatorUserService.CreateUser:output_type -> chatto.operator.v1.CreateUserResponse
-	3,  // 29: chatto.operator.v1.OperatorUserService.ListUsers:output_type -> chatto.operator.v1.ListUsersResponse
-	5,  // 30: chatto.operator.v1.OperatorUserService.GetUser:output_type -> chatto.operator.v1.GetUserResponse
-	7,  // 31: chatto.operator.v1.OperatorUserService.AssignRole:output_type -> chatto.operator.v1.AssignRoleResponse
-	9,  // 32: chatto.operator.v1.OperatorUserService.RevokeRole:output_type -> chatto.operator.v1.RevokeRoleResponse
-	11, // 33: chatto.operator.v1.OperatorUserService.UpdateUser:output_type -> chatto.operator.v1.UpdateUserResponse
-	13, // 34: chatto.operator.v1.OperatorUserService.SetUserPassword:output_type -> chatto.operator.v1.SetUserPasswordResponse
-	15, // 35: chatto.operator.v1.OperatorUserService.DeleteUser:output_type -> chatto.operator.v1.DeleteUserResponse
-	17, // 36: chatto.operator.v1.OperatorUserService.AddVerifiedEmail:output_type -> chatto.operator.v1.AddVerifiedEmailResponse
-	19, // 37: chatto.operator.v1.OperatorUserService.ClearUsernameCooldown:output_type -> chatto.operator.v1.ClearUsernameCooldownResponse
-	22, // 38: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:output_type -> chatto.operator.v1.ListUserExternalIdentitiesResponse
-	24, // 39: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:output_type -> chatto.operator.v1.LinkUserExternalIdentityResponse
-	26, // 40: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:output_type -> chatto.operator.v1.UnlinkUserExternalIdentityResponse
-	28, // [28:41] is the sub-list for method output_type
-	15, // [15:28] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	31, // 0: chatto.operator.v1.CreateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	31, // 1: chatto.operator.v1.ImportUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	32, // 2: chatto.operator.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
+	31, // 3: chatto.operator.v1.ListUsersResponse.users:type_name -> chatto.admin.v1.AdminMember
+	33, // 4: chatto.operator.v1.ListUsersResponse.roles:type_name -> chatto.api.v1.Role
+	34, // 5: chatto.operator.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
+	31, // 6: chatto.operator.v1.GetUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	35, // 7: chatto.operator.v1.GetUserResponse.roles:type_name -> chatto.admin.v1.AdminRole
+	31, // 8: chatto.operator.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
+	31, // 9: chatto.operator.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
+	36, // 10: chatto.operator.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
+	31, // 11: chatto.operator.v1.UpdateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	31, // 12: chatto.operator.v1.SetUserPasswordResponse.member:type_name -> chatto.admin.v1.AdminMember
+	31, // 13: chatto.operator.v1.AddVerifiedEmailResponse.member:type_name -> chatto.admin.v1.AdminMember
+	24, // 14: chatto.operator.v1.ListUserExternalIdentitiesResponse.identities:type_name -> chatto.operator.v1.UserExternalIdentity
+	24, // 15: chatto.operator.v1.LinkUserExternalIdentityResponse.identity:type_name -> chatto.operator.v1.UserExternalIdentity
+	0,  // 16: chatto.operator.v1.OperatorUserService.CreateUser:input_type -> chatto.operator.v1.CreateUserRequest
+	2,  // 17: chatto.operator.v1.OperatorUserService.ImportUser:input_type -> chatto.operator.v1.ImportUserRequest
+	4,  // 18: chatto.operator.v1.OperatorUserService.ImportUserAvatar:input_type -> chatto.operator.v1.ImportUserAvatarRequest
+	6,  // 19: chatto.operator.v1.OperatorUserService.ListUsers:input_type -> chatto.operator.v1.ListUsersRequest
+	8,  // 20: chatto.operator.v1.OperatorUserService.GetUser:input_type -> chatto.operator.v1.GetUserRequest
+	10, // 21: chatto.operator.v1.OperatorUserService.AssignRole:input_type -> chatto.operator.v1.AssignRoleRequest
+	12, // 22: chatto.operator.v1.OperatorUserService.RevokeRole:input_type -> chatto.operator.v1.RevokeRoleRequest
+	14, // 23: chatto.operator.v1.OperatorUserService.UpdateUser:input_type -> chatto.operator.v1.UpdateUserRequest
+	16, // 24: chatto.operator.v1.OperatorUserService.SetUserPassword:input_type -> chatto.operator.v1.SetUserPasswordRequest
+	18, // 25: chatto.operator.v1.OperatorUserService.DeleteUser:input_type -> chatto.operator.v1.DeleteUserRequest
+	20, // 26: chatto.operator.v1.OperatorUserService.AddVerifiedEmail:input_type -> chatto.operator.v1.AddVerifiedEmailRequest
+	22, // 27: chatto.operator.v1.OperatorUserService.ClearUsernameCooldown:input_type -> chatto.operator.v1.ClearUsernameCooldownRequest
+	25, // 28: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:input_type -> chatto.operator.v1.ListUserExternalIdentitiesRequest
+	27, // 29: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:input_type -> chatto.operator.v1.LinkUserExternalIdentityRequest
+	29, // 30: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:input_type -> chatto.operator.v1.UnlinkUserExternalIdentityRequest
+	1,  // 31: chatto.operator.v1.OperatorUserService.CreateUser:output_type -> chatto.operator.v1.CreateUserResponse
+	3,  // 32: chatto.operator.v1.OperatorUserService.ImportUser:output_type -> chatto.operator.v1.ImportUserResponse
+	5,  // 33: chatto.operator.v1.OperatorUserService.ImportUserAvatar:output_type -> chatto.operator.v1.ImportUserAvatarResponse
+	7,  // 34: chatto.operator.v1.OperatorUserService.ListUsers:output_type -> chatto.operator.v1.ListUsersResponse
+	9,  // 35: chatto.operator.v1.OperatorUserService.GetUser:output_type -> chatto.operator.v1.GetUserResponse
+	11, // 36: chatto.operator.v1.OperatorUserService.AssignRole:output_type -> chatto.operator.v1.AssignRoleResponse
+	13, // 37: chatto.operator.v1.OperatorUserService.RevokeRole:output_type -> chatto.operator.v1.RevokeRoleResponse
+	15, // 38: chatto.operator.v1.OperatorUserService.UpdateUser:output_type -> chatto.operator.v1.UpdateUserResponse
+	17, // 39: chatto.operator.v1.OperatorUserService.SetUserPassword:output_type -> chatto.operator.v1.SetUserPasswordResponse
+	19, // 40: chatto.operator.v1.OperatorUserService.DeleteUser:output_type -> chatto.operator.v1.DeleteUserResponse
+	21, // 41: chatto.operator.v1.OperatorUserService.AddVerifiedEmail:output_type -> chatto.operator.v1.AddVerifiedEmailResponse
+	23, // 42: chatto.operator.v1.OperatorUserService.ClearUsernameCooldown:output_type -> chatto.operator.v1.ClearUsernameCooldownResponse
+	26, // 43: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:output_type -> chatto.operator.v1.ListUserExternalIdentitiesResponse
+	28, // 44: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:output_type -> chatto.operator.v1.LinkUserExternalIdentityResponse
+	30, // 45: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:output_type -> chatto.operator.v1.UnlinkUserExternalIdentityResponse
+	31, // [31:46] is the sub-list for method output_type
+	16, // [16:31] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_chatto_operator_v1_users_proto_init() }
@@ -1718,14 +1982,14 @@ func file_chatto_operator_v1_users_proto_init() {
 	if File_chatto_operator_v1_users_proto != nil {
 		return
 	}
-	file_chatto_operator_v1_users_proto_msgTypes[10].OneofWrappers = []any{}
+	file_chatto_operator_v1_users_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_operator_v1_users_proto_rawDesc), len(file_chatto_operator_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -25,6 +25,7 @@ import {
   type NewBearerSession
 } from '../auth/bearerSession.js';
 import type { KeepRecent } from './roomStores.js';
+import { getPublicServerInfo, type PublicServerInfo } from '../api/server.js';
 
 export type { ServerRegistration } from './catalog.js';
 export type { ServerSession } from './sessions.js';
@@ -870,9 +871,7 @@ export class ServerRegistry {
     const store = this.#stores.get(serverId);
     if (!store || this.#startedServerNetwork.has(serverId)) return;
     this.#startedServerNetwork.add(serverId);
-    void store.serverInfo.init().catch(() => {
-      // Recovery observes the discovery error on the store.
-    });
+    if (store.serverInfo.lastDiscoveredAt === null) void store.serverInfo.init();
 
     const session = this.sessions.ensure(serverId);
     if (this.isOriginServer(serverId)) return;
@@ -890,6 +889,8 @@ export class ServerRegistry {
     options: {
       /** The session's bearer token is fixed and must never be renewed. */
       fixedToken?: boolean;
+      /** Discovery already fetched for registration; avoids a second startup request. */
+      serverInfo?: PublicServerInfo;
     } = {}
   ): void {
     if (this.#disposed) return;
@@ -911,7 +912,7 @@ export class ServerRegistry {
       this.#persistAuthentication(registration.id);
       this.#persist();
       try {
-        this.#createStore(registration.id);
+        this.#createStore(registration.id, true, options.serverInfo);
       } catch (error) {
         // A server without a store must not stay registered.
         this.removeServer(registration.id);
@@ -1060,6 +1061,15 @@ export class ServerRegistry {
   ): boolean {
     return batch(() => {
       if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
+      // Discovery is public and independent of the account being replaced.
+      const previousInfo = this.#stores.get(id)?.serverInfo;
+      const serverInfo = previousInfo?.discovery ?? undefined;
+      const pendingDiscovery = previousInfo?.loading
+        ? previousInfo.init().then(() => {
+            if (previousInfo.discovery) return previousInfo.discovery;
+            throw previousInfo.error;
+          })
+        : undefined;
       this.#context.realtime.stopBus(id);
       this.#stores.get(id)?.dispose();
       this.#stores.delete(id);
@@ -1069,7 +1079,12 @@ export class ServerRegistry {
       this.sessions.replace(id, data);
       this.#persistAuthentication(id);
       this.#persist();
-      this.#createStore(id, startNetwork);
+      this.#createStore(
+        id,
+        startNetwork,
+        pendingDiscovery ? undefined : serverInfo,
+        pendingDiscovery
+      );
       return true;
     });
   }
@@ -1219,7 +1234,12 @@ export class ServerRegistry {
   }
 
   /** Create a state store for a server and wire up remote user sync. */
-  #createStore(serverId: string, startNetwork = true): Server {
+  #createStore(
+    serverId: string,
+    startNetwork = true,
+    serverInfo?: PublicServerInfo,
+    pendingDiscovery?: Promise<PublicServerInfo>
+  ): Server {
     const registration = this.catalog.get(serverId);
     if (!registration) throw new Error(`Server "${serverId}" not found in catalogue`);
     this.sessions.ensure(serverId);
@@ -1235,7 +1255,14 @@ export class ServerRegistry {
         remove: () => this.removeServer(serverId),
         fixedToken: this.#fixedTokenServers.has(serverId)
       },
-      undefined,
+      pendingDiscovery
+        ? (url) => {
+            // Transfer only the pending read. Later refreshes must reach the server.
+            const pending = pendingDiscovery;
+            pendingDiscovery = undefined;
+            return pending ?? getPublicServerInfo(url);
+          }
+        : undefined,
       () => {
         if (this.isOriginServer(serverId) && !store.currentUser.user) {
           this.clearOriginAuthentication();
@@ -1243,6 +1270,10 @@ export class ServerRegistry {
       },
       (user) => this.#acceptViewer(serverId, store, user)
     );
+    if (serverInfo) {
+      store.serverInfo.applyDiscovery(serverInfo);
+      store.serverInfo.loading = false;
+    }
     this.#stores.set(serverId, store);
     for (const watcher of [...this.#storeWatchers]) watcher(store);
     if (startNetwork) this.#startServerNetwork(serverId);

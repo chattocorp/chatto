@@ -12,6 +12,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - Automatic URL detection requires `http://`, `https://`, or `www.`. The client uses HTTPS for `www.` URLs. Bare domains and filenames do not trigger preview requests. Explicit Markdown links to HTTP or HTTPS URLs can still trigger a preview.
 - The composer fetches a link preview as soon as the user has typed a complete eligible URL.
 - Only the first eligible URL in a message gets a preview. There is no multi-preview layout.
+- Server, room, and user URLs recognised by the client's entity pills do not get a preview attachment. This includes other servers in the client catalogue. A later eligible web URL can get the preview instead. Unknown servers keep normal URL previews; the client does not contact them to discover whether they run Chatto.
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
 - An HTTP or HTTPS link that starts with an angle bracket, such as `<https://example.com>`, stays clickable and does not trigger a link preview. The closing angle bracket is optional. This behavior works in both message editors. A later eligible URL can get the preview instead.
 - YouTube URLs get a specialized embed-ready card without scraping the page.

@@ -79,6 +79,39 @@ describe('registered server recovery', () => {
     expect(registry.needsRecovery('retry-test')).toBe(false);
   });
 
+  it.each([true, false])(
+    'transfers pending discovery through a session reset (success: %s)',
+    async (success) => {
+      const error = new Error('offline');
+      let respond!: () => void;
+      mocks.discovery.mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          respond = () => (success ? resolve(profile) : reject(error));
+        })
+      );
+      registry.addServer({
+        id: 'pending-discovery',
+        url: 'https://pending.test',
+        name: 'Saved',
+        iconUrl: null,
+        addedAt: 1
+      });
+      registry.clearServerAuthentication('pending-discovery');
+      const current = registry.getStore('pending-discovery');
+      expect(mocks.discovery).toHaveBeenCalledOnce();
+      respond();
+      await current.serverInfo.init();
+      expect(current.serverInfo.discovery).toEqual(success ? profile : null);
+      expect(current.serverInfo.error).toBe(success ? null : error);
+      expect(mocks.discovery).toHaveBeenCalledOnce();
+
+      mocks.discovery.mockResolvedValue({ ...profile, name: 'Fresh' });
+      await current.serverInfo.init();
+      expect(mocks.discovery).toHaveBeenCalledTimes(2);
+      expect(current.serverInfo.name).toBe('Fresh');
+    }
+  );
+
   it('retries a viewer-only failure and stops on an authentication rejection', async () => {
     mocks.discovery.mockResolvedValue(profile);
     await register();
@@ -158,6 +191,9 @@ describe('registered server recovery', () => {
     await registry.recoverServer('retry-test');
     const current = registry.getStore('retry-test');
     expect(current).not.toBe(previous);
+    expect(current.serverInfo.discovery).toEqual(profile);
+    expect(current.serverInfo.loading).toBe(false);
+    expect(mocks.discovery).toHaveBeenCalledOnce();
     expect(previous.currentUser.user).toBeUndefined();
     expect(current.currentUser.user).toEqual(user);
     expect(current.projection.rooms.has('private-room')).toBe(false);

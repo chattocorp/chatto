@@ -80,12 +80,12 @@
 
   const store = $derived(stores.rooms.thread(roomId, threadRootEventId));
 
-  // Like a room, a thread shows its latest replies when it is opened or left,
-  // and a jump that is still loading cannot change the next thread.
+  // Restore on entry, including after hydration mounts the pane. Departure
+  // cancels late jumps without fetching replies for a hidden thread.
   $effect(() => {
     const mountedStore = store;
     untrack(() => void mountedStore.restoreLatestWindow());
-    return () => untrack(() => void mountedStore.restoreLatestWindow());
+    return () => mountedStore.cancelPendingHistoricalJump();
   });
 
   const threadMessage = $derived(

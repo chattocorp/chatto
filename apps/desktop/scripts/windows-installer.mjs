@@ -12,13 +12,17 @@ if (process.platform !== 'win32' || process.arch !== 'x64') {
 }
 const desktopRoot = fileURLToPath(new URL('../', import.meta.url));
 const bundle = path.join(desktopRoot, 'dist/windows');
+// CI uses an unsigned older MSI identity to exercise a real major upgrade.
+// Its application payload is unchanged, and it is never a release artifact.
+const upgradeFixture = process.argv.includes('--msi-upgrade-fixture');
+const output = upgradeFixture ? 'dist/msi-upgrade-fixture' : 'dist/installer';
 await access(path.join(bundle, 'chatto-desktop.exe'));
-await rm(path.join(desktopRoot, 'dist/installer'), { recursive: true, force: true });
+await rm(path.join(desktopRoot, output), { recursive: true, force: true });
 
 // This hook signs both the generated uninstaller before embedding and the final
-// installer. The preceding Azure action installs the ArtifactSigning module.
+// installers, including MSI. The preceding Azure action installs the ArtifactSigning module.
 const sign =
-  process.env.CHATTO_WINDOWS_SIGN_INSTALLER === 'true'
+  !upgradeFixture && process.env.CHATTO_WINDOWS_SIGN_INSTALLER === 'true'
     ? async ({ path: file }) => {
         execFileSync(
           'pwsh',
@@ -37,10 +41,15 @@ const sign =
 
 const config = windowsInstallerConfig(packageJson.version, sign);
 config.electronVersion = packageJson.devDependencies.electron;
+if (upgradeFixture) {
+  config.directories.output = output;
+  config.extraMetadata = { version: '0.0.0' };
+  config.msi.artifactName = 'upgrade-fixture.msi';
+}
 await build({
   projectDir: desktopRoot,
   prepackaged: bundle,
-  targets: Platform.WINDOWS.createTarget('nsis', Arch.x64),
+  targets: Platform.WINDOWS.createTarget(upgradeFixture ? ['msi'] : ['nsis', 'msi'], Arch.x64),
   publish: 'never',
   config
 });

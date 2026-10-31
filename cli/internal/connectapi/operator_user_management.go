@@ -15,6 +15,32 @@ type operatorUserService struct {
 	api *API
 }
 
+func (s *operatorUserService) ImportUserAvatar(ctx context.Context, req *connect.Request[operatorv1.ImportUserAvatarRequest]) (*connect.Response[operatorv1.ImportUserAvatarResponse], error) {
+	if err := s.api.core.ImportHistoricalUserAvatar(ctx, req.Msg.GetOperationKey(), req.Msg.GetUserId(), req.Msg.GetImage()); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&operatorv1.ImportUserAvatarResponse{}), nil
+}
+
+func (s *operatorUserService) ImportUser(ctx context.Context, req *connect.Request[operatorv1.ImportUserRequest]) (*connect.Response[operatorv1.ImportUserResponse], error) {
+	user, err := s.api.core.ImportHistoricalUser(ctx, req.Msg.GetOperationKey(), core.HistoricalUserInput{
+		Login: req.Msg.GetLogin(), DisplayName: req.Msg.GetDisplayName(), Email: req.Msg.GetVerifiedEmail(),
+		BotOwnerID: req.Msg.GetBotOwnerUserId(), Deactivated: req.Msg.GetDeactivated(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	view, err := s.api.core.AdminGetUser(ctx, user.Id)
+	if err != nil {
+		return nil, err
+	}
+	member, err := operatorAdminMember(ctx, s.api, view)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&operatorv1.ImportUserResponse{Member: member}), nil
+}
+
 func (s *operatorUserService) CreateUser(ctx context.Context, req *connect.Request[operatorv1.CreateUserRequest]) (*connect.Response[operatorv1.CreateUserResponse], error) {
 	if strings.TrimSpace(req.Msg.GetLogin()) == "" {
 		return nil, invalidArgument("login is required")

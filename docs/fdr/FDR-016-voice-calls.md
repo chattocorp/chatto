@@ -1,13 +1,22 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
 Rooms support real-time voice conversations with optional camera video and screen/window/tab sharing. Supported browsers can include audio from a shared browser tab. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
+
+- Supported browsers expose microphone, camera, and hang-up actions through
+  system media controls during a call. These actions use the same permissions
+  as the call panel. Microphone and camera actions are available only with the
+  corresponding permission, including when permissions change during a call.
+  System metadata shows only the Chatto name, to keep room
+  and participant names off the lock screen. The most recently joined call
+  owns these controls; leaving it clears them. This integration does not
+  guarantee that a mobile browser keeps a background call running.
 
 - Members can see an ongoing call when they join or rejoin its room, including
   when the room becomes universal. They do not need to reconnect or wait for

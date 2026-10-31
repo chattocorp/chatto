@@ -153,6 +153,10 @@ def read_export(path, max_bytes=256 * 1024 * 1024, include_slack_identity=False,
             planned_users[-1]["source_email"] = profile.get("email")
         if include_interchange:
             planned_users[-1]["source_bot_id"] = profile.get("bot_id")
+            from slack_avatars import avatar_urls
+            planned_users[-1]["avatar_urls"] = avatar_urls(profile)
+            planned_users[-1]["avatar_url"] = next(iter(planned_users[-1]["avatar_urls"]), None)
+            planned_users[-1]["has_avatar"] = bool(planned_users[-1]["avatar_url"])
         if user.get("deleted"):
             issues["deactivated_user_policy"] += 1
         if user.get("is_bot") or user.get("is_app_user"):

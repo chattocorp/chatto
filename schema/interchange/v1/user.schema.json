@@ -14,6 +14,10 @@
     "display_name": {
       "type": "string"
     },
+    "avatar_asset_id": {
+      "$ref": "common.schema.json#/$defs/id",
+      "description": "Optional reference to an asset containing the user's avatar image."
+    },
     "kind": {
       "enum": ["human", "bot"]
     },

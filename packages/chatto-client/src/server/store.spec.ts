@@ -1325,18 +1325,26 @@ describe('ServerStateStore privileged mode', () => {
     expect(reloadUnchanged).not.toHaveBeenCalled();
   });
 
-  it('restores the latest window only of a room timeline that exists', async () => {
+  it('restores or cancels only a room timeline that exists', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const restore = vi.spyOn(MessagesStore.prototype, 'restoreLatestWindow');
+    const cancel = vi.spyOn(MessagesStore.prototype, 'cancelPendingHistoricalJump');
     // A new timeline reads the latest window itself, so nothing is created.
     store.restoreProjectedRoomWindow('R1');
+    store.cancelProjectedRoomJump('R1');
     expect(restore).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
 
-    store.rooms.messages('R1');
+    const timeline = store.rooms.messages('R1');
     await flushPromises();
+    store.cancelProjectedRoomJump('R1');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(cancel.mock.contexts[0]).toBe(timeline);
+    expect(restore).not.toHaveBeenCalled();
     store.restoreProjectedRoomWindow('R1');
     expect(restore).toHaveBeenCalledOnce();
     restore.mockRestore();
+    cancel.mockRestore();
     store.dispose();
   });
 

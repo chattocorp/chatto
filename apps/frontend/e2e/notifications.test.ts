@@ -730,6 +730,9 @@ test.describe('Navigation from Notifications', () => {
     await page.goBack();
     await expect(page.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Mentions', exact: true })).toBeChecked();
+    await page.goForward();
+    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await page.goBack();
     await page.reload();
     await expect(page.getByRole('radio', { name: 'Unread', exact: true })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Mentions', exact: true })).toBeChecked();

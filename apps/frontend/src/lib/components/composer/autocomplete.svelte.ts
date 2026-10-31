@@ -63,7 +63,7 @@ export class AutocompleteState {
     this.room = null;
   }
 
-  /** Space and pointer selection add a space; Enter and Tab insert only the URL. */
+  /** Pointer selection adds a space; Enter and Tab insert only the URL. */
   selectRoom(url: string, key: string): void {
     if (!this.room) return;
     this.applyCompletion(url, this.room.triggerStart, completionSuffix(key));
@@ -246,7 +246,7 @@ export class AutocompleteState {
   }
 }
 
-/** Keep pointer selection convenient; keyboard selection adds only the requested space. */
+/** Add a space for pointer selection; keyboard selection adds no whitespace. */
 function completionSuffix(key: string): string {
-  return key === ' ' || key === 'click' ? ' ' : '';
+  return key === 'click' ? ' ' : '';
 }

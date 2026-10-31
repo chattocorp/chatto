@@ -428,6 +428,14 @@ commit. Author key provisioning remains part of encryption preparation.
 `ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
 retains that ID for retries; receipts from older servers return no event ID.
 
+`OperatorUserService.ImportUser` creates historical human or bot accounts without
+credentials. Initial deactivation and the permanent retry receipt commit with
+account creation. It does not change existing accounts.
+
+`OperatorUserService.ImportUserAvatar` accepts at most 5 MiB of local image bytes.
+It commits an avatar fact and retry receipt together when the user has no avatar.
+An existing avatar is preserved with a receipt. The server does not fetch URLs.
+
 `OperatorMessageService.ImportReaction` accepts individual room join and leave
 event IDs for historical imports, without live delivery or notifications.
 
