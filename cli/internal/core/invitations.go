@@ -206,21 +206,6 @@ func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, n
 	if _, err := c.invitationAccess(ctx, actorID); err != nil {
 		return InvitationState{}, err
 	}
-	return c.createInvitationCode(ctx, actorID, note)
-}
-
-// IssueInvitationCode issues a code with the same fixed seven-day lifetime.
-// Callers can retrieve their own codes through the management API.
-// Like admin creation, this is not idempotent and must not be retried automatically.
-func (c *ChattoCore) IssueInvitationCode(ctx context.Context, actorID string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
-		return InvitationState{}, err
-	}
-	return c.createInvitationCode(ctx, actorID, "")
-}
-
-// createInvitationCode is shared by the separately authorized member and admin operations.
-func (c *ChattoCore) createInvitationCode(ctx context.Context, actorID string, note string) (InvitationState, error) {
 	if !utf8.ValidString(note) || utf8.RuneCountInString(note) > InvitationNoteMaxLength {
 		return InvitationState{}, ErrInvalidArgument
 	}

@@ -1134,19 +1134,6 @@ Safe summary of one recorded outbound webhook failure.
 | `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
 | `source_event_id` | `string` | Source message ID associated with this delivery. |
 
-<a id="chatto-api-v1-IssuedInvitationCode"></a>
-
-### IssuedInvitationCode
-
-A newly issued single-use code. Creators with user.invite can retrieve it
-later through AdminInvitationCodeService.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Opaque invitation identifier, also visible in administrative records. |
-| `code` | `string` | Share this secret with the recipient. Never log or persist it in client storage. |
-| `expires_at` | `google.protobuf.Timestamp` | The code expires seven days after creation. |
-
 <a id="chatto-api-v1-FollowedThread"></a>
 
 ### FollowedThread

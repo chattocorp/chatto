@@ -15,9 +15,9 @@ import (
 func TestMemberInvitationPermissionBoundary(t *testing.T) {
 	t.Parallel()
 	env := newConnectAPITestEnv(t)
-	service := &invitationCodeService{api: env.api}
+	service := env.adminInvitationCodes
 	ctx := withBearerCredential(env.ctx, env.viewer, "member-session")
-	request := connect.NewRequest(&apiv1.CreateInvitationCodeRequest{})
+	request := connect.NewRequest(&adminv1.CreateInvitationCodeRequest{})
 	_, err := service.CreateInvitationCode(ctx, request)
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserInvite))

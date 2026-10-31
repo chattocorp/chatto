@@ -51,8 +51,7 @@ the API to integrate code issuance with an external system.
 - Invites remains available when registration is open; signup then ignores codes.
   Codes can be retrieved again while the caller has the required permission.
   No code is stored in browser storage. Chatto does not send codes to recipients.
-- The existing create-only API uses the same fixed seven-day lifetime. Issuance has no
-  automatic retry. Creators can retrieve a code after a lost response through
+- Issuance has no automatic retry. Creators can retrieve a code after a lost response through
   the management API. Changing a creator's permissions or account state does
   not revoke an issued code; an authorized caller can revoke it explicitly.
 - Expired, used, revoked, malformed, and unknown codes show the same public

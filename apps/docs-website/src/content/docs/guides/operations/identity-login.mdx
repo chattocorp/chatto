@@ -257,11 +257,10 @@ Expired, used, revoked, or incorrect codes show as unavailable.
 
 For external integrations, use
 [`AdminInvitationCodeService`](/reference/connectrpc-api/admin-invitation-codes/)
-with a credential that has `user.manage-invites`. For creation without management
-access, use [`InvitationCodeService`](/reference/connectrpc-api/invitation-codes/)
-with `user.invite`. Do not retry creation automatically: a lost response can
-leave a code that only an administrator can retrieve. Each create call issues a separate
-code. Direct API registration can send `invitationCode` with the email to
+with a credential that has `user.invite` to create and manage its own codes, or
+`user.manage-invites` to manage all codes. Do not retry creation automatically:
+each create call issues a separate code. After a lost response, list your codes
+to retrieve the created code. Direct API registration can send `invitationCode` with the email to
 `POST /auth/register`. SSO account creation can send `invitation_code` with
 `CreateExternalIdentityAccount`. Both paths check and consume admission on
 successful account creation.
