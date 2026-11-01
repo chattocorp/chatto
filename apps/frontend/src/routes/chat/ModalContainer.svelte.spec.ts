@@ -101,7 +101,8 @@ vi.mock('$app/state', async () => {
 });
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto
+  goto: mocks.goto,
+  pushState: vi.fn()
 }));
 
 vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
@@ -185,6 +186,28 @@ vi.mock('./modals/EditAttachmentDescriptionModal.svelte', async () => {
 });
 
 import ModalContainer from './ModalContainer.svelte';
+
+describe('ModalContainer rendered image viewer', () => {
+  it('closes through history and restores the image from modal state', async () => {
+    const modal = {
+      type: 'renderedImageViewer',
+      src: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"/>')}`,
+      alt: 'Local diagram'
+    };
+    mocks.modal = modal;
+    const { container } = render(ModalContainer);
+    await expect.poll(() => container.querySelector('img')?.src).toBe(modal.src);
+    expect(mocks.getClient).not.toHaveBeenCalled();
+    // The test dialog exposes the same dismissal callback as the native surface.
+    container.querySelector('dialog')!.dispatchEvent(new Event('cancel'));
+    expect(window.history.back).toHaveBeenCalledOnce();
+    setModal(undefined);
+    await expect.poll(() => container.querySelector('dialog')).toBeNull();
+    setModal(structuredClone(modal));
+    await expect.poll(() => container.querySelector('img')?.src).toBe(modal.src);
+    expect(container.querySelector('img')?.alt).toBe(modal.alt);
+  });
+});
 
 function findButton(container: HTMLElement, label: string): HTMLButtonElement {
   const button = [...container.querySelectorAll('button')].find(

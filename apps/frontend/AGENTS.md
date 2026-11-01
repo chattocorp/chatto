@@ -241,6 +241,15 @@ behavior. Apply those rules when choosing an implementation too.
 - Prefer native browser scrolling for scrollable regions and galleries; do not
   intercept wheel, touch, or pointer scrolling unless the interaction is
   explicitly custom and approved.
+- Scrollable content must use the shared edge gradients. Use `ScrollFader` for
+  Svelte viewports. Generated Markdown code blocks must use the same
+  `scroll-edge-fade` styling and `trackScrollEdges` tracking. This includes
+  Source panels and horizontally scrolling ANSI output. Show fades only at
+  edges with more content, match the owning surface, and keep headers clear.
+- Composer code blocks must never scroll internally. Expand them to fit their
+  content and wrap long lines without changing the source. The composer owns
+  scrolling and its edge fades; do not add a nested code viewport.
+  In the visual composer, keep code-block headers limited to the language selector.
 - App-wide pan gestures must yield to horizontal scrollers, form and media
   controls, custom drag surfaces, and browser top-layer UI such as dialogs,
   popovers, and fullscreen elements. Mark custom surfaces with the gesture's

@@ -1,4 +1,5 @@
 import type { StorybookConfig } from '@storybook/sveltekit';
+import { fileURLToPath } from 'node:url';
 
 const config: StorybookConfig = {
   // Permit the workspace proxy hostname while keeping the listener on loopback.
@@ -17,6 +18,17 @@ const config: StorybookConfig = {
     options: {}
   },
   viteFinal(config) {
+    // Storybook loads translations without the app's Vite server configuration.
+    config.server = {
+      ...config.server,
+      fs: {
+        ...config.server?.fs,
+        allow: [
+          ...(config.server?.fs?.allow ?? []),
+          fileURLToPath(new URL('../messages', import.meta.url))
+        ]
+      }
+    };
     if (process.env.PASEO_URL) {
       const proxy = new URL(process.env.PASEO_URL);
       // Browser HMR uses the public proxy port, not the loopback listener port.
@@ -28,12 +40,13 @@ const config: StorybookConfig = {
         }
       };
     }
-    // Lazy video imports must be optimized before browser tests start. A
+    // Lazy media and diagram imports must be optimized before browser tests start. A
     // dependency reload during a test can leave the Storybook runner stalled.
     config.optimizeDeps = {
       ...config.optimizeDeps,
       include: [
         ...(config.optimizeDeps?.include ?? []),
+        'pele',
         'hls.js',
         'vidstack/player',
         'vidstack/player/layouts',

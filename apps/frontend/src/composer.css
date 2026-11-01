@@ -4,6 +4,57 @@
   --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
   --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
+  & .ProseMirror pre {
+    @apply code-frame w-full;
+    overflow: clip;
+    line-height: 1.5;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  & .ProseMirror pre::before {
+    @apply sticky top-0 z-1 code-frame-header bg-surface font-mono tracking-wide uppercase;
+    /* Keep source text behind the pinned header while the composer scrolls. */
+    content: attr(data-language);
+    pointer-events: none;
+  }
+
+  & .ProseMirror pre code {
+    @apply block min-w-0;
+    font-size: inherit;
+    line-height: inherit;
+    color: var(--composer-code-text);
+    /* Only the composer scrolls. Wrap long SVG attributes without changing source. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow: visible;
+  }
+
+  & .cm-code-fence {
+    box-sizing: border-box;
+    border-inline: 4px solid var(--color-surface);
+    padding-inline: 0.75rem;
+    background: var(--color-background);
+  }
+
+  & .cm-code-fence-open {
+    @apply mt-2 rounded-t-lg bg-surface shell-lighting font-mono text-xs leading-4 text-muted;
+    min-height: 1.5rem;
+    padding-block: 0.25rem;
+  }
+
+  & .cm-code-fence-body {
+    @apply font-mono text-sm;
+    direction: ltr;
+    unicode-bidi: isolate;
+    color: var(--composer-code-text);
+    line-height: 1.5;
+  }
+
+  & .cm-code-fence-close {
+    @apply mb-2 rounded-b-lg border-b-4 border-surface pb-1 font-mono text-xs text-muted;
+  }
+
   & .ProseMirror blockquote,
   & .cm-format-quote {
     color: var(--composer-quote-text);

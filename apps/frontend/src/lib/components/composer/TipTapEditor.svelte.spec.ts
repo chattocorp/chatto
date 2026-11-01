@@ -33,32 +33,134 @@ it('opens a registered Chatto link from the composer through local routing', asy
   expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
 });
 
-describe('Composer emoji shortcodes', () => {
-  it.each([TipTapEditor, MarkdownEditor])(
-    'preserves shortcodes through editing, reopening, and quote insertion',
-    async (Component) => {
+describe('Composer artifact controls', () => {
+  it.each(['svg', 'mermaid', 'ansi', 'javascript'])(
+    'expands and wraps %s code while only the composer scrolls',
+    async (language) => {
       let api: ComposerEditorApi | undefined;
       const updates: string[] = [];
-      render(Component, {
-        placeholder: 'Emoji editor',
+      const { container } = render(TipTapEditor, {
+        onReady: (ready) => (api = ready),
+        onUpdate: (markdown) => updates.push(markdown)
+      });
+      container.style.width = '320px';
+      await vi.waitFor(() => expect(api).toBeDefined());
+      const source = Array.from(
+        { length: 50 },
+        (_, i) =>
+          `<text id="${'long-attribute'.repeat(20)}" x="482" y="${i * 20}">The void has a little guy.</text>`
+      ).join('\n');
+      const hint = language === 'javascript' ? language : `${language} rendered`;
+      api!.setContent('```' + hint + '\n' + source + '\n```');
+      const viewport = container.querySelector<HTMLElement>('.composer-scroll-viewport')!;
+      const pre = container.querySelector('pre')!;
+      const code = pre.querySelector('code')!;
+      expect(pre.clientHeight).toBeGreaterThan(viewport.clientHeight);
+      expect(code.scrollWidth).toBeLessThanOrEqual(code.clientWidth + 1);
+      expect(code.scrollHeight).toBeLessThanOrEqual(code.clientHeight + 1);
+      expect(getComputedStyle(code).overflow).toBe('visible');
+      expect(pre.querySelector('.markdown-code-fade, .composer-code-viewport')).toBeNull();
+      viewport.scrollTo(0, viewport.scrollHeight);
+      await expect.poll(() => viewport.scrollTop).toBeGreaterThan(0);
+      expect(pre.scrollTop).toBe(0);
+      expect(code.scrollTop).toBe(0);
+      await expect
+        .poll(() => getComputedStyle(viewport).maskImage)
+        .toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+      api!.focus('start');
+      api!.insertText('  ');
+      await expect
+        .poll(() => updates.at(-1)?.trimEnd())
+        .toBe('```' + hint + '\n  ' + source + '\n```');
+      api!.setContent('```' + hint + '\nshort\n```');
+      await expect.poll(() => viewport.scrollHeight).toBeLessThanOrEqual(viewport.clientHeight);
+      expect(container.querySelector('code')?.textContent).toBe('short');
+    }
+  );
+
+  it('keeps code frames visible on the chat composer surface', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => (api = ready)
+    });
+    container.classList.add('chat-input-surface');
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent('```mermaid\nflowchart LR\nA-->B\n```');
+    const pre = container.querySelector('pre')!;
+    expect(getComputedStyle(pre).borderTopColor).not.toBe(
+      getComputedStyle(container).backgroundColor
+    );
+    expect(getComputedStyle(pre).paddingTop).toBe('4px');
+    expect(getComputedStyle(pre.querySelector('code')!).borderRadius).toBe('6px');
+  });
+
+  it('uses a top header while keeping code editable', async () => {
+    let api: ComposerEditorApi | undefined;
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => (api = ready),
+      onUpdate: (markdown) => updates.push(markdown)
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent('```mermaid\nflowchart LR\n\nA-->B\n```');
+    const pre = container.querySelector('pre')!;
+    const code = pre.querySelector('code')!;
+    await userEvent.click(code);
+    expect(code.textContent).toBe('flowchart LR\n\nA-->B');
+    expect(getComputedStyle(pre, '::before').height).toBe('24px');
+    expect(getComputedStyle(pre).paddingTop).toBe('4px');
+    const controls = container
+      .querySelector('[name="composer-code-language"]')!
+      .closest('.code-frame-header')!;
+    expect(
+      Math.abs(controls.getBoundingClientRect().top - pre.getBoundingClientRect().top)
+    ).toBeLessThan(6);
+    await userEvent.keyboard('{Home}');
+    api!.insertText('new\n');
+    await expect.poll(() => code.textContent).toContain('new\n');
+    expect(updates.at(-1)).toContain('new\n');
+  });
+
+  it.each(
+    ['svg', 'mermaid', 'ansi'].flatMap((language) =>
+      [false, true].map((visual) => ({ language, visual }))
+    )
+  )(
+    'shows only the language control and preserves $language presentation (visual: $visual)',
+    async ({ language, visual }) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      const { container } = render(TipTapEditor, {
         onReady: (ready) => (api = ready),
         onUpdate: (markdown) => updates.push(markdown)
       });
       await vi.waitFor(() => expect(api).toBeDefined());
-      const source = ':wave: :woman_health_worker: :+1: :foo: 👋 `:heart:`.';
-      api!.setContent(source);
-      api!.focus('end');
-      api!.insertText(' :heart:');
-      await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source} :heart:`));
-
-      const saved = updates.at(-1)!;
-      api!.setContent('');
-      api!.setContent(saved);
-      api!.focus('end');
-      api!.insertQuote(':wave: :foo:');
-      await vi.waitFor(() => expect(updates.at(-1)).toContain('> :wave: :foo:'));
-      expect(updates.at(-1)).toContain(saved);
-      expect(renderInlineMarkdown(saved)).toBe('👋 👩‍⚕️ 👍 :foo: 👋 <code>:heart:</code>. ❤️');
+      const source = language === 'mermaid' ? 'flowchart LR\nA-->B' : 'source';
+      const hint = language + (visual ? ' rendered' : '');
+      api!.setContent('```' + hint + '\n' + source + '\n```');
+      await userEvent.click(container.querySelector('pre code')!);
+      const select = container.querySelector<HTMLSelectElement>(
+        'select[name="composer-code-language"]'
+      )!;
+      const header = select.closest('.code-frame-header')!;
+      expect(header.querySelector('button')).toBeNull();
+      expect(header.querySelector('span')?.textContent).toBe(language.toUpperCase());
+      expect(select.value).toBe(language);
+      if (language === 'mermaid') {
+        await expect
+          .poll(() => container.querySelector('.hljs-keyword')?.textContent)
+          .toBe('flowchart');
+      }
+      api!.focus('start');
+      api!.insertText(' ');
+      expect(updates.at(-1)?.trimEnd()).toBe('```' + hint + '\n ' + source + '\n```');
+      const otherArtifact = language === 'mermaid' ? 'svg' : 'mermaid';
+      await userEvent.selectOptions(select, otherArtifact);
+      expect(updates.at(-1)?.trimEnd()).toBe(
+        '```' + otherArtifact + (visual ? ' rendered' : '') + '\n ' + source + '\n```'
+      );
+      await userEvent.selectOptions(select, 'js');
+      expect(updates.at(-1)?.trimEnd()).toBe('```js\n ' + source + '\n```');
     }
   );
 });
@@ -904,4 +1006,34 @@ describe('TipTapEditor read-only state', () => {
     await expect.element(editor).toHaveTextContent('code');
     expect(editor.element().lastElementChild?.tagName).toBe('P');
   });
+});
+
+describe('Composer emoji shortcodes', () => {
+  it.each([TipTapEditor, MarkdownEditor])(
+    'preserves shortcodes through editing, reopening, and quote insertion',
+    async (Component) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      render(Component, {
+        placeholder: 'Emoji editor',
+        onReady: (ready) => (api = ready),
+        onUpdate: (markdown) => updates.push(markdown)
+      });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      const source = ':wave: :woman_health_worker: :+1: :foo: 👋 `:heart:`.';
+      api!.setContent(source);
+      api!.focus('end');
+      api!.insertText(' :heart:');
+      await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source} :heart:`));
+
+      const saved = updates.at(-1)!;
+      api!.setContent('');
+      api!.setContent(saved);
+      api!.focus('end');
+      api!.insertQuote(':wave: :foo:');
+      await vi.waitFor(() => expect(updates.at(-1)).toContain('> :wave: :foo:'));
+      expect(updates.at(-1)).toContain(saved);
+      expect(renderInlineMarkdown(saved)).toBe('👋 👩‍⚕️ 👍 :foo: 👋 <code>:heart:</code>. ❤️');
+    }
+  );
 });

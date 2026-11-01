@@ -64,6 +64,7 @@
       "loading": "Laster ..."
     },
     "image_modal": {
+      "open_larger": "Åpne større",
       "previous": "Forrige bilde",
       "next": "Neste bilde",
       "fallback_alt": "Bilde",

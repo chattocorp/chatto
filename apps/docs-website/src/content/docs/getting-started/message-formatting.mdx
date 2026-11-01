@@ -147,7 +147,11 @@ Chatto displays source HTML, horizontal rules, reference-style links, and setext
 
 In the visual editor, paste into a code block without a language, or leave the block after typing, to detect its language. The editor saves its guess so the posted message uses the same syntax colors. You can change the language in the block's selector. Choose **TEXT** to keep the block as plain text. Existing blocks do not change merely because you open a message for editing.
 
-Select **Copy to clipboard** on a rendered code block to copy its code without the Markdown fence.
+Each code block has a header with its language and **Copy to clipboard**. Copy retains the original source without the Markdown fence.
+
+Plain SVG, Mermaid, and ANSI blocks have **Source** and **Render** tabs. They start on **Source**. You can switch tabs without changing the message. Add `rendered` after the language, such as `mermaid rendered`, to show only the visual, without tabs or a toolbar.
+
+Use the Markdown source editor to add or remove the `rendered` hint. The visual editor shows only the language selector in the code-block header and preserves existing hints while you edit the source.
 
 Plain URLs to users, rooms, and servers that your client knows appear as pills with
 their current name and avatar or icon. This includes angle-bracket URLs.
@@ -212,13 +216,13 @@ Right-click an image attachment in a message and select **Copy Image** to paste 
 ### ANSI art
 
 Put ANSI text inside a fenced code block labelled `ansi`. After you send the
-message, Chatto shows its colors and final screen layout. Cursor movement and
+message, select **Render** to see its colors and final screen layout. Cursor movement and
 erase commands can draw over earlier text. The composer shows the source.
 
 Bots can build a message body like this JavaScript example:
 
 ```js
-const body = '```ansi\n\x1b[91mHello in red!\x1b[0m\n```';
+const body = '```ansi rendered\n\x1b[91mHello in red!\x1b[0m\n```';
 ```
 
 The JavaScript string contains an actual Escape character (`U+001B`). Typing the
@@ -226,7 +230,7 @@ literal text `\x1b` into the message editor does not create that character. Use
 Unicode text for block and box-drawing characters; raw CP437 files are not imported.
 
 Art uses 80 columns and up to 100 screen rows, with no scrollback. Content that
-scrolls above the screen is discarded. Wide or tall art scrolls inside its block.
+scrolls above the screen is discarded. Wide art scrolls horizontally. All screen rows remain visible.
 The background stays black in both themes. Chatto supports 16-color, 256-color,
 and true-color text. It does not play animations or blink text, and terminal
 links and clipboard commands have no effect.
@@ -234,6 +238,59 @@ links and clipboard commands have no effect.
 The first four ANSI blocks in a message render as art. Additional blocks show
 their source. The normal message size limit still applies. **Copy to clipboard**
 copies the original code, including its escape characters.
+
+### Mermaid diagrams
+
+Use a `mermaid rendered` code fence to show a diagram first:
+
+````text
+```mermaid rendered
+flowchart LR
+  accTitle: Delivery status
+  accDescr: A parcel moves from packing to shipping to delivery.
+  A[Packed] --> B[Shipped] --> C[Delivered]
+```
+````
+
+Chatto renders diagrams locally with [Pele](https://pele.run/). It does not send
+the source to a rendering service. Diagrams follow your theme. Large SVG and
+Mermaid previews fit inside the message. Click the image to pan and zoom
+in the image viewer. Its footer has zoom controls and **Fit**, which restores the
+complete image. Scrolling over an embedded preview scrolls the conversation. Add `accTitle`
+and `accDescr` to describe a Mermaid diagram for screen readers.
+
+Links, external images, and source configuration are disabled. Invalid or
+unsupported diagrams show their source. Each message can render up to four
+diagrams with at most 10,000 characters each. Complex diagrams can also show
+source instead. Editing or copying the message keeps the original Mermaid text.
+
+### SVG previews
+
+Use a code fence labelled `svg rendered` to show an SVG image. A plain `svg`
+fence starts on **Source**; select **Render** to view the image. Bots can send this Markdown in the normal
+message body:
+
+````md
+```svg rendered
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60">
+  <rect width="120" height="60" rx="12" fill="#257d68"/>
+  <text x="60" y="36" text-anchor="middle" fill="white">Ready</text>
+</svg>
+```
+````
+
+The image appears without a toolbar. Click or tap it to open the large viewer.
+You can also focus it with Tab and press Enter or Space.
+Plain `svg`, `mermaid`, and `ansi` fences show code first with a preview option.
+In the visual composer, choose **Code** or **Visual** to set this presentation.
+If the image cannot load, Chatto shows its source instead. Transparent areas
+keep the message background. Include the SVG namespace shown above. Keep images,
+styles, and fonts inside the SVG: external resources do not load. Scripts and
+interactive links are disabled; self-contained SVG animations can play.
+
+Each message can show up to four previews, each with at most 100,000 source
+characters. Additional or larger blocks show source. The normal message size
+limit still applies.
 
 ### Footnotes
 

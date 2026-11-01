@@ -166,7 +166,7 @@
 /* Shared code-token palette for visual and Markdown composer surfaces. */
 .composer-code-palette {
   --composer-code-text: #24292f;
-  --composer-code-comment: #6e7781;
+  --composer-code-comment: #59636e;
   --composer-code-keyword: #b4232c;
   --composer-code-string: #0a3069;
   --composer-code-title: #7040c0;
@@ -1949,16 +1949,11 @@
 
   & > code {
     @apply block preview-content overflow-x-auto px-3 py-2;
-    padding-inline-end: 5.5rem;
     color: var(--composer-code-text);
     font-size: inherit;
     line-height: inherit;
     white-space: pre;
   }
-}
-
-.tiptap-editor .ProseMirror pre {
-  @apply preview-code w-full;
 }
 
 @utility preview-toolbar {
@@ -2049,6 +2044,61 @@
 @utility meta-badge {
   @apply inline-flex items-center rounded-sm border leading-none;
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
+}
+
+/* Non-interactive overlays shared by native scroll viewports. */
+@utility scroll-edge-fade {
+  @apply pointer-events-none absolute z-30 to-transparent transition-opacity;
+}
+
+@utility image-canvas-asset {
+  @apply m-0 block h-full w-full max-w-none object-contain outline-none;
+}
+
+@utility image-canvas-fade {
+  @apply scroll-edge-fade;
+  --tw-gradient-from: color-mix(
+    in srgb,
+    var(--message-code-background, var(--color-background)) 50%,
+    transparent
+  );
+}
+
+/* Shared code chrome for messages and both composer implementations. */
+@utility code-frame {
+  @apply preview-code min-w-0;
+}
+
+/* Message and composer code share edge cues, outside their scrollable contents. */
+.markdown-code-fade {
+  @apply scroll-edge-fade;
+  --tw-gradient-from: var(--message-code-background, var(--color-background));
+}
+.markdown-code-fade-top {
+  @apply inset-x-3 top-2 h-8 bg-gradient-to-b;
+}
+.markdown-code-fade-bottom {
+  @apply inset-x-3 bottom-2 h-8 bg-gradient-to-t;
+}
+.markdown-code-fade-left {
+  @apply inset-y-2 left-3 w-8 bg-gradient-to-r;
+}
+.markdown-code-fade-right {
+  @apply inset-y-2 right-3 w-8 bg-gradient-to-l;
+}
+
+@utility code-frame-header {
+  /* Balance the frame's 4px top rim when centring controls above the inset. */
+  @apply flex h-6 items-center justify-end gap-1 px-2 pt-0 pb-1 font-sans text-xs leading-4 text-muted;
+}
+
+@utility code-line-number {
+  @apply inline-block pe-3 text-end text-muted/50 select-none;
+  width: calc(var(--code-line-digits, 2) * 1ch + 0.75rem);
+  margin-inline-end: 0.75rem;
+  &::before {
+    content: attr(data-line);
+  }
 }
 
 /* Chat message row primitives. These keep the hover-highlight shell and its

@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-31
+**Last reviewed:** 2026-11-01
 
 ## Overview
 
@@ -29,10 +29,13 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. In the visual editor, pasting into an unlabelled code block or leaving a changed block starts language detection. A successful guess becomes the block's saved language and appears in the language selector. Users can override the guess, including with **TEXT** for plain text. Detection uses a fixed set of preferred languages and does not change blocks merely opened for editing. Unlabelled blocks without a match and unsupported languages remain plain code. Detection does not delay sending.
-- Rendered code blocks use the visual editor's spacing without line numbers. Each block has a button to copy its code without the Markdown fence or display-only tab spacing.
+- Code blocks show subtle line numbers without a background in Source mode. The numbers scroll with the source and are excluded from copied source. Each block has a header with its language and a button to copy its code without the Markdown fence or display-only tab spacing. Plain SVG, Mermaid, and ANSI blocks add Source and Render controls and present code first. The exact optional `rendered` hint shows only the visual, without a header, tabs, copy action or overlay. Message editing and message copy retain the source. Tab state for plain fences belongs to the mounted block, does not change the message, and resets when its HTML changes. Tabs support arrow keys, Home and End. Render failures reveal source and its controls, disable Render and show a localised error.
+- Source code contents have a maximum height of 24 rem and scroll in both directions when needed. The header stays outside the scroll area. This also applies to ordinary code blocks.
+- SVG and Mermaid previews show the complete image in a frame that follows its dimensions. They fit within the message width and a height of 30 rem or 60 vh, whichever is smaller. Small artwork is not enlarged. Tiny or extreme ratios retain a 44 px minimum click target with the full image centred inside. They do not intercept scrolling or pinch gestures in the conversation. Clicking the image, or focusing it and pressing Enter or Space, opens the shared attachment viewer without uploading the image. Its footer contains zoom controls, a text Fit action, Details and Download. Zoom ranges from 25% to 1600% of the fitted size; Fit restores the complete image. Shared edge gradients indicate hidden content in the viewer. Back closes the viewer without leaving the room; Forward reopens the same image snapshot. Closing the viewer restores focus to the image button if it is still present. Changes to the message do not change the open snapshot.
+- Fenced blocks labelled `svg` offer an image in the Render tab. Invalid images reveal their source. Each message can show up to four SVG previews, each with at most 100,000 source characters. Larger or additional blocks show source. Previews fit the message width and preserve transparency. Scripts, interactive links, and external resources are disabled. Self-contained SVG animations can play.
+- Fenced blocks labelled `ansi` offer static ANSI art in the Render tab. They support terminal colors, Unicode text, cursor movement, and erase commands. Each block uses an 80-column, 100-row screen with no scrollback. Unused bottom rows are hidden. Wide art scrolls horizontally; all screen rows remain visible. The first four ANSI blocks in a message render as art; additional blocks show their source. Copy retains the escape codes. Artwork uses a fixed black background in both themes. It cannot blink, open terminal links, access the clipboard, or make external connections.
 - Code-copy buttons and shared copy controls briefly show a checkmark after the
   clipboard write succeeds. Failed copies keep the copy icon and show an error.
-- Fenced blocks labelled `ansi` show static ANSI art after posting. They support terminal colors, Unicode text, cursor movement, and erase commands. Each block uses an 80-column, 100-row screen with no scrollback. Unused bottom rows are hidden. Wide or tall art scrolls inside the block. The first four ANSI blocks in a message render as art; additional blocks show their source. Copy retains the escape codes. Artwork uses a fixed black background in both themes. It cannot blink, open terminal links, access the clipboard, or make external connections.
 - The message menu offers **Copy message text** to copy the full Markdown source. When text is selected wholly within that message body, **Copy selected text** appears immediately above it and copies only the selected text. A selection outside the message or across messages does not show this action. The menu keeps the selected text when it opens, even if focus changes.
 - Plain URLs to known users, rooms, and servers appear as inline pills with the current name and an avatar or icon. This includes angle-bracket URLs and links to other registered servers. Explicit Markdown links retain their labels and normal link display. Selecting a message pill opens the entity. Right-click, touch long-press, and the keyboard context-menu command open entity actions. Shift-right-click uses the browser's link menu.
 - Automatic HTTP(S) URLs without a known entity appear as neutral link chips. Links that open a new window show a leading external-link icon. The label shows the hostname and nonstandard port, with a muted path only when it is short and fits completely. Long paths and opaque identifiers are omitted. Long hostnames shorten in the middle, preserving their ending and port. Query strings and fragments stay out of the label. The destination, hover text, accessible description, and copy-link action keep the full URL. Explicit Markdown labels and email links keep their normal display.
@@ -56,6 +59,19 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ## Design Decisions
 
+Code blocks use the shared preview frame: a raised surface with a four-pixel rim
+and recessed content. Message artifacts and the visual composer share this frame
+and a thin header; the source editor uses its surfaces around editable fence lines.
+Editors do not show line numbers. The visual editor places
+only its language selector in the header. The Markdown
+editor keeps the fence text editable.
+
+Scrollable message code blocks use the shared edge gradients. Fades show only
+where more content is available, including horizontal ANSI output. They follow
+the content background and stay below the code header. Composer code blocks never
+scroll internally. They expand to fit their content and wrap long lines without
+changing the saved source. The visual composer owns scrolling and its edge fades.
+
 ### 1. Plain-text Markdown is the interchange format
 
 **Decision:** Message formatting is represented by Markdown in the existing plain-text body rather than by a client-specific rich-text document.
@@ -65,7 +81,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 ### 2. The supported syntax is deliberately constrained
 
 **Decision:** The bundled renderer enables common conversational structure, GFM tables, and named footnotes while keeping source HTML, images, and several lower-value block constructs disabled.
-**Why:** A small reviewed output surface is easier to keep predictable and safe in user-authored messages. File attachments already provide the supported path for images.
+**Why:** A small reviewed output surface is easier to keep predictable and safe in user-authored messages. File attachments provide the general path for images; explicit SVG previews use the bounded image behavior below.
 **Tradeoff:** Markdown copied from other applications may contain valid constructs that Chatto intentionally shows as literal text.
 
 ### 3. Tables favour readable data over layout control
@@ -86,13 +102,35 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Why:** People and bots can share colored art and cursor-based drawings through the existing message body. Fixed limits keep each message's display work bounded. Static output needs no active terminal session.
 **Tradeoff:** Terminal animations and raw CP437 file imports are not supported. Send Unicode text with actual escape characters. The composer shows source. Other clients can show the source if they do not support ANSI art.
 
-### 6. Emoji shortcodes are display syntax
+### 6. SVG previews use an isolated image
+
+**Decision:** Offer SVG images through the shared artifact tabs for plain fences, or as a visual alone for rendered fences. Create an image only when its visual is shown and the block approaches the viewport. Show source if the image fails to load. Load the artwork in the browser's restricted image context.
+**Why:** Bots can send diagrams through the existing message body while people can still share ordinary SVG code blocks. Image mode prevents scripts and external resource loads, including connections that would reveal the viewer's IP address.
+**Tradeoff:** SVG documents must be self-contained and include the SVG namespace. Other clients can show source. The preview is not an interactive document.
+
+### 7. Mermaid diagrams use Pele and the image boundary
+
+**Decision:** Recognise `mermaid` fences with an optional `rendered` hint, ignoring case. Bundle Pele locally and load its worker only when Render is selected and the diagram approaches the viewport. Display the generated SVG as an image in the shared frame. A loading result must not change the selected tab. Show source on failure. The composer, stored message and message copy retain the source. Use `accTitle` and `accDescr` as image text; without them, use the source as the text alternative.
+
+Disable links and external images. Reject frontmatter and configuration directives. Do not supply icon or math markup resolvers. No diagram content is sent to an external service. Apply the current application colours inside each image and update them when the theme changes. Default node shapes use the shared shell-lighting values for UI Depth: a surface gradient and inset bevel, with no outer shadow. Flat mode removes this treatment. Depth changes update the image without running layout again. Author-specified fills remain unchanged.
+
+Allow at most four diagrams per message and 10,000 source characters per diagram. Limit parsed model objects to 1,000, flowchart edges to 250, SVG output to 500,000 characters, each dimension to 8,192 pixels, and area to 16 million pixels. Reuse one worker for sequential jobs and queue at most 32 jobs. Allow up to 30 seconds to load and start the worker; each diagram then has a separate three-second execution limit. Discard the worker after a timeout, worker error or active-job cancellation; the next job starts a new one. An HTML update or unmount cancels its jobs and disposes its mounted image canvases.
+
+Default flowchart groups use the menu frame treatment: a solid surface, a title band, and an inset content area. Frame lighting follows UI Depth and the current theme. Groups with author-specified styles keep their original presentation.
+
+Both editors highlight labelled Mermaid source with a shared, lazily loaded grammar. The visual editor includes Mermaid in its language selector. Mermaid is excluded from automatic language detection so a guess cannot enable diagram rendering. Highlighting does not validate the diagram; Pele validates it when rendering. Composer code-block headers show only the language selector. Add or remove the rendered hint in the Markdown source editor. The visual editor preserves existing hints when editing source or changing between artifact languages; choosing another language removes the hint.
+
+**Why:** Pele supports Mermaid syntax without a remote rendering service. The image boundary also used for SVG prevents active content from entering the application document. Worker termination bounds expensive layout work.
+
+**Tradeoff:** Unsupported, invalid or excessive diagrams remain code. Pele can differ from Mermaid.js. Cached SVG belongs to the mounted HTML version, with at most four entries; theme changes reuse it, but remounting renders again. This keeps private message content out of a global cache. The Markdown hints are provisional until the message presentation interface is reviewed.
+
+### 8. Emoji shortcodes are display syntax
 
 **Decision:** Resolve built-in shortcodes at word boundaries when displaying Markdown. Keep their source text in the message body and leave unknown names visible. Apply the same opening boundary to autocomplete.
 **Why:** People and bots can send readable emoji names through the existing message API. Boundaries prevent accidental conversion inside words or identifiers. Shared client rules keep name lookup consistent across hosts without changing stored messages or contacting an external service.
 **Tradeoff:** Older clients can show the literal shortcode. The visual editor keeps typed shortcodes as text. Custom emoji assets and stable references are not implemented; their identity and rename rules need a separate design.
 
-### 7. Normal links carry entity references
+### 9. Normal links carry entity references
 
 **Decision:** Keep URLs and Markdown links in the message body. Replace only automatic URL displays with known entity names. Explicit Markdown labels keep their normal link display.
 **Why:** Existing links work across clients without a custom reference format. Current names identify plain URL destinations. Keeping explicit labels preserves the author's sentence.
@@ -102,3 +140,4 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
 - **Guide:** [Format Messages](../../apps/docs-website/src/content/docs/getting-started/message-formatting.mdx)
+- **Issue:** [#2007](https://github.com/chattocorp/chatto/issues/2007)

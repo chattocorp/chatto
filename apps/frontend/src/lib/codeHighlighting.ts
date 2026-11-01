@@ -18,6 +18,10 @@ for (const [path, importer] of Object.entries(languageModules)) {
   if (language) languageImporters.set(language, importer);
 }
 
+// Highlight.js does not ship Mermaid. Keep the local grammar lazy and out of
+// the automatic language-detection set: rendering remains an explicit choice.
+languageImporters.set('mermaid', () => import('./mermaid/highlight'));
+
 function normalizeLanguageToken(value: string): string | null {
   return (
     value
@@ -54,6 +58,8 @@ const preferredCodeLanguageValues = new Set(
 
 export const CODE_LANGUAGE_OPTIONS = [
   ...preferredCodeLanguageOptions,
+  { value: 'svg', label: 'SVG' },
+  { value: 'ansi', label: 'ANSI' },
   ...[...languageImporters.keys()]
     .filter((language) => !preferredCodeLanguageValues.has(language))
     .sort()

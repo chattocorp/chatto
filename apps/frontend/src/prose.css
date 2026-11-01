@@ -161,39 +161,91 @@
     unicode-bidi: isolate;
   }
 
-  /* Keep code scrolling inside the block so the controls stay fixed. */
-  & pre.markdown-code {
-    @apply preview-code;
+  & .markdown-code-frame {
+    @apply code-frame my-2;
   }
 
-  & pre.markdown-code > .markdown-code-actions {
-    @apply absolute right-1 bottom-1 z-10 flex items-center gap-1.5 rounded-tl-md rounded-br-md bg-surface px-2 py-1;
-    white-space: normal;
+  & .markdown-code-header {
+    @apply code-frame-header;
+  }
+
+  /* Visual frames fit their image; failure recovery uses the regular code frame. */
+  & [data-presentation='visual']:has([data-code-panel='render']:not([hidden])) {
+    &:has(.rendered-image) {
+      @apply w-fit max-w-full;
+    }
+  }
+
+  & [data-code-panel] {
+    @apply preview-content;
+  }
+
+  & .markdown-code-header [role='tablist'] {
+    @apply flex items-center gap-1;
+  }
+
+  & .markdown-code-header button {
+    @apply mini-icon-action size-5 items-center justify-center disabled:cursor-default disabled:opacity-50;
+  }
+
+  & .markdown-code-header [role='tab'][aria-selected='true'] {
+    @apply text-action;
+  }
+
+  & .markdown-code-error {
+    @apply m-0 px-3 py-2 text-sm text-muted;
+  }
+
+  /* Code scrolls inside its pane; image artifacts fit inside their preview. */
+  & pre.markdown-code {
+    @apply relative m-0 overflow-hidden rounded-none px-3 py-2;
+    background: transparent;
+    color: var(--composer-code-text);
+    line-height: 1.5;
+  }
+
+  & pre.markdown-code > code {
+    display: block;
+    overflow-x: auto;
+    line-height: inherit;
+  }
+
+  & [data-code-panel='source'] > pre.markdown-code > code {
+    @apply max-h-96 overflow-auto;
+  }
+
+  & .markdown-code-scroll-content {
+    @apply block min-w-max;
   }
 
   /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */
   & pre.markdown-ansi {
+    --message-code-background: #000;
+    background: #000;
+    color: #aaa;
     line-height: 1;
     font-variant-ligatures: none;
   }
 
   & pre.markdown-ansi > code {
-    background: #000;
-    color: #aaa;
-    max-height: 32rem;
-    overflow: auto;
+    overflow-x: auto;
     white-space: pre;
   }
 
-  & pre.markdown-code .markdown-code-language {
-    @apply text-xs tracking-wide text-muted uppercase;
+  & .markdown-code-language {
+    @apply font-mono tracking-wide uppercase;
   }
 
-  /* Preserve highlighted lines without a separate number gutter. */
+  /* Source-only line numbers stay out of copied and accessible source text. */
   & pre.markdown-code .line {
     @apply block;
     line-height: inherit;
     min-height: 1lh;
+    min-width: max-content;
+  }
+
+  & .markdown-code-line-number {
+    @apply code-line-number;
   }
 
   & .hljs-comment,
@@ -277,7 +329,14 @@
   }
 
   /* Images */
-  & img:not(.entity-link img, .link-hover-card img, .preview-frame img, .preview-thumbnail) {
+  &
+    img:not(
+      [data-canvas-image],
+      .entity-link img,
+      .link-hover-card img,
+      .preview-frame img,
+      .preview-thumbnail
+    ) {
     @apply preview-frame;
     max-width: 100%;
     height: auto;

@@ -64,6 +64,7 @@
       "loading": "正在載入..."
     },
     "image_modal": {
+      "open_larger": "放大顯示",
       "previous": "上一張圖片",
       "next": "下一張圖片",
       "fallback_alt": "圖片",

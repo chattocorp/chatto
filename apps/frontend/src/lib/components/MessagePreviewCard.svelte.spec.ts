@@ -483,12 +483,10 @@ describe('MessagePreviewCard', () => {
         .map((value) => value.textContent)
         .filter((value) => value === 'Test Server' || value === 'general')
     ).toEqual(['general', 'Test Server']);
-    const fades = container.querySelectorAll<HTMLElement>(
-      '[aria-hidden="true"].pointer-events-none'
-    );
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"].scroll-edge-fade');
     expect(fades).toHaveLength(2);
     expect(fades[0].className).toContain('from-background');
-    expect(fades[0].className).toContain('z-30');
+    expect(getComputedStyle(fades[0]).zIndex).toBe('30');
     expect(fades[1].className).toContain('bg-gradient-to-t');
     await vi.waitFor(() => {
       expect(scrollViewport!.scrollHeight).toBeLessThanOrEqual(scrollViewport!.clientHeight + 1);
@@ -514,9 +512,7 @@ describe('MessagePreviewCard', () => {
       expect(viewport!.scrollHeight).toBeGreaterThan(viewport!.clientHeight + 1);
       return viewport!;
     });
-    const fades = container.querySelectorAll<HTMLElement>(
-      '[aria-hidden="true"].pointer-events-none'
-    );
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"].scroll-edge-fade');
 
     expect(getComputedStyle(scrollViewport).overscrollBehaviorY).toBe('auto');
 

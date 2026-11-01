@@ -19,6 +19,8 @@ export type ChatModal =
       sources: Array<{ name: string; origin: string }>;
     }
   | { type: 'motd'; motd: string }
+  /** Local SVG image snapshot; history can reopen it without the original preview. */
+  | { type: 'renderedImageViewer'; src: string; alt: string }
   /** Rendered by the active invitation-code table that opened it. */
   | { type: 'createInvitationCode'; serverId: string; creatorId: string }
   /** Rendered by the active room's notice panel so access loss also removes its draft. */
@@ -60,6 +62,7 @@ export type EditAttachmentDescriptionModalState = Extract<
   { type: 'editAttachmentDescription' }
 >;
 export type HtmlViewerModalState = Extract<ChatModal, { type: 'htmlViewer' }>;
+export type RenderedImageViewerModalState = Extract<ChatModal, { type: 'renderedImageViewer' }>;
 
 /** One opening of the shared file viewer, including an optional image gallery. */
 export type AttachmentViewerModalState = Extract<ChatModal, { type: 'attachmentViewer' }>;

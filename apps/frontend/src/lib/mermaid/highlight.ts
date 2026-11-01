@@ -1,0 +1,110 @@
+/** Lexical Mermaid highlighting shared by both composers and code fallbacks.
+ * This decorates source only; Pele owns parsing and diagram validation.
+ */
+import type { LanguageFn } from 'highlight.js';
+
+const mermaid: LanguageFn = (hljs) => ({
+  name: 'Mermaid',
+  // Guessing a language must never opt ordinary source into diagram rendering.
+  disableAutodetect: true,
+  keywords: {
+    keyword: [
+      'flowchart',
+      'graph',
+      'subgraph',
+      'end',
+      'direction',
+      'sequenceDiagram',
+      'participant',
+      'actor',
+      'as',
+      'activate',
+      'deactivate',
+      'autonumber',
+      'loop',
+      'alt',
+      'else',
+      'opt',
+      'par',
+      'and',
+      'critical',
+      'option',
+      'break',
+      'rect',
+      'box',
+      'Note',
+      'note',
+      'over',
+      'left',
+      'right',
+      'of',
+      'classDiagram',
+      'class',
+      'namespace',
+      'stateDiagram',
+      'stateDiagram-v2',
+      'state',
+      'erDiagram',
+      'journey',
+      'section',
+      'gantt',
+      'dateFormat',
+      'axisFormat',
+      'excludes',
+      'includes',
+      'todayMarker',
+      'pie',
+      'showData',
+      'gitGraph',
+      'commit',
+      'branch',
+      'checkout',
+      'switch',
+      'merge',
+      'cherry-pick',
+      'mindmap',
+      'timeline',
+      'quadrantChart',
+      'requirementDiagram',
+      'requirement',
+      'element',
+      'C4Context',
+      'C4Container',
+      'C4Component',
+      'C4Dynamic',
+      'C4Deployment',
+      'sankey-beta',
+      'xychart-beta',
+      'block-beta',
+      'packet-beta',
+      'architecture-beta',
+      'kanban',
+      'style',
+      'classDef',
+      'linkStyle',
+      'click',
+      'callback',
+      'href'
+    ],
+    built_in: 'TB TD BT RL LR',
+    literal: 'true false null'
+  },
+  contains: [
+    hljs.COMMENT(/%%/, /$/),
+    hljs.QUOTE_STRING_MODE,
+    {
+      scope: 'attribute',
+      match:
+        /\b(?:accTitle|accDescr|title|id|label|type|shape|fill|stroke|color|stroke-width)\s*(?=:)/
+    },
+    { scope: 'symbol', match: /#[0-9a-fA-F]{3,8}\b/ },
+    // Consume arrow punctuation before bracket labels (including ER cardinality).
+    { scope: 'operator', match: /[|}o]{1,2}--[|{o]{1,2}|<?[-=.]+(?:>>?|[ox])?/ },
+    { scope: 'string', begin: /\[/, end: /\]|$/, contains: [hljs.QUOTE_STRING_MODE] },
+    { scope: 'string', begin: /\(/, end: /\)|$/, contains: [hljs.QUOTE_STRING_MODE] },
+    { scope: 'string', begin: /\{/, end: /\}|$/, contains: [hljs.QUOTE_STRING_MODE] },
+    hljs.NUMBER_MODE
+  ]
+});
+
+export default mermaid;

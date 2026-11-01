@@ -181,7 +181,7 @@ external value changes, such as a successful save, update the mounted editor.
         <LoadingFog class="h-32 w-full" />
       {:then { default: Editor }}
         <Editor
-          {placeholder}
+          placeholder={placeholder || label}
           editable={!disabled}
           {testid}
           onReady={ready}

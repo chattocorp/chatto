@@ -15,7 +15,9 @@ describe('ANSI art', () => {
     const source = 'old\rnew\r\nnext';
     const html = await renderMarkdown(fence(source));
     expect(html).toContain(`data-copy-source="${source.replaceAll('\r', '&#13;')}\n"`);
-    const code = html.match(/<code[^>]*>([\s\S]*?)<\/code>/)![1];
+    const code = html.match(
+      /class="markdown-code markdown-ansi"><code[^>]*>([\s\S]*?)<\/code>/
+    )![1];
     expect(screenText(code)).toEqual(['new', 'next']);
   });
   it('renders palette, indexed and true colors, including painted spaces', async () => {
@@ -95,5 +97,24 @@ describe('ANSI art', () => {
     expect(await renderMarkdown(fence('x'.repeat(MAX_SOURCE_LENGTH + 1)))).not.toContain(
       'markdown-ansi'
     );
+  });
+
+  it('does not spend artwork slots on unsupported ANSI fence hints', async () => {
+    const hints = [
+      'ansi title',
+      'ansi render',
+      'ansi rendered extra',
+      'ansi',
+      'ansi rendered',
+      'ANSI',
+      'ANSI RENDERED',
+      'ansi'
+    ];
+    const html = await renderMarkdown(
+      hints.map((hint, index) => '```' + hint + '\nblock ' + index + '\n```').join('\n\n')
+    );
+    expect(html.match(/markdown-ansi/g)).toHaveLength(4);
+    expect(html.match(/data-artifact="ansi"/g)).toHaveLength(5);
+    expect(html.match(/ disabled/g)).toHaveLength(1);
   });
 });

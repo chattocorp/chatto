@@ -64,6 +64,7 @@
       "loading": "Laddar..."
     },
     "image_modal": {
+      "open_larger": "Öppna större",
       "previous": "Föregående bild",
       "next": "Nästa bild",
       "fallback_alt": "Bild",

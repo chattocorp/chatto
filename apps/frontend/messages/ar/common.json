@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "المصدر",
+    "code_render": "العرض",
+    "code_render_failed": "المعاينة غير متاحة. لا يزال المصدر متاحًا.",
     "browser_menu_hint": "Shift + النقر بزر الفأرة الأيمن لفتح قائمة المتصفح",
     "keyboard_shortcuts": {
       "title": "اختصارات لوحة المفاتيح",

@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Källkod",
+    "code_render": "Visning",
+    "code_render_failed": "Förhandsvisningen är inte tillgänglig. Källkoden finns kvar.",
     "browser_menu_hint": "Skift + högerklick för webbläsarens meny",
     "keyboard_shortcuts": {
       "title": "Kortkommandon",

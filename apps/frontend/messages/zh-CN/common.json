@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "源代码",
+    "code_render": "渲染",
+    "code_render_failed": "无法预览。源代码仍可使用。",
     "browser_menu_hint": "Shift + 右键单击打开浏览器菜单",
     "keyboard_shortcuts": {
       "title": "键盘快捷键",

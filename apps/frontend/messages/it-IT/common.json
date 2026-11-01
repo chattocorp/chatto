@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Sorgente",
+    "code_render": "Vista",
+    "code_render_failed": "Anteprima non disponibile. Il sorgente resta disponibile.",
     "browser_menu_hint": "Maiusc + clic destro per il menu del browser",
     "keyboard_shortcuts": {
       "title": "Scorciatoie da tastiera",

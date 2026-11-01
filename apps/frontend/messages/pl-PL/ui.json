@@ -64,6 +64,7 @@
       "loading": "Ładowanie..."
     },
     "image_modal": {
+      "open_larger": "Otwórz większy widok",
       "previous": "Poprzedni obraz",
       "next": "Następny obraz",
       "fallback_alt": "Obraz",

@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, waitFor } from 'storybook/test';
   import MarkdownEditorField from './MarkdownEditorField.svelte';
   import type { MarkdownMentionOptions } from './mentionOptions';
 
@@ -20,6 +21,10 @@
 <script lang="ts">
   let markdown = $state('**Welcome!** Please check the pinned messages before posting.');
   let visual = $state('**Welcome!** Please check the pinned messages before posting.');
+  let renderedMermaid = $state('```mermaid rendered\nflowchart LR\nA[Draft] --> B[Publish]\n```');
+  let mermaid = $state(
+    '```mermaid\nflowchart TD\n  accTitle: Spaceport departure\n  %% Cargo inspection\n  subgraph Cargo\n    A[Scan cargo] --> B{Contraband?}\n    B -->|No| C[Seal the hold]\n    B -->|Yes| D[Pay a suspicious fee]\n    D --> C\n  end\n```'
+  );
 </script>
 
 <Story name="Markdown" asChild>
@@ -51,6 +56,42 @@
     label="Room notice"
     disabled
   />
+</Story>
+
+<Story name="Mermaid source" asChild>
+  <MarkdownEditorField bind:value={mermaid} editorKind="markdown" label="Flight plan" />
+</Story>
+
+<Story name="Long SVG code" asChild>
+  <MarkdownEditorField
+    value={'```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1000">\n' +
+      Array.from(
+        { length: 40 },
+        (_, i) =>
+          `<text x="482" y="${32 + i * 20}" fill="#f0f3ff" font-size="26" font-weight="600" id="${'long-svg-attribute'.repeat(8)}">The void has a little guy. No thoughts. Just bioluminescence.</text>`
+      ).join('\n') +
+      '\n</svg>\n```'}
+    editorKind="visual"
+    label="Scene source"
+    maxlength={20000}
+  />
+</Story>
+
+<Story
+  name="Mermaid visual editor"
+  asChild
+  play={async ({ canvasElement }) => {
+    // Wait for lazy highlighting so the accessibility scan checks its colours.
+    await waitFor(() =>
+      expect(canvasElement.querySelector('.hljs-comment')).toHaveTextContent('Cargo inspection')
+    );
+  }}
+>
+  <MarkdownEditorField bind:value={mermaid} editorKind="visual" label="Flight plan" />
+</Story>
+
+<Story name="Visual block" asChild>
+  <MarkdownEditorField bind:value={renderedMermaid} editorKind="visual" label="Diagram" />
 </Story>
 
 <Story name="Member mentions" asChild>

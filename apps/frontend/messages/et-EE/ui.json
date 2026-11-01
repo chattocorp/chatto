@@ -64,6 +64,7 @@
       "loading": "Laadimine..."
     },
     "image_modal": {
+      "open_larger": "Ava suuremalt",
       "previous": "Eelmine pilt",
       "next": "Järgmine pilt",
       "fallback_alt": "Pilt",

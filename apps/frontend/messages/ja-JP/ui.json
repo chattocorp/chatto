@@ -64,6 +64,7 @@
       "loading": "読み込み中..."
     },
     "image_modal": {
+      "open_larger": "大きく表示",
       "previous": "前の画像",
       "next": "次の画像",
       "fallback_alt": "画像",

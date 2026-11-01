@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Source",
+    "code_render": "Render",
+    "code_render_failed": "Preview unavailable. The source is still available.",
     "browser_menu_hint": "Shift + right-click for browser menu",
     "keyboard_shortcuts": {
       "title": "Keyboard shortcuts",
