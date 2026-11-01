@@ -12,7 +12,8 @@ Tiny test double for Dialog used by ModalContainer specs.
     primaryAction,
     secondaryActions,
     dismissAction,
-    title
+    title,
+    onclose
   }: {
     children: Snippet;
     footer?: Snippet;
@@ -20,10 +21,11 @@ Tiny test double for Dialog used by ModalContainer specs.
     secondaryActions?: Snippet;
     dismissAction?: Snippet;
     title: string;
+    onclose?: () => void;
   } = $props();
 </script>
 
-<dialog open aria-label={title}>
+<dialog open aria-label={title} oncancel={onclose}>
   <div>{@render children()}</div>
   {@render dismissAction?.()}
   {@render secondaryActions?.()}

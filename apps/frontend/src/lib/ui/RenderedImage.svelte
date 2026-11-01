@@ -4,18 +4,14 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
 -->
 <script lang="ts">
   import { on } from 'svelte/events';
+  import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
-  import AttachmentModal from './AttachmentModal.svelte';
-  import ZoomableImage from './ZoomableImage.svelte';
 
   let { image }: { image: HTMLImageElement } = $props();
   const descriptionId = $props.id();
   let width = $state(1);
   let height = $state(1);
   let ready = $state(false);
-  let viewer = $state<{ src: string; alt: string } | null>(null);
-  let viewerError = $state(false);
-  let portalReady = $state(false);
   // Constrain width from the height budget, so both axes keep the image's ratio.
   // The minimum target size adds a small inset only for tiny or extreme artwork.
   const previewWidth = $derived(`min(${width}px, calc(min(30rem, 60vh) * ${width / height}))`);
@@ -51,17 +47,8 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
 
   function openViewer(event: MouseEvent) {
     event.stopPropagation();
-    viewerError = false;
-    portalReady = false;
     // Snapshot the rendered image; opening never uploads it or reparses its source.
-    viewer = { src: image.src, alt: image.alt };
-  }
-
-  /** Relocate before mounting the native dialog, preserving its modal top layer. */
-  function portal(node: HTMLDivElement) {
-    document.body.append(node);
-    portalReady = true;
-    return () => node.remove();
+    pushState('', { modal: { type: 'renderedImageViewer', src: image.src, alt: image.alt } });
   }
 </script>
 
@@ -79,22 +66,3 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   <span class="absolute inset-0 flex items-center justify-center" {@attach preview}></span>
 </button>
 <span id={descriptionId} class="sr-only">{image.alt}</span>
-
-{#if viewer}
-  <div class="font-sans text-base" {@attach portal}>
-    {#if portalReady}
-      <AttachmentModal
-        filename="diagram.svg"
-        contentType="image/svg+xml"
-        description={viewer.alt}
-        downloadUrl={viewer.src}
-        imageViewer
-        error={viewerError ? m('room.attachment.html_viewer.preview_failed') : null}
-        ondownload={(event) => event.stopPropagation()}
-        onclose={() => (viewer = null)}
-      >
-        <ZoomableImage src={viewer.src} alt={viewer.alt} onerror={() => (viewerError = true)} />
-      </AttachmentModal>
-    {/if}
-  </div>
-{/if}

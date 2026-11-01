@@ -7,6 +7,20 @@
 <script lang="ts">
   import MarkdownHtml from './MarkdownHtml.svelte';
   import { renderMarkdown } from '$lib/markdown';
+  import RenderedImageViewerModal from '../../routes/chat/modals/RenderedImageViewerModal.svelte';
+  import type { RenderedImageViewerModalState } from '$lib/modal';
+
+  // Storybook has no app layout or router; mirror the modal owner for this preview.
+  let modal = $state<RenderedImageViewerModalState>();
+  const parameters = {
+    sveltekit_experimental: {
+      navigation: {
+        pushState: (_url: string, state: App.PageState) => {
+          if (state.modal?.type === 'renderedImageViewer') modal = state.modal;
+        }
+      }
+    }
+  };
   const source = 'flowchart LR\nA[Launch checks] --> B{Ready?}\nB -->|Yes| C[Depart]\nB -->|No| A';
   const html = renderMarkdown(
     `Code example:\n\n\u0060\u0060\u0060mermaid\n${source}\n\u0060\u0060\u0060\n\nVisual message:\n\n\u0060\u0060\u0060mermaid rendered\n${source}\n\u0060\u0060\u0060`
@@ -26,17 +40,23 @@
   }));
 </script>
 
-<Story name="Code and visual intent" asChild>
+<Story name="Code and visual intent" {parameters} asChild>
   <div class="prose w-full max-w-2xl">
     {#await html then value}<MarkdownHtml html={value} />{/await}
   </div>
+  {#if modal}
+    <RenderedImageViewerModal {modal} onclose={() => (modal = undefined)} />
+  {/if}
 </Story>
 
-<Story name="Aspect ratios" asChild>
+<Story name="Aspect ratios" {parameters} asChild>
   <div class="prose w-full max-w-5xl">
     {#each aspectRatios as example (example.name)}
       <p>{example.name}</p>
       {#await example.html then value}<MarkdownHtml html={value} />{/await}
     {/each}
   </div>
+  {#if modal}
+    <RenderedImageViewerModal {modal} onclose={() => (modal = undefined)} />
+  {/if}
 </Story>

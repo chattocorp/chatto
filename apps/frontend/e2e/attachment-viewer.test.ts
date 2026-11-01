@@ -6,8 +6,59 @@ import {
   createUserOnRemote,
   joinDefaultRoomsOnRemote,
   getRoomOnRemote,
+  postMessageOnRemote,
   postMessageAttachmentOnRemote
 } from './fixtures/multiServer';
+
+for (const [language, source] of [
+  [
+    'svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><circle cx="200" cy="150" r="100" fill="teal"/></svg>'
+  ],
+  ['mermaid', 'flowchart LR\nA[Open] --> B[Back] --> C[Forward]']
+]) {
+  test(`${language} viewers close with Back and reopen with Forward`, async ({
+    page,
+    chatPage,
+    serverURL
+  }) => {
+    const sender = await createUserOnRemote(serverURL, 'diagramsender', 'password123');
+    await joinDefaultRoomsOnRemote(serverURL, sender.token);
+    const roomId = await getRoomOnRemote(serverURL, sender.token, 'general');
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await postMessageOnRemote(
+      serverURL,
+      sender.token,
+      roomId,
+      `\u0060\u0060\u0060${language} rendered\n${source}\n\u0060\u0060\u0060`
+    );
+    const opener = page.getByRole('button', { name: 'Open larger', exact: true });
+    await expect(opener).toBeEnabled();
+    const roomURL = page.url();
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name: 'diagram.svg', exact: true });
+    await expect(dialog).toBeVisible();
+    const snapshot = await dialog.locator('img').getAttribute('src');
+    expect(snapshot).toMatch(/^data:image\/svg\+xml/);
+    await page.goBack();
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL(roomURL);
+    await expect(opener).toBeFocused();
+    await page.goForward();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('img')).toHaveAttribute('src', snapshot!);
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL(roomURL);
+    await page.goForward();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL(roomURL);
+  });
+}
 
 test('API-uploaded HEIC attachments render server previews and download original bytes', async ({
   page,

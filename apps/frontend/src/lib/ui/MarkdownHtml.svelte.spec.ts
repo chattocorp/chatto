@@ -6,7 +6,7 @@ import { renderMarkdown } from '$lib/markdown';
 
 const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 const navigationMocks = vi.hoisted(() => ({ goto: vi.fn(), registered: true }));
-vi.mock('$app/navigation', () => ({ goto: navigationMocks.goto }));
+vi.mock('$app/navigation', () => ({ goto: navigationMocks.goto, pushState: vi.fn() }));
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
