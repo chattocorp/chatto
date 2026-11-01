@@ -284,6 +284,19 @@ func activeRooms(rooms []chatto.RoomEntry) []chatto.RoomEntry {
 	return result
 }
 
+// releaseHistory makes an explicit return to live history fetch a fresh window.
+func (e *engine) releaseHistory(room, root string) {
+	e.mu.Lock()
+	s := e.server
+	e.mu.Unlock()
+	if s != nil {
+		s.ReleaseTimeline(chatto.TimelineKey{Room: room})
+		if root != "" {
+			s.ReleaseTimeline(chatto.TimelineKey{Room: room, Root: root})
+		}
+	}
+}
+
 func (e *engine) login(ctx context.Context, origin, login, password string, browser bool, show func(string) error) actionDone {
 	e.mu.Lock()
 	defer e.mu.Unlock()

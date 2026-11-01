@@ -360,6 +360,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch v := msg.(type) {
+	case notificationJump:
+		return m, m.acceptNotificationJump(v)
 	case imageLoaded:
 		m.acceptImage(v)
 		return m, nil
@@ -651,6 +653,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.busy {
 				return m, nil
 			}
+			m.e.releaseHistory(m.room, m.root)
 			m.page, m.thread = chatto.TimelinePage{}, chatto.TimelinePage{}
 			m.renderMessages()
 			return m, m.reload("")
@@ -760,6 +763,14 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if v.X < left {
 			i := v.Y - 2 + m.sidebarTop
 			if i < len(m.sidebarRows()) {
+				row := m.sidebarRows()[i]
+				if !row.header {
+					room := m.rooms[row.roomIndex].Room.ID
+					count := m.notifications[room]
+					if important, hit := badgeAt(v.X-1, left-3, count.Unread, count.Important); hit {
+						return m, m.jumpNotification(room, important)
+					}
+				}
 				m.setFocus(0)
 				return m, m.activateSidebar(i)
 			}

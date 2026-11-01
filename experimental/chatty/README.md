@@ -68,6 +68,13 @@ These count notification occurrences, not messages or rooms; counts above 99
 show `99+`. Counts load on connection and update from realtime events. Reading
 notifications in another client clears the badges here too. Servers without the
 notification-count API keep unread dots but omit notification badges.
+Click an orange badge to jump to the newest unread Important message notification
+in that room. Click a white badge for the newest ordinary message notification.
+Chatty loads history around the source message, selects it, and opens the thread
+pane if the source is a thread reply. The lookup includes notification pages that
+are not already loaded. Expired, read, and unknown notification kinds are skipped.
+If no message target remains, Chatty reports this without navigating elsewhere.
+Clicking a badge does not mark it read. Use **Alt+R** to load the latest history again.
 
 The center pane shows the selected room. Open a message's thread to add a right
 pane; in a narrow terminal, the thread replaces the center pane. Message bodies

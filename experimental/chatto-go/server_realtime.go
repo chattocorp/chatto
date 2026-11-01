@@ -496,6 +496,22 @@ func (s *Server) removeMessage(room, id string) {
 	s.notify()
 }
 func (s *Server) refreshMessage(ctx context.Context, c *Client, room, id string, edited bool) error {
+	// A window around an old message must not gain disconnected newer history.
+	// Keep edits within that window, and let explicit pagination bridge the gap.
+	loadedIn := map[TimelineKey]bool{}
+	s.mu.Lock()
+	for key, page := range s.state.Timelines {
+		if key.Room != room || !page.HasNewer {
+			continue
+		}
+		for _, message := range page.Messages {
+			if message.ID == id {
+				loadedIn[key] = true
+				break
+			}
+		}
+	}
+	s.mu.Unlock()
 	if edited {
 		s.removeMessage(room, id)
 	}
@@ -524,6 +540,9 @@ func (s *Server) refreshMessage(ctx context.Context, c *Client, room, id string,
 		s.state.Users[id] = u
 	}
 	for key, page := range s.state.Timelines {
+		if page.HasNewer && !loadedIn[key] {
+			continue
+		}
 		if key.Room != room || (key.Root == "" && m.ThreadRootEventID != "") || (key.Root != "" && key.Root != m.ThreadRootID()) {
 			continue
 		}

@@ -179,6 +179,37 @@ func (c *Client) TimelineWithOptions(ctx context.Context, room, root string, opt
 	if err != nil {
 		return TimelinePage{}, err
 	}
+	return projectMessages(raw)
+}
+
+// TimelineAround reads a window containing the exact message. The API validates
+// its room and thread membership. The returned page can have history both ways.
+func (c *Client) TimelineAround(ctx context.Context, room, root, event string, limit int) (TimelinePage, error) {
+	if event == "" {
+		return TimelinePage{}, errors.New("timeline anchor is required")
+	}
+	if err := (TimelineOptions{Limit: limit}).validate(); err != nil {
+		return TimelinePage{}, err
+	}
+	method := "RoomService/GetRoomEventsAround"
+	input := map[string]any{"roomId": room, "eventId": event, "limit": limit}
+	if root != "" {
+		method = "ThreadService/GetThreadEventsAround"
+		input["threadRootEventId"] = root
+	}
+	var out struct {
+		Page *EventPage `json:"page"`
+	}
+	if err := c.call(ctx, method, input, &out); err != nil {
+		return TimelinePage{}, err
+	}
+	if out.Page == nil {
+		return TimelinePage{}, errors.New("missing timeline page")
+	}
+	return projectMessages(*out.Page)
+}
+
+func projectMessages(raw EventPage) (TimelinePage, error) {
 	var includes struct {
 		Users map[string]Profile `json:"users"`
 	}

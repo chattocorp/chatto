@@ -136,6 +136,10 @@ notification counts into `ServerState.Notifications`. Ordinary attention is
 `Unread - Important`. Counts refresh on notification events and reconnect;
 expired counts refresh on the next realtime heartbeat. Unsupported count APIs
 leave the map empty without blocking messaging. This option defaults to false.
+`ListNotifications` reads paginated occurrences without choosing presentation or
+attention filters. `NotificationOccurrence.MessageTarget` resolves known message
+signals and leaves unknown signals and invitations without an invented message
+destination. Hosts choose which occurrence to navigate to and whether to mark it read.
 This projection does not yet expose reactions, assets, typing, presence, calls,
 roles, or full notification occurrences. Permission and account changes conservatively
 clear private state and request a replacement snapshot.
@@ -188,6 +192,13 @@ posts and included author profiles; lifecycle events are omitted.
 types not yet modeled by this SDK. `Profiles`
 resolves batches of up to 100 public users. `NewMessageKey` supplies an outgoing
 send identity; `Reply` also sends room roots when the thread root is empty.
+
+`TimelineAround` reads a window around an exact message in a room or thread.
+`Server.LoadTimelineAround` replaces that timeline's cached window with the result;
+it does not combine disjoint history. Both use the existing around-event APIs.
+When `HasNewer` is true, live posts outside the window do not append across the
+unloaded gap. Existing messages still receive edits. Page forward with `After`,
+or release the timeline and load it again to return to latest history.
 
 Messages include attachment metadata. `GetAsset` checks current room access and
 returns fresh metadata and signed URLs for any file type. Pass an optional

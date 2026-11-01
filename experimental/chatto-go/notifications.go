@@ -2,11 +2,64 @@ package chatto
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/chattocorp/chatto/experimental/chatto-go/internal/httpjson"
 )
+
+// NotificationMessageReference is an exact message destination supplied by Chatto.
+type NotificationMessageReference struct {
+	Room              Room   `json:"room"`
+	EventID           string `json:"eventId"`
+	ThreadRootEventID string `json:"threadRootEventId"`
+}
+
+// NotificationOccurrence retains unknown signal kinds without inventing a target.
+type NotificationOccurrence struct {
+	ID             string                     `json:"id"`
+	Unread         bool                       `json:"unread"`
+	AttentionLevel string                     `json:"attentionLevel"`
+	ExpiresAt      time.Time                  `json:"expiresAt"`
+	Signal         map[string]json.RawMessage `json:"signal"`
+}
+
+// MessageTarget returns the destination of a known message signal. Invitations
+// and unknown future signals have no message destination.
+func (n NotificationOccurrence) MessageTarget() (NotificationMessageReference, bool) {
+	for _, kind := range []string{"directMessageReceived", "directMentionReceived", "replyReceived", "roleMentionReceived", "hereMentionReceived", "allMentionReceived", "followedThreadActivity", "followedRoomActivity", "reactionReceived", "roomMessageReceived"} {
+		if raw, ok := n.Signal[kind]; ok {
+			var payload struct {
+				Message NotificationMessageReference `json:"message"`
+			}
+			if json.Unmarshal(raw, &payload) == nil && payload.Message.Room.ID != "" && payload.Message.EventID != "" {
+				return payload.Message, true
+			}
+		}
+	}
+	return NotificationMessageReference{}, false
+}
+
+// NotificationPage preserves all returned occurrences, including unknown kinds.
+// Use the number of returned occurrences to advance the live offset.
+type NotificationPage struct {
+	Occurrences []NotificationOccurrence `json:"occurrences"`
+	Page        struct {
+		HasMore bool `json:"hasMore"`
+	} `json:"page"`
+}
+
+// ListNotifications reads a newest-first live offset page. Zero limit uses the
+// server default. Counts and occurrences can change between successive reads.
+func (c *Client) ListNotifications(ctx context.Context, offset, limit int) (NotificationPage, error) {
+	var page NotificationPage
+	if offset < 0 || limit < 0 || limit > 100 {
+		return page, errors.New("invalid notification pagination")
+	}
+	err := c.call(ctx, "NotificationService/ListNotificationOccurrences", map[string]any{"page": map[string]int{"offset": offset, "limit": limit}}, &page)
+	return page, err
+}
 
 // NotificationCount counts exact unread occurrences, not messages or rooms.
 // Important is a subset of Unread; Unread-Important is ordinary attention.

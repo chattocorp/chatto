@@ -250,6 +250,19 @@ func (s *Server) LoadTimeline(ctx context.Context, room, root, before string) (T
 // An empty cursor reuses cached data. Access is decided by the server API,
 // not by whether a room appears in the navigation directory.
 func (s *Server) LoadTimelineWithOptions(ctx context.Context, room, root string, options TimelineOptions) (TimelinePage, error) {
+	return s.loadTimeline(ctx, room, root, options, "")
+}
+
+// LoadTimelineAround replaces a cached timeline with a contiguous window around
+// an exact message. It has the same privacy and release fences as LoadTimeline.
+func (s *Server) LoadTimelineAround(ctx context.Context, room, root, event string, limit int) (TimelinePage, error) {
+	if event == "" {
+		return TimelinePage{}, errors.New("timeline anchor is required")
+	}
+	return s.loadTimeline(ctx, room, root, TimelineOptions{Limit: limit}, event)
+}
+
+func (s *Server) loadTimeline(ctx context.Context, room, root string, options TimelineOptions, anchor string) (TimelinePage, error) {
 	if err := options.validate(); err != nil {
 		return TimelinePage{}, err
 	}
@@ -263,7 +276,7 @@ func (s *Server) LoadTimelineWithOptions(ctx context.Context, room, root string,
 			s.mu.Unlock()
 			return TimelinePage{}, errors.New("connection not ready or timeline released")
 		}
-		if page, ok := s.state.Timelines[key]; ok && options.Before == "" && options.After == "" {
+		if page, ok := s.state.Timelines[key]; ok && options.Before == "" && options.After == "" && anchor == "" {
 			page = clonePage(page)
 			s.mu.Unlock()
 			return page, nil
@@ -278,7 +291,12 @@ func (s *Server) LoadTimelineWithOptions(ctx context.Context, room, root string,
 		copy.minimumCursor = cursor
 		requestCtx, cancel := context.WithCancel(ctx)
 		stop := context.AfterFunc(s.ctx, cancel)
-		page, err := copy.TimelineWithOptions(requestCtx, room, root, options)
+		var page TimelinePage
+		if anchor != "" {
+			page, err = copy.TimelineAround(requestCtx, room, root, anchor, options.Limit)
+		} else {
+			page, err = copy.TimelineWithOptions(requestCtx, room, root, options)
+		}
 		stop()
 		cancel()
 		if err != nil {
@@ -291,11 +309,19 @@ func (s *Server) LoadTimelineWithOptions(ctx context.Context, room, root string,
 			s.readMu.Unlock()
 			continue
 		}
-		if old, ok := s.state.Timelines[key]; ok {
+		if old, ok := s.state.Timelines[key]; ok && anchor == "" {
 			page = mergeTimeline(old, page, options.Before != "")
 			if options.After != "" {
 				page.StartCursor, page.HasOlder = old.StartCursor, old.HasOlder
 			}
+		}
+		if anchor != "" {
+			// Old paging requests belong to the previous window. They must not
+			// merge into this replacement after their HTTP responses arrive.
+			if s.timelineEpoch == nil {
+				s.timelineEpoch = make(map[TimelineKey]uint64)
+			}
+			s.timelineEpoch[key]++
 		}
 		s.state.Timelines[key] = page
 		for id, u := range page.Users {
