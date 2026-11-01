@@ -6,18 +6,33 @@ import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 /** Navigation details shared by the sidebar and the descriptive Overview cards. */
 type SettingsNavItem = NavItem & { description?: string };
-type SettingsNavGroup = Omit<NavGroup, 'items'> & {
+/** One collapsible settings section and its Overview cards. */
+export type SettingsNavGroup = Omit<NavGroup, 'items'> & {
   /** Stable section identity, independent of its translated label and storage key. */
   id: 'app-preferences' | 'your-account' | 'server-configuration';
   items: SettingsNavItem[];
 };
 
-/** Shared groups for the settings sidebar and Overview. Call from a reactive derivation. */
-export function getSettingsNavGroups(
-  serverId: string,
-  serverSegment: string,
-  managementNavItems: SettingsNavItem[]
-): SettingsNavGroup[] {
+/**
+ * Shared groups for the settings sidebar and Overview. Call from a reactive derivation.
+ * Without a server, only preferences that do not need a session are included.
+ */
+export function getSettingsNavGroups(server?: {
+  serverId: string;
+  serverSegment: string;
+  managementNavItems: SettingsNavItem[];
+}): SettingsNavGroup[] {
+  const appPreferences: SettingsNavGroup = {
+    id: 'app-preferences',
+    label: m('settings.nav.app_preferences'),
+    items: getAppPreferenceNavItems(server?.serverSegment),
+    persistKey: server
+      ? serverStorageKey(server.serverId, 'collapsible:settings:app-preferences')
+      : 'collapsible:settings:app-preferences'
+  };
+  if (!server) return [appPreferences];
+
+  const { serverId, serverSegment, managementNavItems } = server;
   const userPreferenceNavItems = [
     {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
@@ -44,48 +59,8 @@ export function getSettingsNavGroups(
       icon: 'iconify icon-[uil--bell]'
     }
   ];
-  const appPreferenceNavItems = [
-    {
-      href: resolve('/chat/[serverId]/settings/appearance', { serverId: serverSegment }),
-      label: m('settings.app_preferences.appearance.title'),
-      description: m('settings.overview.descriptions.appearance'),
-      icon: 'iconify icon-[uil--palette]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/language', { serverId: serverSegment }),
-      label: m('settings.preferences.language.title'),
-      description: m('settings.overview.descriptions.language'),
-      icon: 'iconify icon-[uil--language]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/composer', { serverId: serverSegment }),
-      label: m('settings.app_preferences.composer.title'),
-      description: m('settings.overview.descriptions.composer'),
-      icon: 'iconify icon-[uil--edit]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/voice', { serverId: serverSegment }),
-      label: m('voice.preferences.title'),
-      description: m('settings.overview.descriptions.voice'),
-      icon: 'iconify icon-[uil--headphones]'
-    }
-  ];
-
-  if (desktopUpdates.available)
-    appPreferenceNavItems.push({
-      href: resolve('/chat/preferences/desktop'),
-      label: m('settings.desktop.title'),
-      description: m('settings.desktop.subtitle'),
-      icon: 'iconify icon-[uil--desktop]'
-    });
-
   return [
-    {
-      id: 'app-preferences',
-      label: m('settings.nav.app_preferences'),
-      items: appPreferenceNavItems,
-      persistKey: serverStorageKey(serverId, 'collapsible:settings:app-preferences')
-    },
+    appPreferences,
     {
       id: 'your-account',
       label: m('settings.nav.your_account'),
@@ -99,4 +74,54 @@ export function getSettingsNavGroups(
       persistKey: serverStorageKey(serverId, 'collapsible:settings:server-configuration')
     }
   ];
+}
+
+/** App preference destinations. Omit the server segment for signed-out navigation. */
+export function getAppPreferenceNavItems(serverSegment?: string): SettingsNavItem[] {
+  const appPreferenceNavItems = [
+    {
+      href: serverSegment
+        ? resolve('/chat/[serverId]/settings/appearance', { serverId: serverSegment })
+        : resolve('/chat/preferences/appearance'),
+      label: m('settings.app_preferences.appearance.title'),
+      description: m('settings.overview.descriptions.appearance'),
+      icon: 'iconify icon-[uil--palette]'
+    },
+    {
+      href: serverSegment
+        ? resolve('/chat/[serverId]/settings/language', { serverId: serverSegment })
+        : resolve('/chat/preferences/language'),
+      label: m('settings.preferences.language.title'),
+      description: m('settings.overview.descriptions.language'),
+      icon: 'iconify icon-[uil--language]'
+    },
+    {
+      href: serverSegment
+        ? resolve('/chat/[serverId]/settings/composer', { serverId: serverSegment })
+        : resolve('/chat/preferences/composer'),
+      label: m('settings.app_preferences.composer.title'),
+      description: m('settings.overview.descriptions.composer'),
+      icon: 'iconify icon-[uil--edit]'
+    }
+  ];
+
+  // Voice preferences use the server's call state and require a session.
+  if (serverSegment) {
+    appPreferenceNavItems.push({
+      href: resolve('/chat/[serverId]/settings/voice', { serverId: serverSegment }),
+      label: m('voice.preferences.title'),
+      description: m('settings.overview.descriptions.voice'),
+      icon: 'iconify icon-[uil--headphones]'
+    });
+  }
+
+  if (desktopUpdates.available)
+    appPreferenceNavItems.push({
+      href: resolve('/chat/preferences/desktop'),
+      label: m('settings.desktop.title'),
+      description: m('settings.desktop.subtitle'),
+      icon: 'iconify icon-[uil--desktop]'
+    });
+
+  return appPreferenceNavItems;
 }

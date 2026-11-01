@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AppPreferencesLayout from './+layout.svelte';
 import { desktopUpdates } from '$lib/desktop/updates.svelte';
+import { resetRoomGroupCollapseForTests } from '$lib/components/chat/roomGroupCollapse';
 
 const mocks = vi.hoisted(() => ({
   pathname: '/chat/preferences',
@@ -39,6 +40,8 @@ describe('App Preferences layout', () => {
     mocks.authenticatedServerId = undefined;
     mocks.goto.mockReset();
     desktopUpdates.status = null;
+    localStorage.clear();
+    resetRoomGroupCollapseForTests();
   });
 
   it('uses the shared sidebar shell with section navigation', async () => {
@@ -46,16 +49,54 @@ describe('App Preferences layout', () => {
 
     expect(container.querySelector('[data-testid="server-sidebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="current-user-identity-card"]')).toBeNull();
-    await expect.element(getByRole('heading', { name: 'App Preferences' })).toBeVisible();
+    await expect.element(getByRole('heading', { name: 'Settings' })).toBeVisible();
+    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(1);
+    await expect
+      .element(getByRole('button', { name: 'App preferences' }))
+      .toHaveAttribute('aria-expanded', 'true');
+    await expect
+      .element(getByRole('link', { name: 'Overview' }))
+      .toHaveAttribute('aria-current', 'page');
     await expect
       .element(getByRole('link', { name: 'Appearance' }))
-      .toHaveAttribute('aria-current', 'page');
+      .toHaveAttribute('href', '/chat/preferences/appearance');
     await expect.element(getByRole('link', { name: 'Language' })).toBeVisible();
     await expect.element(getByRole('link', { name: 'Composer' })).toBeVisible();
   });
 
+  it('collapses only app preferences and retains the choice across mounts', async () => {
+    const view = render(AppPreferencesLayout);
+    await view.getByRole('button', { name: 'App preferences' }).click();
+    await expect
+      .element(view.getByRole('button', { name: 'App preferences' }))
+      .toHaveAttribute('aria-expanded', 'false');
+    await expect.element(view.getByRole('link', { name: 'Appearance' })).not.toBeInTheDocument();
+    await expect.element(view.getByRole('link', { name: 'Overview' })).toBeVisible();
+    view.unmount();
+    resetRoomGroupCollapseForTests();
+
+    const nextView = render(AppPreferencesLayout);
+    await expect
+      .element(nextView.getByRole('button', { name: 'App preferences' }))
+      .toHaveAttribute('aria-expanded', 'false');
+    await nextView.getByRole('button', { name: 'App preferences' }).click();
+    await expect.element(nextView.getByRole('link', { name: 'Appearance' })).toBeVisible();
+  });
+
+  it('marks only the selected preference as the current page', async () => {
+    mocks.pathname = '/chat/preferences/appearance';
+    const view = render(AppPreferencesLayout);
+    await expect
+      .element(view.getByRole('link', { name: 'Appearance' }))
+      .toHaveAttribute('aria-current', 'page');
+    await expect
+      .element(view.getByRole('link', { name: 'Overview' }))
+      .not.toHaveAttribute('aria-current');
+  });
+
   it.each([
-    ['/chat/preferences', '/chat/remote.example.com/settings/appearance'],
+    ['/chat/preferences', '/chat/remote.example.com/settings/overview'],
+    ['/chat/preferences/appearance', '/chat/remote.example.com/settings/appearance'],
     ['/chat/preferences/language', '/chat/remote.example.com/settings/language'],
     ['/chat/preferences/composer', '/chat/remote.example.com/settings/composer']
   ])('replace-navigates %s to the matching unified page', async (pathname, destination) => {
@@ -83,7 +124,7 @@ describe('App Preferences layout', () => {
       channel: 'stable'
     };
     const { getByRole } = render(AppPreferencesLayout);
-    await expect.element(getByRole('heading', { name: 'App Preferences' })).toBeVisible();
+    await expect.element(getByRole('heading', { name: 'Settings' })).toBeVisible();
     await expect
       .element(getByRole('link', { name: 'Updates' }))
       .toHaveAttribute('href', '/chat/preferences/desktop');

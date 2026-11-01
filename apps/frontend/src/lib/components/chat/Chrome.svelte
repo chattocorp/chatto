@@ -11,7 +11,7 @@
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
-  import SidebarNav from '$lib/components/SidebarNav.svelte';
+  import SettingsSidebar from '$lib/components/settings/SettingsSidebar.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
   import { getAdminNavItems } from './adminNav';
@@ -124,28 +124,19 @@
           : []
   );
   const settingsNavGroups = $derived(
-    getSettingsNavGroups(serverScope.serverId, serverSegment, managementNavItems)
+    getSettingsNavGroups({ serverId: serverScope.serverId, serverSegment, managementNavItems })
   );
-  const overviewNavItems = $derived([
-    {
-      href: resolve(DEFAULT_SERVER_SETTINGS_ROUTE, { serverId: serverSegment }),
-      label: m('settings.overview.title'),
-      icon: 'iconify icon-[uil--setting]'
-    }
-  ]);
 </script>
 
 <ServerSubscriptionMarker />
 <!-- Sidebar -->
 <ServerSidebar>
   {#if isServerSettingsMode}
-    <SidebarNav
-      title={m('settings.nav.title')}
+    <SettingsSidebar
       subtitle={serverName ?? activeStore.serverInfo.name}
-      items={overviewNavItems}
+      overviewHref={resolve(DEFAULT_SERVER_SETTINGS_ROUTE, { serverId: serverSegment })}
       groups={settingsNavGroups}
       backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-      backLabel={m('settings.nav.back_to_server')}
     />
   {:else if !serverData}
     <ServerHeader serverName={activeStore.serverInfo.name} />

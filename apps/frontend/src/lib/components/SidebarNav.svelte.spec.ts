@@ -19,7 +19,7 @@ describe('SidebarNav', () => {
   });
 
   it('renders collapsible navigation groups and marks the active item', async () => {
-    const { container, getByText } = render(SidebarNav, {
+    const { container, getByText, getByRole } = render(SidebarNav, {
       props: {
         title: 'Settings',
         subtitle: 'Chatto Test',
@@ -53,6 +53,8 @@ describe('SidebarNav', () => {
     });
 
     const groups = container.querySelectorAll('[data-testid="room-group-section"]');
+    expect(container.querySelectorAll('nav')).toHaveLength(1);
+    await expect.element(getByRole('navigation', { name: 'Settings' })).toBeVisible();
     expect(groups).toHaveLength(3);
     expect(groups[0]?.textContent).toContain('App preferences');
     expect(groups[1]?.textContent).toContain('Your account');

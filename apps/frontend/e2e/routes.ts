@@ -89,6 +89,7 @@ export const settingsComposer = `/chat/${HOME}/settings/composer`;
 // Legacy App Preferences routes remain available as authenticated redirects
 // and as the standalone no-server fallback.
 export const appPreferences = '/chat/preferences';
+export const appPreferencesAppearance = '/chat/preferences/appearance';
 export const appPreferencesLanguage = '/chat/preferences/language';
 export const appPreferencesComposer = '/chat/preferences/composer';
 

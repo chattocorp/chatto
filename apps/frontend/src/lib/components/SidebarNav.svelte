@@ -69,24 +69,24 @@
 <PaneHeader {title} {subtitle} {backHref} {backLabel} />
 
 <ScrollFader top bottom>
-  {#if items.length > 0}
-    <nav class="sidebar-nav p-2">
-      {#each items as item (item.href)}
-        {@const active = isActive(item.href, allItems)}
-        <a
-          href={resolve(item.href as '/')}
-          aria-current={active ? 'page' : undefined}
-          class="sidebar-item"
-        >
-          <span aria-hidden="true" class="sidebar-icon {item.icon}"></span>
-          {item.label}
-        </a>
-      {/each}
-    </nav>
-  {/if}
+  <nav aria-label={title}>
+    {#if items.length > 0}
+      <div class="sidebar-nav p-2">
+        {#each items as item (item.href)}
+          {@const active = isActive(item.href, allItems)}
+          <a
+            href={resolve(item.href as '/')}
+            aria-current={active ? 'page' : undefined}
+            class="sidebar-item"
+          >
+            <span aria-hidden="true" class="sidebar-icon {item.icon}"></span>
+            {item.label}
+          </a>
+        {/each}
+      </div>
+    {/if}
 
-  {#if normalizedGroups.length > 0}
-    <nav>
+    {#if normalizedGroups.length > 0}
       {#each normalizedGroups as group, index (group.persistKey)}
         <RoomGroupSection
           label={group.label}
@@ -96,6 +96,6 @@
           separated={index > 0 || items.length > 0}
         />
       {/each}
-    </nav>
-  {/if}
+    {/if}
+  </nav>
 </ScrollFader>
