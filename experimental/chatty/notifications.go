@@ -134,10 +134,25 @@ func (m *model) acceptNotificationJump(v notificationJump) tea.Cmd {
 		m.status = clean(v.err.Error())
 		return nil
 	}
-	if v.snapshot.ServerGeneration != m.e.current(m.room, m.root).ServerGeneration {
+	current := m.e.current(v.target.Room.ID, v.target.ThreadRootEventID)
+	if !current.Ready || v.snapshot.ServerGeneration != current.ServerGeneration {
 		m.status = "Notification access changed; try again"
 		return m.reload("")
 	}
+	// A retract/delete event can arrive after the lookup completed but before
+	// Bubble Tea handles its result. Reveal only the current SDK projection.
+	found := false
+	for _, message := range current.Page.Messages {
+		if message.ID == v.target.EventID {
+			found = true
+			break
+		}
+	}
+	if !current.HasTimeline || !found {
+		m.status = "Notification message is no longer available"
+		return nil
+	}
+	v.snapshot = current
 	m.saveDraft()
 	m.room, m.root = v.target.Room.ID, v.target.ThreadRootEventID
 	m.focus = 1

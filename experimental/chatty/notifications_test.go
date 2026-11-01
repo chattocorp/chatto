@@ -107,6 +107,11 @@ func TestNotificationJumpLoadsExactRoomOrThreadWindow(t *testing.T) {
 			if len(e.server.ReadState(chatto.TimelineKey{Room: "room", Root: root}).Timelines) != 0 {
 				t.Fatal("return to live reused old anchor window")
 			}
+			m.room, m.root = "other", ""
+			m.acceptNotificationJump(notificationJump{generation: m.generation, target: target, snapshot: state})
+			if m.room != "other" || m.status != "Notification message is no longer available" {
+				t.Fatal("late notification restored a removed timeline")
+			}
 		})
 	}
 }
