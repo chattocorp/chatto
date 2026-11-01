@@ -123,7 +123,9 @@ func (s *Store) checkpoint(cursor string, event *chatto.MessageEvent) error {
 				}
 			}
 		}
-		v.Entries = append(v.Entries, inboxEntry{Event: *event})
+		retained := *event
+		retained.Message = messageForInbox(event.Message)
+		v.Entries = append(v.Entries, inboxEntry{Event: retained})
 	})
 }
 

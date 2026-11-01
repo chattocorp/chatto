@@ -12,9 +12,19 @@ import (
 	"time"
 )
 
+// StatusError retains the response status without its potentially private body.
+type StatusError struct{ Code int }
+
+func (e StatusError) Error() string { return fmt.Sprintf("HTTP status %d", e.Code) }
+
 // Post sends one request. It does not retry requests or follow redirects.
 // Redirects could disclose conversation data or credentials to another service.
 func Post(ctx context.Context, endpoint, token string, input, output any) error {
+	return PostAtCursor(ctx, endpoint, token, "", input, output)
+}
+
+// PostAtCursor fences a resource read at an accepted realtime boundary.
+func PostAtCursor(ctx context.Context, endpoint, token, cursor string, input, output any) error {
 	body, err := json.Marshal(input)
 	if err != nil {
 		return errors.New("encode request")
@@ -24,8 +34,13 @@ func Post(ctx context.Context, endpoint, token string, input, output any) error 
 		return errors.New("invalid request URL")
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	req.Header.Set("Connect-Protocol-Version", "1")
+	if cursor != "" {
+		req.Header.Set("Chatto-Realtime-Minimum-Cursor", cursor)
+	}
 	client := &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	res, err := client.Do(req)
 	if err != nil {
@@ -36,7 +51,7 @@ func Post(ctx context.Context, endpoint, token string, input, output any) error 
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("HTTP status %d", res.StatusCode)
+		return StatusError{Code: res.StatusCode}
 	}
 	const maxBytes = 4 << 20
 	data, err := io.ReadAll(io.LimitReader(res.Body, maxBytes+1))

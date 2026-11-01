@@ -26,6 +26,18 @@ type RecoveryOptions struct {
 
 type reconnectHint struct{ delay time.Duration }
 
+// ObserveTimeline observes message posts and invalidations with reconnect and
+// replay, including the viewer's own posts, echoes, and non-text messages.
+// This is an invalidation feed, not a complete resource projection: hydrate
+// changed timelines with Timeline. Body is only the realtime plaintext preview.
+// Room directory, reaction and profile changes still require resource refreshes.
+// Existing bot observers retain their self/echo suppression.
+func (c *Client) ObserveTimeline(ctx context.Context, viewer string, options RecoveryOptions, ready func(), handle func(context.Context, MessageEvent) error) error {
+	copy := *c
+	copy.allMessages = true
+	return copy.ObserveResumable(ctx, viewer, options, ready, handle)
+}
+
 func (reconnectHint) Error() string { return "Chatto requested reconnect" }
 
 // ObserveResumable reconnects with bounded exponential backoff and jitter. It
@@ -187,7 +199,8 @@ func (c *Client) observeConnection(ctx context.Context, viewer, cursor string, h
 		if event.GetCursor() != "" {
 			next = event.GetCursor()
 		}
-		update, ok := messageEvent(event, viewer)
+		update, ok := decodeVisibleEvent(event, viewer, c.allMessages)
+		update.ID = event.Id
 		var accepted *MessageEvent
 		if ok && !seen[event.Id] {
 			accepted = &update

@@ -74,7 +74,7 @@ func (c *conversation) affectedBy(e chatto.MessageEvent, active bool, batch []ch
 
 // unchangedEdit compares the current server projection with the exact message
 // supplied to the agent (or queued for it). Preview metadata and edit timestamps
-// are not part of the SDK's model-visible Message. Missing or unreadable content
+// are not part of Gobotto's explicit modelMessage. Missing or unreadable content
 // cannot prove an edit harmless and must retain conservative invalidation.
 func (c *conversation) unchangedEdit(ctx context.Context, client Client, e chatto.MessageEvent, batch []chatto.MessageEvent) bool {
 	if e.InvalidateAll || e.InvalidatedMessage == "" || e.InvalidatedRoom != c.key.room {

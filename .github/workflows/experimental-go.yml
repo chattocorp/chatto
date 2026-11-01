@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [chatto-go, gobotto]
+        module: [chatto-go, gobotto, chatty]
     env:
       GOWORK: 'off'
     defaults:
@@ -43,4 +43,6 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Build
+        env:
+          CGO_ENABLED: '0'
         run: go build ./...

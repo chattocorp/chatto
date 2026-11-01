@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -151,6 +152,7 @@ type Frame struct {
 	//	*Frame_Heartbeat
 	//	*Frame_Close
 	//	*Frame_CaughtUp
+	//	*Frame_Snapshot
 	Frame         isFrame_Frame `protobuf_oneof:"frame"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -229,6 +231,15 @@ func (x *Frame) GetCaughtUp() *CaughtUp {
 	return nil
 }
 
+func (x *Frame) GetSnapshot() *Snapshot {
+	if x != nil {
+		if x, ok := x.Frame.(*Frame_Snapshot); ok {
+			return x.Snapshot
+		}
+	}
+	return nil
+}
+
 type isFrame_Frame interface {
 	isFrame_Frame()
 }
@@ -249,6 +260,10 @@ type Frame_CaughtUp struct {
 	CaughtUp *CaughtUp `protobuf:"bytes,4,opt,name=caught_up,json=caughtUp,proto3,oneof"`
 }
 
+type Frame_Snapshot struct {
+	Snapshot *Snapshot `protobuf:"bytes,5,opt,name=snapshot,proto3,oneof"`
+}
+
 func (*Frame_Event) isFrame_Frame() {}
 
 func (*Frame_Heartbeat) isFrame_Frame() {}
@@ -257,20 +272,46 @@ func (*Frame_Close) isFrame_Frame() {}
 
 func (*Frame_CaughtUp) isFrame_Frame() {}
 
+func (*Frame_Snapshot) isFrame_Frame() {}
+
 type Event struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ActorId *string                `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
-	Cursor  *string                `protobuf:"bytes,4,opt,name=cursor,proto3,oneof" json:"cursor,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ActorId   *string                `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
+	Cursor    *string                `protobuf:"bytes,4,opt,name=cursor,proto3,oneof" json:"cursor,omitempty"`
 	// Types that are valid to be assigned to Event:
 	//
+	//	*Event_RoomCreated
+	//	*Event_RoomUpdated
 	//	*Event_RoomDeleted
+	//	*Event_RoomArchived
+	//	*Event_RoomUnarchived
+	//	*Event_RoomUniversalChanged
+	//	*Event_UserJoinedRoom
 	//	*Event_UserLeftRoom
 	//	*Event_MessagePosted
 	//	*Event_MessageEdited
 	//	*Event_MessageRetracted
+	//	*Event_MessagePinned
+	//	*Event_MessageUnpinned
+	//	*Event_ThreadCreated
+	//	*Event_ReactionAdded
+	//	*Event_ReactionRemoved
+	//	*Event_ThreadViewerStateChanged
 	//	*Event_UserAccountDeleted
+	//	*Event_UserProfileChanged
+	//	*Event_ServerProfileChanged
+	//	*Event_NotificationOccurrencesChanged
+	//	*Event_NotificationUnreadStateChanged
+	//	*Event_RoomReadStateChanged
+	//	*Event_RoomLayoutChanged
+	//	*Event_RoleDeleted
+	//	*Event_RoleAssigned
+	//	*Event_RoleRevoked
+	//	*Event_RolePermissionsChanged
 	//	*Event_ViewerPermissionsChanged
+	//	*Event_UserAccountDeactivationChanged
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -313,6 +354,13 @@ func (x *Event) GetId() string {
 	return ""
 }
 
+func (x *Event) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
 func (x *Event) GetActorId() string {
 	if x != nil && x.ActorId != nil {
 		return *x.ActorId
@@ -334,10 +382,64 @@ func (x *Event) GetEvent() isEvent_Event {
 	return nil
 }
 
+func (x *Event) GetRoomCreated() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomCreated); ok {
+			return x.RoomCreated
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomUpdated() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomUpdated); ok {
+			return x.RoomUpdated
+		}
+	}
+	return nil
+}
+
 func (x *Event) GetRoomDeleted() *RoomChanged {
 	if x != nil {
 		if x, ok := x.Event.(*Event_RoomDeleted); ok {
 			return x.RoomDeleted
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomArchived() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomArchived); ok {
+			return x.RoomArchived
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomUnarchived() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomUnarchived); ok {
+			return x.RoomUnarchived
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomUniversalChanged() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomUniversalChanged); ok {
+			return x.RoomUniversalChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetUserJoinedRoom() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_UserJoinedRoom); ok {
+			return x.UserJoinedRoom
 		}
 	}
 	return nil
@@ -379,10 +481,154 @@ func (x *Event) GetMessageRetracted() *MessageChanged {
 	return nil
 }
 
+func (x *Event) GetMessagePinned() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_MessagePinned); ok {
+			return x.MessagePinned
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetMessageUnpinned() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_MessageUnpinned); ok {
+			return x.MessageUnpinned
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetThreadCreated() *ThreadChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ThreadCreated); ok {
+			return x.ThreadCreated
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetReactionAdded() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ReactionAdded); ok {
+			return x.ReactionAdded
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetReactionRemoved() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ReactionRemoved); ok {
+			return x.ReactionRemoved
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetThreadViewerStateChanged() *ThreadChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ThreadViewerStateChanged); ok {
+			return x.ThreadViewerStateChanged
+		}
+	}
+	return nil
+}
+
 func (x *Event) GetUserAccountDeleted() *Empty {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserAccountDeleted); ok {
 			return x.UserAccountDeleted
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetUserProfileChanged() *UserChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_UserProfileChanged); ok {
+			return x.UserProfileChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetServerProfileChanged() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ServerProfileChanged); ok {
+			return x.ServerProfileChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetNotificationOccurrencesChanged() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_NotificationOccurrencesChanged); ok {
+			return x.NotificationOccurrencesChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetNotificationUnreadStateChanged() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_NotificationUnreadStateChanged); ok {
+			return x.NotificationUnreadStateChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomReadStateChanged() *RoomChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomReadStateChanged); ok {
+			return x.RoomReadStateChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomLayoutChanged() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomLayoutChanged); ok {
+			return x.RoomLayoutChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoleDeleted() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoleDeleted); ok {
+			return x.RoleDeleted
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoleAssigned() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoleAssigned); ok {
+			return x.RoleAssigned
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoleRevoked() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoleRevoked); ok {
+			return x.RoleRevoked
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRolePermissionsChanged() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RolePermissionsChanged); ok {
+			return x.RolePermissionsChanged
 		}
 	}
 	return nil
@@ -397,12 +643,45 @@ func (x *Event) GetViewerPermissionsChanged() *Empty {
 	return nil
 }
 
+func (x *Event) GetUserAccountDeactivationChanged() *Empty {
+	if x != nil {
+		if x, ok := x.Event.(*Event_UserAccountDeactivationChanged); ok {
+			return x.UserAccountDeactivationChanged
+		}
+	}
+	return nil
+}
+
 type isEvent_Event interface {
 	isEvent_Event()
 }
 
+type Event_RoomCreated struct {
+	RoomCreated *RoomChanged `protobuf:"bytes,10,opt,name=room_created,json=roomCreated,proto3,oneof"`
+}
+
+type Event_RoomUpdated struct {
+	RoomUpdated *RoomChanged `protobuf:"bytes,11,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
+}
+
 type Event_RoomDeleted struct {
 	RoomDeleted *RoomChanged `protobuf:"bytes,12,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
+}
+
+type Event_RoomArchived struct {
+	RoomArchived *RoomChanged `protobuf:"bytes,13,opt,name=room_archived,json=roomArchived,proto3,oneof"`
+}
+
+type Event_RoomUnarchived struct {
+	RoomUnarchived *RoomChanged `protobuf:"bytes,14,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
+}
+
+type Event_RoomUniversalChanged struct {
+	RoomUniversalChanged *RoomChanged `protobuf:"bytes,15,opt,name=room_universal_changed,json=roomUniversalChanged,proto3,oneof"`
+}
+
+type Event_UserJoinedRoom struct {
+	UserJoinedRoom *RoomChanged `protobuf:"bytes,18,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
 }
 
 type Event_UserLeftRoom struct {
@@ -421,15 +700,95 @@ type Event_MessageRetracted struct {
 	MessageRetracted *MessageChanged `protobuf:"bytes,26,opt,name=message_retracted,json=messageRetracted,proto3,oneof"`
 }
 
+type Event_MessagePinned struct {
+	MessagePinned *MessageChanged `protobuf:"bytes,27,opt,name=message_pinned,json=messagePinned,proto3,oneof"`
+}
+
+type Event_MessageUnpinned struct {
+	MessageUnpinned *MessageChanged `protobuf:"bytes,28,opt,name=message_unpinned,json=messageUnpinned,proto3,oneof"`
+}
+
+type Event_ThreadCreated struct {
+	ThreadCreated *ThreadChanged `protobuf:"bytes,29,opt,name=thread_created,json=threadCreated,proto3,oneof"`
+}
+
+type Event_ReactionAdded struct {
+	ReactionAdded *MessageChanged `protobuf:"bytes,49,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
+}
+
+type Event_ReactionRemoved struct {
+	ReactionRemoved *MessageChanged `protobuf:"bytes,50,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
+}
+
+type Event_ThreadViewerStateChanged struct {
+	ThreadViewerStateChanged *ThreadChanged `protobuf:"bytes,52,opt,name=thread_viewer_state_changed,json=threadViewerStateChanged,proto3,oneof"`
+}
+
 type Event_UserAccountDeleted struct {
 	UserAccountDeleted *Empty `protobuf:"bytes,48,opt,name=user_account_deleted,json=userAccountDeleted,proto3,oneof"`
+}
+
+type Event_UserProfileChanged struct {
+	UserProfileChanged *UserChanged `protobuf:"bytes,47,opt,name=user_profile_changed,json=userProfileChanged,proto3,oneof"`
+}
+
+type Event_ServerProfileChanged struct {
+	ServerProfileChanged *Empty `protobuf:"bytes,53,opt,name=server_profile_changed,json=serverProfileChanged,proto3,oneof"`
+}
+
+type Event_NotificationOccurrencesChanged struct {
+	NotificationOccurrencesChanged *Empty `protobuf:"bytes,56,opt,name=notification_occurrences_changed,json=notificationOccurrencesChanged,proto3,oneof"`
+}
+
+type Event_NotificationUnreadStateChanged struct {
+	NotificationUnreadStateChanged *RoomChanged `protobuf:"bytes,57,opt,name=notification_unread_state_changed,json=notificationUnreadStateChanged,proto3,oneof"`
+}
+
+type Event_RoomReadStateChanged struct {
+	RoomReadStateChanged *RoomChanged `protobuf:"bytes,58,opt,name=room_read_state_changed,json=roomReadStateChanged,proto3,oneof"`
+}
+
+type Event_RoomLayoutChanged struct {
+	RoomLayoutChanged *Empty `protobuf:"bytes,59,opt,name=room_layout_changed,json=roomLayoutChanged,proto3,oneof"`
+}
+
+type Event_RoleDeleted struct {
+	RoleDeleted *Empty `protobuf:"bytes,62,opt,name=role_deleted,json=roleDeleted,proto3,oneof"`
+}
+
+type Event_RoleAssigned struct {
+	RoleAssigned *Empty `protobuf:"bytes,64,opt,name=role_assigned,json=roleAssigned,proto3,oneof"`
+}
+
+type Event_RoleRevoked struct {
+	RoleRevoked *Empty `protobuf:"bytes,65,opt,name=role_revoked,json=roleRevoked,proto3,oneof"`
+}
+
+type Event_RolePermissionsChanged struct {
+	RolePermissionsChanged *Empty `protobuf:"bytes,66,opt,name=role_permissions_changed,json=rolePermissionsChanged,proto3,oneof"`
 }
 
 type Event_ViewerPermissionsChanged struct {
 	ViewerPermissionsChanged *Empty `protobuf:"bytes,67,opt,name=viewer_permissions_changed,json=viewerPermissionsChanged,proto3,oneof"`
 }
 
+type Event_UserAccountDeactivationChanged struct {
+	UserAccountDeactivationChanged *Empty `protobuf:"bytes,73,opt,name=user_account_deactivation_changed,json=userAccountDeactivationChanged,proto3,oneof"`
+}
+
+func (*Event_RoomCreated) isEvent_Event() {}
+
+func (*Event_RoomUpdated) isEvent_Event() {}
+
 func (*Event_RoomDeleted) isEvent_Event() {}
+
+func (*Event_RoomArchived) isEvent_Event() {}
+
+func (*Event_RoomUnarchived) isEvent_Event() {}
+
+func (*Event_RoomUniversalChanged) isEvent_Event() {}
+
+func (*Event_UserJoinedRoom) isEvent_Event() {}
 
 func (*Event_UserLeftRoom) isEvent_Event() {}
 
@@ -439,9 +798,701 @@ func (*Event_MessageEdited) isEvent_Event() {}
 
 func (*Event_MessageRetracted) isEvent_Event() {}
 
+func (*Event_MessagePinned) isEvent_Event() {}
+
+func (*Event_MessageUnpinned) isEvent_Event() {}
+
+func (*Event_ThreadCreated) isEvent_Event() {}
+
+func (*Event_ReactionAdded) isEvent_Event() {}
+
+func (*Event_ReactionRemoved) isEvent_Event() {}
+
+func (*Event_ThreadViewerStateChanged) isEvent_Event() {}
+
 func (*Event_UserAccountDeleted) isEvent_Event() {}
 
+func (*Event_UserProfileChanged) isEvent_Event() {}
+
+func (*Event_ServerProfileChanged) isEvent_Event() {}
+
+func (*Event_NotificationOccurrencesChanged) isEvent_Event() {}
+
+func (*Event_NotificationUnreadStateChanged) isEvent_Event() {}
+
+func (*Event_RoomReadStateChanged) isEvent_Event() {}
+
+func (*Event_RoomLayoutChanged) isEvent_Event() {}
+
+func (*Event_RoleDeleted) isEvent_Event() {}
+
+func (*Event_RoleAssigned) isEvent_Event() {}
+
+func (*Event_RoleRevoked) isEvent_Event() {}
+
+func (*Event_RolePermissionsChanged) isEvent_Event() {}
+
 func (*Event_ViewerPermissionsChanged) isEvent_Event() {}
+
+func (*Event_UserAccountDeactivationChanged) isEvent_Event() {}
+
+type UserChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserChanged) Reset() {
+	*x = UserChanged{}
+	mi := &file_realtime_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserChanged) ProtoMessage() {}
+
+func (x *UserChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserChanged.ProtoReflect.Descriptor instead.
+func (*UserChanged) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UserChanged) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type Snapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Server        *ServerProfile         `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
+	Rooms         []*RoomEntry           `protobuf:"bytes,2,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	RoomGroups    []*RoomGroup           `protobuf:"bytes,3,rep,name=room_groups,json=roomGroups,proto3" json:"room_groups,omitempty"`
+	Users         []*DirectoryMember     `protobuf:"bytes,4,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Snapshot) Reset() {
+	*x = Snapshot{}
+	mi := &file_realtime_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Snapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Snapshot) ProtoMessage() {}
+
+func (x *Snapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
+func (*Snapshot) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Snapshot) GetServer() *ServerProfile {
+	if x != nil {
+		return x.Server
+	}
+	return nil
+}
+
+func (x *Snapshot) GetRooms() []*RoomEntry {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+func (x *Snapshot) GetRoomGroups() []*RoomGroup {
+	if x != nil {
+		return x.RoomGroups
+	}
+	return nil
+}
+
+func (x *Snapshot) GetUsers() []*DirectoryMember {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+type ServerProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerProfile) Reset() {
+	*x = ServerProfile{}
+	mi := &file_realtime_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerProfile) ProtoMessage() {}
+
+func (x *ServerProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerProfile.ProtoReflect.Descriptor instead.
+func (*ServerProfile) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ServerProfile) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type Room struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind          RoomKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chatto.sdk.wire.RoomKind" json:"kind,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Archived      bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Room) Reset() {
+	*x = Room{}
+	mi := &file_realtime_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Room) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Room) ProtoMessage() {}
+
+func (x *Room) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Room.ProtoReflect.Descriptor instead.
+func (*Room) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Room) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Room) GetKind() RoomKind {
+	if x != nil {
+		return x.Kind
+	}
+	return RoomKind_ROOM_KIND_UNSPECIFIED
+}
+
+func (x *Room) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Room) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Room) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
+}
+
+type RoomViewerState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IsMember      bool                   `protobuf:"varint,1,opt,name=is_member,json=isMember,proto3" json:"is_member,omitempty"`
+	HasUnread     bool                   `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomViewerState) Reset() {
+	*x = RoomViewerState{}
+	mi := &file_realtime_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomViewerState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomViewerState) ProtoMessage() {}
+
+func (x *RoomViewerState) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomViewerState.ProtoReflect.Descriptor instead.
+func (*RoomViewerState) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RoomViewerState) GetIsMember() bool {
+	if x != nil {
+		return x.IsMember
+	}
+	return false
+}
+
+func (x *RoomViewerState) GetHasUnread() bool {
+	if x != nil {
+		return x.HasUnread
+	}
+	return false
+}
+
+type RoomEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *Room                  `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	ViewerState   *RoomViewerState       `protobuf:"bytes,14,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	MemberUserIds []string               `protobuf:"bytes,15,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomEntry) Reset() {
+	*x = RoomEntry{}
+	mi := &file_realtime_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomEntry) ProtoMessage() {}
+
+func (x *RoomEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomEntry.ProtoReflect.Descriptor instead.
+func (*RoomEntry) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RoomEntry) GetRoom() *Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *RoomEntry) GetViewerState() *RoomViewerState {
+	if x != nil {
+		return x.ViewerState
+	}
+	return nil
+}
+
+func (x *RoomEntry) GetMemberUserIds() []string {
+	if x != nil {
+		return x.MemberUserIds
+	}
+	return nil
+}
+
+type RoomGroup struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Items         []*RoomGroupItem       `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomGroup) Reset() {
+	*x = RoomGroup{}
+	mi := &file_realtime_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomGroup) ProtoMessage() {}
+
+func (x *RoomGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomGroup.ProtoReflect.Descriptor instead.
+func (*RoomGroup) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RoomGroup) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RoomGroup) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RoomGroup) GetItems() []*RoomGroupItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type RoomGroupItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Item:
+	//
+	//	*RoomGroupItem_Room
+	//	*RoomGroupItem_SidebarLink
+	Item          isRoomGroupItem_Item `protobuf_oneof:"item"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomGroupItem) Reset() {
+	*x = RoomGroupItem{}
+	mi := &file_realtime_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomGroupItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomGroupItem) ProtoMessage() {}
+
+func (x *RoomGroupItem) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomGroupItem.ProtoReflect.Descriptor instead.
+func (*RoomGroupItem) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RoomGroupItem) GetItem() isRoomGroupItem_Item {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *RoomGroupItem) GetRoom() *RoomEntry {
+	if x != nil {
+		if x, ok := x.Item.(*RoomGroupItem_Room); ok {
+			return x.Room
+		}
+	}
+	return nil
+}
+
+func (x *RoomGroupItem) GetSidebarLink() *SidebarLink {
+	if x != nil {
+		if x, ok := x.Item.(*RoomGroupItem_SidebarLink); ok {
+			return x.SidebarLink
+		}
+	}
+	return nil
+}
+
+type isRoomGroupItem_Item interface {
+	isRoomGroupItem_Item()
+}
+
+type RoomGroupItem_Room struct {
+	Room *RoomEntry `protobuf:"bytes,1,opt,name=room,proto3,oneof"`
+}
+
+type RoomGroupItem_SidebarLink struct {
+	SidebarLink *SidebarLink `protobuf:"bytes,2,opt,name=sidebar_link,json=sidebarLink,proto3,oneof"`
+}
+
+func (*RoomGroupItem_Room) isRoomGroupItem_Item() {}
+
+func (*RoomGroupItem_SidebarLink) isRoomGroupItem_Item() {}
+
+type SidebarLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SidebarLink) Reset() {
+	*x = SidebarLink{}
+	mi := &file_realtime_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SidebarLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SidebarLink) ProtoMessage() {}
+
+func (x *SidebarLink) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SidebarLink.ProtoReflect.Descriptor instead.
+func (*SidebarLink) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SidebarLink) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SidebarLink) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *SidebarLink) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type User struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AvatarUrl     *string                `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *User) Reset() {
+	*x = User{}
+	mi := &file_realtime_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *User) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*User) ProtoMessage() {}
+
+func (x *User) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use User.ProtoReflect.Descriptor instead.
+func (*User) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *User) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *User) GetLogin() string {
+	if x != nil {
+		return x.Login
+	}
+	return ""
+}
+
+func (x *User) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *User) GetAvatarUrl() string {
+	if x != nil && x.AvatarUrl != nil {
+		return *x.AvatarUrl
+	}
+	return ""
+}
+
+type DirectoryMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DirectoryMember) Reset() {
+	*x = DirectoryMember{}
+	mi := &file_realtime_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DirectoryMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DirectoryMember) ProtoMessage() {}
+
+func (x *DirectoryMember) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DirectoryMember.ProtoReflect.Descriptor instead.
+func (*DirectoryMember) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DirectoryMember) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
 
 // Both public edit and retraction events identify a room and message.
 type MessageChanged struct {
@@ -454,7 +1505,7 @@ type MessageChanged struct {
 
 func (x *MessageChanged) Reset() {
 	*x = MessageChanged{}
-	mi := &file_realtime_proto_msgTypes[3]
+	mi := &file_realtime_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +1517,7 @@ func (x *MessageChanged) String() string {
 func (*MessageChanged) ProtoMessage() {}
 
 func (x *MessageChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[3]
+	mi := &file_realtime_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +1530,7 @@ func (x *MessageChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageChanged.ProtoReflect.Descriptor instead.
 func (*MessageChanged) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{3}
+	return file_realtime_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MessageChanged) GetRoomId() string {
@@ -496,6 +1547,58 @@ func (x *MessageChanged) GetMessageEventId() string {
 	return ""
 }
 
+type ThreadChanged struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ThreadChanged) Reset() {
+	*x = ThreadChanged{}
+	mi := &file_realtime_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadChanged) ProtoMessage() {}
+
+func (x *ThreadChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadChanged.ProtoReflect.Descriptor instead.
+func (*ThreadChanged) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ThreadChanged) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadChanged) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
 type RoomChanged struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -505,7 +1608,7 @@ type RoomChanged struct {
 
 func (x *RoomChanged) Reset() {
 	*x = RoomChanged{}
-	mi := &file_realtime_proto_msgTypes[4]
+	mi := &file_realtime_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -517,7 +1620,7 @@ func (x *RoomChanged) String() string {
 func (*RoomChanged) ProtoMessage() {}
 
 func (x *RoomChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[4]
+	mi := &file_realtime_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +1633,7 @@ func (x *RoomChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomChanged.ProtoReflect.Descriptor instead.
 func (*RoomChanged) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{4}
+	return file_realtime_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RoomChanged) GetRoomId() string {
@@ -548,7 +1651,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_realtime_proto_msgTypes[5]
+	mi := &file_realtime_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +1663,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[5]
+	mi := &file_realtime_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +1676,7 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{5}
+	return file_realtime_proto_rawDescGZIP(), []int{17}
 }
 
 type MessagePosted struct {
@@ -591,7 +1694,7 @@ type MessagePosted struct {
 
 func (x *MessagePosted) Reset() {
 	*x = MessagePosted{}
-	mi := &file_realtime_proto_msgTypes[6]
+	mi := &file_realtime_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +1706,7 @@ func (x *MessagePosted) String() string {
 func (*MessagePosted) ProtoMessage() {}
 
 func (x *MessagePosted) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[6]
+	mi := &file_realtime_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +1719,7 @@ func (x *MessagePosted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessagePosted.ProtoReflect.Descriptor instead.
 func (*MessagePosted) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{6}
+	return file_realtime_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MessagePosted) GetRoomId() string {
@@ -684,7 +1787,7 @@ type Mention struct {
 
 func (x *Mention) Reset() {
 	*x = Mention{}
-	mi := &file_realtime_proto_msgTypes[7]
+	mi := &file_realtime_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +1799,7 @@ func (x *Mention) String() string {
 func (*Mention) ProtoMessage() {}
 
 func (x *Mention) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[7]
+	mi := &file_realtime_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +1812,7 @@ func (x *Mention) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Mention.ProtoReflect.Descriptor instead.
 func (*Mention) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{7}
+	return file_realtime_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Mention) GetCause() isMention_Cause {
@@ -799,7 +1902,7 @@ type Direct struct {
 
 func (x *Direct) Reset() {
 	*x = Direct{}
-	mi := &file_realtime_proto_msgTypes[8]
+	mi := &file_realtime_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +1914,7 @@ func (x *Direct) String() string {
 func (*Direct) ProtoMessage() {}
 
 func (x *Direct) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[8]
+	mi := &file_realtime_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +1927,7 @@ func (x *Direct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Direct.ProtoReflect.Descriptor instead.
 func (*Direct) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{8}
+	return file_realtime_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Direct) GetUserId() string {
@@ -843,7 +1946,7 @@ type Role struct {
 
 func (x *Role) Reset() {
 	*x = Role{}
-	mi := &file_realtime_proto_msgTypes[9]
+	mi := &file_realtime_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +1958,7 @@ func (x *Role) String() string {
 func (*Role) ProtoMessage() {}
 
 func (x *Role) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[9]
+	mi := &file_realtime_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +1971,7 @@ func (x *Role) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Role.ProtoReflect.Descriptor instead.
 func (*Role) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{9}
+	return file_realtime_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Role) GetRoleName() string {
@@ -886,7 +1989,7 @@ type Here struct {
 
 func (x *Here) Reset() {
 	*x = Here{}
-	mi := &file_realtime_proto_msgTypes[10]
+	mi := &file_realtime_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -898,7 +2001,7 @@ func (x *Here) String() string {
 func (*Here) ProtoMessage() {}
 
 func (x *Here) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[10]
+	mi := &file_realtime_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -911,7 +2014,7 @@ func (x *Here) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Here.ProtoReflect.Descriptor instead.
 func (*Here) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{10}
+	return file_realtime_proto_rawDescGZIP(), []int{22}
 }
 
 type All struct {
@@ -922,7 +2025,7 @@ type All struct {
 
 func (x *All) Reset() {
 	*x = All{}
-	mi := &file_realtime_proto_msgTypes[11]
+	mi := &file_realtime_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +2037,7 @@ func (x *All) String() string {
 func (*All) ProtoMessage() {}
 
 func (x *All) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[11]
+	mi := &file_realtime_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +2050,7 @@ func (x *All) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use All.ProtoReflect.Descriptor instead.
 func (*All) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{11}
+	return file_realtime_proto_rawDescGZIP(), []int{23}
 }
 
 type Heartbeat struct {
@@ -959,7 +2062,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_realtime_proto_msgTypes[12]
+	mi := &file_realtime_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -971,7 +2074,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[12]
+	mi := &file_realtime_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -984,7 +2087,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{12}
+	return file_realtime_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Heartbeat) GetCursor() string {
@@ -1004,7 +2107,7 @@ type CaughtUp struct {
 
 func (x *CaughtUp) Reset() {
 	*x = CaughtUp{}
-	mi := &file_realtime_proto_msgTypes[13]
+	mi := &file_realtime_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +2119,7 @@ func (x *CaughtUp) String() string {
 func (*CaughtUp) ProtoMessage() {}
 
 func (x *CaughtUp) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[13]
+	mi := &file_realtime_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,7 +2132,7 @@ func (x *CaughtUp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaughtUp.ProtoReflect.Descriptor instead.
 func (*CaughtUp) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{13}
+	return file_realtime_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CaughtUp) GetCursor() string {
@@ -1057,7 +2160,7 @@ type Close struct {
 
 func (x *Close) Reset() {
 	*x = Close{}
-	mi := &file_realtime_proto_msgTypes[14]
+	mi := &file_realtime_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1069,7 +2172,7 @@ func (x *Close) String() string {
 func (*Close) ProtoMessage() {}
 
 func (x *Close) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[14]
+	mi := &file_realtime_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1082,7 +2185,7 @@ func (x *Close) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Close.ProtoReflect.Descriptor instead.
 func (*Close) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{14}
+	return file_realtime_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Close) GetCode() uint32 {
@@ -1110,37 +2213,112 @@ var File_realtime_proto protoreflect.FileDescriptor
 
 const file_realtime_proto_rawDesc = "" +
 	"\n" +
-	"\x0erealtime.proto\x12\x0fchatto.sdk.wire\x1a\x1egoogle/protobuf/duration.proto\"\xd0\x01\n" +
+	"\x0erealtime.proto\x12\x0fchatto.sdk.wire\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd0\x01\n" +
 	"\tSubscribe\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12&\n" +
 	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01\x12(\n" +
 	"\rresume_cursor\x18\x03 \x01(\tH\x01R\fresumeCursor\x88\x01\x01\x12#\n" +
 	"\rinitial_state\x18\x04 \x01(\rR\finitialStateB\x0f\n" +
 	"\r_bearer_tokenB\x10\n" +
-	"\x0e_resume_cursor\"\xe6\x01\n" +
+	"\x0e_resume_cursor\"\x9f\x02\n" +
 	"\x05Frame\x12.\n" +
 	"\x05event\x18\x01 \x01(\v2\x16.chatto.sdk.wire.EventH\x00R\x05event\x12:\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x1a.chatto.sdk.wire.HeartbeatH\x00R\theartbeat\x12.\n" +
 	"\x05close\x18\x03 \x01(\v2\x16.chatto.sdk.wire.CloseH\x00R\x05close\x128\n" +
-	"\tcaught_up\x18\x04 \x01(\v2\x19.chatto.sdk.wire.CaughtUpH\x00R\bcaughtUpB\a\n" +
-	"\x05frame\"\x85\x05\n" +
+	"\tcaught_up\x18\x04 \x01(\v2\x19.chatto.sdk.wire.CaughtUpH\x00R\bcaughtUp\x127\n" +
+	"\bsnapshot\x18\x05 \x01(\v2\x19.chatto.sdk.wire.SnapshotH\x00R\bsnapshotB\a\n" +
+	"\x05frame\"\xd2\x13\n" +
 	"\x05Event\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1e\n" +
 	"\bactor_id\x18\x03 \x01(\tH\x01R\aactorId\x88\x01\x01\x12\x1b\n" +
 	"\x06cursor\x18\x04 \x01(\tH\x02R\x06cursor\x88\x01\x01\x12A\n" +
-	"\froom_deleted\x18\f \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\vroomDeleted\x12D\n" +
+	"\froom_created\x18\n" +
+	" \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\vroomCreated\x12A\n" +
+	"\froom_updated\x18\v \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\vroomUpdated\x12A\n" +
+	"\froom_deleted\x18\f \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\vroomDeleted\x12C\n" +
+	"\rroom_archived\x18\r \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\froomArchived\x12G\n" +
+	"\x0froom_unarchived\x18\x0e \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\x0eroomUnarchived\x12T\n" +
+	"\x16room_universal_changed\x18\x0f \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\x14roomUniversalChanged\x12H\n" +
+	"\x10user_joined_room\x18\x12 \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\x0euserJoinedRoom\x12D\n" +
 	"\x0euser_left_room\x18\x13 \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\fuserLeftRoom\x12G\n" +
 	"\x0emessage_posted\x18\x18 \x01(\v2\x1e.chatto.sdk.wire.MessagePostedH\x00R\rmessagePosted\x12H\n" +
 	"\x0emessage_edited\x18\x19 \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\rmessageEdited\x12N\n" +
-	"\x11message_retracted\x18\x1a \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x10messageRetracted\x12J\n" +
-	"\x14user_account_deleted\x180 \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x12userAccountDeleted\x12V\n" +
-	"\x1aviewer_permissions_changed\x18C \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x18viewerPermissionsChangedB\a\n" +
+	"\x11message_retracted\x18\x1a \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x10messageRetracted\x12H\n" +
+	"\x0emessage_pinned\x18\x1b \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\rmessagePinned\x12L\n" +
+	"\x10message_unpinned\x18\x1c \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x0fmessageUnpinned\x12G\n" +
+	"\x0ethread_created\x18\x1d \x01(\v2\x1e.chatto.sdk.wire.ThreadChangedH\x00R\rthreadCreated\x12H\n" +
+	"\x0ereaction_added\x181 \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\rreactionAdded\x12L\n" +
+	"\x10reaction_removed\x182 \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x0freactionRemoved\x12_\n" +
+	"\x1bthread_viewer_state_changed\x184 \x01(\v2\x1e.chatto.sdk.wire.ThreadChangedH\x00R\x18threadViewerStateChanged\x12J\n" +
+	"\x14user_account_deleted\x180 \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x12userAccountDeleted\x12P\n" +
+	"\x14user_profile_changed\x18/ \x01(\v2\x1c.chatto.sdk.wire.UserChangedH\x00R\x12userProfileChanged\x12N\n" +
+	"\x16server_profile_changed\x185 \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x14serverProfileChanged\x12b\n" +
+	" notification_occurrences_changed\x188 \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x1enotificationOccurrencesChanged\x12i\n" +
+	"!notification_unread_state_changed\x189 \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\x1enotificationUnreadStateChanged\x12U\n" +
+	"\x17room_read_state_changed\x18: \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\x14roomReadStateChanged\x12H\n" +
+	"\x13room_layout_changed\x18; \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x11roomLayoutChanged\x12;\n" +
+	"\frole_deleted\x18> \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\vroleDeleted\x12=\n" +
+	"\rrole_assigned\x18@ \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\froleAssigned\x12;\n" +
+	"\frole_revoked\x18A \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\vroleRevoked\x12R\n" +
+	"\x18role_permissions_changed\x18B \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x16rolePermissionsChanged\x12V\n" +
+	"\x1aviewer_permissions_changed\x18C \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x18viewerPermissionsChanged\x12c\n" +
+	"!user_account_deactivation_changed\x18I \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x1euserAccountDeactivationChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\t\n" +
-	"\a_cursor\"S\n" +
+	"\a_cursor\"&\n" +
+	"\vUserChanged\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xe9\x01\n" +
+	"\bSnapshot\x126\n" +
+	"\x06server\x18\x01 \x01(\v2\x1e.chatto.sdk.wire.ServerProfileR\x06server\x120\n" +
+	"\x05rooms\x18\x02 \x03(\v2\x1a.chatto.sdk.wire.RoomEntryR\x05rooms\x12;\n" +
+	"\vroom_groups\x18\x03 \x03(\v2\x1a.chatto.sdk.wire.RoomGroupR\n" +
+	"roomGroups\x126\n" +
+	"\x05users\x18\x04 \x03(\v2 .chatto.sdk.wire.DirectoryMemberR\x05users\"#\n" +
+	"\rServerProfile\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x97\x01\n" +
+	"\x04Room\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x19.chatto.sdk.wire.RoomKindR\x04kind\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
+	"\barchived\x18\x05 \x01(\bR\barchived\"M\n" +
+	"\x0fRoomViewerState\x12\x1b\n" +
+	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x1d\n" +
+	"\n" +
+	"has_unread\x18\x02 \x01(\bR\thasUnread\"\xa3\x01\n" +
+	"\tRoomEntry\x12)\n" +
+	"\x04room\x18\x01 \x01(\v2\x15.chatto.sdk.wire.RoomR\x04room\x12C\n" +
+	"\fviewer_state\x18\x0e \x01(\v2 .chatto.sdk.wire.RoomViewerStateR\vviewerState\x12&\n" +
+	"\x0fmember_user_ids\x18\x0f \x03(\tR\rmemberUserIds\"e\n" +
+	"\tRoomGroup\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x124\n" +
+	"\x05items\x18\x05 \x03(\v2\x1e.chatto.sdk.wire.RoomGroupItemR\x05items\"\x8c\x01\n" +
+	"\rRoomGroupItem\x120\n" +
+	"\x04room\x18\x01 \x01(\v2\x1a.chatto.sdk.wire.RoomEntryH\x00R\x04room\x12A\n" +
+	"\fsidebar_link\x18\x02 \x01(\v2\x1c.chatto.sdk.wire.SidebarLinkH\x00R\vsidebarLinkB\x06\n" +
+	"\x04item\"E\n" +
+	"\vSidebarLink\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\"\x82\x01\n" +
+	"\x04User\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\"\n" +
+	"\n" +
+	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
+	"\v_avatar_url\"<\n" +
+	"\x0fDirectoryMember\x12)\n" +
+	"\x04user\x18\x01 \x01(\v2\x15.chatto.sdk.wire.UserR\x04user\"S\n" +
 	"\x0eMessageChanged\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"&\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"Y\n" +
+	"\rThreadChanged\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"&\n" +
 	"\vRoomChanged\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"\a\n" +
 	"\x05Empty\"\xcf\x02\n" +
@@ -1194,50 +2372,99 @@ func file_realtime_proto_rawDescGZIP() []byte {
 }
 
 var file_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_realtime_proto_goTypes = []any{
-	(RoomKind)(0),               // 0: chatto.sdk.wire.RoomKind
-	(*Subscribe)(nil),           // 1: chatto.sdk.wire.Subscribe
-	(*Frame)(nil),               // 2: chatto.sdk.wire.Frame
-	(*Event)(nil),               // 3: chatto.sdk.wire.Event
-	(*MessageChanged)(nil),      // 4: chatto.sdk.wire.MessageChanged
-	(*RoomChanged)(nil),         // 5: chatto.sdk.wire.RoomChanged
-	(*Empty)(nil),               // 6: chatto.sdk.wire.Empty
-	(*MessagePosted)(nil),       // 7: chatto.sdk.wire.MessagePosted
-	(*Mention)(nil),             // 8: chatto.sdk.wire.Mention
-	(*Direct)(nil),              // 9: chatto.sdk.wire.Direct
-	(*Role)(nil),                // 10: chatto.sdk.wire.Role
-	(*Here)(nil),                // 11: chatto.sdk.wire.Here
-	(*All)(nil),                 // 12: chatto.sdk.wire.All
-	(*Heartbeat)(nil),           // 13: chatto.sdk.wire.Heartbeat
-	(*CaughtUp)(nil),            // 14: chatto.sdk.wire.CaughtUp
-	(*Close)(nil),               // 15: chatto.sdk.wire.Close
-	(*durationpb.Duration)(nil), // 16: google.protobuf.Duration
+	(RoomKind)(0),                 // 0: chatto.sdk.wire.RoomKind
+	(*Subscribe)(nil),             // 1: chatto.sdk.wire.Subscribe
+	(*Frame)(nil),                 // 2: chatto.sdk.wire.Frame
+	(*Event)(nil),                 // 3: chatto.sdk.wire.Event
+	(*UserChanged)(nil),           // 4: chatto.sdk.wire.UserChanged
+	(*Snapshot)(nil),              // 5: chatto.sdk.wire.Snapshot
+	(*ServerProfile)(nil),         // 6: chatto.sdk.wire.ServerProfile
+	(*Room)(nil),                  // 7: chatto.sdk.wire.Room
+	(*RoomViewerState)(nil),       // 8: chatto.sdk.wire.RoomViewerState
+	(*RoomEntry)(nil),             // 9: chatto.sdk.wire.RoomEntry
+	(*RoomGroup)(nil),             // 10: chatto.sdk.wire.RoomGroup
+	(*RoomGroupItem)(nil),         // 11: chatto.sdk.wire.RoomGroupItem
+	(*SidebarLink)(nil),           // 12: chatto.sdk.wire.SidebarLink
+	(*User)(nil),                  // 13: chatto.sdk.wire.User
+	(*DirectoryMember)(nil),       // 14: chatto.sdk.wire.DirectoryMember
+	(*MessageChanged)(nil),        // 15: chatto.sdk.wire.MessageChanged
+	(*ThreadChanged)(nil),         // 16: chatto.sdk.wire.ThreadChanged
+	(*RoomChanged)(nil),           // 17: chatto.sdk.wire.RoomChanged
+	(*Empty)(nil),                 // 18: chatto.sdk.wire.Empty
+	(*MessagePosted)(nil),         // 19: chatto.sdk.wire.MessagePosted
+	(*Mention)(nil),               // 20: chatto.sdk.wire.Mention
+	(*Direct)(nil),                // 21: chatto.sdk.wire.Direct
+	(*Role)(nil),                  // 22: chatto.sdk.wire.Role
+	(*Here)(nil),                  // 23: chatto.sdk.wire.Here
+	(*All)(nil),                   // 24: chatto.sdk.wire.All
+	(*Heartbeat)(nil),             // 25: chatto.sdk.wire.Heartbeat
+	(*CaughtUp)(nil),              // 26: chatto.sdk.wire.CaughtUp
+	(*Close)(nil),                 // 27: chatto.sdk.wire.Close
+	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 29: google.protobuf.Duration
 }
 var file_realtime_proto_depIdxs = []int32{
 	3,  // 0: chatto.sdk.wire.Frame.event:type_name -> chatto.sdk.wire.Event
-	13, // 1: chatto.sdk.wire.Frame.heartbeat:type_name -> chatto.sdk.wire.Heartbeat
-	15, // 2: chatto.sdk.wire.Frame.close:type_name -> chatto.sdk.wire.Close
-	14, // 3: chatto.sdk.wire.Frame.caught_up:type_name -> chatto.sdk.wire.CaughtUp
-	5,  // 4: chatto.sdk.wire.Event.room_deleted:type_name -> chatto.sdk.wire.RoomChanged
-	5,  // 5: chatto.sdk.wire.Event.user_left_room:type_name -> chatto.sdk.wire.RoomChanged
-	7,  // 6: chatto.sdk.wire.Event.message_posted:type_name -> chatto.sdk.wire.MessagePosted
-	4,  // 7: chatto.sdk.wire.Event.message_edited:type_name -> chatto.sdk.wire.MessageChanged
-	4,  // 8: chatto.sdk.wire.Event.message_retracted:type_name -> chatto.sdk.wire.MessageChanged
-	6,  // 9: chatto.sdk.wire.Event.user_account_deleted:type_name -> chatto.sdk.wire.Empty
-	6,  // 10: chatto.sdk.wire.Event.viewer_permissions_changed:type_name -> chatto.sdk.wire.Empty
-	8,  // 11: chatto.sdk.wire.MessagePosted.mentions:type_name -> chatto.sdk.wire.Mention
-	0,  // 12: chatto.sdk.wire.MessagePosted.room_kind:type_name -> chatto.sdk.wire.RoomKind
-	9,  // 13: chatto.sdk.wire.Mention.direct:type_name -> chatto.sdk.wire.Direct
-	10, // 14: chatto.sdk.wire.Mention.role:type_name -> chatto.sdk.wire.Role
-	11, // 15: chatto.sdk.wire.Mention.here:type_name -> chatto.sdk.wire.Here
-	12, // 16: chatto.sdk.wire.Mention.all:type_name -> chatto.sdk.wire.All
-	16, // 17: chatto.sdk.wire.Close.retry_after:type_name -> google.protobuf.Duration
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	25, // 1: chatto.sdk.wire.Frame.heartbeat:type_name -> chatto.sdk.wire.Heartbeat
+	27, // 2: chatto.sdk.wire.Frame.close:type_name -> chatto.sdk.wire.Close
+	26, // 3: chatto.sdk.wire.Frame.caught_up:type_name -> chatto.sdk.wire.CaughtUp
+	5,  // 4: chatto.sdk.wire.Frame.snapshot:type_name -> chatto.sdk.wire.Snapshot
+	28, // 5: chatto.sdk.wire.Event.created_at:type_name -> google.protobuf.Timestamp
+	17, // 6: chatto.sdk.wire.Event.room_created:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 7: chatto.sdk.wire.Event.room_updated:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 8: chatto.sdk.wire.Event.room_deleted:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 9: chatto.sdk.wire.Event.room_archived:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 10: chatto.sdk.wire.Event.room_unarchived:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 11: chatto.sdk.wire.Event.room_universal_changed:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 12: chatto.sdk.wire.Event.user_joined_room:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 13: chatto.sdk.wire.Event.user_left_room:type_name -> chatto.sdk.wire.RoomChanged
+	19, // 14: chatto.sdk.wire.Event.message_posted:type_name -> chatto.sdk.wire.MessagePosted
+	15, // 15: chatto.sdk.wire.Event.message_edited:type_name -> chatto.sdk.wire.MessageChanged
+	15, // 16: chatto.sdk.wire.Event.message_retracted:type_name -> chatto.sdk.wire.MessageChanged
+	15, // 17: chatto.sdk.wire.Event.message_pinned:type_name -> chatto.sdk.wire.MessageChanged
+	15, // 18: chatto.sdk.wire.Event.message_unpinned:type_name -> chatto.sdk.wire.MessageChanged
+	16, // 19: chatto.sdk.wire.Event.thread_created:type_name -> chatto.sdk.wire.ThreadChanged
+	15, // 20: chatto.sdk.wire.Event.reaction_added:type_name -> chatto.sdk.wire.MessageChanged
+	15, // 21: chatto.sdk.wire.Event.reaction_removed:type_name -> chatto.sdk.wire.MessageChanged
+	16, // 22: chatto.sdk.wire.Event.thread_viewer_state_changed:type_name -> chatto.sdk.wire.ThreadChanged
+	18, // 23: chatto.sdk.wire.Event.user_account_deleted:type_name -> chatto.sdk.wire.Empty
+	4,  // 24: chatto.sdk.wire.Event.user_profile_changed:type_name -> chatto.sdk.wire.UserChanged
+	18, // 25: chatto.sdk.wire.Event.server_profile_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 26: chatto.sdk.wire.Event.notification_occurrences_changed:type_name -> chatto.sdk.wire.Empty
+	17, // 27: chatto.sdk.wire.Event.notification_unread_state_changed:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 28: chatto.sdk.wire.Event.room_read_state_changed:type_name -> chatto.sdk.wire.RoomChanged
+	18, // 29: chatto.sdk.wire.Event.room_layout_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 30: chatto.sdk.wire.Event.role_deleted:type_name -> chatto.sdk.wire.Empty
+	18, // 31: chatto.sdk.wire.Event.role_assigned:type_name -> chatto.sdk.wire.Empty
+	18, // 32: chatto.sdk.wire.Event.role_revoked:type_name -> chatto.sdk.wire.Empty
+	18, // 33: chatto.sdk.wire.Event.role_permissions_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 34: chatto.sdk.wire.Event.viewer_permissions_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 35: chatto.sdk.wire.Event.user_account_deactivation_changed:type_name -> chatto.sdk.wire.Empty
+	6,  // 36: chatto.sdk.wire.Snapshot.server:type_name -> chatto.sdk.wire.ServerProfile
+	9,  // 37: chatto.sdk.wire.Snapshot.rooms:type_name -> chatto.sdk.wire.RoomEntry
+	10, // 38: chatto.sdk.wire.Snapshot.room_groups:type_name -> chatto.sdk.wire.RoomGroup
+	14, // 39: chatto.sdk.wire.Snapshot.users:type_name -> chatto.sdk.wire.DirectoryMember
+	0,  // 40: chatto.sdk.wire.Room.kind:type_name -> chatto.sdk.wire.RoomKind
+	7,  // 41: chatto.sdk.wire.RoomEntry.room:type_name -> chatto.sdk.wire.Room
+	8,  // 42: chatto.sdk.wire.RoomEntry.viewer_state:type_name -> chatto.sdk.wire.RoomViewerState
+	11, // 43: chatto.sdk.wire.RoomGroup.items:type_name -> chatto.sdk.wire.RoomGroupItem
+	9,  // 44: chatto.sdk.wire.RoomGroupItem.room:type_name -> chatto.sdk.wire.RoomEntry
+	12, // 45: chatto.sdk.wire.RoomGroupItem.sidebar_link:type_name -> chatto.sdk.wire.SidebarLink
+	13, // 46: chatto.sdk.wire.DirectoryMember.user:type_name -> chatto.sdk.wire.User
+	20, // 47: chatto.sdk.wire.MessagePosted.mentions:type_name -> chatto.sdk.wire.Mention
+	0,  // 48: chatto.sdk.wire.MessagePosted.room_kind:type_name -> chatto.sdk.wire.RoomKind
+	21, // 49: chatto.sdk.wire.Mention.direct:type_name -> chatto.sdk.wire.Direct
+	22, // 50: chatto.sdk.wire.Mention.role:type_name -> chatto.sdk.wire.Role
+	23, // 51: chatto.sdk.wire.Mention.here:type_name -> chatto.sdk.wire.Here
+	24, // 52: chatto.sdk.wire.Mention.all:type_name -> chatto.sdk.wire.All
+	29, // 53: chatto.sdk.wire.Close.retry_after:type_name -> google.protobuf.Duration
+	54, // [54:54] is the sub-list for method output_type
+	54, // [54:54] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_realtime_proto_init() }
@@ -1251,18 +2478,47 @@ func file_realtime_proto_init() {
 		(*Frame_Heartbeat)(nil),
 		(*Frame_Close)(nil),
 		(*Frame_CaughtUp)(nil),
+		(*Frame_Snapshot)(nil),
 	}
 	file_realtime_proto_msgTypes[2].OneofWrappers = []any{
+		(*Event_RoomCreated)(nil),
+		(*Event_RoomUpdated)(nil),
 		(*Event_RoomDeleted)(nil),
+		(*Event_RoomArchived)(nil),
+		(*Event_RoomUnarchived)(nil),
+		(*Event_RoomUniversalChanged)(nil),
+		(*Event_UserJoinedRoom)(nil),
 		(*Event_UserLeftRoom)(nil),
 		(*Event_MessagePosted)(nil),
 		(*Event_MessageEdited)(nil),
 		(*Event_MessageRetracted)(nil),
+		(*Event_MessagePinned)(nil),
+		(*Event_MessageUnpinned)(nil),
+		(*Event_ThreadCreated)(nil),
+		(*Event_ReactionAdded)(nil),
+		(*Event_ReactionRemoved)(nil),
+		(*Event_ThreadViewerStateChanged)(nil),
 		(*Event_UserAccountDeleted)(nil),
+		(*Event_UserProfileChanged)(nil),
+		(*Event_ServerProfileChanged)(nil),
+		(*Event_NotificationOccurrencesChanged)(nil),
+		(*Event_NotificationUnreadStateChanged)(nil),
+		(*Event_RoomReadStateChanged)(nil),
+		(*Event_RoomLayoutChanged)(nil),
+		(*Event_RoleDeleted)(nil),
+		(*Event_RoleAssigned)(nil),
+		(*Event_RoleRevoked)(nil),
+		(*Event_RolePermissionsChanged)(nil),
 		(*Event_ViewerPermissionsChanged)(nil),
+		(*Event_UserAccountDeactivationChanged)(nil),
 	}
-	file_realtime_proto_msgTypes[6].OneofWrappers = []any{}
-	file_realtime_proto_msgTypes[7].OneofWrappers = []any{
+	file_realtime_proto_msgTypes[10].OneofWrappers = []any{
+		(*RoomGroupItem_Room)(nil),
+		(*RoomGroupItem_SidebarLink)(nil),
+	}
+	file_realtime_proto_msgTypes[12].OneofWrappers = []any{}
+	file_realtime_proto_msgTypes[18].OneofWrappers = []any{}
+	file_realtime_proto_msgTypes[19].OneofWrappers = []any{
 		(*Mention_Direct)(nil),
 		(*Mention_Role)(nil),
 		(*Mention_Here)(nil),
@@ -1274,7 +2530,7 @@ func file_realtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_realtime_proto_rawDesc), len(file_realtime_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

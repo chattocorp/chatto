@@ -4,6 +4,7 @@ package chatto.sdk.wire;
 option go_package = "github.com/chattocorp/chatto/experimental/chatto-go/internal/wire";
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 // Wire-compatible subset of proto/chatto/realtime/v1/{realtime,events}.proto.
 // Field numbers and types must match those public schemas. Unknown fields are
@@ -21,26 +22,80 @@ message Frame {
     Heartbeat heartbeat = 2;
     Close close = 3;
     CaughtUp caught_up = 4;
+    Snapshot snapshot = 5;
   }
 }
 
 message Event {
   string id = 1;
+  google.protobuf.Timestamp created_at = 2;
   optional string actor_id = 3;
   optional string cursor = 4;
   oneof event {
+    RoomChanged room_created = 10;
+    RoomChanged room_updated = 11;
     RoomChanged room_deleted = 12;
+    RoomChanged room_archived = 13;
+    RoomChanged room_unarchived = 14;
+    RoomChanged room_universal_changed = 15;
+    RoomChanged user_joined_room = 18;
     RoomChanged user_left_room = 19;
     MessagePosted message_posted = 24;
     MessageChanged message_edited = 25;
     MessageChanged message_retracted = 26;
+    MessageChanged message_pinned = 27;
+    MessageChanged message_unpinned = 28;
+    ThreadChanged thread_created = 29;
+    MessageChanged reaction_added = 49;
+    MessageChanged reaction_removed = 50;
+    ThreadChanged thread_viewer_state_changed = 52;
     Empty user_account_deleted = 48;
+    UserChanged user_profile_changed = 47;
+    Empty server_profile_changed = 53;
+    Empty notification_occurrences_changed = 56;
+    RoomChanged notification_unread_state_changed = 57;
+    RoomChanged room_read_state_changed = 58;
+    Empty room_layout_changed = 59;
+    Empty role_deleted = 62;
+    Empty role_assigned = 64;
+    Empty role_revoked = 65;
+    Empty role_permissions_changed = 66;
     Empty viewer_permissions_changed = 67;
+    Empty user_account_deactivation_changed = 73;
   }
 }
+message UserChanged { string user_id = 1; }
+message Snapshot {
+  ServerProfile server = 1;
+  repeated RoomEntry rooms = 2;
+  repeated RoomGroup room_groups = 3;
+  repeated DirectoryMember users = 4;
+}
+message ServerProfile { string name = 1; }
+message Room {
+  string id = 1;
+  RoomKind kind = 2;
+  string name = 3;
+  string description = 4;
+  bool archived = 5;
+}
+message RoomViewerState { bool is_member = 1; bool has_unread = 2; }
+message RoomEntry {
+  Room room = 1;
+  RoomViewerState viewer_state = 14;
+  repeated string member_user_ids = 15;
+}
+message RoomGroup { string id = 1; string name = 2; repeated RoomGroupItem items = 5; }
+message RoomGroupItem {
+  oneof item { RoomEntry room = 1; SidebarLink sidebar_link = 2; }
+}
+message SidebarLink { string id = 1; string label = 2; string url = 3; }
+message User { string id = 1; string login = 2; string display_name = 3; optional string avatar_url = 5; }
+message DirectoryMember { User user = 1; }
 
 // Both public edit and retraction events identify a room and message.
 message MessageChanged { string room_id = 1; string message_event_id = 2; }
+message ThreadChanged { string room_id = 1; string thread_root_event_id = 2; }
 message RoomChanged { string room_id = 1; }
 message Empty {}
 

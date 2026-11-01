@@ -152,6 +152,11 @@ func messageEvent(event *wire.Event, viewer string) (MessageEvent, bool) {
 }
 
 func decodeMessageEvent(event *wire.Event, viewer string) (MessageEvent, bool) {
+	return decodeVisibleEvent(event, viewer, false)
+}
+
+// decodeVisibleEvent keeps bot suppression separate from a human timeline feed.
+func decodeVisibleEvent(event *wire.Event, viewer string, all bool) (MessageEvent, bool) {
 	if event == nil || event.Id == "" {
 		return MessageEvent{}, false
 	}
@@ -173,11 +178,11 @@ func decodeMessageEvent(event *wire.Event, viewer string) (MessageEvent, bool) {
 	if deleted := event.GetMessageRetracted(); deleted != nil {
 		return MessageEvent{InvalidatedRoom: deleted.RoomId, InvalidatedMessage: deleted.MessageEventId, InvalidationReason: MessageRetracted}, deleted.RoomId != ""
 	}
-	if event == nil || event.Id == "" || event.GetActorId() == "" || event.GetActorId() == viewer {
+	if event == nil || event.Id == "" || event.GetActorId() == "" || (!all && event.GetActorId() == viewer) {
 		return MessageEvent{}, false
 	}
 	posted := event.GetMessagePosted()
-	if posted == nil || posted.RoomId == "" || posted.EchoOfEventId != "" || posted.BodyPlaintext == nil {
+	if posted == nil || posted.RoomId == "" || (!all && (posted.EchoOfEventId != "" || posted.BodyPlaintext == nil)) {
 		return MessageEvent{}, false
 	}
 	addressed := posted.RoomKind == wire.RoomKind_ROOM_KIND_DM

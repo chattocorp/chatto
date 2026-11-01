@@ -2,7 +2,9 @@
 
 This standalone Go module contains the Chatto connection code used by
 [Gobotto](../gobotto/README.md). It is the starting point for a future official
-Go SDK. Its API is incomplete, unstable, and not yet published separately.
+Go SDK. [Chatty](../chatty/README.md), an experimental human terminal client,
+also uses this module. Its API is incomplete, unstable, and not yet published
+separately.
 
 The package name is `chatto`. It owns:
 
@@ -16,6 +18,12 @@ The package name is `chatto`. It owns:
 There is no dependency on Gobotto, OpenRouter, environment-variable names,
 agent sessions, or server-internal Go packages. Callers supply configuration,
 callbacks, and cancellation contexts. The package does not write logs.
+
+The library has three boundaries: stateless `Client` requests, optional `Server`
+connection stores, and explicit convenience projections and bot observers. Hosts
+own display filters, image sizes, history retention, and credential persistence.
+Room groups and notification counts remain available as protocol resources;
+applications do not have to use them to build navigation or notifications.
 
 ## API
 
@@ -49,7 +57,8 @@ more context than necessary. No server upgrade is required.
 `Pings` blocks until cancellation, a connection failure, or a callback error.
 Callbacks run sequentially. Startup is live-only; there is no automatic
 reconnect or replay. Thread reads return the root and up to 50 recent replies,
-with opaque cursors for later pages. Attachments are not decoded.
+with opaque cursors for later pages. Messages include attachment metadata;
+consumers that send context to models must select their own permitted fields.
 
 Use `ObserveResumable` for automatic reconnect and bounded replay. Supply a saved
 cursor in `RecoveryOptions.Cursor`. Its `Checkpoint` callback must atomically
@@ -72,6 +81,153 @@ The `Status` callback reports disconnects so callers can pause queued work again
 need an exact retry after an uncertain result. With an empty key, the SDK creates
 a fresh UUID and sends once. Repeating that call creates a new send attempt.
 The SDK does not automatically retry requests.
+
+## Integration APIs
+
+### Stateful server connection
+
+Use `Connect` for a server with shared stores, initial synchronization, and
+automatic reconnect. The existing `Client` remains the stateless request API.
+Existing bot observers do not change behavior.
+
+```go
+client, err := chatto.New(origin, token)
+if err != nil {
+    return err
+}
+server := chatto.Connect(ctx, chatto.ConnectionOptions{
+    Client: func(context.Context, bool) (*chatto.Client, error) {
+        return client, nil // Fixed API token. Human hosts renew their session here.
+    },
+})
+defer server.Close()
+if err := server.WaitReady(ctx); err != nil {
+    return err
+}
+state := server.State()
+// state.Profile, Viewer, Rooms, Groups, Users, and Timelines are detached copies.
+updates, unsubscribe := server.Subscribe()
+defer unsubscribe()
+_ = updates // Read a signal, then read the latest state.
+```
+
+The provider must keep the same server origin and account. It can run concurrently
+with resource reads. Its `renew` argument is true when the server requires session
+rotation. Human hosts must save refresh request identity and replacement credentials
+as described below. A provider error stops the connection.
+
+The connection requests the protocol-v4 snapshot fallback. It commits the server
+profile, visible rooms, ordered room groups, and referenced users only after
+`caught_up`, together with any catch-up events. Missing DM participant profiles
+are resolved once during snapshot initialization. Large histories load on demand
+with `LoadTimeline(ctx, room, root, before)`. An empty root selects the room timeline;
+an empty cursor reuses a loaded timeline. Older pages merge into the same store.
+`LoadTimelineWithOptions` also accepts an `after` cursor and a page limit through
+`TimelineOptions`. Zero limit uses the server default. Room directory entries
+retain archived rooms. Applications choose which entries to display. Timeline
+access does not require a directory entry; the API decides access.
+
+Messages retain thread summaries and participants, reactions, edited timestamps,
+pin state, and echo origins. Profiles retain avatar URLs. Realtime replies,
+thread creation, reactions, pin changes, and thread viewer-state changes refresh
+retained message resources. All returned nested metadata is detached from stores.
+
+Realtime posts, edits, retractions, room metadata/membership changes, read-state
+changes, profile changes, and room-layout changes update the stores. Events that
+only identify a resource trigger a targeted read with the event's minimum cursor.
+Message bodies come from the message resource, not the plaintext event preview.
+Set `ConnectionOptions.IncludeNotifications` to load authoritative per-room
+notification counts into `ServerState.Notifications`. Ordinary attention is
+`Unread - Important`. Counts refresh on notification events and reconnect;
+expired counts refresh on the next realtime heartbeat. Unsupported count APIs
+leave the map empty without blocking messaging. This option defaults to false.
+`ListNotifications` reads paginated occurrences without choosing presentation or
+attention filters. `NotificationOccurrence.MessageTarget` resolves known message
+signals and leaves unknown signals and invitations without an invented message
+destination. Hosts choose which occurrence to navigate to and whether to mark it read.
+This projection does not yet expose a separate asset store, typing, presence, calls,
+roles, or full notification occurrences. Permission and account changes conservatively
+clear private state and request a replacement snapshot.
+
+Reconnect retains the last applied event or heartbeat cursor, with exponential
+backoff, jitter, and server retry guidance. Accepted replay retains loaded history.
+Snapshot fallback replaces the stores and discards old timelines. Failed handshakes
+do not publish partial snapshots. In-flight resource reads cannot restore data
+across a reset. `ServerState.Generation` identifies store replacement; `Ready`
+indicates that committed data is available, also during a brief disconnection.
+Terminal failure and `Close` clear the stores. Cursors and histories are in memory
+only; a process restart requests a fresh snapshot. Use `ReleaseTimeline(key)` to
+remove cached history. It also prevents an in-flight load from restoring that
+history. A later explicit load can populate it again. Hosts choose when to release
+histories; reset and close discard all stores.
+
+`Subscribe` supplies an independent coalesced channel and an idempotent cancel
+function. It sends an initial signal. Cancel each subscription when finished,
+including after the connection closes. Cancellation closes its channel.
+The older `Updates` channel remains available for one consumer. Neither channel
+is an event log. Read current state after a signal. `ReadState(keys...)` copies
+metadata and only the selected cached timelines, atomically. With no keys, it
+copies no histories. `State` copies all stores. Chatty uses focused reads and an
+independent subscription without polling the directory.
+
+### Session credentials
+
+`LoginBrowser` signs in through the server's browser flow with S256 PKCE and a
+temporary loopback callback. It uses the existing `chatto://loopback` client;
+the server must enable `auth.loopback_client_enabled`. The callback passed to
+this function opens or displays the authorization URL. Never log that URL.
+`LoginPassword` supports servers with direct login enabled. Neither function
+stores credentials or opens a browser itself.
+
+Both return `HumanSession`. Save it in private storage and obtain an immutable
+API client with `session.Client()`. Before access-token expiry, call
+`PrepareRefresh`, persist the session, then call `Refresh`. Persist the returned
+session before using its credentials. Keep the old prepared session on failure;
+an uncertain retry must use the same refresh token and request ID. `Logout`
+revokes the session. The caller owns synchronization and credential persistence.
+
+`ListRooms` exposes caller-selected offset and limit; `Rooms` is a convenience
+wrapper with a 100-room page. `RoomGroups` returns the finite ordered
+channel-group snapshot, including room and sidebar-link items. DMs remain in
+`Rooms`. `Timeline` reads a room or thread and
+accepts a server-owned `before` cursor for older messages. It returns message
+posts and included author profiles; lifecycle events are omitted.
+`TimelineWithOptions` accepts a page limit and either cursor direction.
+`TimelineEvents` returns all events and included resources as raw JSON, including
+types not yet modeled by this SDK. `Profiles`
+resolves batches of up to 100 public users. `NewMessageKey` supplies an outgoing
+send identity; `Reply` also sends room roots when the thread root is empty.
+
+`TimelineAround` reads a window around an exact message in a room or thread.
+`Server.LoadTimelineAround` replaces that timeline's cached window with the result;
+it does not combine disjoint history. Both use the existing around-event APIs.
+When `HasNewer` is true, live posts outside the window do not append across the
+unloaded gap. Existing messages still receive edits. Page forward with `After`,
+or release the timeline and load it again to return to latest history.
+
+Messages include attachment metadata. `GetAsset` checks current room access and
+returns fresh metadata and signed URLs for any file type. Pass an optional
+`ImageTransform` to request a thumbnail with caller-selected dimensions and fit.
+`DownloadAsset` fetches fresh authorization and encoded bytes. Its
+`AssetDownloadOptions.MaxBytes` must be positive; the caller supplies a deadline
+through the context. A nil thumbnail selects the original file.
+`DownloadAssetURL` downloads a server-issued URL, such as a profile avatar,
+with the same transport boundaries and a caller-selected byte limit. The caller
+owns URL refresh and deadlines.
+It accepts only URLs on the connected server's origin,
+does not follow redirects, and sends no bearer token with the signed download.
+It returns encoded bytes; callers must bound decoded dimensions before they
+allocate image pixels. Signed asset URLs are credentials: do not log or persist
+them. Downloads do not require a separate asset host. Decoded-file limits remain
+the caller's responsibility. The experimental `ImagePreview` and `ImageOriginal`
+helpers were replaced by `DownloadAsset`; Chatty now owns its thumbnail size,
+download limits, and timeout.
+
+`ObserveTimeline` reconnects and observes visible posts, including self-posts,
+echoes, and messages without text. It also supplies the same history and access
+invalidations as `ObserveResumable`. Hydrate events through resource reads: the
+event body is only a plaintext preview. This is not a complete room/profile or
+reaction projection. Existing bot observers keep their suppression behavior.
 
 ## Development
 

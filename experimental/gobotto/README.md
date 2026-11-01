@@ -745,6 +745,11 @@ ID, login, and display name. The profile is also stored in the private session
 snapshot, but is excluded from operational logs. A thread read can include messages from
 other participants and their Chatto user and message IDs. Do not use private
 conversations unless participants agree to this use.
+Gobotto supplies an explicit text-message projection to the model. SDK attachment
+metadata, signed asset URLs, and creation timestamps are excluded from this
+projection and the durable intake inbox. Edit checks compare the same text and
+identity fields, so display metadata changes do not reset model context. URLs
+that users write in message text remain part of that text.
 
 Chatto and OpenRouter see the bot host's network IP address. OpenRouter routes
 requests to model providers under its routing and data policies. The bot does

@@ -832,9 +832,9 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			report("Older thread history omitted")
 		}
 		data, err := json.Marshal(struct {
-			Messages     []chatto.Message `json:"messages"`
-			OlderOmitted bool             `json:"olderOmitted"`
-		}{page.Messages, page.HasOlder})
+			Messages     []modelMessage `json:"messages"`
+			OlderOmitted bool           `json:"olderOmitted"`
+		}{messagesForModel(page.Messages), page.HasOlder})
 		return string(data), err
 	}
 	if c.model == nil {
@@ -887,7 +887,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	c.model.SetInstructions(c.identity, c.systemPrompt, c.ownerUserIDs...)
 	input := struct {
 		CurrentTime    string           `json:"currentTime"`
-		Messages       []chatto.Message `json:"newMessages"`
+		Messages       []modelMessage   `json:"newMessages"`
 		Addressed      []string         `json:"addressedMessageIds"`
 		Triggers       []string         `json:"triggerMessageIds"`
 		Authors        []triggerAuthor  `json:"triggerAuthors"`
@@ -910,7 +910,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		c.current[m.ID] = fingerprint(m)
 		c.contextIDs.Store(m.ID, c.current[m.ID])
 		if !c.seen[m.ID] {
-			input.Messages = append(input.Messages, m)
+			input.Messages = append(input.Messages, messageForModel(m))
 			c.seen[m.ID] = true
 		}
 		if event.Addressed {

@@ -1,0 +1,16 @@
+min_version = "2026.8.9"
+
+[tools]
+go = "1.27.3"
+
+[env]
+GOWORK = "off"
+
+[tasks.chatty]
+description = "Build and run the Chatty terminal client"
+dir = "{{config_root}}"
+run = "go build -o bin/chatty . && exec ./bin/chatty"
+
+[tasks.check]
+description = "Test and vet Chatty"
+run = ["go test -race ./...", "go vet ./..."]
