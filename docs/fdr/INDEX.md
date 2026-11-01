@@ -26,7 +26,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-09-25    |
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-10-28    |
 | [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-10-31    |
-| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-10-22    |
+| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-11-01    |
 | [FDR-018](FDR-018-account-lifecycle.md)                     | Account Lifecycle                     | Active       | 2026-10-27    |
 | [FDR-019](FDR-019-room-lifecycle.md)                        | Room Lifecycle                        | Active       | 2026-10-28    |
 | [FDR-020](FDR-020-server-branding-and-configuration.md)     | Server Branding & Configuration       | Active       | 2026-09-18    |
