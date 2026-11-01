@@ -18,7 +18,7 @@ async function temporary(t) {
   return directory;
 }
 
-for (const version of ['0.5.0', '0.5.0-beta.24']) {
+for (const version of ['0.5.0', '0.5.0-beta.24', '0.5.0-rc.1']) {
   test(`manifests describe the exact ${version} artifacts and parse with the real updater`, async (t) => {
     const directory = await temporary(t);
     for (const suffix of [
@@ -51,6 +51,7 @@ for (const version of ['0.5.0', '0.5.0-beta.24']) {
       assert.equal(file.size, bytes.length);
       assert.equal(info.rolloutHours, 36);
     }
+    assert.equal((await readdir(directory)).filter((name) => name.endsWith('.yml')).length, 4);
     // Use the installed updater's channel rules, so an upstream naming change
     // cannot silently disconnect Linux installations from published manifests.
     const previousArch = process.env.TEST_UPDATER_ARCH;
@@ -84,6 +85,14 @@ test('incomplete platform uploads produce no manifests', async (t) => {
     (await readdir(directory)).some((file) => file.endsWith('.yml')),
     false
   );
+});
+
+test('unsupported release versions are rejected before reading artifacts', async (t) => {
+  const directory = await temporary(t);
+  for (const version of ['0.5.0-rc', '0.5.0-rc.invalid', '0.5.0-nightly.1', 'not-a-version']) {
+    await assert.rejects(writeUpdateManifests(directory, version), /stable, beta, or RC/);
+  }
+  assert.deepEqual(await readdir(directory), []);
 });
 
 test('missing Linux ARM64 upload prevents manifest publication', async (t) => {
@@ -128,6 +137,22 @@ test('bundled updater loads without node_modules and retains beta version and HT
   const updater = module.exports.createUpdater('0.5.0-beta.24');
   assert.equal(updater.currentVersion.version, '0.5.0-beta.24');
   assert.ok(updater.httpExecutor);
+  assert.equal((await updater.clientPromise).constructor.name, 'DesktopGitHubProvider');
+  // The provider selects releases, but the actual updater owns SemVer ordering.
+  for (const [installed, offered, available] of [
+    ['0.5.0-beta.28', '0.5.0-beta.29', true],
+    ['0.5.0-beta.29', '0.5.0-rc.2', true],
+    ['0.5.0-beta.24', '0.5.0-rc.1', true],
+    ['0.5.0-rc.1', '0.5.0-rc.2', true],
+    ['0.5.0-rc.1', '0.5.0', true],
+    ['0.5.0-rc.1', '0.5.0-beta.24', false],
+    ['0.5.0', '0.5.0-rc.1', false]
+  ]) {
+    const candidate = module.exports.createUpdater(installed);
+    candidate.allowDowngrade = false;
+    candidate.isUserWithinRollout = () => true;
+    assert.equal(await candidate.isUpdateAvailable({ version: offered }), available);
+  }
   assert.match(
     await readFile(path.join(directory, 'updater-licenses.txt'), 'utf8'),
     /electron-updater/

@@ -33,6 +33,9 @@ importers:
       '@electron/packager':
         specifier: 20.2.0
         version: 20.2.0(supports-color@7.2.0)
+      builder-util-runtime:
+        specifier: 9.7.0
+        version: 9.7.0(supports-color@7.2.0)
       electron:
         specifier: 45.1.0
         version: 45.1.0(supports-color@7.2.0)
