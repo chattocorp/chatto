@@ -3,6 +3,28 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-rc.2](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.29...v0.5.0-rc.2) (2026-11-01)
+
+
+### Features
+
+* **chatty:** add terminal client and reusable Go connection APIs ([#3420](https://github.com/chattocorp/chatto/issues/3420)) ([da2144f](https://github.com/chattocorp/chatto/commit/da2144fe5bb320446b9b78d275702f48e62514a4))
+* **frontend:** add inline Vimeo video embeds ([#3427](https://github.com/chattocorp/chatto/issues/3427)) ([b9bd6e1](https://github.com/chattocorp/chatto/commit/b9bd6e1808061922f460d364a930922fce63f478))
+
+
+### Bug Fixes
+
+* **desktop:** allow macOS update restarts to close the window ([#3430](https://github.com/chattocorp/chatto/issues/3430)) ([48f3469](https://github.com/chattocorp/chatto/commit/48f3469d72a235d70214f79d314562389c16b67e))
+* **frontend:** preserve diagram geometry across virtualized remounts ([#3426](https://github.com/chattocorp/chatto/issues/3426)) ([3541a15](https://github.com/chattocorp/chatto/commit/3541a152dd168daeaa940b81183880dd73bf1ac5))
+* **frontend:** preserve image proportions and respect flat preview depth ([#3425](https://github.com/chattocorp/chatto/issues/3425)) ([70f26a4](https://github.com/chattocorp/chatto/commit/70f26a4f9918e63a949d3d83ccac15d43b1cae6f))
+* **frontend:** reserve video attachment geometry while loading ([#3428](https://github.com/chattocorp/chatto/issues/3428)) ([6a8710a](https://github.com/chattocorp/chatto/commit/6a8710ace2eb7737edb1fe7618a4178d5fcdd088))
+* **tooling:** default Go commands to trimpath in mise ([#3429](https://github.com/chattocorp/chatto/issues/3429)) ([840ba01](https://github.com/chattocorp/chatto/commit/840ba01858a717ae3936187faded9731e0184e5b))
+
+
+### Miscellaneous Chores
+
+* **release:** target 0.5.0-rc.2 ([1c3b77b](https://github.com/chattocorp/chatto/commit/1c3b77bb43c46c34f72d966e2ef4445ff6727e5a))
+
 ## [0.5.0-beta.29](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.28...v0.5.0-beta.29) (2026-11-01)
 
 
