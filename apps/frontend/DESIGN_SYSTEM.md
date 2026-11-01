@@ -542,6 +542,13 @@ dialog trays, and preview cards. Its two primitives in `src/app.css` are the sou
 - `inset-content` owns the 6px inner corners, `background` fill, and inset depth.
   It does not set padding or clip content.
 
+`inset-frame` resets `--inset-frame-visibility` to 1. Preview variants reduce
+this value with depth: at Flat, their decorative border and rim fill are
+transparent. Their lighting and inline preview shadow also disappear. Border
+space, padding, and corners stay the same, so a depth change does not resize content.
+Floating menus and hover cards keep their floating elevation at Flat. Menus
+also keep their boundary.
+
 The primitives set no width, margin, outer shadow, positioning, or animation.
 Consumers retain native semantics and own those choices. `floating-frame` and
 `floating-inset` are lower-level lighting finishes, not alternative frame
@@ -625,10 +632,13 @@ its interaction or content lifecycle.
 | `preview-thumbnail` | Compact media or fallback tile inside a row or gallery. Includes the shared border and inset surface. Owners set dimensions and image fit. |
 | `preview-surface`   | Hover-card layout: `preview-frame`, 288px width, small text, and floating shadow. Position and motion belong to `FloatingPopover`.         |
 
-Use a 4px rim around media and card bodies. Compact file and composer rows can
-use 8–12px padding for their controls. Put captions or destination rows on the
+Use a 4px rim around media and card bodies. The rim becomes visible as depth
+increases from Flat and reaches its full fill and border at level 50.
+Compact file and composer rows can use 8–12px padding for their controls.
+Put captions or destination rows on the
 outer frame. Do not add the old outline around a preview. Depth settings must
-control the same lighting and inset effects as context menus.
+control the same lighting and inset effects as context menus. Preview shadows
+also follow depth; floating-menu elevation stays independent.
 
 Preserve image aspect ratios, stable loading dimensions, overflow limits,
 keyboard focus, accessible names, and action hit areas. Image thumbnails use
@@ -749,10 +759,15 @@ uses zero strength, level 50 (Kinda 3D) uses 0.75 strength and 1 width, and
 level 100 (Very 3D) uses 1.75 strength and 1.5 width. Steps between these
 interpolate. Changes interpolate over
 220 ms, with no transition under reduced motion. The preference is restored
-before the first paint. Keep boundaries, focus rings, status colours, and
-floating-menu elevation independent of this setting. Accent swatches become
-solid in Flat, retain their gradient in 3D, and add sheen in Very 3D. New depth recipes must
-use these shared parameters instead of fixed decorative shadow opacity.
+before the first paint. Keep functional boundaries, focus rings, status colours, and
+floating-menu elevation independent of this setting.
+Decorative preview borders and rim fills follow depth. Compute frame lighting
+from the local depth strength and unscaled theme parameters, so local depth
+comparisons do not inherit shading from a different depth level.
+
+Accent swatches become solid in Flat, retain their gradient in 3D, and add sheen
+in Very 3D. New depth recipes must use these shared parameters instead of fixed
+decorative shadow opacity.
 
 ### Hover Lift
 

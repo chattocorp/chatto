@@ -251,11 +251,11 @@
     );
   }
 
-  function imageButtonStyle(display: ThumbDisplay, variant: 'single' | 'gallery'): string {
-    if (variant === 'gallery') {
+  function imageButtonStyle(display: ThumbDisplay, fixedHeight: boolean): string {
+    if (fixedHeight) {
       return `width: ${display.width}px; height: ${display.height}px`;
     }
-    return `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`;
+    return `width: ${display.width}px; max-width: 100%`;
   }
 
   function imageAttachmentUrl(attachment: Attachment): string | null {
@@ -457,6 +457,8 @@
         : variant === 'gallery'
           ? fallbackGalleryThumbDisplay()
           : fallbackSingleThumbDisplay()}
+    <!-- Keep minimum-width portraits tall enough to show their contained image. -->
+    {@const fixedHeight = variant === 'gallery' || display.width === MIN_THUMB_SIZE}
     <div
       class={[
         'group/preview attachment-media-frame',
@@ -477,7 +479,7 @@
         aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
-        style={imageButtonStyle(display, variant)}
+        style={imageButtonStyle(display, fixedHeight)}
         class="relative my-1.5 block min-w-0 cursor-pointer preview-frame overflow-hidden"
       >
         {#if attachment.description}
@@ -494,8 +496,11 @@
             loading="lazy"
             src={imageUrl}
             alt={attachment.description || attachment.filename}
+            style:aspect-ratio={fixedHeight ? undefined : `${display.width} / ${display.height}`}
             class={[
-              'h-full w-full preview-content',
+              'w-full preview-content',
+              // The content owns the ratio; the frame adds its rim outside it.
+              fixedHeight ? 'h-full' : 'h-auto',
               display.fit === 'contain' ? 'object-contain' : 'object-cover'
             ]}
             onload={() => settledImageUrls.set(attachment.id, imageUrl)}
@@ -505,7 +510,14 @@
             }}
           />
         {:else}
-          <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
+          <span
+            style:aspect-ratio={fixedHeight ? undefined : `${display.width} / ${display.height}`}
+            class={[
+              'flex w-full items-center justify-center text-muted',
+              fixedHeight ? 'h-full' : 'h-auto'
+            ]}
+            aria-hidden="true"
+          >
             <span aria-hidden="true" class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
           </span>
         {/if}

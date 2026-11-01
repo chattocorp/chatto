@@ -290,10 +290,14 @@
   --app-inset-opacity: 0;
 
   /* Pale surfaces need less frame shading than dark surfaces. */
-  --frame-shade: rgb(0 0 0 / calc(0.02 * var(--depth-strength)));
-  --frame-edge-shade: rgb(0 0 0 / calc(0.04 * var(--depth-strength)));
-  --frame-inset-shadow: 0 1px 3px rgb(0 0 0 / calc(0.08 * var(--depth-strength)));
-  --frame-inset-edge: rgb(0 0 0 / calc(0.025 * var(--depth-strength)));
+  --frame-shade-alpha: 0.02;
+  --frame-edge-shade-alpha: 0.04;
+  --frame-inset-shadow-alpha: 0.08;
+  --frame-inset-edge-alpha: 0.025;
+  --frame-inset-shadow-offset: 0 1px 3px;
+  /* SVG diagrams consume resolved colours; frame utilities apply depth locally. */
+  --frame-shade: rgb(0 0 0 / calc(var(--frame-shade-alpha) * var(--depth-strength)));
+  --frame-edge-shade: rgb(0 0 0 / calc(var(--frame-edge-shade-alpha) * var(--depth-strength)));
 
   --color-background: color-mix(
     in srgb,
@@ -473,10 +477,11 @@
   --app-frame-elevation: 0 0 #0000;
   --app-inset-opacity: 0.85;
 
-  --frame-shade: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
-  --frame-edge-shade: rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
-  --frame-inset-shadow: 0 2px 4px rgb(0 0 0 / calc(0.18 * var(--depth-strength)));
-  --frame-inset-edge: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
+  --frame-shade-alpha: 0.06;
+  --frame-edge-shade-alpha: 0.1;
+  --frame-inset-shadow-alpha: 0.18;
+  --frame-inset-edge-alpha: 0.06;
+  --frame-inset-shadow-offset: 0 2px 4px;
 
   /* See light-mode comment — sits below all surfaces for an inset well look. */
   --color-input: var(--tone-950);
@@ -1916,7 +1921,18 @@
 /* Inset Frame: the shared shell for menus, palettes, and previews.
  * Layout, clipping, elevation, and interactions belong to its consumers. */
 @utility inset-frame {
-  @apply rounded-lg border border-text/10 floating-frame text-text;
+  @apply rounded-lg border floating-frame text-text;
+  --inset-frame-visibility: 1;
+  border-color: color-mix(
+    in srgb,
+    var(--color-text) calc(10% * var(--inset-frame-visibility)),
+    transparent
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface) calc(100% * var(--inset-frame-visibility)),
+    transparent
+  );
   /* A default rim must not override a row's attachment-card or p-* spacing. */
   :where(&) {
     @apply p-1;
@@ -1927,9 +1943,13 @@
   @apply rounded-md bg-background floating-inset;
 }
 
-/* Preview variants add clipping and elevation, never a second frame recipe. */
+/* Preview rims fade to transparent at Flat without changing their geometry. */
 @utility preview-frame {
-  @apply overflow-hidden inset-frame shadow-sm;
+  @apply overflow-hidden inset-frame shadow-[var(--preview-shadow)];
+  --inset-frame-visibility: min(1, calc(var(--depth-strength) / 0.75));
+  --preview-shadow:
+    0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))),
+    0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
 }
 
 @utility preview-content {
@@ -2570,10 +2590,10 @@
 @utility floating-frame {
   @apply bg-surface surface-raised;
   --lighting-top: rgb(255 255 255 / calc(0.06 * var(--depth-strength)));
-  --lighting-bottom: var(--frame-shade);
+  --lighting-bottom: rgb(0 0 0 / calc(var(--frame-shade-alpha) * var(--depth-strength)));
   --lighting-midpoint: 45%;
   --lighting-edge-top: rgb(255 255 255 / calc(0.1 * var(--depth-strength)));
-  --lighting-edge-bottom: var(--frame-edge-shade);
+  --lighting-edge-bottom: rgb(0 0 0 / calc(var(--frame-edge-shade-alpha) * var(--depth-strength)));
 }
 
 /* Compact informational cards share the same surface as menus and panels. */
@@ -2584,8 +2604,9 @@
 /* A soft inner edge makes content sit below the surrounding floating frame. */
 @utility floating-inset {
   @apply surface-lowered;
-  --lowered-shadow: var(--frame-inset-shadow);
-  --lowered-edge: 0 0 0 1px var(--frame-inset-edge);
+  --lowered-shadow: var(--frame-inset-shadow-offset)
+    rgb(0 0 0 / calc(var(--frame-inset-shadow-alpha) * var(--depth-strength)));
+  --lowered-edge: 0 0 0 1px rgb(0 0 0 / calc(var(--frame-inset-edge-alpha) * var(--depth-strength)));
   outline: 1px solid var(--color-depth-border);
   outline-offset: -1px;
 }

@@ -362,11 +362,11 @@ describe('MessageAttachments', () => {
     const { image, button } = imageFrame(container, 'tall.jpg');
 
     expect(button.getAttribute('style')).toContain('width: 40px');
-    expect(button.getAttribute('style')).toContain('aspect-ratio: 40 / 200');
+    expect(image.style.aspectRatio).toBe('40 / 200');
     expect(button.getBoundingClientRect().height).toBeLessThanOrEqual(202);
     expect(image.className).toContain('object-contain');
     expect(image.className).not.toContain('object-cover');
-    expect(image.className).toContain('h-full');
+    expect(image.className).toContain('h-auto');
     expect(image.className).toContain('w-full');
   });
 
@@ -390,6 +390,18 @@ describe('MessageAttachments', () => {
       expect(action.getBoundingClientRect().width).toBe(28);
       expect(action.getBoundingClientRect().height).toBe(28);
     }
+  });
+
+  it('keeps minimum-width portrait thumbnails at the height limit', () => {
+    const { container } = renderAttachment(
+      imageAttachment({ filename: 'very-tall.jpg', width: 100, height: 2000 })
+    );
+    const { image, button } = imageFrame(container, 'very-tall.jpg');
+    const bounds = button.getBoundingClientRect();
+
+    expect(bounds.width).toBe(24);
+    expect(bounds.height).toBe(200);
+    expect(image.className).toContain('object-contain');
   });
 
   it.each([false, true])('balances image action insets (gallery: %s)', (gallery) => {
@@ -421,10 +433,10 @@ describe('MessageAttachments', () => {
     const { image, button } = imageFrame(container, 'ultra-wide.jpg');
 
     expect(button.getAttribute('style')).toContain('width: 480px');
-    expect(button.getAttribute('style')).toContain('aspect-ratio: 480 / 24');
+    expect(image.style.aspectRatio).toBe('480 / 24');
     expect(image.className).toContain('object-contain');
     expect(image.className).not.toContain('object-cover');
-    expect(image.className).toContain('h-full');
+    expect(image.className).toContain('h-auto');
     expect(image.className).toContain('w-full');
   });
 
@@ -440,9 +452,9 @@ describe('MessageAttachments', () => {
     const { image, button } = imageFrame(container, 'ordinary.jpg');
 
     expect(button.getAttribute('style')).toContain('width: 356px');
-    expect(button.getAttribute('style')).toContain('aspect-ratio: 356 / 200');
+    expect(image.style.aspectRatio).toBe('356 / 200');
     expect(image.className).toContain('object-cover');
-    expect(image.className).toContain('h-full');
+    expect(image.className).toContain('h-auto');
     expect(image.className).toContain('w-full');
   });
 
@@ -453,28 +465,48 @@ describe('MessageAttachments', () => {
     const { image, button } = imageFrame(container, 'unknown-size.jpg');
 
     expect(button.style.width).toBe('320px');
-    expect(button.style.aspectRatio).toBe('320 / 200');
-    expect(button.getBoundingClientRect().height).toBeCloseTo(200, 0);
+    expect(image.style.aspectRatio).toBe('320 / 200');
+    const initialHeight = button.getBoundingClientRect().height;
+    expect(initialHeight).toBeGreaterThan(190);
     expect(image.className).toContain('object-contain');
     expect(button.querySelector('[data-loading-fog]')).not.toBeNull();
 
     image.dispatchEvent(new Event('load'));
     await vi.waitFor(() => expect(button.querySelector('[data-loading-fog]')).toBeNull());
-    expect(button.getBoundingClientRect().height).toBeCloseTo(200, 0);
+    expect(button.getBoundingClientRect().height).toBe(initialHeight);
   });
 
-  it('scales a single image with the message width and preserves its proportions', async () => {
+  it.each([
+    { width: 1600, height: 800, frameWidth: 400 },
+    { width: 2000, height: 400, frameWidth: 480 },
+    { width: 320, height: 1600, frameWidth: 40 }
+  ])('preserves the content ratio inside the image rim ($width × $height)', async (size) => {
+    const url = `data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}"><rect width="100%" height="100%" fill="teal"/></svg>`
+    )}`;
     const { container } = renderAttachment(
-      imageAttachment({ filename: 'wide.jpg', width: 1600, height: 800 })
+      imageAttachment({
+        filename: 'ratio.svg',
+        width: size.width,
+        height: size.height,
+        assetUrl: { url, expiresAt: '2099-01-01T00:00:00Z' },
+        thumbnailAssetUrl: null
+      })
     );
-    const { button } = imageFrame(container, 'wide.jpg');
+    const { image, button } = imageFrame(container, 'ratio.svg');
+    await vi.waitFor(() => expect(image.naturalWidth).toBe(size.width));
 
     for (const width of [240, 120, 640]) {
       container.style.width = `${width}px`;
       await vi.waitFor(() => {
         const bounds = button.getBoundingClientRect();
-        expect(bounds.width).toBe(Math.min(width, 400));
-        expect(bounds.height).toBeCloseTo(bounds.width / 2, 0);
+        const content = image.getBoundingClientRect();
+        expect(bounds.width).toBe(Math.min(width, size.frameWidth));
+        expect(content.height).toBeCloseTo((content.width * size.height) / size.width, 1);
+        expect(content.left - bounds.left).toBe(5);
+        expect(bounds.right - content.right).toBe(5);
+        expect(content.top - bounds.top).toBe(5);
+        expect(bounds.bottom - content.bottom).toBeCloseTo(5, 1);
         expect(container.scrollWidth).toBe(container.clientWidth);
       });
     }
@@ -699,19 +731,29 @@ describe('MessageAttachments', () => {
     expect(Array.from(players, (player) => player.dataset.autoLoop)).toEqual(['true', 'false']);
   });
 
-  it('does not render empty media URLs for attachments that are missing asset URLs', () => {
-    const { container } = renderAttachment(
-      imageAttachment({
-        filename: 'pending.jpg',
-        assetUrl: null,
-        thumbnailAssetUrl: null
-      })
-    );
+  it('reserves the image frame while an asset URL is missing', async () => {
+    const attachment = imageAttachment({
+      filename: 'pending.jpg',
+      assetUrl: null,
+      thumbnailAssetUrl: null
+    });
+    const view = renderAttachment(attachment);
+    const { container } = view;
+    const button = container.querySelector<HTMLElement>('[data-message-image-attachment]')!;
+    const initialHeight = button.getBoundingClientRect().height;
 
     expect(container.querySelector('img[src=""]')).toBeNull();
     expect(container.querySelector('video[src=""]')).toBeNull();
     expect(container.querySelector('audio[src=""]')).toBeNull();
     expect(container.querySelector('img[alt="pending.jpg"]')).toBeNull();
+    await view.rerender({
+      attachments: [
+        { ...attachment, assetUrl: { url: transparentGif, expiresAt: '2099-01-01T00:00:00Z' } }
+      ]
+    });
+    const { image } = imageFrame(container, 'pending.jpg');
+    await vi.waitFor(() => expect(image.complete).toBe(true));
+    expect(button.getBoundingClientRect().height).toBe(initialHeight);
   });
 
   it('refreshes stale attachment URLs when mounted', async () => {
