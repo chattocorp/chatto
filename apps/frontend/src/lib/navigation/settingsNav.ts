@@ -7,7 +7,11 @@ import { desktopUpdates } from '$lib/desktop/updates.svelte';
 /** Navigation details shared by the sidebar and the descriptive Overview cards. */
 type SettingsNavItem = NavItem & { description?: string };
 /** One collapsible settings section and its Overview cards. */
-export type SettingsNavGroup = Omit<NavGroup, 'items'> & { items: SettingsNavItem[] };
+export type SettingsNavGroup = Omit<NavGroup, 'items'> & {
+  /** Stable section identity, independent of its translated label and storage key. */
+  id: 'app-preferences' | 'your-account' | 'server-configuration';
+  items: SettingsNavItem[];
+};
 
 /**
  * Shared groups for the settings sidebar and Overview. Call from a reactive derivation.
@@ -18,7 +22,8 @@ export function getSettingsNavGroups(server?: {
   serverSegment: string;
   managementNavItems: SettingsNavItem[];
 }): SettingsNavGroup[] {
-  const appPreferences = {
+  const appPreferences: SettingsNavGroup = {
+    id: 'app-preferences',
     label: m('settings.nav.app_preferences'),
     items: getAppPreferenceNavItems(server?.serverSegment),
     persistKey: server
@@ -57,11 +62,13 @@ export function getSettingsNavGroups(server?: {
   return [
     appPreferences,
     {
+      id: 'your-account',
       label: m('settings.nav.your_account'),
       items: userPreferenceNavItems,
       persistKey: serverStorageKey(serverId, 'collapsible:settings:your-account')
     },
     {
+      id: 'server-configuration',
       label: m('settings.nav.server_configuration'),
       items: managementNavItems,
       persistKey: serverStorageKey(serverId, 'collapsible:settings:server-configuration')

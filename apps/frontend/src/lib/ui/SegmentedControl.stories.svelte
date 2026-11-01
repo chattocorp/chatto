@@ -115,25 +115,44 @@
       expect(group.getBoundingClientRect().width).toBeLessThan(
         container.getBoundingClientRect().width
       );
-    });
-    container.style.width = '320px';
-    await waitFor(() => {
-      expect(controls[1].getBoundingClientRect().top).toBeGreaterThan(
-        controls[0].getBoundingClientRect().bottom
-      );
-      for (const control of controls) {
-        expect(
-          Math.abs(control.getBoundingClientRect().width - container.getBoundingClientRect().width)
-        ).toBeLessThan(1);
-        const selected = control.querySelector('input:checked')!.closest('label')!;
-        expect(
-          Math.abs(
-            parseFloat(control.style.getPropertyValue('--segmented-indicator-width')) -
-              selected.getBoundingClientRect().width
-          )
-        ).toBeLessThan(1);
+      for (const text of group.querySelectorAll<HTMLElement>('label > span > span')) {
+        expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth);
       }
     });
+    for (const width of [320, 256]) {
+      container.style.width = `${width}px`;
+      await waitFor(() => {
+        expect(controls[1].getBoundingClientRect().top).toBeGreaterThan(
+          controls[0].getBoundingClientRect().bottom
+        );
+        for (const control of controls) {
+          expect(
+            Math.abs(
+              control.getBoundingClientRect().width - container.getBoundingClientRect().width
+            )
+          ).toBeLessThan(1);
+          const labels = [...control.querySelectorAll('label')];
+          const optionWidth = labels[0].getBoundingClientRect().width;
+          for (const label of labels) {
+            const bounds = label.getBoundingClientRect();
+            const face = label.querySelector('span')!.getBoundingClientRect();
+            const text = label.querySelector('span > span')!.getBoundingClientRect();
+            expect(Math.abs(bounds.width - optionWidth)).toBeLessThan(1);
+            expect(Math.abs(face.width - bounds.width)).toBeLessThan(1);
+            expect(
+              Math.abs((text.left + text.right - bounds.left - bounds.right) / 2)
+            ).toBeLessThan(1);
+          }
+          const selected = control.querySelector('input:checked')!.closest('label')!;
+          expect(
+            Math.abs(
+              parseFloat(control.style.getPropertyValue('--segmented-indicator-width')) -
+                selected.getBoundingClientRect().width
+            )
+          ).toBeLessThan(1);
+        }
+      });
+    }
   }}
 >
   <div data-filter-demo class="max-w-full" style:width="900px">

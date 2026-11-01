@@ -59,7 +59,7 @@ describe('settings Overview', () => {
       .not.toBeInTheDocument();
   });
 
-  it('shows the notice only for available inactive Shield Mode, including state changes', async () => {
+  it('shows the notice in Server only for available inactive Shield Mode, including state changes', async () => {
     const view = render(Overview);
     const notice = view.getByText(/To use your additional permissions/);
     await expect.element(notice).not.toBeInTheDocument();
@@ -67,6 +67,9 @@ describe('settings Overview', () => {
     await expect.element(notice).not.toBeInTheDocument();
     mode.set('available', true);
     await expect.element(notice).toBeVisible();
+    await expect
+      .element(view.getByRole('region', { name: 'Server', exact: true }))
+      .toHaveTextContent('To use your additional permissions');
     mode.set('active', true);
     await expect.element(notice).not.toBeInTheDocument();
     mode.set('active', false);

@@ -26,11 +26,11 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-09-25    |
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-10-28    |
 | [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-10-31    |
-| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-10-22    |
+| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-11-01    |
 | [FDR-018](FDR-018-account-lifecycle.md)                     | Account Lifecycle                     | Active       | 2026-10-27    |
 | [FDR-019](FDR-019-room-lifecycle.md)                        | Room Lifecycle                        | Active       | 2026-10-28    |
 | [FDR-020](FDR-020-server-branding-and-configuration.md)     | Server Branding & Configuration       | Active       | 2026-09-18    |
-| [FDR-021](FDR-021-admin-dashboard.md)                       | Admin Dashboard & System Monitoring   | Active       | 2026-10-16    |
+| [FDR-021](FDR-021-admin-dashboard.md)                       | Admin Dashboard & System Monitoring   | Active       | 2026-11-01    |
 | [FDR-022](FDR-022-user-profile.md)                          | User Profile                          | Active       | 2026-10-30    |
 | [FDR-023](FDR-023-authentication-and-sessions.md)           | Authentication & Sessions             | Active       | 2026-10-27    |
 | [FDR-024](FDR-024-permission-inspection-tool.md)            | Permission Inspection Tool            | Active       | 2026-08-27    |
@@ -55,7 +55,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
 | [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-30    |
 | [FDR-045](FDR-045-realtime-event-stream.md)                 | Realtime Event Stream                 | Experimental | 2026-09-25    |
-| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-09-24    |
+| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-01    |
 | [FDR-047](FDR-047-first-run-setup.md)                       | First-Run Setup                       | Active       | 2026-10-10    |
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-09-25    |
 | [FDR-049](FDR-049-server-gutter.md)                         | Server Gutter                         | Active       | 2026-10-09    |
