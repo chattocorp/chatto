@@ -138,8 +138,9 @@ live events update the store. Use **Alt+R** to return to the latest stored messa
 
 Message metadata appears below the body: thread reply counts, up to three
 participant avatars, unread replies, pinned and edited states, and emoji reaction
-counts. Your reactions have a distinct highlight. Click a thread badge to open
-its thread. Metadata updates through the realtime connection. Reaction badges
+counts. Your reactions have a distinct highlight. Click a thread badge or
+double-click a threaded message to open its thread. Metadata updates through the
+realtime connection. Reaction badges
 are display-only. Plain messages do not get an empty metadata row.
 
 ## Images
@@ -167,8 +168,9 @@ Automatic detection leaves tmux and screen in text mode; passthrough is not
 implemented. Other terminals show attachment filenames.
 
 Chatty downloads previews only for visible messages, with two requests at a time.
-Thread participants use tiny avatars in Ghostty and Kitty, with colored initials
-as a fallback. Avatars share the preview cache and download queue. Each avatar
+Thread participants use tiny circular avatars in Ghostty and Kitty, with colored
+initials as a fallback. Avatars use a square center crop and transparent corners.
+They share the preview cache and download queue. Each avatar
 download has a 15-second deadline and a 1 MiB limit; decoding allows at most one
 million pixels, then scales the image to at most 64 pixels per side.
 

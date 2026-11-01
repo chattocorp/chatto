@@ -35,6 +35,14 @@ type rowRange struct {
 	Meta       []metaHit
 }
 
+// Match message identity as well as screen position: live updates can move rows
+// between clicks. Release events must not clear the first click.
+type messageClick struct {
+	room, root, id         string
+	pane, x, y, generation int
+	at                     time.Time
+}
+
 // A scroll anchor keeps the same message line visible when older rows are prepended.
 type scrollAnchor struct {
 	id   string
@@ -98,6 +106,7 @@ type model struct {
 	loadingOlder                        bool
 	loadingRoot                         string
 	loadingGeneration                   int
+	lastMessageClick                    messageClick
 }
 
 func newModel(e *engine, origin string) *model {
@@ -371,6 +380,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.MouseWheelMsg, tea.WindowSizeMsg:
+		m.lastMessageClick = messageClick{}
+	}
 	switch v := msg.(type) {
 	case notificationJump:
 		return m, m.acceptNotificationJump(v)
@@ -776,6 +789,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dragSeparator = 0
 		return m, nil
 	case tea.MouseClickMsg:
+		previousClick := m.lastMessageClick
+		m.lastMessageClick = messageClick{}
 		if !m.logged || v.Button != tea.MouseLeft {
 			return m, nil
 		}
@@ -843,6 +858,22 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if y == hit.y && x >= hit.x && x < hit.x+hit.width {
 						return m, m.openThreadRoot(hit.root)
 					}
+				}
+				var message chatto.Message
+				if focus == 2 {
+					message = m.thread.Messages[i]
+				} else {
+					message = m.page.Messages[i]
+				}
+				if m.images.expanded == "" && (message.Thread != nil || message.EchoFromThreadRootEventID != "") {
+					click := messageClick{room: m.room, root: m.root, id: message.ID, pane: focus, x: v.X, y: v.Y, generation: m.generation, at: time.Now()}
+					elapsed := click.at.Sub(previousClick.at)
+					if previousClick.room == click.room && previousClick.root == click.root && previousClick.id == click.id &&
+						previousClick.pane == click.pane && previousClick.generation == click.generation &&
+						previousClick.x == click.x && previousClick.y == click.y && elapsed >= 0 && elapsed <= 400*time.Millisecond {
+						return m, m.openThreadRoot(message.ThreadRootID())
+					}
+					m.lastMessageClick = click
 				}
 				m.renderMessages()
 				break

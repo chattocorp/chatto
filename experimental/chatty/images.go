@@ -147,6 +147,10 @@ func decodePreview(data []byte, id int) (string, int, int, error) {
 }
 
 func decodeImage(data []byte, id, maxSide int, maxPixels int64) (string, int, int, error) {
+	return decodeTerminalImage(data, id, maxSide, maxPixels, false)
+}
+
+func decodeTerminalImage(data []byte, id, maxSide int, maxPixels int64, avatar bool) (string, int, int, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil || cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width)*int64(cfg.Height) > maxPixels {
 		return "", 0, 0, fmt.Errorf("unsupported or oversized image")
@@ -156,7 +160,10 @@ func decodeImage(data []byte, id, maxSide int, maxPixels int64) (string, int, in
 		return "", 0, 0, fmt.Errorf("invalid image")
 	}
 	w, h := cfg.Width, cfg.Height
-	if max(w, h) > maxSide {
+	if avatar {
+		img = circularAvatar(img, maxSide)
+		w, h = img.Bounds().Dx(), img.Bounds().Dy()
+	} else if max(w, h) > maxSide {
 		w, h = max(1, w*maxSide/max(cfg.Width, cfg.Height)), max(1, h*maxSide/max(cfg.Width, cfg.Height))
 		scaled := image.NewRGBA(image.Rect(0, 0, w, h))
 		draw.ApproxBiLinear.Scale(scaled, scaled.Bounds(), img, img.Bounds(), draw.Src, nil)
@@ -165,6 +172,28 @@ func decodeImage(data []byte, id, maxSide int, maxPixels int64) (string, int, in
 	var packet bytes.Buffer
 	err = kitty.EncodeGraphics(&packet, img, &kitty.Options{ID: id, Action: kitty.Transmit, Transmission: kitty.Direct, Format: kitty.PNG, Quiet: 2, Chunk: true})
 	return packet.String(), w, h, err
+}
+
+// circularAvatar center-crops before scaling, then applies a one-pixel soft
+// circular edge. Multiply all premultiplied channels to preserve source alpha.
+func circularAvatar(src image.Image, maxSide int) *image.RGBA {
+	bounds := src.Bounds()
+	side := min(bounds.Dx(), bounds.Dy())
+	x, y := bounds.Min.X+(bounds.Dx()-side)/2, bounds.Min.Y+(bounds.Dy()-side)/2
+	size := min(side, maxSide)
+	dst := image.NewRGBA(image.Rect(0, 0, size, size))
+	draw.ApproxBiLinear.Scale(dst, dst.Bounds(), src, image.Rect(x, y, x+side, y+side), draw.Src, nil)
+	radius := float64(size) / 2
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			coverage := max(0, min(1, radius+0.5-math.Hypot(float64(x)+0.5-radius, float64(y)+0.5-radius)))
+			i := dst.PixOffset(x, y)
+			for c := 0; c < 4; c++ {
+				dst.Pix[i+c] = uint8(math.Round(float64(dst.Pix[i+c]) * coverage))
+			}
+		}
+	}
+	return dst
 }
 
 // syncImages loads only visible messages, with two requests in flight and a
@@ -274,7 +303,7 @@ func (m *model) syncImages() tea.Cmd {
 			r := imageLoaded{key: key, epoch: epoch, id: id, err: err}
 			if err == nil {
 				if request.avatar != "" {
-					r.packet, r.width, r.height, r.err = decodeImage(data, id, 64, 1_000_000)
+					r.packet, r.width, r.height, r.err = decodeTerminalImage(data, id, 64, 1_000_000, true)
 				} else {
 					r.packet, r.width, r.height, r.err = decodePreview(data, id)
 				}

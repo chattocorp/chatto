@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"image"
+	"image/color"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,37 @@ import (
 	"github.com/charmbracelet/x/ansi/kitty"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
+
+func TestCircularAvatarCropAndTransparency(t *testing.T) {
+	// A non-zero origin and wide source catch off-center crops and stretching.
+	src := image.NewRGBA(image.Rect(10, 20, 210, 120))
+	for y := 20; y < 120; y++ {
+		for x := 10; x < 210; x++ {
+			pixel := color.RGBA{R: 255, A: 255}
+			if x >= 60 && x < 160 {
+				pixel = color.RGBA{G: 128, A: 128}
+			}
+			src.SetRGBA(x, y, pixel)
+		}
+	}
+	avatar := circularAvatar(src, 64)
+	if avatar.Bounds() != image.Rect(0, 0, 64, 64) || avatar.RGBAAt(32, 32) != (color.RGBA{G: 128, A: 128}) {
+		t.Fatal("avatar crop, dimensions, or source alpha changed")
+	}
+	softEdge := false
+	for y := 0; y < 64; y++ {
+		for x := 0; x < 64; x++ {
+			pixel := avatar.RGBAAt(x, y)
+			if pixel.R != 0 || pixel.G != pixel.A {
+				t.Fatal("crop contains outer bands or invalid premultiplied alpha")
+			}
+			softEdge = softEdge || pixel.A > 0 && pixel.A < 128
+		}
+	}
+	if !softEdge || avatar.RGBAAt(0, 0).A != 0 || avatar.RGBAAt(63, 63).A != 0 {
+		t.Fatal("missing transparent corners or smooth circular edge")
+	}
+}
 
 func imageModel() *model {
 	m := exampleModel()

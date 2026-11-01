@@ -3,12 +3,68 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/ansi/kitty"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
+
+func TestDoubleClickThreadedMessage(t *testing.T) {
+	for _, scenario := range []string{"thread", "echo", "plain", "slow", "other-message", "intervening-click", "key", "thread-pane"} {
+		t.Run(scenario, func(t *testing.T) {
+			m := exampleModel()
+			message := metadataMessage()
+			if scenario == "plain" {
+				message.Thread = nil
+			}
+			if scenario == "echo" {
+				message.Thread = nil
+				message.EchoFromThreadRootEventID = "m"
+			}
+			m.page.Messages = []chatto.Message{message}
+			if scenario == "thread-pane" {
+				m.root = "existing"
+				m.thread.Messages = []chatto.Message{{ID: "first", Body: "First"}, message}
+			}
+			m.layout()
+			left, center, _ := m.columns()
+			click := tea.MouseClickMsg{X: left + 5, Y: 2 + m.mainRows[0].Start, Button: tea.MouseLeft}
+			if scenario == "thread-pane" {
+				click.X = left + center + 5
+				click.Y = 2 + m.sideRows[1].Start
+			}
+			m.compose.SetValue("preserve draft")
+			m.busy = true // Do not execute network commands in this input test.
+			initialRoot := m.root
+			m.Update(click)
+			if m.root != initialRoot {
+				t.Fatal("single click opened thread")
+			}
+			m.Update(tea.MouseReleaseMsg{Button: tea.MouseLeft})
+			switch scenario {
+			case "slow":
+				m.lastMessageClick.at = time.Now().Add(-time.Second)
+			case "other-message":
+				m.page.Messages[0].ID = "replacement"
+			case "intervening-click":
+				m.Update(tea.MouseClickMsg{X: 0, Y: 0, Button: tea.MouseLeft})
+			case "key":
+				m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+			}
+			m.Update(click)
+			wantOpen := scenario == "thread" || scenario == "echo" || scenario == "thread-pane"
+			if wantOpen {
+				if m.root != "m" || m.focus != 2 || m.drafts["room/"] != "preserve draft" {
+					t.Fatal("double-click failed to open thread or preserve draft")
+				}
+			} else if m.root != initialRoot {
+				t.Fatal("unrelated clicks opened thread")
+			}
+		})
+	}
+}
 
 func metadataMessage() chatto.Message {
 	return chatto.Message{ID: "m", ActorID: "alice", Body: "A threaded message", UpdatedAt: "2026-11-01T12:00:00Z", Pinned: true,
