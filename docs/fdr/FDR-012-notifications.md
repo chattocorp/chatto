@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-31
+**Last reviewed:** 2026-11-01
 
 ## Overview
 
@@ -130,10 +130,11 @@ targets, unread counts, read state, or deletion semantics.
   Invitation Unread dot attention lasts while the invitation is pending.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
-- A thread root belongs to its room, so a thread read does not cover
-  reactions to the root. While the viewer is present at the latest message of
-  an open thread, the bundled client marks each unread reaction occurrence on
-  that thread root Read. Other unread activity in the room stays unread. A
+- While the viewer is present at the latest message of an open thread, the
+  bundled client marks each unread reaction occurrence on its root and replies
+  Read, including reactions that arrive after the last message read. A thread
+  root belongs to its room, so a thread read alone does not cover reactions to
+  the root. Other unread activity in the room stays unread. A
   failed read stays unread until the viewer opens the thread again, returns to
   it, or scrolls back to the latest message.
 - The bundled client reads a room or thread only up to the newest message that
