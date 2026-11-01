@@ -11,7 +11,7 @@ const workflow = readFileSync(
   'utf8'
 ).replaceAll('\r\n', '\n');
 
-test('all release approvals are available together before builds, with no publication approval', () => {
+test('release approvals stay together and publication waits for all release artifacts', () => {
   const approval = workflow
     .split('\n  approve-release:\n')[1]
     .split('\n  publish-chatto-client:\n')[0];
@@ -33,7 +33,10 @@ test('all release approvals are available together before builds, with no public
     /github.event_name == 'push' && startsWith\(github.ref, 'refs\/tags\/v'\)/
   );
   assert.ok(!approval.includes('needs:'));
-  assert.match(client, /needs: approve-release/);
+  assert.match(
+    client,
+    /needs: \[approve-release, build-server-release, assemble-desktop-release\]/
+  );
   assert.match(client, /uses: \.\/\.github\/workflows\/publish-chatto-client.yml/);
   assert.match(client, /github.event_name == 'push' && startsWith\(github.ref, 'refs\/tags\/v'\)/);
   assert.match(client, /id-token: write/);
@@ -50,7 +53,7 @@ test('all release approvals are available together before builds, with no public
   assert.ok(!publish.includes('environment:'));
   assert.match(
     publish,
-    /needs: \[approve-release, build-server-release, assemble-desktop-release\]/
+    /needs: \[approve-release, build-server-release, assemble-desktop-release, publish-chatto-client\]/
   );
   assert.ok(!publish.includes('always()'));
   assert.match(build, /args: release --clean --skip=publish/);
