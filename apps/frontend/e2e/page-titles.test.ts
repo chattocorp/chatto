@@ -91,7 +91,7 @@ test.describe('Page titles', () => {
   test('app preferences use product identity under both route forms', async ({ page }) => {
     await createAndLoginTestUser(page);
     for (const [standalone, canonical, label] of [
-      [routes.appPreferences, routes.settingsAppearance, 'Appearance'],
+      [routes.appPreferencesAppearance, routes.settingsAppearance, 'Appearance'],
       [routes.appPreferencesLanguage, routes.settingsLanguage, 'Language'],
       [routes.appPreferencesComposer, routes.settingsComposer, 'Composer']
     ]) {
@@ -101,6 +101,10 @@ test.describe('Page titles', () => {
       await expect(page).toHaveURL(new RegExp(`${canonical}$`));
       await expect(page).toHaveTitle(`${label} · Chatto`);
     }
+    await page.goto(routes.appPreferences);
+    await expect(page).toHaveURL(new RegExp(`${routes.settingsOverview}$`));
+    await expect(page).toHaveTitle(/^Overview · /);
+    await expect(page).not.toHaveTitle('Overview · Chatto');
     await page.goto(routes.serverOverview);
     await expect(page).toHaveTitle(/^Overview · /);
     await expect(page).not.toHaveTitle('Overview · Chatto');
@@ -108,7 +112,8 @@ test.describe('Page titles', () => {
 
   test('standalone app preferences use product identity without a session', async ({ page }) => {
     for (const [path, label] of [
-      [routes.appPreferences, 'Appearance'],
+      [routes.appPreferences, 'Overview'],
+      [routes.appPreferencesAppearance, 'Appearance'],
       [routes.appPreferencesLanguage, 'Language'],
       [routes.appPreferencesComposer, 'Composer']
     ]) {
