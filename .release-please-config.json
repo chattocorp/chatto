@@ -20,6 +20,7 @@
       "exclude-paths": [
         "authling",
         "examples/botto",
+        "experimental",
         "packages/runling",
         "packages/chattobot",
         "pnpm-lock.yaml",
