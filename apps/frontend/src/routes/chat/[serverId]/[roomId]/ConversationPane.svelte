@@ -177,16 +177,17 @@ thread IDs can change while the pane stays mounted.
   );
   const atLatest = $derived(!highlightPending && (currentReadPosition?.latest ?? true));
 
-  // The root belongs to the room, so a thread read cannot cover its reactions.
-  // Read only those occurrences, without clearing other activity in the room.
+  // Reactions can arrive after the last message read, without a new message
+  // to advance the cursor. Read those occurrences in the open thread,
+  // including its root, which belongs to the room's read scope.
   // The store marks an occurrence read at once, so the unread filter keeps an
   // in-flight read from starting again. This set stops repeated attempts when
   // a failed read restores unread state. Entry, refocus, or a return from
   // history clears it.
-  const attemptedRootReactions = new SvelteSet<string>();
+  const attemptedThreadReactions = new SvelteSet<string>();
 
   /** Handle canonical notification arrivals and existing conversation read events. */
-  function readRootReactions() {
+  function readThreadReactions() {
     if (
       !threadRootEventId ||
       !stores.isAuthenticated ||
@@ -200,14 +201,14 @@ thread IDs can change while the pane stays mounted.
         occurrence.unread &&
         occurrence.signalKind === NotificationSignalKind.REACTION &&
         occurrence.room?.id === roomId &&
-        occurrence.eventId === threadRootEventId &&
-        !occurrence.threadRootId &&
-        !attemptedRootReactions.has(occurrence.id)
+        (occurrence.threadRootId === threadRootEventId ||
+          (!occurrence.threadRootId && occurrence.eventId === threadRootEventId)) &&
+        !attemptedThreadReactions.has(occurrence.id)
       ) {
-        attemptedRootReactions.add(occurrence.id);
+        attemptedThreadReactions.add(occurrence.id);
         stores.notifications
           .markOccurrenceRead(occurrence.id)
-          .catch(() => console.error('Failed to mark viewed root reaction read'));
+          .catch(() => console.error('Failed to mark viewed thread reaction read'));
       }
     }
   }
@@ -241,14 +242,14 @@ thread IDs can change while the pane stays mounted.
     currentReadThrough().noteRead(
       upToEventId !== undefined && position?.eventId === upToEventId ? position.createdAtMs : null
     );
-    attemptedRootReactions.clear();
-    readRootReactions();
+    attemptedThreadReactions.clear();
+    readThreadReactions();
   }
 
   function handleReadPosition(position: TimelineReadPosition) {
     readPosition = { key: targetKey, position };
-    if (!position.latest) attemptedRootReactions.clear();
-    readRootReactions();
+    if (!position.latest) attemptedThreadReactions.clear();
+    readThreadReactions();
     if (appState.isPresent && !highlightPending) currentReadThrough().observe(position);
   }
 
@@ -357,7 +358,7 @@ thread IDs can change while the pane stays mounted.
   // Only other users' arrivals place an away separator. Newer activity stays
   // unread while the viewer reads older history.
   useProjectionEvent((projectionEvent) => {
-    if (projectionEvent.resource?.case === 'notifications') readRootReactions();
+    if (projectionEvent.resource?.case === 'notifications') readThreadReactions();
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
     if ((semantic.value.threadRootEventId || null) !== threadRootEventId) return;

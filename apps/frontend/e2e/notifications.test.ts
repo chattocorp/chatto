@@ -14,9 +14,11 @@ import {
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
 import {
+  connectPost,
   getRoomIdByNameViaConnect,
   postMessagesViaConnect,
-  updateNotificationPolicy
+  updateNotificationPolicy,
+  waitForReadMarkerViaConnect
 } from './fixtures/connectHelpers';
 
 test.describe('Mention Notifications', () => {
@@ -471,6 +473,57 @@ test.describe('Notification Page Display', () => {
 
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
+  });
+
+  test('a reaction to an open thread reply stays read after closing the thread and reloading', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const root = await roomPage.sendMessage('Reaction read thread');
+    const rootId = (await root.getEventId())!;
+    await root.openThread();
+    await roomPage.postThreadReply('React while I am reading');
+    const reply = roomPage.getThreadMessage('React while I am reading');
+    const replyId = (await reply.getEventId())!;
+    await waitForReadMarkerViaConnect(page, roomId, replyId, rootId);
+
+    await withServerUser(browser, serverURL, async ({ page: actorPage }) => {
+      // Send through the other user's API while the recipient keeps focus.
+      await page.bringToFront();
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      await connectPost(actorPage, 'chatto.api.v1.MessageService/AddReaction', {
+        roomId,
+        messageEventId: replyId,
+        emoji: 'heart'
+      });
+      await reply.expectReaction('❤️', 1);
+      // Check durable state while the thread still suppresses local badges.
+      // A missing occurrence must not count as a successful read.
+      await expect
+        .poll(async () => {
+          const result = await connectPost<{
+            occurrences?: Array<{ unread?: boolean }>;
+          }>(page, 'chatto.api.v1.NotificationService/ListNotificationOccurrences');
+          return result.occurrences?.map((row) => row.unread ?? false);
+        })
+        .toEqual([false]);
+    });
+
+    await roomPage.closeThread();
+    const badge = chatPage.roomList
+      .locator('a', { hasText: '# general' })
+      .getByTestId('room-ambient-notification-badge');
+    await expect(badge).not.toBeVisible();
+    await page.reload();
+    await expect(page.getByText('Reaction read thread', { exact: true })).toBeVisible();
+    await expect(badge).not.toBeVisible();
   });
 
   for (const targetKind of ['recent', 'older', 'thread'] as const) {

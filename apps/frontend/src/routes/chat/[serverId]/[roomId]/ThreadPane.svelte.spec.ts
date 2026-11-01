@@ -723,37 +723,52 @@ describe('ThreadPane', () => {
     );
   });
 
-  describe('root reaction reads', () => {
+  describe('thread reaction reads', () => {
     beforeEach(() => {
       mocks.realUnreadLifecycle = true;
     });
 
-    it('reads existing and arriving root reactions without reading other room activity', async () => {
+    it('reads existing and arriving root and reply reactions without reading other room activity', async () => {
       reactionOccurrences.set([
         rootReaction('existing'),
         rootReaction('other-root', { eventId: 'other-root' }),
         rootReaction('other-room', { room: { id: 'room-2', name: 'Other' } }),
         rootReaction('reply', { eventId: 'reply', threadRootId: 'thread-root' }),
+        rootReaction('other-thread', { eventId: 'other-reply', threadRootId: 'other-root' }),
         rootReaction('mention', { signalKind: NotificationSignalKind.DIRECT_MENTION }),
         rootReaction('read', { unread: false })
       ]);
       render(ThreadPane, { props: threadProps });
       await tick();
-      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('existing');
+      expect(mocks.markOccurrenceRead.mock.calls).toEqual([['existing'], ['reply']]);
       mocks.markThreadAsRead.mockClear();
 
-      reactionOccurrences.set([...reactionOccurrences.get(), rootReaction('arrival')]);
+      reactionOccurrences.set([
+        ...reactionOccurrences.get(),
+        rootReaction('arrival'),
+        rootReaction('reply-arrival', { eventId: 'reply', threadRootId: 'thread-root' })
+      ]);
       notifyReactionUpdate();
       await tick();
-      expect(mocks.markOccurrenceRead.mock.calls).toEqual([['existing'], ['arrival']]);
+      expect(mocks.markOccurrenceRead.mock.calls).toEqual([
+        ['existing'],
+        ['reply'],
+        ['arrival'],
+        ['reply-arrival']
+      ]);
       expect(mocks.markThreadAsRead).not.toHaveBeenCalled();
       expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
       expect(mocks.removeTypingUser).not.toHaveBeenCalled();
     });
 
-    it('waits for focus before reading root reactions', async () => {
+    it.each(['root', 'reply'])('waits for focus before reading %s reactions', async (target) => {
       mocks.appState.isPresent = false;
-      reactionOccurrences.set([rootReaction('reaction')]);
+      reactionOccurrences.set([
+        rootReaction(
+          'reaction',
+          target === 'reply' ? { eventId: 'reply', threadRootId: 'thread-root' } : {}
+        )
+      ]);
       render(ThreadPane, { props: threadProps });
       await tick();
       expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
@@ -790,19 +805,27 @@ describe('ThreadPane', () => {
       expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
     });
 
-    it('reads arriving root reactions only after returning from history to the latest position', async () => {
-      const { container } = render(ThreadPane, { props: threadProps });
-      await tick();
-      (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
-      await tick();
-      reactionOccurrences.set([rootReaction('reaction')]);
-      notifyReactionUpdate();
-      await tick();
-      expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
-      (q(container, '[data-testid="report-latest-position"]') as HTMLButtonElement).click();
-      await tick();
-      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('reaction');
-    });
+    it.each(['root', 'reply'])(
+      'reads arriving %s reactions only after returning from history to the latest position',
+      async (target) => {
+        const { container } = render(ThreadPane, { props: threadProps });
+        await tick();
+        (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
+        await tick();
+        reactionOccurrences.set([
+          rootReaction(
+            'reaction',
+            target === 'reply' ? { eventId: 'reply', threadRootId: 'thread-root' } : {}
+          )
+        ]);
+        notifyReactionUpdate();
+        await tick();
+        expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+        (q(container, '[data-testid="report-latest-position"]') as HTMLButtonElement).click();
+        await tick();
+        expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('reaction');
+      }
+    );
 
     it('waits until a pending jump finishes before reading root reactions', async () => {
       reactionOccurrences.set([rootReaction('reaction')]);
