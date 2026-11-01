@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, waitFor } from 'storybook/test';
   import RenderedImage from './RenderedImage.svelte';
   const { Story } = defineMeta({ title: 'UI/RenderedImage', component: RenderedImage });
 </script>
@@ -59,7 +60,19 @@
   {/if}
 </Story>
 
-<Story name="Virtualized thread" asChild>
+<Story
+  name="Virtualized thread"
+  asChild
+  play={async ({ canvasElement }) => {
+    // Wait for async previews before auditing the scroll area's keyboard access.
+    // Loaded previews are native buttons; the loading placeholders are not controls.
+    await waitFor(
+      () =>
+        expect(canvasElement.querySelector('button.rendered-image:not(:disabled)')).not.toBeNull(),
+      { timeout: 10_000 }
+    );
+  }}
+>
   {#await timelineHtml then html}<DiagramTimelineTestHarness {html} />{/await}
 </Story>
 
