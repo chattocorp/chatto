@@ -83,3 +83,19 @@
     <LinkPreviewCard preview={socialPost} showDismiss={false} />
   </div>
 </Story>
+
+<Story
+  name="Vimeo video"
+  args={{
+    preview: {
+      url: 'https://player.vimeo.com/video/76979871',
+      title: 'The New Vimeo Player',
+      description: null,
+      siteName: 'Vimeo',
+      imageUrl: null,
+      embedType: 'generic'
+    },
+    showDismiss: false,
+    canDelete: true
+  }}
+/>

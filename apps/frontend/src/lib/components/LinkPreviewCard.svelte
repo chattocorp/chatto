@@ -2,7 +2,7 @@
 @component
 
 Displays an OpenGraph link preview card with image, title, description, and site name.
-Recognized YouTube videos and social posts render rich embeds instead. Supports dismiss (composer) and delete (posted message) actions.
+Recognized YouTube and Vimeo videos and social posts render rich embeds instead. Supports dismiss (composer) and delete (posted message) actions.
 When `canDelete` is true, right-click / long-press opens a context menu with Open link, Copy URL, and Delete.
 
 **Props:**
@@ -33,6 +33,8 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     openRenderedLink
   } from '$lib/navigation/renderedLink';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
+  import VimeoEmbed from './VimeoEmbed.svelte';
+  import { vimeoEmbedUrl } from './vimeoEmbed';
   import SocialPostEmbed from './SocialPostEmbed.svelte';
 
   let {
@@ -54,6 +56,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   } = $props();
 
   const isYouTube = $derived(preview.embedType === 'youtube' && Boolean(preview.embedId));
+  const vimeoUrl = $derived(vimeoEmbedUrl(preview.url));
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
   let settledImageUrl = $state<string | null>(null);
 
@@ -101,6 +104,15 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 {#if preview.embedType === 'youtube' && preview.embedId}
   <YouTubeEmbed
     videoId={preview.embedId}
+    {onDismiss}
+    {showDismiss}
+    onContextMenu={handleContextMenu}
+    onDelete={canDelete ? openDeleteConfirmation : undefined}
+  />
+{:else if vimeoUrl}
+  <VimeoEmbed
+    embedUrl={vimeoUrl}
+    title={preview.title}
     {onDismiss}
     {showDismiss}
     onContextMenu={handleContextMenu}

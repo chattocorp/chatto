@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-11-01
 
 ## Overview
 
@@ -16,9 +16,10 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
 - An HTTP or HTTPS link that starts with an angle bracket, such as `<https://example.com>`, stays clickable and does not trigger a link preview. The closing angle bracket is optional. This behavior works in both message editors. A later eligible URL can get the preview instead.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
+- Posted previews for supported Vimeo video URLs show the Vimeo player. This also applies to stored generic previews. Public video links, player links, channel links, group video links, and showcase video links are supported. Unlisted links keep their privacy hash. The player loads lazily with Vimeo's Do Not Track option and without automatic playback. Loading it connects the reader's browser to Vimeo and reveals the reader's IP address to Vimeo. Other Vimeo pages keep the normal link card.
 - Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, an embedded website card, and one quoted post with its own common media. Bluesky and Mastodon are supported providers. Mastodon content warnings and accepted quote posts use the same common fields; warned text and media stay concealed until the reader reveals them, and boosts show the original post without boost attribution. If structured post data is unavailable, the post falls back to a normal link preview.
 - For video and animated-GIF attachments on a social post, the card shows the static thumbnail from the provider as an image. Chatto does not download or play the video. The card does not show audio attachments or video attachments that have no thumbnail.
-- A preview shows up in the composer with a dismiss button. The composer shows a compact preview of one row: a thumbnail, the site, and the title. It does not load the YouTube player or show the full social-post card while the user types. A social post with a content warning shows no image or post text in this row. A message-link preview in the composer shows about one line of the message body and shows its attachments as one line of text. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
+- A preview shows up in the composer with a dismiss button. The composer shows a compact preview of one row: a thumbnail, the site, and the title. It does not load video players or show the full social-post card while the user types. A social post with a content warning shows no image or post text in this row. A message-link preview in the composer shows about one line of the message body and shows its attachments as one line of text. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the server returns a preview to the composer, it also returns a short-lived opaque preview token.
 - When the message is sent, the client sends only the preview token. The server resolves the token to cached, server-fetched metadata and stores that metadata as part of the message body.
 - Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes. Structured social-post fields use the corresponding text, URL, and asset limits, carry at most four images per post, and allow only one quoted-post level.
