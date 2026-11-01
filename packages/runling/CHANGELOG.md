@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.8.0](https://github.com/chattocorp/chatto/compare/runling/v0.7.0...runling/v0.8.0) (2026-11-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runling:** type task steering and stream Paseo progress ([#3076](https://github.com/chattocorp/chatto/issues/3076))
+* **runling:** unify task execution and rebuild ChattoBot ([#2972](https://github.com/chattocorp/chatto/issues/2972))
+
+### Features
+
+* **botto:** classify thread participation and incoming reactions ([#3251](https://github.com/chattocorp/chatto/issues/3251)) ([0e927b2](https://github.com/chattocorp/chatto/commit/0e927b21961bf88aede1dccadf54ec873bc83007))
+* **botto:** keep conversations responsive during delegation ([#3264](https://github.com/chattocorp/chatto/issues/3264)) ([29e9325](https://github.com/chattocorp/chatto/commit/29e9325bbb0b556017b62f17943cb7910a0bd700))
+* **botto:** run conversations as Runling workflows ([#3206](https://github.com/chattocorp/chatto/issues/3206)) ([d3ae9fb](https://github.com/chattocorp/chatto/commit/d3ae9fbc232af96678e4e6f349060453acc377ef))
+* **botto:** support agent skills with restricted file reads ([#3243](https://github.com/chattocorp/chatto/issues/3243)) ([e6905ea](https://github.com/chattocorp/chatto/commit/e6905eae6adc2b948683c3516cb2f4473a043e69))
+* **chattobot:** add automatic report intake in configured rooms ([#3018](https://github.com/chattocorp/chatto/issues/3018)) ([04f470f](https://github.com/chattocorp/chatto/commit/04f470f4d79d1c14c6c3460006b77948bad163a9))
+* **chattobot:** add decision classifiers and realtime follow-ups ([#3081](https://github.com/chattocorp/chatto/issues/3081)) ([80a21aa](https://github.com/chattocorp/chatto/commit/80a21aa93afab54e9850857bc8934a41a461331e))
+* **chattobot:** improve supervisor replies and gate web research ([#2796](https://github.com/chattocorp/chatto/issues/2796)) ([a4d3c33](https://github.com/chattocorp/chatto/commit/a4d3c33a84267db87dfb250f958c5ada2b2b45fb))
+* **chattobot:** mark handled reports and support GitHub issue fields ([#3046](https://github.com/chattocorp/chatto/issues/3046)) ([a735ad9](https://github.com/chattocorp/chatto/commit/a735ad9de56be742a78f761c1ebe47c9809a59bb))
+* **runling:** add codemode to agents and enable it in ChattoBot ([#2793](https://github.com/chattocorp/chatto/issues/2793)) ([78e8238](https://github.com/chattocorp/chatto/commit/78e82381e6fe2f5af7fc3c55c06da425bbc53f82))
+* **runling:** add run titles and reusable description tasks ([#3231](https://github.com/chattocorp/chatto/issues/3231)) ([db09891](https://github.com/chattocorp/chatto/commit/db09891c08eaab4c46b4a797a14fde5b7799e0df))
+* **runling:** persist workflow state and centralize agent infrastructure ([#3067](https://github.com/chattocorp/chatto/issues/3067)) ([6a2db5e](https://github.com/chattocorp/chatto/commit/6a2db5e4b1efdb166d94043c80c111257c5fb409))
+* **runling:** reactivate retained workflows from routers ([#3229](https://github.com/chattocorp/chatto/issues/3229)) ([2b002b8](https://github.com/chattocorp/chatto/commit/2b002b822076b7d544e46bca4dbb0517ae97a706))
+* **runling:** simplify activity logs and preserve conversation history ([#3247](https://github.com/chattocorp/chatto/issues/3247)) ([60ab9bd](https://github.com/chattocorp/chatto/commit/60ab9bdcd83837f90de75e2b17602c0228ab72fa))
+* **runling:** simplify the console and surface workflow usage ([#3248](https://github.com/chattocorp/chatto/issues/3248)) ([3994aef](https://github.com/chattocorp/chatto/commit/3994aef82d191622990b67c41d1139a1f8df3cc7))
+* **runling:** type task steering and stream Paseo progress ([#3076](https://github.com/chattocorp/chatto/issues/3076)) ([b50c6b6](https://github.com/chattocorp/chatto/commit/b50c6b6a041281dbf6323c2eb75291a9e88538b5))
+* **runling:** unify task execution and rebuild ChattoBot ([#2972](https://github.com/chattocorp/chatto/issues/2972)) ([3ccd10b](https://github.com/chattocorp/chatto/commit/3ccd10ba868744b0e5ffa6b19bb333bba7f40ec8))
+
+
+### Bug Fixes
+
+* **chattobot:** preserve workflow follow-through and end turns reliably ([#2814](https://github.com/chattocorp/chatto/issues/2814)) ([d01dd4e](https://github.com/chattocorp/chatto/commit/d01dd4ec5324b2df20b4611e4560f36e5f16dd2e))
+* **release:** reserve Latest for stable Chatto releases ([#3176](https://github.com/chattocorp/chatto/issues/3176)) ([a2978a7](https://github.com/chattocorp/chatto/commit/a2978a76d28e7b2a33979962bb4046ea6245e603))
+* **runling:** load workspace consumers from TypeScript source ([#3244](https://github.com/chattocorp/chatto/issues/3244)) ([1cc88d1](https://github.com/chattocorp/chatto/commit/1cc88d1ee17f95b55425edcdd364bad3d14cec23))
+* **runling:** refresh provider catalogs for missing models ([#3111](https://github.com/chattocorp/chatto/issues/3111)) ([663b8bd](https://github.com/chattocorp/chatto/commit/663b8bda4634f856dcb89174438d0dcaf813b6d9))
+* **runling:** wait for shutdown before checking package test logs ([#3431](https://github.com/chattocorp/chatto/issues/3431)) ([25e2062](https://github.com/chattocorp/chatto/commit/25e206296f85c2f7e6a2d033e695bfc7548f18ae))
+
 ## [0.7.0](https://github.com/chattocorp/runling/compare/v0.6.0...v0.7.0) (2026-09-16)
 
 ### ⚠ BREAKING CHANGES
