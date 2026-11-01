@@ -103,7 +103,20 @@ test.describe('message search', () => {
     await expect(page.getByTestId('message-input')).toBeFocused();
     await expect(input).not.toBeFocused();
     await expect(input).toBeEnabled();
-    expect(statusRequests).toHaveLength(1);
+    // The initial realtime privacy reset can fence an in-flight status response
+    // and require a retry. Once startup settles, all search views must reuse it.
+    expect(statusRequests.length).toBeGreaterThan(0);
+    const requestsAfterReload = statusRequests.length;
+    await toggle.click();
+    await expect(input).toHaveCount(0);
+    await toggle.click();
+    await expect(input).toBeFocused();
+    await expect(input).toBeEnabled();
+    await openSearch(page);
+    await page.goBack();
+    await expect(input).toBeVisible();
+    await expect(input).toBeEnabled();
+    expect(statusRequests).toHaveLength(requestsAfterReload);
   });
 
   test('room search takes focus on mobile button and shortcut opens', async ({
