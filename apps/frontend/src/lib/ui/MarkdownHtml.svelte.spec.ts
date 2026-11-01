@@ -28,6 +28,42 @@ import { testSnippet } from '$lib/test-utils';
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Mermaid previews', () => {
+  it.each(['svg', 'mermaid'])(
+    'reserves %s geometry immediately when a virtualized preview remounts',
+    async (language) => {
+      const source =
+        language === 'svg'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="620" height="810"/>'
+          : 'flowchart TB\nA[Retained geometry]-->B[Remounted preview]-->C[Stable scroll]';
+      const html = await renderMarkdown('```' + language + ' rendered\n' + source + '\n```');
+      for (const availableWidth of [900, 240]) {
+        const first = render(MarkdownHtml, { html });
+        first.container.classList.add('prose');
+        first.container.style.width = `${availableWidth}px`;
+        await expect
+          .poll(() => first.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        const bounds = first.container.querySelector('[data-artifact]')!.getBoundingClientRect();
+        await first.unmount();
+
+        const second = render(MarkdownHtml, { html });
+        second.container.classList.add('prose');
+        second.container.style.width = `${availableWidth}px`;
+        // This check precedes the intersection callback, worker job and image load.
+        // Waiting for an image here would hide the virtualizer's empty measurement.
+        const frame = second.container.querySelector('[data-artifact]')!;
+        expect(Math.abs(frame.getBoundingClientRect().height - bounds.height)).toBeLessThan(1);
+        expect(Math.abs(frame.getBoundingClientRect().width - bounds.width)).toBeLessThan(1);
+        await expect
+          .poll(() => second.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        expect(Math.abs(frame.getBoundingClientRect().height - bounds.height)).toBeLessThan(1);
+        expect(frame.querySelector('[aria-hidden="true"].rendered-image')).toBeNull();
+        await second.unmount();
+      }
+    }
+  );
+
   it.each([
     [1200, 600],
     [480, 960],

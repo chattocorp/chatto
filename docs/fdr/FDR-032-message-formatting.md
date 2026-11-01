@@ -108,6 +108,13 @@ changing the saved source. The visual composer owns scrolling and its edge fades
 **Why:** Bots can send diagrams through the existing message body while people can still share ordinary SVG code blocks. Image mode prevents scripts and external resource loads, including connections that would reveal the viewer's IP address.
 **Tradeoff:** SVG documents must be self-contained and include the SVG namespace. Other clients can show source. The preview is not an interactive document.
 
+SVG and Mermaid previews retain a bounded set of intrinsic dimensions. When a
+virtualized message returns to the viewport, its loading preview reserves the
+same responsive space as the previous image. This prevents repeated row collapse
+and scroll corrections. The dimension cache holds at most 256 entries, identified
+by a digest of the language and source. It retains no message text, SVG, or image
+URLs. Image content and render jobs still belong to the mounted HTML version.
+
 ### 7. Mermaid diagrams use Pele and the image boundary
 
 **Decision:** Recognise `mermaid` fences with an optional `rendered` hint, ignoring case. Bundle Pele locally and load its worker only when Render is selected and the diagram approaches the viewport. Display the generated SVG as an image in the shared frame. A loading result must not change the selected tab. Show source on failure. The composer, stored message and message copy retain the source. Use `accTitle` and `accDescr` as image text; without them, use the source as the text alternative.
