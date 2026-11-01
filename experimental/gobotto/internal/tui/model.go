@@ -39,6 +39,8 @@ const (
 type Event struct {
 	Kind    Kind
 	Session uint64
+	// Background keeps session activity visible between parent conversation turns.
+	Background bool
 	// HumanID matches the persistent snapshot name; it contains no user data.
 	HumanID string
 	// Title is private model-generated display text, never an operational log.
@@ -54,6 +56,7 @@ type Event struct {
 	// Restore metadata; ordinary events leave these at their zero values.
 	Turns       int
 	CostMissing bool
+	Unreported  bool
 	// Inspection data is private and must never be appended to log text.
 	Inspection *inspection.Turn
 	Records    []inspection.Turn
@@ -183,6 +186,10 @@ type model struct {
 	splitCustomized bool
 	dragging        bool
 	dragY, dragTop  int
+	// turnSplit retains the horizontal inspector ratio after a manual drag.
+	turnSplit       float64
+	draggingTurns   bool
+	dragX, dragLeft int
 }
 
 func newModel(events <-chan tea.Msg) *model {
@@ -275,6 +282,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.WindowSizeMsg:
 		m.dragging = false
+		m.draggingTurns = false
 		follow := m.logs.AtBottom()
 		m.resize(msg.Width, msg.Height)
 		m.refreshLogs(follow)
@@ -284,6 +292,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		divider := m.list.Height() + 1
+		// Both facing borders and the gutter form the inspector's drag target.
+		left := m.turnListWidth()
+		if m.inspectMode && msg.Y >= divider+2 && msg.Y < m.height-1 && msg.X >= left+3 && msg.X <= left+5 {
+			m.draggingTurns = true
+			m.dragX, m.dragLeft = msg.X, left
+			return m, nil
+		}
 		if m.inspectMode && msg.Y >= divider+2 && msg.Y < m.height-2 {
 			m.turnsFocused = msg.X < 2+m.turnListWidth()
 			if m.turnsFocused {
@@ -326,18 +341,27 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.MouseMotionMsg:
+		if m.draggingTurns {
+			m.dragTurnDivider(msg.X)
+			return m, nil
+		}
 		if m.dragging {
 			m.dragDivider(msg.Y)
 		}
 		return m, nil
 	case tea.MouseReleaseMsg:
+		if m.draggingTurns {
+			m.dragTurnDivider(msg.X)
+			m.draggingTurns = false
+			return m, nil
+		}
 		if m.dragging {
 			m.dragDivider(msg.Y)
 			m.dragging = false
 		}
 		return m, nil
 	case tea.MouseWheelMsg:
-		if m.width < 36 || m.height < 12 || msg.X < 1 || msg.X >= m.width-1 || m.dragging {
+		if m.width < 36 || m.height < 12 || msg.X < 1 || msg.X >= m.width-1 || m.dragging || m.draggingTurns {
 			return m, nil
 		}
 		divider := m.list.Height() + 1
@@ -512,6 +536,15 @@ func (m *model) dragDivider(y int) {
 	m.refreshLogs(follow)
 }
 
+func (m *model) dragTurnDivider(x int) {
+	available := max(1, m.width-9)
+	left := min(max(14, available-24), max(14, m.dragLeft+x-m.dragX))
+	m.turnSplit = float64(left) / float64(available)
+	follow := m.logs.AtBottom()
+	m.resize(m.width, m.height)
+	m.refreshLogs(follow)
+}
+
 func (m *model) apply(event Event) {
 	if event.At.IsZero() {
 		event.At = time.Now()
@@ -599,6 +632,9 @@ func (m *model) apply(event Event) {
 		target.title = event.Title
 	case Completed:
 		target.state = "idle"
+		if event.Background {
+			target.state = "investigating"
+		}
 	case Failed:
 		target.state = "failed"
 	case Queued:
@@ -613,7 +649,9 @@ func (m *model) apply(event Event) {
 		target.reasoningMissing = target.reasoningMissing || event.ReasoningMissing || !event.ReasoningKnown
 		target.reasoningKnown = target.reasoningKnown || event.ReasoningKnown
 		target.costMissing = target.costMissing || event.CostMissing
-		target.usageKnown = true
+		if !event.Unreported {
+			target.usageKnown = true
+		}
 		target.input += event.Input
 		target.cached += event.CachedInput
 		target.output += event.Output
@@ -694,7 +732,7 @@ func (m *model) View() tea.View {
 	if m.width < 36 || m.height < 12 {
 		message := "Gobotto · enlarge terminal to 36×12\nq quit"
 		if m.quitting {
-			message = "Finishing active turn…\nShift-Q quit now"
+			message = "Finishing active work…\nShift-Q quit now"
 		}
 		content = lipgloss.NewStyle().MaxWidth(max(1, m.width)).MaxHeight(max(1, m.height)).Render(message)
 	} else {
@@ -743,7 +781,7 @@ func (m *model) View() tea.View {
 			help = " " + m.clipboardNotice + " · click name to copy · q quit"
 		}
 		if m.quitting {
-			help = " Waiting for active turn · Shift-Q quit immediately"
+			help = " Waiting for active work · Shift-Q quit immediately"
 		}
 		if !m.quitting && m.clipboardNotice == "" && lipgloss.Width(brand+status+"  "+help) > m.width {
 			help = " · tab pane · q quit"

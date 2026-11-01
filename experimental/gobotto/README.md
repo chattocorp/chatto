@@ -14,7 +14,182 @@ indicator in that thread and refreshes it every two seconds. Refreshes stop
 before reply or reaction delivery, and on failure or cancellation. Typing errors
 do not stop a turn. Chatto clears the indicator on a message or after six seconds
 without a refresh; reactions and failed turns can leave it visible until expiry.
-Debounce waits and session-title generation do not send typing indicators.
+Debounce waits, background investigations, and session-title generation do not
+send typing indicators. The conversation agent shows typing again when it answers
+a new message or reports a completed investigation.
+
+## Read-only code subagents
+
+The bundled `code_investigator` can investigate the Chatto checkout. Configure
+workers in `gobotto.toml`; restart Gobotto to apply changes:
+
+```toml
+[subagents.code_investigator]
+description = "Investigate Chatto code with file and line references."
+dir = "../.."
+# model = "provider/model" # Omission uses conversation.model.
+request_timeout = "3m" # Per model HTTP request; omission uses 90s, 0s disables it.
+request_retries = 1 # Retries of one failed model request; 0 disables recovery.
+max_auto_resumes = 1 # Completion-triggered continuations per investigation; 0 disables them.
+# agents_md = false # Disable automatic AGENTS.md loading; enabled by default.
+# Optional execution limits; omitted or zero means unlimited.
+# timeout = "10m"
+# max_tool_calls = 100
+# max_model_steps = 150
+system_prompt = "Trace relevant code paths and report gaps in the evidence."
+```
+
+`dir` resolves relative to the configuration file. It is a required read boundary,
+not just a working directory. Startup must be able to open it. File tools use
+Go's `os.Root` to prevent access outside that directory, including through
+symlinks. Absolute paths and parent traversal are rejected. Ordinary reads and
+discovery also exclude symlinks, dot-prefixed paths, `node_modules`, `vendor`,
+and `brains`. Use a dedicated source checkout without private data;
+these exclusions are not a general secret detector or an operating-system sandbox.
+
+Ask Gobotto a code question, such as “Investigate how Chatto resumes a realtime
+connection, and cite the relevant code.” Gobotto can call `delegate` with a
+configured worker name and a task. The child receives that task and its configured
+instructions, not the parent's transcript, identity, or tools. It can list
+directories, read numbered lines, and search for literal text. It cannot run
+commands, write files, use memory or MCP tools, post to Chatto, or delegate again.
+All conversation participants can request these read-only investigations. The
+parent receives the report and decides what to post in the original thread.
+
+Workers load `dir/AGENTS.md` at the start of each investigation. Successful file
+tools load applicable `AGENTS.md` files from the root to the target directory.
+Each file applies to its directory and descendants; more specific guidance takes
+precedence in that scope. Unchanged guidance is sent once per investigation.
+Later reads disclose changes or removal. A search does not load guidance for all
+matched subtrees: workers must read relevant files before relying on snippets.
+Instruction reads use the same boundary and exclusions as source reads. Gobotto
+does not read instructions above `dir` or from the user's home directory.
+
+Set `agents_md = false` for a worker to disable automatic loading. This does not
+block explicit file reads. Instructions cannot grant tools, write access, or owner
+authority. Linked documents are not loaded automatically. Instruction files must
+fit within 128 KiB each and 256 KiB per disclosure; unavailable or oversized guidance
+produces an explicit notice instead of silent truncation. Repository instructions
+are sent to the worker's model provider, like source files. Skill discovery and
+activation are not implemented.
+
+New investigations start a fresh model conversation. `delegate` accepts a
+`resume_id` to continue a retained investigation in the same Chatto conversation.
+Resume requires the same configured worker, model, and `dir`; current host
+instructions and permissions replace the earlier settings. Each attempt uses the
+current execution limits. Execution limits are optional,
+with no fixed upper caps. Set `timeout`, `max_tool_calls`, and `max_model_steps`
+for a child; omitted or zero values mean unlimited. Negative values are invalid.
+Model steps include rejected requests. A configured call or step limit allows
+one final text-only completion to report progress. Children run in the background
+and can run concurrently. `delegate` returns a start receipt immediately.
+The parent's `conversation.max_delegations` optionally limits their count per
+turn. Each child uses its configured timeout; the short conversation-turn timeout
+does not stop background work. Access invalidation and forced shutdown cancel
+children. Normal shutdown waits for active work and reports completed results,
+without processing queued user messages. Child completions use provider
+defaults for reasoning and output length, independent of conversation overrides.
+
+The same optional `timeout`, `max_tool_calls`, and `max_model_steps` settings
+apply under `[conversation]`. Parent call/step budgets count the delegation as
+one tool call; each child's internal work has its own configured budget. Restart
+applies current limits to new and restored conversations. These settings govern
+execution, not file/result sizes, retained context, or transport timeouts. Model
+Parent model HTTP requests have a 90-second network timeout. Child requests use
+`request_timeout`; the bundled investigator uses three minutes. Shift-Q cancels active work
+even when all execution limits are disabled.
+
+Reads accept UTF-8 regular files up to 1 MiB. Each read returns at most 200 lines
+and 24 KB of text. Search scans at most 5,000 entries and approximately 8 MiB of
+accepted file content, and returns at most 100 matches. Results report truncation
+and skipped files. Search exclusions and limits can make findings incomplete.
+The checkout is live, not a frozen snapshot; workers cannot verify Git status or
+commit identity with these tools. No Git or shell commands run.
+
+The turn inspector includes named child model and file-tool steps under the
+delegation, with bounded details. Reported child tokens and cost contribute to
+the parent turn and conversation totals. The parent session store retains
+up to eight recent child conversations, including source reads and provider
+metadata. Active children are never evicted, so they can exceed that retention
+count. Results awaiting delivery and usage awaiting accounting are also protected.
+Children checkpoint their private
+ledger independently from the parent session before model requests and at the end
+of each attempt. Reported usage is checkpointed in the child ledger first, then
+applied once to the parent's totals. The child transcript size limit is 2 MiB of encoded JSON.
+A restart marks unfinished children as partial; it never runs them automatically.
+`investigation_status` lists retained investigations without starting work and can
+return one report with its evidence. Resume IDs are internal, not user citations.
+
+Completed investigations are code inspections, not runtime verification. Full
+reports and excerpts include host-supplied verification limits: the worker did
+not run tests, reproduce behavior, or inspect Git history. Excerpts also identify
+report truncation. These limits apply to retained sessions too. Worker and parent
+prompts require a distinction between source observations, inferred causes, and
+checks still needed. These instructions guide model wording; they cannot verify
+the model's conclusions.
+
+Child model requests preserve safe failure codes and diagnostics, including HTTP
+status, transport timeout, cancellation, and output limits. `request_retries`
+defaults to one retry per failed request. Only transient transport failures and
+HTTP 408, 429, and 5xx responses qualify. Retries use cancellable exponential
+backoff and exactly the same transcript; they never execute tools again. Failed
+requests without usage still might incur a charge. They are recorded as unreported,
+and costs display as partial when some charges are unknown.
+
+After an eligible partial result, a completion turn can use
+`resume_investigation` to continue that same read-only child. The tool accepts
+only eligible IDs from that completion event and an optional focused next check.
+It cannot select another worker, directory, or replacement task. The persisted
+`max_auto_resumes` allowance defaults to one per investigation; configuration sets
+the allowance, and the run stores how many were used. Explicit user-turn resumes
+remain available through `delegate`. Authentication, payment, cancellation,
+context-limit, and storage failures do not authorize automatic continuation.
+
+Each child retains up to 32 recent public updates, with a total text limit of
+64 KiB. Individual updates are limited to 2,000 characters. This buffer includes
+explicit interim assistant messages and bounded tool receipts, never private
+reasoning. New conversation turns receive a small snapshot of these buffers.
+Snapshots also report the host-observed phase and its start time, so waiting for
+a model response is distinct from reading files or retrying a request.
+The conversation agent can answer a status question while the child is still
+running; the usual incoming-message debounce still applies. Detailed status reads
+return the full bounded buffer without waiting for the child. A completed child
+queues a host event for the conversation agent to report its findings. Host events
+carry no user or owner authority and are not replayed automatically after restart.
+They expose only reporting tools and the restricted recovery tool when eligible.
+
+Failed or limited children return a partial result with the stop reason, the
+latest explicit provisional finding when available, and up to eight recent tool
+receipts. Evidence excerpts are bounded and marked when truncated. The parent can
+answer from that evidence or continue the retained child with a focused question.
+No extra model request is needed to construct a failure result. If no evidence was
+collected, the result says that no diagnosis was produced. Invalidation prevents
+stale result delivery. Retained findings remain available after an ordinary
+interruption for a later authorized turn. A context-limit failure needs a narrower new investigation;
+automatic compaction is not implemented.
+
+Read-only file calls in a child can share one model response. The host executes
+them sequentially, enforces the call budget for each operation, and records skipped
+calls. Mixed or unknown-tool batches are rejected before execution. Parent tools
+still require one call per response.
+
+The conversation agent can call `post_update` to announce substantial work or
+report a meaningful finding without ending its turn. A host announcement precedes
+code investigation if the model has not already posted one. The parent can end
+its turn with `defer_response` while children continue. It must not poll or wait
+for them in a model loop. Progress posts are limited to once per minute within a
+turn and use the same thread, edit checks, and cancellation rules as final replies.
+Uncertain progress delivery is not retried. Background children do not keep typing active.
+
+If the model attaches a written answer to a reaction call, Gobotto posts the text
+and records that the reaction was skipped. Reaction receipts explicitly state that
+no accompanying text was sent. Older ambiguous reaction receipts are clarified
+when a session loads.
+
+Investigation tasks, repository instructions, and retrieved source are sent to
+the configured OpenRouter model/provider. Child transcripts and bounded inspection
+excerpts are retained in private local storage. No additional MCP connection is needed for these built-in
+read tools.
 
 ## Web access and MCP
 
@@ -143,7 +318,9 @@ Response-read failures also record HTTP status and protocol, bytes read, declare
 content length, and compression state. Error classification distinguishes
 truncated bodies, HTTP/2 resets and GOAWAY codes, timeouts, connection resets,
 and compression failures. These records help diagnose transport failures without
-retaining response content. Gobotto does not retry paid requests automatically.
+retaining response content. Parent conversation requests are not retried
+automatically. Child requests use the recovery policy described above; a retried
+request can incur an additional provider charge.
 Older records with only `Model request failed` cannot recover the original cause.
 
 Optional reasoning settings apply to conversation completions:
@@ -351,7 +528,11 @@ the same row. The default top pane uses at most eight rows; dragging the divider
 overrides this limit and preserves your chosen split during terminal resizes.
 The default view has sessions across the top, a turn list at the lower left,
 and stats above a larger log for the selected turn at the lower right.
-The turn log shows one row per event, including incoming messages and outgoing
+Turn rows show total input/output tokens and reported cost, including child calls.
+Narrow panes hide tokens first, then cost. A `+` marks an incomplete total; `—`
+means unknown. Drag either facing border or the gap between the turn list and
+the details to resize them. The chosen ratio survives terminal resizes.
+The turn log shows newest events first, one row per event, including incoming messages and outgoing
 replies or reactions. Provider names and timings stay on the event row. Long
 rows do not wrap; use Left/Right in the focused log to scroll horizontally.
 Click a turn to inspect it. Use `l` for the separate operational log and `i`
@@ -373,12 +554,13 @@ two content rows; the chosen split is retained when the terminal resizes.
 | Page Up/Page Down  | Scroll details or logs                                          |
 | End or `G`         | Select the latest turn, or follow the latest log                |
 | Home or `g`        | Jump to the first retained log when the log pane has focus      |
-| `q` or Ctrl-C      | Finish the active turn, then quit                               |
+| `q` or Ctrl-C      | Finish active work and report child results, then quit          |
 | Shift-Q            | Cancel active work and quit immediately                         |
 
 The view resizes with the terminal and needs at least 36 columns and 12 rows.
-Normal quit keeps the UI open with a waiting message while the active turn
-finishes. No queued turns start during shutdown. Queued messages remain in the
+Normal quit keeps the UI open with a waiting message while active turns and
+children finish. Completion reports can run during shutdown; queued user turns
+do not start. Queued messages remain in the
 persistent inbox for restart. Press Shift-Q to cancel instead; Gobotto still
 closes connections and saves session state before it exits.
 It retains up to 100 sessions and 200 operational log entries per session.
@@ -454,11 +636,12 @@ their next turn begins the inspection history.
   again. A failed tool turn does not leave an incomplete tool exchange.
 - The model cannot choose another Chatto destination. External tools are limited
   to configured capabilities; shell and arbitrary file access are not supplied.
-- Each turn has a three-minute timeout, at most eight executed tool calls, and
-  at most twelve model work steps plus one final text-only completion. Batched
+- Turn deadlines, tool calls, model steps, and delegation counts are configurable
+  in `gobotto.toml`; omitted or zero execution limits are unlimited. Batched
   calls are rejected before execution with explicit feedback and do not consume
   the execution allowance. Repeated rejections still consume model work steps.
-  At the limit, the bot reports completed and unfinished work from tool receipts.
+  At a configured call/step limit, one final text-only completion reports
+  completed and unfinished work from tool receipts.
   If the model attempts another tool during wrap-up, the host delivers a fixed
   partial-progress notice without executing it. Model output-token caps follow
   the conversation configuration; no cap is supplied by default.

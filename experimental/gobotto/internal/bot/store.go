@@ -15,6 +15,7 @@ import (
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/subagent"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
 
@@ -62,6 +63,8 @@ type savedConversation struct {
 	Blocked              bool
 	Records              []inspection.Turn
 	Logs                 []inspection.Log
+	ChildRuns            map[string]*subagent.Run `json:",omitempty"`
+	ChildUsageApplied    map[string]int           `json:",omitempty"`
 }
 
 // OpenStore isolates credentials by identity, not by secret token. The namespace
@@ -132,6 +135,8 @@ func (s *Store) save(c *conversation, interrupted bool) error {
 	v.Blocked = c.blocked
 	v.Records = c.records
 	v.Logs = c.storedLogs()
+	v.ChildRuns = c.childRuns
+	v.ChildUsageApplied = c.childUsageApplied
 	if c.model != nil {
 		state := c.model.Snapshot()
 		v.History = &state
@@ -170,6 +175,9 @@ func (s *Store) remove(c *conversation) error {
 	if err := os.Remove(s.path(c)); err != nil && !os.IsNotExist(err) {
 		return errStore
 	}
+	if err := os.Remove(filepath.Join(s.dir, "children", c.humanID+".json")); err != nil && !os.IsNotExist(err) {
+		return errStore
+	}
 	return nil
 }
 
@@ -201,6 +209,16 @@ func (s *Store) load() ([]*conversation, error) {
 		c.titleAttempted = v.TitleAttempted
 		c.records = inspection.Retain(v.Records)
 		c.logs = v.Logs
+		c.childRuns = v.ChildRuns
+		c.childUsageApplied = v.ChildUsageApplied
+		for _, child := range c.childRuns {
+			if child == nil {
+				return nil, errStore
+			}
+			if child.Status == "running" {
+				child.Status, child.Reason = "partial", "process_interrupted"
+			}
+		}
 		if len(c.logs) > 200 {
 			c.logs = c.logs[len(c.logs)-200:]
 		}
@@ -225,6 +243,9 @@ func (s *Store) load() ([]*conversation, error) {
 		}
 		if !validHumanID.MatchString(c.humanID) || names[c.humanID] {
 			return nil, errStore
+		}
+		if err := s.loadChildren(c); err != nil {
+			return nil, err
 		}
 		names[c.humanID] = true
 		c.current = v.Current

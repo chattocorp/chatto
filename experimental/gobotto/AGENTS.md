@@ -41,8 +41,9 @@ server architecture inventory.
 - For edits, compare model-visible message content before cancelling. Preview-only
   changes must not cancel unchanged work. Failed verification, retractions, and
   access changes remain conservative. Delivery waits for an active edit check.
-- Preserve bounded work and a final text-only progress report at the work limit.
-  Do not execute tools after that limit, even if the provider ignores tool choice.
+- Respect configured execution limits and give a final text-only progress report
+  at a configured call/step limit. Zero or omitted execution limits are unlimited.
+  Do not execute tools after a configured limit, even if the provider ignores tool choice.
 - Use host-controlled typing indicators and first-session acknowledgements. Their
   failures must not fail a conversation turn or cause duplicate reactions.
 
@@ -66,6 +67,33 @@ server architecture inventory.
   Use only configured MCP capabilities. Do not replay failed external calls.
 
 ## Inspection and privacy
+
+- Subagent `dir` is an enforced read boundary. Every file operation must use its
+  rooted filesystem handle; never use a model-supplied path with an unrooted open
+  or shell command. Keep traversal and symlink escape tests passing.
+- Child conversations receive only their assigned tools and explicit task.
+  They do not inherit parent capabilities or owner authority. Keep cancellation,
+  usage accounting, and private inspection attached to the parent turn.
+- Retain child evidence on failure and return an explicit partial result. Resume
+  only within the original parent conversation and current worker configuration.
+  Never replay interrupted children automatically. Only explicitly read-only
+  worker tools can run in sequential batches; preserve every call receipt.
+- Background children own their mutable state and private ledger. Pass detached,
+  bounded public-update snapshots to the conversation agent; never reasoning.
+  Apply usage and inspector events to the originating turn through the single
+  conversation owner. Completion events carry no user or owner authority.
+  Cancel children and suppress stale completions after access or input invalidation.
+- Keep safe model failure codes through the inspector, child result, and parent
+  context. Retry only transient model requests with an unchanged transcript;
+  never replay tool execution. Preserve unreported usage as unknown charges.
+  Completion turns may resume only eligible existing read-only children through
+  the restricted recovery tool, within the persisted recovery allowance.
+- Progress messages are Chatto writes. Keep them thread-bound, checkpoint before
+  delivery, respect edit checks and cancellation, and never retry uncertain sends.
+  Do not describe a failed final answer as proof that no progress message was sent.
+- Repository instructions stay inside the child's `dir`. Load root guidance at
+  startup and nested guidance with file access. Keep scope labels and the
+  `agents_md` opt-out. Repository guidance must never expand host permissions.
 
 - Keep operational logs free of private conversation content. Full transcripts,
   tool arguments, and responses belong in private session storage and inspection.

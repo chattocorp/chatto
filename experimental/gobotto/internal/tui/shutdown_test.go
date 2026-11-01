@@ -20,7 +20,7 @@ func TestQuitWaitsAndOffersForceKey(t *testing.T) {
 			t.Fatal("normal quit closed UI before worker finished")
 		}
 	}
-	if requests != 1 || !strings.Contains(m.View().Content, "Waiting for active turn") || !strings.Contains(m.View().Content, "Shift-Q") {
+	if requests != 1 || !strings.Contains(m.View().Content, "Waiting for active work") || !strings.Contains(m.View().Content, "Shift-Q") {
 		t.Fatal("missing graceful shutdown state")
 	}
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'Q'})

@@ -16,6 +16,7 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/subagent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
@@ -42,27 +43,37 @@ type threadKey struct{ room, root string }
 type conversation struct {
 	// Shared membership index allows intake to scope invalidations while the
 	// worker owns the transcript. Ready is false while a snapshot is loading.
-	contextIDs     sync.Map
-	contextReady   atomic.Bool
-	id             uint64
-	humanID        string
-	title          string
-	titleAttempted bool
-	records        []inspection.Turn // owned by the manager when idle, by the worker during a turn
-	emitInspection func(inspection.Turn)
-	logMu          sync.Mutex
-	logs           []inspection.Log
-	queuedAt       time.Time
-	identity       agent.Identity
-	ownerUserIDs   []string // current startup config; never inherited from a session or thread
-	memory         *memory.Manager
-	tools          []agent.Tool // immutable startup capabilities, shared by conversations
-	systemPrompt   string
-	key            threadKey
-	model          *agent.Session
-	complete       agent.Complete
-	seen           map[string]bool   // worker-owned IDs already supplied to the model
-	current        map[string]string // fingerprints for offline edit/deletion detection
+	contextIDs        sync.Map
+	contextReady      atomic.Bool
+	id                uint64
+	humanID           string
+	title             string
+	titleAttempted    bool
+	records           []inspection.Turn // owned by the manager when idle, by the worker during a turn
+	emitInspection    func(inspection.Turn)
+	logMu             sync.Mutex
+	logs              []inspection.Log
+	queuedAt          time.Time
+	identity          agent.Identity
+	ownerUserIDs      []string // current startup config; never inherited from a session or thread
+	memory            *memory.Manager
+	tools             []agent.Tool // immutable startup capabilities, shared by conversations
+	subagents         *subagent.Manager
+	childRuns         map[string]*subagent.Run // private child transcripts, scoped to this thread
+	jobs              *subagent.Background
+	childReady        []string
+	childSteps        map[string]int
+	childUsageApplied map[string]int
+	accountUsage      func(agent.Usage)
+	reportUsage       func(agent.Usage)
+	limits            agent.Limits
+	maxDelegations    int
+	systemPrompt      string
+	key               threadKey
+	model             *agent.Session
+	complete          agent.Complete
+	seen              map[string]bool   // worker-owned IDs already supplied to the model
+	current           map[string]string // fingerprints for offline edit/deletion detection
 	// editCheck prevents delivery while intake verifies a metadata-only edit.
 	editCheck            sync.RWMutex
 	pending              []chatto.MessageEvent // manager-owned while the worker runs
@@ -96,6 +107,12 @@ type Options struct {
 	Shutdown <-chan struct{}
 	// Tools contains operator-selected external capabilities for every turn.
 	Tools []agent.Tool
+	// Subagents supplies isolated read-only workers; nil disables delegation.
+	Subagents *subagent.Manager
+	// Zero execution limits leave work unbounded; cancellation still applies.
+	TurnTimeout    time.Duration
+	Limits         agent.Limits
+	MaxDelegations int
 	// Debounce is the quiet period before a turn. Zero uses four seconds.
 	Debounce time.Duration
 	Memory   *memory.Manager
@@ -123,6 +140,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	if opts.Debounce < 0 {
 		return errors.New("debounce duration must not be negative")
 	}
+	if opts.TurnTimeout < 0 || opts.Limits.MaxToolCalls < 0 || opts.Limits.MaxModelSteps < 0 || opts.MaxDelegations < 0 {
+		return errors.New("execution limits must be nonnegative")
+	}
 	if opts.Debounce == 0 {
 		opts.Debounce = batchWindow
 	}
@@ -140,6 +160,8 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		cancel()
 		workers.Wait()
 		for _, c := range sessions {
+			c.jobs.Close()
+			_ = c.syncChildren()
 			if c.reset {
 				c.model = nil
 				c.seen = nil
@@ -154,6 +176,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	input := make(chan incoming, 128)
 	sourceDone := make(chan error, 1)
 	turnDone := make(chan result, 1)
+	childWake := make(chan struct{}, 1)
 	resumable, canResume := client.(interface {
 		ObserveResumable(context.Context, string, chatto.RecoveryOptions, func(), func(context.Context, chatto.MessageEvent) error) error
 	})
@@ -208,6 +231,15 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	var nextID uint64
 	var active *conversation
 	var stopTurn context.CancelCauseFunc
+	startChildren := func(c *conversation) {
+		human := c.humanID
+		c.jobs = subagent.NewBackground(ctx, c.subagents, c.childRuns, func(runs map[string]*subagent.Run) error { return store.saveChildren(human, runs) }, func() {
+			select {
+			case childWake <- struct{}{}:
+			default:
+			}
+		})
+	}
 	bind := func(c *conversation) {
 		for id, hash := range c.current {
 			c.contextIDs.Store(id, hash)
@@ -222,11 +254,15 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		c.ownerUserIDs = owners
 		c.memory = opts.Memory
 		c.tools = append([]agent.Tool(nil), opts.Tools...)
+		c.subagents = opts.Subagents
+		c.limits, c.maxDelegations = opts.Limits, opts.MaxDelegations
 		c.store = store
-		c.complete = factory(c.provider, func(u agent.Usage) {
-			c.recordUsage(u)
+		startChildren(c)
+		c.accountUsage = func(u agent.Usage) {
 			c.usage.addReasoning(u)
-			c.usage.Known = true
+			if !u.Unreported {
+				c.usage.Known = true
+			}
 			c.usage.Input += u.Input
 			c.usage.Cached += u.CachedInput
 			c.usage.Output += u.Output
@@ -236,11 +272,23 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			} else {
 				c.usage.CostMissing = true
 			}
-			c.storeErr = store.save(c, true)
-			emit(tui.Event{Kind: tui.Tokens, Session: c.id, Input: u.Input, CachedInput: u.CachedInput, Output: u.Output, Cost: u.Cost, Reasoning: u.Reasoning, ReasoningKnown: u.ReasoningKnown})
-		})
+			inTurn := len(c.records) > 0 && c.records[len(c.records)-1].State == "running"
+			c.storeErr = store.save(c, inTurn)
+			emit(tui.Event{Kind: tui.Tokens, Session: c.id, Unreported: u.Unreported, Input: u.Input, CachedInput: u.CachedInput, Output: u.Output, Cost: u.Cost, Reasoning: u.Reasoning, ReasoningKnown: u.ReasoningKnown})
+		}
+		c.reportUsage = func(u agent.Usage) { c.recordUsage(u); c.accountUsage(u) }
+		c.complete = factory(c.provider, c.reportUsage)
 	}
 	initialize := func(c *conversation) {
+		if c.jobs != nil {
+			c.jobs.Close()
+			_ = c.syncChildren()
+			c.childRuns = nil
+			c.childReady = nil
+			if err := store.saveChildren(c.humanID, nil); err != nil {
+				c.storeErr = err
+			}
+		}
 		c.contextIDs.Clear()
 		c.contextReady.Store(false)
 		c.model = nil
@@ -302,14 +350,31 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			intake = nil
 			keepIntake = false
 		}
-		if draining && active == nil {
+		childrenActive, childrenReady := false, false
+		for _, c := range sessions {
+			childrenActive = childrenActive || c.jobs.Active()
+			if c != active {
+				if err := c.syncChildren(); err != nil {
+					return err
+				}
+				if len(c.childReady) > 0 && c.deadline.IsZero() && !c.reset {
+					c.deadline = time.Now()
+					c.queuedAt = c.deadline
+				}
+				childrenReady = childrenReady || len(c.childReady) > 0
+			}
+		}
+		if draining && active == nil && !childrenActive && !childrenReady {
 			return nil
 		}
 		var timer *time.Timer
 		var wake <-chan time.Time
 		var next *conversation
-		if !draining && active == nil && connected {
+		if active == nil && connected {
 			for _, c := range sessions {
+				if draining && len(c.childReady) == 0 {
+					continue
+				}
 				if !c.deadline.IsZero() && (next == nil || c.deadline.Before(next.deadline)) {
 					next = c
 				}
@@ -320,6 +385,11 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			}
 		}
 		select {
+		case <-childWake:
+			if timer != nil {
+				timer.Stop()
+			}
+			continue
 		case <-shutdown:
 			draining = true
 			shutdown = nil
@@ -357,10 +427,17 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				connected = false
 				recoveryGap = true
 				for _, c := range sessions {
+					c.jobs.Cancel()
 					if active == c {
 						c.reset = true
 						stopTurn(invalidatedTurn("Cancelled: realtime replay gap requires a context refresh"))
 					} else {
+						c.jobs.Close()
+						if err := c.syncChildren(); err != nil {
+							return err
+						}
+						c.childReady = nil
+						startChildren(c)
 						c.resumed = true
 					}
 					c.send(emit, tui.Event{Kind: tui.Log, Session: c.id, Text: "Replay unavailable; thread context will refresh. Offline messages may be missing."})
@@ -385,6 +462,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 						if err := store.finish(c.pending); err != nil {
 							return err
 						}
+						c.jobs.Cancel()
 						c.pending = nil
 						c.deadline = time.Time{}
 						c.reset = true
@@ -418,7 +496,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				if len(sessions) >= sessionLimit {
 					var oldest *conversation
 					for _, candidate := range sessions {
-						if candidate != active && candidate.deadline.IsZero() && (oldest == nil || candidate.used.Before(oldest.used)) {
+						if candidate != active && candidate.jobs.CanEvict() && candidate.deadline.IsZero() && (oldest == nil || candidate.used.Before(oldest.used)) {
 							oldest = candidate
 						}
 					}
@@ -426,6 +504,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 						return errors.New("all conversation slots have pending turns")
 					}
 					delete(sessions, oldest.key)
+					oldest.jobs.Close()
 					if err := store.remove(oldest); err != nil {
 						return err
 					}
@@ -495,15 +574,24 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			}
 			c := next
 			batch := c.pending
+			if draining {
+				batch = nil
+			}
 			// Persist the no-retry boundary before any model or delivery side effect.
 			if err := store.claim(batch); err != nil {
 				return err
 			}
 			activeBatch = batch
-			c.pending = nil
+			if !draining {
+				c.pending = nil
+			}
 			c.deadline = time.Time{}
 			active = c
-			deadlineCtx, deadlineCancel := context.WithTimeout(ctx, 3*time.Minute)
+			deadlineCtx := ctx
+			deadlineCancel := func() {}
+			if opts.TurnTimeout > 0 {
+				deadlineCtx, deadlineCancel = context.WithTimeout(ctx, opts.TurnTimeout)
+			}
 			turnCtx, turnCancel := context.WithCancelCause(deadlineCtx)
 			stopTurn = turnCancel
 			c.turns++
@@ -514,6 +602,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 					body = append(body[:10000], []rune("\n[truncated]")...)
 				}
 				record.Inputs = append(record.Inputs, inspection.Input{Text: string(body), Addressed: e.Addressed})
+			}
+			if len(batch) == 0 {
+				record.Inputs = append(record.Inputs, inspection.Input{Text: "Background investigation completed (host event)"})
 			}
 			c.records = inspection.Retain(append(c.records, record))
 			c.inspect(func(*inspection.Turn) {})
@@ -609,7 +700,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				}
 				c.send(emit, tui.Event{Kind: tui.Failed, Session: c.id, Text: "Turn failed; no automatic retry. Check delivery before requesting a retry."})
 			} else {
-				emit(tui.Event{Kind: tui.Completed, Session: c.id})
+				emit(tui.Event{Kind: tui.Completed, Session: c.id, Background: c.jobs.Active()})
 			}
 			if !c.deadline.IsZero() {
 				emit(tui.Event{Kind: tui.Queued, Session: c.id})
@@ -621,16 +712,54 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 var errBudget = errors.New("conversation context budget reached")
 
 func respond(ctx context.Context, client Client, c *conversation, batch []chatto.MessageEvent, report func(string)) (turnErr error) {
+	if err := c.syncChildren(); err != nil {
+		return err
+	}
+	completed := append([]string(nil), c.childReady...)
+	c.childReady = nil
 	stopTyping := startTyping(ctx, client, c.key)
 	defer stopTyping()
 	tools := append(c.memory.Tools(c.ownerOnlyBatch(batch)), c.tools...)
+	// A completion event authorizes reporting, not a new user-directed operation.
+	if len(batch) == 0 {
+		tools = nil
+	}
+	updates := newProgress(c, client, batch)
+	if updates.target == "" {
+		for _, id := range completed {
+			if r := c.childRuns[id]; r != nil {
+				updates.target = r.Target
+			}
+		}
+	}
+	tools = append(tools, updates.tool(), deferredTool(func() bool { return c.jobs.Active() || len(completed) > 0 || !updates.last.IsZero() }))
+	childTools := c.jobs.Tools(c.maxDelegations, c.turns, updates.target, func(ctx context.Context) {
+		if updates.last.IsZero() && !updates.uncertain {
+			updates.send(ctx, "I'll investigate the relevant code and report what I can verify.")
+		}
+	})
+	if len(batch) == 0 {
+		reportTools := childTools[:0]
+		for _, tool := range childTools {
+			if tool.Name == "investigation_status" {
+				reportTools = append(reportTools, tool)
+			}
+		}
+		childTools = reportTools
+		childTools = append(childTools, c.jobs.RecoveryTools(completed, c.maxDelegations, c.turns, updates.target, nil)...)
+	}
+	tools = append(tools, childTools...)
 	ctx = agent.WithTools(ctx, tools)
+	ctx = agent.WithLimits(ctx, c.limits)
 	defer func() {
+		if err := c.syncChildren(); err != nil {
+			turnErr = err
+		}
 		c.inspect(func(t *inspection.Turn) {
 			t.Finished = time.Now()
 			if turnErr != nil && t.State == "running" {
 				t.State = "failed"
-				t.Failure = "Turn failed before delivery; inspect the last step"
+				t.Failure = "Turn failed before final delivery; inspect completed actions and progress updates"
 				if detail := modelFailureDetail(ctx, turnErr); detail != "Model request failed" {
 					t.Failure = detail
 				}
@@ -653,6 +782,17 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		c.records = inspection.Retain(c.records)
 		if err := c.store.save(c, false); err != nil {
 			turnErr = err
+		}
+		if turnErr == nil {
+			ack := []string{}
+			for _, id := range completed {
+				if r := c.childRuns[id]; r != nil && r.OriginTurn != c.turns {
+					ack = append(ack, id)
+				}
+			}
+			if err := c.jobs.Acknowledge(c.childUsageApplied, ack); err != nil {
+				turnErr = errStore
+			}
 		}
 	}()
 	if report == nil {
@@ -738,15 +878,25 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	}
 	initializing = false
 	var target chatto.Message
+	for _, id := range completed {
+		if r := c.childRuns[id]; r != nil {
+			target.ID = r.Target
+			updates.target = r.Target
+		}
+	}
 	c.model.SetInstructions(c.identity, c.systemPrompt, c.ownerUserIDs...)
 	input := struct {
-		CurrentTime string           `json:"currentTime"`
-		Messages    []chatto.Message `json:"newMessages"`
-		Addressed   []string         `json:"addressedMessageIds"`
-		Triggers    []string         `json:"triggerMessageIds"`
-		Authors     []triggerAuthor  `json:"triggerAuthors"`
-		Brains      json.RawMessage  `json:"brainCatalog"`
+		CurrentTime    string           `json:"currentTime"`
+		Messages       []chatto.Message `json:"newMessages"`
+		Addressed      []string         `json:"addressedMessageIds"`
+		Triggers       []string         `json:"triggerMessageIds"`
+		Authors        []triggerAuthor  `json:"triggerAuthors"`
+		Brains         json.RawMessage  `json:"brainCatalog"`
+		Investigations []map[string]any `json:"investigations,omitempty"`
+		Completed      []string         `json:"completedInvestigations,omitempty"`
 	}{CurrentTime: time.Now().UTC().Format(time.RFC3339)}
+	input.Investigations = c.jobs.Context()
+	input.Completed = completed
 	catalog, catalogErr := c.memory.Catalog(ctx)
 	if catalogErr != nil {
 		return catalogErr
@@ -778,6 +928,9 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		return err
 	}
 	complete := func(ctx context.Context, messages []agent.Message) (agent.Message, error) {
+		if err := c.syncChildren(); err != nil {
+			return nil, err
+		}
 		if c.storeErr != nil {
 			return nil, c.storeErr
 		}
@@ -846,10 +999,14 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	if err != nil {
 		c.inspect(func(t *inspection.Turn) {
 			if len(t.Steps) > 0 && t.Steps[len(t.Steps)-1].State == "complete" {
-				t.Steps = append(t.Steps, inspection.Step{Kind: "validation", Name: "Agent result", State: "failed", Started: time.Now(), Detail: "Invalid or incomplete model action; no output delivered"})
+				t.Steps = append(t.Steps, inspection.Step{Kind: "validation", Name: "Agent result", State: "failed", Started: time.Now(), Detail: "Invalid or incomplete model action; no final answer delivered. Earlier tool and progress receipts still apply."})
 			}
 		})
 		return err
+	}
+	if outcome.Waiting {
+		c.inspect(func(t *inspection.Turn) { t.State = "waiting" })
+		return nil
 	}
 	c.inspect(func(t *inspection.Turn) { t.Response = outcome.Body; t.Emoji = outcome.Emoji })
 	for _, id := range refreshed {
