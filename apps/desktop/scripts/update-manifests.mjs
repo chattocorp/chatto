@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { desktopUpdateChannel } from '../update_channel.mjs';
 
 /** All update-capable platforms must be present before any manifest is written. */
 export async function writeUpdateManifests(
@@ -11,10 +12,10 @@ export async function writeUpdateManifests(
   version,
   releaseDate = new Date().toISOString()
 ) {
-  if (!/^\d+\.\d+\.\d+(?:-beta\.\d+)?$/.test(version)) {
-    throw new Error('Desktop updates require a stable or beta release version.');
+  const channel = desktopUpdateChannel(version);
+  if (!channel) {
+    throw new Error('Desktop updates require a stable, beta, or RC release version.');
   }
-  const channel = version.includes('-') ? 'beta' : 'latest';
   const artifacts = [
     [`${channel}-mac.yml`, `chatto-desktop_${version}_macOS_ARM64.zip`],
     [`${channel}.yml`, `chatto-desktop_${version}_Windows_X64_Setup.exe`],

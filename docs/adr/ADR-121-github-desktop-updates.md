@@ -20,7 +20,9 @@ downloads for manual installation.
 
 Stable and Beta are user-selectable channels. Prerelease builds default to
 Beta; stable builds default to Stable. Preserve saved channel choices across
-upgrades. Disable downgrades. Stable
+upgrades. Beta includes beta and release-candidate (RC) versions. Both use the
+`beta` update manifests and keep their full release version. Stable excludes
+prereleases. Disable downgrades. Stable
 automatic checks use a 36-hour rollout; manual checks and Beta bypass it.
 Download in the background and require an explicit restart to install. Recheck
 the current release before installation to reject a superseded download.

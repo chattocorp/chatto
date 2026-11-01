@@ -104,6 +104,7 @@ system-browser authentication, and clean-machine media behavior are hardened.
   download progress, Stable or Beta, manual checks, and an automatic-check
   setting. The native Updates menu uses the same settings and updater.
   Prerelease builds default to Beta; stable builds default to Stable.
+  Beta includes beta and release-candidate (RC) versions through the same feed.
   A saved channel choice takes precedence. Stable rolls out over 36 hours. Beta and manual
   checks bypass this delay. Switching to Stable never installs an older version.
   The restart action is hidden until an update is ready and shows its version.
