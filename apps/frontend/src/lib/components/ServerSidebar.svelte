@@ -21,6 +21,8 @@ See the "UI" section of `docs/GLOSSARY.md`.
   import CurrentUserBar from './CurrentUserBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
+  const paneId = $props.id();
+
   let {
     children,
     width,
@@ -40,6 +42,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
 </script>
 
 <div
+  id={paneId}
   data-app-sidebar="true"
   data-testid="server-sidebar"
   class={[
@@ -64,6 +67,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
   {/if}
   {#if resizable && !sidebarNav.isMobile}
     <ResizeHandle
+      controls={paneId}
       width={serverSidebarWidth.value}
       min={SERVER_SIDEBAR_MIN_WIDTH}
       max={SERVER_SIDEBAR_MAX_WIDTH}

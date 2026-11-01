@@ -10,20 +10,24 @@ describe('ResizeHandle', () => {
     { edge: 'start' as const, edgeClass: 'start-0' }
   ])('keeps the $edge hit target inside its owning sidebar', async ({ edge, edgeClass }) => {
     await page.viewport(800, 600);
-    render(ResizeHandle, {
+    const { container } = render(ResizeHandle, {
       width: 256,
       min: 192,
       max: 384,
+      controls: 'pane',
       edge,
       onResize: vi.fn()
     });
+    container.id = 'pane';
 
-    const handle = page.getByRole('slider', { name: 'Resize' });
+    const handle = page.getByRole('separator', { name: 'Resize' });
     await expect.element(handle).toHaveClass(edgeClass);
     await expect.element(handle).toHaveClass('w-2');
     await expect.element(handle).toHaveClass('h-full');
     await expect.element(handle).toHaveClass('pointer-events-auto');
     await expect.element(handle).toHaveAttribute('aria-orientation', 'vertical');
+    await expect.element(handle).toHaveAttribute('aria-controls', container.id);
+    await expect.element(handle).toHaveAttribute('tabindex', '0');
     await expect.element(handle).toHaveAttribute('aria-valuemin', '192');
     await expect.element(handle).toHaveAttribute('aria-valuemax', '384');
     await expect.element(handle).toHaveAttribute('aria-valuenow', '256');
@@ -49,9 +53,11 @@ describe('ResizeHandle', () => {
       width: 256,
       min: 192,
       max: 384,
+      controls: 'pane',
       edge,
       onResize: vi.fn()
     });
+    container.id = 'pane';
     container.dir = dir;
     Object.assign(container.style, { position: 'relative', width: '256px', height: '240px' });
 
@@ -69,7 +75,7 @@ describe('ResizeHandle', () => {
     badge.onclick = onClick;
     container.append(badge);
 
-    const handle = page.getByRole('slider', { name: 'Resize' }).element();
+    const handle = page.getByRole('separator', { name: 'Resize' }).element();
     const rect = container.getBoundingClientRect();
     const rightEdge = (edge === 'end') === (dir === 'ltr');
     const x = (inset: number) => (rightEdge ? rect.right - inset : rect.left + inset);
@@ -84,16 +90,18 @@ describe('ResizeHandle', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('supports vertical slider keyboard controls', async () => {
+  it('supports resize keyboard controls', async () => {
     const onResize = vi.fn();
     const { container } = render(ResizeHandle, {
       width: 256,
       min: 192,
       max: 384,
+      controls: 'pane',
       onResize
     });
+    container.id = 'pane';
 
-    const handle = container.querySelector('[role="slider"]') as HTMLElement;
+    const handle = container.querySelector('[role="separator"]') as HTMLElement;
     for (const key of ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown']) {
       handle.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
     }
@@ -110,10 +118,12 @@ describe('ResizeHandle', () => {
       width: 256,
       min: 192,
       max: 384,
+      controls: 'pane',
       onResize
     });
+    container.id = 'pane';
 
-    const handle = container.querySelector('[role="slider"]') as HTMLElement;
+    const handle = container.querySelector('[role="separator"]') as HTMLElement;
     vi.spyOn(handle, 'setPointerCapture').mockImplementation(() => undefined);
     vi.spyOn(handle, 'hasPointerCapture').mockReturnValue(true);
     const releasePointerCapture = vi
