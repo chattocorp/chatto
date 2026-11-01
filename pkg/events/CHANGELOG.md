@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1](https://github.com/chattocorp/chatto/compare/pkg/events/v0.1.0...pkg/events/v0.1.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **logging:** add context to cache and cleanup diagnostics ([#3246](https://github.com/chattocorp/chatto/issues/3246)) ([2b266eb](https://github.com/chattocorp/chatto/commit/2b266eb6ca61dcde7d605c5444d82e3df71f16e5))
+
+
+### Performance Improvements
+
+* **import:** batch history writes and live search indexing ([#3306](https://github.com/chattocorp/chatto/issues/3306)) ([e3c42af](https://github.com/chattocorp/chatto/commit/e3c42af06032156fd50cd2088d59f7119a48bfa7))
+
 ## 0.1.0 (2026-10-15)
 
 
