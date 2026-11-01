@@ -132,6 +132,49 @@ describe('sidebarSwipe', () => {
     action.destroy();
   });
 
+  it.each(['ltr', 'rtl'])('leaves viewport-edge swipes to the browser in %s', (direction) => {
+    document.documentElement.dir = direction;
+    const { host, child } = makeGestureHost();
+    const action = sidebarSwipe(host);
+
+    for (const open of [false, true]) {
+      for (const startX of [0, 24, window.innerWidth - 24, window.innerWidth - 1]) {
+        sidebarNav.isOpen = open;
+        const endX = startX < window.innerWidth / 2 ? startX + 210 : startX - 210;
+        const start = touch('touchstart', startX);
+        child.dispatchEvent(start);
+        const move = touch('touchmove', endX);
+        window.dispatchEvent(move);
+
+        expect(sidebarNav.dragOffset).toBeNull();
+        expect(start.defaultPrevented).toBe(false);
+        expect(move.defaultPrevented).toBe(false);
+
+        window.dispatchEvent(touch('touchend', endX));
+        expect(sidebarNav.isOpen).toBe(open);
+      }
+    }
+
+    action.destroy();
+  });
+
+  it.each(['ltr', 'rtl'])('opens from just inside the edge exclusion in %s', (direction) => {
+    document.documentElement.dir = direction;
+    const { host, child } = makeGestureHost();
+    const action = sidebarSwipe(host);
+    const startX = direction === 'ltr' ? 25 : window.innerWidth - 25;
+    const endX = startX + (direction === 'ltr' ? 210 : -210);
+
+    child.dispatchEvent(touch('touchstart', startX));
+    const move = touch('touchmove', endX);
+    window.dispatchEvent(move);
+    expect(move.defaultPrevented).toBe(true);
+    window.dispatchEvent(touch('touchend', endX));
+    expect(sidebarNav.isOpen).toBe(true);
+
+    action.destroy();
+  });
+
   it('ignores drags that start inside horizontally scrollable content', () => {
     const { host } = makeGestureHost();
     const scroller = document.createElement('div');

@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-10-22
+**Last reviewed:** 2026-11-01
 
 ## Overview
 
@@ -9,6 +9,11 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
+- In the mobile drawer layout, swipes that start within 24 CSS pixels of either
+  physical viewport edge do not open or close the sidebar. This leaves edge
+  gestures available to the browser and prevents the menu from appearing during
+  iOS Back navigation. The rule applies in both text directions. Start a menu
+  swipe farther inside the page, or use the menu button.
 - Sidebar navigation rows have a minimum height of 48 px on touch-capable
   devices, including wide windows and devices with a mouse. This makes room
   selection easier without larger text or icons. Mouse-only devices keep

@@ -2,9 +2,25 @@ import { sidebarNav } from '$lib/state/globals.svelte';
 import { toInlineEndDelta } from '$lib/i18n/direction';
 import { panGesture } from './panGesture.svelte';
 
+/** Keep physical viewport edges available for browser back/forward gestures. */
+const BROWSER_GESTURE_EDGE_PX = 24;
+
+/** Reject edge starts before the sidebar can claim or animate a touch drag. */
+function startsAwayFromViewportEdge(event: PointerEvent | TouchEvent): boolean {
+  if (!('changedTouches' in event)) return false;
+  const touch = event.changedTouches.item(0);
+  return (
+    touch !== null &&
+    touch.clientX > BROWSER_GESTURE_EDGE_PX &&
+    touch.clientX < window.innerWidth - BROWSER_GESTURE_EDGE_PX
+  );
+}
+
 /**
  * Svelte action: drives the mobile sidebar's open/close state from a
- * horizontal touch drag anywhere inside the app-shell host.
+ * horizontal touch drag inside the app-shell host, except within 24 CSS pixels
+ * of either physical viewport edge. Edge starts are left to browser navigation,
+ * regardless of text direction or whether the sidebar is open.
  *
  * Mouse and pen input are ignored, including on touch-capable devices.
  * Touch gestures require the narrow drawer layout (`sidebarNav.isMobile`). When closed, only
@@ -52,6 +68,7 @@ export function sidebarSwipe(node: HTMLElement) {
     enabled: (event) =>
       event.type === 'touchstart' &&
       sidebarNav.isMobile &&
+      startsAwayFromViewportEdge(event) &&
       !startsInsideExcludedSurface(event, node),
     shouldClaim: (dx) => (sidebarNav.isOpen ? toInlineEndDelta(dx) < 0 : toInlineEndDelta(dx) > 0),
     onStart: () => sidebarNav.startDrag(),
