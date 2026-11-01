@@ -66,6 +66,7 @@ func (c *conversation) recordUsage(u agent.Usage) {
 			return
 		}
 		s.Usage = inspection.Usage{Input: u.Input, Cached: u.CachedInput, Output: u.Output, Known: true, CacheKnown: u.CacheKnown, CostMissing: u.Cost == nil}
+		s.Usage.Known = !u.Unreported
 		s.Usage.Reasoning, s.Usage.ReasoningKnown = u.Reasoning, u.ReasoningKnown
 		s.Provider, s.RequestID = u.Provider, u.RequestID
 		if u.Cost != nil {

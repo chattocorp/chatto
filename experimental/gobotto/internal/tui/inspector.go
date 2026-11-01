@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -127,7 +128,8 @@ func (m *model) inspectorContent(s *session) string {
 				label = "Reacted"
 			}
 		}
-		items = append(items, turnItem{record.Number, record.Started, label})
+		tokens, cost := turnUsageSummary(record)
+		items = append(items, turnItem{number: record.Number, started: record.Started, state: label, tokens: tokens, cost: cost})
 	}
 	m.turnList.SetItems(items)
 	m.turnList.Select(selected)
@@ -172,7 +174,7 @@ func (m *model) inspectorContent(s *session) string {
 					elapsed = time.Since(step.Started)
 				}
 				name := step.Name
-				if step.Kind == "model" {
+				if step.Kind == "model" && step.Name == "Completion" {
 					name = "Generate response"
 				}
 				if step.Kind == "tool" && step.Name == "react_to_ping" {
@@ -182,7 +184,7 @@ func (m *model) inspectorContent(s *session) string {
 				if step.State == "running" {
 					mark, color = "◌", "#5EEAD4"
 				}
-				if step.State == "failed" || step.State == "uncertain" || step.State == "interrupted" || step.State == "rejected" || step.State == "cancelled" {
+				if step.State == "failed" || step.State == "uncertain" || step.State == "interrupted" || step.State == "rejected" || step.State == "cancelled" || step.State == "partial" {
 					mark, color = "!", "#F38BA8"
 					name += " (" + step.State + ")"
 				}
@@ -268,6 +270,14 @@ func (m *model) inspectorContent(s *session) string {
 				}
 			}
 			stats.calls = calls + titleCalls
+			// Events are built in execution order so delivery output stays beside
+			// its receipt. Show newest first; aggregate notes remain below them.
+			if body.Len() > 0 {
+				rows := strings.Split(strings.TrimSuffix(body.String(), "\n"), "\n")
+				slices.Reverse(rows)
+				body.Reset()
+				body.WriteString(strings.Join(rows, "\n") + "\n")
+			}
 			if reads > 0 {
 				fmt.Fprintf(&body, "  NOTE  %d thread refresh(es) requested despite supplied context\n", reads)
 			}
@@ -298,9 +308,50 @@ func (m *model) inspectorContent(s *session) string {
 }
 
 type turnItem struct {
-	number  int
-	started time.Time
-	state   string
+	number       int
+	started      time.Time
+	state        string
+	tokens, cost string
+}
+
+// turnUsageSummary includes child and title calls without counting cached input
+// twice. A plus marks an incomplete reported total; unknown is never zero.
+func turnUsageSummary(t inspection.Turn) (string, string) {
+	var tokens int64
+	var cost float64
+	known, missing, costKnown, costMissing := false, false, false, false
+	for _, step := range t.Steps {
+		u := step.Usage
+		if step.Kind != "model" && step.Kind != "title" && !u.Known {
+			continue
+		}
+		known = known || u.Known
+		missing = missing || !u.Known
+		tokens += u.Input + u.Output
+		cost += u.Cost
+		costKnown = costKnown || u.CostKnown
+		costMissing = costMissing || u.CostMissing || !u.CostKnown
+	}
+	tokenText, costText := "— tok", "$—"
+	if known {
+		tokenText = fmt.Sprint(tokens)
+		if tokens >= 1000000 {
+			tokenText = fmt.Sprintf("%.1fM", float64(tokens)/1000000)
+		} else if tokens >= 1000 {
+			tokenText = fmt.Sprintf("%.1fk", float64(tokens)/1000)
+		}
+		if missing {
+			tokenText += "+"
+		}
+		tokenText += " tok"
+	}
+	if costKnown {
+		costText = fmt.Sprintf("$%.4f", cost)
+		if costMissing {
+			costText += "+"
+		}
+	}
+	return tokenText, costText
 }
 
 // logEvent keeps each event on one physical row. Full content stays copyable;
@@ -336,6 +387,18 @@ func (turnDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 func (turnDelegate) Render(w io.Writer, l list.Model, index int, item list.Item) {
 	t := item.(turnItem)
 	text := fmt.Sprintf(" %02d  %s  %s", t.number, t.started.Format("15:04"), t.state)
+	// Keep the identity/state visible first, then cost, then the token total.
+	summary := ""
+	baseWidth := max(23, lipgloss.Width(text))
+	if l.Width() >= baseWidth+2+lipgloss.Width(t.cost)+1 {
+		summary = t.cost
+		if l.Width() >= baseWidth+2+lipgloss.Width(t.tokens+"  "+t.cost)+1 {
+			summary = t.tokens + "  " + t.cost
+		}
+	}
+	if summary != "" {
+		text += strings.Repeat(" ", max(2, l.Width()-lipgloss.Width(text)-lipgloss.Width(summary)-1)) + summary + " "
+	}
 	style := lipgloss.NewStyle().Foreground(lipgloss.Color("#AEB8C5"))
 	if index == l.Index() {
 		style = style.Background(lipgloss.Color("#244F52")).Foreground(lipgloss.Color("#E8FFFF")).Bold(true)
@@ -354,7 +417,14 @@ func newTurnList() list.Model {
 	return l
 }
 
-func (m *model) turnListWidth() int { return min(28, max(14, (m.width-4)/4)) }
+func (m *model) turnListWidth() int {
+	available := max(1, m.width-9)
+	width := min(48, max(14, available/3))
+	if m.turnSplit > 0 {
+		width = int(float64(available)*m.turnSplit + 0.5)
+	}
+	return min(max(14, available-24), max(14, width))
+}
 
 func (m *model) selectTurnRow() {
 	item, ok := m.turnList.SelectedItem().(turnItem)

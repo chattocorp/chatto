@@ -22,9 +22,10 @@ type Config struct {
 	OwnerUserIDs []string     `toml:"owner_user_ids"`
 	Conversation Conversation `toml:"conversation"`
 	// Titles is optional; omission disables automatic session titles.
-	Titles *Titles `toml:"titles"`
-	Memory Memory  `toml:"memory"`
-	MCP    MCP     `toml:"mcp"`
+	Titles    *Titles             `toml:"titles"`
+	Memory    Memory              `toml:"memory"`
+	MCP       MCP                 `toml:"mcp"`
+	Subagents map[string]Subagent `toml:"subagents"`
 }
 
 // Memory binds fixed collections and an optional directory for managed brains.
@@ -50,6 +51,12 @@ type Titles struct {
 // Conversation selects the OpenRouter model and operator instructions. The
 // system prompt supplements Gobotto's internal protocol and behavior rules.
 type Conversation struct {
+	// Omitted or zero execution limits are unlimited. Timeout is a Go duration.
+	Timeout         string        `toml:"timeout"`
+	TimeoutDuration time.Duration `toml:"-"`
+	MaxToolCalls    int           `toml:"max_tool_calls"`
+	MaxModelSteps   int           `toml:"max_model_steps"`
+	MaxDelegations  int           `toml:"max_delegations"`
 	// Debounce is a positive Go duration, such as "4s" or "750ms".
 	Debounce string `toml:"debounce"`
 	// DebounceDuration is the validated startup value derived from Debounce.
@@ -142,11 +149,18 @@ func Load(path string) (Config, error) {
 	if cfg.Conversation.Model == "" {
 		return Config{}, errors.New("set conversation.model in Gobotto config")
 	}
+	cfg.Conversation.TimeoutDuration, err = executionTimeout(cfg.Conversation.Timeout)
+	if err != nil || cfg.Conversation.MaxToolCalls < 0 || cfg.Conversation.MaxModelSteps < 0 || cfg.Conversation.MaxDelegations < 0 {
+		return Config{}, errors.New("conversation execution limits must be nonnegative; timeout must be a duration")
+	}
 	if cfg.Titles != nil {
 		cfg.Titles.Model = strings.TrimSpace(cfg.Titles.Model)
 		if cfg.Titles.Model == "" {
 			return Config{}, errors.New("set titles.model or remove the titles section")
 		}
+	}
+	if err := cfg.validateSubagents(path); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }

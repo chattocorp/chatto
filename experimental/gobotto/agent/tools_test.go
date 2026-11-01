@@ -63,6 +63,7 @@ func TestBatchedRejectionPreservesBudgetAndAllowsWrapUp(t *testing.T) {
 		executed++
 		return `{"status":"complete"}`, nil
 	}}})
+	ctx = WithLimits(ctx, Limits{MaxToolCalls: 8, MaxModelSteps: 12})
 	s := NewSession("context")
 	outcome, err := s.Turn(ctx, func(ctx context.Context, messages []Message) (Message, error) {
 		requests++
@@ -82,7 +83,7 @@ func TestBatchedRejectionPreservesBudgetAndAllowsWrapUp(t *testing.T) {
 			}
 		}
 		if final, _ := ctx.Value(textOnlyKey{}).(bool); final {
-			if executed != maxTurnTools {
+			if executed != 8 {
 				t.Fatal("rejected batch consumed execution budget")
 			}
 			return textMessage("assistant", "Eight actions completed; verification is still pending."), nil
@@ -96,14 +97,14 @@ func TestBatchedRejectionPreservesBudgetAndAllowsWrapUp(t *testing.T) {
 
 func TestRepeatedRejectionsHaveFiniteWrapUp(t *testing.T) {
 	requests := 0
-	outcome, err := NewSession("context").Turn(context.Background(), func(ctx context.Context, _ []Message) (Message, error) {
+	outcome, err := NewSession("context").Turn(WithLimits(context.Background(), Limits{MaxModelSteps: 12}), func(ctx context.Context, _ []Message) (Message, error) {
 		requests++
 		if final, _ := ctx.Value(textOnlyKey{}).(bool); final {
 			return textMessage("assistant", "I could not perform the requested operation."), nil
 		}
 		return decode(t, `{"role":"assistant","tool_calls":[{"id":"unknown","type":"function","function":{"name":"missing_tool","arguments":"{}"}}]}`), nil
 	}, nil, "work")
-	if err != nil || outcome.Body == "" || requests != maxTurnSteps+1 {
+	if err != nil || outcome.Body == "" || requests != 13 {
 		t.Fatal("rejection loop did not terminate with a report", err, requests)
 	}
 }

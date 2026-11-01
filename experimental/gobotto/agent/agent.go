@@ -1,4 +1,4 @@
-// Package agent implements a bounded OpenRouter tool-calling conversation.
+// Package agent implements an OpenRouter tool-calling conversation with optional work limits.
 package agent
 
 import (
@@ -19,9 +19,7 @@ type Message map[string]json.RawMessage
 type Complete func(context.Context, []Message) (Message, error)
 
 type textOnlyKey struct{}
-
-const maxTurnTools = 8
-const maxTurnSteps = 12
+type workerKey struct{}
 
 // ReadThread reads only the host-selected thread. The model cannot choose a destination.
 type ReadThread func(context.Context) (string, error)
@@ -34,11 +32,19 @@ type ToolEvent struct {
 }
 
 // Outcome is one host-applied action in the ping's thread. Only one field is set.
-type Outcome struct{ Body, Emoji string }
+type Outcome struct {
+	Body, Emoji string
+	// Limited distinguishes a forced wrap-up from a normal completion.
+	Limited bool
+	// Waiting ends a conversation turn without a final message while child work continues.
+	Waiting bool
+}
 
 // Usage counts provider-reported tokens for one request. CachedInput is included
 // in Input, not additional to it. Missing usage is never inferred to be zero.
 type Usage struct {
+	// Unreported marks an attempted request whose usage and charge are unknown.
+	Unreported                 bool
 	Input, CachedInput, Output int64
 	// CacheKnown distinguishes a reported zero from absent cache telemetry.
 	CacheKnown bool
@@ -108,6 +114,9 @@ func OpenRouter(key, model, sessionID string, report func(Usage), options ...Com
 		if maxOutputTokens > 0 {
 			input["max_tokens"] = maxOutputTokens
 		}
+		if worker, _ := ctx.Value(workerKey{}).(bool); worker {
+			input["tools"] = []any{}
+		}
 		for _, tool := range turnTools(ctx) {
 			input["tools"] = append(input["tools"].([]any), map[string]any{"type": "function", "function": map[string]any{"name": tool.Name, "description": tool.Description, "parameters": tool.Parameters}})
 		}
@@ -163,6 +172,25 @@ func Run(ctx context.Context, complete Complete, read ReadThread, input string) 
 type Session struct {
 	messages    []Message
 	pendingTool string
+	worker      bool
+	toolLimit   int
+}
+
+// NewWorker creates an isolated, text-returning session without Chatto tools or
+// conversation instructions. Its caller supplies the entire allowed tool set.
+// A zero toolLimit is unlimited; model-step limits come from WithLimits.
+func NewWorker(prompt string, toolLimit int) *Session {
+	return &Session{messages: []Message{textMessage("system", prompt)}, worker: true, toolLimit: toolLimit}
+}
+
+// RestoreWorker resumes read-only history with current host instructions and
+// permissions. Pending terminal actions are not valid in worker snapshots.
+func RestoreWorker(state Snapshot, prompt string, toolLimit int) *Session {
+	s := NewWorker(prompt, toolLimit)
+	if len(state.Messages) > 1 {
+		s.messages = append(s.messages, state.Messages[1:]...)
+	}
+	return s
 }
 
 // Identity describes the authenticated Chatto account, fetched by the host.
@@ -201,7 +229,40 @@ func (s *Session) Snapshot() Snapshot { return Snapshot{s.messages, s.pendingToo
 
 // Restore resumes a stored transcript without executing any stored actions.
 func Restore(state Snapshot) *Session {
-	return &Session{messages: state.Messages, pendingTool: state.PendingTool}
+	messages := append([]Message(nil), state.Messages...)
+	// Older versions used an ambiguous receipt for reactions, even when their
+	// assistant message also contained text that was never sent. Clarify it on load.
+	reactions := map[string]bool{}
+	for n, m := range messages {
+		var role, content, id string
+		_ = json.Unmarshal(m["role"], &role)
+		if role == "assistant" {
+			var calls []struct {
+				ID       string `json:"id"`
+				Function struct {
+					Name string `json:"name"`
+				} `json:"function"`
+			}
+			_ = json.Unmarshal(m["tool_calls"], &calls)
+			for _, call := range calls {
+				reactions[call.ID] = call.Function.Name == "react_to_ping"
+			}
+		}
+		if role == "tool" {
+			_ = json.Unmarshal(m["tool_call_id"], &id)
+			_ = json.Unmarshal(m["content"], &content)
+			if reactions[id] && content == "Output delivered to Chatto." {
+				copy := Message{}
+				for k, v := range m {
+					copy[k] = v
+				}
+				copy["content"], _ = json.Marshal("Reaction delivered to Chatto. No accompanying text was posted.")
+				messages[n] = copy
+			}
+			delete(reactions, id)
+		}
+	}
+	return &Session{messages: messages, pendingTool: state.PendingTool}
 }
 
 // Refresh appends current authorized context after a gap in live delivery.
@@ -226,6 +287,12 @@ func (s *Session) Size() int { data, _ := json.Marshal(s.messages); return len(d
 // without incomplete tool exchanges. Tool work is bounded separately from model
 // attempts; one final text-only completion reports partial progress at the limit.
 func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, input string, observers ...func(ToolEvent)) (outcome Outcome, turnErr error) {
+	limits, _ := ctx.Value(limitsKey{}).(Limits)
+	toolLimit, stepLimit := limits.MaxToolCalls, limits.MaxModelSteps
+	if s.worker {
+		ctx = context.WithValue(ctx, workerKey{}, true)
+		toolLimit = s.toolLimit
+	}
 	observe := func(e ToolEvent) {
 		for _, fn := range observers {
 			fn(e)
@@ -248,15 +315,15 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 	messages := append([]Message(nil), base...)
 	defer func() {
 		if turnErr != nil {
-			s.messages = append(base, textMessage("user", "The previous model turn failed. No Chatto output was delivered by that turn. Completed memory operations in this transcript still apply; do not repeat them."))
+			s.messages = append(base, textMessage("user", "The previous model turn failed. No final Chatto answer was delivered. Completed tool receipts, including progress messages and memory operations, still apply; do not repeat them."))
 		}
 	}()
 	toolsUsed := 0
-	for step := 0; step <= maxTurnSteps; step++ {
+	for step := 0; ; step++ {
 		if err := ctx.Err(); err != nil {
 			return Outcome{}, err
 		}
-		textOnly := toolsUsed >= maxTurnTools || step == maxTurnSteps
+		textOnly := (toolLimit > 0 && toolsUsed >= toolLimit) || (stepLimit > 0 && step >= stepLimit)
 		completionCtx := ctx
 		if textOnly {
 			messages = append(messages, textMessage("user", "Host work limit reached for this turn. Do not call tools. Give a concise progress report based only on the receipts: what completed, what remains unfinished, and any uncertainty. Completed actions remain in effect. Do not claim the whole task finished unless the receipts support that."))
@@ -281,12 +348,29 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 		if raw := msg["tool_calls"]; len(raw) > 0 && json.Unmarshal(raw, &calls) != nil {
 			return Outcome{}, errors.New("invalid tool calls")
 		}
+		// A model may attach an answer to a terminal reaction call. Preserve the
+		// answer and explicitly decline the reaction instead of silently losing text.
+		if !s.worker && len(calls) == 1 && calls[0].Function.Name == "react_to_ping" {
+			var body string
+			if json.Unmarshal(msg["content"], &body) == nil && strings.TrimSpace(body) != "" {
+				if len([]rune(body)) > 10000 {
+					return Outcome{}, errors.New("model answer exceeds Chatto message limit")
+				}
+				if calls[0].ID == "" || calls[0].Type != "function" {
+					return Outcome{}, errors.New("invalid tool call identity")
+				}
+				receipt := textMessage("tool", "Reaction skipped because this response includes a written answer. The host will attempt to post that text; delivery is not yet confirmed.")
+				receipt["tool_call_id"], _ = json.Marshal(calls[0].ID)
+				s.messages = append(messages, msg, receipt, textMessage("assistant", body))
+				return Outcome{Body: body}, nil
+			}
+		}
 		if textOnly && len(calls) > 0 {
 			// Providers can ignore tool_choice. Never execute work after the cap
 			// or retain an assistant tool call without a matching result.
 			body := "I reached this turn's work limit. Any completed actions remain in effect, but I haven't finished the task."
 			s.messages = append(messages, textMessage("assistant", body))
-			return Outcome{Body: body}, nil
+			return Outcome{Body: body, Limited: true}, nil
 		}
 		if len(calls) == 0 {
 			var content string
@@ -297,21 +381,33 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				return Outcome{}, errors.New("model answer exceeds Chatto message limit")
 			}
 			s.messages = append(messages, msg)
-			return Outcome{Body: content}, nil
+			return Outcome{Body: content, Limited: textOnly}, nil
 		}
 		messages = append(messages, msg)
 		seen := map[string]bool{}
+		batchAllowed := s.worker
+		// Validate the whole batch before executing anything. Only explicitly
+		// read-only assigned tools may share a worker model response.
 		for _, call := range calls {
 			if call.ID == "" || seen[call.ID] || call.Type != "function" {
 				return Outcome{}, errors.New("invalid tool call identity")
 			}
 			seen[call.ID] = true
+			readOnly := false
+			for _, tool := range turnTools(ctx) {
+				if tool.Name == call.Function.Name {
+					readOnly = tool.ReadOnly
+				}
+			}
+			batchAllowed = batchAllowed && readOnly
+		}
+		for _, call := range calls {
 			started := time.Now()
 			observe(ToolEvent{Name: call.Function.Name, Arguments: call.Function.Arguments, State: "running"})
 			finish := func(state, result string) {
 				observe(ToolEvent{Name: call.Function.Name, Arguments: call.Function.Arguments, State: state, Result: result, Duration: time.Since(started)})
 			}
-			if len(calls) > 1 {
+			if len(calls) > 1 && !batchAllowed {
 				result := `{"status":"rejected","mutated":false,"error":"Multiple tool calls in one response are not supported. None of these calls ran. Call one tool at a time."}`
 				tool := textMessage("tool", result)
 				tool["tool_call_id"], _ = json.Marshal(call.ID)
@@ -319,7 +415,7 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				finish("rejected", result)
 				continue
 			}
-			result := `{"error":"Unknown tool or invalid arguments. Call one available tool at a time with its declared arguments."}`
+			result := `{"status":"rejected","retryable":false,"error":"Unknown tool or invalid arguments. Only tools exposed for this turn are available. No action ran; this is not a transient service error."}`
 			var extra *Tool
 			for _, tool := range turnTools(ctx) {
 				if tool.Name == call.Function.Name {
@@ -327,20 +423,30 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 					break
 				}
 			}
-			if extra != nil && len(calls) == 1 {
+			if extra != nil && (len(calls) == 1 || batchAllowed) {
+				if ctx.Err() != nil || (toolLimit > 0 && toolsUsed >= toolLimit) {
+					result := `{"status":"rejected","error":"Work stopped; this call did not run."}`
+					tool := textMessage("tool", result)
+					tool["tool_call_id"], _ = json.Marshal(call.ID)
+					messages = append(messages, tool)
+					finish("rejected", result)
+					continue
+				}
 				toolsUsed++
 				result, toolErr := extra.Execute(ctx, json.RawMessage(call.Function.Arguments))
 				if toolErr != nil {
 					// Safe fixed feedback; subprocess errors may include private data.
-					result = `{"error":"Memory operation failed or its result is uncertain. Do not repeat a write automatically; read the collection to verify it."}`
+					result = `{"error":"Tool operation failed or its result is uncertain. Do not repeat a write automatically; verify its state first."}`
 				}
 				tool := textMessage("tool", result)
 				tool["tool_call_id"], _ = json.Marshal(call.ID)
 				messages = append(messages, tool)
 				// Preserve completed capability receipts even if a later model call
 				// fails. Rolling back to the original input would hide durable writes.
-				base = append([]Message(nil), messages...)
-				s.messages = messages
+				if len(calls) == 1 {
+					base = append([]Message(nil), messages...)
+					s.messages = messages
+				}
 				if toolErr != nil {
 					finish("failed", result)
 				} else {
@@ -348,15 +454,23 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 						Status string `json:"status"`
 					}
 					state := "complete"
-					if json.Unmarshal([]byte(result), &envelope) == nil && (envelope.Status == "rejected" || envelope.Status == "failed") {
+					if json.Unmarshal([]byte(result), &envelope) == nil && (envelope.Status == "rejected" || envelope.Status == "failed" || envelope.Status == "partial") {
 						state = envelope.Status
 					}
 					finish(state, result)
 				}
+				if call.Function.Name == "defer_response" && !s.worker && toolErr == nil {
+					var receipt struct {
+						Deferred bool `json:"deferred"`
+					}
+					if json.Unmarshal([]byte(result), &receipt) == nil && receipt.Deferred {
+						return Outcome{Waiting: true}, nil
+					}
+				}
 				continue
 			}
 			var args map[string]json.RawMessage
-			if call.Function.Name == "react_to_ping" && len(calls) == 1 && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && len(args) == 1 {
+			if !s.worker && call.Function.Name == "react_to_ping" && len(calls) == 1 && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && len(args) == 1 {
 				var emoji string
 				if json.Unmarshal(args["emoji"], &emoji) == nil && emojiName.MatchString(emoji) {
 					s.messages = messages
@@ -365,7 +479,7 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 					return Outcome{Emoji: emoji}, nil
 				}
 			}
-			if call.Function.Name == "read_thread" && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && args != nil && len(args) == 0 {
+			if !s.worker && call.Function.Name == "read_thread" && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && args != nil && len(args) == 0 {
 				toolsUsed++
 				result, err = read(ctx)
 				if err != nil {
@@ -374,14 +488,17 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				}
 				finish("complete", result)
 			} else {
-				finish("rejected", "Unknown tool or invalid arguments")
+				finish("rejected", result)
 			}
 			tool := textMessage("tool", result)
 			tool["tool_call_id"], _ = json.Marshal(call.ID)
 			messages = append(messages, tool)
 		}
+		// A batched assistant message must have every tool receipt before it
+		// becomes resumable history, including calls skipped at the work limit.
+		base = append([]Message(nil), messages...)
+		s.messages = messages
 	}
-	return Outcome{}, errors.New("model step limit reached")
 }
 
 // RecordDelivery closes a terminal reaction tool call, or appends a reply receipt.
@@ -392,6 +509,11 @@ func (s *Session) RecordDelivery(err error) {
 		text = "Delivery failed or is uncertain. Do not assume the output reached Chatto and do not retry it automatically."
 	}
 	if s.pendingTool != "" {
+		if err == nil {
+			text = "Reaction delivered to Chatto. No accompanying text was posted."
+		} else {
+			text = "Reaction delivery failed or is uncertain. No accompanying text was posted. Do not retry automatically."
+		}
 		msg := textMessage("tool", text)
 		msg["tool_call_id"], _ = json.Marshal(s.pendingTool)
 		s.messages = append(s.messages, msg)

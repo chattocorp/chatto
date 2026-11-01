@@ -6,10 +6,101 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 )
+
+func TestTurnRowResponsiveUsage(t *testing.T) {
+	r := inspection.Turn{Steps: []inspection.Step{
+		{Kind: "model", Usage: inspection.Usage{Known: true, Input: 22000, Cached: 20000, Output: 500, CostKnown: true, Cost: 0.01}},
+		{Kind: "model", Name: "child / Completion", Usage: inspection.Usage{Known: true, Input: 100, Output: 100, CostKnown: true, Cost: 0.0023}},
+	}}
+	tokens, cost := turnUsageSummary(r)
+	if tokens != "22.7k tok" || cost != "$0.0123" {
+		t.Fatal("incorrect total", tokens, cost)
+	}
+	item := turnItem{number: 6, started: time.Now(), state: "Reacted", tokens: tokens, cost: cost}
+	for _, tc := range []struct {
+		width        int
+		tokens, cost bool
+	}{{48, true, true}, {34, false, true}, {24, false, false}} {
+		l := newTurnList()
+		l.SetSize(tc.width, 4)
+		l.SetItems([]list.Item{item})
+		var out bytes.Buffer
+		turnDelegate{}.Render(&out, l, 0, item)
+		row := out.String()
+		if strings.Contains(row, tokens) != tc.tokens || strings.Contains(row, cost) != tc.cost || !strings.Contains(row, "Reacted") || lipgloss.Width(row) != tc.width {
+			t.Fatalf("bad row at %d: %q", tc.width, row)
+		}
+	}
+	r.Steps = append(r.Steps, inspection.Step{Kind: "model"})
+	tokens, cost = turnUsageSummary(r)
+	if tokens != "22.7k+ tok" || cost != "$0.0123+" {
+		t.Fatal("partial accounting hidden", tokens, cost)
+	}
+	tokens, cost = turnUsageSummary(inspection.Turn{})
+	if tokens != "— tok" || cost != "$—" {
+		t.Fatal("missing accounting shown as zero")
+	}
+}
+
+func TestTurnDividerDragAndResize(t *testing.T) {
+	for _, grab := range []int{3, 4, 5} {
+		m := newModel(nil)
+		m.resize(160, 40)
+		m.switchMode(true)
+		m.apply(Event{Kind: Started, Session: 1})
+		r := inspection.Turn{Number: 1, State: "delivered"}
+		m.apply(Event{Kind: Inspected, Session: 1, Inspection: &r})
+		left := m.turnListWidth()
+		x, y := left+grab, m.list.Height()+4
+		m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+		if !m.draggingTurns || m.dragging {
+			t.Fatal("divider did not start horizontal drag")
+		}
+		m.Update(tea.MouseMotionMsg{X: x + 10, Y: y + 4, Button: tea.MouseLeft})
+		if m.turnListWidth() != left+10 || m.inspectedTurn().Number != 1 {
+			t.Fatal("drag changed wrong geometry or selection")
+		}
+		m.Update(tea.MouseReleaseMsg{X: x + 10, Y: y + 4, Button: tea.MouseLeft})
+		if m.draggingTurns {
+			t.Fatal("drag did not end")
+		}
+		ratio := m.turnSplit
+		m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+		if m.turnSplit != ratio || m.logs.Width() < 24 {
+			t.Fatal("resize lost ratio or detail pane")
+		}
+		m.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
+		if m.turnListWidth() != left+10 {
+			t.Fatal("resize did not restore chosen split")
+		}
+		m.dragX, m.dragLeft = 0, m.turnListWidth()
+		m.dragTurnDivider(10000)
+		if m.logs.Width() != 24 {
+			t.Fatal("right pane not clamped")
+		}
+		m.dragTurnDivider(-10000)
+		if m.turnListWidth() != 14 {
+			t.Fatal("left pane not clamped")
+		}
+	}
+}
+
+func TestChildModelNameVisible(t *testing.T) {
+	m := newModel(nil)
+	m.resize(160, 40)
+	m.apply(Event{Kind: Started, Session: 1})
+	r := inspection.Turn{Number: 1, State: "running", Steps: []inspection.Step{{Kind: "model", Name: "code_investigator / Completion", State: "running", Started: time.Now()}}}
+	m.apply(Event{Kind: Inspected, Session: 1, Inspection: &r})
+	m.switchMode(true)
+	if !strings.Contains(m.logs.GetContent(), "code_investigator / Completion") {
+		t.Fatal("child model hidden behind parent label")
+	}
+}
 
 func TestReasoningUsageDisplay(t *testing.T) {
 	for _, tc := range []struct {
@@ -90,7 +181,7 @@ func TestInspectorStripsTerminalControls(t *testing.T) {
 	}
 }
 
-func TestInspectorLeadsWithInputAndKeepsFailureVisible(t *testing.T) {
+func TestInspectorLeadsWithLatestOutcomeAndKeepsFailureVisible(t *testing.T) {
 	m := newModel(nil)
 	m.resize(120, 40)
 	m.apply(Event{Kind: Started, Session: 1})
@@ -98,8 +189,8 @@ func TestInspectorLeadsWithInputAndKeepsFailureVisible(t *testing.T) {
 	m.apply(Event{Kind: Inspected, Session: 1, Inspection: &r})
 	m.switchMode(true)
 	content := m.logs.GetContent()
-	if strings.Index(content, ":custom_reaction:") < strings.Index(content, "Good night") || !strings.Contains(content, ":custom_reaction:") || !strings.Contains(content, "Good night") {
-		t.Fatal("input must precede reaction, including custom emoji")
+	if strings.Index(content, ":custom_reaction:") > strings.Index(content, "Good night") || !strings.Contains(content, ":custom_reaction:") || !strings.Contains(content, "Good night") {
+		t.Fatal("reaction must precede input, including custom emoji")
 	}
 	if m.turnList.SelectedItem().(turnItem).state != "Reacted" {
 		t.Fatal("turn lacks outcome label")
@@ -108,7 +199,7 @@ func TestInspectorLeadsWithInputAndKeepsFailureVisible(t *testing.T) {
 	r.Failure = "Delivery was not confirmed"
 	r.Steps[0].State = "uncertain"
 	m.apply(Event{Kind: Inspected, Session: 1, Inspection: &r})
-	if !strings.Contains(m.logs.GetContent(), "Delivery was not confirmed") || !strings.Contains(m.logs.GetContent(), "Add reaction (uncertain)") {
+	if !strings.Contains(strings.Split(m.logs.GetContent(), "\n")[0], "Delivery was not confirmed") || !strings.Contains(m.logs.GetContent(), "Add reaction (uncertain)") {
 		t.Fatal("uncertain delivery hidden")
 	}
 }
@@ -221,8 +312,8 @@ func TestInspectorLogHasOneRowPerEvent(t *testing.T) {
 	m.selected().expanded = true
 	m.refreshLogs(false)
 	rows := strings.Split(m.logs.GetContent(), "\n")
-	if len(rows) != 5 || !strings.Contains(rows[0], "first second") || !strings.Contains(rows[1], "via Test provider") || !strings.Contains(rows[1], "multiple lines") || !strings.Contains(rows[3], "Output") || !strings.Contains(rows[4], "Generate title") {
-		t.Fatal("events must occupy individual rows in execution order")
+	if len(rows) != 5 || !strings.Contains(rows[4], "first second") || !strings.Contains(rows[3], "via Test provider") || !strings.Contains(rows[3], "multiple lines") || !strings.Contains(rows[1], "Output") || !strings.Contains(rows[0], "Generate title") {
+		t.Fatal("events must occupy individual rows in reverse execution order")
 	}
 	if m.logs.SoftWrap {
 		t.Fatal("event rows must not wrap")

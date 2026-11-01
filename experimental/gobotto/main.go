@@ -15,6 +15,7 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/mcpclient"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/subagent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
@@ -52,6 +53,13 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	workers, err := subagent.Open(cfg.Subagents, func(model, id string, usage func(agent.Usage)) agent.Complete {
+		return agent.OpenRouter(settings["OPENROUTER_API_KEY"], model, id, usage)
+	})
+	if err != nil {
+		return err
+	}
+	defer workers.Close()
 	return tui.Run(ctx, func(ctx context.Context, emit tui.Emit) error {
 		external, err := mcpclient.Open(ctx, cfg.MCP)
 		if err != nil {
@@ -86,6 +94,8 @@ func run(ctx context.Context) error {
 				options.Reasoning = &agent.ReasoningOptions{Enabled: r.Enabled, Effort: r.Effort, MaxTokens: r.MaxTokens, Exclude: r.Exclude}
 			}
 			return agent.OpenRouter(settings["OPENROUTER_API_KEY"], cfg.Conversation.Model, id, usage, options)
-		}, emit, bot.Options{Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
+		}, emit, bot.Options{Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Subagents: workers,
+			TurnTimeout: cfg.Conversation.TimeoutDuration, Limits: agent.Limits{MaxToolCalls: cfg.Conversation.MaxToolCalls, MaxModelSteps: cfg.Conversation.MaxModelSteps}, MaxDelegations: cfg.Conversation.MaxDelegations,
+			Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
 	})
 }

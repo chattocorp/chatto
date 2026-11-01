@@ -7,6 +7,12 @@ debounce = "4s"
 # OpenRouter model ID. API keys stay in .env.
 model = "z-ai/glm-5.3-flash"
 
+# Optional execution limits. Omitted or zero means unlimited.
+# timeout = "15m"
+# max_tool_calls = 100
+# max_model_steps = 150
+# max_delegations = 10
+
 # Your bot's tone, purpose, and preferences. Gobotto supplies Chatto identity,
 # thread context, tool rules, and delivery instructions separately.
 system_prompt = """
@@ -38,3 +44,18 @@ tools = ["web_search_exa", "web_fetch_exa"]
 
 [mcp.servers.exa.optional_headers_from_env]
 x-api-key = "EXA_API_KEY"
+
+[subagents.code_investigator]
+# agents_md = false # Disable automatic scoped repository instructions.
+description = "Investigate Chatto source code and explain behavior with file and line references."
+# Relative to this config file. All file tools enforce this read boundary.
+dir = "../.."
+request_timeout = "3m"
+request_retries = 1
+max_auto_resumes = 1
+# Omit model to use conversation.model; each investigation has fresh context.
+# Optional limits. Uncomment to enable; values have no fixed upper caps.
+# timeout = "120s"
+# max_tool_calls = 64
+# max_model_steps = 100
+system_prompt = "Trace relevant code paths. Cite relative paths and line numbers, distinguish facts from inference, and report investigation gaps."

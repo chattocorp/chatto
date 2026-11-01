@@ -34,7 +34,7 @@ func TestToolRoundTripPreservesProviderFields(t *testing.T) {
 		return textMessage("assistant", "Hello"), nil
 	}, func(context.Context) (string, error) { reads++; return "thread context", nil }, "Hi")
 	if err != nil || answer.Body != "Hello" || answer.Emoji != "" || reads != 2 || step != 2 {
-		t.Fatalf("answer=%q reads=%d steps=%d err=%v", answer, reads, step, err)
+		t.Fatalf("answer=%v reads=%d steps=%d err=%v", answer, reads, step, err)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestLoopLimitAndCancellation(t *testing.T) {
 		return decode(t, `{"role":"assistant","tool_calls":[{"id":"a","type":"function","function":{"name":"read_thread","arguments":"{}"}}]}`), nil
 	}
 	read := func(context.Context) (string, error) { return "{}", nil }
-	if outcome, err := Run(context.Background(), complete, read, "Hi"); err != nil || calls != 9 || !strings.Contains(outcome.Body, "work limit") {
+	if outcome, err := Run(WithLimits(context.Background(), Limits{MaxToolCalls: 8}), complete, read, "Hi"); err != nil || calls != 9 || !strings.Contains(outcome.Body, "work limit") {
 		t.Fatalf("calls=%d err=%v", calls, err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
