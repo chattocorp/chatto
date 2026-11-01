@@ -1,7 +1,7 @@
 name: publish-chatto-client
 
 on:
-  # The release workflow calls this only after release approval.
+  # The release workflow calls this after approval and server/desktop builds.
   workflow_call:
   # Manual runs verify and save a package without publishing it.
   workflow_dispatch:

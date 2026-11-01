@@ -197,7 +197,7 @@ jobs:
         run: echo 'Release build and publication approved.'
 
   publish-chatto-client:
-    needs: approve-release
+    needs: [approve-release, build-server-release, assemble-desktop-release]
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     uses: ./.github/workflows/publish-chatto-client.yml
     permissions:
@@ -904,7 +904,7 @@ jobs:
 
   # Publication uses the initial approval and requires every build to succeed.
   release:
-    needs: [approve-release, build-server-release, assemble-desktop-release]
+    needs: [approve-release, build-server-release, assemble-desktop-release, publish-chatto-client]
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     concurrency:

@@ -29,8 +29,10 @@ tags and changelog remain historical records.
 Each shared tag starts the client npm publication workflow. Prereleases use
 the npm `next` tag; stable releases use `latest`. The workflow verifies the
 package version against the shared tag and publishes the tested tarball.
-It runs independently of server and desktop publication. A failed npm job can
-be retried against the same tag if that package version is still unpublished.
+[ADR-121](ADR-121-github-desktop-updates.md) requires the server build and desktop
+assembly to succeed before npm publication. GitHub release publication also
+requires npm publication to succeed. A failed npm job can be retried against
+the same tag if that package version is still unpublished.
 
 Tagged desktop builds display the shared release version. Manual verification
 builds identify the frontend with the development version and commit SHA; their

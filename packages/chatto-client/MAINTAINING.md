@@ -21,12 +21,13 @@ to also check that the tag matches the package version.
 
 Release-please gives the client, Chatto server, frontend, and desktop the same
 version and release PR. Client changes contribute to the root changelog.
-Tags use `v<VERSION>`. After the `chatto-release` approval job succeeds,
-`release.yml` calls the reusable `publish-chatto-client.yml` workflow. It
-checks and saves a tarball, then publishes that exact artifact. Manual workflow
-runs verify and save an artifact without publishing it. Prereleases use the npm
-`next` tag; stable releases use `latest`. npm publication runs independently of
-server and desktop publication, so completion times can differ.
+Tags use `v<VERSION>`. After the `chatto-release` approval, server build, and
+desktop assembly succeed, `release.yml` calls the reusable
+`publish-chatto-client.yml` workflow. It checks and saves a tarball, then
+publishes that exact artifact. A failed server or desktop build prevents npm
+publication. A failed npm publication keeps the GitHub release in draft. Manual
+workflow runs verify and save an artifact without publishing it. Prereleases
+use the npm `next` tag; stable releases use `latest`.
 
 The former `0.1.x` versions, `chatto-client/v*` tags, and package changelog remain
 historical records. The next client publication uses the next shared Chatto

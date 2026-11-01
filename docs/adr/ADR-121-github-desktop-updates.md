@@ -28,10 +28,12 @@ Download in the background and require an explicit restart to install. Recheck
 the current release before installation to reject a superseded download.
 
 Server and desktop jobs build concurrently. Desktop assembly requires all
-update packages and generates manifests from their exact bytes. A final job
-publishes the draft only after server and desktop jobs succeed. This supersedes
-the independent-publication part of ADR-118. Component library releases remain
-independent.
+update packages and generates manifests from their exact bytes. Client npm
+publication waits for the server build and desktop assembly to succeed, then
+builds, tests, and publishes the client tarball. A final job publishes the
+GitHub draft only after these jobs succeed. This supersedes the
+independent-publication part of ADR-118. Other component library releases
+remain independent.
 
 Only tagged release builds enable the updater. The Windows feed configuration
 pins the expected publisher subject. Linux updates use HTTPS and manifest
@@ -43,10 +45,11 @@ No update service or separate storage account is required. Installed apps
 depend on the GitHub repository identity. Changing hosts requires an updater
 transition release while the existing repository remains available.
 
-Desktop signing or build failures now delay GitHub publication, including
-server releases. Container and npm publication are not an atomic transaction
-with the GitHub release and can finish earlier. Published update artifacts are
-immutable in practice: fixes require a new version.
+Server or desktop build failures prevent npm publication. npm publication
+failures keep the GitHub release in draft. Container and npm publication are
+not an atomic transaction with the GitHub release and can finish earlier.
+Published update artifacts are immutable in practice: fixes require a new
+version.
 
 GitHub receives update requests and users' IP addresses. The updater sends no
 Chatto account or connected-server information. Users can disable automatic
