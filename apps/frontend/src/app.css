@@ -2026,19 +2026,15 @@
 }
 
 /* Keep adjacent segmented controls content-sized until they wrap. Each control
-   then grows across its line, including its option labels and selection pill. */
+   then fills its line, with equal option widths and centred label faces. */
 @utility segmented-control-group {
   @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
 
   & > [role='radiogroup'] {
-    @apply w-max flex-auto;
+    @apply grid w-max flex-auto auto-cols-fr grid-flow-col;
   }
 
-  & > [role='radiogroup'] > label {
-    @apply grow;
-  }
-
-  & > fieldset > label > span {
+  & > [role='radiogroup'] > label > span {
     @apply w-full;
   }
 }
