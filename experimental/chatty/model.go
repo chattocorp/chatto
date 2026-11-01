@@ -75,6 +75,7 @@ type model struct {
 	collapsed                           map[string]bool
 	sidebarKey                          string
 	sidebarTop                          int
+	sidebarHidden                       bool
 	roomIndex, selected, threadSelected int
 	room, root                          string
 	page, thread                        chatto.TimelinePage
@@ -278,6 +279,12 @@ func (m *model) userName(id string) string {
 	return "Unknown user"
 }
 func (m *model) setFocus(f int) tea.Cmd {
+	if f == 0 && m.sidebarHidden {
+		f = 1
+		if _, center, _ := m.columns(); center == 0 {
+			f = 2
+		}
+	}
 	m.saveDraft()
 	m.focus = f
 	m.restoreDraft()
@@ -609,6 +616,29 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.logged {
 			return m, m.loginKey(v)
 		}
+		if key == "ctrl+b" {
+			main := captureAnchor(m.page, m.mainRows, m.main.YOffset())
+			side := captureAnchor(m.thread, m.sideRows, m.side.YOffset())
+			followMain, followSide := m.main.AtBottom(), m.side.AtBottom()
+			m.sidebarHidden = !m.sidebarHidden
+			m.dragSeparator = 0
+			var cmd tea.Cmd
+			if m.sidebarHidden && m.focus == 0 {
+				cmd = m.setFocus(0)
+			}
+			m.layout()
+			if followMain {
+				m.main.GotoBottom()
+			} else {
+				restoreAnchor(&m.main, m.page, m.mainRows, main)
+			}
+			if followSide {
+				m.side.GotoBottom()
+			} else {
+				restoreAnchor(&m.side, m.thread, m.sideRows, side)
+			}
+			return m, cmd
+		}
 		if key == "ctrl+l" && !m.busy {
 			m.busy = true
 			return m, func() tea.Msg { return m.e.logout() }
@@ -623,8 +653,11 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return m.e.discard() }
 		}
 		if key == "tab" || key == "shift+tab" || key == "ctrl+n" {
-			panes := []int{0}
-			_, center, right := m.columns()
+			panes := []int{}
+			left, center, right := m.columns()
+			if left > 0 {
+				panes = append(panes, 0)
+			}
 			if center > 0 {
 				panes = append(panes, 1)
 			}
@@ -752,7 +785,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if v.Y < 2 || v.Y >= m.height-3 {
 			return m, nil
 		}
-		if v.X == left-1 {
+		if left > 0 && v.X == left-1 {
 			m.dragSeparator = 1
 			return m, nil
 		}
@@ -880,6 +913,9 @@ func (m *model) columns() (int, int, int) {
 	left := min(28, max(18, m.width/5))
 	if m.sidebarWidth > 0 {
 		left = max(18, min(m.width-30, m.sidebarWidth))
+	}
+	if m.sidebarHidden {
+		left = 0
 	}
 	remaining := max(1, m.width-left)
 	if m.root == "" {
@@ -1126,7 +1162,10 @@ func (m *model) View() tea.View {
 	} else {
 		left, center, right := m.columns()
 		h := m.height - 4
-		panes := []string{terminalPane("CONVERSATIONS", m.sidebarContent(left-3, m.bodyHeight()), left, h, m.focus == 0, m.sidebarBackground(m.bodyHeight()))}
+		panes := []string{}
+		if left > 0 {
+			panes = append(panes, terminalPane("CONVERSATIONS", m.sidebarContent(left-3, m.bodyHeight()), left, h, m.focus == 0, m.sidebarBackground(m.bodyHeight())))
+		}
 		title := "TIMELINE"
 		if len(m.rooms) > m.roomIndex {
 			title = m.roomName(m.rooms[m.roomIndex])
@@ -1157,7 +1196,7 @@ func (m *model) View() tea.View {
 		statusLine := terminalBar(" ["+position+"] "+status, m.width, true)
 		prompt := nickColor(m.viewer.ID).Render(m.inputPrompt())
 		input := lipgloss.NewStyle().Width(m.width).Render(prompt + m.compose.View())
-		help := " ↑↓ select · Enter send / thread · Tab pane · Esc close · Ctrl+O image"
+		help := " ↑↓ select · Enter send / thread · Tab pane · Ctrl+B sidebar · Esc close · Ctrl+O image"
 		content = header + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, panes...) + "\n" + statusLine + "\n" + input + "\n" + ansi.Truncate(help, m.width, "")
 	}
 	v := tea.NewView(content)

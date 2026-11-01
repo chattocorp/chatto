@@ -376,3 +376,41 @@ func TestSendDestinationFollowsFocusWithThreadOpen(t *testing.T) {
 		}
 	}
 }
+
+func TestSidebarTogglePreservesStateAndSkipsHiddenFocus(t *testing.T) {
+	m := exampleModel()
+	m.sidebarWidth = 30
+	m.collapsed["dms"] = true
+	m.compose.SetValue("room draft")
+	m.setFocus(0)
+	m.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	left, center, _ := m.columns()
+	if left != 0 || center != m.width || m.focus != 1 || strings.Contains(m.View().Content, "CONVERSATIONS") {
+		t.Fatal("sidebar not hidden or focus lost")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if m.focus != 1 {
+		t.Fatal("Tab focused hidden sidebar")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.focus != 1 {
+		t.Fatal("Escape focused hidden sidebar")
+	}
+	m.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	left, _, _ = m.columns()
+	if left != 30 || !m.collapsed["dms"] || m.compose.Value() != "room draft" || !strings.Contains(m.View().Content, "CONVERSATIONS") {
+		t.Fatal("sidebar state or draft was lost")
+	}
+	m.busy = true
+	m.openThread()
+	m.compose.SetValue("thread draft")
+	m.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if m.focus != 1 {
+		t.Fatal("hidden-sidebar Tab did not reach room")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if m.focus != 2 || m.compose.Value() != "thread draft" {
+		t.Fatal("thread focus or draft lost")
+	}
+}

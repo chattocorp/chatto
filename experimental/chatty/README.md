@@ -88,6 +88,7 @@ and keyboard controls.
 | --------------------- | ------------------------------------------------------------------------- |
 | Tab / Shift+Tab       | Select the next / previous visible pane                                   |
 | Ctrl+N                | Select the next navigation pane or login field                            |
+| Ctrl+B                | Hide or show the sidebar while signed in                                  |
 | Up / Down             | Select a room or message                                                  |
 | Enter                 | Send a nonempty draft; otherwise open the selected thread or sidebar item |
 | Alt+Enter             | Send the draft to the focused conversation                                |
@@ -110,7 +111,9 @@ Click a room or message to select it. The mouse wheel scrolls
 the timeline or sidebar under the pointer. Drafts are
 separate per room/thread and stay in memory.
 Drag a vertical separator to resize the sidebar or thread pane. Widths stay
-within the available terminal space. Empty panes show a loading indicator while
+within the available terminal space. **Ctrl+B** hides or shows the sidebar without
+losing its width or section states. Tab skips the sidebar while it is hidden.
+Empty panes show a loading indicator while
 their data is requested. Scroll upward at the top of a timeline to load the
 previous page. Moving the cursor to the first loaded message with Up also
 loads older messages. Both actions use the same history-loading path in room
