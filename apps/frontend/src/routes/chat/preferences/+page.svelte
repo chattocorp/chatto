@@ -1,5 +1,8 @@
 <script lang="ts">
-  import AppAppearanceSettings from '$lib/components/settings/AppAppearanceSettings.svelte';
+  import SettingsOverview from '$lib/components/settings/SettingsOverview.svelte';
+  import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
+
+  const groups = $derived(getSettingsNavGroups());
 </script>
 
-<AppAppearanceSettings />
+<SettingsOverview {groups} />

@@ -4,7 +4,7 @@ import { flushSync } from 'svelte';
 import { page, userEvent } from 'vitest/browser';
 import '../../../app.css';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
-import AppearancePage from './+page.svelte';
+import AppearancePage from './appearance/+page.svelte';
 
 // Appearance controls do not depend on the application's server registry.
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Appearance · Chatto' }));

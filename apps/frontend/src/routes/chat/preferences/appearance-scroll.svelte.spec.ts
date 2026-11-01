@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { userEvent } from 'vitest/browser';
-import AppearancePage from './+page.svelte';
+import AppearancePage from './appearance/+page.svelte';
 
 async function settle() {
   await Promise.resolve();

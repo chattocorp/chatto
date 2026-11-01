@@ -16,8 +16,8 @@ const styleBlockAllowlist = new Set([
   'src/lib/ui/ModalSurface.svelte',
   'src/lib/ui/Dialog.svelte',
   'src/lib/ui/toast/ToastContainer.svelte',
-  'src/routes/chat/[serverId]/settings/overview/SettingsCardArtwork.svelte',
-  'src/routes/chat/[serverId]/settings/overview/SettingsDestinationArtwork.svelte'
+  'src/lib/components/settings/SettingsCardArtwork.svelte',
+  'src/lib/components/settings/SettingsDestinationArtwork.svelte'
 ]);
 
 // These components own specialized native-dialog behavior. Standard task
