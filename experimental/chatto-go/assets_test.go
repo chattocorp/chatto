@@ -87,6 +87,32 @@ func TestAssetDownloadFreshAuthorizationAndDownloadBoundary(t *testing.T) {
 	}
 }
 
+func TestAvatarURLDownload(t *testing.T) {
+	requests := 0
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Method != http.MethodGet || r.URL.Path != "/assets/avatar" || r.Header.Get("Authorization") != "" {
+			t.Error("avatar download changed method, path, or forwarded credentials")
+		}
+		_, _ = fmt.Fprint(w, "avatar")
+	}))
+	defer s.Close()
+	c, _ := New(s.URL, "private-token")
+	data, err := c.DownloadAssetURL(context.Background(), "/assets/avatar", 6)
+	if err != nil || string(data) != "avatar" {
+		t.Fatal("avatar download failed", err)
+	}
+	if _, err := c.DownloadAssetURL(context.Background(), "/assets/avatar", 5); err == nil {
+		t.Fatal("oversized avatar accepted")
+	}
+	if _, err := c.DownloadAssetURL(context.Background(), "https://external.invalid/avatar", 6); err == nil {
+		t.Fatal("external avatar accepted")
+	}
+	if requests != 2 {
+		t.Fatal("unexpected avatar requests")
+	}
+}
+
 func TestAttachmentDecodeAndStoreIsolation(t *testing.T) {
 	var msg Message
 	if err := json.Unmarshal([]byte(`{"id":"m","attachments":[{"id":"a","filename":"test.png","width":32,"height":16,"assetUrl":{"url":"/signed"}}]}`), &msg); err != nil {

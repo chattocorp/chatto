@@ -39,19 +39,52 @@ func New(origin, token string) (*Client, error) {
 
 // Message is the text, attachment, and identity subset of a renderable message.
 type Message struct {
-	ID                string       `json:"id"`
-	RoomID            string       `json:"roomId"`
-	ActorID           string       `json:"actorId"`
-	Body              string       `json:"body"`
-	ThreadRootEventID string       `json:"threadRootEventId"`
-	DeletedAt         string       `json:"deletedAt,omitempty"`
-	CreatedAt         string       `json:"createdAt,omitempty"`
-	Attachments       []Attachment `json:"attachments,omitempty"`
+	ID                        string            `json:"id"`
+	RoomID                    string            `json:"roomId"`
+	ActorID                   string            `json:"actorId"`
+	Body                      string            `json:"body"`
+	ThreadRootEventID         string            `json:"threadRootEventId"`
+	DeletedAt                 string            `json:"deletedAt,omitempty"`
+	CreatedAt                 string            `json:"createdAt,omitempty"`
+	Attachments               []Attachment      `json:"attachments,omitempty"`
+	UpdatedAt                 string            `json:"updatedAt,omitempty"`
+	Pinned                    bool              `json:"pinned,omitempty"`
+	Reactions                 []MessageReaction `json:"reactions,omitempty"`
+	Thread                    *ThreadSummary    `json:"thread,omitempty"`
+	EchoOfEventID             string            `json:"echoOfEventId,omitempty"`
+	EchoFromThreadRootEventID string            `json:"echoFromThreadRootEventId,omitempty"`
+}
+
+// MessageReaction is an aggregate with a bounded preview of reacting accounts.
+type MessageReaction struct {
+	Emoji          string   `json:"emoji"`
+	Count          int      `json:"count"`
+	HasReacted     bool     `json:"hasReacted"`
+	PreviewUserIDs []string `json:"previewUserIds"`
+}
+
+// ThreadSummary is present for an established thread, including an empty one.
+type ThreadSummary struct {
+	ThreadRootEventID         string            `json:"threadRootEventId"`
+	ReplyCount                int               `json:"replyCount"`
+	LastReplyAt               string            `json:"lastReplyAt"`
+	ParticipantPreviewUserIDs []string          `json:"participantPreviewUserIds"`
+	ParticipantCount          int               `json:"participantCount"`
+	ViewerState               ThreadViewerState `json:"viewerState"`
+}
+
+// ThreadViewerState preserves absence when the server did not resolve a value.
+type ThreadViewerState struct {
+	IsFollowing      *bool `json:"isFollowing,omitempty"`
+	HasUnreadReplies *bool `json:"hasUnreadReplies,omitempty"`
 }
 
 // ThreadRootID returns the thread containing this message. A top-level message
 // is its own root, including before the first reply establishes a thread.
 func (m Message) ThreadRootID() string {
+	if m.EchoFromThreadRootEventID != "" {
+		return m.EchoFromThreadRootEventID
+	}
 	if m.ThreadRootEventID != "" {
 		return m.ThreadRootEventID
 	}
@@ -72,6 +105,7 @@ type Profile struct {
 	ID          string `json:"id"`
 	Login       string `json:"login"`
 	DisplayName string `json:"displayName"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
 }
 
 // Viewer returns the authenticated account's profile, including for bot API keys.

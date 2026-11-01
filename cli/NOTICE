@@ -18,6 +18,8 @@ and the Chatto Go SDK. It uses Glamour (https://github.com/charmbracelet/glamour
 licensed under the MIT License, to render Markdown locally.
 Chatty also uses golang.org/x/image (BSD 3-Clause License) for image preview
 resizing and WebP decoding, and Charm's x/ansi (MIT License) for Kitty graphics.
+It uses goldmark-emoji (https://github.com/yuin/goldmark-emoji), licensed under
+the MIT License, to display named emoji reactions as Unicode.
 
 Slack conversion data:
 

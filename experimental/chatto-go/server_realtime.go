@@ -404,12 +404,28 @@ func (s *Server) applyEvent(base *Client, e *wire.Event) (result error) {
 		if err := s.refreshMessage(ctx, &c, event.MessagePosted.RoomId, e.Id, false); err != nil {
 			return err
 		}
+		return s.refreshMessageMetadata(ctx, &c, event.MessagePosted.RoomId, event.MessagePosted.ThreadRootEventId)
+	case *wire.Event_ReactionAdded:
+		return s.refreshMessageMetadata(ctx, &c, event.ReactionAdded.RoomId, event.ReactionAdded.MessageEventId)
+	case *wire.Event_ReactionRemoved:
+		return s.refreshMessageMetadata(ctx, &c, event.ReactionRemoved.RoomId, event.ReactionRemoved.MessageEventId)
+	case *wire.Event_MessagePinned:
+		return s.refreshMessageMetadata(ctx, &c, event.MessagePinned.RoomId, event.MessagePinned.MessageEventId)
+	case *wire.Event_MessageUnpinned:
+		return s.refreshMessageMetadata(ctx, &c, event.MessageUnpinned.RoomId, event.MessageUnpinned.MessageEventId)
+	case *wire.Event_ThreadCreated:
+		return s.refreshMessageMetadata(ctx, &c, event.ThreadCreated.RoomId, event.ThreadCreated.ThreadRootEventId)
+	case *wire.Event_ThreadViewerStateChanged:
+		return s.refreshMessageMetadata(ctx, &c, event.ThreadViewerStateChanged.RoomId, event.ThreadViewerStateChanged.ThreadRootEventId)
 	case *wire.Event_MessageEdited:
 		if err := s.refreshMessage(ctx, &c, event.MessageEdited.RoomId, event.MessageEdited.MessageEventId, true); err != nil {
 			return err
 		}
 	case *wire.Event_MessageRetracted:
 		s.removeMessage(event.MessageRetracted.RoomId, event.MessageRetracted.MessageEventId)
+		// Retraction events omit the thread root. Refresh retained summaries in
+		// bounded batches, including roots whose replies were never loaded.
+		return s.refreshMessageMetadata(ctx, &c, event.MessageRetracted.RoomId, "*")
 	}
 	if room != "" {
 		var out struct{ Room RoomEntry }
@@ -523,22 +539,11 @@ func (s *Server) refreshMessage(ctx context.Context, c *Client, room, id string,
 	if m.ID == "" || m.DeletedAt != "" {
 		return nil
 	}
-	s.mu.Lock()
-	_, known := s.state.Users[m.ActorID]
-	s.mu.Unlock()
-	var users map[string]Profile
-	if !known && m.ActorID != "" {
-		var err error
-		users, err = c.Profiles(ctx, []string{m.ActorID})
-		if err != nil {
-			return err
-		}
+	if err := s.hydrateMessageUsers(ctx, c, []Message{m}); err != nil {
+		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for id, u := range users {
-		s.state.Users[id] = u
-	}
 	for key, page := range s.state.Timelines {
 		if page.HasNewer && !loadedIn[key] {
 			continue
@@ -548,6 +553,106 @@ func (s *Server) refreshMessage(ctx context.Context, c *Client, room, id string,
 		}
 		fresh := TimelinePage{Messages: []Message{m}, StartCursor: page.StartCursor, HasOlder: page.HasOlder}
 		s.state.Timelines[key] = mergeTimeline(page, fresh, true)
+	}
+	return nil
+}
+
+// Metadata reads use the same cursor as their triggering event. Only retained
+// messages are refreshed; metadata cannot introduce disconnected older history.
+// A wildcard refreshes all retained thread summaries after a reply retraction.
+func (s *Server) refreshMessageMetadata(ctx context.Context, c *Client, room, root string) error {
+	if root == "" {
+		return nil
+	}
+	s.mu.Lock()
+	seen := map[string]bool{}
+	var ids []string
+	for key, page := range s.state.Timelines {
+		if key.Room != room {
+			continue
+		}
+		for _, m := range page.Messages {
+			if (m.ID == root || root == "*" && m.Thread != nil) && !seen[m.ID] {
+				seen[m.ID] = true
+				ids = append(ids, m.ID)
+			}
+		}
+	}
+	s.mu.Unlock()
+	for len(ids) > 0 {
+		n := min(100, len(ids))
+		var out struct {
+			Messages []Message `json:"messages"`
+		}
+		if err := c.call(ctx, "MessageService/BatchGetMessages", map[string]any{"roomId": room, "eventIds": ids[:n]}, &out); err != nil {
+			return err
+		}
+		if err := s.hydrateMessageUsers(ctx, c, out.Messages); err != nil {
+			return err
+		}
+		updates := map[string]Message{}
+		requested := map[string]bool{}
+		for _, id := range ids[:n] {
+			requested[id] = true
+		}
+		for _, m := range out.Messages {
+			updates[m.ID] = m
+		}
+		s.mu.Lock()
+		for key, page := range s.state.Timelines {
+			if key.Room != room {
+				continue
+			}
+			messages := page.Messages[:0]
+			for _, m := range page.Messages {
+				if requested[m.ID] {
+					fresh, ok := updates[m.ID]
+					// The batch API omits deleted or inaccessible messages.
+					if !ok || fresh.DeletedAt != "" {
+						continue
+					}
+					m = fresh
+				}
+				messages = append(messages, m)
+			}
+			page.Messages = messages
+			s.state.Timelines[key] = page
+		}
+		s.mu.Unlock()
+		ids = ids[n:]
+	}
+	return nil
+}
+
+func (s *Server) hydrateMessageUsers(ctx context.Context, c *Client, messages []Message) error {
+	s.mu.Lock()
+	seen := map[string]bool{}
+	var ids []string
+	for _, m := range messages {
+		candidates := []string{m.ActorID}
+		if m.Thread != nil {
+			candidates = append(candidates, m.Thread.ParticipantPreviewUserIDs...)
+		}
+		for _, id := range candidates {
+			if _, known := s.state.Users[id]; id != "" && !known && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	s.mu.Unlock()
+	for len(ids) > 0 {
+		n := min(100, len(ids))
+		users, err := c.Profiles(ctx, ids[:n])
+		if err != nil {
+			return err
+		}
+		s.mu.Lock()
+		for id, u := range users {
+			s.state.Users[id] = u
+		}
+		s.mu.Unlock()
+		ids = ids[n:]
 	}
 	return nil
 }

@@ -77,6 +77,16 @@ func (c *Client) DownloadAsset(ctx context.Context, room, assetID string, option
 	if options.Thumbnail != nil && asset.ThumbnailAssetURL.URL != "" {
 		address = asset.ThumbnailAssetURL.URL
 	}
+	return c.DownloadAssetURL(ctx, address, limit)
+}
+
+// DownloadAssetURL downloads a server-issued asset URL, such as a profile avatar.
+// It sends no bearer credentials, rejects other origins and redirects, and bounds
+// encoded bytes. Callers own deadlines, decoding limits, and URL refresh.
+func (c *Client) DownloadAssetURL(ctx context.Context, address string, limit int64) ([]byte, error) {
+	if limit <= 0 || limit == 1<<63-1 {
+		return nil, errors.New("asset download requires a positive bounded byte limit")
+	}
 	base, _ := url.Parse(c.endpoint)
 	u, err := url.Parse(address)
 	if err != nil || address == "" {

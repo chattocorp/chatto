@@ -32,6 +32,7 @@ type loaded struct {
 type rowRange struct {
 	Start, End int
 	Images     []imageHit
+	Meta       []metaHit
 }
 
 // A scroll anchor keeps the same message line visible when older rows are prepended.
@@ -312,8 +313,12 @@ func (m *model) openThread() tea.Cmd {
 	if len(m.page.Messages) == 0 {
 		return nil
 	}
+	return m.openThreadRoot(m.page.Messages[m.selected].ThreadRootID())
+}
+
+func (m *model) openThreadRoot(root string) tea.Cmd {
 	m.saveDraft()
-	m.root = m.page.Messages[m.selected].ThreadRootID()
+	m.root = root
 	m.thread = chatto.TimelinePage{}
 	m.threadSelected = 0
 	m.focus = 2
@@ -833,6 +838,12 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
+				for _, hit := range row.Meta {
+					x := v.X - paneX - 1
+					if y == hit.y && x >= hit.x && x < hit.x+hit.width {
+						return m, m.openThreadRoot(hit.root)
+					}
+				}
 				m.renderMessages()
 				break
 			}
@@ -1025,7 +1036,12 @@ func (m *model) renderPage(p chatto.TimelinePage, selected, width int) (string, 
 			}
 			lines = append(lines, style.Render(line))
 		}
-		rows = append(rows, rowRange{Start: start, End: len(lines), Images: hits})
+		metadata, metaHits := m.messageMeta(msg, width, gutter, i == selected)
+		for j := range metaHits {
+			metaHits[j].y += len(lines)
+		}
+		lines = append(lines, metadata...)
+		rows = append(rows, rowRange{Start: start, End: len(lines), Images: hits, Meta: metaHits})
 	}
 	return strings.Join(lines, "\n"), rows
 }

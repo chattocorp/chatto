@@ -127,6 +127,11 @@ an empty cursor reuses a loaded timeline. Older pages merge into the same store.
 retain archived rooms. Applications choose which entries to display. Timeline
 access does not require a directory entry; the API decides access.
 
+Messages retain thread summaries and participants, reactions, edited timestamps,
+pin state, and echo origins. Profiles retain avatar URLs. Realtime replies,
+thread creation, reactions, pin changes, and thread viewer-state changes refresh
+retained message resources. All returned nested metadata is detached from stores.
+
 Realtime posts, edits, retractions, room metadata/membership changes, read-state
 changes, profile changes, and room-layout changes update the stores. Events that
 only identify a resource trigger a targeted read with the event's minimum cursor.
@@ -140,7 +145,7 @@ leave the map empty without blocking messaging. This option defaults to false.
 attention filters. `NotificationOccurrence.MessageTarget` resolves known message
 signals and leaves unknown signals and invitations without an invented message
 destination. Hosts choose which occurrence to navigate to and whether to mark it read.
-This projection does not yet expose reactions, assets, typing, presence, calls,
+This projection does not yet expose a separate asset store, typing, presence, calls,
 roles, or full notification occurrences. Permission and account changes conservatively
 clear private state and request a replacement snapshot.
 
@@ -206,6 +211,9 @@ returns fresh metadata and signed URLs for any file type. Pass an optional
 `DownloadAsset` fetches fresh authorization and encoded bytes. Its
 `AssetDownloadOptions.MaxBytes` must be positive; the caller supplies a deadline
 through the context. A nil thumbnail selects the original file.
+`DownloadAssetURL` downloads a server-issued URL, such as a profile avatar,
+with the same transport boundaries and a caller-selected byte limit. The caller
+owns URL refresh and deadlines.
 It accepts only URLs on the connected server's origin,
 does not follow redirects, and sends no bearer token with the signed download.
 It returns encoded bytes; callers must bound decoded dimensions before they

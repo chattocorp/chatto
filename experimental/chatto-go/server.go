@@ -167,6 +167,21 @@ func clonePage(p TimelinePage) TimelinePage {
 	p.Messages = append([]Message(nil), p.Messages...)
 	for i := range p.Messages {
 		p.Messages[i].Attachments = append([]Attachment(nil), p.Messages[i].Attachments...)
+		p.Messages[i].Reactions = append([]MessageReaction(nil), p.Messages[i].Reactions...)
+		for j := range p.Messages[i].Reactions {
+			p.Messages[i].Reactions[j].PreviewUserIDs = append([]string(nil), p.Messages[i].Reactions[j].PreviewUserIDs...)
+		}
+		if original := p.Messages[i].Thread; original != nil {
+			copy := *original
+			copy.ParticipantPreviewUserIDs = append([]string(nil), original.ParticipantPreviewUserIDs...)
+			if original.ViewerState.IsFollowing != nil {
+				copy.ViewerState.IsFollowing = new(*original.ViewerState.IsFollowing)
+			}
+			if original.ViewerState.HasUnreadReplies != nil {
+				copy.ViewerState.HasUnreadReplies = new(*original.ViewerState.HasUnreadReplies)
+			}
+			p.Messages[i].Thread = &copy
+		}
 	}
 	p.Users = cloneUsers(p.Users)
 	return p

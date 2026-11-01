@@ -17,6 +17,10 @@ import (
 func richMessage(id string) chatto.Message {
 	m := input(id, "ordinary text https://example.test/user-written-link", true).Message
 	m.CreatedAt = "2026-11-01T12:00:00Z"
+	m.UpdatedAt = "2026-11-01T12:01:00Z"
+	m.Pinned = true
+	m.Thread = &chatto.ThreadSummary{ReplyCount: 2, ParticipantPreviewUserIDs: []string{"metadata-only-participant"}}
+	m.Reactions = []chatto.MessageReaction{{Emoji: "heart", Count: 2}}
 	m.Attachments = []chatto.Attachment{{ID: "asset", Filename: "metadata-only.png",
 		AssetURL:          chatto.AssetURL{URL: "https://example.test/asset?access=secret-capability"},
 		ThumbnailAssetURL: chatto.AssetURL{URL: "https://example.test/thumb?access=secret-capability"}}}
@@ -34,7 +38,7 @@ func (f *richThreadClient) Thread(context.Context, string, string, string) (chat
 
 func assertNoResourceMetadata(t *testing.T, data []byte) {
 	t.Helper()
-	for _, forbidden := range []string{"secret-capability", "metadata-only.png", "attachments", "createdAt"} {
+	for _, forbidden := range []string{"secret-capability", "metadata-only.png", "attachments", "createdAt", "updatedAt", "pinned", "reactions", "metadata-only-participant", "replyCount"} {
 		if strings.Contains(string(data), forbidden) {
 			t.Fatalf("resource metadata escaped the bot projection: %s", forbidden)
 		}

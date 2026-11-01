@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/chattocorp/chatto/experimental/chatto-go v0.0.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
+	github.com/yuin/goldmark-emoji v1.0.6
 	golang.org/x/image v0.46.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -35,7 +36,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v1.0.0 // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
-	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect

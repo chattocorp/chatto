@@ -293,6 +293,12 @@ type Event struct {
 	//	*Event_MessagePosted
 	//	*Event_MessageEdited
 	//	*Event_MessageRetracted
+	//	*Event_MessagePinned
+	//	*Event_MessageUnpinned
+	//	*Event_ThreadCreated
+	//	*Event_ReactionAdded
+	//	*Event_ReactionRemoved
+	//	*Event_ThreadViewerStateChanged
 	//	*Event_UserAccountDeleted
 	//	*Event_UserProfileChanged
 	//	*Event_ServerProfileChanged
@@ -475,6 +481,60 @@ func (x *Event) GetMessageRetracted() *MessageChanged {
 	return nil
 }
 
+func (x *Event) GetMessagePinned() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_MessagePinned); ok {
+			return x.MessagePinned
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetMessageUnpinned() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_MessageUnpinned); ok {
+			return x.MessageUnpinned
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetThreadCreated() *ThreadChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ThreadCreated); ok {
+			return x.ThreadCreated
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetReactionAdded() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ReactionAdded); ok {
+			return x.ReactionAdded
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetReactionRemoved() *MessageChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ReactionRemoved); ok {
+			return x.ReactionRemoved
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetThreadViewerStateChanged() *ThreadChanged {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ThreadViewerStateChanged); ok {
+			return x.ThreadViewerStateChanged
+		}
+	}
+	return nil
+}
+
 func (x *Event) GetUserAccountDeleted() *Empty {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserAccountDeleted); ok {
@@ -640,6 +700,30 @@ type Event_MessageRetracted struct {
 	MessageRetracted *MessageChanged `protobuf:"bytes,26,opt,name=message_retracted,json=messageRetracted,proto3,oneof"`
 }
 
+type Event_MessagePinned struct {
+	MessagePinned *MessageChanged `protobuf:"bytes,27,opt,name=message_pinned,json=messagePinned,proto3,oneof"`
+}
+
+type Event_MessageUnpinned struct {
+	MessageUnpinned *MessageChanged `protobuf:"bytes,28,opt,name=message_unpinned,json=messageUnpinned,proto3,oneof"`
+}
+
+type Event_ThreadCreated struct {
+	ThreadCreated *ThreadChanged `protobuf:"bytes,29,opt,name=thread_created,json=threadCreated,proto3,oneof"`
+}
+
+type Event_ReactionAdded struct {
+	ReactionAdded *MessageChanged `protobuf:"bytes,49,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
+}
+
+type Event_ReactionRemoved struct {
+	ReactionRemoved *MessageChanged `protobuf:"bytes,50,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
+}
+
+type Event_ThreadViewerStateChanged struct {
+	ThreadViewerStateChanged *ThreadChanged `protobuf:"bytes,52,opt,name=thread_viewer_state_changed,json=threadViewerStateChanged,proto3,oneof"`
+}
+
 type Event_UserAccountDeleted struct {
 	UserAccountDeleted *Empty `protobuf:"bytes,48,opt,name=user_account_deleted,json=userAccountDeleted,proto3,oneof"`
 }
@@ -713,6 +797,18 @@ func (*Event_MessagePosted) isEvent_Event() {}
 func (*Event_MessageEdited) isEvent_Event() {}
 
 func (*Event_MessageRetracted) isEvent_Event() {}
+
+func (*Event_MessagePinned) isEvent_Event() {}
+
+func (*Event_MessageUnpinned) isEvent_Event() {}
+
+func (*Event_ThreadCreated) isEvent_Event() {}
+
+func (*Event_ReactionAdded) isEvent_Event() {}
+
+func (*Event_ReactionRemoved) isEvent_Event() {}
+
+func (*Event_ThreadViewerStateChanged) isEvent_Event() {}
 
 func (*Event_UserAccountDeleted) isEvent_Event() {}
 
@@ -1291,6 +1387,7 @@ type User struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AvatarUrl     *string                `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1342,6 +1439,13 @@ func (x *User) GetLogin() string {
 func (x *User) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *User) GetAvatarUrl() string {
+	if x != nil && x.AvatarUrl != nil {
+		return *x.AvatarUrl
 	}
 	return ""
 }
@@ -1443,6 +1547,58 @@ func (x *MessageChanged) GetMessageEventId() string {
 	return ""
 }
 
+type ThreadChanged struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ThreadChanged) Reset() {
+	*x = ThreadChanged{}
+	mi := &file_realtime_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadChanged) ProtoMessage() {}
+
+func (x *ThreadChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_realtime_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadChanged.ProtoReflect.Descriptor instead.
+func (*ThreadChanged) Descriptor() ([]byte, []int) {
+	return file_realtime_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ThreadChanged) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadChanged) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
 type RoomChanged struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1452,7 +1608,7 @@ type RoomChanged struct {
 
 func (x *RoomChanged) Reset() {
 	*x = RoomChanged{}
-	mi := &file_realtime_proto_msgTypes[15]
+	mi := &file_realtime_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1464,7 +1620,7 @@ func (x *RoomChanged) String() string {
 func (*RoomChanged) ProtoMessage() {}
 
 func (x *RoomChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[15]
+	mi := &file_realtime_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1477,7 +1633,7 @@ func (x *RoomChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomChanged.ProtoReflect.Descriptor instead.
 func (*RoomChanged) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{15}
+	return file_realtime_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RoomChanged) GetRoomId() string {
@@ -1495,7 +1651,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_realtime_proto_msgTypes[16]
+	mi := &file_realtime_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1507,7 +1663,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[16]
+	mi := &file_realtime_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1520,7 +1676,7 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{16}
+	return file_realtime_proto_rawDescGZIP(), []int{17}
 }
 
 type MessagePosted struct {
@@ -1538,7 +1694,7 @@ type MessagePosted struct {
 
 func (x *MessagePosted) Reset() {
 	*x = MessagePosted{}
-	mi := &file_realtime_proto_msgTypes[17]
+	mi := &file_realtime_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1550,7 +1706,7 @@ func (x *MessagePosted) String() string {
 func (*MessagePosted) ProtoMessage() {}
 
 func (x *MessagePosted) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[17]
+	mi := &file_realtime_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1563,7 +1719,7 @@ func (x *MessagePosted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessagePosted.ProtoReflect.Descriptor instead.
 func (*MessagePosted) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{17}
+	return file_realtime_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MessagePosted) GetRoomId() string {
@@ -1631,7 +1787,7 @@ type Mention struct {
 
 func (x *Mention) Reset() {
 	*x = Mention{}
-	mi := &file_realtime_proto_msgTypes[18]
+	mi := &file_realtime_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +1799,7 @@ func (x *Mention) String() string {
 func (*Mention) ProtoMessage() {}
 
 func (x *Mention) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[18]
+	mi := &file_realtime_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +1812,7 @@ func (x *Mention) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Mention.ProtoReflect.Descriptor instead.
 func (*Mention) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{18}
+	return file_realtime_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Mention) GetCause() isMention_Cause {
@@ -1746,7 +1902,7 @@ type Direct struct {
 
 func (x *Direct) Reset() {
 	*x = Direct{}
-	mi := &file_realtime_proto_msgTypes[19]
+	mi := &file_realtime_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1758,7 +1914,7 @@ func (x *Direct) String() string {
 func (*Direct) ProtoMessage() {}
 
 func (x *Direct) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[19]
+	mi := &file_realtime_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1771,7 +1927,7 @@ func (x *Direct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Direct.ProtoReflect.Descriptor instead.
 func (*Direct) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{19}
+	return file_realtime_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Direct) GetUserId() string {
@@ -1790,7 +1946,7 @@ type Role struct {
 
 func (x *Role) Reset() {
 	*x = Role{}
-	mi := &file_realtime_proto_msgTypes[20]
+	mi := &file_realtime_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1802,7 +1958,7 @@ func (x *Role) String() string {
 func (*Role) ProtoMessage() {}
 
 func (x *Role) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[20]
+	mi := &file_realtime_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1815,7 +1971,7 @@ func (x *Role) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Role.ProtoReflect.Descriptor instead.
 func (*Role) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{20}
+	return file_realtime_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Role) GetRoleName() string {
@@ -1833,7 +1989,7 @@ type Here struct {
 
 func (x *Here) Reset() {
 	*x = Here{}
-	mi := &file_realtime_proto_msgTypes[21]
+	mi := &file_realtime_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1845,7 +2001,7 @@ func (x *Here) String() string {
 func (*Here) ProtoMessage() {}
 
 func (x *Here) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[21]
+	mi := &file_realtime_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1858,7 +2014,7 @@ func (x *Here) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Here.ProtoReflect.Descriptor instead.
 func (*Here) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{21}
+	return file_realtime_proto_rawDescGZIP(), []int{22}
 }
 
 type All struct {
@@ -1869,7 +2025,7 @@ type All struct {
 
 func (x *All) Reset() {
 	*x = All{}
-	mi := &file_realtime_proto_msgTypes[22]
+	mi := &file_realtime_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1881,7 +2037,7 @@ func (x *All) String() string {
 func (*All) ProtoMessage() {}
 
 func (x *All) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[22]
+	mi := &file_realtime_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1894,7 +2050,7 @@ func (x *All) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use All.ProtoReflect.Descriptor instead.
 func (*All) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{22}
+	return file_realtime_proto_rawDescGZIP(), []int{23}
 }
 
 type Heartbeat struct {
@@ -1906,7 +2062,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_realtime_proto_msgTypes[23]
+	mi := &file_realtime_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1918,7 +2074,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[23]
+	mi := &file_realtime_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1931,7 +2087,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{23}
+	return file_realtime_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Heartbeat) GetCursor() string {
@@ -1951,7 +2107,7 @@ type CaughtUp struct {
 
 func (x *CaughtUp) Reset() {
 	*x = CaughtUp{}
-	mi := &file_realtime_proto_msgTypes[24]
+	mi := &file_realtime_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1963,7 +2119,7 @@ func (x *CaughtUp) String() string {
 func (*CaughtUp) ProtoMessage() {}
 
 func (x *CaughtUp) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[24]
+	mi := &file_realtime_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1976,7 +2132,7 @@ func (x *CaughtUp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaughtUp.ProtoReflect.Descriptor instead.
 func (*CaughtUp) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{24}
+	return file_realtime_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CaughtUp) GetCursor() string {
@@ -2004,7 +2160,7 @@ type Close struct {
 
 func (x *Close) Reset() {
 	*x = Close{}
-	mi := &file_realtime_proto_msgTypes[25]
+	mi := &file_realtime_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2016,7 +2172,7 @@ func (x *Close) String() string {
 func (*Close) ProtoMessage() {}
 
 func (x *Close) ProtoReflect() protoreflect.Message {
-	mi := &file_realtime_proto_msgTypes[25]
+	mi := &file_realtime_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2029,7 +2185,7 @@ func (x *Close) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Close.ProtoReflect.Descriptor instead.
 func (*Close) Descriptor() ([]byte, []int) {
-	return file_realtime_proto_rawDescGZIP(), []int{25}
+	return file_realtime_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Close) GetCode() uint32 {
@@ -2071,7 +2227,7 @@ const file_realtime_proto_rawDesc = "" +
 	"\x05close\x18\x03 \x01(\v2\x16.chatto.sdk.wire.CloseH\x00R\x05close\x128\n" +
 	"\tcaught_up\x18\x04 \x01(\v2\x19.chatto.sdk.wire.CaughtUpH\x00R\bcaughtUp\x127\n" +
 	"\bsnapshot\x18\x05 \x01(\v2\x19.chatto.sdk.wire.SnapshotH\x00R\bsnapshotB\a\n" +
-	"\x05frame\"\xf8\x0f\n" +
+	"\x05frame\"\xd2\x13\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2089,7 +2245,13 @@ const file_realtime_proto_rawDesc = "" +
 	"\x0euser_left_room\x18\x13 \x01(\v2\x1c.chatto.sdk.wire.RoomChangedH\x00R\fuserLeftRoom\x12G\n" +
 	"\x0emessage_posted\x18\x18 \x01(\v2\x1e.chatto.sdk.wire.MessagePostedH\x00R\rmessagePosted\x12H\n" +
 	"\x0emessage_edited\x18\x19 \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\rmessageEdited\x12N\n" +
-	"\x11message_retracted\x18\x1a \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x10messageRetracted\x12J\n" +
+	"\x11message_retracted\x18\x1a \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x10messageRetracted\x12H\n" +
+	"\x0emessage_pinned\x18\x1b \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\rmessagePinned\x12L\n" +
+	"\x10message_unpinned\x18\x1c \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x0fmessageUnpinned\x12G\n" +
+	"\x0ethread_created\x18\x1d \x01(\v2\x1e.chatto.sdk.wire.ThreadChangedH\x00R\rthreadCreated\x12H\n" +
+	"\x0ereaction_added\x181 \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\rreactionAdded\x12L\n" +
+	"\x10reaction_removed\x182 \x01(\v2\x1f.chatto.sdk.wire.MessageChangedH\x00R\x0freactionRemoved\x12_\n" +
+	"\x1bthread_viewer_state_changed\x184 \x01(\v2\x1e.chatto.sdk.wire.ThreadChangedH\x00R\x18threadViewerStateChanged\x12J\n" +
 	"\x14user_account_deleted\x180 \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x12userAccountDeleted\x12P\n" +
 	"\x14user_profile_changed\x18/ \x01(\v2\x1c.chatto.sdk.wire.UserChangedH\x00R\x12userProfileChanged\x12N\n" +
 	"\x16server_profile_changed\x185 \x01(\v2\x16.chatto.sdk.wire.EmptyH\x00R\x14serverProfileChanged\x12b\n" +
@@ -2141,16 +2303,22 @@ const file_realtime_proto_rawDesc = "" +
 	"\vSidebarLink\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
-	"\x03url\x18\x03 \x01(\tR\x03url\"O\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\"\x82\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"<\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\"\n" +
+	"\n" +
+	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
+	"\v_avatar_url\"<\n" +
 	"\x0fDirectoryMember\x12)\n" +
 	"\x04user\x18\x01 \x01(\v2\x15.chatto.sdk.wire.UserR\x04user\"S\n" +
 	"\x0eMessageChanged\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"&\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"Y\n" +
+	"\rThreadChanged\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"&\n" +
 	"\vRoomChanged\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"\a\n" +
 	"\x05Empty\"\xcf\x02\n" +
@@ -2204,7 +2372,7 @@ func file_realtime_proto_rawDescGZIP() []byte {
 }
 
 var file_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_realtime_proto_goTypes = []any{
 	(RoomKind)(0),                 // 0: chatto.sdk.wire.RoomKind
 	(*Subscribe)(nil),             // 1: chatto.sdk.wire.Subscribe
@@ -2222,74 +2390,81 @@ var file_realtime_proto_goTypes = []any{
 	(*User)(nil),                  // 13: chatto.sdk.wire.User
 	(*DirectoryMember)(nil),       // 14: chatto.sdk.wire.DirectoryMember
 	(*MessageChanged)(nil),        // 15: chatto.sdk.wire.MessageChanged
-	(*RoomChanged)(nil),           // 16: chatto.sdk.wire.RoomChanged
-	(*Empty)(nil),                 // 17: chatto.sdk.wire.Empty
-	(*MessagePosted)(nil),         // 18: chatto.sdk.wire.MessagePosted
-	(*Mention)(nil),               // 19: chatto.sdk.wire.Mention
-	(*Direct)(nil),                // 20: chatto.sdk.wire.Direct
-	(*Role)(nil),                  // 21: chatto.sdk.wire.Role
-	(*Here)(nil),                  // 22: chatto.sdk.wire.Here
-	(*All)(nil),                   // 23: chatto.sdk.wire.All
-	(*Heartbeat)(nil),             // 24: chatto.sdk.wire.Heartbeat
-	(*CaughtUp)(nil),              // 25: chatto.sdk.wire.CaughtUp
-	(*Close)(nil),                 // 26: chatto.sdk.wire.Close
-	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 28: google.protobuf.Duration
+	(*ThreadChanged)(nil),         // 16: chatto.sdk.wire.ThreadChanged
+	(*RoomChanged)(nil),           // 17: chatto.sdk.wire.RoomChanged
+	(*Empty)(nil),                 // 18: chatto.sdk.wire.Empty
+	(*MessagePosted)(nil),         // 19: chatto.sdk.wire.MessagePosted
+	(*Mention)(nil),               // 20: chatto.sdk.wire.Mention
+	(*Direct)(nil),                // 21: chatto.sdk.wire.Direct
+	(*Role)(nil),                  // 22: chatto.sdk.wire.Role
+	(*Here)(nil),                  // 23: chatto.sdk.wire.Here
+	(*All)(nil),                   // 24: chatto.sdk.wire.All
+	(*Heartbeat)(nil),             // 25: chatto.sdk.wire.Heartbeat
+	(*CaughtUp)(nil),              // 26: chatto.sdk.wire.CaughtUp
+	(*Close)(nil),                 // 27: chatto.sdk.wire.Close
+	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 29: google.protobuf.Duration
 }
 var file_realtime_proto_depIdxs = []int32{
 	3,  // 0: chatto.sdk.wire.Frame.event:type_name -> chatto.sdk.wire.Event
-	24, // 1: chatto.sdk.wire.Frame.heartbeat:type_name -> chatto.sdk.wire.Heartbeat
-	26, // 2: chatto.sdk.wire.Frame.close:type_name -> chatto.sdk.wire.Close
-	25, // 3: chatto.sdk.wire.Frame.caught_up:type_name -> chatto.sdk.wire.CaughtUp
+	25, // 1: chatto.sdk.wire.Frame.heartbeat:type_name -> chatto.sdk.wire.Heartbeat
+	27, // 2: chatto.sdk.wire.Frame.close:type_name -> chatto.sdk.wire.Close
+	26, // 3: chatto.sdk.wire.Frame.caught_up:type_name -> chatto.sdk.wire.CaughtUp
 	5,  // 4: chatto.sdk.wire.Frame.snapshot:type_name -> chatto.sdk.wire.Snapshot
-	27, // 5: chatto.sdk.wire.Event.created_at:type_name -> google.protobuf.Timestamp
-	16, // 6: chatto.sdk.wire.Event.room_created:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 7: chatto.sdk.wire.Event.room_updated:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 8: chatto.sdk.wire.Event.room_deleted:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 9: chatto.sdk.wire.Event.room_archived:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 10: chatto.sdk.wire.Event.room_unarchived:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 11: chatto.sdk.wire.Event.room_universal_changed:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 12: chatto.sdk.wire.Event.user_joined_room:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 13: chatto.sdk.wire.Event.user_left_room:type_name -> chatto.sdk.wire.RoomChanged
-	18, // 14: chatto.sdk.wire.Event.message_posted:type_name -> chatto.sdk.wire.MessagePosted
+	28, // 5: chatto.sdk.wire.Event.created_at:type_name -> google.protobuf.Timestamp
+	17, // 6: chatto.sdk.wire.Event.room_created:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 7: chatto.sdk.wire.Event.room_updated:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 8: chatto.sdk.wire.Event.room_deleted:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 9: chatto.sdk.wire.Event.room_archived:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 10: chatto.sdk.wire.Event.room_unarchived:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 11: chatto.sdk.wire.Event.room_universal_changed:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 12: chatto.sdk.wire.Event.user_joined_room:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 13: chatto.sdk.wire.Event.user_left_room:type_name -> chatto.sdk.wire.RoomChanged
+	19, // 14: chatto.sdk.wire.Event.message_posted:type_name -> chatto.sdk.wire.MessagePosted
 	15, // 15: chatto.sdk.wire.Event.message_edited:type_name -> chatto.sdk.wire.MessageChanged
 	15, // 16: chatto.sdk.wire.Event.message_retracted:type_name -> chatto.sdk.wire.MessageChanged
-	17, // 17: chatto.sdk.wire.Event.user_account_deleted:type_name -> chatto.sdk.wire.Empty
-	4,  // 18: chatto.sdk.wire.Event.user_profile_changed:type_name -> chatto.sdk.wire.UserChanged
-	17, // 19: chatto.sdk.wire.Event.server_profile_changed:type_name -> chatto.sdk.wire.Empty
-	17, // 20: chatto.sdk.wire.Event.notification_occurrences_changed:type_name -> chatto.sdk.wire.Empty
-	16, // 21: chatto.sdk.wire.Event.notification_unread_state_changed:type_name -> chatto.sdk.wire.RoomChanged
-	16, // 22: chatto.sdk.wire.Event.room_read_state_changed:type_name -> chatto.sdk.wire.RoomChanged
-	17, // 23: chatto.sdk.wire.Event.room_layout_changed:type_name -> chatto.sdk.wire.Empty
-	17, // 24: chatto.sdk.wire.Event.role_deleted:type_name -> chatto.sdk.wire.Empty
-	17, // 25: chatto.sdk.wire.Event.role_assigned:type_name -> chatto.sdk.wire.Empty
-	17, // 26: chatto.sdk.wire.Event.role_revoked:type_name -> chatto.sdk.wire.Empty
-	17, // 27: chatto.sdk.wire.Event.role_permissions_changed:type_name -> chatto.sdk.wire.Empty
-	17, // 28: chatto.sdk.wire.Event.viewer_permissions_changed:type_name -> chatto.sdk.wire.Empty
-	17, // 29: chatto.sdk.wire.Event.user_account_deactivation_changed:type_name -> chatto.sdk.wire.Empty
-	6,  // 30: chatto.sdk.wire.Snapshot.server:type_name -> chatto.sdk.wire.ServerProfile
-	9,  // 31: chatto.sdk.wire.Snapshot.rooms:type_name -> chatto.sdk.wire.RoomEntry
-	10, // 32: chatto.sdk.wire.Snapshot.room_groups:type_name -> chatto.sdk.wire.RoomGroup
-	14, // 33: chatto.sdk.wire.Snapshot.users:type_name -> chatto.sdk.wire.DirectoryMember
-	0,  // 34: chatto.sdk.wire.Room.kind:type_name -> chatto.sdk.wire.RoomKind
-	7,  // 35: chatto.sdk.wire.RoomEntry.room:type_name -> chatto.sdk.wire.Room
-	8,  // 36: chatto.sdk.wire.RoomEntry.viewer_state:type_name -> chatto.sdk.wire.RoomViewerState
-	11, // 37: chatto.sdk.wire.RoomGroup.items:type_name -> chatto.sdk.wire.RoomGroupItem
-	9,  // 38: chatto.sdk.wire.RoomGroupItem.room:type_name -> chatto.sdk.wire.RoomEntry
-	12, // 39: chatto.sdk.wire.RoomGroupItem.sidebar_link:type_name -> chatto.sdk.wire.SidebarLink
-	13, // 40: chatto.sdk.wire.DirectoryMember.user:type_name -> chatto.sdk.wire.User
-	19, // 41: chatto.sdk.wire.MessagePosted.mentions:type_name -> chatto.sdk.wire.Mention
-	0,  // 42: chatto.sdk.wire.MessagePosted.room_kind:type_name -> chatto.sdk.wire.RoomKind
-	20, // 43: chatto.sdk.wire.Mention.direct:type_name -> chatto.sdk.wire.Direct
-	21, // 44: chatto.sdk.wire.Mention.role:type_name -> chatto.sdk.wire.Role
-	22, // 45: chatto.sdk.wire.Mention.here:type_name -> chatto.sdk.wire.Here
-	23, // 46: chatto.sdk.wire.Mention.all:type_name -> chatto.sdk.wire.All
-	28, // 47: chatto.sdk.wire.Close.retry_after:type_name -> google.protobuf.Duration
-	48, // [48:48] is the sub-list for method output_type
-	48, // [48:48] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	15, // 17: chatto.sdk.wire.Event.message_pinned:type_name -> chatto.sdk.wire.MessageChanged
+	15, // 18: chatto.sdk.wire.Event.message_unpinned:type_name -> chatto.sdk.wire.MessageChanged
+	16, // 19: chatto.sdk.wire.Event.thread_created:type_name -> chatto.sdk.wire.ThreadChanged
+	15, // 20: chatto.sdk.wire.Event.reaction_added:type_name -> chatto.sdk.wire.MessageChanged
+	15, // 21: chatto.sdk.wire.Event.reaction_removed:type_name -> chatto.sdk.wire.MessageChanged
+	16, // 22: chatto.sdk.wire.Event.thread_viewer_state_changed:type_name -> chatto.sdk.wire.ThreadChanged
+	18, // 23: chatto.sdk.wire.Event.user_account_deleted:type_name -> chatto.sdk.wire.Empty
+	4,  // 24: chatto.sdk.wire.Event.user_profile_changed:type_name -> chatto.sdk.wire.UserChanged
+	18, // 25: chatto.sdk.wire.Event.server_profile_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 26: chatto.sdk.wire.Event.notification_occurrences_changed:type_name -> chatto.sdk.wire.Empty
+	17, // 27: chatto.sdk.wire.Event.notification_unread_state_changed:type_name -> chatto.sdk.wire.RoomChanged
+	17, // 28: chatto.sdk.wire.Event.room_read_state_changed:type_name -> chatto.sdk.wire.RoomChanged
+	18, // 29: chatto.sdk.wire.Event.room_layout_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 30: chatto.sdk.wire.Event.role_deleted:type_name -> chatto.sdk.wire.Empty
+	18, // 31: chatto.sdk.wire.Event.role_assigned:type_name -> chatto.sdk.wire.Empty
+	18, // 32: chatto.sdk.wire.Event.role_revoked:type_name -> chatto.sdk.wire.Empty
+	18, // 33: chatto.sdk.wire.Event.role_permissions_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 34: chatto.sdk.wire.Event.viewer_permissions_changed:type_name -> chatto.sdk.wire.Empty
+	18, // 35: chatto.sdk.wire.Event.user_account_deactivation_changed:type_name -> chatto.sdk.wire.Empty
+	6,  // 36: chatto.sdk.wire.Snapshot.server:type_name -> chatto.sdk.wire.ServerProfile
+	9,  // 37: chatto.sdk.wire.Snapshot.rooms:type_name -> chatto.sdk.wire.RoomEntry
+	10, // 38: chatto.sdk.wire.Snapshot.room_groups:type_name -> chatto.sdk.wire.RoomGroup
+	14, // 39: chatto.sdk.wire.Snapshot.users:type_name -> chatto.sdk.wire.DirectoryMember
+	0,  // 40: chatto.sdk.wire.Room.kind:type_name -> chatto.sdk.wire.RoomKind
+	7,  // 41: chatto.sdk.wire.RoomEntry.room:type_name -> chatto.sdk.wire.Room
+	8,  // 42: chatto.sdk.wire.RoomEntry.viewer_state:type_name -> chatto.sdk.wire.RoomViewerState
+	11, // 43: chatto.sdk.wire.RoomGroup.items:type_name -> chatto.sdk.wire.RoomGroupItem
+	9,  // 44: chatto.sdk.wire.RoomGroupItem.room:type_name -> chatto.sdk.wire.RoomEntry
+	12, // 45: chatto.sdk.wire.RoomGroupItem.sidebar_link:type_name -> chatto.sdk.wire.SidebarLink
+	13, // 46: chatto.sdk.wire.DirectoryMember.user:type_name -> chatto.sdk.wire.User
+	20, // 47: chatto.sdk.wire.MessagePosted.mentions:type_name -> chatto.sdk.wire.Mention
+	0,  // 48: chatto.sdk.wire.MessagePosted.room_kind:type_name -> chatto.sdk.wire.RoomKind
+	21, // 49: chatto.sdk.wire.Mention.direct:type_name -> chatto.sdk.wire.Direct
+	22, // 50: chatto.sdk.wire.Mention.role:type_name -> chatto.sdk.wire.Role
+	23, // 51: chatto.sdk.wire.Mention.here:type_name -> chatto.sdk.wire.Here
+	24, // 52: chatto.sdk.wire.Mention.all:type_name -> chatto.sdk.wire.All
+	29, // 53: chatto.sdk.wire.Close.retry_after:type_name -> google.protobuf.Duration
+	54, // [54:54] is the sub-list for method output_type
+	54, // [54:54] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_realtime_proto_init() }
@@ -2317,6 +2492,12 @@ func file_realtime_proto_init() {
 		(*Event_MessagePosted)(nil),
 		(*Event_MessageEdited)(nil),
 		(*Event_MessageRetracted)(nil),
+		(*Event_MessagePinned)(nil),
+		(*Event_MessageUnpinned)(nil),
+		(*Event_ThreadCreated)(nil),
+		(*Event_ReactionAdded)(nil),
+		(*Event_ReactionRemoved)(nil),
+		(*Event_ThreadViewerStateChanged)(nil),
 		(*Event_UserAccountDeleted)(nil),
 		(*Event_UserProfileChanged)(nil),
 		(*Event_ServerProfileChanged)(nil),
@@ -2335,8 +2516,9 @@ func file_realtime_proto_init() {
 		(*RoomGroupItem_Room)(nil),
 		(*RoomGroupItem_SidebarLink)(nil),
 	}
-	file_realtime_proto_msgTypes[17].OneofWrappers = []any{}
-	file_realtime_proto_msgTypes[18].OneofWrappers = []any{
+	file_realtime_proto_msgTypes[12].OneofWrappers = []any{}
+	file_realtime_proto_msgTypes[18].OneofWrappers = []any{}
+	file_realtime_proto_msgTypes[19].OneofWrappers = []any{
 		(*Mention_Direct)(nil),
 		(*Mention_Role)(nil),
 		(*Mention_Here)(nil),
@@ -2348,7 +2530,7 @@ func file_realtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_realtime_proto_rawDesc), len(file_realtime_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   26,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

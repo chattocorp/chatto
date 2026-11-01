@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"image"
@@ -78,6 +79,13 @@ func (c *imageCache) allocateID() int {
 }
 
 func imageKey(room, id string) string { return room + "/" + id }
+
+// Avatar identity includes the URL revision without retaining it in cache keys.
+func avatarKey(id, address string) string {
+	return fmt.Sprintf("avatar:%s:%x", id, sha256.Sum256([]byte(address)))
+}
+
+type requestedImage struct{ asset, avatar string }
 
 func (c *imageCache) remove(key string) {
 	entry := c.entries[key]
@@ -196,16 +204,24 @@ func (m *model) syncImages() tea.Cmd {
 			return m.loadOriginal()
 		}
 	}
-	wanted := map[string]chatto.Attachment{}
+	wanted := map[string]requestedImage{}
 	_, center, right := m.columns()
 	collect := func(p chatto.TimelinePage, rows []rowRange, offset, height int) {
 		for i, row := range rows {
 			if row.End <= offset || row.Start >= offset+height {
 				continue
 			}
-			for _, a := range p.Messages[i].Attachments {
+			msg := p.Messages[i]
+			for _, a := range msg.Attachments {
 				if a.ID != "" && strings.HasPrefix(a.ContentType, "image/") {
-					wanted[imageKey(m.room, a.ID)] = a
+					wanted[imageKey(m.room, a.ID)] = requestedImage{asset: a.ID}
+				}
+			}
+			if msg.Thread != nil {
+				for _, id := range msg.Thread.ParticipantPreviewUserIDs[:min(3, len(msg.Thread.ParticipantPreviewUserIDs))] {
+					if u := m.users[id]; u.AvatarURL != "" {
+						wanted[avatarKey(id, u.AvatarURL)] = requestedImage{avatar: u.AvatarURL}
+					}
 				}
 			}
 		}
@@ -243,20 +259,42 @@ func (m *model) syncImages() tea.Cmd {
 			}
 		}
 		ctx, cancel := context.WithCancel(m.e.ctx)
-		id, epoch, room, asset := c.allocateID(), c.epoch, m.room, a.ID
+		id, epoch, room, request := c.allocateID(), c.epoch, m.room, a
 		c.entries[key] = &terminalImage{id: id, loading: true, cancel: cancel, placements: map[int]bool{}}
 		active++
 		cmds = append(cmds, func() tea.Msg {
 			defer cancel()
-			data, err := m.e.imagePreview(ctx, room, asset)
+			var data []byte
+			var err error
+			if request.avatar != "" {
+				data, err = m.e.avatarPreview(ctx, request.avatar)
+			} else {
+				data, err = m.e.imagePreview(ctx, room, request.asset)
+			}
 			r := imageLoaded{key: key, epoch: epoch, id: id, err: err}
 			if err == nil {
-				r.packet, r.width, r.height, r.err = decodePreview(data, id)
+				if request.avatar != "" {
+					r.packet, r.width, r.height, r.err = decodeImage(data, id, 64, 1_000_000)
+				} else {
+					r.packet, r.width, r.height, r.err = decodePreview(data, id)
+				}
 			}
 			return r
 		})
 	}
 	return tea.Batch(cmds...)
+}
+
+func (e *engine) avatarPreview(ctx context.Context, address string) ([]byte, error) {
+	e.mu.Lock()
+	c, err := e.client()
+	e.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	return c.DownloadAssetURL(ctx, address, 1<<20)
 }
 
 func (m *model) loadOriginal() tea.Cmd {

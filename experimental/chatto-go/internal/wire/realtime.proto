@@ -43,6 +43,12 @@ message Event {
     MessagePosted message_posted = 24;
     MessageChanged message_edited = 25;
     MessageChanged message_retracted = 26;
+    MessageChanged message_pinned = 27;
+    MessageChanged message_unpinned = 28;
+    ThreadChanged thread_created = 29;
+    MessageChanged reaction_added = 49;
+    MessageChanged reaction_removed = 50;
+    ThreadChanged thread_viewer_state_changed = 52;
     Empty user_account_deleted = 48;
     UserChanged user_profile_changed = 47;
     Empty server_profile_changed = 53;
@@ -84,11 +90,12 @@ message RoomGroupItem {
   oneof item { RoomEntry room = 1; SidebarLink sidebar_link = 2; }
 }
 message SidebarLink { string id = 1; string label = 2; string url = 3; }
-message User { string id = 1; string login = 2; string display_name = 3; }
+message User { string id = 1; string login = 2; string display_name = 3; optional string avatar_url = 5; }
 message DirectoryMember { User user = 1; }
 
 // Both public edit and retraction events identify a room and message.
 message MessageChanged { string room_id = 1; string message_event_id = 2; }
+message ThreadChanged { string room_id = 1; string thread_root_event_id = 2; }
 message RoomChanged { string room_id = 1; }
 message Empty {}
 

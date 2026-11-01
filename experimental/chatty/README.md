@@ -136,6 +136,12 @@ snapshot clears old histories when replay is unavailable. Access invalidations
 clear private state immediately. Scrollback preserves the reading position while
 live events update the store. Use **Alt+R** to return to the latest stored messages.
 
+Message metadata appears below the body: thread reply counts, up to three
+participant avatars, unread replies, pinned and edited states, and emoji reaction
+counts. Your reactions have a distinct highlight. Click a thread badge to open
+its thread. Metadata updates through the realtime connection. Reaction badges
+are display-only. Plain messages do not get an empty metadata row.
+
 ## Images
 
 Ghostty and Kitty show attached images as inline thumbnails without cropping.
@@ -161,6 +167,11 @@ Automatic detection leaves tmux and screen in text mode; passthrough is not
 implemented. Other terminals show attachment filenames.
 
 Chatty downloads previews only for visible messages, with two requests at a time.
+Thread participants use tiny avatars in Ghostty and Kitty, with colored initials
+as a fallback. Avatars share the preview cache and download queue. Each avatar
+download has a 15-second deadline and a 1 MiB limit; decoding allows at most one
+million pixels, then scales the image to at most 64 pixels per side.
+
 The cache holds up to 16 images in memory and terminal storage. It is cleared on
 room changes, access invalidation, sign-out, and exit. Downloads are limited to
 8 MiB, decoded images to 16 million pixels, and terminal images to 768 pixels
