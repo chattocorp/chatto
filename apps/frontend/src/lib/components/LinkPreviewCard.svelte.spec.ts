@@ -240,6 +240,47 @@ describe('LinkPreviewCard', () => {
     expect(container.querySelector('iframe')).not.toBeNull();
   });
 
+  it('upgrades stored generic Vimeo previews and follows URL changes', async () => {
+    const { container, rerender } = render(LinkPreviewCard, {
+      preview: preview({
+        url: 'https://player.vimeo.com/video/76979871?h=abc123def0&autoplay=1',
+        title: 'A Vimeo video'
+      })
+    });
+    const player = container.querySelector('iframe')!;
+    expect(player).not.toBeNull();
+    expect(player.title).toBe('A Vimeo video');
+    expect(player.src).toBe('https://player.vimeo.com/video/76979871?h=abc123def0&dnt=1');
+    expect(player.loading).toBe('lazy');
+    expect(container.querySelector('[data-testid="link-preview-card"]')).toBeNull();
+
+    await rerender({
+      preview: preview({ url: 'https://vimeo.com/12345678', title: 'Next video' })
+    });
+    expect(container.querySelector('iframe')?.src).toBe(
+      'https://player.vimeo.com/video/12345678?dnt=1'
+    );
+    expect(container.querySelector('iframe')?.title).toBe('Next video');
+
+    await rerender({
+      preview: preview({ url: 'https://vimeo.com/staff', title: 'Vimeo profile' })
+    });
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.querySelector('[data-testid="link-preview-card"]')?.textContent).toContain(
+      'Vimeo profile'
+    );
+  });
+
+  it('dismisses Vimeo from the shared toolbar', () => {
+    const onDismiss = vi.fn();
+    const { container } = render(LinkPreviewCard, {
+      preview: preview({ url: 'https://vimeo.com/76979871' }),
+      onDismiss
+    });
+    container.querySelector<HTMLButtonElement>('[aria-label="Dismiss preview"]')!.click();
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
   it('owns context-menu actions for every preview renderer', async () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     const sharedProps = {
@@ -278,6 +319,28 @@ describe('LinkPreviewCard', () => {
         roomId: 'room-1',
         eventId: 'event-1',
         previewUrl: 'https://youtube.example/watch?v=abc123'
+      }
+    });
+
+    await rerender({
+      preview: preview({ url: 'https://vimeo.com/76979871', title: 'Vimeo video' }),
+      ...sharedProps
+    });
+    openContextMenu(container, '[data-testid="vimeo-embed"]');
+    (await menuButton('Open link')).click();
+    expect(open).toHaveBeenLastCalledWith(
+      'https://vimeo.com/76979871',
+      '_blank',
+      'noopener,noreferrer'
+    );
+    container.querySelector<HTMLButtonElement>('[aria-label="Delete preview"]')!.click();
+    expect(navigation.pushState).toHaveBeenLastCalledWith('', {
+      modal: {
+        type: 'deleteLinkPreview',
+        serverId: 'remote',
+        roomId: 'room-1',
+        eventId: 'event-1',
+        previewUrl: 'https://vimeo.com/76979871'
       }
     });
 
