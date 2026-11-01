@@ -20,8 +20,8 @@ describe('ResizeHandle', () => {
 
     const handle = page.getByRole('slider', { name: 'Resize' });
     await expect.element(handle).toHaveClass(edgeClass);
-    await expect.element(handle).toHaveClass('w-6');
-    await expect.element(handle).toHaveClass('h-6');
+    await expect.element(handle).toHaveClass('w-2');
+    await expect.element(handle).toHaveClass('h-full');
     await expect.element(handle).toHaveClass('pointer-events-auto');
     await expect.element(handle).toHaveAttribute('aria-orientation', 'vertical');
     await expect.element(handle).toHaveAttribute('aria-valuemin', '192');
@@ -30,17 +30,58 @@ describe('ResizeHandle', () => {
 
     const wrapper = page.getByTestId('resize-handle');
     await expect.element(wrapper).toHaveClass(edgeClass);
-    await expect.element(wrapper).toHaveClass('w-6');
+    await expect.element(wrapper).toHaveClass('w-2');
     await expect.element(wrapper).toHaveClass('pointer-events-none');
-
-    const dragStrip = wrapper.getByTestId('resize-handle-drag-strip');
-    await expect.element(dragStrip).toHaveClass(edgeClass);
-    await expect.element(dragStrip).toHaveClass('w-2');
-    await expect.element(dragStrip).toHaveClass('h-full');
 
     const line = wrapper.getByTestId('resize-handle-line');
     await expect.element(line).toHaveClass(edgeClass);
     await expect.element(line).toHaveClass('w-px');
+  });
+
+  it.each([
+    { edge: 'end' as const, dir: 'ltr' },
+    { edge: 'start' as const, dir: 'ltr' },
+    { edge: 'end' as const, dir: 'rtl' },
+    { edge: 'start' as const, dir: 'rtl' }
+  ])('leaves midpoint row actions clickable at the $edge edge in $dir', async ({ edge, dir }) => {
+    await page.viewport(800, 600);
+    const { container } = render(ResizeHandle, {
+      width: 256,
+      min: 192,
+      max: 384,
+      edge,
+      onResize: vi.fn()
+    });
+    container.dir = dir;
+    Object.assign(container.style, { position: 'relative', width: '256px', height: '240px' });
+
+    const badge = document.createElement('button');
+    badge.textContent = 'Notifications';
+    Object.assign(badge.style, {
+      position: 'absolute',
+      insetInlineEnd: edge === 'end' ? '8px' : 'auto',
+      insetInlineStart: edge === 'start' ? '8px' : 'auto',
+      top: '108px',
+      width: '24px',
+      height: '24px'
+    });
+    const onClick = vi.fn();
+    badge.onclick = onClick;
+    container.append(badge);
+
+    const handle = page.getByRole('slider', { name: 'Resize' }).element();
+    const rect = container.getBoundingClientRect();
+    const rightEdge = (edge === 'end') === (dir === 'ltr');
+    const x = (inset: number) => (rightEdge ? rect.right - inset : rect.left + inset);
+
+    // The midpoint must have the same hit area as the rest of the separator.
+    for (const y of [rect.top + 32, rect.top + 120, rect.bottom - 32]) {
+      expect(document.elementFromPoint(x(4), y)).toBe(handle);
+      expect(document.elementFromPoint(x(12), y)).not.toBe(handle);
+    }
+    expect(document.elementFromPoint(x(20), rect.top + 120)).toBe(badge);
+    await page.getByRole('button', { name: 'Notifications' }).click();
+    expect(onClick).toHaveBeenCalledOnce();
   });
 
   it('supports vertical slider keyboard controls', async () => {
