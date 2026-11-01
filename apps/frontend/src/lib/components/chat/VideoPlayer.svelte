@@ -10,6 +10,11 @@
   } from '$lib/media/hls';
   import { m } from '$lib/i18n/messages';
   import { retainPlayback } from '$lib/media/playbackRetention';
+  import {
+    positiveVideoDimension as positiveDimension,
+    videoFrameStyle
+  } from '$lib/media/videoFrame';
+  import { LoadingFog } from '$lib/ui';
 
   import 'vidstack/player/styles/default/theme.css';
   import 'vidstack/player/styles/default/layouts/video.css';
@@ -78,11 +83,6 @@
     onPosterError?: () => void;
   } = $props();
 
-  const MAX_WIDTH = 480;
-  const MAX_HEIGHT = 320;
-  const MIN_PLAYER_ASPECT_RATIO = 9 / 16;
-  const MAX_PLAYER_ASPECT_RATIO = 16 / 9;
-
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
   let measuredMedia = $state<{ src: string; width: number; height: number } | null>(null);
@@ -122,29 +122,10 @@
     };
   });
 
-  const displaySize = $derived.by(() => {
-    const w = sourceDimensions.width;
-    const h = sourceDimensions.height;
-    const mediaAspectRatio = w / h;
-
-    // Vidstack's controls need a usable canvas even when the media itself is
-    // extremely tall or wide. Clamp only the player canvas; object-fit keeps
-    // the complete video at its true aspect ratio inside it.
-    const canvasWidth =
-      mediaAspectRatio < MIN_PLAYER_ASPECT_RATIO ? h * MIN_PLAYER_ASPECT_RATIO : w;
-    const canvasHeight =
-      mediaAspectRatio > MAX_PLAYER_ASPECT_RATIO ? w / MAX_PLAYER_ASPECT_RATIO : h;
-    const scale = Math.min(MAX_WIDTH / canvasWidth, MAX_HEIGHT / canvasHeight, 1);
-    return {
-      width: Math.max(1, Math.round(canvasWidth * scale)),
-      height: Math.max(1, Math.round(canvasHeight * scale))
-    };
-  });
-
   const frameStyle = $derived(
     viewer
       ? 'width: 100%; height: 100%; max-width: 100%; max-height: 100%;'
-      : `width: ${displaySize.width}px; max-width: 100%; aspect-ratio: ${displaySize.width} / ${displaySize.height};`
+      : videoFrameStyle(sourceDimensions.width, sourceDimensions.height)
   );
 
   // Vidstack auto-detects media type from URL extensions, but our stable asset
@@ -162,10 +143,6 @@
         return null;
     }
   });
-
-  function positiveDimension(value: number | null | undefined): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
-  }
 
   function syncVideoDimensions(video: HTMLVideoElement) {
     if (!playbackSource) return;
@@ -390,6 +367,11 @@
         </media-tooltip>
       </media-controls>
     </media-player>
+  </div>
+{:else if status === 'COMPLETED' && playbackSource}
+  <!-- Registration is async on every remount; preserve the ready player's geometry. -->
+  <div class="my-1.5 preview-frame" style={frameStyle}>
+    <LoadingFog class="h-full w-full" />
   </div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
   <div class="my-1.5 preview-frame" style={frameStyle}>
