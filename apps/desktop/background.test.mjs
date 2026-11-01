@@ -5,6 +5,7 @@ import { configureBackgroundWindow } from './background.mjs';
 
 function fixture(platform) {
   const app = new EventEmitter();
+  const autoUpdater = new EventEmitter();
   const window = new EventEmitter();
   const calls = [];
   app.show = () => calls.push('show-app');
@@ -15,8 +16,8 @@ function fixture(platform) {
     restore: () => calls.push('restore'),
     isMinimized: () => true
   });
-  configureBackgroundWindow({ app, window, platform });
-  return { app, window, calls };
+  configureBackgroundWindow({ app, autoUpdater, window, platform });
+  return { app, autoUpdater, window, calls };
 }
 
 test('macOS window close hides, Dock activation restores, and normal quit permits closing', () => {
@@ -35,4 +36,22 @@ test('Windows and Linux window close is not intercepted without a tray', () => {
     window.emit('close', { preventDefault: () => assert.fail('Window must close') });
     assert.deepEqual(calls, []);
   }
+});
+
+test('macOS update restart permits window closing before the normal quit event', () => {
+  const { app, autoUpdater, window, calls } = fixture('darwin');
+  autoUpdater.emit('before-quit-for-update');
+  window.emit('close', {
+    preventDefault: () => assert.fail('Update restart must close the window')
+  });
+  assert.deepEqual(calls, []);
+  app.emit('before-quit');
+});
+
+test('staging an update does not disable macOS background behavior', () => {
+  const { autoUpdater, window, calls } = fixture('darwin');
+  autoUpdater.emit('checking-for-update');
+  autoUpdater.emit('update-downloaded');
+  window.emit('close', { preventDefault: () => calls.push('prevent') });
+  assert.deepEqual(calls, ['prevent', 'hide']);
 });
