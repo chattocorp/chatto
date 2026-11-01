@@ -497,7 +497,15 @@ test.describe('Notification Page Display', () => {
     await withServerUser(browser, serverURL, async ({ page: actorPage }) => {
       // Send through the other user's API while the recipient keeps focus.
       await page.bringToFront();
-      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+      // Finish the focus-return read first. Otherwise it could cover the new
+      // reaction and hide a missing read in the notification-arrival handler.
+      await Promise.all([
+        page.waitForResponse(
+          (response) => response.url().endsWith('/MarkThreadAsRead') && response.ok()
+        ),
+        page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      ]);
       await connectPost(actorPage, 'chatto.api.v1.MessageService/AddReaction', {
         roomId,
         messageEventId: replyId,
