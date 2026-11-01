@@ -13,8 +13,13 @@ import (
 	"github.com/chattocorp/chatto/experimental/chatto-go/internal/httpjson"
 )
 
-// Client authenticates each request with a bot API key.
-type Client struct{ endpoint, token string }
+// Client authenticates each request with an API key or human bearer access token.
+// Clients are immutable; create a new client after rotating a human session.
+type Client struct {
+	endpoint, token string
+	allMessages     bool
+	minimumCursor   string
+}
 
 // New accepts a server origin. Plain HTTP is allowed only on loopback hosts.
 func New(origin, token string) (*Client, error) {
@@ -29,18 +34,19 @@ func New(origin, token string) (*Client, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, errors.New("Chatto API key is required")
 	}
-	return &Client{strings.TrimRight(origin, "/") + "/api/connect/chatto.api.v1.", token}, nil
+	return &Client{endpoint: strings.TrimRight(origin, "/") + "/api/connect/chatto.api.v1.", token: token}, nil
 }
 
-// Message is the text and identity subset of a renderable Chatto message.
-// Attachments and other rich content are intentionally not decoded.
+// Message is the text, attachment, and identity subset of a renderable message.
 type Message struct {
-	ID                string `json:"id"`
-	RoomID            string `json:"roomId"`
-	ActorID           string `json:"actorId"`
-	Body              string `json:"body"`
-	ThreadRootEventID string `json:"threadRootEventId"`
-	DeletedAt         string `json:"deletedAt,omitempty"`
+	ID                string       `json:"id"`
+	RoomID            string       `json:"roomId"`
+	ActorID           string       `json:"actorId"`
+	Body              string       `json:"body"`
+	ThreadRootEventID string       `json:"threadRootEventId"`
+	DeletedAt         string       `json:"deletedAt,omitempty"`
+	CreatedAt         string       `json:"createdAt,omitempty"`
+	Attachments       []Attachment `json:"attachments,omitempty"`
 }
 
 // ThreadRootID returns the thread containing this message. A top-level message
@@ -160,7 +166,7 @@ func (c *Client) Reply(ctx context.Context, room, root, replyTo, body, key strin
 }
 
 func (c *Client) call(ctx context.Context, method string, input, output any) error {
-	return httpjson.Post(ctx, c.endpoint+method, c.token, input, output)
+	return httpjson.PostAtCursor(ctx, c.endpoint+method, c.token, c.minimumCursor, input, output)
 }
 
 // RefreshTypingIndicator publishes live typing activity for the authenticated

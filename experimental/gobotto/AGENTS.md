@@ -41,6 +41,10 @@ server architecture inventory.
 - For edits, compare model-visible message content before cancelling. Preview-only
   changes must not cancel unchanged work. Failed verification, retractions, and
   access changes remain conservative. Delivery waits for an active edit check.
+- Use Gobotto's explicit message projection for model context and fingerprints.
+  Do not serialize SDK messages directly into prompts. Keep attachment access
+  URLs and display metadata out of model context and the durable intake inbox.
+  Adding SDK fields must not change the model input or edit comparison.
 - Respect configured execution limits and give a final text-only progress report
   at a configured call/step limit. Zero or omitted execution limits are unlimited.
   Do not execute tools after a configured limit, even if the provider ignores tool choice.

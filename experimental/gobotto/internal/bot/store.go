@@ -294,6 +294,6 @@ func humanID(seed string) string {
 }
 
 func fingerprint(m chatto.Message) string {
-	data, _ := json.Marshal(m)
+	data, _ := json.Marshal(messageForModel(m))
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
