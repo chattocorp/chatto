@@ -429,6 +429,8 @@ authorization, live events, backup and restore, and backend tests.
 
 - Use `mise test-cli` for full backend checkpoints. It includes the
   `test_endpoints` build tag.
+- Mise enables `-trimpath`. Locate test fixtures from the working directory
+  or embed them; `runtime.Caller` no longer gives absolute source paths.
 - Iterate with targeted tests:
 
 ```sh
@@ -436,6 +438,8 @@ mise x -- go test ./internal/core -run TestName -timeout 30s
 mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
 ```
 
+- For source debugging, map import paths with Delve's `substitute-path` or
+  pass `-trimpath=false` to the Go command for that debug build.
 - Always set a timeout for targeted Go tests.
 - Run `mise lint-cli` before you push backend changes. CI runs it. It runs
   `go vet` and a staticcheck U1000 check over every build tag set. Delete
@@ -443,7 +447,7 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 - `mise lint-cli` also runs the Go `modernize` analyzer. When it reports
   findings, run the `-fix` command that it prints from `cli/`. Use the
   modernize version that `mise.toml` pins, for example:
-  `GOFLAGS='-tags=bootstrap,test_endpoints,integration' mise x
+  `GOFLAGS='-trimpath -tags=bootstrap,test_endpoints,integration' mise x
   'go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@0.51.0'
   -- modernize -fix ./...`. Do not add pointer helpers such as `stringPtr`;
   use `new(value)`.
