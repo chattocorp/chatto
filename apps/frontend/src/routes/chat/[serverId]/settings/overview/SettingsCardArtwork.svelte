@@ -8,7 +8,7 @@
 
 <div
   aria-hidden="true"
-  class="relative flex h-28 items-center justify-center overflow-hidden bg-action/5 text-action"
+  class="relative flex h-24 items-center justify-center overflow-hidden bg-action/5 text-action sm:h-28"
 >
   <svg
     viewBox="0 0 480 176"
@@ -20,7 +20,7 @@
     <circle cx="65" cy="190" r="100" fill="none" stroke="currentColor" stroke-opacity="0.08" />
   </svg>
 
-  <div class="flex scale-75 items-center justify-center">
+  <div class="flex scale-65 items-center justify-center sm:scale-75">
     {#if kind === 'appearance'}
       <div class="relative flex items-center -space-x-8">
         <div

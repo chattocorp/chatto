@@ -48,7 +48,7 @@
                 >
                   <!-- Keep the link's hover area fixed while its visual surface lifts. -->
                   <div class="flex h-full hover-lift flex-row inset-frame sm:flex-col">
-                    <div class="w-28 shrink-0 overflow-hidden inset-content sm:w-auto">
+                    <div class="w-24 shrink-0 overflow-hidden inset-content sm:w-auto">
                       <SettingsCardArtwork href={item.href} icon={item.icon} />
                     </div>
                     <div class="flex min-w-0 flex-1 flex-col gap-2 p-3">
