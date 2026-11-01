@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-11-01
 
 ## Overview
 
@@ -19,7 +19,7 @@ The server-management section gives owners and admins visibility into the server
   warning; drafts do not survive a reload. Loss of permission removes the editor.
 - Management UI lives under `/chat/[serverId]/manage/`. Server-wide pages live below `/manage/server/`; individual room and room-group settings use sibling resource routes.
 - Legacy `/chat/[serverId]/server-admin/...` deep links permanently redirect to their equivalent management routes so bookmarks and shared links continue to work.
-- Every member can open Settings from the primary server navigation. The server sidebar then shows a unified Settings sidebar with three collapsible groups: App preferences, Your account, and Server configuration. It also shows a Back to Server action. App preferences apply to all servers. Your account and Server configuration apply to the server named in the Settings header. Server configuration contains only the destinations that the viewer can use. The gear and Settings entry open Overview. This page lists the available destinations as a grid, in the same groups and order as the sidebar. It shows a notice above the grid when Shield Mode is available but inactive, directing the user to the shield button beside their name. The grid updates when effective permissions change.
+- Every member can open Settings from the primary server navigation. The server sidebar then shows a unified Settings sidebar with three collapsible groups: App preferences, Your account, and Server configuration. It also shows a Back to Server action. App preferences apply to all servers. Your account and Server configuration apply to the server named in the Settings header. Server configuration contains only the destinations that the viewer can use. The gear and Settings entry open Overview. This page lists the available destinations as a grid, in the same groups and order as the sidebar. On narrow screens, cards form one column, with artwork on the left and text on the right. When Shield Mode is available but inactive, a notice appears inside Server configuration, above its cards. It directs the user to the shield button beside their name. The grid updates when effective permissions change.
 - Delegated managers enter a specific room or room group through its contextual settings action. Resource pages use effective scoped permissions and do not imply access to unrelated server-management pages.
 - **Users page** — paginated list of all server members with login, primary
   verified email, roles, and verification status. The API identifies the
