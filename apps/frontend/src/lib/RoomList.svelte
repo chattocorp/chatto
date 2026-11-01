@@ -1107,7 +1107,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           </div>
         {:else}
           {#if showUnread}
-            <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
+            <span class="flex size-6 shrink-0 items-center justify-center">
+              <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
+            </span>
             <span class="sr-only">{m('room_list.unread_messages')}</span>
           {/if}
           {@const activityAge = isDM ? dmActivityAge(room.lastMessageAt) : null}
