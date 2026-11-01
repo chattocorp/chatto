@@ -392,6 +392,18 @@ describe('MessageAttachments', () => {
     }
   });
 
+  it('keeps minimum-width portrait thumbnails at the height limit', () => {
+    const { container } = renderAttachment(
+      imageAttachment({ filename: 'very-tall.jpg', width: 100, height: 2000 })
+    );
+    const { image, button } = imageFrame(container, 'very-tall.jpg');
+    const bounds = button.getBoundingClientRect();
+
+    expect(bounds.width).toBe(24);
+    expect(bounds.height).toBe(200);
+    expect(image.className).toContain('object-contain');
+  });
+
   it.each([false, true])('balances image action insets (gallery: %s)', (gallery) => {
     const attachments = [imageAttachment({ id: 'first', filename: 'first.jpg' })];
     if (gallery) attachments.push(imageAttachment({ id: 'second', filename: 'second.jpg' }));
