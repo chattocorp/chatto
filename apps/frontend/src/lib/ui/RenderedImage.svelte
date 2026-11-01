@@ -6,31 +6,41 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   import { on } from 'svelte/events';
   import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
+  import { renderedImageWidth, type RenderedImageSize } from '$lib/renderedImageSize';
 
-  let { image }: { image: HTMLImageElement } = $props();
+  let {
+    image,
+    initialSize
+  }: {
+    image: HTMLImageElement;
+    /** Reserve the previous intrinsic size while a remounted image loads. */
+    initialSize?: RenderedImageSize;
+  } = $props();
   const descriptionId = $props.id();
   let width = $state(1);
   let height = $state(1);
   let ready = $state(false);
   // Constrain width from the height budget, so both axes keep the image's ratio.
   // The minimum target size adds a small inset only for tiny or extreme artwork.
-  const previewWidth = $derived(`min(${width}px, calc(min(30rem, 60vh) * ${width / height}))`);
+  const previewWidth = $derived(renderedImageWidth({ width, height }));
 
   function preview(node: HTMLSpanElement) {
     const update = () => {
-      width = image.naturalWidth || 1;
-      height = image.naturalHeight || 1;
+      const nextWidth = image.naturalWidth || initialSize?.width || 1;
+      const nextHeight = image.naturalHeight || initialSize?.height || 1;
+      width = nextWidth;
+      height = nextHeight;
       ready = image.naturalWidth > 0;
       // The minimum click target must not enlarge tiny artwork inside it.
-      image.style.maxWidth = `${width}px`;
-      image.style.maxHeight = `${height}px`;
+      image.style.maxWidth = `${nextWidth}px`;
+      image.style.maxHeight = `${nextHeight}px`;
     };
     image.classList.add('image-canvas-asset');
     image.dataset.canvasImage = '';
     image.draggable = false;
     node.append(image);
     image.addEventListener('load', update);
-    if (image.complete) update();
+    update();
     return () => {
       image.removeEventListener('load', update);
       image.remove();
@@ -54,7 +64,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
 
 <button
   type="button"
-  class="rendered-image relative mx-auto block max-h-[min(30rem,60vh)] min-h-11 max-w-full min-w-11 cursor-zoom-in overflow-hidden p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-default"
+  class="rendered-image relative rendered-image-size cursor-zoom-in overflow-hidden p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-default"
   aria-label={m('ui.image_modal.open_larger')}
   aria-describedby={descriptionId}
   disabled={!ready}

@@ -6,6 +6,7 @@
 
 <script lang="ts">
   import MarkdownHtml from './MarkdownHtml.svelte';
+  import DiagramTimelineTestHarness from './DiagramTimelineTestHarness.svelte';
   import { renderMarkdown } from '$lib/markdown';
   import RenderedImageViewerModal from '../../routes/chat/modals/RenderedImageViewerModal.svelte';
   import type { RenderedImageViewerModalState } from '$lib/modal';
@@ -24,6 +25,15 @@
   const source = 'flowchart LR\nA[Launch checks] --> B{Ready?}\nB -->|Yes| C[Depart]\nB -->|No| A';
   const html = renderMarkdown(
     `Code example:\n\n\u0060\u0060\u0060mermaid\n${source}\n\u0060\u0060\u0060\n\nVisual message:\n\n\u0060\u0060\u0060mermaid rendered\n${source}\n\u0060\u0060\u0060`
+  );
+  const timelineHtml = Promise.all(
+    Array.from({ length: 30 }, (_, index) =>
+      renderMarkdown(
+        `Diagram ${index}\n\n` +
+          `\u0060\u0060\u0060svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><title>Diagram ${index}</title><rect width="600" height="800" fill="#164e63"/></svg>\n\u0060\u0060\u0060\n\n` +
+          `\u0060\u0060\u0060mermaid rendered\n${source}\naccTitle: Diagram ${index}\n\u0060\u0060\u0060`
+      )
+    )
   );
   const aspectRatios = [
     { name: 'Landscape', width: 1200, height: 600 },
@@ -47,6 +57,10 @@
   {#if modal}
     <RenderedImageViewerModal {modal} onclose={() => (modal = undefined)} />
   {/if}
+</Story>
+
+<Story name="Virtualized thread" asChild>
+  {#await timelineHtml then html}<DiagramTimelineTestHarness {html} />{/await}
 </Story>
 
 <Story name="Aspect ratios" {parameters} asChild>

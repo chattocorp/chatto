@@ -22,12 +22,88 @@ vi.mock('$lib/client', async () => ({
 vi.mock('$lib/ui/toast', () => ({ toast: toastMocks }));
 
 import MarkdownHtml from './MarkdownHtml.svelte';
+import DiagramTimelineTestHarness from './DiagramTimelineTestHarness.svelte';
 import FloatingPopover from './FloatingPopover.svelte';
 import { testSnippet } from '$lib/test-utils';
 
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Mermaid previews', () => {
+  it('does not correct upward scrolling when Gantt rows remount', async () => {
+    const source = `gantt
+    title A Gantt Diagram
+    dateFormat  YYYY-MM-DD
+    section Section
+    A task           :a1, 2014-01-01, 30d
+    Another task     :after a1  , 20d
+    section Another
+    Task in sec      :2014-01-12  , 12d
+    another task      : 24d`;
+    const html = await Promise.all(
+      Array.from({ length: 30 }, (_, index) =>
+        renderMarkdown(
+          `Message ${index}\n\n` + ('```mermaid rendered\n' + source + '\n```\n\n').repeat(3)
+        )
+      )
+    );
+    const { container } = render(DiagramTimelineTestHarness, { html });
+    const scroller = container.querySelector<HTMLElement>('[data-testid="diagram-timeline"]')!;
+    await expect.poll(() => scroller.querySelectorAll('img').length).toBeGreaterThanOrEqual(3);
+    // Scroll through loaded rows, then revisit them continuously. Jumping once
+    // and waiting for an idle layout misses corrections during an active scroll.
+    for (let frame = 0; frame < 160; frame++) {
+      scroller.scrollTop += 12;
+      await new Promise(requestAnimationFrame);
+    }
+    expect(scroller.scrollTop).toBeGreaterThan(1500);
+    // Initial loads can grow rows on the first pass. Base the return distance
+    // on the actual position; the regression is corrections on revisiting rows.
+    const returnFrames = Math.ceil(scroller.scrollTop / 12);
+    for (let frame = 0; frame < returnFrames; frame++) {
+      scroller.scrollTop -= 12;
+      const requested = scroller.scrollTop;
+      await new Promise(requestAnimationFrame);
+      expect(Math.abs(scroller.scrollTop - requested)).toBeLessThan(2);
+    }
+    expect(scroller.scrollTop).toBe(0);
+  });
+
+  it.each(['svg', 'mermaid'])(
+    'reserves %s geometry immediately when a virtualized preview remounts',
+    async (language) => {
+      const source =
+        language === 'svg'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="620" height="810"/>'
+          : 'flowchart TB\nA[Retained geometry]-->B[Remounted preview]-->C[Stable scroll]';
+      const html = await renderMarkdown('```' + language + ' rendered\n' + source + '\n```');
+      for (const availableWidth of [900, 240]) {
+        const first = render(MarkdownHtml, { html });
+        first.container.classList.add('prose');
+        first.container.style.width = `${availableWidth}px`;
+        await expect
+          .poll(() => first.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        const bounds = first.container.querySelector('[data-artifact]')!.getBoundingClientRect();
+        await first.unmount();
+
+        const second = render(MarkdownHtml, { html });
+        second.container.classList.add('prose');
+        second.container.style.width = `${availableWidth}px`;
+        // This check precedes the intersection callback, worker job and image load.
+        // Waiting for an image here would hide the virtualizer's empty measurement.
+        const frame = second.container.querySelector('[data-artifact]')!;
+        expect(Math.abs(frame.getBoundingClientRect().height - bounds.height)).toBeLessThan(1);
+        expect(Math.abs(frame.getBoundingClientRect().width - bounds.width)).toBeLessThan(1);
+        await expect
+          .poll(() => second.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        expect(Math.abs(frame.getBoundingClientRect().height - bounds.height)).toBeLessThan(1);
+        expect(frame.querySelector('[aria-hidden="true"].rendered-image')).toBeNull();
+        await second.unmount();
+      }
+    }
+  );
+
   it.each([
     [1200, 600],
     [480, 960],

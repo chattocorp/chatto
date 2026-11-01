@@ -1,6 +1,12 @@
 /** Local tab state and lazy image jobs for one mounted Markdown HTML version. */
 import { createMermaidPreview } from './mermaid/previews';
 import { mount, unmount } from 'svelte';
+import {
+  getRenderedImageSize,
+  rememberRenderedImageSize,
+  renderedImageSizeKey,
+  renderedImageWidth
+} from './renderedImageSize';
 
 /** Scope ARIA IDs to the component, and dispose all jobs when its HTML changes. */
 export function attachCodeFrames(
@@ -33,6 +39,19 @@ export function attachCodeFrames(
       const source =
         frame.dataset.artifactSource ??
         frame.querySelector<HTMLElement>('[data-copy-source]')!.dataset.copySource!;
+      const sizeKey = renderedImageSizeKey(frame.dataset.artifact!, source);
+      const size = getRenderedImageSize(sizeKey);
+      // Reserve geometry before IntersectionObserver or the worker can run. A
+      // recycled row must not replace virtua's measured height with an empty panel.
+      const placeholder = size ? document.createElement('div') : undefined;
+      if (placeholder && size) {
+        placeholder.className = 'rendered-image rendered-image-size';
+        placeholder.style.width = renderedImageWidth(size);
+        placeholder.style.aspectRatio = `${size.width} / ${size.height}`;
+        placeholder.setAttribute('aria-hidden', 'true');
+        renderPanel.append(placeholder);
+        canvases.push(() => placeholder.remove());
+      }
       let selected = visual ? 1 : 0;
       let nearby = false;
       let started = false;
@@ -52,6 +71,7 @@ export function attachCodeFrames(
       function fail() {
         if (signal.aborted || failed) return;
         failed = true;
+        placeholder?.remove();
         disposeCanvas?.();
         if (visual) {
           const cleanup = showSource(frame, source, frame.dataset.artifact!);
@@ -83,9 +103,16 @@ export function attachCodeFrames(
             return;
           }
           image.addEventListener('error', fail, { signal });
-          image.addEventListener('load', () => renderPanel.removeAttribute('aria-busy'), {
-            signal
-          });
+          image.addEventListener(
+            'load',
+            () => {
+              rememberRenderedImageSize(sizeKey, image);
+              renderPanel.removeAttribute('aria-busy');
+            },
+            {
+              signal
+            }
+          );
           if (frame.dataset.artifact === 'svg') {
             image.className = 'markdown-svg-preview';
             image.alt = 'SVG';
@@ -94,10 +121,12 @@ export function attachCodeFrames(
           }
           const { RenderedImage } = await import('$lib/ui/attachments');
           if (signal.aborted || failed) return;
+          rememberRenderedImageSize(sizeKey, image);
           const canvas = mount(RenderedImage, {
             target: renderPanel,
-            props: { image }
+            props: { image, initialSize: size }
           });
+          placeholder?.remove();
           disposeCanvas = () => {
             void unmount(canvas);
             disposeCanvas = undefined;

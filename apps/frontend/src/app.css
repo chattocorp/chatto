@@ -2075,6 +2075,11 @@
   @apply m-0 block h-full w-full max-w-none object-contain outline-none;
 }
 
+/* Loading diagrams reserve the same responsive space as their fitted image. */
+@utility rendered-image-size {
+  @apply mx-auto block max-h-[min(30rem,60vh)] min-h-11 max-w-full min-w-11;
+}
+
 @utility image-canvas-fade {
   @apply scroll-edge-fade;
   --tw-gradient-from: color-mix(
