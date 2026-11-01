@@ -148,6 +148,10 @@ the Authling toolchain and workflow.
 For an ad-hoc tool command, use `mise x -- ...`. Do not assume that `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
 
+The project mise environment appends `-trimpath` to `GOFLAGS`, including for
+`mise x -- go test ...`. If a script replaces `GOFLAGS` after mise starts,
+include `-trimpath`. Do not set project flags with the user-wide `go env -w`.
+
 Turborepo runs the pnpm workspace tasks. Every workspace package must define a
 `check` script that type-checks all of its source, tests, and examples, so
 `mise check-workspace` (`pnpm run check`) checks the complete workspace. Turbo
