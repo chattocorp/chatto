@@ -14,7 +14,7 @@
   "packages": {
     ".": {
       "package-name": "chatto",
-      "prerelease-type": "beta.1",
+      "prerelease-type": "rc.1",
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": [
         "authling",
