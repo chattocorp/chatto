@@ -23,6 +23,8 @@
   import { ThreadFollowState } from './threadFollowState.svelte';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
+  const paneId = $props.id();
+
   let {
     roomId,
     roomName,
@@ -179,6 +181,7 @@
 </script>
 
 <div
+  id={paneId}
   class={[
     'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background',
     presentation === 'split'
@@ -196,6 +199,7 @@
 >
   {#if presentation === 'split'}
     <ResizeHandle
+      controls={paneId}
       width={threadPaneWidth.value}
       min={THREAD_PANE_MIN_WIDTH}
       max={THREAD_PANE_MAX_WIDTH}

@@ -1,3 +1,7 @@
+<!-- @component
+A keyboard-adjustable pane separator with a uniform 8 px pointer target.
+The controlled pane owns width persistence and supplies its element ID.
+-->
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { m } from '$lib/i18n/messages';
@@ -6,6 +10,7 @@
     width,
     min,
     max,
+    controls,
     onResize,
     onReset,
     edge = 'end',
@@ -14,6 +19,8 @@
     width: number;
     min: number;
     max: number;
+    /** Element ID of the pane whose width this separator changes. */
+    controls: string;
     onResize: (newWidth: number) => void;
     onReset?: () => void;
     /** Logical edge of the sidebar that owns this handle. */
@@ -126,26 +133,20 @@
 <div
   data-testid="resize-handle"
   class={[
-    'pointer-events-none absolute top-0 bottom-0 z-10 hidden w-6 md:block',
+    'pointer-events-none absolute top-0 bottom-0 z-10 hidden w-2 md:block',
     edge === 'end' ? 'end-0' : 'start-0'
   ]}
 >
+  <!-- Keep one hit area along the full edge so it cannot overlap row actions at the midpoint. -->
+  <!-- WAI-ARIA defines focusable separators as pane-resize widgets. Svelte treats
+       this role as static, but Tab focus and keyboard handlers make it operable.
+       https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/ -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div
-    aria-hidden="true"
-    data-sidebar-swipe-ignore
-    data-testid="resize-handle-drag-strip"
-    class={[
-      'peer pointer-events-auto absolute top-0 bottom-0 h-full w-2 cursor-col-resize touch-none border-0 bg-transparent p-0',
-      edge === 'end' ? 'end-0' : 'start-0'
-    ]}
-    onpointerdown={onPointerDown}
-    onlostpointercapture={(e) => finishDragging(e.pointerId)}
-    ondblclick={onDoubleClick}
-  ></div>
-  <div
-    role="slider"
+    role="separator"
     aria-orientation="vertical"
     aria-label={label}
+    aria-controls={controls}
     aria-valuemin={min}
     aria-valuemax={max}
     aria-valuenow={Math.round(width)}
@@ -153,7 +154,7 @@
     data-sidebar-swipe-ignore
     data-testid="resize-handle-hit-target"
     class={[
-      'peer pointer-events-auto absolute top-1/2 h-6 w-6 -translate-y-1/2 cursor-col-resize touch-none border-0 bg-transparent p-0',
+      'peer pointer-events-auto absolute top-0 bottom-0 h-full w-2 cursor-col-resize touch-none border-0 bg-transparent p-0',
       edge === 'end' ? 'end-0' : 'start-0'
     ]}
     onpointerdown={onPointerDown}

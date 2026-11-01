@@ -63,6 +63,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import type { RoomNoticeStore } from '@chatto/client/room/notice';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
+  const paneId = $props.id();
+
   let {
     loading = false,
     roomId,
@@ -416,6 +418,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 />
 
 <aside
+  id={paneId}
   bind:this={sidebarElement}
   {@attach syncPresenceGrouping}
   class={[
@@ -429,6 +432,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 >
   {#if presentation === 'desktop' && !maximized && !isCallFullscreen}
     <ResizeHandle
+      controls={paneId}
       width={roomSidebarWidth.value}
       min={ROOM_SIDEBAR_MIN_WIDTH}
       max={ROOM_SIDEBAR_MAX_WIDTH}

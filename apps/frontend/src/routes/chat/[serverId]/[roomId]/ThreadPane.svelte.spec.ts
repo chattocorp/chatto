@@ -619,10 +619,11 @@ describe('ThreadPane', () => {
     });
 
     const pane = q(container, '[data-testid="thread-pane"]') as HTMLElement;
-    const handle = q(container, '[role="slider"][aria-label^="Resize:"]') as HTMLElement;
+    const handle = q(container, '[role="separator"][aria-label^="Resize:"]') as HTMLElement;
 
     expect(pane.className).toContain('relative');
     expect(pane.style.getPropertyValue('--thread-pane-width')).toBe('420px');
+    expect(handle.getAttribute('aria-controls')).toBe(pane.id);
 
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
 
@@ -648,7 +649,7 @@ describe('ThreadPane', () => {
     expect(pane.className).toContain('inline-end-overlay-shadow');
     expect(pane.className).toContain('lg:w-[90%]');
     expect(pane.className).not.toContain('sm:w-[90%]');
-    expect(container.querySelector('[role="slider"]')).toBeNull();
+    expect(container.querySelector('[role="separator"]')).toBeNull();
   });
 
   it('waits for the viewer to be verified before marking the thread as read', async () => {
