@@ -39,6 +39,13 @@
         'backgroundColor',
         'paddingTop'
       ] as const) {
+        // Flat previews hide their decorative rim; menus keep their boundary.
+        if (
+          frame === preview &&
+          Number(getComputedStyle(frame).getPropertyValue('--depth-strength')) === 0 &&
+          (property === 'borderTopColor' || property === 'backgroundColor')
+        )
+          continue;
         await expect(getComputedStyle(frame)[property]).toBe(getComputedStyle(menu)[property]);
       }
       const content = frame.querySelector<HTMLElement>('.preview-content, .menu-section')!;

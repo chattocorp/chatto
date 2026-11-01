@@ -255,7 +255,7 @@
     if (variant === 'gallery') {
       return `width: ${display.width}px; height: ${display.height}px`;
     }
-    return `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`;
+    return `width: ${display.width}px; max-width: 100%`;
   }
 
   function imageAttachmentUrl(attachment: Attachment): string | null {
@@ -494,8 +494,13 @@
             loading="lazy"
             src={imageUrl}
             alt={attachment.description || attachment.filename}
+            style:aspect-ratio={variant === 'single'
+              ? `${display.width} / ${display.height}`
+              : undefined}
             class={[
-              'h-full w-full preview-content',
+              'w-full preview-content',
+              // The content owns the ratio; the frame adds its rim outside it.
+              variant === 'single' ? 'h-auto' : 'h-full',
               display.fit === 'contain' ? 'object-contain' : 'object-cover'
             ]}
             onload={() => settledImageUrls.set(attachment.id, imageUrl)}
@@ -505,7 +510,16 @@
             }}
           />
         {:else}
-          <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
+          <span
+            style:aspect-ratio={variant === 'single'
+              ? `${display.width} / ${display.height}`
+              : undefined}
+            class={[
+              'flex w-full items-center justify-center text-muted',
+              variant === 'single' ? 'h-auto' : 'h-full'
+            ]}
+            aria-hidden="true"
+          >
             <span aria-hidden="true" class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
           </span>
         {/if}
