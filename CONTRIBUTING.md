@@ -453,6 +453,21 @@ Prettier uses the nearest configuration file. The frontend keeps its Svelte and
 Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
 
+Pull requests check formatting only in files changed since the merge base with
+the target branch. To run the same check locally, use:
+
+```sh
+mise x -- pnpm format:changed
+mise x -- pnpm format:changed -- origin/release-0.5
+```
+
+The default base is `origin/main`. Fetch the base branch first. The local check
+includes staged and unstaged changes to tracked files; stage new files to include
+them. It uses the nearest Prettier configuration and the root `.prettierignore`.
+Deleted files, symlinks, and file types that Prettier does not support are skipped.
+The check does not change files. A formatting-configuration change does not cause
+a full-repository check.
+
 To check for unused files, dependencies, and duplicate exports in the root pnpm
 workspace, run `mise knip`. CI runs the same check. `knip.jsonc` records entry
 points that tools load by path and explains exceptions for external commands
