@@ -530,7 +530,7 @@ and remains a hard write limit for these bindings. Within that limit, their
 Markdown guidance governs document use, just as for managed brains. Fixed and
 managed collection names must not collide.
 
-The agent can discover collections, inspect their schemas and instructions, search,
+The agent can discover collections, inspect their schemas and instructions, list, search,
 and read documents. Authorized turns can create and update documents. Before a
 write, the agent must inspect the collection. Updates require the hash from a
 document read in the same turn; means rejects conflicting changes. Update bodies
@@ -538,6 +538,23 @@ replace the full body, while application data follows means' field-patch rules.
 The agent cannot supply collection paths, delete individual documents, or run
 shell commands. App creation, schema changes, and archival are limited to the
 managed directory. App instruction updates use the same boundary.
+
+`memory_list` enumerates documents in filename order. It requires a means version
+with `list --offset` support. Start with `{"collection":"steam_deals"}`; the
+default offset is 0 and the default limit is 20. Set `limit` to 1–50 to change
+the page size; unbounded listing is not exposed. Results include document
+metadata, diagnostics, `has_more`, and `next_offset` when more records remain.
+Pass that offset with the same collection and filters until `has_more` is false.
+Listing accepts the data and datetime filters described below, but no text query.
+Read `memory_info` in the current turn first; listing does not replace
+`memory_read` or its hash requirement for updates.
+
+Pages read current files, not a snapshot. Inserts, deletes, renames, and changes
+to filter fields can shift later pages. Finish listing before bulk edits. If the
+collection changes during traversal, restart and deduplicate by document ID;
+do not treat the result as a complete snapshot. Diagnostics can report invalid
+or omitted documents even on the final page. Each request runs a local means
+scan; offset pagination bounds model output, not the cost of scanning files.
 
 Search supports full-text queries and structured filters, and returns up to 20
 documents. `memory_search` accepts an optional `filters` object keyed by fields
