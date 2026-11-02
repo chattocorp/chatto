@@ -16,12 +16,13 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 func TestPushSubscriptionCleanupDeliveryRetriesPartialFailure(t *testing.T) {
 	t.Parallel()
 
-	chatto, _ := setupTestCore(t)
+	chatto, _ := newTestCore(t)
 	model := chatto.pushSubscriptionCleanup
 	userID := "push-cleanup-retry-user"
 	delivery := pushSubscriptionCleanupDelivery(t, userID, userID)
@@ -43,6 +44,84 @@ func TestPushSubscriptionCleanupDeliveryRetriesPartialFailure(t *testing.T) {
 	if calls != 2 {
 		t.Fatalf("cleanup calls = %d, want 2", calls)
 	}
+}
+
+func TestPushSubscriptionCleanupDeliveryRetriesRevisionConflict(t *testing.T) {
+	t.Parallel()
+
+	for _, replace := range []bool{false, true} {
+		name := "competing deletion"
+		if replace {
+			name = "late replacement"
+		}
+		t.Run(name, func(t *testing.T) {
+			chatto, _ := newTestCore(t)
+			ctx := testContext(t)
+			userID := "push-cleanup-conflict-user"
+			endpoint := "https://push.example.com/conflict"
+			if _, err := chatto.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser"); err != nil {
+				t.Fatalf("save subscription: %v", err)
+			}
+			key := pushSubscriptionKey(userID, endpoint)
+			kv := chatto.storage.runtimeStateKV
+			entry, err := kv.Get(ctx, key)
+			if err != nil {
+				t.Fatalf("read subscription: %v", err)
+			}
+			// Force another writer between cleanup's read and revision-checked
+			// delete. Both a tombstone and a replacement must permit a retry.
+			gate := &pushCleanupDeleteGate{KeyValue: kv, key: key}
+			gate.beforeDelete = func() {
+				var err error
+				if replace {
+					_, err = kv.Put(ctx, key, entry.Value())
+				} else {
+					err = kv.Delete(ctx, key)
+				}
+				if err != nil {
+					t.Fatalf("intervening write: %v", err)
+				}
+			}
+			chatto.storage.runtimeStateKV = bindTestKeyValue(t, chatto.js, gate)
+			delivery := pushSubscriptionCleanupDelivery(t, userID, userID)
+			if err := chatto.pushSubscriptionCleanup.processDelivery(ctx, delivery); !jetstreamutil.IsSequenceConflict(err) {
+				t.Fatalf("first delivery error = %v, want revision conflict", err)
+			}
+			if gate.beforeDelete != nil {
+				t.Fatal("cleanup did not reach the delete gate")
+			}
+			if replace {
+				if _, err := kv.Get(ctx, key); err != nil {
+					t.Fatalf("replacement missing before retry: %v", err)
+				}
+			}
+			if err := chatto.pushSubscriptionCleanup.processDelivery(ctx, delivery); err != nil {
+				t.Fatalf("redeliver after conflict: %v", err)
+			}
+			for _, key := range []string{key, pushEndpointOwnerKey(endpoint)} {
+				if _, err := kv.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
+					t.Fatalf("push state remains after retry: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// pushCleanupDeleteGate inserts one competing write at the delete boundary.
+// Tests call it synchronously, without background workers.
+type pushCleanupDeleteGate struct {
+	jetstream.KeyValue
+	key          string
+	beforeDelete func()
+}
+
+func (kv *pushCleanupDeleteGate) Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
+	if key == kv.key && kv.beforeDelete != nil {
+		beforeDelete := kv.beforeDelete
+		kv.beforeDelete = nil
+		beforeDelete()
+	}
+	return kv.KeyValue.Delete(ctx, key, opts...)
 }
 
 func TestPushSubscriptionCleanupDeliveryRejectsMismatchedSubject(t *testing.T) {
@@ -138,7 +217,9 @@ func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *test
 func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDelivery(t *testing.T) {
 	t.Parallel()
 
-	chatto, _ := setupTestCore(t)
+	// Drive both cleanup passes here. A running worker could consume the same
+	// deletion fact and remove the late write before the reconciliation pass.
+	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-late-write-user"
 	endpoint := "https://push.example.com/late-write"
@@ -164,6 +245,12 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDeliver
 	}
 	if err := chatto.claimPushEndpointOwnership(ctx, userID, endpoint); err != nil {
 		t.Fatalf("claim late endpoint ownership: %v", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("late subscription missing before reconciliation: %v", err)
+	}
+	if owned, err := chatto.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || !owned {
+		t.Fatalf("late endpoint ownership before reconciliation = %v, err = %v", owned, err)
 	}
 
 	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
@@ -192,7 +279,7 @@ func TestSavePushSubscriptionRejectsCommittedAccountDeletion(t *testing.T) {
 func TestPushSubscriptionCleanupPreservesHostAwareEndpointOwner(t *testing.T) {
 	t.Parallel()
 
-	chatto, _ := setupTestCore(t)
+	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-host-aware-user"
 	endpoint := "https://push.example.com/host-aware"
@@ -234,7 +321,7 @@ func TestPushSubscriptionCleanupPreservesHostAwareEndpointOwner(t *testing.T) {
 func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
 	t.Parallel()
 
-	chatto, _ := setupTestCore(t)
+	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-owner-only-user"
 	endpoint := "https://push.example.com/owner-only"
@@ -260,7 +347,7 @@ func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
 func TestDeleteAllUserPushSubscriptionsRejectsPartialKeyListing(t *testing.T) {
 	t.Parallel()
 
-	chatto, _ := setupTestCore(t)
+	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-partial-list-user"
 	endpoints := []string{
