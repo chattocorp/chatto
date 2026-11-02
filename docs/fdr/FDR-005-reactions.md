@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-11-02
 
 ## Overview
 
@@ -66,10 +66,11 @@ skin tones. Its default is saved in the browser, shared across servers, and
 applies to supported picker and autocomplete choices. Recent choices retain
 their exact tone and select immediately. The picker opens a separate, headerless
 tone list after selecting an emoji that supports skin tones. Back or Escape restores the
-previous search, scroll position, and source button focus. Accepting an autocomplete suggestion with Enter, Tab, or a
+previous search, scroll position, and source button focus. Accepting an autocomplete suggestion with Enter or a
 click opens a separate skin-tone popup when variants are available. It highlights
-the saved tone. Up and Down select a variant; Enter or Tab inserts it and saves
-its tone. Escape returns to the selected suggestion. Emoji without tone variants
+the saved tone. Up, Down, Tab, and Shift+Tab move between variants; Enter or a click
+inserts the highlighted variant with a trailing space and saves its tone. Tab inserts a sole emoji match
+immediately with its saved tone and a trailing space. Escape returns to the selected suggestion. Emoji without tone variants
 insert immediately. Explicit shortcodes and existing reactions remain unchanged.
 Separate tone controls for mixed-tone pairs are not available.
 Plain names and aliases keep their existing identity.
