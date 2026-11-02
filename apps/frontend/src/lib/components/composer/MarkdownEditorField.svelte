@@ -73,13 +73,7 @@ external value changes, such as a successful save, update the mounted editor.
       (result) => !mentions?.members.some((member) => member.id === result.id)
     )
   ]);
-  const autocomplete = new AutocompleteState(
-    () => editorApi,
-    () => candidates,
-    () => mentions?.roles ?? [],
-    undefined,
-    { openOnAt: true, emojis: false }
-  );
+  const autocomplete = new AutocompleteState(() => editorApi, { openOnAt: true, emojis: false });
 
   function resetAutocomplete() {
     searchGeneration++;
@@ -113,8 +107,6 @@ external value changes, such as a successful save, update the mounted editor.
   function handleKeyDown(event: KeyboardEvent): boolean {
     if (!mentions || disabled || event.isComposing) return false;
     if (autocomplete.mention && autocomplete.mentionRef?.handleKeyDown(event)) return true;
-    if (event.key === 'Tab' && autocomplete.handleTabCompletion(event)) return true;
-    if (event.key !== 'Tab') autocomplete.resetTabCompletion();
     return false;
   }
   let formattingState = $state<ComposerFormattingState>({
@@ -172,7 +164,7 @@ external value changes, such as a successful save, update the mounted editor.
         query={autocomplete.mention.query}
         members={candidates}
         roles={mentions.roles}
-        onSelect={(handle, key) => autocomplete.selectMention(handle, key)}
+        onSelect={(handle) => autocomplete.selectMention(handle)}
         onClose={resetAutocomplete}
       />
     {/if}

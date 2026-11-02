@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -674,26 +673,7 @@ func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *tes
 
 func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- core.Run(ctx) }()
-	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer bootCancel()
-	if err := core.WaitForBoot(bootCtx); err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-	var stopOnce sync.Once
-	return func() {
-		stopOnce.Do(func() {
-			cancel()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
-				t.Fatal("core did not stop")
-			}
-		})
-	}
+	return testutil.StartService(t, "ChattoCore", core.Run, core.WaitForBoot)
 }
 
 // projectionSnapshotObjectNames lists the published snapshot objects. Call it

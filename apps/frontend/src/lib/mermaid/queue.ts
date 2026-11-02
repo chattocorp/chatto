@@ -1,4 +1,4 @@
-/** One render at a time across visible messages; no message cache outlives its DOM owner. */
+/** One render at a time across visible messages; unfinished jobs follow their DOM owner. */
 import MermaidWorker from './renderer.worker?worker';
 
 interface Job {

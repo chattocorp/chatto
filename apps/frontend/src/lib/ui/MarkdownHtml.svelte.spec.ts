@@ -22,12 +22,239 @@ vi.mock('$lib/client', async () => ({
 vi.mock('$lib/ui/toast', () => ({ toast: toastMocks }));
 
 import MarkdownHtml from './MarkdownHtml.svelte';
+import DiagramTimelineTestHarness from './DiagramTimelineTestHarness.svelte';
 import FloatingPopover from './FloatingPopover.svelte';
 import { testSnippet } from '$lib/test-utils';
 
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Mermaid previews', () => {
+  it.each(['svg', 'mermaid'])(
+    'reuses the loaded %s image when wheel scrolling remounts a row',
+    async (language) => {
+      const jobs = vi.spyOn(Worker.prototype, 'postMessage');
+      const html = await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+          renderMarkdown(
+            '```' +
+              language +
+              ' rendered\n' +
+              (language === 'svg'
+                ? `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><title>Wheel row ${index}</title><rect width="300" height="400" fill="red"/></svg>`
+                : `flowchart TB\nA[Wheel row ${index}]-->B[Second]-->C[Third]-->D[Fourth]`) +
+              '\n```'
+          )
+        )
+      );
+      // Give the virtualizer known geometry. This test covers remounts, not
+      // cold rows growing while native wheel scrolling is still in progress.
+      for (const value of html) {
+        const preview = render(MarkdownHtml, { html: value });
+        await expect
+          .poll(() => preview.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        await preview.unmount();
+      }
+      jobs.mockClear();
+      const { container } = render(DiagramTimelineTestHarness, { html });
+      const scroller = container.querySelector<HTMLElement>('[data-testid="diagram-timeline"]')!;
+      const firstImage = () =>
+        scroller.querySelector<HTMLImageElement>('[data-diagram-row="0"] img');
+      await expect.poll(() => firstImage()?.naturalWidth).toBeGreaterThan(0);
+      const original = firstImage();
+      const { x, y } = scroller.getBoundingClientRect();
+      const wheel = (deltaY: number) =>
+        cdp().send('Input.dispatchMouseEvent', {
+          type: 'mouseWheel',
+          x: x + 100,
+          y: y + 100,
+          deltaX: 0,
+          deltaY
+        });
+      for (let step = 0; step < 5; step++) {
+        await wheel(300);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        await expect.poll(() => scroller.querySelector('[aria-busy="true"]')).toBeNull();
+      }
+      await expect.poll(() => scroller.querySelector('[data-diagram-row="0"]')).toBeNull();
+      for (let step = 0; step < 5; step++) {
+        await wheel(-300);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      }
+      await expect.poll(() => firstImage()?.naturalWidth).toBeGreaterThan(0);
+      expect(firstImage()).toBe(original);
+      expect(
+        jobs.mock.calls.filter(([source]) => String(source).includes('Wheel row 0]'))
+      ).toHaveLength(language === 'mermaid' ? 1 : 0);
+    }
+  );
+
+  it('reuses a loaded message layout on remount but renders changed source and new owners', async () => {
+    const artifactOwner = {};
+    const jobs = vi.spyOn(Worker.prototype, 'postMessage');
+    const html = await renderMarkdown(
+      '```mermaid rendered\nflowchart LR\nA[Reuse]-->B[Layout]\n```'
+    );
+    const loaded = async (container: HTMLElement) => {
+      await expect
+        .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      return container.querySelector('img')!;
+    };
+    const first = render(MarkdownHtml, { html, artifactOwner });
+    const firstImage = await loaded(first.container);
+    expect(jobs).toHaveBeenCalledOnce();
+    await first.unmount();
+    jobs.mockClear();
+
+    const second = render(MarkdownHtml, { html, artifactOwner });
+    const secondImage = await loaded(second.container);
+    expect(secondImage).toBe(firstImage);
+    expect(secondImage.src).toBe(firstImage.src);
+    expect(jobs).not.toHaveBeenCalled();
+    await second.rerender({
+      html: await renderMarkdown(
+        '```mermaid rendered\nflowchart LR\nA[Edited]-->C[New layout]\n```'
+      )
+    });
+    await loaded(second.container);
+    expect(jobs).toHaveBeenCalledOnce();
+    await second.unmount();
+
+    jobs.mockClear();
+    const fresh = render(MarkdownHtml, { html, artifactOwner: {} });
+    await loaded(fresh.container);
+    expect(jobs).toHaveBeenCalledOnce();
+  });
+
+  it.each(['svg', 'mermaid'])(
+    'keeps simultaneous %s previews independent and reuses only the unchanged image',
+    async (language) => {
+      const artifactOwner = {};
+      const markup = (label: string) =>
+        renderMarkdown(
+          '```' +
+            language +
+            ' rendered\n' +
+            (language === 'svg'
+              ? `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><title>${label}</title></svg>`
+              : `flowchart LR\nA[${label}]-->B[Preview]`) +
+            '\n```'
+        );
+      const html = await markup('Original');
+      const first = render(MarkdownHtml, { html, artifactOwner });
+      await expect
+        .poll(() => first.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      const original = first.container.querySelector('img')!;
+      await first.unmount();
+      const loads = vi.fn();
+      original.addEventListener('load', loads);
+      const second = render(MarkdownHtml, { html, artifactOwner });
+      // Cached SVG mounting is synchronous; no empty intersection-observer frame.
+      if (language === 'svg') expect(second.container.querySelector('img')).toBe(original);
+      await expect.poll(() => second.container.querySelector('img')).toBe(original);
+      const simultaneous = render(MarkdownHtml, { html, artifactOwner });
+      await expect
+        .poll(() => simultaneous.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      expect(simultaneous.container.querySelector('img')).not.toBe(original);
+      expect(second.container.contains(original)).toBe(true);
+      expect(loads).not.toHaveBeenCalled();
+      original.removeEventListener('load', loads);
+      await second.rerender({ html: await markup('Edited') });
+      await expect
+        .poll(() => second.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      expect(second.container.querySelector('img')).not.toBe(original);
+      const fresh = render(MarkdownHtml, { html, artifactOwner: {} });
+      await expect
+        .poll(() => fresh.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      expect(fresh.container.querySelector('img')).not.toBe(original);
+    }
+  );
+
+  it('does not correct upward scrolling when Gantt rows remount', async () => {
+    const source = `gantt
+    title A Gantt Diagram
+    dateFormat  YYYY-MM-DD
+    section Section
+    A task           :a1, 2014-01-01, 30d
+    Another task     :after a1  , 20d
+    section Another
+    Task in sec      :2014-01-12  , 12d
+    another task      : 24d`;
+    const html = await Promise.all(
+      Array.from({ length: 30 }, (_, index) =>
+        renderMarkdown(
+          `Message ${index}\n\n` + ('```mermaid rendered\n' + source + '\n```\n\n').repeat(3)
+        )
+      )
+    );
+    const { container } = render(DiagramTimelineTestHarness, { html });
+    const scroller = container.querySelector<HTMLElement>('[data-testid="diagram-timeline"]')!;
+    await expect.poll(() => scroller.querySelectorAll('img').length).toBeGreaterThanOrEqual(3);
+    // Scroll through loaded rows, then revisit them continuously. Jumping once
+    // and waiting for an idle layout misses corrections during an active scroll.
+    for (let frame = 0; frame < 160; frame++) {
+      scroller.scrollTop += 12;
+      await new Promise(requestAnimationFrame);
+    }
+    expect(scroller.scrollTop).toBeGreaterThan(1500);
+    // Initial loads can grow rows on the first pass. Base the return distance
+    // on the actual position; the regression is corrections on revisiting rows.
+    const returnFrames = Math.ceil(scroller.scrollTop / 12);
+    for (let frame = 0; frame < returnFrames; frame++) {
+      scroller.scrollTop -= 12;
+      const requested = scroller.scrollTop;
+      await new Promise(requestAnimationFrame);
+      expect(Math.abs(scroller.scrollTop - requested)).toBeLessThan(2);
+    }
+    expect(scroller.scrollTop).toBe(0);
+  });
+
+  it.each(['svg', 'small svg', 'mermaid'])(
+    'reserves %s geometry immediately when a virtualized preview remounts',
+    async (example) => {
+      const language = example === 'mermaid' ? 'mermaid' : 'svg';
+      const source =
+        example === 'small svg'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"/>'
+          : language === 'svg'
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="620" height="810"/>'
+            : 'flowchart TB\nA[Retained geometry]-->B[Remounted preview]-->C[Stable scroll]';
+      const html = await renderMarkdown('```' + language + ' rendered\n' + source + '\n```');
+      for (const availableWidth of [900, 240]) {
+        const first = render(MarkdownHtml, { html });
+        first.container.classList.add('prose');
+        first.container.style.width = `${availableWidth}px`;
+        await expect
+          .poll(() => first.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        const bounds = first.container.querySelector('[data-artifact]')!.getBoundingClientRect();
+        await first.unmount();
+
+        const second = render(MarkdownHtml, { html });
+        second.container.classList.add('prose');
+        second.container.style.width = `${availableWidth}px`;
+        // This check precedes the intersection callback, worker job and image load.
+        // Waiting for an image here would hide the virtualizer's empty measurement.
+        const frame = second.container.querySelector('[data-artifact]')!;
+        expect(Math.abs(frame.getBoundingClientRect().height - bounds.height)).toBeLessThan(1);
+        expect(Math.abs(frame.getBoundingClientRect().width - bounds.width)).toBeLessThan(1);
+        await expect
+          .poll(() => second.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        expect(Math.abs(frame.getBoundingClientRect().height - bounds.height)).toBeLessThan(1);
+        expect(frame.querySelector('[aria-hidden="true"].rendered-image')).toBeNull();
+        await second.unmount();
+      }
+    }
+  );
+
   it.each([
     [1200, 600],
     [480, 960],
@@ -37,7 +264,7 @@ describe('Mermaid previews', () => {
     [80, 40],
     [10, 10]
   ])(
-    'fits a %s × %s visual frame to its artwork at wide and narrow widths',
+    'scales a %s × %s visual frame to the message width within the height limit',
     async (width, height) => {
       const { container } = render(MarkdownHtml, {
         html: await renderMarkdown(
@@ -54,7 +281,7 @@ describe('Mermaid previews', () => {
         container.style.width = `${availableWidth}px`;
         const expectedWidth = Math.max(
           44,
-          Math.min(width, availableWidth - 10, (Math.min(480, innerHeight * 0.6) * width) / height)
+          Math.min(availableWidth - 10, (Math.min(480, innerHeight * 0.6) * width) / height)
         );
         await expect
           .poll(() => Math.abs(stage.getBoundingClientRect().width - expectedWidth))
@@ -68,13 +295,35 @@ describe('Mermaid previews', () => {
         expect(bounds.width).toBeGreaterThanOrEqual(44);
         expect(bounds.height).toBeGreaterThanOrEqual(44);
         const imageBounds = frame.querySelector('img')!.getBoundingClientRect();
-        expect(imageBounds.width).toBeLessThanOrEqual(width);
-        expect(imageBounds.height).toBeLessThanOrEqual(height);
+        expect(Math.abs(imageBounds.width - bounds.width)).toBeLessThan(1);
+        expect(Math.abs(imageBounds.height - bounds.height)).toBeLessThan(1);
+        expect(getComputedStyle(frame.querySelector('img')!).objectFit).toBe('contain');
         expect(Math.abs(frame.getBoundingClientRect().width - bounds.width - 10)).toBeLessThan(1);
         expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth + 1);
       }
     }
   );
+
+  it('enlarges a small Mermaid diagram within the message width and height limit', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```')
+    });
+    container.classList.add('prose');
+    container.style.width = '900px';
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBeGreaterThan(0);
+    const image = container.querySelector('img')!;
+    const stage = container.querySelector<HTMLElement>('.rendered-image')!;
+    const bounds = stage.getBoundingClientRect();
+    const expectedWidth = Math.min(
+      890,
+      (Math.min(480, innerHeight * 0.6) * image.naturalWidth) / image.naturalHeight
+    );
+    expect(Math.abs(bounds.width - expectedWidth)).toBeLessThan(1);
+    expect(image.getBoundingClientRect().width).toBeGreaterThan(image.naturalWidth);
+    expect(bounds.height).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6) + 1);
+  });
 
   it.each(['svg', 'mermaid', 'ansi'])(
     'distinguishes code and visual presentation for %s',

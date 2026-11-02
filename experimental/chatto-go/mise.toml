@@ -9,7 +9,7 @@ GOWORK = "off"
 
 [tasks.check]
 description = "Test and vet the experimental Chatto Go SDK"
-run = ["go test -race ./...", "go vet ./..."]
+run = ["go test -p 1 -parallel 1 -race ./...", "go vet ./..."]
 
 [tasks.codegen]
 description = "Generate private realtime protobuf types"

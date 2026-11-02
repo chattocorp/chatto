@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   app,
+  autoUpdater,
   BrowserWindow,
   clipboard,
   desktopCapturer,
@@ -140,6 +141,7 @@ async function start() {
   mainWindow = createMainWindow();
   const background = configureBackgroundWindow({
     app,
+    autoUpdater,
     window: mainWindow
   });
   const notifications = configureDesktopNotifications({

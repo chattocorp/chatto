@@ -96,6 +96,25 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 
 describe('VideoPlayer', () => {
   it.each([
+    [1280, 720],
+    [1080, 1920]
+  ])(
+    'reserves the %sx%s frame before the player registers and on remount',
+    async (width, height) => {
+      for (let mount = 0; mount < 2; mount += 1) {
+        const view = renderPostedVideo({ width, height });
+        view.container.style.width = '240px';
+        const initial = frame(view.container).getBoundingClientRect();
+        await mediaPlayer(view.container);
+        const ready = frame(view.container).getBoundingClientRect();
+        expect(initial.width).toBeCloseTo(ready.width, 0);
+        expect(initial.height).toBeCloseTo(ready.height, 0);
+        await view.unmount();
+      }
+    }
+  );
+
+  it.each([
     [VideoProcessingStatus.Pending, 'Video queued for processing...'],
     [VideoProcessingStatus.Processing, 'Processing video...']
   ])('keeps the %s fog inside the reserved video frame', async (status, label) => {

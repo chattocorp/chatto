@@ -428,14 +428,28 @@ authorization, live events, backup and restore, and backend tests.
 ## Backend Tests
 
 - Use `mise test-cli` for full backend checkpoints. It includes the
-  `test_endpoints` build tag.
+  `test_endpoints` build tag, shuffled test order, and `-p 1 -parallel 1`.
+  Packages and tests run one at a time.
+- Use `mise test-cli-stability` after changing concurrency or test fixtures.
+  This local command repeats the core, Connect API, HTTP, MCP, and test-helper
+  packages three times with the race detector, one package and one test at a
+  time, on four Go scheduler threads. Reproduce a reported shuffle seed with
+  `CHATTO_GO_TEST_SHUFFLE=<seed>`. `CHATTO_GO_STABILITY_COUNT` sets the repeat
+  count. Each package gets a total timeout of 15 minutes multiplied by this
+  count. Go applies that timeout to all repetitions in the package, which run
+  in one process to expose state leaks. A passing repeat run is supporting
+  evidence, not proof of a race fix.
+- Mise enables `-trimpath`. Locate test fixtures from the working directory
+  or embed them; `runtime.Caller` no longer gives absolute source paths.
 - Iterate with targeted tests:
 
 ```sh
-mise x -- go test ./internal/core -run TestName -timeout 30s
-mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
+mise x -- go test -p 1 -parallel 1 ./internal/core -run TestName -timeout 30s
+mise x -- go test -p 1 -parallel 1 -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
 ```
 
+- For source debugging, map import paths with Delve's `substitute-path` or
+  pass `-trimpath=false` to the Go command for that debug build.
 - Always set a timeout for targeted Go tests.
 - Run `mise lint-cli` before you push backend changes. CI runs it. It runs
   `go vet` and a staticcheck U1000 check over every build tag set. Delete
@@ -443,16 +457,17 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 - `mise lint-cli` also runs the Go `modernize` analyzer. When it reports
   findings, run the `-fix` command that it prints from `cli/`. Use the
   modernize version that `mise.toml` pins, for example:
-  `GOFLAGS='-tags=bootstrap,test_endpoints,integration' mise x
+  `GOFLAGS='-trimpath -tags=bootstrap,test_endpoints,integration' mise x
   'go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@0.51.0'
   -- modernize -fix ./...`. Do not add pointer helpers such as `stringPtr`;
   use `new(value)`.
 - Do not keep production code that only tests call. The U1000 check counts
   test usage, so it does not find this code.
 - Use table-driven tests where practical.
-- Top-level tests in `internal/core` and `internal/connectapi` call
-  `t.Parallel()` first. Tests that use `setupTestCore` or
-  `newConnectAPITestEnv` get their own embedded NATS server. Leave a test
+- Use `t.Parallel()` only when the complete fixture is independent. Tests that
+  use `setupTestCore` or `newConnectAPITestEnv` get their own embedded NATS
+  server, but their own background workers still run concurrently with test
+  code. Server isolation alone does not prove a test is safe. Leave a test
   serial, with a comment that gives the reason, when it changes package state,
   measures the whole process (for example `testing.AllocsPerRun`), or must
   finish heavy work within a fixed deadline. A test changes package state
@@ -460,10 +475,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   function such as `log.SetDefault` or
   `linkpreview.AllowLocalhostForTesting`, even if it restores the value in
   `t.Cleanup`. A clean `-race` run of the whole package does not prove that
-  tests are safe; run the affected tests together with `-race -count=N`. Add
-  `-parallel 4` to `-race` runs. The race detector makes tests much slower,
-  and with more concurrent tests, tests that wait for background work can
-  miss their deadlines.
+  tests are safe; run the affected tests together with `-race -count=N`. Use
+  `-p 1 -parallel 1` for all Go test commands, including race-detector runs,
+  to limit package and test execution without removing `t.Parallel()` calls.
 - A test helper that deletes a JetStream stream and then creates one with the
   same name on the same server must also remove the stream's directories.
   nats-server moves a deleted stream's directory aside and removes it in the
@@ -471,6 +485,22 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   the server ignores the error. The new stream then recovers the old
   messages. `testutil.ResetChattoJetStream` shows how to remove them.
 - Prevent timing races in tests that use background work:
+  - Use the smallest fixture that exercises the contract. Use
+    `newRuntimeStateTestKV` for bucket-backed components and
+    `newTestEventHarness` for individual projections. Use a complete core when
+    the test exercises application integration.
+  - Use `testutil.StartService` to own a service's readiness and shutdown. It
+    reports early exits and shutdown errors, and waits for the service before
+    earlier cleanup callbacks close its dependencies. Do not discard `Run`
+    errors or cancel a worker without waiting for it to stop.
+  - Install dependency replacements before workers start. Use `newTestCore`,
+    configure the dependencies, then call `startCoreServices`. A test that
+    needs faults during a run must install a synchronized fault provider
+    before startup; do not replace live fields.
+  - For a race fix, force the relevant ordering with channels, storage gates,
+    or `testing/synctest` where applicable. Check both the immediate operation
+    contract and the asynchronous completion contract. A fixed delay or a
+    larger timeout does not establish either contract.
   - Wait for the condition that you assert, for example with `WaitCurrent` on
     the owning projection or materializer. Do not use `time.Sleep` to wait for
     background work.

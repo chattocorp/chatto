@@ -30,8 +30,13 @@ rm -rf "$target_directory"
 cp -R "$source_directory" "$target_directory"
 
 # SvelteKit's precompress option emits raw, Brotli, and gzip representations.
-# Keep both encoded forms for direct negotiation, but use gzip as the canonical
-# identity fallback so the Go binary does not embed the large raw copy too.
+# Keep Brotli only where available. The server generates gzip on request.
+while IFS= read -r -d '' brotli_file; do
+	raw_file="${brotli_file%.br}"
+	rm -f "$raw_file" "$raw_file.gz"
+done < <(find "$target_directory" -type f -name '*.br' -print0)
+
+# Preserve the previous fallback for builds that contain gzip without Brotli.
 while IFS= read -r -d '' gzip_file; do
 	raw_file="${gzip_file%.gz}"
 	if [[ -f "$raw_file" ]]; then

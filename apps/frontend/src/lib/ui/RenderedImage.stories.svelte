@@ -1,11 +1,13 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, waitFor } from 'storybook/test';
   import RenderedImage from './RenderedImage.svelte';
   const { Story } = defineMeta({ title: 'UI/RenderedImage', component: RenderedImage });
 </script>
 
 <script lang="ts">
   import MarkdownHtml from './MarkdownHtml.svelte';
+  import DiagramTimelineTestHarness from './DiagramTimelineTestHarness.svelte';
   import { renderMarkdown } from '$lib/markdown';
   import RenderedImageViewerModal from '../../routes/chat/modals/RenderedImageViewerModal.svelte';
   import type { RenderedImageViewerModalState } from '$lib/modal';
@@ -25,19 +27,29 @@
   const html = renderMarkdown(
     `Code example:\n\n\u0060\u0060\u0060mermaid\n${source}\n\u0060\u0060\u0060\n\nVisual message:\n\n\u0060\u0060\u0060mermaid rendered\n${source}\n\u0060\u0060\u0060`
   );
+  const timelineHtml = Promise.all(
+    Array.from({ length: 30 }, (_, index) =>
+      renderMarkdown(
+        `Diagram ${index}\n\n` +
+          `\u0060\u0060\u0060svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><title>Diagram ${index}</title><rect width="600" height="800" fill="#164e63"/></svg>\n\u0060\u0060\u0060\n\n` +
+          `\u0060\u0060\u0060mermaid rendered\n${source}\naccTitle: Diagram ${index}\n\u0060\u0060\u0060`
+      )
+    )
+  );
   const aspectRatios = [
     { name: 'Landscape', width: 1200, height: 600 },
     { name: 'Portrait', width: 400, height: 800 },
     { name: 'Square', width: 500, height: 500 },
     { name: 'Very wide', width: 4000, height: 100 },
     { name: 'Very tall', width: 100, height: 4000 },
-    { name: 'Small', width: 100, height: 60 }
+    { name: 'Small SVG enlarged', width: 100, height: 60 }
   ].map(({ name, width, height }) => ({
     name,
     html: renderMarkdown(
       `\u0060\u0060\u0060svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#164e63"/><circle cx="${width / 2}" cy="${height / 2}" r="${Math.min(width, height) * 0.3}" fill="#67e8f9"/></svg>\n\u0060\u0060\u0060`
     )
   }));
+  const smallMermaidHtml = renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```');
 </script>
 
 <Story name="Code and visual intent" {parameters} asChild>
@@ -49,12 +61,30 @@
   {/if}
 </Story>
 
+<Story
+  name="Virtualized thread"
+  asChild
+  play={async ({ canvasElement }) => {
+    // Wait for async previews before auditing the scroll area's keyboard access.
+    // Loaded previews are native buttons; the loading placeholders are not controls.
+    await waitFor(
+      () =>
+        expect(canvasElement.querySelector('button.rendered-image:not(:disabled)')).not.toBeNull(),
+      { timeout: 10_000 }
+    );
+  }}
+>
+  {#await timelineHtml then html}<DiagramTimelineTestHarness {html} />{/await}
+</Story>
+
 <Story name="Aspect ratios" {parameters} asChild>
   <div class="prose w-full max-w-5xl">
     {#each aspectRatios as example (example.name)}
       <p>{example.name}</p>
       {#await example.html then value}<MarkdownHtml html={value} />{/await}
     {/each}
+    <p>Small Mermaid diagram enlarged</p>
+    {#await smallMermaidHtml then value}<MarkdownHtml html={value} />{/await}
   </div>
   {#if modal}
     <RenderedImageViewerModal {modal} onclose={() => (modal = undefined)} />

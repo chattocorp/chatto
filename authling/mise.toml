@@ -4,10 +4,10 @@
 min_version = "2026.8.9"
 
 [tools]
-buf = "latest"
+buf = "1.75.0"
 go = "1.27.3"
-node = "22"
-"aqua:axllent/mailpit" = "latest"
+node = "22.23.4"
+"aqua:axllent/mailpit" = "1.30.6"
 
 # Run these tasks from the Authling directory. Authling owns this task catalog
 # so it can move to its own repository without extracting product-specific
@@ -113,10 +113,10 @@ outputs = ["bin/authling-dev"]
 description = "Run Authling tests standalone and in the repository workspace"
 depends = ["deps-go", "codegen-templates", "build-web"]
 run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
-    "GOWORK=off go test -trimpath -tags bootstrap ./...",
-    "go test -trimpath -tags bootstrap ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
+    "go test -p 1 -parallel 1 -trimpath ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath -tags bootstrap ./...",
+    "go test -p 1 -parallel 1 -trimpath -tags bootstrap ./...",
 ]
 sources = [
     "go.mod",

@@ -430,6 +430,10 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   assert(streamed.includes('command.started'), 'Workflow and web UI share the event runtime');
   const history = await readFile(resolve(project, '.runling/runs', `${id}.jsonl`), 'utf8');
   assert(history.includes('console: consumer cwd'));
+  // The finished SSE record precedes the final state save and run.finished log.
+  // Shutdown waits for those executions before we inspect their complete logs.
+  await stopConsumer(server);
+  server = undefined;
   const serverLog = (await readFile(resolve(project, '.runling/logs/server.jsonl'), 'utf8'))
     .trim()
     .split('\n')
@@ -441,8 +445,6 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   assert(serverLog.some((record) => record.event === 'config.reload_failed'));
   assert(serverLog.some((record) => record.event === 'run.started' && record.source === 'source'));
 
-  await stopConsumer(server);
-  server = undefined;
   const sourceLifecyclePath = resolve(project, 'source-lifecycle.txt');
   const stoppedLifecycle = await readFile(sourceLifecyclePath, 'utf8');
   const sourceLifecycle = stoppedLifecycle.trim().split('\n');

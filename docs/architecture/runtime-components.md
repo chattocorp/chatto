@@ -56,6 +56,12 @@ automatic TLS certificate issuance do not gate this message. If any listener
 cannot bind, startup closes the listeners already opened and does not log
 readiness. Shutdown and serve failures close all HTTP servers.
 
+The HTTP server serves embedded Brotli frontend assets directly when accepted.
+For gzip clients, [`serveFrontendGzip`](../../cli/internal/http_server/frontend_compression.go)
+converts the requested asset as it writes the response. Conversion state lasts
+for that request; there is no startup conversion or retained gzip cache. Raw
+development assets need no conversion.
+
 The HTTP server owns a process-local
 [`imageTransforms`](../../cli/internal/http_server/image_transforms.go)
 coordinator for uncached image derivatives. It shares work for the same

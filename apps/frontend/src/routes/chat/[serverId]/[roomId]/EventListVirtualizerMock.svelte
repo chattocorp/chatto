@@ -22,9 +22,11 @@
 
   let {
     data,
+    shift = false,
     children
   }: {
     data: unknown[];
+    shift?: boolean;
     children: Snippet<[unknown]>;
   } = $props();
 
@@ -68,6 +70,7 @@
 </script>
 
 <output data-testid="virtualizer-scroll-index">{renderedIndex ?? ''}</output>
+<output data-testid="virtualizer-shift">{String(shift)}</output>
 <output data-testid="virtualizer-scroll-calls">{scrollCalls}</output>
 <output data-testid="virtualizer-scroll-alignment">{lastAlignment}</output>
 <output data-testid="virtualizer-scroll-offset">{lastOffset}</output>

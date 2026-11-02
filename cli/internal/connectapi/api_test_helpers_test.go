@@ -208,24 +208,7 @@ func newConnectAPITestEnvWithAuth(t *testing.T, timeout time.Duration, auth conf
 
 func startConnectAPITestCore(t *testing.T, c *core.ChattoCore) {
 	t.Helper()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- c.Run(ctx) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("core.Run did not stop within timeout")
-		}
-	})
-
-	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer bootCancel()
-	if err := c.WaitForBoot(bootCtx); err != nil {
-		t.Fatalf("WaitForBoot: %v", err)
-	}
+	testutil.StartService(t, "ChattoCore", c.Run, c.WaitForBoot)
 }
 
 func apiCapabilityGranted(grants []*apiv1.CapabilityGrant, capability string) bool {

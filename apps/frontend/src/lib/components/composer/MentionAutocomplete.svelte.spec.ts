@@ -106,10 +106,10 @@ describe('MentionAutocomplete', () => {
       expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeNull();
     });
 
-    it('limits results to the top 10', () => {
+    it('includes every fuzzy match beyond the first ten results', () => {
       const members = Array.from({ length: 20 }, (_, i) => member('user' + i, 'User ' + i));
-      const { container } = renderAutocomplete({ query: 'user', members });
-      expect(visibleLogins(container).length).toBe(10);
+      const { container } = renderAutocomplete({ query: 'usr', members });
+      expect(visibleLogins(container)).toHaveLength(20);
     });
 
     it('orders results by descending fuzzy score (exact match first)', () => {
@@ -191,7 +191,7 @@ describe('MentionAutocomplete', () => {
     it('Tab forwards the selection key', () => {
       const onSelect = vi.fn();
       const { component } = renderAutocomplete({
-        query: 'al',
+        query: 'alice',
         members: [member('alice')],
         onSelect
       });

@@ -513,6 +513,32 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('[data-testid="message-image-gallery"]')).toBeNull();
   });
 
+  it.each([
+    [1280, 720, 480, 270],
+    [1080, 1920, 180, 320],
+    [0, 0, 480, 270]
+  ])(
+    'reserves raw video geometry before metadata and on remount (%sx%s)',
+    async (width, height, expectedWidth, expectedHeight) => {
+      for (let mount = 0; mount < 2; mount += 1) {
+        const view = renderAttachment(
+          fileAttachment({
+            filename: 'raw.mp4',
+            contentType: 'video/mp4',
+            width,
+            height
+          })
+        );
+        view.container.style.width = '640px';
+        await expect.poll(() => view.container.querySelector('video')).toBeTruthy();
+        const frame = view.container.querySelector<HTMLElement>('[data-attachment-media]')!;
+        expect(frame.getBoundingClientRect().width).toBeCloseTo(expectedWidth, 0);
+        expect(frame.getBoundingClientRect().height).toBeCloseTo(expectedHeight, 0);
+        await view.unmount();
+      }
+    }
+  );
+
   it.each([true, false])(
     'keeps video attachments and long filenames inside the message (processed: %s)',
     async (processed) => {

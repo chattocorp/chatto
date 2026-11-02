@@ -16,9 +16,10 @@ frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | 
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
-buf = "latest"
+buf = "1.75.0"
 go = "1.27.3"
-goreleaser = "latest"
+# Keep the release workflow's GoReleaser action on the same version.
+goreleaser = "2.19.0"
 # Includes the Brotli decoder fix for CVE-2026-111497.
 node = "24.22.1"
 pnpm = "11.25.0"
@@ -26,6 +27,8 @@ uv = "0.11.30"
 
 [env]
 _.file = '.env'
+# Share Go build-cache entries across checkout paths; preserve incoming flags.
+GOFLAGS = "{{env.GOFLAGS | default(value='')}} -trimpath"
 CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # The development stack uses the workspace port block. The base is
 # `CONDUCTOR_PORT`, or 4000 outside Conductor. Conductor gives each workspace
@@ -787,8 +790,8 @@ description = "Benchmark projection replay throughput and retained heap"
 depends = ["setup-cli"]
 dir = "cli"
 run = [
-    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReplay$' -benchmem -count=${CHATTO_BENCH_COUNT:-5}",
-    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -p 1 -parallel 1 -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReplay$' -benchmem -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -p 1 -parallel 1 -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=${CHATTO_BENCH_COUNT:-5}",
 ]
 
 [tasks.bench-import]
@@ -796,8 +799,8 @@ description = "Measure fresh synthetic imports through the Operator API"
 depends = ["setup-cli"]
 dir = "cli"
 run = [
-    "go test -trimpath ./cmd -run '^$' -bench '^BenchmarkOperatorImport$' -benchtime=1x -count=${CHATTO_BENCH_COUNT:-3} -timeout=20m",
-    "go test -trimpath ./cmd -run '^$' -bench '^BenchmarkOperatorImportJournal$' -benchtime=1000x -count=${CHATTO_BENCH_COUNT:-3} -timeout=2m",
+    "go test -p 1 -parallel 1 -trimpath ./cmd -run '^$' -bench '^BenchmarkOperatorImport$' -benchtime=1x -count=${CHATTO_BENCH_COUNT:-3} -timeout=20m",
+    "go test -p 1 -parallel 1 -trimpath ./cmd -run '^$' -bench '^BenchmarkOperatorImportJournal$' -benchtime=1000x -count=${CHATTO_BENCH_COUNT:-3} -timeout=2m",
 ]
 
 [tasks.bench-projections-profile]
@@ -805,7 +808,7 @@ description = "Capture exact retained-heap profiles for projection replay"
 depends = ["setup-cli"]
 dir = "cli"
 env = { CHATTO_BENCH_HEAP_PROFILE_DIR = "../.context/bench/projections" }
-run = "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=1"
+run = "go test -p 1 -parallel 1 -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=1"
 
 [tasks.bench-projections-store]
 description = "Benchmark projection memory, reads, and replay against a copied NATS data directory"
@@ -813,9 +816,9 @@ depends = ["setup-cli"]
 dir = "cli"
 run = [
     "test -n \"$CHATTO_BENCH_EVT_STORE_DIR\" || { echo 'Set CHATTO_BENCH_EVT_STORE_DIR to a copied NATS data directory' >&2; exit 1; }",
-    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeapFromStore$' -benchmem -benchtime=1x -count=1",
-    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReadsFromStore$/(threads|reactions)/' -benchmem -benchtime=200000x -count=${CHATTO_BENCH_COUNT:-5}",
-    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReadsFromStore$/replay/' -benchmem -benchtime=5x -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -p 1 -parallel 1 -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeapFromStore$' -benchmem -benchtime=1x -count=1",
+    "go test -p 1 -parallel 1 -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReadsFromStore$/(threads|reactions)/' -benchmem -benchtime=200000x -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -p 1 -parallel 1 -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReadsFromStore$/replay/' -benchmem -benchtime=5x -count=${CHATTO_BENCH_COUNT:-5}",
 ]
 
 # =============================================================================
@@ -828,7 +831,7 @@ depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
     "node ../tools/dev-seed-smoke.mjs",
-    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
+    "go test -trimpath -p 1 -parallel 1 -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -tags test_endpoints ./...",
 ]
 # Go builds the cli module in workspace mode with the shared pkg/* modules as
 # local sources, and selects dependency versions across every workspace
@@ -850,13 +853,27 @@ sources = [
     "../tools/dev-seed-smoke.mjs",
 ]
 
+[tasks.test-cli-stability]
+description = "Repeat shuffled CLI service tests with the race detector"
+depends = ["setup-cli"]
+dir = "cli"
+env = { GOMAXPROCS = "4" }
+# Keep the load fixed across developer machines and CI. Run package binaries
+# one at a time, with one test at a time inside each binary. Do not cache this
+# task: each invocation must exercise the workers and cleanup again.
+run = "bash ../tools/test-cli-stability.sh"
+
+[tasks.test-cli-stability-runner]
+description = "Check stability-test budgets, flags, and failure propagation"
+run = "node --test tools/test-cli-stability.test.mjs"
+
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
 depends = ["setup-appconfig"]
 dir = "pkg/appconfig"
 run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
+    "go test -p 1 -parallel 1 -trimpath ./...",
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
@@ -865,8 +882,8 @@ description = "Run event framework tests standalone and in the repository worksp
 depends = ["setup-events"]
 dir = "pkg/events"
 run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
+    "go test -p 1 -parallel 1 -trimpath ./...",
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
@@ -875,8 +892,8 @@ description = "Run data cryptography tests standalone and in the repository work
 depends = ["setup-datacrypto"]
 dir = "pkg/datacrypto"
 run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
+    "go test -p 1 -parallel 1 -trimpath ./...",
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
@@ -885,8 +902,8 @@ description = "Run JetStream utilities tests standalone and in the repository wo
 depends = ["setup-jetstreamutil"]
 dir = "pkg/jetstreamutil"
 run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
+    "go test -p 1 -parallel 1 -trimpath ./...",
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
@@ -895,8 +912,8 @@ description = "Run embedded NATS runtime tests standalone and in the repository 
 depends = ["setup-natsruntime"]
 dir = "pkg/natsruntime"
 run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
+    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
+    "go test -p 1 -parallel 1 -trimpath ./...",
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
@@ -904,7 +921,7 @@ sources = ["go.mod", "go.sum", "**/*.go"]
 description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
 dir = "cli"
-run = "go test -trimpath -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
+run = "go test -p 1 -parallel 1 -trimpath -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
 # Workspace inputs: see test-cli.
 sources = [
     "go.mod",
@@ -921,7 +938,7 @@ sources = [
 ]
 
 [tasks.knip]
-description = "Find unused frontend/docs files, dependencies, and exports"
+description = "Check root pnpm workspace files, dependencies, and duplicate exports"
 depends = ["setup-frontend"]
 run = "pnpm knip"
 
@@ -1003,6 +1020,17 @@ run = [
     "bash tools/test-paseo-dev.sh",
 ]
 
+[tasks.test-repo-tooling]
+description = "Test repository checks, release policy, and development tooling"
+depends = ["setup-frontend"]
+tools = { "github:traefik/traefik" = "3.7.14" }
+# Discover new Node tooling tests without another local or CI file list.
+# Run files serially so lifecycle fixtures do not compete for resources.
+run = [
+    "node --test --test-concurrency=1 tools/*.test.mjs",
+    "bash tools/test-paseo-dev.sh",
+]
+
 [tasks.test-chatto-build]
 description = "Check that unchanged Chatto builds skip and missing assets are restored"
 run = "bash tools/test-chatto-build.sh"
@@ -1066,7 +1094,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
-    { task = "test-dev-tooling" },
+    { task = "test-repo-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]
@@ -1076,14 +1104,27 @@ run = [
 # =============================================================================
 
 [tasks.clean]
-description = "Clean all build artifacts"
+description = "Clean Chatto and root pnpm workspace outputs; keep data and native build caches"
+# Use explicit paths: committed generated source, dependency caches, captures,
+# and runtime state must survive. Authling owns its separate clean task.
 run = [
-    "rm -rf cli/bin/*",
+    "rm -rf dist cli/bin cli/chatto",
     "rm -rf cli/cmd/embedded",
-    "rm -rf cli/internal/http_server/.client",
-    "rm -rf apps/frontend/build",
+    # The embedding directory contains a tracked placeholder, not only output.
+    "if [ -d cli/internal/http_server/.client ]; then find cli/internal/http_server/.client -mindepth 1 -maxdepth 1 ! -name .gitkeep -exec rm -rf {} +; fi",
+    "rm -rf apps/frontend/build apps/frontend/.svelte-kit apps/frontend/storybook-static",
+    "rm -rf apps/frontend/e2e/fixtures/bin apps/frontend/e2e/fixtures/chatto-e2e-server",
+    "rm -rf apps/docs-website/dist apps/docs-website/.astro",
     "rm -rf apps/desktop/dist",
+    "rm -rf apps/mobile/www apps/mobile/ios/App/App/public",
+    "rm -f apps/mobile/ios/App/App/capacitor.config.json apps/mobile/ios/App/App/config.xml",
+    "rm -rf packages/chatto-client/dist packages/translatto/dist packages/runling/dist packages/runling/.svelte-kit",
+    "rm -rf .context/build-frontend",
 ]
+
+[tasks.test-clean]
+description = "Check clean-task output removal and preservation in isolated fixtures"
+run = "node --test tools/clean.test.mjs"
 
 [tasks.reset]
 description = "Reset the development data of Chatto and Authling"

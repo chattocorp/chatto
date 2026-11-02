@@ -1,6 +1,7 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import { retainPlayback } from '$lib/media/playbackRetention';
+  import { positiveVideoDimension, videoFrameStyle } from '$lib/media/videoFrame';
   import { LoadingFog, LoadRetry, PreviewToolbar, PreviewAction } from '$lib/ui';
   import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
@@ -548,13 +549,24 @@
     <div class="flex max-w-full min-w-0 flex-col items-start">
       {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
         {@const autoLoop = attachment.contentType === 'image/gif'}
+        {@const manifest = attachment.videoProcessing}
+        {@const variant = manifest.variants.reduce<(typeof manifest.variants)[number] | undefined>(
+          (best, candidate) => (!best || candidate.height > best.height ? candidate : best),
+          undefined
+        )}
+        {@const loadingFrameStyle = videoFrameStyle(
+          positiveVideoDimension(manifest.width) ?? variant?.width,
+          positiveVideoDimension(manifest.height) ?? variant?.height
+        )}
         <div
           class="group/preview attachment-video-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <LoadingFog class="my-1.5 min-h-32 min-w-48 preview-frame" />
+            <div class="my-1.5 preview-frame" style={loadingFrameStyle}>
+              <LoadingFog class="h-full w-full" />
+            </div>
           {:then { default: VideoPlayer }}
             <VideoPlayer
               status={attachment.videoProcessing.status}
@@ -580,10 +592,9 @@
                 )}
             />
           {:catch}
-            <LoadRetry
-              class="my-1.5 min-h-32 min-w-48 preview-frame"
-              onretry={() => (videoPlayerLoadAttempt += 1)}
-            />
+            <div class="my-1.5 preview-frame" style={loadingFrameStyle}>
+              <LoadRetry class="h-full w-full" onretry={() => (videoPlayerLoadAttempt += 1)} />
+            </div>
           {/await}
           {@render attachmentControls(attachment, true)}
         </div>
@@ -594,19 +605,21 @@
           A video attachment that hasn't been projected as a processing manifest
           yet — e.g. the message arrived before AssetProcessingStartedEvent did,
           or processing has never been requested for this asset. Render the raw
-          original so the user can at least play it.
+          original so the user can at least play it. Reserve the known dimensions
+          (or a 16:9 fallback) so metadata loading cannot resize a remounted row.
         -->
         <div
-          class="group/preview attachment-video-frame my-1.5 preview-frame"
+          class="group/preview attachment-video-frame my-1.5 min-h-48 preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
+          style={videoFrameStyle(attachment.width, attachment.height)}
         >
           <video
             {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
             controls
             preload="metadata"
             src={attachment.url}
-            class="max-h-64 max-w-full preview-content object-contain"
+            class="block h-full w-full preview-content object-contain"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >

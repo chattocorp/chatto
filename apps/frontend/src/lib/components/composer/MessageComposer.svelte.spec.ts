@@ -761,8 +761,84 @@ describe('MessageComposer', () => {
       // Ignore visual-editor decorations; assert the actual editable text.
       const content = editor.cloneNode(true) as HTMLElement;
       content.querySelectorAll('.ProseMirror-widget').forEach((node) => node.remove());
-      expect(content.textContent).toBe(key === ' ' ? '#designteam ' : url);
+      expect(content.textContent).toBe(key === ' ' ? '#designteam ' : url + ' ');
     });
+
+    it.each([
+      ['markdown', '#dgtm'],
+      ['visual', '#dgtm'],
+      ['markdown', '@lc'],
+      ['visual', '@lc'],
+      ['markdown', ':fre'],
+      ['visual', ':fre']
+    ] as const)(
+      'cycles every fuzzy match in %s for %s without editing or sending',
+      async (kind, query) => {
+        userPreferences.composerEditor = kind;
+        roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
+        for (const [id, name] of [
+          ['R123456789abcde', 'Design Team'],
+          ['R123456789abcdf', 'Design Team Two']
+        ]) {
+          server.scope.store.roomList.rooms.push({
+            id,
+            name,
+            type: RoomKind.CHANNEL,
+            isUniversal: false,
+            viewerIsMember: false,
+            viewerCanJoinRoom: true,
+            viewerCanManageRoom: false,
+            members: []
+          });
+        }
+        const { container } = renderMessageComposer({ roomId: 'fuzzy-tab-cycle' });
+        const editor = await findEditor(container);
+        await typeEditorKeys(editor, query);
+        await vi.waitFor(() =>
+          expect(container.querySelectorAll('.menu-item').length).toBeGreaterThan(1)
+        );
+        const labels = [...container.querySelectorAll('.menu-item')].map(
+          (item) => item.textContent
+        );
+        for (let index = 1; index <= labels.length; index++) {
+          await pressEditorKey(editor, 'Tab');
+          expect(container.querySelector('.menu-item-active')?.textContent).toBe(
+            labels[index % labels.length]
+          );
+          expect(editor.textContent).toBe(query);
+          expect(document.activeElement).toBe(editor);
+        }
+        expect(mutationMock).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      ['markdown', '@alice', 'Tab', '@alice '],
+      ['visual', '@alice', 'Tab', '@alice '],
+      ['markdown', ':headshakingvertically', 'Tab', '🙂‍↕️ '],
+      ['visual', ':headshakingvertically', 'Tab', '🙂‍↕️ '],
+      ['markdown', '@alice', 'Enter', '@alice '],
+      ['visual', '@alice', 'Enter', '@alice '],
+      ['markdown', ':headshakingvertically', 'Enter', '🙂‍↕️ '],
+      ['visual', ':headshakingvertically', 'Enter', '🙂‍↕️ ']
+    ] as const)(
+      'inserts the sole %s match for %s with %s and a removable trailing space',
+      async (kind, query, key, expected) => {
+        userPreferences.composerEditor = kind;
+        roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
+        const { container } = renderMessageComposer({ roomId: 'sole-tab-match' });
+        const editor = await findEditor(container);
+        await typeEditorKeys(editor, query);
+        await vi.waitFor(() => expect(container.querySelectorAll('.menu-item')).toHaveLength(1));
+        await pressEditorKey(editor, key);
+        expect(editor.textContent).toBe(expected);
+        expect(document.activeElement).toBe(editor);
+        expect(container.querySelector('.menu-item')).toBeNull();
+        expect(mutationMock).not.toHaveBeenCalled();
+        await userEvent.keyboard('{Backspace}');
+        expect(editor.textContent).toBe(expected.slice(0, -1));
+      }
+    );
 
     it('renders the TipTap editor', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
@@ -1319,7 +1395,7 @@ describe('MessageComposer', () => {
       expect(editor.textContent).toBe('Unchanged draft');
     });
 
-    it('keeps Tab mention selection and repeated completion ahead of focus navigation', async () => {
+    it('cycles mention highlights with Tab before confirming with Enter', async () => {
       roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
       const { container } = renderMessageComposer({ roomId: 'markdown-tab-mention' });
       const editor = await findEditor(container);
@@ -1329,10 +1405,13 @@ describe('MessageComposer', () => {
       );
 
       await userEvent.keyboard('{Tab}');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alice'));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@ali'));
+      expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alicia');
       expect(document.activeElement).toBe(editor);
       await userEvent.keyboard('{Tab}');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia'));
+      expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alice');
+      await userEvent.keyboard('{Enter}');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(document.activeElement).toBe(editor);
       expect(mutationMock).not.toHaveBeenCalled();
     });
@@ -1353,7 +1432,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(handles()).toEqual(['@alice', '@alicia']));
     });
 
-    it('ranks prioritized users first in the mention popup and Tab completion', async () => {
+    it('cycles through mentions in their priority order', async () => {
       roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
       const { container } = renderMessageComposer({
         roomId: 'markdown-priority-mention',
@@ -1371,7 +1450,10 @@ describe('MessageComposer', () => {
       expect(handles).toEqual(['@alicia', '@alice']);
 
       await userEvent.keyboard('{Tab}');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia'));
+      expect(editor.textContent).toBe('@ali');
+      expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alice');
+      await userEvent.keyboard('{Enter}');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
     });
 
     it('completes mentions before Enter can submit Markdown', async () => {
@@ -1384,7 +1466,7 @@ describe('MessageComposer', () => {
       );
 
       await pressEditorKey(editor, 'Enter');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alice'));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(mutationMock).not.toHaveBeenCalled();
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -1424,7 +1506,7 @@ describe('MessageComposer', () => {
       );
 
       await pressEditorKey(editor, 'Enter');
-      await vi.waitFor(() => expect(editor.textContent).toMatch(/^\p{Extended_Pictographic}$/u));
+      await vi.waitFor(() => expect(editor.textContent).toMatch(/^\p{Extended_Pictographic} $/u));
       expect(mutationMock).not.toHaveBeenCalled();
       const completedEmoji = editor.textContent!.trim();
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
@@ -3343,7 +3425,7 @@ describe('MessageComposer', () => {
 
       await pressEditorKey(editor, 'Enter');
 
-      await vi.waitFor(() => expect(editor.textContent).toBe('@alice'));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(mutationMock).not.toHaveBeenCalled();
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
@@ -3365,7 +3447,7 @@ describe('MessageComposer', () => {
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
       );
       await pressEditorKey(editor, 'Enter');
-      await vi.waitFor(() => expect(editor.textContent).toBe('@chatto_bot'));
+      await vi.waitFor(() => expect(editor.textContent).toBe('@chatto_bot '));
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
@@ -3838,7 +3920,7 @@ describe('MessageComposer', () => {
       pasteText(editor, url);
 
       await vi.waitFor(() => {
-        expect(editor.querySelector('.url-link')?.getAttribute('title')).toBe(url);
+        expect(editor.querySelector('.composer-entity-preview')).toBeNull();
         expect(editor.querySelector('a:not(.url-link)')?.textContent).toBe(url);
         expect(editor.querySelector('strong')?.textContent).toBe(url);
       });

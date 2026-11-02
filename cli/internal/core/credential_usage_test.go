@@ -14,7 +14,7 @@ import (
 func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	botID := NewUserID()
 	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
@@ -24,7 +24,7 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 	for i := range 20 {
 		usedAt := base.Add(time.Duration(i) * time.Second)
 		wg.Go(func() {
-			recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
+			recorder := newCredentialUsageRecorder(kv, nil, nil)
 			if err := recorder.writeMax(ctx, botID, credentialKey, usedAt); err != nil {
 				t.Errorf("writeMax(%s): %v", usedAt, err)
 			}
@@ -32,7 +32,7 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 	}
 	wg.Wait()
 
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
+	recorder := newCredentialUsageRecorder(kv, nil, nil)
 	lastUsed, available := recorder.LastUsed(ctx, botID)
 	if !available || !lastUsed[credentialKey].Equal(base.Add(19*time.Second)) {
 		t.Fatalf("LastUsed = %v, %v", lastUsed, available)
@@ -42,9 +42,9 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
+	recorder := newCredentialUsageRecorder(kv, nil, nil)
 	recorder.flushInterval = time.Hour
 	botID := NewUserID()
 	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
@@ -53,7 +53,7 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 
 	recorder.Record(botID, credentialKey, first)
 	recorder.flushDue(ctx, first)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID))
+	entry, err := kv.Get(ctx, credentialUsageRuntimeStateKey(botID))
 	if err != nil {
 		t.Fatalf("Get first record: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 
 	recorder.Record(botID, credentialKey, second)
 	recorder.flushDue(ctx, second)
-	entry, err = c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID))
+	entry, err = kv.Get(ctx, credentialUsageRuntimeStateKey(botID))
 	if err != nil {
 		t.Fatalf("Get coalesced record: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 	}
 
 	recorder.flushDue(ctx, first.Add(time.Hour))
-	entry, err = c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID))
+	entry, err = kv.Get(ctx, credentialUsageRuntimeStateKey(botID))
 	if err != nil {
 		t.Fatalf("Get flushed record: %v", err)
 	}
@@ -93,10 +93,10 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	bucket := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	kv := &staleFirstGetCredentialUsageKV{
-		KeyValue: c.storage.runtimeStateKV,
+		KeyValue: bucket,
 		started:  make(chan struct{}),
 		release:  make(chan struct{}),
 	}
@@ -131,10 +131,10 @@ func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testin
 func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	bucket := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	kv := &blockingCreateCredentialUsageKV{
-		KeyValue: c.storage.runtimeStateKV,
+		KeyValue: bucket,
 		started:  make(chan struct{}),
 		release:  make(chan struct{}),
 	}
@@ -154,7 +154,7 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 	close(kv.release)
 	<-flushed
 
-	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if _, err := bucket.Get(ctx, credentialUsageRuntimeStateKey(botID)); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("persisted state after late flush = %v, want absent", err)
 	}
 	recorder.mu.RLock()
@@ -167,8 +167,7 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
+	recorder := newCredentialUsageRecorder(newRuntimeStateTestKV(t), nil, nil)
 	recorder.recordIfActive(NewUserID(), incomingWebhookUsageKey(NewBotIncomingWebhookID()), time.Now(), func() bool {
 		return false
 	})
@@ -183,10 +182,10 @@ func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
 func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	active := true
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, func(string, string) bool { return active })
+	recorder := newCredentialUsageRecorder(kv, nil, func(string, string) bool { return active })
 	recorder.sweepInterval = time.Minute
 	botID := NewUserID()
 	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
@@ -194,13 +193,13 @@ func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testi
 
 	recorder.Record(botID, credentialKey, usedAt)
 	recorder.flushDue(ctx, usedAt)
-	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); err != nil {
+	if _, err := kv.Get(ctx, credentialUsageRuntimeStateKey(botID)); err != nil {
 		t.Fatalf("Get initial usage: %v", err)
 	}
 	active = false
 	recorder.flushDue(ctx, usedAt.Add(time.Minute))
 
-	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if _, err := kv.Get(ctx, credentialUsageRuntimeStateKey(botID)); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("persisted state after remote revocation = %v, want absent", err)
 	}
 	recorder.mu.RLock()
@@ -213,7 +212,9 @@ func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testi
 func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	c, _ := newTestCore(t)
+	c.credentialUsage.kv = failingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV, err: errors.New("unavailable")}
+	startCoreServices(t, c)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "usage-owner", "Usage Owner", "password123")
 	if err != nil {
@@ -224,8 +225,6 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	c.credentialUsage.kv = failingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV, err: errors.New("unavailable")}
-
 	issued, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Unavailable telemetry")
 	if err != nil {
 		t.Fatalf("CreateBotIncomingWebhook: %v", err)
@@ -248,7 +247,21 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	c, _ := newTestCore(t)
+	kv := &blockingCreateCredentialUsageKV{
+		KeyValue: c.storage.runtimeStateKV,
+		started:  make(chan struct{}),
+		release:  make(chan struct{}),
+		deleted:  make(chan struct{}),
+		written:  make(chan struct{}),
+		finish:   make(chan struct{}),
+	}
+	c.credentialUsage.kv = kv
+	startCoreServices(t, c)
+	releaseWrite := sync.OnceFunc(func() { close(kv.release) })
+	finishWrite := sync.OnceFunc(func() { close(kv.finish) })
+	t.Cleanup(finishWrite)
+	t.Cleanup(releaseWrite)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "api-key-usage-owner", "API-key Usage Owner", "password123")
 	if err != nil {
@@ -265,6 +278,13 @@ func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 	}
 	if _, err := c.ValidateBotAPIKey(ctx, issued.Credential); err != nil {
 		t.Fatalf("ValidateBotAPIKey: %v", err)
+	}
+	// Hold the telemetry write in flight while authentication and revocation
+	// finish. This forces the ordering that caused the intermittent failure.
+	select {
+	case <-kv.started:
+	case <-ctx.Done():
+		t.Fatalf("wait for telemetry write: %v", ctx.Err())
 	}
 	managed, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
@@ -286,6 +306,37 @@ func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 	if _, err := c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), issued.KeyID); err != nil {
 		t.Fatalf("RevokeBotAPIKey: %v", err)
 	}
+	if _, err := c.ValidateBotAPIKey(ctx, issued.Credential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("revoked API key authentication = %v, want ErrAuthTokenNotFound", err)
+	}
+	// Revocation removes the local observation immediately. The writer owns
+	// cleanup of an in-flight write, so wait for that deletion before reading
+	// the final persisted state.
+	c.credentialUsage.mu.RLock()
+	_, locallyObserved := c.credentialUsage.observed[bot.User.GetId()][botAPIKeyUsageKey(issued.KeyID)]
+	c.credentialUsage.mu.RUnlock()
+	if locallyObserved {
+		t.Fatal("revoked API-key usage remained in local observations")
+	}
+	releaseWrite()
+	select {
+	case <-kv.written:
+	case <-ctx.Done():
+		t.Fatalf("wait for late telemetry write: %v", ctx.Err())
+	}
+	// Reproduce the old assertion's failure window: the late write is visible
+	// after revocation, but the writer has not yet removed it. Authentication
+	// is already denied; best-effort telemetry cleanup is still in progress.
+	inFlightUsage, inFlightAvailable := c.credentialUsage.LastUsed(ctx, bot.User.GetId())
+	if _, exists := inFlightUsage[botAPIKeyUsageKey(issued.KeyID)]; !inFlightAvailable || !exists {
+		t.Fatal("late telemetry write was not visible before writer cleanup")
+	}
+	finishWrite()
+	select {
+	case <-kv.deleted:
+	case <-ctx.Done():
+		t.Fatalf("wait for late telemetry write cleanup: %v", ctx.Err())
+	}
 	lastUsed, available := c.credentialUsage.LastUsed(ctx, bot.User.GetId())
 	if !available {
 		t.Fatal("credential usage became unavailable")
@@ -298,15 +349,15 @@ func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.T) {
 	t.Parallel()
 
-	c, _ := setupTestCore(t)
+	c, _ := newTestCore(t)
+	usageKV := &countingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV}
+	c.credentialUsage.kv = usageKV
+	startCoreServices(t, c)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "deferred-usage-owner", "Deferred Usage Owner", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	usageKV := &countingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV}
-	c.credentialUsage.kv = usageKV
-
 	allowBotCreation(t, ctx, c, owner.GetId())
 	bot, err := c.CreateBot(ctx, owner.GetId(), "deferred_usage_bot", "Deferred Usage Bot")
 	if err != nil {
@@ -355,7 +406,13 @@ type blockingCreateCredentialUsageKV struct {
 	jetstream.KeyValue
 	started chan struct{}
 	release chan struct{}
-	once    sync.Once
+	deleted chan struct{}
+	// When set, written and finish hold a successful write before the recorder
+	// can inspect revocation and remove the late telemetry.
+	written    chan struct{}
+	finish     chan struct{}
+	once       sync.Once
+	deleteOnce sync.Once
 }
 
 type staleFirstGetCredentialUsageKV struct {
@@ -382,9 +439,28 @@ func (kv *staleFirstGetCredentialUsageKV) Get(ctx context.Context, key string) (
 func (kv *blockingCreateCredentialUsageKV) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
 	kv.once.Do(func() {
 		close(kv.started)
-		<-kv.release
+		select {
+		case <-kv.release:
+		case <-ctx.Done():
+		}
 	})
-	return kv.KeyValue.Create(ctx, key, value, opts...)
+	revision, err := kv.KeyValue.Create(ctx, key, value, opts...)
+	if err == nil && kv.written != nil {
+		close(kv.written)
+		select {
+		case <-kv.finish:
+		case <-ctx.Done():
+		}
+	}
+	return revision, err
+}
+
+func (kv *blockingCreateCredentialUsageKV) Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
+	err := kv.KeyValue.Delete(ctx, key, opts...)
+	if err == nil && kv.deleted != nil {
+		kv.deleteOnce.Do(func() { close(kv.deleted) })
+	}
+	return err
 }
 
 type countingCredentialUsageKV struct {

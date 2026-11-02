@@ -114,7 +114,7 @@
   name="Web and entity links together"
   asChild
   play={async ({ canvasElement }) => {
-    for (const pill of canvasElement.querySelectorAll<HTMLElement>('.entity-link, .url-link')) {
+    for (const pill of canvasElement.querySelectorAll<HTMLElement>('.entity-link')) {
       const style = getComputedStyle(pill);
       await expect(style.borderTopRightRadius).toBe('6px');
       // Huge leading radii cause CSS to scale down the trailing corners as well.
@@ -136,7 +136,7 @@
         url: 'https://www.youtube.com/watch?v=example',
         siteName: 'YouTube',
         title: 'Building something together',
-        description: 'A preview shares the same recessed surface as its inline link.'
+        description: 'A preview appears below the message text.'
       }}
       showDismiss={false}
     />
