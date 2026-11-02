@@ -266,7 +266,7 @@ jobs:
               cd cli
               # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-                -tags=nomsgpack,nodynamic \
+                -tags=nomsgpack \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
