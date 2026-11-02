@@ -735,7 +735,7 @@ jobs:
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        run: cd cli && go test -trimpath -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -p "${CHATTO_GO_TEST_P:-4}" -parallel "${CHATTO_GO_TEST_PARALLEL:-4}" -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
 
   lint-cli:
     needs: changes

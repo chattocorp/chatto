@@ -830,7 +830,7 @@ depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
     "node ../tools/dev-seed-smoke.mjs",
-    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
+    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -parallel ${CHATTO_GO_TEST_PARALLEL:-4} -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -tags test_endpoints ./...",
 ]
 # Go builds the cli module in workspace mode with the shared pkg/* modules as
 # local sources, and selects dependency versions across every workspace
@@ -851,6 +851,16 @@ sources = [
     "../mise.toml",
     "../tools/dev-seed-smoke.mjs",
 ]
+
+[tasks.test-cli-stability]
+description = "Repeat shuffled CLI service tests with the race detector"
+depends = ["setup-cli"]
+dir = "cli"
+env = { GOMAXPROCS = "4" }
+# Keep the load fixed across developer machines and CI. Run package binaries
+# one at a time, with four tests at a time inside each binary. Do not cache this
+# task: each invocation must exercise the workers and cleanup again.
+run = "go test -trimpath -race -tags test_endpoints -p 1 -parallel 4 -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -count=${CHATTO_GO_STABILITY_COUNT:-3} -timeout 15m ./internal/testutil ./internal/core ./internal/connectapi ./internal/http_server ./internal/mcpserver"
 
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
