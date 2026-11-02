@@ -428,13 +428,12 @@ authorization, live events, backup and restore, and backend tests.
 ## Backend Tests
 
 - Use `mise test-cli` for full backend checkpoints. It includes the
-  `test_endpoints` build tag, shuffled test order, and explicit limits of four
-  package processes and four parallel tests per process. These are separate
-  limits. `CHATTO_GO_TEST_P` and `CHATTO_GO_TEST_PARALLEL` can override them.
+  `test_endpoints` build tag, shuffled test order, and `-p 1 -parallel 1`.
+  Packages and tests run one at a time.
 - Use `mise test-cli-stability` after changing concurrency or test fixtures.
   This local command repeats the core, Connect API, HTTP, MCP, and test-helper
-  packages three times with the race detector, one package at a time, and four parallel
-  tests on four Go scheduler threads. Reproduce a reported shuffle seed with
+  packages three times with the race detector, one package and one test at a
+  time, on four Go scheduler threads. Reproduce a reported shuffle seed with
   `CHATTO_GO_TEST_SHUFFLE=<seed>`. `CHATTO_GO_STABILITY_COUNT` sets the repeat
   count. A passing repeat run is supporting evidence, not proof of a race fix.
 - Mise enables `-trimpath`. Locate test fixtures from the working directory
@@ -442,8 +441,8 @@ authorization, live events, backup and restore, and backend tests.
 - Iterate with targeted tests:
 
 ```sh
-mise x -- go test ./internal/core -run TestName -timeout 30s
-mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
+mise x -- go test -p 1 -parallel 1 ./internal/core -run TestName -timeout 30s
+mise x -- go test -p 1 -parallel 1 -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
 ```
 
 - For source debugging, map import paths with Delve's `substitute-path` or
@@ -473,10 +472,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   function such as `log.SetDefault` or
   `linkpreview.AllowLocalhostForTesting`, even if it restores the value in
   `t.Cleanup`. A clean `-race` run of the whole package does not prove that
-  tests are safe; run the affected tests together with `-race -count=N`. Add
-  `-parallel 4` to `-race` runs. The race detector makes tests much slower,
-  and with more concurrent tests, tests that wait for background work can
-  miss their deadlines.
+  tests are safe; run the affected tests together with `-race -count=N`. Use
+  `-p 1 -parallel 1` for all Go test commands, including race-detector runs,
+  to limit package and test execution without removing `t.Parallel()` calls.
 - A test helper that deletes a JetStream stream and then creates one with the
   same name on the same server must also remove the stream's directories.
   nats-server moves a deleted stream's directory aside and removes it in the
