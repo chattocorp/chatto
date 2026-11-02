@@ -158,6 +158,10 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           install-cli-deps: 'false'
+      - name: Verify runtime build after clean
+        run: |
+          mise clean
+          mise x -- pnpm --filter runling build:runtime
       - run: mise check-runling
       - run: mise test-runling
       - run: mise test-runling-bot
@@ -308,6 +312,9 @@ jobs:
 
       - name: Test release publication policy
         run: mise test-release-policy
+
+      - name: Test build-output cleanup
+        run: mise test-clean
 
       - name: Test interchange format contract
         run: mise test-interchange

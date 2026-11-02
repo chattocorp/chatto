@@ -1079,6 +1079,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
+    { task = "test-clean" },
     { task = "test-dev-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
@@ -1089,14 +1090,27 @@ run = [
 # =============================================================================
 
 [tasks.clean]
-description = "Clean all build artifacts"
+description = "Clean Chatto and root pnpm workspace outputs; keep data and native build caches"
+# Use explicit paths: committed generated source, dependency caches, captures,
+# and runtime state must survive. Authling owns its separate clean task.
 run = [
-    "rm -rf cli/bin/*",
+    "rm -rf dist cli/bin cli/chatto",
     "rm -rf cli/cmd/embedded",
-    "rm -rf cli/internal/http_server/.client",
-    "rm -rf apps/frontend/build",
+    # The embedding directory contains a tracked placeholder, not only output.
+    "if [ -d cli/internal/http_server/.client ]; then find cli/internal/http_server/.client -mindepth 1 -maxdepth 1 ! -name .gitkeep -exec rm -rf {} +; fi",
+    "rm -rf apps/frontend/build apps/frontend/.svelte-kit apps/frontend/storybook-static",
+    "rm -rf apps/frontend/e2e/fixtures/bin apps/frontend/e2e/fixtures/chatto-e2e-server",
+    "rm -rf apps/docs-website/dist apps/docs-website/.astro",
     "rm -rf apps/desktop/dist",
+    "rm -rf apps/mobile/www apps/mobile/ios/App/App/public",
+    "rm -f apps/mobile/ios/App/App/capacitor.config.json apps/mobile/ios/App/App/config.xml",
+    "rm -rf packages/chatto-client/dist packages/translatto/dist packages/runling/dist packages/runling/.svelte-kit",
+    "rm -rf .context/build-frontend",
 ]
+
+[tasks.test-clean]
+description = "Check clean-task output removal and preservation in isolated fixtures"
+run = "node --test tools/clean.test.mjs"
 
 [tasks.reset]
 description = "Reset the development data of Chatto and Authling"
