@@ -104,7 +104,7 @@ func TestInstalledMeansRoundTrip(t *testing.T) {
 	if err != nil || !strings.Contains(rejected, `"retryable":true`) || !strings.Contains(rejected, `"mutated":false`) {
 		t.Fatal("invalid schema not safely rejected", err, rejected)
 	}
-	if _, err := os.Stat(filepath.Join(brains, "projects")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(brains, "apps", "projects")); !os.IsNotExist(err) {
 		t.Fatal("invalid schema left a collection behind")
 	}
 	for range 2 {
@@ -139,18 +139,60 @@ func TestInstalledMeansRoundTrip(t *testing.T) {
 	if err != nil || !strings.Contains(written, `"id"`) {
 		t.Fatal("guest document write unavailable", err, written)
 	}
+	// Add a priority value without replacing documents or brain guidance.
+	ownerTools = managed.Tools(true)
+	toolCall(t, ownerTools, "memory_info", `{"collection":"projects"}`)
+	schemaArgs := `{"name":"projects","schema":{"type":"object","properties":{"priority":{"enum":["low","medium","high","HIGHEST"]}}}}`
+	for range 2 {
+		result, err := toolCall(t, ownerTools, "memory_brain_schema_set", schemaArgs)
+		if err != nil || !strings.Contains(result, `"status":"complete"`) {
+			t.Fatal("schema update or receipt replay failed", err, result)
+		}
+	}
+	if result, _ := toolCall(t, ownerTools, "memory_search", `{"collection":"projects","query":""}`); !strings.Contains(result, "Read memory_info") {
+		t.Fatal("schema update did not invalidate guidance")
+	}
+	info, err = toolCall(t, ownerTools, "memory_info", `{"collection":"projects"}`)
+	if err != nil || !strings.Contains(info, "HIGHEST") || json.Unmarshal([]byte(info), &metadata) != nil || metadata.Instructions != "Anyone may read and write project facts.\n\n---\nKeep **Markdown** intact.\n" {
+		t.Fatal("schema update lost guidance or was not installed", err, info)
+	}
+	if json.Unmarshal([]byte(written), &doc) != nil {
+		t.Fatal("invalid original document receipt")
+	}
+	read, err = toolCall(t, ownerTools, "memory_read", `{"collection":"projects","id":"`+doc.ID+`"}`)
+	var preserved struct{ Hash string }
+	if err != nil || json.Unmarshal([]byte(read), &preserved) != nil || preserved.Hash != doc.Hash {
+		t.Fatal("schema change modified an existing document", err)
+	}
+	if result, err := toolCall(t, ownerTools, "memory_create", `{"collection":"projects","title":"Urgent","body":"A task","data":{"priority":"HIGHEST"}}`); err != nil || !strings.Contains(result, `"id"`) {
+		t.Fatal("new enum value unavailable", err, result)
+	}
+	// A narrowing schema cannot invalidate the original document with empty data.
+	before, err := os.ReadFile(filepath.Join(brains, "apps", "projects", "MEANS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerTools = managed.Tools(true)
+	toolCall(t, ownerTools, "memory_info", `{"collection":"projects"}`)
+	if _, err := toolCall(t, ownerTools, "memory_brain_schema_set", `{"name":"projects","schema":{"type":"object","required":["priority"]}}`); err == nil {
+		t.Fatal("schema incompatible with existing documents accepted")
+	}
+	after, err := os.ReadFile(filepath.Join(brains, "apps", "projects", "MEANS.md"))
+	if err != nil || string(before) != string(after) {
+		t.Fatal("rejected schema changed the definition", err)
+	}
 	result, err := toolCall(t, managed.Tools(true), "memory_brain_archive", `{"name":"projects"}`)
 	if err != nil || !strings.Contains(result, `"status":"complete"`) {
 		t.Fatal("archive failed", err, result)
 	}
 	catalog, err = managed.Catalog(ctx)
-	if err != nil || catalog != "[]" {
+	if err != nil || strings.Contains(catalog, `"name":"projects"`) || !strings.Contains(catalog, `"kind":"memory"`) {
 		t.Fatal("archived brain still discoverable", err, catalog)
 	}
 	if result, _ := toolCall(t, guestTools, "memory_read", `{"collection":"projects","id":"abcde"}`); !strings.Contains(result, "Unknown") {
 		t.Fatal("old tools retained archived binding")
 	}
-	archived, err := filepath.Glob(filepath.Join(brains, ".archive", "projects-*", "MEANS.md"))
+	archived, err := filepath.Glob(filepath.Join(brains, "apps", ".archive", "projects-*", "MEANS.md"))
 	if err != nil || len(archived) != 1 {
 		t.Fatal("archive did not retain brain")
 	}

@@ -31,6 +31,7 @@ const transcriptLimit = 1 << 20
 type Client interface {
 	ObserveMessages(context.Context, string, func(), func(context.Context, chatto.MessageEvent) error) error
 	Thread(context.Context, string, string, string) (chatto.Page, error)
+	Profiles(context.Context, []string) (map[string]chatto.Profile, error)
 	Reply(context.Context, string, string, string, string, string) error
 	React(context.Context, string, string, string) error
 	RefreshTypingIndicator(context.Context, string, string) error
@@ -805,6 +806,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	// model turn rolls back tool exchanges and must not hide later realtime input.
 	var refreshed []string
 	var latest map[string]string
+	var participantIDs []string
 	initializing := true
 	read := func(ctx context.Context) (string, error) {
 		c.contextReady.Store(false)
@@ -821,6 +823,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		c.finishStep(index, "complete", fmt.Sprintf("%d messages · older omitted: %t", len(page.Messages), page.HasOlder))
 		latest = map[string]string{}
 		for _, m := range page.Messages {
+			participantIDs = append(participantIDs, m.ActorID)
 			if m.ID != "" {
 				refreshed = append(refreshed, m.ID)
 				latest[m.ID] = fingerprint(m)
@@ -831,10 +834,22 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		if page.HasOlder {
 			report("Older thread history omitted")
 		}
+		users := make([]string, 0, len(page.Messages)+len(batch))
+		for _, message := range page.Messages {
+			users = append(users, message.ActorID)
+		}
+		for _, event := range batch {
+			users = append(users, event.Message.ActorID)
+		}
+		knowledge, err := c.memory.KnowledgeIndex(ctx, users)
+		if err != nil {
+			return "", err
+		}
 		data, err := json.Marshal(struct {
-			Messages     []modelMessage `json:"messages"`
-			OlderOmitted bool           `json:"olderOmitted"`
-		}{messagesForModel(page.Messages), page.HasOlder})
+			Messages     []modelMessage  `json:"messages"`
+			OlderOmitted bool            `json:"olderOmitted"`
+			Knowledge    json.RawMessage `json:"memoryKnowledge,omitempty"`
+		}{messagesForModel(page.Messages), page.HasOlder, knowledge})
 		return string(data), err
 	}
 	if c.model == nil {
@@ -886,14 +901,15 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	}
 	c.model.SetInstructions(c.identity, c.systemPrompt, c.ownerUserIDs...)
 	input := struct {
-		CurrentTime    string           `json:"currentTime"`
-		Messages       []modelMessage   `json:"newMessages"`
-		Addressed      []string         `json:"addressedMessageIds"`
-		Triggers       []string         `json:"triggerMessageIds"`
-		Authors        []triggerAuthor  `json:"triggerAuthors"`
-		Brains         json.RawMessage  `json:"brainCatalog"`
-		Investigations []map[string]any `json:"investigations,omitempty"`
-		Completed      []string         `json:"completedInvestigations,omitempty"`
+		CurrentTime    string               `json:"currentTime"`
+		Messages       []modelMessage       `json:"newMessages"`
+		Addressed      []string             `json:"addressedMessageIds"`
+		Triggers       []string             `json:"triggerMessageIds"`
+		Authors        []triggerAuthor      `json:"triggerAuthors"`
+		Brains         json.RawMessage      `json:"brainCatalog"`
+		Participants   []participantProfile `json:"participants"`
+		Investigations []map[string]any     `json:"investigations,omitempty"`
+		Completed      []string             `json:"completedInvestigations,omitempty"`
 	}{CurrentTime: time.Now().UTC().Format(time.RFC3339)}
 	input.Investigations = c.jobs.Context()
 	input.Completed = completed
@@ -904,6 +920,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	input.Brains = json.RawMessage(catalog)
 	for _, event := range batch {
 		m := event.Message
+		participantIDs = append(participantIDs, m.ActorID)
 		if c.current == nil {
 			c.current = map[string]string{}
 		}
@@ -923,6 +940,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	if target.ID == "" {
 		return errors.New("batch has no message")
 	}
+	input.Participants = resolveParticipants(ctx, client, participantIDs)
 	data, err := json.Marshal(input)
 	if err != nil {
 		return err

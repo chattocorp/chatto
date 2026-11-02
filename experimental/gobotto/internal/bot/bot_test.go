@@ -57,7 +57,10 @@ func (f *fakeClient) React(_ context.Context, _, target, emoji string) error {
 	f.posts <- target
 	return nil
 }
-func (f *fakeClient) readCount() int                                               { f.mu.Lock(); defer f.mu.Unlock(); return f.reads }
+func (f *fakeClient) readCount() int { f.mu.Lock(); defer f.mu.Unlock(); return f.reads }
+func (f *fakeClient) Profiles(context.Context, []string) (map[string]chatto.Profile, error) {
+	return map[string]chatto.Profile{}, nil
+}
 func (f *fakeClient) RefreshTypingIndicator(context.Context, string, string) error { return nil }
 func input(id, body string, addressed bool) chatto.MessageEvent {
 	return chatto.MessageEvent{Message: chatto.Message{ID: id, Body: body, ActorID: "human", RoomID: "room", ThreadRootEventID: "root"}, Addressed: addressed}

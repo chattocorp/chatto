@@ -126,6 +126,13 @@ func TestRealtimeMessageReadsThreadAndReactsWithoutPosting(t *testing.T) {
 					w.WriteHeader(400)
 					return
 				}
+				if strings.HasSuffix(r.URL.Path, "/BatchGetUsers") {
+					if ids, ok := input["userIds"].([]any); !ok || len(ids) == 0 {
+						t.Error("missing participant IDs")
+					}
+					_, _ = w.Write([]byte(`{"users":[]}`))
+					return
+				}
 				if input["roomId"] != "room" {
 					t.Error("wrong room")
 				}
