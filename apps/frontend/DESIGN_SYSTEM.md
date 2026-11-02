@@ -532,6 +532,20 @@ the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
 which colours the icon with the action colour.
 
+### Message details
+
+Use `bg-message-surface` and `border-message-border` for details drawn directly
+on a message, such as table headings, cell borders, inline code, and dividers.
+These colours use the text colour. They become lighter in dark themes and
+darker in light themes. The fill is translucent and blends with the background
+beneath it. The border is an opaque mix with `surface`, so table corners and
+intersections do not become brighter from overlapping borders. Both stay
+visible when a message is hovered or highlighted without separate state classes.
+
+Prose uses these tokens by default, including outside message rows. Keep framed
+previews on the preview primitives below. See **UI/MarkdownHtml → Message
+details** for normal and highlighted rows, including a narrow layout.
+
 ### Inset Frame
 
 **Inset Frame** is the canonical name in the [glossary](../../docs/GLOSSARY.md#ui).

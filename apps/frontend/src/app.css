@@ -853,6 +853,11 @@
   --color-surface-strong: var(--color-surface-strong);
   --color-surface-selected: var(--color-surface-selected);
 
+  /* Message details use a lighter tint in dark themes and a darker tint in light
+     themes. Keep borders opaque so table intersections cannot compound alpha. */
+  --color-message-surface: color-mix(in srgb, var(--color-text) 8%, transparent);
+  --color-message-border: color-mix(in srgb, var(--color-text) 20%, var(--color-surface));
+
   --color-input: var(--color-input);
   --color-input-border: var(--color-input-border);
 
