@@ -1278,7 +1278,7 @@ describe('RoomSidebar', () => {
     expect(cards[1].textContent).toContain('Alice');
     expect(cards[2].getAttribute('data-testid')).toBe('call-participant-card');
     expect(cards[2].textContent).toContain('Carol');
-    expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
+    expect(participantList!.className).not.toContain('@min-[368px]:grid-cols-2');
   });
 
   it('uses a screen share as the featured maximized call stage', async () => {
@@ -1566,7 +1566,7 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[data-testid="call-secondary-stage-list"]')).toBeFalsy();
   });
 
-  it('uses a two-column video grid when multiple videos have room', async () => {
+  it('keeps two video participants in one column when videos have room', async () => {
     const videoTrackA = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1618,7 +1618,7 @@ describe('RoomSidebar', () => {
     expect(container.textContent).not.toContain('Video (2)');
     const participantList = q(container, '[data-testid="call-participants-list"]');
     expect(participantList).toBeTruthy();
-    expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
+    expect(participantList!.className).not.toContain('@min-[368px]:grid-cols-2');
   });
 
   it('disables joining this room while connected to another call', async () => {
