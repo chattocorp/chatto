@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   app-builder-lib@26.18.0: 5c6fa79119454487c8168586b2aae610e8794c9314bcc9a3d5f971446bd673bf
-  virtua@0.54.0: f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a
+  virtua@0.54.1: f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a
 
 importers:
 
@@ -109,6 +109,9 @@ importers:
       '@xterm/headless':
         specifier: 6.0.0
         version: 6.0.0
+      dompurify:
+        specifier: ^3.4.17
+        version: 3.4.17
       gemoji:
         specifier: ^8.1.0
         version: 8.1.0
@@ -121,9 +124,6 @@ importers:
       js-sha256:
         specifier: ^1.0.0
         version: 1.0.0
-      linkify-it:
-        specifier: ^5.0.2
-        version: 5.0.2
       livekit-client:
         specifier: ^2.23.0
         version: 2.23.0(@types/dom-mediacapture-record@1.0.22)
@@ -236,9 +236,6 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.31.3
         version: 3.31.3
-      '@types/linkify-it':
-        specifier: ^5.0.0
-        version: 5.0.0
       '@types/markdown-it':
         specifier: ^14.2.0
         version: 14.2.0
@@ -321,8 +318,8 @@ importers:
         specifier: ^8.72.0
         version: 8.72.0(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
       virtua:
-        specifier: ^0.54.0
-        version: 0.54.0(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.72.0))
+        specifier: ^0.54.1
+        version: 0.54.1(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.72.0))
       vite:
         specifier: ^8.3.5
         version: 8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.0)
@@ -403,9 +400,6 @@ importers:
 
   examples/runling-bot:
     dependencies:
-      '@chatto/api-types':
-        specifier: workspace:*
-        version: link:../../packages/api-types
       '@chatto/client':
         specifier: workspace:*
         version: link:../../packages/chatto-client
@@ -3085,6 +3079,7 @@ packages:
   '@smithy/core@3.33.3':
     resolution: {integrity: sha512-CsOeKq/9kA3y6VJHt+/+VTCtBaxJ4OTFpgrjIUhPpDIKxBci1k2bJaQASF2h/ELWrulGp+t97DZ0mevfAD8idg==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -4696,6 +4691,9 @@ packages:
   domhandler@6.0.1:
     resolution: {integrity: sha512-gYzvtM72ZtxQO0T048kd6HWSbbGCNOUwcnfQ01cqIJ4X2IYKFFHZ5mKvrQETcFXxsRObZulDaKmy//R7TPtsBg==}
     engines: {node: '>=20.19.0'}
+
+  dompurify@3.4.17:
+    resolution: {integrity: sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==}
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
@@ -7820,8 +7818,8 @@ packages:
     engines: {node: '>=18'}
     deprecated: 'Vidstack is deprecated and gets security fixes only until January 2028. Use Video.js 10: https://videojs.org/docs/framework/html/guides/migrate-from-vidstack?utm_source=vidstack (coding agents: run npx @videojs/cli agents skills, then follow the guide''s AI Quickstart)'
 
-  virtua@0.54.0:
-    resolution: {integrity: sha512-8nGGrDhX61MDVeqgyIaWrJqhRm9z2Nqa1WDqt0tk1m+ZWrvLesMP0iL0vL6xNsLCF2jE2ohwY+PqufdbVmRgEw==}
+  virtua@0.54.1:
+    resolution: {integrity: sha512-qUl89ncxNDKLihVdIok8CnKxUPF9J+P6Uz58KDqsq8G9dIoMInif6KJ4oe9SkvtNsHkSzw0iV25Vr73L9L1BcQ==}
     peerDependencies:
       '@angular/common': '>=20.0.0'
       '@angular/core': '>=20.0.0'
@@ -12795,6 +12793,10 @@ snapshots:
     dependencies:
       domelementtype: 3.0.0
 
+  dompurify@3.4.17:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
+
   domutils@3.2.2:
     dependencies:
       dom-serializer: 2.0.0
@@ -16605,7 +16607,7 @@ snapshots:
       media-captions: 1.0.4
       unplugin: 1.16.1
 
-  virtua@0.54.0(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.72.0)):
+  virtua@0.54.1(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.72.0)):
     optionalDependencies:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)

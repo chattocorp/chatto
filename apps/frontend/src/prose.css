@@ -60,7 +60,7 @@
   }
 
   /* Links */
-  & a:not(.entity-link, .url-link, .menu-entry, .link-hover-card) {
+  & a:not(.entity-link, .menu-entry, .link-hover-card) {
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -149,14 +149,14 @@
 
   /* Inline code */
   & code:not(pre code) {
-    @apply rounded bg-surface-emphasized px-1.5 py-0.5 font-mono text-[0.9em];
+    @apply rounded bg-message-surface px-1.5 py-0.5 font-mono text-[0.9em];
     direction: ltr;
     unicode-bidi: isolate;
   }
 
   /* Code blocks */
   & pre {
-    @apply overflow-x-auto rounded-md bg-surface-emphasized p-3 font-mono text-sm;
+    @apply overflow-x-auto rounded-md bg-message-surface p-3 font-mono text-sm;
     direction: ltr;
     unicode-bidi: isolate;
   }
@@ -292,7 +292,7 @@
   /* Horizontal rules */
   & hr {
     border: none;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--color-message-border);
     margin: 1.5em 0;
   }
 
@@ -364,7 +364,7 @@
 
   & th,
   & td {
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-message-border);
     padding: 0.5em 0.75em;
     text-align: start;
   }
@@ -380,7 +380,7 @@
 
   & th {
     font-weight: 600;
-    background-color: var(--color-surface);
+    background-color: var(--color-message-surface);
   }
 }
 

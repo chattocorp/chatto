@@ -11,8 +11,6 @@ import (
 )
 
 func TestRoomDirectoryPagination(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	for i := range 103 {

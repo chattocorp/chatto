@@ -1,5 +1,7 @@
 /** Local tab state and lazy image jobs for one mounted Markdown HTML version. */
 import { createMermaidPreview } from './mermaid/previews';
+import { getMermaidLayout } from './mermaid/cache';
+import { hasRenderedImage, takeRenderedImage, rememberRenderedImage } from './renderedImageCache';
 import { mount, unmount } from 'svelte';
 import {
   getRenderedImageSize,
@@ -8,11 +10,15 @@ import {
   renderedImageWidth
 } from './renderedImageSize';
 
+// Keep the lazy component module available for synchronous mounting of loaded images.
+let renderedImageComponent: typeof import('$lib/ui/attachments').RenderedImage | undefined;
+
 /** Scope ARIA IDs to the component, and dispose all jobs when its HTML changes. */
 export function attachCodeFrames(
   html: string,
   scope: string,
-  showSource: (frame: HTMLElement, source: string, language: string) => (() => void) | undefined
+  showSource: (frame: HTMLElement, source: string, language: string) => (() => void) | undefined,
+  artifactOwner?: object
 ) {
   return (element: HTMLDivElement) => {
     if (!html.includes('data-artifact')) return;
@@ -40,6 +46,8 @@ export function attachCodeFrames(
         frame.dataset.artifactSource ??
         frame.querySelector<HTMLElement>('[data-copy-source]')!.dataset.copySource!;
       const sizeKey = renderedImageSizeKey(frame.dataset.artifact!, source);
+      // Repeated diagrams in one message each retain their own image node.
+      const imageKey = `${index}:${sizeKey}`;
       const size = getRenderedImageSize(sizeKey);
       // Reserve geometry before IntersectionObserver or the worker can run. A
       // recycled row must not replace virtua's measured height with an empty panel.
@@ -93,10 +101,11 @@ export function attachCodeFrames(
         if (frame.dataset.artifact === 'ansi') return;
         renderPanel.setAttribute('aria-busy', 'true');
         try {
+          const cachedImage = artifactOwner && takeRenderedImage(artifactOwner, imageKey);
           const image =
             frame.dataset.artifact === 'mermaid'
-              ? await createMermaidPreview(source, signal)
-              : new Image();
+              ? await createMermaidPreview(source, signal, artifactOwner, cachedImage)
+              : (cachedImage ?? new Image());
           if (signal.aborted) return;
           if (!image) {
             fail();
@@ -113,13 +122,17 @@ export function attachCodeFrames(
               signal
             }
           );
-          if (frame.dataset.artifact === 'svg') {
+          if (frame.dataset.artifact === 'svg' && !cachedImage) {
+            const { sanitizeSvg } = await import('./sanitizeSvg');
+            if (signal.aborted) return;
             image.className = 'markdown-svg-preview';
             image.alt = 'SVG';
             image.decoding = 'async';
-            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
+            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizeSvg(source))}`;
           }
-          const { RenderedImage } = await import('$lib/ui/attachments');
+          const RenderedImage =
+            renderedImageComponent ??
+            (renderedImageComponent = (await import('$lib/ui/attachments')).RenderedImage);
           if (signal.aborted || failed) return;
           rememberRenderedImageSize(sizeKey, image);
           const canvas = mount(RenderedImage, {
@@ -128,7 +141,9 @@ export function attachCodeFrames(
           });
           placeholder?.remove();
           disposeCanvas = () => {
-            void unmount(canvas);
+            void unmount(canvas).then(() => {
+              if (artifactOwner && !failed) rememberRenderedImage(artifactOwner, imageKey, image);
+            });
             disposeCanvas = undefined;
           };
           canvases.push(() => disposeCanvas?.());
@@ -182,6 +197,17 @@ export function attachCodeFrames(
       }
       if (!visual) attachTabs();
       if (tabs[1]?.disabled || frame.dataset.artifact === 'ansi') return;
+      // A remounted result needs no worker. Start mounting immediately instead
+      // of leaving the reserved frame empty until another viewport callback.
+      if (
+        artifactOwner &&
+        (hasRenderedImage(artifactOwner, imageKey) ||
+          (frame.dataset.artifact === 'mermaid' && getMermaidLayout(artifactOwner, source)))
+      ) {
+        nearby = true;
+        void start();
+        return;
+      }
       starts.set(frame, () => {
         nearby = true;
         void start();

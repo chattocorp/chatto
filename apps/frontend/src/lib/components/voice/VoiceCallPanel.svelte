@@ -1005,6 +1005,7 @@ Room sidebar panel for voice/video calls.
             class={[
               'grid grid-cols-1 gap-3',
               isInThisCall &&
+                participants.length > 3 &&
                 (screenShareParticipants.length > 0 || mediaTileCount > 1) &&
                 '@min-[368px]:grid-cols-2'
             ]}

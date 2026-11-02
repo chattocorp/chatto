@@ -183,7 +183,6 @@
   --composer-code-literal: #79c0ff;
   --composer-code-attribute: #ffa657;
 }
-/* @plugin '@tailwindcss/forms'; */
 /* Dynamic utilities load only referenced candidates such as icon-[uil--check].
    Do not add `prefixes`: that eagerly expands whole collections. */
 @plugin '@iconify/tailwind4' {
@@ -853,6 +852,11 @@
   --color-surface-emphasized: var(--color-surface-emphasized);
   --color-surface-strong: var(--color-surface-strong);
   --color-surface-selected: var(--color-surface-selected);
+
+  /* Message details use a lighter tint in dark themes and a darker tint in light
+     themes. Keep borders opaque so table intersections cannot compound alpha. */
+  --color-message-surface: color-mix(in srgb, var(--color-text) 8%, transparent);
+  --color-message-border: color-mix(in srgb, var(--color-text) 20%, var(--color-surface));
 
   --color-input: var(--color-input);
   --color-input-border: var(--color-input-border);
@@ -1748,7 +1752,7 @@
 
 @utility checkbox-option {
   @apply option-depth;
-  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2;
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 leading-5;
   @apply transition-[background-color,border-color,box-shadow] feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
 }
@@ -1764,8 +1768,6 @@
 @utility checkbox-box {
   @apply control-well;
   @apply grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
-  /* Centre the indicator on the first title line, regardless of help-text height. */
-  margin-block-start: calc((1lh - 1.25rem) / 2);
   @apply transition-[background-color,border-color,color] feedback-quick;
 }
 
@@ -1781,7 +1783,7 @@
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
   @apply option-depth;
-  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 text-start transition-colors feedback-quick;
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 text-start leading-5 transition-colors feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -1793,8 +1795,6 @@
 @utility choice-indicator {
   @apply control-well;
   @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors feedback-quick;
-  /* Match checkbox alignment to the first title line. */
-  margin-block-start: calc((1lh - 1.25rem) / 2);
 }
 
 @utility choice-indicator-selected {
@@ -1838,8 +1838,7 @@
   border-radius: var(--inline-link-radius);
 }
 
-/* Web and entity links share the same segmented surface. */
-.url-link,
+/* Known Chatto entities use a segmented surface. Ordinary URLs use text links. */
 .entity-link {
   @apply inline-link-pill max-w-full gap-0 overflow-hidden px-0;
   --url-link-shade: 3%;
@@ -1848,17 +1847,11 @@
   background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
-.url-link {
-  max-width: min(100%, 28rem);
-}
-
-.url-link:hover,
 .entity-link:hover {
   --url-link-surface: var(--color-surface-selected);
   background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
-.url-link-main,
 .link-pill-main {
   @apply relative inline-flex min-w-0 items-baseline gap-1.5 rounded-[var(--inline-link-radius)] px-1.5 py-px;
   background-color: var(--url-link-surface);
@@ -1867,24 +1860,16 @@
     0 1px 4px rgb(0 0 0 / 35%);
 }
 
-.url-link-icon,
 .link-pill-icon {
   @apply inline-flex shrink-0 items-center self-center text-[0.85em] text-muted;
 }
 
-.url-link-host,
 .link-pill-meta {
   @apply inline-flex shrink-0 items-center self-stretch px-1.5 text-[0.85em] text-muted;
 }
 
 .link-pill-meta {
   @apply max-w-[40%] min-w-0;
-}
-
-.url-link-host {
-  /* Use the host's natural width; reserve room for the title on narrow lines. */
-  min-width: 0;
-  max-width: calc(100% - 3rem);
 }
 
 .link-pill-icon-image {
@@ -1895,7 +1880,6 @@
   padding-inline-start: 1px;
 }
 
-.url-link-main:has(> .url-link-icon),
 .link-pill-main:has(> .link-pill-icon:not(.link-pill-icon-image)) {
   padding-inline-start: 4px;
 }
@@ -1905,7 +1889,6 @@
 }
 
 /* Muted text needs a lighter backing in light mode to retain readable contrast. */
-:root[data-theme='dark'] .url-link,
 :root[data-theme='dark'] .entity-link {
   --url-link-shade: 20%;
 }
@@ -1922,15 +1905,10 @@
  * Layout, clipping, elevation, and interactions belong to its consumers. */
 @utility inset-frame {
   @apply rounded-lg border floating-frame text-text;
-  --inset-frame-visibility: 1;
+  /* Keep the filled rim at Flat, but fade its outer stroke with depth. */
   border-color: color-mix(
     in srgb,
-    var(--color-text) calc(10% * var(--inset-frame-visibility)),
-    transparent
-  );
-  background-color: color-mix(
-    in srgb,
-    var(--color-surface) calc(100% * var(--inset-frame-visibility)),
+    var(--color-text) calc(10% * min(1, var(--depth-strength) / 0.75)),
     transparent
   );
   /* A default rim must not override a row's attachment-card or p-* spacing. */
@@ -1943,10 +1921,9 @@
   @apply rounded-md bg-background floating-inset;
 }
 
-/* Preview rims fade to transparent at Flat without changing their geometry. */
+/* Preview rims stay filled at Flat; the border and lighting follow depth. */
 @utility preview-frame {
   @apply overflow-hidden inset-frame shadow-[var(--preview-shadow)];
-  --inset-frame-visibility: min(1, calc(var(--depth-strength) / 0.75));
   --preview-shadow:
     0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))),
     0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
@@ -2062,7 +2039,7 @@
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
    Containers should add `group/badges` so the hover elevation works. */
 @utility meta-badge {
-  @apply inline-flex items-center rounded-sm border leading-none;
+  @apply inline-flex h-[26px] items-center rounded-sm border py-[0.5px] leading-none;
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
 }
 

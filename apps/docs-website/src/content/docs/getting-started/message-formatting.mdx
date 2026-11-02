@@ -18,13 +18,13 @@ Select **Formatting options** in the message input to show or hide the toolbar. 
 
 Both editors provide the same formatting toolbar, mentions, emoji completion, attachments, reply quotes, timestamps, and message editing. The Markdown editor always shows source; it does not include a separate preview.
 
-The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor. Tab still accepts an active mention or emoji suggestion first, and repeated Tab presses cycle through matching mentions.
+The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor when no suggestions are open. In an open picker, Tab cycles forwards through matches and Shift+Tab cycles backwards. Tab inserts a sole match with a trailing space.
 
 ## Link to a room
 
 Type `#` at the start of a message or after a space to open the room picker.
 Continue typing to find a channel room on the current server. Use the arrow keys
-to select a room, then press Enter or Tab. You can also click a room. Press Escape
+to select a room, then press Enter. You can also click a room. Press Escape
 to close the picker.
 
 Search is fuzzy: type `#designteam` to find **Design Team**. Omit spaces from the
@@ -35,9 +35,11 @@ The picker inserts a room link. Sent messages show the room's current name when
 the reader can see that room. Direct messages and archived rooms are not listed.
 Both editors support the picker in messages, replies, and edits.
 
-Enter and Tab accept the selected room without
-adding whitespace or sending the message. Mention (`@`) and emoji (`:`) suggestions
-use the same keys. Clicking a suggestion adds a space.
+Tab cycles through all available fuzzy matches without changing your text.
+Shift+Tab cycles backwards. If there is only one match, Tab inserts it with a
+trailing space. Enter or a click accepts the highlighted result without sending
+the message. Each insertion adds a trailing space. Use Backspace to remove it.
+Mention (`@`) and emoji (`:`) suggestions use the same keys.
 
 Space types a normal space and closes the suggestions. You can type `#` followed
 by a space to start a Markdown heading.
@@ -89,9 +91,11 @@ aliases, and tags. For example, type `:headshakingvertically` to find
 `:head_shaking_vertically:`. Exact names rank first. You must accept a suggestion
 to insert the emoji; an incomplete shortcode stays as text if you send it as typed.
 
-In autocomplete, accept an emoji with Enter, Tab, or a click to open its skin-tone
-popup. Your saved tone is highlighted. Use Up and Down to choose a tone, then
-Enter or Tab to insert it without a trailing space.
+In autocomplete, use Tab to cycle through fuzzy matches. If only one emoji matches,
+Tab inserts it with your saved skin tone and a trailing space.
+Use Enter or a click to open an emoji's skin-tone popup. Your saved tone is
+highlighted. Use Up, Down, Tab, or Shift+Tab to choose a tone, then press Enter
+or click to insert it with a trailing space. Use Backspace to remove the space.
 Escape returns to the emoji suggestions. You can also
 click a tone. Emoji without skin tones insert immediately.
 Chatto remembers the choice in this browser and uses it for supported picker
@@ -156,32 +160,26 @@ Use the Markdown source editor to add or remove the `rendered` hint. The visual 
 Plain URLs to users, rooms, and servers that your client knows appear as pills with
 their current name and avatar or icon. This includes angle-bracket URLs.
 Markdown links such as `[the development channel](URL)` keep their labels and
-normal link display. The visual composer previews plain URLs as pills; select
+normal link display. The visual composer previews known Chatto URLs as pills; select
 a preview to edit its URL. Select a pill in a message to open its destination. Right-click
 or long-press it to open the entity's menu. These links do not notify users
 as mentions do.
 
-Other automatic web links appear as compact chips with a hostname and, when it
-fits, a short, complete path. Long paths and opaque identifiers stay out of the
-label. Long hostnames shorten in the middle, keeping their ending and port visible.
-Query strings and fragments stay out of the label. This also applies to unknown
-or unavailable Chatto destinations and to thread links. Hover over a
-chip to preview the destination, or use **Copy Link** in the message menu for the full URL. The visual
-composer uses the same compact display; select a chip to edit its full URL.
-Posted web-link chips load page details when they enter view. A spinner appears
-while the details load, then the page title appears beside the hostname when
-available. If no title is available, the chip keeps its hostname and short path.
+Other automatic web links show the full URL as underlined text. Long URLs wrap
+within the message width. This also applies to unknown or unavailable Chatto
+destinations and to thread links. In the visual composer, these URLs stay directly
+editable as text. Page details appear in the hover card
+or touch preview, without changing the link text.
 
 Message links to known servers show a message icon and the room or server name.
 If the message is already in the client's loaded history, the pill also shows
 the author's name and avatar. The attached preview uses a compact inset body;
 scroll inside it to read a long message, or select it to open the original.
 
-Hover over a pill or a Markdown link, or focus it with the keyboard, to inspect
+Hover over a link or pill, or focus it with the keyboard, to inspect
 its destination. Markdown links keep their authored text and formatting.
-Known Chatto entities show locally available details. Web-link cards reuse details
-loaded for their chips. Markdown links with authored labels load details when
-the hover card opens. The message's server receives the URL and fetches
+Known Chatto entities show locally available details. Web-link cards reuse existing
+preview details or load them when the preview opens. The message's server receives the URL and fetches
 the details and images; the website sees the server's IP address. Existing
 composer previews are unchanged. Select any part of the hover card to open its
 destination. You can also Tab into the card and press Enter. Press Escape to
@@ -195,9 +193,6 @@ your finger scrolls the conversation without opening a preview.
 
 Right-click an ordinary link in a message to open the message menu. Select **Copy Link**
 to copy that URL, or **Copy Message Link** to copy a link to the message.
-Hold Shift while you right-click a link or pill to open your browser's native menu.
-This gives access to browser actions such as copying without tracking parameters,
-when supported. The Chatto menu shows a reminder of this shortcut.
 Ctrl-click, Command-click, Shift-click, and middle-click keep your browser's usual
 tab and window behavior.
 
@@ -284,13 +279,17 @@ You can also focus it with Tab and press Enter or Space.
 Plain `svg`, `mermaid`, and `ansi` fences show code first with a preview option.
 In the visual composer, choose **Code** or **Visual** to set this presentation.
 If the image cannot load, Chatto shows its source instead. Transparent areas
-keep the message background. Include the SVG namespace shown above. Keep images,
-styles, and fonts inside the SVG: external resources do not load. Scripts and
-interactive links are disabled; self-contained SVG animations can play.
+keep the message background. Include the SVG namespace shown above. Use static
+shapes, text, groups, and local gradients. Set colours and other presentation
+attributes directly on elements. Previews remove scripts, links, CSS, animations,
+embedded images, filters, patterns, masks, clipping paths, markers, and `use`
+references. External resources do not load. Removed features can change the
+image. Your message source stays unchanged; the viewer downloads the sanitized SVG.
 
 Each message can show up to four previews, each with at most 100,000 source
-characters. Additional or larger blocks show source. The normal message size
-limit still applies.
+characters, 1,000 elements, and 32 element levels including the root. Additional
+or larger blocks show source. DTD and entity declarations are not accepted.
+The normal message size limit still applies.
 
 ### Footnotes
 

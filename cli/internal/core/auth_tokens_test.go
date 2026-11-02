@@ -11,8 +11,6 @@ import (
 )
 
 func TestChattoCore_CreateAuthToken(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -49,8 +47,6 @@ func TestChattoCore_CreateAuthToken(t *testing.T) {
 }
 
 func TestChattoCore_CreateAuthTokenRejectsEmptyUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -60,8 +56,6 @@ func TestChattoCore_CreateAuthTokenRejectsEmptyUser(t *testing.T) {
 }
 
 func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -123,8 +117,6 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 }
 
 func TestChattoCore_OAuthAccessTokenCannotBecomeFresh(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -151,8 +143,6 @@ func TestChattoCore_OAuthAccessTokenCannotBecomeFresh(t *testing.T) {
 }
 
 func TestChattoCore_LegacyUntypedBearerTokenCannotBecomeFresh(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -182,8 +172,6 @@ func TestChattoCore_LegacyUntypedBearerTokenCannotBecomeFresh(t *testing.T) {
 }
 
 func TestChattoCore_LegacyFreshBearerTokenIsRejected(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -213,8 +201,6 @@ func TestChattoCore_LegacyFreshBearerTokenIsRejected(t *testing.T) {
 }
 
 func TestChattoCore_EmptyUserBearerTokenCannotSatisfyFreshAuth(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -243,8 +229,6 @@ func TestChattoCore_EmptyUserBearerTokenCannotSatisfyFreshAuth(t *testing.T) {
 }
 
 func TestChattoCore_ValidateAuthToken_NotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -258,8 +242,6 @@ func TestChattoCore_ValidateAuthToken_NotFound(t *testing.T) {
 }
 
 func TestChattoCore_RevokeAuthToken(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -287,8 +269,6 @@ func TestChattoCore_RevokeAuthToken(t *testing.T) {
 }
 
 func TestChattoCore_RevokeAuthToken_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -300,8 +280,6 @@ func TestChattoCore_RevokeAuthToken_Idempotent(t *testing.T) {
 }
 
 func TestChattoCore_AuthTokenFormat(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -326,8 +304,6 @@ func TestChattoCore_AuthTokenFormat(t *testing.T) {
 }
 
 func TestChattoCore_MultipleTokensPerUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -382,8 +358,6 @@ func TestChattoCore_MultipleTokensPerUser(t *testing.T) {
 }
 
 func TestChattoCore_RevokeAllAuthTokensForUserWithReason(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -440,8 +414,6 @@ func TestChattoCore_RevokeAllAuthTokensForUserWithReason(t *testing.T) {
 }
 
 func TestChattoCore_AuthTokenGenerationRejectsStaleAuthentication(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -481,8 +453,6 @@ func TestChattoCore_AuthTokenGenerationRejectsStaleAuthentication(t *testing.T) 
 }
 
 func TestChattoCore_ValidateAuthTokenRejectsPreRenewalBearer(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -512,8 +482,6 @@ func TestChattoCore_ValidateAuthTokenRejectsPreRenewalBearer(t *testing.T) {
 }
 
 func TestChattoCore_ValidateAuthTokenRejectsLegacyGenerationBeforePasswordChange(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -572,8 +540,6 @@ func mustCurrentAuthGeneration(t *testing.T, core *ChattoCore, userID string) ui
 // Optional runtime-state timestamps are omitted when unset. Older replicas
 // wrote them as the zero time, and both forms must decode to the zero time.
 func TestRuntimeAuthRecordsOmitZeroOptionalTimes(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name   string
 		value  any

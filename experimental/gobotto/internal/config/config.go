@@ -28,7 +28,7 @@ type Config struct {
 	Subagents map[string]Subagent `toml:"subagents"`
 }
 
-// Memory binds fixed collections and an optional directory for managed brains.
+// Memory binds fixed app collections and the directory for built-in memory and apps.
 type Memory struct {
 	Directory   string       `toml:"directory"`
 	Collections []Collection `toml:"collections"`
@@ -92,6 +92,9 @@ func Load(path string) (Config, error) {
 	if toml.NewDecoder(f).DisallowUnknownFields().Decode(&cfg) != nil {
 		return Config{}, errors.New("invalid Gobotto config: check TOML syntax and supported settings")
 	}
+	if cfg.Memory.Directory == "" {
+		cfg.Memory.Directory = "./brains"
+	}
 	if err := cfg.MCP.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -114,7 +117,7 @@ func Load(path string) (Config, error) {
 	}
 	for i := range cfg.Memory.Collections {
 		c := &cfg.Memory.Collections[i]
-		if !collectionName.MatchString(c.Name) || names[c.Name] || strings.TrimSpace(c.Path) == "" {
+		if c.Name == "memory" || !collectionName.MatchString(c.Name) || names[c.Name] || strings.TrimSpace(c.Path) == "" {
 			return Config{}, errors.New("memory collections require unique lowercase names and nonempty paths")
 		}
 		names[c.Name] = true

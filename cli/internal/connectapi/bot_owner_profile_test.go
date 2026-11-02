@@ -10,8 +10,6 @@ import (
 )
 
 func TestPublicBotOwnerProfile(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "owned_bot", "Owned Bot")

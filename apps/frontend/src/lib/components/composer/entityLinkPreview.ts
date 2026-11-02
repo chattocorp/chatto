@@ -1,19 +1,20 @@
-/** ProseMirror decorations preview automatic web URLs without changing the editable document. */
+/** ProseMirror decorations show known Chatto links without changing the editable document. */
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { mount, unmount } from 'svelte';
 import type { Node } from '@tiptap/pm/model';
 import EntityLink from '../messages/EntityLink.svelte';
-import { parseWebLink } from '$lib/navigation/webLink';
+import { hasEntityLinkData, parseEntityLink, parseMessageLink } from '$lib/chatLinks';
 
-/** Only automatic URL text can be replaced by a preview. */
+/** Only automatic links to known Chatto entities or messages get preview widgets. */
 function previewHref(node: Node): string | undefined {
   if (!node.isText) return;
   const link = node.marks.find((mark) => mark.type.name === 'link');
   if (!link || link.attrs.explicitLabel || link.attrs.title) return;
   const href = link.attrs.href as string;
   if (node.text !== href && `http://${node.text}` !== href) return;
-  if (parseWebLink(href)) return href;
+  const entity = parseEntityLink(href);
+  if (entity ? hasEntityLinkData(entity) : parseMessageLink(href)?.serverId) return href;
 }
 
 /** Widgets own their Svelte previews; ProseMirror owns URL text, selection, and clipboard data. */
@@ -99,8 +100,7 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
                 const component = mount(EntityLink, {
                   target: preview,
                   context,
-                  // The composer owns automatic preview requests for draft URLs.
-                  props: { href, loadWhenVisible: false }
+                  props: { href }
                 });
                 preview.addEventListener(
                   'click',

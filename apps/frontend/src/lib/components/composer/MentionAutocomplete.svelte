@@ -33,9 +33,7 @@ Shows matching room members when typing @username in chat input.
 
   let { query, members, roles = [], prioritizedUserIds, onSelect, onClose }: Props = $props();
 
-  let results = $derived(
-    rankMentionCandidates(query, members, roles, prioritizedUserIds).slice(0, 10)
-  );
+  let results = $derived(rankMentionCandidates(query, members, roles, prioritizedUserIds));
 
   let popupRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
 

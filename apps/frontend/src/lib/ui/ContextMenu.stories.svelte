@@ -106,7 +106,6 @@
           position={{ x: 40, y: 120 }}
           presentation="floating"
           ariaLabel="Server actions"
-          browserMenuHint
           onclose={() => (proseOpen = false)}
         >
           <MenuSection>

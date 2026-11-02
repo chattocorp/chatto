@@ -6,8 +6,6 @@ import (
 )
 
 func TestVoiceCallRoomForMemberRequiresRoomMembership(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

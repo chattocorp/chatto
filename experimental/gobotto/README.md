@@ -398,16 +398,48 @@ Brain creation and archival require a triggering batch in which every message
 author is an owner. Document use follows each brain's prompt guidance. Owner IDs and per-message author metadata are sent to OpenRouter with model
 context and stored in private session transcripts, not operational logs.
 
-### Means collections
+### Memory and apps
 
-Configure a directory where Gobotto can manage brains:
+Gobotto has one built-in `memory` brain for general knowledge and knowledge about
+individual Chatto users. Dynamic brains are **apps**, such as a task tracker or
+project notebook. App formatting, workflow, and default rules belong in that
+app's instructions. They do not belong in personal memory.
+
+The storage directory defaults to `./brains`, relative to `gobotto.toml`:
 
 ```toml
 [memory]
 directory = "./brains"
 ```
 
-Owners can ask Gobotto to create a brain, for example: “Create a project notebook
+Gobotto initializes built-in memory in `memory/` and discovers dynamic apps under
+`apps/` within this directory. For example, the default paths are
+`brains/memory/` and `brains/apps/chatto_todos/`. Its built-in memory
+schema and guidance are defined in code. Documents have a `kind` of `general_fact`
+or `user_fact`, a discovery `summary`, and a Markdown body for details. User facts
+also require the exact Chatto `user_id`. The name `memory` is reserved. Agents
+can write knowledge documents, but cannot archive this brain or change its
+definition. Startup rejects a modified definition instead of replacing it.
+
+When a thread is first loaded or refreshed, Gobotto supplies a knowledge index
+with document IDs, titles, and summaries: up to 20 general facts and 20 facts
+for each of up to eight distinct participants. The index is limited to 16 KiB
+and reports omitted entries and document diagnostics. It contains no document
+bodies. Ordinary turns retain the snapshot; the agent can search for newer or
+omitted knowledge through the memory tools. The index goes to the model provider
+and remains in the private session transcript. Per-user attribution is not a
+privacy boundary; this is shared memory.
+
+Existing knowledge collections are not migrated or deleted automatically. Move
+their relevant facts into built-in memory explicitly if they should appear in
+the index. Other existing collections remain app brains. A collection named
+`memory` that is not the built-in brain must be renamed before startup.
+For the previous layout, move `brains/.memory/` to `brains/memory/` and move
+dynamic app directories into `brains/apps/`. Startup rejects the old layout
+instead of creating empty replacement memory or ignoring old apps. Tool names
+remain unchanged; catalog entries distinguish `kind: memory` from `kind: app`.
+
+Owners can ask Gobotto to create an app, for example: “Create a project notebook
 that anyone can read and contribute to.” The `memory_brain_create` tool accepts a
 name, title, description, JSON Schema, and Markdown instructions. Gobotto builds
 the `MEANS.md` frontmatter; means validates the schema. Invalid arguments can be
@@ -415,12 +447,36 @@ corrected in the same turn when the tool reports `retryable: true` and
 `mutated: false`. After a CLI failure, Gobotto permits correction only if it can
 remove the empty reservation directory, proving no collection files were created.
 Partial writes remain uncertain and block retries.
-`memory_brain_archive` moves a brain into `.archive/` inside the directory;
+`memory_brain_archive` moves an app into `apps/.archive/` inside the brains directory;
 it removes the brain from discovery but retains its files for manual recovery.
 Only owner-only triggering batches receive these lifecycle tools. Each brain can
 have one successful lifecycle change per turn. Uncertain mutations are not retried.
 
-Gobotto discovers immediate child directories with a regular `MEANS.md`, excluding
+Owners can ask Gobotto to change an app brain's schema, for example: “Add
+HIGHEST to the allowed priorities.” `memory_brain_schema_set` installs a complete
+replacement schema after a `memory_info` read in the same turn. This requires a
+means version with `schema set` support (verified with 0.4.2). Means validates the
+schema and existing documents before installation; Gobotto does not expose the
+force option. Documents, title, description, and Markdown guidance are preserved.
+Existing document values are not migrated. Fixed collection schemas cannot be
+changed through this tool. After success, Gobotto must read `memory_info` again
+before document operations. The current schema defines allowed values if the
+unchanged guidance still lists older values; audience rules remain in effect.
+CLI failures block further writes in that turn because their outcome can be
+uncertain. Inspect the current schema before a new request.
+
+Owners can change an app's behavior with `memory_brain_instructions_set`, for
+example: “Always show these tasks as a table with priority and who added them.”
+The tool requires the definition hash from `memory_info` in the current turn and
+a complete, nonempty Markdown body. Gobotto calls `means instructions set` with
+JSON on stdin. Means rejects stale hashes and preserves frontmatter, permissions,
+and documents. Gobotto requires another `memory_info` read after success. The
+same owner-only, fixed-binding, built-in memory, and uncertain-write restrictions
+apply. Use a means binary with `instructions set` and a hash in `info --json`;
+0.4.2 does not provide this command. Check which binary is first on `PATH` if
+multiple versions are installed.
+
+Gobotto discovers immediate child directories of `apps/` with a regular `MEANS.md`, excluding
 hidden directories and symlinks. Names follow the same rules as fixed bindings.
 The current catalog is included in every turn, including new and restored
 sessions. Creation and archival become visible without a restart. Full guidance
@@ -450,8 +506,8 @@ Initialize each collection with means before you start Gobotto. Each path must
 contain `MEANS.md`. Relative paths resolve from the configuration file's directory.
 Names must be unique and use lowercase letters, digits, underscores, or hyphens,
 starting with a letter (maximum 64 characters). Restart to apply configuration
-changes. The `means` executable must be on `PATH` when collections are configured.
-Without collections or a managed directory, Gobotto does not require means.
+changes. The `means` executable must be on `PATH`; built-in memory requires it
+even when no app collections are configured.
 
 Collection metadata comes from `MEANS.md` through `means info`. The catalog reads
 each collection's current title and description. The collection-info tool returns
@@ -468,11 +524,31 @@ and read documents. Authorized turns can create and update documents. Before a
 write, the agent must inspect the collection. Updates require the hash from a
 document read in the same turn; means rejects conflicting changes. Update bodies
 replace the full body, while application data follows means' field-patch rules.
-The agent cannot supply collection paths, change existing schemas, delete
-individual documents, or run shell commands. Creation and archival are limited to
-the managed directory.
+The agent cannot supply collection paths, delete individual documents, or run
+shell commands. App creation, schema changes, and archival are limited to the
+managed directory. App instruction updates use the same boundary.
 
-Search uses full-text matching and returns up to 20 documents. Each command has a
+Search supports full-text queries and structured filters, and returns up to 20
+documents. `memory_search` accepts an optional `filters` object keyed by fields
+directly under document `data`. All conditions use AND; an empty `query` searches
+by filters alone. JSON value types are preserved. Object filters match supplied
+keys recursively, arrays match exactly, and absent fields do not match.
+
+For example, recall for one user uses
+`{"collection":"memory","query":"","filters":{"kind":"user_fact","user_id":"<user ID>"}}`.
+An app query can use `{"status":"open","priority":"highest"}` as its filters.
+Text queries require all words to match; structured field values do not need to
+appear in document titles or bodies.
+
+Optional `after`, `before`, `on_or_after`, and `on_or_before` objects map data
+fields to RFC 3339 timestamps with timezones. The first two comparisons are
+exclusive; the latter two are inclusive. They combine with text and data filters
+using AND. Date-only values, such as a task's `added` date, are not datetime
+filters; use an equality filter for an exact date. Inspect `has_more` before
+treating a result as complete. Filtering uses the local means CLI and does not
+enable semantic search or contact an embedding provider.
+
+Each command has a
 20-second timeout, a 64 KiB output limit, and a 32 KiB tool-argument limit. Large
 results fail instead of being added to the model context. Calls execute one at a
 time. A repeated identical successful write in the same turn returns its receipt.
@@ -609,6 +685,12 @@ their next turn begins the inspection history.
   The model uses that account's login and display name as its identity; Gobotto
   is the software name. Restored sessions receive the current profile before
   their next model turn. Restart the bot after changing its Chatto profile.
+- Each turn resolves the triggering authors' public usernames and display names.
+  Initial thread loads and refreshes after restart also resolve authors from the loaded messages.
+  These profiles are separate from message text and do not change ownership or
+  message-edit fingerprints. Lookup failures leave names unavailable and do not
+  stop the reply. The prompt requires verified `@username` handles for mentions;
+  display names help identify people but do not prove an external identity.
 - Each room/thread pair has one retained session for the connected bot identity.
   A top-level message is its own thread root, including in DMs. Replies in that
   thread reuse its session. Separate top-level messages remain separate threads.
@@ -743,7 +825,10 @@ and its selected model provider receive the triggering message, instructions,
 tool results, and model conversation, including the bot's authenticated account
 ID, login, and display name. The profile is also stored in the private session
 snapshot, but is excluded from operational logs. A thread read can include messages from
-other participants and their Chatto user and message IDs. Do not use private
+other participants and their Chatto user and message IDs. Participant usernames
+and display names are also sent to the model provider and retained in private
+session transcripts, but are excluded from operational logs. Profile lookups
+contact the configured Chatto server only. Do not use private
 conversations unless participants agree to this use.
 Gobotto supplies an explicit text-message projection to the model. SDK attachment
 metadata, signed asset URLs, and creation timestamps are excluded from this

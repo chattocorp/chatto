@@ -25,9 +25,12 @@ targets are unique to each component, including when callers reuse rendered HTML
 
   let {
     html,
+    artifactOwner,
     enhanceLink
   }: {
     html: string;
+    /** Loaded message identity; images and layouts can survive virtualized row remounts. */
+    artifactOwner?: object;
     /** Optional message-owned enhancement; its lifetime follows this rendered HTML. */
     enhanceLink?: Attachment<HTMLAnchorElement>;
   } = $props();
@@ -128,7 +131,7 @@ targets are unique to each component, including when callers reuse rendered HTML
 <div
   class="markdown-html contents"
   {@attach attachMarkdownActions}
-  {@attach attachCodeFrames(html, footnoteScope, showArtifactSource)}
+  {@attach attachCodeFrames(html, footnoteScope, showArtifactSource, artifactOwner)}
   {@attach attachCodeScrollFades(html)}
 >
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- rendered markdown from `$lib/markdown`; see component docs above -->

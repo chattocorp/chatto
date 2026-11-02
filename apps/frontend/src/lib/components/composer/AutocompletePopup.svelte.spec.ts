@@ -21,7 +21,6 @@ function items(...labels: string[]): Item[] {
 
 function renderPopup(props: {
   items: Item[];
-  selectKeys?: string[];
   onSelect?: (item: Item, key: string) => void;
   onClose?: () => void;
 }) {
@@ -32,7 +31,6 @@ function renderPopup(props: {
     props: {
       items: props.items,
       getKey: (i) => i.id,
-      selectKeys: props.selectKeys,
       onSelect: props.onSelect ?? (() => {}),
       onClose: props.onClose ?? (() => {}),
       testid: 'popup',
@@ -113,6 +111,36 @@ describe('AutocompletePopup', () => {
       expect(activeLabel(container)).toBe('a');
     });
 
+    it('Tab cycles every match, wraps, and keeps the draft unchanged', () => {
+      const onSelect = vi.fn();
+      const labels = Array.from({ length: 20 }, (_, index) => `match ${index}`);
+      const { container, component } = renderPopup({ items: items(...labels), onSelect });
+      for (let index = 1; index <= labels.length; index++) {
+        const { ev, handled } = press(component, 'Tab');
+        expect(handled).toBe(true);
+        expect(ev.defaultPrevented).toBe(true);
+        expect(activeLabel(container)).toBe(labels[index % labels.length]);
+      }
+      expect(onSelect).not.toHaveBeenCalled();
+      press(component, 'Tab');
+      press(component, 'Enter');
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ label: labels[1] }),
+        'Enter'
+      );
+    });
+
+    it('Shift+Tab cycles backwards without moving focus', () => {
+      const onSelect = vi.fn();
+      const { container, component } = renderPopup({ items: items('a', 'b', 'c'), onSelect });
+      const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true });
+      expect(component.handleKeyDown(event)).toBe(true);
+      flushSync();
+      expect(event.defaultPrevented).toBe(true);
+      expect(activeLabel(container)).toBe('c');
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
     it('ArrowUp moves to the previous item', () => {
       const { container, component } = renderPopup({ items: items('a', 'b', 'c') });
       press(component, 'ArrowDown'); // -> b
@@ -152,7 +180,7 @@ describe('AutocompletePopup', () => {
   });
 
   describe('selection', () => {
-    it('Enter selects the current item by default', () => {
+    it('Enter selects the current item', () => {
       const onSelect = vi.fn();
       const { component } = renderPopup({ items: items('a', 'b'), onSelect });
       press(component, 'ArrowDown'); // -> b
@@ -161,24 +189,11 @@ describe('AutocompletePopup', () => {
       expect(ev.defaultPrevented).toBe(true);
     });
 
-    it('Tab selects by default and forwards the key used', () => {
+    it('Tab selects a sole match and forwards the key used', () => {
       const onSelect = vi.fn();
       const { component } = renderPopup({ items: items('a'), onSelect });
       press(component, 'Tab');
       expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ label: 'a' }), 'Tab');
-    });
-
-    it('respects custom selectKeys: Tab is ignored when only Enter is configured', () => {
-      const onSelect = vi.fn();
-      const { component } = renderPopup({
-        items: items('a'),
-        selectKeys: ['Enter'],
-        onSelect
-      });
-      const { ev, handled } = press(component, 'Tab');
-      expect(handled).toBe(false);
-      expect(ev.defaultPrevented).toBe(false);
-      expect(onSelect).not.toHaveBeenCalled();
     });
 
     it('clicking an item fires onSelect with the literal "click" key', async () => {

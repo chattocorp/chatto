@@ -12,7 +12,6 @@ import (
 )
 
 func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
-	t.Parallel()
 	for _, replyCount := range []int{0, 2, 60} {
 		t.Run(fmt.Sprintf("replies-%d", replyCount), func(t *testing.T) {
 			timeline := NewRoomTimelineProjection()
@@ -71,8 +70,6 @@ func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
 }
 
 func TestNewRoomModelWiresDependencies(t *testing.T) {
-	t.Parallel()
-
 	directory := NewRoomDirectoryProjection()
 	groupLayout := NewRoomGroupLayoutProjection()
 	timeline := NewRoomTimelineProjection()
@@ -125,8 +122,6 @@ func TestNewRoomModelWiresDependencies(t *testing.T) {
 }
 
 func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	directory := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directory)
@@ -153,8 +148,6 @@ func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
 }
 
 func TestRoomModelWaitForDirectoryAndTimeline(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	directory := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directory)
@@ -184,8 +177,6 @@ func TestRoomModelWaitForDirectoryAndTimeline(t *testing.T) {
 }
 
 func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
@@ -219,8 +210,6 @@ func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
 }
 
 func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
@@ -254,8 +243,6 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
 }
 
 func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
@@ -283,8 +270,6 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
 }
 
 func TestRoomModelWaitForThreads(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
@@ -312,8 +297,6 @@ func TestRoomModelWaitForThreads(t *testing.T) {
 }
 
 func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
@@ -339,8 +322,6 @@ func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
 }
 
 func TestRoomModelWaitForReactions(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
@@ -370,7 +351,6 @@ func TestRoomModelWaitForReactions(t *testing.T) {
 // Catalog reads must work with only their projection owner and return detached
 // values, so a caller cannot change state observed by another service.
 func TestRoomModelCatalogReadsWithoutCore(t *testing.T) {
-	t.Parallel()
 	directory := NewRoomDirectoryProjection()
 	groups := NewRoomGroupLayoutProjection()
 	model := newRoomModel(detachedTestProjectionHandle(directory), detachedTestProjectionHandle(groups), events.ProjectionHandle[*RoomTimelineProjection]{}, events.ProjectionHandle[*ThreadProjection]{}, events.ProjectionHandle[*ReactionProjection]{})

@@ -34,8 +34,6 @@ func limitCompoundBatch(t *testing.T, ctx context.Context, core *ChattoCore, slo
 }
 
 func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
-	t.Parallel()
-
 	for slots := range 5 {
 		t.Run(fmt.Sprint(slots), func(t *testing.T) {
 			core, _ := setupTestCore(t)
@@ -71,8 +69,6 @@ func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
 }
 
 func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
-	t.Parallel()
-
 	for _, scenario := range []string{"omitted-name", "name-collision", "permission-revoked"} {
 		t.Run(scenario, func(t *testing.T) {
 			ns, _ := testutil.StartNATS(t)
@@ -154,8 +150,6 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 }
 
 func TestCompoundReplyEchoDM(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "compound-dm-author", "Author", "password123")
@@ -184,8 +178,6 @@ func TestCompoundReplyEchoDM(t *testing.T) {
 }
 
 func TestCompoundReplyEchoRejectsEveryPartialBatch(t *testing.T) {
-	t.Parallel()
-
 	for _, existingThread := range []bool{false, true} {
 		batchSize := 4 // body, initial thread, reply, echo
 		if existingThread {
@@ -222,8 +214,6 @@ func TestCompoundReplyEchoRejectsEveryPartialBatch(t *testing.T) {
 }
 
 func TestCompoundReplyEchoRetriesAcrossReplicas(t *testing.T) {
-	t.Parallel()
-
 	for _, revoke := range []bool{false, true} {
 		t.Run(fmt.Sprintf("revoke=%t", revoke), func(t *testing.T) {
 			ns, _ := testutil.StartNATS(t)

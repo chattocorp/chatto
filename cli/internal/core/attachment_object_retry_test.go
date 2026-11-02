@@ -14,7 +14,6 @@ import (
 )
 
 func TestPutAttachmentObjectRetries(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		reader := bytes.NewReader([]byte("skip-payload"))
 		_, err := reader.Seek(5, io.SeekStart)
@@ -43,7 +42,6 @@ func TestPutAttachmentObjectRetries(t *testing.T) {
 }
 
 func TestPutAttachmentObjectRetryLimits(t *testing.T) {
-	t.Parallel()
 	for _, tc := range []struct {
 		name     string
 		err      error
@@ -75,7 +73,6 @@ func TestPutAttachmentObjectRetryLimits(t *testing.T) {
 }
 
 func TestPutAttachmentObjectCancellation(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()

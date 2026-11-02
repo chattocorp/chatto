@@ -14,8 +14,6 @@ import (
 )
 
 func TestNewVerificationCode(t *testing.T) {
-	t.Parallel()
-
 	code, err := NewVerificationCode()
 	if err != nil {
 		t.Fatalf("NewVerificationCode: %v", err)
@@ -26,8 +24,6 @@ func TestNewVerificationCode(t *testing.T) {
 }
 
 func TestChattoCore_CreateRegistrationCode(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -60,8 +56,6 @@ func TestChattoCore_CreateRegistrationCode(t *testing.T) {
 }
 
 func TestChattoCore_VerifyRegistrationCode(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -95,8 +89,6 @@ func TestChattoCore_VerifyRegistrationCode(t *testing.T) {
 }
 
 func TestChattoCore_VerifyRegistrationCodeUnknownCode(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -119,8 +111,6 @@ func TestChattoCore_VerifyRegistrationCodeUnknownCode(t *testing.T) {
 }
 
 func TestChattoCore_VerifyRegistrationCodeInvalidAttemptsExhaust(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -152,8 +142,6 @@ func TestChattoCore_VerifyRegistrationCodeInvalidAttemptsExhaust(t *testing.T) {
 }
 
 func TestChattoCore_VerifyRegistrationCodeConcurrentValidCodeConsumesOnce(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -190,8 +178,6 @@ func TestChattoCore_VerifyRegistrationCodeConcurrentValidCodeConsumesOnce(t *tes
 }
 
 func TestChattoCore_RegistrationCodeMultipleRequestsRemainValidUntilSuccess(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -213,8 +199,6 @@ func TestChattoCore_RegistrationCodeMultipleRequestsRemainValidUntilSuccess(t *t
 }
 
 func TestChattoCore_RegistrationCodeActiveLimit(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -229,8 +213,6 @@ func TestChattoCore_RegistrationCodeActiveLimit(t *testing.T) {
 }
 
 func TestChattoCore_RegistrationCodeUsesConfiguredOTPThrottle(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	core.config.EmailOTP = config.EmailOTPConfig{
 		MaxDeliveredCodes: 2,
@@ -262,8 +244,6 @@ func TestChattoCore_RegistrationCodeUsesConfiguredOTPThrottle(t *testing.T) {
 }
 
 func TestChattoCore_RegistrationCodeCanDisableOTPThrottle(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	disabled := false
 	core.config.EmailOTP = config.EmailOTPConfig{
@@ -298,8 +278,6 @@ func TestChattoCore_RegistrationCodeCanDisableOTPThrottle(t *testing.T) {
 }
 
 func TestChattoCore_RegistrationCompletionToken(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

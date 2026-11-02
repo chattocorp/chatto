@@ -13,7 +13,6 @@ import (
 type testKind struct{}
 
 func TestConcurrentTableRejectsHandleOverflow(t *testing.T) {
-	t.Parallel()
 	table := NewConcurrentTable[testKind]()
 	handle := table.Intern("existing")
 	// Simulate exhaustion without allocating billions of entries.
@@ -39,7 +38,6 @@ func TestConcurrentTableRejectsHandleOverflow(t *testing.T) {
 }
 
 func TestConcurrentTableRejectsOversizedID(t *testing.T) {
-	t.Parallel()
 	table := NewConcurrentTable[testKind]()
 	handle := table.Intern("existing")
 	func() {
@@ -59,8 +57,6 @@ func TestConcurrentTableRejectsOversizedID(t *testing.T) {
 }
 
 func TestConcurrentTable_InternsDenseHandles(t *testing.T) {
-	t.Parallel()
-
 	table := NewConcurrentTable[testKind]()
 	if got := table.Intern(""); got != 0 {
 		t.Fatalf("intern empty = %d, want 0", got)
@@ -91,8 +87,6 @@ func TestConcurrentTable_InternsDenseHandles(t *testing.T) {
 }
 
 func TestConcurrentTable_ResolvesHashCollisions(t *testing.T) {
-	t.Parallel()
-
 	table := NewConcurrentTable[testKind]()
 	first := table.Intern("E1")
 	// Point the hash of E2 at E1 to simulate a 64-bit hash collision.
@@ -122,8 +116,6 @@ func TestConcurrentTable_ResolvesHashCollisions(t *testing.T) {
 }
 
 func TestConcurrentTable_KeepsIDsAcrossArenaChunks(t *testing.T) {
-	t.Parallel()
-
 	table := NewConcurrentTable[testKind]()
 	long := strings.Repeat("L", arenaMaxChunkBytes/4+1)
 	ids := make([]string, 0, 20_002)
@@ -159,8 +151,6 @@ func TestConcurrentTable_KeepsIDsAcrossArenaChunks(t *testing.T) {
 }
 
 func TestConcurrentTable_ConcurrentInternAndRead(t *testing.T) {
-	t.Parallel()
-
 	table := NewConcurrentTable[testKind]()
 	var wg sync.WaitGroup
 	for writer := range 4 {
@@ -188,8 +178,6 @@ func TestConcurrentTable_ConcurrentInternAndRead(t *testing.T) {
 }
 
 func TestConcurrentTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
-	t.Parallel()
-
 	table := NewConcurrentTable[testKind]()
 	const workers, ids = 8, 2_000
 	results := make([][]ID[testKind], workers)
@@ -225,8 +213,6 @@ func TestConcurrentTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) 
 // goroutines published while writers add location pages and arena chunks. It
 // models components that apply and read under different locks.
 func TestConcurrentTable_ReadsPublishedHandlesDuringGrowth(t *testing.T) {
-	t.Parallel()
-
 	table := NewConcurrentTable[testKind]()
 	const writers, perWriter = 4, 3 * locationPageSize
 	var published sync.Map

@@ -1,5 +1,6 @@
 /** DOM-owned Mermaid previews: lazy worker loading, image isolation and theme updates. */
 import { diagramDepth } from './depth';
+import { getMermaidLayout, rememberMermaidLayout } from './cache';
 
 const themeTokens: Record<string, string> = {
   bg: 'background',
@@ -79,16 +80,28 @@ function imageDescription(source: string): string {
   return [title, description].filter(Boolean).join('. ') || source;
 }
 
-/** Render into an isolated image; the caller owns tab state and failure handling. */
+/**
+ * Render into an isolated image; the caller owns tab state and failure handling.
+ * An optional loaded message owner retains successful layouts across row remounts.
+ * Each caller owns its image and theme listeners, disposed with its signal.
+ * A detached loaded image can be reused without restarting image decoding.
+ */
 export async function createMermaidPreview(
   source: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  owner?: object,
+  retainedImage?: HTMLImageElement
 ): Promise<HTMLImageElement | null> {
-  const { requestMermaid } = await import('./queue');
   if (signal.aborted) return null;
-  const svg = await requestMermaid(source, signal);
+  let svg = owner && getMermaidLayout(owner, source);
+  if (!svg) {
+    const { requestMermaid } = await import('./queue');
+    if (signal.aborted) return null;
+    svg = (await requestMermaid(source, signal)) ?? undefined;
+    if (svg && owner && !signal.aborted) rememberMermaidLayout(owner, source, svg);
+  }
   if (!svg || signal.aborted) return null;
-  const image = new Image();
+  const image = retainedImage ?? new Image();
   image.className = 'markdown-mermaid-preview';
   image.alt = imageDescription(source);
   image.decoding = 'async';
@@ -98,7 +111,8 @@ export async function createMermaidPreview(
     if (updated === palette) return;
     palette = updated;
     const themed = svg.replace(/(<svg\b[^>]*>)/u, `$1${palette}`);
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(themed)}`;
+    const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(themed)}`;
+    if (image.src !== url) image.src = url;
   };
   const observer = new MutationObserver(updateTheme);
   observer.observe(document.documentElement, {

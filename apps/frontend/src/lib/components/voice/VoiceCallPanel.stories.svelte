@@ -119,7 +119,7 @@
   </div>
 </Story>
 
-<Story name="Screen share with equal voice columns" asChild>
+<Story name="Screen share with voice participants" asChild>
   <div
     class="flex h-[720px] w-[500px] overflow-hidden rounded-md border border-border bg-background"
   >

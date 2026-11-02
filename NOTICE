@@ -34,6 +34,7 @@ ChattoBot:
 
 Server and CLI Go Components:
 
+- Brotli for Go (https://github.com/andybalholm/brotli) - MIT License
 - Masterminds semver (https://github.com/Masterminds/semver) - MIT License
 - age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
@@ -99,6 +100,8 @@ Server and CLI Go Components:
   and protobuf (https://go.googlesource.com/) - BSD 3-Clause License
 
 Frontend, Examples, and Documentation Components:
+
+- DOMPurify (https://github.com/cure53/DOMPurify) - Apache License 2.0
 
 - xterm.js headless terminal (https://github.com/xtermjs/xterm.js) - MIT License
 - Pele Mermaid renderer (https://github.com/obsidianmd/pele) - MIT License

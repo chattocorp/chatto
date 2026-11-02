@@ -405,15 +405,14 @@ test.describe('Composer links', () => {
       );
     }, url);
 
-    const link = roomPage.messageInput.locator('.url-link');
-    await expect(link).toHaveText('www.spiegel.de');
+    const link = roomPage.messageInput.locator('a');
+    await expect(link).toHaveText(url);
     await expect(link).toHaveAttribute('href', url);
-    await expect(link).toHaveAttribute('title', url);
+    await expect(roomPage.messageInput.locator('.composer-entity-preview')).toHaveCount(0);
 
     await roomPage.messageInput.pressSequentially(' after');
 
-    await expect(link).toHaveText('www.spiegel.de');
-    await expect(roomPage.messageInput.locator('a:not(.url-link)')).toHaveText(url);
+    await expect(link).toHaveText(url);
     await expect(roomPage.messageInput).toContainText(' after');
     await roomPage.messageInput.press('Control+Enter');
     const posted = page

@@ -1,11 +1,14 @@
-<!-- @component A web-link preview with an optional authored label; automatic URLs use entity or URL pills. Never discovers targets. -->
+<!-- @component A link with an optional authored label. Known Chatto entities use pills; other URLs use stable text. Never discovers targets. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/client';
-  import { parseEntityLink, parseMessageLink } from '$lib/chatLinks';
+  import {
+    hasEntityLinkData,
+    parseEntityLink,
+    parseMessageLink,
+    resolveChatRoute
+  } from '$lib/chatLinks';
   import MessageLink from './MessageLink.svelte';
-  import { serverIdToSegment } from '$lib/navigation';
   import { conversationPath, userPath } from '$lib/navigation/conversationPath';
   import { serverDisplayName } from '@chatto/client/server/state';
   import EntityLinkPill from './EntityLinkPill.svelte';
@@ -13,11 +16,7 @@
   import LinkHover from './LinkHover.svelte';
   import { hasServerScope, useServerScope } from '$lib/state/server/scope.svelte';
 
-  let {
-    href,
-    children: authoredLabel,
-    loadWhenVisible = true
-  }: { href: string; children?: Snippet; loadWhenVisible?: boolean } = $props();
+  let { href, children: authoredLabel }: { href: string; children?: Snippet } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
   const target = $derived(parseEntityLink(href));
   const message = $derived(target ? null : parseMessageLink(href));
@@ -35,7 +34,7 @@
       ? store?.roomList.rooms.find((room) => room.id === target.id)
       : undefined
   );
-  const known = $derived(!!target && !!server && (target.kind === 'server' || !!room || !!user));
+  const known = $derived(!!target && hasEntityLinkData(target));
   const name = $derived(
     user
       ? user.displayName || user.login
@@ -46,13 +45,13 @@
           : serverName
   );
   const path = $derived(
-    target
-      ? target.kind === 'user'
+    target?.kind === 'room'
+      ? conversationPath(target.serverId, target.id)
+      : target?.kind === 'user'
         ? userPath(target.serverId, target.id)
-        : target.kind === 'room'
-          ? conversationPath(target.serverId, target.id)
-          : resolve('/chat/[serverId]', { serverId: serverIdToSegment(target.serverId) })
-      : null
+        : target
+          ? resolveChatRoute(href)
+          : null
   );
 </script>
 
@@ -61,7 +60,6 @@
 {:else}
   <LinkHover
     {href}
-    loadWhenVisible={loadWhenVisible && !authoredLabel}
     local={target && server
       ? {
           kind: target.kind,
@@ -86,7 +84,7 @@
         }
       : undefined}
   >
-    {#snippet children(pageTitle, loading, sheetPreview)}
+    {#snippet children(sheetPreview)}
       {#if authoredLabel}
         {@render authoredLabel()}
       {:else if known && target && path}
@@ -108,7 +106,7 @@
           />
         {/key}
       {:else}
-        <UrlLink {href} title={pageTitle} {loading} />
+        <UrlLink {href} />
       {/if}
     {/snippet}
   </LinkHover>

@@ -42,13 +42,14 @@
     { name: 'Square', width: 500, height: 500 },
     { name: 'Very wide', width: 4000, height: 100 },
     { name: 'Very tall', width: 100, height: 4000 },
-    { name: 'Small', width: 100, height: 60 }
+    { name: 'Small SVG enlarged', width: 100, height: 60 }
   ].map(({ name, width, height }) => ({
     name,
     html: renderMarkdown(
       `\u0060\u0060\u0060svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#164e63"/><circle cx="${width / 2}" cy="${height / 2}" r="${Math.min(width, height) * 0.3}" fill="#67e8f9"/></svg>\n\u0060\u0060\u0060`
     )
   }));
+  const smallMermaidHtml = renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```');
 </script>
 
 <Story name="Code and visual intent" {parameters} asChild>
@@ -82,6 +83,8 @@
       <p>{example.name}</p>
       {#await example.html then value}<MarkdownHtml html={value} />{/await}
     {/each}
+    <p>Small Mermaid diagram enlarged</p>
+    {#await smallMermaidHtml then value}<MarkdownHtml html={value} />{/await}
   </div>
   {#if modal}
     <RenderedImageViewerModal {modal} onclose={() => (modal = undefined)} />

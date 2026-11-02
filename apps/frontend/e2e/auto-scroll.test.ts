@@ -361,10 +361,11 @@ test.describe('Message pane auto-scroll', () => {
         // Verify the new messages indicator is NOT visible initially
         await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
 
-        // User 2 adds a reaction to message 20
+        // Use an emoji without skin-tone choices: this test checks scrolling,
+        // not the picker qualification flow.
         const message2 = roomPage2.getMessage(`Message 20 - ${timestamp}`);
-        await message2.react('👍');
-        await message2.expectReaction('👍', 1);
+        await message2.react('🎉');
+        await message2.expectReaction('🎉', 1);
 
         // The new messages indicator should NOT appear for reactions.
         // Use toPass() to give the WebSocket event time to propagate, then verify absence.

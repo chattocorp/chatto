@@ -379,11 +379,10 @@ even when the stable hostnames differ.
 Run `mise test-dev-tooling` to check environment defaults, disabled NATS
 listeners, cleanup after failure, route ownership, and real Traefik routing.
 The routing test checks that changes to another route preserve a WebSocket,
-that proxy restarts restore routes, and that unknown or removed hosts return
-404. The lifecycle test runs the real mise task graph with test listeners. It
+that proxy restarts restore routes, and that unknown or removed hosts return 404. The lifecycle test runs the real mise task graph with test listeners. It
 checks that one stop closes all listeners and removes routes and runtime state
-within Paseo's shutdown deadline. This task also runs in CI and as part of
-`mise test`.
+within Paseo's shutdown deadline. These tests also run through
+`mise test-repo-tooling` in CI and as part of `mise test`.
 
 Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
 removed on normal stop. Each service receives its own current port from Paseo;
@@ -454,6 +453,29 @@ Prettier uses the nearest configuration file. The frontend keeps its Svelte and
 Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
 
+Pull requests check formatting only in files changed since the merge base with
+the target branch. To run the same check locally, use:
+
+```sh
+mise x -- pnpm format:changed
+mise x -- pnpm format:changed -- origin/release-0.5
+```
+
+The default base is `origin/main`. Fetch the base branch first. The local check
+includes staged and unstaged changes to tracked files; stage new files to include
+them. It uses the nearest Prettier configuration and the root `.prettierignore`.
+Deleted files, symlinks, and file types that Prettier does not support are skipped.
+The check does not change files. A formatting-configuration change does not cause
+a full-repository check.
+
+To check for unused files, dependencies, and duplicate exports in the root pnpm
+workspace, run `mise knip`. CI runs the same check. `knip.jsonc` records entry
+points that tools load by path and explains exceptions for external commands
+and dynamic dependencies. Check references before removing a reported file.
+Unused export and type checks remain disabled because libraries expose APIs
+to consumers outside this repository. Authling has a separate workspace and
+is not included in this check.
+
 `mise dev` and `mise dev-full` use Conductor's allocated port block and fall
 back to base port `4000` outside Conductor. Paseo's **dev** service overrides
 Chatto's port and public URL and disables the NATS TCP listener, as described
@@ -465,6 +487,21 @@ Pass explicit CLI arguments after the task name, for example
 `mise chatto version`.
 
 ### Local Chatto Data
+
+Stop development servers and builds before running `mise clean`. It removes
+Chatto binaries, release output, embedded frontend copies, frontend and Storybook
+builds, E2E binaries, docs output, mobile web copies, and the root workspace
+packages' build output. It also removes generated SvelteKit and Astro state
+and the frontend build-completion marker. The next build recreates these files
+or restores them from the build cache.
+
+The task preserves development data, backups, environment files, generated
+source committed to Git, test reports, dependency and Turbo caches, and native
+Swift/Xcode build caches. It preserves the rest of `.context/`, including mobile
+native builds.
+Authling is separate: run `mise clean` from `authling/` to remove its binaries,
+browser assets, and generated E2E files. Neither clean task resets application
+data.
 
 `cli/chatto.toml` is the development configuration of `mise dev`,
 `mise dev-full`, and `mise chatto`. The `chatto` task sets the values that
@@ -501,6 +538,19 @@ only while the Runling bot of `mise dev-full` runs.
 | `bob`   | `bob@example.com`   | `foobar123` | user  |
 
 Use `alice` when you need server administration access.
+
+## Repository Tooling Tests
+
+Run `mise test-repo-tooling` to test repository checks, release policy,
+build-output cleanup, development launchers, interchange schemas, and Slack
+import tooling. The task installs workspace dependencies and discovers
+`tools/*.test.mjs` files automatically. It runs Node test files one at a time,
+then runs the launcher shell test and the Python suites through
+`mise test-interchange` and `mise test-slack`.
+
+CI and `mise test` use this same task. Add new Node tooling tests as
+`tools/<name>.test.mjs` so both commands include them. The focused tasks, such
+as `mise test-dev-tooling` and `mise test-clean`, remain available.
 
 ## Synthetic Test Data
 

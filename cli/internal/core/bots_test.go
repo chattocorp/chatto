@@ -12,8 +12,6 @@ import (
 )
 
 func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
-	t.Parallel()
-
 	botID := NewUserID()
 	key, err := NewBotAPIKey(botID)
 	if err != nil {
@@ -34,8 +32,6 @@ func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
 }
 
 func TestBotIncomingWebhookCredentialFormatIsCompact(t *testing.T) {
-	t.Parallel()
-
 	botID := NewUserID()
 	webhookID := NewBotIncomingWebhookID()
 	credential, err := NewBotIncomingWebhookCredentialForID(botID, webhookID)
@@ -59,8 +55,6 @@ func TestBotIncomingWebhookCredentialFormatIsCompact(t *testing.T) {
 }
 
 func TestParseBotAPIKeyRejectsNonCanonicalUserIDs(t *testing.T) {
-	t.Parallel()
-
 	encodedSecret := base64.RawURLEncoding.EncodeToString(make([]byte, botAPIKeySecretBytes))
 	for _, botID := range []string{
 		"*",
@@ -78,8 +72,6 @@ func TestParseBotAPIKeyRejectsNonCanonicalUserIDs(t *testing.T) {
 }
 
 func TestUserAuthProjectionReplaysHistoricalSoleBotAPIKeyEvents(t *testing.T) {
-	t.Parallel()
-
 	projection := newUserAuthProjection()
 	userID := NewUserID()
 	if err := projection.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountCreated{
@@ -116,8 +108,6 @@ func TestUserAuthProjectionReplaysHistoricalSoleBotAPIKeyEvents(t *testing.T) {
 }
 
 func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "bot-owner", "Bot Owner", "password123")
@@ -191,8 +181,6 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 }
 
 func TestBotAPIKeysAreNamedAndIndependentlyRevocable(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "multi-key-owner", "Multi-key Owner", "password123")
@@ -292,8 +280,6 @@ func TestBotAPIKeysAreNamedAndIndependentlyRevocable(t *testing.T) {
 }
 
 func TestBotAPIKeyLimitAndNameValidation(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "key-limit-owner", "Key-limit Owner", "password123")
@@ -319,8 +305,6 @@ func TestBotAPIKeyLimitAndNameValidation(t *testing.T) {
 }
 
 func TestConcurrentBotAPIKeyCreationCannotExceedActiveLimit(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "api-key-create-race-owner", "API-key Create Race Owner", "password123")
@@ -371,8 +355,6 @@ func TestConcurrentBotAPIKeyCreationCannotExceedActiveLimit(t *testing.T) {
 }
 
 func TestBotIncomingWebhookCredentialsAreIndependentFromEachOtherAndAPIKey(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-owner", "Webhook Owner", "password123")
@@ -437,8 +419,6 @@ func TestBotIncomingWebhookCredentialsAreIndependentFromEachOtherAndAPIKey(t *te
 }
 
 func TestBotIncomingWebhookActiveLimit(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-limit-owner", "Webhook Limit Owner", "password123")
@@ -461,8 +441,6 @@ func TestBotIncomingWebhookActiveLimit(t *testing.T) {
 }
 
 func TestConcurrentBotIncomingWebhookCreationCannotExceedActiveLimit(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-create-race-owner", "Webhook Create Race Owner", "password123")
@@ -513,8 +491,6 @@ func TestConcurrentBotIncomingWebhookCreationCannotExceedActiveLimit(t *testing.
 }
 
 func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "reassign-owner", "Reassign Owner", "password123")
@@ -601,8 +577,6 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 }
 
 func TestConcurrentBotOwnerReassignmentsConvergeWithoutStaleIndexes(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "concurrent-owner", "Concurrent Owner", "password123")
@@ -670,8 +644,6 @@ func TestConcurrentBotOwnerReassignmentsConvergeWithoutStaleIndexes(t *testing.T
 }
 
 func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range []struct {
 		name           string
 		deletePrevious bool
@@ -740,8 +712,6 @@ func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
 }
 
 func TestGenericAdminMutationsRejectBotAccounts(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "admin-boundary-owner", "Admin Boundary Owner", "password123")
@@ -781,8 +751,6 @@ func TestGenericAdminMutationsRejectBotAccounts(t *testing.T) {
 }
 
 func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "permission-owner", "Permission Owner", "password123")
@@ -873,8 +841,6 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 }
 
 func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name            string
 		slug            string
@@ -949,8 +915,6 @@ func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
 }
 
 func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "dm-bot-owner", "DM Bot Owner", "password123")
@@ -1018,8 +982,6 @@ func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 }
 
 func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "activation-owner", "Activation Owner", "password123")
@@ -1085,8 +1047,6 @@ func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
 }
 
 func TestBotReplyToAuthoredMessageActivatesBot(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "reply-activation-owner", "Reply Activation Owner", "password123")
@@ -1126,8 +1086,6 @@ func TestBotReplyToAuthoredMessageActivatesBot(t *testing.T) {
 }
 
 func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "muted-activation-owner", "Muted Activation Owner", "password123")
@@ -1169,8 +1127,6 @@ func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
 }
 
 func TestBotStartDMUsesNormalPermissions(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "dm-start-owner", "DM Start Owner", "password123")
@@ -1278,8 +1234,6 @@ func TestBotStartDMUsesNormalPermissions(t *testing.T) {
 }
 
 func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "canonical-owner", "Canonical Owner", "password123")
@@ -1331,8 +1285,6 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 }
 
 func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "matrix-owner", "Matrix Owner", "password123")
@@ -1414,8 +1366,6 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 }
 
 func TestSetUserPermissionRejectsNonexistentBotScopesWithoutPersisting(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "scope-owner", "Scope Owner", "password123")
@@ -1454,8 +1404,6 @@ func TestSetUserPermissionRejectsNonexistentBotScopesWithoutPersisting(t *testin
 }
 
 func TestSetUserPermissionUsesCurrentRoomGroupForBotOwnerCeiling(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "moving-room-owner", "Moving Room Owner", "password123")
@@ -1496,8 +1444,6 @@ func TestSetUserPermissionUsesCurrentRoomGroupForBotOwnerCeiling(t *testing.T) {
 }
 
 func TestDeletingOwnerCascadesOwnedBots(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "cascade-owner", "Cascade Owner", "password123")
@@ -1525,8 +1471,6 @@ func TestDeletingOwnerCascadesOwnedBots(t *testing.T) {
 }
 
 func TestHumanAndBotUsernamesShareValidation(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	human, err := c.CreateUser(ctx, SystemActorID, "human_bot", "Human", "password123")
@@ -1559,8 +1503,6 @@ func TestHumanAndBotUsernamesShareValidation(t *testing.T) {
 }
 
 func TestBotOwnerUpdatesBotProfile(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "profile-bot-owner", "Profile Bot Owner", "password123")
@@ -1658,8 +1600,6 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 // Fresh servers grant bot.create to admin only. Ordinary members need an
 // explicit grant before they can create bots.
 func TestBotCreationDefaultsToAdmins(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	member, err := c.CreateUser(ctx, SystemActorID, "plain-member", "Member", "password123")

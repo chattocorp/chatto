@@ -1,4 +1,5 @@
 import { signal } from '../reactivity/index.js';
+import { Code, ConnectError } from '../api/connect.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { describe, expect, it, vi } from 'vitest';
@@ -79,6 +80,52 @@ function createStore(
 }
 
 describe('RoomMembersStore', () => {
+  it.each([Code.Unavailable, Code.PermissionDenied, Code.NotFound])(
+    'retains refreshed mentions only for transient failures: %s',
+    async (code) => {
+      const api = new FakeMemberDirectoryAPI([pageResult([user('alice')])]);
+      const store = new RoomMembersStore('room', api);
+      store.retainMentions(['alice']);
+      await vi.waitFor(() => expect(store.mentionMembers).toHaveLength(1));
+      vi.mocked(api.listRoomMembers).mockRejectedValueOnce(new ConnectError('failed', code));
+      store.refreshMentions('recovery');
+      expect(store.mentionMembers).toHaveLength(1);
+      await vi.waitFor(() =>
+        expect(vi.mocked(api.listRoomMembers).mock.settledResults[1]?.type).toBe('rejected')
+      );
+      // Wait for the lookup's completion handler, not only the API call.
+      await vi.waitFor(() => {
+        if (code !== Code.Unavailable) expect(store.mentionMembers).toEqual([]);
+        else expect(store.mentionMembers).toHaveLength(1);
+      });
+      store.dispose();
+    }
+  );
+
+  it('resolves a previously missing handle after a matching profile arrives', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([]), pageResult([user('alice')])]);
+    const store = new RoomMembersStore('room', api);
+    store.retainMentions(['alice']);
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveResolved());
+    store.updateUsers([user('alice')]);
+    await vi.waitFor(() => expect(store.mentionMembers).toHaveLength(1));
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(2);
+    store.dispose();
+  });
+
+  it('keeps resolved mentions when unchanged or unrelated profiles arrive', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('alice')])]);
+    const store = new RoomMembersStore('room', api);
+    store.retainMentions(['alice']);
+    await vi.waitFor(() => expect(store.mentionMembers).toHaveLength(1));
+
+    store.updateUsers([user('alice'), user('bob')]);
+    expect(store.mentionMembers.map((member) => member.id)).toEqual(['alice']);
+    await Promise.resolve();
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
+    store.dispose();
+  });
+
   it('does not resolve a departed member from an older page', async () => {
     const api = new FakeMemberDirectoryAPI([pageResult([user('alice')])]);
     const store = new RoomMembersStore('room', api);

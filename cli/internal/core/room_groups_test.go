@@ -43,8 +43,6 @@ func groupIDOfTestGroupEvent(t *testing.T, event *evtv1.Event) string {
 }
 
 func TestCreateRoomGroup(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -99,8 +97,6 @@ func TestCreateRoomGroup(t *testing.T) {
 }
 
 func TestCreateRoomGroup_TrimsName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -114,8 +110,6 @@ func TestCreateRoomGroup_TrimsName(t *testing.T) {
 }
 
 func TestCreateRoomGroup_EmptyNameRejected(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -128,8 +122,6 @@ func TestCreateRoomGroup_EmptyNameRejected(t *testing.T) {
 }
 
 func TestRoomGroupMetadataLengthLimits(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -169,8 +161,6 @@ func TestRoomGroupMetadataLengthLimits(t *testing.T) {
 }
 
 func TestUpdateRoomGroup(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -188,8 +178,6 @@ func TestUpdateRoomGroup(t *testing.T) {
 }
 
 func TestUpdateRoomGroupFieldsPreservesOmittedConcurrentField(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -211,8 +199,6 @@ func TestUpdateRoomGroupFieldsPreservesOmittedConcurrentField(t *testing.T) {
 }
 
 func TestUpdateRoomGroup_NotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -223,8 +209,6 @@ func TestUpdateRoomGroup_NotFound(t *testing.T) {
 }
 
 func TestGetRoomGroup(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -239,8 +223,6 @@ func TestGetRoomGroup(t *testing.T) {
 }
 
 func TestGetRoomGroup_NotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -251,8 +233,6 @@ func TestGetRoomGroup_NotFound(t *testing.T) {
 }
 
 func TestDeleteRoomGroup_Empty(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -286,8 +266,6 @@ func TestDeleteRoomGroup_Empty(t *testing.T) {
 }
 
 func TestDeleteRoomGroup_RejectsNonEmpty(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -304,8 +282,6 @@ func TestDeleteRoomGroup_RejectsNonEmpty(t *testing.T) {
 }
 
 func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
-	t.Parallel()
-
 	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -345,8 +321,6 @@ func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
 // TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound pins the error for a
 // move of a deleted room. connectapi maps it to Connect NotFound.
 func TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	target, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Target", "")
@@ -368,8 +342,6 @@ func TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound(t *testing.T) {
 }
 
 func TestMoveRoomAndDeleteRoomCannotLeaveStaleGroupMembership(t *testing.T) {
-	t.Parallel()
-
 	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -409,8 +381,6 @@ func TestMoveRoomAndDeleteRoomCannotLeaveStaleGroupMembership(t *testing.T) {
 }
 
 func TestMoveRoomToSet(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -443,8 +413,6 @@ func TestMoveRoomToSet(t *testing.T) {
 }
 
 func TestMoveRoomToSet_TargetNotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -456,8 +424,6 @@ func TestMoveRoomToSet_TargetNotFound(t *testing.T) {
 }
 
 func TestMoveRoomToSet_FromSourceRejectsChangedSource(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -489,8 +455,6 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSource(t *testing.T) {
 }
 
 func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
@@ -551,8 +515,6 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 }
 
 func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
@@ -599,8 +561,6 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 }
 
 func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
@@ -665,8 +625,6 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 }
 
 func TestMoveRoomToSet_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -687,8 +645,6 @@ func TestMoveRoomToSet_Idempotent(t *testing.T) {
 }
 
 func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -740,8 +696,6 @@ func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
 }
 
 func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -803,8 +757,6 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 }
 
 func TestSidebarLinkURLsAcceptAbsoluteHTTPAndServerLocalPaths(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range []struct {
 		name       string
 		createURL  string
@@ -855,8 +807,6 @@ func TestSidebarLinkURLsAcceptAbsoluteHTTPAndServerLocalPaths(t *testing.T) {
 }
 
 func TestSidebarLinkURLsRejectUnsafeOrMalformedTargets(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	group, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Links", "")
@@ -897,8 +847,6 @@ func TestSidebarLinkURLsRejectUnsafeOrMalformedTargets(t *testing.T) {
 }
 
 func TestMoveSidebarLinkToGroup(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -924,8 +872,6 @@ func TestMoveSidebarLinkToGroup(t *testing.T) {
 }
 
 func TestSidebarLinkCreateAndGroupDeleteDoNotBothWin(t *testing.T) {
-	t.Parallel()
-
 	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -963,8 +909,6 @@ func TestSidebarLinkCreateAndGroupDeleteDoNotBothWin(t *testing.T) {
 }
 
 func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1034,8 +978,6 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 }
 
 func TestReorderRoomGroups(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1064,8 +1006,6 @@ func TestReorderRoomGroups(t *testing.T) {
 }
 
 func TestReorderRoomGroups_RejectsIncompleteList(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1080,8 +1020,6 @@ func TestReorderRoomGroups_RejectsIncompleteList(t *testing.T) {
 }
 
 func TestSeedSetIncludesPreExistingRooms(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1128,8 +1066,6 @@ func TestSeedSetIncludesPreExistingRooms(t *testing.T) {
 }
 
 func TestReorderRoomGroups_RejectsUnknownID(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1143,8 +1079,6 @@ func TestReorderRoomGroups_RejectsUnknownID(t *testing.T) {
 }
 
 func TestReorderRoomsInGroupPersistsOrder(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1170,8 +1104,6 @@ func TestReorderRoomsInGroupPersistsOrder(t *testing.T) {
 }
 
 func TestReorderRoomsInGroupRejectsSetMismatch(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

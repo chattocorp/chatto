@@ -1,20 +1,12 @@
-import type { RoomMember } from '$lib/state/room';
 import { searchEmojis, type EmojiResult } from '$lib/emoji';
 import { emojiShortcodeQuery } from '@chatto/client/messaging/emojiShortcodes';
 import type { ComposerEditorApi } from './editorTypes';
-import { rankMentionCandidates } from './mentionRanking';
 
 export type MentionRole = {
   name: string;
   isSystem?: boolean;
   position?: number;
   pingable?: boolean;
-};
-
-type TabCompletionState = {
-  candidates: string[];
-  index: number;
-  triggerStart: number;
 };
 
 /** Query text and the position of its trigger in the editor. */
@@ -24,7 +16,6 @@ type AutocompleteQuery = {
 };
 
 export class AutocompleteState {
-  tabCompletion = $state<TabCompletionState | null>(null);
   /** The same matches control popup visibility and populate its list. */
   emoji = $state.raw<(AutocompleteQuery & { results: EmojiResult[] }) | null>(null);
   emojiRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
@@ -36,10 +27,6 @@ export class AutocompleteState {
 
   constructor(
     private readonly getEditorApi: () => ComposerEditorApi | null,
-    private readonly getMembers: () => RoomMember[],
-    private readonly getRoles: () => MentionRole[] = () => [],
-    /** Users that rank first among matches, such as thread participants. */
-    private readonly getPrioritizedUserIds?: () => ReadonlySet<string> | undefined,
     private readonly options: { openOnAt?: boolean; emojis?: boolean; rooms?: boolean } = {}
   ) {}
 
@@ -47,7 +34,6 @@ export class AutocompleteState {
     this.emoji = null;
     this.mention = null;
     this.room = null;
-    this.tabCompletion = null;
   }
 
   resetForRoom(): void {
@@ -64,12 +50,11 @@ export class AutocompleteState {
     this.room = null;
   }
 
-  /** Pointer selection adds a space; Enter and Tab insert only the URL. */
-  selectRoom(url: string, key: string): void {
+  /** Insert the selected room URL with a trailing space. */
+  selectRoom(url: string): void {
     if (!this.room) return;
-    this.applyCompletion(url, this.room.triggerStart, completionSuffix(key));
+    this.applyCompletion(url, this.room.triggerStart);
     this.room = null;
-    this.tabCompletion = null;
   }
 
   private updateRoom(): void {
@@ -96,76 +81,19 @@ export class AutocompleteState {
     this.mention = null;
   }
 
-  selectEmoji(emoji: string, key: string): void {
+  /** Insert the selected emoji with a trailing space and close its suggestions. */
+  selectEmoji(emoji: string): void {
     if (!this.emoji) return;
-    this.applyCompletion(emoji, this.emoji.triggerStart, completionSuffix(key));
+    this.applyCompletion(emoji, this.emoji.triggerStart);
     this.emoji = null;
   }
 
-  selectMention(handle: string, key: string): void {
+  /** Insert the selected @handle with a trailing space and close its suggestions. */
+  selectMention(handle: string): void {
     if (!this.mention) return;
 
-    const triggerStart = this.mention.triggerStart;
-    const originalPartial = this.mention.query;
-
-    this.applyCompletion('@' + handle, triggerStart, completionSuffix(key));
+    this.applyCompletion('@' + handle, this.mention.triggerStart);
     this.mention = null;
-
-    this.tabCompletion = null;
-    if (key !== 'Tab') return;
-
-    const candidates = this.findMatchingMentions(originalPartial);
-    if (candidates.length > 1) {
-      const selectedIdx = candidates.indexOf(handle);
-      this.tabCompletion = {
-        candidates,
-        index: selectedIdx >= 0 ? selectedIdx : 0,
-        triggerStart
-      };
-    }
-  }
-
-  handleTabCompletion(event: KeyboardEvent): boolean {
-    const editorApi = this.getEditorApi();
-    if (!editorApi) return false;
-
-    if (this.tabCompletion && this.tabCompletion.candidates.length > 1) {
-      const currentHandle = this.tabCompletion.candidates[this.tabCompletion.index];
-      const expectedCursorPos = this.tabCompletion.triggerStart + 1 + currentHandle.length;
-      const currentPos = editorApi.getTextBeforeCursor().length;
-
-      if (currentPos === expectedCursorPos) {
-        event.preventDefault();
-        const nextIndex = (this.tabCompletion.index + 1) % this.tabCompletion.candidates.length;
-        this.tabCompletion = { ...this.tabCompletion, index: nextIndex };
-        this.applyCompletion(
-          '@' + this.tabCompletion.candidates[nextIndex],
-          this.tabCompletion.triggerStart
-        );
-        return true;
-      }
-    }
-
-    const mentionInfo = this.getMentionPartialAtCursor();
-    if (!mentionInfo || mentionInfo.partial.length === 0) return false;
-
-    event.preventDefault();
-
-    const candidates = this.findMatchingMentions(mentionInfo.partial);
-    if (candidates.length > 0) {
-      this.tabCompletion = {
-        candidates,
-        index: 0,
-        triggerStart: mentionInfo.start
-      };
-      this.applyCompletion('@' + candidates[0], mentionInfo.start);
-    }
-
-    return true;
-  }
-
-  resetTabCompletion(): void {
-    this.tabCompletion = null;
   }
 
   private updateEmoji(): void {
@@ -175,7 +103,7 @@ export class AutocompleteState {
     const results = partial
       ? partial.query === this.emoji?.query
         ? this.emoji.results
-        : searchEmojis(partial.query, 10)
+        : searchEmojis(partial.query, Infinity)
       : [];
     if (partial && results.length > 0) {
       this.emoji = {
@@ -206,15 +134,6 @@ export class AutocompleteState {
     }
   }
 
-  private findMatchingMentions(partial: string): string[] {
-    return rankMentionCandidates(
-      partial,
-      this.getMembers(),
-      this.getRoles(),
-      this.getPrioritizedUserIds?.()
-    ).map((result) => result.handle);
-  }
-
   private getEmojiPartialAtCursor(): { query: string; start: number } | null {
     const editorApi = this.getEditorApi();
     if (!editorApi) return null;
@@ -243,18 +162,13 @@ export class AutocompleteState {
     };
   }
 
-  /** Replace just the active query; preserve all text after the cursor. */
-  private applyCompletion(text: string, atPosition: number, suffix = ''): void {
+  /** Replace the active query with the choice and a space; preserve text after the cursor. */
+  private applyCompletion(text: string, atPosition: number): void {
     const editorApi = this.getEditorApi();
     if (!editorApi) return;
 
     const textBefore = editorApi.getTextBeforeCursor();
     const charsToReplace = textBefore.length - atPosition;
-    editorApi.replaceTextBeforeCursor(charsToReplace, text + suffix);
+    editorApi.replaceTextBeforeCursor(charsToReplace, text + ' ');
   }
-}
-
-/** Add a space for pointer selection; keyboard selection adds no whitespace. */
-function completionSuffix(key: string): string {
-  return key === 'click' ? ' ' : '';
 }

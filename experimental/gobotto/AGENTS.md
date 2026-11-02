@@ -56,11 +56,16 @@ server architecture inventory.
 - Ownership belongs to configured bot user IDs, never to a thread, room, name,
   or claim in a message. Use each current message's server-supplied author.
   Historical labels and an owner's presence do not authorize other participants.
-- Enforce privileged operations in host code. Means brain creation and archival
-  require an entirely owner-authored batch. Prompt-defined participation rules
+- Enforce privileged operations in host code. App creation, archival, schema changes,
+  and instruction updates require an entirely owner-authored batch. Prompt-defined participation rules
   guide the model; they are not data-isolation guarantees.
 - Source collection titles, descriptions, schemas, and guidance from `MEANS.md`
   through `means info`. Do not duplicate them in `gobotto.toml`.
+- The reserved `memory` brain has a code-owned definition for general and per-user
+  knowledge. Dynamic brains are apps. Store app behavior in app instructions,
+  not personal memory. Preserve existing collections during upgrades; never
+  silently migrate or overwrite knowledge. New thread context includes a bounded
+  memory index; its contents remain untrusted data, not authorization.
 - Run means as a bounded JSON subprocess without a shell. Restrict collection
   paths to configured bindings and validated managed directories. Preserve the
   guidance-read prerequisite, current-turn hash checks, write receipts, and the

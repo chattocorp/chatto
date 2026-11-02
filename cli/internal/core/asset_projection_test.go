@@ -8,8 +8,6 @@ import (
 )
 
 func TestAssetProjectionReadsCanonicalAndLegacyLifecycleEvents(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 
 	created := testCoreAssetCreatedEvent("R-assets", "A-source", "video/mp4")
@@ -38,8 +36,6 @@ func TestAssetProjectionReadsCanonicalAndLegacyLifecycleEvents(t *testing.T) {
 }
 
 func TestAssetProjectionTerminalProcessingStateDoesNotRegress(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	if err := projection.Apply(testCoreAssetCreatedEvent("R-assets", "A-video", "video/mp4"), 1); err != nil {
 		t.Fatalf("Apply asset created: %v", err)
@@ -67,8 +63,6 @@ func TestAssetProjectionTerminalProcessingStateDoesNotRegress(t *testing.T) {
 }
 
 func TestAssetProjectionDeletedAssetIgnoresLaterProcessing(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	if err := projection.Apply(testCoreAssetCreatedEvent("R-assets", "A-video", "video/mp4"), 1); err != nil {
 		t.Fatalf("Apply asset created: %v", err)
@@ -101,8 +95,6 @@ func TestAssetProjectionDeletedAssetIgnoresLaterProcessing(t *testing.T) {
 }
 
 func TestAssetProjectionOwnsMessageAssetReferences(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	bodyEvent := bodyEventWithAssets("E-body", "M1", "R1", "U1", "", []string{"A-video"}, 1)
 	previewAssetID := "A-preview"
@@ -138,8 +130,6 @@ func TestAssetProjectionOwnsMessageAssetReferences(t *testing.T) {
 }
 
 func TestAssetProjectionUsesFirstDurableAssetAttachment(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	attached := &evtv1.Event{
 		Id: "E-attached",
@@ -166,8 +156,6 @@ func TestAssetProjectionUsesFirstDurableAssetAttachment(t *testing.T) {
 }
 
 func TestAssetProjectionLegacyOwnershipRejectsDifferentUploader(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	created := testCoreAssetCreatedEvent("R1", "A-video", "video/mp4")
 	created.GetAssetCreated().UserId = "U1"
@@ -190,8 +178,6 @@ func TestAssetProjectionLegacyOwnershipRejectsDifferentUploader(t *testing.T) {
 }
 
 func TestAssetProjectionRejectsMismatchedMessageBodyEnvelope(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	bodyEvent := bodyEventWithAssets("E-envelope", "M1", "R1", "U1", "", []string{"A-video"}, 1)
 	body := bodyEvent.GetMessageBody().GetBody()
@@ -211,8 +197,6 @@ func TestAssetProjectionRejectsMismatchedMessageBodyEnvelope(t *testing.T) {
 }
 
 func TestAssetProjectionVideoManifestTerminalStateDoesNotRegress(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	processed := &evtv1.Event{
 		Id: "E-video-ok",
@@ -252,8 +236,6 @@ func TestAssetProjectionVideoManifestTerminalStateDoesNotRegress(t *testing.T) {
 }
 
 func TestAssetProjectionAssetStateIsConsistentAndDetached(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	created := attachmentDeclaredEvent("R1", "A-video", "video/mp4")
 	created.GetAssetCreated().GetAsset().Filename = "clip.mp4"
@@ -303,8 +285,6 @@ func TestAssetProjectionAssetStateIsConsistentAndDetached(t *testing.T) {
 }
 
 func TestAssetModelUnmanifestedVideoAttachmentsUsesAssetOwnershipAndTimelineTombstones(t *testing.T) {
-	t.Parallel()
-
 	assets := NewAssetProjection()
 	timeline := NewRoomTimelineProjection()
 	core := &ChattoCore{
@@ -336,8 +316,6 @@ func TestAssetModelUnmanifestedVideoAttachmentsUsesAssetOwnershipAndTimelineTomb
 }
 
 func TestAssetProjectionRoomIDCycleGuardDoesNotHang(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	cyclicAsset := func(id, parentID string) *evtv1.Event {
 		return &evtv1.Event{
@@ -357,8 +335,6 @@ func TestAssetProjectionRoomIDCycleGuardDoesNotHang(t *testing.T) {
 }
 
 func TestAssetAggregateSubjectHelpers(t *testing.T) {
-	t.Parallel()
-
 	subject := evtstream.AssetAggregate("A-123").Subject(evtstream.EventAssetCreated)
 	assetID, ok := evtstream.ParseAssetSubject(subject)
 	if !ok {
@@ -373,8 +349,6 @@ func TestAssetAggregateSubjectHelpers(t *testing.T) {
 }
 
 func TestAssetProjectionApplyDoesNotMutateInputEvents(t *testing.T) {
-	t.Parallel()
-
 	projection := NewAssetProjection()
 	created := testCoreAssetCreatedEvent("R-assets", "A-source", "video/mp4")
 	started := testCoreAssetProcessingStartedEvent("E-start-source", "A-source")

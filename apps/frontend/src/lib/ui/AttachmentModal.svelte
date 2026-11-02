@@ -117,7 +117,7 @@ Header, gallery controls and download stay outside the preview on all screens.
       {/if}
       <div class="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         <div
-          class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-black"
+          class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-background"
         >
           {@render children()}
         </div>

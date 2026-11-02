@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-11-02
 
 ## Overview
 
@@ -16,7 +16,7 @@ the message body.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. Prefix matches rank higher than substring matches.
 - While the room list loads, autocomplete combines loaded members with server search results.
 - In a thread composer, thread participants rank above other matching members. An exact login or display-name match ranks first. The current user does not get this priority. Tab completion uses the same order as the popup.
-- Enter and Tab confirm the highlighted autocomplete result without adding whitespace or sending the message. Space remains available for typing and closes the suggestions. Repeated Tab presses cycle through matching mentions. Pointer selection appends a space.
+- Tab cycles through all available fuzzy matches without changing the draft. Shift+Tab cycles backwards. When only one match remains, Tab inserts it with a trailing space. Enter or a click confirms the highlighted match with a trailing space without sending the message. The space can be removed with Backspace. Space remains available for typing and closes the suggestions.
 - `@username` mentions select that human or bot account when it is a current
   room member. Universal room implicit members count as room members;
   notification policy still decides whether to create an occurrence.
@@ -28,6 +28,10 @@ the message body.
 - `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.
 - Valid user, role, and virtual mentions render with highlight styling in the posted message. User mentions show the current display name, with `@` before it; role and virtual mentions keep their handles. Self-mentions get additional styling.
 - Clicking or right-clicking a user mention opens that user's menu.
+- Resolved user mentions stay visible while a connection recovers. Unchanged
+  profiles do not require another mention lookup. After a recovery gap, the
+  client checks membership again and removes matches that are no longer valid.
+  Access loss and privacy resets clear retained matches.
 - Mentions inside code spans, code blocks, pre-formatted text, and blockquotes do not resolve, notify, or receive mention styling.
 - Mentions inside links and URLs do not resolve, notify, or receive mention styling. This includes link labels, link destinations, and URLs that the renderer converts to links, with or without a scheme. For example, `https://social.example.com/@alice/123` keeps its literal text.
 - An `@` directly after a letter or digit, as in `user@example.com`, does not start a mention. Other characters before `@` do not block a mention, so `@alice/@bob` mentions both users.

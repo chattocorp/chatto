@@ -152,8 +152,6 @@ func startCoreServices(t testing.TB, core *ChattoCore) {
 }
 
 func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	if core.roomModel == nil {
@@ -210,8 +208,6 @@ func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {
 }
 
 func TestCreateJetStreamResourceWithRetryRetriesStoreCreateFailure(t *testing.T) {
-	t.Parallel()
-
 	ctx := testContext(t)
 	attempts := 0
 
@@ -239,8 +235,6 @@ func TestCreateJetStreamResourceWithRetryRetriesStoreCreateFailure(t *testing.T)
 }
 
 func TestCreateJetStreamResourceWithRetryDoesNotRetryOtherErrors(t *testing.T) {
-	t.Parallel()
-
 	ctx := testContext(t)
 	attempts := 0
 	wantErr := errors.New("not retriable")
@@ -259,8 +253,6 @@ func TestCreateJetStreamResourceWithRetryDoesNotRetryOtherErrors(t *testing.T) {
 }
 
 func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -309,8 +301,6 @@ func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testi
 // ============================================================================
 
 func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -387,8 +377,6 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 }
 
 func TestChattoCore_RunAppliesConfigOwnersToExistingVerifiedUsers(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
 		SkipSetupWizard: true,
@@ -467,8 +455,6 @@ func TestChattoCore_RunAppliesConfigOwnersToExistingVerifiedUsers(t *testing.T) 
 // TestChattoCore_FullWorkflow tests an end-to-end workflow demonstrating
 // all core functionality working together.
 func TestChattoCore_FullWorkflow(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -539,8 +525,6 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 // ============================================================================
 
 func TestPubSubSubjectPayloadScope(t *testing.T) {
-	t.Parallel()
-
 	userEvent := &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_SessionTerminated{
 		SessionTerminated: &pubsubv1.SessionTerminatedEvent{Reason: "logout"},
 	}}
@@ -578,8 +562,6 @@ func TestPubSubSubjectPayloadScope(t *testing.T) {
 // ============================================================================
 
 func TestNewSpaceEvent_PopulatesId(t *testing.T) {
-	t.Parallel()
-
 	event := newEvent("test-actor", &evtv1.Event{
 		Event: &evtv1.Event_RoomCreated{
 			RoomCreated: &evtv1.RoomCreatedEvent{
@@ -603,8 +585,6 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
-	t.Parallel()
-
 	existingId := "E12345678901234"
 	event := newEvent("test-actor", &evtv1.Event{
 		Id: existingId,
@@ -622,8 +602,6 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
-	t.Parallel()
-
 	event := newEvent("test-actor", &evtv1.Event{
 		Event: &evtv1.Event_RoomCreated{
 			RoomCreated: &evtv1.RoomCreatedEvent{},
@@ -636,8 +614,6 @@ func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
-	t.Parallel()
-
 	event := newEvent("test-actor", &evtv1.Event{
 		Event: &evtv1.Event_RoomCreated{
 			RoomCreated: &evtv1.RoomCreatedEvent{},
@@ -653,8 +629,6 @@ func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
 // the server event stream closes after receiving a SessionTerminatedEvent,
 // and that the event is delivered to the channel before it closes.
 func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -716,8 +690,6 @@ func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 // for multi-server clients where the frontend's currentUserId may differ from
 // the remote server user ID, making client-side filtering unreliable.
 func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -796,8 +768,6 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 }
 
 func TestFilterPubSubEvent_DropsMissingPayload(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -817,8 +787,6 @@ func TestFilterPubSubEvent_DropsMissingPayload(t *testing.T) {
 }
 
 func TestFilterPubSubEvent_DropsTypingWithoutMessageRead(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-viewer", "Typing Viewer", "password123")
@@ -854,8 +822,6 @@ func TestFilterPubSubEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 }
 
 func TestFilterPubSubEventAllowsRelatedThreadTyping(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-interaction-viewer", "Typing Interaction Viewer", "password123")
@@ -912,8 +878,6 @@ func TestFilterPubSubEventAllowsRelatedThreadTyping(t *testing.T) {
 }
 
 func TestFilterPubSubEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "dm-typing-viewer", "DM Typing Viewer", "password123")

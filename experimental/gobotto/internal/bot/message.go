@@ -5,7 +5,8 @@ import chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 // modelMessage is Gobotto's explicit text-context contract, independent of SDK
 // resource growth. Keep field order and JSON tags stable: existing fingerprints
 // hash this shape. Attachments, signed URLs, and display metadata are not inputs
-// to this text-only agent and must not enter prompts or edit comparisons.
+// to this message projection and must not enter edit comparisons. Verified
+// participant names are supplied separately through participantProfile.
 type modelMessage struct {
 	ID                string `json:"id"`
 	RoomID            string `json:"roomId"`

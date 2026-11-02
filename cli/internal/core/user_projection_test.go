@@ -22,8 +22,6 @@ import (
 )
 
 func TestUserAuthProjectionUnlinkCredentialReplay(t *testing.T) {
-	t.Parallel()
-
 	for _, preserve := range []bool{false, true} {
 		t.Run(fmt.Sprintf("preserve=%t", preserve), func(t *testing.T) {
 			p := newUserAuthProjection()
@@ -99,8 +97,6 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 }
 
 func TestUserProjectionActiveIDsDoesNotHydrateProfiles(t *testing.T) {
-	t.Parallel()
-
 	// No key resolver is installed. Hydrating these encrypted fields would fail.
 	p := NewUserProjection(nil, nil)
 	for _, id := range []string{"active", "deleted", "shredded"} {
@@ -227,8 +223,6 @@ func addHydratableTestUser(t *testing.T, p *UserProjection, key []byte, userID s
 }
 
 func TestUserProjectionUsersContextHydratesConcurrently(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	userIDs := []string{"U1", "U2", "U3", "U4"}
@@ -251,8 +245,6 @@ func TestUserProjectionUsersContextHydratesConcurrently(t *testing.T) {
 }
 
 func TestUserProjectionUsersContextFailsClosedOnKeyError(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	p := NewUserProjection(staticProjectionKeyWrapper{key: key}, failingDEKStore{failRef: "dek.U2"})
@@ -322,8 +314,6 @@ func displayNameChanged(t *testing.T, contentKey *messageContentKey, eventID, us
 }
 
 func TestUserProjection_AccountProfileAndLogin(t *testing.T) {
-	t.Parallel()
-
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 
@@ -343,8 +333,6 @@ func TestUserProjection_AccountProfileAndLogin(t *testing.T) {
 }
 
 func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	unwrapCalls := 0
@@ -405,8 +393,6 @@ func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
 }
 
 func TestUserProjectionContentSnapshotDefersHydrationAndKeepsCapturedGeneration(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	unwrapCalls := 0
@@ -437,8 +423,6 @@ func TestUserProjectionContentSnapshotDefersHydrationAndKeepsCapturedGeneration(
 }
 
 func TestUserProjection_ReadErrorsDoNotBecomeAbsenceOrTombstones(t *testing.T) {
-	t.Parallel()
-
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
@@ -483,8 +467,6 @@ func TestUserProjection_ReadErrorsDoNotBecomeAbsenceOrTombstones(t *testing.T) {
 }
 
 func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
-	t.Parallel()
-
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	changedAt := createdAt.Add(5 * time.Minute)
@@ -508,8 +490,6 @@ func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
 }
 
 func TestUserProjection_CustomStatusSetClearAndExpiry(t *testing.T) {
-	t.Parallel()
-
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	future := time.Now().Add(time.Hour)
@@ -570,8 +550,6 @@ func TestUserProjection_CustomStatusSetClearAndExpiry(t *testing.T) {
 }
 
 func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
-	t.Parallel()
-
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	verifiedAt := createdAt.Add(time.Hour)
@@ -662,8 +640,6 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 }
 
 func TestUserProjection_PublicAvatarIndexTracksLifecycle(t *testing.T) {
-	t.Parallel()
-
 	p := NewUserProjection(staticProjectionKeyWrapper{}, staticProjectionDEKStore{})
 
 	legacy := &evtv1.Event{Event: &evtv1.Event_UserAvatarSet{UserAvatarSet: &evtv1.UserAvatarSetEvent{

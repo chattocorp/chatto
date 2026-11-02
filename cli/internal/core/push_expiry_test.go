@@ -35,8 +35,6 @@ func requirePushKeyPresence(t *testing.T, core *ChattoCore, key string, want boo
 }
 
 func TestPushSubscriptionExpiresAfterLifetime(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -79,8 +77,6 @@ func TestPushSubscriptionExpiresAfterLifetime(t *testing.T) {
 }
 
 func TestPushSubscriptionSaveExtendsExpiry(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -107,8 +103,6 @@ func TestPushSubscriptionSaveExtendsExpiry(t *testing.T) {
 }
 
 func TestExpiredTransferredPushSubscriptionIsRemoved(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -140,8 +134,6 @@ func TestExpiredTransferredPushSubscriptionIsRemoved(t *testing.T) {
 }
 
 func TestExpiredPushSubscriptionsDoNotCountTowardLimit(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -162,8 +154,6 @@ func TestExpiredPushSubscriptionsDoNotCountTowardLimit(t *testing.T) {
 }
 
 func TestExpiredPushSubscriptionRemovalKeepsRefreshedRecord(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-expiry-race-user"
@@ -195,8 +185,6 @@ func TestExpiredPushSubscriptionRemovalKeepsRefreshedRecord(t *testing.T) {
 }
 
 func TestPushSubscriptionWithoutSaveTimeIsRemoved(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-no-save-time-user"

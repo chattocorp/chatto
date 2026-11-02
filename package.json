@@ -19,6 +19,7 @@
     "lint:frontend": "pnpm turbo run lint --filter=chatto-frontend",
     "format": "prettier --write",
     "format:check": "prettier --check",
+    "format:changed": "node tools/check-format.mjs",
     "test": "pnpm turbo run test --concurrency=1",
     "test:translatto": "pnpm turbo run test --filter=@chatto/translatto",
     "test:frontend": "pnpm turbo run test --filter=chatto-frontend",

@@ -5,6 +5,7 @@
 
   let { html }: { html: string[] } = $props();
   let scroller = $state<HTMLDivElement>();
+  const rows = $derived(html.map((value) => ({ html: value })));
 </script>
 
 <div
@@ -13,9 +14,9 @@
   style="height: 400px; width: 360px; overflow: auto"
   data-testid="diagram-timeline"
 >
-  <Virtualizer data={html} scrollRef={scroller} itemSize={60}>
-    {#snippet children(value: string, index: number)}
-      <div data-diagram-row={index}><MarkdownHtml html={value} /></div>
+  <Virtualizer data={rows} scrollRef={scroller} itemSize={60}>
+    {#snippet children(value: { html: string }, index: number)}
+      <div data-diagram-row={index}><MarkdownHtml html={value.html} artifactOwner={value} /></div>
     {/snippet}
   </Virtualizer>
 </div>

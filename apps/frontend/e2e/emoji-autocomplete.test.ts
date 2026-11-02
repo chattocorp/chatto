@@ -39,7 +39,7 @@ test.describe('Emoji autocomplete (composer integration)', () => {
     ).toBeVisible();
     await expect(roomPage.messageInput).toBeFocused();
     await roomPage.messageInput.press('ArrowDown');
-    await roomPage.messageInput.press('Tab');
+    await roomPage.messageInput.press('Enter');
     await expect(roomPage.messageInput).toHaveText('Hello 👋🏻 ');
     await expect(roomPage.messageInput).toBeFocused();
 

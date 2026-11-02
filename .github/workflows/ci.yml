@@ -158,6 +158,10 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           install-cli-deps: 'false'
+      - name: Verify runtime build after clean
+        run: |
+          mise clean
+          mise x -- pnpm --filter runling build:runtime
       - run: mise check-runling
       - run: mise test-runling
       - run: mise test-runling-bot
@@ -306,14 +310,8 @@ jobs:
       - name: Check workflows and shell scripts
         run: mise lint-actions
 
-      - name: Test release publication policy
-        run: mise test-release-policy
-
-      - name: Test interchange format contract
-        run: mise test-interchange
-
-      - name: Test development launchers and routing
-        run: mise test-dev-tooling
+      - name: Test repository tooling
+        run: mise test-repo-tooling
 
   desktop:
     needs: changes
@@ -484,14 +482,6 @@ jobs:
         if: env.RUN_PROTO_CHECKS == 'true'
         uses: ./.github/actions/setup
 
-      - name: Test server compatibility label check
-        if: env.RUN_PROTO_CHECKS == 'true'
-        run: mise x -- node --test tools/check-server-compatibility.test.mjs
-
-      - name: Test Slack importer
-        if: env.RUN_PROTO_CHECKS == 'true'
-        run: mise test-slack
-
       - name: Check server compatibility threshold labels
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         env:
@@ -518,7 +508,6 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
-          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"
@@ -600,6 +589,38 @@ jobs:
 
       - name: Build Storybook design-system catalog
         run: pnpm run build:storybook
+
+  check-unused:
+    needs: changes
+    # Check every root pnpm workspace, including docs-only and example-only changes.
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.desktop == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.botto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+      - name: Check unused files and dependencies
+        run: pnpm run knip
+
+  check-format:
+    # Check all PRs, including changes that only affect repository documentation.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+      - name: Check changed files
+        env:
+          FORMAT_BASE: ${{ github.event.pull_request.base.sha }}
+        run: pnpm run format:changed -- "$FORMAT_BASE"
 
   test-workspace-packages:
     needs: changes
@@ -735,7 +756,7 @@ jobs:
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        run: cd cli && go test -trimpath -p "${CHATTO_GO_TEST_P:-4}" -parallel "${CHATTO_GO_TEST_PARALLEL:-4}" -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
 
   lint-cli:
     needs: changes
@@ -1115,6 +1136,7 @@ jobs:
       - workflow-lint
       - codegen-proto-drift
       - check-workspace
+      - check-unused
       - test-workspace
       - test-cli
       - test-e2e

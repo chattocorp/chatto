@@ -23,7 +23,7 @@
     url:
       'data:image/svg+xml,' +
       encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="${color}"/><circle cx="400" cy="250" r="100" fill="white"/></svg>`
+        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect x="80" y="50" width="640" height="400" rx="24" fill="${color}"/><circle cx="400" cy="250" r="100" fill="white"/></svg>`
       )
   }));
   let documentOpen = $state(false);
@@ -60,7 +60,7 @@
     <AttachmentModal
       filename={images[index].filename}
       contentType={images[index].contentType}
-      description="A white circle on a coloured background."
+      description="A white circle on a coloured rectangle with transparent edges."
       size={24000}
       imageViewer
       downloadUrl={images[index].url}

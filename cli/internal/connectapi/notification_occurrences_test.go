@@ -26,8 +26,6 @@ const (
 )
 
 func TestNotificationAssemblerIgnoresUnsupportedSignal(t *testing.T) {
-	t.Parallel()
-
 	got, err := (&notificationAssembler{}).occurrenceWithPresentation(
 		context.Background(),
 		&notificationv1.NotificationOccurrence{
@@ -42,8 +40,6 @@ func TestNotificationAssemblerIgnoresUnsupportedSignal(t *testing.T) {
 }
 
 func TestNotificationAssemblerTreatsUnknownAttentionAsImportant(t *testing.T) {
-	t.Parallel()
-
 	got := apiNotificationAttentionLevel(notificationv1.NotificationAttentionLevel(99))
 	if got != 2 { // NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
 		t.Fatalf("unknown attention = %v, want conservative Important", got)
@@ -51,8 +47,6 @@ func TestNotificationAssemblerTreatsUnknownAttentionAsImportant(t *testing.T) {
 }
 
 func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureSignal(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("future-target-room")
 	posted := env.post(room.GetId(), env.viewer.GetId(), "future target", "")
@@ -89,8 +83,6 @@ func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureSignal(t *testi
 }
 
 func TestNotificationSummaryCountsAttentionAcrossCompleteOccurrenceSet(t *testing.T) {
-	t.Parallel()
-
 	expires := timestamppb.New(time.Now().Add(time.Hour))
 	occurrence := func(roomID string, read bool, level notificationv1.NotificationAttentionLevel, reason notificationTestSignalKind) *notificationv1.NotificationOccurrence {
 		return &notificationv1.NotificationOccurrence{
@@ -157,7 +149,6 @@ func testNotificationSignalWithMessage(kind notificationTestSignalKind, message 
 }
 
 func TestNotificationSummaryIncludesRoomOnlyInvitation(t *testing.T) {
-	t.Parallel()
 	invitation := &notificationv1.NotificationOccurrence{
 		Signal: &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomInvitationReceived{
 			RoomInvitationReceived: &notificationv1.RoomInvitationReceived{RoomId: "invited-room", InvitationId: "invite"},

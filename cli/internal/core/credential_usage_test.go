@@ -12,8 +12,6 @@ import (
 )
 
 func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *testing.T) {
-	t.Parallel()
-
 	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	botID := NewUserID()
@@ -40,8 +38,6 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 }
 
 func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testing.T) {
-	t.Parallel()
-
 	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	recorder := newCredentialUsageRecorder(kv, nil, nil)
@@ -91,8 +87,6 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 }
 
 func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testing.T) {
-	t.Parallel()
-
 	bucket := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	kv := &staleFirstGetCredentialUsageKV{
@@ -129,8 +123,6 @@ func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testin
 }
 
 func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T) {
-	t.Parallel()
-
 	bucket := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	kv := &blockingCreateCredentialUsageKV{
@@ -165,8 +157,6 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 }
 
 func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
-	t.Parallel()
-
 	recorder := newCredentialUsageRecorder(newRuntimeStateTestKV(t), nil, nil)
 	recorder.recordIfActive(NewUserID(), incomingWebhookUsageKey(NewBotIncomingWebhookID()), time.Now(), func() bool {
 		return false
@@ -180,8 +170,6 @@ func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
 }
 
 func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testing.T) {
-	t.Parallel()
-
 	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	active := true
@@ -210,8 +198,6 @@ func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testi
 }
 
 func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.T) {
-	t.Parallel()
-
 	c, _ := newTestCore(t)
 	c.credentialUsage.kv = failingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV, err: errors.New("unavailable")}
 	startCoreServices(t, c)
@@ -245,8 +231,6 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 }
 
 func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
-	t.Parallel()
-
 	c, _ := newTestCore(t)
 	kv := &blockingCreateCredentialUsageKV{
 		KeyValue: c.storage.runtimeStateKV,
@@ -347,8 +331,6 @@ func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
 }
 
 func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.T) {
-	t.Parallel()
-
 	c, _ := newTestCore(t)
 	usageKV := &countingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV}
 	c.credentialUsage.kv = usageKV

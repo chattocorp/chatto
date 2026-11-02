@@ -9,7 +9,6 @@ import (
 )
 
 func TestRoomMembershipEventsSetting(t *testing.T) {
-	t.Parallel()
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager, err := chatto.CreateUser(ctx, SystemActorID, "activity-manager", "Manager", "password123")
@@ -51,7 +50,6 @@ func TestRoomMembershipEventsSetting(t *testing.T) {
 }
 
 func TestRoomMembershipEventsReplayAndSnapshot(t *testing.T) {
-	t.Parallel()
 	p := NewRoomDirectoryProjection()
 	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "legacy", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}}, 1))
 	room, ok := p.Catalog.Get("legacy")

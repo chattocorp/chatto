@@ -346,7 +346,8 @@ browsing grid that grows with its content, such as the server directory in the
 Add Server dialog.
 
 The attachment image viewer, fullscreen video, `QuickSwitcher`, and popovers
-remain specialized overlays. The image viewer keeps its zoom controls outside
+remain specialized overlays. The image viewer uses the theme's `background`
+colour for its canvas and edge fades. It keeps its zoom controls outside
 the pan surface and its details panel closed until the user opens it. Media
 viewers keep their full-screen mobile presentation. Context
 menus retain input-capability selection between floating menus and sheets.
@@ -531,23 +532,35 @@ the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
 which colours the icon with the action colour.
 
+### Message details
+
+Use `bg-message-surface` and `border-message-border` for details drawn directly
+on a message, such as table headings, cell borders, inline code, and dividers.
+These colours use the text colour. They become lighter in dark themes and
+darker in light themes. The fill is translucent and blends with the background
+beneath it. The border is an opaque mix with `surface`, so table corners and
+intersections do not become brighter from overlapping borders. Both stay
+visible when a message is hovered or highlighted without separate state classes.
+
+Prose uses these tokens by default, including outside message rows. Keep framed
+previews on the preview primitives below. See **UI/MarkdownHtml → Message
+details** for normal and highlighted rows, including a narrow layout.
+
 ### Inset Frame
 
 **Inset Frame** is the canonical name in the [glossary](../../docs/GLOSSARY.md#ui).
 It is a raised rim around recessed content, shared by context menus, palettes,
 dialog trays, and preview cards. Its two primitives in `src/app.css` are the source of truth:
 
-- `inset-frame` owns the 1px `text/10` border, 8px outer corners, `surface` fill,
+- `inset-frame` owns the depth-aware 1px `text/10` border, 8px outer corners, `surface` fill,
   depth-aware lighting, text color, and default 4px rim.
 - `inset-content` owns the 6px inner corners, `background` fill, and inset depth.
   It does not set padding or clip content.
 
-`inset-frame` resets `--inset-frame-visibility` to 1. Preview variants reduce
-this value with depth: at Flat, their decorative border and rim fill are
-transparent. Their lighting and inline preview shadow also disappear. Border
-space, padding, and corners stay the same, so a depth change does not resize content.
-Floating menus and hover cards keep their floating elevation at Flat. Menus
-also keep their boundary.
+The rim fill stays visible at every depth. At Flat, the outer border, bevel
+lighting, inset shadows, and inline preview shadows disappear. Border space, padding,
+and corners stay the same, so a depth change does not resize content.
+Floating menus and hover cards keep their floating elevation at Flat.
 
 The primitives set no width, margin, outer shadow, positioning, or animation.
 Consumers retain native semantics and own those choices. `floating-frame` and
@@ -580,44 +593,36 @@ composer rows, code, loading states, and narrow layouts.
 
 ### Preview surfaces
 
-Inline URL and entity pills use the borderless `inline-link-pill` utility.
-It uses a visible `surface-emphasized` fill, regular `text` foreground, and a
-brighter surface on hover. Do not add decorative borders, rings, or Inset Frame
-outlines to pills, their segments, or their images. Keep keyboard focus visible.
-The lighter label has a shadow against the dark backing to separate
-the sections without an outline.
-It has no outer rim. All link pills add 1px of vertical padding to their main section.
-Titles use the surrounding text size. Icons and metadata use 85% of that size.
-Entity pills use `link-pill-icon`, `link-pill-main`, and optional `link-pill-meta`
-sections, which share the URL pill styles. The icon sits inside the lighter main
-section beside the title. Only metadata sits on the dark backing. Room and user metadata identifies the
-server only when it differs from the rendering server; message metadata identifies the room when known. Do not repeat the title
-as metadata.
-When a page title is available, show it in the main section and
-the hostname in a darker, muted trailing section. Tuck the hostname section
-behind the title's rounded trailing edge, using the shared 6px pill radius.
-All sections belong to one link. The title truncates first. URL hostname sections
-use their natural width, with at least 3rem left for the title on narrow lines.
-Entity metadata stays within 40% of the pill.
-URL pills have a maximum width of 28rem and must fit within the available
-width. Entity pills can use the full available width. Neither the pill nor its
-lighter title section stretches past its content.
-Without a title, use the hostname as the primary label. Show the standard external-link
-icon before the title, inside the lighter section, only when navigation opens a new window.
-Posted URL pills load missing metadata when they enter the viewport. Show a
-spinner in the icon position while metadata is loading, then show the page title
-when available. The hover card reuses the same metadata. Composer previews keep
-their existing request flow.
-Keep URL paths muted. Show only short, complete paths that fit beside
-it; omit long paths and opaque identifiers. Shorten long hostnames in the middle
-so their ending and port remain visible. Entity avatars and server icons have a
-1px inset inside the lighter section, without an image border. Avatars stay circular;
-pill avatars use `UserAvatar` with `mutedPlaceholder` for a distinct darker fill. Pill
-corners and compact server icons use the shared 6px `--inline-link-radius`.
-Use logical layout properties to mirror the sections in RTL.
-Use this same
-treatment in messages and visual-composer previews; do not give URL and entity
-pills separate outer fills. See **Messages/Entity links** and **Messages/URL chips** in Storybook.
+Ordinary web URLs show the full URL as inline text and use the same prose and
+composer link styles as authored Markdown links.
+Long URLs wrap within the message width. Explicit Markdown links keep their
+authored labels. Preview metadata must not change the inline text, width, or
+line breaks. Load missing hover-card metadata only on hover, focus, or touch
+long-press. Loading indicators and fetched titles belong in the floating card
+or touch sheet. Composer preview requests keep their existing flow.
+
+Known Chatto entities use the borderless `inline-link-pill` utility.
+It uses a `surface-emphasized` fill, regular `text` foreground, and a brighter
+surface on hover. Do not add decorative borders, rings, or Inset Frame outlines.
+Keep keyboard focus visible. The lighter label has a shadow against the dark
+backing. The main section has 1px of vertical padding and uses the surrounding
+text size. Icons and metadata use 85% of that size.
+
+Entity pills use `link-pill-icon`, `link-pill-main`, and optional
+`link-pill-meta` sections. The icon sits beside the title. Metadata sits on
+the dark backing and stays within 40% of the pill. Room and user metadata
+identifies the server only when it differs from the rendering server.
+Message metadata identifies the room when known. Do not repeat the title
+as metadata. Pills fit the available width without stretching past their content.
+
+Entity avatars and server icons have a 1px inset without an image border.
+Avatars stay circular; use `UserAvatar` with `mutedPlaceholder`.
+Pill corners and compact server icons use the shared 6px
+`--inline-link-radius`. Use logical layout properties for RTL.
+Use the same treatment in messages and visual-composer previews. Composer
+pill widgets are limited to recognised Chatto entity and message links. Other
+URLs stay directly editable as text.
+See **Messages/Entity links** and **Messages/Web links** in Storybook.
 
 Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
 cards, social embeds, linked messages, composer previews, and hover cards.
@@ -632,8 +637,9 @@ its interaction or content lifecycle.
 | `preview-thumbnail` | Compact media or fallback tile inside a row or gallery. Includes the shared border and inset surface. Owners set dimensions and image fit. |
 | `preview-surface`   | Hover-card layout: `preview-frame`, 288px width, small text, and floating shadow. Position and motion belong to `FloatingPopover`.         |
 
-Use a 4px rim around media and card bodies. The rim becomes visible as depth
-increases from Flat and reaches its full fill and border at level 50.
+Use a 4px rim around media and card bodies. The rim fill stays visible at
+every depth, including Flat. The outer border fades with depth and is
+transparent at Flat.
 Compact file and composer rows can use 8–12px padding for their controls.
 Put captions or destination rows on the
 outer frame. Do not add the old outline around a preview. Depth settings must
@@ -673,8 +679,9 @@ Source and rendered panels use `preview-content`. Visual fences show only their
 output, with no header, tabs, copy action or overlay. SVG and Mermaid show fitted
 images that open the attachment viewer when clicked or activated with the keyboard.
 Their frames follow the image dimensions, bounded by the message width and a
-height of 30 rem or 60 vh, whichever is smaller. Do not enlarge small artwork.
-Keep a 44 px minimum target for tiny or extreme ratios; fit the full image inside it.
+height of 30 rem or 60 vh, whichever is smaller. Enlarge small artwork to use the
+available width within this height limit. Preserve its aspect ratio. Keep a 44 px
+minimum target for extreme ratios; fit the full image inside it.
 Pan and zoom belong to that viewer.
 Zoom controls and the text Fit action sit in that viewer's footer. ANSI art
 keeps its fixed terminal colors on the inset canvas. Composer link attachments
@@ -947,10 +954,10 @@ transparent native range input covers the travel, so keyboard, pointer, and
 assistive-technology behaviour stay native. Do not restyle a raw
 `input[type=range]`; use `RangeField`, and extend it when a variant is missing.
 
-`ProgressBar` shows read-only completion with a recessed control frame, lit
-segments, and a percentage readout. It shares the range control's fill colour
-and lighting, without a draggable grip. Values are clamped to 0–100. Reduced
-motion disables fill transitions. Preview it in **UI/Progress bar**.
+`ProgressBar` shows read-only completion with a recessed control frame, a
+continuous lit fill, and a percentage readout. It shares the range control's
+fill colour and lighting, without a draggable grip. Values are clamped to
+0–100. Reduced motion disables fill transitions. Preview it in **UI/Progress bar**.
 
 ## Components, Utilities, And Tailwind
 
@@ -1162,6 +1169,11 @@ hybrid laptop thus uses compact controls. Use
 `comfortable-density` and `compact-density` for target sizes and spacing.
 CSS responds to primary-pointer changes automatically. There is no user setting.
 
+Message metadata uses `meta-badge` for shared size and shape. Badges are
+26 px high, with 0.5 px vertical padding. Text and reaction badges use 9 px
+horizontal padding; icon badges use 7 px. Icon and text sizes stay unchanged.
+See **Chat/Message meta bar** in Storybook.
+
 Keep capability checks separate from density. `touch-input` matches when
 `any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
 only when no coarse pointer is available; it does not select density.
@@ -1341,7 +1353,7 @@ to the standard primitives unless their purpose changes.
 
 | Area                                | Exception                                                                                                                                                                 |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Media overlays and viewers          | Literal black and white in `ZoomableImage`, `AttachmentModal`, `FullscreenVideoOverlay`, `VideoThumbnail`, `NativeScreenShareDialog`, and badges over real thumbnails.    |
+| Media overlays and viewers          | Literal black and white in `FullscreenVideoOverlay`, `VideoThumbnail`, `NativeScreenShareDialog`, and badges over real thumbnails.                                        |
 | Untrusted HTML previews             | `HtmlAttachmentModal` and `AttachmentPreview` keep a white canvas because untrusted HTML expects a white default page.                                                    |
 | Modal and drawer backdrops          | `backdrop:bg-black/50` and the mobile drawer scrim work in both themes.                                                                                                   |
 | Server identity and theme samples   | Generated server-logo gradients, accent swatches, and surface-tone samples show fixed colours on purpose.                                                                 |

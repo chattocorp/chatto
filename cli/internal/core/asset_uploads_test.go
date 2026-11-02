@@ -17,7 +17,6 @@ import (
 )
 
 func TestAssetUploadUsesOneLimitForAllFileTypes(t *testing.T) {
-	t.Parallel()
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "upload-limit", "Upload Limit", "password")
@@ -65,8 +64,6 @@ func TestAssetUploadUsesOneLimitForAllFileTypes(t *testing.T) {
 }
 
 func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -107,8 +104,6 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 }
 
 func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -196,8 +191,6 @@ func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
 }
 
 func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

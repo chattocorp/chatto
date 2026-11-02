@@ -249,6 +249,32 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
 }));
 
 describe('EventList read position', () => {
+  it('shifts only for head changes, not live appends during an older-page read', async () => {
+    const view = render(EventListTestHarness, {
+      eventIds: ['msg-b', 'msg-c'],
+      scrollToEventId: null,
+      isLoadingMore: true
+    });
+    const shift = () =>
+      view.container.querySelector('[data-testid="virtualizer-shift"]')?.textContent;
+    expect(shift()).toBe('false');
+    await view.rerender({ eventIds: ['msg-b', 'msg-c', 'msg-d'] });
+    expect(shift()).toBe('false');
+    await view.rerender({ eventIds: ['msg-a', 'msg-b', 'msg-c', 'msg-d'] });
+    expect(shift()).toBe('true');
+    await view.rerender({ eventIds: ['msg-a', 'msg-b', 'msg-c', 'msg-d', 'msg-e'] });
+    expect(shift()).toBe('false');
+    await view.rerender({ eventIds: ['msg-b', 'msg-c', 'msg-d', 'msg-e'] });
+    expect(shift()).toBe('true');
+    await view.rerender({ isLoadingMore: false });
+    expect(shift()).toBe('false');
+    await view.rerender({ isLoadingMore: true });
+    await view.rerender({ eventIds: ['msg-c', 'msg-b', 'msg-d', 'msg-e'] });
+    expect(shift()).toBe('false');
+    await view.rerender({ eventIds: ['other-a', 'other-b'] });
+    expect(shift()).toBe('false');
+  });
+
   it('reports the newest message while the timeline follows the bottom', async () => {
     const onReadPosition = vi.fn();
     render(EventListTestHarness, {

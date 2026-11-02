@@ -21,7 +21,6 @@ func (c *countingThreadHydration) GetRoomEventByEventID(ctx context.Context, kin
 }
 
 func TestThreadCreationOrderDoesNotHydrateUnpagedRoots(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "thread-sort", "Thread Sort", "password")

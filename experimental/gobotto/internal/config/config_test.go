@@ -115,7 +115,7 @@ func TestMemoryCollectionsResolveAgainstConfigFile(t *testing.T) {
 	if err != nil || len(cfg.Memory.Collections) != 1 || cfg.Memory.Collections[0].Path != filepath.Join(root, "notes") || cfg.Memory.Collections[0].Writable {
 		t.Fatal("incorrect memory defaults/path", err)
 	}
-	for _, suffix := range []string{"[[memory.collections]]\nname='notes'\npath='./other'\n", "[[memory.collections]]\nname='../escape'\npath='./other'\n"} {
+	for _, suffix := range []string{"[[memory.collections]]\nname='memory'\npath='./other'\n", "[[memory.collections]]\nname='notes'\npath='./other'\n", "[[memory.collections]]\nname='../escape'\npath='./other'\n"} {
 		if err := os.WriteFile(path, []byte(base+suffix), 0600); err != nil {
 			t.Fatal(err)
 		}

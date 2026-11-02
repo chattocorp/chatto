@@ -15,7 +15,6 @@ import (
 )
 
 func TestInitExternalNATS(t *testing.T) {
-	t.Parallel()
 	pair, err := nkeys.CreateUser()
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +81,6 @@ func TestInitExternalNATS(t *testing.T) {
 }
 
 func TestInitNATSValidation(t *testing.T) {
-	t.Parallel()
 	for _, value := range []string{"", "https://example.com", "nats://user:secret@example.com", "nats://example.com/path", "nats://example.com:65536", "nats://example.com?token=secret"} {
 		if validateInitNATSURL(value) == nil {
 			t.Errorf("accepted invalid NATS URL %q", value)

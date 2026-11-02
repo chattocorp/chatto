@@ -16,9 +16,10 @@ frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | 
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
-buf = "latest"
+buf = "1.75.0"
 go = "1.27.3"
-goreleaser = "latest"
+# Keep the release workflow's GoReleaser action on the same version.
+goreleaser = "2.19.0"
 # Includes the Brotli decoder fix for CVE-2026-111497.
 node = "24.22.1"
 pnpm = "11.25.0"
@@ -830,7 +831,7 @@ depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
     "node ../tools/dev-seed-smoke.mjs",
-    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -parallel ${CHATTO_GO_TEST_PARALLEL:-4} -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -tags test_endpoints ./...",
+    "go test -trimpath -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -tags test_endpoints ./...",
 ]
 # Go builds the cli module in workspace mode with the shared pkg/* modules as
 # local sources, and selects dependency versions across every workspace
@@ -857,10 +858,14 @@ description = "Repeat shuffled CLI service tests with the race detector"
 depends = ["setup-cli"]
 dir = "cli"
 env = { GOMAXPROCS = "4" }
-# Keep the load fixed across developer machines and CI. Run package binaries
-# one at a time, with four tests at a time inside each binary. Do not cache this
+# Keep four Go scheduler threads per package, with one test at a time inside
+# each binary. Let Go run different packages concurrently. Do not cache this
 # task: each invocation must exercise the workers and cleanup again.
-run = "go test -trimpath -race -tags test_endpoints -p 1 -parallel 4 -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -count=${CHATTO_GO_STABILITY_COUNT:-3} -timeout 15m ./internal/testutil ./internal/core ./internal/connectapi ./internal/http_server ./internal/mcpserver"
+run = "bash ../tools/test-cli-stability.sh"
+
+[tasks.test-cli-stability-runner]
+description = "Check stability-test budgets, flags, and failure propagation"
+run = "node --test tools/test-cli-stability.test.mjs"
 
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
@@ -933,7 +938,7 @@ sources = [
 ]
 
 [tasks.knip]
-description = "Find unused frontend/docs files, dependencies, and exports"
+description = "Check root pnpm workspace files, dependencies, and duplicate exports"
 depends = ["setup-frontend"]
 run = "pnpm knip"
 
@@ -1015,6 +1020,19 @@ run = [
     "bash tools/test-paseo-dev.sh",
 ]
 
+[tasks.test-repo-tooling]
+description = "Test repository checks, release policy, and development tooling"
+depends = ["setup-frontend"]
+tools = { "github:traefik/traefik" = "3.7.14" }
+# Discover new Node tooling tests without another local or CI file list.
+# Run files serially so lifecycle fixtures do not compete for resources.
+run = [
+    "node --test --test-concurrency=1 tools/*.test.mjs",
+    "bash tools/test-paseo-dev.sh",
+    { task = "test-interchange" },
+    { task = "test-slack" },
+]
+
 [tasks.test-chatto-build]
 description = "Check that unchanged Chatto builds skip and missing assets are restored"
 run = "bash tools/test-chatto-build.sh"
@@ -1078,7 +1096,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
-    { task = "test-dev-tooling" },
+    { task = "test-repo-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]
@@ -1088,14 +1106,27 @@ run = [
 # =============================================================================
 
 [tasks.clean]
-description = "Clean all build artifacts"
+description = "Clean Chatto and root pnpm workspace outputs; keep data and native build caches"
+# Use explicit paths: committed generated source, dependency caches, captures,
+# and runtime state must survive. Authling owns its separate clean task.
 run = [
-    "rm -rf cli/bin/*",
+    "rm -rf dist cli/bin cli/chatto",
     "rm -rf cli/cmd/embedded",
-    "rm -rf cli/internal/http_server/.client",
-    "rm -rf apps/frontend/build",
+    # The embedding directory contains a tracked placeholder, not only output.
+    "if [ -d cli/internal/http_server/.client ]; then find cli/internal/http_server/.client -mindepth 1 -maxdepth 1 ! -name .gitkeep -exec rm -rf {} +; fi",
+    "rm -rf apps/frontend/build apps/frontend/.svelte-kit apps/frontend/storybook-static",
+    "rm -rf apps/frontend/e2e/fixtures/bin apps/frontend/e2e/fixtures/chatto-e2e-server",
+    "rm -rf apps/docs-website/dist apps/docs-website/.astro",
     "rm -rf apps/desktop/dist",
+    "rm -rf apps/mobile/www apps/mobile/ios/App/App/public",
+    "rm -f apps/mobile/ios/App/App/capacitor.config.json apps/mobile/ios/App/App/config.xml",
+    "rm -rf packages/chatto-client/dist packages/translatto/dist packages/runling/dist packages/runling/.svelte-kit",
+    "rm -rf .context/build-frontend",
 ]
+
+[tasks.test-clean]
+description = "Check clean-task output removal and preservation in isolated fixtures"
+run = "node --test tools/clean.test.mjs"
 
 [tasks.reset]
 description = "Reset the development data of Chatto and Authling"

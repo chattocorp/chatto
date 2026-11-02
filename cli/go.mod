@@ -26,6 +26,7 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/alexedwards/scs/v2 v2.9.0
+	github.com/andybalholm/brotli v1.2.0
 	github.com/aws/aws-sdk-go-v2 v1.47.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.4
@@ -35,6 +36,11 @@ require (
 	github.com/brianvoe/gofakeit/v7 v7.17.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/charmbracelet/log v1.0.0
+	github.com/chattocorp/chatto/pkg/appconfig v0.0.0
+	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
+	github.com/chattocorp/chatto/pkg/events v0.0.0
+	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
 	github.com/gen2brain/heic v0.7.2
@@ -74,11 +80,6 @@ require (
 	golang.org/x/text v0.42.0
 	golang.org/x/time v0.16.0
 	google.golang.org/protobuf v1.36.12
-	github.com/chattocorp/chatto/pkg/appconfig v0.0.0
-	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
-	github.com/chattocorp/chatto/pkg/events v0.0.0
-	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
-	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 	mvdan.cc/xurls/v2 v2.6.0
 )
 

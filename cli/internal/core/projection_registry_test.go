@@ -23,8 +23,6 @@ func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Pro
 }
 
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	if len(core.projections) != 8 {
@@ -119,8 +117,6 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 }
 
 func TestProjectionRegistryDefinesIndependentConsumers(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	seen := make(map[*events.Projector]string, len(core.projections))
@@ -136,8 +132,6 @@ func TestProjectionRegistryDefinesIndependentConsumers(t *testing.T) {
 }
 
 func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	wantEligible := map[string]struct{}{

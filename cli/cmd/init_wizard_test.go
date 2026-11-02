@@ -9,7 +9,6 @@ import (
 )
 
 func TestInitWizardUsesTerminalDimensions(t *testing.T) {
-	t.Parallel()
 	for _, size := range []struct{ width, height int }{{80, 24}, {120, 50}, {48, 16}} {
 		opts := defaultInitOptions()
 		port, smtpPort, confirmed := "4000", "587", false
@@ -35,7 +34,6 @@ func TestInitWizardUsesTerminalDimensions(t *testing.T) {
 }
 
 func TestInitWizardWelcomeAndSmallTerminal(t *testing.T) {
-	t.Parallel()
 	opts := defaultInitOptions()
 	port, smtpPort, confirmed := "4000", "587", false
 	wizard := newInitWizard(&opts, &port, &smtpPort, &confirmed)
