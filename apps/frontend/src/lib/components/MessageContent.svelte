@@ -38,6 +38,7 @@
 
   let {
     body,
+    artifactOwner,
     members = [],
     mentionStore,
     roleHandles = [],
@@ -49,6 +50,8 @@
     onMentionClick
   }: {
     body: string;
+    /** Loaded message identity that owns reusable images and diagram layouts. */
+    artifactOwner?: object;
     members?: RoomMember[];
     /** Room lookup owner; retain handles only while this content is mounted. */
     mentionStore?: RoomMembersStore;
@@ -211,7 +214,7 @@
   {#await render(body, resolvedMembers, roleHandles, edited, echoedToChannel, viewerLogin, timestampSettings, timestampLocale)}
     {body}
   {:then html}
-    <MarkdownHtml {html} {enhanceLink} />
+    <MarkdownHtml {html} {enhanceLink} {artifactOwner} />
   {:catch error}
     {body}
     {(() => {

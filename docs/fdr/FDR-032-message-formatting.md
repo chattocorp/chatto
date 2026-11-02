@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-02
 
 ## Overview
 
@@ -113,7 +113,17 @@ virtualized message returns to the viewport, its loading preview reserves the
 same responsive space as the previous image. This prevents repeated row collapse
 and scroll corrections. The dimension cache holds at most 256 entries, identified
 by a digest of the language and source. It retains no message text, SVG, or image
-URLs. Image content and render jobs still belong to the mounted HTML version.
+URLs. Loaded SVG and Mermaid images can also return with their message: after a
+row unmounts, its loaded message owns up to eight detached images. A returning
+row claims its image immediately, without waiting for viewport detection or
+loading the same image again. Simultaneous views get separate image nodes.
+Preview identities are scoped to the timeline store, event ID and message body.
+Reactions, pins and thread updates keep the same identity and mounted images.
+Body changes, removal from the loaded window, timeline resets and store disposal
+discard that identity. These weak caches do not keep timeline stores alive.
+Changed source uses a new image;
+Mermaid images also refresh their colours when the theme changes. Unfinished
+render jobs still belong to the mounted HTML version.
 
 ### 7. Mermaid diagrams use Pele and the image boundary
 
@@ -129,7 +139,7 @@ Both editors highlight labelled Mermaid source with a shared, lazily loaded gram
 
 **Why:** Pele supports Mermaid syntax without a remote rendering service. The image boundary also used for SVG prevents active content from entering the application document. Worker termination bounds expensive layout work.
 
-**Tradeoff:** Unsupported, invalid or excessive diagrams remain code. Pele can differ from Mermaid.js. Cached SVG belongs to the mounted HTML version, with at most four entries; theme changes reuse it, but remounting renders again. This keeps private message content out of a global cache. The Markdown hints are provisional until the message presentation interface is reviewed.
+**Tradeoff:** Unsupported, invalid or excessive diagrams remain code. Pele can differ from Mermaid.js. Successful layouts belong to the loaded message body, with at most four entries. Virtualized rows reuse these layouts when they return to view and apply the current theme. The cache does not keep timeline stores alive or share results between messages. Changed source needs a new layout. Surfaces without a loaded message owner render again on remount. Unfinished jobs still stop when their row unmounts. The Markdown hints are provisional until the message presentation interface is reviewed.
 
 ### 8. Emoji shortcodes are display syntax
 

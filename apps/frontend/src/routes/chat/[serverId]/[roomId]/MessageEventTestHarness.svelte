@@ -126,6 +126,8 @@
 
   const messageStore = $derived(
     providedMessageStore ?? {
+      events: [],
+      isDisposed: false,
       ensureEvent: () => undefined,
       getEventById: () => undefined,
       beginOptimisticThreadFollow: () => undefined,

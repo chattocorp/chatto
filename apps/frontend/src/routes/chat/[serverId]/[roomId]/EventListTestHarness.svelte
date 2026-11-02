@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { signal } from '@chatto/client/reactivity';
   import { setTimelineViewport } from '$lib/state/room/timelineViewport';
   import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
   import { onMount } from 'svelte';
@@ -28,6 +29,7 @@
     scrollToEventId,
     onComplete,
     isLoading = false,
+    isLoadingMore = false,
     loadError = null,
     isJumpedMode = false,
     onJumpToPresent,
@@ -53,6 +55,7 @@
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
+    isLoadingMore?: boolean;
     loadError?: unknown;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
@@ -136,14 +139,24 @@
   );
 
   // Match Room's derived store selection so delayed work sees real owner disposal.
+  const timelineRows = signal<TimelineEventView[]>([]);
+  $effect.pre(() => {
+    timelineRows.set(events);
+  });
   const messageStore = $derived({
+    get events() {
+      return timelineRows.get();
+    },
+    isDisposed: false,
     get isInitialLoading() {
       return isLoading;
     },
     get loadError() {
       return loadError;
     },
-    isLoadingMore: false,
+    get isLoadingMore() {
+      return isLoadingMore;
+    },
     get hasReachedStart() {
       return hasReachedStart;
     },

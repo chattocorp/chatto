@@ -1,7 +1,7 @@
 # FDR-014: Jump to Present
 
 **Status:** Active
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-11-02
 
 ## Overview
 
@@ -58,6 +58,12 @@ When a user is reading older messages in a room — either because they scrolled
 **Decision:** When the user opens a room or a thread, the timeline scrolls to the "New messages" separator when the separator first appears. This occurs one time for each entry. Opening a different thread is a new entry. A scroll, a jump to a message, a posted message, or a click on the button before the separator appears cancels it. An entry that targets a specific message does not scroll to the separator, also when the target message cannot be shown. A separator that appears while the user is away waits until the user returns. Until then, the timeline follows the latest message.
 **Why:** The user opens an unread room or thread to read the new messages, not only the latest one. A specific target message is a more precise request than the separator. The separator already marks the first unread message, so the timeline uses it as the landing position.
 **Tradeoff:** The separator position comes from the response to the entry read request. The timeline can show the latest messages for a short time and then move to the separator. The user's own action always has priority over this automatic movement. A separator that appears after this one-time scroll ran or was cancelled does not move the timeline.
+
+### 7. Preserve position when older messages arrive
+
+**Decision:** During older-page loading, keep the position from the end only when the loaded window changes at its start and keeps the same last event. New messages that arrive at the end during the request keep normal start anchoring. The timeline disables browser scroll anchoring so that only the virtualizer and the timeline's explicit scroll actions control the position.
+**Why:** A pending history request does not mean that every concurrent update adds older messages. Treating a new message as an older page can move the content that the user is reading.
+**Tradeoff:** This check does not treat window replacement or changes at both ends as a simple prepend.
 
 ## Related
 
