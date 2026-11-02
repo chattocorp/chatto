@@ -111,15 +111,17 @@ system-browser authentication, and clean-machine media behavior are hardened.
   A saved channel choice takes precedence. Stable rolls out over 36 hours. Beta and manual
   checks bypass this delay. Switching to Stable never installs an older version.
   The restart action is hidden until an update is ready and shows its version.
-  Installation requires an explicit restart confirmation; ordinary quit does
+  Installation requires an explicit restart action; ordinary quit does
   not install updates. Existing builds need one manual upgrade to obtain this
   behavior. Windows ZIP and Linux tarball updates remain manual.
 - GitHub receives update requests and the user's IP address, but no Chatto
   account or connected-server information. Updates preferences and the Updates menu explain this
   connection and let users disable automatic checks and downloads.
 - An update-ready link in the Application Header opens Updates preferences.
-  Background checks do not open a dialog. Restart still requires confirmation
-  and warns that active calls and screen sharing will end.
+  Background checks do not open a dialog. Updates preferences warn that a
+  restart ends active calls and screen sharing. The restart button proceeds
+  without another confirmation. The native Updates menu keeps this warning
+  in a confirmation dialog.
 - Updates preferences are independent of the selected server and remain
   available without a server connection. All desktop builds show the page in
   navigation. Development builds and installations without automatic updates show
