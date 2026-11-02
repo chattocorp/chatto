@@ -22,7 +22,7 @@ func (c *typingClient) RefreshTypingIndicator(ctx context.Context, room, root st
 }
 
 func TestTypingFollowsTurnLifetime(t *testing.T) {
-	for _, outcome := range []string{"reply", "reaction", "failure", "cancelled"} {
+	for _, outcome := range []string{"reply", "reaction", "silent", "failure", "cancelled"} {
 		t.Run(outcome, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
@@ -48,6 +48,12 @@ func TestTypingFollowsTurnLifetime(t *testing.T) {
 					case "reaction":
 						var message agent.Message
 						if err := json.Unmarshal([]byte(`{"role":"assistant","tool_calls":[{"id":"r","type":"function","function":{"name":"react_to_ping","arguments":"{\"emoji\":\"heart\"}"}}]}`), &message); err != nil {
+							t.Fatal(err)
+						}
+						return message, nil
+					case "silent":
+						var message agent.Message
+						if err := json.Unmarshal([]byte(`{"role":"assistant","tool_calls":[{"id":"quiet","type":"function","function":{"name":"stay_silent","arguments":"{}"}}]}`), &message); err != nil {
 							t.Fatal(err)
 						}
 						return message, nil

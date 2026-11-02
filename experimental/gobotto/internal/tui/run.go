@@ -51,8 +51,6 @@ func Run(ctx context.Context, work func(context.Context, Emit) error, options ..
 	}()
 	m := newModel(events)
 	m.requestQuit = func() { requestOnce.Do(func() { close(shutdown) }) }
-	m.switchMode(true)
-	m.logsFocused = false
 	options = append(options, tea.WithContext(ctx))
 	_, uiErr := tea.NewProgram(m, options...).Run()
 	cancel()

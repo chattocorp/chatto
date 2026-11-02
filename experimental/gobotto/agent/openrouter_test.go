@@ -81,7 +81,7 @@ func TestOpenRouterWireContract(t *testing.T) {
 		if (expectedTokens == 0 && body.MaxTokens != nil) || (expectedTokens > 0 && (body.MaxTokens == nil || *body.MaxTokens != expectedTokens)) {
 			t.Error("output cap must be omitted unless explicitly configured")
 		}
-		if body.Model != expectedModel || body.SessionID != "stable-session" || len(body.Messages) != 1 || len(body.Tools) != 2 || body.Tools[0].Function.Name != "read_thread" || body.Tools[1].Function.Name != "react_to_ping" {
+		if body.Model != expectedModel || body.SessionID != "stable-session" || len(body.Messages) != 1 || len(body.Tools) != 3 || body.Tools[0].Function.Name != "read_thread" || body.Tools[1].Function.Name != "react_to_ping" || body.Tools[2].Function.Name != "stay_silent" {
 			t.Error("incorrect completion request")
 		}
 		if (body.CacheControl["type"] == "ephemeral") != strings.HasPrefix(expectedModel, "anthropic/") {
@@ -139,7 +139,7 @@ func TestOpenRouterWireContract(t *testing.T) {
 func TestOpenRouterCapabilitiesAreTurnScoped(t *testing.T) {
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
-	want := 3
+	want := 4
 	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		var request struct {
 			Tools []json.RawMessage `json:"tools"`
@@ -157,7 +157,7 @@ func TestOpenRouterCapabilitiesAreTurnScoped(t *testing.T) {
 	if _, err := complete(ctx, nil); err != nil {
 		t.Fatal(err)
 	}
-	want = 2
+	want = 3
 	if _, err := complete(context.Background(), nil); err != nil {
 		t.Fatal(err)
 	}

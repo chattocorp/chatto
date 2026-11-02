@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -24,10 +25,14 @@ var errStore = errors.New("session storage failed; check the session directory")
 // Store owns private, atomic JSON snapshots in one server/bot/model namespace.
 // Its process lock prevents two bot processes from overwriting the same history.
 type Store struct {
-	dir     string
-	lock    *os.File
-	inboxMu sync.Mutex
-	inbox   inboxState
+	epoch    string // distinguishes this process's live checkpoints from interrupted history
+	readerMu sync.Mutex
+	readers  sync.WaitGroup
+	closed   bool
+	dir      string
+	lock     *os.File
+	inboxMu  sync.Mutex
+	inbox    inboxState
 }
 
 type totals struct {
@@ -47,6 +52,11 @@ func (t *totals) addReasoning(u agent.Usage) {
 }
 
 type savedConversation struct {
+	// Keep this prefix first: readers can load metadata and inspection without
+	// decoding the model transcript. The entire file is committed atomically.
+	Index                *sessionIndex
+	Records              []inspection.Turn
+	Logs                 []inspection.Log
 	Version              int
 	ID                   uint64
 	HumanID              string
@@ -61,8 +71,6 @@ type savedConversation struct {
 	Usage                totals
 	Interrupted          bool
 	Blocked              bool
-	Records              []inspection.Turn
-	Logs                 []inspection.Log
 	ChildRuns            map[string]*subagent.Run `json:",omitempty"`
 	ChildUsageApplied    map[string]int           `json:",omitempty"`
 }
@@ -86,7 +94,14 @@ func OpenStore(base, server, viewer, model string) (*Store, error) {
 		f.Close()
 		return nil, errors.New("session directory is already in use")
 	}
-	s := &Store{dir: dir, lock: f}
+	// Keep the namespace lock shared with old versions, but start a separate
+	// indexed generation. No legacy transcript or inbox is migrated/replayed.
+	dir = filepath.Join(dir, "v2")
+	if os.MkdirAll(dir, 0700) != nil || os.Chmod(dir, 0700) != nil {
+		f.Close()
+		return nil, errStore
+	}
+	s := &Store{dir: dir, lock: f, epoch: rand.Text()}
 	if err := s.loadInbox(); err != nil {
 		s.Close()
 		return nil, err
@@ -95,7 +110,13 @@ func OpenStore(base, server, viewer, model string) (*Store, error) {
 }
 
 // Close releases the process lock after all session workers have stopped.
-func (s *Store) Close() error { return s.lock.Close() }
+func (s *Store) Close() error {
+	s.readerMu.Lock()
+	s.closed = true
+	s.readerMu.Unlock()
+	s.readers.Wait()
+	return s.lock.Close()
+}
 
 func (s *Store) path(c *conversation) string {
 	return filepath.Join(s.dir, c.humanID+".json")
@@ -110,6 +131,10 @@ func (s *Store) legacyPath(c *conversation) string {
 // messages live in the separate atomic inbox; started batches are not retried.
 func (s *Store) save(c *conversation, interrupted bool) error {
 	if s == nil {
+		return nil
+	}
+	// A metadata stub must never replace its transcript.
+	if c.unloaded {
 		return nil
 	}
 	if c.humanID == "" {
@@ -135,6 +160,8 @@ func (s *Store) save(c *conversation, interrupted bool) error {
 	v.Blocked = c.blocked
 	v.Records = c.records
 	v.Logs = c.storedLogs()
+	v.Index = indexFor(c, interrupted)
+	v.Index.Epoch = s.epoch
 	v.ChildRuns = c.childRuns
 	v.ChildUsageApplied = c.childUsageApplied
 	if c.model != nil {
@@ -189,6 +216,12 @@ func (s *Store) load() ([]*conversation, error) {
 	if err != nil {
 		return nil, errStore
 	}
+	return s.loadPaths(paths)
+}
+
+// loadPaths hydrates only the requested files. Legacy decoding is retained for
+// offline readers; normal startup requires the compact index prefix.
+func (s *Store) loadPaths(paths []string) ([]*conversation, error) {
 	var result []*conversation
 	ids := map[uint64]bool{}
 	names := map[string]bool{}

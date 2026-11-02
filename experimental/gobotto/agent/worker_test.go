@@ -10,7 +10,7 @@ import (
 )
 
 func TestWorkerCannotUseChattoOrParentTools(t *testing.T) {
-	for _, name := range []string{"read_thread", "react_to_ping", "delegate", "memory_create"} {
+	for _, name := range []string{"read_thread", "react_to_ping", "stay_silent", "inspect_image", "delegate", "memory_create"} {
 		calls := 0
 		ctx := WithTools(context.Background(), nil)
 		out, err := NewWorker("Investigate", 2).Turn(ctx, func(_ context.Context, messages []Message) (Message, error) {

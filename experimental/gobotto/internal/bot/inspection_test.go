@@ -28,6 +28,53 @@ func TestOutputLimitIsVisibleInInspection(t *testing.T) {
 	}
 }
 
+// quietClient counts reactions too, including the fake client's ignored eyes emoji.
+type quietClient struct {
+	*fakeClient
+	reactions int
+}
+
+func (c *quietClient) React(context.Context, string, string, string) error {
+	c.reactions++
+	return nil
+}
+
+func TestSilentTurnDoesNotDeliverAndSurvivesRestore(t *testing.T) {
+	store, err := OpenStore(t.TempDir(), "server", "bot", "model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	f := &quietClient{fakeClient: newFake()}
+	c := &conversation{id: 1, turns: 1, key: threadKey{"room", "root"}, provider: "stable", store: store, records: []inspection.Turn{{Number: 1, State: "running"}}}
+	c.complete = func(context.Context, []agent.Message) (agent.Message, error) {
+		var msg agent.Message
+		err := json.Unmarshal([]byte(`{"role":"assistant","tool_calls":[{"id":"quiet","type":"function","function":{"name":"stay_silent","arguments":"{}"}}]}`), &msg)
+		return msg, err
+	}
+	if err := respond(context.Background(), f, c, []chatto.MessageEvent{input("first", "an aside", false)}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.posts) != 0 || f.reactions != 0 || c.records[0].State != "silent" || c.records[0].Finished.IsZero() {
+		t.Fatal("silent turn posted output or did not complete")
+	}
+	for _, step := range c.records[0].Steps {
+		if step.Kind == "delivery" {
+			t.Fatal("silence recorded as delivery")
+		}
+	}
+	if err := store.save(c, false); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.load()
+	if err != nil || len(loaded) != 1 {
+		t.Fatal("restore failed", err)
+	}
+	if loaded[0].records[0].State != "silent" || loaded[0].records[0].Response != "" || loaded[0].model.Snapshot().PendingTool != "" {
+		t.Fatal("restore changed the silent outcome")
+	}
+}
+
 func TestTurnInspectionCapturesToolsUsageAndDelivery(t *testing.T) {
 	s, err := OpenStore(t.TempDir(), "server", "bot", "model")
 	if err != nil {

@@ -42,6 +42,7 @@ type ModelFactory func(string, func(agent.Usage)) agent.Complete
 
 type threadKey struct{ room, root string }
 type conversation struct {
+	unloaded bool // metadata only; hydrate before binding or running work
 	// Shared membership index allows intake to scope invalidations while the
 	// worker owns the transcript. Ready is false while a snapshot is loading.
 	contextIDs        sync.Map
@@ -150,10 +151,11 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	store := opts.Store
 	// Detach from the caller's mutable configuration slice.
 	owners := append([]string(nil), opts.OwnerUserIDs...)
-	loaded, err := store.load()
+	loaded, err := store.loadIndex(ctx)
 	if err != nil {
 		return err
 	}
+	inspectionCtx := ctx // inspection remains available after the worker stops, until the UI exits
 	ctx, cancel := context.WithCancel(ctx)
 	var workers sync.WaitGroup
 	sessions := map[threadKey]*conversation{}
@@ -161,6 +163,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		cancel()
 		workers.Wait()
 		for _, c := range sessions {
+			if c.unloaded {
+				continue
+			}
 			c.jobs.Close()
 			_ = c.syncChildren()
 			if c.reset {
@@ -305,11 +310,10 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		bind(c)
 	}
 	for _, c := range loaded {
-		bind(c)
 		sessions[c.key] = c
 		nextID = max(nextID, c.id)
-		c.send(emit, tui.Event{Kind: tui.Started, Session: c.id, HumanID: c.humanID, Title: c.title, At: c.started, Turns: c.turns, Records: c.records, Logs: c.storedLogs()})
-		c.send(emit, tui.Event{Kind: tui.Log, Session: c.id, Text: "Session restored"})
+		human := c.humanID
+		emit(tui.Event{Kind: tui.Started, Session: c.id, HumanID: human, Title: c.title, At: c.started, Turns: c.turns, LoadDetails: func(before int) (inspection.Page, error) { return store.inspectionPage(inspectionCtx, human, before) }})
 		if c.usage.Known {
 			var cost *float64
 			if c.usage.CostKnown {
@@ -331,6 +335,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	shutdown := opts.Shutdown
 	draining := false
 	for {
+		if err := store.trimRuntime(sessions, active); err != nil {
+			return err
+		}
 		// Check before scheduling so queued work cannot win a select race with
 		// an already requested shutdown.
 		if !draining {
@@ -428,6 +435,10 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				connected = false
 				recoveryGap = true
 				for _, c := range sessions {
+					// Lazy restore already requires a fresh access/history check.
+					if c.unloaded {
+						continue
+					}
 					c.jobs.Cancel()
 					if active == c {
 						c.reset = true
@@ -448,6 +459,19 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			}
 			if e.InvalidatedRoom != "" || e.InvalidateAll {
 				for _, c := range sessions {
+					if c.unloaded {
+						// Ordinary lazy restores recheck access/history before use.
+						// Budget-blocked threads must still be reset by invalidation.
+						if !c.blocked || (!e.InvalidateAll && c.key.room != e.InvalidatedRoom) {
+							continue
+						}
+						c, err = store.hydrate(c)
+						if err != nil {
+							return err
+						}
+						bind(c)
+						sessions[c.key] = c
+					}
 					if c.affectedBy(e, active == c, activeBatch) {
 						if e.InvalidationReason == chatto.MessageEdited {
 							c.editCheck.Lock()
@@ -486,6 +510,14 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			}
 			key := threadKey{m.RoomID, m.ThreadRootID()}
 			c := sessions[key]
+			if c != nil && c.unloaded && !c.blocked {
+				c, err = store.hydrate(c)
+				if err != nil {
+					return err
+				}
+				bind(c)
+				sessions[key] = c
+			}
 			if c == nil {
 				if draining {
 					keepIntake = true
@@ -518,7 +550,12 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				if err := store.save(c, false); err != nil {
 					return err
 				}
-				emit(tui.Event{Kind: tui.Started, Session: c.id, HumanID: c.humanID})
+				event := tui.Event{Kind: tui.Started, Session: c.id, HumanID: c.humanID}
+				if store != nil {
+					human := c.humanID
+					event.LoadDetails = func(before int) (inspection.Page, error) { return store.inspectionPage(inspectionCtx, human, before) }
+				}
+				emit(event)
 				// Saving the new session before this best-effort side effect prevents
 				// replay on restart. Keep intake and model work independent of it.
 				workers.Add(1)
@@ -721,6 +758,10 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	stopTyping := startTyping(ctx, client, c.key)
 	defer stopTyping()
 	tools := append(c.memory.Tools(c.ownerOnlyBatch(batch)), c.tools...)
+	images := &turnImages{}
+	if _, ok := client.(imageClient); ok {
+		tools = append(tools, images.tool(client, c))
+	}
 	// A completion event authorizes reporting, not a new user-directed operation.
 	if len(batch) == 0 {
 		tools = nil
@@ -960,7 +1001,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		index := c.step("model", "Completion")
 		// Preserve per-completion controls, including the final text-only
 		// budget wrap-up, instead of replacing them with the turn context.
-		result, err := c.complete(ctx, messages)
+		result, err := c.complete(ctx, images.request(messages))
 		if c.storeErr != nil {
 			c.finishStep(index, "failed", "Usage checkpoint failed")
 			return nil, c.storeErr
@@ -1040,6 +1081,11 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	if err := ctx.Err(); err != nil {
 		c.model.RecordDelivery(err)
 		return err
+	}
+	if outcome.Silent {
+		c.inspect(func(t *inspection.Turn) { t.State = "silent" })
+		report("Turn ended silently")
+		return nil
 	}
 	// Commit the proposed action before sending it. A crash here leaves an
 	// interrupted checkpoint, never an instruction to replay the action.
