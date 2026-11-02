@@ -1,5 +1,6 @@
 <script lang="ts">
   import { userPreferences } from '$lib/state/userPreferences.svelte';
+  import { timelineShiftsFromEnd } from '$lib/state/room/timelineShift';
   import { onDestroy, tick, untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import {
@@ -151,7 +152,7 @@
   const jumpState = composerContext.jumpState;
   const isLoading = $derived(messageStore.isInitialLoading);
   const loadError = $derived(messageStore.loadError);
-  // Stays true one frame after a page, so virtua's `shift` keeps the position.
+  // Includes the settling frame so pagination cannot start another page too early.
   const isLoadingMore = $derived(isLoadingOlder(messageStore));
   const hasReachedStart = $derived(messageStore.hasReachedStart);
   const isJumpedMode = $derived(jumpState.isJumpedMode);
@@ -252,6 +253,11 @@
   let virtualItems = $derived(
     buildVirtualItems(eventsWithMeta, effectiveUnreadAfterEventId, hasReachedStart, showStartMarker)
   );
+
+  // `shift` describes a data change, not an in-flight request. A live append
+  // during an older-page read must still be measured from the start.
+  const shiftsFromEnd = $derived(timelineShiftsFromEnd(messageStore));
+  const shift = $derived(shiftsFromEnd && isLoadingMore);
 
   // A failed reconnect reload keeps its retained rows visible. A missing thread
   // root or lost read access shows the empty message: a retry cannot fix them.
@@ -1014,7 +1020,7 @@
     bottom
     bind:this={scrollFader}
     bind:scrollEl={scrollContainer}
-    scrollClass="overscroll-y-contain"
+    scrollClass="overscroll-y-contain [overflow-anchor:none]"
     data-testid="messages-container"
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}
@@ -1046,7 +1052,7 @@
           data={virtualItems}
           getKey={(item, index) => item?.key ?? `__ix_${index}`}
           scrollRef={scrollContainer}
-          shift={isLoadingMore}
+          {shift}
           itemSize={60}
           {keepMounted}
           itemProps={({ item }) => ({ [TIMELINE_ITEM_KEY_ATTRIBUTE]: item?.key })}

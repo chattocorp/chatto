@@ -23,6 +23,7 @@ identity, body rendering, and row geometry consistent.
 
   let {
     eventId,
+    artifactOwner,
     actor,
     displayName,
     missingActorIsDeleted = true,
@@ -63,6 +64,8 @@ identity, body rendering, and row geometry consistent.
     actions
   }: {
     eventId: string;
+    /** Loaded message identity that owns reusable images and diagram layouts. */
+    artifactOwner?: object;
     actor: UserAvatarUserView | null;
     displayName: string;
     missingActorIsDeleted?: boolean;
@@ -225,6 +228,7 @@ identity, body rendering, and row geometry consistent.
       {:else if body}
         <div bind:this={bodyElement} class="pointer-fine:select-text">
           <MessageContent
+            {artifactOwner}
             {body}
             {mentionStore}
             {members}

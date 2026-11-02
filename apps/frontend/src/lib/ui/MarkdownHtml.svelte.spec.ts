@@ -29,6 +29,154 @@ import { testSnippet } from '$lib/test-utils';
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Mermaid previews', () => {
+  it.each(['svg', 'mermaid'])(
+    'reuses the loaded %s image when wheel scrolling remounts a row',
+    async (language) => {
+      const jobs = vi.spyOn(Worker.prototype, 'postMessage');
+      const html = await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+          renderMarkdown(
+            '```' +
+              language +
+              ' rendered\n' +
+              (language === 'svg'
+                ? `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><title>Wheel row ${index}</title><rect width="300" height="400" fill="red"/></svg>`
+                : `flowchart TB\nA[Wheel row ${index}]-->B[Second]-->C[Third]-->D[Fourth]`) +
+              '\n```'
+          )
+        )
+      );
+      // Give the virtualizer known geometry. This test covers remounts, not
+      // cold rows growing while native wheel scrolling is still in progress.
+      for (const value of html) {
+        const preview = render(MarkdownHtml, { html: value });
+        await expect
+          .poll(() => preview.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+        await preview.unmount();
+      }
+      jobs.mockClear();
+      const { container } = render(DiagramTimelineTestHarness, { html });
+      const scroller = container.querySelector<HTMLElement>('[data-testid="diagram-timeline"]')!;
+      const firstImage = () =>
+        scroller.querySelector<HTMLImageElement>('[data-diagram-row="0"] img');
+      await expect.poll(() => firstImage()?.naturalWidth).toBeGreaterThan(0);
+      const original = firstImage();
+      const { x, y } = scroller.getBoundingClientRect();
+      const wheel = (deltaY: number) =>
+        cdp().send('Input.dispatchMouseEvent', {
+          type: 'mouseWheel',
+          x: x + 100,
+          y: y + 100,
+          deltaX: 0,
+          deltaY
+        });
+      for (let step = 0; step < 5; step++) {
+        await wheel(300);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        await expect.poll(() => scroller.querySelector('[aria-busy="true"]')).toBeNull();
+      }
+      await expect.poll(() => scroller.querySelector('[data-diagram-row="0"]')).toBeNull();
+      for (let step = 0; step < 5; step++) {
+        await wheel(-300);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      }
+      await expect.poll(() => firstImage()?.naturalWidth).toBeGreaterThan(0);
+      expect(firstImage()).toBe(original);
+      expect(
+        jobs.mock.calls.filter(([source]) => String(source).includes('Wheel row 0]'))
+      ).toHaveLength(language === 'mermaid' ? 1 : 0);
+    }
+  );
+
+  it('reuses a loaded message layout on remount but renders changed source and new owners', async () => {
+    const artifactOwner = {};
+    const jobs = vi.spyOn(Worker.prototype, 'postMessage');
+    const html = await renderMarkdown(
+      '```mermaid rendered\nflowchart LR\nA[Reuse]-->B[Layout]\n```'
+    );
+    const loaded = async (container: HTMLElement) => {
+      await expect
+        .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      return container.querySelector('img')!;
+    };
+    const first = render(MarkdownHtml, { html, artifactOwner });
+    const firstImage = await loaded(first.container);
+    expect(jobs).toHaveBeenCalledOnce();
+    await first.unmount();
+    jobs.mockClear();
+
+    const second = render(MarkdownHtml, { html, artifactOwner });
+    const secondImage = await loaded(second.container);
+    expect(secondImage).toBe(firstImage);
+    expect(secondImage.src).toBe(firstImage.src);
+    expect(jobs).not.toHaveBeenCalled();
+    await second.rerender({
+      html: await renderMarkdown(
+        '```mermaid rendered\nflowchart LR\nA[Edited]-->C[New layout]\n```'
+      )
+    });
+    await loaded(second.container);
+    expect(jobs).toHaveBeenCalledOnce();
+    await second.unmount();
+
+    jobs.mockClear();
+    const fresh = render(MarkdownHtml, { html, artifactOwner: {} });
+    await loaded(fresh.container);
+    expect(jobs).toHaveBeenCalledOnce();
+  });
+
+  it.each(['svg', 'mermaid'])(
+    'keeps simultaneous %s previews independent and reuses only the unchanged image',
+    async (language) => {
+      const artifactOwner = {};
+      const markup = (label: string) =>
+        renderMarkdown(
+          '```' +
+            language +
+            ' rendered\n' +
+            (language === 'svg'
+              ? `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><title>${label}</title></svg>`
+              : `flowchart LR\nA[${label}]-->B[Preview]`) +
+            '\n```'
+        );
+      const html = await markup('Original');
+      const first = render(MarkdownHtml, { html, artifactOwner });
+      await expect
+        .poll(() => first.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      const original = first.container.querySelector('img')!;
+      await first.unmount();
+      const loads = vi.fn();
+      original.addEventListener('load', loads);
+      const second = render(MarkdownHtml, { html, artifactOwner });
+      // Cached SVG mounting is synchronous; no empty intersection-observer frame.
+      if (language === 'svg') expect(second.container.querySelector('img')).toBe(original);
+      await expect.poll(() => second.container.querySelector('img')).toBe(original);
+      const simultaneous = render(MarkdownHtml, { html, artifactOwner });
+      await expect
+        .poll(() => simultaneous.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      expect(simultaneous.container.querySelector('img')).not.toBe(original);
+      expect(second.container.contains(original)).toBe(true);
+      expect(loads).not.toHaveBeenCalled();
+      original.removeEventListener('load', loads);
+      await second.rerender({ html: await markup('Edited') });
+      await expect
+        .poll(() => second.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      expect(second.container.querySelector('img')).not.toBe(original);
+      const fresh = render(MarkdownHtml, { html, artifactOwner: {} });
+      await expect
+        .poll(() => fresh.container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      expect(fresh.container.querySelector('img')).not.toBe(original);
+    }
+  );
+
   it('does not correct upward scrolling when Gantt rows remount', async () => {
     const source = `gantt
     title A Gantt Diagram

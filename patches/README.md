@@ -11,9 +11,9 @@ Remove this patch when an upstream release uses consistent formal German in
 these messages. Before release, check the German uninstall confirmation and
 running-application prompt on Windows.
 
-## virtua 0.54.0
+## virtua 0.54.1
 
-`virtua@0.54.0.patch` keeps retained Svelte rows mounted when older rows are
+`virtua@0.54.1.patch` keeps retained Svelte rows mounted when older rows are
 inserted at the start of a list. With Svelte's async mode, the layout can still
 have its previous length when `keepMounted` contains indexes for the new data.
 The upstream check against that previous length removes retained rows. This

@@ -40,6 +40,7 @@
     MessageActionOverlayState
   } from './messageActionOverlayState.svelte';
   import { MessageActionTarget } from './messageActionTarget.svelte';
+  import { messageArtifactOwner } from '$lib/state/messageArtifacts';
   import { MessageLongPressGesture } from './messageLongPress.svelte';
   import {
     buildMessageReplyPreview,
@@ -266,6 +267,12 @@
 
   // Message links referenced in this message's body — rendered inline as previews.
   const messageBody = $derived(msg?.body);
+  const messageId = $derived(event.id);
+  // Standalone rows also keep their owner through metadata-only updates.
+  const localArtifactOwner = $derived({ messageId, messageBody });
+  const artifactOwner = $derived(
+    messageArtifactOwner(messageStore, messageId, messageBody) ?? localArtifactOwner
+  );
   const messageLinks = $derived(embeddedMessageLinks(messageBody));
 
   async function copyMessageLink(e: MouseEvent) {
@@ -455,13 +462,14 @@
 
 {#if msg}
   <MessageView
+    {artifactOwner}
     {mentionStore}
     eventId={event.id}
     actor={target.actor}
     displayName={target.displayName}
     {authorLoading}
     missingActorIsDeleted={target.deletedActor}
-    body={msg.body}
+    body={messageBody}
     deleted={isDeleted}
     viewerLogin={currentUser.user?.login}
     {compact}
