@@ -121,9 +121,6 @@ importers:
       js-sha256:
         specifier: ^1.0.0
         version: 1.0.0
-      linkify-it:
-        specifier: ^5.0.2
-        version: 5.0.2
       livekit-client:
         specifier: ^2.23.0
         version: 2.23.0(@types/dom-mediacapture-record@1.0.22)
@@ -236,9 +233,6 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.31.3
         version: 3.31.3
-      '@types/linkify-it':
-        specifier: ^5.0.0
-        version: 5.0.0
       '@types/markdown-it':
         specifier: ^14.2.0
         version: 14.2.0
@@ -403,9 +397,6 @@ importers:
 
   examples/runling-bot:
     dependencies:
-      '@chatto/api-types':
-        specifier: workspace:*
-        version: link:../../packages/api-types
       '@chatto/client':
         specifier: workspace:*
         version: link:../../packages/chatto-client

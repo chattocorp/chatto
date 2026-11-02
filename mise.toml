@@ -933,7 +933,7 @@ sources = [
 ]
 
 [tasks.knip]
-description = "Find unused frontend/docs files, dependencies, and exports"
+description = "Check root pnpm workspace files, dependencies, and duplicate exports"
 depends = ["setup-frontend"]
 run = "pnpm knip"
 

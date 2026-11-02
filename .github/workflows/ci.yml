@@ -601,6 +601,20 @@ jobs:
       - name: Build Storybook design-system catalog
         run: pnpm run build:storybook
 
+  check-unused:
+    needs: changes
+    # Check every root pnpm workspace, including docs-only and example-only changes.
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.desktop == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.botto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+      - name: Check unused files and dependencies
+        run: pnpm run knip
+
   test-workspace-packages:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
@@ -1115,6 +1129,7 @@ jobs:
       - workflow-lint
       - codegen-proto-drift
       - check-workspace
+      - check-unused
       - test-workspace
       - test-cli
       - test-e2e
