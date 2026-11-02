@@ -1020,6 +1020,17 @@ run = [
     "bash tools/test-paseo-dev.sh",
 ]
 
+[tasks.test-repo-tooling]
+description = "Test repository checks, release policy, and development tooling"
+depends = ["setup-frontend"]
+tools = { "github:traefik/traefik" = "3.7.14" }
+# Discover new Node tooling tests without another local or CI file list.
+# Run files serially so lifecycle fixtures do not compete for resources.
+run = [
+    "node --test --test-concurrency=1 tools/*.test.mjs",
+    "bash tools/test-paseo-dev.sh",
+]
+
 [tasks.test-chatto-build]
 description = "Check that unchanged Chatto builds skip and missing assets are restored"
 run = "bash tools/test-chatto-build.sh"
@@ -1083,9 +1094,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
-    { task = "test-clean" },
-    { task = "test-cli-stability-runner" },
-    { task = "test-dev-tooling" },
+    { task = "test-repo-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]

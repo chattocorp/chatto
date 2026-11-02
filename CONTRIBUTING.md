@@ -381,8 +381,8 @@ listeners, cleanup after failure, route ownership, and real Traefik routing.
 The routing test checks that changes to another route preserve a WebSocket,
 that proxy restarts restore routes, and that unknown or removed hosts return 404. The lifecycle test runs the real mise task graph with test listeners. It
 checks that one stop closes all listeners and removes routes and runtime state
-within Paseo's shutdown deadline. This task also runs in CI and as part of
-`mise test`.
+within Paseo's shutdown deadline. These tests also run through
+`mise test-repo-tooling` in CI and as part of `mise test`.
 
 Private configuration is in `.context/paseo-stack/<dev-full-port>/` and is
 removed on normal stop. Each service receives its own current port from Paseo;
@@ -538,6 +538,17 @@ only while the Runling bot of `mise dev-full` runs.
 | `bob`   | `bob@example.com`   | `foobar123` | user  |
 
 Use `alice` when you need server administration access.
+
+## Repository Tooling Tests
+
+Run `mise test-repo-tooling` to test repository checks, release policy,
+build-output cleanup, and development launchers. The task installs workspace
+dependencies and discovers `tools/*.test.mjs` files automatically. It runs
+test files one at a time, then runs the launcher shell test.
+
+CI and `mise test` use this same task. Add new Node tooling tests as
+`tools/<name>.test.mjs` so both commands include them. The focused tasks, such
+as `mise test-dev-tooling` and `mise test-clean`, remain available.
 
 ## Synthetic Test Data
 
