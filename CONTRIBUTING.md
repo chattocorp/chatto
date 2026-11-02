@@ -488,6 +488,21 @@ Pass explicit CLI arguments after the task name, for example
 
 ### Local Chatto Data
 
+Stop development servers and builds before running `mise clean`. It removes
+Chatto binaries, release output, embedded frontend copies, frontend and Storybook
+builds, E2E binaries, docs output, mobile web copies, and the root workspace
+packages' build output. It also removes generated SvelteKit and Astro state
+and the frontend build-completion marker. The next build recreates these files
+or restores them from the build cache.
+
+The task preserves development data, backups, environment files, generated
+source committed to Git, test reports, dependency and Turbo caches, and native
+Swift/Xcode build caches. It preserves the rest of `.context/`, including mobile
+native builds.
+Authling is separate: run `mise clean` from `authling/` to remove its binaries,
+browser assets, and generated E2E files. Neither clean task resets application
+data.
+
 `cli/chatto.toml` is the development configuration of `mise dev`,
 `mise dev-full`, and `mise chatto`. The `chatto` task sets the values that
 depend on the workspace: ports, URLs, data paths, and TestBot. `mise dev-full`
