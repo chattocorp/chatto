@@ -212,9 +212,9 @@ Controls live in the viewer footer when one is provided through context.
 <svelte:window onkeydown={keydown} />
 
 <div
-  class="image-canvas relative flex h-full min-h-0 w-full flex-col bg-black text-white"
+  class="image-canvas relative flex h-full min-h-0 w-full flex-col bg-background text-text"
   data-sidebar-swipe-ignore
-  style:--message-code-background="#000"
+  style:--message-code-background="var(--color-background)"
 >
   <div
     bind:this={stage}
