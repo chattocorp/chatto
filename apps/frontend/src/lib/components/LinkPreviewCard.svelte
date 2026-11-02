@@ -145,7 +145,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
             <img
               src={preview.imageUrl}
               alt=""
-              class="absolute inset-0 h-full w-full object-cover"
+              class="absolute inset-0 h-full w-full object-cover outline-none"
               onload={(event) => {
                 (event.currentTarget as HTMLImageElement).style.visibility = '';
                 settledImageUrl = event.currentTarget.getAttribute('src');
