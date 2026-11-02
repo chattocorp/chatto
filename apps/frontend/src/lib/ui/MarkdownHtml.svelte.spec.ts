@@ -216,13 +216,16 @@ describe('Mermaid previews', () => {
     expect(scroller.scrollTop).toBe(0);
   });
 
-  it.each(['svg', 'mermaid'])(
+  it.each(['svg', 'small svg', 'mermaid'])(
     'reserves %s geometry immediately when a virtualized preview remounts',
-    async (language) => {
+    async (example) => {
+      const language = example === 'mermaid' ? 'mermaid' : 'svg';
       const source =
-        language === 'svg'
-          ? '<svg xmlns="http://www.w3.org/2000/svg" width="620" height="810"/>'
-          : 'flowchart TB\nA[Retained geometry]-->B[Remounted preview]-->C[Stable scroll]';
+        example === 'small svg'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"/>'
+          : language === 'svg'
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="620" height="810"/>'
+            : 'flowchart TB\nA[Retained geometry]-->B[Remounted preview]-->C[Stable scroll]';
       const html = await renderMarkdown('```' + language + ' rendered\n' + source + '\n```');
       for (const availableWidth of [900, 240]) {
         const first = render(MarkdownHtml, { html });
@@ -261,7 +264,7 @@ describe('Mermaid previews', () => {
     [80, 40],
     [10, 10]
   ])(
-    'fits a %s × %s visual frame to its artwork at wide and narrow widths',
+    'scales a %s × %s visual frame to the message width within the height limit',
     async (width, height) => {
       const { container } = render(MarkdownHtml, {
         html: await renderMarkdown(
@@ -278,7 +281,7 @@ describe('Mermaid previews', () => {
         container.style.width = `${availableWidth}px`;
         const expectedWidth = Math.max(
           44,
-          Math.min(width, availableWidth - 10, (Math.min(480, innerHeight * 0.6) * width) / height)
+          Math.min(availableWidth - 10, (Math.min(480, innerHeight * 0.6) * width) / height)
         );
         await expect
           .poll(() => Math.abs(stage.getBoundingClientRect().width - expectedWidth))
@@ -292,13 +295,35 @@ describe('Mermaid previews', () => {
         expect(bounds.width).toBeGreaterThanOrEqual(44);
         expect(bounds.height).toBeGreaterThanOrEqual(44);
         const imageBounds = frame.querySelector('img')!.getBoundingClientRect();
-        expect(imageBounds.width).toBeLessThanOrEqual(width);
-        expect(imageBounds.height).toBeLessThanOrEqual(height);
+        expect(Math.abs(imageBounds.width - bounds.width)).toBeLessThan(1);
+        expect(Math.abs(imageBounds.height - bounds.height)).toBeLessThan(1);
+        expect(getComputedStyle(frame.querySelector('img')!).objectFit).toBe('contain');
         expect(Math.abs(frame.getBoundingClientRect().width - bounds.width - 10)).toBeLessThan(1);
         expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth + 1);
       }
     }
   );
+
+  it('enlarges a small Mermaid diagram within the message width and height limit', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```')
+    });
+    container.classList.add('prose');
+    container.style.width = '900px';
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBeGreaterThan(0);
+    const image = container.querySelector('img')!;
+    const stage = container.querySelector<HTMLElement>('.rendered-image')!;
+    const bounds = stage.getBoundingClientRect();
+    const expectedWidth = Math.min(
+      890,
+      (Math.min(480, innerHeight * 0.6) * image.naturalWidth) / image.naturalHeight
+    );
+    expect(Math.abs(bounds.width - expectedWidth)).toBeLessThan(1);
+    expect(image.getBoundingClientRect().width).toBeGreaterThan(image.naturalWidth);
+    expect(bounds.height).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6) + 1);
+  });
 
   it.each(['svg', 'mermaid', 'ansi'])(
     'distinguishes code and visual presentation for %s',
