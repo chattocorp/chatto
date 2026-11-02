@@ -310,20 +310,11 @@ jobs:
       - name: Check workflows and shell scripts
         run: mise lint-actions
 
-      - name: Test release publication policy
-        run: mise test-release-policy
-
-      - name: Test build-output cleanup
-        run: mise test-clean
-
-      - name: Test backend stability runner
-        run: mise test-cli-stability-runner
+      - name: Test repository tooling
+        run: mise test-repo-tooling
 
       - name: Test interchange format contract
         run: mise test-interchange
-
-      - name: Test development launchers and routing
-        run: mise test-dev-tooling
 
   desktop:
     needs: changes
@@ -494,10 +485,6 @@ jobs:
         if: env.RUN_PROTO_CHECKS == 'true'
         uses: ./.github/actions/setup
 
-      - name: Test server compatibility label check
-        if: env.RUN_PROTO_CHECKS == 'true'
-        run: mise x -- node --test tools/check-server-compatibility.test.mjs
-
       - name: Test Slack importer
         if: env.RUN_PROTO_CHECKS == 'true'
         run: mise test-slack
@@ -528,7 +515,6 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
-          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"
@@ -638,8 +624,6 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           install-cli-deps: 'false'
-      - name: Test changed-file selection and formatting checks
-        run: node --test tools/check-format.test.mjs
       - name: Check changed files
         env:
           FORMAT_BASE: ${{ github.event.pull_request.base.sha }}
