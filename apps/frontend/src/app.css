@@ -2034,7 +2034,7 @@
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
    Containers should add `group/badges` so the hover elevation works. */
 @utility meta-badge {
-  @apply inline-flex items-center rounded-sm border leading-none;
+  @apply inline-flex h-[26px] items-center rounded-sm border py-[0.5px] leading-none;
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
 }
 

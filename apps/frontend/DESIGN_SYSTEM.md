@@ -1155,6 +1155,11 @@ hybrid laptop thus uses compact controls. Use
 `comfortable-density` and `compact-density` for target sizes and spacing.
 CSS responds to primary-pointer changes automatically. There is no user setting.
 
+Message metadata uses `meta-badge` for shared size and shape. Badges are
+26 px high, with 0.5 px vertical padding. Text and reaction badges use 9 px
+horizontal padding; icon badges use 7 px. Icon and text sizes stay unchanged.
+See **Chat/Message meta bar** in Storybook.
+
 Keep capability checks separate from density. `touch-input` matches when
 `any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
 only when no coarse pointer is available; it does not select density.
