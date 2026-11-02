@@ -5,8 +5,11 @@ import '../../app.css';
 import { renderMarkdown } from '$lib/markdown';
 
 const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
-const navigationMocks = vi.hoisted(() => ({ goto: vi.fn(), registered: true }));
-vi.mock('$app/navigation', () => ({ goto: navigationMocks.goto, pushState: vi.fn() }));
+const navigationMocks = vi.hoisted(() => ({ goto: vi.fn(), pushState: vi.fn(), registered: true }));
+vi.mock('$app/navigation', () => ({
+  goto: navigationMocks.goto,
+  pushState: navigationMocks.pushState
+}));
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
@@ -27,6 +30,41 @@ import FloatingPopover from './FloatingPopover.svelte';
 import { testSnippet } from '$lib/test-utils';
 
 let originalClipboard: PropertyDescriptor | undefined;
+
+describe('Sanitized SVG previews', () => {
+  it('uses sanitized SVG for the preview and viewer while retaining the original source', async () => {
+    const source =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><script>alert(1)</script><rect width="20" height="20" fill="red" onload="alert(1)"/></svg>';
+    const html = await renderMarkdown('```svg rendered\n' + source + '\n```');
+    const { container } = render(MarkdownHtml, { html });
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBe(20);
+    const image = container.querySelector<HTMLImageElement>('img')!;
+    const clean = decodeURIComponent(image.src.split(',')[1]);
+    expect(clean).not.toMatch(/script|onload|alert\(/);
+    expect(clean).toContain('<rect');
+    expect(
+      container.querySelector<HTMLElement>('[data-artifact-source]')?.dataset.artifactSource
+    ).toContain(source);
+    await userEvent.click(container.querySelector<HTMLButtonElement>('.rendered-image')!);
+    expect(navigationMocks.pushState).toHaveBeenLastCalledWith('', {
+      modal: { type: 'renderedImageViewer', src: image.src, alt: 'SVG' }
+    });
+  });
+
+  it('reveals source and disables Render when an SVG declaration is rejected', async () => {
+    const html = await renderMarkdown(
+      '```svg rendered\n<!DOCTYPE svg><svg xmlns="http://www.w3.org/2000/svg"/>\n```'
+    );
+    const { container } = render(MarkdownHtml, { html });
+    await expect
+      .poll(() => container.querySelector<HTMLButtonElement>('[data-code-tab="render"]')?.disabled)
+      .toBe(true);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector<HTMLElement>('.markdown-code-error')?.hidden).toBe(false);
+  });
+});
 
 describe('Mermaid previews', () => {
   it.each(['svg', 'mermaid'])(

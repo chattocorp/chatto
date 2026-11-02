@@ -106,6 +106,7 @@
     "@connectrpc/connect-web": "^1.7.0",
     "@tanstack/svelte-query": "^6.3.6",
     "@xterm/headless": "6.0.0",
+    "dompurify": "^3.4.17",
     "gemoji": "^8.1.0",
     "heic2any": "^0.0.4",
     "hls.js": "^1.7.3",

@@ -123,10 +123,12 @@ export function attachCodeFrames(
             }
           );
           if (frame.dataset.artifact === 'svg' && !cachedImage) {
+            const { sanitizeSvg } = await import('./sanitizeSvg');
+            if (signal.aborted) return;
             image.className = 'markdown-svg-preview';
             image.alt = 'SVG';
             image.decoding = 'async';
-            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
+            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizeSvg(source))}`;
           }
           const RenderedImage =
             renderedImageComponent ??

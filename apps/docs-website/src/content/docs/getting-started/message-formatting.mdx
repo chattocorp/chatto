@@ -279,13 +279,17 @@ You can also focus it with Tab and press Enter or Space.
 Plain `svg`, `mermaid`, and `ansi` fences show code first with a preview option.
 In the visual composer, choose **Code** or **Visual** to set this presentation.
 If the image cannot load, Chatto shows its source instead. Transparent areas
-keep the message background. Include the SVG namespace shown above. Keep images,
-styles, and fonts inside the SVG: external resources do not load. Scripts and
-interactive links are disabled; self-contained SVG animations can play.
+keep the message background. Include the SVG namespace shown above. Use static
+shapes, text, groups, and local gradients. Set colours and other presentation
+attributes directly on elements. Previews remove scripts, links, CSS, animations,
+embedded images, filters, patterns, masks, clipping paths, markers, and `use`
+references. External resources do not load. Removed features can change the
+image. Your message source stays unchanged; the viewer downloads the sanitized SVG.
 
 Each message can show up to four previews, each with at most 100,000 source
-characters. Additional or larger blocks show source. The normal message size
-limit still applies.
+characters, 1,000 elements, and 32 element levels including the root. Additional
+or larger blocks show source. DTD and entity declarations are not accepted.
+The normal message size limit still applies.
 
 ### Footnotes
 
