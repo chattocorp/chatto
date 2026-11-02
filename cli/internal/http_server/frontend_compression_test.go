@@ -103,7 +103,7 @@ func TestFrontendOnDemandCompression(t *testing.T) {
 }
 
 // BenchmarkFrontendOnDemandCompression compares request costs for the same
-// synthetic asset. Response bytes go to io.Discard, so allocations exclude
+// synthetic asset. Response bytes are discarded, so allocations exclude
 // httptest's full-response buffer. There is no retained asset cache.
 func BenchmarkFrontendOnDemandCompression(b *testing.B) {
 	original := bytes.Repeat([]byte("console.log('on demand');\n"), 4096)

@@ -1,7 +1,6 @@
 package http_server
 
 import (
-	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -265,7 +264,7 @@ func readFrontendIdentityFile(clientFS fs.FS, filePath string) ([]byte, error) {
 		return content, nil
 	}
 
-	compressed, err := fs.ReadFile(clientFS, filePath+".gz")
+	compressed, err := clientFS.Open(filePath + ".gz")
 	if err != nil {
 		input, err := clientFS.Open(filePath + ".br")
 		if err != nil {
@@ -278,7 +277,8 @@ func readFrontendIdentityFile(clientFS fs.FS, filePath string) ([]byte, error) {
 		}
 		return content, nil
 	}
-	reader, err := gzip.NewReader(bytes.NewReader(compressed))
+	defer compressed.Close()
+	reader, err := gzip.NewReader(compressed)
 	if err != nil {
 		return nil, fmt.Errorf("open frontend gzip fallback for %q: %w", filePath, err)
 	}
