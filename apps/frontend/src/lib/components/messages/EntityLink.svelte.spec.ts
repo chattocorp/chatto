@@ -170,6 +170,9 @@ describe('entity links in messages', () => {
     const { container } = render(MessageContent, { body: `${href} [Read the guide](${href})` });
     await vi.waitFor(() => expect(container.querySelectorAll('a')).toHaveLength(2));
     const links = Array.from(container.querySelectorAll('a'));
+    // Compare settled states, independent of the previous test's pointer position.
+    for (const link of links) link.style.transition = 'none';
+    await userEvent.unhover(links[0]);
     const styles = links.map((link) => getComputedStyle(link));
     for (const property of [
       'color',
