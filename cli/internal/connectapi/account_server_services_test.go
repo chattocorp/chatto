@@ -23,8 +23,6 @@ import (
 )
 
 func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "privileged-viewer", "Privileged Viewer", "password")
 	if err != nil {
@@ -131,8 +129,6 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 }
 
 func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	credentials, err := env.core.CreateBearerSessionWithSource(env.ctx, env.viewer.Id, "password_login")
 	if err != nil {
@@ -166,8 +162,6 @@ func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {
 }
 
 func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -266,8 +260,6 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 }
 
 func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -375,7 +367,6 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 }
 
 func TestMyAccountServiceRejectsPasswordChangesWhenDirectLoginDisabled(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	env.api.config.Auth.DirectLogin = new(false)
 	for _, tc := range []struct{ login, password string }{
@@ -399,7 +390,6 @@ func TestMyAccountServiceRejectsPasswordChangesWhenDirectLoginDisabled(t *testin
 }
 
 func TestSSOOnlyFreshAuthentication(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	env.api.config.Auth.DirectLogin = new(false)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "sso-fresh-user", "SSO User", "oldpassword123")
@@ -443,8 +433,6 @@ func TestSSOOnlyFreshAuthentication(t *testing.T) {
 }
 
 func TestMyAccountServiceSetsPassword(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	passwordless, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-passwordless", "Connect Passwordless", "")
 	if err != nil {
@@ -522,8 +510,6 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 }
 
 func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	mailer := email.NewMockSender(true)
@@ -593,8 +579,6 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 }
 
 func TestMyAccountServiceBindsVerifiedEmailRequestsToExpectedUser(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	mailer := email.NewMockSender(true)
@@ -655,8 +639,6 @@ func TestMyAccountServiceBindsVerifiedEmailRequestsToExpectedUser(t *testing.T) 
 }
 
 func TestUserServiceAvatarAndMyAccountServiceDeletion(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -727,8 +709,6 @@ func TestUserServiceAvatarAndMyAccountServiceDeletion(t *testing.T) {
 }
 
 func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	tokenResp, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{}))
 	if err != nil {
@@ -767,8 +747,6 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 }
 
 func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
-	t.Parallel()
-
 	for _, grant := range []string{"admin role", "account management permission"} {
 		t.Run(grant, func(t *testing.T) {
 			env := newConnectAPITestEnv(t)
@@ -846,8 +824,6 @@ func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
 }
 
 func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-target", "Admin User Target", "password")
 	if err != nil {
@@ -1078,8 +1054,6 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 }
 
 func TestAdminUserServiceDeleteUserDoesNotRequireFreshCredential(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "stale-delete-target", "Stale Delete Target", "password")
 	if err != nil {
@@ -1107,8 +1081,6 @@ func TestAdminUserServiceDeleteUserDoesNotRequireFreshCredential(t *testing.T) {
 }
 
 func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	deleteResp, err := env.adminUsers.DeleteUser(
@@ -1125,8 +1097,6 @@ func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
 }
 
 func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-member-target", "Admin Member Target", "password")
 	if err != nil {
@@ -1259,8 +1229,6 @@ func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
 }
 
 func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-role-target", "Admin Role Target", "password")
 	if err != nil {
@@ -1406,8 +1374,6 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 }
 
 func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config = config.ChattoConfig{
 		Auth: config.AuthConfig{DirectRegistration: new(false)},
@@ -1479,8 +1445,6 @@ func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 }
 
 func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -1565,8 +1529,6 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 }
 
 func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -1637,8 +1599,6 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 }
 
 func TestAdminServerServiceSecurityConfig(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -1699,8 +1659,6 @@ func TestAdminServerServiceSecurityConfig(t *testing.T) {
 }
 
 func TestMyAccountServiceSettingsPatchPresence(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	_, err := env.account.UpdateSettings(env.ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{}))

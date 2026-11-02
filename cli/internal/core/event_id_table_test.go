@@ -12,8 +12,6 @@ import (
 // ServerContentView components hold each message ID once and keep sharing the
 // table after a snapshot restore.
 func TestSharedEventIDTable_ComponentsShareHandlesAcrossRestore(t *testing.T) {
-	t.Parallel()
-
 	eventIDs := newEventIDTable()
 	timeline := newRoomTimelineProjection(eventIDs)
 	threads := newThreadProjection(eventIDs)

@@ -35,6 +35,14 @@ function memberMatchesSearch(member: RoomMember, search: string): boolean {
   );
 }
 
+/** Exact, case-insensitive mention match against a live profile. */
+function memberMatchesMention(member: RoomMember, handle: string): boolean {
+  return (
+    !member.deleted &&
+    (member.login.toLowerCase() === handle || member.displayName.toLowerCase() === handle)
+  );
+}
+
 function pageIds(page: MemberDirectoryPage): string[] {
   return page.memberIds ?? page.members.map((member) => member.id);
 }
@@ -43,6 +51,9 @@ function pageIds(page: MemberDirectoryPage): string[] {
 export type RoomMembersStoreOptions = {
   /** Read reactive access state: whether the viewer's room access is ready for mention reads. */
   canResolveMentions?: () => boolean;
+  /** Keep authorized results visible while recovery defers new reads.
+   * Defaults to the read gate when the host does not distinguish these states. */
+  canDisplayMentions?: () => boolean;
   /** The server's presence owner, which receives fresh presence from preview reads. */
   presence?: ServerPresence | null;
   /**
@@ -64,12 +75,12 @@ export type RoomMembersStoreOptions = {
  */
 export class RoomMembersStore {
   readonly #mentions: MentionLookups;
-  readonly #canResolveMentions: () => boolean;
+  readonly #canDisplayMentions: () => boolean;
   readonly #mentionMembersComputed = computed(() => {
     // Keep the data dependencies even while access is deferred. Snapshot
     // recovery can complete between reads without a reactive access flag.
     const ids = [...new Set([...(this.#projected ?? this.#memberIds), ...this.#mentions.ids])];
-    return this.#canResolveMentions() ? this.resolveIds(ids) : [];
+    return this.#canDisplayMentions() ? this.resolveIds(ids) : [];
   });
 
   /** Known directory members plus users resolved for visible mentions. */
@@ -84,6 +95,13 @@ export class RoomMembersStore {
 
   /** Resume visible mention reads after access or recovery checks finish. */
   resumeMentions(): void {
+    this.#mentions.resume();
+  }
+
+  /** Recheck retained handles after a recovery gap without removing their display. */
+  refreshMentions(minimumCursor?: string): void {
+    this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
+    this.#mentions.invalidate({ retainResults: true });
     this.#mentions.resume();
   }
   #listRequested = false;
@@ -234,10 +252,11 @@ export class RoomMembersStore {
     this.roomId = roomId;
     this.#presence = options.presence ?? null;
     this.#projectedMemberIds = options.projectedMemberIds ?? (() => null);
-    this.#canResolveMentions = options.canResolveMentions ?? (() => true);
+    const canResolveMentions = options.canResolveMentions ?? (() => true);
+    this.#canDisplayMentions = options.canDisplayMentions ?? canResolveMentions;
     this.#mentions = new MentionLookups(
       (handle, signal) => this.lookupMention(handle, signal),
-      this.#canResolveMentions
+      canResolveMentions
     );
     if (!source) {
       this.api = null;
@@ -252,24 +271,25 @@ export class RoomMembersStore {
   /** Search only matching pages; a substring match is not itself a valid mention. */
   private async lookupMention(handle: string, signal: AbortSignal): Promise<string | null> {
     const matches = (member: RoomMember) =>
-      !member.deleted &&
-      this.#membershipChanges.get(member.id) !== false &&
-      (member.login.toLowerCase() === handle || member.displayName.toLowerCase() === handle);
+      this.#membershipChanges.get(member.id) !== false && memberMatchesMention(member, handle);
     const known = this.members.find(matches);
     if (known) return known.id;
     if (this.hasLoadedAll || !this.api || !this.roomId) return null;
     let offset = 0;
     while (!signal.aborted) {
-      const page = await this.api.listRoomMembers(
-        this.roomId,
-        handle,
-        ROOM_MEMBERS_PAGE_SIZE,
-        offset,
-        {
+      let page: MemberDirectoryPage;
+      try {
+        page = await this.api.listRoomMembers(this.roomId, handle, ROOM_MEMBERS_PAGE_SIZE, offset, {
           signal,
           minimumCursor: this.#minimumCursor
-        }
-      );
+        });
+      } catch (error) {
+        // An access denial removes a retained match. A transport failure keeps
+        // the last authorized result until the next recovery can recheck it.
+        if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound))
+          return null;
+        throw error;
+      }
       signal.throwIfAborted();
       this.recordPageProfiles(page.members);
       const match = this.resolveIds(pageIds(page)).find(matches);
@@ -364,7 +384,7 @@ export class RoomMembersStore {
   } = {}): Promise<void> {
     this.#listRequested = true;
     if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
-    this.#mentions.invalidate();
+    this.#mentions.invalidate({ retainResults: !reauthorize });
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = !this.#hasFirstPage;
@@ -459,23 +479,30 @@ export class RoomMembersStore {
     }
   }
 
-  /** Standalone fixtures receive profile changes here; connected rooms use UserStore. */
+  /** Profiles already live in UserStore for connected rooms. Only changed handle
+   * matches need new lookups; presence and unrelated profiles keep their results. */
   updateUsers(users: DirectoryMember[]): void {
     this.#searchCache.clear();
-    this.#mentions.invalidate();
-    if (this.#users) {
-      this.#mentions.resume();
-      return;
-    }
-    for (const user of users) {
-      this.#standaloneProfiles.set(user.id, {
-        member: user,
-        fromRealtime: true
-      });
-    }
-    if (this.#hasLoadedAll) {
+    const byId = new Map(users.map((user) => [user.id, user]));
+    const handles = new Set(
+      users
+        .filter((user) => !user.deleted)
+        .flatMap((user) => [user.login.toLowerCase(), user.displayName.toLowerCase()])
+    );
+    this.#mentions.invalidate({
+      affected: (handle, result) => {
+        const user = result ? byId.get(result) : undefined;
+        return user ? !memberMatchesMention(user, handle) : !result && handles.has(handle);
+      }
+    });
+    if (!this.#users) {
       for (const user of users) {
-        if (this.#membershipChanges.get(user.id) && !this.#memberIds.includes(user.id)) {
+        this.#standaloneProfiles.set(user.id, { member: user, fromRealtime: true });
+        if (
+          this.#hasLoadedAll &&
+          this.#membershipChanges.get(user.id) &&
+          !this.#memberIds.includes(user.id)
+        ) {
           this.#memberIds = [...this.#memberIds, user.id];
           this.#totalCount++;
         }

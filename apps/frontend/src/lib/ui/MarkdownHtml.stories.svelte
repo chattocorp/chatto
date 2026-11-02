@@ -25,6 +25,17 @@
 | 0.4.8 | **Stable** | Core team | Server and bundled client | Current production release |
 | 0.5.0-alpha.1 | Testing | Contributors | Mixed-version clients | Previewing the next release |`);
 
+  const messageDetailsHtml =
+    renderMarkdown(`Here is the current task list. Use \`/tasks\` to update it.
+
+| Task | Status | Priority | Added by |
+| :--- | :---: | ---: | :--- |
+| End-to-end encryption | Open | Highest | You |
+| Sync across all apps | Open | Highest | You |
+| Native applications | Complete | High | Team |
+
+Three tasks, two still open.`);
+
   const shortOrderedList = '1. Short item 1\n2. Short item 2';
   const longOrderedList = Array.from(
     { length: 12 },
@@ -162,6 +173,23 @@
         <MarkdownHtml {html} />
       {/await}
     </div>
+  </div>
+</Story>
+
+<Story name="Message details" asChild>
+  <div class="max-w-4xl space-y-6 text-text">
+    {#await messageDetailsHtml then html}
+      {#each ['Normal — hover to highlight', 'Highlighted', 'Highlighted — narrow'] as label, index (label)}
+        <section class={index === 2 ? 'w-80 max-w-full' : ''}>
+          <h2 class="mb-2 px-2 font-semibold">{label}</h2>
+          <div class={['message-row', index > 0 && 'bg-surface']}>
+            <div class="prose message-content-stack">
+              <MarkdownHtml {html} />
+            </div>
+          </div>
+        </section>
+      {/each}
+    {/await}
   </div>
 </Story>
 

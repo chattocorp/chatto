@@ -8,8 +8,6 @@ import (
 )
 
 func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assigner, err := core.CreateUser(ctx, SystemActorID, "bounded-role-assigner", "Bounded Role Assigner", "password")
@@ -51,8 +49,6 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 }
 
 func TestImplicitEveryoneRoleIsNeverAssignableOrRevocable(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "implicit-role-actor", "Implicit Role Actor", "password")
@@ -72,8 +68,6 @@ func TestImplicitEveryoneRoleIsNeverAssignableOrRevocable(t *testing.T) {
 }
 
 func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assigner, err := core.CreateUser(ctx, SystemActorID, "bounded-role-revoker", "Bounded Role Revoker", "password")
@@ -109,8 +103,6 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 }
 
 func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assigner, err := core.CreateUser(ctx, SystemActorID, "scoped-role-assigner", "Scoped Role Assigner", "password")
@@ -151,8 +143,6 @@ func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
 }
 
 func TestDelegatedRoleAssignmentChecksDirectMessageAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := core.CreateUser(ctx, SystemActorID, "dm-role-owner", "DM Role Owner", "password")
@@ -193,8 +183,6 @@ func TestDelegatedRoleAssignmentChecksDirectMessageAuthority(t *testing.T) {
 }
 
 func TestRoleAssignmentIgnoresUnrelatedChatTraffic(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assigner, err := core.CreateUser(ctx, SystemActorID, "chat-independent-assigner", "Chat Independent Assigner", "password123")
@@ -231,8 +219,6 @@ func TestRoleAssignmentIgnoresUnrelatedChatTraffic(t *testing.T) {
 }
 
 func TestRoleAssignmentRechecksTargetExistenceWithStableInputs(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	target, err := core.CreateUser(ctx, SystemActorID, "deleted-role-target", "Deleted Role Target", "password123")

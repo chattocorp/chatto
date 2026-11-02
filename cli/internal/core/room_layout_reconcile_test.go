@@ -20,8 +20,6 @@ func equalStrings(a, b []string) bool {
 // TestReconcile_OrderMatchesLayoutWhenConsistent verifies that the
 // reconciler preserves layout ordering when it's well-formed.
 func TestReconcile_OrderMatchesLayoutWhenConsistent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -60,8 +58,6 @@ func TestReconcile_OrderMatchesLayoutWhenConsistent(t *testing.T) {
 // guard on the validated write path. A duplicate ID in the input is
 // rejected before the layout is rewritten.
 func TestReorderRoomGroups_RejectsDuplicates(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

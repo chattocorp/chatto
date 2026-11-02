@@ -38,8 +38,6 @@ func lagReplica(t *testing.T, core *ChattoCore, stale map[string]jetstream.KeyVa
 }
 
 func TestChattoCore_RefreshBearerSessionIgnoresLaggingReplicaReads(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-replica-user", "Lagging Replica User", "password123")
@@ -80,8 +78,6 @@ func TestChattoCore_RefreshBearerSessionIgnoresLaggingReplicaReads(t *testing.T)
 }
 
 func TestChattoCore_AccessValidationIgnoresLaggingReplicaReads(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-access-user", "Lagging Access User", "password123")
@@ -119,8 +115,6 @@ func TestChattoCore_AccessValidationIgnoresLaggingReplicaReads(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCodeIgnoresLaggingReplicaMiss(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-code-user", "Lagging Code User", "password123")
@@ -161,8 +155,6 @@ func staleRuntimeEntry[T any](t *testing.T, core *ChattoCore, key string, change
 }
 
 func TestChattoCore_CookieValidationIgnoresLaggingExpiry(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-cookie-user", "Lagging Cookie User", "password123")
@@ -198,8 +190,6 @@ func TestChattoCore_CookieValidationIgnoresLaggingExpiry(t *testing.T) {
 }
 
 func TestChattoCore_FreshAuthIgnoresLaggingReplica(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-fresh-user", "Lagging Fresh User", "password123")
@@ -238,8 +228,6 @@ func TestChattoCore_FreshAuthIgnoresLaggingReplica(t *testing.T) {
 }
 
 func TestChattoCore_ValidAccessTokenDoesNotReadThroughLeader(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, nc := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "fast-access-user", "Fast Access User", "password123")

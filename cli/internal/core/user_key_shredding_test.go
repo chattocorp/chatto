@@ -19,8 +19,6 @@ import (
 )
 
 func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
-	t.Parallel()
-
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-boundary", "Shred Boundary", "password123")
@@ -104,8 +102,6 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 }
 
 func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T) {
-	t.Parallel()
-
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-occ", "Shred OCC", "password123")
@@ -141,8 +137,6 @@ func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T
 }
 
 func TestDeleteUserRequiresDurableKeyShreddingRequest(t *testing.T) {
-	t.Parallel()
-
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-delete", "Shred Delete", "password123")
@@ -161,8 +155,6 @@ func TestDeleteUserRequiresDurableKeyShreddingRequest(t *testing.T) {
 }
 
 func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T) {
-	t.Parallel()
-
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-completion", "Shred Completion", "password123")
@@ -201,8 +193,6 @@ func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T
 }
 
 func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *testing.T) {
-	t.Parallel()
-
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-order", "Shred Order", "password123")
@@ -239,8 +229,6 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 }
 
 func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{

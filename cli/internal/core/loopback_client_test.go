@@ -10,8 +10,6 @@ import (
 )
 
 func TestChattoCore_LoopbackClientRequiresConfiguration(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "loopback-disabled-user", "Loopback User", "password123")
@@ -28,8 +26,6 @@ func TestChattoCore_LoopbackClientRequiresConfiguration(t *testing.T) {
 }
 
 func TestChattoCore_DisablingLoopbackClientEndsExistingSessions(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthLoopbackClientEnabled = true
 	ctx := testContext(t)
@@ -55,8 +51,6 @@ func TestChattoCore_DisablingLoopbackClientEndsExistingSessions(t *testing.T) {
 }
 
 func TestChattoCore_LoopbackClientSessionHasFixedLifetime(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthLoopbackClientEnabled = true
 	chattoCore.config.AuthTokenTTL = 90 * 24 * time.Hour
@@ -93,8 +87,6 @@ func TestChattoCore_LoopbackClientSessionHasFixedLifetime(t *testing.T) {
 }
 
 func TestChattoCore_LoopbackClientClampsLongerStoredWindow(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthLoopbackClientEnabled = true
 	chattoCore.config.AuthTokenTTL = 90 * 24 * time.Hour
@@ -141,8 +133,6 @@ func TestChattoCore_LoopbackClientClampsLongerStoredWindow(t *testing.T) {
 }
 
 func TestChattoCore_LoopbackClientUsesShorterConfiguredWindow(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthLoopbackClientEnabled = true
 	chattoCore.config.AuthTokenTTL = time.Hour

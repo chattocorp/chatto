@@ -9,7 +9,6 @@ import (
 )
 
 func TestRegistrationAdmissionProjectionSnapshot(t *testing.T) {
-	t.Parallel()
 	p, model := newConfigProjectionUnderModel()
 	require.Equal(t, evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN, model.RegistrationAdmission())
 	require.NoError(t, p.Restore(nil))
@@ -31,7 +30,6 @@ func TestRegistrationAdmissionProjectionSnapshot(t *testing.T) {
 }
 
 func TestRegistrationAdmissionPermissionsAndCompletion(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	// Fresh servers accept self-service accounts without an invitation.
@@ -59,7 +57,6 @@ func TestRegistrationAdmissionPermissionsAndCompletion(t *testing.T) {
 }
 
 func TestRegistrationAdmissionRecomposesAfterPolicyChange(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)

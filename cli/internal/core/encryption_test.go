@@ -78,8 +78,6 @@ func userDEKEventByPurpose(t *testing.T, eventList []*evtv1.Event, purpose evtv1
 }
 
 func TestPostMessage_EncryptsMessageBody(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -134,8 +132,6 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 }
 
 func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -185,8 +181,6 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 }
 
 func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -243,8 +237,6 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 }
 
 func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -268,8 +260,6 @@ func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
 }
 
 func TestUserPIIAADRejectsWrongContext(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
@@ -284,8 +274,6 @@ func TestUserPIIAADRejectsWrongContext(t *testing.T) {
 }
 
 func TestGetMessageBody_ReusesRequestCachedMessageBodyDEK(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -310,8 +298,6 @@ func TestGetMessageBody_ReusesRequestCachedMessageBodyDEK(t *testing.T) {
 }
 
 func TestUnwrappedDEKResolver_RequestCacheDoesNotPersistAcrossContexts(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	wrapper := &countingKeyWrapper{KeyWrapper: staticProjectionKeyWrapper{key: key}}
@@ -339,8 +325,6 @@ func TestUnwrappedDEKResolver_RequestCacheDoesNotPersistAcrossContexts(t *testin
 }
 
 func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	wrapper := &countingKeyWrapper{KeyWrapper: delayedKeyWrapper{
@@ -387,8 +371,6 @@ func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T
 }
 
 func TestDeleteUserEncryptionKeyAsInvalidatesRequestCachedDEK(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -412,8 +394,6 @@ func TestDeleteUserEncryptionKeyAsInvalidatesRequestCachedDEK(t *testing.T) {
 }
 
 func TestGetMessageBody_CryptoShredding(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -450,8 +430,6 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 }
 
 func TestAttachmentDescription_CryptoShredding(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "description-shredding", "Description Shredding", "password123")
@@ -480,8 +458,6 @@ func TestAttachmentDescription_CryptoShredding(t *testing.T) {
 }
 
 func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -514,8 +490,6 @@ func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 }
 
 func TestDeleteUserEncryptionKey_ReconstructsTargetsWithoutProjectedKeyCoordinates(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -544,8 +518,6 @@ func TestDeleteUserEncryptionKey_ReconstructsTargetsWithoutProjectedKeyCoordinat
 }
 
 func TestDeleteUserEncryptionKey_ShredsLegacyUserKeyRef(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -565,8 +537,6 @@ func TestDeleteUserEncryptionKey_ShredsLegacyUserKeyRef(t *testing.T) {
 }
 
 func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -597,8 +567,6 @@ func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
 }
 
 func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -674,8 +642,6 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 }
 
 func TestEditMessage_PreservesEncryptionState(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -714,8 +680,6 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 }
 
 func TestCrossUserDecryption(t *testing.T) {
-	t.Parallel()
-
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 

@@ -9,8 +9,6 @@ import (
 )
 
 func TestChattoCore_GetRoomEvents(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -68,8 +66,6 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 // TestChattoCore_GetRoomEvents_JoinAndLeaveEvents verifies that both UserJoinedRoom
 // and UserLeftRoom events are stored in the stream and can be retrieved.
 func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -135,8 +131,6 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -193,8 +187,6 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 // This is a regression test for a bug where GetRoomEvents used lastMsgAt as the
 // end time, causing join events after that time to be excluded.
 func TestChattoCore_GetRoomEvents_JoinAfterLastMessage(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -249,8 +241,6 @@ func TestChattoCore_GetRoomEvents_JoinAfterLastMessage(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -321,8 +311,6 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -433,8 +421,6 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 // room creation or join events exist). This was a regression - the time-based
 // pagination would return empty if GetRoomLastMessageAt returned zero.
 func TestChattoCore_GetRoomEvents_NoMessagesYet(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -483,8 +469,6 @@ func TestChattoCore_GetRoomEvents_NoMessagesYet(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

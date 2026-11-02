@@ -73,8 +73,6 @@ func closedLocalURL(t *testing.T) string {
 }
 
 func TestLiveKitAdminStatus(t *testing.T) {
-	t.Parallel()
-
 	const (
 		apiKey    = "diagnostics-key"
 		apiSecret = "diagnostics-secret-value"
@@ -149,8 +147,6 @@ func TestLiveKitAdminStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			c := &ChattoCore{}
 			c.ConfigureLiveKitDiagnostics(tt.cfg, "https://chat.example/")
 			status := c.liveKitAdminStatus(context.Background())
@@ -178,8 +174,6 @@ func TestLiveKitAdminStatus(t *testing.T) {
 }
 
 func TestLiveKitAdminStatusReportsWebhookSetup(t *testing.T) {
-	t.Parallel()
-
 	c := &ChattoCore{}
 	status := c.liveKitAdminStatus(context.Background())
 	if status.ConnectionState != LiveKitConnectionNotConfigured || status.WebhookURL != "" || !status.LastWebhookAt.IsZero() {
@@ -223,8 +217,6 @@ func TestLiveKitAdminStatusReportsWebhookSetup(t *testing.T) {
 }
 
 func TestLiveKitURLInsecure(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		liveKitURL string
 		publicURL  string

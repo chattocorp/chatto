@@ -14,7 +14,6 @@ import (
 )
 
 func TestHistoricalTombstoneConcurrentReplayAndReplies(t *testing.T) {
-	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	user, err := c.CreateUser(testContext(t), SystemActorID, "tombstone-author", "Author", "")
@@ -87,7 +86,6 @@ func TestHistoricalTombstoneConcurrentReplayAndReplies(t *testing.T) {
 }
 
 func TestHistoricalTombstoneContentValidationAndLazyThread(t *testing.T) {
-	t.Parallel()
 	c, _, post := setupMessageRetry(t)
 	ctx := testContext(t)
 	input := HistoricalMessageInput{RoomID: post.RoomID, AuthorID: post.ActorID, CreatedAt: time.Now().UTC(), Deleted: true}

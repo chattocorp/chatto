@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import { parseArtifactFence, type ArtifactFence } from './artifactFence';
+import { MAX_SVG_SOURCE_LENGTH } from './svgPolicy';
 import { isMermaidSourceAllowed, MAX_MERMAID_PREVIEWS } from './mermaid/policy';
 import footnotePlugin from 'markdown-it-footnote';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
@@ -42,7 +43,6 @@ const ansiArtKey = Symbol('ansiArt');
 const MAX_ANSI_BLOCKS = 4;
 const svgPreviewCountKey = Symbol('svgPreviewCount');
 const MAX_SVG_PREVIEWS = 4;
-const MAX_SVG_SOURCE_LENGTH = 100_000;
 const mermaidPreviewCountKey = Symbol('mermaidPreviewCount');
 
 type MarkdownBlockRule = (

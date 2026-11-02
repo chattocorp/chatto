@@ -532,6 +532,20 @@ the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
 which colours the icon with the action colour.
 
+### Message details
+
+Use `bg-message-surface` and `border-message-border` for details drawn directly
+on a message, such as table headings, cell borders, inline code, and dividers.
+These colours use the text colour. They become lighter in dark themes and
+darker in light themes. The fill is translucent and blends with the background
+beneath it. The border is an opaque mix with `surface`, so table corners and
+intersections do not become brighter from overlapping borders. Both stay
+visible when a message is hovered or highlighted without separate state classes.
+
+Prose uses these tokens by default, including outside message rows. Keep framed
+previews on the preview primitives below. See **UI/MarkdownHtml → Message
+details** for normal and highlighted rows, including a narrow layout.
+
 ### Inset Frame
 
 **Inset Frame** is the canonical name in the [glossary](../../docs/GLOSSARY.md#ui).
@@ -940,10 +954,10 @@ transparent native range input covers the travel, so keyboard, pointer, and
 assistive-technology behaviour stay native. Do not restyle a raw
 `input[type=range]`; use `RangeField`, and extend it when a variant is missing.
 
-`ProgressBar` shows read-only completion with a recessed control frame, lit
-segments, and a percentage readout. It shares the range control's fill colour
-and lighting, without a draggable grip. Values are clamped to 0–100. Reduced
-motion disables fill transitions. Preview it in **UI/Progress bar**.
+`ProgressBar` shows read-only completion with a recessed control frame, a
+continuous lit fill, and a percentage readout. It shares the range control's
+fill colour and lighting, without a draggable grip. Values are clamped to
+0–100. Reduced motion disables fill transitions. Preview it in **UI/Progress bar**.
 
 ## Components, Utilities, And Tailwind
 
@@ -1154,6 +1168,11 @@ comfortable density; other primary pointers use compact density. A mouse-primary
 hybrid laptop thus uses compact controls. Use
 `comfortable-density` and `compact-density` for target sizes and spacing.
 CSS responds to primary-pointer changes automatically. There is no user setting.
+
+Message metadata uses `meta-badge` for shared size and shape. Badges are
+26 px high, with 0.5 px vertical padding. Text and reaction badges use 9 px
+horizontal padding; icon badges use 7 px. Icon and text sizes stay unchanged.
+See **Chat/Message meta bar** in Storybook.
 
 Keep capability checks separate from density. `touch-input` matches when
 `any-pointer: coarse` matches, including hybrid devices. `compact-input` applies

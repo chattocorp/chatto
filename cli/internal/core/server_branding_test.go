@@ -10,8 +10,6 @@ import (
 )
 
 func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -62,8 +60,6 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 }
 
 func TestChattoCore_DeleteServerBranding_CleansUpCache(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 

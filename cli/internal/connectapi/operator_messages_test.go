@@ -14,7 +14,6 @@ import (
 )
 
 func TestOperatorImportReactionChangesSourceTime(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("operator-reaction-batch")
 	service := &operatorMessageService{api: env.api}
@@ -52,7 +51,6 @@ func TestOperatorImportReactionChangesSourceTime(t *testing.T) {
 }
 
 func TestOperatorImportMembershipEventReactions(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("operator-membership-reactions")
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "joining-user", "Joining User", "password")
@@ -85,8 +83,6 @@ func TestOperatorImportMembershipEventReactions(t *testing.T) {
 }
 
 func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("operator-message-public-read")
 	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-message-author", "Imported Author", "password")
@@ -132,7 +128,6 @@ func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) 
 }
 
 func TestOperatorImportTombstonePublicRead(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("operator-tombstone")
 	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "tombstone-author", "Author", "password")
@@ -169,7 +164,6 @@ func TestOperatorImportTombstonePublicRead(t *testing.T) {
 }
 
 func TestOperatorImportThreadAndReactionPublicRead(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("operator-thread-public")
 	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-thread-author", "Author", "password")

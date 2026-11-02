@@ -1,6 +1,7 @@
 /** ProseMirror decorations show known Chatto links without changing the editable document. */
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { closeHistory } from '@tiptap/pm/history';
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import { mount, unmount } from 'svelte';
 import type { Node } from '@tiptap/pm/model';
 import EntityLink from '../messages/EntityLink.svelte';
@@ -17,6 +18,23 @@ function previewHref(node: Node): string | undefined {
   if (entity ? hasEntityLinkData(entity) : parseMessageLink(href)?.serverId) return href;
 }
 
+/** Delete a collapsed preview as one unit; visible URL text keeps normal character deletion. */
+function deleteAdjacentPreview(view: EditorView, direction: -1 | 1): boolean {
+  if (!view.editable) return false;
+  const { selection } = view.state;
+  if (!(selection instanceof TextSelection) || !selection.empty) return false;
+  const node = direction < 0 ? selection.$head.nodeBefore : selection.$head.nodeAfter;
+  if (!node || !previewHref(node)) return false;
+  const from = direction < 0 ? selection.head - node.nodeSize : selection.head;
+  // Removing a whole pill must be undoable without also undoing its insertion.
+  view.dispatch(
+    closeHistory(view.state.tr)
+      .delete(from, from + node.nodeSize)
+      .scrollIntoView()
+  );
+  return true;
+}
+
 /** Widgets own their Svelte previews; ProseMirror owns URL text, selection, and clipboard data. */
 export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
   const key = new PluginKey('entityLinkPreview');
@@ -26,6 +44,8 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
     props: {
       handleKeyDown(view, event) {
         if (event.altKey || event.ctrlKey || event.metaKey) return false;
+        if (event.key === 'Backspace') return deleteAdjacentPreview(view, -1);
+        if (event.key === 'Delete') return deleteAdjacentPreview(view, 1);
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return false;
         const { selection } = view.state;
         if (!(selection instanceof TextSelection) || !selection.empty) return false;
@@ -54,6 +74,18 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
         return true;
       },
       handleDOMEvents: {
+        beforeinput(view, event) {
+          const direction =
+            event.inputType === 'deleteContentBackward'
+              ? -1
+              : event.inputType === 'deleteContentForward'
+                ? 1
+                : null;
+          if (direction === null || !deleteAdjacentPreview(view, direction)) return false;
+          // DOM event handlers must cancel the native edit themselves.
+          event.preventDefault();
+          return true;
+        },
         focus(view) {
           focused = true;
           view.dispatch(view.state.tr.setMeta(key, true));

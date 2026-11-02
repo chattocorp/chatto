@@ -27,8 +27,6 @@ import (
 )
 
 func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
-	t.Parallel()
-
 	for _, mode := range []evtv1.RoomThreadingMode{
 		evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED,
 		evtv1.RoomThreadingMode(99),
@@ -40,8 +38,6 @@ func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
 }
 
 func TestRoomServiceLifecycleCommands(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	groupID := env.defaultRoomGroupID(t)
@@ -210,8 +206,6 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 }
 
 func TestRoomServicePinnedMessages(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("connect-pinned-messages")
@@ -276,8 +270,6 @@ func TestRoomServicePinnedMessages(t *testing.T) {
 }
 
 func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("connect-members")
@@ -586,8 +578,6 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 }
 
 func TestRoomServiceStartDM(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -722,8 +712,6 @@ func TestRoomServiceStartDM(t *testing.T) {
 }
 
 func TestRoomServiceRejectsDMRooms(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -827,8 +815,6 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 }
 
 func TestConnectServicesRejectDMOutsiders(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-dm-participant", "Connect DM Participant", "password")
@@ -966,8 +952,6 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 }
 
 func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-caller", "Directory Caller", "password")
@@ -1087,8 +1071,6 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 }
 
 func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-state-caller", "Directory State Caller", "password")
@@ -1190,8 +1172,6 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 }
 
 func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-group-caller", "Directory Group Caller", "password")
@@ -1306,8 +1286,6 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 }
 
 func TestRoomServiceJoinRoomGroup(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-join-caller", "Directory Join Caller", "password")
@@ -1358,8 +1336,6 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 }
 
 func TestRoomServiceJoinRoomKeepsNormalPostingPermissions(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "join-posts", "")
@@ -1401,8 +1377,6 @@ func TestRoomServiceJoinRoomKeepsNormalPostingPermissions(t *testing.T) {
 }
 
 func TestUserServiceListUsers(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.users.ListUsers(env.ctx, connect.NewRequest(&apiv1.ListUsersRequest{})); errorCode(err) != connect.CodeUnauthenticated {
@@ -1497,8 +1471,6 @@ func TestUserServiceListUsers(t *testing.T) {
 }
 
 func TestRoomServiceListMembersPresenceFilter(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("presence-filter")
 	var activeIDs []string
@@ -1561,8 +1533,6 @@ func TestRoomServiceListMembersPresenceFilter(t *testing.T) {
 }
 
 func TestRoomServiceMemberReadAuthorization(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("room-members-room")
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-alice", "Room Alice", "password")
@@ -1677,8 +1647,6 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 }
 
 func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "member-preview-page", "")
 	if err != nil {
@@ -1728,8 +1696,6 @@ func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *te
 }
 
 func TestMemberDirectoryPaginationDefaultsAndClamps(t *testing.T) {
-	t.Parallel()
-
 	userLimit, userOffset := userDirectoryPagination(nil)
 	if userLimit != 20 || userOffset != 0 {
 		t.Fatalf("userDirectoryPagination nil page = %d, %d; want 20, 0", userLimit, userOffset)
@@ -1769,8 +1735,6 @@ func TestMemberDirectoryPaginationDefaultsAndClamps(t *testing.T) {
 }
 
 func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
@@ -1848,8 +1812,6 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 }
 
 func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-v2-actor", "Notification 2 Actor", "password")
@@ -1947,8 +1909,6 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 }
 
 func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-delete-actor", "Notification Delete Actor", "password")
@@ -1986,8 +1946,6 @@ func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
 }
 
 func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-stale-actor", "Notification Stale Actor", "password")
@@ -2127,8 +2085,6 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 }
 
 func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-access-loss-actor", "Notification Access Loss Actor", "password")
@@ -2186,8 +2142,6 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 }
 
 func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-page-filter-actor", "Notification Page Filter Actor", "password")
@@ -2262,8 +2216,6 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 }
 
 func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-implicit-actor", "Notification Implicit Actor", "password")
@@ -2334,8 +2286,6 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 }
 
 func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-v2-page-actor", "Notification Page Actor", "password")
@@ -2409,8 +2359,6 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 }
 
 func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "read-hydration-actor", "Read Hydration", "password")
@@ -2453,8 +2401,6 @@ func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {
 }
 
 func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -2578,8 +2524,6 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 }
 
 func TestPushNotificationServiceHidesDeliveryFailureDetails(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	env.api.config.Push = config.PushConfig{
@@ -2602,8 +2546,6 @@ func TestPushNotificationServiceHidesDeliveryFailureDetails(t *testing.T) {
 }
 
 func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("voice-connect")
@@ -2794,8 +2736,6 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 }
 
 func TestVoiceCallServiceListsDMCallsForParticipants(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.LiveKit = config.LiveKitConfig{
 		Enabled:   true,
@@ -2865,8 +2805,6 @@ func TestVoiceCallServiceListsDMCallsForParticipants(t *testing.T) {
 }
 
 func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("voice-room-removal")
@@ -2935,8 +2873,6 @@ func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 }
 
 func TestMyAccountServiceSetPresence(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -3009,8 +2945,6 @@ func TestMyAccountServiceSetPresence(t *testing.T) {
 }
 
 func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "archive-directory-caller", "Archive Caller", "password")
 	if err != nil {
@@ -3130,8 +3064,6 @@ func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
 }
 
 func TestRoomDirectoryServiceRejectsInvalidArchiveFilter(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	for _, filter := range []apiv1.RoomArchiveFilter{-1, 99} {
 		_, err := env.directory.ListRooms(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRoomsRequest{ArchiveFilter: filter}))
@@ -3142,7 +3074,6 @@ func TestRoomDirectoryServiceRejectsInvalidArchiveFilter(t *testing.T) {
 }
 
 func TestRoomDirectoryDMActivityAcrossReads(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "activity-peer", "Activity Peer", "password")
 	if err != nil {

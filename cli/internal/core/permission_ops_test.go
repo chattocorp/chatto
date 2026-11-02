@@ -11,8 +11,6 @@ import (
 // ============================================================================
 
 func TestGrantServerPermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -54,8 +52,6 @@ func TestGrantServerPermission(t *testing.T) {
 }
 
 func TestDenyServerPermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -97,8 +93,6 @@ func TestDenyServerPermission(t *testing.T) {
 }
 
 func TestClearServerPermissionState(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -133,8 +127,6 @@ func TestClearServerPermissionState(t *testing.T) {
 // ============================================================================
 
 func TestGrantSpaceRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -169,8 +161,6 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 }
 
 func TestDenySpaceRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -189,8 +179,6 @@ func TestDenySpaceRolePermission(t *testing.T) {
 }
 
 func TestClearSpaceRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -216,8 +204,6 @@ func TestClearSpaceRolePermission(t *testing.T) {
 // ============================================================================
 
 func TestGrantRoomRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -244,8 +230,6 @@ func TestGrantRoomRolePermission(t *testing.T) {
 }
 
 func TestDenyRoomRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -272,8 +256,6 @@ func TestDenyRoomRolePermission(t *testing.T) {
 }
 
 func TestClearRoomRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -300,8 +282,6 @@ func TestClearRoomRolePermission(t *testing.T) {
 // ============================================================================
 
 func TestPermissionOpsIdempotency(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -355,8 +335,6 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 // ============================================================================
 
 func TestInitServerDefaults(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	// InitServerDefaults is called during setupTestCore, so we can verify its effects
@@ -429,8 +407,6 @@ func TestInitServerDefaults(t *testing.T) {
 }
 
 func TestDefaultRBACSeed(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -493,8 +469,6 @@ func TestDefaultRBACSeed(t *testing.T) {
 // ============================================================================
 
 func TestPermissionOpsWithCancelledContext(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -513,8 +487,6 @@ func TestPermissionOpsWithCancelledContext(t *testing.T) {
 // ============================================================================
 
 func TestDefaultChannelRoomPermissions(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -34,7 +34,7 @@ function runner(t) {
     });
 }
 
-test('keeps all repetitions in one serial race run with a scaled package timeout', (t) => {
+test('keeps all repetitions in one race run with a scaled package timeout', (t) => {
   const run = runner(t);
   for (const [count, expectedCount, timeout] of [
     ['', '3', '45m'],
@@ -52,10 +52,6 @@ test('keeps all repetitions in one serial race run with a scaled package timeout
         '-race',
         '-tags',
         'test_endpoints',
-        '-p',
-        '1',
-        '-parallel',
-        '1',
         '-shuffle=on',
         `-count=${expectedCount}`,
         `-timeout=${timeout}`,

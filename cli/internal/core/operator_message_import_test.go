@@ -10,8 +10,6 @@ import (
 )
 
 func TestImportHistoricalMessageRoundTripWithoutPostingEffects(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chatto.CreateUser(ctx, SystemActorID, "historical-author", "Historical Author", "password")
@@ -108,8 +106,6 @@ func TestImportHistoricalMessageRoundTripWithoutPostingEffects(t *testing.T) {
 }
 
 func TestImportHistoricalMessageRejectsInvalidInputs(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chatto.CreateUser(ctx, SystemActorID, "historical-invalid-author", "Historical Author", "password")
@@ -170,8 +166,6 @@ func TestImportHistoricalMessageRejectsInvalidInputs(t *testing.T) {
 }
 
 func TestHistoricalMessageProjectionRestoreKeepsActivitySuppressed(t *testing.T) {
-	t.Parallel()
-
 	projection := NewRoomTimelineProjection()
 	ordinary := newEvent("user", &evtv1.Event{Id: "ordinary", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "room"}}})
 	historical := newEvent(SystemActorID, &evtv1.Event{Id: "historical", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "room", AuthorId: "user", HistoricalImport: true}}})

@@ -12,8 +12,6 @@ import (
 )
 
 func TestEVTReadCacheConfigLogsEffectiveDefaults(t *testing.T) {
-	t.Parallel()
-
 	var output bytes.Buffer
 	logger := log.New(&output)
 	logger.SetLevel(log.DebugLevel)
@@ -37,8 +35,6 @@ func TestEVTReadCacheConfigLogsEffectiveDefaults(t *testing.T) {
 }
 
 func TestEVTReadCacheConfigMapsUnlimitedBytesToFrameworkZero(t *testing.T) {
-	t.Parallel()
-
 	var output bytes.Buffer
 	logger := log.New(&output)
 	logger.SetLevel(log.DebugLevel)

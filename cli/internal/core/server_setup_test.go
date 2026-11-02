@@ -20,8 +20,6 @@ func setupInput(login string) ServerSetupInput {
 }
 
 func TestServerSetupLifecycle(t *testing.T) {
-	t.Parallel()
-
 	c, nc := setupTestCore(t)
 	c.config.SkipSetupWizard = false
 	ctx := testContext(t)
@@ -61,8 +59,6 @@ func TestServerSetupLifecycle(t *testing.T) {
 }
 
 func TestServerSetupConcurrentReplicas(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	first := startReplica(t, ns, testCoreConfig())
 	first.config.SkipSetupWizard = false
@@ -93,8 +89,6 @@ func TestServerSetupConcurrentReplicas(t *testing.T) {
 }
 
 func TestServerSetupSkipAndValidation(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
@@ -120,8 +114,6 @@ func TestServerSetupSkipAndValidation(t *testing.T) {
 }
 
 func TestServerSetupExistingHistory(t *testing.T) {
-	t.Parallel()
-
 	c, nc := setupTestCore(t)
 	ctx := testContext(t)
 	// Remove only the new marker to represent an installation made by an old
@@ -145,8 +137,6 @@ func TestServerSetupExistingHistory(t *testing.T) {
 }
 
 func TestServerSetupOperatorAccountClosesEligibility(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	c.config.SkipSetupWizard = false
 	ctx := context.Background()
@@ -162,8 +152,6 @@ func TestServerSetupOperatorAccountClosesEligibility(t *testing.T) {
 }
 
 func TestServerSetupBlocksPublicRegistration(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	c.config.SkipSetupWizard = false
 	ctx := testContext(t)
@@ -177,8 +165,6 @@ func TestServerSetupBlocksPublicRegistration(t *testing.T) {
 }
 
 func TestServerSetupOnlyReplacesSelectedSettings(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	c.config.SkipSetupWizard = false
 	ctx := testContext(t)
@@ -197,8 +183,6 @@ func TestServerSetupOnlyReplacesSelectedSettings(t *testing.T) {
 }
 
 func TestServerSetupLegacyHistoryStaysClosed(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	js, err := jetstream.New(nc)
@@ -236,8 +220,6 @@ func (s setupTrafficStream) Info(ctx context.Context, opts ...jetstream.StreamIn
 }
 
 func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
-	t.Parallel()
-
 	c, _ := newTestCore(t)
 	ctx := testContext(t)
 	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())

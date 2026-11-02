@@ -9,7 +9,6 @@ import (
 )
 
 func TestNotificationUnreadScopeIsolationAndExpiry(t *testing.T) {
-	t.Parallel()
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p := NewNotificationProjection()
 	p.now = func() time.Time { return now }

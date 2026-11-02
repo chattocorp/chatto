@@ -1511,6 +1511,63 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('keeps resolved mentions during warm recovery and rechecks them at the recovery cursor', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = new RoomWithViewerState({
+      room: { id: 'room' },
+      viewerState: { isMember: true }
+    });
+    store.projection.rooms.set('room', room);
+    const profile = new User({ id: 'alice', login: 'alice', displayName: 'Alice' });
+    store.realtimeProjectionHandler(usersResource([profile], false));
+    apiMocks.listRoomMembers.mockClear();
+    apiMocks.listRoomMembers.mockResolvedValue({
+      members: [],
+      memberIds: ['alice'],
+      totalCount: 1,
+      hasMore: false
+    });
+    const members = store.rooms.members('room');
+    members.retainMentions(['alice']);
+    await flushPromises();
+    expect(members.mentionMembers.map((member) => member.id)).toEqual(['alice']);
+    store.realtimeProjectionHandler(usersResource([profile], false));
+    expect(members.mentionMembers.map((member) => member.id)).toEqual(['alice']);
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(1);
+
+    store.realtimeSync.markCaughtUp('live');
+    store.realtimeSync.acceptProjectionEvent(undefined, true);
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, retainView: true })
+    );
+    expect(members.mentionMembers.map((member) => member.id)).toEqual(['alice']);
+    const refresh = deferred<MemberDirectoryPage>();
+    apiMocks.listRoomMembers.mockReturnValueOnce(refresh.promise);
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room])] : []
+    );
+    apiMocks.readRealtimeUsers.mockResolvedValue([
+      new RealtimeResourceUpdate({
+        resource: { case: 'users', value: { users: [new DirectoryMember({ user: profile })] } }
+      })
+    ]);
+    await store.completeRealtimeCatchUp('recovery-cursor');
+    await flushPromises();
+    expect(members.mentionMembers.map((member) => member.id)).toEqual(['alice']);
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+    expect(apiMocks.listRoomMembers).toHaveBeenLastCalledWith(
+      'room',
+      'alice',
+      250,
+      0,
+      expect.objectContaining({ minimumCursor: 'recovery-cursor' })
+    );
+    refresh.resolve({ members: [], memberIds: [], totalCount: 0, hasMore: false });
+    await flushPromises();
+    expect(members.mentionMembers).toEqual([]);
+    store.dispose();
+  });
+
   it('resumes retained mention lookups after cold recovery and access restoration without a directory scan', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const room = new RoomWithViewerState({

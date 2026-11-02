@@ -7,8 +7,6 @@ import (
 )
 
 func TestEventFactsRoomIDAndVisibility(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		event   *evtv1.Event
@@ -143,8 +141,6 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 }
 
 func TestMessageEventSourceMessageID(t *testing.T) {
-	t.Parallel()
-
 	core := &ChattoCore{}
 	tests := []struct {
 		name  string
@@ -204,8 +200,6 @@ func TestMessageEventSourceMessageID(t *testing.T) {
 }
 
 func TestEventFactsAssetLifecycle(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name        string
 		event       *evtv1.Event
@@ -461,8 +455,6 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 }
 
 func TestEventFactsUserLiveEVT(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name  string
 		event *evtv1.Event

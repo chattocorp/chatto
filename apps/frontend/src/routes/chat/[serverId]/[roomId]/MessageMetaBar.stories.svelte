@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Message metadata row with thread controls, reaction pills, and capped reaction-user popovers.'
+            'Message metadata row with thread controls, reaction pills, and capped reaction-user popovers. Badges are 26 px high.'
         }
       }
     }

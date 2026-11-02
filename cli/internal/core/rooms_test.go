@@ -14,8 +14,6 @@ import (
 )
 
 func TestChattoCore_CreateRoom(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -56,8 +54,6 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 // contract: a missing room and a room of another kind are core.ErrNotFound,
 // not a storage error.
 func TestChattoCore_GetRoomReportsMissesAsErrNotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "")
@@ -77,8 +73,6 @@ func TestChattoCore_GetRoomReportsMissesAsErrNotFound(t *testing.T) {
 }
 
 func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -133,8 +127,6 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 }
 
 func TestChattoCore_CreateRoom_NameDoesNotApplyAnnouncementsDefaults(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -151,8 +143,6 @@ func TestChattoCore_CreateRoom_NameDoesNotApplyAnnouncementsDefaults(t *testing.
 }
 
 func TestChattoCore_CreateRoom_Validation(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -281,8 +271,6 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 }
 
 func TestValidateRoomName(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name      string
 		input     string
@@ -353,8 +341,6 @@ func TestValidateRoomName(t *testing.T) {
 }
 
 func TestValidateRoomNameInternationalScripts(t *testing.T) {
-	t.Parallel()
-
 	validNames := map[string]string{
 		"Arabic with Arabic-Indic digits":       "غرفة_١٢٣",
 		"Armenian":                              "սենյակ",
@@ -411,8 +397,6 @@ func TestValidateRoomNameInternationalScripts(t *testing.T) {
 }
 
 func TestNormalizeRoomNameInternationalComposition(t *testing.T) {
-	t.Parallel()
-
 	tests := map[string]struct {
 		input string
 		want  string
@@ -431,8 +415,6 @@ func TestNormalizeRoomNameInternationalComposition(t *testing.T) {
 }
 
 func TestValidateRoomDescription(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name      string
 		input     string
@@ -481,8 +463,6 @@ func TestValidateRoomDescription(t *testing.T) {
 }
 
 func TestChattoCore_GetRoom_NotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -495,8 +475,6 @@ func TestChattoCore_GetRoom_NotFound(t *testing.T) {
 }
 
 func TestChattoCore_CreateRoom_DuplicateName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -516,8 +494,6 @@ func TestChattoCore_CreateRoom_DuplicateName(t *testing.T) {
 }
 
 func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -553,8 +529,6 @@ func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
 }
 
 func TestChattoCore_CreateRoom_DuplicateName_WithWhitespace(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -572,8 +546,6 @@ func TestChattoCore_CreateRoom_DuplicateName_WithWhitespace(t *testing.T) {
 }
 
 func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -597,8 +569,6 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 }
 
 func TestChattoCore_CreateRoom_DuplicateUnicodeName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -616,8 +586,6 @@ func TestChattoCore_CreateRoom_DuplicateUnicodeName(t *testing.T) {
 }
 
 func TestCanonicalRoomNameUsesCompatibilityNormalizationAndCaseFolding(t *testing.T) {
-	t.Parallel()
-
 	t.Run("normalizes composed and decomposed umlauts", func(t *testing.T) {
 		if canonicalRoomName("KÜCHE") != canonicalRoomName("Ku\u0308che") {
 			t.Fatal("canonicalRoomName should normalize and lowercase equivalent umlauts")
@@ -646,8 +614,6 @@ func TestCanonicalRoomNameUsesCompatibilityNormalizationAndCaseFolding(t *testin
 }
 
 func TestChattoCore_CreateRoom_DuplicateCompatibilityName(t *testing.T) {
-	t.Parallel()
-
 	for _, tt := range []struct {
 		name      string
 		first     string
@@ -671,8 +637,6 @@ func TestChattoCore_CreateRoom_DuplicateCompatibilityName(t *testing.T) {
 }
 
 func TestChattoCore_RoomNameExists(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -731,8 +695,6 @@ func TestChattoCore_RoomNameExists(t *testing.T) {
 }
 
 func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -767,8 +729,6 @@ func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
 }
 
 func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -792,8 +752,6 @@ func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
 }
 
 func TestChattoCore_UpdateRoom_PreservesArchived(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -828,8 +786,6 @@ func TestChattoCore_UpdateRoom_PreservesArchived(t *testing.T) {
 }
 
 func TestChattoCore_RoomNameExistsExcluding(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -866,8 +822,6 @@ func TestChattoCore_RoomNameExistsExcluding(t *testing.T) {
 }
 
 func TestChattoCore_DeleteRoom(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -914,8 +868,6 @@ func TestChattoCore_DeleteRoom(t *testing.T) {
 // TestChattoCore_RoomName_ReuseAfterDelete verifies that deleting a room frees its name
 // for reuse. Without index cleanup in DeleteRoom this would leak the name forever.
 func TestChattoCore_RoomName_ReuseAfterDelete(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -937,8 +889,6 @@ func TestChattoCore_RoomName_ReuseAfterDelete(t *testing.T) {
 // TestChattoCore_RoomName_ReuseAfterRename verifies that renaming a room frees its old
 // name so another room can claim it.
 func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -971,8 +921,6 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 // to exercise.)
 
 func TestChattoCore_ListRoomsBySpace(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1012,8 +960,6 @@ func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 }
 
 func TestChattoCore_ListMemberRooms(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1089,8 +1035,6 @@ func TestChattoCore_ListMemberRooms(t *testing.T) {
 }
 
 func TestChattoCore_ListMemberRoomsSortsByThreadReplyRecency(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1158,8 +1102,6 @@ func TestChattoCore_ListMemberRoomsSortsByThreadReplyRecency(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_ArchiveRoom(t *testing.T) {
-	t.Parallel()
-
 	t.Run("sets archived flag", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -1275,8 +1217,6 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_UnarchiveRoom(t *testing.T) {
-	t.Parallel()
-
 	t.Run("clears archived flag", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)

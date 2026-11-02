@@ -10,8 +10,6 @@ import (
 )
 
 func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "privileged-owner", "Privileged Owner", "password123")
@@ -62,8 +60,6 @@ func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testi
 }
 
 func TestPermissionResolver_PrivilegedModeTracksEntitlementChanges(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "changing-privileges", "Changing Privileges", "password123")
@@ -94,8 +90,6 @@ func TestPermissionResolver_PrivilegedModeTracksEntitlementChanges(t *testing.T)
 }
 
 func TestPermissionResolver_BotCredentialDoesNotRequirePrivilegedMode(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := chatto.CreateUser(ctx, SystemActorID, "privileged-bot-owner", "Privileged Bot Owner", "password123")
@@ -124,8 +118,6 @@ func TestPermissionResolver_BotCredentialDoesNotRequirePrivilegedMode(t *testing
 }
 
 func TestChattoCore_BearerPrivilegedModeUsesRenewableSession(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "privileged-bearer", "Privileged Bearer", "password123")
@@ -176,8 +168,6 @@ func TestChattoCore_BearerPrivilegedModeUsesRenewableSession(t *testing.T) {
 }
 
 func TestChattoCore_CookiePrivilegedModeRoundTrip(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "privileged-cookie", "Privileged Cookie", "password123")
@@ -209,8 +199,6 @@ func TestChattoCore_CookiePrivilegedModeRoundTrip(t *testing.T) {
 }
 
 func TestChattoCore_CookiePrivilegedModeRejectsRevokedSession(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "revoked-privileged-cookie", "Revoked Privileged Cookie", "password123")
@@ -231,8 +219,6 @@ func TestChattoCore_CookiePrivilegedModeRejectsRevokedSession(t *testing.T) {
 
 // Bot inspection must report the same authority as unattended API requests.
 func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
-	t.Parallel()
-
 	for _, ownerRole := range []string{RoleOwner, RoleAdmin} {
 		t.Run(ownerRole, func(t *testing.T) {
 			c, _ := setupTestCore(t)
@@ -352,8 +338,6 @@ func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
 }
 
 func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "grant-owner", "Owner", "password123")
@@ -402,8 +386,6 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 
 // An owner without active privileged mode resolves like any other human.
 func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "gated-owner", "Gated Owner", "password123")

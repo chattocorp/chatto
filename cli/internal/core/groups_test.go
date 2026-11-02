@@ -3,8 +3,6 @@ package core
 import "testing"
 
 func TestIsReservedGroupName(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name string
 		want bool

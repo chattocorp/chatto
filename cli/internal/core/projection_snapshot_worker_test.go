@@ -151,8 +151,6 @@ func (l *observedSnapshotWorkerLease) CheckOwnership(ctx context.Context) error 
 }
 
 func TestProjectionSnapshotWorkerChecksImmediatelyThenHourlyWithDailyS3Expiry(t *testing.T) {
-	t.Parallel()
-
 	lease := &fakeSnapshotWorkerLease{}
 	expirer := &fakeSnapshotExpirer{}
 	var waits []time.Duration
@@ -199,8 +197,6 @@ func TestProjectionSnapshotWorkerChecksImmediatelyThenHourlyWithDailyS3Expiry(t 
 }
 
 func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopLaterExpiry(t *testing.T) {
-	t.Parallel()
-
 	expirer := &fakeSnapshotExpirer{errors: []error{errors.New("S3 unavailable")}}
 	expiryLease := &fakeSnapshotExpiryLease{}
 	waits := 0
@@ -226,8 +222,6 @@ func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopLaterExpiry(t *testing.
 }
 
 func TestProjectionSnapshotWorkerRetriesExpiryAfterPublicationLeaseMiss(t *testing.T) {
-	t.Parallel()
-
 	for _, test := range []struct {
 		name  string
 		lease *scriptedSnapshotWorkerLease
@@ -265,8 +259,6 @@ func TestProjectionSnapshotWorkerRetriesExpiryAfterPublicationLeaseMiss(t *testi
 }
 
 func TestProjectionSnapshotRefreshDue(t *testing.T) {
-	t.Parallel()
-
 	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
 	for _, test := range []struct {
 		name   string
@@ -293,8 +285,6 @@ func TestProjectionSnapshotRefreshDue(t *testing.T) {
 }
 
 func TestProjectionSnapshotWorkerDefersBeforeRepositoryWrite(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	guardCalls := 0
@@ -318,8 +308,6 @@ func TestProjectionSnapshotWorkerDefersBeforeRepositoryWrite(t *testing.T) {
 }
 
 func TestProjectionSnapshotWorkerDoesNotAcquireLeaseBeforeBoot(t *testing.T) {
-	t.Parallel()
-
 	lease := &fakeSnapshotWorkerLease{}
 	worker := &projectionSnapshotWorker{lease: lease, logger: testCoreLogger()}
 	boot := make(chan struct{})
@@ -337,8 +325,6 @@ func TestProjectionSnapshotWorkerDoesNotAcquireLeaseBeforeBoot(t *testing.T) {
 }
 
 func TestProjectionSnapshotWorkersDoNotOverlapPassesAndReleaseLease(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	if err != nil {
@@ -416,8 +402,6 @@ func TestProjectionSnapshotWorkersDoNotOverlapPassesAndReleaseLease(t *testing.T
 }
 
 func TestProjectionSnapshotWorkersShareS3ExpiryCooldown(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)

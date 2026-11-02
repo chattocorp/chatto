@@ -9,7 +9,6 @@ import (
 )
 
 func TestAdminUserDeactivationReturnsConsistentUserState(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "deactivation-target", "Target", "password123")
 	if err != nil {

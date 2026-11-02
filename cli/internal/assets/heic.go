@@ -3,21 +3,14 @@ package assets
 import (
 	"encoding/binary"
 	"fmt"
-	"image"
 	"io"
 
-	"github.com/gen2brain/heic"
+	_ "github.com/gen2brain/h265/heic" // Register HEIC and generic HEIF decoders.
 )
 
-func init() {
-	// HEIF can declare a generic container brand. The decoder still checks
-	// that the primary image uses a supported HEVC codec.
-	image.RegisterFormat("heic", "????ftypmif1", heic.Decode, heic.DecodeConfig)
-}
-
-// validateHEICStill rejects sequence containers before pixel decoding. The
-// decoder reads all sequence frames, which would bypass our still-image pixel
-// budget. Walk only top-level box headers and seek over their payloads.
+// validateHEICStill rejects sequence containers before pixel decoding to keep
+// uploads within the supported still-image contract. Walk only top-level box
+// headers and seek over their payloads.
 func validateHEICStill(r io.ReadSeeker) error {
 	end, err := r.Seek(0, io.SeekEnd)
 	if err != nil {

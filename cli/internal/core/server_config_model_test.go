@@ -17,8 +17,6 @@ import (
 // ============================================================================
 
 func TestConfigModel_GetServerConfig(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -55,8 +53,6 @@ func TestConfigModel_GetServerConfig(t *testing.T) {
 }
 
 func TestConfigModel_UpdateServerConfigFunc(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -177,8 +173,6 @@ func TestConfigModel_UpdateServerConfigFunc(t *testing.T) {
 }
 
 func TestConfigModel_ServerConfigStringLengthLimits(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -254,8 +248,6 @@ func TestConfigModel_ServerConfigStringLengthLimits(t *testing.T) {
 }
 
 func TestConfigModel_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -322,8 +314,6 @@ func TestConfigModel_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing.T
 }
 
 func TestConfigModel_SetServerConfigSkipsUnchangedValues(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -368,8 +358,6 @@ func TestConfigModel_SetServerConfigSkipsUnchangedValues(t *testing.T) {
 }
 
 func TestConfigModel_GetEffectiveWelcomeMessage(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -394,8 +382,6 @@ func TestConfigModel_GetEffectiveWelcomeMessage(t *testing.T) {
 }
 
 func TestConfigModel_GetEffectiveServerName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -431,8 +417,6 @@ func TestConfigModel_GetEffectiveServerName(t *testing.T) {
 }
 
 func TestConfigModel_GetEffectiveMOTD(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -457,8 +441,6 @@ func TestConfigModel_GetEffectiveMOTD(t *testing.T) {
 }
 
 func TestConfigModel_BlockedUsernames(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -494,8 +476,6 @@ func TestConfigModel_BlockedUsernames(t *testing.T) {
 }
 
 func TestConfigModel_GetBlockedUsernamesList(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -534,8 +514,6 @@ func TestConfigModel_GetBlockedUsernamesList(t *testing.T) {
 }
 
 func TestConfigModel_IsUsernameBlocked(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -588,8 +566,6 @@ func TestConfigModel_IsUsernameBlocked(t *testing.T) {
 }
 
 func TestParseBlockedUsernames(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name     string
 		input    string

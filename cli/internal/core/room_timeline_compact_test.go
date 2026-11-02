@@ -12,8 +12,6 @@ import (
 )
 
 func TestRoomTimeline_ReplyFlagKeepsInThreadOnlyForReplies(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -33,8 +31,6 @@ func TestRoomTimeline_ReplyFlagKeepsInThreadOnlyForReplies(t *testing.T) {
 }
 
 func TestRoomTimeline_BodyFlagsKeepActiveStateAndAttachments(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", at: 1}),
@@ -52,8 +48,6 @@ func TestRoomTimeline_BodyFlagsKeepActiveStateAndAttachments(t *testing.T) {
 }
 
 func TestRoomTimelineSnapshotRejectsUnrepresentableAttachmentCount(t *testing.T) {
-	t.Parallel()
-
 	source := NewRoomTimelineProjection()
 	applyAll(t, source, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", at: 1}),
@@ -80,8 +74,6 @@ func TestRoomTimelineSnapshotRejectsUnrepresentableAttachmentCount(t *testing.T)
 // TestRoomTimeline_PerMessageStructSizes guards the memory cost of the two
 // structs that the timeline keeps for every message.
 func TestRoomTimeline_PerMessageStructSizes(t *testing.T) {
-	t.Parallel()
-
 	if got := unsafe.Sizeof(timelineRow{}); got > 48 {
 		t.Fatalf("timelineRow is %d bytes, want at most 48", got)
 	}

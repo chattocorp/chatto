@@ -266,7 +266,7 @@ jobs:
               cd cli
               # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-                -tags=nomsgpack,nodynamic \
+                -tags=nomsgpack \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
@@ -312,9 +312,6 @@ jobs:
 
       - name: Test repository tooling
         run: mise test-repo-tooling
-
-      - name: Test interchange format contract
-        run: mise test-interchange
 
   desktop:
     needs: changes
@@ -485,10 +482,6 @@ jobs:
         if: env.RUN_PROTO_CHECKS == 'true'
         uses: ./.github/actions/setup
 
-      - name: Test Slack importer
-        if: env.RUN_PROTO_CHECKS == 'true'
-        run: mise test-slack
-
       - name: Check server compatibility threshold labels
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         env:
@@ -522,7 +515,7 @@ jobs:
       - name: Check projection snapshot schema contracts
         if: env.RUN_PROTO_CHECKS == 'true'
         working-directory: cli
-        run: mise x -- go test -p 1 -parallel 1 ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
+        run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public protobuf packages without acknowledged breaks
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
@@ -763,7 +756,7 @@ jobs:
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        run: cd cli && go test -trimpath -p 1 -parallel 1 -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
 
   lint-cli:
     needs: changes

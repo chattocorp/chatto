@@ -32,7 +32,6 @@ func testPNGHeader(width, height uint32) []byte {
 }
 
 func TestTransformPixelWeight(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -52,7 +51,6 @@ func TestTransformPixelWeight(t *testing.T) {
 }
 
 func TestImageTransformsShareConcurrentWork(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		var transforms imageTransforms
 		release := make(chan struct{})
@@ -96,7 +94,6 @@ func TestImageTransformsShareConcurrentWork(t *testing.T) {
 }
 
 func TestImageTransformsFailures(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		name string
 		// cancelFirst ends the first request's work by cancelling its context.
@@ -173,7 +170,6 @@ func TestImageTransformsFailures(t *testing.T) {
 }
 
 func TestImageTransformsLimitDecodedPixels(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		var transforms imageTransforms
 		large := testPNGHeader(8000, 5000)
@@ -220,7 +216,6 @@ func TestImageTransformsLimitDecodedPixels(t *testing.T) {
 // Waiting for the pixel budget must not let distinct requests accumulate an
 // unbounded number of encoded source buffers.
 func TestImageTransformsBoundSourcesBeforeReading(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		var transforms imageTransforms
 		var reads, runs atomic.Int32
@@ -276,7 +271,6 @@ func TestImageTransformsBoundSourcesBeforeReading(t *testing.T) {
 }
 
 func TestImageTransformsReleaseSourceSlotsOnFailure(t *testing.T) {
-	t.Parallel()
 	for _, stage := range []string{"read", "transform"} {
 		t.Run(stage, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -311,7 +305,6 @@ func TestImageTransformsReleaseSourceSlotsOnFailure(t *testing.T) {
 }
 
 func TestImageTransformsSharedFollowersDoNotHoldSourceSlots(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		var transforms imageTransforms
 		var reads atomic.Int32
