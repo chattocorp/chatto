@@ -615,6 +615,26 @@ jobs:
       - name: Check unused files and dependencies
         run: pnpm run knip
 
+  check-format:
+    # Check all PRs, including changes that only affect repository documentation.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+      - name: Test changed-file selection and formatting checks
+        run: node --test tools/check-format.test.mjs
+      - name: Check changed files
+        env:
+          FORMAT_BASE: ${{ github.event.pull_request.base.sha }}
+        run: pnpm run format:changed -- "$FORMAT_BASE"
+
   test-workspace-packages:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
