@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
@@ -820,6 +821,35 @@ describe('MessageContent component', () => {
   });
 
   describe('mention wiring', () => {
+    it('keeps the mention badge through an unchanged profile refresh', async () => {
+      const rooms = mockService(RoomService);
+      const users = mockService(UserService);
+      rooms.listMembers.mockReturnValue({
+        userIds: ['alice'],
+        page: { hasMore: false, totalCount: 1n }
+      });
+      users.batchGetUsers.mockReturnValue({
+        users: [{ user: { id: 'alice', login: 'alice', displayName: 'Alice Smith' } }]
+      });
+      const api = createMemberDirectoryAPI(
+        fakeServer((router) => {
+          router.service(RoomService, rooms);
+          router.service(UserService, users);
+        })
+      );
+      const mentionStore = new RoomMembersStore('room', api);
+      const { container } = render(MessageContent, { body: 'Hello @alice!', mentionStore });
+      await expect.poll(() => q(container, '.mention')?.textContent).toBe('@Alice Smith');
+      const profiles = await api.batchGetUsers(['alice']);
+      // Hold any redundant read open so a transient fallback cannot pass unnoticed.
+      rooms.listMembers.mockImplementation(() => new Promise(() => {}));
+      mentionStore.updateUsers(profiles);
+      await tick();
+      expect(q(container, '.mention')?.textContent).toBe('@Alice Smith');
+      expect(rooms.listMembers).toHaveBeenCalledTimes(1);
+      mentionStore.dispose();
+    });
+
     it('loads only visible handles with the directory closed and shares them across content', async () => {
       const rooms = mockService(RoomService);
       const users = mockService(UserService);
