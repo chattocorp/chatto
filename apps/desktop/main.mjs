@@ -51,6 +51,8 @@ import { configureDesktopNotifications } from './notifications.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 app.setName(buildProfile.productName);
+// Match the Linux launcher on Wayland and X11, including direct tarball launches.
+if (process.platform === 'linux') app.setDesktopName(`${buildProfile.packageName}.desktop`);
 app.setPath('userData', path.join(app.getPath('appData'), buildProfile.userDataName));
 const streamDiagnostics = new StreamDiagnostics();
 let screenShareMode = defaultScreenShareMode;

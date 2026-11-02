@@ -1,6 +1,7 @@
 {
   "name": "chatto-desktop",
   "productName": "Chatto",
+  "desktopName": "chatto-desktop.desktop",
   "description": "Chatto Desktop",
   "author": "ChattoCorp GmbH",
   "homepage": "https://chatto.run",

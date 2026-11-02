@@ -63,6 +63,7 @@ const [bundleRoot] = await packager({
             ...packageJson,
             name: profile.packageName,
             productName: profile.productName,
+            desktopName: `${profile.packageName}.desktop`,
             chattoBuildVariant: profile.variant,
             chattoAutoUpdate: autoUpdate
           },

@@ -616,6 +616,7 @@ jobs:
             ".context/desktop-release/chatto-desktop_${VERSION}_Linux_${RUNNER_ARCH}.tar.gz" \
             chatto-desktop
           mise x -- pnpm --filter chatto-desktop build:linux-appimage
+          bash tools/test-desktop-linux.sh
           cp apps/desktop/dist/appimage/*.AppImage .context/desktop-release/
 
       - name: Package Windows release
