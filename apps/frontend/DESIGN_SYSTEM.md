@@ -537,17 +537,15 @@ which colours the icon with the action colour.
 It is a raised rim around recessed content, shared by context menus, palettes,
 dialog trays, and preview cards. Its two primitives in `src/app.css` are the source of truth:
 
-- `inset-frame` owns the 1px `text/10` border, 8px outer corners, `surface` fill,
+- `inset-frame` owns the depth-aware 1px `text/10` border, 8px outer corners, `surface` fill,
   depth-aware lighting, text color, and default 4px rim.
 - `inset-content` owns the 6px inner corners, `background` fill, and inset depth.
   It does not set padding or clip content.
 
-`inset-frame` resets `--inset-frame-visibility` to 1. Preview variants reduce
-this value with depth: at Flat, their decorative border and rim fill are
-transparent. Their lighting and inline preview shadow also disappear. Border
-space, padding, and corners stay the same, so a depth change does not resize content.
-Floating menus and hover cards keep their floating elevation at Flat. Menus
-also keep their boundary.
+The rim fill stays visible at every depth. At Flat, the outer border, bevel
+lighting, inset shadows, and inline preview shadows disappear. Border space, padding,
+and corners stay the same, so a depth change does not resize content.
+Floating menus and hover cards keep their floating elevation at Flat.
 
 The primitives set no width, margin, outer shadow, positioning, or animation.
 Consumers retain native semantics and own those choices. `floating-frame` and
@@ -632,8 +630,9 @@ its interaction or content lifecycle.
 | `preview-thumbnail` | Compact media or fallback tile inside a row or gallery. Includes the shared border and inset surface. Owners set dimensions and image fit. |
 | `preview-surface`   | Hover-card layout: `preview-frame`, 288px width, small text, and floating shadow. Position and motion belong to `FloatingPopover`.         |
 
-Use a 4px rim around media and card bodies. The rim becomes visible as depth
-increases from Flat and reaches its full fill and border at level 50.
+Use a 4px rim around media and card bodies. The rim fill stays visible at
+every depth, including Flat. The outer border fades with depth and is
+transparent at Flat.
 Compact file and composer rows can use 8–12px padding for their controls.
 Put captions or destination rows on the
 outer frame. Do not add the old outline around a preview. Depth settings must
