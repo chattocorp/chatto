@@ -3,16 +3,13 @@
   import UrlLink from './UrlLink.svelte';
   import TipTapEditor from '../composer/TipTapEditor.svelte';
 
-  const { Story } = defineMeta({ title: 'Messages/URL chips', component: UrlLink });
+  const { Story } = defineMeta({ title: 'Messages/Web links', component: UrlLink });
   const longLink = 'http://chatto.ws55110.localhost:55110/chat/-/user/UT9SQd0NQaXj3pc';
 </script>
 
 {#snippet examples()}
   <p>
-    Release: <UrlLink
-      href="https://www.alchemy-cms.com/news/alchemy-8-4-released"
-      title="Alchemy 8.4 released"
-    />.
+    Release: <UrlLink href="https://www.alchemy-cms.com/news/alchemy-8-4-released" />.
   </p>
   <p>Please join <UrlLink href={longLink} /> and visit <UrlLink href="https://example.com" />.</p>
   <p>
@@ -26,25 +23,14 @@
     />.
   </p>
   <p>
-    Page title: <UrlLink href="https://example.com/guide" title="Getting started with Chatto" />.
-  </p>
-  <p>Loading metadata: <UrlLink href="https://example.com/guide" loading />.</p>
-  <p>
-    Long title: <UrlLink
-      href="https://example.com/guide"
-      title="A comprehensive guide to setting up your server and welcoming your community"
-    />.
+    Guide: <UrlLink href="https://example.com/guide" />.
   </p>
   <p>
-    Article: <UrlLink
-      href="https://spiegel.de/politik/deutschland/ibrahim-ibrahim"
-      title="(S+) Ibrahim Ibrahim: Wer ist der Mann, vor dem Elif Eralp Angst hat?"
-    />.
+    Article: <UrlLink href="https://spiegel.de/politik/deutschland/ibrahim-ibrahim" />.
   </p>
   <p>
     Long source: <UrlLink
       href="https://a-very-long-subdomain.another-long-subdomain.example.com:8443/guide"
-      title="A guide from a community server"
     />.
   </p>
 {/snippet}

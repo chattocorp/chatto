@@ -57,6 +57,18 @@ export function parseEntityLink(input: string): EntityLink | null {
   return null;
 }
 
+/** Whether local data is sufficient to render this entity as a pill, without a request. */
+export function hasEntityLinkData(target: EntityLink): boolean {
+  if (!serverRegistry.getServer(target.serverId)) return false;
+  if (target.kind === 'server') return true;
+  const store = serverRegistry.tryGetStore(target.serverId);
+  if (target.kind === 'room') {
+    return !!store?.roomList.rooms.some((room) => room.id === target.id);
+  }
+  const user = store?.projection.users.view(target.id);
+  return !!user && !user.deleted;
+}
+
 /** Parse the shared server-route prefix without consulting the catalogue. */
 function parseChatURL(input: string, origin: string) {
   let url: URL;
@@ -131,6 +143,8 @@ export function resolveChatRoute(input: string): ResolvedPathname | null {
   }
   const serverId = resolveChatLinkServerId(parsed);
   if (!serverId) return null;
+  // Resolve the source server first, then use this frontend's canonical segment:
+  // '-' for its home server and the hostname for a remote server.
   const prefix = resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) });
   const suffix = parsed.url.pathname.split('/').slice(3).join('/');
   const trailingPath = parsed.url.pathname.split('/').length > 3 ? `/${suffix}` : '';

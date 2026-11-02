@@ -866,14 +866,12 @@ describe('MessageContent component', () => {
     // $lib/mentions.svelte.test.ts. These tests assert that MessageContent renders
     // mention candidates and resolves them, i.e. that the mention class shows up
     // in the rendered DOM when a matching member is present.
-    it('keeps a member handle in a URL chip as literal text', async () => {
+    it('keeps a member handle in a web link as literal text', async () => {
       const url = 'https://social.5f9.de/@alice/123';
       const { container } = renderMessage(`Zum Thema ${url}`, [
         { ...member('alice'), displayName: 'Alice Smith' }
       ]);
-      await expect
-        .poll(() => q(container, '.url-link')?.textContent?.trim())
-        .toBe('social.5f9.de/@alice/123');
+      await expect.poll(() => q(container, '.url-link')?.textContent?.trim()).toBe(url);
       expect(q(container, '.url-link')?.getAttribute('data-content-href')).toBe(url);
       expect(q(container, 'span.mention')).toBeNull();
     });

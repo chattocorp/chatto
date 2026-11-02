@@ -41,51 +41,38 @@ afterEach(() => {
 function hover(container: HTMLElement) {
   container.querySelector('a')!.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
 }
-it('loads a posted URL pill without hover and shares its request with the hover card', async () => {
+it('keeps posted link text and message height stable while a hover preview loads', async () => {
   let resolve!: (value: unknown) => void;
   fetchLinkPreview.mockReturnValue(
     new Promise((done) => {
       resolve = done;
     })
   );
-  const { container } = render(MessageContent, { body: href });
-  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
-  const pill = container.querySelector<HTMLAnchorElement>('.url-link')!;
-  expect(pill.getAttribute('aria-busy')).toBe('true');
-  expect(pill.querySelector('.animate-spin')).not.toBeNull();
-  expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+  const { container } = render(MessageContent, {
+    body: `Read ${href} for details about this guide.`
+  });
+  container.style.width = '240px';
+  await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
+  const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  await new Promise<void>((done) => requestAnimationFrame(() => done()));
+  expect(fetchLinkPreview).not.toHaveBeenCalled();
+  const message = link.closest('p')!;
+  const height = message.getBoundingClientRect().height;
+  const rects = Array.from(link.getClientRects(), (rect) => rect.toJSON());
   hover(container);
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
+  expect(link.textContent).toBe(href);
+  expect(message.getBoundingClientRect().height).toBe(height);
+  resolve({ url: href, title: 'A much longer fetched page title that must not move the message' });
   await vi.waitFor(() =>
-    expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+      'A much longer fetched page title'
+    )
   );
-  expect(fetchLinkPreview).toHaveBeenCalledTimes(1);
-  resolve({ url: href, title: 'Automatically loaded title' });
-  await vi.waitFor(() => expect(pill.textContent).toContain('Automatically loaded title'));
-  expect(pill.getAttribute('aria-busy')).toBe('false');
-  expect(pill.href).toBe(href);
-});
-
-it('waits until a posted pill enters the viewport', async () => {
-  const target = document.createElement('div');
-  target.style.cssText = 'position:fixed;top:200vh';
-  document.body.append(target);
-  try {
-    render(MessageContent, { target, props: { body: href } });
-    await vi.waitFor(() => expect(target.querySelector('.url-link')).not.toBeNull());
-    // Wait for the initial intersection notification before checking the request.
-    await new Promise<void>((resolve) => {
-      const observer = new IntersectionObserver(() => {
-        observer.disconnect();
-        resolve();
-      });
-      observer.observe(target);
-    });
-    expect(fetchLinkPreview).not.toHaveBeenCalled();
-    target.style.top = '0';
-    await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
-  } finally {
-    target.remove();
-  }
+  expect(link.textContent).toBe(href);
+  expect(link.href).toBe(href);
+  expect(message.getBoundingClientRect().height).toBe(height);
+  expect(Array.from(link.getClientRects(), (rect) => rect.toJSON())).toEqual(rects);
 });
 
 it('keeps authored Markdown labels lazy until interaction', async () => {
@@ -104,39 +91,24 @@ it('keeps authored Markdown labels lazy until interaction', async () => {
   expect(container.querySelector('a')?.textContent).toBe('Read the guide');
 });
 
-it.each(['success', 'failure'])('shows a pill spinner until metadata fetch %s', async (outcome) => {
-  let resolve!: (value: unknown) => void;
-  let reject!: (reason: Error) => void;
-  fetchLinkPreview.mockReturnValue(
-    new Promise((done, fail) => {
-      resolve = done;
-      reject = fail;
-    })
-  );
-  const { container } = render(LinkTitleTestHarness, { href });
-  const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
-  expect(trigger.getAttribute('aria-busy')).toBe('false');
-  hover(container);
-  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
-  expect(trigger.getAttribute('aria-busy')).toBe('true');
-  expect(trigger.querySelector('.url-link-icon .animate-spin')).not.toBeNull();
-  expect(trigger.href).toBe(href);
-  if (outcome === 'success') resolve({ url: href, title: 'Loaded title' });
-  else reject(new Error('unavailable'));
-  await vi.waitFor(() => expect(trigger.getAttribute('aria-busy')).toBe('false'));
-  expect(trigger.querySelector('.animate-spin')).toBeNull();
-  expect(trigger.querySelector('.url-link-icon')).not.toBeNull();
-  expect(trigger.textContent).toContain(outcome === 'success' ? 'Loaded title' : 'example.test');
-});
-
-it('reflects metadata loading from the composer without a hover request', async () => {
+it('keeps inline text stable when composer metadata changes', async () => {
   const { container, rerender } = render(LinkTitleTestHarness, { href, loading: true });
-  const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
-  expect(trigger.getAttribute('aria-busy')).toBe('true');
-  expect(trigger.querySelector('.url-link-icon .animate-spin')).not.toBeNull();
-  await rerender({ href, loading: false });
-  expect(trigger.getAttribute('aria-busy')).toBe('false');
-  expect(trigger.querySelector('.animate-spin')).toBeNull();
+  const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
+  const markup = link.outerHTML;
+  await rerender({
+    href,
+    loading: false,
+    preview: {
+      url: href,
+      title: 'Fetched title',
+      description: null,
+      imageUrl: null,
+      siteName: null,
+      embedType: null,
+      embedId: null
+    }
+  });
+  expect(link.outerHTML).toBe(markup);
   expect(fetchLinkPreview).not.toHaveBeenCalled();
 });
 
@@ -289,23 +261,27 @@ it.each([false, true])('leaves Shift=%s context menus to the message owner', (sh
   expect(event.defaultPrevented).toBe(false);
   expect(parentMenu).toHaveBeenCalledOnce();
 });
-it('reuses a fetched title without replacing the focused anchor or its destination', async () => {
+it('keeps the focused anchor and its URL text when metadata arrives', async () => {
   const { container } = render(LinkTitleTestHarness, { href });
   const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
   expect(trigger.textContent).toContain('example.test');
   trigger.focus();
-  await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+      'A useful guide'
+    )
+  );
   expect(document.activeElement).toBe(trigger);
   expect(trigger.href).toBe(href);
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
   await vi.waitFor(() =>
     expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull()
   );
-  expect(trigger.textContent).toContain('A useful guide');
+  expect(trigger.textContent).toBe(href);
   expect(fetchLinkPreview).toHaveBeenCalledTimes(1);
 });
 
-it('uses existing metadata immediately and truncates long titles without fetching', async () => {
+it('uses existing metadata in the hover card without changing the URL text', async () => {
   const title = 'A very long page title '.repeat(30);
   const { container } = render(LinkTitleTestHarness, {
     href,
@@ -320,10 +296,9 @@ it('uses existing metadata immediately and truncates long titles without fetchin
     }
   });
   const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
-  expect(trigger.textContent).toContain(title.trim());
+  expect(trigger.textContent).toBe(href);
   container.style.width = '320px';
   expect(trigger.getBoundingClientRect().width).toBeLessThanOrEqual(320);
-  expect(getComputedStyle(trigger.querySelector('bdi')!).textOverflow).toBe('ellipsis');
   hover(container);
   await vi.waitFor(() =>
     expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull()
@@ -332,20 +307,35 @@ it('uses existing metadata immediately and truncates long titles without fetchin
 });
 
 it.each([removeRegisteredServerQueries, refreshRegisteredServerQueries])(
-  'reloads a visible pill without hover after %s',
+  'reloads metadata on the next interaction after %s',
   async (reset) => {
     const scope = createTestServerScope({ api: { fetchLinkMetadata: fetchLinkPreview } });
-    const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
+    const { container } = render(LinkTitleTestHarness, { href });
     const trigger = container.querySelector('.url-link')!;
-    await vi.waitFor(() => expect(trigger.textContent).toContain('A useful guide'));
+    hover(container);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+        'A useful guide'
+      )
+    );
     fetchLinkPreview.mockResolvedValue({ url: href, title: 'Reauthorized title' });
     await reset(scope.serverId);
-    await vi.waitFor(() => expect(trigger.textContent).toContain('Reauthorized title'));
+    hover(container);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+        'Reauthorized title'
+      )
+    );
     expect(fetchLinkPreview).toHaveBeenCalledTimes(2);
     expect(trigger.textContent).not.toContain('A useful guide');
     fetchLinkPreview.mockResolvedValue({ url: href, title: 'Another permission change' });
     await reset(scope.serverId);
-    await vi.waitFor(() => expect(trigger.textContent).toContain('Another permission change'));
+    hover(container);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+        'Another permission change'
+      )
+    );
     expect(fetchLinkPreview).toHaveBeenCalledTimes(3);
   }
 );
@@ -372,14 +362,18 @@ it('ignores a pending response after the server session is cleared', async () =>
       resolve = done;
     })
   );
-  const { container } = render(LinkTitleTestHarness, { href, loadWhenVisible: true });
+  const { container } = render(LinkTitleTestHarness, { href });
+  hover(container);
   await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalled());
   fetchLinkPreview.mockResolvedValue({ url: href, title: 'Fresh authorized title' });
   removeRegisteredServerQueries(scope.serverId);
   resolve({ url: href, title: 'Old session title' });
   await tick();
+  hover(container);
   await vi.waitFor(() =>
-    expect(container.querySelector('.url-link')?.textContent).toContain('Fresh authorized title')
+    expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
+      'Fresh authorized title'
+    )
   );
   expect(container.textContent).not.toContain('Old session title');
 });

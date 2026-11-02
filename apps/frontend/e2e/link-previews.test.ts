@@ -44,15 +44,14 @@ test.describe('Automatic URL links', () => {
     await chatPage.enterRoom('general');
 
     const messageText = 'Visit www.example.com for details';
-    // URL pills include a hidden full-URL description between visible text nodes.
-    // Locate the message by its prose, then assert the link separately.
+    // The rendered link shows the full HTTPS destination.
     await roomPage.sendMessage(messageText, 'Visit');
 
-    // The message should be rendered with the bare domain as a clickable link
+    // The bare domain becomes a clickable HTTPS URL.
     const message = page.locator('[role="article"]', { hasText: 'Visit' });
     const link = message.locator('a[href="https://www.example.com"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await expect(link).toHaveText('www.example.com');
+    await expect(link).toHaveText('https://www.example.com');
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
@@ -62,18 +61,18 @@ test.describe('Automatic URL links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    await roomPage.sendMessage('Check www.hmans.dev');
+    await roomPage.sendMessage('Check www.hmans.dev', 'Check https://www.hmans.dev');
 
-    const message = page.locator('[role="article"]', { hasText: 'Check www.hmans.dev' });
+    const message = page.locator('[role="article"]', { hasText: 'Check https://www.hmans.dev' });
     const link = message.locator('a[href="https://www.hmans.dev"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await expect(link).toHaveText('www.hmans.dev');
+    await expect(link).toHaveText('https://www.hmans.dev');
   });
 });
 
 test.describe('Link previews', () => {
   for (const authored of [false, true]) {
-    test(`${authored ? 'Markdown links fetch' : 'URL pills reuse attached'} hover previews through the server`, async ({
+    test(`${authored ? 'Markdown links fetch' : 'Automatic URLs reuse attached'} hover previews through the server`, async ({
       page,
       chatPage,
       roomPage
@@ -98,8 +97,7 @@ test.describe('Link previews', () => {
             .getByRole('link', { name: 'the useful guide', exact: true })
         : page.locator(`[role="article"] .url-link[data-content-href="${testUrl}"]`);
       if (!authored) {
-        await expect(chip.locator('.url-link-main')).toHaveText('Test Page Title');
-        await expect(chip.locator('.url-link-host')).toHaveText(new URL(testUrl).host);
+        await expect(chip).toHaveText(testUrl);
       }
       let requests = 0;
       page.on('request', (request) => {
@@ -110,6 +108,7 @@ test.describe('Link previews', () => {
       await expect(chip).not.toHaveAttribute('title');
       await expect(card).toContainText('Test Page Title');
       await expect(card).toContainText('Test Site');
+      if (!authored) await expect(chip).toHaveText(testUrl);
       if (authored) await expect(chip).not.toHaveClass(/url-link|entity-link/);
       expect(requests).toBe(authored ? 1 : 0);
       await page.keyboard.press('Escape');

@@ -1833,8 +1833,7 @@
   border-radius: var(--inline-link-radius);
 }
 
-/* Web and entity links share the same segmented surface. */
-.url-link,
+/* Known Chatto entities use a segmented surface. Ordinary URLs use text links. */
 .entity-link {
   @apply inline-link-pill max-w-full gap-0 overflow-hidden px-0;
   --url-link-shade: 3%;
@@ -1843,17 +1842,11 @@
   background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
-.url-link {
-  max-width: min(100%, 28rem);
-}
-
-.url-link:hover,
 .entity-link:hover {
   --url-link-surface: var(--color-surface-selected);
   background-color: color-mix(in srgb, var(--url-link-surface), black var(--url-link-shade));
 }
 
-.url-link-main,
 .link-pill-main {
   @apply relative inline-flex min-w-0 items-baseline gap-1.5 rounded-[var(--inline-link-radius)] px-1.5 py-px;
   background-color: var(--url-link-surface);
@@ -1862,24 +1855,16 @@
     0 1px 4px rgb(0 0 0 / 35%);
 }
 
-.url-link-icon,
 .link-pill-icon {
   @apply inline-flex shrink-0 items-center self-center text-[0.85em] text-muted;
 }
 
-.url-link-host,
 .link-pill-meta {
   @apply inline-flex shrink-0 items-center self-stretch px-1.5 text-[0.85em] text-muted;
 }
 
 .link-pill-meta {
   @apply max-w-[40%] min-w-0;
-}
-
-.url-link-host {
-  /* Use the host's natural width; reserve room for the title on narrow lines. */
-  min-width: 0;
-  max-width: calc(100% - 3rem);
 }
 
 .link-pill-icon-image {
@@ -1890,7 +1875,6 @@
   padding-inline-start: 1px;
 }
 
-.url-link-main:has(> .url-link-icon),
 .link-pill-main:has(> .link-pill-icon:not(.link-pill-icon-image)) {
   padding-inline-start: 4px;
 }
@@ -1900,7 +1884,6 @@
 }
 
 /* Muted text needs a lighter backing in light mode to retain readable contrast. */
-:root[data-theme='dark'] .url-link,
 :root[data-theme='dark'] .entity-link {
   --url-link-shade: 20%;
 }

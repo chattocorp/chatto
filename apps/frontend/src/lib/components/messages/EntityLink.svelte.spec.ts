@@ -115,54 +115,82 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it('marks only links that open a new window and keeps both segments in one link', async () => {
+it('keeps native navigation for ordinary web links', async () => {
   const href = 'https://spiegel.de/politik/article';
   const open = vi.spyOn(window, 'open').mockReturnValue(null);
-  const { container, rerender } = render(UrlLink, { href, title: 'An article' });
+  const { container, rerender } = render(UrlLink, { href });
   const anchor = container.querySelector('a')!;
   expect(anchor.target).toBe('_blank');
-  expect(
-    anchor.querySelector('.iconify')?.classList.contains('icon-[uil--external-link-alt]')
-  ).toBe(true);
-  expect(anchor.querySelector('.url-link-host')?.textContent).toBe('spiegel.de');
+  expect(anchor.textContent).toBe(href);
   expect(container.querySelectorAll('a')).toHaveLength(1);
-  expectNativeClick(anchor.querySelector<HTMLElement>('.url-link-host')!);
+  expectNativeClick(anchor);
   expect(open).not.toHaveBeenCalled();
-
-  await rerender({ href: `${origin}/chat/-/${roomId}`, title: 'General' });
+  await rerender({ href: `${origin}/chat/-/${roomId}` });
   expect(anchor.hasAttribute('target')).toBe(false);
-  expect(anchor.querySelector('.iconify')).toBeNull();
 });
 
-it.each(['ltr', 'rtl'])(
-  'keeps the source visible and the title truncated in a narrow %s message',
-  async (dir) => {
-    const { container } = render(UrlLink, {
-      href: 'https://spiegel.de/politik/article',
-      title: 'A long article title that must yield space to its source hostname'.repeat(3)
-    });
-    container.style.width = '240px';
-    container.dir = dir;
-    const anchor = container.querySelector('a')!;
-    const title = anchor.querySelector<HTMLElement>('.url-link-main bdi')!;
-    const host = anchor.querySelector<HTMLElement>('.url-link-host bdi')!;
-    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(240);
-    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
-    expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth);
-    expect(getComputedStyle(title).textOverflow).toBe('ellipsis');
-    expect(
-      dir === 'ltr'
-        ? host.getBoundingClientRect().left > title.getBoundingClientRect().left
-        : host.getBoundingClientRect().left < title.getBoundingClientRect().left
-    ).toBe(true);
-    // Long titles stay compact even when the message column is wide.
-    container.style.width = '900px';
-    expect(anchor.getBoundingClientRect().width).toBeLessThanOrEqual(448);
-    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
-  }
-);
+it.each(['ltr', 'rtl'])('wraps long URLs within a narrow %s message', (dir) => {
+  const href = 'https://example.test/' + 'long-path/'.repeat(30) + '?q=value#section';
+  const { container } = render(UrlLink, { href });
+  container.style.width = '240px';
+  container.classList.add('prose');
+  container.dir = dir;
+  const anchor = container.querySelector('a')!;
+  expect(anchor.textContent).toBe(href);
+  expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth);
+  expect(getComputedStyle(anchor).display).toBe('inline');
+  expect(getComputedStyle(anchor).textDecorationLine).toContain('underline');
+});
 
 describe('entity links in messages', () => {
+  it('points a known DM pill directly at the participant user page', async () => {
+    const store = client.registry.getStore('known');
+    vi.spyOn(store, 'accountId', 'get').mockReturnValue('viewer');
+    store.projection.rooms.set(
+      roomId,
+      new RoomWithViewerState({
+        room: { id: roomId, name: 'Alice', kind: RoomKind.DM },
+        memberUserIds: ['viewer', userId]
+      })
+    );
+    const { container } = render(MessageContent, { body: `${origin}/chat/-/${roomId}` });
+    const pill = await vi.waitFor(() => {
+      const link = container.querySelector<HTMLAnchorElement>('.entity-link');
+      expect(link).not.toBeNull();
+      return link!;
+    });
+    const path = `/chat/known.example.test/user/${userId}`;
+    expect(pill.getAttribute('href')).toBe(path);
+    pill.click();
+    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith(path);
+  });
+
+  it('uses the same prose style for automatic URLs and authored links', async () => {
+    const href = 'https://example.test/guide';
+    const { container } = render(MessageContent, { body: `${href} [Read the guide](${href})` });
+    await vi.waitFor(() => expect(container.querySelectorAll('a')).toHaveLength(2));
+    const links = Array.from(container.querySelectorAll('a'));
+    // Compare settled states, independent of the previous test's pointer position.
+    for (const link of links) link.style.transition = 'none';
+    await userEvent.unhover(links[0]);
+    const styles = links.map((link) => getComputedStyle(link));
+    for (const property of [
+      'color',
+      'text-decoration-line',
+      'text-decoration-color',
+      'overflow-wrap'
+    ]) {
+      expect(styles[0].getPropertyValue(property)).toBe(styles[1].getPropertyValue(property));
+    }
+    if (matchMedia('(hover: hover)').matches) {
+      await userEvent.hover(links[0]);
+      const hoverColor = getComputedStyle(links[0]).color;
+      await userEvent.unhover(links[0]);
+      await userEvent.hover(links[1]);
+      expect(getComputedStyle(links[1]).color).toBe(hoverColor);
+    }
+  });
+
   it.each(['known', 'another-server'])(
     'shows server metadata only across servers from %s',
     async (serverId) => {
@@ -355,7 +383,7 @@ describe('entity links in messages', () => {
     expect(link.hasAttribute('aria-describedby')).toBe(false);
   });
 
-  it('uses neutral chips for unknown destinations and non-entity routes, preserving full URLs', async () => {
+  it('uses plain links for unknown destinations and non-entity routes, preserving full URLs', async () => {
     const links = [
       'https://unknown.example.test/chat/-/user/' + userId,
       'https://unknown.example.test/chat/known.example.test/user/' + userId,
@@ -419,14 +447,10 @@ describe('entity links in messages', () => {
     });
     await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
     const chip = container.querySelector<HTMLAnchorElement>('.url-link')!;
-    expect(chip.textContent?.trim()).toBe('docs.example.test:8443');
+    expect(chip.textContent).toBe(href);
     expect(chip.href).toBe(href);
     expect(chip.title).toBe(href);
-    expect(document.getElementById(chip.getAttribute('aria-describedby')!)?.textContent).toBe(href);
-    expect(chip.textContent).not.toContain('?q=');
-    expect(chip.textContent).not.toContain('#section');
-    expect(chip.textContent).not.toContain('long-path');
-    expect(chip.getBoundingClientRect().width).toBeLessThan(400);
+    expect(chip.getBoundingClientRect().width).toBeLessThanOrEqual(container.clientWidth);
     expectNativeClick(chip);
     expect(opened).not.toHaveBeenCalled();
     expect(container.querySelectorAll('.url-link')).toHaveLength(1);
@@ -434,13 +458,12 @@ describe('entity links in messages', () => {
     expect(container.querySelector('a[href="mailto:reader@example.test"]')).not.toBeNull();
   });
 
-  it('keeps the hostname ending and port visible without a second truncated path', async () => {
+  it('keeps the full hostname, port, and path visible', async () => {
     const href = 'http://chatto.ws55110.localhost:55110/chat/-/user/UT9SQd0NQaXj3pc';
     const { container } = render(MessageContent, { body: href });
     await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
     const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
-    expect(link.textContent?.trim()).toMatch(/^chatt….*localhost:55110$/);
-    expect(link.textContent?.match(/…/g)).toHaveLength(1);
+    expect(link.textContent).toBe(href);
     expect(link.href).toBe(href);
     expect(link.title).toBe(href);
   });
@@ -511,7 +534,6 @@ describe('entity links in messages', () => {
       expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
     );
     expect(parentMenu).not.toHaveBeenCalled();
-    expect(rendered.container.textContent).toContain('Shift + right-click for browser menu');
     client.registry.getStore('known').projection.rooms.delete(roomId);
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="copy-room-id"]')).toBeNull()
@@ -705,12 +727,7 @@ it('keeps typing after a known URL outside its link', async () => {
 
 it.each([
   [`${origin}/chat/-/${roomId}`, '.entity-link', 'General'],
-  [`${origin}/chat/-/${roomId}/m/E123456789abcde`, '[data-message-link]', 'General'],
-  [
-    'https://unknown.example.test:8443/a/very/long/path?query=value#section',
-    '.url-link',
-    'unkno…xample.test:8443'
-  ]
+  [`${origin}/chat/-/${roomId}/m/E123456789abcde`, '[data-message-link]', 'General']
 ])(
   'previews pasted %s immediately and keeps the following text editable',
   async (href, selector, label) => {
@@ -748,8 +765,6 @@ it.each([
 );
 
 it.each([
-  ['https://example.test/path', ''],
-  ['https://example.test/path', ' nice'],
   [`${origin}/chat/-/${roomId}`, ''],
   [`${origin}/chat/-/${roomId}`, ' nice']
 ])(
@@ -791,7 +806,7 @@ it.each([
   'reveals a pasted URL on keyboard entry from %s (%s)',
   async (position, key, selecting) => {
     let api: ComposerEditorApi | undefined;
-    const href = 'https://example.test/path';
+    const href = `${origin}/chat/-/${roomId}`;
     const { container } = render(TipTapEditor, {
       onReady: (ready) => {
         api = ready;
@@ -828,3 +843,29 @@ it.each([
     expect(api!.getText()).toBe(expected);
   }
 );
+
+it.each([
+  'https://example.test/path',
+  `${origin}/chat/-/R00000000000000`,
+  `${origin}/chat/-/user/U00000000000000`,
+  'https://unknown.example.test/chat/-/R123456789abcde',
+  'https://unknown.example.test/chat/-/user/U123456789abcde'
+])('keeps %s as editable URL text without composer preview widgets', async (href) => {
+  let api: ComposerEditorApi | undefined;
+  const { container } = render(TipTapEditor, {
+    onReady: (ready) => {
+      api = ready;
+    }
+  });
+  await vi.waitFor(() => expect(api).toBeDefined());
+  api!.setContent(href);
+  const editor = container.querySelector<HTMLElement>('.ProseMirror')!;
+  await vi.waitFor(() => expect(editor.querySelector('a')?.textContent).toBe(href));
+  expect(editor.querySelector('.composer-entity-preview')).toBeNull();
+  expect(editor.querySelector('.composer-entity-source')).toBeNull();
+  expect(editor.querySelector('.entity-link')).toBeNull();
+  api!.focus('end');
+  await vi.waitFor(() => expect(document.activeElement).toBe(editor));
+  await userEvent.keyboard(' after');
+  expect(api!.getText()).toBe(`${href} after`);
+});

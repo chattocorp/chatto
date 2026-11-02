@@ -3920,7 +3920,7 @@ describe('MessageComposer', () => {
       pasteText(editor, url);
 
       await vi.waitFor(() => {
-        expect(editor.querySelector('.url-link')?.getAttribute('title')).toBe(url);
+        expect(editor.querySelector('.composer-entity-preview')).toBeNull();
         expect(editor.querySelector('a:not(.url-link)')?.textContent).toBe(url);
         expect(editor.querySelector('strong')?.textContent).toBe(url);
       });
