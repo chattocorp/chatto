@@ -29,7 +29,7 @@ export function rememberRenderedImageSize(key: string, image: HTMLImageElement):
   if (sizes.size > maximumEntries) sizes.delete(sizes.keys().next().value!);
 }
 
-/** Both loading placeholders and loaded previews use the same responsive geometry. */
+/** Fill the message width up to the height limit, also for small vector images. */
 export function renderedImageWidth({ width, height }: RenderedImageSize): string {
-  return `min(${width}px, calc(min(30rem, 60vh) * ${width / height}))`;
+  return `calc(min(30rem, 60vh) * ${width / height})`;
 }

@@ -21,7 +21,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   let height = $state(1);
   let ready = $state(false);
   // Constrain width from the height budget, so both axes keep the image's ratio.
-  // The minimum target size adds a small inset only for tiny or extreme artwork.
+  // Extreme ratios keep a minimum click target around the complete image.
   const previewWidth = $derived(renderedImageWidth({ width, height }));
 
   function preview(node: HTMLSpanElement) {
@@ -31,9 +31,6 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
       width = nextWidth;
       height = nextHeight;
       ready = image.naturalWidth > 0;
-      // The minimum click target must not enlarge tiny artwork inside it.
-      image.style.maxWidth = `${nextWidth}px`;
-      image.style.maxHeight = `${nextHeight}px`;
     };
     image.classList.add('image-canvas-asset');
     image.dataset.canvasImage = '';
