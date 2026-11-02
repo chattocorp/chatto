@@ -183,7 +183,6 @@
   --composer-code-literal: #79c0ff;
   --composer-code-attribute: #ffa657;
 }
-/* @plugin '@tailwindcss/forms'; */
 /* Dynamic utilities load only referenced candidates such as icon-[uil--check].
    Do not add `prefixes`: that eagerly expands whole collections. */
 @plugin '@iconify/tailwind4' {

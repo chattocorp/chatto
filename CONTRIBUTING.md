@@ -379,8 +379,7 @@ even when the stable hostnames differ.
 Run `mise test-dev-tooling` to check environment defaults, disabled NATS
 listeners, cleanup after failure, route ownership, and real Traefik routing.
 The routing test checks that changes to another route preserve a WebSocket,
-that proxy restarts restore routes, and that unknown or removed hosts return
-404. The lifecycle test runs the real mise task graph with test listeners. It
+that proxy restarts restore routes, and that unknown or removed hosts return 404. The lifecycle test runs the real mise task graph with test listeners. It
 checks that one stop closes all listeners and removes routes and runtime state
 within Paseo's shutdown deadline. This task also runs in CI and as part of
 `mise test`.
@@ -453,6 +452,14 @@ mise x -- pnpm format:check -- path/to/file.ts
 Prettier uses the nearest configuration file. The frontend keeps its Svelte and
 Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
+
+To check for unused files, dependencies, and duplicate exports in the root pnpm
+workspace, run `mise knip`. CI runs the same check. `knip.jsonc` records entry
+points that tools load by path and explains exceptions for external commands
+and dynamic dependencies. Check references before removing a reported file.
+Unused export and type checks remain disabled because libraries expose APIs
+to consumers outside this repository. Authling has a separate workspace and
+is not included in this check.
 
 `mise dev` and `mise dev-full` use Conductor's allocated port block and fall
 back to base port `4000` outside Conductor. Paseo's **dev** service overrides
