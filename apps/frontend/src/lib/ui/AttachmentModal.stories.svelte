@@ -63,6 +63,7 @@
       description="A white circle on a coloured rectangle with transparent edges."
       size={24000}
       imageViewer
+      copyImageUrl={images[index].url}
       downloadUrl={images[index].url}
       {index}
       count={images.length}

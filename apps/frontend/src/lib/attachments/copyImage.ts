@@ -9,14 +9,19 @@ async function imagePng(url: string): Promise<Blob> {
   const response = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
   if (!response.ok) throw new Error('Image request failed');
 
-  const bitmap = await createImageBitmap(await response.blob());
+  // An image element also decodes SVG snapshots, which createImageBitmap
+  // does not support in all browsers. A blob URL keeps the fetch policy above.
+  const source = URL.createObjectURL(await response.blob());
   try {
+    const image = new Image();
+    image.src = source;
+    await image.decode();
     const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Image canvas unavailable');
-    context.drawImage(bitmap, 0, 0);
+    context.drawImage(image, 0, 0);
     return await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (blob) resolve(blob);
@@ -24,6 +29,6 @@ async function imagePng(url: string): Promise<Blob> {
       }, 'image/png');
     });
   } finally {
-    bitmap.close();
+    URL.revokeObjectURL(source);
   }
 }

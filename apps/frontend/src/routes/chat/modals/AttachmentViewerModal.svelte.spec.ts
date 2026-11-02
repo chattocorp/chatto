@@ -9,8 +9,13 @@ import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachm
 const mocks = vi.hoisted(() => ({
   refreshUrls: vi.fn(),
   getMetadata: vi.fn(),
+  copyImage: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
   page: { state: {} as { modal?: AttachmentViewerModalState } }
 }));
+vi.mock('$lib/attachments/copyImage', () => ({ copyImageToClipboard: mocks.copyImage }));
+vi.mock('$lib/ui/toast', () => ({ toast: { success: mocks.success, error: mocks.error } }));
 // Asset URLs resolve against the server that owns the attachment's server ID.
 vi.mock('@chatto/client/server/serverIds', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client/server/serverIds')>()),
@@ -92,6 +97,9 @@ describe('HTML viewer', () => {
     await expect.element(view.getByRole('dialog')).toBeVisible();
     await expect.element(view.getByRole('button', { name: 'Show preview' })).toBeVisible();
     expect(view.container.querySelector('iframe')).toBeNull();
+    await expect
+      .element(view.getByRole('button', { name: 'Copy image', exact: true }))
+      .not.toBeInTheDocument();
     expect(mocks.refreshUrls).not.toHaveBeenCalled();
     await expect.element(view.getByText('HTML document', { exact: true })).toBeVisible();
     await expect.element(view.getByText('1.5 KiB', { exact: true })).toBeVisible();
@@ -573,6 +581,41 @@ describe('shared attachment previews', () => {
     mocks.refreshUrls.mockImplementation((_api, _room, ids) => Promise.resolve(imageUrls(ids[0])));
   });
 
+  it('copies the selected preview, prevents duplicate writes, and reports failures for retry', async () => {
+    const urls = (id: string) => {
+      const result = imageUrls(id);
+      result.get(id)!.thumbnailAssetUrl!.url = `${pixel}#${id}`;
+      return result;
+    };
+    mocks.refreshUrls.mockImplementation((_api, _room, ids) => Promise.resolve(urls(ids[0])));
+    const view = mount(gallery());
+    const copy = view.getByRole('button', { name: 'Copy image', exact: true });
+    await expect.element(copy).toBeEnabled();
+    let finish!: () => void;
+    mocks.copyImage.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    );
+    await copy.click();
+    expect(mocks.copyImage).toHaveBeenCalledExactlyOnceWith(`${pixel}#first`);
+    await expect.element(copy).toBeDisabled();
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByAltText('second.gif')).toHaveAttribute('src', `${pixel}#second`);
+    finish();
+    await expect.element(copy).toBeEnabled();
+    expect(mocks.success).toHaveBeenCalledWith('Image copied');
+
+    mocks.copyImage.mockRejectedValueOnce(new Error('Clipboard unavailable'));
+    await copy.click();
+    await expect.poll(() => mocks.error.mock.calls.length).toBe(1);
+    expect(mocks.error).toHaveBeenCalledWith('Failed to copy image');
+    expect(mocks.copyImage).toHaveBeenLastCalledWith(`${pixel}#second`);
+    await expect.element(copy).toBeEnabled();
+    mocks.copyImage.mockResolvedValueOnce(undefined);
+    await copy.click();
+    await expect.poll(() => mocks.success.mock.calls.length).toBe(2);
+    await expect.element(view.getByRole('dialog')).toBeVisible();
+  });
+
   it('navigates image galleries and updates original download and metadata together', async () => {
     const view = mount(gallery());
     await expect.element(view.getByAltText('first.gif')).toHaveAttribute('src', pixel);
@@ -676,6 +719,9 @@ describe('shared attachment previews', () => {
     mocks.refreshUrls.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
     const view = mount(gallery());
     await expect.poll(() => mocks.refreshUrls.mock.calls.length).toBe(1);
+    await expect
+      .element(view.getByRole('button', { name: 'Copy image', exact: true }))
+      .toBeDisabled();
     await view.getByRole('button', { name: 'Next image' }).click();
     await expect.element(view.getByAltText('second.gif')).toBeVisible();
     resolve(imageUrls('first'));
@@ -697,6 +743,9 @@ describe('shared attachment previews', () => {
     await tick();
     view.container.querySelector('img')!.dispatchEvent(new Event('error'));
     await expect.element(view.getByRole('alert')).toBeVisible();
+    await expect
+      .element(view.getByRole('button', { name: 'Copy image', exact: true }))
+      .toBeDisabled();
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(2);
     await expect
       .element(view.getByRole('button', { name: 'Try Again', exact: true }))

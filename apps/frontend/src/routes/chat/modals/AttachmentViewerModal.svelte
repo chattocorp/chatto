@@ -264,6 +264,7 @@ media. HTML consent is never stored in history or carried to another selection.
   {downloadUrl}
   {busy}
   imageViewer={zoomable}
+  copyImageUrl={error ? null : previewUrl}
   {error}
   ondownload={download}
   onretry={!html && previewable
