@@ -954,10 +954,10 @@ transparent native range input covers the travel, so keyboard, pointer, and
 assistive-technology behaviour stay native. Do not restyle a raw
 `input[type=range]`; use `RangeField`, and extend it when a variant is missing.
 
-`ProgressBar` shows read-only completion with a recessed control frame, lit
-segments, and a percentage readout. It shares the range control's fill colour
-and lighting, without a draggable grip. Values are clamped to 0–100. Reduced
-motion disables fill transitions. Preview it in **UI/Progress bar**.
+`ProgressBar` shows read-only completion with a recessed control frame, a
+continuous lit fill, and a percentage readout. It shares the range control's
+fill colour and lighting, without a draggable grip. Values are clamped to
+0–100. Reduced motion disables fill transitions. Preview it in **UI/Progress bar**.
 
 ## Components, Utilities, And Tailwind
 
