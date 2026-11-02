@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
@@ -25,6 +26,17 @@ func TestBrainCatalogReachesFreshAndRestoredSessions(t *testing.T) {
 	}
 	want := ""
 	complete := func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+		indexes := 0
+		for _, message := range messages {
+			var text string
+			_ = json.Unmarshal(message["content"], &text)
+			if strings.HasPrefix(text, "Initial thread context:") && strings.Contains(text, `"memoryKnowledge":{"collection":"memory"`) {
+				indexes++
+			}
+		}
+		if indexes != 1 {
+			t.Fatal("new-session knowledge index missing or repeated", indexes)
+		}
 		var content string
 		if err := json.Unmarshal(messages[len(messages)-1]["content"], &content); err != nil {
 			t.Fatal(err)
@@ -35,10 +47,13 @@ func TestBrainCatalogReachesFreshAndRestoredSessions(t *testing.T) {
 		if err := json.Unmarshal([]byte(content), &batch); err != nil {
 			t.Fatal(err)
 		}
-		if want == "" && len(batch.Catalog) != 0 {
+		if len(batch.Catalog) == 0 || batch.Catalog[0].Name != "memory" {
+			t.Fatal("built-in memory missing")
+		}
+		if want == "" && len(batch.Catalog) != 1 {
 			t.Fatal("stale catalog")
 		}
-		if want != "" && (len(batch.Catalog) != 1 || batch.Catalog[0].Name != want) {
+		if want != "" && (len(batch.Catalog) != 2 || batch.Catalog[1].Name != want) {
 			t.Fatal("current catalog missing from model request")
 		}
 		return answer(), nil
@@ -48,7 +63,7 @@ func TestBrainCatalogReachesFreshAndRestoredSessions(t *testing.T) {
 	if err := respond(context.Background(), f, c, []chatto.MessageEvent{input("first", "hello", true)}, nil); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, "notes")
+	path := filepath.Join(root, "apps", "notes")
 	if err := os.Mkdir(path, 0700); err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
 )
 
 func TestBrainPathsAndSymlinks(t *testing.T) {
@@ -21,10 +23,13 @@ func TestBrainPathsAndSymlinks(t *testing.T) {
 		return nil, nil
 	}}
 	for _, name := range []string{"../outside", "/absolute", "linked", ".archive"} {
-		for _, op := range []string{"create", "archive"} {
+		for _, op := range []string{"create", "archive", "schema_set"} {
 			args := `{"name":"` + name + `"}`
 			if op == "create" {
 				args = `{"name":"` + name + `","title":"Notes","description":"Shared notes","schema":{},"instructions":"Anyone may read."}`
+			}
+			if op == "schema_set" {
+				args = `{"name":"` + name + `","schema":{}}`
 			}
 			result, err := toolCall(t, m.Tools(true), "memory_brain_"+op, args)
 			if err != nil || !strings.Contains(result, "error") {
@@ -35,6 +40,60 @@ func TestBrainPathsAndSymlinks(t *testing.T) {
 	bindings, err := m.bindings()
 	if err != nil || len(bindings) != 0 {
 		t.Fatal("symlink discovered as brain")
+	}
+}
+
+func TestSchemaUpdateBoundaries(t *testing.T) {
+	m := &Manager{directory: t.TempDir()}
+	path := filepath.Join(m.directory, "notes")
+	if err := os.Mkdir(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "MEANS.md"), []byte("placeholder"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	mutations := 0
+	m.run = func(_ context.Context, _ string, args []string, _ []byte) ([]byte, error) {
+		if args[len(args)-1] == "info" {
+			return []byte(`{"schema":{}}`), nil
+		}
+		mutations++
+		return nil, errors.New("private provider detail")
+	}
+	for _, tool := range m.Tools(false) {
+		if tool.Name == "memory_brain_schema_set" {
+			t.Fatal("non-owner batch received schema tool")
+		}
+	}
+	tools := m.Tools(true)
+	args := `{"name":"notes","schema":{}}`
+	if result, _ := toolCall(t, tools, "memory_brain_schema_set", args); !strings.Contains(result, "Read memory_info") {
+		t.Fatal("schema change did not require current guidance")
+	}
+	toolCall(t, tools, "memory_info", `{"collection":"notes"}`)
+	for _, invalid := range []string{`null`, `42`, `"string"`, `[]`} {
+		if result, err := toolCall(t, tools, "memory_brain_schema_set", `{"name":"notes","schema":`+invalid+`}`); err != nil || !strings.Contains(result, "error") {
+			t.Fatal("invalid schema argument accepted", invalid)
+		}
+	}
+	if mutations != 0 {
+		t.Fatal("rejected request reached means")
+	}
+	if _, err := toolCall(t, tools, "memory_brain_schema_set", args); err == nil || strings.Contains(err.Error(), "private") {
+		t.Fatal("CLI failure not safely reported")
+	}
+	if result, _ := toolCall(t, tools, "memory_brain_schema_set", args); !strings.Contains(result, "uncertain") || mutations != 1 {
+		t.Fatal("uncertain mutation retried")
+	}
+	if result, _ := toolCall(t, tools, "memory_create", `{"collection":"notes","title":"Test","body":"","data":{}}`); !strings.Contains(result, "uncertain") || mutations != 1 {
+		t.Fatal("document write allowed after uncertain schema mutation")
+	}
+	m.collections = []config.Collection{{Name: "notes", Path: path, Writable: true}}
+	m.directory = t.TempDir()
+	tools = m.Tools(true)
+	toolCall(t, tools, "memory_info", `{"collection":"notes"}`)
+	if result, _ := toolCall(t, tools, "memory_brain_schema_set", args); !strings.Contains(result, "fixed collection") || mutations != 1 {
+		t.Fatal("fixed binding schema mutation allowed")
 	}
 }
 

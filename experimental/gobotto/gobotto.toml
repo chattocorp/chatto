@@ -35,7 +35,7 @@ model = "openai/gpt-6-luna"
 system_prompt = "Use a short, specific title in the conversation's language."
 
 [memory]
-# Owners can create and archive brains here. Each MEANS.md governs brain use.
+# Built-in memory lives in memory/; owners manage app brains in apps/.
 directory = "./brains"
 
 [mcp.servers.exa]
