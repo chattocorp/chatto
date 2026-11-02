@@ -11,8 +11,6 @@ import (
 )
 
 func TestChattoCore_ResetPasswordConcurrentSingleUse(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "concurrent-reset", "Concurrent Reset", "password123")
@@ -61,8 +59,6 @@ func TestChattoCore_ResetPasswordConcurrentSingleUse(t *testing.T) {
 }
 
 func TestChattoCore_CreatePasswordResetTokenThrottlesConcurrentRequests(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "reset-throttle", "Reset Throttle", "password123")
@@ -109,8 +105,6 @@ func TestChattoCore_CreatePasswordResetTokenThrottlesConcurrentRequests(t *testi
 }
 
 func TestChattoCore_CancelPasswordResetTokenReleasesThrottle(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "reset-cancel", "Reset Cancel", "password123")
@@ -143,8 +137,6 @@ func TestChattoCore_CancelPasswordResetTokenReleasesThrottle(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_CreatePasswordResetToken(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -222,8 +214,6 @@ func TestChattoCore_CreatePasswordResetToken(t *testing.T) {
 }
 
 func TestChattoCore_ValidatePasswordResetToken(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -251,8 +241,6 @@ func TestChattoCore_ValidatePasswordResetToken(t *testing.T) {
 }
 
 func TestChattoCore_ResetPassword(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -379,8 +367,6 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 }
 
 func TestChattoCore_PasswordResetTokenExpiration(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

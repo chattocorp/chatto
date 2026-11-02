@@ -27,8 +27,6 @@ func withoutGenerationUseGrace(c *ChattoCore) {
 }
 
 func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -77,8 +75,6 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 }
 
 func TestChattoCore_RefreshBearerSessionRejectsReusedRequestIDForNewRotation(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-request-id-user", "Refresh Request ID User", "password123")
@@ -99,8 +95,6 @@ func TestChattoCore_RefreshBearerSessionRejectsReusedRequestIDForNewRotation(t *
 }
 
 func TestChattoCore_RefreshBearerSessionRequiresUUIDv4RecoveryNonce(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-nonce-user", "Refresh Nonce User", "password123")
@@ -124,8 +118,6 @@ func TestChattoCore_RefreshBearerSessionRequiresUUIDv4RecoveryNonce(t *testing.T
 }
 
 func TestChattoCore_RefreshBearerSessionStoresOnlyRecoveryNonceVerifier(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-verifier-user", "Refresh Verifier User", "password123")
@@ -156,8 +148,6 @@ func TestChattoCore_RefreshBearerSessionStoresOnlyRecoveryNonceVerifier(t *testi
 }
 
 func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthTokenTTL = 4 * time.Hour
 	chattoCore.config.AuthAccessTokenTTL = time.Hour
@@ -230,8 +220,6 @@ func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) 
 }
 
 func TestChattoCore_RefreshBearerSessionKeepsCurrentWindowBeforeRenewalQuarter(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "keep-window-user", "Keep Window User", "password123")
@@ -253,8 +241,6 @@ func TestChattoCore_RefreshBearerSessionKeepsCurrentWindowBeforeRenewalQuarter(t
 }
 
 func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "rotation-gap-user", "Rotation Gap User", "password123")
@@ -303,8 +289,6 @@ func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *tes
 }
 
 func TestChattoCore_RefreshRetryKeepsOriginalAccessExpiryAndPhysicalTTL(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthAccessTokenTTL = time.Minute
 	ctx := testContext(t)
@@ -367,8 +351,6 @@ func TestChattoCore_RefreshRetryKeepsOriginalAccessExpiryAndPhysicalTTL(t *testi
 }
 
 func TestChattoCore_RefreshRetrySurvivesFreshAuthMetadataChange(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-fresh-retry-user", "Refresh Fresh Retry User", "password123")
@@ -397,8 +379,6 @@ func TestChattoCore_RefreshRetrySurvivesFreshAuthMetadataChange(t *testing.T) {
 }
 
 func TestChattoCore_RefreshRetryAllowsSmallReplicaClockSkewWithoutRevocation(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-skew-user", "Refresh Skew User", "password123")
@@ -431,8 +411,6 @@ func TestChattoCore_RefreshRetryAllowsSmallReplicaClockSkewWithoutRevocation(t *
 }
 
 func TestChattoCore_RefreshBearerSessionReuseRevokesSession(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	withoutGenerationUseGrace(chattoCore)
 	ctx := testContext(t)
@@ -466,8 +444,6 @@ func TestChattoCore_RefreshBearerSessionReuseRevokesSession(t *testing.T) {
 }
 
 func TestChattoCore_AccessExpiryDoesNotEndRenewableSession(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthAccessTokenTTL = time.Second
 	ctx := testContext(t)
@@ -494,8 +470,6 @@ func TestChattoCore_AccessExpiryDoesNotEndRenewableSession(t *testing.T) {
 }
 
 func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "fresh-rotation-user", "Fresh Rotation User", "password123")
@@ -519,8 +493,6 @@ func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
 }
 
 func TestChattoCore_ConcurrentRefreshAcrossReplicasRevokesOnceBothChainsAreUsed(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -594,8 +566,6 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasRevokesOnceBothChainsAreUsed(
 }
 
 func TestChattoCore_RefreshBearerSessionRejectsExpiredWindow(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "expired-window-user", "Expired Window User", "password123")
@@ -620,8 +590,6 @@ func TestChattoCore_RefreshBearerSessionRejectsExpiredWindow(t *testing.T) {
 }
 
 func TestChattoCore_LateLostResponseRetryRotatesAgain(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthAccessTokenTTL = time.Minute
 	ctx := testContext(t)
@@ -663,8 +631,6 @@ func TestChattoCore_LateLostResponseRetryRotatesAgain(t *testing.T) {
 }
 
 func TestChattoCore_LostResponsesWithoutRequestIDRecoverUntilNewerUse(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	withoutGenerationUseGrace(chattoCore)
 	ctx := testContext(t)
@@ -711,8 +677,6 @@ func TestChattoCore_LostResponsesWithoutRequestIDRecoverUntilNewerUse(t *testing
 }
 
 func TestChattoCore_StaleRefreshWithoutUsageMarkerRevokes(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "legacy-marker-user", "Legacy Marker User", "password123")
@@ -750,8 +714,6 @@ func TestChattoCore_StaleRefreshWithoutUsageMarkerRevokes(t *testing.T) {
 }
 
 func TestChattoCore_UseInsideGraceKeepsLostResponseRecovery(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "use-grace-user", "Use Grace User", "password123")
@@ -777,8 +739,6 @@ func TestChattoCore_UseInsideGraceKeepsLostResponseRecovery(t *testing.T) {
 }
 
 func TestChattoCore_UseAfterGraceMarksGeneration(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "use-after-grace-user", "Use After Grace User", "password123")

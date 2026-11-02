@@ -7,8 +7,6 @@ import (
 )
 
 func TestValidateDisplayName(t *testing.T) {
-	t.Parallel()
-
 	valid := []string{
 		"", // Creation paths can default an omitted name to the login.
 		"John Doe", "Mary-Jane", "O'Brien", "Dr. Smith", "Cool_User", "Player123",
@@ -47,8 +45,6 @@ func TestValidateDisplayName(t *testing.T) {
 }
 
 func TestNormalizeDisplayName(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name     string
 		input    string
@@ -76,8 +72,6 @@ func TestNormalizeDisplayName(t *testing.T) {
 }
 
 func TestValidateLogin(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		login   string
@@ -131,8 +125,6 @@ func TestValidateLogin(t *testing.T) {
 }
 
 func TestHasVisibleContent(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name  string
 		input string

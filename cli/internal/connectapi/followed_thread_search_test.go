@@ -16,7 +16,6 @@ import (
 )
 
 func TestSearchFollowedThreadsRootAuthorFilter(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -88,8 +87,6 @@ func TestSearchFollowedThreadsRootAuthorFilter(t *testing.T) {
 }
 
 func TestSearchFollowedThreadsRequiresFromFilterForAuthors(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -141,8 +138,6 @@ func TestSearchFollowedThreadsRequiresFromFilterForAuthors(t *testing.T) {
 }
 
 func TestSearchFollowedThreadsFindsMatchesBeyondFirstCandidateBatch(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -182,8 +177,6 @@ func TestSearchFollowedThreadsFindsMatchesBeyondFirstCandidateBatch(t *testing.T
 }
 
 func TestThreadSearchIndependentScopeGroupingAndOrder(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -253,8 +246,6 @@ func TestThreadSearchIndependentScopeGroupingAndOrder(t *testing.T) {
 }
 
 func TestThreadSearchExcludesResolvedGroupsAndRejectsUnsupportedProviders(t *testing.T) {
-	t.Parallel()
-
 	for _, supportsExclusions := range []bool{true, false} {
 		t.Run(fmt.Sprint(supportsExclusions), func(t *testing.T) {
 			env := newConnectAPITestEnv(t)
@@ -293,8 +284,6 @@ func TestThreadSearchExcludesResolvedGroupsAndRejectsUnsupportedProviders(t *tes
 }
 
 func TestThreadSearchRechecksAcceptedBodyAfterEnumeration(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -318,8 +307,6 @@ func TestThreadSearchRechecksAcceptedBodyAfterEnumeration(t *testing.T) {
 }
 
 func TestSearchFollowedThreadsRejectsRoomAccessLostDuringSearch(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -341,8 +328,6 @@ func TestSearchFollowedThreadsRejectsRoomAccessLostDuringSearch(t *testing.T) {
 }
 
 func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -412,8 +397,6 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 }
 
 func TestThreadSearchUsesSharedStructuredFiltersAndValidation(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -465,8 +448,6 @@ func TestThreadSearchUsesSharedStructuredFiltersAndValidation(t *testing.T) {
 }
 
 func TestSearchFollowedThreadsSkipsStalePagesAndStopsSearchingMatchedThreads(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -506,8 +487,6 @@ func TestSearchFollowedThreadsSkipsStalePagesAndStopsSearchingMatchedThreads(t *
 }
 
 func TestSearchFollowedThreadsIncludesDMAndRechecksUnfollow(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
 	ctx := withCaller(env.ctx, env.viewer)
@@ -539,8 +518,6 @@ func TestSearchFollowedThreadsIncludesDMAndRechecksUnfollow(t *testing.T) {
 }
 
 func TestSearchFollowedThreadsAvailabilityAndAuthorFilter(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	request := connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "needle"})

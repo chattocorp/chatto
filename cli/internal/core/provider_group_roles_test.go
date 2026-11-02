@@ -73,7 +73,6 @@ func requireRoles(t *testing.T, core *ChattoCore, userID string, want map[string
 }
 
 func TestSyncProviderGroupRolesGrantsAndRevokesProviderAssignments(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user := newGroupMember(t, core, "group-member")
@@ -114,7 +113,6 @@ func TestSyncProviderGroupRolesGrantsAndRevokesProviderAssignments(t *testing.T)
 }
 
 func TestSyncProviderGroupRolesKeepsAdminAssignments(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user := newGroupMember(t, core, "admin-assigned")
@@ -132,7 +130,6 @@ func TestSyncProviderGroupRolesKeepsAdminAssignments(t *testing.T) {
 }
 
 func TestSyncProviderGroupRolesGrantsAgainAfterAdminRevoke(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user := newGroupMember(t, core, "revoked-member")
@@ -146,7 +143,6 @@ func TestSyncProviderGroupRolesGrantsAgainAfterAdminRevoke(t *testing.T) {
 }
 
 func TestSyncProviderGroupRolesChangesNothingWithoutClaim(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user := newGroupMember(t, core, "unknown-groups")
@@ -159,7 +155,6 @@ func TestSyncProviderGroupRolesChangesNothingWithoutClaim(t *testing.T) {
 }
 
 func TestSyncProviderGroupRolesRevokesOnlyOwnProviderAssignments(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "other-role", "Other Role", ""); err != nil {
@@ -177,7 +172,6 @@ func TestSyncProviderGroupRolesRevokesOnlyOwnProviderAssignments(t *testing.T) {
 }
 
 func TestSyncProviderGroupRolesConcurrentSyncsAssignOnce(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user := newGroupMember(t, core, "concurrent-member")
@@ -208,7 +202,6 @@ func TestSyncProviderGroupRolesConcurrentSyncsAssignOnce(t *testing.T) {
 }
 
 func TestAssignConfiguredOwnerRoleRecordsReason(t *testing.T) {
-	t.Parallel()
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "configured-owner", "Configured Owner", "password123")
@@ -232,7 +225,6 @@ func TestAssignConfiguredOwnerRoleRecordsReason(t *testing.T) {
 }
 
 func TestRBACProjectionKeepsFirstAssignmentOwner(t *testing.T) {
-	t.Parallel()
 	projection := NewRBACProjection()
 	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company", Issuer: "https://id.example"}}}
 	apply := func(seq uint64, reason *evtv1.RbacRoleChangeReason) {
@@ -268,17 +260,14 @@ func TestRBACProjectionKeepsFirstAssignmentOwner(t *testing.T) {
 
 // The configuration check names the reserved roles without importing core.
 func TestReservedGroupRolesMatchCoreRoles(t *testing.T) {
-	t.Parallel()
 	if !config.IsReservedGroupRole(RoleOwner) || !config.IsReservedGroupRole(RoleEveryone) || config.IsReservedGroupRole(RoleModerator) {
 		t.Fatal("config reserved group roles do not match core role names")
 	}
 }
 
 func TestUnlinkingLastProviderIdentityRevokesProviderRoles(t *testing.T) {
-	t.Parallel()
 	for _, admin := range []bool{false, true} {
 		t.Run(map[bool]string{false: "self", true: "operator"}[admin], func(t *testing.T) {
-			t.Parallel()
 			core := setupGroupRolesCore(t)
 			ctx := testContext(t)
 			user, err := core.CreateUser(ctx, SystemActorID, "unlinking-member", "Unlinking Member", "password123")
@@ -317,7 +306,6 @@ func TestUnlinkingLastProviderIdentityRevokesProviderRoles(t *testing.T) {
 }
 
 func TestAdminReassignmentAfterRevokeIsAdminOwned(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user := newGroupMember(t, core, "reassigned-member")
@@ -333,7 +321,6 @@ func TestAdminReassignmentAfterRevokeIsAdminOwned(t *testing.T) {
 }
 
 func TestRBACProjectionRoleDeletionClearsAssignmentOwner(t *testing.T) {
-	t.Parallel()
 	projection := NewRBACProjection()
 	provider := &evtv1.RbacRoleChangeReason{Reason: &evtv1.RbacRoleChangeReason_ProviderGroups{ProviderGroups: &evtv1.RbacProviderGroupsReason{ProviderId: "company", Issuer: "https://id.example"}}}
 	events := []*evtv1.Event{
@@ -357,7 +344,6 @@ func TestRBACProjectionRoleDeletionClearsAssignmentOwner(t *testing.T) {
 // provider gives under its current ID, because ownership follows the issuer.
 // Admin assignments never match.
 func TestUnlinkingLegacyProviderIDIdentityRevokesOnlyProviderRoles(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "legacy-member", "Legacy Member", "password123")
@@ -380,7 +366,6 @@ func TestUnlinkingLegacyProviderIDIdentityRevokesOnlyProviderRoles(t *testing.T)
 
 // A sync that grants a role after the identity was unlinked revokes it again.
 func TestSyncProviderGroupRolesWithoutIdentityRevokesGrant(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "unlinked-sync", "Unlinked Sync", "password123")
@@ -392,7 +377,6 @@ func TestSyncProviderGroupRolesWithoutIdentityRevokesGrant(t *testing.T) {
 }
 
 func TestRBACProjectionEmptyIssuerOwnsNothing(t *testing.T) {
-	t.Parallel()
 	projection := NewRBACProjection()
 	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: "U1", RoleName: "admin"}}})
 	if err := projection.Apply(event, 1); err != nil {
@@ -406,7 +390,6 @@ func TestRBACProjectionEmptyIssuerOwnsNothing(t *testing.T) {
 // A legacy link with only a subject hash gets its issuer at the first sync,
 // so it keeps the provider roles and an unlink revokes them.
 func TestSyncProviderGroupRolesCompletesLegacyHashOnlyLink(t *testing.T) {
-	t.Parallel()
 	core := setupGroupRolesCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "hash-only", "Hash Only", "password123")
@@ -440,10 +423,8 @@ func TestSyncProviderGroupRolesCompletesLegacyHashOnlyLink(t *testing.T) {
 // a denied sign-in, and not an unlink of the last provider identity. This
 // covers servers that already use OIDC, also with legacy hash-only links.
 func TestProviderGroupRolesKeepPreUpgradeAssignments(t *testing.T) {
-	t.Parallel()
 	for _, legacyLink := range []bool{false, true} {
 		t.Run(map[bool]string{false: "issuer link", true: "hash-only link"}[legacyLink], func(t *testing.T) {
-			t.Parallel()
 			core := setupGroupRolesCore(t)
 			ctx := testContext(t)
 			user, err := core.CreateUser(ctx, SystemActorID, "pre-upgrade", "Pre Upgrade", "password123")

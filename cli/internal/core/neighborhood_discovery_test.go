@@ -105,8 +105,6 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 }
 
 func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
-	t.Parallel()
-
 	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 
@@ -166,7 +164,6 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 }
 
 func TestNeighborhoodImageRenewalAndRegeneration(t *testing.T) {
-	t.Parallel()
 	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 	require.NoError(t, discovery.refreshIfDue(ctx))
@@ -204,7 +201,6 @@ func TestNeighborhoodImageRenewalAndRegeneration(t *testing.T) {
 }
 
 func TestNeighborhoodImageExpiry(t *testing.T) {
-	t.Parallel()
 	core, discovery, _, _ := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 	// Shorten only this test bucket's TTL to exercise actual NATS expiry.
@@ -227,8 +223,6 @@ func TestNeighborhoodImageExpiry(t *testing.T) {
 }
 
 func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
-	t.Parallel()
-
 	core, discovery, fetcher, start := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 	// The worker reads the clock on its own goroutine.
@@ -291,8 +285,6 @@ func (kv failingPutKV) Put(context.Context, string, []byte) (uint64, error) {
 }
 
 func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
-	t.Parallel()
-
 	_, discovery, fetcher, _ := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 	rejected := make(chan struct{}, 1)
@@ -324,8 +316,6 @@ func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
 }
 
 func TestNeighborhoodDiscoveryDue(t *testing.T) {
-	t.Parallel()
-
 	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
 	discovery := &neighborhoodDiscovery{now: func() time.Time { return now }}
 	directory := func(age time.Duration, fingerprint string) *cachestatev1.NeighborhoodDirectory {
@@ -357,8 +347,6 @@ func TestNeighborhoodDiscoveryDue(t *testing.T) {
 }
 
 func TestNeighborhoodSourceFingerprintIgnoresOrder(t *testing.T) {
-	t.Parallel()
-
 	require.Equal(t,
 		neighborhoodSourceFingerprint([]string{"https://a.example", "https://b.example"}),
 		neighborhoodSourceFingerprint([]string{"https://b.example", "https://a.example"}))
@@ -368,15 +356,11 @@ func TestNeighborhoodSourceFingerprintIgnoresOrder(t *testing.T) {
 }
 
 func TestNeighborhoodHTTPClientRejectsRedirects(t *testing.T) {
-	t.Parallel()
-
 	client := newNeighborhoodHTTPClient()
 	require.ErrorIs(t, client.CheckRedirect(&http.Request{}, nil), http.ErrUseLastResponse)
 }
 
 func TestMarshalNeighborhoodDirectoryDropsServersBeyondLimit(t *testing.T) {
-	t.Parallel()
-
 	directory := &cachestatev1.NeighborhoodDirectory{}
 	for index := range 1000 {
 		directory.Servers = append(directory.Servers, &cachestatev1.NeighborhoodServerRecord{

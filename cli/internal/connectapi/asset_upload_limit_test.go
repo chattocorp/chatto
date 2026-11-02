@@ -18,7 +18,6 @@ import (
 )
 
 func TestUploadChunkLimiterSlots(t *testing.T) {
-	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		release := make(chan struct{})
 		releaseAll := sync.OnceFunc(func() { close(release) })
@@ -111,7 +110,6 @@ func TestUploadChunkLimiterSlots(t *testing.T) {
 }
 
 func TestUploadChunkLimiterReadTimeout(t *testing.T) {
-	t.Parallel()
 	readErr := make(chan error, 1)
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.ReadAll(r.Body)
@@ -149,7 +147,6 @@ func TestUploadChunkLimiterReadTimeout(t *testing.T) {
 // does not cancel the request while the handler stores a complete chunk.
 // net/http removes the deadline when the body is complete.
 func TestUploadChunkLimiterDeadlineEndsWithBody(t *testing.T) {
-	t.Parallel()
 	ctxErr := make(chan error, 1)
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, err := io.ReadAll(r.Body); err != nil {

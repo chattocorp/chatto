@@ -13,7 +13,6 @@ import (
 )
 
 func TestInitSSOConfiguration(t *testing.T) {
-	t.Parallel()
 	for _, passwordLogin := range []bool{true, false} {
 		opts := defaultInitOptions()
 		opts.ConfigPath = filepath.Join(t.TempDir(), "chatto.toml")
@@ -70,7 +69,6 @@ func TestInitSSOConfiguration(t *testing.T) {
 }
 
 func TestInitAuthValidation(t *testing.T) {
-	t.Parallel()
 	opts := defaultInitOptions()
 	opts.DirectLogin = false
 	if validateInitAuth(opts) == nil {

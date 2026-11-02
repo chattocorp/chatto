@@ -9,8 +9,6 @@ import (
 )
 
 func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
-	t.Parallel()
-
 	p := NewContentKeyProjection()
 	purpose := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
@@ -67,8 +65,6 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 }
 
 func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
-	t.Parallel()
-
 	p := NewContentKeyProjection()
 	purpose := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
@@ -137,8 +133,6 @@ func contentKeyTestEvent(id, userID string, purpose evtv1.UserDEKPurpose, epoch 
 }
 
 func TestContentKeyProjection_CompactStorageKeepsKeyFieldsAndIsolation(t *testing.T) {
-	t.Parallel()
-
 	p := NewContentKeyProjection()
 	body := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 	legacy := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED

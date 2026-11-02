@@ -8,8 +8,6 @@ import (
 )
 
 func TestModeratorEchoRemovalReauthorizes(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range []struct {
 		name    string
 		change  func(context.Context, *ChattoCore, string, string) error

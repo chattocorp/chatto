@@ -10,8 +10,6 @@ import (
 )
 
 func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

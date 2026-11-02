@@ -9,8 +9,6 @@ import (
 )
 
 func TestAdminMemberBatchAvoidsPresenceKVReads(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	if err := env.core.AssignOwnerRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatal(err)

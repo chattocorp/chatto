@@ -526,7 +526,7 @@ jobs:
       - name: Check projection snapshot schema contracts
         if: env.RUN_PROTO_CHECKS == 'true'
         working-directory: cli
-        run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
+        run: mise x -- go test -p 1 -parallel 1 ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public protobuf packages without acknowledged breaks
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
@@ -735,7 +735,7 @@ jobs:
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        run: cd cli && go test -trimpath -p "${CHATTO_GO_TEST_P:-4}" -parallel "${CHATTO_GO_TEST_PARALLEL:-4}" -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -p 1 -parallel 1 -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
 
   lint-cli:
     needs: changes

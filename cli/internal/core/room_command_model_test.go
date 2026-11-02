@@ -34,8 +34,6 @@ func setRoomUniversalForTest(t *testing.T, ctx context.Context, c *ChattoCore, a
 }
 
 func TestRoomCommandModelAuthorization(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	commands := core.RoomCommands()
@@ -209,8 +207,6 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 }
 
 func TestRoomCommandModelManageRoomMembers(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	commands := core.RoomCommands()
@@ -328,8 +324,6 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 }
 
 func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	commands := core.RoomCommands()
@@ -422,8 +416,6 @@ func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
 }
 
 func TestBotOwnerRoomMembership(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "membership-owner", "Membership Owner", "password")
@@ -567,8 +559,6 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 }
 
 func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "retry-owner", "Owner", "password")
@@ -612,8 +602,6 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 }
 
 func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	moderator, err := c.CreateUser(ctx, SystemActorID, "removal-race-moderator", "Moderator", "password")
@@ -642,8 +630,6 @@ func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
 }
 
 func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
-	t.Parallel()
-
 	for _, authority := range []Permission{PermUserManageAccounts, PermRoomManage} {
 		for _, botTarget := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/bot=%t", authority, botTarget), func(t *testing.T) {

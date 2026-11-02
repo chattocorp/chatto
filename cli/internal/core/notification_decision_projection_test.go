@@ -12,8 +12,6 @@ import (
 )
 
 func TestNotificationDecisionUsesCurrentPolicyAfterSourceEvent(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	const (
 		roomID      = "R1"
@@ -58,8 +56,6 @@ func TestNotificationDecisionUsesCurrentPolicyAfterSourceEvent(t *testing.T) {
 }
 
 func TestNotificationDecisionUsesCurrentMembershipAfterSourceEvent(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	const (
 		roomID = "R1"
@@ -92,8 +88,6 @@ func TestNotificationDecisionUsesCurrentMembershipAfterSourceEvent(t *testing.T)
 }
 
 func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	const (
 		roomID      = "R1"
@@ -124,8 +118,6 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 }
 
 func TestDirectMentionAllowsCurrentInteractionScopedVisibility(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	const (
 		roomID      = "R1"
@@ -162,8 +154,6 @@ func TestDirectMentionAllowsCurrentInteractionScopedVisibility(t *testing.T) {
 }
 
 func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	source := &evtv1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
 	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
@@ -187,8 +177,6 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 }
 
 func TestNotificationDecisionSnapshotRestoresCurrentState(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "U1"}}},
@@ -214,8 +202,6 @@ func TestNotificationDecisionSnapshotRestoresCurrentState(t *testing.T) {
 }
 
 func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
-	t.Parallel()
-
 	source := &evtv1.Event{Id: "source", ActorId: "actor", CreatedAt: timestamppb.Now()}
 	message := &notificationv1.NotificationMessageReference{RoomId: "room", EventId: "source"}
 	inputs := newNotificationOccurrenceInputs(source, []notificationRecipientDecision{{
@@ -246,8 +232,6 @@ func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecis
 // Notification delivery is not bound to a privileged session, so owners get
 // the same visibility as any other member.
 func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
-	t.Parallel()
-
 	p := NewNotificationDecisionProjection()
 	const (
 		roomID   = "R1"
@@ -284,8 +268,6 @@ func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
 // applied later facts, such as the automatic follows that the reply caused and
 // further replies. The decisions for the reply must not depend on that.
 func TestThreadReplyDecisionsDoNotDependOnLaterFacts(t *testing.T) {
-	t.Parallel()
-
 	const (
 		rootAuthor = "author"
 		follower   = "follower"

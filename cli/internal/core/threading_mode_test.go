@@ -13,8 +13,6 @@ import (
 )
 
 func TestRoomThreadingModeConfigurationAndLegacyDefault(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager, err := chatto.CreateUser(ctx, SystemActorID, "thread-mode-manager", "Thread Mode Manager", "password123")
@@ -69,8 +67,6 @@ func TestRoomThreadingModeConfigurationAndLegacyDefault(t *testing.T) {
 }
 
 func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "required-thread-user", "Required Thread User", "password123")
@@ -121,8 +117,6 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 }
 
 func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-policy-user", "Thread Policy User", "password123")
@@ -202,8 +196,6 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 }
 
 func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	chatto := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -244,8 +236,6 @@ func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 }
 
 func TestThreadingModeChangeConflictsWithInFlightMessage(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-mode-race", "Thread Mode Race", "password123")
@@ -284,8 +274,6 @@ func TestThreadingModeChangeConflictsWithInFlightMessage(t *testing.T) {
 }
 
 func TestDMThreadingModeIsRejected(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := chatto.CreateUser(ctx, SystemActorID, "thread-dm-owner", "Thread DM Owner", "password123")

@@ -14,7 +14,6 @@ import (
 // The package must not depend on the parent events package, NATS, or any
 // other module, so applications can use it without these dependencies.
 func TestProductionCodeImportsOnlyStandardLibrary(t *testing.T) {
-	t.Parallel()
 	directory, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
