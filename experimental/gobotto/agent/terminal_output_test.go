@@ -50,3 +50,56 @@ func TestRestoreClarifiesLegacyReactionReceipt(t *testing.T) {
 		t.Fatal(string(data))
 	}
 }
+
+func TestSilentTurnRetainsReceiptAndResumes(t *testing.T) {
+	s := NewSession("thread")
+	out, err := s.Turn(context.Background(), func(context.Context, []Message) (Message, error) {
+		return decode(t, `{"role":"assistant","tool_calls":[{"id":"quiet","type":"function","function":{"name":"stay_silent","arguments":"{}"}}]}`), nil
+	}, nil, "People talking to each other")
+	if err != nil || !out.Silent || out.Body != "" || out.Emoji != "" || out.Waiting {
+		t.Fatal(out, err)
+	}
+	s = Restore(s.Snapshot())
+	if s.Snapshot().PendingTool != "" || s.LastDeliveredReply() != "" {
+		t.Fatal("silence left pending delivery or invented a reply")
+	}
+	out, err = s.Turn(context.Background(), func(_ context.Context, messages []Message) (Message, error) {
+		data, _ := json.Marshal(messages)
+		if !strings.Contains(string(data), "Turn ended silently") {
+			t.Fatal("silent turn receipt lost")
+		}
+		return textMessage("assistant", "I'm back."), nil
+	}, nil, "Please help again")
+	if err != nil || out.Body != "I'm back." || out.Silent {
+		t.Fatal(out, err)
+	}
+}
+
+func TestSilentToolRejectsInvalidArguments(t *testing.T) {
+	for _, args := range []string{"null", `{"unexpected":true}`, "[]"} {
+		calls := 0
+		out, err := NewSession("thread").Turn(context.Background(), func(_ context.Context, messages []Message) (Message, error) {
+			calls++
+			if calls == 1 {
+				encoded, _ := json.Marshal(args)
+				return decode(t, `{"role":"assistant","tool_calls":[{"id":"quiet","type":"function","function":{"name":"stay_silent","arguments":`+string(encoded)+`}}]}`), nil
+			}
+			if !strings.Contains(string(messages[len(messages)-1]["content"]), "rejected") {
+				t.Fatal("invalid silence accepted")
+			}
+			return textMessage("assistant", "Answer"), nil
+		}, nil, "input")
+		if err != nil || out.Silent || calls != 2 {
+			t.Fatal(out, err, calls)
+		}
+	}
+}
+
+func TestWrittenAnswerWinsOverSilence(t *testing.T) {
+	out, err := NewSession("thread").Turn(context.Background(), func(context.Context, []Message) (Message, error) {
+		return decode(t, `{"role":"assistant","content":"Findings","tool_calls":[{"id":"quiet","type":"function","function":{"name":"stay_silent","arguments":"{}"}}]}`), nil
+	}, nil, "input")
+	if err != nil || out.Silent || out.Body != "Findings" {
+		t.Fatal(out, err)
+	}
+}

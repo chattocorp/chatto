@@ -31,13 +31,15 @@ type ToolEvent struct {
 	Duration                       time.Duration
 }
 
-// Outcome is one host-applied action in the ping's thread. Only one field is set.
+// Outcome selects text, a reaction, silence, or a wait for child work in this thread.
 type Outcome struct {
 	Body, Emoji string
 	// Limited distinguishes a forced wrap-up from a normal completion.
 	Limited bool
 	// Waiting ends a conversation turn without a final message while child work continues.
 	Waiting bool
+	// Silent ends the turn without a reply or reaction. Earlier tool effects remain.
+	Silent bool
 }
 
 // Usage counts provider-reported tokens for one request. CachedInput is included
@@ -109,6 +111,9 @@ func OpenRouter(key, model, sessionID string, report func(Usage), options ...Com
 			}}, map[string]any{"type": "function", "function": map[string]any{
 				"name": "react_to_ping", "description": "Finish by reacting to the latest triggering message in the batch instead of posting text. This can be an ordinary thread reply without a mention. Use an emoji name such as thumbsup, heart, eyes, or white_check_mark, without colons.",
 				"parameters": map[string]any{"type": "object", "properties": map[string]any{"emoji": map[string]any{"type": "string"}}, "required": []string{"emoji"}, "additionalProperties": false},
+			}}, map[string]any{"type": "function", "function": map[string]any{
+				"name": "stay_silent", "description": "End this turn without posting text or adding a reaction. Use when participation is not useful, people are talking to each other, or they asked you to be quiet. Call alone with no accompanying text. Earlier tool effects remain in effect.",
+				"parameters": map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false},
 			}}},
 		}
 		if maxOutputTokens > 0 {
@@ -348,9 +353,9 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 		if raw := msg["tool_calls"]; len(raw) > 0 && json.Unmarshal(raw, &calls) != nil {
 			return Outcome{}, errors.New("invalid tool calls")
 		}
-		// A model may attach an answer to a terminal reaction call. Preserve the
-		// answer and explicitly decline the reaction instead of silently losing text.
-		if !s.worker && len(calls) == 1 && calls[0].Function.Name == "react_to_ping" {
+		// A model may attach an answer to a terminal reaction or silence call.
+		// Preserve the answer and explicitly decline the conflicting action.
+		if !s.worker && len(calls) == 1 && (calls[0].Function.Name == "react_to_ping" || calls[0].Function.Name == "stay_silent") {
 			var body string
 			if json.Unmarshal(msg["content"], &body) == nil && strings.TrimSpace(body) != "" {
 				if len([]rune(body)) > 10000 {
@@ -359,7 +364,11 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				if calls[0].ID == "" || calls[0].Type != "function" {
 					return Outcome{}, errors.New("invalid tool call identity")
 				}
-				receipt := textMessage("tool", "Reaction skipped because this response includes a written answer. The host will attempt to post that text; delivery is not yet confirmed.")
+				action := "Reaction"
+				if calls[0].Function.Name == "stay_silent" {
+					action = "Silence"
+				}
+				receipt := textMessage("tool", action+" skipped because this response includes a written answer. The host will attempt to post that text; delivery is not yet confirmed.")
 				receipt["tool_call_id"], _ = json.Marshal(calls[0].ID)
 				s.messages = append(messages, msg, receipt, textMessage("assistant", body))
 				return Outcome{Body: body}, nil
@@ -470,6 +479,14 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				continue
 			}
 			var args map[string]json.RawMessage
+			if !s.worker && call.Function.Name == "stay_silent" && len(calls) == 1 && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && args != nil && len(args) == 0 {
+				receipt := "Turn ended silently. No reply or reaction was requested. Earlier tool and progress receipts still apply."
+				tool := textMessage("tool", receipt)
+				tool["tool_call_id"], _ = json.Marshal(call.ID)
+				s.messages = append(messages, tool)
+				finish("complete", receipt)
+				return Outcome{Silent: true}, nil
+			}
 			if !s.worker && call.Function.Name == "react_to_ping" && len(calls) == 1 && json.Unmarshal([]byte(call.Function.Arguments), &args) == nil && len(args) == 1 {
 				var emoji string
 				if json.Unmarshal(args["emoji"], &emoji) == nil && emojiName.MatchString(emoji) {

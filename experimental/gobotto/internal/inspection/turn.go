@@ -36,7 +36,7 @@ type Input struct {
 }
 
 // Turn is a version-independent inspection payload embedded in session snapshots.
-// State is running, delivered, failed, uncertain, cancelled, or interrupted.
+// State is running, delivered, silent, waiting, failed, uncertain, cancelled, or interrupted.
 type Turn struct {
 	Number                                 int
 	Started, Finished                      time.Time
