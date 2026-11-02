@@ -7,6 +7,7 @@ import (
 )
 
 func TestContainerMemoryLimit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		v2, v1  string // file content; empty means the file does not exist
@@ -23,6 +24,7 @@ func TestContainerMemoryLimit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			v2 := filepath.Join(dir, "memory.max")
 			v1 := filepath.Join(dir, "memory.limit_in_bytes")
@@ -46,6 +48,7 @@ func TestContainerMemoryLimit(t *testing.T) {
 }
 
 func TestGoMemoryLimit(t *testing.T) {
+	t.Parallel()
 	if got, want := goMemoryLimit(256<<20), int64(241591910); got != want {
 		t.Fatalf("goMemoryLimit(256 MiB) = %d, want %d", got, want)
 	}

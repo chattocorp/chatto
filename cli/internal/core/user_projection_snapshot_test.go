@@ -20,6 +20,8 @@ import (
 )
 
 func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T) {
+	t.Parallel()
+
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	newProjection := func() *UserProjection {
@@ -67,6 +69,8 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 }
 
 func TestUserProjectionSnapshotPreservesBotIdentityAndOwnerIndex(t *testing.T) {
+	t.Parallel()
+
 	original, contentKey := newEncryptedUserProjection(t, "owner")
 	createdAt := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "owner", "owner", "Owner")), 2))
@@ -102,6 +106,8 @@ func TestUserProjectionSnapshotPreservesBotIdentityAndOwnerIndex(t *testing.T) {
 }
 
 func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *testing.T) {
+	t.Parallel()
+
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 	created := userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A."))
@@ -125,6 +131,8 @@ func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *
 }
 
 func TestUserProjectionSnapshotPreservesPrimaryVerifiedEmail(t *testing.T) {
+	t.Parallel()
+
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 9, 14, 8, 0, 0, 0, time.UTC)
 	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
@@ -160,6 +168,8 @@ func TestUserProjectionSnapshotPreservesPrimaryVerifiedEmail(t *testing.T) {
 }
 
 func TestUserProjectionSnapshotPreservesCanonicalOwnersForDuplicateDigests(t *testing.T) {
+	t.Parallel()
+
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice One")), 2))
@@ -197,6 +207,8 @@ func TestUserProjectionSnapshotPreservesCanonicalOwnersForDuplicateDigests(t *te
 }
 
 func TestUserProjectionSnapshotPreservesUnclaimedDuplicateDigests(t *testing.T) {
+	t.Parallel()
+
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice One")), 2))
@@ -239,6 +251,8 @@ func TestUserProjectionSnapshotPreservesUnclaimedDuplicateDigests(t *testing.T) 
 }
 
 func TestUserProjectionRestoreIsTransactionalAndDoesNotTouchAuthState(t *testing.T) {
+	t.Parallel()
+
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice")), 2))
 	require.NoError(t, p.Apply(&evtv1.Event{Id: "E2", Event: &evtv1.Event_UserPasswordHashChanged{UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("hash")}}}, 3))
@@ -259,6 +273,8 @@ func TestUserProjectionRestoreIsTransactionalAndDoesNotTouchAuthState(t *testing
 }
 
 func TestUserProjectionSnapshotSchemaExcludesPlaintextUserFields(t *testing.T) {
+	t.Parallel()
+
 	fields := (&projectionv1.UserSnapshot{}).ProtoReflect().Descriptor().Fields()
 	require.Nil(t, fields.ByName("login"))
 	require.Nil(t, fields.ByName("display_name"))
@@ -279,6 +295,8 @@ func TestUserProjectionSnapshotSchemaExcludesPlaintextUserFields(t *testing.T) {
 }
 
 func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
+	t.Parallel()
+
 	pii := func(purpose string) *projectionv1.ProjectedEncryptedUserStringSnapshot {
 		return &projectionv1.ProjectedEncryptedUserStringSnapshot{
 			EventId: "E1", EventType: evtstream.EventUserAccountCreated, Purpose: purpose,
@@ -318,12 +336,16 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 }
 
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
+	t.Parallel()
+
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
 	require.Len(t, p.Subjects(), 19)
 }
 
 func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {
+	t.Parallel()
+
 	p := newUserAuthProjection()
 	createdAt := time.Date(2026, 8, 27, 9, 0, 0, 0, time.UTC)
 	require.NoError(t, p.Apply(userEvent("W1", createdAt, &evtv1.Event{Event: &evtv1.Event_UserAccountCreated{
@@ -352,6 +374,8 @@ func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
+	t.Parallel()
+
 	p := newUserAuthProjection()
 	createdAt := time.Date(2026, 7, 15, 9, 0, 0, 0, time.UTC)
 	eventsToApply := []*evtv1.Event{
@@ -383,6 +407,8 @@ func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
 }
 
 func TestUserAuthProjectionShreddingRequestIsTerminal(t *testing.T) {
+	t.Parallel()
+
 	p := newUserAuthProjection()
 	require.NoError(t, p.Apply(&evtv1.Event{Id: "A1", Event: &evtv1.Event_UserAccountCreated{
 		UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "U1"},

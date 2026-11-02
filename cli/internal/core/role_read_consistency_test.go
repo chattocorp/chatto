@@ -11,6 +11,8 @@ import (
 )
 
 func TestRoleReadsWaitForAnotherReplica(t *testing.T) {
+	t.Parallel()
+
 	ns, _ := testutil.StartNATS(t)
 	primary := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)

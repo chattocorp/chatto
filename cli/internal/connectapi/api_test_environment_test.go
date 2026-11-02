@@ -11,6 +11,8 @@ import (
 // A second test environment must not delete or inherit the first event log.
 // Keep both cores open to test isolation without relying on cleanup timing.
 func TestConnectAPITestEnvironmentsKeepIndependentEventLogs(t *testing.T) {
+	t.Parallel()
+
 	first := newConnectAPITestEnv(t)
 	if err := first.core.GrantServerPermission(first.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomManage); err != nil {
 		t.Fatal(err)

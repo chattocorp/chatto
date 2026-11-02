@@ -13,6 +13,8 @@ import (
 // ============================================================================
 
 func TestPresenceStatusFromString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -61,6 +63,8 @@ func TestPresenceStatusFromString(t *testing.T) {
 }
 
 func TestPresenceStatusToString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    cachestatev1.UserPresenceStatus
@@ -104,6 +108,8 @@ func TestPresenceStatusToString(t *testing.T) {
 }
 
 func TestPresenceStatusRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	// Verify that converting to proto and back yields the same string
 	statuses := []string{PresenceStatusOnline, PresenceStatusAway, PresenceStatusDoNotDisturb}
 
@@ -123,6 +129,8 @@ func TestPresenceStatusRoundTrip(t *testing.T) {
 // ============================================================================
 
 func TestPresenceKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		userID   string
 		expected string
@@ -143,6 +151,8 @@ func TestPresenceKey(t *testing.T) {
 }
 
 func TestParsePresenceKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		key    string
 		userID string
@@ -170,6 +180,8 @@ func TestParsePresenceKey(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GetUserPresence_Offline(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -184,6 +196,8 @@ func TestChattoCore_GetUserPresence_Offline(t *testing.T) {
 }
 
 func TestChattoCore_SetAndGetPresence(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -234,6 +248,8 @@ func TestChattoCore_SetAndGetPresence(t *testing.T) {
 }
 
 func TestChattoCore_ManualPresenceBeatsAutomaticReports(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	userID := "test-user-manual-presence"
@@ -279,6 +295,8 @@ func TestChattoCore_ManualPresenceBeatsAutomaticReports(t *testing.T) {
 }
 
 func TestChattoCore_PresenceDelete(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -313,6 +331,8 @@ func TestChattoCore_PresenceDelete(t *testing.T) {
 }
 
 func TestChattoCore_RefreshPresence(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -340,6 +360,8 @@ func TestChattoCore_RefreshPresence(t *testing.T) {
 }
 
 func TestChattoCore_RefreshPresenceRenewsKeyTTL(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -376,6 +398,8 @@ func TestChattoCore_RefreshPresenceRenewsKeyTTL(t *testing.T) {
 }
 
 func TestChattoCore_RefreshPresence_Expired(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -398,6 +422,8 @@ func TestChattoCore_RefreshPresence_Expired(t *testing.T) {
 }
 
 func TestChattoCore_UserLevelPresenceOverwrites(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -430,6 +456,8 @@ func TestChattoCore_UserLevelPresenceOverwrites(t *testing.T) {
 }
 
 func TestChattoCore_MultipleUsersPresence(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

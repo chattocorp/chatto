@@ -13,6 +13,8 @@ import (
 )
 
 func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRoomTimelineProjection()
 	for sequence, messageID := range []string{"M1", "M2"} {
 		posted := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}})
@@ -51,6 +53,8 @@ func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
 }
 
 func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRoomTimelineProjection()
 	posted := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}})
 	posted.Id = "M1"
@@ -101,6 +105,8 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 }
 
 func TestRoomTimelineProjectionEchoInheritsCanonicalPinState(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRoomTimelineProjection()
 	original := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT"}}})
 	original.Id = "M1"
@@ -122,6 +128,8 @@ func TestRoomTimelineProjectionEchoInheritsCanonicalPinState(t *testing.T) {
 }
 
 func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager, err := chatto.CreateUser(ctx, SystemActorID, "pin-manager", "Pin Manager", "password")
@@ -235,8 +243,10 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 
 // Pin delegation must work for ordinary human sessions at every supported scope.
 func TestPinnedMessagePermissionScopes(t *testing.T) {
+	t.Parallel()
 	for _, scope := range []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom} {
 		t.Run(string(scope), func(t *testing.T) {
+			t.Parallel()
 			c, _ := setupTestCore(t)
 			ctx := testContext(t)
 			member, err := c.CreateUser(ctx, SystemActorID, "pin-delegate", "Pin Delegate", "password")
@@ -278,6 +288,8 @@ func TestPinnedMessagePermissionScopes(t *testing.T) {
 }
 
 func TestPinnedMessagesAndReactionsUseThreadInteractions(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chatto.CreateUser(ctx, SystemActorID, "interaction-pin-author", "Interaction Pin Author", "password")

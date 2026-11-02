@@ -8,6 +8,8 @@ import (
 )
 
 func TestCreateUser_RespectsMaxUsersLimit(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -30,6 +32,8 @@ func TestCreateUser_RespectsMaxUsersLimit(t *testing.T) {
 }
 
 func TestCountVerifiedAccounts(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -55,6 +59,8 @@ func TestCountVerifiedAccounts(t *testing.T) {
 }
 
 func TestVerifiedFactorAddRespectsMaxUsersLimit(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -11,6 +11,8 @@ import (
 // ============================================================================
 
 func TestUserPreferencesKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		userID   string
 		expected string
@@ -35,6 +37,8 @@ func TestUserPreferencesKey(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GetUserSettings_NoSettings(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -49,6 +53,8 @@ func TestChattoCore_GetUserSettings_NoSettings(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserSettings_SetTimezone(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -80,6 +86,8 @@ func TestChattoCore_UpdateUserSettings_SetTimezone(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserSettings_SetTimeFormat(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -111,6 +119,8 @@ func TestChattoCore_UpdateUserSettings_SetTimeFormat(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserSettings_PartialUpdate(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -161,6 +171,8 @@ func TestChattoCore_UpdateUserSettings_PartialUpdate(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserSettings_ClearTimezone(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -190,6 +202,8 @@ func TestChattoCore_UpdateUserSettings_ClearTimezone(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserSettings_SharingDefaultsPrivateAndSupportsCombinedPatch(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	tz := "Europe/Berlin"
@@ -226,6 +240,8 @@ func TestChattoCore_UpdateUserSettings_SharingDefaultsPrivateAndSupportsCombined
 }
 
 func TestChattoCore_UpdateUserSettings_InvalidTimezone(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -241,6 +257,8 @@ func TestChattoCore_UpdateUserSettings_InvalidTimezone(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_CleansUpSettings(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

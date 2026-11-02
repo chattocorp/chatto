@@ -41,6 +41,8 @@ func createTestPNG(width, height int) []byte {
 // ============================================================================
 
 func TestChattoCore_UploadAttachment(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -149,6 +151,8 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GetAttachment(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -216,6 +220,8 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_DeleteAttachment(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -274,6 +280,8 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_UploadAttachment_S3(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
@@ -304,6 +312,8 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 }
 
 func TestChattoCore_UploadAttachment_S3PathPrefixKeepsStoredKeyLogical(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
 	ctx := testContext(t)
 
@@ -343,6 +353,8 @@ func TestChattoCore_UploadAttachment_S3PathPrefixKeepsStoredKeyLogical(t *testin
 }
 
 func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
@@ -381,6 +393,8 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 }
 
 func TestChattoCore_S3PathPrefixCanMoveBasePathWithoutChangingStoredKey(t *testing.T) {
+	t.Parallel()
+
 	core, _, oldPrefixClient, rawS3Client, s3Cfg := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
 	ctx := testContext(t)
 
@@ -441,6 +455,8 @@ func TestChattoCore_S3PathPrefixCanMoveBasePathWithoutChangingStoredKey(t *testi
 }
 
 func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
 	ctx := testContext(t)
 
@@ -508,6 +524,8 @@ func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(
 // fallback path GetAttachmentReader takes when handed an Attachment
 // whose `Storage` field is nil, as older video derivative records can be.
 func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
+	t.Parallel()
+
 	t.Run("falls back to NATS by attachment ID", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -603,6 +621,8 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_AssetURLsAreServerRelative(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 
 	// The API layer adds the public origin of each request.
@@ -627,6 +647,8 @@ func TestChattoCore_AssetURLsAreServerRelative(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GetAttachmentsStore(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -666,6 +688,8 @@ func TestChattoCore_GetAttachmentsStore(t *testing.T) {
 // ============================================================================
 
 func TestAttachment_FullLifecycle(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -717,6 +741,8 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 }
 
 func TestAttachment_MultipleInSpace(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -760,6 +786,8 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 }
 
 func TestAttachment_ImageDimensions(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -808,6 +836,8 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 // ============================================================================
 
 func TestImageCacheKey(t *testing.T) {
+	t.Parallel()
+
 	t.Run("generates consistent keys", func(t *testing.T) {
 		key1 := ImageCacheKey("space123", "attach456", 200, 150, "contain")
 		key2 := ImageCacheKey("space123", "attach456", 200, 150, "contain")
@@ -959,6 +989,8 @@ func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 }
 
 func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 
@@ -1033,6 +1065,8 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 }
 
 func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 
@@ -1084,6 +1118,8 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 }
 
 func TestChattoCore_DeleteAttachment_CleansUpCacheWithoutStorageMetadata(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 
@@ -1121,6 +1157,8 @@ func TestChattoCore_DeleteAttachment_CleansUpCacheWithoutStorageMetadata(t *test
 }
 
 func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 
@@ -1226,6 +1264,7 @@ func (s *cacheCleanupStore) Delete(_ context.Context, name string) error {
 }
 
 func TestAttachmentCacheCleanupScansOnce(t *testing.T) {
+	t.Parallel()
 	for _, failDelete := range []bool{false, true} {
 		t.Run(fmt.Sprint(failDelete), func(t *testing.T) {
 			keys := []string{
@@ -1262,6 +1301,8 @@ func TestAttachmentCacheCleanupScansOnce(t *testing.T) {
 }
 
 func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 
@@ -1276,6 +1317,8 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 }
 
 func TestChattoCore_PublicServerAssetLocationDoesNotFallback(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assetID := NewAssetID()
@@ -1310,6 +1353,8 @@ func TestChattoCore_PublicServerAssetLocationDoesNotFallback(t *testing.T) {
 }
 
 func TestChattoCore_PublicServerAssetLocationRejectsReplacementGeneration(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assetID := NewAssetID()

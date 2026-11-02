@@ -13,6 +13,8 @@ import (
 )
 
 func TestThreadProjection_ParticipantPreviewKeepsFirstReplyOrder(t *testing.T) {
+	t.Parallel()
+
 	p := NewThreadProjection()
 	events := []*evtv1.Event{postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U-ROOT", at: 1})}
 	var authors []string
@@ -58,6 +60,8 @@ func TestThreadProjection_ParticipantPreviewKeepsFirstReplyOrder(t *testing.T) {
 // TestThreadProjection_FollowReadsAreSortedByID checks that follow reads do not
 // depend on follow order, which a snapshot restore does not keep.
 func TestThreadProjection_FollowReadsAreSortedByID(t *testing.T) {
+	t.Parallel()
+
 	p := NewThreadProjection()
 	for i, event := range []*evtv1.Event{
 		threadFollowSnapshotTestEvent("F0", "R1", "ROOT", "U4", true),
@@ -97,6 +101,8 @@ func TestThreadProjection_FollowReadsAreSortedByID(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotRestoreRejectsInconsistentReplies(t *testing.T) {
+	t.Parallel()
+
 	source := NewThreadProjection()
 	applyAll(t, source, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),

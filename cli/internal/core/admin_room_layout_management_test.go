@@ -9,6 +9,8 @@ import (
 )
 
 func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -78,6 +80,8 @@ func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
 }
 
 func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

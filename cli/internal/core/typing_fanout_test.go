@@ -138,6 +138,8 @@ func nextTyping(t *testing.T, stream <-chan EventEnvelope) string {
 }
 
 func TestMyEventsHubChecksTypingPrivacyOncePerEvent(t *testing.T) {
+	t.Parallel()
+
 	f := newTypingFanoutFixture(t, 3, 0)
 
 	eventID := f.publishTyping(t, f.author)
@@ -148,6 +150,8 @@ func TestMyEventsHubChecksTypingPrivacyOncePerEvent(t *testing.T) {
 }
 
 func TestMyEventsHubDropsTypingFromHiddenSender(t *testing.T) {
+	t.Parallel()
+
 	f := newTypingFanoutFixture(t, 2, 0)
 	_, err := f.core.SetPresencePreference(testContext(t), f.author, apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
@@ -160,6 +164,8 @@ func TestMyEventsHubDropsTypingFromHiddenSender(t *testing.T) {
 }
 
 func TestMyEventsHubSkipsTypingPrivacyReadWithoutAudience(t *testing.T) {
+	t.Parallel()
+
 	f := newTypingFanoutFixture(t, 0, 1)
 	outsider := f.viewers[0]
 

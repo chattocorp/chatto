@@ -30,6 +30,8 @@ type snapshotProjection interface {
 }
 
 func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
+	t.Parallel()
+
 	assets := NewAssetProjection()
 	assets.messageOwners["A1"] = assetMessageRef{roomID: "R1", messageEventID: "M1", authorID: "U1"}
 	assetPayload, err := assets.Snapshot()
@@ -64,6 +66,8 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 }
 
 func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		contract  string
 		semantics string
@@ -91,6 +95,8 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 }
 
 func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		current string
 		old     string
@@ -110,6 +116,8 @@ func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.
 }
 
 func TestProjectionSnapshotSchemaFingerprintIncludesReferencedType(t *testing.T) {
+	t.Parallel()
+
 	fingerprint := func(thirdFieldType string) string {
 		t.Helper()
 		optional := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
@@ -156,6 +164,8 @@ func TestProjectionSnapshotSchemaFingerprintIncludesReferencedType(t *testing.T)
 }
 
 func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *testing.T) {
+	t.Parallel()
+
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	newProjection := func() *MentionablesProjection {
@@ -182,6 +192,8 @@ func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *tes
 }
 
 func TestRoomDirectorySnapshotPreservesUnknownThreadingMode(t *testing.T) {
+	t.Parallel()
+
 	const unknownMode = evtv1.RoomThreadingMode(99)
 	projection := NewRoomDirectoryProjection()
 	require.NoError(t, projection.Catalog.Apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{
@@ -217,6 +229,7 @@ func TestRoomDirectorySnapshotPreservesUnknownThreadingMode(t *testing.T) {
 }
 
 func TestRoomDirectorySnapshotPreservesThreadSlowModePresence(t *testing.T) {
+	t.Parallel()
 	for _, explicit := range []bool{false, true} {
 		p := NewRoomDirectoryProjection()
 		require.NoError(t, p.Catalog.Apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
@@ -243,6 +256,7 @@ func TestRoomDirectorySnapshotPreservesThreadSlowModePresence(t *testing.T) {
 }
 
 func TestRoomGroupSnapshotLinkOrderDoesNotChangeLayout(t *testing.T) {
+	t.Parallel()
 	original := NewRoomGroupLayoutProjection()
 	original.Layout.groupIDs = []string{"G1"}
 	original.Groups.groups["G1"] = &roomGroupEntry{
@@ -289,6 +303,8 @@ func TestRoomGroupSnapshotLinkOrderDoesNotChangeLayout(t *testing.T) {
 }
 
 func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
+	t.Parallel()
+
 	now := time.Unix(1_700_000_000, 123).UTC()
 	tests := []struct {
 		name string

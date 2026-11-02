@@ -13,6 +13,8 @@ import (
 )
 
 func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
@@ -218,6 +220,8 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 }
 
 func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
@@ -241,6 +245,8 @@ func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 }
 
 func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
@@ -274,6 +280,8 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 }
 
 func TestBotServiceOutboundWebhookPatchPresence(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
@@ -312,6 +320,8 @@ func TestBotServiceOutboundWebhookPatchPresence(t *testing.T) {
 
 // Webhook administration belongs to the API contract, independent of any receiver.
 func TestBotServiceOutboundWebhookLifecycle(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)

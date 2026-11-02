@@ -16,6 +16,8 @@ import (
 )
 
 func TestIntegrationRelationshipReads(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("relationship-reads")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -60,6 +62,8 @@ func TestIntegrationRelationshipReads(t *testing.T) {
 }
 
 func TestIntegrationReadMarkers(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "marker-reads", "", core.WithUniversalRoom(true))
 	require.NoError(t, err)
@@ -106,6 +110,8 @@ func TestIntegrationReadMarkers(t *testing.T) {
 }
 
 func TestIntegrationReactionAliasesAndRetractions(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("relationship-alias")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -130,6 +136,8 @@ func TestIntegrationReactionAliasesAndRetractions(t *testing.T) {
 }
 
 func TestIntegrationReadsThroughJSON(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("json-reads")
 	root := env.post(room.Id, env.viewer.Id, "root", "")

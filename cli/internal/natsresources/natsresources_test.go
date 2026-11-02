@@ -3,6 +3,8 @@ package natsresources
 import "testing"
 
 func TestStreamNames(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range []struct {
 		resource Resource
 		want     string
@@ -18,6 +20,8 @@ func TestStreamNames(t *testing.T) {
 }
 
 func TestEveryResourceHasAConsistentBackupPolicy(t *testing.T) {
+	t.Parallel()
+
 	seen := make(map[string]bool)
 	for _, resources := range [][]Resource{current, legacy} {
 		for _, resource := range resources {
@@ -34,6 +38,8 @@ func TestEveryResourceHasAConsistentBackupPolicy(t *testing.T) {
 }
 
 func TestForStreamFindsLegacyResources(t *testing.T) {
+	t.Parallel()
+
 	resource, ok := ForStream("KV_AUTH_TOKENS")
 	if !ok || resource.Backup != BackupSkip {
 		t.Fatalf("ForStream(KV_AUTH_TOKENS) = %+v, %v; want a skipped legacy bucket", resource, ok)

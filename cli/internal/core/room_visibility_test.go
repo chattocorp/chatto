@@ -8,6 +8,8 @@ import "testing"
 // restricted room can be discoverable in the directory without being
 // directly joinable.
 func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -100,6 +102,8 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 }
 
 func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

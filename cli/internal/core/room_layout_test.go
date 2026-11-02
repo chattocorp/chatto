@@ -5,6 +5,8 @@ import (
 )
 
 func TestChattoCore_ListRoomGroupsOrdered_AfterSeed(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -24,6 +26,8 @@ func TestChattoCore_ListRoomGroupsOrdered_AfterSeed(t *testing.T) {
 }
 
 func TestChattoCore_DeleteRoom_RemovesFromGroup(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -53,6 +57,8 @@ func TestChattoCore_DeleteRoom_RemovesFromGroup(t *testing.T) {
 }
 
 func TestChattoCore_DeleteRoom_NoLayout(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

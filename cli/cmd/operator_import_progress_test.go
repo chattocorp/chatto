@@ -9,6 +9,7 @@ import (
 )
 
 func TestImportProgressGroupedCheckpoints(t *testing.T) {
+	t.Parallel()
 	p, err := openImportProgress(filepath.Join(t.TempDir(), "progress"), "binding")
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, p.file.Close()) })
@@ -24,6 +25,7 @@ func TestImportProgressGroupedCheckpoints(t *testing.T) {
 }
 
 func TestImportProgressCrashRecoveryAndLock(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "progress")
 	p, err := openImportProgress(path, "binding-a")
 	require.NoError(t, err)

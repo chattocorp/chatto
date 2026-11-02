@@ -14,6 +14,8 @@ import (
 )
 
 func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
+	t.Parallel()
+
 	storeDir := testutil.StoreDir(t)
 	ns := startRecoveryTestNATS(t, storeDir, -1)
 	port := ns.Addr().(*net.TCPAddr).Port
@@ -147,6 +149,8 @@ func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
 }
 
 func TestNATSRecoveryLivenessError(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
 	chattoCore := &ChattoCore{}
 	if err := chattoCore.NATSRecoveryLivenessError(now); err != nil {

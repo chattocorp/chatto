@@ -27,6 +27,7 @@ func (p *blockedBootProjection) CompleteStartupReplay() {
 }
 
 func TestCoreBootWaitsForStartupCompletionBeforeSnapshots(t *testing.T) {
+	t.Parallel()
 	c, _ := newTestCore(t)
 	projection := &blockedBootProjection{entered: make(chan struct{}), release: make(chan struct{})}
 	projector, err := evtstream.NewProjector(c.js, c.storage.serverEvtStream, projection, events.ProjectorOptions{})

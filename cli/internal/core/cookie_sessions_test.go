@@ -18,6 +18,8 @@ import (
 )
 
 func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := WithAuditRequestMetadata(testContext(t), &evtv1.AuditRequestMetadata{
 		UserAgent: "cookie-session-test",
@@ -89,6 +91,8 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 }
 
 func TestChattoCore_ValidatingCookieSessionDoesNotRewriteRuntimeState(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "cookie-no-rewrite-user", "Cookie No Rewrite User", "password123")
@@ -118,6 +122,8 @@ func TestChattoCore_ValidatingCookieSessionDoesNotRewriteRuntimeState(t *testing
 }
 
 func TestChattoCore_MigrateLegacyCookieSessionAddsExpiryOnce(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	core.config.AuthTokenTTL = 4 * time.Hour
 	ctx := testContext(t)
@@ -204,6 +210,8 @@ func TestChattoCore_MigrateLegacyCookieSessionAddsExpiryOnce(t *testing.T) {
 }
 
 func TestChattoCore_MigrateLegacyCookieSessionRejectsRevokedAuthority(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "revoked-legacy-cookie-user", "Revoked Legacy Cookie User", "password123")
@@ -243,6 +251,8 @@ func TestChattoCore_MigrateLegacyCookieSessionRejectsRevokedAuthority(t *testing
 }
 
 func TestChattoCore_ConcurrentCookieRenewalKeepsOneStableHandle(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	core.config.AuthTokenTTL = 4 * time.Hour
 	ctx := testContext(t)
@@ -284,6 +294,8 @@ func TestChattoCore_ConcurrentCookieRenewalKeepsOneStableHandle(t *testing.T) {
 }
 
 func TestChattoCore_LogoutDeleteFencesConcurrentCookieRenewal(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	core.config.AuthTokenTTL = 4 * time.Hour
 	ctx := testContext(t)
@@ -320,6 +332,8 @@ func TestChattoCore_LogoutDeleteFencesConcurrentCookieRenewal(t *testing.T) {
 }
 
 func TestChattoCore_CookieSessionExplicitExpiryIsAuthoritative(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "cookie-expiry-user", "Cookie Expiry User", "password123")
@@ -358,6 +372,8 @@ func TestChattoCore_CookieSessionExplicitExpiryIsAuthoritative(t *testing.T) {
 }
 
 func TestMutableCookieSessionRetainsPhysicalTTL(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	core.config.AuthTokenTTL = 2 * time.Second
 	ctx := testContext(t)
@@ -403,6 +419,8 @@ func TestMutableCookieSessionRetainsPhysicalTTL(t *testing.T) {
 }
 
 func TestChattoCore_CreateCookieSessionRejectsEmptyUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -412,6 +430,8 @@ func TestChattoCore_CreateCookieSessionRejectsEmptyUser(t *testing.T) {
 }
 
 func TestChattoCore_CookieSessionFreshAuth(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -449,6 +469,8 @@ func TestChattoCore_CookieSessionFreshAuth(t *testing.T) {
 }
 
 func TestChattoCore_CookieSessionRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -504,6 +526,8 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 }
 
 func TestChattoCore_CookieSessionGenerationRejectsStaleAuthentication(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -541,6 +565,8 @@ func TestChattoCore_CookieSessionGenerationRejectsStaleAuthentication(t *testing
 }
 
 func TestChattoCore_LegacyCookieSessionRecordIsIgnored(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

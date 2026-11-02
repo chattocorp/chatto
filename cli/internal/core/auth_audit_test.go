@@ -31,6 +31,8 @@ func countTestKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...stri
 }
 
 func TestChattoCore_RegistrationCodeAuditEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := WithAuditRequestMetadata(testContext(t), &evtv1.AuditRequestMetadata{
 		UserAgent: "audit-test-agent",
@@ -74,6 +76,8 @@ func TestChattoCore_RegistrationCodeAuditEvent(t *testing.T) {
 }
 
 func TestChattoCore_EmailVerificationCodeAuditEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "email-audit-user", "Email Audit User", "password123")
@@ -104,6 +108,8 @@ func TestChattoCore_EmailVerificationCodeAuditEvent(t *testing.T) {
 }
 
 func TestChattoCore_PasswordResetAuditEvents(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "password-audit-user", "Password Audit User", "oldpassword")
@@ -167,6 +173,8 @@ func TestChattoCore_PasswordResetAuditEvents(t *testing.T) {
 }
 
 func TestChattoCore_CreateAccountDeletionTokenRequiresDeleteSelfPermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "delete-self-denied-user", "Delete Self Denied User", "password123")
@@ -194,6 +202,8 @@ func TestChattoCore_CreateAccountDeletionTokenRequiresDeleteSelfPermission(t *te
 }
 
 func TestChattoCore_AccountDeletionTokenAuditEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "delete-audit-user", "Delete Audit User", "password123")
@@ -223,6 +233,8 @@ func TestChattoCore_AccountDeletionTokenAuditEvent(t *testing.T) {
 }
 
 func TestChattoCore_LoginAndLogoutAuditEvents(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "login-audit-user", "Login Audit User", "password123")
@@ -283,6 +295,8 @@ func TestChattoCore_LoginAndLogoutAuditEvents(t *testing.T) {
 }
 
 func TestChattoCore_BearerTokenAuditEvents(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := WithAuditRequestMetadata(testContext(t), &evtv1.AuditRequestMetadata{
 		UserAgent: "bearer-audit-agent",
@@ -340,6 +354,8 @@ func TestChattoCore_BearerTokenAuditEvents(t *testing.T) {
 }
 
 func TestChattoCore_BearerTokenAuditUsesClampedCredentialExpiry(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	chattoCore.config.AuthTokenTTL = 5 * time.Minute
 	chattoCore.config.AuthAccessTokenTTL = time.Hour
@@ -371,6 +387,8 @@ func TestChattoCore_BearerTokenAuditUsesClampedCredentialExpiry(t *testing.T) {
 }
 
 func TestChattoCore_AuthCodeAuditEvents(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "auth-code-audit-user", "Auth Code Audit User", "password123")
@@ -444,6 +462,8 @@ func TestChattoCore_AuthCodeAuditEvents(t *testing.T) {
 }
 
 func TestChattoCore_AuthCodeExchangeFailureAuditEvents(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "auth-code-failure-audit-user", "Auth Code Failure Audit User", "password123")
@@ -501,6 +521,8 @@ func TestChattoCore_AuthCodeExchangeFailureAuditEvents(t *testing.T) {
 }
 
 func TestChattoCore_AuditAppendFailureCleansNewRegistrationCode(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	core.EventPublisher = nil
@@ -522,6 +544,8 @@ func TestChattoCore_AuditAppendFailureCleansNewRegistrationCode(t *testing.T) {
 }
 
 func TestChattoCore_AuditAppendFailureCleansNewAuthRuntimeTokens(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "auth-runtime-cleanup-user", "Auth Runtime Cleanup User", "password123")
@@ -560,6 +584,8 @@ func TestChattoCore_AuditAppendFailureCleansNewAuthRuntimeTokens(t *testing.T) {
 }
 
 func TestChattoCore_BearerRevocationAuditFailureStillRevokesToken(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "revocation-audit-failure-user", "Revocation Audit Failure User", "password123")
@@ -582,6 +608,8 @@ func TestChattoCore_BearerRevocationAuditFailureStillRevokesToken(t *testing.T) 
 }
 
 func TestAuditRequestMetadataContextCopiesAndDefaults(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	if got := auditRequestMetadata(ctx); got == nil {
 		t.Fatalf("missing metadata should produce empty metadata")

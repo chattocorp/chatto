@@ -28,6 +28,7 @@ func (kv previewLoggingFailureKV) Create(context.Context, string, []byte, ...jet
 }
 
 func TestLinkPreviewCacheLogsExcludeSensitiveData(t *testing.T) {
+	t.Parallel()
 	const target = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&token=private-query"
 	var output bytes.Buffer
 	c := &ChattoCore{

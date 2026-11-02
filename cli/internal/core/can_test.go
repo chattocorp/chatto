@@ -11,6 +11,8 @@ import (
 // TestServerCanHelpers verifies that the semantic Can* helper functions
 // for server-level permissions correctly wrap HasPermission.
 func TestServerCanHelpers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -122,6 +124,8 @@ func TestServerCanHelpers(t *testing.T) {
 
 // TestCanDeleteUser tests the special logic for user deletion permissions.
 func TestCanDeleteUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -234,6 +238,8 @@ func TestCanDeleteUser(t *testing.T) {
 // TestPermissionsWithCustomRoles tests that custom roles
 // with specific permissions work correctly with the Can* helpers.
 func TestPermissionsWithCustomRoles(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -298,6 +304,8 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 // TestCanHelpers verifies that the semantic Can* helper functions correctly
 // wrap the underlying HasPermission checks.
 func TestCanHelpers(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -382,6 +390,8 @@ func TestCanHelpers(t *testing.T) {
 // from the member role actually prevents members from using that permission.
 // This tests the fix for the fast path that was bypassing RBAC resolution.
 func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -485,6 +495,8 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 // TestCanHelpers_RoomOverrides verifies that room-scoped Can* helpers
 // respect room-level permission overrides from the permission resolver.
 func TestCanHelpers_RoomOverrides(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

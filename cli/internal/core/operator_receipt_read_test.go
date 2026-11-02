@@ -68,6 +68,7 @@ func TestOperatorReceiptRead(t *testing.T) {
 }
 
 func TestOperatorReceiptExactLookupAndCreationGuard(t *testing.T) {
+	t.Parallel()
 	c, _ := newTestCore(t)
 	ctx := testContext(t)
 	info, err := c.storage.serverEvtStream.Info(ctx)

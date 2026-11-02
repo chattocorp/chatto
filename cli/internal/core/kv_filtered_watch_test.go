@@ -74,6 +74,8 @@ func receiveKeyWatcherEntry(t *testing.T, watcher jetstream.KeyWatcher) (jetstre
 }
 
 func TestWatchKeyFiltersUsesOneSingleFilterWatcherPerFilter(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	kv := &recordingWatchKV{KeyValue: newFilteredWatchTestKV(t)}
 	for _, key := range []string{"alpha.one", "alpha.two", "beta.one", "gamma.one"} {
@@ -124,6 +126,8 @@ func TestWatchKeyFiltersUsesOneSingleFilterWatcherPerFilter(t *testing.T) {
 }
 
 func TestWatchKeyFiltersSendsInitialMarkerOnlyAfterEverySource(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	slow := newChannelKeyWatcher(1)
 	kv := &recordingWatchKV{KeyValue: newFilteredWatchTestKV(t), override: map[string]jetstream.KeyWatcher{"slow.>": slow}}
@@ -155,6 +159,8 @@ func TestWatchKeyFiltersSendsInitialMarkerOnlyAfterEverySource(t *testing.T) {
 }
 
 func TestWatchKeyFiltersClosesWhenAnySourceCloses(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	closing := newChannelKeyWatcher(0)
 	open := newChannelKeyWatcher(0)
@@ -178,12 +184,16 @@ func TestWatchKeyFiltersClosesWhenAnySourceCloses(t *testing.T) {
 }
 
 func TestWatchKeyFiltersRejectsEmptyFilters(t *testing.T) {
+	t.Parallel()
+
 	if _, err := watchKeyFilters(testContext(t), newFilteredWatchTestKV(t), nil); err == nil {
 		t.Fatal("watchKeyFilters accepted an empty filter list")
 	}
 }
 
 func TestWatchKeyFiltersKeepsCallerSlice(t *testing.T) {
+	t.Parallel()
+
 	filters := []string{"single.>"}
 	watcher, err := watchKeyFilters(testContext(t), newFilteredWatchTestKV(t), filters)
 	if err != nil {
@@ -196,6 +206,8 @@ func TestWatchKeyFiltersKeepsCallerSlice(t *testing.T) {
 }
 
 func TestWatchKeyFiltersStopClosesUpdates(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	kv := newFilteredWatchTestKV(t)
 	watcher, err := watchKeyFilters(ctx, kv, []string{"a.>", "b.>"})

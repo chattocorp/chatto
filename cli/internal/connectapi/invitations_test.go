@@ -13,6 +13,7 @@ import (
 )
 
 func TestMemberInvitationPermissionBoundary(t *testing.T) {
+	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	service := env.adminInvitationCodes
 	ctx := withBearerCredential(env.ctx, env.viewer, "member-session")
@@ -77,6 +78,7 @@ func TestMemberInvitationPermissionBoundary(t *testing.T) {
 }
 
 func TestInvitationExpiryIsServerControlledForEveryCaller(t *testing.T) {
+	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserInvite))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageInvites))

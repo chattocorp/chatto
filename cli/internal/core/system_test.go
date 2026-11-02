@@ -6,6 +6,8 @@ import (
 )
 
 func TestChattoCore_GetConnectionInfo(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 
 	t.Run("returns connection info", func(t *testing.T) {
@@ -44,6 +46,8 @@ func TestChattoCore_GetConnectionInfo(t *testing.T) {
 }
 
 func TestChattoCore_GetAccountInfo(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -78,6 +82,8 @@ func TestChattoCore_GetAccountInfo(t *testing.T) {
 }
 
 func TestChattoCore_GetJetStreamStats(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -124,6 +130,8 @@ func TestChattoCore_GetJetStreamStats(t *testing.T) {
 }
 
 func TestConnectionInfo_Fields(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ConnectionInfo has all expected fields", func(t *testing.T) {
 		info := ConnectionInfo{
 			Connected:  true,
@@ -156,6 +164,8 @@ func TestConnectionInfo_Fields(t *testing.T) {
 }
 
 func TestAccountInfo_Fields(t *testing.T) {
+	t.Parallel()
+
 	t.Run("AccountInfo has all expected fields", func(t *testing.T) {
 		info := AccountInfo{
 			Memory:        1073741824,

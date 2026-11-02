@@ -10,6 +10,7 @@ import (
 )
 
 func TestImportHistoricalUserKindsAndStatus(t *testing.T) {
+	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -69,6 +70,7 @@ func TestImportHistoricalUserKindsAndStatus(t *testing.T) {
 }
 
 func TestImportHistoricalBotOwnerAndAccess(t *testing.T) {
+	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)

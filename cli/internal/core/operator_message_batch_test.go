@@ -40,6 +40,7 @@ func (s *historicalBatchAdvancingStream) GetLastMsgForSubject(ctx context.Contex
 }
 
 func TestHistoricalMessageBatchExhaustionPreservesError(t *testing.T) {
+	t.Parallel()
 	c, _ := newTestCore(t)
 	original := c.EventPublisher
 	stream := &historicalBatchAdvancingStream{Stream: c.storage.serverEvtStream}
@@ -60,6 +61,7 @@ func TestHistoricalMessageBatchExhaustionPreservesError(t *testing.T) {
 }
 
 func TestHistoricalMessageBatchReferencesAndRetries(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, _ := setupReactionTest(t, c, ctx)
@@ -127,6 +129,7 @@ func TestHistoricalMessageBatchReferencesAndRetries(t *testing.T) {
 }
 
 func TestHistoricalMessageBatchRejectsWithoutPartialWrites(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, _ := setupReactionTest(t, c, ctx)
@@ -183,6 +186,7 @@ func TestHistoricalMessageBatchRejectsWithoutPartialWrites(t *testing.T) {
 }
 
 func TestHistoricalMessageBatchConcurrentReplicas(t *testing.T) {
+	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)

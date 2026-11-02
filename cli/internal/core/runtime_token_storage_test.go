@@ -9,6 +9,8 @@ import (
 )
 
 func TestChattoCore_WorkflowTokensUseRuntimeState(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

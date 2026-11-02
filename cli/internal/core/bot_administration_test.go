@@ -14,6 +14,7 @@ import (
 // Administrative bot credentials use explicit grants without an interactive
 // privileged-mode session. Their human owner's entitlement remains the ceiling.
 func TestBotAdministrativeAccountOperations(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "admin-bot-owner", "Owner", "")
@@ -76,6 +77,7 @@ func (w *reassignOnCreateKeyWrapper) CreateKey(ctx context.Context, userID strin
 // Creation must reject the selected owner if the creator is reassigned before
 // commit. A fresh request then creates the bot for the new human owner.
 func TestBotCreationConcurrentWithCreatorReassignment(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "creation-owner", "Owner", "")
@@ -106,6 +108,7 @@ func TestBotCreationConcurrentWithCreatorReassignment(t *testing.T) {
 }
 
 func TestBotCanCreateAndManageBotsWithExplicitGrants(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "bot-admin-owner", "Owner", "")

@@ -18,6 +18,8 @@ import (
 )
 
 func TestServerSetupPublicAPI(t *testing.T) {
+	t.Parallel()
+
 	for _, skip := range []bool{false, true} {
 		t.Run(map[bool]string{false: "enabled", true: "disabled"}[skip], func(t *testing.T) {
 			_, nc := testutil.StartNATS(t)
@@ -80,6 +82,8 @@ func TestServerSetupPublicAPI(t *testing.T) {
 }
 
 func TestSetupErrorFields(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range []struct {
 		err   error
 		field string

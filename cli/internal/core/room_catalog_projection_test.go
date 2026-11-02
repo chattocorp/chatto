@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoomCreationMetadataSurvivesUpdatesAndSnapshots(t *testing.T) {
+	t.Parallel()
 	p := NewRoomDirectoryProjection()
 	event := roomCreatedEvent("room", "General", "", evtv1.RoomKind_ROOM_KIND_CHANNEL)
 	event.CreatedAt = timestamppb.New(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
@@ -104,6 +105,8 @@ func roomDeletedEvent(roomID string) *evtv1.Event {
 }
 
 func TestRoomCatalogProjection_FreshState(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 	require.False(t, p.Exists("R1"))
 	got, ok := p.Get("R1")
@@ -114,6 +117,8 @@ func TestRoomCatalogProjection_FreshState(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_CreateUpdateArchiveDelete(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 
 	require.NoError(t, p.Apply(roomCreatedEvent("R1", "general", "default", evtv1.RoomKind_ROOM_KIND_CHANNEL), 1))
@@ -169,6 +174,8 @@ func TestRoomCatalogProjection_CreateUpdateArchiveDelete(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_AllByKind(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 
 	require.NoError(t, p.Apply(roomCreatedEvent("R1", "general", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 1))
@@ -183,6 +190,8 @@ func TestRoomCatalogProjection_AllByKind(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_Idempotency(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 
 	// Same RoomCreated applied twice — second call replaces but result is identical.
@@ -207,6 +216,8 @@ func TestRoomCatalogProjection_Idempotency(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_GetReturnsClone(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 	require.NoError(t, p.Apply(roomCreatedEvent("R1", "original", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 1))
 
@@ -218,6 +229,8 @@ func TestRoomCatalogProjection_GetReturnsClone(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_IgnoresMembershipEvents(t *testing.T) {
+	t.Parallel()
+
 	// Membership events live on the same evt.room.> subject family but
 	// belong to RoomMembershipProjection. RoomCatalogProjection must
 	// not react to them.
@@ -243,6 +256,8 @@ func TestRoomCatalogProjection_IgnoresMembershipEvents(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_NameClaimSnapshotTracksRoomSeq(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 	require.NoError(t, p.Apply(roomCreatedEvent("R1", "general", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 10))
 
@@ -271,6 +286,8 @@ func TestRoomCatalogProjection_NameClaimSnapshotTracksRoomSeq(t *testing.T) {
 }
 
 func TestRoomCatalogProjection_NameClaimSnapshotFindsOtherPreexistingCollision(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomCatalogProjection()
 	require.NoError(t, p.Apply(roomCreatedEvent("R1", "Straße", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 10))
 	require.NoError(t, p.Apply(roomCreatedEvent("R2", "STRASSE", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 11))

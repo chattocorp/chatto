@@ -23,6 +23,8 @@ import (
 )
 
 func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
+	t.Parallel()
+
 	storeDir := testutil.StoreDir(t)
 	ns, nc := startPersistentSnapshotNATS(t, storeDir)
 	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
@@ -139,6 +141,8 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 }
 
 func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -209,6 +213,8 @@ func snapshotObjectsForProjection(objects []string, projection string) []string 
 }
 
 func TestMissingProjectionComponentColdReplaysCompleteView(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -265,6 +271,8 @@ func TestMissingProjectionComponentColdReplaysCompleteView(t *testing.T) {
 }
 
 func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T) {
+	t.Parallel()
+
 	storeDir := testutil.StoreDir(t)
 	ns, nc := startPersistentSnapshotNATS(t, storeDir)
 	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
@@ -334,6 +342,8 @@ func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T)
 }
 
 func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -403,6 +413,8 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 }
 
 func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -471,6 +483,8 @@ func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
 }
 
 func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -560,6 +574,8 @@ func stopPersistentSnapshotNATS(ns *server.Server, nc *nats.Conn) {
 }
 
 func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -574,6 +590,8 @@ func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 }
 
 func TestProjectionSnapshotNATSStoreUsesConfiguredRetention(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	retention := config.Duration(9 * 24 * time.Hour)
 	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
@@ -601,6 +619,8 @@ func TestProjectionSnapshotNATSStoreUsesConfiguredRetention(t *testing.T) {
 }
 
 func TestProjectionSnapshotS3CleanupCanBeDisabledForExternalLifecycle(t *testing.T) {
+	t.Parallel()
+
 	for _, enabled := range []bool{true, false} {
 		t.Run(fmt.Sprintf("enabled_%t", enabled), func(t *testing.T) {
 			server := fakes3.NewServer(t)
@@ -632,6 +652,8 @@ func TestProjectionSnapshotS3CleanupCanBeDisabledForExternalLifecycle(t *testing
 }
 
 func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
 		SecretKey:           "not-a-32-byte-hex-secret",

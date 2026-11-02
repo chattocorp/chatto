@@ -9,6 +9,7 @@ import (
 // The running core supplies infrastructure and projectors only. These owners
 // are assembled separately, without core callbacks for membership or layout.
 func TestRoomOwnersShareProjectedState(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "owned-membership", "Member", "password")

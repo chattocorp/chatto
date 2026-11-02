@@ -11,6 +11,8 @@ import (
 )
 
 func TestReactionProjection_AddRemoveAndBatch(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("E1", "M1", "U2", "heart", 2))
@@ -57,6 +59,8 @@ func TestReactionProjection_AddRemoveAndBatch(t *testing.T) {
 }
 
 func TestReactionProjection_IgnoresDuplicateEventID(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("E1", "M1", "U1", "heart", 1))
@@ -68,6 +72,8 @@ func TestReactionProjection_IgnoresDuplicateEventID(t *testing.T) {
 }
 
 func TestReactionProjection_CanonicalizesEchoReactionReplay(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("M1", ""))
@@ -111,6 +117,8 @@ func TestReactionProjection_CanonicalizesEchoReactionReplay(t *testing.T) {
 }
 
 func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	roomEvent := &evtv1.Event{
@@ -160,6 +168,8 @@ func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
 }
 
 func TestReactionProjection_MutationSnapshotCountsUserReactionsOnCanonicalMessage(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("M1", ""))
@@ -190,6 +200,8 @@ func TestReactionProjection_MutationSnapshotCountsUserReactionsOnCanonicalMessag
 }
 
 func TestReactionProjection_IgnoresNonRoomEventsForSnapshotSeq(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	assetEvent := &evtv1.Event{
@@ -208,6 +220,8 @@ func TestReactionProjection_IgnoresNonRoomEventsForSnapshotSeq(t *testing.T) {
 }
 
 func TestReactionProjection_MutationSnapshotTracksLegacyRoomAssetEvents(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 
 	message := &evtv1.Event{
@@ -264,6 +278,8 @@ func TestReactionProjection_MutationSnapshotTracksLegacyRoomAssetEvents(t *testi
 }
 
 func TestRoomLayoutProjection_ReorderCloneAndIgnore(t *testing.T) {
+	t.Parallel()
+
 	p := NewRoomLayoutProjection()
 
 	if got := p.Order(); len(got) != 0 {
@@ -308,6 +324,8 @@ func messagePostedProjectionEvent(id, echoOfEventID string) *evtv1.Event {
 }
 
 func TestReactionProjection_ToggleDoesNotGrowIDTable(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("ADD-0", "M1", "U1", "heart", 1))
 	applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent("REMOVE-0", "M1", "U1", "heart"))
@@ -324,6 +342,8 @@ func TestReactionProjection_ToggleDoesNotGrowIDTable(t *testing.T) {
 }
 
 func TestReactionProjection_KeepsReactionsSortedAcrossRemoval(t *testing.T) {
+	t.Parallel()
+
 	p := NewReactionProjection()
 	for i, reaction := range []struct{ user, emoji string }{
 		{"U3", "tada"}, {"U1", "heart"}, {"U2", "tada"}, {"U2", "heart"}, {"U1", "tada"},

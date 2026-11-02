@@ -13,6 +13,8 @@ import (
 )
 
 func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, chatto, ctx)
@@ -50,6 +52,8 @@ func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
 }
 
 func TestAuthorizedDMAttachmentReadsIgnoreMessageRead(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, err := chatto.CreateUser(ctx, SystemActorID, "dm-attachment-reader", "DM Attachment Reader", "password123")
@@ -95,6 +99,8 @@ func TestAuthorizedDMAttachmentReadsIgnoreMessageRead(t *testing.T) {
 }
 
 func TestAuthorizedRoomAttachmentReadsUseThreadInteractions(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, author := setupRoomAttachmentTest(t, chatto, ctx)
@@ -157,6 +163,8 @@ func TestAuthorizedRoomAttachmentReadsUseThreadInteractions(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
@@ -201,6 +209,8 @@ func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
@@ -252,6 +262,8 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
@@ -286,6 +298,8 @@ func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testin
 }
 
 func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)

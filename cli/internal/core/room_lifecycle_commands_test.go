@@ -8,6 +8,7 @@ import (
 // The runtime supplies live projections, but the command has no core callbacks.
 // This catches accidental delegation of lifecycle persistence back to core.
 func TestRoomCommandModelLifecycleWithoutCoreCallbacks(t *testing.T) {
+	t.Parallel()
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	commands := &RoomCommandModel{rooms: core.roomModel, publisher: core.EventPublisher, rbac: core.rbacModel, logger: testCoreLogger()}

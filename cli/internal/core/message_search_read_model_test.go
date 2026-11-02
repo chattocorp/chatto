@@ -7,6 +7,8 @@ import (
 )
 
 func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chattoCore.CreateUser(ctx, SystemActorID, "search-viewer", "Search Viewer", "password")
@@ -65,6 +67,8 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 }
 
 func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chattoCore.CreateUser(ctx, SystemActorID, "search-thread-reader", "Search Thread Reader", "password")
@@ -94,6 +98,8 @@ func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
 }
 
 func TestMessageSearchReadModelFiltersInteractionScopedHits(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, err := chattoCore.CreateUser(ctx, SystemActorID, "search-interaction-reader", "Search Interaction Reader", "password")
@@ -133,6 +139,8 @@ func TestMessageSearchReadModelFiltersInteractionScopedHits(t *testing.T) {
 }
 
 func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chattoCore.CreateUser(ctx, SystemActorID, "search-reader", "Search Reader", "password")

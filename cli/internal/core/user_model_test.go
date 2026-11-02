@@ -15,6 +15,8 @@ import (
 )
 
 func TestNewUserModelWiresDependencies(t *testing.T) {
+	t.Parallel()
+
 	publisher := testEventPublisher(t)
 	users := NewUserProjection(nil, nil)
 	auth := users.AuthProjection()
@@ -49,6 +51,8 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 }
 
 func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
+	t.Parallel()
+
 	users, contentKey := newEncryptedUserProjection(t, "U1")
 	auth := users.AuthProjection()
 	model := newTestUserModel(t, nil, users, nil, auth, nil, nil, nil)
@@ -187,6 +191,8 @@ func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 }
 
 func TestUserModelPreservesPIIFailuresAndShreddedReferences(t *testing.T) {
+	t.Parallel()
+
 	users, contentKey := newEncryptedUserProjection(t, "U1")
 	auth := users.AuthProjection()
 	model := newTestUserModel(t, nil, users, nil, auth, nil, nil, nil)
@@ -221,6 +227,8 @@ func TestUserModelPreservesPIIFailuresAndShreddedReferences(t *testing.T) {
 }
 
 func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
@@ -261,6 +269,8 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 }
 
 func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
@@ -297,6 +307,8 @@ func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 }
 
 func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
+	t.Parallel()
+
 	harness := newTestEventHarness(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
@@ -353,6 +365,8 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 }
 
 func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
+	t.Parallel()
+
 	contentKeys := NewContentKeyProjection()
 	service := newTestUserModel(t, nil, nil, nil, nil, nil, contentKeys, nil)
 	legacy := &evtv1.UserDEKGeneratedEvent{
@@ -388,6 +402,8 @@ func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
 }
 
 func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
+	t.Parallel()
+
 	ctx := testContext(t)
 	service := &UserModel{}
 

@@ -6,6 +6,8 @@ import (
 )
 
 func TestRoomTimelineReadModelMessageHydrationStateRequiresRoomModel(t *testing.T) {
+	t.Parallel()
+
 	if _, err := (&RoomTimelineReadModel{}).MessageHydrationState("ENV-M1"); err == nil {
 		t.Fatal("MessageHydrationState without room model error = nil")
 	}
@@ -15,6 +17,8 @@ func TestRoomTimelineReadModelMessageHydrationStateRequiresRoomModel(t *testing.
 }
 
 func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -62,6 +66,8 @@ func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 }
 
 func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -127,6 +133,8 @@ func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing
 }
 
 func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -258,6 +266,8 @@ func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
 }
 
 func TestRoomTimelineReadModelGetsMessages(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -304,6 +314,8 @@ func TestRoomTimelineReadModelGetsMessages(t *testing.T) {
 }
 
 func TestRoomTimelineReadModelValidatesThreadRoot(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -354,6 +366,8 @@ func TestRoomTimelineReadModelValidatesThreadRoot(t *testing.T) {
 }
 
 func TestRoomTimelineReadModelThreadAroundComputesTargetIndex(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

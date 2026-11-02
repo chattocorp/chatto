@@ -6,6 +6,8 @@ import (
 )
 
 func TestAvailableExternalIdentityLoginKeepsAvailableHint(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	if got := availableExternalIdentityLogin(env.core, "flow-token", "alice"); got != "alice" {
 		t.Fatalf("available hint = %q, want alice", got)
@@ -13,6 +15,8 @@ func TestAvailableExternalIdentityLoginKeepsAvailableHint(t *testing.T) {
 }
 
 func TestAvailableExternalIdentityLoginSuffixesUnavailableHint(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	first := availableExternalIdentityLogin(env.core, "flow-token", "admin")
 	second := availableExternalIdentityLogin(env.core, "flow-token", "admin")

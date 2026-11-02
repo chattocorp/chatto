@@ -33,6 +33,7 @@ func setupMessageRetry(t *testing.T) (*ChattoCore, *nats.Conn, MessagePostInput)
 }
 
 func TestMessagePostIdempotencyConcurrentReplicas(t *testing.T) {
+	t.Parallel()
 	c, nc, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	asset := uploadRoomAttachmentForUser(t, c, ctx, input.ActorID, input.RoomID, "retry.png")
@@ -83,6 +84,7 @@ func TestMessagePostIdempotencyConcurrentReplicas(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyMismatchAndAccountScope(t *testing.T) {
+	t.Parallel()
 	c, _, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	first, err := c.Messages().PostMessage(ctx, input)
@@ -113,6 +115,7 @@ func TestMessagePostIdempotencyMismatchAndAccountScope(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyConcurrentReplyWithEcho(t *testing.T) {
+	t.Parallel()
 	c, nc, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	rootInput := input
@@ -167,6 +170,7 @@ func TestMessagePostIdempotencyConcurrentReplyWithEcho(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyReservedIdentityAndLostResponse(t *testing.T) {
+	t.Parallel()
 	c, nc, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	claim, err := c.Messages().claimMessagePost(ctx, input)
@@ -192,6 +196,7 @@ func TestMessagePostIdempotencyReservedIdentityAndLostResponse(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyOCCRechecksBeforeWritePolicy(t *testing.T) {
+	t.Parallel()
 	c, nc, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	claim, err := c.Messages().claimMessagePost(ctx, input)
@@ -225,6 +230,7 @@ func TestMessagePostIdempotencyOCCRechecksBeforeWritePolicy(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyExpiredMappingCanBeClaimedAgain(t *testing.T) {
+	t.Parallel()
 	c, _, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	first, err := c.Messages().PostMessage(ctx, input)
@@ -247,6 +253,7 @@ func TestMessagePostIdempotencyExpiredMappingCanBeClaimedAgain(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyCurrentReadAuthorityAndRetraction(t *testing.T) {
+	t.Parallel()
 	c, _, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	first, err := c.Messages().PostMessage(ctx, input)
@@ -274,6 +281,7 @@ func TestMessagePostIdempotencyCurrentReadAuthorityAndRetraction(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyFixedTTLAndNoKey(t *testing.T) {
+	t.Parallel()
 	c, _, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	first, err := c.Messages().PostMessage(ctx, input)
@@ -315,6 +323,7 @@ func TestMessagePostIdempotencyFixedTTLAndNoKey(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyRetryAfterCanceledCommit(t *testing.T) {
+	t.Parallel()
 	c, nc, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	claim, err := c.Messages().claimMessagePost(ctx, input)
@@ -355,6 +364,7 @@ func (kv *contestedMessageClaimKV) Create(ctx context.Context, key string, value
 }
 
 func TestMessagePostIdempotencyCreateConflictIsNotCommitEvidence(t *testing.T) {
+	t.Parallel()
 	c, _, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	contested := &contestedMessageClaimKV{KeyValue: c.storage.runtimeStateKV.KeyValue}
@@ -366,6 +376,7 @@ func TestMessagePostIdempotencyCreateConflictIsNotCommitEvidence(t *testing.T) {
 }
 
 func TestMessagePostIdempotencyPreviewExpiryAndNormalizedIntent(t *testing.T) {
+	t.Parallel()
 	c, _, input := setupMessageRetry(t)
 	ctx := testContext(t)
 	url := "https://example.test/retry-preview"

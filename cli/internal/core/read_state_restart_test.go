@@ -13,6 +13,7 @@ import (
 // A fresh core must finish a read whose durable boundary was saved before
 // the process stopped, without clearing activity beyond that boundary.
 func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
+	t.Parallel()
 	for _, thread := range []bool{false, true} {
 		name := "room"
 		if thread {

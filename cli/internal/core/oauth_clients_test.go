@@ -15,6 +15,8 @@ import (
 )
 
 func TestOAuthClientAccessDeniedWatchersAreClientTargetedAndRaceFree(t *testing.T) {
+	t.Parallel()
+
 	projection := NewOAuthClientProjection()
 	const (
 		alpha = "https://alpha.example/oauth/client-metadata.json"
@@ -76,6 +78,8 @@ func TestOAuthClientAccessDeniedWatchersAreClientTargetedAndRaceFree(t *testing.
 }
 
 func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
@@ -153,6 +157,8 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 }
 
 func TestOAuthClientAuthorizationCodeFailureDoesNotRecordClient(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
@@ -190,6 +196,8 @@ func TestOAuthClientAuthorizationCodeFailureDoesNotRecordClient(t *testing.T) {
 }
 
 func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
@@ -223,6 +231,8 @@ func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
 }
 
 func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
@@ -260,6 +270,8 @@ func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
 }
 
 func TestOAuthClientPolicyRejectsUnknownClientAndInvalidPolicy(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
@@ -273,6 +285,8 @@ func TestOAuthClientPolicyRejectsUnknownClientAndInvalidPolicy(t *testing.T) {
 }
 
 func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *testing.T) {
+	t.Parallel()
+
 	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{

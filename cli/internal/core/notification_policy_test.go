@@ -15,6 +15,8 @@ import (
 )
 
 func TestNotificationDeliveryModesPatchSetClearAndValidation(t *testing.T) {
+	t.Parallel()
+
 	current := &evtv1.NotificationDeliveryModes{
 		Reactions:     evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
 		FollowedRooms: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
@@ -60,6 +62,8 @@ func TestNotificationDeliveryModesPatchSetClearAndValidation(t *testing.T) {
 }
 
 func TestEffectiveNotificationDeliveryModesPopulatesEveryBuiltInField(t *testing.T) {
+	t.Parallel()
+
 	got := effectiveNotificationDeliveryModes(nil, nil)
 	if got.DirectMessages == nil || got.RoomMessages == nil || got.DirectMentions == nil || got.Replies == nil || got.RoleMentions == nil || got.HereMentions == nil || got.AllMentions == nil || got.FollowedThreads == nil || got.FollowedRooms == nil || got.Reactions == nil {
 		t.Fatalf("effective defaults are incomplete: %+v", got)
@@ -70,6 +74,8 @@ func TestEffectiveNotificationDeliveryModesPopulatesEveryBuiltInField(t *testing
 }
 
 func TestConcurrentNotificationPolicyPatchesDoNotLoseUnrelatedFields(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-occ-user", "Policy OCC User", "password")
@@ -106,6 +112,8 @@ func TestConcurrentNotificationPolicyPatchesDoNotLoseUnrelatedFields(t *testing.
 }
 
 func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-read-fence-user", "Policy Read Fence User", "password")
@@ -168,6 +176,8 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 }
 
 func TestScopedNotificationPolicyUpdateRequiresCurrentScopeAccess(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-access-user", "Policy Access User", "password")
@@ -198,6 +208,8 @@ func TestScopedNotificationPolicyUpdateRequiresCurrentScopeAccess(t *testing.T) 
 }
 
 func TestNotificationPolicyInheritanceByCause(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-user", "Policy User", "password")
@@ -275,6 +287,8 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 }
 
 func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "group-policy-user", "Group Policy User", "password")
@@ -357,6 +371,8 @@ func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testin
 }
 
 func TestDeletedRoomGroupNotificationPolicyBecomesInert(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "deleted-group-policy-user", "Deleted Group Policy User", "password")
@@ -386,6 +402,8 @@ func TestDeletedRoomGroupNotificationPolicyBecomesInert(t *testing.T) {
 }
 
 func TestDirectMessageNotificationPolicySkipsRoomGroupTier(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "dm-policy-user", "DM Policy User", "password")

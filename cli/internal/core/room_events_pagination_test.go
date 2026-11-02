@@ -9,6 +9,8 @@ import (
 )
 
 func TestChattoCore_GetRoomEventsAroundReturnsChronologicalWindow(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimeline(t, "R1", 10)
 
 	result, err := core.GetRoomEventsAround(context.Background(), KindChannel, "R1", "M5", 5)
@@ -59,6 +61,8 @@ func TestChattoCore_GetRoomEventsAroundReturnsChronologicalWindow(t *testing.T) 
 }
 
 func TestChattoCore_GetRoomEventsAfterReturnsNearestNewerPage(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimeline(t, "R1", 100)
 
 	result, err := core.GetRoomEventsAfter(context.Background(), KindChannel, "R1", 45, 5)
@@ -79,6 +83,8 @@ func TestChattoCore_GetRoomEventsAfterReturnsNearestNewerPage(t *testing.T) {
 }
 
 func TestChattoCore_RoomEventQueriesClampLimits(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimeline(t, "R1", 600)
 
 	t.Run("recent events clamp oversized limits", func(t *testing.T) {
@@ -139,6 +145,8 @@ func TestChattoCore_RoomEventQueriesClampLimits(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomEventsUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
@@ -173,6 +181,8 @@ func TestChattoCore_GetRoomEventsUsesDerivedVisibleTimelineWithNoise(t *testing.
 }
 
 func TestChattoCore_GetRoomEventByEventIDExposesOnlyVisibleAndMessagePostLookups(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		roomCreatedTimelineEvent("CREATE", "R1", "general", 1),
 		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1", body: "root", at: 2}),
@@ -214,6 +224,8 @@ func TestChattoCore_GetRoomEventByEventIDExposesOnlyVisibleAndMessagePostLookups
 }
 
 func TestChattoCore_GetRoomEventsAfterUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
@@ -248,6 +260,8 @@ func TestChattoCore_GetRoomEventsAfterUsesDerivedVisibleTimelineWithNoise(t *tes
 }
 
 func TestChattoCore_GetRoomEventsAroundUsesDerivedVisibleTimelineWithHiddenEcho(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
@@ -277,6 +291,8 @@ func TestChattoCore_GetRoomEventsAroundUsesDerivedVisibleTimelineWithHiddenEcho(
 }
 
 func TestChattoCore_GetDMRoomEventsUsesDerivedVisibleTimeline(t *testing.T) {
+	t.Parallel()
+
 	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "DM-M1", roomID: "DM1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "DM-REPLY-M1", roomID: "DM1", actorID: "U2", body: "reply", inThread: "DM-M1", at: 2}),

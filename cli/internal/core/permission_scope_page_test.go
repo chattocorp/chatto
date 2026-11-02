@@ -9,6 +9,8 @@ import (
 )
 
 func TestPermissionScopePagination(t *testing.T) {
+	t.Parallel()
+
 	scopes := []PermissionMatrixScope{{ID: "server", Kind: MatrixScopeServer}, {ID: "dm", Kind: MatrixScopeDM}}
 	for i := 109; i >= 0; i-- {
 		scopes = append(scopes, PermissionMatrixScope{ID: fmt.Sprintf("room:%03d", i), Kind: MatrixScopeRoom})
@@ -48,6 +50,7 @@ func TestPermissionScopePagination(t *testing.T) {
 // Exercise the stored sidebar layout and page boundaries together. IDs must not
 // replace the configured group and room order.
 func TestPermissionScopePagesFollowSidebarOrder(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Matrix group", "")

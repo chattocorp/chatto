@@ -1071,6 +1071,7 @@ func TestTransformImage_ExifOrientation(t *testing.T) {
 }
 
 func TestInspectImage_ExifOrientation(t *testing.T) {
+	t.Parallel()
 	info, err := InspectImage(bytes.NewReader(testJPEGWithOrientation6))
 	if err != nil {
 		t.Fatalf("InspectImage failed: %v", err)
@@ -1083,6 +1084,7 @@ func TestInspectImage_ExifOrientation(t *testing.T) {
 }
 
 func TestInspectImageReadsOnlyHeaders(t *testing.T) {
+	t.Parallel()
 	// The PNG has a valid header but no pixel data, so a full decode fails.
 	data := createPNGHeader(6000, 6000)
 	info, err := InspectImage(bytes.NewReader(data))
@@ -1095,6 +1097,7 @@ func TestInspectImageReadsOnlyHeaders(t *testing.T) {
 }
 
 func TestInspectImageCountsGIFFrames(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		frames int
@@ -1116,6 +1119,7 @@ func TestInspectImageCountsGIFFrames(t *testing.T) {
 }
 
 func TestInspectImageRejectsTruncatedGIF(t *testing.T) {
+	t.Parallel()
 	data := createAnimatedGIF(4, 3, 2)
 	if _, err := InspectImage(bytes.NewReader(data[:len(data)-1])); err == nil {
 		t.Fatal("InspectImage accepted a GIF without a trailer")

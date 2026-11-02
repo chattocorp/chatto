@@ -22,6 +22,8 @@ import (
 )
 
 func TestChattoCore_PostMessage(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -67,6 +69,8 @@ func TestChattoCore_PostMessage(t *testing.T) {
 }
 
 func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-root-author", "Thread Root Author", "password123")
@@ -116,6 +120,8 @@ func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T)
 }
 
 func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-revocation-author", "Thread Revocation Author", "password123")
@@ -162,6 +168,8 @@ func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t 
 }
 
 func TestExplicitThreadCreationRechecksMembershipAfterConcurrentLeave(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-leave-author", "Thread Leave Author", "password123")
@@ -208,6 +216,8 @@ func TestExplicitThreadCreationRechecksMembershipAfterConcurrentLeave(t *testing
 }
 
 func TestMessageModelRejectsCreateThreadForReply(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-create-validation", "Thread Create Validation", "password123")
@@ -245,6 +255,8 @@ func TestMessageModelRejectsCreateThreadForReply(t *testing.T) {
 }
 
 func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -285,6 +297,8 @@ func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {
 }
 
 func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "asset-wait-user", "Asset Wait User", "password123")
@@ -313,6 +327,8 @@ func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageRejectsAssetFromDifferentRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -345,6 +361,8 @@ func TestChattoCore_PostMessageRejectsAssetFromDifferentRoom(t *testing.T) {
 }
 
 func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -427,6 +445,8 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 }
 
 func TestChattoCore_EditMessageRejectsInvalidEchoStateTargets(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -473,6 +493,8 @@ func TestChattoCore_EditMessageRejectsInvalidEchoStateTargets(t *testing.T) {
 }
 
 func TestPublishMessageEditRejectsRetractionCommittedDuringAttempt(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -509,6 +531,8 @@ func TestPublishMessageEditRejectsRetractionCommittedDuringAttempt(t *testing.T)
 }
 
 func TestPublishMessageEditRebuildsBodyAfterOCCConflict(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -541,6 +565,8 @@ func TestPublishMessageEditRebuildsBodyAfterOCCConflict(t *testing.T) {
 }
 
 func TestPartialEditsThroughEchoUseLatestCanonicalBody(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -599,6 +625,8 @@ func TestPartialEditsThroughEchoUseLatestCanonicalBody(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -639,6 +667,8 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 }
 
 func TestChattoCore_ThreadCreationBatchIncludesVideoProcessing(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	chatto.VideoUploadsEnabled = true
@@ -665,6 +695,8 @@ func TestChattoCore_ThreadCreationBatchIncludesVideoProcessing(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -729,6 +761,8 @@ func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 }
 
 func TestChattoCore_MessageBodyEventsKeepCanonicalPostedEventsBodyless(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -794,6 +828,8 @@ func TestChattoCore_MessageBodyEventsKeepCanonicalPostedEventsBodyless(t *testin
 }
 
 func TestMessageAttachmentDescriptionsAreEncryptedAndFollowMessageEdits(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-author", "Attachment Description Author", "password123")
@@ -874,6 +910,8 @@ func TestMessageAttachmentDescriptionsAreEncryptedAndFollowMessageEdits(t *testi
 }
 
 func TestAttachmentDescriptionValidation(t *testing.T) {
+	t.Parallel()
+
 	assetID := "A1"
 	_, err := normalizeAttachmentDescriptionInputs([]string{assetID}, []MessageAttachmentDescriptionInput{
 		{AssetID: assetID, Description: "first"},
@@ -894,6 +932,8 @@ func TestAttachmentDescriptionValidation(t *testing.T) {
 }
 
 func TestSetAttachmentDescriptionUsesMessageEditWindowAndManagerOverride(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-window", "Attachment Description Window", "password123")
@@ -919,6 +959,8 @@ func TestSetAttachmentDescriptionUsesMessageEditWindowAndManagerOverride(t *test
 }
 
 func TestSetAttachmentDescriptionRebuildsDescriptionsAfterOCCConflict(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "description-occ-author", "Description OCC Author", "password123")
@@ -953,6 +995,8 @@ func TestSetAttachmentDescriptionRebuildsDescriptionsAfterOCCConflict(t *testing
 }
 
 func TestAttachmentDescriptionsFollowLinkedEchoesAndAttachmentDeletion(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-echo", "Attachment Description Echo", "password123")
@@ -1006,6 +1050,8 @@ func TestAttachmentDescriptionsFollowLinkedEchoesAndAttachmentDeletion(t *testin
 }
 
 func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1061,6 +1107,8 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 }
 
 func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1114,6 +1162,8 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 }
 
 func TestEditMessageReauthorizesAfterMemberRemoval(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-member-race", "Edit Member Race", "password123")
@@ -1146,6 +1196,8 @@ func TestEditMessageReauthorizesAfterMemberRemoval(t *testing.T) {
 }
 
 func TestEditMessageReauthorizesAfterRoomArchive(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-archive-race", "Edit Archive Race", "password123")
@@ -1172,6 +1224,8 @@ func TestEditMessageReauthorizesAfterRoomArchive(t *testing.T) {
 }
 
 func TestEditMessageRejectsInFlightManageRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-manage-author", "Edit Manage Author", "password123")
@@ -1205,6 +1259,8 @@ func TestEditMessageRejectsInFlightManageRevocation(t *testing.T) {
 }
 
 func TestEditMessageIgnoresUnrelatedEVTMutation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-unrelated-event", "Edit Unrelated Event", "password123")
@@ -1244,6 +1300,8 @@ func TestEditMessageIgnoresUnrelatedEVTMutation(t *testing.T) {
 }
 
 func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-manage-retry-author", "Edit Manage Retry Author", "password123")
@@ -1278,6 +1336,8 @@ func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *te
 }
 
 func TestDeleteMessageRejectsManageRevocationDuringAuthorization(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "delete-manage-author", "Delete Manage Author", "password123")
@@ -1312,6 +1372,8 @@ func TestDeleteMessageRejectsManageRevocationDuringAuthorization(t *testing.T) {
 }
 
 func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "delete-member-race", "Delete Member Race", "password123")
@@ -1346,6 +1408,8 @@ func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {
 }
 
 func TestDeleteMessageReauthorizesAfterRoomArchive(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "delete-archive-race", "Delete Archive Race", "password123")
@@ -1374,6 +1438,8 @@ func TestDeleteMessageReauthorizesAfterRoomArchive(t *testing.T) {
 }
 
 func TestEditMessageRejectsExpiredAuthorWithoutManage(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-author", "Edit Expired Author", "password123")
@@ -1395,6 +1461,8 @@ func TestEditMessageRejectsExpiredAuthorWithoutManage(t *testing.T) {
 }
 
 func TestEditMessageAllowsExpiredAuthorWithManage(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-manager", "Edit Expired Manager", "password123")
@@ -1419,6 +1487,8 @@ func TestEditMessageAllowsExpiredAuthorWithManage(t *testing.T) {
 }
 
 func TestEditMessageRejectsExpiredAuthorAfterManageRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-revoked-manager", "Edit Expired Revoked Manager", "password123")
@@ -1447,6 +1517,8 @@ func TestEditMessageRejectsExpiredAuthorAfterManageRevocation(t *testing.T) {
 }
 
 func TestEditMessageAllowsExpiredManagingAuthorToCreateChannelEcho(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-echo-manager", "Edit Expired Echo Manager", "password123")
@@ -1476,6 +1548,8 @@ func TestEditMessageAllowsExpiredManagingAuthorToCreateChannelEcho(t *testing.T)
 }
 
 func TestEditMessageRechecksExactWindowAfterOCCConflict(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-window-race", "Edit Window Race", "password123")
@@ -1512,6 +1586,8 @@ func TestEditMessageRechecksExactWindowAfterOCCConflict(t *testing.T) {
 }
 
 func TestEditMessageEchoRejectsInFlightPermissionRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-echo-race", "Edit Echo Race", "password123")
@@ -1544,6 +1620,8 @@ func TestEditMessageEchoRejectsInFlightPermissionRevocation(t *testing.T) {
 }
 
 func TestEditMessageEchoRemovalSharesParentRoomOCC(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-echo-remove-race", "Edit Echo Remove Race", "password123")
@@ -1580,6 +1658,8 @@ func TestEditMessageEchoRemovalSharesParentRoomOCC(t *testing.T) {
 }
 
 func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "partial-edit-member-race", "Partial Edit Member Race", "password123")
@@ -1627,6 +1707,8 @@ func assertNoMessageMutationEvents(t *testing.T, core *ChattoCore, ctx context.C
 }
 
 func TestMessageModel_PostMessageCommitAuthorizationUsesInferredThread(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1657,6 +1739,8 @@ func TestMessageModel_PostMessageCommitAuthorizationUsesInferredThread(t *testin
 }
 
 func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1720,6 +1804,8 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 }
 
 func TestChattoCore_PostMessageRejectsAssetDeletedBeforeCommit(t *testing.T) {
+	t.Parallel()
+
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1766,6 +1852,8 @@ func TestChattoCore_PostMessageRejectsAssetDeletedBeforeCommit(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1821,6 +1909,8 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *test
 }
 
 func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1888,6 +1978,8 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t 
 }
 
 func TestChattoCore_PostMessage_InvalidRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1903,6 +1995,8 @@ func TestChattoCore_PostMessage_InvalidRoom(t *testing.T) {
 // TestChattoCore_PostMessage_BodyTooLong tests that oversized message bodies are rejected.
 // This is a security test to prevent DoS via oversized messages.
 func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1944,6 +2038,8 @@ func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
 }
 
 func TestValidateMessageAttachmentAssetIDs(t *testing.T) {
+	t.Parallel()
+
 	maxIDs := make([]string, MaxMessageAttachmentAssetIDs)
 	for i := range maxIDs {
 		maxIDs[i] = strings.Repeat("A", MaxMessageAttachmentAssetIDLength)
@@ -1976,6 +2072,8 @@ func TestValidateMessageAttachmentAssetIDs(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageRejectsInvalidAttachmentAssetIDs(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1999,6 +2097,8 @@ func TestChattoCore_PostMessageRejectsInvalidAttachmentAssetIDs(t *testing.T) {
 }
 
 func TestChattoCore_EditMessage_BodyTooLong(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2025,6 +2125,8 @@ func TestChattoCore_EditMessage_BodyTooLong(t *testing.T) {
 }
 
 func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2114,6 +2216,8 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 }
 
 func TestValidateLinkPreviewSocialPost(t *testing.T) {
+	t.Parallel()
+
 	valid := func() *evtv1.LinkPreview {
 		return &evtv1.LinkPreview{
 			SocialPost: &evtv1.SocialPostPreview{
@@ -2203,6 +2307,8 @@ func TestValidateLinkPreviewSocialPost(t *testing.T) {
 }
 
 func TestLinkPreviewSocialPostFieldNumbers(t *testing.T) {
+	t.Parallel()
+
 	fields := (&evtv1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
 	require.EqualValues(t, 9, fields.ByName("social_post").Number())
 	socialFields := (&evtv1.SocialPostPreview{}).ProtoReflect().Descriptor().Fields()
@@ -2213,6 +2319,8 @@ func TestLinkPreviewSocialPostFieldNumbers(t *testing.T) {
 // TestChattoCore_PostMessage_InvisibleChars tests that messages with only invisible Unicode
 // characters are rejected. This prevents blank-looking messages that would confuse users.
 func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2271,6 +2379,8 @@ func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
 }
 
 func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2327,6 +2437,8 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 }
 
 func TestChattoCore_DeleteEcho_HidesEchoOnly(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2401,6 +2513,8 @@ func TestChattoCore_DeleteEcho_HidesEchoOnly(t *testing.T) {
 }
 
 func TestChattoCore_DeleteEcho_PreservesOriginalAttachment(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2460,6 +2574,8 @@ func TestChattoCore_DeleteEcho_PreservesOriginalAttachment(t *testing.T) {
 }
 
 func TestChattoCore_DeleteOriginalReply_TombstonesEcho(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2525,6 +2641,8 @@ func TestChattoCore_DeleteOriginalReply_TombstonesEcho(t *testing.T) {
 }
 
 func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2587,6 +2705,8 @@ func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 }
 
 func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2661,6 +2781,8 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 }
 
 func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2721,6 +2843,8 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 }
 
 func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2765,6 +2889,8 @@ func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_DeleteMessage_DeletesS3Attachments(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
@@ -2807,6 +2933,8 @@ func TestChattoCore_DeleteMessage_DeletesS3Attachments(t *testing.T) {
 }
 
 func TestChattoCore_DeleteAttachmentFromMessage_S3(t *testing.T) {
+	t.Parallel()
+
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
@@ -2870,6 +2998,8 @@ func TestChattoCore_DeleteAttachmentFromMessage_S3(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cannot post in archived room", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -2957,6 +3087,8 @@ func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
 }
 
 func TestMessageModel_PostMessageValidatesInReplyTo(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -3069,6 +3201,8 @@ func TestMessageModel_PostMessageValidatesInReplyTo(t *testing.T) {
 }
 
 func TestHistoricalEchoBodyIsIgnoredAndDeletedWithoutErasingOriginal(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "legacy-echo-owner", "Legacy Echo Owner", "password123")
@@ -3122,6 +3256,8 @@ func TestHistoricalEchoBodyIsIgnoredAndDeletedWithoutErasingOriginal(t *testing.
 }
 
 func TestDeleteEchoDoesNotReadOriginalBody(t *testing.T) {
+	t.Parallel()
+
 	for _, missing := range []bool{false, true} {
 		t.Run(fmt.Sprintf("missing=%v", missing), func(t *testing.T) {
 			c, _ := setupTestCore(t)

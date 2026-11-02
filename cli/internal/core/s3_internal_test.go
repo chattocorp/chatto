@@ -9,6 +9,8 @@ import (
 )
 
 func TestS3ClientUsesRequiredOnlyRequestChecksums(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.S3Config{
 		Endpoint:        "r2.example.com",
 		Bucket:          "test-bucket",

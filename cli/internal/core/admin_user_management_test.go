@@ -9,6 +9,8 @@ import (
 )
 
 func TestChattoCore_AdminMemberReads(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -130,6 +132,8 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 }
 
 func TestChattoCore_ListAdminMembersPaginationRolesAndDeletion(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -192,6 +196,8 @@ func TestChattoCore_ListAdminMembersPaginationRolesAndDeletion(t *testing.T) {
 }
 
 func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
+	t.Parallel()
+
 	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)

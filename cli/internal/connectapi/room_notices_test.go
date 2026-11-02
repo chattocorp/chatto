@@ -12,6 +12,7 @@ import (
 )
 
 func TestRoomNoticeAPIAndDirectoryPrivacy(t *testing.T) {
+	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "notice-api", "", core.WithUniversalRoom(true))
 	require.NoError(t, err)

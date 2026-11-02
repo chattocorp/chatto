@@ -26,6 +26,8 @@ import (
 )
 
 func TestMessageServiceInteractionPostingCapability(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("interaction-posting")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -195,6 +197,8 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 }
 
 func TestAbsolutizeServerURL(t *testing.T) {
+	t.Parallel()
+
 	t.Run("uses the request base URL first", func(t *testing.T) {
 		// The HTTP edge sets the base URL to the configured origin that the
 		// client called, such as a hostname alias.
@@ -229,6 +233,8 @@ func TestAbsolutizeServerURL(t *testing.T) {
 }
 
 func TestAbsolutizeMediaURL(t *testing.T) {
+	t.Parallel()
+
 	t.Run("uses the request base URL with webserver.url", func(t *testing.T) {
 		api := New(nil, config.ChattoConfig{
 			Webserver: config.WebserverConfig{URL: "https://configured.example.com"},
@@ -253,6 +259,8 @@ func TestAbsolutizeMediaURL(t *testing.T) {
 }
 
 func TestRoomAndThreadTimelineRequiresAuthAndMembership(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "timeline-authz", "")
@@ -278,6 +286,8 @@ func TestRoomAndThreadTimelineRequiresAuthAndMembership(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-authz")
 	req := connect.NewRequest(&apiv1.CreateMessageRequest{
@@ -306,6 +316,8 @@ func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testi
 }
 
 func TestMessageServiceSupportsDMThreads(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-dm-thread-participant", "DM Thread Participant", "password")
 	if err != nil {
@@ -350,6 +362,8 @@ func TestMessageServiceSupportsDMThreads(t *testing.T) {
 }
 
 func TestMessageServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-authz")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -380,6 +394,8 @@ func TestMessageServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testin
 }
 
 func TestMessageServiceAddAndRemoveResponseSemantics(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-response")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -441,6 +457,8 @@ func TestMessageServiceAddAndRemoveResponseSemantics(t *testing.T) {
 }
 
 func TestMessageServiceAddReactionMapsPerUserMessageLimit(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-limit")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -470,6 +488,8 @@ func TestMessageServiceAddReactionMapsPerUserMessageLimit(t *testing.T) {
 }
 
 func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-echo")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -544,6 +564,8 @@ func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 }
 
 func TestMessageServiceValidatesEmoji(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-validation")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -559,6 +581,7 @@ func TestMessageServiceValidatesEmoji(t *testing.T) {
 }
 
 func TestMessageServiceUnknownReactionName(t *testing.T) {
+	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("unknown-reaction")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -587,6 +610,8 @@ func TestMessageServiceUnknownReactionName(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-validation")
 	assetID := env.uploadAttachmentAsset(t, room.Id, "diagram.png", "image/png", connectAPITestPNG())
@@ -721,6 +746,8 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	env.api.config.Video.Enabled = true
 	env.core.VideoUploadsEnabled = true
@@ -741,6 +768,8 @@ func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) 
 }
 
 func TestMessageServiceCreateMessageReturnsRenderableMessage(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-success")
 
@@ -764,6 +793,8 @@ func TestMessageServiceCreateMessageReturnsRenderableMessage(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-thread-root")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -806,6 +837,8 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 }
 
 func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-threading-mode")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -866,6 +899,8 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageBroadPostIncludesThreadCreation(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("thread-root-permission")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -892,6 +927,8 @@ func TestMessageServiceCreateMessageBroadPostIncludesThreadCreation(t *testing.T
 }
 
 func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload")
 	assetID := env.uploadAttachmentAsset(t, room.Id, "note.txt", "text/plain", []byte("uploaded over connect"))
@@ -926,6 +963,8 @@ func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageRejectsAnotherMembersAttachmentAsset(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-asset-owner")
 	assetID := env.uploadAttachmentAsset(t, room.Id, "owned.txt", "text/plain", []byte("victim asset"))
@@ -951,6 +990,8 @@ func TestMessageServiceCreateMessageRejectsAnotherMembersAttachmentAsset(t *test
 }
 
 func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload-preflight")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -983,6 +1024,8 @@ func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *te
 }
 
 func TestMessageServiceCreateMessageBroadMentionWithAttachment(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("upload-broad-mention")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1025,6 +1068,8 @@ func TestMessageServiceCreateMessageBroadMentionWithAttachment(t *testing.T) {
 }
 
 func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("upload-validation")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1109,6 +1154,8 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 }
 
 func TestMessageServiceCreateMessageRejectsVideoUploadWhenProcessingDisabled(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-upload-video-disabled")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1141,6 +1188,8 @@ func TestMessageServiceCreateMessageRejectsVideoUploadWhenProcessingDisabled(t *
 }
 
 func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("asset-upload-flow")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1253,6 +1302,8 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 }
 
 func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("asset-upload-thread-permission")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -1292,6 +1343,8 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 }
 
 func TestAssetUploadServiceCompleteRechecksAttachmentPermission(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("upload-complete-permission")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1330,6 +1383,8 @@ func TestAssetUploadServiceCompleteRechecksAttachmentPermission(t *testing.T) {
 }
 
 func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("asset-upload-validation")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1372,6 +1427,8 @@ func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing
 }
 
 func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-update-rbac")
 	authorCtx := withCaller(env.ctx, env.viewer)
@@ -1493,6 +1550,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 }
 
 func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("attachment-description-rbac")
 	assetID := env.uploadAttachmentAsset(t, room.Id, "photo.png", "image/png", connectAPITestPNG())
@@ -1557,6 +1616,8 @@ func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
 }
 
 func TestMessageServiceSetAttachmentDescriptionInDM(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "description-dm-participant", "Description DM User", "password")
 	if err != nil {
@@ -1596,6 +1657,8 @@ func TestMessageServiceSetAttachmentDescriptionInDM(t *testing.T) {
 }
 
 func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-delete-rbac")
 	target := env.post(room.Id, env.viewer.Id, "delete target", "")
@@ -1646,6 +1709,8 @@ func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 }
 
 func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-partial-delete")
 
@@ -1723,6 +1788,8 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 }
 
 func TestRoomServiceRefreshTypingIndicatorRequiresMembershipOnly(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-typing")
 	req := connect.NewRequest(&apiv1.RefreshTypingIndicatorRequest{RoomId: room.Id})
@@ -1750,6 +1817,8 @@ func TestRoomServiceRefreshTypingIndicatorRequiresMembershipOnly(t *testing.T) {
 }
 
 func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-pagination")
 
@@ -1807,6 +1876,8 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 }
 
 func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	cursor, err := env.api.formatRoomTimelineCursor(env.viewer.Id, "room-1", "", 42)
 	if err != nil {
@@ -1855,6 +1926,8 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 }
 
 func TestRoomTimelineCursorsAreBoundToViewerAndResource(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("cursor-scope-room")
 	otherRoom := env.createJoinedRoom("cursor-scope-other")
@@ -1927,6 +2000,8 @@ func TestRoomTimelineCursorsAreBoundToViewerAndResource(t *testing.T) {
 }
 
 func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("attachment-list")
 
@@ -2088,6 +2163,8 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 }
 
 func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-hydration")
 	replier, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-replier", "Timeline Replier", "password")
@@ -2157,6 +2234,8 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 }
 
 func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-tombstone-retention")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -2226,6 +2305,8 @@ func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
 }
 
 func TestThreadTimelineExposesChannelEchoIdentity(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-channel-echo")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -2253,6 +2334,8 @@ func TestThreadTimelineExposesChannelEchoIdentity(t *testing.T) {
 }
 
 func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-account-key-shred")
 	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-shredded-author", "Timeline Shredded Author", "password")
@@ -2297,6 +2380,8 @@ func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
 }
 
 func TestAttachmentDescriptionSchemaLength(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		name, description string
 		valid             bool

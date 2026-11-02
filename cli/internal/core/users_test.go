@@ -10,6 +10,8 @@ import (
 )
 
 func TestChattoCore_CreateUser(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -48,6 +50,8 @@ func TestChattoCore_CreateUser(t *testing.T) {
 }
 
 func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -99,6 +103,8 @@ func (w *cancelAfterWrapKeyWrapper) WrapContentKey(ctx context.Context, keyRef s
 }
 
 func TestChattoCore_CreateUser_AppendFailureCleansUpEncryptionKey(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx, cancel := context.WithCancel(testContext(t))
 	wrapper := &cancelAfterWrapKeyWrapper{
@@ -125,6 +131,8 @@ func TestChattoCore_CreateUser_AppendFailureCleansUpEncryptionKey(t *testing.T) 
 }
 
 func TestChattoCore_GetUser_NotFound(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -135,6 +143,8 @@ func TestChattoCore_GetUser_NotFound(t *testing.T) {
 }
 
 func TestChattoCore_GetUserByLogin(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -160,6 +170,8 @@ func TestChattoCore_GetUserByLogin(t *testing.T) {
 }
 
 func TestChattoCore_GetUserByLogin_NotFound(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -170,6 +182,8 @@ func TestChattoCore_GetUserByLogin_NotFound(t *testing.T) {
 }
 
 func TestChattoCore_ConcurrentUserCreation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -228,6 +242,8 @@ func TestChattoCore_ConcurrentUserCreation(t *testing.T) {
 }
 
 func TestChattoCore_CreateUser_BlockedUsername(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -269,6 +285,8 @@ func TestChattoCore_CreateUser_BlockedUsername(t *testing.T) {
 }
 
 func TestChattoCore_CreateUser_MentionNamespaceReserved(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

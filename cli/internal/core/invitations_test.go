@@ -31,6 +31,8 @@ func invitationAdmin(t *testing.T, c *ChattoCore) string {
 }
 
 func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -71,6 +73,7 @@ func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
 }
 
 func TestInvitationNotesValidateAndSurviveColdReplay(t *testing.T) {
+	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	adminID := invitationAdmin(t, c)
@@ -117,6 +120,7 @@ func TestInvitationNotesValidateAndSurviveColdReplay(t *testing.T) {
 }
 
 func TestManagedProviderSignupRequiresInvitation(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	adminID := invitationAdmin(t, c)
 	ctx := testContext(t)
@@ -147,6 +151,8 @@ func TestManagedProviderSignupRequiresInvitation(t *testing.T) {
 }
 
 func TestInvitationCodeIndexRefreshesFromProjectedInvitations(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -171,6 +177,7 @@ func TestInvitationCodeIndexRefreshesFromProjectedInvitations(t *testing.T) {
 }
 
 func TestInvitationAdmissionDoesNotConsumeAndRejectsExpiry(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -199,6 +206,8 @@ func TestInvitationAdmissionDoesNotConsumeAndRejectsExpiry(t *testing.T) {
 }
 
 func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -235,6 +244,8 @@ func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *te
 }
 
 func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -298,6 +309,8 @@ func TestInvitationRedemptionIsAtomicAndLimitedAcrossConcurrentSignups(t *testin
 }
 
 func TestFailedSignupDoesNotConsumeInvitation(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)

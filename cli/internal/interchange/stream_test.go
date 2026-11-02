@@ -15,6 +15,7 @@ import (
 )
 
 func TestArchiveStreamsBeyondFormerLimits(t *testing.T) {
+	t.Parallel()
 	dir := copyExample(t)
 	f, err := os.OpenFile(filepath.Join(dir, "files/asset-1.txt"), os.O_RDWR, 0600)
 	require.NoError(t, err)
@@ -54,6 +55,7 @@ func TestArchiveStreamsBeyondFormerLimits(t *testing.T) {
 }
 
 func TestArchiveRejectsChangedRecordBeforeCallback(t *testing.T) {
+	t.Parallel()
 	dir := copyExample(t)
 	a, err := ReadDirectory(dir)
 	require.NoError(t, err)

@@ -14,6 +14,7 @@ import (
 )
 
 func TestHistoricalThreadImport(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := c.CreateUser(ctx, SystemActorID, "thread-import-author", "Author", "password")
@@ -71,6 +72,7 @@ func TestHistoricalThreadImport(t *testing.T) {
 }
 
 func TestHistoricalRoomEventLegacyReceiptDoesNotRepeatTransition(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "legacy-member", "Member", "password")
@@ -94,6 +96,7 @@ func TestHistoricalRoomEventLegacyReceiptDoesNotRepeatTransition(t *testing.T) {
 }
 
 func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
+	t.Parallel()
 	const emoji = "Party_Parrot"
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
@@ -207,6 +210,7 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 }
 
 func TestHistoricalReactionSuppressesMaterializedNotifications(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, room, messageID := setupReactionTest(t, c, ctx)
@@ -229,6 +233,7 @@ func TestHistoricalReactionSuppressesMaterializedNotifications(t *testing.T) {
 }
 
 func TestHistoricalReactionImportRejectsInvalidTargets(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	u, err := c.CreateUser(ctx, SystemActorID, "reaction-invalid", "Author", "password")
@@ -269,6 +274,7 @@ func TestHistoricalReactionImportRejectsInvalidTargets(t *testing.T) {
 }
 
 func TestHistoricalThreadAndReactionBadgeReplay(t *testing.T) {
+	t.Parallel()
 	f := newBadgeTestFixture(t)
 	f.setMode("U1", &evtv1.NotificationDeliveryModes{Reactions: badgeMode})
 	f.post("root", "U1", "")
@@ -290,6 +296,7 @@ func TestHistoricalThreadAndReactionBadgeReplay(t *testing.T) {
 }
 
 func TestHistoricalReactionImportEchoAndInteractiveLimit(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, rootID := setupReactionTest(t, c, ctx)

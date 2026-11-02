@@ -8,6 +8,7 @@ import (
 )
 
 func TestArenaRetainsLocationsAcrossGrowth(t *testing.T) {
+	t.Parallel()
 	var arena intern.Arena
 	if arena.Add("") != 0 || arena.String(0) != "" || intern.Location(0).Len() != 0 {
 		t.Fatal("empty string did not use the zero location")

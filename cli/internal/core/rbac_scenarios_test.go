@@ -8,6 +8,8 @@ import (
 // A private group denies room.list and room.join to everyone at group scope,
 // then allows both for the chosen role so every room in the group inherits it.
 func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -85,6 +87,8 @@ func TestRBACScenario_RoleOnlyRoomGroup(t *testing.T) {
 // A private room inside an otherwise public group needs room-local decisions:
 // deny room.list and room.join to everyone, then allow both for the chosen role.
 func TestRBACScenario_RoleOnlySpecificRoom(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -139,6 +143,8 @@ func TestRBACScenario_RoleOnlySpecificRoom(t *testing.T) {
 // A discoverable but restricted room keeps the everyone room.list baseline,
 // denies room.join to everyone, and allows room.join for the chosen role.
 func TestRBACScenario_VisibleRoomJoinableOnlyByRole(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

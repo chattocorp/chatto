@@ -137,6 +137,7 @@ func TestCoreStorageWireCompatibility(t *testing.T) {
 // The fixture was generated from main at 25716bf633 with buf build, selecting
 // evt/v1/event.proto and runtime_state/v1/legacy_state.proto and their imports.
 func TestEventValuesAndLegacyLayoutRelocation(t *testing.T) {
+	t.Parallel()
 	files := loadDescriptorSet(t, "testdata/pre-readmodel-25716bf633.binpb")
 	for _, name := range []protoreflect.FullName{
 		"chatto.core.evt.v1.Event",

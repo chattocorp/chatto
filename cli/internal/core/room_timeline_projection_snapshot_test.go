@@ -13,6 +13,8 @@ import (
 )
 
 func TestRoomTimelineSnapshotContainsReferencesButNoEventPayloads(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRoomTimelineProjection()
 	body := bodyEvent("B1", "M1", "R1", "U1", "super-secret-ciphertext-marker", 1)
 	post := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 2})
@@ -31,6 +33,8 @@ func TestRoomTimelineSnapshotContainsReferencesButNoEventPayloads(t *testing.T) 
 }
 
 func TestRoomTimelineRestoreRejectsCorruptCompactReferences(t *testing.T) {
+	t.Parallel()
+
 	valid := &projectionv1.RoomTimelineProjectionSnapshot{
 		Entries: []*projectionv1.TimelineEntrySnapshot{
 			{StreamSequence: 2, EventId: "M1", RoomId: "R1", ActorId: "U1", EventType: evtstream.EventMessagePosted, ThreadRootEventId: "M1"},
@@ -76,6 +80,8 @@ func TestRoomTimelineRestoreRejectsCorruptCompactReferences(t *testing.T) {
 }
 
 func TestRoomTimelineRestoreReplacesSparseBodyHistoryAtomically(t *testing.T) {
+	t.Parallel()
+
 	projection := NewRoomTimelineProjection()
 	for i, event := range []*evtv1.Event{
 		bodyEvent("B1", "M1", "R1", "U1", "first", 1),
@@ -120,6 +126,8 @@ func TestRoomTimelineRestoreReplacesSparseBodyHistoryAtomically(t *testing.T) {
 // Echo content selection must remain identical after cold replay and restore,
 // while legacy body records retain their physical ownership for secure deletion.
 func TestRoomTimelineEchoReferencesSurviveReplayAndRestore(t *testing.T) {
+	t.Parallel()
+
 	for _, legacy := range []bool{false, true} {
 		t.Run(fmt.Sprintf("legacy=%v", legacy), func(t *testing.T) {
 			p := NewRoomTimelineProjection()
@@ -185,6 +193,8 @@ func TestRoomTimelineEchoReferencesSurviveReplayAndRestore(t *testing.T) {
 }
 
 func TestRoomTimelineEchoRejectsInvalidContentLinks(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct{ name, room, thread, target string }{
 		{"missing", "R1", "ROOT", "MISSING"},
 		{"cross room", "R2", "ROOT", "REPLY"},

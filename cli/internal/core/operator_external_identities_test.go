@@ -10,6 +10,7 @@ import (
 )
 
 func TestOperatorIdentityUnlinkCountsOnlyConfiguredMethods(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "configured-methods", "Configured Methods", "password123")
@@ -34,6 +35,7 @@ func TestOperatorIdentityUnlinkCountsOnlyConfiguredMethods(t *testing.T) {
 }
 
 func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T) {
+	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	first := startReplica(t, ns, testCoreConfig())
@@ -124,8 +126,10 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 }
 
 func TestLegacyOIDCCompletionAcrossReplicas(t *testing.T) {
+	t.Parallel()
 	for _, unlink := range []bool{false, true} {
 		t.Run(map[bool]string{false: "concurrent completion", true: "concurrent unlink"}[unlink], func(t *testing.T) {
+			t.Parallel()
 			ns, _ := testutil.StartNATS(t)
 			ctx := testContext(t)
 			first := startReplica(t, ns, testCoreConfig())
@@ -200,6 +204,7 @@ func TestLegacyOIDCCompletionAcrossReplicas(t *testing.T) {
 }
 
 func TestOperatorIdentityRejectsMissingDeletedAndBotAccounts(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "deleted-identity-user", "Deleted User", "")
@@ -237,6 +242,7 @@ func TestOperatorIdentityRejectsMissingDeletedAndBotAccounts(t *testing.T) {
 }
 
 func TestOperatorIdentityLinkRetryPreservesLegacyMetadata(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "legacy-identity", "Legacy Identity", "")

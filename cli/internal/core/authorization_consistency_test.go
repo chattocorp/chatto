@@ -9,6 +9,8 @@ import (
 )
 
 func TestAuthorizeAtStableInputsRepeatsChangedDecision(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	staleDecision := errors.New("stale authorization decision")
@@ -33,6 +35,8 @@ func TestAuthorizeAtStableInputsRepeatsChangedDecision(t *testing.T) {
 }
 
 func TestAuthorizeAtStableInputsReturnsStableDecision(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	want := errors.New("stable denial")
@@ -44,6 +48,8 @@ func TestAuthorizeAtStableInputsReturnsStableDecision(t *testing.T) {
 }
 
 func TestAuthorityChangesDoNotWriteLegacyFence(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	before, err := chattoCore.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
@@ -83,6 +89,8 @@ func TestAuthorityChangesDoNotWriteLegacyFence(t *testing.T) {
 }
 
 func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "stable-group-manager", "Stable Group Manager", "password123")
@@ -130,6 +138,8 @@ func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) 
 }
 
 func TestScopedPermissionMutationRechecksAfterRoleManageRevocation(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := core.CreateUser(ctx, SystemActorID, "stable-role-manager", "Stable Role Manager", "password123")

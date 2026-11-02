@@ -22,6 +22,8 @@ import (
 )
 
 func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	callerCtx := withCaller(env.ctx, env.viewer)
 
@@ -79,6 +81,8 @@ func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {
 }
 
 func TestServerDiscoveryListNeighborhoodServers(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	service := &serverDiscoveryService{api: env.api}
 
@@ -135,5 +139,7 @@ func TestServerDiscoveryListNeighborhoodServers(t *testing.T) {
 }
 
 func TestNeighborhoodDiscoveryUsesConnectPrefix(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(t, Prefix, neighborhood.ConnectPrefix)
 }

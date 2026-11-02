@@ -16,6 +16,8 @@ import (
 )
 
 func TestCreateCallTokenAvatarUsesCanonicalOrigin(t *testing.T) {
+	t.Parallel()
+
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("voice-avatar-origin")
 	env.api.config.Webserver.URL = "https://chat.example"

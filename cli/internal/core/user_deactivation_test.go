@@ -11,6 +11,7 @@ import (
 )
 
 func TestUserDeactivationRevokesAccessAcrossReplicas(t *testing.T) {
+	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -120,6 +121,7 @@ func TestUserDeactivationRevokesAccessAcrossReplicas(t *testing.T) {
 }
 
 func TestUserDeactivationAuthorization(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor := createGenerationZeroPasswordUser(t, c, "actor")
@@ -148,6 +150,7 @@ func TestUserDeactivationAuthorization(t *testing.T) {
 }
 
 func TestUserDeactivationRestoresDirectMessageAccess(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager := createGenerationZeroPasswordUser(t, c, "dmmanager")
@@ -171,6 +174,7 @@ func TestUserDeactivationRestoresDirectMessageAccess(t *testing.T) {
 }
 
 func TestUserDeactivationBlocksOwnedBotsAndCallAccess(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager := createGenerationZeroPasswordUser(t, c, "manager")

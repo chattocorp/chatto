@@ -26,6 +26,7 @@ func (w startupLogWriter) Write(p []byte) (int, error) {
 }
 
 func TestHTTPServerReadinessAndShutdown(t *testing.T) {
+	t.Parallel()
 	records := make(startupLogWriter, 16)
 	logger := log.New(records)
 	logger.SetFormatter(log.JSONFormatter)
@@ -74,6 +75,7 @@ func TestHTTPServerReadinessAndShutdown(t *testing.T) {
 }
 
 func TestHTTPServerBindFailureDoesNotLogReady(t *testing.T) {
+	t.Parallel()
 	for _, failure := range []string{"http", "metrics", "https"} {
 		t.Run(failure, func(t *testing.T) {
 			occupied, err := net.Listen("tcp", "127.0.0.1:0")

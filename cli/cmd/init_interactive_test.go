@@ -15,6 +15,7 @@ import (
 )
 
 func TestInteractiveOptionsGenerateMatchingConfigs(t *testing.T) {
+	t.Parallel()
 	opts := defaultInitOptions()
 	opts.ConfigPath = filepath.Join(t.TempDir(), "community.toml")
 	opts.Port = 4510
@@ -78,6 +79,7 @@ func TestInteractiveOptionsGenerateMatchingConfigs(t *testing.T) {
 }
 
 func TestInteractiveInitRequiresTerminalWithoutWriting(t *testing.T) {
+	t.Parallel()
 	opts := defaultInitOptions()
 	opts.ConfigPath = filepath.Join(t.TempDir(), "chatto.toml")
 	cmd := &cobra.Command{}
@@ -94,6 +96,7 @@ func TestInteractiveInitRequiresTerminalWithoutWriting(t *testing.T) {
 }
 
 func TestInitInputValidation(t *testing.T) {
+	t.Parallel()
 	for _, value := range []string{"", "0", "65536", "-1", "hello"} {
 		if validateInitPort(value) == nil {
 			t.Errorf("accepted invalid port %q", value)
@@ -133,6 +136,7 @@ func TestInitInputValidation(t *testing.T) {
 }
 
 func TestInitReviewValidatesSkippedAnswers(t *testing.T) {
+	t.Parallel()
 	opts := defaultInitOptions()
 	if err := validateInitAnswers(opts, "4000", ""); err != nil {
 		t.Fatalf("disabled email must not require SMTP answers: %v", err)
@@ -155,6 +159,7 @@ func TestInitReviewValidatesSkippedAnswers(t *testing.T) {
 }
 
 func TestInteractiveInitRejectsExistingConfigBeforeTerminalCheck(t *testing.T) {
+	t.Parallel()
 	opts := defaultInitOptions()
 	opts.ConfigPath = filepath.Join(t.TempDir(), "chatto.toml")
 	original := []byte("# preserve this file\n")

@@ -84,6 +84,8 @@ func requireNoWebhookOutcomes(t *testing.T, c *ChattoCore) {
 	}
 }
 func TestBotOutboundWebhookSourceSyncSharesOnlyCapturedPrefix(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	startCoreServices(t, c)
 	owner, bot, _ := webhookTestBot(t, c)
@@ -114,6 +116,8 @@ func TestBotOutboundWebhookSourceSyncSharesOnlyCapturedPrefix(t *testing.T) {
 }
 
 func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(50 * time.Millisecond)}
 	type receivedRequest struct {
@@ -179,6 +183,8 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	require.NotContains(t, string(encoded), secret)
 }
 func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range []struct {
 		name   string
 		revoke bool
@@ -226,6 +232,8 @@ func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
 	}
 }
 func TestBotOutboundWebhookManagerBoundary(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	owner, bot, _ := webhookTestBot(t, c)
 	ctx := testContext(t)
@@ -254,6 +262,8 @@ func TestBotOutboundWebhookManagerBoundary(t *testing.T) {
 }
 
 func TestBotOutboundWebhookExpiryAndRevocation(t *testing.T) {
+	t.Parallel()
+
 	for _, mode := range []string{"expiry", "revocation"} {
 		t.Run(mode, func(t *testing.T) {
 			c, _ := newTestCore(t)
@@ -293,6 +303,8 @@ func TestBotOutboundWebhookExpiryAndRevocation(t *testing.T) {
 }
 
 func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
+	t.Parallel()
+
 	ns, _ := testutil.StartNATS(t)
 	firstNC := newReplicaConn(t, ns)
 	c, err := NewChattoCore(testContext(t), firstNC, testCoreConfig())
@@ -334,6 +346,8 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 }
 
 func TestBotOutboundWebhookBackoff(t *testing.T) {
+	t.Parallel()
+
 	job := &botWebhookDelivery{RetryDelay: 30 * time.Second}
 	for i, want := range []time.Duration{30 * time.Second, time.Minute, 2 * time.Minute, 4 * time.Minute, 8 * time.Minute, 16 * time.Minute, 30 * time.Minute, 30 * time.Minute} {
 		require.Equal(t, want, webhookRetryDelay(job, uint64(i+1)))
@@ -341,6 +355,8 @@ func TestBotOutboundWebhookBackoff(t *testing.T) {
 }
 
 func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 1}
 	var forwarded atomic.Int32
@@ -364,6 +380,8 @@ func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 }
 
 func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	ns, _ := testutil.StartNATS(t)
 	c, err := NewChattoCore(testContext(t), newReplicaConn(t, ns), testCoreConfig())
 	require.NoError(t, err)
@@ -402,6 +420,8 @@ func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 }
 
 func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
@@ -423,6 +443,8 @@ func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 }
 
 func TestBotOutboundWebhookDMReadInteractions(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
@@ -488,6 +510,8 @@ func TestBotOutboundWebhookDMReadInteractions(t *testing.T) {
 }
 
 func TestBotOutboundWebhookChannelSelection(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
@@ -522,6 +546,8 @@ func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 }
 
 func TestBotOutboundWebhookConcurrentCreationReturnsOwnSecret(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	owner, bot, _ := webhookTestBot(t, c)
 	ctx := testContext(t)
@@ -563,6 +589,8 @@ func TestBotOutboundWebhookConcurrentCreationReturnsOwnSecret(t *testing.T) {
 }
 
 func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(200 * time.Millisecond)}
 	var calls atomic.Int32
@@ -590,6 +618,8 @@ func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
 
 // A full handoff buffer blocks the source handler and remains cancellable.
 func TestBotOutboundWebhookBoundedHandoff(t *testing.T) {
+	t.Parallel()
+
 	m := &botWebhookModel{deliveries: make(chan *botWebhookDelivery, botWebhookBuffer)}
 	ctx, cancel := context.WithCancel(testContext(t))
 	defer cancel()
@@ -610,6 +640,8 @@ func TestBotOutboundWebhookBoundedHandoff(t *testing.T) {
 }
 
 func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	delivery := &botWebhookDelivery{DeliveryID: "terminal-test", BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source"}
@@ -625,6 +657,8 @@ func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {
 }
 
 func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
@@ -670,6 +704,8 @@ func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 }
 
 func TestBotWebhookURLPolicy(t *testing.T) {
+	t.Parallel()
+
 	for _, raw := range []string{"http://localhost/hook", "http://runling.localhost:55030/hook", "http://RUNLING.LOCALHOST./hook", "https://example.com/hook", "https://localhost/hook"} {
 		require.NoError(t, validateBotWebhookURL(raw), raw)
 	}
@@ -694,6 +730,8 @@ func getOnlyWebhook(ctx context.Context, c *ChattoCore, owner, bot string) (*Bot
 }
 
 func TestBotOutboundWebhookMultipleEndpointsPreserveCredentials(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
@@ -740,6 +778,8 @@ func TestBotOutboundWebhookMultipleEndpointsPreserveCredentials(t *testing.T) {
 }
 
 func TestBotOutboundWebhookPauseResumeCancelsOldRetry(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(500 * time.Millisecond)}
 	var calls atomic.Int32
@@ -765,6 +805,8 @@ func TestBotOutboundWebhookPauseResumeCancelsOldRetry(t *testing.T) {
 }
 
 func TestBotOutboundWebhookLimitAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	replica := startReplica(t, ns, c.config)
@@ -798,6 +840,8 @@ func TestBotOutboundWebhookLimitAcrossReplicas(t *testing.T) {
 }
 
 func TestBotOutboundWebhookLifecycleManagerBoundary(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, bot, _ := webhookTestBot(t, c)
@@ -825,6 +869,8 @@ func TestBotOutboundWebhookLifecycleManagerBoundary(t *testing.T) {
 }
 
 func TestBotOutboundWebhookProjectionKeepsIndependentEndpoints(t *testing.T) {
+	t.Parallel()
+
 	p := newBotWebhookProjection()
 	configure := func(id string) *evtv1.Event {
 		x := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: "bot", WebhookId: id, Enabled: true, Credentials: &evtv1.EncryptedUserString{}}
@@ -853,6 +899,8 @@ func TestBotOutboundWebhookProjectionKeepsIndependentEndpoints(t *testing.T) {
 }
 
 func TestBotOutboundWebhookEditPreservesIdentityAndOmittedFields(t *testing.T) {
+	t.Parallel()
+
 	c, _ := setupTestCore(t)
 	owner, bot, _ := webhookTestBot(t, c)
 	ctx := testContext(t)
@@ -905,6 +953,8 @@ func TestBotOutboundWebhookEditPreservesIdentityAndOmittedFields(t *testing.T) {
 }
 
 func TestBotOutboundWebhookEditCancelsOldRetry(t *testing.T) {
+	t.Parallel()
+
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(500 * time.Millisecond)}
 	var oldCalls, newCalls atomic.Int32
@@ -941,6 +991,8 @@ func TestBotOutboundWebhookEditCancelsOldRetry(t *testing.T) {
 }
 
 func TestBotOutboundWebhookConcurrentEditsMergeAcrossReplicas(t *testing.T) {
+	t.Parallel()
+
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	replica := startReplica(t, ns, c.config)

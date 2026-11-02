@@ -11,6 +11,7 @@ import (
 )
 
 func TestThreadParticipantPreviewSupportsWideHeaders(t *testing.T) {
+	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("participant-preview")
 	root := env.post(room.Id, env.viewer.Id, "root", "")

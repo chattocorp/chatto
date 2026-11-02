@@ -11,6 +11,7 @@ import (
 )
 
 func TestInvitationPermissionUpgrade(t *testing.T) {
+	t.Parallel()
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
 	decisions := []rbacSeedDecision{
@@ -52,6 +53,7 @@ func TestInvitationPermissionUpgrade(t *testing.T) {
 }
 
 func TestInvitationPermissionUpgradeClosesEmptyGate(t *testing.T) {
+	t.Parallel()
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
 	c := &ChattoCore{EventPublisher: h.publisher}
@@ -69,6 +71,7 @@ func TestInvitationPermissionUpgradeClosesEmptyGate(t *testing.T) {
 }
 
 func TestInvitationPermissionBootstrap(t *testing.T) {
+	t.Parallel()
 	require.Contains(t, DefaultAdminPermissions(), PermUserInvite)
 	require.Contains(t, DefaultAdminPermissions(), PermUserManageInvites)
 	require.NotContains(t, DefaultEveryonePermissions(), PermUserInvite)

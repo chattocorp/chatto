@@ -18,6 +18,8 @@ import (
 // at startup, and replicas of different versions can run at the same time.
 // Change an expected value only as a deliberate storage decision (ADR-114).
 func TestStorageConfigsArePinned(t *testing.T) {
+	t.Parallel()
+
 	const day = 24 * time.Hour
 	cfg := config.CoreConfig{Replicas: 3}
 
@@ -95,6 +97,8 @@ func TestStorageConfigsArePinned(t *testing.T) {
 // the registry lists a resource that core never creates. Backups, restores,
 // and test resets depend on the registry.
 func TestNewChattoCoreProvisionsExactlyTheRegisteredResources(t *testing.T) {
+	t.Parallel()
+
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{

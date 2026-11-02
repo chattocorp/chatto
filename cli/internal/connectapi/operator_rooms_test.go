@@ -7,6 +7,8 @@ import (
 )
 
 func TestOperatorRoomPageKeepsDistinctMatchingIDs(t *testing.T) {
+	t.Parallel()
+
 	rooms := []*readmodel.Room{
 		{Id: "R2", Name: "same", Archived: true},
 		{Id: "R1", Name: "same"},

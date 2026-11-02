@@ -12,6 +12,8 @@ import (
 )
 
 func TestRoomTimelineHydratorLoadsAndValidatesEntry(t *testing.T) {
+	t.Parallel()
+
 	event := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1})
 	projection := NewRoomTimelineProjection()
 	require.NoError(t, projection.Apply(event, 1))
@@ -25,6 +27,8 @@ func TestRoomTimelineHydratorLoadsAndValidatesEntry(t *testing.T) {
 }
 
 func TestValidateTimelineEntryRecordRejectsMismatchedMetadata(t *testing.T) {
+	t.Parallel()
+
 	event := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 1})
 	projection := NewRoomTimelineProjection()
 	require.NoError(t, projection.Apply(event, 7))
@@ -63,6 +67,8 @@ func TestValidateTimelineEntryRecordRejectsMismatchedMetadata(t *testing.T) {
 }
 
 func TestValidateTimelineBodyRecordRejectsMismatchedMetadata(t *testing.T) {
+	t.Parallel()
+
 	event := bodyEventWithAssets("B1", "M1", "R1", "U1", "ciphertext", []string{"A1"}, 1)
 	reference := TimelineBodyReference{
 		MessageEventID: "M1", BodyEventID: "B1", RoomID: "R1", AuthorID: "U1", StreamSeq: 5, AttachmentCount: 1,
@@ -108,6 +114,8 @@ func TestValidateTimelineBodyRecordRejectsMismatchedMetadata(t *testing.T) {
 }
 
 func TestCurrentMessageBodyRetriesAfterConcurrentEdit(t *testing.T) {
+	t.Parallel()
+
 	oldBody := bodyEvent("B1", "M1", "R1", "U1", "old", 1)
 	post := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 2})
 	newBody := bodyEvent("B2", "M1", "R1", "U1", "new", 3)
@@ -132,6 +140,8 @@ func TestCurrentMessageBodyRetriesAfterConcurrentEdit(t *testing.T) {
 }
 
 func TestCurrentMessageBodyDoesNotReturnPayloadAfterConcurrentRetraction(t *testing.T) {
+	t.Parallel()
+
 	bodyEvent := bodyEvent("B1", "M1", "R1", "U1", "body", 1)
 	post := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 2})
 	retract := retractedEvent("R1", "M1", "R1", "U1", "deleted", 3)
@@ -154,6 +164,8 @@ func TestCurrentMessageBodyDoesNotReturnPayloadAfterConcurrentRetraction(t *test
 }
 
 func TestCurrentMessageBodyRejectsBodyFromAnotherRoom(t *testing.T) {
+	t.Parallel()
+
 	body := bodyEvent("B1", "M1", "R2", "U2", "private R2 body", 1)
 	post := bodylessPostedEvent("M1", "R1", "U1", 2)
 	projection := NewRoomTimelineProjection()
@@ -170,6 +182,8 @@ func TestCurrentMessageBodyRejectsBodyFromAnotherRoom(t *testing.T) {
 }
 
 func TestBatchGetMessagesHydratesBodiesAndEventsInBatches(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
@@ -191,6 +205,8 @@ func TestBatchGetMessagesHydratesBodiesAndEventsInBatches(t *testing.T) {
 }
 
 func TestGetMessageDoesNotHydrateUnauthorizedPayload(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, author := setupRoomAttachmentTest(t, core, ctx)
@@ -211,6 +227,8 @@ func TestGetMessageDoesNotHydrateUnauthorizedPayload(t *testing.T) {
 }
 
 func TestRoomTimelineHydratesEchoMetadataInOneBatch(t *testing.T) {
+	t.Parallel()
+
 	original1 := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 1})
 	original1.GetMessagePosted().InReplyTo = "ROOT"
 	original2 := postedEvent(postedOpts{envelopeID: "M2", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 2})

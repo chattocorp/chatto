@@ -12,6 +12,7 @@ import (
 )
 
 func TestRoomCloneDetachesMutableFields(t *testing.T) {
+	t.Parallel()
 	original := &Room{
 		CreatedAt:             &timestamppb.Timestamp{Seconds: 1},
 		ThreadSlowModeSeconds: new(uint32(0)),
@@ -33,6 +34,7 @@ func TestRoomCloneDetachesMutableFields(t *testing.T) {
 }
 
 func TestUserCloneDetachesEventValues(t *testing.T) {
+	t.Parallel()
 	original := &User{
 		CreatedAt:    &timestamppb.Timestamp{Seconds: 1},
 		CustomStatus: &evtv1.CustomUserStatus{Text: "status", ExpiresAt: &timestamppb.Timestamp{Seconds: 2}},

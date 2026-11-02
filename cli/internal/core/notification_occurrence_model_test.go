@@ -17,6 +17,8 @@ import (
 )
 
 func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
+	t.Parallel()
+
 	// The alert worker consumes the signal concurrently. This recipient has no
 	// visible room, so the worker resolves the alert as undelivered before any
 	// handler runs. The returned occurrence is current projected state and can
@@ -111,6 +113,8 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 }
 
 func TestNotificationIdentitySeparatesSignalKinds(t *testing.T) {
+	t.Parallel()
+
 	recipientID, sourceID := "U1", "E1"
 	mention := notificationOccurrenceID(recipientID, sourceID, "direct_mention_received")
 	reply := notificationOccurrenceID(recipientID, sourceID, "reply_received")
@@ -120,6 +124,8 @@ func TestNotificationIdentitySeparatesSignalKinds(t *testing.T) {
 }
 
 func TestNotificationCreationHintsReportEveryNewID(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, nc := newTestCore(t)
 	startCoreServices(t, chattoCore)
 	ctx := testContext(t)
@@ -188,6 +194,8 @@ func TestNotificationCreationHintsReportEveryNewID(t *testing.T) {
 }
 
 func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := newTestCore(t)
 	startCoreServices(t, chattoCore)
 	ctx := testContext(t)
@@ -222,6 +230,8 @@ func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
 }
 
 func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	poster, err := chattoCore.CreateUser(ctx, SystemActorID, "retry-read-poster", "Retry Read Poster", "password")
@@ -297,6 +307,8 @@ func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *
 }
 
 func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
+	t.Parallel()
+
 	chattoCore, _ := newTestCore(t)
 	startCoreServices(t, chattoCore)
 	ctx := testContext(t)
@@ -339,6 +351,8 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 }
 
 func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
+	t.Parallel()
+
 	p := NewNotificationProjection()
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
@@ -401,6 +415,8 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 }
 
 func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinate(t *testing.T) {
+	t.Parallel()
+
 	p := NewNotificationProjection()
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
@@ -427,6 +443,8 @@ func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinat
 }
 
 func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
+	t.Parallel()
+
 	p := NewNotificationProjection()
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
@@ -473,6 +491,8 @@ func notificationSignalledEvent(id string, occurrence *notificationv1.Notificati
 }
 
 func TestUnsupportedNotificationSignalDetection(t *testing.T) {
+	t.Parallel()
+
 	if !NotificationOccurrenceHasUnsupportedSignal(&notificationv1.NotificationOccurrence{Signal: testUnsupportedNotificationSignal()}) {
 		t.Fatal("future signal was not detected")
 	}

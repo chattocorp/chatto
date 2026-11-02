@@ -7,6 +7,8 @@ import (
 )
 
 func TestMessagePostInteractions(t *testing.T) {
+	t.Parallel()
+
 	for _, botAccount := range []bool{false, true} {
 		for _, dm := range []bool{false, true} {
 			name := "human/channel"

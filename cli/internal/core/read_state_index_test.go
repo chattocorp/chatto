@@ -13,6 +13,8 @@ import (
 )
 
 func TestReadStateIndexInitialSnapshotAndReplicaUpdates(t *testing.T) {
+	t.Parallel()
+
 	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 
@@ -94,6 +96,8 @@ func TestReadStateIndexInitialSnapshotAndReplicaUpdates(t *testing.T) {
 }
 
 func TestReadStateIndexRunReturnsContextCanceledOnShutdown(t *testing.T) {
+	t.Parallel()
+
 	index := NewReadStateIndex(newRuntimeStateTestKV(t), testCoreLogger())
 	runCtx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -116,6 +120,8 @@ func TestReadStateIndexRunReturnsContextCanceledOnShutdown(t *testing.T) {
 }
 
 func TestReadStateIndexDoesNotMissUpdateAtInitialSyncBoundary(t *testing.T) {
+	t.Parallel()
+
 	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 	gatedKV := &initialSyncGatedKV{
@@ -155,6 +161,8 @@ func TestReadStateIndexDoesNotMissUpdateAtInitialSyncBoundary(t *testing.T) {
 }
 
 func TestReadStateReplicaRacesConvergeWithoutRegression(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -238,6 +246,8 @@ func TestReadStateReplicaRacesConvergeWithoutRegression(t *testing.T) {
 }
 
 func TestReadStateWritesAreImmediatelyVisibleAndInitializationDoesNotOverwrite(t *testing.T) {
+	t.Parallel()
+
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	replica := newReadStateReplica(t, core)
@@ -272,6 +282,8 @@ func TestReadStateWritesAreImmediatelyVisibleAndInitializationDoesNotOverwrite(t
 }
 
 func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
+	t.Parallel()
+
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -324,6 +336,8 @@ func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
 }
 
 func TestParseReadMarkerKeys(t *testing.T) {
+	t.Parallel()
+
 	userID, roomID, ok := parseRoomReadMarkerKey("read.room.U123.R456")
 	if !ok || userID != "U123" || roomID != "R456" {
 		t.Fatalf("parseRoomReadMarkerKey = (%q, %q, %v)", userID, roomID, ok)

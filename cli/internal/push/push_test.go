@@ -1308,6 +1308,7 @@ func TestOccurrencePayloadCleanupIdentity(t *testing.T) {
 }
 
 func TestRoomInvitationPayloadUsesRoomOnlyURL(t *testing.T) {
+	t.Parallel()
 	occurrence := &notificationv1.NotificationOccurrence{
 		Id: "notification", RecipientId: "recipient",
 		Signal:         &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomInvitationReceived{RoomInvitationReceived: &notificationv1.RoomInvitationReceived{RoomId: "private-room", InvitationId: "invitation"}}},

@@ -8,6 +8,7 @@ import (
 )
 
 func TestStartServiceStopsBeforeDependencyCleanup(t *testing.T) {
+	t.Parallel()
 	ready := make(chan struct{})
 	stopped := make(chan struct{})
 	t.Cleanup(func() {
@@ -33,6 +34,7 @@ func TestStartServiceStopsBeforeDependencyCleanup(t *testing.T) {
 }
 
 func TestServiceReportsPrematureExit(t *testing.T) {
+	t.Parallel()
 	failure := errors.New("worker failed")
 	for _, tc := range []struct {
 		name string
@@ -60,6 +62,7 @@ func TestServiceReportsPrematureExit(t *testing.T) {
 }
 
 func TestServiceShutdownWaitsForWorker(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		release := make(chan struct{})
 		service := launchService(func(ctx context.Context) error {
@@ -84,6 +87,7 @@ func TestServiceShutdownWaitsForWorker(t *testing.T) {
 }
 
 func TestServicePreservesShutdownFailure(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		failure := errors.New("flush failed")
 		service := launchService(func(ctx context.Context) error {
