@@ -17,7 +17,7 @@ describe('MentionLookups', () => {
     const store = new MentionLookups(lookup, () => true);
     const release = store.retain(['alice']);
     await vi.waitFor(() => expect(store.ids).toEqual(['alice']));
-    store.invalidate(undefined, true);
+    store.invalidate({ retainResults: true });
     store.resume();
     release();
     finish(null);
@@ -43,7 +43,7 @@ describe('MentionLookups', () => {
     const store = new MentionLookups(lookup, () => allowed);
     store.retain(['alice']);
     await vi.waitFor(() => expect(store.ids).toEqual(['alice']));
-    store.invalidate(undefined, true);
+    store.invalidate({ retainResults: true });
     store.resume();
     expect(store.ids).toEqual(['alice']);
     allowed = false;

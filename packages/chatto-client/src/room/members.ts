@@ -35,6 +35,14 @@ function memberMatchesSearch(member: RoomMember, search: string): boolean {
   );
 }
 
+/** Exact, case-insensitive mention match against a live profile. */
+function memberMatchesMention(member: RoomMember, handle: string): boolean {
+  return (
+    !member.deleted &&
+    (member.login.toLowerCase() === handle || member.displayName.toLowerCase() === handle)
+  );
+}
+
 function pageIds(page: MemberDirectoryPage): string[] {
   return page.memberIds ?? page.members.map((member) => member.id);
 }
@@ -67,7 +75,6 @@ export type RoomMembersStoreOptions = {
  */
 export class RoomMembersStore {
   readonly #mentions: MentionLookups;
-  readonly #canResolveMentions: () => boolean;
   readonly #canDisplayMentions: () => boolean;
   readonly #mentionMembersComputed = computed(() => {
     // Keep the data dependencies even while access is deferred. Snapshot
@@ -94,7 +101,7 @@ export class RoomMembersStore {
   /** Recheck retained handles after a recovery gap without removing their display. */
   refreshMentions(minimumCursor?: string): void {
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
-    this.#mentions.invalidate(undefined, true);
+    this.#mentions.invalidate({ retainResults: true });
     this.#mentions.resume();
   }
   #listRequested = false;
@@ -245,11 +252,11 @@ export class RoomMembersStore {
     this.roomId = roomId;
     this.#presence = options.presence ?? null;
     this.#projectedMemberIds = options.projectedMemberIds ?? (() => null);
-    this.#canResolveMentions = options.canResolveMentions ?? (() => true);
-    this.#canDisplayMentions = options.canDisplayMentions ?? this.#canResolveMentions;
+    const canResolveMentions = options.canResolveMentions ?? (() => true);
+    this.#canDisplayMentions = options.canDisplayMentions ?? canResolveMentions;
     this.#mentions = new MentionLookups(
       (handle, signal) => this.lookupMention(handle, signal),
-      this.#canResolveMentions
+      canResolveMentions
     );
     if (!source) {
       this.api = null;
@@ -264,9 +271,7 @@ export class RoomMembersStore {
   /** Search only matching pages; a substring match is not itself a valid mention. */
   private async lookupMention(handle: string, signal: AbortSignal): Promise<string | null> {
     const matches = (member: RoomMember) =>
-      !member.deleted &&
-      this.#membershipChanges.get(member.id) !== false &&
-      (member.login.toLowerCase() === handle || member.displayName.toLowerCase() === handle);
+      this.#membershipChanges.get(member.id) !== false && memberMatchesMention(member, handle);
     const known = this.members.find(matches);
     if (known) return known.id;
     if (this.hasLoadedAll || !this.api || !this.roomId) return null;
@@ -379,7 +384,7 @@ export class RoomMembersStore {
   } = {}): Promise<void> {
     this.#listRequested = true;
     if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
-    this.#mentions.invalidate(undefined, !reauthorize);
+    this.#mentions.invalidate({ retainResults: !reauthorize });
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = !this.#hasFirstPage;
@@ -484,28 +489,20 @@ export class RoomMembersStore {
         .filter((user) => !user.deleted)
         .flatMap((user) => [user.login.toLowerCase(), user.displayName.toLowerCase()])
     );
-    this.#mentions.invalidate((handle, result) => {
-      const user = result ? byId.get(result) : undefined;
-      if (user)
-        return (
-          user.deleted ||
-          (user.login.toLowerCase() !== handle && user.displayName.toLowerCase() !== handle)
-        );
-      return !result && handles.has(handle);
+    this.#mentions.invalidate({
+      affected: (handle, result) => {
+        const user = result ? byId.get(result) : undefined;
+        return user ? !memberMatchesMention(user, handle) : !result && handles.has(handle);
+      }
     });
-    if (this.#users) {
-      this.#mentions.resume();
-      return;
-    }
-    for (const user of users) {
-      this.#standaloneProfiles.set(user.id, {
-        member: user,
-        fromRealtime: true
-      });
-    }
-    if (this.#hasLoadedAll) {
+    if (!this.#users) {
       for (const user of users) {
-        if (this.#membershipChanges.get(user.id) && !this.#memberIds.includes(user.id)) {
+        this.#standaloneProfiles.set(user.id, { member: user, fromRealtime: true });
+        if (
+          this.#hasLoadedAll &&
+          this.#membershipChanges.get(user.id) &&
+          !this.#memberIds.includes(user.id)
+        ) {
           this.#memberIds = [...this.#memberIds, user.id];
           this.#totalCount++;
         }

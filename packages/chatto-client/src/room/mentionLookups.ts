@@ -1,7 +1,7 @@
 import { LRUCache } from 'lru-cache';
 import { signal } from '../reactivity/index.js';
 
-/** One handle's consumers, request, and outcome. Failed reads settle without a result. */
+/** One handle's consumers, request, and last successful result, if any. */
 type MentionLookup = {
   readers: number;
   state: 'idle' | 'pending' | 'settled';
@@ -67,10 +67,13 @@ export class MentionLookups {
 
   /** Fence selected reads and matches after profile, membership, or authority changes.
    * Recovery can retain results until a fresh lookup replaces them. */
-  invalidate(
-    affected: (handle: string, result: string | false | undefined) => boolean = () => true,
+  invalidate({
+    affected = () => true,
     retainResults = false
-  ): void {
+  }: {
+    affected?: (handle: string, result: string | false | undefined) => boolean;
+    retainResults?: boolean;
+  } = {}): void {
     for (const [handle, entry] of this.#entries) {
       if (!affected(handle, entry.result)) continue;
       if (!retainResults) entry.result = undefined;

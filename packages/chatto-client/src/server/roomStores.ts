@@ -260,12 +260,11 @@ export class RoomStores {
   members(roomId: string): RoomMembersStore {
     const entry = this.#usedRoom(roomId);
     if (entry.members) return entry.members;
+    const canDisplayMentions = this.#options.canDisplayMentions;
     return (entry.members = new RoomMembersStore(roomId, this.#options.connection, {
       presence: this.#options.presence,
       canResolveMentions: () => this.#options.canResolveMentions?.(roomId) ?? true,
-      canDisplayMentions: this.#options.canDisplayMentions
-        ? () => this.#options.canDisplayMentions!(roomId)
-        : undefined,
+      canDisplayMentions: canDisplayMentions ? () => canDisplayMentions(roomId) : undefined,
       projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
     }));
   }
