@@ -370,6 +370,10 @@ jobs:
         if: runner.os == 'Linux'
         run: mise x -- pnpm --filter chatto-desktop build:linux-appimage
 
+      - name: Verify Linux launcher and icons
+        if: runner.os == 'Linux'
+        run: bash tools/test-desktop-linux.sh
+
       - name: Upload Linux AppImage
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7

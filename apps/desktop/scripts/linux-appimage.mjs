@@ -20,7 +20,12 @@ await build({
     electronVersion: packageJson.devDependencies.electron,
     directories: { output: 'dist/appimage' },
     publish: null,
-    linux: { category: 'Network', icon: path.join(root, '../frontend/static/icons/icon-512.png') },
+    linux: {
+      category: 'Network',
+      icon: path.join(root, '../frontend/static/icons/icon-512.png'),
+      // Keep the launcher filename, StartupWMClass, and Electron's app_id equal.
+      syncDesktopName: true
+    },
     appImage: {
       artifactName: `chatto-desktop_${packageJson.version}_Linux_${process.arch.toUpperCase()}.AppImage`,
       // Replace builder's default --no-sandbox argument; keep Chromium sandboxed.
