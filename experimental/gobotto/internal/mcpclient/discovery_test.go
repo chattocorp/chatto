@@ -25,6 +25,9 @@ func TestLazyDiscoverySurvivesTurnsAndRestore(t *testing.T) {
 		return `{"status":"complete","content":"found"}`, nil
 	}}}}
 	tools := m.Tools()
+	if len(tools[0].Catalog) != 1 || tools[0].Catalog[0].Description != m.tools[0].Description || tools[0].Catalog[0].Via != "mcp_discover" {
+		t.Fatal("remote capability missing from local search metadata")
+	}
 	if len(tools) != 2 || strings.Contains(string(toolPayload(tools)), "schema-marker") || len(toolPayload(tools)) >= len(toolPayload(m.tools)) {
 		t.Fatal("remote schema is still in the always-present tools")
 	}

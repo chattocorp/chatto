@@ -193,6 +193,17 @@ read tools.
 
 ## Web access and MCP
 
+Each turn includes a local `tool_search` capability and a reminder to search
+before work that needs tools or a claim that a capability is unavailable.
+Search matches names and descriptions by keyword; an empty query lists all
+current tools. Results include configured MCP capabilities and their discovery
+route. Search does not contact external services or grant permissions.
+The catalog is rebuilt after host permission checks on each turn. Input that is
+not entirely owner-authored excludes app lifecycle tools; a later owner-only
+input can expose them again. Completion notifications retain their restricted
+reporting and recovery tools. Simple conversation, reactions, and silence do not
+need a search. These instructions guide the model; host checks enforce access.
+
 The checked-in configuration enables Exa search and page fetching through its
 hosted MCP server. No key is required for its rate-limited free access. To use
 authenticated access, set `EXA_API_KEY` in `.env`; this can incur Exa charges.
@@ -622,11 +633,12 @@ Sessions and turns appear newest first; steps stay in execution order.
 Escape returns from the turn tree to the overview and restores its selection.
 
 The session list places a busy spinner before the title, with two blank cells
-in that position when idle. It has no status column. Turn and execution rows show
-their state on the right. Input, output, reaction, and failure text use the full
-row width. Inputs use blue, outputs use green, and failures use red.
-Wider trees also show session and turn
-usage and a separate duration column. Step rows include provider, request ID,
+in that position when idle. It has no status column. The session table has a fixed
+header with Type, Description / metadata, Runtime, Status, Tokens, and Cost.
+All event rows use the same columns; unavailable values stay blank. The type
+column retains the turn tree and tool names. Inputs use blue, outputs use green,
+and failures use red. Narrow terminals omit runtime, then usage, then status
+columns to keep descriptions readable. Step descriptions include provider, request ID,
 tool details, cache and reasoning counts when available. Model rows put input,
 output, cache, and reasoning counts before request IDs. Turn totals include
 child and title calls. A `+` marks
@@ -640,8 +652,9 @@ Active states use teal, completed operations use green, queued or partial states
 use amber, and failed or uncertain operations use red. Session names use blue
 and turn names use lavender.
 The `›` and `⌄` chevrons indicate collapsed and expanded nodes.
-Long event rows end with an ellipsis and do not wrap. Use `[` and `]` to move through their text while
-numeric columns stay fixed; `c` copies the selected event's full recorded text.
+Long descriptions end with an ellipsis and do not wrap. Use `[` and `]` to move
+through description text while event types and telemetry stay fixed; `c` copies
+the selected event's full recorded text.
 Click a row to select it, or a turn's chevron to fold it. The mouse wheel
 navigates the table. `l` switches the same panel to session operational logs.
 These logs lack turn associations and are not assigned to turns by the UI.
