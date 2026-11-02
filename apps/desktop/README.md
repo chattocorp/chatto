@@ -363,10 +363,12 @@ Apple's notary service, and removes the temporary credentials even when the
 build fails.
 
 Every macOS release attempt uploads a `desktop-notarisation-log-*` artifact with
-90-day retention. The log includes the complete Apple notary-service response
-for successful submissions as well as failures, while the Electron notarisation
-library redacts authentication arguments. Review accepted submissions for
-warnings before publishing the resulting archive.
+90-day retention. The log includes the complete JSON response from
+`notarytool submit` for accepted and rejected submissions. This response has no
+authentication arguments. To inspect detailed results and warnings, use the
+submission ID with `xcrun notarytool log` and the same authentication arguments
+used for submission. Check accepted submissions for warnings before publishing
+the resulting archive.
 
 For a local Developer ID build, install the certificate in the login keychain
 and set the signing identity and all three notarisation variables before running

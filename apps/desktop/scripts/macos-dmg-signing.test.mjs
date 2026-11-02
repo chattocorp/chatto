@@ -11,9 +11,9 @@ const environment = {
 };
 const file = '/output/Chatto Desktop.dmg';
 
-test('signs, submits, staples, and verifies the same disk image in order', () => {
+test('signs, submits, staples, and verifies the same disk image in order', async () => {
   const calls = [];
-  signMacOSDmg(file, environment, (command, args) => {
+  await signMacOSDmg(file, environment, (command, args) => {
     calls.push([command, ...args]);
     return JSON.stringify({ id: 'submission', status: 'Accepted' });
   });
@@ -51,8 +51,8 @@ test('signs, submits, staples, and verifies the same disk image in order', () =>
 });
 
 for (const missing of Object.keys(environment)) {
-  test(`rejects missing ${missing} before invoking signing tools`, () => {
-    assert.throws(
+  test(`rejects missing ${missing} before invoking signing tools`, async () => {
+    await assert.rejects(
       () =>
         signMacOSDmg(file, { ...environment, [missing]: '' }, () => {
           assert.fail('must reject credentials before signing');
@@ -62,14 +62,14 @@ for (const missing of Object.keys(environment)) {
   });
 }
 
-test('rejects unsigned mode when release signing was requested', () => {
-  assert.throws(() => signMacOSDmg(file, {}), /requires all/);
+test('rejects unsigned mode when release signing was requested', async () => {
+  await assert.rejects(() => signMacOSDmg(file, {}), /requires all/);
 });
 
 for (const status of ['Invalid', 'Rejected', 'In Progress', undefined]) {
-  test(`does not staple a submission with status ${status}`, () => {
+  test(`does not staple a submission with status ${status}`, async () => {
     let calls = 0;
-    assert.throws(
+    await assert.rejects(
       () =>
         signMacOSDmg(file, environment, () => {
           calls++;
@@ -82,9 +82,9 @@ for (const status of ['Invalid', 'Rejected', 'In Progress', undefined]) {
 }
 
 for (let failure = 1; failure <= 6; failure++) {
-  test(`stops immediately when release command ${failure} fails`, () => {
+  test(`stops immediately when release command ${failure} fails`, async () => {
     let calls = 0;
-    assert.throws(
+    await assert.rejects(
       () =>
         signMacOSDmg(file, environment, () => {
           if (++calls === failure) throw new Error('command failed');

@@ -64,15 +64,12 @@ ${script}`
   });
 }
 
-// Run the complete packaging step with external commands replaced, so failed
-// validation must prevent both Gatekeeper assessment and archive creation.
-for (const [name, statuses, expectedStatus, attempts] of [
-  ['valid ticket', [0], 0, 1],
-  ['CloudKit recovery', [68, 0], 0, 2],
-  ['last attempt recovery', [68, 68, 0], 0, 3],
-  ['CloudKit retry limit', [68, 68, 68], 68, 3],
-  ['invalid ticket', [65], 65, 1],
-  ['invalid ticket after CloudKit failure', [68, 65], 65, 2]
+// Ticket validation runs in desktop-build. Packaging must still stop on an
+// invalid signature or Gatekeeper assessment before it creates the ZIP.
+for (const [name, signatureStatus, assessmentStatus] of [
+  ['valid app', 0, 0],
+  ['invalid signature', 1, 0],
+  ['Gatekeeper rejection', 0, 1]
 ]) {
   test(`macOS release packaging: ${name}`, () => {
     const script = workflow
@@ -91,32 +88,19 @@ for (const [name, statuses, expectedStatus, attempts] of [
         'pipefail',
         '-c',
         `
-statuses=(${statuses.join(' ')})
-count=0
 test() { return 0; }
-codesign() { return 0; }
-xcrun() {
-  echo validate
-  local status=\${statuses[$count]}
-  count=$((count + 1))
-  return "$status"
-}
-sleep() { echo "sleep $1"; }
-spctl() { echo assess; }
+codesign() { return ${signatureStatus}; }
+spctl() { echo assess; return ${assessmentStatus}; }
 mkdir() { return 0; }
 ditto() { echo archive; }
 ${script}`
       ],
       { encoding: 'utf8' }
     );
+    const expectedStatus = signatureStatus || assessmentStatus;
     assert.equal(result.status, expectedStatus, result.stderr);
     const lines = result.stdout.trim().split('\n');
-    assert.equal(lines.filter((line) => line === 'validate').length, attempts);
-    assert.deepEqual(
-      lines.filter((line) => line.startsWith('sleep ')),
-      ['sleep 10', 'sleep 20'].slice(0, attempts - 1)
-    );
-    assert.equal(lines.includes('assess'), expectedStatus === 0);
+    assert.equal(lines.includes('assess'), signatureStatus === 0);
     assert.equal(lines.includes('archive'), expectedStatus === 0);
   });
 }

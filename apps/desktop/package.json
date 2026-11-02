@@ -22,6 +22,7 @@
     "electron": "45.1.0",
     "electron-builder": "26.18.0",
     "electron-updater": "6.8.11",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "p-retry": "8.0.1"
   }
 }

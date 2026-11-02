@@ -294,6 +294,10 @@ signing keeps the private key out of GitHub while a protected environment and
 least-privilege Azure role restrict which revisions can request signatures.
 Windows and macOS use separate protected environments so neither platform's
 runner can access the other platform's signing credentials.
+App and DMG ticket stapling and validation use `p-retry` for temporary Apple
+connection failures (exit status 68). Each command can retry four times, after
+15, 30, 60, and 120 seconds. Retries use the same signed file without a new
+notarisation submission. Other errors and exhausted retries stop the release.
 **Tradeoff:** Ordinary CI artifacts remain unsigned, Windows signing depends on
 Azure availability and organization validation, and CI signature checks do not
 replace clean-machine installation or WebRTC verification.
