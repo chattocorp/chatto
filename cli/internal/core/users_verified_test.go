@@ -6,8 +6,6 @@ import (
 )
 
 func TestCreateVerifiedUser_HappyPath(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -28,8 +26,6 @@ func TestCreateVerifiedUser_HappyPath(t *testing.T) {
 }
 
 func TestCreateVerifiedUser_RollsBackOnEmailConflict(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -54,8 +50,6 @@ func TestCreateVerifiedUser_RollsBackOnEmailConflict(t *testing.T) {
 }
 
 func TestCreateVerifiedUser_LoginCanBeReusedAfterRollback(t *testing.T) {
-	t.Parallel()
-
 	// After a rollback, the login should be free for someone else (or a retry) to claim.
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

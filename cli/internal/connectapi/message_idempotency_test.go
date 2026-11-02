@@ -12,7 +12,6 @@ import (
 )
 
 func TestMessageServiceIdempotencyAcrossCoreAndConnect(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("retry-room")
 	ctx := withCaller(env.ctx, env.viewer)

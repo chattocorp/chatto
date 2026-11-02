@@ -8,8 +8,6 @@ import (
 )
 
 func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
-	t.Parallel()
-
 	statuses := durableWorkerAdminStatuses(&JetStreamStats{Consumers: []ConsumerStats{
 		{Stream: "OTHER", Name: assetCleanupConsumerName, Waiting: 1},
 		{Stream: "EVT", Name: assetCleanupConsumerName, Waiting: 1, DeliveredStreamSeq: 40, AckFloorStreamSeq: 40},
@@ -51,8 +49,6 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 // TestDurableWorkerAdminStatusesCoverEveryCoreConsumer fails when core creates
 // a durable consumer that the operator diagnostics do not report.
 func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -88,8 +84,6 @@ func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
 }
 
 func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *testing.T) {
-	t.Parallel()
-
 	statuses := durableWorkerAdminStatuses(&JetStreamStats{Consumers: []ConsumerStats{
 		{Stream: "EVT", Name: assetCleanupConsumerName, AckPending: 1},
 	}}, false)
@@ -99,8 +93,6 @@ func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *te
 }
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
-	t.Parallel()
-
 	statuses := durableWorkerAdminStatuses(nil, true)
 	if len(statuses) != 9 {
 		t.Fatalf("statuses len = %d, want 9", len(statuses))

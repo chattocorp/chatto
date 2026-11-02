@@ -72,7 +72,6 @@ func TestManagedProviderAccountPolicy(t *testing.T) {
 }
 
 func TestManagedProviderProfileKeepsUsername(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "github", ManageUsernames: true}}
@@ -119,10 +118,8 @@ func TestManagedProviderProfileKeepsUsername(t *testing.T) {
 
 // A case-only sync must not retain its uniqueness exemption after a rename.
 func TestManagedProviderCaseOnlySyncRejectsStaleUsername(t *testing.T) {
-	t.Parallel()
 	for _, reclaim := range []bool{false, true} {
 		t.Run(fmt.Sprintf("reclaimed=%t", reclaim), func(t *testing.T) {
-			t.Parallel()
 			c, _ := setupTestCore(t)
 			ctx := testContext(t)
 			user, err := c.CreateUser(ctx, SystemActorID, "Alice", "First", "password123")

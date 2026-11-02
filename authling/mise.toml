@@ -113,10 +113,10 @@ outputs = ["bin/authling-dev"]
 description = "Run Authling tests standalone and in the repository workspace"
 depends = ["deps-go", "codegen-templates", "build-web"]
 run = [
-    "GOWORK=off go test -p 1 -parallel 1 -trimpath ./...",
-    "go test -p 1 -parallel 1 -trimpath ./...",
-    "GOWORK=off go test -p 1 -parallel 1 -trimpath -tags bootstrap ./...",
-    "go test -p 1 -parallel 1 -trimpath -tags bootstrap ./...",
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+    "GOWORK=off go test -trimpath -tags bootstrap ./...",
+    "go test -trimpath -tags bootstrap ./...",
 ]
 sources = [
     "go.mod",

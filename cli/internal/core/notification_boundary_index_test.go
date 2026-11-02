@@ -9,8 +9,6 @@ import (
 )
 
 func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T) {
-	t.Parallel()
-
 	chattoCore, _ := setupTestCore(t)
 	kv := chattoCore.storage.runtimeStateKV
 	ctx := testContext(t)
@@ -109,8 +107,6 @@ func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T)
 }
 
 func TestNotificationBoundaryIndexParsesOwnedKeys(t *testing.T) {
-	t.Parallel()
-
 	if userID, roomID, ok := parseNotificationVisibilityBoundaryKey("notification_visibility_boundary.U1.R1"); !ok || userID != "U1" || roomID != "R1" {
 		t.Fatalf("visibility key = (%q, %q, %v)", userID, roomID, ok)
 	}

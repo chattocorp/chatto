@@ -6,8 +6,6 @@ import (
 )
 
 func TestModelInventoryUsesStableKeys(t *testing.T) {
-	t.Parallel()
-
 	want := []string{
 		"chatto_core",
 		"event_publisher",

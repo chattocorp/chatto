@@ -209,8 +209,6 @@ func BenchmarkProjectionRetainedHeap(b *testing.B) {
 }
 
 func TestProjectionBenchmarkFixture(t *testing.T) {
-	t.Parallel()
-
 	first := newProjectionBenchmarkFixture(t, 1_000)
 	second := newProjectionBenchmarkFixture(t, 1_000)
 	if len(first) <= 2_000 {

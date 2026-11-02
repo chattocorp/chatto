@@ -20,8 +20,6 @@ import (
 )
 
 func TestPushSubscriptionCleanupDeliveryRetriesPartialFailure(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := newTestCore(t)
 	model := chatto.pushSubscriptionCleanup
 	userID := "push-cleanup-retry-user"
@@ -47,8 +45,6 @@ func TestPushSubscriptionCleanupDeliveryRetriesPartialFailure(t *testing.T) {
 }
 
 func TestPushSubscriptionCleanupDeliveryRetriesRevisionConflict(t *testing.T) {
-	t.Parallel()
-
 	for _, replace := range []bool{false, true} {
 		name := "competing deletion"
 		if replace {
@@ -125,8 +121,6 @@ func (kv *pushCleanupDeleteGate) Delete(ctx context.Context, key string, opts ..
 }
 
 func TestPushSubscriptionCleanupDeliveryRejectsMismatchedSubject(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	delivery := pushSubscriptionCleanupDelivery(t, "push-cleanup-subject-user", "push-cleanup-payload-user")
 	if err := chatto.pushSubscriptionCleanup.processDelivery(context.Background(), delivery); err == nil {
@@ -135,8 +129,6 @@ func TestPushSubscriptionCleanupDeliveryRejectsMismatchedSubject(t *testing.T) {
 }
 
 func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := newTestCore(t)
 	ctx := testContext(t)
 	model := chatto.pushSubscriptionCleanup
@@ -215,8 +207,6 @@ func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *test
 }
 
 func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDelivery(t *testing.T) {
-	t.Parallel()
-
 	// Drive both cleanup passes here. A running worker could consume the same
 	// deletion fact and remove the late write before the reconciliation pass.
 	chatto, _ := newTestCore(t)
@@ -265,8 +255,6 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDeliver
 }
 
 func TestSavePushSubscriptionRejectsCommittedAccountDeletion(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-deleted-user"
@@ -277,8 +265,6 @@ func TestSavePushSubscriptionRejectsCommittedAccountDeletion(t *testing.T) {
 }
 
 func TestPushSubscriptionCleanupPreservesHostAwareEndpointOwner(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-host-aware-user"
@@ -319,8 +305,6 @@ func TestPushSubscriptionCleanupPreservesHostAwareEndpointOwner(t *testing.T) {
 }
 
 func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-owner-only-user"
@@ -345,8 +329,6 @@ func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
 }
 
 func TestDeleteAllUserPushSubscriptionsRejectsPartialKeyListing(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := newTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-partial-list-user"
@@ -382,8 +364,6 @@ func TestDeleteAllUserPushSubscriptionsRejectsPartialKeyListing(t *testing.T) {
 }
 
 func TestDeleteUserImmediatelyRemovesPushCredentials(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := context.Background()
 	user, err := chatto.CreateUser(ctx, SystemActorID, "push-cleanup-delete-user", "Push Cleanup Delete User", "password123")

@@ -17,6 +17,6 @@ fi
 timeout_minutes=$((15 * count))
 printf 'Backend stability: %s repetitions, %sm timeout per package (15m per repetition).\n' "$count" "$timeout_minutes"
 
-exec go test -trimpath -race -tags test_endpoints -p 1 -parallel 1 \
+exec go test -trimpath -race -tags test_endpoints \
     "-shuffle=${CHATTO_GO_TEST_SHUFFLE:-on}" "-count=$count" "-timeout=${timeout_minutes}m" \
     ./internal/testutil ./internal/core ./internal/connectapi ./internal/http_server ./internal/mcpserver

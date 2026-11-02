@@ -12,8 +12,6 @@ import (
 )
 
 func TestChattoCore_ExchangeAuthCodeConcurrentSingleUse(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "concurrent-auth-code", "Concurrent Auth Code", "password123")
@@ -58,8 +56,6 @@ func TestChattoCore_ExchangeAuthCodeConcurrentSingleUse(t *testing.T) {
 }
 
 func TestChattoCore_CreateAuthCode(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -94,8 +90,6 @@ func TestChattoCore_CreateAuthCode(t *testing.T) {
 }
 
 func TestChattoCore_CreateAuthCodeRejectsEmptyUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -106,8 +100,6 @@ func TestChattoCore_CreateAuthCodeRejectsEmptyUser(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -155,8 +147,6 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, "", "client-bound-code", "Client Bound Code", "password123")
@@ -196,8 +186,6 @@ func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCodeCarriesResourceAndScopesIntoRefreshSession(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, "", "resource-bound-code", "Resource Bound Code", "password123")
@@ -261,8 +249,6 @@ func TestChattoCore_ExchangeAuthCodeCarriesResourceAndScopesIntoRefreshSession(t
 }
 
 func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -292,8 +278,6 @@ func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCodeRejectsGenerationZeroAfterPasswordChange(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -335,8 +319,6 @@ func TestChattoCore_ExchangeAuthCodeRejectsGenerationZeroAfterPasswordChange(t *
 }
 
 func TestChattoCore_CreateAuthCodeForGenerationRejectsStaleAuthGeneration(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -364,8 +346,6 @@ func TestChattoCore_CreateAuthCodeForGenerationRejectsStaleAuthGeneration(t *tes
 }
 
 func TestChattoCore_ExchangeAuthCode_SingleUse(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -397,8 +377,6 @@ func TestChattoCore_ExchangeAuthCode_SingleUse(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCode_NotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -409,8 +387,6 @@ func TestChattoCore_ExchangeAuthCode_NotFound(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCode_InvalidVerifier(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -442,8 +418,6 @@ func TestChattoCore_ExchangeAuthCode_InvalidVerifier(t *testing.T) {
 }
 
 func TestChattoCore_ExchangeAuthCode_RedirectMismatch(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -468,8 +442,6 @@ func TestChattoCore_ExchangeAuthCode_RedirectMismatch(t *testing.T) {
 }
 
 func TestChattoCore_CreateAuthCode_RejectsPlainMethod(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -485,8 +457,6 @@ func TestChattoCore_CreateAuthCode_RejectsPlainMethod(t *testing.T) {
 }
 
 func TestGenerateCodeChallenge(t *testing.T) {
-	t.Parallel()
-
 	// Test vector from RFC 7636 Appendix B
 	// verifier: dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 	// expected S256 challenge: E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
@@ -500,8 +470,6 @@ func TestGenerateCodeChallenge(t *testing.T) {
 }
 
 func TestVerifyCodeChallenge(t *testing.T) {
-	t.Parallel()
-
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	challenge := GenerateCodeChallenge(verifier)
 

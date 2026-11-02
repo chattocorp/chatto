@@ -242,8 +242,6 @@ func attachmentDeclaredEvent(roomID, attachmentID, contentType string) *evtv1.Ev
 // =============================================================================
 
 func TestRoomTimeline_Empty(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	if got := p.RoomEvents("R1", 50, 0); len(got) != 0 {
 		t.Errorf("RoomEvents on empty = %d entries, want 0", len(got))
@@ -257,8 +255,6 @@ func TestRoomTimeline_Empty(t *testing.T) {
 }
 
 func TestRoomTimeline_AppendsVisibleEventKinds(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		roomCreatedTimelineEvent("ENV-CREATE", "R1", "general", 1),
@@ -300,8 +296,6 @@ func TestRoomTimeline_AppendsVisibleEventKinds(t *testing.T) {
 }
 
 func TestRoomTimeline_RoomIsolation(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-A", eventID: "A", roomID: "R1", actorID: "U1", at: 1}),
@@ -322,8 +316,6 @@ func TestRoomTimeline_RoomIsolation(t *testing.T) {
 }
 
 func TestRoomTimeline_PaginationByStreamSeq(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1}),
@@ -346,8 +338,6 @@ func TestRoomTimeline_PaginationByStreamSeq(t *testing.T) {
 }
 
 func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", body: "hello", at: 1}),
@@ -369,8 +359,6 @@ func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
 }
 
 func TestRoomTimeline_RetainsOnlyVisibleEntriesAndMessagePostLookups(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		roomCreatedTimelineEvent("ENV-CREATE", "R1", "general", 1),
@@ -431,8 +419,6 @@ func TestRoomTimeline_RetainsOnlyVisibleEntriesAndMessagePostLookups(t *testing.
 }
 
 func TestRoomTimeline_LastRoomMessageEntryIncludesThreadReplies(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
@@ -452,8 +438,6 @@ func TestRoomTimeline_LastRoomMessageEntryIncludesThreadReplies(t *testing.T) {
 }
 
 func TestRoomTimeline_LastRoomMessageEntrySkipsHiddenEchoes(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
@@ -476,8 +460,6 @@ func TestRoomTimeline_LastRoomMessageEntrySkipsHiddenEchoes(t *testing.T) {
 }
 
 func TestRoomTimeline_ReturnsDetachedEntries(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "one", at: 1}),
@@ -501,8 +483,6 @@ func TestRoomTimeline_ReturnsDetachedEntries(t *testing.T) {
 }
 
 func TestRoomTimeline_LatestBodyReferenceReturnsDetachedMetadata(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	post := bodylessPostedEvent("ENV-M1", "R1", "U1", 1)
 	bodyEvent := bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "one", []string{"A1"}, 2)
@@ -528,8 +508,6 @@ func TestRoomTimeline_LatestBodyReferenceReturnsDetachedMetadata(t *testing.T) {
 }
 
 func TestRoomTimeline_ApplyDoesNotMutateMessageBodyEvent(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	bodyEvent := bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "one", []string{"A1"}, 1)
 	bodyEvent.GetMessageBody().Body.BodyEventId = ""
@@ -552,8 +530,6 @@ func TestRoomTimeline_ApplyDoesNotMutateMessageBodyEvent(t *testing.T) {
 }
 
 func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 
 	if err := p.Apply(bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1), 1); err != nil {
@@ -634,8 +610,6 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 }
 
 func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	lateBody := bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5)
 	lateBody.GetMessageBody().GetBody().AssetIds = []string{"A-LATE"}
@@ -680,8 +654,6 @@ func bodyStateForTest(p *RoomTimelineProjection, eventID string) timelineBodySta
 }
 
 func TestRoomTimeline_OrphanEditHistoryAndBodyAuthorSurviveRestore(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	for sequence, event := range []*evtv1.Event{
 		bodyEvent("B1", "M1", "R1", "U2", "first", 1),
@@ -731,8 +703,6 @@ func TestRoomTimeline_OrphanEditHistoryAndBodyAuthorSurviveRestore(t *testing.T)
 }
 
 func TestRoomTimeline_InterleavedBodyHistoriesStayWithTheirMessages(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		bodyEvent("B1", "M1", "R1", "U1", "first R1 body", 1),
@@ -802,8 +772,6 @@ func TestRoomTimeline_InterleavedBodyHistoriesStayWithTheirMessages(t *testing.T
 }
 
 func TestRoomTimeline_SnapshotPreservesVisibleThreadingModeChanges(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	event := &evtv1.Event{
 		Id:      "THREADING-MODE-CHANGED",
@@ -832,8 +800,6 @@ func TestRoomTimeline_SnapshotPreservesVisibleThreadingModeChanges(t *testing.T)
 }
 
 func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1}),
@@ -868,7 +834,6 @@ func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testi
 }
 
 func TestRoomTimeline_IndependentSlowModeReadsRestore(t *testing.T) {
-	t.Parallel()
 	p := NewRoomTimelineProjection()
 	imported := postedEvent(postedOpts{envelopeID: "IMPORT", roomID: "R", actorID: "U", inThread: "ROOT", at: 8})
 	imported.GetMessagePosted().HistoricalImport = true
@@ -931,8 +896,6 @@ func TestRoomTimeline_IndependentSlowModeReadsRestore(t *testing.T) {
 }
 
 func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	root := postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", at: 1})
 	reply := postedEvent(postedOpts{
@@ -991,8 +954,6 @@ func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 }
 
 func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredRequestTime(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
@@ -1012,8 +973,6 @@ func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredRequestTime(t *testing.T) 
 }
 
 func TestRoomTimeline_MessageDeletedAtHandlesKeyShredBeforeMessageReplay(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		{
@@ -1036,8 +995,6 @@ func TestRoomTimeline_MessageDeletedAtHandlesKeyShredBeforeMessageReplay(t *test
 }
 
 func TestRoomTimeline_MessageDeletedAtKeepsEarliestDeletionFact(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
@@ -1053,8 +1010,6 @@ func TestRoomTimeline_MessageDeletedAtKeepsEarliestDeletionFact(t *testing.T) {
 }
 
 func TestRoomTimeline_EchoIndexedAfterRetractionInheritsDeletionTime(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		bodyEvent("BODY-REPLY", "ENV-REPLY", "R1", "U1", "reply", 1),
@@ -1076,8 +1031,6 @@ func TestRoomTimeline_EchoIndexedAfterRetractionInheritsDeletionTime(t *testing.
 }
 
 func TestRoomTimeline_RejectsMismatchedMessageBodyEventID(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	bad := bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1)
 	bad.GetMessageBody().Body.BodyEventId = "OTHER-BODY"
@@ -1094,8 +1047,6 @@ func TestRoomTimeline_RejectsMismatchedMessageBodyEventID(t *testing.T) {
 }
 
 func TestRoomTimeline_RetractingEchoHidesEchoOnly(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
@@ -1117,8 +1068,6 @@ func TestRoomTimeline_RetractingEchoHidesEchoOnly(t *testing.T) {
 }
 
 func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
@@ -1142,8 +1091,6 @@ func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
 }
 
 func TestRoomTimeline_CallLifecycleVisibility(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "root", at: 1}),
@@ -1166,8 +1113,6 @@ func TestRoomTimeline_CallLifecycleVisibility(t *testing.T) {
 }
 
 func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
@@ -1189,8 +1134,6 @@ func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
 }
 
 func TestRoomTimeline_VisibleRoomTimelineAroundUsesVisibleIndex(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
@@ -1220,8 +1163,6 @@ func TestRoomTimeline_VisibleRoomTimelineAroundUsesVisibleIndex(t *testing.T) {
 }
 
 func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "1", at: 1})
 	applyAll(t, p, []*evtv1.Event{
@@ -1280,8 +1221,6 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 }
 
 func TestRoomTimeline_Idempotency(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	e := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
 	if err := p.Apply(e, 1); err != nil {
@@ -1296,8 +1235,6 @@ func TestRoomTimeline_Idempotency(t *testing.T) {
 }
 
 func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
-	t.Parallel()
-
 	// ServerMemberDeletedEvent is in the proto's "Room membership" block
 	// (oneof tag 320) but carries no room_id. It's published to
 	// server.member.> in practice, never to evt.room.>, but if one ever
@@ -1320,8 +1257,6 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 }
 
 func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	ignored := []*evtv1.Event{
 		{
@@ -1353,8 +1288,6 @@ func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
 }
 
 func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
-	t.Parallel()
-
 	p := NewRoomTimelineProjection()
 	event := &evtv1.Event{
 		Id:        "ENV-MESSAGE",
@@ -1387,8 +1320,6 @@ func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 }
 
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
-	t.Parallel()
-
 	subjects := NewRoomTimelineProjection().Subjects()
 	want := map[string]bool{
 		evtstream.RoomSubjectFilter():                                           true,
@@ -1452,7 +1383,6 @@ func TestRoomTimeline_KeyShreddingDoesNotAllocatePerRow(t *testing.T) {
 }
 
 func TestRoomTimeline_LastPostedMessageTimes(t *testing.T) {
-	t.Parallel()
 	p := NewRoomTimelineProjection()
 	assertTimes := func(p *RoomTimelineProjection, message, root time.Time) {
 		t.Helper()

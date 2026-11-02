@@ -32,7 +32,6 @@ func invitationNotificationFixture(t *testing.T, c *ChattoCore, ctx context.Cont
 }
 
 func TestInvitationNotificationDeliveryModes(t *testing.T) {
-	t.Parallel()
 	for _, mode := range []evtv1.NotificationDeliveryMode{
 		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
@@ -40,7 +39,6 @@ func TestInvitationNotificationDeliveryModes(t *testing.T) {
 		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	} {
 		t.Run(mode.String(), func(t *testing.T) {
-			t.Parallel()
 			c, _ := setupTestCore(t)
 			ctx := testContext(t)
 			sender, recipient, room := invitationNotificationFixture(t, c, ctx)
@@ -93,7 +91,6 @@ func TestInvitationNotificationDeliveryModes(t *testing.T) {
 }
 
 func TestInvitationNotificationReadDeleteAndAcceptance(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	sender, recipient, room := invitationNotificationFixture(t, c, ctx)
@@ -117,7 +114,6 @@ func TestInvitationNotificationReadDeleteAndAcceptance(t *testing.T) {
 }
 
 func TestExpiredInvitationDoesNotMaterializeNotification(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	sender, recipient, room := invitationNotificationFixture(t, c, ctx)
@@ -128,7 +124,6 @@ func TestExpiredInvitationDoesNotMaterializeNotification(t *testing.T) {
 }
 
 func TestInvitationNotificationCrossReplicaResolution(t *testing.T) {
-	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	other := startReplica(t, ns, testCoreConfig())
@@ -148,7 +143,6 @@ func TestInvitationNotificationCrossReplicaResolution(t *testing.T) {
 }
 
 func TestInvitationNotificationAlertDeliveryAndResolution(t *testing.T) {
-	t.Parallel()
 	c, _ := newTestCore(t)
 	delivered := make(chan *notificationv1.NotificationOccurrence, 1)
 	c.SetNotificationAlertHandler(func(_ context.Context, occurrence *notificationv1.NotificationOccurrence) error {
@@ -176,7 +170,6 @@ func TestInvitationNotificationAlertDeliveryAndResolution(t *testing.T) {
 }
 
 func TestInvitationNotificationSenderDeletionAcrossReplicas(t *testing.T) {
-	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	other := startReplica(t, ns, testCoreConfig())

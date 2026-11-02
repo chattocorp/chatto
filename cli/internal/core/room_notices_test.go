@@ -14,7 +14,6 @@ import (
 )
 
 func TestRoomNoticeLifecycleAndAuthorization(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	member, err := c.CreateUser(ctx, SystemActorID, "notice-editor", "Editor", "password")
@@ -107,7 +106,6 @@ func TestRoomNoticeLifecycleAndAuthorization(t *testing.T) {
 }
 
 func TestRoomNoticeProjectionSnapshotAndDelivery(t *testing.T) {
-	t.Parallel()
 	p := NewRoomDirectoryProjection()
 	created := roomCreatedEvent("R1", "Room", "", evtv1.RoomKind_ROOM_KIND_CHANNEL)
 	created.GetRoomCreated().Purpose = "Room purpose"

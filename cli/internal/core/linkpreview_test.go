@@ -17,8 +17,6 @@ import (
 )
 
 func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	core, _ := setupTestCore(t)
 	assetID := NewAssetID()
@@ -66,8 +64,6 @@ func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
 }
 
 func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		headers map[string][]string

@@ -5,8 +5,6 @@ import (
 )
 
 func TestChattoCore_DeleteUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -51,8 +49,6 @@ func TestChattoCore_DeleteUser(t *testing.T) {
 // Note: Core.DeleteUser no longer checks authorization - that's the API layer's responsibility.
 // This test verifies the CanDeleteUser helper that the API layer uses.
 func TestChattoCore_CanDeleteUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -93,8 +89,6 @@ func TestChattoCore_CanDeleteUser(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_PreservesSpaceAndPurgesUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -113,8 +107,6 @@ func TestChattoCore_DeleteUser_PreservesSpaceAndPurgesUser(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_WithVerifiedEmail(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -156,8 +148,6 @@ func TestChattoCore_DeleteUser_WithVerifiedEmail(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -259,8 +249,6 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -353,8 +341,6 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_KeepsDMMembership(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

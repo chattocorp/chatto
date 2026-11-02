@@ -8,8 +8,6 @@ import (
 )
 
 func TestNewAssetModelWiresCore(t *testing.T) {
-	t.Parallel()
-
 	core := &ChattoCore{}
 	projection := NewAssetProjection()
 
@@ -24,8 +22,6 @@ func TestNewAssetModelWiresCore(t *testing.T) {
 }
 
 func TestAssetModelMissingProjectionFailsClosed(t *testing.T) {
-	t.Parallel()
-
 	model := newTestAssetModel(t, &ChattoCore{}, nil, nil)
 
 	if got := model.AssetState(NewAssetID()); got != (AssetState{}) {
@@ -40,8 +36,6 @@ func TestAssetModelMissingProjectionFailsClosed(t *testing.T) {
 }
 
 func TestChattoCoreAssetBoundaryFailsClosedBeforeInitialization(t *testing.T) {
-	t.Parallel()
-
 	core := &ChattoCore{}
 
 	if got := core.GetAssetState(NewAssetID()); got != (AssetState{}) {

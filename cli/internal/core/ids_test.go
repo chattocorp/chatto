@@ -6,8 +6,6 @@ import (
 )
 
 func TestNewUserID(t *testing.T) {
-	t.Parallel()
-
 	id := NewUserID()
 
 	if !strings.HasPrefix(id, "U") {
@@ -21,8 +19,6 @@ func TestNewUserID(t *testing.T) {
 }
 
 func TestNewRoomID(t *testing.T) {
-	t.Parallel()
-
 	id := NewRoomID()
 
 	if !strings.HasPrefix(id, "R") {
@@ -35,8 +31,6 @@ func TestNewRoomID(t *testing.T) {
 }
 
 func TestNewAssetID(t *testing.T) {
-	t.Parallel()
-
 	id := NewAssetID()
 
 	if !strings.HasPrefix(id, "A") {
@@ -49,8 +43,6 @@ func TestNewAssetID(t *testing.T) {
 }
 
 func TestNewEventID(t *testing.T) {
-	t.Parallel()
-
 	id := NewEventID()
 
 	if !strings.HasPrefix(id, "E") {
@@ -63,8 +55,6 @@ func TestNewEventID(t *testing.T) {
 }
 
 func TestIDUniqueness(t *testing.T) {
-	t.Parallel()
-
 	generated := make(map[string]bool)
 	count := 1000
 
@@ -82,8 +72,6 @@ func TestIDUniqueness(t *testing.T) {
 }
 
 func TestIDCharacters(t *testing.T) {
-	t.Parallel()
-
 	validChars := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 	id := NewUserID()

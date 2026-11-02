@@ -3,8 +3,6 @@ package core
 import "testing"
 
 func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
-	t.Parallel()
-
 	scope := PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer}
 
 	t.Run("broad allow wins over narrow deny", func(t *testing.T) {

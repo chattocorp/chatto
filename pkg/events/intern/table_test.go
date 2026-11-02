@@ -19,13 +19,11 @@ type idTable interface {
 }
 
 func TestTableContract(t *testing.T) {
-	t.Parallel()
 	for name, create := range map[string]func() idTable{
 		"local":      func() idTable { return &intern.Table[testKind]{} },
 		"concurrent": func() idTable { return intern.NewConcurrentTable[testKind]() },
 	} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			table := create()
 			if table.Intern("") != 0 || table.Resolve(0) != "" || table.Len() != 0 {
 				t.Fatal("empty ID allocated a handle")

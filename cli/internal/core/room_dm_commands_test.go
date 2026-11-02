@@ -25,7 +25,6 @@ func (m dmTestMemberships) RoomMembershipExists(_ context.Context, _ RoomKind, u
 }
 
 func TestRoomCommandModelDMWithoutCoreCallbacks(t *testing.T) {
-	t.Parallel()
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	commands := &RoomCommandModel{
@@ -53,7 +52,6 @@ func TestRoomCommandModelDMWithoutCoreCallbacks(t *testing.T) {
 }
 
 func TestRoomCommandModelDMConflictWaitsAndChecksMembership(t *testing.T) {
-	t.Parallel()
 	for _, removed := range []bool{false, true} {
 		name := "member"
 		if removed {

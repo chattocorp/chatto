@@ -7,8 +7,6 @@ import (
 )
 
 func TestEffectivePermissionsAuthorizationAndScopeCoverage(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "effective-owner", "Owner", "password123")
@@ -83,8 +81,6 @@ func TestEffectivePermissionsAuthorizationAndScopeCoverage(t *testing.T) {
 }
 
 func TestEffectivePermissionCoverageKeepsGroupsAndDMIndependent(t *testing.T) {
-	t.Parallel()
-
 	scopes := []PermissionMatrixScope{
 		{ID: "server", Kind: MatrixScopeServer},
 		{ID: "dm", Kind: MatrixScopeDM},

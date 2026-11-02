@@ -17,8 +17,6 @@ import (
 )
 
 func TestS3ProjectionSnapshotBlobStoreRoundTrip(t *testing.T) {
-	t.Parallel()
-
 	server := fakes3.NewServer(t)
 	useSSL := false
 	pathStyle := true
@@ -65,8 +63,6 @@ func TestS3ProjectionSnapshotBlobStoreRoundTrip(t *testing.T) {
 }
 
 func TestS3ProjectionSnapshotBlobStoreWalksPaginatedLogicalPrefix(t *testing.T) {
-	t.Parallel()
-
 	server := fakes3.NewServer(t)
 	useSSL := false
 	pathStyle := true
@@ -116,8 +112,6 @@ func TestS3ProjectionSnapshotBlobStoreWalksPaginatedLogicalPrefix(t *testing.T) 
 }
 
 func TestNATSProjectionSnapshotBlobStoreWalksPrefixAndStops(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	if err != nil {
@@ -162,8 +156,6 @@ func TestNATSProjectionSnapshotBlobStoreWalksPrefixAndStops(t *testing.T) {
 }
 
 func TestNATSProjectionSnapshotPointerStoreEnforcesRevisions(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	if err != nil {
@@ -202,8 +194,6 @@ func TestNATSProjectionSnapshotPointerStoreEnforcesRevisions(t *testing.T) {
 }
 
 func TestS3ProjectionSnapshotExpiryDeletesOnlyMarkedGenerationObjects(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	server := fakes3.NewServer(t)
 	useSSL := false
@@ -266,8 +256,6 @@ func TestS3ProjectionSnapshotExpiryDeletesOnlyMarkedGenerationObjects(t *testing
 }
 
 func TestNATSProjectionSnapshotObjectStoreTTLExpiresObjects(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	if err != nil {

@@ -476,8 +476,6 @@ func TestLiveKitWebhookRoomBelongsToInstance(t *testing.T) {
 }
 
 func TestLiveKitWebhookRecordsSignatureOutcomeForDiagnostics(t *testing.T) {
-	t.Parallel()
-
 	const (
 		apiKey    = "devkey"
 		apiSecret = "devsecret"
