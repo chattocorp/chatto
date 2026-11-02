@@ -5,7 +5,7 @@ CodeMirror-backed Markdown source editor for the message composer. It exposes
 the same API as the visual editor while keeping the stored Markdown visible.
 -->
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { getAllContexts, tick, untrack } from 'svelte';
   import {
     defaultKeymap,
     history,
@@ -27,6 +27,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { sourceAutolinks } from './sourceAutolinks';
   import { sourceEmphasisHighlighting, sourceEmphasisSyntax } from './sourceEmphasisHighlighting';
   import { sourceLinkHighlighting, sourceLinkSyntax } from './sourceLinkHighlighting';
+  import { sourceEntityLinkPreview } from './sourceEntityLinkPreview';
   import { m } from '$lib/i18n/messages';
   import { codeFenceHighlighting } from './codeFenceHighlighting';
   import type {
@@ -153,6 +154,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   }: ComposerEditorProps = $props();
 
   let view: EditorView | null = null;
+  const context = getAllContexts();
 
   function mountEditor(node: HTMLDivElement) {
     const editableCompartment = new Compartment();
@@ -187,6 +189,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
           }),
           syntaxHighlighting(markdownHighlightStyle),
           sourceLinkHighlighting,
+          sourceEntityLinkPreview(context),
           sourceEmphasisHighlighting,
           codeFenceHighlighting,
           markdownTheme,

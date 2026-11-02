@@ -9,6 +9,7 @@ import { RoomKind } from '@chatto/client/api/roomDirectory';
 import MessageContent from '../MessageContent.svelte';
 import UrlLink from './UrlLink.svelte';
 import TipTapEditor from '../composer/TipTapEditor.svelte';
+import MarkdownEditor from '../composer/MarkdownEditor.svelte';
 import type { ComposerEditorApi } from '../composer/editorTypes';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
 import { ServerInfoState } from '@chatto/client/server/state';
@@ -640,39 +641,124 @@ describe('entity links in messages', () => {
   });
 });
 
-it('previews bare URLs in the visual composer, preserves labels, and edits the URL behind a pill', async () => {
-  let api: ComposerEditorApi | undefined;
-  let markdown = '';
-  const { container } = render(TipTapEditor, {
-    onUpdate: (value) => {
-      markdown = value;
-    },
-    onReady: (ready) => {
-      api = ready;
-    }
+it.each([TipTapEditor, MarkdownEditor])(
+  'previews bare URLs, preserves labels, and edits the URL behind a pill with %s',
+  async (Editor) => {
+    let api: ComposerEditorApi | undefined;
+    let markdown = '';
+    const { container } = render(Editor, {
+      onUpdate: (value) => {
+        markdown = value;
+      },
+      onReady: (ready) => {
+        api = ready;
+      }
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    const source = `${origin} and [the wonderful channel](${origin}/chat/-/${roomId})`;
+    api!.setContent(source);
+    await vi.waitFor(() =>
+      expect(container.querySelector('.entity-link')?.textContent).toContain('Known server')
+    );
+    expect(container.querySelectorAll('.entity-link')).toHaveLength(1);
+    api!.focus('end');
+    api!.insertText('!');
+    expect(markdown).toBe(source + '!');
+    const preview = container.querySelector<HTMLElement>('.composer-entity-preview')!;
+    expect(preview.isConnected).toBe(true);
+    preview.querySelector<HTMLAnchorElement>('a')!.click();
+    await vi.waitFor(() => expect(container.querySelector('.composer-entity-preview')).toBeNull());
+    expect(mocks.goto).not.toHaveBeenCalled();
+    api!.insertText('edited');
+    expect(api!.getText()).toContain('edited');
+    api!.setContent(`[${origin}](${origin})`);
+    await vi.waitFor(() => expect(container.querySelector('.entity-link')).toBeNull());
+    api!.focus('end');
+    api!.insertText('!');
+    expect(markdown).toBe(`[${origin}](${origin})!`);
+  }
+);
+
+describe('Markdown composer link previews', () => {
+  it.each([
+    [origin, '.entity-link', 'Known server'],
+    [`${origin}/chat/-/${roomId}`, '.entity-link', 'General'],
+    [`${origin}/chat/-/user/${userId}`, '.entity-link', 'Alice'],
+    [`${origin}/chat/-/${roomId}/m/E123456789abcde`, '[data-message-link]', 'General'],
+    [`<${origin}>`, '.entity-link', 'Known server']
+  ])('previews pasted %s and keeps its source editable', async (source, selector, label) => {
+    let api: ComposerEditorApi | undefined;
+    let markdown = '';
+    const { container } = render(MarkdownEditor, {
+      onReady: (ready) => (api = ready),
+      onUpdate: (value) => (markdown = value)
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.focus('end');
+    const editor = container.querySelector<HTMLElement>('.cm-content')!;
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', source);
+    editor.dispatchEvent(
+      new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData })
+    );
+    await vi.waitFor(() => expect(container.querySelector(selector)?.textContent).toContain(label));
+    expect(markdown).toBe(source);
+    expect(api!.getText()).toBe(source);
+    await userEvent.keyboard(' after');
+    await vi.waitFor(() => expect(markdown).toBe(`${source} after`));
+    api!.focus('start');
+    await userEvent.keyboard('{ArrowRight}');
+    await vi.waitFor(() => expect(container.querySelector('.composer-entity-preview')).toBeNull());
+    await userEvent.keyboard('X');
+    expect(api!.getText()).toBe(`${source.slice(0, 1)}X${source.slice(1)} after`);
+    await userEvent.keyboard('{Backspace}{ArrowLeft}');
+    await vi.waitFor(() => expect(container.querySelector(selector)?.textContent).toContain(label));
+    await userEvent.keyboard('Before ');
+    expect(api!.getText()).toBe(`Before ${source} after`);
   });
-  await vi.waitFor(() => expect(api).toBeDefined());
-  const source = `${origin} and [the wonderful channel](${origin}/chat/-/${roomId})`;
-  api!.setContent(source);
-  await vi.waitFor(() =>
-    expect(container.querySelector('.entity-link')?.textContent).toContain('Known server')
-  );
-  expect(container.querySelectorAll('.entity-link')).toHaveLength(1);
-  api!.focus('end');
-  api!.insertText('!');
-  expect(markdown).toBe(source + '!');
-  const preview = container.querySelector<HTMLElement>('.composer-entity-preview')!;
-  expect(preview.isConnected).toBe(true);
-  preview.querySelector<HTMLAnchorElement>('a')!.click();
-  await vi.waitFor(() => expect(container.querySelector('.composer-entity-preview')).toBeNull());
-  expect(mocks.goto).not.toHaveBeenCalled();
-  api!.insertText('edited');
-  expect(api!.getText()).toContain('edited');
-  api!.setContent(`[${origin}](${origin})`);
-  await vi.waitFor(() => expect(container.querySelector('.entity-link')).toBeNull());
-  api!.focus('end');
-  api!.insertText('!');
-  expect(markdown).toBe(`[${origin}](${origin})!`);
+
+  it('copies the URL source and supports undo after deleting a selected pill', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(origin);
+    api!.focus('end');
+    await userEvent.keyboard('{Shift>}{Home}{/Shift}');
+    await vi.waitFor(() => expect(container.querySelector('.composer-entity-preview')).toBeNull());
+    const clipboardData = new DataTransfer();
+    container.querySelector('.cm-content')!.dispatchEvent(
+      new ClipboardEvent('copy', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData
+      })
+    );
+    expect(clipboardData.getData('text/plain')).toBe(origin);
+    await userEvent.keyboard('{Backspace}');
+    expect(api!.getText()).toBe('');
+    await userEvent.keyboard(
+      navigator.platform.startsWith('Mac') ? '{Meta>}z{/Meta}' : '{Control>}z{/Control}'
+    );
+    await vi.waitFor(() => expect(api!.getText()).toBe(origin));
+  });
+
+  it.each([
+    '`' + origin + '`',
+    '```\n' + origin + '\n```',
+    '    ' + origin,
+    `[${origin}](${origin})`,
+    `[label](${origin})`,
+    `![image](${origin})`,
+    'https://unknown.example.test',
+    `${origin}/chat/-/R00000000000000`
+  ])('keeps %s as source without a pill', async (source) => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(source);
+    expect(container.querySelector('.composer-entity-preview')).toBeNull();
+    expect(api!.getText()).toBe(source);
+  });
 });
 
 it('keeps composer link styling out of hover cards', async () => {
