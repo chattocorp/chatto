@@ -861,7 +861,11 @@ env = { GOMAXPROCS = "4" }
 # Keep the load fixed across developer machines and CI. Run package binaries
 # one at a time, with one test at a time inside each binary. Do not cache this
 # task: each invocation must exercise the workers and cleanup again.
-run = "go test -trimpath -race -tags test_endpoints -p 1 -parallel 1 -shuffle=${CHATTO_GO_TEST_SHUFFLE:-on} -count=${CHATTO_GO_STABILITY_COUNT:-3} -timeout 15m ./internal/testutil ./internal/core ./internal/connectapi ./internal/http_server ./internal/mcpserver"
+run = "bash ../tools/test-cli-stability.sh"
+
+[tasks.test-cli-stability-runner]
+description = "Check stability-test budgets, flags, and failure propagation"
+run = "node --test tools/test-cli-stability.test.mjs"
 
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
@@ -1080,6 +1084,7 @@ run = [
     { task = "test-desktop" },
     { task = "test-chatto-build" },
     { task = "test-clean" },
+    { task = "test-cli-stability-runner" },
     { task = "test-dev-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },

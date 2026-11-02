@@ -435,7 +435,10 @@ authorization, live events, backup and restore, and backend tests.
   packages three times with the race detector, one package and one test at a
   time, on four Go scheduler threads. Reproduce a reported shuffle seed with
   `CHATTO_GO_TEST_SHUFFLE=<seed>`. `CHATTO_GO_STABILITY_COUNT` sets the repeat
-  count. A passing repeat run is supporting evidence, not proof of a race fix.
+  count. Each package gets a total timeout of 15 minutes multiplied by this
+  count. Go applies that timeout to all repetitions in the package, which run
+  in one process to expose state leaks. A passing repeat run is supporting
+  evidence, not proof of a race fix.
 - Mise enables `-trimpath`. Locate test fixtures from the working directory
   or embed them; `runtime.Caller` no longer gives absolute source paths.
 - Iterate with targeted tests:

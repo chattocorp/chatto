@@ -316,6 +316,9 @@ jobs:
       - name: Test build-output cleanup
         run: mise test-clean
 
+      - name: Test backend stability runner
+        run: mise test-cli-stability-runner
+
       - name: Test interchange format contract
         run: mise test-interchange
 
