@@ -346,7 +346,8 @@ browsing grid that grows with its content, such as the server directory in the
 Add Server dialog.
 
 The attachment image viewer, fullscreen video, `QuickSwitcher`, and popovers
-remain specialized overlays. The image viewer keeps its zoom controls outside
+remain specialized overlays. The image viewer uses the theme's `background`
+colour for its canvas and edge fades. It keeps its zoom controls outside
 the pan surface and its details panel closed until the user opens it. Media
 viewers keep their full-screen mobile presentation. Context
 menus retain input-capability selection between floating menus and sheets.
@@ -1340,7 +1341,7 @@ to the standard primitives unless their purpose changes.
 
 | Area                                | Exception                                                                                                                                                                 |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Media overlays and viewers          | Literal black and white in `ZoomableImage`, `AttachmentModal`, `FullscreenVideoOverlay`, `VideoThumbnail`, `NativeScreenShareDialog`, and badges over real thumbnails.    |
+| Media overlays and viewers          | Literal black and white in `FullscreenVideoOverlay`, `VideoThumbnail`, `NativeScreenShareDialog`, and badges over real thumbnails.                                        |
 | Untrusted HTML previews             | `HtmlAttachmentModal` and `AttachmentPreview` keep a white canvas because untrusted HTML expects a white default page.                                                    |
 | Modal and drawer backdrops          | `backdrop:bg-black/50` and the mobile drawer scrim work in both themes.                                                                                                   |
 | Server identity and theme samples   | Generated server-logo gradients, accent swatches, and surface-tone samples show fixed colours on purpose.                                                                 |
