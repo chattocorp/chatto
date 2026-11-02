@@ -13,10 +13,11 @@ import { mount, unmount } from 'svelte';
 import EntityLink from '../messages/EntityLink.svelte';
 import { hasEntityLinkData, parseEntityLink, parseMessageLink } from '$lib/chatLinks';
 
+// CodeMirror can reuse DOM with a new WidgetType instance. Keep cleanup with the DOM.
+const previewDisposers = new WeakMap<HTMLElement, () => void>();
+
 /** Each rendered widget owns a Svelte component until CodeMirror removes its DOM. */
 class EntityPreview extends WidgetType {
-  #dispose?: () => void;
-
   constructor(
     readonly href: string,
     readonly context: Map<unknown, unknown>
@@ -36,7 +37,7 @@ class EntityPreview extends WidgetType {
       context: this.context,
       props: { href: this.href }
     });
-    this.#dispose = () => void unmount(component);
+    previewDisposers.set(preview, () => void unmount(component));
     preview.addEventListener(
       'click',
       (event) => {
@@ -51,8 +52,9 @@ class EntityPreview extends WidgetType {
     return preview;
   }
 
-  destroy() {
-    this.#dispose?.();
+  destroy(dom: HTMLElement) {
+    previewDisposers.get(dom)?.();
+    previewDisposers.delete(dom);
   }
 }
 
