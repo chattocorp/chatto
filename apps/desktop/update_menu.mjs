@@ -161,5 +161,6 @@ export async function configureUpdateMenu(packageJson) {
     clearTimeout(initial);
     clearInterval(interval);
   });
-  return { ...updates, install: requestInstall };
+  // Updates preferences already show the restart warning beside the explicit action.
+  return updates;
 }
