@@ -542,9 +542,11 @@ Use `alice` when you need server administration access.
 ## Repository Tooling Tests
 
 Run `mise test-repo-tooling` to test repository checks, release policy,
-build-output cleanup, and development launchers. The task installs workspace
-dependencies and discovers `tools/*.test.mjs` files automatically. It runs
-test files one at a time, then runs the launcher shell test.
+build-output cleanup, development launchers, interchange schemas, and Slack
+import tooling. The task installs workspace dependencies and discovers
+`tools/*.test.mjs` files automatically. It runs Node test files one at a time,
+then runs the launcher shell test and the Python suites through
+`mise test-interchange` and `mise test-slack`.
 
 CI and `mise test` use this same task. Add new Node tooling tests as
 `tools/<name>.test.mjs` so both commands include them. The focused tasks, such
