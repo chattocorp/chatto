@@ -20,8 +20,6 @@ import (
 )
 
 func TestPresencePreferenceOverridesEveryDevice(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := context.Background()
 	p, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
@@ -49,8 +47,6 @@ func TestPresencePreferenceOverridesEveryDevice(t *testing.T) {
 }
 
 func TestInvisiblePresenceHasNoPublicRefreshOrExpiryEvents(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -79,8 +75,6 @@ func TestInvisiblePresenceHasNoPublicRefreshOrExpiryEvents(t *testing.T) {
 }
 
 func TestPresencePreferenceRejectsDelayedReadsAndClearsDeletedState(t *testing.T) {
-	t.Parallel()
-
 	h := NewPresenceHub(nil, nil, nil)
 	h.live["user"] = PresenceStatusOnline
 	h.applyPreference("user", &apiv1.PresencePreference{Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, Revision: "choice"}, 2)
@@ -93,8 +87,6 @@ func TestPresencePreferenceRejectsDelayedReadsAndClearsDeletedState(t *testing.T
 }
 
 func TestPresencePreferenceSharedAcrossReplicasAndRestart(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -125,8 +117,6 @@ func TestPresencePreferenceSharedAcrossReplicasAndRestart(t *testing.T) {
 }
 
 func TestPresenceWatcherWaitsForPrivateChoiceBeforeExposingLiveness(t *testing.T) {
-	t.Parallel()
-
 	s, _, _ := newTestPresenceModel(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -159,8 +149,6 @@ func TestPresenceWatcherWaitsForPrivateChoiceBeforeExposingLiveness(t *testing.T
 }
 
 func TestPresenceChoicesReplaceRuntimeStateWithoutWritingEVT(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	evt, err := c.js.Stream(ctx, "EVT")
@@ -192,8 +180,6 @@ func TestPresenceChoicesReplaceRuntimeStateWithoutWritingEVT(t *testing.T) {
 }
 
 func TestPresencePreferenceSignalIsPrivateAndTransient(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	event := newPubSubEvent("owner", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged{ViewerPresencePreferenceChanged: &realtimev1.ViewerPresencePreferenceChangedEvent{}}})
 	subject, err := userPubSubEventPublication("owner", event).subject()
@@ -206,8 +192,6 @@ func TestPresencePreferenceSignalIsPrivateAndTransient(t *testing.T) {
 }
 
 func TestPresencePreferenceConcurrentReplacementAcrossReplicas(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	replica := startReplica(t, ns, c.config)
@@ -249,8 +233,6 @@ func TestPresencePreferenceConcurrentReplacementAcrossReplicas(t *testing.T) {
 }
 
 func TestPresencePreferenceKVDeletionClearsWatcherAndSurvivesResync(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	_, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
@@ -275,8 +257,6 @@ func (replicatedConflictKV) Update(context.Context, string, []byte, uint64) (uin
 }
 
 func TestPresencePreferenceReportsReplicatedStreamConflicts(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	initial, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, "")

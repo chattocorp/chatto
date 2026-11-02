@@ -12,8 +12,6 @@ import (
 // TestChattoCore_CreateUser_DisplayNameTooLong tests that oversized display names are rejected.
 // This is a security test to prevent storage issues and UI problems.
 func TestChattoCore_CreateUser_DisplayNameTooLong(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -49,8 +47,6 @@ func TestChattoCore_CreateUser_DisplayNameTooLong(t *testing.T) {
 
 // TestChattoCore_UpdateUserDisplayName_TooLong tests that oversized display names are rejected on update.
 func TestChattoCore_UpdateUserDisplayName_TooLong(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -90,8 +86,6 @@ func TestChattoCore_UpdateUserDisplayName_TooLong(t *testing.T) {
 
 // TestChattoCore_CreateUser_InvalidDisplayNameCharacters tests that invalid characters are rejected.
 func TestChattoCore_CreateUser_InvalidDisplayNameCharacters(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -141,8 +135,6 @@ func TestChattoCore_CreateUser_InvalidDisplayNameCharacters(t *testing.T) {
 
 // TestChattoCore_UpdateUserDisplayName_InvalidCharacters tests that invalid characters are rejected on update.
 func TestChattoCore_UpdateUserDisplayName_InvalidCharacters(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -190,8 +182,6 @@ func TestChattoCore_UpdateUserDisplayName_InvalidCharacters(t *testing.T) {
 // TestChattoCore_LoginCaseSensitivity verifies that usernames preserve their
 // original casing while remaining case-insensitive for lookup, auth, and uniqueness.
 func TestChattoCore_LoginCaseSensitivity(t *testing.T) {
-	t.Parallel()
-
 	t.Run("preserves casing on create and lookup", func(t *testing.T) {
 		tests := []struct {
 			name        string
@@ -300,8 +290,6 @@ func TestChattoCore_LoginCaseSensitivity(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -318,8 +306,6 @@ func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserLogin(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -645,8 +631,6 @@ func TestChattoCore_UpdateUserLogin(t *testing.T) {
 }
 
 func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
-	t.Parallel()
-
 	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -840,8 +824,6 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 }
 
 func TestChattoCore_GetLastLoginChange(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -876,8 +858,6 @@ func TestChattoCore_GetLastLoginChange(t *testing.T) {
 }
 
 func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -934,8 +914,6 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 }
 
 func TestChattoCore_UpdateUserBio(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

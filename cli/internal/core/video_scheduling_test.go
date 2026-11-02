@@ -15,8 +15,6 @@ import (
 // bool, a restore against unreachable/unconfigured storage would burn
 // SOURCE_MISSING into EVT for every in-flight asset — irreversibly.
 func TestAttachmentBinaryStatus_TriState(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
@@ -70,8 +68,6 @@ func TestAttachmentBinaryStatus_TriState(t *testing.T) {
 // tombstones (SOURCE_MISSING) when the source binary is definitively gone,
 // and otherwise emits a durable Started queue marker.
 func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
-	t.Parallel()
-
 	t.Run("present binary → durable queue marker", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
@@ -130,8 +126,6 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 // TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested exercises the
 // compatibility path for messages committed by pre-queue versions.
 func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General")

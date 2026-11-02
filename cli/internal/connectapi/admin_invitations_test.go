@@ -10,7 +10,6 @@ import (
 )
 
 func TestAdminInvitationCodeServiceLifecycleAndAuthorization(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	regular, err := env.core.CreateUser(env.ctx, core.SystemActorID, "invite-api-regular", "Invite API Regular", "password123")
 	if err != nil {

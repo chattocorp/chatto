@@ -13,14 +13,12 @@ import (
 )
 
 func TestAPIRoomCreationMetadata(t *testing.T) {
-	t.Parallel()
 	room := apiRoom(&readmodel.Room{CreatedAt: &timestamppb.Timestamp{Seconds: 123}})
 	require.Equal(t, int64(123), room.GetCreatedAt().GetSeconds())
 	require.Nil(t, apiRoom(&readmodel.Room{}).CreatedAt)
 }
 
 func TestRoomInformationMemberCountIncludesUniversalMembers(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "universal-count", "", core.WithUniversalRoom(true))
 	require.NoError(t, err)

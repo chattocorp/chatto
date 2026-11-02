@@ -10,7 +10,6 @@ import (
 )
 
 func TestOperatorOperationsAcrossReplicas(t *testing.T) {
-	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	a := startReplica(t, ns, testCoreConfig())
 	b := startReplica(t, ns, testCoreConfig())

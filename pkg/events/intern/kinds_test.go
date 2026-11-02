@@ -11,7 +11,6 @@ import (
 )
 
 func TestIDKeepsCompactRepresentation(t *testing.T) {
-	t.Parallel()
 	// Even a kind containing pointers contributes no storage to an ID.
 	type kind struct{ value *string }
 	var id intern.ID[kind]
@@ -22,7 +21,6 @@ func TestIDKeepsCompactRepresentation(t *testing.T) {
 }
 
 func TestKindsRejectAccidentalMixing(t *testing.T) {
-	t.Parallel()
 	// Compile an external consumer against the actual exported API. testdata
 	// keeps this intentionally invalid package outside ordinary ./... builds.
 	goCommand, err := exec.LookPath("go")

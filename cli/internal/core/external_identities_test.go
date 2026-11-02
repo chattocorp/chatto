@@ -93,8 +93,6 @@ func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 }
 
 func TestChattoCore_ExternalIdentityWithoutEmailCreatesVerifiedAccount(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -147,8 +145,6 @@ func TestChattoCore_ExternalIdentityWithoutEmailCreatesVerifiedAccount(t *testin
 }
 
 func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "link-start-user", "Link Start User", "password")
@@ -181,8 +177,6 @@ func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 }
 
 func TestChattoCore_ConfirmPendingExternalIdentityLinkRejectsDeletedUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -299,8 +293,6 @@ func TestChattoCore_ImportUserAvatarFromURLRejectsOversizedResponse(t *testing.T
 }
 
 func TestChattoCore_PendingExternalIdentityLinkFlowIsUserBound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -369,8 +361,6 @@ func TestChattoCore_PendingExternalIdentityLinkFlowIsUserBound(t *testing.T) {
 }
 
 func TestChattoCore_PendingExternalIdentityFlowExpiresByCreatedAt(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -393,8 +383,6 @@ func TestChattoCore_PendingExternalIdentityFlowExpiresByCreatedAt(t *testing.T) 
 }
 
 func TestChattoCore_LinkExternalIdentity(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	ctx := context.Background()
@@ -429,8 +417,6 @@ func TestChattoCore_LinkExternalIdentity(t *testing.T) {
 }
 
 func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	ctx := context.Background()
@@ -508,8 +494,6 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 }
 
 func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	ctx := context.Background()
@@ -547,8 +531,6 @@ func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *t
 }
 
 func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 
 	ctx := context.Background()

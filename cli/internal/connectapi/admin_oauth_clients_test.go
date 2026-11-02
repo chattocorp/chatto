@@ -17,8 +17,6 @@ import (
 )
 
 func TestAdminOAuthClientServiceLifecycleAndAuthorization(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	clientID := "https://remote.example/oauth/client-metadata.json"
 	if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
@@ -58,8 +56,6 @@ func TestAdminOAuthClientServiceLifecycleAndAuthorization(t *testing.T) {
 }
 
 func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	const clientID = "https://future.example/oauth/client-metadata.json"
 	if err := env.core.RecordOAuthClientAuthorization(
@@ -163,8 +159,6 @@ func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
 }
 
 func TestAdminOAuthClientServicePaginationDoesNotReshuffleOnAuthorization(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	clientIDs := []string{
 		"https://alpha.example/oauth/client-metadata.json",

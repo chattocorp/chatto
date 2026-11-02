@@ -12,8 +12,6 @@ import (
 )
 
 func TestAssetProcessingRuntimeDoesNotEnableVideoUploads(t *testing.T) {
-	t.Parallel()
-
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	if err != nil {

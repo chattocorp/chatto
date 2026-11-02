@@ -13,8 +13,6 @@ import (
 )
 
 func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "avatarowner", "Avatar Owner", "")
@@ -89,8 +87,6 @@ func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
 }
 
 func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T) {
-	t.Parallel()
-
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "managedavatarowner", "Managed Avatar Owner", "")
@@ -146,8 +142,6 @@ func createTestImage(width, height int) io.Reader {
 }
 
 func TestChattoCore_UploadUserAvatar(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -183,8 +177,6 @@ func TestChattoCore_UploadUserAvatar(t *testing.T) {
 }
 
 func TestChattoCore_SetUserAvatar(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -230,8 +222,6 @@ func TestChattoCore_SetUserAvatar(t *testing.T) {
 }
 
 func TestChattoCore_SetUserAvatar_DoesNotModifyUserProfile(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -267,8 +257,6 @@ func TestChattoCore_SetUserAvatar_DoesNotModifyUserProfile(t *testing.T) {
 }
 
 func TestChattoCore_GetUserAvatarURL(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -308,8 +296,6 @@ func TestChattoCore_GetUserAvatarURL(t *testing.T) {
 }
 
 func TestChattoCore_GetUserAvatarURL_ServerRelative(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -342,8 +328,6 @@ func TestChattoCore_GetUserAvatarURL_ServerRelative(t *testing.T) {
 }
 
 func TestChattoCore_UploadUserAvatar_ReplacesOld(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -379,8 +363,6 @@ func TestChattoCore_UploadUserAvatar_ReplacesOld(t *testing.T) {
 }
 
 func TestChattoCore_UploadUserAvatar_InvalidUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -392,8 +374,6 @@ func TestChattoCore_UploadUserAvatar_InvalidUser(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUserAvatar(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -446,8 +426,6 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUser_CleansUpAvatarCache(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
 
@@ -483,8 +461,6 @@ func TestChattoCore_DeleteUser_CleansUpAvatarCache(t *testing.T) {
 }
 
 func TestChattoCore_DeleteUserAvatar_NoAvatar(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

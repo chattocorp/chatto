@@ -21,8 +21,6 @@ import (
 )
 
 func TestMessagePostRejectsAttachmentUploadedByAnotherRoomMember(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	victim, attacker, room := setupAttachmentOwnershipUsers(t, chatto, ctx, "cross-user")
@@ -43,8 +41,6 @@ func TestMessagePostRejectsAttachmentUploadedByAnotherRoomMember(t *testing.T) {
 }
 
 func TestMessagePostRejectsAssetAlreadyAttachedBySameUser(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, _, room := setupAttachmentOwnershipUsers(t, chatto, ctx, "same-user")
@@ -65,8 +61,6 @@ func TestMessagePostRejectsAssetAlreadyAttachedBySameUser(t *testing.T) {
 }
 
 func TestDeletingLegacyAttachmentAliasDoesNotDeleteCanonicalAsset(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	victim, attacker, room := setupAttachmentOwnershipUsers(t, chatto, ctx, "legacy-partial-delete")
@@ -84,8 +78,6 @@ func TestDeletingLegacyAttachmentAliasDoesNotDeleteCanonicalAsset(t *testing.T) 
 }
 
 func TestDeletingLegacyMessageAliasDoesNotDeleteCanonicalAsset(t *testing.T) {
-	t.Parallel()
-
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	victim, attacker, room := setupAttachmentOwnershipUsers(t, chatto, ctx, "legacy-message-delete")
@@ -103,8 +95,6 @@ func TestDeletingLegacyMessageAliasDoesNotDeleteCanonicalAsset(t *testing.T) {
 }
 
 func TestConcurrentMessagePostsAttachAssetOnceAcrossReplicas(t *testing.T) {
-	t.Parallel()
-
 	ns, _ := testutil.StartNATS(t)
 	chatto := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)

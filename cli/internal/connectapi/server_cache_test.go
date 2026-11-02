@@ -15,7 +15,6 @@ import (
 )
 
 func TestDiscoveryFeatureCatalog(t *testing.T) {
-	t.Parallel()
 	service := &serverDiscoveryService{api: &API{version: "0.5.0"}}
 	response, err := service.ListFeatures(context.Background(), connect.NewRequest(&discoveryv1.ListFeaturesRequest{}))
 	if err != nil {
@@ -54,7 +53,6 @@ func TestDiscoveryFeatureCatalog(t *testing.T) {
 }
 
 func TestDiscoveryFeatureLocale(t *testing.T) {
-	t.Parallel()
 	service := &serverDiscoveryService{api: &API{version: "0.5.0"}}
 	english, err := service.ListFeatures(t.Context(), connect.NewRequest(&discoveryv1.ListFeaturesRequest{}))
 	if err != nil {
@@ -102,7 +100,6 @@ func TestDiscoveryFeatureLocale(t *testing.T) {
 }
 
 func TestFeatureTranslations(t *testing.T) {
-	t.Parallel()
 	for locale, translations := range featureTranslations {
 		for _, feature := range serverFeatureCatalog("") {
 			text, ok := translations[feature.Id]
@@ -117,7 +114,6 @@ func TestFeatureTranslations(t *testing.T) {
 }
 
 func TestListFeaturesVersionFilter(t *testing.T) {
-	t.Parallel()
 	service := &serverDiscoveryService{api: &API{}}
 	for _, test := range []struct {
 		version string
@@ -152,8 +148,6 @@ func TestListFeaturesVersionFilter(t *testing.T) {
 }
 
 func TestPublicRPCIdempotencyLevels(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		file    protoreflect.FileDescriptor
@@ -234,8 +228,6 @@ func TestPublicRPCIdempotencyLevels(t *testing.T) {
 }
 
 func TestOnlySideEffectFreeRPCsAcceptGET(t *testing.T) {
-	t.Parallel()
-
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(apiv1connect.UnimplementedServerServiceHandler{})
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(apiv1connect.UnimplementedPushNotificationServiceHandler{})
 	tests := []struct {
@@ -263,8 +255,6 @@ func TestOnlySideEffectFreeRPCsAcceptGET(t *testing.T) {
 }
 
 func TestDiscoveryResponseETagChangesWithResponse(t *testing.T) {
-	t.Parallel()
-
 	first, err := discoveryResponseETag(&discoveryv1.GetServerResponse{
 		Profile: &apiv1.ServerPublicProfile{Name: "First"},
 	})
@@ -283,8 +273,6 @@ func TestDiscoveryResponseETagChangesWithResponse(t *testing.T) {
 }
 
 func TestIfNoneMatch(t *testing.T) {
-	t.Parallel()
-
 	const etag = `"current"`
 	tests := []struct {
 		name   string

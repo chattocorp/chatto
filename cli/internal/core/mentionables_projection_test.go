@@ -12,8 +12,6 @@ import (
 )
 
 func TestMentionablesProjection_RetainsOnlyLoginDigestsAndShredReleasesHandle(t *testing.T) {
-	t.Parallel()
-
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	p := NewMentionablesProjection(staticProjectionKeyWrapper{key: key}, staticProjectionDEKStore{})

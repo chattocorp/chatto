@@ -11,8 +11,6 @@ import (
 )
 
 func TestMessageServiceModeratorEchoRemoval(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range []struct {
 		name       string
 		owner      bool
@@ -87,8 +85,6 @@ func TestMessageServiceModeratorEchoRemoval(t *testing.T) {
 }
 
 func TestMessageServiceModeratorEchoRemovalInDM(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	require.NoError(t, env.core.AssignOwnerRole(env.ctx, env.viewer.Id))
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "echo-participant", "Participant", "password")

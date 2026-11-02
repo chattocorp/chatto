@@ -33,7 +33,6 @@ import (
 )
 
 func TestServerDiscoveryReadsProjectedAdmissionWithoutNATS(t *testing.T) {
-	t.Parallel()
 	_, nc := testutil.StartNATS(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -65,7 +64,6 @@ func TestServerDiscoveryReadsProjectedAdmissionWithoutNATS(t *testing.T) {
 }
 
 func TestExternalIdentityAccountCreationReplacesBoundInvitation(t *testing.T) {
-	t.Parallel()
 	for _, status := range []string{"active", "used", "revoked", "expired"} {
 		t.Run(status, func(t *testing.T) {
 			env := newConnectAPITestEnv(t)
@@ -151,8 +149,6 @@ func TestExternalIdentityAccountCreationReplacesBoundInvitation(t *testing.T) {
 }
 
 func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
-	t.Parallel()
-
 	autoProvision := true
 	api := New(nil, config.ChattoConfig{
 		Auth: config.AuthConfig{
@@ -209,8 +205,6 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 }
 
 func TestIsValidInternalRedirectPath(t *testing.T) {
-	t.Parallel()
-
 	for _, test := range []struct {
 		value string
 		valid bool
@@ -230,8 +224,6 @@ func TestIsValidInternalRedirectPath(t *testing.T) {
 }
 
 func TestServerDiscoveryServiceGetServerReportsDisabledDirectLogin(t *testing.T) {
-	t.Parallel()
-
 	disabled := false
 	api := New(nil, config.ChattoConfig{
 		Auth: config.AuthConfig{DirectLogin: &disabled},
@@ -247,8 +239,6 @@ func TestServerDiscoveryServiceGetServerReportsDisabledDirectLogin(t *testing.T)
 }
 
 func TestExternalIdentityAccountCreationRechecksCurrentInvitationPolicy(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	createToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
 		ProviderID:   "oidc-main",
@@ -270,7 +260,6 @@ func TestExternalIdentityAccountCreationRechecksCurrentInvitationPolicy(t *testi
 }
 
 func TestExternalIdentityAccountCreationAcceptsCodeAndReportsGate(t *testing.T) {
-	t.Parallel()
 	env := newConnectAPITestEnv(t)
 	if err := env.core.ConfigModel().SetServerConfig(env.ctx, "test", &configv1.ServerConfig{RegistrationAdmission: evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY}); err != nil {
 		t.Fatal(err)
@@ -306,8 +295,6 @@ func TestExternalIdentityAccountCreationAcceptsCodeAndReportsGate(t *testing.T) 
 }
 
 func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
@@ -346,8 +333,6 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 }
 
 func TestExternalIdentityAccountCreationSyncsGroupRoles(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Auth.Providers = []config.AuthProviderConfig{
 		{ID: "company", Type: config.AuthProviderTypeOpenIDConnect, Label: "Company", GroupRoles: "chat-mods:moderator"},
@@ -375,7 +360,6 @@ func TestExternalIdentityAccountCreationSyncsGroupRoles(t *testing.T) {
 }
 
 func TestAccountUnlinkRequiresEnabledSignInMethod(t *testing.T) {
-	t.Parallel()
 	for _, tc := range []struct {
 		name        string
 		password    bool
@@ -459,8 +443,6 @@ func TestAccountUnlinkRequiresEnabledSignInMethod(t *testing.T) {
 }
 
 func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	env.api.config.Auth.Providers = []config.AuthProviderConfig{
 		{ID: "github-main", Type: config.AuthProviderTypeGitHub, Label: "GitHub"},
@@ -690,8 +672,6 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 }
 
 func TestExternalIdentityCreateDisplayName(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name      string
 		login     string
@@ -753,8 +733,6 @@ func TestExternalIdentityCreateDisplayName(t *testing.T) {
 }
 
 func TestOperatorUserServiceLifecycle(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -860,8 +838,6 @@ func TestOperatorUserServiceLifecycle(t *testing.T) {
 }
 
 func TestAdminUserServiceSelfCannotDeleteAccountFromMemberDetails(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	admin := &adminUserManagementService{api: env.api}
 
@@ -885,8 +861,6 @@ func TestAdminUserServiceSelfCannotDeleteAccountFromMemberDetails(t *testing.T) 
 }
 
 func TestOperatorUserServiceListUsesSharedPageInfo(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -924,8 +898,6 @@ func TestOperatorUserServiceListUsesSharedPageInfo(t *testing.T) {
 }
 
 func TestOperatorUserServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -956,8 +928,6 @@ func TestOperatorUserServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing
 }
 
 func TestOperatorUserServiceUpdateUserEventsUseSystemActor(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -998,8 +968,6 @@ func TestOperatorUserServiceUpdateUserEventsUseSystemActor(t *testing.T) {
 }
 
 func TestOperatorUserServiceClearUsernameCooldownUsesSystemActor(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -1040,8 +1008,6 @@ func TestOperatorUserServiceClearUsernameCooldownUsesSystemActor(t *testing.T) {
 }
 
 func TestOperatorUserServiceAddVerifiedEmailRejectsMissingUserWithoutClaimingEmail(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -1058,8 +1024,6 @@ func TestOperatorUserServiceAddVerifiedEmailRejectsMissingUserWithoutClaimingEma
 }
 
 func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	operator := &operatorUserService{api: env.api}
 
@@ -1099,8 +1063,6 @@ func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t 
 }
 
 func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.users.GetUser(env.ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: env.viewer.Id}})); errorCode(err) != connect.CodeUnauthenticated {
@@ -1201,8 +1163,6 @@ func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 }
 
 func TestAdminRoleServiceManagesRoles(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.roles.ListRoles(env.ctx, connect.NewRequest(&adminv1.ListRolesRequest{})); errorCode(err) != connect.CodeUnauthenticated {
@@ -1390,8 +1350,6 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 }
 
 func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.permissions.GetRolePermissionTierMatrix(env.ctx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{})); errorCode(err) != connect.CodeUnauthenticated {
@@ -1720,8 +1678,6 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 }
 
 func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.adminDiagnostics.GetSystemInfo(env.ctx, connect.NewRequest(&adminv1.GetSystemInfoRequest{})); errorCode(err) != connect.CodeUnauthenticated {
@@ -1774,8 +1730,6 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 }
 
 func TestAdminLiveKitStatusMapping(t *testing.T) {
-	t.Parallel()
-
 	webhookAt := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
 	mapped := adminLiveKitStatus(core.LiveKitAdminStatus{
 		Enabled:            true,
@@ -1803,8 +1757,6 @@ func TestAdminLiveKitStatusMapping(t *testing.T) {
 }
 
 func TestAdminDurableWorkerStatusMapping(t *testing.T) {
-	t.Parallel()
-
 	mapped := adminDurableWorkerStatuses([]core.DurableWorkerAdminStatus{{
 		Key:                   "call_key_cleanup",
 		Health:                core.DurableWorkerHealthWorking,
@@ -1827,16 +1779,12 @@ func TestAdminDurableWorkerStatusMapping(t *testing.T) {
 }
 
 func TestAdminNatsStatsPreservesUnavailablePresence(t *testing.T) {
-	t.Parallel()
-
 	if got := adminNatsStats(nil); got != nil {
 		t.Fatalf("adminNatsStats(nil) = %+v, want nil", got)
 	}
 }
 
 func TestAdminAssetCleanupStatusMapping(t *testing.T) {
-	t.Parallel()
-
 	now := time.Now().UTC().Truncate(time.Second)
 	mapped := adminAssetCleanupStatus(core.AssetCleanupAdminStatus{
 		Health:               core.AssetCleanupHealthRetrying,
@@ -1862,8 +1810,6 @@ func TestAdminAssetCleanupStatusMapping(t *testing.T) {
 }
 
 func TestAdminAssetCleanupUnavailableStatusMapping(t *testing.T) {
-	t.Parallel()
-
 	mapped := adminAssetCleanupStatus(core.AssetCleanupAdminStatus{
 		Health: core.AssetCleanupHealthUnavailable,
 	})
@@ -1873,8 +1819,6 @@ func TestAdminAssetCleanupUnavailableStatusMapping(t *testing.T) {
 }
 
 func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.adminEventLog.ListEvents(env.ctx, connect.NewRequest(&adminv1.ListEventsRequest{})); errorCode(err) != connect.CodeUnauthenticated {
@@ -1979,8 +1923,6 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 }
 
 func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	room := env.createJoinedRoom("layout-room")
@@ -2021,8 +1963,6 @@ func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
 }
 
 func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoomManage(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "layout-member", "Layout Member", "password")
 	if err != nil {
@@ -2072,8 +2012,6 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoomManage(t *testing.T) {
 }
 
 func TestAdminRoomLayoutServiceManagementReadsDoNotRequireDirectoryVisibility(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, groupID, "private-managed-room", "Private")
@@ -2129,8 +2067,6 @@ func TestAdminRoomLayoutServiceManagementReadsDoNotRequireDirectoryVisibility(t 
 }
 
 func TestAdminRoomLayoutServiceCreateSidebarLinkRequiresRoomManage(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "layout-link-member", "Layout Link Member", "password")
@@ -2170,8 +2106,6 @@ func TestAdminRoomLayoutServiceCreateSidebarLinkRequiresRoomManage(t *testing.T)
 }
 
 func TestAdminRoomLayoutServiceRelativePlacements(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	firstGroupID := env.defaultRoomGroupID(t)
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoomManage); err != nil {
@@ -2228,8 +2162,6 @@ func TestAdminRoomLayoutServiceRelativePlacements(t *testing.T) {
 
 // Check the public JSON boundary before any layout mutation can run.
 func TestSidebarItemJSONRejectsInvalidReferences(t *testing.T) {
-	t.Parallel()
-
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
 	for _, handler := range env.api.Handlers() {

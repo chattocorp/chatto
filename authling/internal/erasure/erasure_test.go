@@ -34,7 +34,6 @@ func completed(id, request string) *corev1.Event {
 }
 
 func TestErasureInternedAccountsStayAlignedAcrossReplay(t *testing.T) {
-	t.Parallel()
 	history := []*corev1.Event{
 		created("acc_a", "uk_a", "dk_a"),
 		created("acc_b", "uk_b", "dk_b"),
@@ -78,7 +77,6 @@ func TestErasureInternedAccountsStayAlignedAcrossReplay(t *testing.T) {
 }
 
 func TestErasureRejectsMisalignedAccountsWithoutAllocating(t *testing.T) {
-	t.Parallel()
 	p := NewProjection()
 	p.accounts = append(p.accounts, State{AccountID: "acc_orphan"})
 	if err := p.Apply(created("acc_a", "uk_a", "dk_a"), 1); err == nil {

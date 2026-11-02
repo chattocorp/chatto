@@ -12,7 +12,6 @@ import (
 )
 
 func TestHistoricalReactionBatch(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := c.CreateUser(ctx, SystemActorID, "batch-author", "Author", "password")
@@ -90,7 +89,6 @@ func TestHistoricalReactionBatch(t *testing.T) {
 }
 
 func TestHistoricalReactionBatchConcurrentReplicas(t *testing.T) {
-	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -120,7 +118,6 @@ func TestHistoricalReactionBatchConcurrentReplicas(t *testing.T) {
 }
 
 func TestHistoricalReactionBatchRejectsLiveTargets(t *testing.T) {
-	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, liveID := setupReactionTest(t, c, ctx)

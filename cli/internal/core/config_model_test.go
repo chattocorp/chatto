@@ -10,8 +10,6 @@ import (
 )
 
 func TestNewConfigModelWiresDependencies(t *testing.T) {
-	t.Parallel()
-
 	publisher := testEventPublisher(t)
 	projection := NewConfigProjection()
 	config := detachedTestProjectionHandle(projection)
@@ -30,8 +28,6 @@ func TestNewConfigModelWiresDependencies(t *testing.T) {
 }
 
 func TestConfigModelUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -58,8 +54,6 @@ func TestConfigModelUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
 }
 
 func TestConfigModelPrepareSubjectValidatesDependenciesAndSubject(t *testing.T) {
-	t.Parallel()
-
 	ctx := testContext(t)
 
 	if _, _, _, err := (&ConfigModel{}).prepareSubject(ctx, ConfigSubjectServer); err == nil {
@@ -77,8 +71,6 @@ func TestConfigModelPrepareSubjectValidatesDependenciesAndSubject(t *testing.T) 
 }
 
 func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -113,8 +105,6 @@ func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 }
 
 func TestConfigModelAppendEventsAtEmptyBatchIsNoop(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	service := NewConfigModel(harness.publisher, detachedTestProjectionHandle(NewConfigProjection()))
 	ctx := testContext(t)
@@ -132,8 +122,6 @@ func TestConfigModelAppendEventsAtEmptyBatchIsNoop(t *testing.T) {
 }
 
 func TestConfigModelUpdateSubjectNoEventsIsNoop(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -156,8 +144,6 @@ func TestConfigModelUpdateSubjectNoEventsIsNoop(t *testing.T) {
 }
 
 func TestConfigModelUpdateSubjectRetriesNoopAfterSequenceChange(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -192,8 +178,6 @@ func TestConfigModelUpdateSubjectRetriesNoopAfterSequenceChange(t *testing.T) {
 }
 
 func TestConfigModelUpdateSubjectPropagatesBuildError(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -211,8 +195,6 @@ func TestConfigModelUpdateSubjectPropagatesBuildError(t *testing.T) {
 }
 
 func TestConfigModelUpdateSubjectRetriesConflicts(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -253,8 +235,6 @@ func TestConfigModelUpdateSubjectRetriesConflicts(t *testing.T) {
 }
 
 func TestConfigModelUpdateSubjectReturnsConflictAfterRetries(t *testing.T) {
-	t.Parallel()
-
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
@@ -290,8 +270,6 @@ func TestConfigModelUpdateSubjectReturnsConflictAfterRetries(t *testing.T) {
 }
 
 func TestValidateConfigSubject(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		subject string

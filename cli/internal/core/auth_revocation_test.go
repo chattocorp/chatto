@@ -8,8 +8,6 @@ import (
 )
 
 func TestChattoCore_AuthGenerationRejectsStaleTokenIssuance(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -46,8 +44,6 @@ func TestChattoCore_AuthGenerationRejectsStaleTokenIssuance(t *testing.T) {
 }
 
 func TestChattoCore_AuthGenerationRejectsDeletedUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -9,8 +9,6 @@ import (
 )
 
 func TestProjectionSubjectPolicy(t *testing.T) {
-	t.Parallel()
-
 	cases := []struct {
 		name string
 		got  []string
@@ -157,8 +155,6 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 }
 
 func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
-	t.Parallel()
-
 	for name, subjects := range map[string][]string{
 		"content keys": NewContentKeyProjection().Subjects(),
 		"threads":      NewThreadProjection().Subjects(),
@@ -175,8 +171,6 @@ func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 }
 
 func TestMultiLaneProjectionsUseSinglePhysicalReplayFilter(t *testing.T) {
-	t.Parallel()
-
 	for name, projection := range map[string]events.ReplaySubjectProjection{
 		"room timeline": NewRoomTimelineProjection(),
 		"threads":       NewThreadProjection(),

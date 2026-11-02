@@ -19,8 +19,6 @@ import (
 const sharedMentionCases = "../../../testdata/mentions/extraction.json"
 
 func TestExtractMentionUsernames(t *testing.T) {
-	t.Parallel()
-
 	data, err := os.ReadFile(sharedMentionCases)
 	if err != nil {
 		t.Fatalf("read shared mention cases: %v", err)
@@ -50,8 +48,6 @@ func TestExtractMentionUsernames(t *testing.T) {
 }
 
 func TestLinkifiedURLRanges(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name   string
 		source string
@@ -92,8 +88,6 @@ func TestLinkifiedURLRanges(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_ResolveMentions(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -172,8 +166,6 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 }
 
 func TestChattoCore_ResolveRoomMentions(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -339,8 +331,6 @@ func requireUserIDs(t *testing.T, got []string, want ...string) {
 }
 
 func TestChattoCore_BroadMentionPostsNormally(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -374,8 +364,6 @@ func TestChattoCore_BroadMentionPostsNormally(t *testing.T) {
 }
 
 func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T) {
-	t.Parallel()
-
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -447,8 +435,6 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 }
 
 func TestChattoCore_MentionInsideMarkdownCodeDoesNotNotify(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -490,8 +476,6 @@ func TestChattoCore_MentionInsideMarkdownCodeDoesNotNotify(t *testing.T) {
 }
 
 func TestChattoCore_MentionImmediatelyAfterMarkdownCodeNotifies(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -527,8 +511,6 @@ func TestChattoCore_MentionImmediatelyAfterMarkdownCodeNotifies(t *testing.T) {
 }
 
 func TestChattoCore_MentionSplitByMarkdownFormattingDoesNotNotify(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

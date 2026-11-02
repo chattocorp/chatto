@@ -428,12 +428,13 @@ authorization, live events, backup and restore, and backend tests.
 ## Backend Tests
 
 - Use `mise test-cli` for full backend checkpoints. It includes the
-  `test_endpoints` build tag, shuffled test order, and `-p 1 -parallel 1`.
-  Packages and tests run one at a time.
+  `test_endpoints` build tag and shuffled test order. Tests in each package
+  run one at a time. Different packages can run concurrently.
 - Use `mise test-cli-stability` after changing concurrency or test fixtures.
   This local command repeats the core, Connect API, HTTP, MCP, and test-helper
-  packages three times with the race detector, one package and one test at a
-  time, on four Go scheduler threads. Reproduce a reported shuffle seed with
+  packages three times with the race detector, with one test at a time in
+  each package and four Go scheduler threads per package. Different packages
+  can run concurrently. Reproduce a reported shuffle seed with
   `CHATTO_GO_TEST_SHUFFLE=<seed>`. `CHATTO_GO_STABILITY_COUNT` sets the repeat
   count. Each package gets a total timeout of 15 minutes multiplied by this
   count. Go applies that timeout to all repetitions in the package, which run
@@ -444,8 +445,8 @@ authorization, live events, backup and restore, and backend tests.
 - Iterate with targeted tests:
 
 ```sh
-mise x -- go test -p 1 -parallel 1 ./internal/core -run TestName -timeout 30s
-mise x -- go test -p 1 -parallel 1 -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
+mise x -- go test ./internal/core -run TestName -timeout 30s
+mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -timeout 30s
 ```
 
 - For source debugging, map import paths with Delve's `substitute-path` or
@@ -464,20 +465,14 @@ mise x -- go test -p 1 -parallel 1 -tags test_endpoints ./internal/http_server -
 - Do not keep production code that only tests call. The U1000 check counts
   test usage, so it does not find this code.
 - Use table-driven tests where practical.
-- Use `t.Parallel()` only when the complete fixture is independent. Tests that
+- Do not use `t.Parallel()`. Tests in each package run one at a time; let Go
+  build and test different packages with its default concurrency. Tests that
   use `setupTestCore` or `newConnectAPITestEnv` get their own embedded NATS
-  server, but their own background workers still run concurrently with test
-  code. Server isolation alone does not prove a test is safe. Leave a test
-  serial, with a comment that gives the reason, when it changes package state,
-  measures the whole process (for example `testing.AllocsPerRun`), or must
-  finish heavy work within a fixed deadline. A test changes package state
-  when it assigns a package variable in any package, directly or through a
-  function such as `log.SetDefault` or
-  `linkpreview.AllowLocalhostForTesting`, even if it restores the value in
-  `t.Cleanup`. A clean `-race` run of the whole package does not prove that
-  tests are safe; run the affected tests together with `-race -count=N`. Use
-  `-p 1 -parallel 1` for all Go test commands, including race-detector runs,
-  to limit package and test execution without removing `t.Parallel()` calls.
+  server, but background workers still run concurrently with test code.
+  Restore package state in `t.Cleanup`, including changes made through
+  `log.SetDefault` or `linkpreview.AllowLocalhostForTesting`. A clean `-race`
+  run of the whole package does not prove that tests are safe; run affected
+  tests together with `-race -count=N`.
 - A test helper that deletes a JetStream stream and then creates one with the
   same name on the same server must also remove the stream's directories.
   nats-server moves a deleted stream's directory aside and removes it in the

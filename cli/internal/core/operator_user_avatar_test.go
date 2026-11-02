@@ -11,7 +11,6 @@ import (
 )
 
 func TestImportHistoricalAvatarRetryAndPreservation(t *testing.T) {
-	t.Parallel()
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)

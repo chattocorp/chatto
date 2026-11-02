@@ -16,8 +16,6 @@ import (
 // ============================================================================
 
 func TestValidatePermission_ServerScope(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		perm    Permission
@@ -47,8 +45,6 @@ func TestValidatePermission_ServerScope(t *testing.T) {
 }
 
 func TestIsSystemRole(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name string
 		role string
@@ -70,8 +66,6 @@ func TestIsSystemRole(t *testing.T) {
 }
 
 func TestDefaultServerEveryonePermissions(t *testing.T) {
-	t.Parallel()
-
 	perms := DefaultEveryonePermissions()
 	if len(perms) == 0 {
 		t.Error("Expected at least one default everyone permission")
@@ -103,8 +97,6 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_initServerRBAC(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -139,8 +131,6 @@ func TestChattoCore_initServerRBAC(t *testing.T) {
 }
 
 func TestChattoCore_initServerRBAC_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -152,8 +142,6 @@ func TestChattoCore_initServerRBAC_Idempotent(t *testing.T) {
 }
 
 func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
-	t.Parallel()
-
 	// This test verifies that permission changes made by admins are preserved
 	// when the instance restarts (a new ChattoCore is created).
 
@@ -224,8 +212,6 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 }
 
 func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T) {
-	t.Parallel()
-
 	ctx := testContext(t)
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
@@ -263,8 +249,6 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 }
 
 func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
-	t.Parallel()
-
 	ctx := testContext(t)
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
@@ -302,8 +286,6 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_AssignAdminRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -334,8 +316,6 @@ func TestChattoCore_AssignAdminRole(t *testing.T) {
 }
 
 func TestChattoCore_RevokeAdminRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -368,8 +348,6 @@ func TestChattoCore_RevokeAdminRole(t *testing.T) {
 }
 
 func TestChattoCore_RevokeAdminRole_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -383,8 +361,6 @@ func TestChattoCore_RevokeAdminRole_Idempotent(t *testing.T) {
 }
 
 func TestChattoCore_ListAdmins(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -416,8 +392,6 @@ func TestChattoCore_ListAdmins(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_HasPermission_Admin(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -442,8 +416,6 @@ func TestChattoCore_HasPermission_Admin(t *testing.T) {
 }
 
 func TestChattoCore_HasPermission_Member(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -482,8 +454,6 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_HasAnyAdminPermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -514,8 +484,6 @@ func TestChattoCore_HasAnyAdminPermission(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_HasPermission_InvalidPermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -531,8 +499,6 @@ func TestChattoCore_HasPermission_InvalidPermission(t *testing.T) {
 }
 
 func TestValidatePermission_Error(t *testing.T) {
-	t.Parallel()
-
 	err := ValidatePermission(Permission("nonexistent"))
 	if err == nil {
 		t.Error("Expected error for invalid permission")
@@ -543,8 +509,6 @@ func TestValidatePermission_Error(t *testing.T) {
 }
 
 func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -611,8 +575,6 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -668,8 +630,6 @@ func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 }
 
 func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -715,8 +675,6 @@ func TestChattoCore_DenyWins_EveryoneDenyBlocksMember(t *testing.T) {
 }
 
 func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -764,8 +722,6 @@ func TestChattoCore_OwnerOverride_BeatsEverythingElse(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_CreateServerRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -834,8 +790,6 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 }
 
 func TestChattoCore_MentionablesModelSerializesUserAndRoleCreation(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -878,8 +832,6 @@ func TestChattoCore_MentionablesModelSerializesUserAndRoleCreation(t *testing.T)
 }
 
 func TestChattoCore_DeleteServerRoleReleasesMentionHandle(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -899,8 +851,6 @@ func TestChattoCore_DeleteServerRoleReleasesMentionHandle(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_AssignServerRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -960,8 +910,6 @@ func TestChattoCore_AssignServerRole(t *testing.T) {
 }
 
 func TestChattoCore_RevokeServerRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1019,8 +967,6 @@ func TestChattoCore_RevokeServerRole(t *testing.T) {
 }
 
 func TestChattoCore_ListServerRoleUsers(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1064,8 +1010,6 @@ func TestChattoCore_ListServerRoleUsers(t *testing.T) {
 }
 
 func TestChattoCore_GetUserServerRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1136,8 +1080,6 @@ func TestChattoCore_GetUserServerRoles(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1224,8 +1166,6 @@ func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 }
 
 func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1310,8 +1250,6 @@ func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_ReorderServerRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1420,8 +1358,6 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 }
 
 func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1489,8 +1425,6 @@ func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_CreateRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1520,8 +1454,6 @@ func TestChattoCore_CreateRole(t *testing.T) {
 }
 
 func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1536,8 +1468,6 @@ func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
 }
 
 func TestChattoCore_RoleMetadataLengthLimits(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1576,8 +1506,6 @@ func TestChattoCore_RoleMetadataLengthLimits(t *testing.T) {
 }
 
 func TestChattoCore_CreateRole_Duplicate(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1598,8 +1526,6 @@ func TestChattoCore_CreateRole_Duplicate(t *testing.T) {
 }
 
 func TestChattoCore_GetRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1625,8 +1551,6 @@ func TestChattoCore_GetRole(t *testing.T) {
 }
 
 func TestChattoCore_GetRole_NotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1642,8 +1566,6 @@ func TestChattoCore_GetRole_NotFound(t *testing.T) {
 }
 
 func TestChattoCore_ListRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1671,8 +1593,6 @@ func TestChattoCore_ListRoles(t *testing.T) {
 }
 
 func TestChattoCore_UpdateRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1708,8 +1628,6 @@ func TestChattoCore_UpdateRole(t *testing.T) {
 }
 
 func TestChattoCore_DeleteRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1733,8 +1651,6 @@ func TestChattoCore_DeleteRole(t *testing.T) {
 }
 
 func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1763,8 +1679,6 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 }
 
 func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1819,8 +1733,6 @@ func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GrantRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1848,8 +1760,6 @@ func TestChattoCore_GrantRolePermission(t *testing.T) {
 }
 
 func TestChattoCore_GrantRolePermission_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1874,8 +1784,6 @@ func TestChattoCore_GrantRolePermission_Idempotent(t *testing.T) {
 // standalone permission decisions can be appended before the subject exists.
 
 func TestChattoCore_GrantRolePermission_InvalidPermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1894,8 +1802,6 @@ func TestChattoCore_GrantRolePermission_InvalidPermission(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1916,8 +1822,6 @@ func TestChattoCore_RevokeRolePermission(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRolePermission_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1931,8 +1835,6 @@ func TestChattoCore_RevokeRolePermission_Idempotent(t *testing.T) {
 }
 
 func TestChattoCore_GetRolePermissions_Multiple(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1970,8 +1872,6 @@ func TestChattoCore_GetRolePermissions_Multiple(t *testing.T) {
 }
 
 func TestChattoCore_GetRolePermissions_Empty(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1993,8 +1893,6 @@ func TestChattoCore_GetRolePermissions_Empty(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_AssignRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2022,8 +1920,6 @@ func TestChattoCore_AssignRole(t *testing.T) {
 }
 
 func TestChattoCore_AssignRole_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2044,8 +1940,6 @@ func TestChattoCore_AssignRole_Idempotent(t *testing.T) {
 }
 
 func TestChattoCore_AssignRole_RoleNotFound(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2057,8 +1951,6 @@ func TestChattoCore_AssignRole_RoleNotFound(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRole(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2079,8 +1971,6 @@ func TestChattoCore_RevokeRole(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRole_Idempotent(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2094,8 +1984,6 @@ func TestChattoCore_RevokeRole_Idempotent(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRole_CanDemotePeerWhenAPIGatePermits(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2119,8 +2007,6 @@ func TestChattoCore_RevokeRole_CanDemotePeerWhenAPIGatePermits(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRole_AdminCanDemoteLowerRankedUser(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2149,8 +2035,6 @@ func TestChattoCore_RevokeRole_AdminCanDemoteLowerRankedUser(t *testing.T) {
 }
 
 func TestChattoCore_GetUserRoles_Multiple(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2185,8 +2069,6 @@ func TestChattoCore_GetUserRoles_Multiple(t *testing.T) {
 }
 
 func TestChattoCore_GetRoleUsers(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2218,8 +2100,6 @@ func TestChattoCore_GetRoleUsers(t *testing.T) {
 }
 
 func TestChattoCore_GetRoleUsers_Empty(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2241,8 +2121,6 @@ func TestChattoCore_GetRoleUsers_Empty(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_hasSpacePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2270,8 +2148,6 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 }
 
 func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2303,8 +2179,6 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_CreateDefaultRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2366,8 +2240,6 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2393,8 +2265,6 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 }
 
 func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2419,8 +2289,6 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 }
 
 func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2446,8 +2314,6 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 }
 
 func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2461,8 +2327,6 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 }
 
 func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2493,8 +2357,6 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 // been retired; API-level coverage exercises the replacement path.
 
 func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2518,8 +2380,6 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 // ============================================================================
 
 func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2560,8 +2420,6 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
 }
 
 func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2604,8 +2462,6 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 }
 
 func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2651,8 +2507,6 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 }
 
 func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2702,8 +2556,6 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 // ============================================================================
 
 func TestChattoCore_AssignRole_BoundedAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2761,8 +2613,6 @@ func TestChattoCore_AssignRole_BoundedAuthority(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2785,8 +2635,6 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 }
 
 func TestChattoCore_RevokeRole_RemovingRoleAlsoRemovesAssignmentAuthority(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2831,8 +2679,6 @@ func TestChattoCore_RevokeRole_RemovingRoleAlsoRemovesAssignmentAuthority(t *tes
 }
 
 func TestChattoCore_AdminRoleManagementAuthorization(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2894,8 +2740,6 @@ func TestChattoCore_AdminRoleManagementAuthorization(t *testing.T) {
 }
 
 func TestChattoCore_ServerRoleMembersRequireAssign(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2949,8 +2793,6 @@ func TestChattoCore_ServerRoleMembersRequireAssign(t *testing.T) {
 }
 
 func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
-	t.Parallel()
-
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

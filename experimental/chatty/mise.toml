@@ -13,4 +13,4 @@ run = "go build -o bin/chatty . && exec ./bin/chatty"
 
 [tasks.check]
 description = "Test and vet Chatty"
-run = ["go test -p 1 -parallel 1 -race ./...", "go vet ./..."]
+run = ["go test -race ./...", "go vet ./..."]

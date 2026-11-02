@@ -13,8 +13,6 @@ import (
 )
 
 func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	if err := p.Apply(roomCreatedEvent("ROOM", "", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 1); err != nil {
 		t.Fatal(err)
@@ -57,8 +55,6 @@ func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t
 }
 
 func TestThreadProjectionDMReceivedInteractions(t *testing.T) {
-	t.Parallel()
-
 	joined := func(id, userID string) *evtv1.Event {
 		return &evtv1.Event{Id: id, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{
 			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "DM"},
@@ -122,8 +118,6 @@ func TestThreadProjectionDMReceivedInteractions(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
-	t.Parallel()
-
 	full := NewThreadProjection()
 	eventsBefore := []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
@@ -197,16 +191,12 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotContractID(t *testing.T) {
-	t.Parallel()
-
 	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v3-") {
 		t.Fatalf("SnapshotContractID() = %q, want v3 schema contract", got)
 	}
 }
 
 func TestThreadProjectionSnapshotRestoreFailureIsTransactional(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	if err := p.Apply(threadFollowSnapshotTestEvent("FOLLOW", "R1", "ROOT", "U1", true), 1); err != nil {
 		t.Fatal(err)
@@ -243,8 +233,6 @@ func threadEventIDs(entries []ThreadTimelineEntry) []string {
 }
 
 func TestThreadProjection_Empty(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	if got := p.ThreadEvents("ROOT"); got != nil {
 		t.Errorf("ThreadEvents on empty = %v, want nil", got)
@@ -262,8 +250,6 @@ func directThreadMention(userID string) *evtv1.MessageMention {
 }
 
 func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	root := postedEvent(postedOpts{
 		envelopeID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 2,
@@ -319,8 +305,6 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 }
 
 func TestThreadProjection_RepeatedInteractionCausesShareOneRelationship(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
@@ -339,8 +323,6 @@ func TestThreadProjection_RepeatedInteractionCausesShareOneRelationship(t *testi
 }
 
 func TestThreadProjection_RootMessageNotStored(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -355,8 +337,6 @@ func TestThreadProjection_RootMessageNotStored(t *testing.T) {
 }
 
 func TestThreadProjection_ThreadCreatedInitializesEmptyThread(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		threadCreatedEvent("ENV-THREAD", "R1", "ROOT", "U1", 1),
@@ -377,8 +357,6 @@ func TestThreadProjection_ThreadCreatedInitializesEmptyThread(t *testing.T) {
 }
 
 func TestThreadProjection_RepliesAppended(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -415,8 +393,6 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 }
 
 func TestThreadProjection_LatestReplyUsesStreamOrderDespiteClockSkew(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 3}),
@@ -433,8 +409,6 @@ func TestThreadProjection_LatestReplyUsesStreamOrderDespiteClockSkew(t *testing.
 }
 
 func TestThreadProjection_LatestReplyRetainsZeroTimestampEvent(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	first := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 1})
 	latest := postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2})
@@ -451,8 +425,6 @@ func TestThreadProjection_LatestReplyRetainsZeroTimestampEvent(t *testing.T) {
 }
 
 func TestThreadProjection_ApplyDoesNotMutateInputEvent(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	reply := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 1})
 	assertApplyDoesNotMutateEvent(t, p, reply, 1)
@@ -470,8 +442,6 @@ func TestThreadProjection_ApplyDoesNotMutateInputEvent(t *testing.T) {
 }
 
 func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -492,8 +462,6 @@ func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
 }
 
 func TestThreadProjection_EditOfReplyDoesNotAddThreadRow(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -512,8 +480,6 @@ func TestThreadProjection_EditOfReplyDoesNotAddThreadRow(t *testing.T) {
 }
 
 func TestThreadProjection_RetractOfReplyFoldsIntoSummary(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -538,8 +504,6 @@ func TestThreadProjection_RetractOfReplyFoldsIntoSummary(t *testing.T) {
 }
 
 func TestThreadProjection_EditOfRootMessageNotInThreadBucket(t *testing.T) {
-	t.Parallel()
-
 	// Root message edits/retracts are room-timeline concerns, not
 	// thread-projection ones. Confirm they don't leak into the thread.
 	p := NewThreadProjection()
@@ -559,8 +523,6 @@ func TestThreadProjection_EditOfRootMessageNotInThreadBucket(t *testing.T) {
 }
 
 func TestThreadProjection_OutOfOrderEditDropped(t *testing.T) {
-	t.Parallel()
-
 	// Edit arrives before the reply post. Without messageToThread
 	// mapping, the edit doesn't know which thread it belongs to and is
 	// silently dropped.
@@ -574,8 +536,6 @@ func TestThreadProjection_OutOfOrderEditDropped(t *testing.T) {
 }
 
 func TestThreadProjection_MultipleThreadsIsolated(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-T1A", eventID: "T1A", roomID: "R1", actorID: "U1", inThread: "T1", inReplyTo: "T1", at: 1}),
@@ -595,8 +555,6 @@ func TestThreadProjection_MultipleThreadsIsolated(t *testing.T) {
 }
 
 func TestThreadProjection_MetadataRecomputesWhenLatestReplyRetracted(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U1", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
@@ -623,8 +581,6 @@ func TestThreadProjection_MetadataRecomputesWhenLatestReplyRetracted(t *testing.
 }
 
 func TestThreadProjection_Idempotency(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	reply := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 1})
 	if err := p.Apply(reply, 1); err != nil {
@@ -649,8 +605,6 @@ func TestThreadProjection_Idempotency(t *testing.T) {
 }
 
 func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	root := postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1})
 	if err := p.Apply(root, 1); err != nil {
@@ -676,8 +630,6 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 }
 
 func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		{
@@ -749,8 +701,6 @@ func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 }
 
 func TestThreadProjection_SubjectFilter(t *testing.T) {
-	t.Parallel()
-
 	subjects := NewThreadProjection().Subjects()
 	want := map[string]bool{
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated):               true,
@@ -784,8 +734,6 @@ func TestThreadProjection_SubjectFilter(t *testing.T) {
 }
 
 func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	events := []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
@@ -830,8 +778,6 @@ func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
 }
 
 func TestThreadProjection_InteractionRequiresMatchingRoom(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	applyAll(t, p, []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM-1", "R1", "one", 1),
@@ -847,8 +793,6 @@ func TestThreadProjection_InteractionRequiresMatchingRoom(t *testing.T) {
 }
 
 func TestThreadProjection_RoomDeletionClearsInteractionState(t *testing.T) {
-	t.Parallel()
-
 	p := NewThreadProjection()
 	deleted := roomDeletedEvent("R1")
 	deleted.Id = "DELETE"

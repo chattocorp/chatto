@@ -14,7 +14,6 @@ import (
 )
 
 func TestHistoricalMessageIdempotencyConcurrentReplay(t *testing.T) {
-	t.Parallel()
 	c, nc, post := setupMessageRetry(t)
 	ctx := testContext(t)
 	asset := uploadRoomAttachmentForUser(t, c, ctx, post.ActorID, post.RoomID, "history.png")
@@ -67,7 +66,6 @@ func TestHistoricalMessageIdempotencyConcurrentReplay(t *testing.T) {
 }
 
 func TestHistoricalMessageIdempotencyFingerprintAndReservation(t *testing.T) {
-	t.Parallel()
 	c, _, post := setupMessageRetry(t)
 	ctx := testContext(t)
 	input := HistoricalMessageInput{RoomID: post.RoomID, AuthorID: post.ActorID,
