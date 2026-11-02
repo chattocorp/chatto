@@ -6,15 +6,15 @@
 
 <p><img width="1920" height="1196" alt="It's Chatto!" src="https://github.com/user-attachments/assets/a6a8ef8c-9f56-48ed-8740-53115273c22e" /></p>
 
-A really good chat application for teams and communities, free and easy to self-host, with [cloud hosting available soon](https://chatto.run/cloud).
+A fully-featured chat application for teams and communities, running off a single executable (two if you want video and voice calls.) Free and easy to self-host, with [cloud hosting available soon](https://chatto.run/cloud).
 
 - [Website](https://chatto.run)
-- [Documentation](https://docs.chatto.run)
+- [Documentation](https://docs.chatto.run) ([Prereleases](https://dev-docs.chatto.run))
 - [Official Chatto Community](https://chat.chatto.run/)
 - [Releases](https://github.com/chattocorp/chatto/releases)
 - [Security Policy](SECURITY.md)
 
-Chatto is built with the help of coding agents. Read [Chatto is Robots](https://www.hmans.dev/blog/chatto-is-robots) to learn more.
+Chatto is built, designed and maintained by humans with the help of coding agents. Read [Chatto is Robots](https://www.hmans.dev/blog/chatto-is-robots) to learn more.
 
 ## What Is in This Repository
 
