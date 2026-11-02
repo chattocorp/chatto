@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from 'vitest/browser';
+import { tick } from 'svelte';
 import { createClient } from '@chatto/client';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -680,6 +681,25 @@ it.each([TipTapEditor, MarkdownEditor])(
 );
 
 describe('Markdown composer link previews', () => {
+  it('disposes a reused pill when its URL is removed', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(`${origin}/chat/-/user/${userId}`);
+    await vi.waitFor(() =>
+      expect(container.querySelector('.entity-link')?.textContent).toContain('Alice')
+    );
+    const pill = container.querySelector('.entity-link')!;
+    api!.setContent(`Before ${origin}/chat/-/user/${userId}`);
+    expect(container.querySelector('.entity-link')).toBe(pill);
+    api!.setContent('');
+    await tick();
+    putUser('Changed after removal');
+    await tick();
+    expect(pill.textContent).toContain('Alice');
+    expect(pill.textContent).not.toContain('Changed after removal');
+  });
+
   it.each([
     [origin, '.entity-link', 'Known server'],
     [`${origin}/chat/-/${roomId}`, '.entity-link', 'General'],
@@ -929,6 +949,92 @@ it.each([
     expect(api!.getText()).toBe(expected);
   }
 );
+
+it.each([
+  [origin, ''],
+  [`${origin}/chat/-/${roomId}`, 'Before '],
+  [`${origin}/chat/-/${roomId}/m/E123456789abcde`, 'Before ']
+])('deletes a visual composer pill with Backspace: %s', async (href, prefix) => {
+  let api: ComposerEditorApi | undefined;
+  const { container } = render(TipTapEditor, { onReady: (ready) => (api = ready) });
+  await vi.waitFor(() => expect(api).toBeDefined());
+  api!.setContent(`${prefix}${href}`);
+  api!.focus('end');
+  await vi.waitFor(() =>
+    expect(document.activeElement).toBe(container.querySelector('.ProseMirror'))
+  );
+  await vi.waitFor(() =>
+    expect(container.querySelector('.composer-entity-preview')).not.toBeNull()
+  );
+  await userEvent.keyboard('{Backspace}');
+  await vi.waitFor(() => expect(api!.getText()).toBe(prefix));
+  expect(container.querySelector('.composer-entity-preview')).toBeNull();
+  await userEvent.keyboard('after');
+  expect(api!.getText()).toBe(`${prefix}after`);
+});
+
+it.each(['keyboard', 'beforeinput'] as const)(
+  'deletes a visual composer pill forwards and supports undo through %s',
+  async (input) => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, { onReady: (ready) => (api = ready) });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(origin);
+    api!.focus('start');
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(container.querySelector('.ProseMirror'))
+    );
+    if (input === 'keyboard') await userEvent.keyboard('{Delete}');
+    else {
+      const event = new InputEvent('beforeinput', {
+        inputType: 'deleteContentForward',
+        bubbles: true,
+        cancelable: true
+      });
+      container.querySelector('.ProseMirror')!.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(api!.getText()).toBe('');
+    await userEvent.keyboard(
+      navigator.platform.startsWith('Mac') ? '{Meta>}z{/Meta}' : '{Control>}z{/Control}'
+    );
+    expect(api!.getText()).toBe(origin);
+  }
+);
+
+it.each([false, true])(
+  'respects visual composer read-only state for pill deletion (%s)',
+  async (readOnly) => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, { readOnly, onReady: (ready) => (api = ready) });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(origin);
+    api!.focus('end');
+    container.querySelector('.ProseMirror')!.dispatchEvent(
+      new InputEvent('beforeinput', {
+        inputType: 'deleteContentBackward',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    expect(api!.getText()).toBe(readOnly ? origin : '');
+  }
+);
+
+it('keeps normal character deletion when the visual composer reveals URL source', async () => {
+  let api: ComposerEditorApi | undefined;
+  const { container } = render(TipTapEditor, { onReady: (ready) => (api = ready) });
+  await vi.waitFor(() => expect(api).toBeDefined());
+  api!.setContent(origin);
+  api!.focus('end');
+  await vi.waitFor(() =>
+    expect(document.activeElement).toBe(container.querySelector('.ProseMirror'))
+  );
+  await userEvent.keyboard('{ArrowLeft}');
+  expect(container.querySelector('.composer-entity-preview')).toBeNull();
+  await userEvent.keyboard('{Backspace}');
+  expect(api!.getText()).toBe(origin.slice(0, -2) + origin.slice(-1));
+});
 
 it.each([
   'https://example.test/path',
