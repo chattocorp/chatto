@@ -309,7 +309,7 @@
             bind:this={composer.autocomplete.emojiRef}
             query={composer.autocomplete.emoji.query}
             results={composer.autocomplete.emoji.results}
-            onSelect={(emoji, _name, key) => composer.autocomplete.selectEmoji(emoji, key)}
+            onSelect={(emoji) => composer.autocomplete.selectEmoji(emoji)}
             onClose={() => composer.autocomplete.closeEmoji()}
           />
         {/if}
@@ -321,7 +321,7 @@
             members={composer.mentionCandidates}
             roles={composer.mentionRoles}
             prioritizedUserIds={composer.mentionPriorityUserIds}
-            onSelect={(login, key) => composer.autocomplete.selectMention(login, key)}
+            onSelect={(login) => composer.autocomplete.selectMention(login)}
             onClose={() => composer.autocomplete.closeMention()}
           />
         {/if}
@@ -331,8 +331,8 @@
             bind:this={composer.autocomplete.roomRef}
             query={composer.autocomplete.room.query}
             rooms={stores.roomList.rooms}
-            onSelect={(roomId, key) =>
-              composer.autocomplete.selectRoom(buildRoomLinkURL(serverScope.serverId, roomId), key)}
+            onSelect={(roomId) =>
+              composer.autocomplete.selectRoom(buildRoomLinkURL(serverScope.serverId, roomId))}
             onClose={() => composer.autocomplete.closeRoom()}
           />
         {/if}

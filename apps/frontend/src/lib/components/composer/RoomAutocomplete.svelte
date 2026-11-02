@@ -32,7 +32,6 @@ forwards keys; selecting a room inserts its existing share URL.
           a.room.name.localeCompare(b.room.name) ||
           a.room.id.localeCompare(b.room.id)
       )
-      .slice(0, 10)
   );
   let popup = $state<{ handleKeyDown: (event: KeyboardEvent) => boolean } | null>(null);
 

@@ -18,13 +18,13 @@ Select **Formatting options** in the message input to show or hide the toolbar. 
 
 Both editors provide the same formatting toolbar, mentions, emoji completion, attachments, reply quotes, timestamps, and message editing. The Markdown editor always shows source; it does not include a separate preview.
 
-The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor. Tab still accepts an active mention or emoji suggestion first, and repeated Tab presses cycle through matching mentions.
+The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor when no suggestions are open. In an open picker, Tab cycles forwards through matches and Shift+Tab cycles backwards. Tab inserts a sole match with a trailing space.
 
 ## Link to a room
 
 Type `#` at the start of a message or after a space to open the room picker.
 Continue typing to find a channel room on the current server. Use the arrow keys
-to select a room, then press Enter or Tab. You can also click a room. Press Escape
+to select a room, then press Enter. You can also click a room. Press Escape
 to close the picker.
 
 Search is fuzzy: type `#designteam` to find **Design Team**. Omit spaces from the
@@ -35,9 +35,11 @@ The picker inserts a room link. Sent messages show the room's current name when
 the reader can see that room. Direct messages and archived rooms are not listed.
 Both editors support the picker in messages, replies, and edits.
 
-Enter and Tab accept the selected room without
-adding whitespace or sending the message. Mention (`@`) and emoji (`:`) suggestions
-use the same keys. Clicking a suggestion adds a space.
+Tab cycles through all available fuzzy matches without changing your text.
+Shift+Tab cycles backwards. If there is only one match, Tab inserts it with a
+trailing space. Enter or a click accepts the highlighted result without sending
+the message. Each insertion adds a trailing space. Use Backspace to remove it.
+Mention (`@`) and emoji (`:`) suggestions use the same keys.
 
 Space types a normal space and closes the suggestions. You can type `#` followed
 by a space to start a Markdown heading.
@@ -89,9 +91,11 @@ aliases, and tags. For example, type `:headshakingvertically` to find
 `:head_shaking_vertically:`. Exact names rank first. You must accept a suggestion
 to insert the emoji; an incomplete shortcode stays as text if you send it as typed.
 
-In autocomplete, accept an emoji with Enter, Tab, or a click to open its skin-tone
-popup. Your saved tone is highlighted. Use Up and Down to choose a tone, then
-Enter or Tab to insert it without a trailing space.
+In autocomplete, use Tab to cycle through fuzzy matches. If only one emoji matches,
+Tab inserts it with your saved skin tone and a trailing space.
+Use Enter or a click to open an emoji's skin-tone popup. Your saved tone is
+highlighted. Use Up, Down, Tab, or Shift+Tab to choose a tone, then press Enter
+or click to insert it with a trailing space. Use Backspace to remove the space.
 Escape returns to the emoji suggestions. You can also
 click a tone. Emoji without skin tones insert immediately.
 Chatto remembers the choice in this browser and uses it for supported picker

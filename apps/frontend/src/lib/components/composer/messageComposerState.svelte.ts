@@ -179,13 +179,7 @@ export class MessageComposerState {
     });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
     this.linkPreviews = new LinkPreviewState(dependencies.getLinkPreviewAPI);
-    this.autocomplete = new AutocompleteState(
-      () => this.editorApi,
-      () => this.mentionCandidates,
-      () => this.mentionRoles,
-      () => this.mentionPriorityUserIds,
-      { rooms: true }
-    );
+    this.autocomplete = new AutocompleteState(() => this.editorApi, { rooms: true });
     this.submission = new ComposerSubmissionState({
       getAPI: dependencies.getMessageAPI,
       getMentionRoleStatus: () => dependencies.mentionRolesStore.status,
@@ -409,8 +403,6 @@ export class MessageComposerState {
       return true;
     }
     if (event.key === 'Enter' && this.#handleEnter(event)) return true;
-    if (event.key === 'Tab' && this.autocomplete.handleTabCompletion(event)) return true;
-    if (event.key !== 'Tab') this.autocomplete.resetTabCompletion();
     if (event.key === 'Escape' && this.#handleEscape()) return true;
     if (event.key === 'ArrowUp' && this.#editLastMessage()) return true;
     return false;

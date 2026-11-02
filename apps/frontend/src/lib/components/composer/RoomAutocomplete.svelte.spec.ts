@@ -19,6 +19,15 @@ function room(id: string, name: string, type = RoomKind.CHANNEL): RoomListItem {
 }
 
 describe('RoomAutocomplete', () => {
+  it('includes every fuzzy match beyond the first ten results', () => {
+    const { container } = render(RoomAutocomplete, {
+      query: 'dgtm',
+      rooms: Array.from({ length: 20 }, (_, index) => room(String(index), `Design Team ${index}`)),
+      onSelect: () => {},
+      onClose: () => {}
+    });
+    expect(container.querySelectorAll('button')).toHaveLength(20);
+  });
   it('finds names with spaces through fuzzy search and accepts them with Enter', () => {
     const onSelect = vi.fn();
     const { container, component } = render(RoomAutocomplete, {
@@ -83,11 +92,15 @@ describe('RoomAutocomplete', () => {
       onClose: () => {}
     });
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
-    expect(onSelect).toHaveBeenCalledWith('2', 'Tab');
+    flushSync();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(container.querySelector('.menu-item-active')?.textContent).toContain('日本語');
     container.querySelectorAll('button')[1].click();
     expect(onSelect).toHaveBeenCalledWith('1', 'click');
     await rerender({ query: '日本' });
     expect(container.querySelectorAll('button')).toHaveLength(1);
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
+    expect(onSelect).toHaveBeenCalledWith('1', 'Tab');
     await rerender({ rooms: [] });
     expect(container.querySelector('[data-testid="room-autocomplete"]')).toBeNull();
     expect(component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }))).toBe(false);

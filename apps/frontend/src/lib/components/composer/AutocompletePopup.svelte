@@ -2,8 +2,10 @@
 @component
 
 Generic autocomplete popup with keyboard navigation.
-Renders a menu above the composer input with arrow key navigation,
-configurable selection keys, and customizable item rendering via snippets.
+Renders a menu above the composer input with keyboard navigation
+and customizable item rendering via snippets.
+Tab cycles through multiple matches and confirms a sole match. Shift+Tab cycles
+backwards. Enter confirms the highlighted match.
 
 Place it inside the positioned composer surface. An invisible marker covers
 that surface, and `FloatingPopover` anchors the menu to the marker in the top
@@ -13,7 +15,6 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
 **Props:**
 - `items` - Array of items to display
 - `getKey` - Function to extract a unique key from each item
-- `selectKeys` - Which keys trigger selection (default: Enter and Tab)
 - `onSelect` - Callback when an item is selected (receives item and the key used)
 - `onClose` - Callback to close the popup
 - `testid` - Optional data-testid for e2e tests
@@ -30,7 +31,6 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
   type Props = {
     items: T[];
     getKey: (item: T) => string;
-    selectKeys?: string[];
     onSelect: (item: T, key: string) => void;
     onClose: () => void;
     testid?: string;
@@ -42,7 +42,6 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
   let {
     items,
     getKey,
-    selectKeys = ['Enter', 'Tab'],
     onSelect,
     onClose,
     testid,
@@ -103,12 +102,19 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
         event.preventDefault();
         onClose();
         return true;
-      default:
-        if (selectKeys.includes(event.key)) {
-          event.preventDefault();
-          onSelect(items[selectedIndex], event.key);
-          return true;
+      case 'Tab':
+        event.preventDefault();
+        if (items.length === 1) {
+          onSelect(items[0], event.key);
+        } else {
+          selectedIndex = (selectedIndex + (event.shiftKey ? -1 : 1) + items.length) % items.length;
         }
+        return true;
+      case 'Enter':
+        event.preventDefault();
+        onSelect(items[selectedIndex], event.key);
+        return true;
+      default:
         return false;
     }
   }
