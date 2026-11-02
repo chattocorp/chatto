@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-31
+**Last reviewed:** 2026-11-02
 
 ## Overview
 
@@ -13,6 +13,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
 
 ## Behavior
 
+- Users can resize the main window to a minimum width of 480 pixels and a
+  minimum height of 600 pixels. Narrow windows use the frontend's existing
+  compact layout.
 - Mouse back and forward buttons navigate the main window's history. On macOS,
   this includes navigation gestures sent by mouse software such as Options+.
   Keyboard navigation uses `Alt+Left` and `Alt+Right` on Windows/Linux, or
