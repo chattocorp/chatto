@@ -772,22 +772,7 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 
 func startTestCore(t *testing.T, chattoCore *core.ChattoCore) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- chattoCore.Run(ctx) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("ChattoCore did not stop")
-		}
-	})
-	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer bootCancel()
-	if err := chattoCore.WaitForBoot(bootCtx); err != nil {
-		t.Fatalf("WaitForBoot: %v", err)
-	}
+	testutil.StartService(t, "ChattoCore", chattoCore.Run, chattoCore.WaitForBoot)
 }
 
 func roomResultsContain(rooms []roomResult, roomID string) bool {

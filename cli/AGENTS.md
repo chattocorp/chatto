@@ -428,7 +428,15 @@ authorization, live events, backup and restore, and backend tests.
 ## Backend Tests
 
 - Use `mise test-cli` for full backend checkpoints. It includes the
-  `test_endpoints` build tag.
+  `test_endpoints` build tag, shuffled test order, and explicit limits of four
+  package processes and four parallel tests per process. These are separate
+  limits. `CHATTO_GO_TEST_P` and `CHATTO_GO_TEST_PARALLEL` can override them.
+- Use `mise test-cli-stability` after changing concurrency or test fixtures.
+  CI runs it too. It repeats the core, Connect API, HTTP, MCP, and test-helper packages
+  three times with the race detector, one package at a time, and four parallel
+  tests on four Go scheduler threads. Reproduce a reported shuffle seed with
+  `CHATTO_GO_TEST_SHUFFLE=<seed>`. `CHATTO_GO_STABILITY_COUNT` sets the repeat
+  count. A passing repeat run is supporting evidence, not proof of a race fix.
 - Mise enables `-trimpath`. Locate test fixtures from the working directory
   or embed them; `runtime.Caller` no longer gives absolute source paths.
 - Iterate with targeted tests:
@@ -454,9 +462,10 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 - Do not keep production code that only tests call. The U1000 check counts
   test usage, so it does not find this code.
 - Use table-driven tests where practical.
-- Top-level tests in `internal/core` and `internal/connectapi` call
-  `t.Parallel()` first. Tests that use `setupTestCore` or
-  `newConnectAPITestEnv` get their own embedded NATS server. Leave a test
+- Use `t.Parallel()` only when the complete fixture is independent. Tests that
+  use `setupTestCore` or `newConnectAPITestEnv` get their own embedded NATS
+  server, but their own background workers still run concurrently with test
+  code. Server isolation alone does not prove a test is safe. Leave a test
   serial, with a comment that gives the reason, when it changes package state,
   measures the whole process (for example `testing.AllocsPerRun`), or must
   finish heavy work within a fixed deadline. A test changes package state
@@ -475,6 +484,22 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   the server ignores the error. The new stream then recovers the old
   messages. `testutil.ResetChattoJetStream` shows how to remove them.
 - Prevent timing races in tests that use background work:
+  - Use the smallest fixture that exercises the contract. Use
+    `newRuntimeStateTestKV` for bucket-backed components and
+    `newTestEventHarness` for individual projections. Use a complete core when
+    the test exercises application integration.
+  - Use `testutil.StartService` to own a service's readiness and shutdown. It
+    reports early exits and shutdown errors, and waits for the service before
+    earlier cleanup callbacks close its dependencies. Do not discard `Run`
+    errors or cancel a worker without waiting for it to stop.
+  - Install dependency replacements before workers start. Use `newTestCore`,
+    configure the dependencies, then call `startCoreServices`. A test that
+    needs faults during a run must install a synchronized fault provider
+    before startup; do not replace live fields.
+  - For a race fix, force the relevant ordering with channels, storage gates,
+    or `testing/synctest` where applicable. Check both the immediate operation
+    contract and the asynchronous completion contract. A fixed delay or a
+    larger timeout does not establish either contract.
   - Wait for the condition that you assert, for example with `WaitCurrent` on
     the owning projection or materializer. Do not use `time.Sleep` to wait for
     background work.

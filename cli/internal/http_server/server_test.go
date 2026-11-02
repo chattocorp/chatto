@@ -369,6 +369,14 @@ func setupTestHTTPServer(t *testing.T) (*httptest.Server, *http.Client, *core.Ch
 
 func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*httptest.Server, *http.Client, *core.ChattoCore) {
 	t.Helper()
+	ts, client, c, _ := setupTestHTTPServerWithLifecycle(t, configure)
+	return ts, client, c
+}
+
+// setupTestHTTPServerWithLifecycle also exposes an idempotent stop function for
+// fault tests that must stop core workers before closing their dependencies.
+func setupTestHTTPServerWithLifecycle(t *testing.T, configure func(*HTTPServer)) (*httptest.Server, *http.Client, *core.ChattoCore, func()) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
 	_, nc := testutil.StartSharedNATS(t)
@@ -381,7 +389,7 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
-	startCoreServices(t, chattoCore)
+	stop := testutil.StartService(t, "ChattoCore", chattoCore.Run, chattoCore.WaitForBoot)
 
 	// Create router with session middleware
 	router := gin.New()
@@ -432,7 +440,7 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 		},
 	}
 
-	return ts, client, chattoCore
+	return ts, client, chattoCore, stop
 }
 
 func postBrowserAuthentication(client *http.Client, endpoint string, body []byte) (*http.Response, error) {
@@ -1837,7 +1845,7 @@ func TestAuthRoutes_Logout(t *testing.T) {
 
 func TestAuthRoutes_LogoutReportsAuthoritativeRevocationFailure(t *testing.T) {
 	var server *HTTPServer
-	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(configured *HTTPServer) {
+	ts, client, chattoCore, stop := setupTestHTTPServerWithLifecycle(t, func(configured *HTTPServer) {
 		server = configured
 	})
 	ctx := testContext(t)
@@ -1855,6 +1863,9 @@ func TestAuthRoutes_LogoutReportsAuthoritativeRevocationFailure(t *testing.T) {
 		t.Fatalf("login status = %d, want 200", loginResponse.StatusCode)
 	}
 
+	// The request must observe unavailable storage without racing core workers
+	// that also depend on this connection.
+	stop()
 	server.nc.Close()
 	logoutResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/logout", []byte("{}"))
 	if err != nil {

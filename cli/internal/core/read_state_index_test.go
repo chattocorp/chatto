@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestReadStateIndexInitialSnapshotAndReplicaUpdates(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
-	kv := core.storage.runtimeStateKV
+	kv := newRuntimeStateTestKV(t)
 	ctx := testContext(t)
 
 	const (
@@ -39,15 +39,8 @@ func TestReadStateIndexInitialSnapshotAndReplicaUpdates(t *testing.T) {
 		NewReadStateIndex(kv, testCoreLogger()),
 		NewReadStateIndex(kv, testCoreLogger()),
 	}
-	runCtx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	for _, index := range indexes {
-		go func() {
-			_ = index.Run(runCtx)
-		}()
-		if err := index.WaitReady(ctx); err != nil {
-			t.Fatalf("wait for initial index snapshot: %v", err)
-		}
+		testutil.StartService(t, "ReadStateIndex", index.Run, index.WaitReady)
 		assertIndexedRoomMarker(t, ctx, index, userID, roomID, initialRoom)
 		assertIndexedThreadMarker(t, ctx, index, userID, roomID, threadRoot, initialRoot)
 	}
@@ -105,55 +98,46 @@ func TestReadStateIndexInitialSnapshotAndReplicaUpdates(t *testing.T) {
 func TestReadStateIndexRunReturnsContextCanceledOnShutdown(t *testing.T) {
 	t.Parallel()
 
-	core, _ := setupTestCore(t)
-	index := NewReadStateIndex(core.storage.runtimeStateKV, testCoreLogger())
-	runCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- index.Run(runCtx) }()
-
-	if err := index.WaitReady(testContext(t)); err != nil {
-		t.Fatalf("wait for index readiness: %v", err)
-	}
-	cancel()
-
-	select {
-	case err := <-done:
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("Run returned %v, want context.Canceled", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("Run did not stop within timeout")
-	}
-}
-
-func TestReadStateIndexDoesNotMissUpdateAtInitialSyncBoundary(t *testing.T) {
-	t.Parallel()
-
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	gatedKV := &initialSyncGatedKV{
-		KeyValue:        core.storage.runtimeStateKV,
-		atBoundary:      make(chan struct{}),
-		releaseBoundary: make(chan struct{}),
-	}
-	index := NewReadStateIndex(gatedKV, testCoreLogger())
+	index := NewReadStateIndex(newRuntimeStateTestKV(t), testCoreLogger())
 	runCtx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- index.Run(runCtx) }()
 	t.Cleanup(func() {
 		cancel()
 		select {
-		case <-done:
+		case err := <-done:
+			if !errors.Is(err, context.Canceled) {
+				t.Errorf("Run returned %v, want context.Canceled", err)
+			}
 		case <-time.After(5 * time.Second):
-			t.Fatal("read state index did not stop within timeout")
+			t.Error("Run did not stop within timeout")
 		}
 	})
 
-	select {
-	case <-gatedKV.atBoundary:
-	case <-ctx.Done():
-		t.Fatalf("wait for initial snapshot boundary: %v", ctx.Err())
+	if err := index.WaitReady(testContext(t)); err != nil {
+		t.Fatalf("wait for index readiness: %v", err)
 	}
+}
+
+func TestReadStateIndexDoesNotMissUpdateAtInitialSyncBoundary(t *testing.T) {
+	t.Parallel()
+
+	kv := newRuntimeStateTestKV(t)
+	ctx := testContext(t)
+	gatedKV := &initialSyncGatedKV{
+		KeyValue:        kv,
+		atBoundary:      make(chan struct{}),
+		releaseBoundary: make(chan struct{}),
+	}
+	index := NewReadStateIndex(gatedKV, testCoreLogger())
+	testutil.StartService(t, "ReadStateIndex", index.Run, func(ctx context.Context) error {
+		select {
+		case <-gatedKV.atBoundary:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
 
 	const (
 		userID  = "Uinitial-boundary"

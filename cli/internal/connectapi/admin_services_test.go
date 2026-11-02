@@ -44,12 +44,15 @@ func TestServerDiscoveryReadsProjectedAdmissionWithoutNATS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startConnectAPITestCore(t, c)
+	stop := testutil.StartService(t, "ChattoCore", c.Run, c.WaitForBoot)
 	if err := c.ConfigModel().SetServerConfig(ctx, core.SystemActorID, &configv1.ServerConfig{
 		RegistrationAdmission: evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY,
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// Stop the workers before removing their broker. This test checks that the
+	// discovery read uses the retained projection, not worker failure handling.
+	stop()
 	nc.Close()
 	service := &serverDiscoveryService{api: New(c, cfg, "test")}
 	response, err := service.GetServer(ctx, connect.NewRequest(&discoveryv1.GetServerRequest{}))

@@ -735,7 +735,25 @@ jobs:
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        run: cd cli && go test -trimpath -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -p "${CHATTO_GO_TEST_P:-4}" -parallel "${CHATTO_GO_TEST_PARALLEL:-4}" -shuffle="${CHATTO_GO_TEST_SHUFFLE:-on}" -tags test_endpoints ./...
+
+  test-cli-stability:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-cli-stability
+          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Repeat CLI concurrency checks
+        run: mise test-cli-stability
 
   lint-cli:
     needs: changes
@@ -818,7 +836,7 @@ jobs:
           retention-days: 14
 
   test-cli:
-    needs: [changes, test-cli-shared, test-cli-chatto, lint-cli]
+    needs: [changes, test-cli-shared, test-cli-chatto, test-cli-stability, lint-cli]
     if: ${{ always() && (needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true') }}
     runs-on: ubuntu-latest
     steps:
@@ -827,11 +845,13 @@ jobs:
           CHATTO_CHANGED: ${{ needs.changes.outputs.chatto }}
           SHARED_RESULT: ${{ needs.test-cli-shared.result }}
           CHATTO_RESULT: ${{ needs.test-cli-chatto.result }}
+          STABILITY_RESULT: ${{ needs.test-cli-stability.result }}
           LINT_RESULT: ${{ needs.lint-cli.result }}
         run: |
           test "$SHARED_RESULT" = success
           if [[ "$CHATTO_CHANGED" == true ]]; then
             test "$CHATTO_RESULT" = success
+            test "$STABILITY_RESULT" = success
             test "$LINT_RESULT" = success
           fi
 
