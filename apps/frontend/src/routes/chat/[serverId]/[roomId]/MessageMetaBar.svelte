@@ -25,9 +25,9 @@ local to the footer.
   type ReactionSummary = MessagePostedPayload['reactions'][number];
 
   // Shared base style for all meta bar buttons. Uses the `meta-badge` utility
-  // for shape and background states. Border color is set per-button to avoid
+  // for size, shape, and background states. Border color is set per-button to avoid
   // Tailwind v4 specificity conflicts on overrides.
-  const baseButtonClass = 'meta-badge h-[25px] cursor-pointer text-muted';
+  const baseButtonClass = 'meta-badge cursor-pointer text-muted';
 
   let {
     roomId,
@@ -171,7 +171,7 @@ local to the footer.
   {#if isEchoEvent && onOpenThread && threadRootEventId}
     <a
       href={conversationPath(serverId, roomId, { threadId: threadRootEventId })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
+      class="{baseButtonClass} gap-2 border-transparent px-[9px] text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
@@ -184,7 +184,7 @@ local to the footer.
   {#if (threadExists || replyCount > 0) && onOpenThread && threadRootEventId}
     <a
       href={conversationPath(serverId, roomId, { threadId: threadRootEventId })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
+      class="{baseButtonClass} gap-2 border-transparent px-[9px] text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
@@ -213,7 +213,7 @@ local to the footer.
       <button
         class={[
           baseButtonClass,
-          'justify-center border-transparent px-1.5',
+          'justify-center border-transparent px-[7px]',
           isFollowingThread ? 'text-text' : ''
         ]}
         onclick={onToggleThreadFollow}
@@ -238,7 +238,7 @@ local to the footer.
   {#if action?.isPinned}
     {#if action.canPin}
       <button
-        class="{baseButtonClass} justify-center border-transparent px-1.5"
+        class="{baseButtonClass} justify-center border-transparent px-[7px]"
         onclick={requestUnpin}
         aria-label={m('room.pins.unpin')}
         title={m('room.pins.unpin')}
@@ -247,7 +247,7 @@ local to the footer.
       </button>
     {:else}
       <span
-        class="meta-badge h-[25px] cursor-default border-transparent px-1.5 text-muted"
+        class="meta-badge cursor-default border-transparent px-[7px] text-muted"
         role="img"
         aria-label={m('room.message.meta.pinned')}
         title={m('room.message.meta.pinned')}
@@ -258,9 +258,7 @@ local to the footer.
   {/if}
 
   {#if edited}
-    <span
-      class="meta-badge h-[25px] gap-2 border-transparent px-2 text-xs whitespace-nowrap text-muted"
-    >
+    <span class="meta-badge gap-2 border-transparent px-[9px] text-xs whitespace-nowrap text-muted">
       <span class="iconify icon-[uil--pen]" aria-hidden="true"></span>
       <span>{m('room.message.meta.edited_short')}</span>
     </span>
@@ -269,7 +267,7 @@ local to the footer.
   {#if channelEchoEventId}
     <a
       href={conversationPath(serverId, roomId, { messageId: channelEchoEventId })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
+      class="{baseButtonClass} gap-2 border-transparent px-[9px] text-xs whitespace-nowrap"
       title={m('room.message.meta.echoed_to_channel')}
       {@attach threadLinkGestureBoundary}
     >
@@ -282,14 +280,14 @@ local to the footer.
   {#each reactions as reaction (reaction.emoji)}
     <span
       role="group"
-      class="max-w-full min-w-0"
+      class="flex max-w-full min-w-0"
       onmouseenter={(e) => showReactionTooltip(e, reaction)}
       onmouseleave={hideReactionTooltip}
     >
       <button
         class={[
           baseButtonClass,
-          'max-w-full gap-1 px-2 text-sm disabled:cursor-default disabled:opacity-60',
+          'max-w-full gap-1 px-[9px] text-sm disabled:cursor-default disabled:opacity-60',
           reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
         onclick={() => {
@@ -315,7 +313,7 @@ local to the footer.
   <!-- Add reaction button -->
   {#if onOpenEmojiPicker}
     <button
-      class="{baseButtonClass} justify-center border-transparent px-1.5"
+      class="{baseButtonClass} justify-center border-transparent px-[7px]"
       onclick={(e) => onOpenEmojiPicker(e)}
       aria-label={m('room.message.actions.add_reaction')}
     >
