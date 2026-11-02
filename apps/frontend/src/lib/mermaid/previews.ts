@@ -1,15 +1,14 @@
 /** DOM-owned Mermaid previews: lazy worker loading, image isolation and theme updates. */
-import { diagramDepth } from './depth';
 import { getMermaidLayout, rememberMermaidLayout } from './cache';
 
 const themeTokens: Record<string, string> = {
   bg: 'background',
   fg: 'text',
   muted: 'muted',
+  line: 'muted',
   surface: 'surface',
   'surface-alt': 'surface-emphasized',
   border: 'input-border',
-  'frame-border': 'depth-border',
   accent: 'action',
   critical: 'danger',
   error: 'danger',
@@ -21,44 +20,7 @@ const themeTokens: Record<string, string> = {
   'series-6': 'neutral-action'
 };
 
-// Image documents cannot inherit app CSS. Keep this small stylesheet scoped to
-// Pele's defaults so explicit colours and shapes in the diagram remain intact.
-const diagramStyle = `
-:root {
-  --pele-radius: 6px;
-  --pele-title-weight: 600;
-  --pele-heading-weight: 600;
-  --pele-bold-weight: 600;
-  --pele-line: color-mix(in srgb, var(--pele-muted) 70%, var(--pele-accent));
-  --pele-series-7: color-mix(in srgb, var(--pele-series-1), var(--pele-series-4));
-  --pele-series-8: color-mix(in srgb, var(--pele-series-2), var(--pele-series-3));
-}
-.pele-edges {
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.pele-marker[fill="var(--_l)"] {
-  fill: var(--pele-accent);
-  stroke: var(--pele-accent);
-  stroke-width: 0.6;
-  stroke-linejoin: round;
-}
-.pele-marker[stroke="var(--_l)"] { stroke: var(--pele-accent); }
-.pele-node > :is(rect, polygon, path, circle, ellipse)[stroke="var(--_b)"] {
-  stroke-width: 1.25;
-}
-.pele-cluster-label { font-weight: 600; }
-.chatto-pele-frame {
-  fill: var(--pele-surface);
-  fill-opacity: 1;
-  stroke: color-mix(in srgb, var(--pele-fg) 10%, transparent);
-  rx: 8px;
-}
-.chatto-pele-inset { stroke: var(--pele-frame-border); stroke-width: 1; }
-`;
-
-/** Resolve Chatto's CSS variables before the SVG enters an isolated image document. */
+/** Copy theme colours into the image; leave diagram shapes and effects to Pele. */
 function themeStyle(): string {
   const computed = getComputedStyle(document.documentElement);
   const colours = Object.entries(themeTokens)
@@ -69,7 +31,7 @@ function themeStyle(): string {
         : '';
     })
     .join('');
-  return `<style>:root{${colours}}${diagramStyle}</style>${diagramDepth(computed)}`;
+  return `<style>:root{${colours}}</style>`;
 }
 
 function imageDescription(source: string): string {

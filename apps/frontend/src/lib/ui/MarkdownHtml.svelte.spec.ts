@@ -499,26 +499,36 @@ describe('Mermaid previews', () => {
       expect(block.hasAttribute('tabindex')).toBe(false);
     }
   );
-  it('updates surface lighting with UI Depth and removes it in flat mode', async () => {
+  it('keeps Mermaid artwork unchanged when UI Depth changes', async () => {
     const root = document.documentElement;
     const previous = root.style.getPropertyValue('--depth-level');
     try {
       root.style.setProperty('--depth-level', '0');
       const { container } = render(MarkdownHtml, {
-        html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA[Dock]-->B[Trade]\n```')
+        html: await renderMarkdown(
+          '```mermaid rendered\nflowchart LR\nsubgraph Port\nA[Dock]-->B[Trade]\nend\n```'
+        )
       });
       await expect
         .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
         .toBeGreaterThan(0);
       const image = container.querySelector<HTMLImageElement>('img')!;
-      const source = () => decodeURIComponent(image.src.split(',')[1]);
-      await expect.poll(source).not.toContain('chatto-pele-depth-edge');
+      const originalUrl = image.src;
+      const source = decodeURIComponent(originalUrl.split(',')[1]);
+      expect(source).not.toMatch(/<filter\b|\bfilter\s*:|chatto-pele-/u);
       const width = image.naturalWidth;
-      root.style.setProperty('--depth-level', '100');
-      await expect.poll(source).toContain('chatto-pele-depth-edge');
-      await expect.poll(() => image.complete && image.naturalWidth === width).toBe(true);
-      root.style.setProperty('--depth-level', '0');
-      await expect.poll(source).not.toContain('chatto-pele-depth-edge');
+      const loads = vi.fn();
+      image.addEventListener('load', loads);
+      for (const depth of ['100', '0']) {
+        root.style.setProperty('--depth-level', depth);
+        // Let the root mutation observer process the changed preference.
+        await new Promise<void>((resolve) => queueMicrotask(resolve));
+        root.dispatchEvent(new TransitionEvent('transitionend'));
+        expect(image.src).toBe(originalUrl);
+        expect(image.complete && image.naturalWidth === width).toBe(true);
+      }
+      expect(loads).not.toHaveBeenCalled();
+      image.removeEventListener('load', loads);
       expect(container.querySelector('img')).toBe(image);
     } finally {
       if (previous) root.style.setProperty('--depth-level', previous);
