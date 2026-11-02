@@ -62,7 +62,6 @@ profile settings.
     anchorRect,
     position,
     presentation = 'auto',
-    browserMenuHint = false,
     canSendMessage = false,
     canBanFromRoom = false,
     banningFromRoom = false,
@@ -92,8 +91,6 @@ profile settings.
     anchorRect?: { top: number; bottom: number; left: number } | null;
     position?: { x: number; y: number };
     presentation?: 'auto' | 'floating' | 'sheet';
-    /** Show the shortcut when the owning trigger allows the native browser menu. */
-    browserMenuHint?: boolean;
     canSendMessage?: boolean;
     canBanFromRoom?: boolean;
     banningFromRoom?: boolean;
@@ -197,7 +194,6 @@ profile settings.
 </script>
 
 <ContextMenu
-  {browserMenuHint}
   {position}
   anchor={anchorRect}
   {presentation}

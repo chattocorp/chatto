@@ -580,44 +580,36 @@ composer rows, code, loading states, and narrow layouts.
 
 ### Preview surfaces
 
-Inline URL and entity pills use the borderless `inline-link-pill` utility.
-It uses a visible `surface-emphasized` fill, regular `text` foreground, and a
-brighter surface on hover. Do not add decorative borders, rings, or Inset Frame
-outlines to pills, their segments, or their images. Keep keyboard focus visible.
-The lighter label has a shadow against the dark backing to separate
-the sections without an outline.
-It has no outer rim. All link pills add 1px of vertical padding to their main section.
-Titles use the surrounding text size. Icons and metadata use 85% of that size.
-Entity pills use `link-pill-icon`, `link-pill-main`, and optional `link-pill-meta`
-sections, which share the URL pill styles. The icon sits inside the lighter main
-section beside the title. Only metadata sits on the dark backing. Room and user metadata identifies the
-server only when it differs from the rendering server; message metadata identifies the room when known. Do not repeat the title
-as metadata.
-When a page title is available, show it in the main section and
-the hostname in a darker, muted trailing section. Tuck the hostname section
-behind the title's rounded trailing edge, using the shared 6px pill radius.
-All sections belong to one link. The title truncates first. URL hostname sections
-use their natural width, with at least 3rem left for the title on narrow lines.
-Entity metadata stays within 40% of the pill.
-URL pills have a maximum width of 28rem and must fit within the available
-width. Entity pills can use the full available width. Neither the pill nor its
-lighter title section stretches past its content.
-Without a title, use the hostname as the primary label. Show the standard external-link
-icon before the title, inside the lighter section, only when navigation opens a new window.
-Posted URL pills load missing metadata when they enter the viewport. Show a
-spinner in the icon position while metadata is loading, then show the page title
-when available. The hover card reuses the same metadata. Composer previews keep
-their existing request flow.
-Keep URL paths muted. Show only short, complete paths that fit beside
-it; omit long paths and opaque identifiers. Shorten long hostnames in the middle
-so their ending and port remain visible. Entity avatars and server icons have a
-1px inset inside the lighter section, without an image border. Avatars stay circular;
-pill avatars use `UserAvatar` with `mutedPlaceholder` for a distinct darker fill. Pill
-corners and compact server icons use the shared 6px `--inline-link-radius`.
-Use logical layout properties to mirror the sections in RTL.
-Use this same
-treatment in messages and visual-composer previews; do not give URL and entity
-pills separate outer fills. See **Messages/Entity links** and **Messages/URL chips** in Storybook.
+Ordinary web URLs show the full URL as inline text and use the same prose and
+composer link styles as authored Markdown links.
+Long URLs wrap within the message width. Explicit Markdown links keep their
+authored labels. Preview metadata must not change the inline text, width, or
+line breaks. Load missing hover-card metadata only on hover, focus, or touch
+long-press. Loading indicators and fetched titles belong in the floating card
+or touch sheet. Composer preview requests keep their existing flow.
+
+Known Chatto entities use the borderless `inline-link-pill` utility.
+It uses a `surface-emphasized` fill, regular `text` foreground, and a brighter
+surface on hover. Do not add decorative borders, rings, or Inset Frame outlines.
+Keep keyboard focus visible. The lighter label has a shadow against the dark
+backing. The main section has 1px of vertical padding and uses the surrounding
+text size. Icons and metadata use 85% of that size.
+
+Entity pills use `link-pill-icon`, `link-pill-main`, and optional
+`link-pill-meta` sections. The icon sits beside the title. Metadata sits on
+the dark backing and stays within 40% of the pill. Room and user metadata
+identifies the server only when it differs from the rendering server.
+Message metadata identifies the room when known. Do not repeat the title
+as metadata. Pills fit the available width without stretching past their content.
+
+Entity avatars and server icons have a 1px inset without an image border.
+Avatars stay circular; use `UserAvatar` with `mutedPlaceholder`.
+Pill corners and compact server icons use the shared 6px
+`--inline-link-radius`. Use logical layout properties for RTL.
+Use the same treatment in messages and visual-composer previews. Composer
+pill widgets are limited to recognised Chatto entity and message links. Other
+URLs stay directly editable as text.
+See **Messages/Entity links** and **Messages/Web links** in Storybook.
 
 Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
 cards, social embeds, linked messages, composer previews, and hover cards.

@@ -1,4 +1,4 @@
-<!-- @component Shared metadata for a link pill and its delayed hover card. Automatic pills subscribe when visible. -->
+<!-- @component A delayed hover or focus preview and a touch preview sheet. Metadata loads only on interaction. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { useLinkPreview } from './linkPreviewContext';
@@ -15,14 +15,11 @@
   let {
     href,
     local,
-    loadWhenVisible = false,
     children
   }: {
     href: string;
     local?: HoverIdentity;
-    /** Load a posted pill's title when it enters the viewport, before hover. */
-    loadWhenVisible?: boolean;
-    children: Snippet<[string | undefined, boolean, Snippet<[() => void]>]>;
+    children: Snippet<[Snippet<[() => void]>]>;
   } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
   const { lookup: existingPreview, isLoading: existingLoading } = useLinkPreview();
@@ -39,11 +36,6 @@
   let sheetOpen = $state(false);
   // Input modality is event bookkeeping, not rendered state.
   let touchInput = false;
-  const pageTitle = $derived(
-    preview?.socialPost?.contentWarning || preview?.socialPost?.quotedPost?.contentWarning
-      ? undefined
-      : preview?.title || undefined
-  );
   function close() {
     clearTimeout(timer);
     clearTimeout(closeTimer);
@@ -81,16 +73,12 @@
     const stopRemoval = registerQueryCacheRemovalListener((serverId) => {
       if (serverId !== scope?.serverId) return;
       generation++;
-      visibility?.disconnect();
       stopPreview?.();
       stopPreview = undefined;
       started = false;
       fetchedPreview = undefined;
       loading = false;
       close();
-      // Permission changes keep the timeline mounted. Reauthorize visible pills
-      // after the shared cache has been cleared; hidden pills wait for visibility.
-      visibility?.observe(node);
     });
     async function loadPreview() {
       if (identity || !scope || started || existingPreview(url)) return;
@@ -161,21 +149,10 @@
           },
           { touchOnly: true }
         )(node);
-    // Visibility owns this query subscription: virtualized/off-screen links do
-    // not need metadata until their pills enter the viewport. Hover reuses it.
-    const visibility = loadWhenVisible
-      ? new IntersectionObserver((entries) => {
-          if (disposed || !entries.some((entry) => entry.isIntersecting)) return;
-          visibility?.disconnect();
-          void loadPreview();
-        })
-      : undefined;
-    visibility?.observe(node);
     return () => {
       stopTouch?.();
       for (const cleanup of cleanups) cleanup();
       disposed = true;
-      visibility?.disconnect();
       stopPreview?.();
       stopRemoval();
       if (title != null) link?.setAttribute('title', title);
@@ -208,13 +185,13 @@
 />
 {#snippet sheetPreview(onclose: () => void)}
   <div class="preview-frame" data-testid="link-touch-preview">
-    <LinkHoverContent {href} {local} {preview} {loading} />
+    <LinkHoverContent {href} {local} {preview} loading={loading || existingLoading(href)} />
   </div>
   <LinkPreviewActions {href} {onclose} />
 {/snippet}
 
 <span class="link-preview-trigger" data-link-preview-trigger {@attach attachTrigger}
-  >{@render children(pageTitle, loading || existingLoading(href), sheetPreview)}</span
+  >{@render children(sheetPreview)}</span
 >{#if sheetOpen}
   <ContextMenu
     presentation="sheet"
@@ -249,7 +226,7 @@
         if (event.button === 1) activate(event);
       }}
     >
-      <LinkHoverContent {href} {local} {preview} {loading} />
+      <LinkHoverContent {href} {local} {preview} loading={loading || existingLoading(href)} />
     </a>
   </FloatingPopover>
 {/if}

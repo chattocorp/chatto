@@ -4,7 +4,7 @@ import type { Attachment } from 'svelte/attachments';
 import EntityLink from './EntityLink.svelte';
 import { parseWebLink } from '$lib/navigation/webLink';
 
-/** Add web-link previews; only automatic URLs replace the author's label with a pill. */
+/** Add hover previews; only recognised Chatto links can replace automatic URL text with pills. */
 export function enhanceEntityLinks(context: Map<unknown, unknown>): Attachment<HTMLAnchorElement> {
   return (anchor) => {
     const href = anchor.dataset.contentHref;
