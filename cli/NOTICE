@@ -34,6 +34,7 @@ ChattoBot:
 
 Server and CLI Go Components:
 
+- Brotli for Go (https://github.com/andybalholm/brotli) - MIT License
 - Masterminds semver (https://github.com/Masterminds/semver) - MIT License
 - age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0

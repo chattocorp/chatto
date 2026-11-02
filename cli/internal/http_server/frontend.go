@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 )
@@ -255,9 +256,8 @@ func clientAcceptsEncoding(acceptEncoding, encoding string) bool {
 }
 
 // readFrontendIdentityFile returns the uncompressed representation of an
-// embedded frontend file. Release builds omit raw files when SvelteKit emitted
-// a gzip sibling, so clients without compression support are served by
-// inflating that trusted embedded fallback on demand.
+// embedded frontend file. Release builds omit raw files with a compressed
+// sibling. Inflate a stored gzip or Brotli representation on demand.
 func readFrontendIdentityFile(clientFS fs.FS, filePath string) ([]byte, error) {
 	content, rawErr := fs.ReadFile(clientFS, filePath)
 	if rawErr == nil {
@@ -266,19 +266,27 @@ func readFrontendIdentityFile(clientFS fs.FS, filePath string) ([]byte, error) {
 
 	compressed, err := clientFS.Open(filePath + ".gz")
 	if err != nil {
-		return nil, rawErr
+		input, err := clientFS.Open(filePath + ".br")
+		if err != nil {
+			return nil, rawErr
+		}
+		defer input.Close()
+		content, err := io.ReadAll(brotli.NewReader(input))
+		if err != nil {
+			return nil, fmt.Errorf("decompress frontend Brotli fallback for %q: %w", filePath, err)
+		}
+		return content, nil
 	}
 	defer compressed.Close()
-
 	reader, err := gzip.NewReader(compressed)
 	if err != nil {
-		return nil, fmt.Errorf("open embedded gzip fallback for %q: %w", filePath, err)
+		return nil, fmt.Errorf("open frontend gzip fallback for %q: %w", filePath, err)
 	}
 	defer reader.Close()
 
 	content, err = io.ReadAll(reader)
 	if err != nil {
-		return nil, fmt.Errorf("decompress embedded gzip fallback for %q: %w", filePath, err)
+		return nil, fmt.Errorf("decompress frontend gzip fallback for %q: %w", filePath, err)
 	}
 	return content, nil
 }
@@ -288,6 +296,10 @@ func frontendFileExists(clientFS fs.FS, filePath string) bool {
 		return true
 	}
 	_, err := fs.Stat(clientFS, filePath+".gz")
+	if err == nil {
+		return true
+	}
+	_, err = fs.Stat(clientFS, filePath+".br")
 	return err == nil
 }
 
@@ -395,9 +407,12 @@ func serveFrontendFile(c *gin.Context, clientFS fs.FS, filePath string) error {
 	if servePrecompressedFile(c, clientFS, filePath) {
 		return nil
 	}
+	if served, err := serveFrontendGzip(c, clientFS, filePath); served || err != nil {
+		return err
+	}
 
 	// Development builds retain the raw file. Release builds instead inflate
-	// the embedded gzip fallback for clients that do not accept compression.
+	// a stored compressed representation for uncompressed responses.
 	content, err := readFrontendIdentityFile(clientFS, filePath)
 	if err != nil {
 		return err
@@ -487,7 +502,11 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		}
 
 		if err := serveFrontendFile(c, clientFS, filePath); err != nil {
-			c.Status(http.StatusInternalServerError)
+			if !c.Writer.Written() {
+				c.Header("Content-Encoding", "")
+				c.Status(http.StatusInternalServerError)
+			}
+			c.Abort()
 		}
 	}
 

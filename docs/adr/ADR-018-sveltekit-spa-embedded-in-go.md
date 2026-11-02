@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Updated:** 2026-09-25
+**Updated:** 2026-11-02
 
 ## Context
 
@@ -21,13 +21,18 @@ Ordinary frontend builds leave precompression disabled.
 
 The compiled SPA output is embedded into the Go binary with
 `//go:embed all:.client`. Preparation of the embedded files removes each raw
-file that has a gzip copy, retaining the gzip and Brotli representations.
+file and gzip copy that has a Brotli copy. The server generates missing gzip
+representations from Brotli only when a request accepts gzip but not Brotli.
+It streams the conversion without a persistent cache or startup conversion.
+Files with only gzip keep the existing compressed fallback. Raw development
+builds need no conversion.
 The Go server handles:
 
 - Serving the `200.html` fallback for all unrecognized routes (SPA client-side routing)
 - Serving SvelteKit's immutable assets (`/_app/immutable/`) with 1-year cache headers and ETags
-- Serving precompressed `.br` and `.gz` variants without runtime compression
-- Decompressing the embedded gzip copy when a raw file is absent and an
+- Serving embedded `.br` or `.gz` variants directly when accepted, and
+  generating gzip from Brotli on demand when no gzip copy is stored
+- Decompressing a stored Brotli or gzip copy when a raw file is absent and an
   uncompressed response is needed
 - Injecting server-side OpenGraph meta tags into the `200.html` response for asset/space preview URLs
 
@@ -36,9 +41,11 @@ The Go server handles:
 - **Single application binary**: After the frontend build is prepared for
   embedding, `go build` includes the frontend, backend, and embedded NATS
   server in one executable. No separate frontend files are needed at runtime.
-- **Smaller embedded frontend**: Release builds omit duplicate raw files. The
-  Go server serves accepted compressed representations directly. Requests
-  that need a missing raw representation incur gzip decompression.
+- **Smaller embedded frontend**: Release builds omit duplicate raw and gzip
+  files when Brotli is available. Requests for missing gzip representations
+  pay a decompression and compression cost each time. Requests for missing raw
+  representations pay a decompression cost. The server needs a Brotli decoder
+  but retains no generated asset cache.
 - **No SSR**: The frontend is fully client-rendered. First paint shows a loading state until JavaScript boots. This is acceptable for an authenticated app where SEO doesn't matter.
 - **OpenGraph tags are server-rendered**: Despite being an SPA, the Go server injects `<meta>` tags for link preview URLs (space invites, shared assets) by manipulating the `200.html` before serving. This gives good link previews without SSR.
 - **Bundled frontend updates require a binary rebuild**: Updating the embedded
