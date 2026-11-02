@@ -5,7 +5,7 @@ import { applySurfaceDepth } from '$lib/state/userPreferences.svelte';
 /** Read paint alpha without depending on the browser's colour serialization. */
 function paintAlphas(value: string): number[] {
   const context = document.createElement('canvas').getContext('2d')!;
-  const colours = value.match(/rgba?\([^)]*\)|color\([^)]*\)/g) ?? [];
+  const colours = value.match(/(?:rgba?|color|oklab|oklch)\([^)]*\)/g) ?? [];
   return colours.map((colour) => {
     context.clearRect(0, 0, 1, 1);
     context.fillStyle = colour;
@@ -47,13 +47,11 @@ describe('preview frame depth', () => {
   function expectFlat() {
     const outer = getComputedStyle(frame);
     const inner = getComputedStyle(content);
-    for (const paint of [
-      outer.borderTopColor,
-      outer.backgroundColor,
-      outer.backgroundImage,
-      outer.boxShadow,
-      inner.boxShadow
-    ]) {
+    expect(paintAlphas(outer.borderTopColor)[0]).toBe(0);
+    expect(paintAlphas(outer.backgroundColor)[0]).toBeGreaterThan(0);
+    expect(outer.borderTopWidth).toBe('1px');
+    expect(outer.paddingTop).toBe('4px');
+    for (const paint of [outer.backgroundImage, outer.boxShadow, inner.boxShadow]) {
       expect(paintAlphas(paint).every((alpha) => alpha === 0)).toBe(true);
     }
   }
@@ -63,12 +61,13 @@ describe('preview frame depth', () => {
     applySurfaceDepth(0);
     expectFlat();
     const initial = frame.getBoundingClientRect();
+    const initialFill = getComputedStyle(frame).backgroundColor;
     let previousShadowAlpha = 0;
     for (const level of [10, 50, 100]) {
       applySurfaceDepth(level);
       const style = getComputedStyle(frame);
       expect(paintAlphas(style.borderTopColor)[0]).toBeGreaterThan(0);
-      expect(paintAlphas(style.backgroundColor)[0]).toBeGreaterThan(0);
+      expect(style.backgroundColor).toBe(initialFill);
       const shadowAlpha = Math.max(...paintAlphas(style.boxShadow));
       expect(shadowAlpha).toBeGreaterThan(previousShadowAlpha);
       previousShadowAlpha = shadowAlpha;
@@ -86,11 +85,12 @@ describe('preview frame depth', () => {
     expectFlat();
   });
 
-  it('keeps floating menu boundaries and elevation at Flat', () => {
+  it('keeps floating menu fill and elevation without an outer border at Flat', () => {
     applySurfaceDepth(0);
     frame.className = 'menu';
     const style = getComputedStyle(frame);
-    expect(paintAlphas(style.borderTopColor)[0]).toBeGreaterThan(0);
+    expect(paintAlphas(style.borderTopColor)[0]).toBe(0);
+    expect(paintAlphas(style.backgroundColor)[0]).toBeGreaterThan(0);
     expect(Math.max(...paintAlphas(style.boxShadow))).toBeGreaterThan(0);
   });
 });

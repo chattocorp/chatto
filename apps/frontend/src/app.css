@@ -1917,15 +1917,10 @@
  * Layout, clipping, elevation, and interactions belong to its consumers. */
 @utility inset-frame {
   @apply rounded-lg border floating-frame text-text;
-  --inset-frame-visibility: 1;
+  /* Keep the filled rim at Flat, but fade its outer stroke with depth. */
   border-color: color-mix(
     in srgb,
-    var(--color-text) calc(10% * var(--inset-frame-visibility)),
-    transparent
-  );
-  background-color: color-mix(
-    in srgb,
-    var(--color-surface) calc(100% * var(--inset-frame-visibility)),
+    var(--color-text) calc(10% * min(1, var(--depth-strength) / 0.75)),
     transparent
   );
   /* A default rim must not override a row's attachment-card or p-* spacing. */
@@ -1938,10 +1933,9 @@
   @apply rounded-md bg-background floating-inset;
 }
 
-/* Preview rims fade to transparent at Flat without changing their geometry. */
+/* Preview rims stay filled at Flat; the border and lighting follow depth. */
 @utility preview-frame {
   @apply overflow-hidden inset-frame shadow-[var(--preview-shadow)];
-  --inset-frame-visibility: min(1, calc(var(--depth-strength) / 0.75));
   --preview-shadow:
     0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))),
     0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
