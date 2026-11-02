@@ -2,6 +2,60 @@ import { describe, expect, it, vi } from 'vitest';
 import { MentionLookups } from './mentionLookups.js';
 
 describe('MentionLookups', () => {
+  it('does not cache an unverified retained result when its last reader leaves', async () => {
+    let finish!: (id: string | null) => void;
+    const lookup = vi
+      .fn()
+      .mockResolvedValueOnce('alice')
+      .mockImplementationOnce(
+        () =>
+          new Promise<string | null>((resolve) => {
+            finish = resolve;
+          })
+      )
+      .mockResolvedValueOnce(null);
+    const store = new MentionLookups(lookup, () => true);
+    const release = store.retain(['alice']);
+    await vi.waitFor(() => expect(store.ids).toEqual(['alice']));
+    store.invalidate(undefined, true);
+    store.resume();
+    release();
+    finish(null);
+    await vi.waitFor(() => expect(lookup.mock.settledResults[1]?.type).toBe('fulfilled'));
+    store.retain(['alice']);
+    await vi.waitFor(() => expect(lookup).toHaveBeenCalledTimes(3));
+    expect(store.ids).toEqual([]);
+    store.dispose();
+  });
+
+  it('keeps results through refresh and fences a late result after access loss', async () => {
+    let finish!: (id: string) => void;
+    const lookup = vi
+      .fn()
+      .mockResolvedValueOnce('alice')
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            finish = resolve;
+          })
+      );
+    let allowed = true;
+    const store = new MentionLookups(lookup, () => allowed);
+    store.retain(['alice']);
+    await vi.waitFor(() => expect(store.ids).toEqual(['alice']));
+    store.invalidate(undefined, true);
+    store.resume();
+    expect(store.ids).toEqual(['alice']);
+    allowed = false;
+    store.invalidate();
+    expect(store.ids).toEqual([]);
+    finish('alice');
+    await vi.waitFor(() => expect(lookup.mock.settledResults[1]?.type).toBe('fulfilled'));
+    expect(store.ids).toEqual([]);
+    expect(lookup).toHaveBeenCalledTimes(2);
+    store.dispose();
+  });
+
   it('bounds concurrent reads and cancels released queued handles', async () => {
     const pending: Array<() => void> = [];
     const lookup = vi.fn(

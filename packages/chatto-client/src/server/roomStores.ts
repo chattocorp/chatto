@@ -81,6 +81,8 @@ export type RoomStoresOptions = {
   projectedMemberIds: (roomId: string) => readonly string[] | null;
   /** Gate mention lookups while room authority is absent or being checked. */
   canResolveMentions?: (roomId: string) => boolean;
+  /** Gate retained mention display independently of recovery reads. */
+  canDisplayMentions?: (roomId: string) => boolean;
   /** The number of recently used rooms and threads to keep; see {@link KeepRecent}. */
   keepRecent?: KeepRecent;
 };
@@ -261,6 +263,9 @@ export class RoomStores {
     return (entry.members = new RoomMembersStore(roomId, this.#options.connection, {
       presence: this.#options.presence,
       canResolveMentions: () => this.#options.canResolveMentions?.(roomId) ?? true,
+      canDisplayMentions: this.#options.canDisplayMentions
+        ? () => this.#options.canDisplayMentions!(roomId)
+        : undefined,
       projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
     }));
   }

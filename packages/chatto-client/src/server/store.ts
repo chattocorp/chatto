@@ -360,6 +360,9 @@ export class ServerStateStore {
         !this.#realtimeSnapshotPending &&
         !this.checkingPermissions &&
         Boolean(this.projection.rooms.get(roomId)?.viewerState?.isMember),
+      canDisplayMentions: (roomId) =>
+        !this.checkingPermissions &&
+        Boolean(this.projection.rooms.get(roomId)?.viewerState?.isMember),
       projectedMemberIds: (roomId) => {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
@@ -597,6 +600,7 @@ export class ServerStateStore {
       );
       if (this.realtimeSync.hasDisplayableView) await Promise.all(memberRefreshes);
       this.requireCurrentRealtimeProjection(generation);
+      for (const members of this.#rooms.all('members')) members.refreshMentions(cursor);
       this.#realtimeSnapshotPending = false;
       this.loadPendingRoomMembers();
     }

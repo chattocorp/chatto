@@ -28,6 +28,10 @@ the message body.
 - `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.
 - Valid user, role, and virtual mentions render with highlight styling in the posted message. User mentions show the current display name, with `@` before it; role and virtual mentions keep their handles. Self-mentions get additional styling.
 - Clicking or right-clicking a user mention opens that user's menu.
+- Resolved user mentions stay visible while a connection recovers. Unchanged
+  profiles do not require another mention lookup. After a recovery gap, the
+  client checks membership again and removes matches that are no longer valid.
+  Access loss and privacy resets clear retained matches.
 - Mentions inside code spans, code blocks, pre-formatted text, and blockquotes do not resolve, notify, or receive mention styling.
 - Mentions inside links and URLs do not resolve, notify, or receive mention styling. This includes link labels, link destinations, and URLs that the renderer converts to links, with or without a scheme. For example, `https://social.example.com/@alice/123` keeps its literal text.
 - An `@` directly after a letter or digit, as in `user@example.com`, does not start a mention. Other characters before `@` do not block a mention, so `@alice/@bob` mentions both users.

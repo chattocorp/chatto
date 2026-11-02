@@ -53,7 +53,10 @@ export class MentionLookups {
       for (const key of keys) {
         const entry = this.#entries.get(key);
         if (entry && --entry.readers === 0) {
-          if (entry.result !== undefined) this.#cache.set(key, entry.result);
+          // A retained refresh result is not yet verified. Do not let an
+          // unmounted consumer turn it into a settled cache entry.
+          if (entry.state === 'settled' && entry.result !== undefined)
+            this.#cache.set(key, entry.result);
           if (entry.controller) entry.controller.abort();
           else this.#entries.delete(key);
         }
@@ -62,15 +65,22 @@ export class MentionLookups {
     };
   }
 
-  /** Fence old reads and discard matches after membership or authority changes. */
-  invalidate(): void {
-    for (const entry of this.#entries.values()) {
-      entry.result = undefined;
+  /** Fence selected reads and matches after profile, membership, or authority changes.
+   * Recovery can retain results until a fresh lookup replaces them. */
+  invalidate(
+    affected: (handle: string, result: string | false | undefined) => boolean = () => true,
+    retainResults = false
+  ): void {
+    for (const [handle, entry] of this.#entries) {
+      if (!affected(handle, entry.result)) continue;
+      if (!retainResults) entry.result = undefined;
       if (entry.controller) entry.controller.abort();
       else entry.state = 'idle';
     }
-    this.#cache.clear();
-    this.#ids.set([]);
+    for (const [handle, result] of this.#cache) {
+      if (affected(handle, result)) this.#cache.delete(handle);
+    }
+    this.publish();
   }
 
   /** Resume retained lookups after the room's authority has been checked. */
@@ -89,7 +99,8 @@ export class MentionLookups {
           if (!controller.signal.aborted) entry.result = id ?? false;
         })
         .catch(() => {
-          // A failed lookup leaves plain text. A later retain or invalidation retries it.
+          // A failed read keeps its previous result, if any. A later
+          // invalidation, or release followed by retain, can retry it.
         })
         .finally(() => {
           this.#running--;
