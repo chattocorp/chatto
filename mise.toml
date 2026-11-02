@@ -16,9 +16,10 @@ frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | 
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
-buf = "latest"
+buf = "1.75.0"
 go = "1.27.3"
-goreleaser = "latest"
+# Keep the release workflow's GoReleaser action on the same version.
+goreleaser = "2.19.0"
 # Includes the Brotli decoder fix for CVE-2026-111497.
 node = "24.22.1"
 pnpm = "11.25.0"

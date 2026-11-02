@@ -4,10 +4,10 @@
 min_version = "2026.8.9"
 
 [tools]
-buf = "latest"
+buf = "1.75.0"
 go = "1.27.3"
-node = "22"
-"aqua:axllent/mailpit" = "latest"
+node = "22.23.4"
+"aqua:axllent/mailpit" = "1.30.6"
 
 # Run these tasks from the Authling directory. Authling owns this task catalog
 # so it can move to its own repository without extracting product-specific
