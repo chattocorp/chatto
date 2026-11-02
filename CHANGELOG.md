@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-rc.3](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.2...v0.5.0-rc.3) (2026-11-02)
+
+
+### Features
+
+* **frontend:** show and edit link pills in both composers ([#3462](https://github.com/chattocorp/chatto/issues/3462)) ([a5ad4b2](https://github.com/chattocorp/chatto/commit/a5ad4b2bf6225b2b005272aabed8af5d2c9393b2))
+
+
+### Bug Fixes
+
+* **build:** clean workspace outputs and restore build state ([#3445](https://github.com/chattocorp/chatto/issues/3445)) ([a233a17](https://github.com/chattocorp/chatto/commit/a233a173d1a7e4aec1993e7fec11618a30c23e68))
+* **client:** retain resolved mentions during reconnects ([#3458](https://github.com/chattocorp/chatto/issues/3458)) ([47c676d](https://github.com/chattocorp/chatto/commit/47c676d7669a23e82b3a4728d9568dfaf34be15b))
+* **frontend:** align autocomplete keyboard behavior ([#3448](https://github.com/chattocorp/chatto/issues/3448)) ([578ccef](https://github.com/chattocorp/chatto/commit/578ccefc634ef5f8ee661d7c8020cfee9d6535c7))
+* **frontend:** enlarge SVG and Mermaid previews within height limits ([#3452](https://github.com/chattocorp/chatto/issues/3452)) ([14edc1a](https://github.com/chattocorp/chatto/commit/14edc1a482cf4dfec6e9404e2992e5052894210f))
+* **frontend:** equalize checkbox and radio padding ([#3435](https://github.com/chattocorp/chatto/issues/3435)) ([5a0825e](https://github.com/chattocorp/chatto/commit/5a0825e0c95e50a6bec8e8554a730039ab8e79af))
+* **frontend:** keep filled preview frames at flat depth ([#3442](https://github.com/chattocorp/chatto/issues/3442)) ([50b3c27](https://github.com/chattocorp/chatto/commit/50b3c27117ef7a1617ce5e2396148dbf579ed739))
+* **frontend:** keep message tables visible when highlighted ([#3456](https://github.com/chattocorp/chatto/issues/3456)) ([e5f1fab](https://github.com/chattocorp/chatto/commit/e5f1fab36f0ec6eab5bb310ccfb52c1473eb1667))
+* **frontend:** keep small calls in a single sidebar column ([#3447](https://github.com/chattocorp/chatto/issues/3447)) ([7531b6a](https://github.com/chattocorp/chatto/commit/7531b6a8e4de07d4000f94a0102ede453560a2ce))
+* **frontend:** keep web links stable while previews load ([#3446](https://github.com/chattocorp/chatto/issues/3446)) ([ebd0770](https://github.com/chattocorp/chatto/commit/ebd0770e6b8db9a5d3a826f5c9151a45b4d57aa2))
+* **frontend:** refine message badge padding and alignment ([#3457](https://github.com/chattocorp/chatto/issues/3457)) ([beae795](https://github.com/chattocorp/chatto/commit/beae7958e264334bc7890e81121dda122d0cd07f))
+* **frontend:** refine update download progress bar ([#3461](https://github.com/chattocorp/chatto/issues/3461)) ([2aded54](https://github.com/chattocorp/chatto/commit/2aded5495adee1dfa0eb0c283e1c57c5ed9d675c))
+* **frontend:** sanitize Markdown SVG previews ([#3460](https://github.com/chattocorp/chatto/issues/3460)) ([b01b33f](https://github.com/chattocorp/chatto/commit/b01b33f5df93e999726059bdd07f59acc4d77d30))
+* **frontend:** use theme background in image viewer ([#3444](https://github.com/chattocorp/chatto/issues/3444)) ([0b5435c](https://github.com/chattocorp/chatto/commit/0b5435cacd1450eee1fe8a7a717e3084bb6cfd51))
+* **i18n:** add hygiene skill and correct French headings ([#3436](https://github.com/chattocorp/chatto/issues/3436)) ([7e6121f](https://github.com/chattocorp/chatto/commit/7e6121fe7bee3d92eb46b863681adcf964e7867c))
+* **test:** scale backend stability timeout with repeat count ([#3450](https://github.com/chattocorp/chatto/issues/3450)) ([95dfdf5](https://github.com/chattocorp/chatto/commit/95dfdf5c35513db19552db26b806352045e3e8e3))
+
+
+### Performance Improvements
+
+* **frontend:** generate gzip assets on demand from embedded Brotli ([#3440](https://github.com/chattocorp/chatto/issues/3440)) ([4ba749a](https://github.com/chattocorp/chatto/commit/4ba749a107825a95a6f6833684d5ed122c316a7d))
+
 ## [0.5.0-rc.2](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.29...v0.5.0-rc.2) (2026-11-02)
 
 
