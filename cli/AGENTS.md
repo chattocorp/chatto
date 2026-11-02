@@ -432,8 +432,8 @@ authorization, live events, backup and restore, and backend tests.
   package processes and four parallel tests per process. These are separate
   limits. `CHATTO_GO_TEST_P` and `CHATTO_GO_TEST_PARALLEL` can override them.
 - Use `mise test-cli-stability` after changing concurrency or test fixtures.
-  CI runs it too. It repeats the core, Connect API, HTTP, MCP, and test-helper packages
-  three times with the race detector, one package at a time, and four parallel
+  This local command repeats the core, Connect API, HTTP, MCP, and test-helper
+  packages three times with the race detector, one package at a time, and four parallel
   tests on four Go scheduler threads. Reproduce a reported shuffle seed with
   `CHATTO_GO_TEST_SHUFFLE=<seed>`. `CHATTO_GO_STABILITY_COUNT` sets the repeat
   count. A passing repeat run is supporting evidence, not proof of a race fix.
