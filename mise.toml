@@ -1029,6 +1029,8 @@ tools = { "github:traefik/traefik" = "3.7.14" }
 run = [
     "node --test --test-concurrency=1 tools/*.test.mjs",
     "bash tools/test-paseo-dev.sh",
+    { task = "test-interchange" },
+    { task = "test-slack" },
 ]
 
 [tasks.test-chatto-build]

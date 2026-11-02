@@ -313,9 +313,6 @@ jobs:
       - name: Test repository tooling
         run: mise test-repo-tooling
 
-      - name: Test interchange format contract
-        run: mise test-interchange
-
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
@@ -484,10 +481,6 @@ jobs:
       - name: Setup environment
         if: env.RUN_PROTO_CHECKS == 'true'
         uses: ./.github/actions/setup
-
-      - name: Test Slack importer
-        if: env.RUN_PROTO_CHECKS == 'true'
-        run: mise test-slack
 
       - name: Check server compatibility threshold labels
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
