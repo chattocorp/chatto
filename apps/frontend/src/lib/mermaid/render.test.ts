@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { renderMermaid } from './render';
 
 describe('Mermaid image rendering', () => {
-  it('frames nested default groups while preserving author-coloured groups', () => {
+  it('keeps nested groups and author colours without adding app surfaces', () => {
     const source = 'flowchart TB\nsubgraph Outer\nsubgraph Inner\nA-->B\nend\nend';
     const svg = renderMermaid(source);
-    expect(svg.match(/class="chatto-pele-frame"/g)).toHaveLength(2);
-    expect(svg.match(/class="chatto-pele-inset"/g)).toHaveLength(2);
+    expect(svg.match(/class="pele-cluster"/g)).toHaveLength(2);
+    expect(svg).not.toContain('chatto-pele-');
     expect(svg).toContain('>Inner</text>');
     expect(svg).toContain('>Outer</text>');
     const styled = renderMermaid(source + '\nstyle Inner fill:#123456');
     expect(styled).toContain('#123456');
-    expect(styled.match(/class="chatto-pele-frame"/g)).toHaveLength(1);
+    expect(styled).not.toContain('chatto-pele-');
   });
   it.each([
     'flowchart LR\nA[Hello] --> B[World]',

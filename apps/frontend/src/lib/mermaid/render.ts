@@ -1,7 +1,6 @@
 /** Pure, bounded Pele rendering. Production callers run this only in a worker. */
 import { parse, render } from 'pele';
 import { isMermaidSourceAllowed, MAX_MERMAID_SOURCE } from './policy';
-import { frameMermaidGroups } from './groups';
 
 /** Return self-contained SVG, or throw. Never display or log parser errors with message text. */
 export function renderMermaid(source: string): string {
@@ -39,7 +38,6 @@ export function renderMermaid(source: string): string {
     result.width * result.height > 16_000_000
   )
     throw new Error('Diagram too large');
-  const svg = frameMermaidGroups(result.svg);
-  if (svg.length > 500_000) throw new Error('Diagram too large');
-  return svg;
+  if (result.svg.length > 500_000) throw new Error('Diagram too large');
+  return result.svg;
 }
