@@ -491,7 +491,7 @@ function createMainWindow() {
     title: 'Chatto',
     width: 1280,
     height: 820,
-    minWidth: 800,
+    minWidth: 480,
     minHeight: 600,
     show: false,
     // Match the frontend's default loading colours before its first paint.
