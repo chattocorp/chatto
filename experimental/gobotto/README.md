@@ -528,7 +528,27 @@ The agent cannot supply collection paths, delete individual documents, or run
 shell commands. App creation, schema changes, and archival are limited to the
 managed directory. App instruction updates use the same boundary.
 
-Search uses full-text matching and returns up to 20 documents. Each command has a
+Search supports full-text queries and structured filters, and returns up to 20
+documents. `memory_search` accepts an optional `filters` object keyed by fields
+directly under document `data`. All conditions use AND; an empty `query` searches
+by filters alone. JSON value types are preserved. Object filters match supplied
+keys recursively, arrays match exactly, and absent fields do not match.
+
+For example, recall for one user uses
+`{"collection":"memory","query":"","filters":{"kind":"user_fact","user_id":"<user ID>"}}`.
+An app query can use `{"status":"open","priority":"highest"}` as its filters.
+Text queries require all words to match; structured field values do not need to
+appear in document titles or bodies.
+
+Optional `after`, `before`, `on_or_after`, and `on_or_before` objects map data
+fields to RFC 3339 timestamps with timezones. The first two comparisons are
+exclusive; the latter two are inclusive. They combine with text and data filters
+using AND. Date-only values, such as a task's `added` date, are not datetime
+filters; use an equality filter for an exact date. Inspect `has_more` before
+treating a result as complete. Filtering uses the local means CLI and does not
+enable semantic search or contact an embedding provider.
+
+Each command has a
 20-second timeout, a 64 KiB output limit, and a 32 KiB tool-argument limit. Large
 results fail instead of being added to the model context. Calls execute one at a
 time. A repeated identical successful write in the same turn returns its receipt.
