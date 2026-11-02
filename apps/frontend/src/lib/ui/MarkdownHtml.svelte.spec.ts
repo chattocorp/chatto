@@ -754,6 +754,86 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('keeps virtualized code row sizes and scroll anchors through wheel remounts and width changes', async () => {
+    const source =
+      '```svg\n<svg xmlns="http://www.w3.org/2000/svg">\n' +
+      Array.from(
+        { length: 60 },
+        (_, index) => `<path d="M0 ${index} L900 900" fill="none" stroke="red"/>`
+      ).join('\n') +
+      '\n</svg>\n```';
+    const html = await Promise.all(
+      Array.from({ length: 20 }, (_, index) => renderMarkdown(`Source row ${index}\n\n${source}`))
+    );
+    const view = render(DiagramTimelineTestHarness, { html });
+    await document.fonts.ready;
+    const scroller = view.container.querySelector<HTMLElement>('[data-testid="diagram-timeline"]')!;
+    const row = (index: number) =>
+      scroller.querySelector<HTMLElement>(`[data-diagram-row="${index}"]`);
+    await expect
+      .poll(() =>
+        row(0)?.querySelector('.markdown-code-fade-bottom')?.classList.contains('opacity-0')
+      )
+      .toBe(false);
+    const height = row(0)!.getBoundingClientRect().height;
+    const nextLayout = () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      );
+    const wheel = async (deltaY: number) => {
+      const bounds = scroller.getBoundingClientRect();
+      await cdp().send('Input.dispatchMouseEvent', {
+        type: 'mouseWheel',
+        x: bounds.x + 100,
+        y: bounds.y + 100,
+        deltaX: 0,
+        deltaY
+      });
+      await nextLayout();
+    };
+    for (let step = 0; step < 6; step++) await wheel(500);
+    await expect.poll(() => row(0)).toBeNull();
+
+    const bounds = scroller.getBoundingClientRect();
+    const anchor = [...scroller.querySelectorAll<HTMLElement>('[data-diagram-row]')].find(
+      (element) => {
+        const box = element.getBoundingClientRect();
+        return box.bottom > bounds.top + 1 && box.top < bounds.bottom;
+      }
+    )!;
+    const anchorIndex = Number(anchor.dataset.diagramRow);
+    const offset = anchor.getBoundingClientRect().top - bounds.top;
+    const scrollTop = scroller.scrollTop;
+    for (const width of ['240px', '720px']) {
+      scroller.style.width = width;
+      await nextLayout();
+      expect(row(anchorIndex)!.getBoundingClientRect().height).toBe(height);
+      expect(row(anchorIndex)!.getBoundingClientRect().top - bounds.top).toBeCloseTo(offset, 0);
+      expect(scroller.scrollTop).toBeCloseTo(scrollTop, 0);
+      await expect
+        .poll(() =>
+          row(anchorIndex)!
+            .querySelector('.markdown-code-fade-right')!
+            .classList.contains('opacity-0')
+        )
+        .toBe(width === '720px');
+    }
+
+    for (let step = 0; step < 6; step++) await wheel(-500);
+    await expect.poll(() => scroller.scrollTop).toBe(0);
+    expect(row(0)!.getBoundingClientRect().height).toBe(height);
+    await view.unmount();
+    const remounted = render(DiagramTimelineTestHarness, { html });
+    await expect
+      .poll(
+        () =>
+          remounted.container
+            .querySelector<HTMLElement>('[data-diagram-row="0"]')
+            ?.getBoundingClientRect().height
+      )
+      .toBe(height);
+  });
+
   it('shows scroll fades only at overflowing edges and refreshes them after resize and replacement', async () => {
     const source = Array.from({ length: 60 }, () => 'wide '.repeat(40)).join('\n');
     const view = render(MarkdownHtml, {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readScrollEdges, trackScrollEdges } from './scrollEdges';
+import { attachCodeFades } from './codeScrollFades';
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -22,6 +23,61 @@ function viewport(dir: 'ltr' | 'rtl' = 'ltr') {
 }
 
 describe('scroll edge attachment', () => {
+  it.each(['x', 'y'] as const)(
+    'can wait for resize delivery before reading the %s axis',
+    async (axis) => {
+      const { element, content } = viewport();
+      const measured = vi.spyOn(element, axis === 'x' ? 'scrollWidth' : 'scrollHeight', 'get');
+      const changed = vi.fn();
+      try {
+        const cleanup = trackScrollEdges(axis, changed, { initialMeasurement: 'resize' })(content);
+        if (cleanup) cleanups.push(cleanup);
+        expect(measured).not.toHaveBeenCalled();
+        expect(changed).not.toHaveBeenCalled();
+        await vi.waitFor(() => expect(changed).toHaveBeenCalledWith({ start: false, end: true }));
+        expect(measured).toHaveBeenCalled();
+      } finally {
+        measured.mockRestore();
+      }
+    }
+  );
+
+  it('disposes deferred measurements before the first resize delivery', async () => {
+    const { element, content } = viewport();
+    const changed = vi.fn();
+    const cleanup = trackScrollEdges('y', changed, { initialMeasurement: 'resize' })(content);
+    cleanup?.();
+    element.dispatchEvent(new Event('scroll'));
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('defers code fade reads until layout and keeps the viewport size unchanged', async () => {
+    const { element, content } = viewport();
+    const size = element.getBoundingClientRect();
+    const widthRead = vi.spyOn(element, 'scrollWidth', 'get');
+    const heightRead = vi.spyOn(element, 'scrollHeight', 'get');
+    const frame = document.createElement('div');
+    document.body.append(frame);
+    cleanups.push(() => frame.remove());
+    try {
+      cleanups.push(attachCodeFades(content, frame));
+      expect(widthRead).not.toHaveBeenCalled();
+      expect(heightRead).not.toHaveBeenCalled();
+      const visible = (edge: string) =>
+        !frame.querySelector(`.markdown-code-fade-${edge}`)!.classList.contains('opacity-0');
+      await vi.waitFor(() => expect(visible('bottom') && visible('right')).toBe(true));
+      expect(visible('top') || visible('left')).toBe(false);
+      const after = element.getBoundingClientRect();
+      expect([after.width, after.height]).toEqual([size.width, size.height]);
+    } finally {
+      widthRead.mockRestore();
+      heightRead.mockRestore();
+    }
+  });
+
   it.each(['x', 'y'] as const)('tracks both edges on the %s axis', async (axis) => {
     const { element, content } = viewport();
     const changed = vi.fn();

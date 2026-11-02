@@ -9,11 +9,17 @@ export function attachCodeFades(content: HTMLElement, frame: HTMLElement): () =>
     frame.append(fade);
     return fade;
   });
+  // Fade opacity does not affect geometry. Let resize delivery initialize it
+  // after all code wrappers are in place, without forcing layout per block.
   const cleanups = (['y', 'x'] as const).map((axis, index) =>
-    trackScrollEdges(axis, ({ start, end }) => {
-      fades[index * 2].classList.toggle('opacity-0', !start);
-      fades[index * 2 + 1].classList.toggle('opacity-0', !end);
-    })(content)
+    trackScrollEdges(
+      axis,
+      ({ start, end }) => {
+        fades[index * 2].classList.toggle('opacity-0', !start);
+        fades[index * 2 + 1].classList.toggle('opacity-0', !end);
+      },
+      { initialMeasurement: 'resize' }
+    )(content)
   );
   return () => {
     cleanups.forEach((cleanup) => cleanup?.());

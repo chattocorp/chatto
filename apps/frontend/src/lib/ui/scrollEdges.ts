@@ -34,10 +34,13 @@ export function readScrollEdges(element: HTMLElement, axis: 'x' | 'y'): ScrollEd
  * Attach to a stable content wrapper directly inside its scroll viewport.
  * The wrapper must size to its content on the tracked axis. Observe both
  * elements so content and viewport resizing update the edges without DOM watches.
+ * Report initial edges synchronously by default. Choose `resize` to let the
+ * browser finish layout before the first measurement when mounting many blocks.
  */
 export function trackScrollEdges(
   axis: 'x' | 'y',
-  onchange: (edges: ScrollEdges) => void
+  onchange: (edges: ScrollEdges) => void,
+  options: { initialMeasurement?: 'immediate' | 'resize' } = {}
 ): Attachment<HTMLElement> {
   return (content) => {
     const viewport = content.parentElement!;
@@ -46,7 +49,7 @@ export function trackScrollEdges(
     observer.observe(viewport);
     observer.observe(content);
     viewport.addEventListener('scroll', update, { passive: true });
-    update();
+    if (options.initialMeasurement !== 'resize') update();
 
     return () => {
       viewport.removeEventListener('scroll', update);
