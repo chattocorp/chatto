@@ -1,15 +1,22 @@
 /** Restrict user-authored diagram previews to a bounded, static SVG subset. */
 import createDOMPurify from 'dompurify';
+import { MAX_SVG_SOURCE_LENGTH } from './svgPolicy';
 
 const svgNamespace = 'http://www.w3.org/2000/svg';
 const purifier = createDOMPurify(window);
+
+function isPaintColor(value: string): boolean {
+  return value === 'none' || CSS.supports('color', value);
+}
 
 // Paint references may name a local gradient, but must not load another document.
 purifier.addHook('uponSanitizeAttribute', (_node, attribute) => {
   if (['fill', 'stroke'].includes(attribute.attrName)) {
     const value = attribute.attrValue.trim();
+    // Match paired quotes and an optional fallback colour, but never an external URL.
+    const reference = /^url\(\s*(["']?)#[a-zA-Z_][\w.-]*\1\s*\)(?:\s+(.+))?$/i.exec(value);
     attribute.keepAttr =
-      value === 'none' || CSS.supports('color', value) || /^url\(#[a-zA-Z_][\w.-]*\)$/.test(value);
+      isPaintColor(value) || (reference !== null && (!reference[2] || isPaintColor(reference[2])));
   }
 });
 
@@ -21,7 +28,7 @@ purifier.addHook('uponSanitizeAttribute', (_node, attribute) => {
 export function sanitizeSvg(source: string): string {
   // Reject declarations before an XML parser can expand entities. The source cap
   // also bounds parsing work before we can inspect the document's structure.
-  if (source.length > 100_000 || /<!\s*(?:DOCTYPE|ENTITY)\b/i.test(source)) {
+  if (source.length > MAX_SVG_SOURCE_LENGTH || /<!\s*(?:DOCTYPE|ENTITY)\b/i.test(source)) {
     throw new Error('SVG source exceeds preview policy');
   }
   const document = new DOMParser().parseFromString(source, 'image/svg+xml');
@@ -46,6 +53,9 @@ export function sanitizeSvg(source: string): string {
   // profile would override this allowlist.
   purifier.sanitize(root, {
     IN_PLACE: true,
+    // This detached tree is serialized only into an image resource, never inserted
+    // into the page DOM. Preserve gradient IDs such as "title" and "images".
+    SANITIZE_DOM: false,
     ALLOWED_TAGS: [
       'svg',
       'g',

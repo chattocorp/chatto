@@ -5,6 +5,38 @@ const wrap = (content: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">${content}</svg>`;
 
 describe('SVG preview sanitization', () => {
+  it.each([
+    ['g', "url('#g')"],
+    ['g', 'url("#g")'],
+    ['g', 'url( #g )'],
+    ['g', 'url( "#g" ) red'],
+    ['g', 'url(#g) red'],
+    ['title', 'url(#title)'],
+    ['images', 'url(#images)'],
+    ['body', 'url(#body)'],
+    ['links', 'url(#links)'],
+    ['forms', 'url(#forms)'],
+    ['fonts', 'url(#fonts)']
+  ])('preserves local gradient %s with paint %s', async (id, paint) => {
+    const clean = sanitizeSvg(
+      wrap(
+        `<defs><linearGradient id="${id}"><stop stop-color="lime"/></linearGradient></defs>` +
+          `<rect width="20" height="20" fill="${paint.replaceAll('"', '&quot;')}"/>`
+      )
+    );
+    const root = new DOMParser().parseFromString(clean, 'image/svg+xml');
+    expect(root.querySelector('linearGradient')?.id).toBe(id);
+    expect(root.querySelector('rect')?.getAttribute('fill')).toBe(paint);
+    const image = new Image();
+    image.src = `data:image/svg+xml,${encodeURIComponent(clean)}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 20;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    expect([...context.getImageData(5, 5, 1, 1).data]).toEqual([0, 255, 0, 255]);
+  });
+
   it('keeps shapes, text, transparency and local gradients as a decodable SVG', async () => {
     const clean = sanitizeSvg(
       wrap(
@@ -68,11 +100,20 @@ describe('SVG preview sanitization', () => {
 
   it.each([
     'url(https://example.invalid/a)',
+    'url("https://example.invalid/a") red',
+    "url('#g') url(https://example.invalid/a)",
+    'url(\'#g") red',
     'u\\72l(https://example.invalid/a)',
     'url/**/(https://example.invalid/a)'
   ])('does not allow CSS syntax to disguise an external paint reference: %s', (paint) => {
-    const clean = sanitizeSvg(wrap(`<rect fill="${paint}"/>`));
+    const clean = sanitizeSvg(wrap(`<rect fill="${paint.replaceAll('"', '&quot;')}"/>`));
     expect(clean).not.toContain('example.invalid');
+    expect(
+      new DOMParser()
+        .parseFromString(clean, 'image/svg+xml')
+        .querySelector('rect')
+        ?.hasAttribute('fill')
+    ).toBe(false);
   });
 
   it.each([
