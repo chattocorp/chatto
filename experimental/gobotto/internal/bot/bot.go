@@ -791,6 +791,8 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		childTools = append(childTools, c.jobs.RecoveryTools(completed, c.maxDelegations, c.turns, updates.target, nil)...)
 	}
 	tools = append(tools, childTools...)
+	access := toolAccess(len(batch) > 0, c.ownerOnlyBatch(batch), tools)
+	tools = append(tools, searchTool(tools, access))
 	ctx = agent.WithTools(ctx, tools)
 	ctx = agent.WithLimits(ctx, c.limits)
 	defer func() {
@@ -943,6 +945,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	c.model.SetInstructions(c.identity, c.systemPrompt, c.ownerUserIDs...)
 	input := struct {
 		CurrentTime    string               `json:"currentTime"`
+		ToolGuidance   string               `json:"toolGuidance"`
 		Messages       []modelMessage       `json:"newMessages"`
 		Addressed      []string             `json:"addressedMessageIds"`
 		Triggers       []string             `json:"triggerMessageIds"`
@@ -951,7 +954,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		Participants   []participantProfile `json:"participants"`
 		Investigations []map[string]any     `json:"investigations,omitempty"`
 		Completed      []string             `json:"completedInvestigations,omitempty"`
-	}{CurrentTime: time.Now().UTC().Format(time.RFC3339)}
+	}{CurrentTime: time.Now().UTC().Format(time.RFC3339), ToolGuidance: toolSearchReminder + " " + access}
 	input.Investigations = c.jobs.Context()
 	input.Completed = completed
 	catalog, catalogErr := c.memory.Catalog(ctx)

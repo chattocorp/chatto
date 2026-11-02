@@ -38,9 +38,17 @@ func (f *richThreadClient) Thread(context.Context, string, string, string) (chat
 
 func assertNoResourceMetadata(t *testing.T, data []byte) {
 	t.Helper()
-	for _, forbidden := range []string{"secret-capability", "metadata-only.png", "attachments", "createdAt", "updatedAt", "pinned", "reactions", "metadata-only-participant", "replyCount"} {
+	for _, forbidden := range []string{"secret-capability", "metadata-only.png", "metadata-only-participant"} {
 		if strings.Contains(string(data), forbidden) {
 			t.Fatalf("resource metadata escaped the bot projection: %s", forbidden)
+		}
+	}
+	// Field names can also occur as ordinary words in instructions. Inspect
+	// JSON keys, including keys in serialized model content and stored history.
+	text := strings.ReplaceAll(string(data), `\`, "")
+	for _, field := range []string{"attachments", "createdAt", "updatedAt", "pinned", "reactions", "replyCount"} {
+		if strings.Contains(text, `"`+field+`":`) {
+			t.Fatalf("resource metadata field escaped the bot projection: %s", field)
 		}
 	}
 }

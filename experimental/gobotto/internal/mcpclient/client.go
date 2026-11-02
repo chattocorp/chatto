@@ -97,11 +97,14 @@ func (m *Manager) Tools() []agent.Tool {
 		return nil
 	}
 	names := make([]string, 0, len(m.tools))
+	catalog := make([]agent.ToolInfo, 0, len(m.tools))
 	for _, tool := range m.tools {
 		names = append(names, tool.Name+" ("+schemaRevision(tool)+")")
+		catalog = append(catalog, agent.ToolInfo{Name: tool.Name, Description: tool.Description, Via: "mcp_discover"})
 	}
 	return []agent.Tool{
 		{Name: "mcp_discover", Description: "Get an external tool's description and argument schema when needed. Reuse a schema from this session when its revision matches; do not discover again every turn. Available tools (schema revision): " + strings.Join(names, ", "),
+			Catalog:    catalog,
 			Parameters: map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}, "required": []string{"name"}, "additionalProperties": false},
 			Execute:    m.discover},
 		{Name: "mcp_call", Description: "Call a configured external tool using its discovered argument schema. Use only a name from mcp_discover's available list. Prior discovery results can be reused across turns.",

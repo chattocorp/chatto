@@ -12,12 +12,23 @@ import (
 // message, with nil error so the model can respond to or correct the rejection.
 // A non-nil error indicates execution failure or uncertain effects.
 type Tool struct {
+	// Catalog lists capabilities reached through this tool, such as remote MCP
+	// tools. It is local discovery metadata, not part of the wire definition.
+	Catalog []ToolInfo
 	// ReadOnly permits sequential batching only inside isolated worker sessions.
 	ReadOnly    bool
 	Name        string
 	Description string
 	Parameters  map[string]any
 	Execute     func(context.Context, json.RawMessage) (string, error)
+}
+
+// ToolInfo describes an available capability without loading its argument schema.
+// Via names the discovery tool to call before using an indirect capability.
+type ToolInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Via         string `json:"via,omitempty"`
 }
 
 type toolsKey struct{}

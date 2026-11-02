@@ -155,8 +155,14 @@ func (m *model) syncTreeSelection(reset bool) {
 }
 
 func (m *model) headerHeight() int { return 7 }
-func (m *model) treeHeight() int   { return max(1, m.height-10) }
-func (m *model) treeWidth() int    { return m.width }
+func (m *model) tableHeaderHeight() int {
+	if m.activeSession != 0 && !m.operationalLog {
+		return 1
+	}
+	return 0
+}
+func (m *model) treeHeight() int { return max(1, m.height-10-m.tableHeaderHeight()) }
+func (m *model) treeWidth() int  { return m.width }
 
 func (m *model) resize(width, height int) {
 	m.width, m.height = width, height
@@ -278,7 +284,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.copySessionID()
 		}
 		x := m.treeWidth()
-		y := msg.Y - m.headerHeight()
+		y := msg.Y - m.headerHeight() - m.tableHeaderHeight()
 		if msg.X < 1 || msg.X >= x-1 || y < 1 || y > m.treeHeight() {
 			break
 		}
@@ -419,6 +425,7 @@ func (m *model) copySessionID() tea.Cmd {
 
 func (m *model) renderTreeRow(row treeRow, width int, selected bool) string {
 	elapsed := ""
+	description := ""
 	label, state, tokens, cost, depth := row.s.title, row.s.state, "— tok", "$—", 0
 	if label == "" {
 		label = row.s.humanID
@@ -435,6 +442,7 @@ func (m *model) renderTreeRow(row treeRow, width int, selected bool) string {
 	if row.t != nil {
 		depth = 0
 		label = fmt.Sprintf("Turn %d", row.t.Number)
+		description = row.t.Model
 		state = row.t.State
 		if state == "delivered" {
 			state = "Replied"
@@ -454,6 +462,15 @@ func (m *model) renderTreeRow(row treeRow, width int, selected bool) string {
 	if row.step != nil {
 		depth = 1
 		label = row.step.Name
+		description = ""
+		switch row.step.Kind {
+		case "title":
+			label, description = "Title", row.step.Name
+		case "context":
+			label, description = "Context", row.step.Name
+		case "delivery":
+			label, description = "Delivery", row.step.Name
+		}
 		state = row.step.State
 		duration := row.step.Duration
 		if state == "running" && !row.step.Started.IsZero() {
@@ -465,28 +482,28 @@ func (m *model) renderTreeRow(row treeRow, width int, selected bool) string {
 			tokens, cost = "", ""
 		}
 		if row.step.Provider != "" {
-			label += " · " + row.step.Provider
+			description += " · " + row.step.Provider
 		}
 		if row.step.Kind == "model" || row.step.Kind == "title" {
 			if row.step.Usage.Known {
-				label += fmt.Sprintf(" · %s in / %s out", compactTokens(row.step.Usage.Input), compactTokens(row.step.Usage.Output))
+				description += fmt.Sprintf(" · %s in / %s out", compactTokens(row.step.Usage.Input), compactTokens(row.step.Usage.Output))
 			}
 			if row.step.Usage.CacheKnown {
-				label += fmt.Sprintf(" · %s cached", compactTokens(row.step.Usage.Cached))
+				description += fmt.Sprintf(" · %s cached", compactTokens(row.step.Usage.Cached))
 			} else {
-				label += " · cache n/a"
+				description += " · cache n/a"
 			}
-			label += " · " + reasoningLabel(row.step.Usage.Reasoning, row.step.Usage.ReasoningKnown, false)
+			description += " · " + reasoningLabel(row.step.Usage.Reasoning, row.step.Usage.ReasoningKnown, false)
 		}
 		if row.step.Detail != "" && row.step.Detail != "Response received" {
-			label += " · " + row.step.Detail
+			description += " · " + row.step.Detail
 		}
 		if row.step.RequestID != "" {
-			label += " · request " + row.step.RequestID
+			description += " · request " + row.step.RequestID
 		}
 	}
 	if row.label != "" {
-		label = row.label + " · " + row.detail
+		label, description = row.label, row.detail
 		state = row.state
 		tokens, cost, elapsed = "", "", ""
 		depth = 1
@@ -532,10 +549,6 @@ func (m *model) renderTreeRow(row treeRow, width int, selected bool) string {
 	if row.t == nil && row.label == "" {
 		prefix = ""
 	}
-	if m.activeSession != 0 && m.textOffset > 0 {
-		text := []rune(left)
-		left = string(text[min(m.textOffset, len(text)):])
-	}
 	left = prefix + left
 	activity := ""
 	if row.key.step == 0 && (state == "running" || (row.t == nil && (state == "queued" || state == "investigating"))) {
@@ -560,35 +573,18 @@ func (m *model) renderTreeRow(row treeRow, width int, selected bool) string {
 		}
 		return line
 	}
-	// Message and outcome rows have no numeric telemetry. Give their content
-	// the complete row; delivery state remains visible on the parent turn.
-	if row.label != "" {
-		return cell(left, nameColor, width, lipgloss.Left)
+	description = strings.Join(strings.Fields(displayText(strings.TrimPrefix(description, " · "))), " ")
+	if m.textOffset > 0 {
+		text := []rune(description)
+		description = string(text[min(m.textOffset, len(text)):])
 	}
-	statusWidth := min(15, width/2)
-	nameWidth := width - statusWidth - 2
-	if width >= 65 {
-		nameWidth -= 27
-	} // two gutters, 12 token cells, 11 cost cells
-	showDuration := m.activeSession != 0 && width >= 100
-	if showDuration {
-		nameWidth -= 13
+	if m.operationalLog {
+		return cell(left+" · "+description, nameColor, width, lipgloss.Left)
 	}
-	gap := cell("", "#94A3B8", 2, lipgloss.Left)
-	line := cell(left, nameColor, nameWidth, lipgloss.Left) + gap
-	if showDuration {
-		line += cell(elapsed, "#94A3B8", 11, lipgloss.Right) + gap
-	}
-	// Keep the spinner slot present even when idle so status text never shifts.
 	if activity == "" {
 		activity = "  "
 	}
-	line += cell(activity+state, stateColor, statusWidth, lipgloss.Left)
-	if width >= 65 {
-		line += gap + cell(tokens, "#94A3B8", 12, lipgloss.Right)
-		line += gap + cell(cost, "#94A3B8", 11, lipgloss.Right)
-	}
-	return line
+	return renderEventCells(width, [6]string{left, description, elapsed, activity + state, tokens, cost}, [6]string{nameColor, "#AEB8C5", "#94A3B8", stateColor, "#94A3B8", "#94A3B8"}, style)
 }
 
 func (m *model) View() tea.View {
@@ -639,6 +635,9 @@ func (m *model) View() tea.View {
 			} else if s.before > 0 {
 				title += " · p older turns"
 			}
+		}
+		if m.tableHeaderHeight() != 0 {
+			lines = append([]string{renderEventHeader(w - 4)}, lines...)
 		}
 		tree := renderPane(title, strings.Join(lines, "\n"), w, true)
 		header := m.overviewHeader()
