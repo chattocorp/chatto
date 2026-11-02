@@ -1,5 +1,6 @@
 /** Show local Chatto link pills while CodeMirror retains the complete Markdown source. */
 import { syntaxTree } from '@codemirror/language';
+import { isolateHistory } from '@codemirror/commands';
 import { EditorSelection, Prec, type Range } from '@codemirror/state';
 import {
   Decoration,
@@ -88,6 +89,25 @@ function previewLinks(view: EditorView) {
   return links;
 }
 
+/** Remove one adjacent pill without joining its deletion to surrounding text edits. */
+function deleteAdjacentPreview(view: EditorView, direction: -1 | 1): boolean {
+  if (view.state.readOnly) return false;
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+  const link = previewLinks(view).find(
+    (link) => selection.head === (direction < 0 ? link.to : link.from)
+  );
+  if (!link) return false;
+  view.dispatch({
+    changes: { from: link.from, to: link.to },
+    selection: EditorSelection.cursor(link.from),
+    annotations: isolateHistory.of('full'),
+    userEvent: 'delete',
+    scrollIntoView: true
+  });
+  return true;
+}
+
 /** Reveal source on click or caret entry; replacements never change clipboard or message text. */
 export function sourceEntityLinkPreview(context: Map<unknown, unknown>) {
   function decorations(view: EditorView) {
@@ -104,6 +124,17 @@ export function sourceEntityLinkPreview(context: Map<unknown, unknown>) {
   }
 
   return [
+    EditorView.domEventHandlers({
+      beforeinput(event, view) {
+        const direction =
+          event.inputType === 'deleteContentBackward'
+            ? -1
+            : event.inputType === 'deleteContentForward'
+              ? 1
+              : null;
+        return direction !== null && deleteAdjacentPreview(view, direction);
+      }
+    }),
     ViewPlugin.fromClass(
       class {
         decorations;
@@ -126,8 +157,10 @@ export function sourceEntityLinkPreview(context: Map<unknown, unknown>) {
       { decorations: (plugin) => plugin.decorations }
     ),
     Prec.high(
-      keymap.of(
-        ([-1, 1] as const).map((direction) => ({
+      keymap.of([
+        { key: 'Backspace', run: (view) => deleteAdjacentPreview(view, -1) },
+        { key: 'Delete', run: (view) => deleteAdjacentPreview(view, 1) },
+        ...([-1, 1] as const).map((direction) => ({
           key: direction < 0 ? 'ArrowLeft' : 'ArrowRight',
           run(view: EditorView) {
             const selection = view.state.selection.main;
@@ -140,7 +173,7 @@ export function sourceEntityLinkPreview(context: Map<unknown, unknown>) {
             return true;
           }
         }))
-      )
+      ])
     )
   ];
 }

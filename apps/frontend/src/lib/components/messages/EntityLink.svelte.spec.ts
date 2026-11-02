@@ -681,6 +681,65 @@ it.each([TipTapEditor, MarkdownEditor])(
 );
 
 describe('Markdown composer link previews', () => {
+  it('deletes a Markdown pill forwards without removing following text', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent(`${origin} after`);
+    api!.focus('start');
+    await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
+    await userEvent.keyboard('{Delete}');
+    expect(api!.getText()).toBe(' after');
+  });
+
+  it.each([false, true])(
+    'respects Markdown read-only state for native pill deletion (%s)',
+    async (readOnly) => {
+      let api: ComposerEditorApi | undefined;
+      const { container } = render(MarkdownEditor, { readOnly, onReady: (ready) => (api = ready) });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      api!.setContent(origin);
+      api!.focus('end');
+      container.querySelector('.cm-content')!.dispatchEvent(
+        new InputEvent('beforeinput', {
+          inputType: 'deleteContentBackward',
+          bubbles: true,
+          cancelable: true
+        })
+      );
+      expect(api!.getText()).toBe(readOnly ? origin : '');
+    }
+  );
+
+  it.each([
+    origin,
+    `${origin}/chat/-/${roomId}`,
+    `${origin}/chat/-/user/${userId}`,
+    `${origin}/chat/-/${roomId}/m/E123456789abcde`,
+    `<${origin}>`
+  ])(
+    'deletes the complete Markdown pill with Backspace and restores it with Undo: %s',
+    async (source) => {
+      let api: ComposerEditorApi | undefined;
+      const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      api!.setContent(`Before ${source}`);
+      api!.focus('end');
+      await vi.waitFor(() =>
+        expect(container.querySelector('.entity-link, [data-message-link]')).not.toBeNull()
+      );
+      await userEvent.keyboard('{Backspace}');
+      expect(api!.getText()).toBe('Before ');
+      expect(container.querySelector('.composer-entity-preview')).toBeNull();
+      await userEvent.keyboard(
+        navigator.platform.startsWith('Mac') ? '{Meta>}z{/Meta}' : '{Control>}z{/Control}'
+      );
+      expect(api!.getText()).toBe(`Before ${source}`);
+      await userEvent.keyboard('{Backspace}after');
+      expect(api!.getText()).toBe('Before after');
+    }
+  );
+
   it('disposes a reused pill when its URL is removed', async () => {
     let api: ComposerEditorApi | undefined;
     const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
