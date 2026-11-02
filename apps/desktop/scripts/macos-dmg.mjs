@@ -42,5 +42,5 @@ await build({
   }
 });
 if (process.argv.includes('--release')) {
-  signMacOSDmg(path.join(desktopRoot, 'dist/dmg', artifactName), process.env);
+  await signMacOSDmg(path.join(desktopRoot, 'dist/dmg', artifactName), process.env);
 }
