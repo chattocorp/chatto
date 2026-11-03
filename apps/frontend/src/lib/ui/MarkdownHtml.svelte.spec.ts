@@ -110,8 +110,7 @@ describe('Sanitized SVG previews', () => {
     const modal = navigationMocks.pushState.mock.lastCall![1].modal;
     expect(modal.svgSource).toContain('<animate');
     expect(modal.svgSource).not.toContain('<script');
-    expect(modal.src).toContain('data:image/svg+xml');
-    expect(decodeURIComponent(modal.src.split(',')[1])).toContain('<animate');
+    expect(modal).not.toHaveProperty('src');
     const poster = view.container.querySelector<HTMLImageElement>('img')!;
     expect(decodeURIComponent(poster.src.split(',')[1])).not.toContain('<animate');
   });

@@ -65,11 +65,8 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
     pushState('', {
       modal: {
         type: 'renderedImageViewer',
-        src: svgSource
-          ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgSource)}`
-          : image.src,
         alt: image.alt,
-        ...(svgSource ? { svgSource } : {})
+        ...(svgSource ? { svgSource } : { src: image.src })
       }
     });
   }

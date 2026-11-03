@@ -10,14 +10,19 @@ import {
   postMessageAttachmentOnRemote
 } from './fixtures/multiServer';
 
-for (const [language, source] of [
+for (const [language, source, kind = language] of [
   [
     'svg',
     '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><circle cx="200" cy="150" r="100" fill="teal"/></svg>'
   ],
-  ['mermaid', 'flowchart LR\nA[Open] --> B[Back] --> C[Forward]']
+  ['mermaid', 'flowchart LR\nA[Open] --> B[Back] --> C[Forward]'],
+  [
+    'svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><text x="10" y="20">動き 🙂</text><circle cx="200" cy="150" r="100" fill="teal"><animate attributeName="cx" values="100;300;100" dur="4s" repeatCount="indefinite"/></circle></svg>',
+    'animated SVG'
+  ]
 ]) {
-  test(`${language} viewers close with Back and reopen with Forward`, async ({
+  test(`${kind} viewers close with Back and reopen with Forward`, async ({
     page,
     chatPage,
     serverURL
@@ -49,6 +54,13 @@ for (const [language, source] of [
     await page.goForward();
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('img')).toHaveAttribute('src', snapshot!);
+    if (kind === 'animated SVG') {
+      await expect(dialog.locator('iframe')).toBeVisible();
+      const download = await dialog.locator('a[download]').getAttribute('href');
+      const source = decodeURIComponent(download!.split(',')[1]);
+      expect(source).toContain('動き 🙂');
+      expect(source).toContain('<animate');
+    }
     await page.keyboard.press('Escape');
     await expect(dialog).not.toBeVisible();
     await expect(page).toHaveURL(roomURL);

@@ -14,11 +14,10 @@ const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.
 describe('RenderedImage', () => {
   it('keeps animation playback controls in the viewer footer when zooming', async () => {
     const svgSource =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle></svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="10" y="20">動き 🙂</text><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle></svg>';
     const view = render(RenderedImageViewerModal, {
       modal: {
         type: 'renderedImageViewer',
-        src: 'data:image/svg+xml,' + encodeURIComponent(svgSource),
         alt: 'Moving circle',
         svgSource
       },
@@ -39,7 +38,7 @@ describe('RenderedImage', () => {
       const poster = document.querySelector<HTMLImageElement>('dialog img')!;
       expect(decodeURIComponent(poster.src.split(',')[1])).not.toContain('<animate');
       const download = document.querySelector<HTMLAnchorElement>('dialog a[download]')!;
-      expect(decodeURIComponent(download.href.split(',')[1])).toContain('<animate');
+      expect(decodeURIComponent(download.href.split(',')[1])).toBe(svgSource);
       await userEvent.click(control);
       const root = document
         .querySelector<HTMLIFrameElement>('dialog iframe')!

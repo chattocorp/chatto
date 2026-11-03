@@ -9,20 +9,26 @@ The modal container owns its lifetime and history-based dismissal.
 
   let { modal, onclose }: { modal: RenderedImageViewerModalState; onclose: () => void } = $props();
   let failed = $state(false);
+  // Keep the encoded copy only while the viewer is mounted, outside history state.
+  const src = $derived(
+    modal.svgSource === undefined
+      ? modal.src
+      : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(modal.svgSource)}`
+  );
 </script>
 
 <AttachmentModal
   filename="diagram.svg"
   contentType="image/svg+xml"
   description={modal.alt}
-  downloadUrl={modal.src}
+  downloadUrl={src}
   imageViewer
   error={failed ? m('room.attachment.html_viewer.preview_failed') : null}
   ondownload={(event) => event.stopPropagation()}
   {onclose}
 >
   <ZoomableImage
-    src={modal.src}
+    {src}
     alt={modal.alt}
     svgSource={modal.svgSource}
     onerror={() => (failed = true)}
