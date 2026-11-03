@@ -350,7 +350,7 @@ import { EventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTra
 
 /** The realtime transports of the stores that {@link makeStore} creates. */
 const eventBusManager = new EventBusManager({ liveServers: 'selected' });
-import type { ServerConnection } from './serverConnection.js';
+import { ServerConnection } from './serverConnection.js';
 import type { RegisteredServer } from './registry.js';
 
 class FakeServerConnection {
@@ -437,7 +437,7 @@ function usersResource(users: User[], replace: boolean) {
 }
 
 function makeStore(
-  fake: FakeServerConnection,
+  fake: FakeServerConnection | ServerConnection,
   server: RegisteredServer = registered,
   publicServerInfoLoader = connectUnavailable(),
   onAuthenticationRequired?: () => void
@@ -867,6 +867,187 @@ describe('ServerStateStore permissions', () => {
 });
 
 describe('ServerStateStore privileged mode', () => {
+  // Only server responses and socket delivery are simulated; the connection,
+  // transport, and store must agree on which authority generation owns recovery.
+  it.each([
+    { overlap: false, fullRecovery: false, sequence: 'sequential' },
+    { overlap: true, fullRecovery: false, sequence: 'overlapping' },
+    { overlap: true, fullRecovery: true, sequence: 'overlapping during full recovery' }
+  ])(
+    'keeps realtime delivery after $sequence privilege changes',
+    async ({ overlap, fullRecovery }) => {
+      vi.useFakeTimers();
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      type Socket = ReturnType<NonNullable<Parameters<typeof setRealtimeSocketFactoryForTests>[0]>>;
+      const sockets: Socket[] = [];
+      const closes: Array<{ code?: number; reason?: string }> = [];
+      setRealtimeSocketFactoryForTests(() => {
+        const socket: Socket = {
+          binaryType: 'arraybuffer',
+          readyState: 1,
+          onopen: null,
+          onmessage: null,
+          onerror: null,
+          onclose: null,
+          send: vi.fn(),
+          close: (code, reason) => {
+            socket.readyState = 3;
+            closes.push({ code, reason });
+            socket.onclose?.({ code, reason });
+          }
+        };
+        sockets.push(socket);
+        return socket;
+      });
+      const receive = async (socket: Socket, frame: RealtimeServerFrame['frame']) => {
+        socket.onmessage?.({ data: new RealtimeServerFrame({ frame }).toBinary() });
+        await flushPromises(50);
+      };
+      const catchUp = (socket: Socket, cursor: string) =>
+        receive(socket, {
+          case: 'caughtUp',
+          value: new RealtimeCaughtUp({ cursor, recovery: RealtimeRecovery.RESUMED })
+        });
+      const connection = new ServerConnection({
+        serverId: registered.id,
+        serverUrl: registered.url,
+        token: registered.token
+      });
+      const store = makeStore(connection);
+      try {
+        store.projection.viewer = new GetViewerResponse({
+          user: { profile: { id: 'U1' } },
+          privilegedMode: { available: true, active: false }
+        });
+        const sync = store.realtimeSync;
+        sync.markCaughtUp('before');
+        const controller = eventBusManager.ensureBus({
+          serverId: store.serverId,
+          connection,
+          projectionSupported: true,
+          sync,
+          projectionHandler: store.realtimeProjectionHandler,
+          completeProjectionCatchUp: (cursor, generation, inactivePoll) =>
+            store.completeRealtimeCatchUp(cursor, generation, inactivePoll),
+          waitForProjectionReconciliation: () => store.waitForRealtimeReconciliation()
+        });
+        controller.setMode('live');
+        sockets[0].onopen?.();
+        await catchUp(sockets[0], 'before');
+        expect(connection.status).toBe('connected');
+
+        const heldRooms = deferred<RealtimeResourceUpdate[]>();
+        apiMocks.readRealtimeResource.mockImplementation((family, cursor) => {
+          if (family === 'rooms' && cursor === 'activation') return heldRooms.promise;
+          if (family === 'viewer') {
+            return Promise.resolve([
+              new RealtimeResourceUpdate({
+                resource: { case: 'viewer', value: store.projection.viewer!.clone() }
+              })
+            ]);
+          }
+          return Promise.resolve([]);
+        });
+        if (fullRecovery) connection.forceReconnect('network recovery');
+        let activationFinished = false;
+        let deactivationFinished = false;
+        const activating = store.setPrivilegedMode(true).then(() => {
+          activationFinished = true;
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sockets).toHaveLength(2);
+        sockets[1].onopen?.();
+        await catchUp(sockets[1], 'activation');
+        expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'activation');
+        expect(connection.status).toBe('connecting');
+        expect(activationFinished).toBe(false);
+
+        const deactivate = () =>
+          store.setPrivilegedMode(false).then(() => {
+            deactivationFinished = true;
+          });
+        const deactivating = overlap ? deactivate() : undefined;
+        await flushPromises(50);
+        if (overlap) {
+          expect(apiMocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
+          expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+          // Replacement detaches the obsolete socket before the old read ends.
+          expect(sockets).toHaveLength(2);
+          expect(sockets[1].readyState).toBe(3);
+        }
+        heldRooms.resolve([]);
+        await flushPromises(50);
+
+        if (overlap) {
+          expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+          expect(connection.status).toBe('connecting');
+          expect(connection.showConnectionLostIcon).toBe(false);
+          expect(sync.resumeCursor).toBe('before');
+          expect(activationFinished).toBe(false);
+          expect(deactivationFinished).toBe(false);
+        } else {
+          await activating;
+          expect(connection.status).toBe('connected');
+          expect(errors).not.toHaveBeenCalled();
+        }
+
+        const finalDeactivation = deactivating ?? deactivate();
+        await vi.advanceTimersByTimeAsync(0);
+        sockets[2].onopen?.();
+        await catchUp(sockets[2], 'deactivation');
+        await Promise.all([activating, finalDeactivation]);
+        // No stale read failure or queued reconnect may replace this transport.
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sockets).toHaveLength(3);
+        expect(errors).not.toHaveBeenCalled();
+        expect(closes.some(({ code }) => code === 4000)).toBe(false);
+        expect(connection.status).toBe('connected');
+        expect(sync.phase).toBe('ready');
+        expect(sync.authorizationRefreshRequired).toBe(false);
+        expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+        // Check real reducer delivery and cursor advancement after recovery.
+        await receive(sockets.at(-1)!, {
+          case: 'event',
+          value: new RealtimeEvent({
+            cursor: 'live-after-recovery',
+            actorId: 'U1',
+            event: {
+              case: 'presenceChanged',
+              value: new PresenceChangedEvent({ status: PresenceStatus.AWAY })
+            }
+          })
+        });
+        expect(store.presence.get('U1')).toBe(PresenceStatus.AWAY);
+        expect(sync.resumeCursor).toBe('live-after-recovery');
+      } finally {
+        store.dispose();
+        connection.dispose();
+      }
+    }
+  );
+
+  it('characterizes successful mutation completion after authorization recovery times out', async () => {
+    vi.useFakeTimers();
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.viewer = new GetViewerResponse({
+      user: { profile: { id: 'U1' } },
+      privilegedMode: { available: true, active: false }
+    });
+    store.realtimeSync.markCaughtUp('before');
+    const finished = vi.fn();
+    const activating = store.setPrivilegedMode(true).then(finished);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(finished).not.toHaveBeenCalled();
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(true);
+    await vi.advanceTimersByTimeAsync(1);
+    await activating;
+    expect(finished).toHaveBeenCalledOnce();
+    expect(store.realtimeSync.phase).toBe('stale');
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(true);
+  });
+
   it('reads snapshots with current permissions while reconnect is still pending', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
@@ -3912,8 +4093,9 @@ describe('ServerStateStore unified realtime resources', () => {
       const failure = new Error('shared message read failed');
       messageRead.reject(failure);
       await vi.advanceTimersByTimeAsync(0);
+      const superseded = expect(oldCatchUp).rejects.toThrow('superseded by a newer transport');
       auxiliaryRead.resolve([]);
-      await oldCatchUp;
+      await superseded;
 
       await expect(store.waitForRealtimeReconciliation()).rejects.toBe(failure);
     }

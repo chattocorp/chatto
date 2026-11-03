@@ -76,6 +76,14 @@ Snapshots, expiry, network recovery, queued reconnects, and failed permission
 reads use full current-value recovery. Late permission reads cannot complete a
 newer authorization refresh. Explicit mutation responses run in call order.
 Deactivation can proceed while an earlier projection refresh is pending.
+A new mutation response replaces an in-progress transport immediately. The
+replacement uses full current-value recovery, and the old reads cannot fail
+the replacement socket, publish stale viewer authority, or complete its
+authorization generation. Ordinary reconnect requests still coalesce while a
+connection attempt is in progress.
+Validated small replay gaps use the general catch-up budget, so the audit facts
+from rapid changes do not exhaust the stricter large-replay budget. Both paths
+keep the same concurrency, authorization, and replay-work limits.
 The mutation handlers assemble only the viewer capabilities and permission
 fields that their responses return.
 

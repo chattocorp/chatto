@@ -5,24 +5,38 @@ import (
 	"time"
 )
 
+// acquireReplayForTest follows the handler's two-stage admission and releases
+// the general slot when the additional replay budget rejects the plan.
+func acquireReplayForTest(admission *realtimeCatchUpAdmission, userID string) (func(), *realtimeCatchUpAdmissionError) {
+	release, err := admission.acquire(userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := admission.consumeReplayToken(userID); err != nil {
+		release()
+		return nil, err
+	}
+	return release, nil
+}
+
 func TestRealtimeCatchUpAdmissionBoundsUserAndProcessConcurrency(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 3, time.Minute, func() time.Time { return now })
 
-	releaseFirst, err := admission.acquire("user-1", true)
+	releaseFirst, err := acquireReplayForTest(admission, "user-1")
 	if err != nil {
 		t.Fatalf("acquire first catch-up: %v", err)
 	}
-	if _, err := admission.acquire("user-1", true); err == nil || err.code != "catch_up_in_progress" {
+	if _, err := acquireReplayForTest(admission, "user-1"); err == nil || err.code != "catch_up_in_progress" {
 		t.Fatalf("concurrent same-user acquire error = %+v, want catch_up_in_progress", err)
 	}
-	if _, err := admission.acquire("user-2", true); err == nil || err.code != "catch_up_server_busy" {
+	if _, err := acquireReplayForTest(admission, "user-2"); err == nil || err.code != "catch_up_server_busy" {
 		t.Fatalf("global-capacity acquire error = %+v, want catch_up_server_busy", err)
 	}
 
 	releaseFirst()
 	releaseFirst() // Release is deliberately safe on all return paths.
-	releaseSecond, err := admission.acquire("user-2", true)
+	releaseSecond, err := acquireReplayForTest(admission, "user-2")
 	if err != nil {
 		t.Fatalf("acquire after release: %v", err)
 	}
@@ -33,7 +47,7 @@ func TestRealtimeCatchUpAdmissionPrunesInactiveUsers(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
 
-	release, err := admission.acquire("inactive-user", false)
+	release, err := admission.acquire("inactive-user")
 	if err != nil {
 		t.Fatalf("acquire inactive user: %v", err)
 	}
@@ -41,7 +55,7 @@ func TestRealtimeCatchUpAdmissionPrunesInactiveUsers(t *testing.T) {
 
 	now = now.Add(realtimeCatchUpLimiterStateLifetime + time.Second)
 	admission.acquisitions = 255
-	release, err = admission.acquire("active-user", false)
+	release, err = admission.acquire("active-user")
 	if err != nil {
 		t.Fatalf("acquire active user after cleanup interval: %v", err)
 	}
@@ -60,18 +74,18 @@ func TestRealtimeCatchUpAdmissionRateLimitsReplayAndBootstrapAttempts(t *testing
 	admission := newRealtimeCatchUpAdmissionWithLimits(2, 2, time.Minute, func() time.Time { return now })
 
 	for attempt := range 2 {
-		release, err := admission.acquire("user-1", true)
+		release, err := acquireReplayForTest(admission, "user-1")
 		if err != nil {
 			t.Fatalf("acquire attempt %d: %v", attempt+1, err)
 		}
 		release()
 	}
-	if _, err := admission.acquire("user-1", true); err == nil || err.code != "catch_up_rate_limited" || err.retryAfter != time.Minute {
+	if _, err := acquireReplayForTest(admission, "user-1"); err == nil || err.code != "catch_up_rate_limited" || err.retryAfter != time.Minute {
 		t.Fatalf("rate-limited acquire error = %+v, want one-minute retry", err)
 	}
 
 	now = now.Add(time.Minute)
-	release, err := admission.acquire("user-1", true)
+	release, err := acquireReplayForTest(admission, "user-1")
 	if err != nil {
 		t.Fatalf("acquire after refill: %v", err)
 	}
@@ -82,51 +96,51 @@ func TestRealtimeCatchUpAdmissionDoesNotChargeRejectedGlobalAttempt(t *testing.T
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
 
-	releaseFirst, err := admission.acquire("user-1", true)
+	releaseFirst, err := acquireReplayForTest(admission, "user-1")
 	if err != nil {
 		t.Fatalf("acquire first catch-up: %v", err)
 	}
-	if _, err := admission.acquire("user-2", true); err == nil || err.code != "catch_up_server_busy" {
+	if _, err := acquireReplayForTest(admission, "user-2"); err == nil || err.code != "catch_up_server_busy" {
 		t.Fatalf("global-capacity acquire error = %+v, want catch_up_server_busy", err)
 	}
 	releaseFirst()
 
-	releaseSecond, err := admission.acquire("user-2", true)
+	releaseSecond, err := acquireReplayForTest(admission, "user-2")
 	if err != nil {
 		t.Fatalf("global rejection consumed user token: %v", err)
 	}
 	releaseSecond()
 }
 
-func TestRealtimeCatchUpAdmissionDoesNotRateLimitCurrentBoundaryReconnect(t *testing.T) {
+func TestRealtimeCatchUpAdmissionDoesNotChargeReplayBudgetForSmallGaps(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
 
-	release, err := admission.acquire("user-1", true)
+	release, err := acquireReplayForTest(admission, "user-1")
 	if err != nil {
 		t.Fatalf("consume rate token: %v", err)
 	}
 	release()
 
-	release, err = admission.acquire("user-1", false)
+	release, err = admission.acquire("user-1")
 	if err != nil {
 		t.Fatalf("unmetered current-boundary reconnect: %v", err)
 	}
-	if _, err := admission.acquire("user-1", false); err == nil || err.code != "catch_up_in_progress" {
+	if _, err := admission.acquire("user-1"); err == nil || err.code != "catch_up_in_progress" {
 		t.Fatalf("concurrent unmetered acquire error = %+v, want catch_up_in_progress", err)
 	}
 	release()
 
-	if _, err := admission.acquire("user-1", true); err == nil || err.code != "catch_up_rate_limited" {
+	if _, err := acquireReplayForTest(admission, "user-1"); err == nil || err.code != "catch_up_rate_limited" {
 		t.Fatalf("metered replay after bypass error = %+v, want catch_up_rate_limited", err)
 	}
 }
 
-func TestRealtimeCatchUpAdmissionChargesGapDiscoveredAfterBoundaryCheck(t *testing.T) {
+func TestRealtimeCatchUpAdmissionChargesReplayBudgetDuringPlanning(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
 
-	release, err := admission.acquire("user-1", false)
+	release, err := admission.acquire("user-1")
 	if err != nil {
 		t.Fatalf("unmetered boundary admission: %v", err)
 	}
@@ -135,7 +149,7 @@ func TestRealtimeCatchUpAdmissionChargesGapDiscoveredAfterBoundaryCheck(t *testi
 	}
 	release()
 
-	release, err = admission.acquire("user-1", false)
+	release, err = admission.acquire("user-1")
 	if err != nil {
 		t.Fatalf("second unmetered boundary admission: %v", err)
 	}
@@ -150,18 +164,18 @@ func TestRealtimeCatchUpAdmissionRateLimitsSequentialGeneralCatchUps(t *testing.
 	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
 
 	for attempt := range realtimeCatchUpGeneralRateBurst {
-		release, err := admission.acquire("user-1", false)
+		release, err := admission.acquire("user-1")
 		if err != nil {
 			t.Fatalf("general catch-up %d: %v", attempt+1, err)
 		}
 		release()
 	}
-	if _, err := admission.acquire("user-1", false); err == nil || err.code != "catch_up_rate_limited" || err.retryAfter != time.Second {
+	if _, err := admission.acquire("user-1"); err == nil || err.code != "catch_up_rate_limited" || err.retryAfter != time.Second {
 		t.Fatalf("general rate-limit error = %+v, want one-second retry", err)
 	}
 
 	now = now.Add(time.Second)
-	release, err := admission.acquire("user-1", false)
+	release, err := admission.acquire("user-1")
 	if err != nil {
 		t.Fatalf("general catch-up after refill: %v", err)
 	}

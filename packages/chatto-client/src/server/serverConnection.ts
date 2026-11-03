@@ -237,9 +237,10 @@ export class ServerConnection {
   /** Force-terminate and immediately reconnect the WebSocket. */
   forceReconnect(reason: string, options?: RealtimeReconnectOptions) {
     this.#connectionFailed = false;
-    if (this.status === 'connecting') {
-      // An in-flight recovery can have missed current values. Queue a full
-      // recovery instead of carrying the privilege-only refresh hint forward.
+    if (this.status === 'connecting' && (!options || !this.#realtimeReconnect)) {
+      // Coalesce ordinary reconnects. An authoritative privilege response must
+      // instead replace the in-flight transport: its reads use older authority.
+      // The transport drops the narrow-refresh hint when it was not caught up.
       this.#pendingForcedReconnectReason = reason;
       debugLog('[ws:%s] Force reconnect queued — already connecting: %s', this.#host, reason);
       return;

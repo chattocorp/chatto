@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -512,7 +513,7 @@ func TestRealtimeWebSocketReportsActualRecoveryIncludingEmptyResume(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	boundary, err := env.core.PlanRealtimeReplay(env.ctx, viewer.GetId(), "")
+	boundary, err := env.core.PlanRealtimeReplay(env.ctx, viewer.GetId(), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -826,6 +827,116 @@ func TestRealtimeWebSocketClosesAfterCookieRevocation(t *testing.T) {
 	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
 	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
 		t.Fatalf("revocation response = %+v, want terminal authentication_required", frame)
+	}
+}
+
+// Privilege audit events create small resume gaps. They must not exhaust the
+// stricter large-replay budget during normal use of the toggle.
+func TestRealtimeRapidPrivilegedModeChangesKeepResuming(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	// Freeze admission time so the test cannot pass by refilling replay tokens.
+	now := time.Now()
+	env.httpServer.realtimeCatchUps = newRealtimeCatchUpAdmissionWithLimits(8, 3, 20*time.Second, func() time.Time { return now })
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rapid-privilege", "Rapid Privilege", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	env.login(t, "rapid-privilege", "password123")
+	var sessionID string
+	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			sessionID = cookie.Value
+			break
+		}
+	}
+	if sessionID == "" {
+		t.Fatal("login did not set browser session cookie")
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
+	cursor := readRealtimeCaughtUp(t, conn).GetCursor()
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for change := range 8 {
+		if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, change%2 == 0); err != nil {
+			t.Fatalf("privilege change %d: %v", change, err)
+		}
+		conn = env.dialRealtime(t)
+		subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, cursor)
+		for {
+			frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+			if !ok {
+				t.Fatalf("change %d did not catch up", change)
+			}
+			if close := frame.GetClose(); close != nil {
+				t.Fatalf("change %d closed instead of resuming: %v", change, close)
+			}
+			if frame.GetSnapshot() != nil {
+				t.Fatalf("change %d discarded the retained projection", change)
+			}
+			if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+				if caughtUp.GetRecovery() != realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED {
+					t.Fatalf("change %d recovery = %v, want resumed", change, caughtUp.GetRecovery())
+				}
+				cursor = caughtUp.GetCursor()
+				break
+			}
+		}
+		if err := conn.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRealtimeLargeReplayStillUsesStrictBudget(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	now := time.Now()
+	env.httpServer.realtimeCatchUps = newRealtimeCatchUpAdmissionWithLimits(8, 3, 20*time.Second, func() time.Time { return now })
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "large-replay", "Large Replay", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.login(t, "large-replay", "password123")
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
+	cursor := readRealtimeCaughtUp(t, conn).GetCursor()
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// A 33-sequence gap exceeds the small-replay bound. Reusing this cursor
+	// must consume the stricter replay bucket on every attempt.
+	for index := range 33 {
+		if _, err := env.core.UpdateUserBio(env.ctx, user.Id, fmt.Sprintf("revision %d", index)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for attempt := range 4 {
+		conn = env.dialRealtime(t)
+		subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, cursor)
+		for {
+			frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+			if !ok {
+				t.Fatalf("attempt %d did not complete", attempt)
+			}
+			if close := frame.GetClose(); close != nil {
+				if attempt != 3 || close.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE || close.GetRetryAfter().AsDuration() != 20*time.Second {
+					t.Fatalf("attempt %d unexpected close: %v", attempt, close)
+				}
+				break
+			}
+			if frame.GetCaughtUp() != nil {
+				if attempt == 3 {
+					t.Fatal("large replay bypassed the strict budget")
+				}
+				break
+			}
+			if attempt == 3 {
+				t.Fatal("rate-limited replay sent data before rejecting admission")
+			}
+		}
+		if err := conn.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

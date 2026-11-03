@@ -234,7 +234,7 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('passes fresh privilege context only to an immediate reconnect', () => {
+  it('replaces in-flight recovery after an authoritative privilege response', () => {
     const client = new ServerConnection(makeConfig());
     const reconnect = vi.fn();
     client.registerRealtimeReconnect(reconnect);
@@ -247,8 +247,11 @@ describe('ServerConnection', () => {
     reconnect.mockClear();
     client.setRealtimeConnectionStatus('connecting');
     client.forceReconnect('privileged mode changed', { authorizationRefreshGeneration: 2 });
+    expect(reconnect).toHaveBeenCalledExactlyOnceWith('privileged mode changed', {
+      authorizationRefreshGeneration: 2
+    });
     client.setRealtimeConnectionStatus('connected');
-    expect(reconnect).toHaveBeenCalledWith('privileged mode changed');
+    expect(reconnect).toHaveBeenCalledOnce();
     client.dispose();
   });
 

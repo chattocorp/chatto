@@ -397,7 +397,9 @@ export class ServerStateStore {
 
   /** Change privilege activation and reconcile effective viewer permissions in
    * place. Mutations run in call order; deactivation can proceed while an earlier
-   * projection refresh is pending. Each caller still waits for refreshed state. */
+   * projection refresh is pending. Each caller waits for recovery for up to
+   * 30 seconds. A recovery timeout keeps sync stale but does not undo a committed
+   * mutation or report that the mutation failed. */
   async setPrivilegedMode(active: boolean): Promise<void> {
     const change = this.#privilegedModeChanges.then(() => this.changePrivilegedMode(active));
     // The caller receives this change's error. A failed change must not block
@@ -476,10 +478,17 @@ export class ServerStateStore {
     this.#emitAuthorityChanged({ lost: viewerAuthorizationLost(previousViewer, response) });
   }
 
-  /** Reject work whose resource boundary was superseded by a newer reset. */
-  private requireCurrentRealtimeProjection(generation: number): void {
+  /** Reject work from an older resource boundary or, for catch-up reads, an
+   * older transport. Event-driven reads can belong to successive transports. */
+  private requireCurrentRealtimeProjection(generation: number, transportGeneration?: number): void {
     if (generation !== this.#realtimeProjectionGeneration) {
       throw new Error('realtime projection read was superseded by a newer reset');
+    }
+    if (
+      transportGeneration !== undefined &&
+      transportGeneration !== this.realtimeSync.transportGeneration
+    ) {
+      throw new Error('realtime catch-up was superseded by a newer transport');
     }
   }
 
@@ -520,7 +529,7 @@ export class ServerStateStore {
     ).finally(() => {
       this.#catchUpResourceReads--;
     });
-    this.requireCurrentRealtimeProjection(generation);
+    this.requireCurrentRealtimeProjection(generation, transportGeneration);
     batch(() => {
       for (const resource of batches.flat()) {
         this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
@@ -552,7 +561,7 @@ export class ServerStateStore {
       );
       const presenceReadVersion = this.presence.version;
       const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
-      this.requireCurrentRealtimeProjection(generation);
+      this.requireCurrentRealtimeProjection(generation, transportGeneration);
       const returnedUserIds = new Set(
         userResources.flatMap((resource) =>
           resource.resource.case === 'users'
@@ -585,12 +594,14 @@ export class ServerStateStore {
           .map((store) =>
             store.hydrateRealtimeProjection(
               cursor,
-              () => generation === this.#realtimeProjectionGeneration,
+              () =>
+                generation === this.#realtimeProjectionGeneration &&
+                transportGeneration === this.realtimeSync.transportGeneration,
               true
             )
           )
       );
-      this.requireCurrentRealtimeProjection(generation);
+      this.requireCurrentRealtimeProjection(generation, transportGeneration);
       // Recheck retained membership before declaring an existing view current.
       // On cold entry, navigation can already have created member stores. Their
       // full scans must not delay the room's first message read. refresh owns
@@ -599,13 +610,13 @@ export class ServerStateStore {
         store.refresh({ minimumCursor: cursor })
       );
       if (this.realtimeSync.hasDisplayableView) await Promise.all(memberRefreshes);
-      this.requireCurrentRealtimeProjection(generation);
+      this.requireCurrentRealtimeProjection(generation, transportGeneration);
       for (const members of this.#rooms.all('members')) members.refreshMentions(cursor);
       this.#realtimeSnapshotPending = false;
       this.loadPendingRoomMembers();
     }
     await this.waitForRealtimeReconciliation(transportGeneration);
-    this.requireCurrentRealtimeProjection(generation);
+    this.requireCurrentRealtimeProjection(generation, transportGeneration);
   }
 
   /** Reuse the mutation's viewer permissions and refresh only access-dependent
@@ -617,7 +628,7 @@ export class ServerStateStore {
     const generation = this.#realtimeProjectionGeneration;
     const transportGeneration = this.realtimeSync.transportGeneration;
     const requireCurrent = () => {
-      this.requireCurrentRealtimeProjection(generation);
+      this.requireCurrentRealtimeProjection(generation, transportGeneration);
       if (
         authorizationRefreshGeneration !== this.realtimeSync.pendingAuthorizationRefreshGeneration
       ) {
