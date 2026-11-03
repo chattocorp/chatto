@@ -33,6 +33,51 @@ func TestSchedulesReservedFromGenericBrainTools(t *testing.T) {
 	}
 }
 
+func TestConversationsReservedFromGenericToolsAndAliases(t *testing.T) {
+	m := &Manager{directory: t.TempDir(), run: func(context.Context, string, []string, []byte) ([]byte, error) {
+		t.Fatal("journal reached means")
+		return nil, nil
+	}}
+	for _, op := range []string{"create", "archive", "schema_set", "instructions_set"} {
+		out, err := toolCall(t, m.Tools(true), "memory_brain_"+op, `{"name":"conversations"}`)
+		if err != nil || !strings.Contains(out, "reserved") {
+			t.Fatal("journal lifecycle exposed", out, err)
+		}
+	}
+	for _, op := range []string{"info", "list", "read", "create", "update"} {
+		out, err := toolCall(t, m.Tools(true), "memory_"+op, `{"collection":"conversations"}`)
+		if err != nil || !strings.Contains(out, "error") {
+			t.Fatal("journal collection exposed", out, err)
+		}
+	}
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin")
+	if err := os.Mkdir(bin, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "means"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	brains := filepath.Join(root, "brains")
+	reserved := filepath.Join(brains, "conversations")
+	if err := os.MkdirAll(reserved, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(reserved, "MEANS.md"), []byte("private"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "alias")
+	if err := os.Symlink(reserved, alias); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{reserved, alias} {
+		if _, err := New([]config.Collection{{Name: "innocent", Path: path}}, brains); err == nil || !strings.Contains(err.Error(), "conversations is reserved") {
+			t.Fatal("journal alias allowed", err)
+		}
+	}
+}
+
 func TestScheduleBindingAliasesRejected(t *testing.T) {
 	root := t.TempDir()
 	bin := filepath.Join(root, "bin")

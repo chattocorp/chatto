@@ -15,6 +15,7 @@ import (
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/journal"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/scheduler"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/subagent"
@@ -44,10 +45,16 @@ type ModelFactory func(string, func(agent.Usage)) agent.Complete
 
 type threadKey struct{ room, root string }
 type conversation struct {
-	scheduledRun bool // inspector history only; never restored as a user conversation
-	scheduled    *scheduler.Definition
-	scheduler    *scheduler.Manager
-	unloaded     bool // metadata only; hydrate before binding or running work
+	journals          *journal.Store
+	journalCheckpoint string
+	journalOffset     int
+	journalRevision   int
+	journalSummary    string
+	journalGeneration int
+	scheduledRun      bool // inspector history only; never restored as a user conversation
+	scheduled         *scheduler.Definition
+	scheduler         *scheduler.Manager
+	unloaded          bool // metadata only; hydrate before binding or running work
 	// Shared membership index allows intake to scope invalidations while the
 	// worker owns the transcript. Ready is false while a snapshot is loading.
 	contextIDs         sync.Map
@@ -112,6 +119,8 @@ type result struct {
 
 // Options supplies optional persistence and operator-authored instructions.
 type Options struct {
+	// Journals supplies protected conversation context; nil disables journals.
+	Journals *journal.Store
 	// Scheduler supplies durable cron tasks; nil disables scheduling.
 	Scheduler *scheduler.Manager
 	// Shutdown requests graceful exit after the active turn, without starting
@@ -272,6 +281,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		c.identity = agent.Identity{ID: profile.ID, Login: profile.Login, DisplayName: profile.DisplayName}
 		c.ownerUserIDs = owners
 		c.memory = opts.Memory
+		c.journals = opts.Journals
 		c.scheduler = opts.Scheduler
 		c.tools = append([]agent.Tool(nil), opts.Tools...)
 		c.subagents = opts.Subagents
@@ -312,6 +322,8 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		c.contextIDs.Clear()
 		c.contextReady.Store(false)
 		c.model = nil
+		c.journalCheckpoint = ""
+		c.journalOffset = 0
 		c.seen = map[string]bool{}
 		c.current = map[string]string{}
 		c.reset = false
@@ -548,6 +560,39 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				continue
 			}
 			if e.InvalidatedRoom != "" || e.InvalidateAll {
+				if opts.Journals != nil && e.InvalidationReason == chatto.MessageEdited && !e.InvalidateAll {
+					unchanged := false
+					for _, c := range sessions {
+						if c.key.room != e.InvalidatedRoom {
+							continue
+						}
+						if _, known := c.contextIDs.Load(e.InvalidatedMessage); !known {
+							continue
+						}
+						c.editCheck.Lock()
+						unchanged = c.unchangedEdit(ctx, client, e, nil)
+						c.editCheck.Unlock()
+						break
+					}
+					// Preview metadata does not change journal evidence.
+					if unchanged {
+						continue
+					}
+				}
+				// Invalidate journals even for unloaded sessions. Summaries can refer
+				// to old messages outside the current bounded context window.
+				if opts.Journals != nil {
+					if active != nil && active.scheduledRun && (e.InvalidateAll || active.key.room == e.InvalidatedRoom) {
+						stopTurn(invalidationCause(e))
+					}
+					room := e.InvalidatedRoom
+					if e.InvalidateAll {
+						room = ""
+					}
+					if err := opts.Journals.Forget(room); err != nil {
+						return err
+					}
+				}
 				for _, c := range sessions {
 					if c.unloaded {
 						// Ordinary lazy restores recheck access/history before use.
@@ -562,7 +607,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 						bind(c)
 						sessions[c.key] = c
 					}
-					if c.affectedBy(e, active == c, activeBatch) {
+					if c.affectedBy(e, active == c, activeBatch) || (opts.Journals != nil && (e.InvalidateAll || c.key.room == e.InvalidatedRoom)) {
 						if e.InvalidationReason == chatto.MessageEdited {
 							c.editCheck.Lock()
 							unchanged := c.unchangedEdit(ctx, client, e, activeBatch)
@@ -877,6 +922,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	stopTyping := startTyping(ctx, client, c.key)
 	defer stopTyping()
 	tools := append(c.memory.Tools(c.ownerOnlyBatch(batch)), c.tools...)
+	tools = append(tools, c.journalTool(client)...)
 	if len(batch) > 0 {
 		tools = append(tools, c.scheduler.Tools(c.key.room, c.key.root, batch[0].Message.ActorID, c.ownerOnlyBatch(batch))...)
 	}
@@ -947,6 +993,9 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			}
 		})
 		c.records = inspection.Retain(c.records)
+		c.updateJournal(ctx, client)
+		c.recordRoomInputs(ctx, client, batch)
+		c.inspect(func(t *inspection.Turn) { t.Finished = time.Now() })
 		if err := c.store.save(c, false); err != nil {
 			turnErr = err
 		}
@@ -964,6 +1013,9 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	}()
 	if report == nil {
 		report = func(string) {}
+	}
+	if err := c.prepareJournal(ctx, client); err != nil {
+		return err
 	}
 	if c.seen == nil {
 		c.seen = map[string]bool{}
@@ -1015,7 +1067,8 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			Messages     []modelMessage  `json:"messages"`
 			OlderOmitted bool            `json:"olderOmitted"`
 			Knowledge    json.RawMessage `json:"memoryKnowledge,omitempty"`
-		}{messagesForModel(page.Messages), page.HasOlder, knowledge})
+			Journal      string          `json:"conversationJournal,omitempty"`
+		}{messagesForModel(page.Messages), page.HasOlder, knowledge, c.journalSummary})
 		return string(data), err
 	}
 	if c.model == nil {
@@ -1045,7 +1098,21 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 			}
 		}
 		if changed {
+			if c.journals != nil {
+				if err := c.journals.Forget(c.key.room); err != nil {
+					return err
+				}
+				if err := c.prepareJournal(ctx, client); err != nil {
+					return err
+				}
+				snapshot, err = read(ctx)
+				if err != nil {
+					return err
+				}
+			}
 			c.model = agent.NewSession(snapshot)
+			c.journalOffset = 0
+			c.journalCheckpoint = ""
 			c.seen = map[string]bool{}
 			report("Thread changed while offline; context reset")
 		} else {
@@ -1059,6 +1126,9 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		c.resumed = false
 	}
 	initializing = false
+	if err := c.maybeRollover(ctx, client, journalRolloverBytes); err != nil {
+		return err
+	}
 	if c.contextModel != c.model {
 		c.catalogContext = ""
 		c.participantContext = map[string]participantProfile{}
@@ -1141,7 +1211,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		}
 		encoded, _ := json.Marshal(messages)
 		if len(encoded) > transcriptLimit || len(c.seen) > 4096 {
-			report("Context budget reached; start a new thread. Automatic compaction is not enabled.")
+			report("Context budget reached; a safe journal rollover is not available. Start a new thread.")
 			return nil, errBudget
 		}
 		index := c.step("model", "Completion")

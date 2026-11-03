@@ -131,6 +131,15 @@ func OpenRouter(key, model, sessionID string, report func(Usage), options ...Com
 		if len(options) > 0 && options[0].Reasoning != nil {
 			input["reasoning"] = options[0].Reasoning
 		}
+		if journal, _ := ctx.Value(journalRequestKey{}).(bool); journal {
+			limit := 4096
+			if maxOutputTokens > 0 {
+				limit = min(limit, maxOutputTokens)
+			}
+			input["max_tokens"] = limit
+			// Do not inherit a reasoning budget larger than this auxiliary cap.
+			delete(input, "reasoning")
+		}
 		// Claude requires an explicit cache hint. Other model families keep their
 		// provider's implicit caching behavior; session_id helps preserve routing.
 		if strings.HasPrefix(strings.TrimPrefix(model, "~"), "anthropic/") {
