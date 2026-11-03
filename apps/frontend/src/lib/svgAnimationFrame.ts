@@ -9,6 +9,11 @@ export const SVG_ANIMATION_FRAME_POLICY =
  */
 export const SVG_ANIMATION_FRAME_DOCUMENT = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${SVG_ANIMATION_FRAME_POLICY}"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}body{display:flex;align-items:center;justify-content:center}body>svg{display:block}</style></head><body></body></html>`;
 
+/** Encode SVG for display or download. The caller must sanitize the source first. */
+export function svgDataUrl(source: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
+}
+
 /**
  * Return a static poster from sanitized SVG. Dimension measurement must not run
  * a second animation timeline in a hidden image. Keep the animated source for

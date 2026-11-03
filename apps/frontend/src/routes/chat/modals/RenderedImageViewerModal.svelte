@@ -6,15 +6,12 @@ The modal container owns its lifetime and history-based dismissal.
   import type { RenderedImageViewerModalState } from '$lib/modal';
   import { m } from '$lib/i18n/messages';
   import { AttachmentModal, ZoomableImage } from '$lib/ui/attachments';
+  import { svgDataUrl } from '$lib/svgAnimationFrame';
 
   let { modal, onclose }: { modal: RenderedImageViewerModalState; onclose: () => void } = $props();
   let failed = $state(false);
   // Keep the encoded copy only while the viewer is mounted, outside history state.
-  const src = $derived(
-    modal.svgSource === undefined
-      ? modal.src
-      : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(modal.svgSource)}`
-  );
+  const src = $derived(modal.svgSource === undefined ? modal.src : svgDataUrl(modal.svgSource));
 </script>
 
 <AttachmentModal

@@ -3,7 +3,7 @@ import { createMermaidPreview } from './mermaid/previews';
 import { getMermaidLayout } from './mermaid/cache';
 import { hasRenderedImage, takeRenderedImage, rememberRenderedImage } from './renderedImageCache';
 import { mount, unmount } from 'svelte';
-import { svgAnimationPoster } from './svgAnimationFrame';
+import { svgAnimationPoster, svgDataUrl } from './svgAnimationFrame';
 import {
   getRenderedImageSize,
   rememberRenderedImageSize,
@@ -135,7 +135,7 @@ export function attachCodeFrames(
             image.className = 'markdown-svg-preview';
             image.alt = 'SVG';
             image.decoding = 'async';
-            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(animated ? svgAnimationPoster(clean) : clean)}`;
+            image.src = svgDataUrl(animated ? svgAnimationPoster(clean) : clean);
           }
           const RenderedImage =
             renderedImageComponent ??

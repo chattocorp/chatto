@@ -14,7 +14,7 @@ Controls live in the viewer footer when one is provided through context.
   import { m } from '$lib/i18n/messages';
   import { useImageControls, hasImageControls } from './imageControlsContext';
   import SvgAnimation from './SvgAnimation.svelte';
-  import { svgAnimationPoster } from '$lib/svgAnimationFrame';
+  import { svgAnimationPoster, svgDataUrl } from '$lib/svgAnimationFrame';
 
   let {
     src,
@@ -49,11 +49,7 @@ Controls live in the viewer footer when one is provided through context.
   // Pointer positions stay relative to the stage; capture stays on the hit element.
   const pointers = new SvelteMap<number, { x: number; y: number }>();
   const percent = $derived(Math.round(zoom * 100));
-  const poster = $derived(
-    svgSource
-      ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgAnimationPoster(svgSource))}`
-      : src
-  );
+  const poster = $derived(svgSource ? svgDataUrl(svgAnimationPoster(svgSource)) : src);
   const limits = $derived(bounds());
 
   /** Limit panning to the fitted image's enlarged edges. */
