@@ -831,7 +831,10 @@ not regenerate existing titles. Startup alone does not call the title model.
 
 ## Terminal interface
 
-The terminal has one view with two panels. The left panel lists sessions, newest
+Use `1` for Sessions and `2` for Brains. Each view keeps its selection, scroll
+position, and divider proportions when switching.
+
+In Sessions, the left panel lists sessions, newest
 first by start time. Each row shows only the session title, or its stable ID when
 no title is available. Selecting a session shows its events in the right panel.
 Drag the vertical separator to change the panel widths. Drag the horizontal
@@ -852,6 +855,8 @@ The same two-space inset applies to event labels and detail content. Group and
 section headers and selected rows have backgrounds that reach both panel borders.
 Panel titles remain plain border labels. Terminal contributors must follow the
 [TUI design rules](internal/tui/AGENTS.md).
+
+Session controls:
 
 | Key                | Action                                      |
 | ------------------ | ------------------------------------------- |
@@ -890,6 +895,39 @@ exceeds 2 MiB; the newest turn is always kept. Inputs are bounded to 10,000
 characters per message and tool details to 4,000 characters. The simplified UI
 does not change usage accounting, delivery records, or model context. It adds no
 external connections.
+
+The Brains view lists **Memory**, **Conversations**, **Schedules**, and managed
+or configured app collections on the left. Select a collection header to inspect
+its instructions and schema, or a document to read its body and metadata on the
+right. Conversation journals show their existing short IDs and room/thread kind.
+Schemas and document metadata use syntax-highlighted YAML with two-space
+indentation and no vertical code gutter.
+Document bodies and collection instructions render Markdown locally, including
+headings, emphasis, lists, tables, links, and fenced code. Links and images do not
+cause network requests.
+The local operator can inspect all journals in the configured server/bot store;
+this view does not grant the agent access across rooms or add content to prompts.
+
+Use Tab to switch panels, arrows or the mouse wheel to navigate or scroll, and
+`[` / `]` to jump between collections. Brains start collapsed; selecting a header
+loads its definition without unfolding its documents. With the left panel focused, Left folds
+the current brain and Right unfolds it. Enter or Space on a brain header toggles
+its documents; clicking its caret does the same. Enter on a document focuses
+contents; Left or Escape returns focus to documents. Fold choices survive refresh
+and view switches. Drag the vertical divider to resize the panels. `n` / `p`
+loads the next or previous document page; `r` refreshes the catalog and selected
+collection, including new apps and external edits. Quit controls are the same
+as in Sessions.
+
+Brain reads run asynchronously, one at a time. Lists show 50 documents per page
+ordered by file modification time, newest first within each brain. Equal times
+use the stored document ID as a stable tie-breaker. Pages are live offsets, not a
+fixed snapshot; refresh after edits to see the new order. The browser reads the
+collection summaries and file timestamps before paging, but the UI does not retain all
+document bodies. Displayed bodies, instructions, and metadata are each limited
+to 256 KiB with an explicit truncation marker. Invalid documents are skipped and
+their count appears in collection details. The browser never writes collections,
+uses embeddings, or contacts a provider, regardless of memory embedding settings.
 
 ## Behavior and limits
 

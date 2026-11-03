@@ -157,10 +157,7 @@ func (m *model) treeHeight() int { return max(1, m.height-3) }
 // paneWidths is shared by rendering and mouse hit testing. The divider has
 // exactly one terminal cell; minimum widths keep both panes usable after drag.
 func (m *model) paneWidths() (int, int) {
-	available := max(2, m.width-1)
-	minimum := min(16, available/2)
-	left := max(minimum, min(available-minimum, int(float64(available)*m.split)))
-	return left, available - left
+	return splitWidths(m.width, m.split)
 }
 
 func visibleOffset(cursor, offset, count, height int) int {
@@ -183,6 +180,9 @@ func (m *model) clampNavigation() {
 func (m *model) resize(width, height int) {
 	m.width, m.height = width, height
 	m.clampNavigation()
+	if m.showBrains {
+		m.clampBrains()
+	}
 }
 
 func (m *model) moveTree(delta int) {
@@ -192,14 +192,41 @@ func (m *model) moveTree(delta int) {
 }
 
 func (m *model) dragDivider(x int) {
-	available := max(2, m.width-1)
-	minimum := min(16, available/2)
-	x = max(minimum, min(available-minimum, x))
-	// The half cell prevents floating-point rounding from shifting the divider.
-	m.split = (float64(x) + 0.5) / float64(available)
+	m.split = dividerRatio(m.width, x)
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if result, ok := msg.(brainResult); ok {
+		m.brains.finish(result)
+		if m.showBrains {
+			m.clampBrains()
+			return m, m.brains.loadSelected()
+		}
+		return m, nil
+	}
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		switch key.String() {
+		case "1", "2":
+			m.showBrains = key.String() == "2"
+			m.dragging, m.draggingDetail, m.brains.dragging = false, false, false
+			if m.showBrains {
+				m.clampBrains()
+				return m, m.brains.loadSelected()
+			}
+			return m, nil
+		case "q", "ctrl+c", "Q", "shift+q": // shared worker shutdown below
+		default:
+			if m.showBrains {
+				return m, m.updateBrains(msg)
+			}
+		}
+	}
+	if m.showBrains {
+		switch msg.(type) {
+		case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg, tea.MouseWheelMsg:
+			return m, m.updateBrains(msg)
+		}
+	}
 	switch msg := msg.(type) {
 	case activityTickMsg:
 		m.activityFrame = (m.activityFrame + 1) % len(activityFrames)
@@ -394,7 +421,9 @@ func rowText(label string, width int, selected, focused bool) string {
 
 func (m *model) View() tea.View {
 	content := "Gobotto · enlarge terminal to 40×8\nq quit"
-	if m.width >= 40 && m.height >= 8 {
+	if m.width >= 40 && m.height >= 8 && m.showBrains {
+		content = m.brainsContent()
+	} else if m.width >= 40 && m.height >= 8 {
 		left, right := m.paneWidths()
 		sessionLines, eventLines := []string{}, []string{}
 		for i := m.sessionOffset; i < len(m.sessions) && len(sessionLines) < m.treeHeight(); i++ {
@@ -481,7 +510,7 @@ func (m *model) View() tea.View {
 		}
 		lines = append(lines, border("╰"+strings.Repeat("─", left-1))+vertical("┴")+border(strings.Repeat("─", right-1)+"╯"))
 		content = strings.Join(lines, "\n")
-		help := "Tab panes · ↑↓ select · drag divider · q quit"
+		help := "1 Sessions · 2 Brains · Tab panes · ↑↓ select · drag divider · q quit"
 		if m.quitting {
 			help = "Waiting for active work · Shift-Q quit immediately"
 		} else if m.status != "" {

@@ -3,6 +3,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -101,10 +102,13 @@ type model struct {
 	cursor, offset int
 	detailOffset   int
 	activityFrame  int
+	showBrains     bool
+	brains         brainsView
 }
 
 func newModel(events <-chan tea.Msg) *model {
 	m := &model{events: events, status: "Connecting to Chatto…", width: 80, height: 24, split: 0.35, detailSplit: 0.65}
+	m.brains = brainsView{ctx: context.Background(), split: 0.35}
 	m.resize(80, 24)
 	return m
 }

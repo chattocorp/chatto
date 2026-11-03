@@ -19,6 +19,21 @@ func fitLine(content string, width int) string {
 
 func contentWidth(width int) int { return max(1, width-2*len(contentIndent)) }
 
+// splitWidths and dividerRatio share clamping for both full-screen views.
+func splitWidths(width int, ratio float64) (int, int) {
+	available := max(2, width-1)
+	minimum := min(16, available/2)
+	left := max(minimum, min(available-minimum, int(float64(available)*ratio)))
+	return left, available - left
+}
+
+func dividerRatio(width, x int) float64 {
+	available := max(2, width-1)
+	minimum := min(16, available/2)
+	x = max(minimum, min(available-minimum, x))
+	return (float64(x) + 0.5) / float64(available)
+}
+
 // insetLine applies the same two-cell inset to both sides of body content.
 func insetLine(content string, width int) string {
 	return fitLine(contentIndent+ansi.Truncate(content, contentWidth(width), "…"), width)

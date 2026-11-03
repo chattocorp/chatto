@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/brainview"
 )
 
 // Emit sends a fixed operational event to the UI. Sending stops on cancellation.
@@ -28,6 +29,13 @@ func ShutdownRequested(ctx context.Context) <-chan struct{} {
 // and finish all Emit calls before it returns.
 // Fatal worker errors close the UI so the caller can report them in the terminal.
 func Run(ctx context.Context, work func(context.Context, Emit) error, options ...tea.ProgramOption) error {
+	return RunWithBrains(ctx, nil, work, options...)
+}
+
+// RunWithBrains adds local, read-only collection inspection to the terminal.
+// Browser requests share the worker cancellation lifetime; they never enter its
+// conversations or grant collection access to agents.
+func RunWithBrains(ctx context.Context, source brainview.Source, work func(context.Context, Emit) error, options ...tea.ProgramOption) error {
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	shutdown := make(chan struct{})
@@ -51,6 +59,7 @@ func Run(ctx context.Context, work func(context.Context, Emit) error, options ..
 		done <- err
 	}()
 	m := newModel(events)
+	m.brains.source, m.brains.ctx = source, workerCtx
 	m.requestQuit = func() { requestOnce.Do(func() { close(shutdown) }) }
 	options = append(options, tea.WithContext(ctx))
 	_, uiErr := tea.NewProgram(m, options...).Run()

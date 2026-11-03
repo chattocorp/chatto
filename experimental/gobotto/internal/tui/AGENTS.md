@@ -5,17 +5,33 @@ preserve the terminal design agreed with the user.
 
 ## Layout and navigation
 
-- Keep one view: sessions on the left, events above details on the right.
-  Both separators are draggable. Keep both sides usable at their minimum size.
+- Keep two full-screen views, selected with `1` (Sessions) and `2` (Brains).
+  Sessions has sessions on the left and events above details on the right.
+  Brains has collection headers and documents on the left and contents on the
+  right. Preserve each view's selection, scrolling, and divider proportions.
+  All separators are draggable. Keep both sides usable at their minimum size.
   While dragging, highlight only the moved divider's line and junctions. Keep
   the outer frame and panel title text unchanged.
 - Sessions, turns, and events within each turn appear newest first.
+- Brain documents are ordered by file modification time, newest first within
+  each brain. Sort before paging; use stored IDs to break equal-time ties.
 - Turns are permanent group headers. Do not add folding or expansion carets.
+- Brain groups can fold: Left in the document panel folds the current brain,
+  Right unfolds it, and Enter/Space or a caret click toggles a header. Folding
+  from a document selects its brain header. Preserve fold choices on refresh.
+  New brains start collapsed. Selection and completed reads never expand them.
 - Selecting a session updates events; selecting a turn or event updates details.
   Preserve selection during live updates. Keep startup selection on the newest
   session until the user navigates.
 - Keep list rows limited to labels and activity. Put metadata and recorded text
   in details. Do not add dashboards, columns, or separate views without a request.
+- Brains is a local operator inspector, not an agent capability. Read collections
+  asynchronously and without embeddings, network calls, or writes. Never send
+  inspected journals to model context or use the browser to bypass tool scope.
+- Page document lists and load bodies on selection. Keep one browser read in
+  flight; late responses must not replace the current selection. Refresh must
+  discard stale responses and rediscover dynamic app brains. Show safe errors
+  and invalid-document counts without copying raw library diagnostics into logs.
 
 ## Rendering contract
 

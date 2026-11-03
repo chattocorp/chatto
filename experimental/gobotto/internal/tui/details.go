@@ -124,7 +124,7 @@ func renderDetails(fields []detailField, width int) []string {
 			title = displayText(field.value)
 		case "State":
 			state = displayText(field.value)
-		case "Input", "Output", "Details", "Request", "Response", "Failure":
+		case "Input", "Output", "Details", "Request", "Response", "Failure", "Body", "Instructions", "Metadata":
 			content = append(content, field)
 		default:
 			metadata = append(metadata, field)
@@ -179,6 +179,14 @@ func renderDetails(fields []detailField, width int) []string {
 		bands[len(lines)] = true
 		lines = append(lines, label)
 		value := field.value
+		if field.label == "Body" || field.label == "Instructions" {
+			lines = append(lines, renderMarkdown(value, width)...)
+			continue
+		}
+		if field.label == "Metadata" {
+			lines = append(lines, highlightYAML(value, width)...)
+			continue
+		}
 		var pretty bytes.Buffer
 		isJSON := json.Indent(&pretty, []byte(value), "", "  ") == nil
 		if isJSON {
