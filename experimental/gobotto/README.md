@@ -489,42 +489,48 @@ but Gobotto's thread reply is not copied there. Scheduled top-level posts update
 the destination room journal. Unaddressed room traffic is not recorded.
 
 The host checks current Chatto access before journal reads. `conversation_recall`
-can search or page through only the current scope: there is no room, thread, path,
+can read or search only the current scope: there is no room, thread, path,
 or collection selector. Thread recall does not read its room or sibling threads.
 Configured admins do not bypass this boundary. Generic memory tools, app lifecycle
 tools, and fixed collection aliases cannot access the collection. The collection
 is locked to one server/bot identity and one running process.
 
-After a turn, an isolated tool-free model request updates a bounded summary and
-adds a brief note about meaningful changes. Greetings and repetitions can have
-empty notes. Pending raw excerpts are removed after the summary is saved; exact
-host tool receipts remain separate from model-written notes. Notes describe
-requests, decisions, corrections, and open commitments. They never grant authority,
-prove delivery, or authorize replay of an old action.
+After a turn, an isolated tool-free model request writes a short note about useful
+facts, decisions, corrections, or explicit outstanding requests. Gobotto appends
+the note as a Markdown bullet with `means append`. Greetings, repetition, skipped
+reactions, and casual offers need no note. The document body is one notebook;
+there is no separate running summary or JSON event log. Raw tool receipts stay in
+the existing private session records. Notes never grant authority, prove delivery,
+or authorize replay of an old action.
 
-Summary requests use the conversation model, appear as **Journal summary** in the
+Note requests use the conversation model, appear as **Journal note** in the
 inspector, and count toward reported usage. Each changed journal needs at most one
 request per update; a top-level request can update both room and thread journals.
 These auxiliary requests are separate from the action loop's tool and step budgets.
 Requests have a 30-second timeout and at most 4,096 output tokens, or the lower
-configured output limit. Summary text is limited to 8,000 bytes and each note to
-2,000 bytes. A malformed or failed summary leaves the original transcript intact.
+configured output limit. Each note is limited to 600 bytes. Only when the notebook
+approaches 16,000 bytes does the model condense it to at most 8,000 bytes, using
+`means update`. A malformed or failed note leaves the original transcript intact.
 
 At a turn boundary, Gobotto can replace a transcript of at least 256 KiB with the
-scoped summary and the most recent complete turn, including exact tool exchanges.
+scoped notebook and the most recent complete turn, including exact tool exchanges.
 Current system instructions and permissions are supplied again. This byte limit
 is a conservative trigger, not a model-specific token count. Rollover requires a
 matching durable journal checkpoint, no active child work, no pending delivery,
-and no recorded uncertain delivery or failed effectful turn. Older exact receipts
-remain available through scoped recall. Work already performed is never replayed
-by the host. Child investigations keep their existing context-limit behavior.
+and no recorded uncertain delivery or failed effectful turn. Recall returns notes,
+not old tool receipts; verify old outcomes with current tools when necessary.
+Work already performed is never replayed by the host. Child investigations keep
+their existing context-limit behavior.
 
 Journal failures, oversized entries, or a recent turn that is too large prevent
 rollover. The existing 1 MiB transcript guard still applies and can require a new
-thread. Entries are limited to 64 KiB, summary input to 128 KiB, and each journal
-document to 8 MiB; reaching a limit never silently deletes older commitments.
-Recall returns at most eight entries and a bounded payload, with a continuation
-cursor when more matches remain.
+thread. Transient turn evidence is limited to 64 KiB per turn and model input to
+128 KiB. Pending evidence stays in memory; the original session transcript supports
+recovery after restart. Frontmatter keeps a fixed-size latest checkpoint and an
+uncertainty flag. Hash checks and a temporary mutation marker make interrupted
+appends recoverable without adding the note twice. Failed means commands block
+journal writes until restart reconciles that marker. Recall returns the bounded
+Markdown body, or matching lines for a search query.
 
 Access or history invalidations invalidate the affected room's journals, including
 thread journals outside the loaded session cache. Generation checks prevent a
@@ -535,11 +541,11 @@ As with the existing transcript, offline edits outside the fetched history windo
 cannot all be verified from a bounded refresh.
 
 Journal files are private local data. The configured model provider receives the
-scoped summary and supplied turn excerpts for summarization; no additional service
-is contacted. Journal storage itself does not call means or an embedding provider.
-The documents use means-compatible Markdown and JSON frontmatter. Existing runtime
-data is not migrated: retained transcripts contribute scoped conversation excerpts
-on their next journal update, within the same bounds.
+notebook and supplied turn excerpts; no additional service is contacted. Journal
+storage requires a means CLI with `append` and uses an isolated configuration with
+embeddings disabled. The documents use Markdown and JSON frontmatter. Old journals
+remain readable and change to the notebook format on their next successful update.
+Retained transcripts contribute scoped excerpts within the same bounds.
 
 ### Owners
 

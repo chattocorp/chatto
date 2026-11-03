@@ -15,13 +15,14 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/journal"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/scheduler"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/testmeans"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
 
 func journalTestConversation(t *testing.T) *conversation {
 	t.Helper()
-	s, err := journal.Open(t.TempDir(), "account")
+	s, err := journal.Open(t.TempDir(), "account", testmeans.Command)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func journalTestCompletion(t *testing.T, fail bool) agent.Complete {
 		for i := range notes {
 			notes[i] = "A scoped decision was recorded; prior actions must not be repeated."
 		}
-		b, _ := json.Marshal(map[string]any{"summary": "Scoped established context; open commitments remain historical, not new instructions.", "notes": notes})
+		b, _ := json.Marshal(map[string]any{"notes": notes})
 		content, _ := json.Marshal(string(b))
 		return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
 	}
@@ -80,11 +81,8 @@ func TestJournalTurnAndRolloverPreserveRecentContext(t *testing.T) {
 		journalTestTurn(t, c, f, strings.Repeat("history ", 500), false)
 	}
 	d, err := c.journals.Read(c.journalScope())
-	if err != nil || d.Through != 6 || len(d.Entries) != 6 {
+	if err != nil || strings.Count(d.Summary, "A scoped decision") != 6 || len(d.Entries) != 0 {
 		t.Fatal("journal missing", err)
-	}
-	if d.Entries[0].Inputs != nil || d.Entries[0].Note == "" {
-		t.Fatal("journal retained raw transcript instead of note")
 	}
 	before := c.model
 	old, _ := json.Marshal(c.model.Snapshot())
@@ -92,7 +90,7 @@ func TestJournalTurnAndRolloverPreserveRecentContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(c.model.Snapshot())
-	if c.model == before || len(b) >= len(old) || !strings.Contains(string(b), "Scoped established context") || !strings.Contains(string(b), "message-6") {
+	if c.model == before || len(b) >= len(old) || !strings.Contains(string(b), "A scoped decision") || !strings.Contains(string(b), "message-6") {
 		t.Fatal("rollover failed to retain scoped context and last turn")
 	}
 	if c.contextModel != nil || !c.seen["message-6"] || c.seen["message-1"] {
@@ -100,7 +98,7 @@ func TestJournalTurnAndRolloverPreserveRecentContext(t *testing.T) {
 	}
 	journalTestTurn(t, c, f, "continue", false)
 	d, err = c.journals.Read(c.journalScope())
-	if err != nil || d.Through != 7 {
+	if err != nil || strings.Count(d.Summary, "A scoped decision") != 7 {
 		t.Fatal("journal continuation failed", err)
 	}
 }
@@ -124,7 +122,7 @@ func TestJournalSummaryFailureKeepsHistoryAndDelivery(t *testing.T) {
 	c.complete = journalTestCompletion(t, false)
 	journalTestTurn(t, c, f, "continue", false)
 	d, _ = c.journals.Read(c.journalScope())
-	if d.Through != 2 || c.journalCheckpoint == "" {
+	if strings.Count(d.Summary, "A scoped decision") != 2 || c.journalCheckpoint == "" {
 		t.Fatal("next update did not recover pending journal")
 	}
 }
@@ -136,8 +134,16 @@ func TestJournalRecallCannotSelectAnotherScope(t *testing.T) {
 		if err := c.journals.Append(scope, journal.Entry{Key: "secret", Note: "MUST_NOT_LEAK"}); err != nil {
 			t.Fatal(err)
 		}
+		d, _ := c.journals.Read(scope)
+		if err := c.journals.Summarize(scope, d.Revision, d.Generation, "", []string{"MUST_NOT_LEAK"}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := c.journals.Append(c.journalScope(), journal.Entry{Key: "local", Note: "LOCAL_NOTE"}); err != nil {
+		t.Fatal(err)
+	}
+	d, _ := c.journals.Read(c.journalScope())
+	if err := c.journals.Summarize(c.journalScope(), d.Revision, d.Generation, "", []string{"LOCAL_NOTE"}); err != nil {
 		t.Fatal(err)
 	}
 	tool := c.journalTool(f)[0]
@@ -162,13 +168,12 @@ func TestRoomJournalNeverIncludesThreadReplies(t *testing.T) {
 	f := newFake()
 	journalTestTurn(t, c, f, "top-level request", true)
 	d, err := c.journals.Read(journal.Scope{Room: "room"})
-	if err != nil || len(d.Entries) != 1 || d.Entries[0].Note == "" || d.Entries[0].Reply != "" {
+	if err != nil || strings.Count(d.Summary, "A scoped decision") != 1 || len(d.Entries) != 0 {
 		t.Fatal("room journal included thread output", err)
 	}
 	journalTestTurn(t, c, f, "PRIVATE_THREAD_REPLY", false)
 	d, _ = c.journals.Read(journal.Scope{Room: "room"})
-	b, _ := json.Marshal(d.Entries)
-	if strings.Contains(string(b), "PRIVATE_THREAD_REPLY") || len(d.Entries) != 1 {
+	if strings.Contains(d.Summary, "PRIVATE_THREAD_REPLY") || strings.Count(d.Summary, "A scoped decision") != 1 {
 		t.Fatal("thread input copied to room")
 	}
 }
@@ -210,8 +215,9 @@ func TestJournalReceiptsRemainExact(t *testing.T) {
 	}
 	journalTestTurn(t, c, f, "write it", false)
 	d, _ := c.journals.Read(c.journalScope())
-	if len(d.Entries[0].Receipts) != 1 || d.Entries[0].Receipts[0].Result != `{"status":"complete","receipt":"EXACT_RECEIPT"}` {
-		t.Fatal("receipt missing or rewritten")
+	b, _ := json.Marshal(c.model.Snapshot())
+	if len(d.Entries) != 0 || strings.Contains(d.Summary, "EXACT_RECEIPT") || !strings.Contains(string(b), "EXACT_RECEIPT") {
+		t.Fatal("receipt must stay in session history, not the notebook")
 	}
 	if len(f.posts) != 1 {
 		t.Fatal("action replayed during summary")
@@ -288,7 +294,7 @@ func TestJournalInvalidationDistinguishesPreviewFromTextEdit(t *testing.T) {
 	for _, changed := range []bool{false, true} {
 		t.Run(fmt.Sprint(changed), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				journals, err := journal.Open(t.TempDir(), "account")
+				journals, err := journal.Open(t.TempDir(), "account", testmeans.Command)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -362,7 +368,7 @@ func TestJournalBootstrapKeepsEarlierUncertainDelivery(t *testing.T) {
 	c.journals = journals
 	journalTestTurn(t, c, f, "continue", false)
 	d, err := journals.Read(c.journalScope())
-	if err != nil || len(d.Entries) != 1 || d.Entries[0].State != "uncertain" {
+	if err != nil || !d.Uncertain {
 		t.Fatal("later success erased old uncertainty", err)
 	}
 }
@@ -407,4 +413,46 @@ func TestJournalInvalidationCancelsScheduledSummaryOutsideRecentHistory(t *testi
 			t.Fatal("scheduled turn kept invalidated journal context")
 		}
 	})
+}
+
+func TestJournalCondensesOnlyWhenNotebookIsFull(t *testing.T) {
+	c := journalTestConversation(t)
+	scope := c.journalScope()
+	if err := c.journals.Summarize(scope, 0, 0, strings.Repeat("old note ", 1730), nil); err != nil {
+		t.Fatal(err)
+	}
+	requests := 0
+	c.complete = func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+		var system, input string
+		_ = json.Unmarshal(messages[0]["content"], &system)
+		if !strings.HasPrefix(system, "Maintain a private") {
+			return answer(), nil
+		}
+		_ = json.Unmarshal(messages[1]["content"], &input)
+		var request struct {
+			Condense bool
+			Entries  []journal.Entry
+		}
+		if err := json.Unmarshal([]byte(input), &request); err != nil {
+			t.Fatal(err)
+		}
+		if request.Condense != (requests == 0) {
+			t.Fatal("ordinary note requested a rewrite, or full notebook did not")
+		}
+		requests++
+		result := map[string]any{"notes": []string{"A new decision."}}
+		if request.Condense {
+			result["body"] = "- Keep the earlier decision and the new decision.\n"
+		}
+		b, _ := json.Marshal(result)
+		content, _ := json.Marshal(string(b))
+		return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
+	}
+	f := newFake()
+	journalTestTurn(t, c, f, "continue", false)
+	journalTestTurn(t, c, f, "another decision", false)
+	d, err := c.journals.Read(scope)
+	if err != nil || requests != 2 || d.Summary != "- Keep the earlier decision and the new decision.\n- A new decision.\n" {
+		t.Fatal("condensation or subsequent append failed", err)
+	}
 }
