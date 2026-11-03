@@ -14,8 +14,8 @@ Channel rooms are organized into **room groups** — named, ordered containers t
   manager who selects all rooms receives the complete group layout. Clients
   choose which authorized entries to show; the chat sidebar uses navigation
   permissions. Metadata management access does not grant membership or message
-  access. Links use their existing authenticated visibility and report their
-  owning group. Published admin calls remain available for compatibility.
+  access. Sidebar links remain in the ordered group items. Published admin
+  calls remain available for compatibility.
 
 - In the mobile drawer layout, swipes that start within 24 CSS pixels of either
   physical viewport edge do not open or close the sidebar. This leaves edge
@@ -140,7 +140,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 ### 9. Room directory reads are available over ConnectRPC
 
 **Decision:** `RoomDirectoryService` is the shared read surface for room metadata,
-ordered groups, and sidebar links. Permissions determine available metadata;
+ordered groups, and their sidebar items. Permissions determine available metadata;
 archive filters select room state. Clients use viewer state to choose navigation
 and management presentation. Membership and message access remain independent.
 **Why:** Clients need room/sidebar data around lifecycle commands. Keeping the directory read model in ConnectRPC lets clients render navigation and action affordances through one protobuf API surface.

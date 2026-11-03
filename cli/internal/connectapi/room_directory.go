@@ -259,7 +259,7 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 			})
 		case item.SidebarLink != nil:
 			apiGroup.Items = append(apiGroup.Items, &apiv1.RoomGroupItem{
-				Item: &apiv1.RoomGroupItem_SidebarLink{SidebarLink: apiSidebarLink(item.SidebarLink, group.Group.GetId())},
+				Item: &apiv1.RoomGroupItem_SidebarLink{SidebarLink: apiSidebarLink(item.SidebarLink)},
 			})
 		}
 	}
@@ -289,14 +289,13 @@ func roomDirectoryScopeIncludesDMs(scope apiv1.RoomDirectoryScope) bool {
 		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS
 }
 
-func apiSidebarLink(link *readmodel.SidebarLink, groupID string) *apiv1.SidebarLink {
+func apiSidebarLink(link *readmodel.SidebarLink) *apiv1.SidebarLink {
 	if link == nil {
 		return nil
 	}
 	return &apiv1.SidebarLink{
-		Id:      link.GetId(),
-		Label:   link.GetLabel(),
-		Url:     link.GetUrl(),
-		GroupId: &groupID,
+		Id:    link.GetId(),
+		Label: link.GetLabel(),
+		Url:   link.GetUrl(),
 	}
 }

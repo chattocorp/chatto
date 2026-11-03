@@ -480,23 +480,6 @@ describe('createRoomDirectoryAPI', () => {
     expect(receivedRequest(mocks.batchGetRoomGroups)?.archiveFilter).toBe(RoomArchiveFilter.ALL);
   });
 
-  it('reads canonical sidebar links and preserves optional owning-group metadata', async () => {
-    const link = { id: 'docs', label: 'Docs', url: '/docs', groupId: 'g1' };
-    mocks.getSidebarLink.mockReturnValue({ link });
-    mocks.batchGetSidebarLinks.mockReturnValue({ links: [link] });
-    const api = directoryAPI();
-    expect(await api.getSidebarLink('docs')).toEqual(link);
-    expect(await api.batchGetSidebarLinks(['docs', 'missing'])).toEqual([link]);
-    expect(receivedRequest(mocks.getSidebarLink)?.linkId).toBe('docs');
-    expect(receivedRequest(mocks.batchGetSidebarLinks)?.linkIds).toEqual(['docs', 'missing']);
-    mocks.getSidebarLink.mockReturnValue({});
-    await expect(api.getSidebarLink('docs')).rejects.toThrow('did not include a link');
-    mocks.getSidebarLink.mockImplementation(() => {
-      throw new ConnectError('missing', Code.NotFound);
-    });
-    await expect(api.getSidebarLink('missing')).rejects.toMatchObject({ code: Code.NotFound });
-  });
-
   it('returns empty item order when no ordered sidebar items are present', async () => {
     mocks.listRoomGroups.mockReturnValue({
       groups: [

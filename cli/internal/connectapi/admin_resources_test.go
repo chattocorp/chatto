@@ -197,7 +197,6 @@ func TestRoomGroupReadsUsePermissionsAndArchiveFilters(t *testing.T) {
 	require.NoError(t, env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, group.Id, env.viewer.Id, core.PermRoomManage))
 	link, err := admin.CreateSidebarLink(ctx, connect.NewRequest(&adminv1.CreateSidebarLinkRequest{GroupId: group.Id, Label: "Link", Url: "https://example.com"}))
 	require.NoError(t, err)
-	require.Equal(t, group.Id, link.Msg.GetSidebarLink().GetGroupId())
 	inactive := withBearerCredential(env.ctx, env.viewer, "inactive-layout-session")
 	inactiveGroup, err := directory.GetRoomGroup(inactive, connect.NewRequest(&apiv1.GetRoomGroupRequest{GroupId: group.Id, ArchiveFilter: all}))
 	require.NoError(t, err)
@@ -208,7 +207,7 @@ func TestRoomGroupReadsUsePermissionsAndArchiveFilters(t *testing.T) {
 	require.Len(t, read.Msg.GetGroup().GetItems(), 3)
 	require.Equal(t, active.Id, read.Msg.GetGroup().GetItems()[0].GetRoom().GetRoom().GetId())
 	require.True(t, read.Msg.GetGroup().GetItems()[1].GetRoom().GetRoom().GetArchived())
-	require.Equal(t, group.Id, read.Msg.GetGroup().GetItems()[2].GetSidebarLink().GetGroupId())
+	require.True(t, proto.Equal(link.Msg.GetSidebarLink(), read.Msg.GetGroup().GetItems()[2].GetSidebarLink()))
 	page, err := directory.ListRoomGroups(ctx, connect.NewRequest(&apiv1.ListRoomGroupsRequest{ArchiveFilter: all}))
 	require.NoError(t, err)
 	require.True(t, proto.Equal(read.Msg.GetGroup(), findDirectoryGroup(page.Msg.GetGroups(), group.Id)))
@@ -276,45 +275,4 @@ func directoryRoomsContainAPI(rooms []*apiv1.RoomWithViewerState, id string) boo
 		}
 	}
 	return false
-}
-
-func TestSidebarLinkReadsReusePublicResources(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-	directory := &roomDirectoryService{api: env.api}
-	admin := &adminRoomLayoutService{api: env.api}
-	ctx := withCaller(env.ctx, env.viewer)
-	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Links", "")
-	require.NoError(t, err)
-	other, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Destination", "")
-	require.NoError(t, err)
-	require.NoError(t, env.core.AssignOwnerRole(env.ctx, env.viewer.Id))
-	created, err := admin.CreateSidebarLink(ctx, connect.NewRequest(&adminv1.CreateSidebarLinkRequest{GroupId: group.Id, Label: "Link", Url: "https://example.com"}))
-	require.NoError(t, err)
-	id := created.Msg.GetSidebarLink().GetId()
-	read, err := directory.GetSidebarLink(ctx, connect.NewRequest(&apiv1.GetSidebarLinkRequest{LinkId: id}))
-	require.NoError(t, err)
-	require.True(t, proto.Equal(created.Msg.GetSidebarLink(), read.Msg.GetLink()))
-	batch, err := directory.BatchGetSidebarLinks(ctx, connect.NewRequest(&apiv1.BatchGetSidebarLinksRequest{LinkIds: []string{id, "missing", id}}))
-	require.NoError(t, err)
-	require.Len(t, batch.Msg.GetLinks(), 1)
-	require.True(t, proto.Equal(read.Msg.GetLink(), batch.Msg.GetLinks()[0]))
-	moved, err := admin.MoveSidebarLinkToGroup(ctx, connect.NewRequest(&adminv1.MoveSidebarLinkToGroupRequest{LinkId: id, GroupId: other.Id}))
-	require.NoError(t, err)
-	require.Equal(t, other.Id, moved.Msg.GetSidebarLink().GetGroupId())
-	updated, err := admin.UpdateSidebarLink(ctx, connect.NewRequest(&adminv1.UpdateSidebarLinkRequest{LinkId: id, Label: new("Updated")}))
-	require.NoError(t, err)
-	require.Equal(t, other.Id, updated.Msg.GetSidebarLink().GetGroupId())
-	// Links have the same authenticated visibility in singular reads and groups.
-	stranger, err := env.core.CreateUser(env.ctx, core.SystemActorID, "link-reader", "Reader", "password123")
-	require.NoError(t, err)
-	read, err = directory.GetSidebarLink(withCaller(env.ctx, stranger), connect.NewRequest(&apiv1.GetSidebarLinkRequest{LinkId: id}))
-	require.NoError(t, err)
-	require.True(t, proto.Equal(updated.Msg.GetSidebarLink(), read.Msg.GetLink()))
-	_, err = admin.DeleteSidebarLink(ctx, connect.NewRequest(&adminv1.DeleteSidebarLinkRequest{LinkId: id}))
-	require.NoError(t, err)
-	_, err = directory.GetSidebarLink(ctx, connect.NewRequest(&apiv1.GetSidebarLinkRequest{LinkId: id}))
-	require.Equal(t, connect.CodeNotFound, errorCode(err))
-	batch, err = directory.BatchGetSidebarLinks(ctx, connect.NewRequest(&apiv1.BatchGetSidebarLinksRequest{LinkIds: []string{id}}))
-	require.NoError(t, err)
-	require.Empty(t, batch.Msg.GetLinks())
 }

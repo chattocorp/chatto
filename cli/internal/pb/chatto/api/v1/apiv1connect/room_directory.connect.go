@@ -45,12 +45,6 @@ const (
 	// RoomDirectoryServiceBatchGetRoomGroupsProcedure is the fully-qualified name of the
 	// RoomDirectoryService's BatchGetRoomGroups RPC.
 	RoomDirectoryServiceBatchGetRoomGroupsProcedure = "/chatto.api.v1.RoomDirectoryService/BatchGetRoomGroups"
-	// RoomDirectoryServiceGetSidebarLinkProcedure is the fully-qualified name of the
-	// RoomDirectoryService's GetSidebarLink RPC.
-	RoomDirectoryServiceGetSidebarLinkProcedure = "/chatto.api.v1.RoomDirectoryService/GetSidebarLink"
-	// RoomDirectoryServiceBatchGetSidebarLinksProcedure is the fully-qualified name of the
-	// RoomDirectoryService's BatchGetSidebarLinks RPC.
-	RoomDirectoryServiceBatchGetSidebarLinksProcedure = "/chatto.api.v1.RoomDirectoryService/BatchGetSidebarLinks"
 	// RoomDirectoryServiceGetRoomProcedure is the fully-qualified name of the RoomDirectoryService's
 	// GetRoom RPC.
 	RoomDirectoryServiceGetRoomProcedure = "/chatto.api.v1.RoomDirectoryService/GetRoom"
@@ -85,12 +79,6 @@ type RoomDirectoryServiceClient interface {
 	// omitted. Results preserve first-seen request order and repeated IDs are
 	// de-duplicated.
 	BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error)
-	// Reads one sidebar link and its owning group. Requires authentication, as
-	// with links in room-group reads. Unknown/deleted links return NOT_FOUND.
-	GetSidebarLink(context.Context, *connect.Request[v1.GetSidebarLinkRequest]) (*connect.Response[v1.GetSidebarLinkResponse], error)
-	// Reads links with the same visibility as GetSidebarLink. Unknown/deleted
-	// links are omitted, duplicates are removed, and request order is preserved.
-	BatchGetSidebarLinks(context.Context, *connect.Request[v1.BatchGetSidebarLinksRequest]) (*connect.Response[v1.BatchGetSidebarLinksResponse], error)
 	// Returns one room's authorized metadata by ID. Channel visibility matches
 	// ListRooms, including management access. DM rooms require membership. Returns
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
@@ -138,18 +126,6 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetRoomGroups")),
 			connect.WithClientOptions(opts...),
 		),
-		getSidebarLink: connect.NewClient[v1.GetSidebarLinkRequest, v1.GetSidebarLinkResponse](
-			httpClient,
-			baseURL+RoomDirectoryServiceGetSidebarLinkProcedure,
-			connect.WithSchema(roomDirectoryServiceMethods.ByName("GetSidebarLink")),
-			connect.WithClientOptions(opts...),
-		),
-		batchGetSidebarLinks: connect.NewClient[v1.BatchGetSidebarLinksRequest, v1.BatchGetSidebarLinksResponse](
-			httpClient,
-			baseURL+RoomDirectoryServiceBatchGetSidebarLinksProcedure,
-			connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetSidebarLinks")),
-			connect.WithClientOptions(opts...),
-		),
 		getRoom: connect.NewClient[v1.GetRoomRequest, v1.GetRoomResponse](
 			httpClient,
 			baseURL+RoomDirectoryServiceGetRoomProcedure,
@@ -167,14 +143,12 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 
 // roomDirectoryServiceClient implements RoomDirectoryServiceClient.
 type roomDirectoryServiceClient struct {
-	listRooms            *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
-	listRoomGroups       *connect.Client[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse]
-	getRoomGroup         *connect.Client[v1.GetRoomGroupRequest, v1.GetRoomGroupResponse]
-	batchGetRoomGroups   *connect.Client[v1.BatchGetRoomGroupsRequest, v1.BatchGetRoomGroupsResponse]
-	getSidebarLink       *connect.Client[v1.GetSidebarLinkRequest, v1.GetSidebarLinkResponse]
-	batchGetSidebarLinks *connect.Client[v1.BatchGetSidebarLinksRequest, v1.BatchGetSidebarLinksResponse]
-	getRoom              *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
-	batchGetRooms        *connect.Client[v1.BatchGetRoomsRequest, v1.BatchGetRoomsResponse]
+	listRooms          *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
+	listRoomGroups     *connect.Client[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse]
+	getRoomGroup       *connect.Client[v1.GetRoomGroupRequest, v1.GetRoomGroupResponse]
+	batchGetRoomGroups *connect.Client[v1.BatchGetRoomGroupsRequest, v1.BatchGetRoomGroupsResponse]
+	getRoom            *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
+	batchGetRooms      *connect.Client[v1.BatchGetRoomsRequest, v1.BatchGetRoomsResponse]
 }
 
 // ListRooms calls chatto.api.v1.RoomDirectoryService.ListRooms.
@@ -195,16 +169,6 @@ func (c *roomDirectoryServiceClient) GetRoomGroup(ctx context.Context, req *conn
 // BatchGetRoomGroups calls chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups.
 func (c *roomDirectoryServiceClient) BatchGetRoomGroups(ctx context.Context, req *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error) {
 	return c.batchGetRoomGroups.CallUnary(ctx, req)
-}
-
-// GetSidebarLink calls chatto.api.v1.RoomDirectoryService.GetSidebarLink.
-func (c *roomDirectoryServiceClient) GetSidebarLink(ctx context.Context, req *connect.Request[v1.GetSidebarLinkRequest]) (*connect.Response[v1.GetSidebarLinkResponse], error) {
-	return c.getSidebarLink.CallUnary(ctx, req)
-}
-
-// BatchGetSidebarLinks calls chatto.api.v1.RoomDirectoryService.BatchGetSidebarLinks.
-func (c *roomDirectoryServiceClient) BatchGetSidebarLinks(ctx context.Context, req *connect.Request[v1.BatchGetSidebarLinksRequest]) (*connect.Response[v1.BatchGetSidebarLinksResponse], error) {
-	return c.batchGetSidebarLinks.CallUnary(ctx, req)
 }
 
 // GetRoom calls chatto.api.v1.RoomDirectoryService.GetRoom.
@@ -244,12 +208,6 @@ type RoomDirectoryServiceHandler interface {
 	// omitted. Results preserve first-seen request order and repeated IDs are
 	// de-duplicated.
 	BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error)
-	// Reads one sidebar link and its owning group. Requires authentication, as
-	// with links in room-group reads. Unknown/deleted links return NOT_FOUND.
-	GetSidebarLink(context.Context, *connect.Request[v1.GetSidebarLinkRequest]) (*connect.Response[v1.GetSidebarLinkResponse], error)
-	// Reads links with the same visibility as GetSidebarLink. Unknown/deleted
-	// links are omitted, duplicates are removed, and request order is preserved.
-	BatchGetSidebarLinks(context.Context, *connect.Request[v1.BatchGetSidebarLinksRequest]) (*connect.Response[v1.BatchGetSidebarLinksResponse], error)
 	// Returns one room's authorized metadata by ID. Channel visibility matches
 	// ListRooms, including management access. DM rooms require membership. Returns
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
@@ -293,18 +251,6 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 		connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetRoomGroups")),
 		connect.WithHandlerOptions(opts...),
 	)
-	roomDirectoryServiceGetSidebarLinkHandler := connect.NewUnaryHandler(
-		RoomDirectoryServiceGetSidebarLinkProcedure,
-		svc.GetSidebarLink,
-		connect.WithSchema(roomDirectoryServiceMethods.ByName("GetSidebarLink")),
-		connect.WithHandlerOptions(opts...),
-	)
-	roomDirectoryServiceBatchGetSidebarLinksHandler := connect.NewUnaryHandler(
-		RoomDirectoryServiceBatchGetSidebarLinksProcedure,
-		svc.BatchGetSidebarLinks,
-		connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetSidebarLinks")),
-		connect.WithHandlerOptions(opts...),
-	)
 	roomDirectoryServiceGetRoomHandler := connect.NewUnaryHandler(
 		RoomDirectoryServiceGetRoomProcedure,
 		svc.GetRoom,
@@ -327,10 +273,6 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 			roomDirectoryServiceGetRoomGroupHandler.ServeHTTP(w, r)
 		case RoomDirectoryServiceBatchGetRoomGroupsProcedure:
 			roomDirectoryServiceBatchGetRoomGroupsHandler.ServeHTTP(w, r)
-		case RoomDirectoryServiceGetSidebarLinkProcedure:
-			roomDirectoryServiceGetSidebarLinkHandler.ServeHTTP(w, r)
-		case RoomDirectoryServiceBatchGetSidebarLinksProcedure:
-			roomDirectoryServiceBatchGetSidebarLinksHandler.ServeHTTP(w, r)
 		case RoomDirectoryServiceGetRoomProcedure:
 			roomDirectoryServiceGetRoomHandler.ServeHTTP(w, r)
 		case RoomDirectoryServiceBatchGetRoomsProcedure:
@@ -358,14 +300,6 @@ func (UnimplementedRoomDirectoryServiceHandler) GetRoomGroup(context.Context, *c
 
 func (UnimplementedRoomDirectoryServiceHandler) BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups is not implemented"))
-}
-
-func (UnimplementedRoomDirectoryServiceHandler) GetSidebarLink(context.Context, *connect.Request[v1.GetSidebarLinkRequest]) (*connect.Response[v1.GetSidebarLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.GetSidebarLink is not implemented"))
-}
-
-func (UnimplementedRoomDirectoryServiceHandler) BatchGetSidebarLinks(context.Context, *connect.Request[v1.BatchGetSidebarLinksRequest]) (*connect.Response[v1.BatchGetSidebarLinksResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.BatchGetSidebarLinks is not implemented"))
 }
 
 func (UnimplementedRoomDirectoryServiceHandler) GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {

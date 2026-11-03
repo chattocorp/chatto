@@ -86,8 +86,6 @@ message SidebarLink {
   string label = 2;
   // Absolute http(s) URL or server-local path.
   string url = 3;
-  // Owning room group. Absent on servers that do not report ownership.
-  optional string group_id = 4;
 }
 
 // One ordered item in a room group.
@@ -196,36 +194,6 @@ message BatchGetRoomGroupsRequest {
   RoomArchiveFilter archive_filter = 3 [(buf.validate.field).enum.defined_only = true];
 }
 
-// Request one sidebar link by stable ID. Links have the same visibility as
-// links returned in room groups; authentication is required.
-message GetSidebarLinkRequest {
-  // Required stable sidebar link ID.
-  string link_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Current link metadata and its owning group, captured together.
-message GetSidebarLinkResponse {
-  // Requested link, including its owning group.
-  SidebarLink link = 1;
-}
-
-// Request a bounded set of sidebar links by stable ID.
-message BatchGetSidebarLinksRequest {
-  // Required link IDs. Maximum 100; duplicates are returned once.
-  repeated string link_ids = 1 [(buf.validate.field).repeated = {
-    min_items: 1
-    max_items: 100
-    items: {string: {min_len: 1}}
-  }];
-}
-
-// Found links in first-seen request order. Unknown/deleted links are omitted;
-// repeated IDs are returned once. A read failure fails the whole request.
-message BatchGetSidebarLinksResponse {
-  // Requested links that still exist.
-  repeated SidebarLink links = 1;
-}
-
 // Visible room group batch response for direct group hydration.
 message BatchGetRoomGroupsResponse {
   // Resolved room groups in first-seen request order.
@@ -290,12 +258,6 @@ service RoomDirectoryService {
   // omitted. Results preserve first-seen request order and repeated IDs are
   // de-duplicated.
   rpc BatchGetRoomGroups(BatchGetRoomGroupsRequest) returns (BatchGetRoomGroupsResponse);
-  // Reads one sidebar link and its owning group. Requires authentication, as
-  // with links in room-group reads. Unknown/deleted links return NOT_FOUND.
-  rpc GetSidebarLink(GetSidebarLinkRequest) returns (GetSidebarLinkResponse);
-  // Reads links with the same visibility as GetSidebarLink. Unknown/deleted
-  // links are omitted, duplicates are removed, and request order is preserved.
-  rpc BatchGetSidebarLinks(BatchGetSidebarLinksRequest) returns (BatchGetSidebarLinksResponse);
   // Returns one room's authorized metadata by ID. Channel visibility matches
   // ListRooms, including management access. DM rooms require membership. Returns
   // NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room

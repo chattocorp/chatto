@@ -35,12 +35,4 @@ func TestRoomGroupArchiveFiltersThroughMountedHandlers(t *testing.T) {
 	require.Len(t, read.Msg.GetGroup().GetItems(), 1)
 	_, err = client.GetRoomGroup(env.ctx, connect.NewRequest(&apiv1.GetRoomGroupRequest{GroupId: group.Id, ArchiveFilter: apiv1.RoomArchiveFilter(99)}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
-	_, err = client.GetSidebarLink(env.ctx, connect.NewRequest(&apiv1.GetSidebarLinkRequest{}))
-	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
-	ids := make([]string, 101)
-	for i := range ids {
-		ids[i] = "link"
-	}
-	_, err = client.BatchGetSidebarLinks(env.ctx, connect.NewRequest(&apiv1.BatchGetSidebarLinksRequest{LinkIds: ids}))
-	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 }

@@ -295,12 +295,11 @@ authority or the caller's own ID. These reads use account metadata without
 profile hydration, role catalogues, or assignment-limit evaluation. Legacy
 member reads retain their screen bootstrap data for compatibility.
 
-`RoomDirectoryService` owns the shared room-group and sidebar-link reads. Group
+`RoomDirectoryService` owns the shared room-group reads. Group
 list/get/batch methods use `RoomArchiveFilter`, with ACTIVE as the default.
 Metadata reads admit ordinary room visibility or room/group management authority;
 navigation and message permissions remain separate. Get/batch group reads hydrate
-only requested groups. Link reads capture each link and owner together, with the
-same authenticated visibility as links in groups. Admin layout commands retain
+only requested groups. Sidebar links remain in the group items. Admin layout commands retain
 their existing output and also return the shared `RoomGroup` resource.
 
 `AdminUserService.GetUserRoleAssignments` uses `role.assign` without requiring

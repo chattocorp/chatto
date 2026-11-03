@@ -263,7 +263,7 @@ func (s *adminRoomLayoutService) CreateSidebarLink(ctx context.Context, req *con
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.CreateSidebarLinkResponse{SidebarLink: apiSidebarLink(link, req.Msg.GetGroupId())}), nil
+	return connect.NewResponse(&adminv1.CreateSidebarLinkResponse{SidebarLink: apiSidebarLink(link)}), nil
 }
 
 func (s *adminRoomLayoutService) UpdateSidebarLink(ctx context.Context, req *connect.Request[adminv1.UpdateSidebarLinkRequest]) (*connect.Response[adminv1.UpdateSidebarLinkResponse], error) {
@@ -276,11 +276,11 @@ func (s *adminRoomLayoutService) UpdateSidebarLink(ctx context.Context, req *con
 		return nil, err
 	}
 
-	link, err := s.api.core.RoomLayout().AdminUpdateSidebarLinkConfiguration(ctx, caller.UserID, req.Msg.GetLinkId(), req.Msg.Label, req.Msg.Url)
+	link, err := s.api.core.RoomLayout().AdminUpdateSidebarLink(ctx, caller.UserID, req.Msg.GetLinkId(), req.Msg.Label, req.Msg.Url)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UpdateSidebarLinkResponse{SidebarLink: apiSidebarLink(link.Link, link.GroupID)}), nil
+	return connect.NewResponse(&adminv1.UpdateSidebarLinkResponse{SidebarLink: apiSidebarLink(link)}), nil
 }
 
 func (s *adminRoomLayoutService) DeleteSidebarLink(ctx context.Context, req *connect.Request[adminv1.DeleteSidebarLinkRequest]) (*connect.Response[adminv1.DeleteSidebarLinkResponse], error) {
@@ -305,7 +305,7 @@ func (s *adminRoomLayoutService) MoveSidebarLinkToGroup(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.MoveSidebarLinkToGroupResponse{SidebarLink: apiSidebarLink(link, req.Msg.GetGroupId())}), nil
+	return connect.NewResponse(&adminv1.MoveSidebarLinkToGroupResponse{SidebarLink: apiSidebarLink(link)}), nil
 }
 
 func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, userID string) ([]*adminv1.AdminRoomLayoutGroup, error) {
@@ -381,7 +381,7 @@ func apiAdminRoomLayoutGroup(group *readmodel.RoomGroup, roomsByID map[string]*r
 				continue
 			}
 			apiGroup.Items = append(apiGroup.Items, &adminv1.AdminRoomLayoutItem{
-				Item: &adminv1.AdminRoomLayoutItem_SidebarLink{SidebarLink: apiSidebarLink(link, group.GetId())},
+				Item: &adminv1.AdminRoomLayoutItem_SidebarLink{SidebarLink: apiSidebarLink(link)},
 			})
 		}
 	}

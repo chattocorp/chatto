@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, BatchGetSidebarLinksRequest, BatchGetSidebarLinksResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, GetSidebarLinkRequest, GetSidebarLinkResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
+import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -72,30 +72,6 @@ export const RoomDirectoryService = {
       name: "BatchGetRoomGroups",
       I: BatchGetRoomGroupsRequest,
       O: BatchGetRoomGroupsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Reads one sidebar link and its owning group. Requires authentication, as
-     * with links in room-group reads. Unknown/deleted links return NOT_FOUND.
-     *
-     * @generated from rpc chatto.api.v1.RoomDirectoryService.GetSidebarLink
-     */
-    getSidebarLink: {
-      name: "GetSidebarLink",
-      I: GetSidebarLinkRequest,
-      O: GetSidebarLinkResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Reads links with the same visibility as GetSidebarLink. Unknown/deleted
-     * links are omitted, duplicates are removed, and request order is preserved.
-     *
-     * @generated from rpc chatto.api.v1.RoomDirectoryService.BatchGetSidebarLinks
-     */
-    batchGetSidebarLinks: {
-      name: "BatchGetSidebarLinks",
-      I: BatchGetSidebarLinksRequest,
-      O: BatchGetSidebarLinksResponse,
       kind: MethodKind.Unary,
     },
     /**

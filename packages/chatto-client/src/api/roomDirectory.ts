@@ -74,8 +74,6 @@ export type DirectorySidebarLink = {
   id: string;
   label: string;
   url: string;
-  /** Owning group, when reported by the server. */
-  groupId?: string;
 };
 
 export type DirectoryRoomGroupItem =
@@ -201,24 +199,6 @@ export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
         { signal: options.signal }
       );
       return response.groups.map(mapRoomGroup);
-    },
-
-    /** Read a link and its owner with the same visibility as links in groups. */
-    async getSidebarLink(
-      linkId: string,
-      options: { signal?: AbortSignal } = {}
-    ): Promise<DirectorySidebarLink> {
-      const response = await directory.getSidebarLink({ linkId }, options);
-      if (!response.link) throw new Error('sidebar link response did not include a link');
-      return mapSidebarLink(response.link);
-    },
-
-    /** Read up to 100 links, de-duplicated in request order; missing links are omitted. */
-    async batchGetSidebarLinks(
-      linkIds: string[],
-      options: { signal?: AbortSignal } = {}
-    ): Promise<DirectorySidebarLink[]> {
-      return (await directory.batchGetSidebarLinks({ linkIds }, options)).links.map(mapSidebarLink);
     }
   };
 }
@@ -360,22 +340,12 @@ function mapRoomGroupItem(item: RoomGroupItem): DirectoryRoomGroupItem | null {
     return {
       id: `link:${item.item.value.id}`,
       type: 'link',
-      link: mapSidebarLink(item.item.value)
+      link: {
+        id: item.item.value.id,
+        label: item.item.value.label,
+        url: item.item.value.url
+      }
     };
   }
   return null;
-}
-
-function mapSidebarLink(link: {
-  id: string;
-  label: string;
-  url: string;
-  groupId?: string;
-}): DirectorySidebarLink {
-  return {
-    id: link.id,
-    label: link.label,
-    url: link.url,
-    ...(link.groupId === undefined ? {} : { groupId: link.groupId })
-  };
 }

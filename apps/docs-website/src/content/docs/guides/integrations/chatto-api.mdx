@@ -58,19 +58,16 @@ membership or message access.
 
 Clients choose which authorized entries to show. The bundled chat sidebar uses
 the existing navigation permissions to hide management-only room metadata.
-Use `RoomDirectoryService.GetSidebarLink` or bounded `BatchGetSidebarLinks`
-reads to resolve a link and its owning group. Links have the same authenticated
-visibility as links returned in room groups.
+Sidebar links remain part of `RoomGroup.items`.
 
 Existing member reads and legacy mutation fields remain supported. New group
 mutations also return the shared `RoomGroup` in `room_group`, including authorized
-archived entries. Link mutations return the shared `SidebarLink` with its owning
-group. Role commands expose an
+archived entries. Role commands expose an
 `assignment` outcome, and deactivation exposes the updated public `profile`.
 Human sessions must activate privileged mode for the applicable permissions.
 
 The `@chatto/client/api/adminAccounts` module provides private account reads.
-`@chatto/client/api/roomDirectory` provides group archive options and link reads.
+`@chatto/client/api/roomDirectory` provides group archive options.
 Use a server release that implements these operations. Older servers can ignore
 an unknown archive filter; do not treat their active-only output as a complete
 archived layout. Pin and test the server releases your integration supports.
