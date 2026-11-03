@@ -345,7 +345,21 @@ func (c *conversation) summarizeDocument(ctx context.Context, d journal.Document
 			c.finishStep(step, "failed", detail+"; original model history retained")
 			return err
 		}
-		c.finishStep(step, "complete", "Notebook updated; filler omitted")
+		detail := "No useful change to record"
+		count := 0
+		for _, note := range *result.Notes {
+			if strings.TrimSpace(note) != "" {
+				count++
+			}
+		}
+		if condense {
+			detail = "Notebook condensed"
+		} else if count == 1 {
+			detail = "Appended 1 note"
+		} else if count > 1 {
+			detail = fmt.Sprintf("Appended %d notes", count)
+		}
+		c.finishStep(step, "complete", detail)
 	}
 	return nil
 }

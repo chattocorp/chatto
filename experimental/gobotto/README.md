@@ -501,7 +501,10 @@ each message's author and identifies the bot separately; mentions identify
 addressees, not authors. Gobotto appends the note as a Markdown bullet with
 `means append`. Greetings, repetition, skipped reactions, and casual offers need
 no note. An empty notes array still checkpoints the turn, so filler cannot block
-the next useful entry. Notes cover useful changes across the supplied evidence;
+the next useful entry. Meaningful user preferences, corrections, and decisions
+remain eligible for notes when the bot only reacts or stays silent. The inspector
+reports "No useful change to record", "Appended N notes", or "Notebook condensed"
+so these outcomes are distinct. Notes cover useful changes across the supplied evidence;
 there is no required one-to-one match between notes and turns. The document body
 is one notebook;
 there is no separate running summary or JSON event log. Raw tool receipts stay in

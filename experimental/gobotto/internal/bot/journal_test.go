@@ -450,6 +450,7 @@ func TestJournalCondensesOnlyWhenNotebookIsFull(t *testing.T) {
 	}
 	f := newFake()
 	journalTestTurn(t, c, f, "continue", false)
+	assertJournalDetail(t, c, "Notebook condensed")
 	journalTestTurn(t, c, f, "another decision", false)
 	d, err := c.journals.Read(scope)
 	if err != nil || requests != 2 || d.Summary != "- Keep the earlier decision and the new decision.\n- A new decision.\n" {
@@ -556,14 +557,85 @@ func TestJournalFillerDoesNotBlockNextRequestOrCopyArtifacts(t *testing.T) {
 	if err != nil || d.LastKey != "journal-test:2" || len(d.Entries) != 0 || strings.Count(d.Summary, "\n") != 1 || c.journalOffset != len(c.model.Snapshot().Messages) {
 		t.Fatal("empty notes did not checkpoint filler", err)
 	}
+	assertJournalDetail(t, c, "No useful change to record")
 	journalTestTurn(t, c, f, "make one of Mainz", false)
 	d, err = c.journals.Read(c.journalScope())
 	if err != nil || d.LastKey != "journal-test:3" || !strings.Contains(d.Summary, "Mainz") || requests != 3 {
 		t.Fatal("later note missing", err)
 	}
+	assertJournalDetail(t, c, "Appended 1 note")
 	b, _ := json.Marshal(c.model.Snapshot())
 	if !strings.Contains(string(b), "ARTIFACT_PAYLOAD") {
 		t.Fatal("journal projection changed original model history")
+	}
+}
+
+func assertJournalDetail(t *testing.T, c *conversation, want string) {
+	t.Helper()
+	for _, step := range c.records[len(c.records)-1].Steps {
+		if step.Name == "Journal note" && step.State == "complete" && step.Detail == want {
+			return
+		}
+	}
+	t.Fatalf("missing journal outcome %q", want)
+}
+
+func TestJournalPreservesMeaningfulInputWithoutTextReply(t *testing.T) {
+	for _, mode := range []string{"reaction", "silent"} {
+		for _, input := range []struct{ name, body, note string }{
+			{"preference", "Please use Celsius for weather reports.", "User prefers Celsius for weather reports."},
+			{"correction", "Correction: the meeting is Thursday, not Tuesday.", "Meeting corrected to Thursday."},
+			{"decision", "We have decided to ship the release on Friday.", "Release will ship Friday."},
+		} {
+			t.Run(mode+"/"+input.name, func(t *testing.T) {
+				c := journalTestConversation(t)
+				notes := 0
+				c.complete = func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+					var system, raw string
+					_ = json.Unmarshal(messages[0]["content"], &system)
+					if !strings.HasPrefix(system, "Maintain a private") {
+						if mode == "reaction" {
+							return wireMessage(`{"role":"assistant","tool_calls":[{"id":"react","type":"function","function":{"name":"react_to_ping","arguments":"{\"emoji\":\"thumbsup\"}"}}]}`), nil
+						}
+						return wireMessage(`{"role":"assistant","tool_calls":[{"id":"silent","type":"function","function":{"name":"stay_silent","arguments":"{}"}}]}`), nil
+					}
+					_ = json.Unmarshal(messages[1]["content"], &raw)
+					var request struct{ Entries []journal.Entry }
+					if err := json.Unmarshal([]byte(raw), &request); err != nil {
+						t.Fatal(err)
+					}
+					found := false
+					for _, e := range request.Entries {
+						if e.Reply != "" {
+							t.Fatal("nontext turn acquired a textual answer")
+						}
+						for _, m := range e.Messages {
+							if m.Body == input.body && m.Role == "user" {
+								found = true
+							}
+						}
+					}
+					if !found {
+						t.Fatal("meaningful user input omitted from journal request")
+					}
+					notes++
+					out, _ := json.Marshal(map[string]any{"notes": []string{input.note}})
+					content, _ := json.Marshal(string(out))
+					return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
+				}
+				f := newFake()
+				journalTestTurn(t, c, f, input.body, false)
+				d, err := c.journals.Read(c.journalScope())
+				if err != nil || notes != 1 || !strings.Contains(d.Summary, input.note) || c.journalCheckpoint == "" {
+					t.Fatal("nontext turn failed to save its note", err)
+				}
+				turn := c.records[len(c.records)-1]
+				if turn.Response != "" || (mode == "silent" && (turn.State != "silent" || len(f.posts) != 0)) || (mode == "reaction" && (turn.Emoji != "thumbsup" || len(f.posts) != 1)) {
+					t.Fatal("test did not exercise the requested nontext response")
+				}
+				assertJournalDetail(t, c, "Appended 1 note")
+			})
+		}
 	}
 }
 
