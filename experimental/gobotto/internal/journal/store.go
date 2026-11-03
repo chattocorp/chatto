@@ -266,6 +266,7 @@ func (s *Store) Read(scope Scope) (Document, error) {
 	d, err := s.read(scope)
 	// Do not expose the store's transient slices to callers.
 	b, _ := json.Marshal(d.Entries)
+	d.Entries = nil
 	_ = json.Unmarshal(b, &d.Entries)
 	return d, err
 }
@@ -325,8 +326,10 @@ func (s *Store) AppendAt(scope Scope, e Entry, revision, generation int) error {
 	if revision >= 0 && d.Revision != revision {
 		return ErrStorage
 	}
-	e.Digest = hash(string(b))
-	d.Entries = append(d.Entries, e)
+	var owned Entry
+	_ = json.Unmarshal(b, &owned)
+	owned.Digest = hash(string(b))
+	d.Entries = append(d.Entries, owned)
 	encoded, _ := json.Marshal(d.Entries)
 	if len(encoded) > 128<<10 {
 		return ErrStorage

@@ -329,3 +329,27 @@ func TestMeansLookupCannotMutateAnotherScopeWithTheSameBody(t *testing.T) {
 		t.Fatal("wrong scope accepted")
 	}
 }
+
+func TestReadReturnsDetachedPendingEvidence(t *testing.T) {
+	s, err := Open(t.TempDir(), "account", testmeans.Command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	scope := Scope{Room: "room"}
+	e := Entry{Key: "turn", Inputs: []string{"original"}, Receipts: []Receipt{{Result: "original receipt"}}}
+	if err := s.Append(scope, e); err != nil {
+		t.Fatal(err)
+	}
+	e.Inputs[0] = "changed by caller"
+	d, err := s.Read(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Entries[0].Inputs[0] = "changed"
+	d.Entries[0].Receipts[0].Result = "changed"
+	d, err = s.Read(scope)
+	if err != nil || d.Entries[0].Inputs[0] != "original" || d.Entries[0].Receipts[0].Result != "original receipt" {
+		t.Fatal("reader mutated pending store evidence", err)
+	}
+}
