@@ -37,6 +37,9 @@ type brainResult struct {
 	err     error
 }
 type brainsView struct {
+	changes                 <-chan error
+	watchError              string
+	catalogDirty, docDirty  bool
 	source                  brainview.Source
 	ctx                     context.Context
 	groups                  []brainGroup
@@ -52,6 +55,30 @@ type brainsView struct {
 	doc                     brainview.Document
 	lines                   []string
 	lineWidth               int
+}
+
+type brainsChanged struct {
+	err    error
+	closed bool
+}
+
+func waitBrainChanges(ch <-chan error) tea.Cmd {
+	if ch == nil {
+		return nil
+	}
+	return func() tea.Msg { err, ok := <-ch; return brainsChanged{err: err, closed: !ok} }
+}
+
+// invalidate keeps visible snapshots and navigation while fresh reads run.
+// Generation checks prevent an in-flight old read from clearing invalidation.
+func (b *brainsView) invalidate() {
+	b.generation++
+	b.catalogDirty, b.docDirty = true, true
+	b.catalogError, b.docError = "", ""
+	for i := range b.groups {
+		b.groups[i].loaded = false
+		b.groups[i].err = ""
+	}
 }
 
 func (b *brainsView) selected() *brainRow {
@@ -98,6 +125,9 @@ func (b *brainsView) rebuild() {
 		}
 	}
 	b.lines = nil
+	if row := b.selected(); row == nil || row.key != selected.key || row.id != selected.id {
+		b.scroll = 0
+	}
 }
 
 func (b *brainsView) request(req brainRequest) tea.Cmd {
@@ -126,7 +156,7 @@ func (b *brainsView) loadSelected() tea.Cmd {
 	if b.loading || b.source == nil {
 		return nil
 	}
-	if !b.ready {
+	if !b.ready || b.catalogDirty {
 		if b.catalogError != "" {
 			return nil
 		}
@@ -140,8 +170,13 @@ func (b *brainsView) loadSelected() tea.Cmd {
 	if !group.loaded && group.err == "" {
 		return b.request(brainRequest{kind: "list", key: row.key, offset: group.offset})
 	}
-	if !row.header && (b.docKey != row.key || b.docID != row.id) {
+	if !row.header && (b.docDirty || b.docKey != row.key || b.docID != row.id) {
 		return b.request(brainRequest{kind: "read", key: row.key, id: row.id})
+	}
+	for _, g := range b.groups {
+		if !g.collapsed && !g.loaded && g.err == "" {
+			return b.request(brainRequest{kind: "list", key: g.Key, offset: g.offset})
+		}
 	}
 	return nil
 }
@@ -159,18 +194,19 @@ func (b *brainsView) finish(result brainResult) {
 	case "catalog":
 		b.catalogError = safeError
 		if result.err == nil {
-			b.ready = true
-			collapsed := map[string]bool{}
+			b.ready, b.catalogDirty = true, false
+			previous := map[string]brainGroup{}
 			for _, group := range b.groups {
-				collapsed[group.Key] = group.collapsed
+				previous[group.Key] = group
 			}
 			b.groups = nil
 			for _, brain := range result.catalog {
-				folded, known := collapsed[brain.Key]
+				group, known := previous[brain.Key]
 				if !known {
-					folded = true
+					group.collapsed = true
 				}
-				b.groups = append(b.groups, brainGroup{Brain: brain, collapsed: folded})
+				group.Brain = brain
+				b.groups = append(b.groups, group)
 			}
 			b.rebuild()
 		}
@@ -184,6 +220,7 @@ func (b *brainsView) finish(result brainResult) {
 		}
 	case "read":
 		b.docKey, b.docID, b.docError, b.doc = result.request.key, result.request.id, safeError, result.doc
+		b.docDirty = false
 	}
 }
 
@@ -204,7 +241,7 @@ func (b *brainsView) content(width int) []string {
 		message = "Loading…"
 		if group.err != "" {
 			message = group.err
-		} else if row.header && group.loaded {
+		} else if row.header && (group.loaded || group.page.Definition.Title != "") {
 			fields = []detailField{{"Selected", group.page.Definition.Title}, {"Kind", group.Kind}, {"Brain", group.Key}, {"Instructions", group.page.Definition.Body}, {"Metadata", group.page.Definition.Metadata}}
 			if group.page.Skipped > 0 {
 				fields = append(fields, detailField{"Skipped", fmt.Sprintf("%d invalid documents", group.page.Skipped)})
@@ -347,9 +384,7 @@ func (m *model) updateBrains(msg tea.Msg) tea.Cmd {
 		case "end", "G":
 			return m.moveBrains(1 << 30)
 		case "r":
-			b.generation++
-			b.ready, b.catalogError, b.docKey, b.docID, b.docError = false, "", "", "", ""
-			b.lines, b.scroll = nil, 0
+			b.invalidate()
 			return b.loadSelected()
 		case "[", "]":
 			delta := 1
@@ -432,6 +467,8 @@ func (m *model) brainsContent() string {
 	}
 	if m.quitting {
 		help = "Waiting for active work · Shift-Q quit immediately"
+	} else if b.watchError != "" {
+		help = b.watchError + " · " + help
 	}
 	return strings.Join(lines, "\n") + "\n" + ansi.Truncate(help, m.width, "…")
 }

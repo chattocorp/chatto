@@ -113,7 +113,9 @@ func newModel(events <-chan tea.Msg) *model {
 	return m
 }
 
-func (m *model) Init() tea.Cmd { return tea.Batch(waitEvent(m.events), activityTick()) }
+func (m *model) Init() tea.Cmd {
+	return tea.Batch(waitEvent(m.events), activityTick(), waitBrainChanges(m.brains.changes))
+}
 
 func waitEvent(events <-chan tea.Msg) tea.Cmd {
 	return func() tea.Msg { return <-events }

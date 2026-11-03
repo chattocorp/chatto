@@ -60,10 +60,22 @@ func RunWithBrains(ctx context.Context, source brainview.Source, work func(conte
 	}()
 	m := newModel(events)
 	m.brains.source, m.brains.ctx = source, workerCtx
+	if watcher, ok := source.(brainview.Changes); ok {
+		var err error
+		m.brains.changes, err = watcher.Watch(workerCtx)
+		if err != nil {
+			m.brains.watchError = "Automatic refresh unavailable · r refresh"
+		}
+	}
+	watchChanges := m.brains.changes
 	m.requestQuit = func() { requestOnce.Do(func() { close(shutdown) }) }
 	options = append(options, tea.WithContext(ctx))
 	_, uiErr := tea.NewProgram(m, options...).Run()
 	cancel()
+	if watchChanges != nil {
+		for range watchChanges {
+		}
+	} // join watcher before releasing stores
 	workerErr := <-done
 	if ctx.Err() != nil {
 		return ctx.Err()

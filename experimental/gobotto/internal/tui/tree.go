@@ -196,6 +196,25 @@ func (m *model) dragDivider(x int) {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if changed, ok := msg.(brainsChanged); ok {
+		if changed.closed {
+			m.brains.changes = nil
+			if !m.quitting {
+				m.brains.watchError = "Automatic refresh unavailable · r refresh"
+			}
+			return m, nil
+		}
+		m.brains.watchError = ""
+		if changed.err != nil {
+			m.brains.watchError = "Automatic refresh unavailable · r refresh"
+		}
+		m.brains.invalidate()
+		var load tea.Cmd
+		if m.showBrains {
+			load = m.brains.loadSelected()
+		}
+		return m, tea.Batch(waitBrainChanges(m.brains.changes), load)
+	}
 	if result, ok := msg.(brainResult); ok {
 		m.brains.finish(result)
 		if m.showBrains {

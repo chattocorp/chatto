@@ -32,6 +32,10 @@ preserve the terminal design agreed with the user.
   flight; late responses must not replace the current selection. Refresh must
   discard stale responses and rediscover dynamic app brains. Show safe errors
   and invalid-document counts without copying raw library diagnostics into logs.
+- Filesystem notifications invalidate cached brain data without clearing visible
+  snapshots or navigation. Reload the selected item and expanded groups through
+  the same serialized reader. Keep watcher lifetime tied to the terminal and
+  join it on shutdown. Do not add polling reads on the animation clock.
 
 ## Rendering contract
 

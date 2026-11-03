@@ -915,14 +915,18 @@ the current brain and Right unfolds it. Enter or Space on a brain header toggles
 its documents; clicking its caret does the same. Enter on a document focuses
 contents; Left or Escape returns focus to documents. Fold choices survive refresh
 and view switches. Drag the vertical divider to resize the panels. `n` / `p`
-loads the next or previous document page; `r` refreshes the catalog and selected
-collection, including new apps and external edits. Quit controls are the same
+loads the next or previous document page. Filesystem changes automatically refresh
+documents, definitions, and the app catalog after a short debounce, including
+atomic editor saves. Selection, scroll position, and fold choices stay in place
+when the selected item still exists on the page. Changes received in Sessions
+reload when you return to Brains. Use `r` for an immediate manual refresh or if
+automatic refresh reports an error. Quit controls are the same
 as in Sessions.
 
 Brain reads run asynchronously, one at a time. Lists show 50 documents per page
 ordered by file modification time, newest first within each brain. Equal times
 use the stored document ID as a stable tie-breaker. Pages are live offsets, not a
-fixed snapshot; refresh after edits to see the new order. The browser reads the
+fixed snapshot; edits can change the order. The browser reads the
 collection summaries and file timestamps before paging, but the UI does not retain all
 document bodies. Displayed bodies, instructions, and metadata are each limited
 to 256 KiB with an explicit truncation marker. Invalid documents are skipped and

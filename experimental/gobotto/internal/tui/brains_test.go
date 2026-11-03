@@ -119,8 +119,8 @@ func TestBrainsLateResultsAndRefresh(t *testing.T) {
 		t.Fatal("refresh overlapped read")
 	}
 	finishBrainCommands(t, m, read)
-	if m.brains.docKey != "" || m.brains.loading {
-		t.Fatal("stale document survived refresh")
+	if m.brains.docKey != "apps/tasks" || m.brains.loading {
+		t.Fatal("refresh failed to reload selected document")
 	}
 }
 
@@ -219,5 +219,34 @@ func TestBrainSelectionDoesNotExpandGroups(t *testing.T) {
 	key(m, tea.KeyRight)
 	if len(m.brains.rows) != 3 || m.brains.group("apps/tasks").collapsed {
 		t.Fatal("explicit expansion failed")
+	}
+}
+
+func TestAutomaticBrainRefreshPreservesNavigation(t *testing.T) {
+	m, source := openTestBrains(t)
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	finishBrainCommands(t, m, cmd)
+	key(m, tea.KeyTab)
+	key(m, tea.KeyDown)
+	selected := *m.brains.selected()
+	before := len(source.calls)
+	_, cmd = m.Update(brainsChanged{})
+	finishBrainCommands(t, m, cmd)
+	if *m.brains.selected() != selected || m.brains.scroll != 1 || !m.brains.contentFocused || m.brains.group("memory").collapsed {
+		t.Fatal("automatic refresh changed navigation")
+	}
+	if len(source.calls) != before+3 {
+		t.Fatal("refresh did not reload catalog, page and body", source.calls)
+	}
+	key(m, '1')
+	before = len(source.calls)
+	_, cmd = m.Update(brainsChanged{})
+	if cmd != nil || len(source.calls) != before {
+		t.Fatal("hidden browser started reads")
+	}
+	_, cmd = m.Update(tea.KeyPressMsg{Code: '2'})
+	finishBrainCommands(t, m, cmd)
+	if len(source.calls) != before+3 {
+		t.Fatal("hidden change was lost")
 	}
 }
