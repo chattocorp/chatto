@@ -151,6 +151,9 @@ func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.Realti
 		if !ok {
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
+		if close := frame.GetClose(); close != nil {
+			t.Fatalf("realtime closed before caught_up: %v", close)
+		}
 		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
 			return caughtUp
 		}
@@ -863,25 +866,11 @@ func TestRealtimeRapidPrivilegedModeChangesKeepResuming(t *testing.T) {
 		}
 		conn = env.dialRealtime(t)
 		subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, cursor)
-		for {
-			frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-			if !ok {
-				t.Fatalf("change %d did not catch up", change)
-			}
-			if close := frame.GetClose(); close != nil {
-				t.Fatalf("change %d closed instead of resuming: %v", change, close)
-			}
-			if frame.GetSnapshot() != nil {
-				t.Fatalf("change %d discarded the retained projection", change)
-			}
-			if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
-				if caughtUp.GetRecovery() != realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED {
-					t.Fatalf("change %d recovery = %v, want resumed", change, caughtUp.GetRecovery())
-				}
-				cursor = caughtUp.GetCursor()
-				break
-			}
+		caughtUp := readRealtimeCaughtUp(t, conn)
+		if caughtUp.GetRecovery() != realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED {
+			t.Fatalf("change %d recovery = %v, want resumed", change, caughtUp.GetRecovery())
 		}
+		cursor = caughtUp.GetCursor()
 		if err := conn.Close(); err != nil {
 			t.Fatal(err)
 		}
@@ -913,25 +902,21 @@ func TestRealtimeLargeReplayStillUsesStrictBudget(t *testing.T) {
 	for attempt := range 4 {
 		conn = env.dialRealtime(t)
 		subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, cursor)
-		for {
+		if attempt < 3 {
+			if caughtUp := readRealtimeCaughtUp(t, conn); caughtUp.GetRecovery() != realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED {
+				t.Fatalf("attempt %d recovery = %v, want resumed", attempt, caughtUp.GetRecovery())
+			}
+		} else {
+			// Admission must reject before any snapshot or event frame is sent.
 			frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 			if !ok {
-				t.Fatalf("attempt %d did not complete", attempt)
+				t.Fatal("rate-limited attempt did not close")
 			}
-			if close := frame.GetClose(); close != nil {
-				if attempt != 3 || close.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE || close.GetRetryAfter().AsDuration() != 20*time.Second {
-					t.Fatalf("attempt %d unexpected close: %v", attempt, close)
-				}
-				break
+			if close := frame.GetClose(); close.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE || close.GetRetryAfter().AsDuration() != 20*time.Second {
+				t.Fatalf("unexpected rate-limit frame: %v", frame)
 			}
-			if frame.GetCaughtUp() != nil {
-				if attempt == 3 {
-					t.Fatal("large replay bypassed the strict budget")
-				}
-				break
-			}
-			if attempt == 3 {
-				t.Fatal("rate-limited replay sent data before rejecting admission")
+			if _, _, err := conn.ReadMessage(); !websocket.IsCloseError(err, websocket.CloseTryAgainLater) {
+				t.Fatalf("WebSocket close = %v, want retryable close", err)
 			}
 		}
 		if err := conn.Close(); err != nil {

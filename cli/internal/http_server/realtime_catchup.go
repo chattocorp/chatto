@@ -151,10 +151,7 @@ func (a *realtimeCatchUpAdmission) refill(state *realtimeCatchUpUserState, now t
 	if elapsed <= 0 {
 		return
 	}
-	state.tokens += float64(elapsed) / float64(a.refillInterval)
-	if state.tokens > float64(a.burst) {
-		state.tokens = float64(a.burst)
-	}
+	state.tokens = min(float64(a.burst), state.tokens+float64(elapsed)/float64(a.refillInterval))
 	state.lastRefill = now
 }
 
@@ -163,10 +160,7 @@ func (a *realtimeCatchUpAdmission) refillGeneral(state *realtimeCatchUpUserState
 	if elapsed <= 0 {
 		return
 	}
-	state.generalTokens += float64(elapsed) / float64(realtimeCatchUpGeneralRefillInterval)
-	if state.generalTokens > realtimeCatchUpGeneralRateBurst {
-		state.generalTokens = realtimeCatchUpGeneralRateBurst
-	}
+	state.generalTokens = min(realtimeCatchUpGeneralRateBurst, state.generalTokens+float64(elapsed)/float64(realtimeCatchUpGeneralRefillInterval))
 	state.generalLastRefill = now
 }
 

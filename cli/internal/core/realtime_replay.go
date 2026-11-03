@@ -151,7 +151,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		BoundaryCursor:   boundaryCursor,
 		BoundarySequence: boundarySeq,
 	}
-	if strings.TrimSpace(resumeCursor) == "" {
+	if plan.Reset {
 		return plan, nil
 	}
 

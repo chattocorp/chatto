@@ -368,15 +368,16 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 	resumeCursor := strings.TrimSpace(subscribe.GetResumeCursor())
+	rejectCatchUp := func(admissionErr *realtimeCatchUpAdmissionError) {
+		s.metrics.realtimeCatchUpRejected(admissionErr.code)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime catch-up capacity is temporarily unavailable", true, admissionErr.retryAfter)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
+	}
 	// Every catch-up uses the general budget and concurrency limits. The plan
 	// charges the additional replay budget at its exact boundary, before scanning.
 	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id)
 	if admissionErr != nil {
-		s.metrics.realtimeCatchUpRejected(admissionErr.code)
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
-		}})
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
+		rejectCatchUp(admissionErr)
 		return
 	}
 	s.metrics.realtimeCatchUpStarted()
@@ -428,10 +429,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	})
 	if err != nil {
 		if errors.As(err, &admissionErr) {
-			s.metrics.realtimeCatchUpRejected(admissionErr.code)
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
-			}})
+			rejectCatchUp(admissionErr)
 			return
 		}
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
