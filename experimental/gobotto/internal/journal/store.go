@@ -44,6 +44,16 @@ type Receipt struct {
 	State     string `json:"state"`
 }
 
+// Message preserves host-verified speaker attribution separately from message
+// text. Mentions and quoted names in Body never identify its author.
+type Message struct {
+	Role        string `json:"role"`
+	UserID      string `json:"userId,omitempty"`
+	Username    string `json:"username,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Body        string `json:"body"`
+}
+
 // Entry records a completed turn without provider reasoning or image payloads.
 // Key is stable across retries; only successful host delivery populates Reply.
 type Entry struct {
@@ -51,6 +61,7 @@ type Entry struct {
 	Key      string    `json:"key"`
 	At       time.Time `json:"at"`
 	Inputs   []string  `json:"inputs,omitempty"`
+	Messages []Message `json:"messages,omitempty"`
 	Reply    string    `json:"reply,omitempty"`
 	State    string    `json:"state"`
 	Receipts []Receipt `json:"receipts,omitempty"`

@@ -31,7 +31,7 @@ func (c *conversation) recordRoomInputs(ctx context.Context, client Client, batc
 		if _, err := client.Timeline(ctx, c.key.room, "", ""); err != nil {
 			return
 		}
-		e := journal.Entry{Key: "message:" + m.ID, At: time.Now(), Inputs: []string{m.Body}, State: "observed", Note: "Top-level user message (request or claim, not a completed action)."}
+		e := journal.Entry{Key: "message:" + m.ID, At: time.Now(), Messages: []journal.Message{c.journalMessage(messageForModel(m))}, State: "observed"}
 		if err := c.journals.AppendAt(journal.Scope{Room: c.key.room}, e, -1, c.journalGeneration); err != nil {
 			i := c.step("journal", "Record room activity")
 			c.finishStep(i, "failed", "Room journal unavailable; thread content was not copied")
@@ -114,7 +114,7 @@ func (c *conversation) updateJournal(ctx context.Context, client Client) {
 			if json.Unmarshal([]byte(text), &input) == nil {
 				for _, m := range append(input.Messages, input.New...) {
 					if m.Body != "" {
-						entry.Inputs = append(entry.Inputs, m.Body)
+						entry.Messages = append(entry.Messages, c.journalMessage(m))
 					}
 				}
 				if input.Task != "" {
@@ -139,6 +139,18 @@ func (c *conversation) updateJournal(ctx context.Context, client Client) {
 		}
 	}
 	c.checkpointJournal(ctx, client, entry)
+}
+
+// journalMessage keeps attribution from the server's author ID. The notebook
+// model must not infer authors from mentions, names, or first-person quotations.
+func (c *conversation) journalMessage(m modelMessage) journal.Message {
+	result := journal.Message{Role: "user", UserID: m.ActorID, Body: m.Body}
+	if c.identity.ID != "" && m.ActorID == c.identity.ID {
+		result.Role, result.Username, result.DisplayName = "assistant", c.identity.Login, c.identity.DisplayName
+	} else if profile, ok := c.participantContext[m.ActorID]; ok && profile.Resolved {
+		result.Username, result.DisplayName = profile.Username, profile.DisplayName
+	}
+	return result
 }
 
 func (c *conversation) journalScope() journal.Scope {
@@ -246,7 +258,7 @@ func (c *conversation) summarizeDocument(ctx context.Context, d journal.Document
 			kind = "room"
 		}
 		condense := len(d.Summary)+603*len(d.Entries) > journal.MaxSummary
-		input, _ := json.Marshal(map[string]any{"scopeKind": kind, "notebook": d.Summary, "entries": d.Entries, "condense": condense})
+		input, _ := json.Marshal(map[string]any{"scopeKind": kind, "bot": c.identity, "notebook": d.Summary, "entries": d.Entries, "condense": condense})
 		if len(input) > 128<<10 {
 			return journal.ErrStorage
 		}

@@ -116,7 +116,7 @@ func TestJournalSummaryFailureKeepsHistoryAndDelivery(t *testing.T) {
 		t.Fatal("failed journal rolled over")
 	}
 	d, _ := c.journals.Read(c.journalScope())
-	if d.Through != 0 || len(d.Entries) != 1 || len(d.Entries[0].Inputs) == 0 {
+	if d.Through != 0 || len(d.Entries) != 1 || len(d.Entries[0].Messages) == 0 {
 		t.Fatal("failed summary lost pending input")
 	}
 	c.complete = journalTestCompletion(t, false)
@@ -454,5 +454,60 @@ func TestJournalCondensesOnlyWhenNotebookIsFull(t *testing.T) {
 	d, err := c.journals.Read(scope)
 	if err != nil || requests != 2 || d.Summary != "- Keep the earlier decision and the new decision.\n- A new decision.\n" {
 		t.Fatal("condensation or subsequent append failed", err)
+	}
+}
+
+func TestJournalPreservesAuthorInsteadOfAttributingMentions(t *testing.T) {
+	c := journalTestConversation(t)
+	c.identity = agent.Identity{ID: "bot", Login: "dieter", DisplayName: "Dieter"}
+	f := &profileClient{fakeClient: newFake(), lookup: func([]string) (map[string]chatto.Profile, error) {
+		return map[string]chatto.Profile{"human": {ID: "human", Login: "hendrik", DisplayName: "Hendrik"}}, nil
+	}}
+	requests := 0
+	complete := journalTestCompletion(t, false)
+	c.complete = func(ctx context.Context, messages []agent.Message) (agent.Message, error) {
+		var system, raw string
+		_ = json.Unmarshal(messages[0]["content"], &system)
+		if strings.HasPrefix(system, "Maintain a private") {
+			_ = json.Unmarshal(messages[1]["content"], &raw)
+			var request struct {
+				Bot     agent.Identity
+				Entries []journal.Entry
+			}
+			if err := json.Unmarshal([]byte(raw), &request); err != nil {
+				t.Fatal(err)
+			}
+			if request.Bot != c.identity {
+				t.Fatal("notebook model did not receive the bot identity")
+			}
+			found := false
+			for _, e := range request.Entries {
+				for _, m := range e.Messages {
+					if m.Body == "@dieter What is the weather?" {
+						found = true
+						if m.Role != "user" || m.UserID != "human" || m.Username != "hendrik" || m.DisplayName != "Hendrik" {
+							t.Fatal("author was lost or confused with mention recipient")
+						}
+					}
+				}
+			}
+			if !found {
+				t.Fatal("unattributed trigger in journal request")
+			}
+			requests++
+		}
+		return complete(ctx, messages)
+	}
+	journalTestTurn(t, c, f, "@dieter What is the weather?", true)
+	if requests != 2 {
+		t.Fatal("thread and room journals were not both checked", requests)
+	}
+	botMessage := c.journalMessage(modelMessage{ActorID: "bot", Body: "@hendrik Here is the weather."})
+	if botMessage.Role != "assistant" || botMessage.Username != "dieter" {
+		t.Fatal("bot history misattributed")
+	}
+	unknown := c.journalMessage(modelMessage{ActorID: "unresolved", Body: "@dieter I am Hendrik"})
+	if unknown.Role != "user" || unknown.Username != "" || unknown.DisplayName != "" {
+		t.Fatal("unknown author inferred from text")
 	}
 }

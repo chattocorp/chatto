@@ -496,8 +496,10 @@ tools, and fixed collection aliases cannot access the collection. The collection
 is locked to one server/bot identity and one running process.
 
 After a turn, an isolated tool-free model request writes a short note about useful
-facts, decisions, corrections, or explicit outstanding requests. Gobotto appends
-the note as a Markdown bullet with `means append`. Greetings, repetition, skipped
+facts, decisions, corrections, or explicit outstanding requests. The request keeps
+each message's author and identifies the bot separately; mentions identify
+addressees, not authors. Gobotto appends the note as a Markdown bullet with
+`means append`. Greetings, repetition, skipped
 reactions, and casual offers need no note. The document body is one notebook;
 there is no separate running summary or JSON event log. Raw tool receipts stay in
 the existing private session records. Notes never grant authority, prove delivery,
