@@ -71,6 +71,8 @@
       "zoom_in": "放大",
       "zoom_out": "縮小",
       "fit": "符合視窗",
+      "pause_animation": "暫停動畫",
+      "resume_animation": "繼續播放動畫",
       "details": "詳細資料",
       "file_type": "檔案類型"
     },

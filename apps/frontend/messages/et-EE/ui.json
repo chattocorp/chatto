@@ -71,6 +71,8 @@
       "zoom_in": "Suurenda",
       "zoom_out": "Vähenda",
       "fit": "Mahuta",
+      "pause_animation": "Peatage animatsioon",
+      "resume_animation": "Jätkake animatsiooni",
       "details": "Üksikasjad",
       "file_type": "Faili tüüp"
     },

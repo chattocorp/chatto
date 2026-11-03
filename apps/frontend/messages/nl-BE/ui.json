@@ -71,6 +71,8 @@
       "zoom_in": "Inzoomen",
       "zoom_out": "Uitzoomen",
       "fit": "Passend maken",
+      "pause_animation": "Animatie pauzeren",
+      "resume_animation": "Animatie hervatten",
       "details": "Details",
       "file_type": "Bestandstype"
     },

@@ -71,6 +71,8 @@
       "zoom_in": "Tuvināt",
       "zoom_out": "Tālināt",
       "fit": "Ietilpināt",
+      "pause_animation": "Apturēt animāciju",
+      "resume_animation": "Atsākt animāciju",
       "details": "Informācija",
       "file_type": "Faila tips"
     },
