@@ -379,13 +379,15 @@ export class MessageAttachment extends Message$1<MessageAttachment> {
 
   /**
    * Signed URL for a thumbnail image, when available.
+   * GIFs routed to video processing use the generated video thumbnail. The URL
+   * is absent when that thumbnail is unavailable.
    *
    * @generated from field: chatto.api.v1.MessageAssetUrl thumbnail_asset_url = 7;
    */
   thumbnailAssetUrl?: MessageAssetUrl;
 
   /**
-   * Video-specific processing metadata, when this attachment is a video.
+   * Video processing metadata for videos and animated GIFs.
    *
    * @generated from field: chatto.api.v1.MessageVideoProcessing video_processing = 8;
    */

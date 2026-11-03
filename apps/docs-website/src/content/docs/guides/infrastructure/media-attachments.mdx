@@ -28,7 +28,9 @@ files, use S3-compatible storage.
 GIF uploads above the image animation limits require `video.enabled = true`.
 File size, image dimensions, and per-frame pixel limits still apply. These
 GIFs play as converted video. Image previews of the original GIF keep the
-image animation limits.
+image animation limits. GIFs sent to video processing use its thumbnail when
+available. Chatto provides no thumbnail URL while processing is pending or
+when processing ends without a thumbnail.
 
 Set one limit for all files:
 

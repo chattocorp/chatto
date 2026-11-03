@@ -40,9 +40,11 @@ type Asset struct {
 	Height int32 `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
 	// Signed URL for the original asset bytes.
 	AssetUrl *MessageAssetUrl `protobuf:"bytes,7,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
-	// Signed URL for a transformed image thumbnail.
+	// Signed thumbnail image URL, when available. GIFs routed to video processing
+	// use the generated video thumbnail without image transform options. Absent
+	// when that thumbnail is unavailable.
 	ThumbnailAssetUrl *MessageAssetUrl `protobuf:"bytes,8,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
-	// Video processing state when this asset is a video attachment.
+	// Video processing state for videos and animated GIFs.
 	VideoProcessing *MessageVideoProcessing `protobuf:"bytes,9,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache

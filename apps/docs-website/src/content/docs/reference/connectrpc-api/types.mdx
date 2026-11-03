@@ -419,8 +419,8 @@ be absent while processing is pending or when the source is unavailable.
 | `width` | `int32` | Image or video width in pixels, when known. |
 | `height` | `int32` | Image or video height in pixels, when known. |
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset, when available. |
-| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a thumbnail image, when available. |
-| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a thumbnail image, when available. GIFs routed to video processing use the generated video thumbnail. The URL is absent when that thumbnail is unavailable. |
+| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing metadata for videos and animated GIFs. |
 | `description` | `optional string` | User-provided description for accessibility and attachment details. Absent when the attachment has no description. |
 
 <a id="chatto-api-v1-MessageReaction"></a>
@@ -539,8 +539,8 @@ Room-scoped binary asset metadata and freshly signed URLs.
 | `width` | `int32` | Media width when known. |
 | `height` | `int32` | Media height when known. |
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset bytes. |
-| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a transformed image thumbnail. |
-| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing state when this asset is a video attachment. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed thumbnail image URL, when available. GIFs routed to video processing use the generated video thumbnail without image transform options. Absent when that thumbnail is unavailable. |
+| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing state for videos and animated GIFs. |
 
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 

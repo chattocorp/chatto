@@ -23,9 +23,11 @@ message Asset {
   int32 height = 6;
   // Signed URL for the original asset bytes.
   MessageAssetUrl asset_url = 7;
-  // Signed URL for a transformed image thumbnail.
+  // Signed thumbnail image URL, when available. GIFs routed to video processing
+  // use the generated video thumbnail without image transform options. Absent
+  // when that thumbnail is unavailable.
   MessageAssetUrl thumbnail_asset_url = 8;
-  // Video processing state when this asset is a video attachment.
+  // Video processing state for videos and animated GIFs.
   MessageVideoProcessing video_processing = 9;
 }
 
