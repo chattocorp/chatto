@@ -385,8 +385,9 @@ export class UpdateOAuthClientPolicyRequest extends Message<UpdateOAuthClientPol
   /**
    * Editable fields to apply or reset: policy.
    * Omit to infer populated fields; * selects all editable fields. An explicit
-   * empty mask is invalid. Unselected values are ignored. Selected absent values
-   * reset the field to its default, subject to field validation.
+   * empty mask is invalid. Unselected values are ignored. A selected absent
+   * policy resets to DEFAULT. An explicit UNSPECIFIED value is also a reset
+   * when policy is selected by the mask.
    *
    * @generated from field: google.protobuf.FieldMask update_mask = 3;
    */

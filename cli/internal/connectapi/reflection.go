@@ -29,6 +29,7 @@ var publicReflectionServiceNames = []string{
 	adminv1connect.AdminDiagnosticsServiceName,
 	adminv1connect.AdminEventLogServiceName,
 	adminv1connect.AdminInvitationCodeServiceName,
+	adminv1connect.AdminOAuthClientServiceName,
 	adminv1connect.AdminUserServiceName,
 	adminv1connect.AdminPermissionServiceName,
 	adminv1connect.AdminRoleServiceName,

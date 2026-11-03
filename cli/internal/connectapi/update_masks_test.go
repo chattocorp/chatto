@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -183,6 +184,14 @@ func TestResourceUpdatesThroughJSON(t *testing.T) {
 	call(admin, "UpdateServerConfig", `{"registration":{"admission":"ACCOUNT_CREATION_POLICY_INVITE_ONLY"},"updateMask":"registration"}`, 400)
 	call(admin, "UpdateBlockedUsernames", `{"blockedUsernames":["blocked-name"],"updateMask":"blockedUsernames"}`, 200)
 	result = call(admin, "UpdateBlockedUsernames", `{"blockedUsernames":[],"updateMask":"blockedUsernames"}`, 200)
+
+	const oauthClientID = "https://example.com/client.json"
+	require.NoError(t, env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, oauthClientID, "Example", "https://example.com", "https://example.com", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD))
+	oauth := "admin.v1.AdminOAuthClientService"
+	call(oauth, "UpdateOAuthClientPolicy", `{"clientId":"https://example.com/client.json","policy":"OAUTH_CLIENT_POLICY_TRUSTED","updateMask":"policy"}`, 200)
+	reset := call(oauth, "UpdateOAuthClientPolicy", `{"clientId":"https://example.com/client.json","policy":null,"updateMask":"policy"}`, 200)
+	require.Equal(t, "OAUTH_CLIENT_POLICY_DEFAULT", reset["oauthClient"].(map[string]any)["policy"])
+	call(oauth, "UpdateOAuthClientPolicy", `{"clientId":"https://example.com/client.json"}`, 400)
 	require.Empty(t, result["blockedUsernames"])
 	policy := "api.v1.NotificationPolicyService"
 	call(policy, "UpdateNotificationPolicy", `{"scope":{"server":{}},"overrides":{"directMessages":"NOTIFICATION_DELIVERY_MODE_OFF","replies":"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION"},"updateMask":"directMessages,replies"}`, 200)

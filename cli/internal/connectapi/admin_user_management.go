@@ -104,6 +104,24 @@ func (s *adminUserManagementService) BatchGetMembers(ctx context.Context, req *c
 	return connect.NewResponse(response), nil
 }
 
+func (s *adminUserManagementService) GetUserRoleAssignments(ctx context.Context, req *connect.Request[adminv1.GetUserRoleAssignmentsRequest]) (*connect.Response[adminv1.GetUserRoleAssignmentsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	assignments, err := s.api.core.GetUserRoleAssignments(ctx, caller.UserID, req.Msg.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.GetUserRoleAssignmentsResponse{
+		Assignments: &adminv1.UserRoleAssignments{
+			UserId: assignments.UserID, RoleNames: assignments.RoleNames,
+			AssignableRoleNames: assignments.AssignableRoleNames,
+			RevocableRoleNames:  assignments.RevocableRoleNames,
+		},
+	}), nil
+}
+
 func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connect.Request[adminv1.AssignRoleRequest]) (*connect.Response[adminv1.AssignRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -275,6 +293,12 @@ func adminMemberUserWithPresence(member core.AdminMember, presence string) *apiv
 	}
 	if member.IsBot && !member.Deleted {
 		summary.Bot = &apiv1.BotInfo{OwnerUserId: member.BotOwnerUserID}
+	}
+	if member.Bio != "" {
+		summary.Bio = new(member.Bio)
+	}
+	if member.SharedTimezone != "" {
+		summary.Timezone = new(member.SharedTimezone)
 	}
 	return summary
 }

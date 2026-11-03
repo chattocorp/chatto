@@ -1,6 +1,7 @@
 import { updateMask } from './updateMask.js';
 import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
+import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
@@ -40,6 +41,15 @@ export type RoleMemberPage = {
   hasMore: boolean;
 };
 
+/** Explicit human-account roles and the caller's current assignment limits.
+ * Limits are advisory. Read again after assignments or permission changes. */
+export type UserRoleAssignments = {
+  userId: string;
+  roleNames: string[];
+  assignableRoleNames: string[];
+  revocableRoleNames: string[];
+};
+
 export type CreateRoleInput = {
   name: string;
   displayName: string;
@@ -57,8 +67,27 @@ export type UpdateRoleInput = {
 export function createRoleAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(RoleService, config);
   const adminClient = createChattoClient(AdminRoleService, config);
+  const adminUsers = createChattoClient(AdminUserService, config);
 
   return {
+    /** Read role assignments with role.assign, without private account access.
+     * Unknown users and bot targets retain the server's error codes. */
+    async getUserRoleAssignments(
+      userId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<UserRoleAssignments> {
+      const response = await adminUsers.getUserRoleAssignments({ userId }, options);
+      if (!response.assignments) {
+        throw new Error('role assignment response did not include assignment state');
+      }
+      return {
+        userId: response.assignments.userId,
+        roleNames: [...response.assignments.roleNames],
+        assignableRoleNames: [...response.assignments.assignableRoleNames],
+        revocableRoleNames: [...response.assignments.revocableRoleNames]
+      };
+    },
+
     async listRoles(): Promise<RoleCatalog> {
       const response = await client.listRoles({});
       return {

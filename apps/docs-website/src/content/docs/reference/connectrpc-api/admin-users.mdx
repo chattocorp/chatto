@@ -134,6 +134,41 @@ Batch server-admin member response.
 | `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 
 
+<a id="chatto-admin-v1-AdminUserService-GetUserRoleAssignments"></a>
+
+### GetUserRoleAssignments
+
+Gets explicit roles and current assignment limits for one human user.
+Requires role.assign, with privileged mode active for human sessions;
+admin.view-users is not required. Returns NOT_FOUND for an unknown or
+deleted user, and FAILED_PRECONDITION for a bot account.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/GetUserRoleAssignments
+```
+
+<a id="chatto-admin-v1-GetUserRoleAssignmentsRequest"></a>
+
+#### Input: GetUserRoleAssignmentsRequest
+
+Request role assignments without administrative account details.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required stable ID of a human user. |
+
+
+<a id="chatto-admin-v1-GetUserRoleAssignmentsResponse"></a>
+
+#### Result: GetUserRoleAssignmentsResponse
+
+Current role assignments and limits for the requested user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `assignments` | [`UserRoleAssignments`](/reference/connectrpc-api/types/#chatto-admin-v1-UserRoleAssignments) | Requested assignment state. Resolve role metadata with RoleService. |
+
+
 <a id="chatto-admin-v1-AdminUserService-AssignRole"></a>
 
 ### AssignRole

@@ -125,6 +125,36 @@ message BatchGetMembersResponse {
   repeated chatto.api.v1.Role roles = 2;
 }
 
+// Explicit role assignments and current assignment limits for one human user.
+// This resource contains no account details. The implicit everyone role is
+// omitted from all lists. List order is not significant. Limits are advisory:
+// commands check current authority again. Read this resource again after an
+// assignment, revocation, or permission change.
+message UserRoleAssignments {
+  // Target stable user ID.
+  string user_id = 1;
+  // Roles explicitly assigned to the target.
+  repeated string role_names = 2;
+  // Roles within the caller's current grant authority.
+  repeated string assignable_role_names = 3;
+  // Roles within the caller's current revoke authority for this target,
+  // including self-protection and configured-owner restrictions. A listed role
+  // need not currently be assigned.
+  repeated string revocable_role_names = 4;
+}
+
+// Request role assignments without administrative account details.
+message GetUserRoleAssignmentsRequest {
+  // Required stable ID of a human user.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Current role assignments and limits for the requested user.
+message GetUserRoleAssignmentsResponse {
+  // Requested assignment state. Resolve role metadata with RoleService.
+  UserRoleAssignments assignments = 1;
+}
+
 // Request to assign a role to a user.
 message AssignRoleRequest {
   // Target user ID.
@@ -225,6 +255,11 @@ service AdminUserService {
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
   // Gets server member rows for multiple users. Requires admin.view-users.
   rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
+  // Gets explicit roles and current assignment limits for one human user.
+  // Requires role.assign, with privileged mode active for human sessions;
+  // admin.view-users is not required. Returns NOT_FOUND for an unknown or
+  // deleted user, and FAILED_PRECONDITION for a bot account.
+  rpc GetUserRoleAssignments(GetUserRoleAssignmentsRequest) returns (GetUserRoleAssignmentsResponse);
   // Assigns a role to a user. Requires role.assign, and non-owner callers may
   // only assign roles whose granted authority they already possess.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);

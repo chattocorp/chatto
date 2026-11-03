@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
@@ -84,6 +84,13 @@ the backend permission catalog. Update both catalogs together.
   and each role's roster. Without `role.manage`, the list is read-only and
   shows no permission matrix, role editor, or role creation action. Roster
   rows link to member management only when the viewer has `admin.view-users`.
+
+- Role assigners can read one human user's explicit assignments and the roles
+  they may assign or revoke without access to administrative account details.
+  The read excludes verified emails and other private account fields. Limits
+  include scoped authority, configured-owner restrictions, and self-protection.
+  They are current hints: each command checks authority again. Tools read the
+  state again after assignment, revocation, or permission changes.
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
