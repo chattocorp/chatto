@@ -106,7 +106,9 @@ describe('Sanitized SVG previews', () => {
     )!;
     expect(playback).not.toBeNull();
     await userEvent.click(playback);
-    await userEvent.click(view.container.querySelector<HTMLButtonElement>('.rendered-image')!);
+    await userEvent.click(
+      view.container.querySelector<HTMLButtonElement>('button.rendered-image')!
+    );
     const modal = navigationMocks.pushState.mock.lastCall![1].modal;
     expect(modal.svgSource).toContain('<animate');
     expect(modal.svgSource).not.toContain('<script');
@@ -130,7 +132,7 @@ describe('Sanitized SVG previews', () => {
     expect(
       container.querySelector<HTMLElement>('[data-artifact-source]')?.dataset.artifactSource
     ).toContain(source);
-    await userEvent.click(container.querySelector<HTMLButtonElement>('.rendered-image')!);
+    await userEvent.click(container.querySelector<HTMLButtonElement>('button.rendered-image')!);
     expect(navigationMocks.pushState).toHaveBeenLastCalledWith('', {
       modal: { type: 'renderedImageViewer', src: image.src, alt: 'SVG' }
     });

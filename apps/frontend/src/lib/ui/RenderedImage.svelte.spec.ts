@@ -12,6 +12,44 @@ vi.mock('$app/navigation', () => ({ pushState, goto: vi.fn() }));
 const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"/>')}`;
 
 describe('RenderedImage', () => {
+  it('keeps the visual frame fitted while an animated poster is loading', async () => {
+    const host = document.createElement('div');
+    host.className = 'prose';
+    host.style.width = '900px';
+    const frame = document.createElement('div');
+    frame.className = 'markdown-code-frame';
+    frame.dataset.presentation = 'visual';
+    const panel = document.createElement('div');
+    panel.dataset.codePanel = 'render';
+    frame.append(panel);
+    host.append(frame);
+    document.body.append(host);
+    const image = new Image();
+    // Hold the first load so the component must reserve the known dimensions.
+    const view = render(RenderedImage, {
+      target: panel,
+      props: {
+        image,
+        initialSize: { width: 100, height: 200 },
+        svgSource:
+          '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200"><circle r="8"><animate attributeName="cy" values="10;190" dur="4s"/></circle></svg>'
+      }
+    });
+    try {
+      expect(panel.querySelector('iframe')).toBeNull();
+      const loadingWidth = frame.getBoundingClientRect().width;
+      expect(loadingWidth).toBeLessThan(300);
+      image.src =
+        'data:image/svg+xml,' +
+        encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200"/>');
+      await expect.poll(() => panel.querySelector('iframe')).toBeTruthy();
+      expect(frame.getBoundingClientRect().width).toBeCloseTo(loadingWidth, 0);
+    } finally {
+      await view.unmount();
+      host.remove();
+    }
+  });
+
   it('keeps animation playback controls in the viewer footer when zooming', async () => {
     const svgSource =
       '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="10" y="20">動き 🙂</text><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle></svg>';
