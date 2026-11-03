@@ -201,7 +201,10 @@ func (s *Store) Read(scope Scope) (Document, error) {
 }
 
 func (s *Store) write(d Document) error {
-	header, _ := json.Marshal(map[string]any{"id": strings.TrimSuffix(filepath.Base(s.path(d.Scope)), ".md"), "title": "Conversation journal", "data": d})
+	// The visible means ID is a label, not an authorization or lookup key.
+	// Keep the full digest in the filename and verify the exact scope on reads.
+	id := strings.TrimSuffix(filepath.Base(s.path(d.Scope)), ".md")[:12]
+	header, _ := json.Marshal(map[string]any{"id": id, "title": "Conversation journal", "data": d})
 	entries, _ := json.MarshalIndent(d.Entries, "", "  ")
 	b := []byte("---\n" + string(header) + "\n---\n# Current context\n\n" + d.Summary + separator + string(entries) + "\n```\n")
 	if len(b) > MaxDocument {

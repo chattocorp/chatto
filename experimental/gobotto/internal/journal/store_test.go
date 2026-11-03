@@ -157,10 +157,16 @@ func TestJournalIsMeansReadable(t *testing.T) {
 	}
 	out, err := exec.Command(binary, "--path", s.dir, "--json", "list").Output()
 	var result struct {
-		Documents   []json.RawMessage
+		Documents   []struct{ ID string }
 		Diagnostics []json.RawMessage
 	}
 	if err != nil || json.Unmarshal(out, &result) != nil || len(result.Documents) != 1 || len(result.Diagnostics) != 0 {
 		t.Fatal("journal is not means-readable", err, string(out))
+	}
+	if len(result.Documents[0].ID) != 12 {
+		t.Fatal("means shows the storage digest instead of a short document ID", result.Documents[0].ID)
+	}
+	if _, err := exec.Command(binary, "--path", s.dir, "--json", "show", "--", result.Documents[0].ID).Output(); err != nil {
+		t.Fatal("means cannot open the short document ID", err)
 	}
 }
