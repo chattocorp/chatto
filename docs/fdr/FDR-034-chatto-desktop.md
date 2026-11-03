@@ -19,6 +19,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
 - Users can resize the main window to a minimum width of 480 pixels and a
   minimum height of 600 pixels. Narrow windows use the frontend's existing
   compact layout.
+- The main window's position, size, and maximized or fullscreen state persist
+  across application restarts. If the display layout changes, the restored
+  window is adjusted to keep it visible.
 - Mouse back and forward buttons navigate the main window's history. On macOS,
   this includes navigation gestures sent by mouse software such as Options+.
   Keyboard navigation uses `Alt+Left` and `Alt+Right` on Windows/Linux, or

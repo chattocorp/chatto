@@ -44,6 +44,10 @@ and realtime access requires no server origin configuration.
 
 ## Notifications and background operation
 
+Chatto restores the main window's position, size, and maximized or fullscreen
+state after a restart. If the display layout changes, the restored window is
+adjusted to keep it visible.
+
 On macOS, closing the main window hides it and keeps Chatto running. Select
 Chatto in the Dock to open the window again. **Command-Q** quits the app and
 stops its connections and new alerts. On Windows and Linux, closing the main
