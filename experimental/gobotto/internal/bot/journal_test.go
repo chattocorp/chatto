@@ -14,6 +14,7 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/journal"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/scheduler"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
@@ -364,4 +365,46 @@ func TestJournalBootstrapKeepsEarlierUncertainDelivery(t *testing.T) {
 	if err != nil || len(d.Entries) != 1 || d.Entries[0].State != "uncertain" {
 		t.Fatal("later success erased old uncertainty", err)
 	}
+}
+
+func TestJournalInvalidationCancelsScheduledSummaryOutsideRecentHistory(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := journalTestConversation(t)
+		store, err := OpenStore(t.TempDir(), "server", "bot", "model")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer store.Close()
+		m, err := scheduler.Open(t.TempDir(), "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer m.Close()
+		makeSchedule(t, m)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		f := newFake()
+		started := make(chan context.Context, 1)
+		done := make(chan error, 1)
+		go func() {
+			done <- Run(ctx, f, chatto.Profile{ID: "bot"}, func(string, func(agent.Usage)) agent.Complete {
+				return func(ctx context.Context, _ []agent.Message) (agent.Message, error) {
+					started <- ctx
+					<-ctx.Done()
+					return nil, ctx.Err()
+				}
+			}, func(tui.Event) {}, Options{Store: store, Journals: c.journals, Scheduler: m, OwnerUserIDs: []string{"human"}})
+		}()
+		<-f.ready
+		time.Sleep(time.Minute)
+		modelCtx := <-started
+		f.events <- chatto.MessageEvent{InvalidatedRoom: "room", InvalidatedMessage: "old-message-outside-window", InvalidationReason: chatto.MessageEdited}
+		synctest.Wait()
+		stopped := modelCtx.Err() != nil
+		cancel()
+		<-done
+		if !stopped {
+			t.Fatal("scheduled turn kept invalidated journal context")
+		}
+	})
 }

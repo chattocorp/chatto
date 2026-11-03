@@ -582,6 +582,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				// Invalidate journals even for unloaded sessions. Summaries can refer
 				// to old messages outside the current bounded context window.
 				if opts.Journals != nil {
+					if active != nil && active.scheduledRun && (e.InvalidateAll || active.key.room == e.InvalidatedRoom) {
+						stopTurn(invalidationCause(e))
+					}
 					room := e.InvalidatedRoom
 					if e.InvalidateAll {
 						room = ""
