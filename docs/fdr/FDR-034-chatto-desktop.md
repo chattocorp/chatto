@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-02
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
@@ -13,6 +13,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
 
 ## Behavior
 
+- Images have a native context menu with **Copy image** and **Save image as…**.
+  File links offer **Save link as…**. Copy uses the displayed image without
+  another download. These actions do not copy temporary access URLs as text.
 - Users can resize the main window to a minimum width of 480 pixels and a
   minimum height of 600 pixels. Narrow windows use the frontend's existing
   compact layout.
