@@ -24,7 +24,12 @@ func (c *conversation) inspectCompletion(ctx context.Context, index int, message
 			}
 			limit := min(512<<10, max(0, (4<<20)-used))
 			if len(value) > limit {
-				value = value[:limit] + "\n[inspection truncated: capture size limit]"
+				const marker = "\n[inspection truncated: capture size limit]"
+				if limit < len(marker) {
+					value = ""
+				} else {
+					value = value[:limit-len(marker)] + marker
+				}
 			}
 			if request {
 				t.Steps[index].Request = value

@@ -11,6 +11,28 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 )
 
+func TestLiveInspectorCachesStayBoundedAsTurnGrows(t *testing.T) {
+	m := treeFixture()
+	s := m.sessions[0]
+	s.detailsLoaded = true
+	s.loadDetails = func(int) (inspection.Page, error) { return inspection.Page{}, nil }
+	s.records = nil
+	apply := func(number, size int) {
+		t.Helper()
+		turn := inspection.Turn{Number: number, Steps: []inspection.Step{{Kind: "model", Request: strings.Repeat("x", size)}}}
+		m.apply(Event{Kind: Inspected, Session: s.id, Inspection: &turn})
+	}
+	apply(1, 3<<20)
+	apply(2, 0)
+	apply(2, 2<<20)
+	if s.records[0].Steps[0].Request != "" || s.liveRecords[1].Steps[0].Request != "" {
+		t.Fatal("growing completion retained old live payload")
+	}
+	if len(s.records[1].Steps[0].Request) != 2<<20 || len(s.liveRecords[2].Steps[0].Request) != 2<<20 {
+		t.Fatal("latest payload lost")
+	}
+}
+
 func TestRequestSizeBreakdown(t *testing.T) {
 	var request map[string]json.RawMessage
 	_ = json.Unmarshal([]byte(`{"messages":[{"role":"system","content":"rules"},{"role":"user","content":"old"},{"role":"tool","content":"result"},{"role":"user","content":"new"}],"tools":[],"model":"test"}`), &request)

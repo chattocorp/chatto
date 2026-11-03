@@ -4,6 +4,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -234,12 +235,14 @@ func (m *model) apply(event Event) {
 					target.liveRecords = make(map[int]inspection.Turn)
 				}
 				target.liveRecords[t.Number] = t
-				if len(target.liveRecords) > 50 {
-					oldest := t.Number
-					for n := range target.liveRecords {
-						oldest = min(oldest, n)
-					}
-					delete(target.liveRecords, oldest)
+				live := make([]inspection.Turn, 0, len(target.liveRecords))
+				for _, turn := range target.liveRecords {
+					live = append(live, turn)
+				}
+				sort.Slice(live, func(i, j int) bool { return live[i].Number < live[j].Number })
+				clear(target.liveRecords)
+				for _, turn := range inspection.Retain(live) {
+					target.liveRecords[turn.Number] = turn
 				}
 			}
 			found := false
@@ -257,6 +260,8 @@ func (m *model) apply(event Event) {
 					target.inspected = t.Number
 				}
 			}
+			// Existing turns grow on every completion, not only when appended.
+			target.records = inspection.Retain(target.records)
 		}
 	case TitleChanged:
 		target.title = event.Title
