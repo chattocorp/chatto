@@ -34,7 +34,10 @@ server architecture inventory.
   append-only model history during ordinary turns. Refresh context when access,
   history changes, or restart require it, not before every message.
 - Keep output bound to the triggering thread. The model must not select another
-  destination. Preserve completed tool receipts even when later work fails.
+  destination for ordinary turns. Owner-created schedules can select a reply in
+  that thread or a top-level post in its room; the host supplies all destination
+  IDs and enforces the saved choice. Preserve completed tool receipts even when
+  later work fails.
 - Do not automatically replay started turns or uncertain writes. A durable inbox
   can restore pending input; it must not turn an interrupted action into a retry.
   Model-tool work and Chatto delivery are not one transaction.

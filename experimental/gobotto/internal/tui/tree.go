@@ -267,16 +267,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case finished:
 		m.workerStopped = true
-		if m.quitting {
+		if m.quitting || msg.err != nil {
 			return m, tea.Quit
 		}
 		m.status = "Stopped · q to exit"
-		if msg.err != nil {
-			m.status = "Connection stopped · q to exit and restart"
-		}
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
 	case tea.MouseClickMsg:
+		if m.detail != nil {
+			return m, nil
+		}
 		if msg.Button != tea.MouseLeft || msg.Y < 0 || msg.Y >= m.height-1 {
 			break
 		}
@@ -301,6 +301,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.MouseWheelMsg:
+		if m.detail != nil {
+			if msg.Button == tea.MouseWheelUp {
+				return m, m.detailKey("up")
+			}
+			if msg.Button == tea.MouseWheelDown {
+				return m, m.detailKey("down")
+			}
+			return m, nil
+		}
 		if msg.Y < m.headerHeight() {
 			break
 		}
@@ -310,7 +319,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveTree(1)
 		}
 	case tea.KeyPressMsg:
+		if m.detail != nil && msg.String() != "q" && msg.String() != "ctrl+c" && msg.String() != "Q" && msg.String() != "shift+q" {
+			return m, m.detailKey(msg.String())
+		}
 		switch msg.String() {
+		case "i":
+			m.openDetail()
 		case "q", "ctrl+c":
 			if m.workerStopped || m.requestQuit == nil {
 				return m, tea.Quit
@@ -328,7 +342,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeSession == 0 {
 				return m, m.enterSession()
 			} else if row := m.currentRow(); row != nil {
-				m.foldTree(!m.folds[row.key])
+				if row.key.step != 0 {
+					m.openDetail()
+				} else {
+					m.foldTree(!m.folds[row.key])
+				}
 			}
 		case "[":
 			m.textOffset = max(0, m.textOffset-16)
@@ -647,7 +665,7 @@ func (m *model) View() tea.View {
 		content = header + "\n" + tree
 		help := " ↑↓ select · enter session · f follow · q quit"
 		if m.activeSession != 0 {
-			help = " esc overview · ←→ fold · [ ] pan text · c copy · l logs · f follow · q quit"
+			help = " esc overview · enter/i inspect · ←→ fold · c copy · l logs · q quit"
 		}
 		if m.clipboardNotice != "" {
 			help = " " + m.clipboardNotice
@@ -662,6 +680,9 @@ func (m *model) View() tea.View {
 			help = status + " ·" + help
 		}
 		content += "\n" + lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(1).Render(help)
+	}
+	if m.detail != nil && m.width >= 36 && m.height >= 12 {
+		content = m.detailContent()
 	}
 	v := tea.NewView(lipgloss.NewStyle().MaxWidth(max(1, m.width)).MaxHeight(max(1, m.height)).Render(content))
 	v.AltScreen = true

@@ -146,7 +146,13 @@ func (s *Store) save(c *conversation, interrupted bool) error {
 	// Refuse to overwrite a different conversation, even if an ID collides.
 	if data, err := os.ReadFile(s.path(c)); err == nil {
 		var previous savedConversation
-		if json.Unmarshal(data, &previous) != nil || previous.Room != c.key.room || previous.Root != c.key.root {
+		if json.Unmarshal(data, &previous) != nil {
+			return errStore
+		}
+		// A schedule keeps its inspector identity when an admin changes its
+		// destination. Ordinary conversations remain bound to their thread.
+		sameSchedule := c.scheduledRun && previous.Index != nil && previous.Index.Scheduled && previous.ID == c.id && previous.HumanID == c.humanID
+		if !sameSchedule && (previous.Room != c.key.room || previous.Root != c.key.root) {
 			return errStore
 		}
 	} else if !os.IsNotExist(err) {
@@ -232,11 +238,14 @@ func (s *Store) loadPaths(paths []string) ([]*conversation, error) {
 			return nil, errStore
 		}
 		var v savedConversation
-		if json.Unmarshal(data, &v) != nil || v.Version != 1 || v.ID == 0 || ids[v.ID] || v.Room == "" || v.Root == "" || v.Provider == "" {
+		if json.Unmarshal(data, &v) != nil || v.Version != 1 || v.ID == 0 || ids[v.ID] || v.Room == "" || (v.Root == "" && (v.Index == nil || !v.Index.Scheduled)) || v.Provider == "" {
 			return nil, errors.New("invalid session snapshot; restore or move the session directory before restarting")
 		}
 		ids[v.ID] = true
 		c := &conversation{id: v.ID, key: threadKey{v.Room, v.Root}, provider: v.Provider, started: v.Started, used: v.Started, turns: v.Turns, seen: v.Seen, usage: v.Usage, resumed: true, interrupted: v.Interrupted}
+		if v.Index != nil {
+			c.scheduledRun = v.Index.Scheduled
+		}
 		c.humanID = v.HumanID
 		c.title = agent.CleanTitle(v.Title)
 		c.titleAttempted = v.TitleAttempted

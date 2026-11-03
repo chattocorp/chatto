@@ -76,8 +76,8 @@ func (m *Manager) bindings() ([]config.Collection, error) {
 		if !entry.IsDir() || !brainName.MatchString(entry.Name()) {
 			continue
 		}
-		if entry.Name() == "memory" {
-			return nil, errors.New("memory is reserved; rename the existing app binding before startup")
+		if entry.Name() == "memory" || entry.Name() == "schedules" {
+			return nil, errors.New("memory and schedules are reserved; rename the existing app binding before startup")
 		}
 		path := filepath.Join(m.directory, entry.Name())
 		info, err := os.Lstat(filepath.Join(path, "MEANS.md"))
@@ -194,8 +194,8 @@ func (m *Manager) lifecycleTools(ownerOnly bool, uncertain *bool, infoRead map[s
 			if decoder.Decode(new(any)) != io.EOF {
 				return feedback("Expected one JSON object")
 			}
-			if a.Name == "memory" {
-				return feedback("memory is built-in knowledge, not an app; its definition cannot be changed or archived")
+			if a.Name == "memory" || a.Name == "schedules" {
+				return feedback("This name is a reserved built-in brain, not an app; its definition cannot be changed or archived")
 			}
 			var definition []byte
 			if op == "create" {

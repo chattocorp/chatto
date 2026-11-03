@@ -15,6 +15,27 @@ import (
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
 
+func TestScheduleHistoryAllowsDestinationChange(t *testing.T) {
+	s, err := OpenStore(t.TempDir(), "server", "bot", "model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &conversation{id: 1, scheduledRun: true, key: threadKey{"room", "root"}, provider: "test"}
+	if err := s.save(c, false); err != nil {
+		t.Fatal(err)
+	}
+	c.key = threadKey{"another-room", ""}
+	if err := s.save(c, false); err != nil {
+		t.Fatal("schedule destination change rejected", err)
+	}
+	c.scheduledRun = false
+	c.key = threadKey{"room", "unrelated-thread"}
+	if err := s.save(c, false); err == nil {
+		t.Fatal("ordinary conversation overwrote schedule history")
+	}
+}
+
 func TestLegacySnapshotGetsStableHumanID(t *testing.T) {
 	s, err := OpenStore(t.TempDir(), "server", "bot", "model")
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/scheduler"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/subagent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
@@ -31,6 +32,7 @@ const transcriptLimit = 1 << 20
 type Client interface {
 	ObserveMessages(context.Context, string, func(), func(context.Context, chatto.MessageEvent) error) error
 	Thread(context.Context, string, string, string) (chatto.Page, error)
+	Timeline(context.Context, string, string, string) (chatto.TimelinePage, error)
 	Profiles(context.Context, []string) (map[string]chatto.Profile, error)
 	Reply(context.Context, string, string, string, string, string) error
 	React(context.Context, string, string, string) error
@@ -42,40 +44,46 @@ type ModelFactory func(string, func(agent.Usage)) agent.Complete
 
 type threadKey struct{ room, root string }
 type conversation struct {
-	unloaded bool // metadata only; hydrate before binding or running work
+	scheduledRun bool // inspector history only; never restored as a user conversation
+	scheduled    *scheduler.Definition
+	scheduler    *scheduler.Manager
+	unloaded     bool // metadata only; hydrate before binding or running work
 	// Shared membership index allows intake to scope invalidations while the
 	// worker owns the transcript. Ready is false while a snapshot is loading.
-	contextIDs        sync.Map
-	contextReady      atomic.Bool
-	id                uint64
-	humanID           string
-	title             string
-	titleAttempted    bool
-	records           []inspection.Turn // owned by the manager when idle, by the worker during a turn
-	emitInspection    func(inspection.Turn)
-	logMu             sync.Mutex
-	logs              []inspection.Log
-	queuedAt          time.Time
-	identity          agent.Identity
-	ownerUserIDs      []string // current startup config; never inherited from a session or thread
-	memory            *memory.Manager
-	tools             []agent.Tool // immutable startup capabilities, shared by conversations
-	subagents         *subagent.Manager
-	childRuns         map[string]*subagent.Run // private child transcripts, scoped to this thread
-	jobs              *subagent.Background
-	childReady        []string
-	childSteps        map[string]int
-	childUsageApplied map[string]int
-	accountUsage      func(agent.Usage)
-	reportUsage       func(agent.Usage)
-	limits            agent.Limits
-	maxDelegations    int
-	systemPrompt      string
-	key               threadKey
-	model             *agent.Session
-	complete          agent.Complete
-	seen              map[string]bool   // worker-owned IDs already supplied to the model
-	current           map[string]string // fingerprints for offline edit/deletion detection
+	contextIDs         sync.Map
+	contextReady       atomic.Bool
+	id                 uint64
+	humanID            string
+	title              string
+	titleAttempted     bool
+	records            []inspection.Turn // owned by the manager when idle, by the worker during a turn
+	emitInspection     func(inspection.Turn)
+	logMu              sync.Mutex
+	logs               []inspection.Log
+	queuedAt           time.Time
+	identity           agent.Identity
+	ownerUserIDs       []string // current startup config; never inherited from a session or thread
+	memory             *memory.Manager
+	tools              []agent.Tool // immutable startup capabilities, shared by conversations
+	subagents          *subagent.Manager
+	childRuns          map[string]*subagent.Run // private child transcripts, scoped to this thread
+	jobs               *subagent.Background
+	childReady         []string
+	childSteps         map[string]int
+	childUsageApplied  map[string]int
+	accountUsage       func(agent.Usage)
+	reportUsage        func(agent.Usage)
+	limits             agent.Limits
+	maxDelegations     int
+	systemPrompt       string
+	key                threadKey
+	model              *agent.Session
+	contextModel       *agent.Session // delta cache is valid only for this transcript
+	catalogContext     string
+	participantContext map[string]participantProfile
+	complete           agent.Complete
+	seen               map[string]bool   // worker-owned IDs already supplied to the model
+	current            map[string]string // fingerprints for offline edit/deletion detection
 	// editCheck prevents delivery while intake verifies a metadata-only edit.
 	editCheck            sync.RWMutex
 	pending              []chatto.MessageEvent // manager-owned while the worker runs
@@ -104,6 +112,8 @@ type result struct {
 
 // Options supplies optional persistence and operator-authored instructions.
 type Options struct {
+	// Scheduler supplies durable cron tasks; nil disables scheduling.
+	Scheduler *scheduler.Manager
 	// Shutdown requests graceful exit after the active turn, without starting
 	// queued turns. Context cancellation still interrupts work immediately.
 	Shutdown <-chan struct{}
@@ -149,6 +159,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		opts.Debounce = batchWindow
 	}
 	store := opts.Store
+	if opts.Scheduler != nil && store == nil {
+		return errors.New("scheduler requires persistent session storage")
+	}
 	// Detach from the caller's mutable configuration slice.
 	owners := append([]string(nil), opts.OwnerUserIDs...)
 	loaded, err := store.loadIndex(ctx)
@@ -259,6 +272,7 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		c.identity = agent.Identity{ID: profile.ID, Login: profile.Login, DisplayName: profile.DisplayName}
 		c.ownerUserIDs = owners
 		c.memory = opts.Memory
+		c.scheduler = opts.Scheduler
 		c.tools = append([]agent.Tool(nil), opts.Tools...)
 		c.subagents = opts.Subagents
 		c.limits, c.maxDelegations = opts.Limits, opts.MaxDelegations
@@ -309,8 +323,16 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 		}
 		bind(c)
 	}
+	scheduledIDs := map[string]uint64{}
+	scheduledHistory := map[string]*conversation{}
 	for _, c := range loaded {
-		sessions[c.key] = c
+		if c.scheduledRun {
+			scheduledIDs[c.humanID] = c.id
+			scheduledHistory[c.humanID] = c
+		}
+		if !c.scheduledRun {
+			sessions[c.key] = c
+		}
 		nextID = max(nextID, c.id)
 		human := c.humanID
 		emit(tui.Event{Kind: tui.Started, Session: c.id, HumanID: human, Title: c.title, At: c.started, Turns: c.turns, LoadDetails: func(before int) (inspection.Page, error) { return store.inspectionPage(inspectionCtx, human, before) }})
@@ -334,6 +356,10 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 	recoveryGap := false
 	shutdown := opts.Shutdown
 	draining := false
+	// The same serial worker executes user and scheduled turns.
+	scheduleTick := time.NewTicker(time.Second)
+	defer scheduleTick.Stop()
+	var scheduledPending *conversation
 	for {
 		if err := store.trimRuntime(sessions, active); err != nil {
 			return err
@@ -387,12 +413,65 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 					next = c
 				}
 			}
+			if !draining && scheduledPending != nil && (next == nil || scheduledPending.deadline.Before(next.deadline)) {
+				next = scheduledPending
+			}
 			if next != nil {
 				timer = time.NewTimer(max(0, time.Until(next.deadline)))
 				wake = timer.C
 			}
 		}
 		select {
+		case now := <-scheduleTick.C:
+			if timer != nil {
+				timer.Stop()
+			}
+			if draining || !connected || active != nil || scheduledPending != nil || opts.Scheduler == nil {
+				continue
+			}
+			select {
+			case <-shutdown:
+				draining = true
+				shutdown = nil
+				continue
+			default:
+			}
+			d, err := opts.Scheduler.Claim(now, owners)
+			if err != nil {
+				return err
+			}
+			if d == nil {
+				continue
+			}
+			human := humanID("schedule:" + d.ID)
+			id := scheduledIDs[human]
+			if id == 0 {
+				nextID++
+				id = nextID
+				scheduledIDs[human] = id
+			}
+			c := &conversation{id: id, humanID: human, key: threadKey{d.Destination.Room, d.Destination.Thread}, started: now, used: now, queuedAt: now, deadline: now, scheduledRun: true, scheduled: d, title: "Scheduled: " + d.Title, titleAttempted: true}
+			if previous := scheduledHistory[human]; previous != nil {
+				old, err := store.hydrate(previous)
+				if err != nil {
+					return err
+				}
+				c.records = old.records
+				c.turns = old.turns
+				c.usage = old.usage
+				c.started = old.started
+			}
+			initialize(c)
+			c.jobs.Close()
+			c.limits = agent.Limits{MaxToolCalls: 30, MaxModelSteps: 40}
+			if opts.Limits.MaxToolCalls > 0 {
+				c.limits.MaxToolCalls = min(c.limits.MaxToolCalls, opts.Limits.MaxToolCalls)
+			}
+			if opts.Limits.MaxModelSteps > 0 {
+				c.limits.MaxModelSteps = min(c.limits.MaxModelSteps, opts.Limits.MaxModelSteps)
+			}
+			scheduledPending = c
+			emit(tui.Event{Kind: tui.Started, Session: c.id, HumanID: human, Title: c.title, At: now, LoadDetails: func(before int) (inspection.Page, error) { return store.inspectionPage(inspectionCtx, human, before) }})
 		case <-childWake:
 			if timer != nil {
 				timer.Stop()
@@ -431,6 +510,17 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			}
 			intake = &in
 			e := in.event
+			if active != nil && active.scheduledRun {
+				if e.RecoveryGap {
+					stopTurn(invalidatedTurn("Cancelled: realtime replay gap during scheduled work"))
+				} else if active.affectedBy(e, true, nil) {
+					active.editCheck.Lock()
+					if e.InvalidationReason != chatto.MessageEdited || !active.unchangedEdit(ctx, client, e, nil) {
+						stopTurn(invalidationCause(e))
+					}
+					active.editCheck.Unlock()
+				}
+			}
 			if e.RecoveryGap {
 				connected = false
 				recoveryGap = true
@@ -611,6 +701,9 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			default:
 			}
 			c := next
+			if c.scheduledRun {
+				scheduledPending = nil
+			}
 			batch := c.pending
 			if draining {
 				batch = nil
@@ -627,8 +720,12 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			active = c
 			deadlineCtx := ctx
 			deadlineCancel := func() {}
-			if opts.TurnTimeout > 0 {
-				deadlineCtx, deadlineCancel = context.WithTimeout(ctx, opts.TurnTimeout)
+			timeout := opts.TurnTimeout
+			if c.scheduledRun && (timeout == 0 || timeout > 5*time.Minute) {
+				timeout = 5 * time.Minute
+			}
+			if timeout > 0 {
+				deadlineCtx, deadlineCancel = context.WithTimeout(ctx, timeout)
 			}
 			turnCtx, turnCancel := context.WithCancelCause(deadlineCtx)
 			stopTurn = turnCancel
@@ -642,7 +739,11 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				record.Inputs = append(record.Inputs, inspection.Input{Text: string(body), Addressed: e.Addressed})
 			}
 			if len(batch) == 0 {
-				record.Inputs = append(record.Inputs, inspection.Input{Text: "Background investigation completed (host event)"})
+				text := "Background investigation completed (host event)"
+				if c.scheduledRun {
+					text = "Scheduled task: " + c.scheduled.Task
+				}
+				record.Inputs = append(record.Inputs, inspection.Input{Text: text})
 			}
 			c.records = inspection.Retain(append(c.records, record))
 			c.inspect(func(*inspection.Turn) {})
@@ -657,7 +758,12 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 				defer workers.Done()
 				defer deadlineCancel()
 				defer turnCancel(nil)
-				err := respond(turnCtx, client, c, batch, func(text string) { c.send(emit, tui.Event{Kind: tui.Log, Session: c.id, Text: text}) })
+				var err error
+				if c.scheduledRun {
+					err = respondScheduled(turnCtx, client, c)
+				} else {
+					err = respond(turnCtx, client, c, batch, func(text string) { c.send(emit, tui.Event{Kind: tui.Log, Session: c.id, Text: text}) })
+				}
 				if err == nil && opts.Titles != nil && c.title == "" && !c.titleAttempted && turnCtx.Err() == nil {
 					c.titleAttempted = true
 					if saveErr := store.save(c, false); saveErr != nil {
@@ -716,6 +822,19 @@ func Run(ctx context.Context, client Client, profile chatto.Profile, factory Mod
 			activeBatch = nil
 			stopTurn = nil
 			c := done.c
+			if c.scheduledRun {
+				scheduledHistory[c.humanID] = indexFor(c, false).stub()
+				status := "complete"
+				if done.err != nil {
+					status = "failed"
+				}
+				if len(c.records) > 0 && c.records[len(c.records)-1].State == "silent" {
+					status = "silent"
+				}
+				if err := opts.Scheduler.Finish(*c.scheduled, status); err != nil {
+					return err
+				}
+			}
 			c.used = time.Now()
 			if c.reset {
 				initialize(c)
@@ -758,6 +877,9 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	stopTyping := startTyping(ctx, client, c.key)
 	defer stopTyping()
 	tools := append(c.memory.Tools(c.ownerOnlyBatch(batch)), c.tools...)
+	if len(batch) > 0 {
+		tools = append(tools, c.scheduler.Tools(c.key.room, c.key.root, batch[0].Message.ActorID, c.ownerOnlyBatch(batch))...)
+	}
 	images := &turnImages{}
 	if _, ok := client.(imageClient); ok {
 		tools = append(tools, images.tool(client, c))
@@ -794,6 +916,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	access := toolAccess(len(batch) > 0, c.ownerOnlyBatch(batch), tools)
 	tools = append(tools, searchTool(tools, access))
 	ctx = agent.WithTools(ctx, tools)
+	ctx = agent.WithToolDiscovery(ctx, "tool_search", "post_update", "defer_response")
 	ctx = agent.WithLimits(ctx, c.limits)
 	defer func() {
 		if err := c.syncChildren(); err != nil {
@@ -908,6 +1031,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		}
 		refreshed = nil
 	} else if c.resumed {
+		c.contextModel = nil
 		// Reauthorize and refresh after restart or an unrecoverable replay gap.
 		snapshot, err := read(ctx)
 		if err != nil {
@@ -935,6 +1059,17 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		c.resumed = false
 	}
 	initializing = false
+	if c.contextModel != c.model {
+		c.catalogContext = ""
+		c.participantContext = map[string]participantProfile{}
+		c.contextModel = c.model
+	}
+	// Failed turns can roll back model input. Resend context after any failure.
+	defer func() {
+		if turnErr != nil {
+			c.contextModel = nil
+		}
+	}()
 	var target chatto.Message
 	for _, id := range completed {
 		if r := c.childRuns[id]; r != nil {
@@ -950,18 +1085,21 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		Addressed      []string             `json:"addressedMessageIds"`
 		Triggers       []string             `json:"triggerMessageIds"`
 		Authors        []triggerAuthor      `json:"triggerAuthors"`
-		Brains         json.RawMessage      `json:"brainCatalog"`
-		Participants   []participantProfile `json:"participants"`
+		Brains         json.RawMessage      `json:"brainCatalog,omitempty"`
+		Participants   []participantProfile `json:"participants,omitempty"`
 		Investigations []map[string]any     `json:"investigations,omitempty"`
 		Completed      []string             `json:"completedInvestigations,omitempty"`
-	}{CurrentTime: time.Now().UTC().Format(time.RFC3339), ToolGuidance: toolSearchReminder + " " + access}
+	}{CurrentTime: time.Now().UTC().Format(time.RFC3339), ToolGuidance: toolSearchReminder}
 	input.Investigations = c.jobs.Context()
 	input.Completed = completed
 	catalog, catalogErr := c.memory.Catalog(ctx)
 	if catalogErr != nil {
 		return catalogErr
 	}
-	input.Brains = json.RawMessage(catalog)
+	if catalog != c.catalogContext {
+		input.Brains = json.RawMessage(catalog)
+		c.catalogContext = catalog
+	}
 	for _, event := range batch {
 		m := event.Message
 		participantIDs = append(participantIDs, m.ActorID)
@@ -984,7 +1122,12 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	if target.ID == "" {
 		return errors.New("batch has no message")
 	}
-	input.Participants = resolveParticipants(ctx, client, participantIDs)
+	for _, profile := range resolveParticipants(ctx, client, participantIDs) {
+		if previous, ok := c.participantContext[profile.UserID]; !ok || previous != profile {
+			input.Participants = append(input.Participants, profile)
+			c.participantContext[profile.UserID] = profile
+		}
+	}
 	data, err := json.Marshal(input)
 	if err != nil {
 		return err
@@ -1004,7 +1147,7 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		index := c.step("model", "Completion")
 		// Preserve per-completion controls, including the final text-only
 		// budget wrap-up, instead of replacing them with the turn context.
-		result, err := c.complete(ctx, images.request(messages))
+		result, err := c.inspectCompletion(ctx, index, images.request(messages))
 		if c.storeErr != nil {
 			c.finishStep(index, "failed", "Usage checkpoint failed")
 			return nil, c.storeErr

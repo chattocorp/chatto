@@ -167,7 +167,8 @@ func (c *Client) Thread(ctx context.Context, room, root, after string) (Page, er
 	return p, nil
 }
 
-// Reply posts once to the supplied thread. Supply a UUID to allow an exact retry
+// Reply posts once to the supplied thread, or to the room when root and replyTo
+// are both empty. Supply a UUID to allow an exact retry
 // within the server's idempotency window after an uncertain result. An empty key
 // generates a fresh UUID for this call; do not retry that call automatically.
 func (c *Client) Reply(ctx context.Context, room, root, replyTo, body, key string) error {
