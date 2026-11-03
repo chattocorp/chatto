@@ -658,6 +658,8 @@ with the theme's `surface` colour at 50% opacity. Its positioned parent uses
 `group/preview`. Mouse hover and keyboard focus reveal the toolbar. Touch
 devices keep it visible. Only visible controls intercept pointer input; the rest
 of the visor lets clicks reach the links and media below it.
+When the positioned parent is the content canvas inside the rim, set
+`--preview-toolbar-inset: 0px` on that parent so the visor meets the canvas edges.
 Use `layout="row"` for file and audio actions that stay in the normal layout.
 The card owns action permissions, callbacks, and confirmation dialogs.
 `PreviewAction` uses the same `icon-action-emphasis` utility as standard icon
@@ -676,7 +678,10 @@ visual composer. Keep its geometry in `app.css`, rather than separate editor
 and message recipes. `code-frame` adds the artifact layout to this primitive;
 the thin header holds the language, copy action, and Source/Render controls.
 Source and rendered panels use `preview-content`. Visual fences show only their
-output, with no header, tabs, copy action or overlay. SVG and Mermaid show fitted
+output, with no header, tabs or copy action. Animated SVG adds a playback toggle
+through `PreviewToolbar` and `PreviewAction`. Its accessible name stays
+**Pause animation**; `aria-pressed` exposes the pause state. The zoom viewer puts
+this toggle beside its zoom controls. SVG and Mermaid show fitted
 images that open the attachment viewer when clicked or activated with the keyboard.
 Their frames follow the image dimensions, bounded by the message width and a
 height of 30 rem or 60 vh, whichever is smaller. Enlarge small artwork to use the

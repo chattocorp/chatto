@@ -12,6 +12,86 @@ vi.mock('$app/navigation', () => ({ pushState, goto: vi.fn() }));
 const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"/>')}`;
 
 describe('RenderedImage', () => {
+  it('keeps the visual frame fitted while an animated poster is loading', async () => {
+    const host = document.createElement('div');
+    host.className = 'prose';
+    host.style.width = '900px';
+    const frame = document.createElement('div');
+    frame.className = 'markdown-code-frame';
+    frame.dataset.presentation = 'visual';
+    const panel = document.createElement('div');
+    panel.dataset.codePanel = 'render';
+    frame.append(panel);
+    host.append(frame);
+    document.body.append(host);
+    const image = new Image();
+    // Hold the first load so the component must reserve the known dimensions.
+    const view = render(RenderedImage, {
+      target: panel,
+      props: {
+        image,
+        initialSize: { width: 100, height: 200 },
+        svgSource:
+          '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200"><circle r="8"><animate attributeName="cy" values="10;190" dur="4s"/></circle></svg>'
+      }
+    });
+    try {
+      expect(panel.querySelector('iframe')).toBeNull();
+      const loadingWidth = frame.getBoundingClientRect().width;
+      expect(loadingWidth).toBeLessThan(300);
+      image.src =
+        'data:image/svg+xml,' +
+        encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200"/>');
+      await expect.poll(() => panel.querySelector('iframe')).toBeTruthy();
+      expect(frame.getBoundingClientRect().width).toBeCloseTo(loadingWidth, 0);
+    } finally {
+      await view.unmount();
+      host.remove();
+    }
+  });
+
+  it('keeps animation playback controls in the viewer footer when zooming', async () => {
+    const svgSource =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="10" y="20">動き 🙂</text><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle></svg>';
+    const view = render(RenderedImageViewerModal, {
+      modal: {
+        type: 'renderedImageViewer',
+        alt: 'Moving circle',
+        svgSource
+      },
+      onclose: vi.fn()
+    });
+    try {
+      await expect
+        .poll(() =>
+          document
+            .querySelector<HTMLIFrameElement>('dialog iframe')
+            ?.contentDocument?.querySelector('svg')
+        )
+        .toBeTruthy();
+      const control = document.querySelector<HTMLButtonElement>(
+        'dialog [aria-label="Pause animation"]'
+      )!;
+      expect(control.closest('[data-image-controls]')).not.toBeNull();
+      const poster = document.querySelector<HTMLImageElement>('dialog img')!;
+      expect(decodeURIComponent(poster.src.split(',')[1])).not.toContain('<animate');
+      const download = document.querySelector<HTMLAnchorElement>('dialog a[download]')!;
+      expect(decodeURIComponent(download.href.split(',')[1])).toBe(svgSource);
+      await userEvent.click(control);
+      const root = document
+        .querySelector<HTMLIFrameElement>('dialog iframe')!
+        .contentDocument!.querySelector('svg')!;
+      const paused = root.animationsPaused();
+      expect(control.getAttribute('aria-pressed')).toBe(String(paused));
+      await userEvent.click(document.querySelector('dialog [aria-label="Zoom in"]')!);
+      expect(root.animationsPaused()).toBe(paused);
+      expect(control.getAttribute('aria-pressed')).toBe(String(paused));
+      expect(document.querySelector('dialog output')?.textContent).toBe('125%');
+    } finally {
+      await view.unmount();
+    }
+  });
+
   it('leaves scrolling alone and opens the shared viewer through shallow routing', async () => {
     const image = new Image();
     image.src = src;

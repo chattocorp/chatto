@@ -19,8 +19,15 @@ export type ChatModal =
       sources: Array<{ name: string; origin: string }>;
     }
   | { type: 'motd'; motd: string }
-  /** Local SVG image snapshot; history can reopen it without the original preview. */
-  | { type: 'renderedImageViewer'; src: string; alt: string }
+  /** Local diagram snapshot. Keep one source in history; derive download URLs in the viewer. */
+  | ({
+      type: 'renderedImageViewer';
+      alt: string;
+    } & (
+      | { src: string; svgSource?: never }
+      /** Sanitized SVG for the scriptless playback frame, when the image animates. */
+      | { src?: never; svgSource: string }
+    ))
   /** Rendered by the active invitation-code table that opened it. */
   | { type: 'createInvitationCode'; serverId: string; creatorId: string }
   /** Rendered by the active room's notice panel so access loss also removes its draft. */

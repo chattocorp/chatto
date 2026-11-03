@@ -1955,7 +1955,10 @@
 
 @utility preview-toolbar {
   /* Use the theme surface so the visor follows light, dark, and contrast settings. */
-  @apply pointer-events-none absolute inset-x-1 top-1 z-10 flex items-center justify-end gap-1 rounded-t-md bg-surface/50 p-1 transition-opacity feedback-quick;
+  @apply pointer-events-none absolute z-10 flex items-center justify-end gap-1 rounded-t-md bg-surface/50 p-1 transition-opacity feedback-quick;
+  /* A toolbar inside the content canvas has already passed the frame's rim. */
+  inset-inline: var(--preview-toolbar-inset, calc(var(--spacing) * 1));
+  top: var(--preview-toolbar-inset, calc(var(--spacing) * 1));
   @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0;
 
   /* Only the controls intercept clicks; links and media under the visor stay usable. */

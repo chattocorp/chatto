@@ -14,6 +14,15 @@
 
   // Storybook has no app layout or router; mirror the modal owner for this preview.
   let modal = $state<RenderedImageViewerModalState>();
+  /** Route the navigation mock's event to this mounted prototype story. */
+  function animationNavigation() {
+    const open = (event: Event) => {
+      const [, state] = (event as CustomEvent<[string, App.PageState]>).detail;
+      if (state.modal?.type === 'renderedImageViewer') modal = state.modal;
+    };
+    window.addEventListener('storybook:pushState', open);
+    return () => window.removeEventListener('storybook:pushState', open);
+  }
   const parameters = {
     sveltekit_experimental: {
       navigation: {
@@ -50,7 +59,37 @@
     )
   }));
   const smallMermaidHtml = renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```');
+  const animationHtml = renderMarkdown(
+    '```svg rendered\n' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240" viewBox="0 0 640 240">' +
+      '<rect width="640" height="240" rx="12" fill="#164e63"/>' +
+      '<text x="32" y="46" fill="#cffafe" font-family="sans-serif" font-size="20">SVG animation playback</text>' +
+      '<path d="M60 128H580" stroke="#67e8f9" stroke-width="2"/>' +
+      '<circle cx="60" cy="128" r="18" fill="#fbbf24"><animate attributeName="cx" values="60;580;60" dur="6s" repeatCount="indefinite"/></circle>' +
+      '<g transform="translate(320 196)"><rect x="-12" y="-12" width="24" height="24" fill="#a5f3fc"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/></rect></g>' +
+      '</svg>\n```'
+  );
 </script>
+
+<Story
+  name="SVG animation playback"
+  {parameters}
+  asChild
+  play={async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('iframe')?.contentDocument?.querySelector('svg')
+      ).toBeTruthy()
+    );
+  }}
+>
+  <div class="prose w-full max-w-2xl" {@attach animationNavigation}>
+    {#await animationHtml then value}<MarkdownHtml html={value} />{/await}
+  </div>
+  {#if modal}
+    <RenderedImageViewerModal {modal} onclose={() => (modal = undefined)} />
+  {/if}
+</Story>
 
 <Story name="Code and visual intent" {parameters} asChild>
   <div class="prose w-full max-w-2xl">

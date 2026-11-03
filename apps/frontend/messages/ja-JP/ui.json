@@ -71,6 +71,7 @@
       "zoom_in": "拡大",
       "zoom_out": "縮小",
       "fit": "画面に合わせる",
+      "pause_animation": "アニメーションを一時停止",
       "details": "詳細",
       "file_type": "ファイルの種類"
     },

@@ -32,6 +32,91 @@ import { testSnippet } from '$lib/test-utils';
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Sanitized SVG previews', () => {
+  it.each(['blocked', 'missing-policy'])(
+    'reveals source for a %s animation frame',
+    async (failure) => {
+      const documentGetter = Object.getOwnPropertyDescriptor(
+        HTMLIFrameElement.prototype,
+        'contentDocument'
+      )!.get!;
+      const blockedFrame = vi
+        .spyOn(HTMLIFrameElement.prototype, 'contentDocument', 'get')
+        .mockImplementation(function (this: HTMLIFrameElement) {
+          const frameDocument: Document | null = documentGetter.call(this);
+          if (this.getAttribute('sandbox') !== 'allow-same-origin') return frameDocument;
+          if (failure === 'blocked') return null;
+          frameDocument?.querySelector('meta[http-equiv="Content-Security-Policy"]')?.remove();
+          return frameDocument;
+        });
+      const source =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle r="8"><animate attributeName="cx" values="10;190" dur="60s" repeatCount="indefinite"/></circle></svg>';
+      const view = render(MarkdownHtml, {
+        html: await renderMarkdown('```svg rendered\n' + source + '\n```')
+      });
+      try {
+        await expect
+          .poll(
+            () =>
+              view.container.querySelector<HTMLButtonElement>('[data-code-tab="render"]')?.disabled
+          )
+          .toBe(true);
+        expect(view.container.querySelector('iframe')).toBeNull();
+        expect(view.container.querySelector<HTMLElement>('.markdown-code-error')?.hidden).toBe(
+          false
+        );
+        expect(view.container.querySelector('code')?.textContent).toContain(source);
+      } finally {
+        blockedFrame.mockRestore();
+        await view.unmount();
+      }
+    }
+  );
+
+  it('keeps the frame when unchanged HTML and owner props are assigned again', async () => {
+    const html = await renderMarkdown(
+      '```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle r="8"><animate attributeName="cx" values="10;190" dur="60s" repeatCount="indefinite"/></circle></svg>\n```'
+    );
+    const artifactOwner = {};
+    const view = render(MarkdownHtml, { html, artifactOwner });
+    try {
+      await expect
+        .poll(() => view.container.querySelector('iframe')?.contentDocument?.querySelector('svg'))
+        .toBeTruthy();
+      const frame = view.container.querySelector('iframe')!;
+      const svg = frame.contentDocument!.querySelector('svg');
+      await view.rerender({ html, artifactOwner });
+      await new Promise(requestAnimationFrame);
+      expect(view.container.querySelector('iframe')).toBe(frame);
+      expect(frame.contentDocument!.querySelector('svg')).toBe(svg);
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('offers playback on animated SVG and passes sanitized source to the zoom viewer', async () => {
+    const source =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle><script>alert(1)</script></svg>';
+    const html = await renderMarkdown('```svg rendered\n' + source + '\n```');
+    const view = render(MarkdownHtml, { html });
+    await expect
+      .poll(() => view.container.querySelector('iframe')?.contentDocument?.querySelector('svg'))
+      .toBeTruthy();
+    const playback = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Pause animation"]'
+    )!;
+    expect(playback).not.toBeNull();
+    await userEvent.click(playback);
+    await userEvent.click(
+      view.container.querySelector<HTMLButtonElement>('button.rendered-image')!
+    );
+    const modal = navigationMocks.pushState.mock.lastCall![1].modal;
+    expect(modal.svgSource).toContain('<animate');
+    expect(modal.svgSource).not.toContain('<script');
+    expect(modal).not.toHaveProperty('src');
+    const poster = view.container.querySelector<HTMLImageElement>('img')!;
+    expect(decodeURIComponent(poster.src.split(',')[1])).not.toContain('<animate');
+  });
+
   it('uses sanitized SVG for the preview and viewer while retaining the original source', async () => {
     const source =
       '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><script>alert(1)</script><rect width="20" height="20" fill="red" onload="alert(1)"/></svg>';
@@ -47,7 +132,7 @@ describe('Sanitized SVG previews', () => {
     expect(
       container.querySelector<HTMLElement>('[data-artifact-source]')?.dataset.artifactSource
     ).toContain(source);
-    await userEvent.click(container.querySelector<HTMLButtonElement>('.rendered-image')!);
+    await userEvent.click(container.querySelector<HTMLButtonElement>('button.rendered-image')!);
     expect(navigationMocks.pushState).toHaveBeenLastCalledWith('', {
       modal: { type: 'renderedImageViewer', src: image.src, alt: 'SVG' }
     });
