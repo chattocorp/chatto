@@ -1,13 +1,20 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
 Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely. Groups can also contain sidebar links: operator-managed links rendered in the same ordered sidebar section as rooms.
 
 ## Behavior
+
+- Administrative integrations read group metadata separately from complete
+  ordered entries. A group manager can read the complete group layout,
+  including archived rooms, without server-wide management authority.
+  Permission editors without group-management authority can read metadata
+  but not entries. A link read identifies its owning group and requires that
+  group's management authority. Existing client calls remain supported.
 
 - In the mobile drawer layout, swipes that start within 24 CSS pixels of either
   physical viewport edge do not open or close the sidebar. This leaves edge

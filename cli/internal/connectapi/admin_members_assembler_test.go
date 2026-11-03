@@ -40,6 +40,9 @@ func TestAdminMemberBatchAvoidsPresenceKVReads(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := env.adminUsers.BatchGetUsers(ctx, connect.NewRequest(&adminv1.BatchGetUsersRequest{UserIds: []string{env.viewer.Id}})); err != nil {
+		t.Fatal(err)
+	}
 	if err := env.nc.Flush(); err != nil {
 		t.Fatal(err)
 	}

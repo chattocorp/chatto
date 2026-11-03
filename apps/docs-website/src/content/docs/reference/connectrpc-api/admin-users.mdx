@@ -20,12 +20,117 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Server-admin user management commands and member-detail reads.
 
+<a id="chatto-admin-v1-AdminUserService-ListUsers"></a>
+
+### ListUsers
+
+Lists administrative user IDs. Requires admin.view-users.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/ListUsers
+```
+
+<a id="chatto-admin-v1-ListUsersRequest"></a>
+
+#### Input: ListUsersRequest
+
+Request administrative user IDs in creation order, oldest first. Accounts
+without a creation time follow, ordered by case-insensitive login. IDs break ties.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Case-insensitive login/display-name search. Empty selects all accounts. |
+| `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Default limit 20; maximum 100. Offsets count IDs, not hydrated records. |
+
+
+<a id="chatto-admin-v1-ListUsersResponse"></a>
+
+#### Result: ListUsersResponse
+
+One live page of user IDs. Changes between requests can shift offsets.
+Hydrate with BatchGetUsers and advance by the number of returned IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Matching IDs in list order. |
+| `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Count and continuation information for the selected accounts. |
+
+
+<a id="chatto-admin-v1-AdminUserService-GetUser"></a>
+
+### GetUser
+
+Gets one administrative account without catalogues or editor state.
+Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/GetUser
+```
+
+<a id="chatto-admin-v1-GetUserRequest"></a>
+
+#### Input: GetUserRequest
+
+Request one administrative account by ID or login.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target.user_id` | `string` | Stable user ID. |
+| `target.login` | `string` | Login identifier. |
+
+
+<a id="chatto-admin-v1-GetUserResponse"></a>
+
+#### Result: GetUserResponse
+
+One account without related catalogues or editor state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminUser) | Requested account. |
+
+
+<a id="chatto-admin-v1-AdminUserService-BatchGetUsers"></a>
+
+### BatchGetUsers
+
+Gets administrative accounts in first-seen request order. Requires
+admin.view-users. Unknown or deleted users are omitted; repeated IDs are
+returned once. The whole request fails if access or account hydration fails.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/BatchGetUsers
+```
+
+<a id="chatto-admin-v1-BatchGetUsersRequest"></a>
+
+#### Input: BatchGetUsersRequest
+
+Request administrative accounts for a bounded set of IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Unknown or deleted users are omitted. Repeated IDs are returned once. |
+
+
+<a id="chatto-admin-v1-BatchGetUsersResponse"></a>
+
+#### Result: BatchGetUsersResponse
+
+Found accounts in first-seen request order, with the same fields and access
+rules as GetUser. No role catalogue or other related resources are included.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`AdminUser`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminUser) | Requested accounts that still exist. |
+
+
 <a id="chatto-admin-v1-AdminUserService-ListMembers"></a>
 
 ### ListMembers
 
-Lists server members for the admin members screen. Requires
-admin.view-users.
+Compatibility account-ID read. New integrations use ListUsers.
+Requires admin.view-users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/ListMembers
@@ -63,7 +168,8 @@ omitted by a later batch read.
 
 ### GetMember
 
-Gets one server member plus role/permission metadata for admin details.
+Compatibility detail bootstrap with role/permission editor metadata.
+New integrations use GetUser and the separate role and permission reads.
 Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -105,7 +211,8 @@ Server-admin member detail payload.
 
 ### BatchGetMembers
 
-Gets server member rows for multiple users. Requires admin.view-users.
+Compatibility account rows with a role catalogue. New integrations use
+BatchGetUsers. Requires admin.view-users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/BatchGetMembers
@@ -200,6 +307,7 @@ Result of assigning a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `assignment` | [`UserRoleAssignment`](/reference/connectrpc-api/types/#chatto-admin-v1-UserRoleAssignment) | Canonical command outcome. Read GetUserRoleAssignments for current limits. |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
@@ -234,6 +342,7 @@ Result of revoking a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `assignment` | [`UserRoleAssignment`](/reference/connectrpc-api/types/#chatto-admin-v1-UserRoleAssignment) | Canonical command outcome, independent of administrative account access. |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
@@ -364,4 +473,5 @@ No message description provided.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `profile` | [`chatto.api.v1.User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated public profile, available under the command's existing authority. |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated administrative member record. |

@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, GetUserRoleAssignmentsRequest, GetUserRoleAssignmentsResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
+import { BatchGetUsersRequest, BatchGetUsersResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse } from "./users_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, GetUserRoleAssignmentsRequest, GetUserRoleAssignmentsResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
 
 /**
  * Server-admin user management commands and member-detail reads.
@@ -15,8 +16,44 @@ export const AdminUserService = {
   typeName: "chatto.admin.v1.AdminUserService",
   methods: {
     /**
-     * Lists server members for the admin members screen. Requires
-     * admin.view-users.
+     * Lists administrative user IDs. Requires admin.view-users.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.ListUsers
+     */
+    listUsers: {
+      name: "ListUsers",
+      I: ListUsersRequest,
+      O: ListUsersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one administrative account without catalogues or editor state.
+     * Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.GetUser
+     */
+    getUser: {
+      name: "GetUser",
+      I: GetUserRequest,
+      O: GetUserResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets administrative accounts in first-seen request order. Requires
+     * admin.view-users. Unknown or deleted users are omitted; repeated IDs are
+     * returned once. The whole request fails if access or account hydration fails.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.BatchGetUsers
+     */
+    batchGetUsers: {
+      name: "BatchGetUsers",
+      I: BatchGetUsersRequest,
+      O: BatchGetUsersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Compatibility account-ID read. New integrations use ListUsers.
+     * Requires admin.view-users.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ListMembers
      */
@@ -27,7 +64,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one server member plus role/permission metadata for admin details.
+     * Compatibility detail bootstrap with role/permission editor metadata.
+     * New integrations use GetUser and the separate role and permission reads.
      * Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.GetMember
@@ -39,7 +77,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets server member rows for multiple users. Requires admin.view-users.
+     * Compatibility account rows with a role catalogue. New integrations use
+     * BatchGetUsers. Requires admin.view-users.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.BatchGetMembers
      */

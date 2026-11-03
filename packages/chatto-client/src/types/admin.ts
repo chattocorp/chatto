@@ -22,3 +22,4 @@ export * from '@chatto/api-types/admin/v1/room_layout_connect';
 export * from '@chatto/api-types/admin/v1/room_layout_pb';
 export * from '@chatto/api-types/admin/v1/server_connect';
 export * from '@chatto/api-types/admin/v1/server_pb';
+export * from '@chatto/api-types/admin/v1/users_pb';

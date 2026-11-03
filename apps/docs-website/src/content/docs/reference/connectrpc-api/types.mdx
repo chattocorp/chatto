@@ -1751,11 +1751,53 @@ Role metadata plus administrative permission state.
 | `permissions` | `repeated string` | Permissions granted by this role. |
 | `permission_denials` | `repeated string` | Permissions denied by this role. |
 
+<a id="chatto-admin-v1-AdminUser"></a>
+
+### AdminUser
+
+Administrative account data, available with admin.view-users. Role catalogues,
+assignment limits, and permission editors have separate reads. The public
+profile is canonical, including its deactivated flag.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | `chatto.api.v1.User` | Public user profile. |
+| `role_names` | `repeated string` | Explicit assigned role names. The implicit everyone role is omitted. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time, when known. |
+| `verified_emails` | `repeated string` | Verified email addresses. An empty list means there are none. |
+| `primary_verified_email` | `optional string` | Primary verified email. Absent when none is selected. |
+| `username_cooldown` | [`AdminUsernameCooldown`](#chatto-admin-v1-AdminUsernameCooldown) | Present only for the account itself or callers with user.manage-accounts. Absent means hidden or not reported by this server. A present empty message means no username change has been recorded. |
+
+<a id="chatto-admin-v1-AdminUsernameCooldown"></a>
+
+### AdminUsernameCooldown
+
+Username-change history visible to account managers. This is account data,
+not permission to change the username or a guarantee that an update succeeds.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_login_change` | `google.protobuf.Timestamp` | Start of the current self-service username-change cooldown, when known. |
+
+<a id="chatto-admin-v1-UserRoleAssignment"></a>
+
+### UserRoleAssignment
+
+Resulting explicit assignment state after a role command. This outcome
+contains no private account fields or viewer-specific assignment limits.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `role_name` | `string` | Stable role name. |
+| `assigned` | `bool` | True after assignment; false after revocation, including no-op commands. |
+
 <a id="chatto-admin-v1-AdminMember"></a>
 
 ### AdminMember
 
-User row returned by server-admin member management reads.
+Compatibility user row returned by member-management reads and commands.
+New account integrations use AdminUser through GetUser and BatchGetUsers.
 
 The embedded user record carries public identity fields; remaining fields are
 admin/member metadata with visibility controlled by the service.
@@ -1963,11 +2005,49 @@ Complete permission matrix for one user at the matching scopes.
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
 
+<a id="chatto-admin-v1-AdminRoomGroup"></a>
+
+### AdminRoomGroup
+
+Room-group metadata. This resource never contains layout entries, so a
+metadata-only read cannot be mistaken for an empty layout.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable group ID. |
+| `name` | `string` | Group display name. |
+| `description` | `string` | Public description, when set. |
+
+<a id="chatto-admin-v1-AdminRoomGroupLayout"></a>
+
+### AdminRoomGroupLayout
+
+Complete ordered contents of one group, including archived channel rooms.
+Requires room.manage for the group. An empty items list is authoritative.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomGroup`](#chatto-admin-v1-AdminRoomGroup) | Canonical group metadata. |
+| `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | All room and link entries in configured order. |
+
+<a id="chatto-admin-v1-AdminRoomLayout"></a>
+
+### AdminRoomLayout
+
+Complete administrative layout in configured group order. This is a live
+snapshot; concurrent changes can appear on a later read. It grants no write authority.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`AdminRoomGroupLayout`](#chatto-admin-v1-AdminRoomGroupLayout) | Groups with their complete ordered entries. |
+
 <a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
 
 ### AdminRoomLayoutGroup
 
-Ordered room group returned after admin layout mutations.
+Compatibility group shape. Some metadata-only reads omit its entries.
+New integrations use AdminRoomGroup for metadata and AdminRoomGroupLayout
+for authoritative complete entries.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1998,6 +2078,18 @@ One room or sidebar link reference in a move or order replacement.
 | --- | --- | --- |
 | `item.room_id` | `string` | Channel room ID. |
 | `item.sidebar_link_id` | `string` | Sidebar link ID. |
+
+<a id="chatto-admin-v1-AdminSidebarLink"></a>
+
+### AdminSidebarLink
+
+Link configuration and its owning group. The embedded link reuses public
+display data; group_id permits administrative lookup and refresh by ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `link` | `chatto.api.v1.SidebarLink` | Canonical public link metadata. |
+| `group_id` | `string` | Group that owns this link in this snapshot. |
 
 <a id="chatto-admin-v1-Neighbor"></a>
 

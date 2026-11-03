@@ -287,6 +287,20 @@ rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
+`AdminUserService.ListUsers`, `GetUser`, and `BatchGetUsers` provide account
+resources without role catalogues or assignment-limit evaluation. Legacy member
+reads share the account hydration path and retain their additional metadata.
+The canonical resource includes public profile data, explicit role names, and
+administrative account fields. Cooldown message presence distinguishes hidden
+or unreported history from an authorized read with no recorded change.
+
+`AdminRoomLayoutService` separates group metadata from complete layout snapshots.
+`GetRoomGroupLayout` requires effective group `room.manage`; metadata-only
+permission editors cannot read its entries. `GetSidebarLink` captures the link
+and its owning group together before group authorization. `GetRoomLayout` keeps
+the server-wide management gate. Existing reads and mutation fields remain as
+compatibility output alongside canonical metadata, layout, and link fields.
+
 `AdminUserService.GetUserRoleAssignments` uses `role.assign` without requiring
 `admin.view-users`. It returns explicit human-account roles and current
 assignment limits through the same policies as member details and mutation

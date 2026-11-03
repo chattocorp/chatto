@@ -29,6 +29,38 @@ methods.
 
 Do not expose the Operator API over a network.
 
+## Administrative Resources
+
+Use `AdminUserService.ListUsers`, `GetUser`, and `BatchGetUsers` for account
+data. They require `admin.view-users` and return no role catalogue or
+permission-editor state. List results contain IDs; hydrate them in batches of
+at most 100. Read role metadata through `RoleService` or `AdminRoleService` and
+assignment limits through `AdminUserService.GetUserRoleAssignments`.
+Assignment reads require `role.assign`, without access to private account data.
+
+Room-group metadata and complete layouts have separate contracts:
+
+- `GetRoomGroup` reports canonical metadata in `room_group`. Permission editors
+  can use this read without access to layout entries.
+- `GetRoomGroupLayout` returns every ordered entry, including archived rooms.
+  It requires effective `room.manage` for that group.
+- `GetRoomLayout` returns the complete server layout and requires server-wide
+  `room.manage`.
+- `GetSidebarLink` returns the link and its owning group. It requires that
+  group's `room.manage` permission.
+
+Existing member reads and legacy mutation fields remain supported. New group
+mutations also return canonical `room_group` metadata or `layout` snapshots;
+link mutations return canonical `link` configuration. Role commands expose an
+`assignment` outcome, and deactivation exposes the updated public `profile`.
+Human sessions must activate privileged mode for the applicable permissions.
+
+The `@chatto/client/api/adminUsers` and `@chatto/client/api/adminRoomLayout`
+modules provide stateless reads. They adapt older account reads and equivalent
+server-layout snapshots only when a server returns `UNIMPLEMENTED`. New scoped
+layout and link reads require a server that implements them. Do not substitute
+a visibility-filtered public directory for an authoritative admin layout.
+
 ## Start With Server Discovery
 
 Call `ServerDiscoveryService.GetServer` first. It returns the server identity,

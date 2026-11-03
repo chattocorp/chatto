@@ -45,6 +45,7 @@ func (s *adminRoomLayoutService) GetRoomGroup(ctx context.Context, req *connect.
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetRoomGroupResponse{
+		RoomGroup: apiAdminRoomGroup(details.Group),
 		Group: &adminv1.AdminRoomLayoutGroup{
 			Id:            details.Group.GetId(),
 			Name:          details.Group.GetName(),
@@ -91,7 +92,8 @@ func (s *adminRoomLayoutService) CreateRoomGroup(ctx context.Context, req *conne
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.CreateRoomGroupResponse{
-		Group: apiGroup,
+		RoomGroup: apiAdminRoomGroup(group),
+		Group:     apiGroup,
 	}), nil
 }
 
@@ -118,7 +120,8 @@ func (s *adminRoomLayoutService) UpdateRoomGroup(ctx context.Context, req *conne
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.UpdateRoomGroupResponse{
-		Group: apiGroup,
+		RoomGroup: apiAdminRoomGroup(group),
+		Group:     apiGroup,
 	}), nil
 }
 
@@ -201,7 +204,8 @@ func (s *adminRoomLayoutService) ReorderSidebarItemsInGroup(ctx context.Context,
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ReorderSidebarItemsInGroupResponse{
-		Group: apiGroup,
+		Layout: apiAdminRoomGroupLayout(group, roomsByID),
+		Group:  apiGroup,
 	}), nil
 }
 
@@ -229,7 +233,8 @@ func (s *adminRoomLayoutService) MoveSidebarItem(ctx context.Context, req *conne
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.MoveSidebarItemResponse{
-		Group: apiGroup,
+		Layout: apiAdminRoomGroupLayout(group, roomsByID),
+		Group:  apiGroup,
 	}), nil
 }
 
@@ -243,7 +248,7 @@ func (s *adminRoomLayoutService) CreateSidebarLink(ctx context.Context, req *con
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.CreateSidebarLinkResponse{SidebarLink: apiSidebarLink(link)}), nil
+	return connect.NewResponse(&adminv1.CreateSidebarLinkResponse{SidebarLink: apiSidebarLink(link), Link: &adminv1.AdminSidebarLink{Link: apiSidebarLink(link), GroupId: req.Msg.GetGroupId()}}), nil
 }
 
 func (s *adminRoomLayoutService) UpdateSidebarLink(ctx context.Context, req *connect.Request[adminv1.UpdateSidebarLinkRequest]) (*connect.Response[adminv1.UpdateSidebarLinkResponse], error) {
@@ -256,11 +261,11 @@ func (s *adminRoomLayoutService) UpdateSidebarLink(ctx context.Context, req *con
 		return nil, err
 	}
 
-	link, err := s.api.core.RoomLayout().AdminUpdateSidebarLink(ctx, caller.UserID, req.Msg.GetLinkId(), req.Msg.Label, req.Msg.Url)
+	link, err := s.api.core.RoomLayout().AdminUpdateSidebarLinkConfiguration(ctx, caller.UserID, req.Msg.GetLinkId(), req.Msg.Label, req.Msg.Url)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UpdateSidebarLinkResponse{SidebarLink: apiSidebarLink(link)}), nil
+	return connect.NewResponse(&adminv1.UpdateSidebarLinkResponse{SidebarLink: apiSidebarLink(link.Link), Link: &adminv1.AdminSidebarLink{Link: apiSidebarLink(link.Link), GroupId: link.GroupID}}), nil
 }
 
 func (s *adminRoomLayoutService) DeleteSidebarLink(ctx context.Context, req *connect.Request[adminv1.DeleteSidebarLinkRequest]) (*connect.Response[adminv1.DeleteSidebarLinkResponse], error) {
@@ -285,7 +290,7 @@ func (s *adminRoomLayoutService) MoveSidebarLinkToGroup(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.MoveSidebarLinkToGroupResponse{SidebarLink: apiSidebarLink(link)}), nil
+	return connect.NewResponse(&adminv1.MoveSidebarLinkToGroupResponse{SidebarLink: apiSidebarLink(link), Link: &adminv1.AdminSidebarLink{Link: apiSidebarLink(link), GroupId: req.Msg.GetGroupId()}}), nil
 }
 
 func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, userID string) ([]*adminv1.AdminRoomLayoutGroup, error) {

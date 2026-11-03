@@ -7,9 +7,11 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/roles.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/admin/v1/roles.proto";
+import "chatto/admin/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// User row returned by server-admin member management reads.
+// Compatibility user row returned by member-management reads and commands.
+// New account integrations use AdminUser through GetUser and BatchGetUsers.
 //
 // The embedded user record carries public identity fields; remaining fields are
 // admin/member metadata with visibility controlled by the service.
@@ -165,6 +167,8 @@ message AssignRoleRequest {
 
 // Result of assigning a role.
 message AssignRoleResponse {
+  // Canonical command outcome. Read GetUserRoleAssignments for current limits.
+  UserRoleAssignment assignment = 3;
   reserved 1;
   reserved "assigned";
 
@@ -182,6 +186,8 @@ message RevokeRoleRequest {
 
 // Result of revoking a role.
 message RevokeRoleResponse {
+  // Canonical command outcome, independent of administrative account access.
+  UserRoleAssignment assignment = 3;
   reserved 1;
   reserved "revoked";
 
@@ -241,19 +247,32 @@ message SetUserDeactivatedRequest {
 }
 
 message SetUserDeactivatedResponse {
+  // Updated public profile, available under the command's existing authority.
+  chatto.api.v1.User profile = 2;
   // Updated administrative member record.
   AdminMember member = 1;
 }
 
 // Server-admin user management commands and member-detail reads.
 service AdminUserService {
-  // Lists server members for the admin members screen. Requires
-  // admin.view-users.
+  // Lists administrative user IDs. Requires admin.view-users.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // Gets one administrative account without catalogues or editor state.
+  // Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Gets administrative accounts in first-seen request order. Requires
+  // admin.view-users. Unknown or deleted users are omitted; repeated IDs are
+  // returned once. The whole request fails if access or account hydration fails.
+  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
+  // Compatibility account-ID read. New integrations use ListUsers.
+  // Requires admin.view-users.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
-  // Gets one server member plus role/permission metadata for admin details.
+  // Compatibility detail bootstrap with role/permission editor metadata.
+  // New integrations use GetUser and the separate role and permission reads.
   // Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
-  // Gets server member rows for multiple users. Requires admin.view-users.
+  // Compatibility account rows with a role catalogue. New integrations use
+  // BatchGetUsers. Requires admin.view-users.
   rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
   // Gets explicit roles and current assignment limits for one human user.
   // Requires role.assign, with privileged mode active for human sessions;

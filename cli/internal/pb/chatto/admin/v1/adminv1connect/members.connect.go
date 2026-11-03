@@ -33,6 +33,15 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdminUserServiceListUsersProcedure is the fully-qualified name of the AdminUserService's
+	// ListUsers RPC.
+	AdminUserServiceListUsersProcedure = "/chatto.admin.v1.AdminUserService/ListUsers"
+	// AdminUserServiceGetUserProcedure is the fully-qualified name of the AdminUserService's GetUser
+	// RPC.
+	AdminUserServiceGetUserProcedure = "/chatto.admin.v1.AdminUserService/GetUser"
+	// AdminUserServiceBatchGetUsersProcedure is the fully-qualified name of the AdminUserService's
+	// BatchGetUsers RPC.
+	AdminUserServiceBatchGetUsersProcedure = "/chatto.admin.v1.AdminUserService/BatchGetUsers"
 	// AdminUserServiceListMembersProcedure is the fully-qualified name of the AdminUserService's
 	// ListMembers RPC.
 	AdminUserServiceListMembersProcedure = "/chatto.admin.v1.AdminUserService/ListMembers"
@@ -67,13 +76,24 @@ const (
 
 // AdminUserServiceClient is a client for the chatto.admin.v1.AdminUserService service.
 type AdminUserServiceClient interface {
-	// Lists server members for the admin members screen. Requires
-	// admin.view-users.
+	// Lists administrative user IDs. Requires admin.view-users.
+	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
+	// Gets one administrative account without catalogues or editor state.
+	// Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
+	// Gets administrative accounts in first-seen request order. Requires
+	// admin.view-users. Unknown or deleted users are omitted; repeated IDs are
+	// returned once. The whole request fails if access or account hydration fails.
+	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
+	// Compatibility account-ID read. New integrations use ListUsers.
+	// Requires admin.view-users.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
-	// Gets one server member plus role/permission metadata for admin details.
+	// Compatibility detail bootstrap with role/permission editor metadata.
+	// New integrations use GetUser and the separate role and permission reads.
 	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Gets server member rows for multiple users. Requires admin.view-users.
+	// Compatibility account rows with a role catalogue. New integrations use
+	// BatchGetUsers. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Gets explicit roles and current assignment limits for one human user.
 	// Requires role.assign, with privileged mode active for human sessions;
@@ -115,6 +135,24 @@ func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminUserServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminUserService").Methods()
 	return &adminUserServiceClient{
+		listUsers: connect.NewClient[v1.ListUsersRequest, v1.ListUsersResponse](
+			httpClient,
+			baseURL+AdminUserServiceListUsersProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("ListUsers")),
+			connect.WithClientOptions(opts...),
+		),
+		getUser: connect.NewClient[v1.GetUserRequest, v1.GetUserResponse](
+			httpClient,
+			baseURL+AdminUserServiceGetUserProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("GetUser")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetUsers: connect.NewClient[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse](
+			httpClient,
+			baseURL+AdminUserServiceBatchGetUsersProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("BatchGetUsers")),
+			connect.WithClientOptions(opts...),
+		),
 		listMembers: connect.NewClient[v1.ListMembersRequest, v1.ListMembersResponse](
 			httpClient,
 			baseURL+AdminUserServiceListMembersProcedure,
@@ -180,6 +218,9 @@ func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // adminUserServiceClient implements AdminUserServiceClient.
 type adminUserServiceClient struct {
+	listUsers              *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
+	getUser                *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
+	batchGetUsers          *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
 	listMembers            *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
 	getMember              *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
 	batchGetMembers        *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
@@ -190,6 +231,21 @@ type adminUserServiceClient struct {
 	clearUsernameCooldown  *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
 	deleteUser             *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
 	setUserDeactivated     *connect.Client[v1.SetUserDeactivatedRequest, v1.SetUserDeactivatedResponse]
+}
+
+// ListUsers calls chatto.admin.v1.AdminUserService.ListUsers.
+func (c *adminUserServiceClient) ListUsers(ctx context.Context, req *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error) {
+	return c.listUsers.CallUnary(ctx, req)
+}
+
+// GetUser calls chatto.admin.v1.AdminUserService.GetUser.
+func (c *adminUserServiceClient) GetUser(ctx context.Context, req *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
+	return c.getUser.CallUnary(ctx, req)
+}
+
+// BatchGetUsers calls chatto.admin.v1.AdminUserService.BatchGetUsers.
+func (c *adminUserServiceClient) BatchGetUsers(ctx context.Context, req *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
+	return c.batchGetUsers.CallUnary(ctx, req)
 }
 
 // ListMembers calls chatto.admin.v1.AdminUserService.ListMembers.
@@ -244,13 +300,24 @@ func (c *adminUserServiceClient) SetUserDeactivated(ctx context.Context, req *co
 
 // AdminUserServiceHandler is an implementation of the chatto.admin.v1.AdminUserService service.
 type AdminUserServiceHandler interface {
-	// Lists server members for the admin members screen. Requires
-	// admin.view-users.
+	// Lists administrative user IDs. Requires admin.view-users.
+	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
+	// Gets one administrative account without catalogues or editor state.
+	// Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
+	// Gets administrative accounts in first-seen request order. Requires
+	// admin.view-users. Unknown or deleted users are omitted; repeated IDs are
+	// returned once. The whole request fails if access or account hydration fails.
+	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
+	// Compatibility account-ID read. New integrations use ListUsers.
+	// Requires admin.view-users.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
-	// Gets one server member plus role/permission metadata for admin details.
+	// Compatibility detail bootstrap with role/permission editor metadata.
+	// New integrations use GetUser and the separate role and permission reads.
 	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Gets server member rows for multiple users. Requires admin.view-users.
+	// Compatibility account rows with a role catalogue. New integrations use
+	// BatchGetUsers. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Gets explicit roles and current assignment limits for one human user.
 	// Requires role.assign, with privileged mode active for human sessions;
@@ -288,6 +355,24 @@ type AdminUserServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminUserServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminUserService").Methods()
+	adminUserServiceListUsersHandler := connect.NewUnaryHandler(
+		AdminUserServiceListUsersProcedure,
+		svc.ListUsers,
+		connect.WithSchema(adminUserServiceMethods.ByName("ListUsers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminUserServiceGetUserHandler := connect.NewUnaryHandler(
+		AdminUserServiceGetUserProcedure,
+		svc.GetUser,
+		connect.WithSchema(adminUserServiceMethods.ByName("GetUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminUserServiceBatchGetUsersHandler := connect.NewUnaryHandler(
+		AdminUserServiceBatchGetUsersProcedure,
+		svc.BatchGetUsers,
+		connect.WithSchema(adminUserServiceMethods.ByName("BatchGetUsers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminUserServiceListMembersHandler := connect.NewUnaryHandler(
 		AdminUserServiceListMembersProcedure,
 		svc.ListMembers,
@@ -350,6 +435,12 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 	)
 	return "/chatto.admin.v1.AdminUserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdminUserServiceListUsersProcedure:
+			adminUserServiceListUsersHandler.ServeHTTP(w, r)
+		case AdminUserServiceGetUserProcedure:
+			adminUserServiceGetUserHandler.ServeHTTP(w, r)
+		case AdminUserServiceBatchGetUsersProcedure:
+			adminUserServiceBatchGetUsersHandler.ServeHTTP(w, r)
 		case AdminUserServiceListMembersProcedure:
 			adminUserServiceListMembersHandler.ServeHTTP(w, r)
 		case AdminUserServiceGetMemberProcedure:
@@ -378,6 +469,18 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 
 // UnimplementedAdminUserServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminUserServiceHandler struct{}
+
+func (UnimplementedAdminUserServiceHandler) ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.ListUsers is not implemented"))
+}
+
+func (UnimplementedAdminUserServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.GetUser is not implemented"))
+}
+
+func (UnimplementedAdminUserServiceHandler) BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.BatchGetUsers is not implemented"))
+}
 
 func (UnimplementedAdminUserServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.ListMembers is not implemented"))

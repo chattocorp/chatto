@@ -1,4 +1,5 @@
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
+import { createAdminUserAPI } from '@chatto/client/api/adminUsers';
 import { createAdminMemberLoader, type AdminMemberBatch } from '$lib/query/adminMembers';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
@@ -88,6 +89,7 @@ export type AdminRoleMutationResult = {
 
 export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminUserService, config);
+  const users = createAdminUserAPI(config);
   const batchMembers = async (
     userIds: string[],
     signal?: AbortSignal
@@ -117,7 +119,7 @@ export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
       input: AdminListMembersInput,
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminMemberList> {
-      const response = await client.listMembers(
+      const response = await users.listUsers(
         {
           search: input.search || undefined,
           page: {

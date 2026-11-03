@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomGroupRequest, MoveRoomGroupResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarItemRequest, MoveSidebarItemResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
+import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetRoomGroupLayoutRequest, GetRoomGroupLayoutResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomLayoutRequest, GetRoomLayoutResponse, GetRoomRequest, GetRoomResponse, GetSidebarLinkRequest, GetSidebarLinkResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomGroupRequest, MoveRoomGroupResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarItemRequest, MoveSidebarItemResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,6 +14,42 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const AdminRoomLayoutService = {
   typeName: "chatto.admin.v1.AdminRoomLayoutService",
   methods: {
+    /**
+     * Reads the complete configured layout, including archived rooms. Requires
+     * server-scope room.manage. Use GetRoomGroupLayout for delegated group access.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetRoomLayout
+     */
+    getRoomLayout: {
+      name: "GetRoomLayout",
+      I: GetRoomLayoutRequest,
+      O: GetRoomLayoutResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads all entries of one group. Requires effective room.manage for that
+     * group; role.manage alone is insufficient. Unknown groups return NOT_FOUND.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetRoomGroupLayout
+     */
+    getRoomGroupLayout: {
+      name: "GetRoomGroupLayout",
+      I: GetRoomGroupLayoutRequest,
+      O: GetRoomGroupLayoutResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads one link and its owning group. Requires effective room.manage for
+     * that group. Unknown or deleted links return NOT_FOUND.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetSidebarLink
+     */
+    getSidebarLink: {
+      name: "GetSidebarLink",
+      I: GetSidebarLinkRequest,
+      O: GetSidebarLinkResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Gets management-authorized channel room metadata. Requires role.manage or
      * effective room.manage for the room.
@@ -39,8 +75,8 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists the editable room group layout. Requires server-scope room.manage
-     * and includes archived rooms for administrative actions such as unarchiving.
+     * Compatibility full-layout read. New integrations use GetRoomLayout.
+     * Requires server-scope room.manage and includes archived rooms.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups
      */
