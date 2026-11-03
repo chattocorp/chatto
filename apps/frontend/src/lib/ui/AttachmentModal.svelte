@@ -8,8 +8,6 @@ Header, gallery controls and download stay outside the preview on all screens.
   import { toInlineEndDelta } from '$lib/i18n/direction';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { copyImageToClipboard } from '$lib/attachments/copyImage';
-  import { toast } from './toast';
 
   import Dialog from './Dialog.svelte';
 
@@ -25,7 +23,6 @@ Header, gallery controls and download stay outside the preview on all screens.
     sizeLoading = false,
     downloadUrl,
     imageViewer = false,
-    copyImageUrl = null,
 
     busy = false,
     error = null,
@@ -47,8 +44,6 @@ Header, gallery controls and download stay outside the preview on all screens.
     downloadUrl: string | null;
     /** Use the image-first stage and optional details panel. */
     imageViewer?: boolean;
-    /** Displayed image source, separate from the original download URL. */
-    copyImageUrl?: string | null;
 
     busy?: boolean;
     error?: string | null;
@@ -61,22 +56,8 @@ Header, gallery controls and download stay outside the preview on all screens.
   const descriptionId = $props.id();
   const detailsId = `${descriptionId}-details`;
   let detailsOpen = $state(false);
-  let copying = $state(false);
   let imageControls: HTMLDivElement | undefined = $state();
   provideImageControls(() => imageControls);
-
-  async function copyImage() {
-    if (!copyImageUrl || busy || copying) return;
-    copying = true;
-    try {
-      await copyImageToClipboard(copyImageUrl);
-      toast.success(m('room.message.actions.image_copied'));
-    } catch {
-      toast.error(m('room.message.actions.copy_image_failed'));
-    } finally {
-      copying = false;
-    }
-  }
 
   function handleKeydown(event: KeyboardEvent) {
     if (count < 2 || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)
@@ -198,7 +179,7 @@ Header, gallery controls and download stay outside the preview on all screens.
           </nav>
         {/if}
         <div bind:this={imageControls} class="flex items-center" data-image-controls></div>
-        <div class="ms-auto flex flex-wrap items-center justify-end gap-3">
+        <div class="ms-auto flex items-center gap-3">
           <button
             type="button"
             class="btn-secondary"
@@ -208,15 +189,6 @@ Header, gallery controls and download stay outside the preview on all screens.
           >
             <span class="iconify icon-[uil--info-circle]" aria-hidden="true"></span>
             {m('ui.image_modal.details')}
-          </button>
-          <button
-            type="button"
-            class="btn-secondary"
-            disabled={busy || copying || !copyImageUrl}
-            onclick={copyImage}
-          >
-            <span class="iconify icon-[uil--copy]" aria-hidden="true"></span>
-            {m('room.message.actions.copy_image')}
           </button>
           <a
             href={downloadUrl ?? '#'}

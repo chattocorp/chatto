@@ -2,6 +2,7 @@ import '../../app.css';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
+import { userEvent } from 'vitest/browser';
 import ZoomableImage from './ZoomableImage.svelte';
 
 const src = `data:image/svg+xml,${encodeURIComponent(
@@ -93,6 +94,8 @@ describe('ZoomableImage', () => {
     const view = await mount();
     view.stage.setPointerCapture = vi.fn();
     view.stage.hasPointerCapture = () => false;
+    view.image.setPointerCapture = vi.fn();
+    view.image.hasPointerCapture = () => false;
     const rect = view.stage.getBoundingClientRect();
     const wheel = new WheelEvent('wheel', {
       bubbles: true,
@@ -108,6 +111,8 @@ describe('ZoomableImage', () => {
 
     // Events that start on the image bubble to the stage's pan handlers.
     pointer(view.image, 'pointerdown', 1, rect.left + 200, rect.top + 150);
+    expect(view.image.setPointerCapture).toHaveBeenCalledWith(1);
+    expect(view.stage.setPointerCapture).not.toHaveBeenCalled();
     pointer(view.image, 'pointermove', 1, rect.left + 10000, rect.top + 150);
     await tick();
     const fit = Math.min(view.stage.clientWidth / 400, view.stage.clientHeight / 300);
@@ -128,7 +133,38 @@ describe('ZoomableImage', () => {
     expect(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)).toBe(
       view.image
     );
-    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
+    let menu: MouseEvent | undefined;
+    view.image.addEventListener('contextmenu', (event) => (menu = event), { once: true });
+    await userEvent.click(view.image, { button: 'right' });
+    expect(menu?.isTrusted).toBe(true);
+    expect(menu?.target).toBe(view.image);
+    expect(menu?.defaultPrevented).toBe(false);
+  });
+
+  it.each([
+    { button: 2, ctrlKey: false },
+    { button: 0, ctrlKey: true }
+  ])('leaves native menu presses on the image: %o', async ({ button, ctrlKey }) => {
+    const view = await mount();
+    view.stage.setPointerCapture = vi.fn();
+    view.image.setPointerCapture = vi.fn();
+    view.image.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 1,
+        pointerType: 'mouse',
+        button,
+        ctrlKey
+      })
+    );
+    expect(view.stage.setPointerCapture).not.toHaveBeenCalled();
+    expect(view.image.setPointerCapture).not.toHaveBeenCalled();
+    const menu = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      button: 2,
+      ctrlKey
+    });
     view.image.dispatchEvent(menu);
     expect(menu.defaultPrevented).toBe(false);
   });
@@ -137,10 +173,12 @@ describe('ZoomableImage', () => {
     const view = await mount();
     view.stage.setPointerCapture = vi.fn();
     view.stage.hasPointerCapture = () => false;
+    view.image.setPointerCapture = vi.fn();
+    view.image.hasPointerCapture = () => false;
     const rect = view.stage.getBoundingClientRect();
     // A long-press image menu can end a touch without pointerup.
     pointer(view.image, 'pointerdown', 1, rect.left + 150, rect.top + 150);
-    pointer(view.stage, 'lostpointercapture', 1, rect.left + 150, rect.top + 150);
+    pointer(view.image, 'lostpointercapture', 1, rect.left + 150, rect.top + 150);
     pointer(view.image, 'pointerdown', 2, rect.left + 200, rect.top + 150);
     pointer(view.image, 'pointermove', 2, rect.left + 300, rect.top + 150);
     await tick();

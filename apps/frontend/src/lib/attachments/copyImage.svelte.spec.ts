@@ -7,11 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it.each([
-  onePixelGif,
-  'data:image/svg+xml,' +
-    encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>')
-])('writes the displayed image as PNG to the clipboard: %s', async (url) => {
+it('writes the displayed image as PNG to the clipboard', async () => {
   const write = vi.spyOn(navigator.clipboard, 'write').mockImplementation(async (items) => {
     expect(items).toHaveLength(1);
     const png = await items[0].getType('image/png');
@@ -19,7 +15,7 @@ it.each([
     expect(png.size).toBeGreaterThan(0);
   });
 
-  await copyImageToClipboard(url);
+  await copyImageToClipboard(onePixelGif);
 
   expect(write).toHaveBeenCalledOnce();
 });

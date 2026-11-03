@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-11-02
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
@@ -29,7 +29,10 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - The room timeline loads attachment images within 960×400 bounds, while the lightbox loads a separate derivative within 2048×2048 bounds. The untouched upload remains available through the viewer’s Download action.
 - The attachment viewer opens and closes with a short zoom and fade. Reduced
   motion disables the effect.
-- Right-clicking an image attachment in a message opens the message menu with **Copy image**. The large image viewer also has **Copy image** beside **Download**, including for rendered diagrams. Copy saves the displayed image as PNG to the clipboard and reports success or failure. Copy is disabled while the preview is unavailable or a copy is in progress. Download saves the original file. The image URL is not offered as a copy action because it contains a temporary access ticket.
+- In the large image viewer, right-click, Control-click, and touch press-and-hold
+  keep the actual image as the native context-menu target. The browser or
+  desktop app provides image copy and save actions.
+- Right-clicking an image attachment in a message opens the message menu with **Copy Image**. It copies the displayed image as PNG. Other message menu actions remain available. The image URL is not offered as a copy action because it contains a temporary access ticket.
 - When enabled, videos and animated GIFs are processed by durable `asset-processing` runtime-unit workers. The processing marker commits atomically with the owning message, so a rejected message cannot create work and an accepted message remains queued while workers are offline. Workers may run inside `chatto run` or as separate `chatto asset-processing` processes.
 - Processing status: durable STARTED / COMPLETED / FAILED outcomes are stored as asset aggregate events (`evt.asset.{assetId}.*`) and delivered through the normal live EVT subscription path after room-membership authorization and the applicable message-read check for the owning thread. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos keep the original message visible and show a processing-failed state, while the retained original remains available through the attachment's original/download action.
 - Processed video dimensions are display dimensions used for layout, not necessarily raw encoded storage pixels. Non-square-pixel and rotated sources should render in their intended orientation and aspect ratio. The room timeline displays every posted video uncropped at its measured aspect ratio, including unusual near-square dimensions and converted animated GIF loops. The player canvas is bounded to the available timeline width and a maximum height; for ratios beyond 9:16 or 16:9, it uses letterboxing so playback controls remain usable without cropping the video. Video previews include a picture-in-picture control when the browser supports it.

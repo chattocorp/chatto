@@ -17,7 +17,6 @@ The modal container owns its lifetime and history-based dismissal.
   description={modal.alt}
   downloadUrl={modal.src}
   imageViewer
-  copyImageUrl={failed ? null : modal.src}
   error={failed ? m('room.attachment.html_viewer.preview_failed') : null}
   ondownload={(event) => event.stopPropagation()}
   {onclose}

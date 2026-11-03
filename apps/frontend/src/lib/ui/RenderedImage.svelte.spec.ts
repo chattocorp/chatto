@@ -1,5 +1,5 @@
 import '../../app.css';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { on } from 'svelte/events';
@@ -10,8 +10,6 @@ const { pushState } = vi.hoisted(() => ({ pushState: vi.fn() }));
 vi.mock('$app/navigation', () => ({ pushState, goto: vi.fn() }));
 
 const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"/>')}`;
-
-afterEach(() => vi.restoreAllMocks());
 
 describe('RenderedImage', () => {
   it('leaves scrolling alone and opens the shared viewer through shallow routing', async () => {
@@ -51,13 +49,7 @@ describe('RenderedImage', () => {
     }
   });
 
-  it('shows the snapshot with zoom, copy, and download controls and delegates dismissal', async () => {
-    const write = vi.spyOn(navigator.clipboard, 'write').mockImplementation(async (items) => {
-      const blob = await items[0].getType('image/png');
-      const bitmap = await createImageBitmap(blob);
-      expect([bitmap.width, bitmap.height]).toEqual([400, 300]);
-      bitmap.close();
-    });
+  it('shows the snapshot with zoom and download controls and delegates dismissal', async () => {
     const onclose = vi.fn();
     const view = render(RenderedImageViewerModal, {
       modal: { type: 'renderedImageViewer', src, alt: 'Diagram' },
@@ -71,11 +63,6 @@ describe('RenderedImage', () => {
       expect(dialog.querySelector('[data-image-controls] output')?.textContent).toBe('100%');
       expect(dialog.querySelector('.image-canvas output')).toBeNull();
       expect(dialog.querySelector('a[download]')?.getAttribute('href')).toBe(src);
-      await view.getByRole('button', { name: 'Copy image', exact: true }).click();
-      await expect
-        .element(view.getByRole('button', { name: 'Copy image', exact: true }))
-        .toBeEnabled();
-      expect(write).toHaveBeenCalledOnce();
       await userEvent.click(dialog.querySelector('[aria-label="Zoom out"]')!);
       expect(dialog.querySelector('output')?.textContent).toBe('75%');
       dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
