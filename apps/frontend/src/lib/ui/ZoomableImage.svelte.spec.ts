@@ -95,7 +95,8 @@ describe('ZoomableImage', () => {
     view.stage.setPointerCapture = vi.fn();
     view.stage.hasPointerCapture = () => false;
     view.image.setPointerCapture = vi.fn();
-    view.image.hasPointerCapture = () => false;
+    view.image.hasPointerCapture = (id) => id === 1;
+    view.image.releasePointerCapture = vi.fn();
     const rect = view.stage.getBoundingClientRect();
     const wheel = new WheelEvent('wheel', {
       bubbles: true,
@@ -119,6 +120,7 @@ describe('ZoomableImage', () => {
     const maxX = Math.max(0, (400 * fit * 8 - view.stage.clientWidth) / 2);
     expect(view.layer.style.transform).toContain(`translate(${maxX}px, 0px)`);
     pointer(view.image, 'pointerup', 1, rect.left + 2000, rect.top + 150);
+    expect(view.image.releasePointerCapture).toHaveBeenCalledExactlyOnceWith(1);
     view.stage.dispatchEvent(new WheelEvent('wheel', { deltaY: -10000, cancelable: true }));
     await expect.element(view.query.getByText('1600%')).toBeVisible();
     await expect.element(view.query.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
