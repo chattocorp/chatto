@@ -48,6 +48,9 @@ Chatto restores the main window's position, size, and maximized or fullscreen
 state after a restart. If the display layout changes, the restored window is
 adjusted to keep it visible.
 
+On Windows and Linux, the application menu bar is hidden by default. Press
+**Alt** to show the menu and use commands such as Diagnostics and Updates.
+
 On macOS, closing the main window hides it and keeps Chatto running. Select
 Chatto in the Dock to open the window again. **Command-Q** quits the app and
 stops its connections and new alerts. On Windows and Linux, closing the main
