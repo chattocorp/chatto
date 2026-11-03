@@ -347,9 +347,11 @@ func (c *conversation) summarizeDocument(ctx context.Context, d journal.Document
 		}
 		detail := "No useful change to record"
 		count := 0
+		var added strings.Builder
 		for _, note := range *result.Notes {
-			if strings.TrimSpace(note) != "" {
+			if note = strings.TrimSpace(note); note != "" {
 				count++
+				added.WriteString("- " + strings.TrimPrefix(note, "- ") + "\n")
 			}
 		}
 		if condense {
@@ -359,7 +361,14 @@ func (c *conversation) summarizeDocument(ctx context.Context, d journal.Document
 		} else if count > 1 {
 			detail = fmt.Sprintf("Appended %d notes", count)
 		}
-		c.finishStep(step, "complete", detail)
+		// Only report committed text. Condensation replaces the body rather than
+		// appending the returned notes; private inspection must reflect that effect.
+		if condense {
+			detail += "\n\n" + result.Body
+		} else if count > 0 {
+			detail += "\n\n" + added.String()
+		}
+		c.finishStep(step, "complete", boundedDetail(detail))
 	}
 	return nil
 }

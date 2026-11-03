@@ -3,10 +3,8 @@ module github.com/chatto-chat/chatto/experimental/gobotto
 go 1.27.2
 
 require (
-	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/chattocorp/chatto/experimental/chatto-go v0.0.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674

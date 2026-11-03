@@ -106,8 +106,8 @@ and skipped files. Search exclusions and limits can make findings incomplete.
 The checkout is live, not a frozen snapshot; workers cannot verify Git status or
 commit identity with these tools. No Git or shell commands run.
 
-The turn inspector includes named child model and file-tool steps under the
-delegation, with bounded details. Reported child tokens and cost contribute to
+The events panel includes named child model and file-tool steps. Private turn
+records retain their bounded details. Reported child tokens and cost contribute to
 the parent turn and conversation totals. The parent session store retains
 up to eight recent child conversations, including source reads and provider
 metadata. Active children are never evicted, so they can exceed that retention
@@ -276,7 +276,7 @@ effects in place. Subsequent scheduled occurrences are independent executions.
 
 The TUI keeps a separate “Scheduled:” session per schedule with retained turn
 inspection; scheduled history never becomes a normal conversation's model context.
-Deleting a schedule keeps its inspector history. Definitions, task text, tool
+Deleting a schedule keeps its turn history. Definitions, task text, tool
 receipts, and thread context are private runtime data. The configured model
 provider receives execution context, and configured MCP servers receive requested
 tool arguments and the bot's outbound IP, as with interactive turns. No new
@@ -414,13 +414,13 @@ in `.env`. `OPENROUTER_MODEL` is no longer read: move your selection to
 budget. By default, Gobotto omits `max_tokens` and applies no output cap of its own;
 provider defaults and model limits still apply. Choose a value supported by the model if you set a cap. Provider-counted reasoning
 also consumes this budget. Longer brain definitions can require more output than
-ordinary replies. If the provider reports an output-limit stop, the inspector
-shows the cause and setting to change. Gobotto records usage but does not execute
+ordinary replies. If the provider reports an output-limit stop, the turn record
+includes the cause and setting to change. Gobotto records usage but does not execute
 partial tool calls, deliver partial replies, or retry automatically.
 
 An invalid assistant response gets at most one text-only correction request,
 with completed receipts retained. The correction cannot execute tools. It uses
-the existing final-response allowance at the work limit. The inspector records
+the existing final-response allowance at the work limit. The turn record stores
 fixed validation reasons without retaining rejected response content.
 
 Model failures retain safe diagnostics in turn records and operational logs:
@@ -457,9 +457,9 @@ its tokens. These controls do not change the separate title model's configuratio
 See [OpenRouter's reasoning controls](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)
 for model-specific support.
 
-The inspector shows reported reasoning tokens separately as part of output, not
-an additional charge or token total. Session totals retain them across restarts.
-Missing telemetry appears as `reasoning n/a`; mixed reporting appears as partial.
+Turn records store reported reasoning tokens as part of output, not an additional
+charge or token total. Session totals retain them across restarts.
+Records distinguish missing telemetry from reported values.
 Old snapshots do not contain reasoning counts, so their totals remain partial
 when new counts arrive. Token counts are separate from the text of model reasoning.
 
@@ -509,8 +509,7 @@ addressees, not authors. Gobotto appends the note as a Markdown bullet through
 means. Greetings, repetition, skipped reactions, and casual offers need
 no note. An empty notes array still checkpoints the turn, so filler cannot block
 the next useful entry. Meaningful user preferences, corrections, and decisions
-remain eligible for notes when the bot only reacts or stays silent. The inspector
-reports "No useful change to record", "Appended N notes", or "Notebook condensed"
+remain eligible for notes when the bot only reacts or stays silent. The turn record stores "No useful change to record", "Appended N notes", or "Notebook condensed"
 so these outcomes are distinct. Notes cover useful changes across the supplied evidence;
 there is no required one-to-one match between notes and turns. The document body
 is one notebook;
@@ -519,8 +518,11 @@ the existing private session records. Notes never grant authority, prove deliver
 or authorize replay of an old action.
 
 Note requests use the conversation model, appear as **Journal note** in the
-inspector, and count toward reported usage. Each changed journal needs at most one
-request per update; a top-level request can update both room and thread journals.
+events panel, and count toward reported usage. Each changed journal needs at most one
+request per update. The event details show the committed notes, or a bounded
+excerpt of the replacement notebook after condensation. Failed writes do not
+show proposed notes as saved. Previously saved events retain their original details.
+A top-level request can update both room and thread journals.
 These auxiliary requests are separate from the action loop's tool and step budgets.
 Requests have a 30-second timeout and at most 4,096 output tokens, or the lower
 configured output limit. Each note is limited to 600 bytes and an appended batch
@@ -549,7 +551,7 @@ thread. Transient turn evidence is limited to 64 KiB per turn and model input to
 recovery after restart. A retry replaces the previous pending snapshot from the
 same session instead of accumulating overlapping copies. Pending notes from other
 sessions or scheduled runs, and uncertain effects, remain intact.
-The inspector distinguishes model failures, timeouts, invalid JSON, missing fields,
+Turn records distinguish model failures, timeouts, invalid JSON, missing fields,
 note limits, stale checkpoints, and storage failures without logging response text.
 Frontmatter keeps a fixed-size latest checkpoint and an
 uncertainty flag. Hash checks and a temporary mutation marker make interrupted
@@ -773,7 +775,7 @@ results fail instead of being added to the model context. Calls execute one at a
 time. A repeated identical successful write in the same turn returns its receipt.
 After an uncertain write, further writes in that turn are blocked.
 
-Memory tool results appear in the turn inspector and private session transcript.
+Memory tool names appear in the events panel. Results remain in private session records.
 Completed receipts are saved before the next model request. A later model or
 Chatto failure does not undo a memory write. Started turns are not replayed after
 a crash. Verify the collection before requesting another write after an uncertain
@@ -812,8 +814,8 @@ system_prompt = "Use a short, specific title in the conversation's language."
 Remove `[titles]` to disable generation. The model makes one tool-free request
 after the first successful turn, after reply or reaction delivery. Existing
 sessions without titles receive one after their next successful turn. Titles
-are saved in snapshots and shown in the session list. The session summary keeps the
-stable, copyable session ID; filenames do not change.
+are saved in snapshots and shown in the session list. Session IDs and filenames
+remain stable.
 
 The request includes up to 6,000 characters of message excerpts, excludes system
 instructions and model reasoning, and sends no output-token cap. Provider defaults
@@ -829,138 +831,65 @@ not regenerate existing titles. Startup alone does not call the title model.
 
 ## Terminal interface
 
-The overview shows a session list and a runtime dashboard. Six aligned metrics
-span wide terminals and wrap into two rows on narrow terminals. Muted labels
-and bold values separate counts from their explanations. The dashboard shows process
-uptime, active and queued sessions, pending messages, and totals for retained
-sessions, turns, tokens, and cost. These totals include restored session history;
-they are not limited to the current process run. The overview has no inspector.
+The terminal has one view with two panels. The left panel lists sessions, newest
+first by start time. Each row shows only the session title, or its stable ID when
+no title is available. Selecting a session shows its events in the right panel.
+Drag the vertical separator to change the panel widths. Drag the horizontal
+separator on the right to change the heights of the events and details panels.
 
-Press Enter on a session to open its session view. Clicking a session only
-selects it; Right does not open it. Wide session rows include an aligned turn
-count column. The session view has a summary dashboard above one full-width
-turn table. It reuses the overview's metric layout for session state, turns,
-pending messages, input and output tokens, and reported cost.
-Opening a stored session loads its newest 20 retained turns asynchronously.
-The table shows a loading indicator, or a safe error with `r` to retry. Use `p`
-to load the next older page. Live turn updates take precedence over older disk
-results. Only one inspection read runs at a time; moving to another session
-does not let an earlier response change your selection.
-All turns start expanded on each visit, and new turns appear expanded. Manual
-fold choices survive updates during the visit. Only turns with child rows show
-an expansion caret. Input messages, execution steps, outputs, reactions, and
-failures appear as children of their turn. Child operations appear as named steps.
-Sessions and turns appear newest first; steps stay in execution order.
-Escape returns from the turn tree to the overview and restores its selection.
+The right panel groups events by turn, newest turn first. Turns have permanent
+group headers with a background across the panel. All events stay visible.
+Inputs, execution steps, outputs, reactions, and failures appear as child labels
+in reverse execution order, newest first. A details panel below the events shows
+the selected turn or event, including recorded text, state, timing, and reported
+usage. Available live request and response captures also appear there. Text wraps
+to the panel width. Use the mouse wheel over details or `[` / `]` to scroll them.
+Selecting another event resets the detail scroll position. Session and event
+rows have no metadata columns.
+Session labels have two spaces of indentation. Busy sessions and turns show an
+animated Braille indicator in that space, so their labels do not move.
+The same two-space inset applies to event labels and detail content. Group and
+section headers and selected rows have backgrounds that reach both panel borders.
+Panel titles remain plain border labels. Terminal contributors must follow the
+[TUI design rules](internal/tui/AGENTS.md).
 
-The session list places a busy spinner before the title, with two blank cells
-in that position when idle. It has no status column. The session table has a fixed
-header with Type, Description / metadata, Runtime, Status, Tokens, and Cost.
-All event rows use the same columns; unavailable values stay blank. The type
-column retains the turn tree and tool names. Inputs use blue, outputs use green,
-and failures use red. Narrow terminals omit runtime, then usage, then status
-columns to keep descriptions readable. Step descriptions include provider, request ID,
-tool details, cache and reasoning counts when available. Model rows put input,
-output, cache, and reasoning counts before request IDs. Turn totals include
-child and title calls. A `+` marks
-an incomplete total; `—` means unknown. A completed model step does not mean
-that a message was delivered. Turns show `Replied` or `Reacted` only after the
-host confirms delivery.
+| Key                | Action                                      |
+| ------------------ | ------------------------------------------- |
+| Tab / Shift-Tab    | Switch the focused panel                    |
+| Left / Escape      | Focus sessions                              |
+| Right              | Focus events                                |
+| Up/Down or `k`/`j` | Select a row in the focused panel           |
+| Page Up/Page Down  | Move one page                               |
+| Home / End         | Select the first / last row                 |
+| Enter / Space      | Focus events from sessions                  |
+| `p` / `r`          | Load older turns / retry or refresh history |
+| `q` or Ctrl-C      | Finish active work, then quit               |
+| Shift-Q            | Cancel active work and quit                 |
 
-Busy sessions show a small animated Braille spinner before their title; running
-turns show it beside their status.
-Active states use teal, completed operations use green, queued or partial states
-use amber, and failed or uncertain operations use red. Session names use blue
-and turn names use lavender.
-The `›` and `⌄` chevrons indicate collapsed and expanded nodes.
-Long descriptions end with an ellipsis and do not wrap. Use `[` and `]` to move
-through description text while event types and telemetry stay fixed; `c` copies
-the selected event's full recorded text.
-Click a row to select it, or a turn's chevron to fold it. The mouse wheel
-navigates the table. `l` switches the same panel to session operational logs.
-These logs lack turn associations and are not assigned to turns by the UI.
+Click a row to select it. The mouse wheel moves
+the selection in the panel under the pointer. The view needs at least 40 columns
+and 8 rows.
 
-| Key                | Action                                                 |
-| ------------------ | ------------------------------------------------------ |
-| Up/Down or `k`/`j` | Select a visible row                                   |
-| Right / Left       | Open or enter a node / close it or select its parent   |
-| Space              | Open or close the selected node                        |
-| Enter              | Open a session, fold a turn, or inspect an event       |
-| `i`                | Inspect the selected session, turn, or event           |
-| Escape             | Return to the overview                                 |
-| `[` / `]`          | Pan event text left / right                            |
-| `l`                | Switch between the turn table and operational logs     |
-| `f`                | Toggle following new session, turn, and step activity  |
-| `c`                | Copy the selected event, turn response, or session ID  |
-| `y`                | Copy the selected turn's input messages                |
-| `p` / `r`          | Load older turns / retry or refresh stored history     |
-| Page Up/Page Down  | Move one page in the focused view                      |
-| Home / End         | Move to the start / end of the focused view            |
-| `q` or Ctrl-C      | Finish active work and report child results, then quit |
-| Shift-Q            | Cancel active work and quit immediately                |
+Stored history loads asynchronously, 20 turns at a time. The events panel shows
+loading and retry messages. Live updates take precedence over disk results.
+Only one history read runs at a time. Moving between sessions does not let an
+earlier result change the selection. The UI caches history for three sessions
+and retains at most 100 sessions.
 
-The private detail view supports Tab/Shift-Tab to switch sections, arrow keys or
-the mouse wheel to scroll, Page Up/Down and Home/End to navigate, `c` to copy the
-current section, and Escape to return. It shows a fixed snapshot; close and reopen
-it to refresh running work. A model completion has sections for its messages
-(including system instructions and injected JSON context), available tool schemas,
-request settings, and returned message. Other events show their recorded details.
-The completion details include a byte breakdown of compact inspection JSON:
-system instructions, tool schemas, latest input, other history, tool results, and
-settings/framing. These are not token counts or wire sizes; images and provider
-reasoning are excluded. The breakdown needs a complete live request capture.
-Older records explicitly show when a request was not captured.
+During startup, selection stays on the newest session as the list fills. After
+navigation, live updates preserve the selected session and event where possible.
+If a session is evicted, selection moves to the newest retained session.
 
-New ordinary and scheduled model completions capture the request after provider
-tools and per-call controls are applied. These snapshots are live-only: they are
-not written to disk and never enter model context or operational logs. Restarting
-or reloading history loses them; the existing transcript and event records remain.
-Image URLs/pixels and
-provider reasoning text are omitted; reasoning configuration remains visible.
-Capture is limited to 512 KiB per request/response and 4 MiB per turn, with explicit
-truncation markers. Older live captures are discarded when their total exceeds
-4 MiB per session, while their event records remain. Auxiliary title requests and delegated child requests are not
-captured by this view.
+Normal quit keeps the UI open while active turns and children finish. Queued
+messages remain in the persistent inbox for restart. Shift-Q cancels active work;
+Gobotto still closes connections and saves session state before it exits.
 
-The view resizes with the terminal and needs at least 36 columns and 12 rows.
-Normal quit keeps the UI open with a waiting message while active turns and
-children finish. Completion reports can run during shutdown; queued user turns
-do not start. Queued messages remain in the
-persistent inbox for restart. Press Shift-Q to cancel instead; Gobotto still
-closes connections and saves session state before it exits.
-It retains up to 100 sessions and 200 operational log entries per session.
-The UI caches inspection data for three sessions. Reopening an uncached session
-reads its records again; the overview keeps only its summary.
-During startup, selection stays on the first, newest session as the list fills.
-After you navigate or open a session, new sessions and updates preserve your
-selection. Follow mode selects incoming
-session activity in the overview. In a session view, it follows only that
-session's turns and steps. It does not switch sessions. Manual navigation stops
-following. If retention removes a selected turn, selection moves to a retained
-row. If the open session is evicted, the UI returns to the overview.
-Logs and inspection records survive restarts. Each session keeps up to 50 turn
-records, trimming older records when their encoded size exceeds 2 MiB; the newest
-turn is always kept. Inputs are bounded to 10,000 characters per message, and tool
-details to 4,000 characters. Truncation remains marked in the recorded text.
-The session dashboard shows cumulative tokens and OpenRouter account
-cost. Cached input is part of input, not an additional count. Cost comes from
-the response's `usage.cost` field. Missing values show as `n/a`; a cost total
-with some missing charges shows as `partial`. Totals cover reported requests only.
-Logs show turn starts, reply/reaction delivery, omitted history, and failures.
-They do not contain message bodies, user profiles, credentials, or raw model
-output. The TUI adds no external connections.
-
-The private turn table shows triggering messages, execution steps, and outputs
-with their delivery status. Title-generation usage appears as its own step.
-Each model step shows the serving provider when reported. Event text includes
-the OpenRouter request ID for comparison with its activity page. Missing cache
-counts show as `cache n/a`; incomplete totals show as `partial`. Zero cache counts
-in older snapshots also show as `n/a`, because those snapshots did not distinguish
-a reported zero from an absent count.
-Running operations update their elapsed time. Model reasoning and credentials
-are not shown. An uncertain delivery remains explicitly marked
-and is never retried automatically. Older snapshots do not contain turn records;
-their next turn begins the inspection history.
+Private turn records and operational logs remain in session storage. Each session
+keeps up to 50 turn records, trimming older records when their encoded size
+exceeds 2 MiB; the newest turn is always kept. Inputs are bounded to 10,000
+characters per message and tool details to 4,000 characters. The simplified UI
+does not change usage accounting, delivery records, or model context. It adds no
+external connections.
 
 ## Behavior and limits
 
@@ -1003,7 +932,7 @@ their next turn begins the inspection history.
   a reaction to the latest triggering message in the batch and ends the turn
   without a text reply. Text replies use that same message for reply attribution.
 - The model can call `stay_silent` with `{}` to end a turn without a reply or
-  reaction. The inspector records `silent`, and the transcript keeps a tool
+  reaction. The turn record stores `silent`, and the transcript keeps a tool
   receipt. This is distinct from waiting for background work or a failed request.
   Earlier tool effects and progress messages remain in effect. Written text
   takes precedence if the model incorrectly combines it with a silence call.
@@ -1101,8 +1030,7 @@ private conversation text and model responses, but no API keys. Directories use
 owner-only access and snapshots use mode `0600`. Storage is not encrypted.
 
 Each session has a readable ID, such as `calm-otter-012345abcdef`. The session
-list shows this ID when no title is available. The session summary title
-always shows the ID. Its snapshot is stored at
+list shows this ID when no title is available. Its snapshot is stored at
 `.gobotto/sessions/<namespace>/v2/<human-id>.json`; the `HumanID` field identifies
 the session and `History.messages` contains its model transcript for evaluation.
 IDs remain stable across restarts and context resets. The indexed storage
@@ -1110,15 +1038,12 @@ generation starts fresh in `v2/`. Existing files and the old realtime inbox in
 the parent directory remain unchanged and are not loaded or replayed. There is
 no automatic migration. The namespace lock still prevents an older process
 from using that namespace at the same time.
-Click the session ID in the summary title, or select its session and press `c`,
-to copy it to the system clipboard.
-The footer confirms the copy or reports that the clipboard is unavailable.
 
 Snapshots include model history, message IDs, turn counts, reported token and cost
 totals, and the OpenRouter session ID. Server URL, bot identity, and model select
 separate storage namespaces. A process lock prevents concurrent writers. Writes
 replace snapshots atomically. Each file starts with a compact `Index`, followed
-by `Records` and `Logs`, before the model transcript. The overview reads only
+by `Records` and `Logs`, before the model transcript. The session list reads only
 the index prefix. Inspection pages read only records and logs. These fields
 share one atomic replacement, so the summary cannot refer to a different
 snapshot generation. Invalid index data stops startup; invalid transcript data
@@ -1130,7 +1055,7 @@ The runtime loads a full transcript only when its thread receives work. It
 retains at most eight idle hydrated conversations. Active turns, queued input,
 and pending child results can keep additional conversations loaded until they
 are safe to unload. Unloading writes a checkpoint and keeps the session in the
-overview; it does not remove its file. The existing 100-session retention limit
+session list; it does not remove its file. The existing 100-session retention limit
 still applies. Loading after eviction rechecks thread access and history.
 
 Gobotto saves loaded conversations before a turn, after reported usage, before

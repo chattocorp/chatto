@@ -450,7 +450,7 @@ func TestJournalCondensesOnlyWhenNotebookIsFull(t *testing.T) {
 	}
 	f := newFake()
 	journalTestTurn(t, c, f, "continue", false)
-	assertJournalDetail(t, c, "Notebook condensed")
+	assertJournalDetail(t, c, "Notebook condensed\n\n- Keep the earlier decision and the new decision.\n")
 	journalTestTurn(t, c, f, "another decision", false)
 	d, err := c.journals.Read(scope)
 	if err != nil || requests != 2 || d.Summary != "- Keep the earlier decision and the new decision.\n- A new decision.\n" {
@@ -563,7 +563,7 @@ func TestJournalFillerDoesNotBlockNextRequestOrCopyArtifacts(t *testing.T) {
 	if err != nil || d.LastKey != "journal-test:3" || !strings.Contains(d.Summary, "Mainz") || requests != 3 {
 		t.Fatal("later note missing", err)
 	}
-	assertJournalDetail(t, c, "Appended 1 note")
+	assertJournalDetail(t, c, "Appended 1 note\n\n- Requested a Mainz SVG; bot provided it.\n")
 	b, _ := json.Marshal(c.model.Snapshot())
 	if !strings.Contains(string(b), "ARTIFACT_PAYLOAD") {
 		t.Fatal("journal projection changed original model history")
@@ -633,7 +633,7 @@ func TestJournalPreservesMeaningfulInputWithoutTextReply(t *testing.T) {
 				if turn.Response != "" || (mode == "silent" && (turn.State != "silent" || len(f.posts) != 0)) || (mode == "reaction" && (turn.Emoji != "thumbsup" || len(f.posts) != 1)) {
 					t.Fatal("test did not exercise the requested nontext response")
 				}
-				assertJournalDetail(t, c, "Appended 1 note")
+				assertJournalDetail(t, c, "Appended 1 note\n\n- "+input.note+"\n")
 			})
 		}
 	}

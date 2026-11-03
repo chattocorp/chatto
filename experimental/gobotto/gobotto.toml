@@ -43,7 +43,7 @@ url = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa"
 tools = ["web_search_exa", "web_fetch_exa"]
 
 [mcp.servers.exa.optional_headers_from_env]
-x-api-key = "EXA_API_KEY"
+# x-api-key = "EXA_API_KEY"
 
 [subagents.code_investigator]
 # agents_md = false # Disable automatic scoped repository instructions.
