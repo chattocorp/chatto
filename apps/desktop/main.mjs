@@ -500,8 +500,8 @@ function createMainWindow() {
     minWidth: 480,
     minHeight: 600,
     show: false,
-    // Keep the Linux menu out of the way; Alt reveals it when needed.
-    autoHideMenuBar: process.platform === 'linux',
+    // Hide the Windows and Linux menu bars until the user presses Alt.
+    autoHideMenuBar: process.platform === 'linux' || process.platform === 'win32',
     // Match the frontend's default loading colours before its first paint.
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#f3f4f6',
     // Let the app header share the title area with the native window buttons.
