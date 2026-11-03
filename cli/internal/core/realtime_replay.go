@@ -29,6 +29,9 @@ const (
 	realtimeCursorWaitTimeout     = 10 * time.Second
 	realtimeReplayMaxSequenceSpan = uint64(10_000)
 	realtimeReplayMaxEvents       = 2_000
+	// Small gaps use the transport's general catch-up budget. This bounds their
+	// work without charging a full replay token for each privilege audit event.
+	realtimeReplaySmallSequenceSpan = uint64(32)
 )
 
 var (
@@ -67,9 +70,6 @@ type RealtimeReplayPlan struct {
 	BoundarySequence uint64
 	// Events contains authorized deliverable durable events in global EVT order.
 	Events []EventEnvelope
-	// HadSequenceGap records that the validated request cursor preceded the
-	// captured boundary, including gaps that ultimately require a reset.
-	HadSequenceGap bool
 }
 
 // RealtimeCursorForSequence returns the opaque public cursor for one durable
@@ -80,31 +80,6 @@ func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (
 		return "", fmt.Errorf("read EVT stream identity: %w", err)
 	}
 	return c.encodeRealtimeCursor(userID, identity, sequence)
-}
-
-// RealtimeCursorAtCurrentBoundary reports whether cursor already names the
-// current EVT boundary for userID. It lets transport admission distinguish a
-// cheap, no-gap reconnect from a replay attempt without exposing the internal
-// stream sequence inside the sealed token.
-func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID, cursor string) (bool, error) {
-	if strings.TrimSpace(cursor) == "" {
-		return false, nil
-	}
-	identity, err := evtstream.Identity(c.storage.serverEvtStream)
-	if err != nil {
-		return false, fmt.Errorf("read EVT stream identity: %w", err)
-	}
-	info, err := c.currentEventStreamInfo(ctx)
-	if err != nil {
-		return false, fmt.Errorf("read EVT stream info: %w", err)
-	}
-	claims, err := c.parseRealtimeCursorAt(userID, cursor, time.Now())
-	if err != nil {
-		// Invalid, expired, and cross-user cursors take the normal metered
-		// recovery path. PlanRealtimeReplay turns them into a safe fallback.
-		return false, nil
-	}
-	return claims.StreamIdentity == realtimeStreamIdentity(identity) && claims.Sequence == info.State.LastSeq, nil
 }
 
 // WaitForRealtimeCursor validates one viewer-bound public cursor and waits
@@ -142,7 +117,12 @@ func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor s
 //
 // This initial implementation scans a bounded global sequence range directly.
 // It is suitable for reconnect gaps, not bulk event-log export.
-func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCursor string) (RealtimeReplayPlan, error) {
+//
+// admitReplay applies the transport's additional budget to an invalid cursor
+// or a validated gap above 32 EVT sequences. It runs after the exact boundary
+// is captured and before history is scanned or a fallback is returned. Its
+// error aborts the plan. A nil callback applies no additional admission policy.
+func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCursor string, admitReplay func() error) (RealtimeReplayPlan, error) {
 	stream := c.storage.serverEvtStream
 	identity, err := evtstream.Identity(stream)
 	if err != nil {
@@ -171,17 +151,20 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		BoundaryCursor:   boundaryCursor,
 		BoundarySequence: boundarySeq,
 	}
-	if strings.TrimSpace(resumeCursor) == "" {
+	if plan.Reset {
 		return plan, nil
 	}
 
 	cursorSequence, err := c.resolveRealtimeCursorAt(userID, resumeCursor, identity, info.State.FirstSeq, boundarySeq, time.Now())
+	if (err != nil || boundarySeq-cursorSequence > realtimeReplaySmallSequenceSpan) && admitReplay != nil {
+		if admissionErr := admitReplay(); admissionErr != nil {
+			return RealtimeReplayPlan{}, admissionErr
+		}
+	}
 	if err != nil || boundarySeq-cursorSequence > realtimeReplayMaxSequenceSpan {
 		plan.Reset = true
-		plan.HadSequenceGap = true
 		return plan, nil
 	}
-	plan.HadSequenceGap = cursorSequence < boundarySeq
 
 	memberRooms := make(map[string]struct{})
 	if err := c.myEventsModel.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {

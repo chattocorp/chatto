@@ -306,9 +306,13 @@ use `cursor`; only the subscribe request uses `resume_cursor`.
 
 Incremental replay and fallback share one process-local admission guard. Each
 replica admits at most eight catch-ups at once and one at a time for each user.
-Stale-cursor replay has a per-user burst of three and restores one token every
-20 seconds. Cursorless and current-boundary catch-ups use the general burst of
-20 and restore one token each second. Metrics expose active, started,
+Every catch-up uses the general per-user burst of 20 and restores one token
+each second. Invalid cursors and replay gaps above 32 EVT sequences also consume
+the stricter replay budget, with a burst of three and one token restored every
+20 seconds. The plan checks the cursor against its captured boundary and charges
+that budget before it scans history or returns a fallback. Cursorless starts and
+validated small gaps need no extra replay token. Small gaps include the audit
+facts written by rapid privileged-mode changes. Metrics expose active, started,
 timed-out, and rejected catch-ups.
 
 ## Authorization and projection readiness

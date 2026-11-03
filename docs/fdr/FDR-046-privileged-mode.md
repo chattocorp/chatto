@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
@@ -31,6 +31,9 @@ server session when they need them.
   deactivation response. It keeps its resume cursor and mounted realtime
   projection. After resume, ConnectRPC resource reads update effective room
   permissions in place before catch-up completes.
+- Rapid completed changes keep realtime delivery usable when the client is
+  current. A newer change replaces pending recovery and waits for the latest
+  effective permissions.
 - At the 15-minute deadline, the server closes each affected realtime
   connection with a reconnect instruction. The resumed subscription replaces
   effective permissions with privileged mode inactive. The server does not
