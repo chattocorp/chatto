@@ -287,7 +287,9 @@ external service is required for scheduling.
 Each turn includes a local `tool_search` capability and a reminder to search
 before work that needs tools or a claim that a capability is unavailable.
 Search matches names and descriptions by keyword. A nonempty query exposes up to
-eight matching tool schemas for the rest of the turn. An empty query lists concise
+eight matching tool schemas for the rest of the turn, plus authorized prerequisites.
+Memory matches also expose `memory_info`; the agent must still read it before use.
+An empty query lists concise
 entries without exposing all schemas; search specific names next. Initial requests
 include only core conversation tools and search. Schema exposure resets each turn
 and does not change execution authority. Results include configured MCP capabilities and their discovery
@@ -416,6 +418,11 @@ ordinary replies. If the provider reports an output-limit stop, the inspector
 shows the cause and setting to change. Gobotto records usage but does not execute
 partial tool calls, deliver partial replies, or retry automatically.
 
+An invalid assistant response gets at most one text-only correction request,
+with completed receipts retained. The correction cannot execute tools. It uses
+the existing final-response allowance at the work limit. The inspector records
+fixed validation reasons without retaining rejected response content.
+
 Model failures retain safe diagnostics in turn records and operational logs:
 HTTP status codes, connection failures, timeouts, invalid JSON, and provider error
 codes. Raw provider error bodies, request URLs, and credentials are not logged.
@@ -496,9 +503,17 @@ tools, and fixed collection aliases cannot access the collection. The collection
 is locked to one server/bot identity and one running process.
 
 After a turn, an isolated tool-free model request writes a short note about useful
-facts, decisions, corrections, or explicit outstanding requests. Gobotto appends
-the note as a Markdown bullet with `means append`. Greetings, repetition, skipped
-reactions, and casual offers need no note. The document body is one notebook;
+facts, decisions, corrections, or explicit outstanding requests. The request keeps
+each message's author and identifies the bot separately; mentions identify
+addressees, not authors. Gobotto appends the note as a Markdown bullet with
+`means append`. Greetings, repetition, skipped reactions, and casual offers need
+no note. An empty notes array still checkpoints the turn, so filler cannot block
+the next useful entry. Meaningful user preferences, corrections, and decisions
+remain eligible for notes when the bot only reacts or stays silent. The inspector
+reports "No useful change to record", "Appended N notes", or "Notebook condensed"
+so these outcomes are distinct. Notes cover useful changes across the supplied evidence;
+there is no required one-to-one match between notes and turns. The document body
+is one notebook;
 there is no separate running summary or JSON event log. Raw tool receipts stay in
 the existing private session records. Notes never grant authority, prove delivery,
 or authorize replay of an old action.
@@ -508,8 +523,13 @@ inspector, and count toward reported usage. Each changed journal needs at most o
 request per update; a top-level request can update both room and thread journals.
 These auxiliary requests are separate from the action loop's tool and step budgets.
 Requests have a 30-second timeout and at most 4,096 output tokens, or the lower
-configured output limit. Each note is limited to 600 bytes. Only when the notebook
-approaches 16,000 bytes does the model condense it to at most 8,000 bytes, using
+configured output limit. Each note is limited to 600 bytes and an appended batch
+to 2,400 bytes. Routine notes retain the request topic and outcome, not detailed
+weather reports or illustration descriptions. Fenced code and artifact payloads
+are omitted from note input; prose and tool excerpts are capped at 2,000 characters
+each with explicit omission markers. The original session text is unchanged.
+Only when the notebook approaches 16,000 bytes does the model condense it to at
+most 8,000 bytes, using
 `means update`. A malformed or failed note leaves the original transcript intact.
 
 At a turn boundary, Gobotto can replace a transcript of at least 256 KiB with the
@@ -526,7 +546,12 @@ Journal failures, oversized entries, or a recent turn that is too large prevent
 rollover. The existing 1 MiB transcript guard still applies and can require a new
 thread. Transient turn evidence is limited to 64 KiB per turn and model input to
 128 KiB. Pending evidence stays in memory; the original session transcript supports
-recovery after restart. Frontmatter keeps a fixed-size latest checkpoint and an
+recovery after restart. A retry replaces the previous pending snapshot from the
+same session instead of accumulating overlapping copies. Pending notes from other
+sessions or scheduled runs, and uncertain effects, remain intact.
+The inspector distinguishes model failures, timeouts, invalid JSON, missing fields,
+note limits, stale checkpoints, and storage failures without logging response text.
+Frontmatter keeps a fixed-size latest checkpoint and an
 uncertainty flag. Hash checks and a temporary mutation marker make interrupted
 appends recoverable without adding the note twice. Failed means commands block
 journal writes until restart reconciles that marker. Recall returns the bounded

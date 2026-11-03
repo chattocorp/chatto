@@ -31,7 +31,7 @@ func (c *conversation) recordRoomInputs(ctx context.Context, client Client, batc
 		if _, err := client.Timeline(ctx, c.key.room, "", ""); err != nil {
 			return
 		}
-		e := journal.Entry{Key: "message:" + m.ID, At: time.Now(), Inputs: []string{m.Body}, State: "observed", Note: "Top-level user message (request or claim, not a completed action)."}
+		e := journal.Entry{Key: "message:" + m.ID, At: time.Now(), Messages: []journal.Message{c.journalMessage(messageForModel(m))}, State: "observed"}
 		if err := c.journals.AppendAt(journal.Scope{Room: c.key.room}, e, -1, c.journalGeneration); err != nil {
 			i := c.step("journal", "Record room activity")
 			c.finishStep(i, "failed", "Room journal unavailable; thread content was not copied")
@@ -78,7 +78,7 @@ func (c *conversation) updateJournal(ctx context.Context, client Client) {
 	t := c.records[len(c.records)-1]
 	entry := journal.Entry{Key: fmt.Sprintf("%s:%d", c.humanID, t.Number), At: t.Started, State: t.State}
 	if t.State == "delivered" {
-		entry.Reply = t.Response
+		entry.Reply = journalExcerpt(t.Response)
 	}
 	state := c.model.Snapshot()
 	if c.journalOffset < 0 || c.journalOffset > len(state.Messages) {
@@ -114,11 +114,11 @@ func (c *conversation) updateJournal(ctx context.Context, client Client) {
 			if json.Unmarshal([]byte(text), &input) == nil {
 				for _, m := range append(input.Messages, input.New...) {
 					if m.Body != "" {
-						entry.Inputs = append(entry.Inputs, m.Body)
+						entry.Messages = append(entry.Messages, c.journalMessage(m))
 					}
 				}
 				if input.Task != "" {
-					entry.Inputs = append(entry.Inputs, "Scheduled task: "+input.Task)
+					entry.Inputs = append(entry.Inputs, "Scheduled task: "+journalExcerpt(input.Task))
 				}
 			}
 		case "assistant":
@@ -127,18 +127,61 @@ func (c *conversation) updateJournal(ctx context.Context, client Client) {
 			for _, call := range list {
 				calls[call.ID] = call
 			}
-			if text != "" && text != entry.Reply {
-				entry.Inputs = append(entry.Inputs, "Earlier assistant statement (delivery is not established by this statement): "+text)
+			if text != "" && (t.State != "delivered" || text != t.Response) {
+				entry.Inputs = append(entry.Inputs, "Earlier assistant statement (delivery is not established by this statement): "+journalExcerpt(text))
 			}
 		case "tool":
 			var id string
 			_ = json.Unmarshal(m["tool_call_id"], &id)
 			if call, ok := calls[id]; ok && journalReceipt(agent.ToolEvent{Name: call.Function.Name, State: "recorded"}) {
-				entry.Receipts = append(entry.Receipts, journal.Receipt{Name: call.Function.Name, Arguments: call.Function.Arguments, Result: text, State: "recorded tool result; interpret receipt, not assistant claims"})
+				entry.Receipts = append(entry.Receipts, journal.Receipt{Name: call.Function.Name, Arguments: journalExcerpt(call.Function.Arguments), Result: journalExcerpt(text), State: "host tool result excerpt; omitted content is not evidence of success"})
 			}
 		}
 	}
 	c.checkpointJournal(ctx, client, entry)
+}
+
+// journalMessage keeps attribution from the server's author ID. The notebook
+// model must not infer authors from mentions, names, or first-person quotations.
+func (c *conversation) journalMessage(m modelMessage) journal.Message {
+	result := journal.Message{Role: "user", UserID: m.ActorID, Body: journalExcerpt(m.Body)}
+	if c.identity.ID != "" && m.ActorID == c.identity.ID {
+		result.Role, result.Username, result.DisplayName = "assistant", c.identity.Login, c.identity.DisplayName
+	} else if profile, ok := c.participantContext[m.ActorID]; ok && profile.Resolved {
+		result.Username, result.DisplayName = profile.Username, profile.DisplayName
+	}
+	return result
+}
+
+// journalExcerpt keeps conversational prose, not a duplicate artifact payload.
+// Truncation is explicit; exact text and receipts remain in session inspection.
+func journalExcerpt(text string) string {
+	var lines []string
+	fence := ""
+	for _, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if fence != "" {
+			if strings.HasPrefix(trimmed, fence) && strings.Trim(trimmed, string(fence[0])) == "" {
+				fence = ""
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			count := 0
+			for count < len(trimmed) && trimmed[count] == trimmed[0] {
+				count++
+			}
+			fence = trimmed[:count]
+			lines = append(lines, "[code/artifact omitted]")
+			continue
+		}
+		lines = append(lines, line)
+	}
+	runes := []rune(strings.Join(lines, "\n"))
+	if len(runes) > 2000 {
+		return string(runes[:2000]) + "\n[excerpt truncated]"
+	}
+	return string(runes)
 }
 
 func (c *conversation) journalScope() journal.Scope {
@@ -221,7 +264,11 @@ func (c *conversation) checkpointJournal(ctx context.Context, client Client, ent
 		fail()
 		return
 	}
-	if err := c.journals.AppendAt(c.journalScope(), entry, c.journalRevision, c.journalGeneration); err != nil {
+	stream := c.provider
+	if stream == "" {
+		stream = c.humanID
+	}
+	if err := c.journals.StageSnapshot(c.journalScope(), entry, c.journalRevision, c.journalGeneration, stream); err != nil {
 		fail()
 		return
 	}
@@ -245,9 +292,11 @@ func (c *conversation) summarizeDocument(ctx context.Context, d journal.Document
 		if d.Scope.Thread == "" {
 			kind = "room"
 		}
-		condense := len(d.Summary)+603*len(d.Entries) > journal.MaxSummary
-		input, _ := json.Marshal(map[string]any{"scopeKind": kind, "notebook": d.Summary, "entries": d.Entries, "condense": condense})
+		condense := len(d.Summary)+journal.MaxNotes+1 > journal.MaxSummary
+		input, _ := json.Marshal(map[string]any{"scopeKind": kind, "bot": c.identity, "notebook": d.Summary, "entries": d.Entries, "condense": condense})
 		if len(input) > 128<<10 {
+			step := c.step("journal", "Journal note")
+			c.finishStep(step, "failed", "Journal input exceeds 128 KiB; original history retained")
 			return journal.ErrStorage
 		}
 		step := c.step("model", "Journal note")
@@ -257,21 +306,60 @@ func (c *conversation) summarizeDocument(ctx context.Context, d journal.Document
 		}, string(input))
 		cancel()
 		var result struct {
-			Body  string   `json:"body"`
-			Notes []string `json:"notes"`
+			Body  string    `json:"body"`
+			Notes *[]string `json:"notes"`
 		}
 		var text string
 		var calls []json.RawMessage
 		_ = json.Unmarshal(out["tool_calls"], &calls)
-		if err != nil || len(calls) > 0 || json.Unmarshal(out["content"], &text) != nil || len(text) > 128<<10 || json.Unmarshal([]byte(text), &result) != nil || (condense && (strings.TrimSpace(result.Body) == "" || len(result.Body) > 8000)) || (!condense && result.Body != "") {
-			c.finishStep(step, "failed", "Invalid journal note; original model history retained")
+		failure := ""
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			failure = "Journal model request timed out"
+		case err != nil:
+			failure = "Journal model request failed"
+		case len(calls) > 0:
+			failure = "Journal model returned forbidden tool calls"
+		case json.Unmarshal(out["content"], &text) != nil:
+			failure = "Journal model returned no text"
+		case len(text) > 128<<10:
+			failure = "Journal model output exceeds 128 KiB"
+		case json.Unmarshal([]byte(text), &result) != nil:
+			failure = "Journal model returned invalid JSON"
+		case result.Notes == nil:
+			failure = "Journal model omitted the notes array (use [] for filler)"
+		case condense && (strings.TrimSpace(result.Body) == "" || len(result.Body) > 8000):
+			failure = "Journal condensation must supply a nonempty body of at most 8000 bytes"
+		case !condense && result.Body != "":
+			failure = "Journal model attempted an unrequested notebook rewrite"
+		}
+		if failure != "" {
+			c.finishStep(step, "failed", failure+"; original model history retained")
 			return journal.ErrStorage
 		}
-		if err := c.journals.Summarize(d.Scope, d.Revision, d.Generation, result.Body, result.Notes); err != nil {
-			c.finishStep(step, "failed", "Journal checkpoint failed")
+		if err := c.journals.Summarize(d.Scope, d.Revision, d.Generation, result.Body, *result.Notes); err != nil {
+			detail := "Journal storage/checkpoint failed"
+			if errors.Is(err, journal.ErrStale) || errors.Is(err, journal.ErrNoteLimit) || errors.Is(err, journal.ErrNotebookLimit) {
+				detail = err.Error()
+			}
+			c.finishStep(step, "failed", detail+"; original model history retained")
 			return err
 		}
-		c.finishStep(step, "complete", "Notebook updated; filler omitted")
+		detail := "No useful change to record"
+		count := 0
+		for _, note := range *result.Notes {
+			if strings.TrimSpace(note) != "" {
+				count++
+			}
+		}
+		if condense {
+			detail = "Notebook condensed"
+		} else if count == 1 {
+			detail = "Appended 1 note"
+		} else if count > 1 {
+			detail = fmt.Sprintf("Appended %d notes", count)
+		}
+		c.finishStep(step, "complete", detail)
 	}
 	return nil
 }

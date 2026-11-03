@@ -116,13 +116,13 @@ func TestJournalSummaryFailureKeepsHistoryAndDelivery(t *testing.T) {
 		t.Fatal("failed journal rolled over")
 	}
 	d, _ := c.journals.Read(c.journalScope())
-	if d.Through != 0 || len(d.Entries) != 1 || len(d.Entries[0].Inputs) == 0 {
+	if d.Through != 0 || len(d.Entries) != 1 || len(d.Entries[0].Messages) == 0 {
 		t.Fatal("failed summary lost pending input")
 	}
 	c.complete = journalTestCompletion(t, false)
 	journalTestTurn(t, c, f, "continue", false)
 	d, _ = c.journals.Read(c.journalScope())
-	if strings.Count(d.Summary, "A scoped decision") != 2 || c.journalCheckpoint == "" {
+	if strings.Count(d.Summary, "A scoped decision") != 1 || c.journalCheckpoint == "" {
 		t.Fatal("next update did not recover pending journal")
 	}
 }
@@ -450,9 +450,272 @@ func TestJournalCondensesOnlyWhenNotebookIsFull(t *testing.T) {
 	}
 	f := newFake()
 	journalTestTurn(t, c, f, "continue", false)
+	assertJournalDetail(t, c, "Notebook condensed")
 	journalTestTurn(t, c, f, "another decision", false)
 	d, err := c.journals.Read(scope)
 	if err != nil || requests != 2 || d.Summary != "- Keep the earlier decision and the new decision.\n- A new decision.\n" {
 		t.Fatal("condensation or subsequent append failed", err)
+	}
+}
+
+func TestJournalPreservesAuthorInsteadOfAttributingMentions(t *testing.T) {
+	c := journalTestConversation(t)
+	c.identity = agent.Identity{ID: "bot", Login: "dieter", DisplayName: "Dieter"}
+	f := &profileClient{fakeClient: newFake(), lookup: func([]string) (map[string]chatto.Profile, error) {
+		return map[string]chatto.Profile{"human": {ID: "human", Login: "hendrik", DisplayName: "Hendrik"}}, nil
+	}}
+	requests := 0
+	complete := journalTestCompletion(t, false)
+	c.complete = func(ctx context.Context, messages []agent.Message) (agent.Message, error) {
+		var system, raw string
+		_ = json.Unmarshal(messages[0]["content"], &system)
+		if strings.HasPrefix(system, "Maintain a private") {
+			_ = json.Unmarshal(messages[1]["content"], &raw)
+			var request struct {
+				Bot     agent.Identity
+				Entries []journal.Entry
+			}
+			if err := json.Unmarshal([]byte(raw), &request); err != nil {
+				t.Fatal(err)
+			}
+			if request.Bot != c.identity {
+				t.Fatal("notebook model did not receive the bot identity")
+			}
+			found := false
+			for _, e := range request.Entries {
+				for _, m := range e.Messages {
+					if m.Body == "@dieter What is the weather?" {
+						found = true
+						if m.Role != "user" || m.UserID != "human" || m.Username != "hendrik" || m.DisplayName != "Hendrik" {
+							t.Fatal("author was lost or confused with mention recipient")
+						}
+					}
+				}
+			}
+			if !found {
+				t.Fatal("unattributed trigger in journal request")
+			}
+			requests++
+		}
+		return complete(ctx, messages)
+	}
+	journalTestTurn(t, c, f, "@dieter What is the weather?", true)
+	if requests != 2 {
+		t.Fatal("thread and room journals were not both checked", requests)
+	}
+	botMessage := c.journalMessage(modelMessage{ActorID: "bot", Body: "@hendrik Here is the weather."})
+	if botMessage.Role != "assistant" || botMessage.Username != "dieter" {
+		t.Fatal("bot history misattributed")
+	}
+	unknown := c.journalMessage(modelMessage{ActorID: "unresolved", Body: "@dieter I am Hendrik"})
+	if unknown.Role != "user" || unknown.Username != "" || unknown.DisplayName != "" {
+		t.Fatal("unknown author inferred from text")
+	}
+}
+
+func TestJournalFillerDoesNotBlockNextRequestOrCopyArtifacts(t *testing.T) {
+	c := journalTestConversation(t)
+	f := newFake()
+	requests := 0
+	c.complete = func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+		var system, raw string
+		_ = json.Unmarshal(messages[0]["content"], &system)
+		if !strings.HasPrefix(system, "Maintain a private") {
+			content, _ := json.Marshal("Here is the requested city illustration.\n```svg rendered\n" + strings.Repeat("ARTIFACT_PAYLOAD", 400) + "\n```\n")
+			return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
+		}
+		_ = json.Unmarshal(messages[1]["content"], &raw)
+		if strings.Contains(raw, "ARTIFACT_PAYLOAD") || len(raw) > 5000 {
+			t.Fatal("artifact copied into note request")
+		}
+		var request struct{ Entries []journal.Entry }
+		if err := json.Unmarshal([]byte(raw), &request); err != nil {
+			t.Fatal(err)
+		}
+		if len(request.Entries) != 1 {
+			t.Fatal("overlapping pending evidence")
+		}
+		requests++
+		result := `{"notes":["Requested Wiesbaden weather and an SVG; bot provided both."]}`
+		if requests == 2 {
+			result = `{"notes":[]}`
+		}
+		if requests == 3 {
+			for _, m := range request.Entries[0].Messages {
+				if strings.Contains(m.Body, "Wiesbaden") || m.Body == "Very nice." {
+					t.Fatal("checkpointed turns repeated")
+				}
+			}
+			result = `{"notes":["Requested a Mainz SVG; bot provided it."]}`
+		}
+		content, _ := json.Marshal(result)
+		return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
+	}
+	journalTestTurn(t, c, f, "Wiesbaden weather and SVG please", false)
+	journalTestTurn(t, c, f, "Very nice.", false)
+	d, err := c.journals.Read(c.journalScope())
+	if err != nil || d.LastKey != "journal-test:2" || len(d.Entries) != 0 || strings.Count(d.Summary, "\n") != 1 || c.journalOffset != len(c.model.Snapshot().Messages) {
+		t.Fatal("empty notes did not checkpoint filler", err)
+	}
+	assertJournalDetail(t, c, "No useful change to record")
+	journalTestTurn(t, c, f, "make one of Mainz", false)
+	d, err = c.journals.Read(c.journalScope())
+	if err != nil || d.LastKey != "journal-test:3" || !strings.Contains(d.Summary, "Mainz") || requests != 3 {
+		t.Fatal("later note missing", err)
+	}
+	assertJournalDetail(t, c, "Appended 1 note")
+	b, _ := json.Marshal(c.model.Snapshot())
+	if !strings.Contains(string(b), "ARTIFACT_PAYLOAD") {
+		t.Fatal("journal projection changed original model history")
+	}
+}
+
+func assertJournalDetail(t *testing.T, c *conversation, want string) {
+	t.Helper()
+	for _, step := range c.records[len(c.records)-1].Steps {
+		if step.Name == "Journal note" && step.State == "complete" && step.Detail == want {
+			return
+		}
+	}
+	t.Fatalf("missing journal outcome %q", want)
+}
+
+func TestJournalPreservesMeaningfulInputWithoutTextReply(t *testing.T) {
+	for _, mode := range []string{"reaction", "silent"} {
+		for _, input := range []struct{ name, body, note string }{
+			{"preference", "Please use Celsius for weather reports.", "User prefers Celsius for weather reports."},
+			{"correction", "Correction: the meeting is Thursday, not Tuesday.", "Meeting corrected to Thursday."},
+			{"decision", "We have decided to ship the release on Friday.", "Release will ship Friday."},
+		} {
+			t.Run(mode+"/"+input.name, func(t *testing.T) {
+				c := journalTestConversation(t)
+				notes := 0
+				c.complete = func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+					var system, raw string
+					_ = json.Unmarshal(messages[0]["content"], &system)
+					if !strings.HasPrefix(system, "Maintain a private") {
+						if mode == "reaction" {
+							return wireMessage(`{"role":"assistant","tool_calls":[{"id":"react","type":"function","function":{"name":"react_to_ping","arguments":"{\"emoji\":\"thumbsup\"}"}}]}`), nil
+						}
+						return wireMessage(`{"role":"assistant","tool_calls":[{"id":"silent","type":"function","function":{"name":"stay_silent","arguments":"{}"}}]}`), nil
+					}
+					_ = json.Unmarshal(messages[1]["content"], &raw)
+					var request struct{ Entries []journal.Entry }
+					if err := json.Unmarshal([]byte(raw), &request); err != nil {
+						t.Fatal(err)
+					}
+					found := false
+					for _, e := range request.Entries {
+						if e.Reply != "" {
+							t.Fatal("nontext turn acquired a textual answer")
+						}
+						for _, m := range e.Messages {
+							if m.Body == input.body && m.Role == "user" {
+								found = true
+							}
+						}
+					}
+					if !found {
+						t.Fatal("meaningful user input omitted from journal request")
+					}
+					notes++
+					out, _ := json.Marshal(map[string]any{"notes": []string{input.note}})
+					content, _ := json.Marshal(string(out))
+					return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
+				}
+				f := newFake()
+				journalTestTurn(t, c, f, input.body, false)
+				d, err := c.journals.Read(c.journalScope())
+				if err != nil || notes != 1 || !strings.Contains(d.Summary, input.note) || c.journalCheckpoint == "" {
+					t.Fatal("nontext turn failed to save its note", err)
+				}
+				turn := c.records[len(c.records)-1]
+				if turn.Response != "" || (mode == "silent" && (turn.State != "silent" || len(f.posts) != 0)) || (mode == "reaction" && (turn.Emoji != "thumbsup" || len(f.posts) != 1)) {
+					t.Fatal("test did not exercise the requested nontext response")
+				}
+				assertJournalDetail(t, c, "Appended 1 note")
+			})
+		}
+	}
+}
+
+func TestJournalRetriesDoNotAccumulateOverlappingEvidence(t *testing.T) {
+	c := journalTestConversation(t)
+	f := newFake()
+	requests := 0
+	c.complete = func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+		var system, raw string
+		_ = json.Unmarshal(messages[0]["content"], &system)
+		if !strings.HasPrefix(system, "Maintain a private") {
+			return answer(), nil
+		}
+		requests++
+		_ = json.Unmarshal(messages[1]["content"], &raw)
+		var request struct{ Entries []journal.Entry }
+		if err := json.Unmarshal([]byte(raw), &request); err != nil {
+			t.Fatal(err)
+		}
+		if len(request.Entries) != 1 {
+			t.Fatal("retry accumulated duplicate snapshots")
+		}
+		for i := 1; i <= requests; i++ {
+			count := 0
+			for _, m := range request.Entries[0].Messages {
+				if m.Body == fmt.Sprintf("uncheckpointed-%d", i) {
+					count++
+				}
+			}
+			if count != 1 {
+				t.Fatal("missing or duplicated turn", i, count)
+			}
+		}
+		result := "not JSON"
+		if requests == 4 {
+			result = `{"notes":["Four related requests recorded."]}`
+		}
+		content, _ := json.Marshal(result)
+		return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, nil
+	}
+	for i := 1; i <= 4; i++ {
+		journalTestTurn(t, c, f, fmt.Sprintf("uncheckpointed-%d", i), false)
+	}
+	d, err := c.journals.Read(c.journalScope())
+	if err != nil || len(d.Entries) != 0 || d.LastKey != "journal-test:4" || !strings.Contains(d.Summary, "Four related") {
+		t.Fatal("recovery failed", err)
+	}
+}
+
+func TestJournalReportsSpecificSafeFailureReasons(t *testing.T) {
+	for _, tc := range []struct {
+		name, output, want string
+		modelErr           error
+	}{
+		{"json", "not JSON", "invalid JSON", nil},
+		{"missing", `{}`, "omitted the notes array", nil},
+		{"rewrite", `{"notes":[],"body":"rewrite"}`, "unrequested notebook rewrite", nil},
+		{"oversized", `{"notes":["` + strings.Repeat("x", 601) + `"]}`, "note exceeds 600 bytes", nil},
+		{"timeout", "", "timed out", context.DeadlineExceeded},
+		{"provider", "", "model request failed", errors.New("PRIVATE_PROVIDER_DETAIL")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := journalTestConversation(t)
+			c.turns = 1
+			c.records = []inspection.Turn{{Number: 1, Started: time.Now(), State: "running"}}
+			c.complete = func(context.Context, []agent.Message) (agent.Message, error) {
+				content, _ := json.Marshal(tc.output)
+				return agent.Message{"role": json.RawMessage(`"assistant"`), "content": content}, tc.modelErr
+			}
+			if err := c.journals.Append(c.journalScope(), journal.Entry{Key: "one", Inputs: []string{"request"}}); err != nil {
+				t.Fatal(err)
+			}
+			d, _ := c.journals.Read(c.journalScope())
+			if err := c.summarizeDocument(context.Background(), d); err == nil {
+				t.Fatal("bad note accepted")
+			}
+			steps := c.records[0].Steps
+			if len(steps) != 1 || !strings.Contains(steps[0].Detail, tc.want) || strings.Contains(steps[0].Detail, "PRIVATE") {
+				t.Fatal("missing or unsafe diagnostic", steps)
+			}
+		})
 	}
 }

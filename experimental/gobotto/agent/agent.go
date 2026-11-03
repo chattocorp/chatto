@@ -24,11 +24,13 @@ type workerKey struct{}
 // ReadThread reads only the host-selected thread. The model cannot choose a destination.
 type ReadThread func(context.Context) (string, error)
 
-// ToolEvent exposes executed tool activity for a private inspector. It excludes
+// ToolEvent exposes tool activity and response validation for a private inspector. It excludes
 // model reasoning. Arguments and Result can contain private conversation data.
 type ToolEvent struct {
 	Name, Arguments, State, Result string
 	Duration                       time.Duration
+	// Validation distinguishes host response checks from tool execution.
+	Validation bool
 }
 
 // Outcome selects text, a reaction, silence, or a wait for child work in this thread.
@@ -334,23 +336,41 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 		}
 	}()
 	toolsUsed := 0
+	correcting := false
 	for step := 0; ; step++ {
 		if err := ctx.Err(); err != nil {
 			return Outcome{}, err
 		}
-		textOnly := (toolLimit > 0 && toolsUsed >= toolLimit) || (stepLimit > 0 && step >= stepLimit)
+		textOnly := correcting || (toolLimit > 0 && toolsUsed >= toolLimit) || (stepLimit > 0 && step >= stepLimit)
 		completionCtx := ctx
-		if textOnly {
+		if textOnly && !correcting {
 			messages = append(messages, textMessage("user", "Host work limit reached for this turn. Do not call tools. Give a concise progress report based only on the receipts: what completed, what remains unfinished, and any uncertainty. Completed actions remain in effect. Do not claim the whole task finished unless the receipts support that."))
+			completionCtx = context.WithValue(ctx, textOnlyKey{}, true)
+		}
+		if correcting {
 			completionCtx = context.WithValue(ctx, textOnlyKey{}, true)
 		}
 		msg, err := complete(completionCtx, messages)
 		if err != nil {
 			return Outcome{}, err
 		}
-		var role string
-		if json.Unmarshal(msg["role"], &role) != nil || role != "assistant" {
-			return Outcome{}, errors.New("invalid assistant role")
+		if err := validateResponse(msg); err != nil {
+			observe(ToolEvent{Name: "model_validation", State: "rejected", Result: err.Error(), Validation: true})
+			if correcting || textOnly || ctx.Err() != nil {
+				return Outcome{}, err
+			}
+			correcting = true
+			messages = append(messages, textMessage("user", "Host rejected the last response: "+err.Error()+". Give a concise text-only answer using the completed receipts. Do not call tools or claim unfinished actions succeeded."))
+			continue
+		}
+		if correcting && len(msg["tool_calls"]) > 0 {
+			var calls []json.RawMessage
+			_ = json.Unmarshal(msg["tool_calls"], &calls)
+			if len(calls) > 0 {
+				err := ValidationError("correction response called tools")
+				observe(ToolEvent{Name: "model_validation", State: "rejected", Result: err.Error(), Validation: true})
+				return Outcome{}, err
+			}
 		}
 		var calls []struct {
 			ID       string `json:"id"`
@@ -360,20 +380,12 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 				Arguments string `json:"arguments"`
 			} `json:"function"`
 		}
-		if raw := msg["tool_calls"]; len(raw) > 0 && json.Unmarshal(raw, &calls) != nil {
-			return Outcome{}, errors.New("invalid tool calls")
-		}
+		_ = json.Unmarshal(msg["tool_calls"], &calls) // Envelope was validated above.
 		// A model may attach an answer to a terminal reaction or silence call.
 		// Preserve the answer and explicitly decline the conflicting action.
 		if !s.worker && len(calls) == 1 && (calls[0].Function.Name == "react_to_ping" || calls[0].Function.Name == "stay_silent") {
 			var body string
 			if json.Unmarshal(msg["content"], &body) == nil && strings.TrimSpace(body) != "" {
-				if len([]rune(body)) > 10000 {
-					return Outcome{}, errors.New("model answer exceeds Chatto message limit")
-				}
-				if calls[0].ID == "" || calls[0].Type != "function" {
-					return Outcome{}, errors.New("invalid tool call identity")
-				}
 				action := "Reaction"
 				if calls[0].Function.Name == "stay_silent" {
 					action = "Silence"
@@ -393,25 +405,15 @@ func (s *Session) Turn(ctx context.Context, complete Complete, read ReadThread, 
 		}
 		if len(calls) == 0 {
 			var content string
-			if json.Unmarshal(msg["content"], &content) != nil || strings.TrimSpace(content) == "" {
-				return Outcome{}, errors.New("empty model answer")
-			}
-			if len([]rune(content)) > 10000 {
-				return Outcome{}, errors.New("model answer exceeds Chatto message limit")
-			}
+			_ = json.Unmarshal(msg["content"], &content)
 			s.messages = append(messages, msg)
-			return Outcome{Body: content, Limited: textOnly}, nil
+			return Outcome{Body: content, Limited: textOnly && !correcting}, nil
 		}
 		messages = append(messages, msg)
-		seen := map[string]bool{}
 		batchAllowed := s.worker
 		// Validate the whole batch before executing anything. Only explicitly
 		// read-only assigned tools may share a worker model response.
 		for _, call := range calls {
-			if call.ID == "" || seen[call.ID] || call.Type != "function" {
-				return Outcome{}, errors.New("invalid tool call identity")
-			}
-			seen[call.ID] = true
 			readOnly := false
 			for _, tool := range turnTools(ctx) {
 				if tool.Name == call.Function.Name {
