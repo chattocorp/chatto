@@ -57,6 +57,8 @@ export class ListVerifiedEmailsRequest extends Message<ListVerifiedEmailsRequest
  */
 export class ListVerifiedEmailsResponse extends Message<ListVerifiedEmailsResponse> {
   /**
+   * Verified addresses and the primary choice. Empty means none are verified.
+   *
    * @generated from field: repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
    */
   verifiedEmails: VerifiedEmail[] = [];

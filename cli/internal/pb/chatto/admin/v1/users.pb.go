@@ -74,8 +74,9 @@ func (x *ListVerifiedEmailsRequest) GetUserId() string {
 // An empty list means the account has no verified addresses. Order is not
 // significant. This read does not include a user profile or role assignments.
 type ListVerifiedEmailsResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	VerifiedEmails []*v1.VerifiedEmail    `protobuf:"bytes,1,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Verified addresses and the primary choice. Empty means none are verified.
+	VerifiedEmails []*v1.VerifiedEmail `protobuf:"bytes,1,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

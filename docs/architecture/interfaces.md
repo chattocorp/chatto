@@ -288,9 +288,9 @@ keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
 `api.v1.UserService` provides the canonical directory reads for profiles,
-assigned roles, and creation times. `AdminUserService.ListUserVerifiedEmails`
+assigned roles, and creation times. `AdminUserService.ListVerifiedEmails`
 reuses the private `VerifiedEmail` resource and requires `admin.view-users`.
-`GetUserUsernameCooldown` requires that permission plus account-management
+`GetUsernameCooldown` requires that permission plus account-management
 authority or the caller's own ID. These reads use account metadata without
 profile hydration, role catalogues, or assignment-limit evaluation. Legacy
 member reads retain their screen bootstrap data for compatibility.

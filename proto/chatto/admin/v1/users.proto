@@ -16,6 +16,7 @@ message ListVerifiedEmailsRequest {
 // An empty list means the account has no verified addresses. Order is not
 // significant. This read does not include a user profile or role assignments.
 message ListVerifiedEmailsResponse {
+  // Verified addresses and the primary choice. Empty means none are verified.
   repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
 }
 
