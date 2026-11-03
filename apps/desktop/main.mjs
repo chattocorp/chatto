@@ -492,6 +492,9 @@ async function runMacOSCaptureProbeList() {
 function createMainWindow() {
   const window = new BrowserWindow({
     title: 'Chatto',
+    // Keep this name stable so Electron can restore this window across releases.
+    name: 'main-window',
+    windowStatePersistence: true,
     width: 1280,
     height: 820,
     minWidth: 480,
