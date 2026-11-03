@@ -1237,6 +1237,11 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	}
 	toolIndex := -1
 	outcome, err := c.model.Turn(ctx, complete, read, string(data), func(e agent.ToolEvent) {
+		if e.Validation {
+			index := c.step("validation", "Agent result")
+			c.finishStep(index, "rejected", e.Result)
+			return
+		}
 		if e.State == "running" {
 			name := e.Name
 			if e.Name == "mcp_call" || e.Name == "mcp_discover" {
@@ -1272,9 +1277,14 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 		}
 	})
 	if err != nil {
+		detail := "Invalid or incomplete model action; no final answer delivered. Earlier tool and progress receipts still apply."
+		var validation agent.ValidationError
+		if errors.As(err, &validation) {
+			detail = "Model response rejected: " + validation.Error() + ". No final answer delivered; earlier receipts still apply."
+		}
 		c.inspect(func(t *inspection.Turn) {
-			if len(t.Steps) > 0 && t.Steps[len(t.Steps)-1].State == "complete" {
-				t.Steps = append(t.Steps, inspection.Step{Kind: "validation", Name: "Agent result", State: "failed", Started: time.Now(), Detail: "Invalid or incomplete model action; no final answer delivered. Earlier tool and progress receipts still apply."})
+			if validation != "" || (len(t.Steps) > 0 && t.Steps[len(t.Steps)-1].State == "complete") {
+				t.Steps = append(t.Steps, inspection.Step{Kind: "validation", Name: "Agent result", State: "failed", Started: time.Now(), Detail: detail})
 			}
 		})
 		return err

@@ -7,8 +7,55 @@ import (
 	"testing"
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
+
+func TestMemoryDiscoveryIncludesAuthorizedPrerequisite(t *testing.T) {
+	for _, available := range []bool{false, true} {
+		tools := []agent.Tool{{Name: "memory_create", Description: "Save facts"}}
+		if available {
+			tools = append(tools, agent.Tool{Name: "memory_info", Description: "Read collection guidance"})
+		}
+		for _, query := range []string{"Save facts", "", "unmatched"} {
+			raw, _ := json.Marshal(map[string]string{"query": query})
+			result, err := searchTool(tools, "").Execute(context.Background(), raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := available && query != "unmatched"
+			if strings.Contains(result, `"name":"memory_info"`) != want {
+				t.Fatal(result)
+			}
+		}
+	}
+}
+
+func TestInspectorRetainsResponseValidationReason(t *testing.T) {
+	c := &conversation{key: threadKey{"room", "root"}, records: []inspection.Turn{{Number: 1, State: "running"}}}
+	requests := 0
+	c.complete = func(context.Context, []agent.Message) (agent.Message, error) {
+		requests++
+		if requests == 1 {
+			return wireMessage(`{"role":"assistant","content":null}`), nil
+		}
+		return answer(), nil
+	}
+	if err := respond(context.Background(), newFake(), c, []chatto.MessageEvent{input("a", "hello", true)}, nil); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, turn := range c.records {
+		for _, step := range turn.Steps {
+			if step.Kind == "validation" && step.Detail == "empty model answer" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatal("specific validation reason missing")
+	}
+}
 
 func TestToolSearchMatchesRemoteDescriptionsWithoutExecution(t *testing.T) {
 	tool := searchTool([]agent.Tool{

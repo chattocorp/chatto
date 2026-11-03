@@ -216,6 +216,10 @@ func (m *Manager) Tools(maxRuns int, usage func(agent.Usage), observe func(Event
 			}
 			s := agent.RestoreWorker(run.History, prompt, w.config.MaxToolCalls)
 			out, err := s.Turn(childCtx, wrapped, nil, args.Task, func(e agent.ToolEvent) {
+				if e.Validation {
+					emit("validation", "Agent result", e.State, e.Result)
+					return
+				}
 				if e.State == "running" {
 					run.phase("reading_files")
 				}

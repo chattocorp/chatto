@@ -287,7 +287,9 @@ external service is required for scheduling.
 Each turn includes a local `tool_search` capability and a reminder to search
 before work that needs tools or a claim that a capability is unavailable.
 Search matches names and descriptions by keyword. A nonempty query exposes up to
-eight matching tool schemas for the rest of the turn. An empty query lists concise
+eight matching tool schemas for the rest of the turn, plus authorized prerequisites.
+Memory matches also expose `memory_info`; the agent must still read it before use.
+An empty query lists concise
 entries without exposing all schemas; search specific names next. Initial requests
 include only core conversation tools and search. Schema exposure resets each turn
 and does not change execution authority. Results include configured MCP capabilities and their discovery
@@ -415,6 +417,11 @@ also consumes this budget. Longer brain definitions can require more output than
 ordinary replies. If the provider reports an output-limit stop, the inspector
 shows the cause and setting to change. Gobotto records usage but does not execute
 partial tool calls, deliver partial replies, or retry automatically.
+
+An invalid assistant response gets at most one text-only correction request,
+with completed receipts retained. The correction cannot execute tools. It uses
+the existing final-response allowance at the work limit. The inspector records
+fixed validation reasons without retaining rejected response content.
 
 Model failures retain safe diagnostics in turn records and operational logs:
 HTTP status codes, connection failures, timeouts, invalid JSON, and provider error

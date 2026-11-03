@@ -118,6 +118,11 @@ func respondScheduled(ctx context.Context, client Client, c *conversation) (runE
 		}
 		return out, err
 	}, nil, string(input), func(e agent.ToolEvent) {
+		if e.Validation {
+			index := c.step("validation", "Agent result")
+			c.finishStep(index, "rejected", e.Result)
+			return
+		}
 		if e.State == "running" {
 			step = c.step("tool", e.Name)
 			return
