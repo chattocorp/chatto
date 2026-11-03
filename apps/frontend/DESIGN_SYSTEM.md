@@ -678,9 +678,10 @@ visual composer. Keep its geometry in `app.css`, rather than separate editor
 and message recipes. `code-frame` adds the artifact layout to this primitive;
 the thin header holds the language, copy action, and Source/Render controls.
 Source and rendered panels use `preview-content`. Visual fences show only their
-output, with no header, tabs or copy action. Animated SVG adds a Pause/Resume
-action through `PreviewToolbar` and `PreviewAction`. The zoom viewer puts this
-action beside its zoom controls. SVG and Mermaid show fitted
+output, with no header, tabs or copy action. Animated SVG adds a playback toggle
+through `PreviewToolbar` and `PreviewAction`. Its accessible name stays
+**Pause animation**; `aria-pressed` exposes the pause state. The zoom viewer puts
+this toggle beside its zoom controls. SVG and Mermaid show fitted
 images that open the attachment viewer when clicked or activated with the keyboard.
 Their frames follow the image dimensions, bounded by the message width and a
 height of 30 rem or 60 vh, whichever is smaller. Enlarge small artwork to use the

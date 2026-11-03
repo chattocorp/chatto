@@ -153,7 +153,8 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
   <div {@attach placeControls}>
     <PreviewToolbar layout={viewerControls ? 'row' : 'overlay'}>
       <PreviewAction
-        label={m(paused ? 'ui.image_modal.resume_animation' : 'ui.image_modal.pause_animation')}
+        label={m('ui.image_modal.pause_animation')}
+        aria-pressed={paused}
         icon={paused ? 'icon-[uil--play]' : 'icon-[uil--pause]'}
         disabled={!ready}
         onclick={() => {

@@ -51,7 +51,11 @@ describe('SVG animation playback', () => {
       const root = () => frame.contentDocument?.querySelector('svg');
       await expect.poll(() => root()?.getCurrentTime() ?? 0).toBeGreaterThan(0);
       const originalRoot = root();
-      await userEvent.click(view.getByRole('button', { name: 'Pause animation' }));
+      const toggle = view.getByRole('button', { name: 'Pause animation' });
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+      await userEvent.click(toggle);
+      await expect.element(toggle).toHaveAccessibleName('Pause animation');
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
       const time = root()!.getCurrentTime();
       const position = root()!.querySelector('circle')!.cx.animVal.value;
       await nextFrames();
@@ -60,7 +64,9 @@ describe('SVG animation playback', () => {
       expect(root()!.animationsPaused()).toBe(true);
       expect(frame.getAttribute('sandbox')).toBe('allow-same-origin');
       expect(frame.contentDocument!.querySelector('meta')!.content).toContain("default-src 'none'");
-      await userEvent.click(view.getByRole('button', { name: 'Resume animation' }));
+      await userEvent.click(toggle);
+      await expect.element(toggle).toHaveAccessibleName('Pause animation');
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
       await expect.poll(() => root()!.getCurrentTime()).toBeGreaterThan(time);
       expect(root()!.animationsPaused()).toBe(false);
       expect(root()).toBe(originalRoot);
@@ -127,7 +133,10 @@ describe('SVG animation playback', () => {
       await expect
         .poll(() => frame.contentDocument?.querySelector('svg')?.animationsPaused())
         .toBe(true);
-      await userEvent.click(view.getByRole('button', { name: 'Resume animation' }));
+      const toggle = view.getByRole('button', { name: 'Pause animation' });
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+      await userEvent.click(toggle);
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
       await expect
         .poll(() => frame.contentDocument!.querySelector('svg')!.getCurrentTime())
         .toBeGreaterThan(0);
@@ -135,6 +144,7 @@ describe('SVG animation playback', () => {
       await expect
         .poll(() => frame.contentDocument!.querySelector('svg')!.animationsPaused())
         .toBe(true);
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
     } finally {
       await view.unmount();
     }

@@ -100,9 +100,10 @@ test('SVG playback survives local and remote room messages', async ({
     frame.contentDocument!.querySelector('svg')!
   );
   // Keyboard focus reveals the visor even when the headless browser has no hover support.
-  const pause = page.getByRole('button', { name: 'Pause animation', exact: true });
-  await pause.focus();
-  await pause.press('Enter');
+  const toggle = page.getByRole('button', { name: 'Pause animation', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.focus();
+  await toggle.press('Enter');
   await frame.evaluate((frame: HTMLIFrameElement) =>
     frame.contentDocument!.querySelector('svg')!.setCurrentTime(123)
   );
@@ -121,16 +122,17 @@ test('SVG playback survives local and remote room messages', async ({
     );
   const assertPaused = async () => {
     expect(await playback()).toEqual({ sameFrame: true, sameSvg: true, paused: true, time: 123 });
-    await expect(page.getByRole('button', { name: 'Resume animation', exact: true })).toBeVisible();
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   };
   await postMessageOnRemote(serverURL, sender.token, roomId, 'Remote SVG continuity check');
   await expect(page.getByText('Remote SVG continuity check', { exact: true })).toBeVisible();
   await assertPaused();
   await roomPage.sendMessage('Local SVG continuity check');
   await assertPaused();
-  const resume = page.getByRole('button', { name: 'Resume animation', exact: true });
-  await resume.focus();
-  await resume.press('Enter');
+  await toggle.focus();
+  await toggle.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await postMessageOnRemote(serverURL, sender.token, roomId, 'Playing SVG continuity check');
   await expect(page.getByText('Playing SVG continuity check', { exact: true })).toBeVisible();
   const playing = await playback();

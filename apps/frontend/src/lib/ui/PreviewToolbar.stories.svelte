@@ -66,7 +66,7 @@
     <div class="group/preview relative preview-content" style:--preview-toolbar-inset="0px">
       <img src={coast} alt="Brighton coast" class="h-48 w-full object-cover" />
       <PreviewToolbar>
-        <PreviewAction label="Pause animation" icon="icon-[uil--pause]" />
+        <PreviewAction label="Pause animation" icon="icon-[uil--pause]" aria-pressed={false} />
       </PreviewToolbar>
     </div>
   </div>

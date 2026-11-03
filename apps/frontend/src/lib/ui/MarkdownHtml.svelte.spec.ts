@@ -102,7 +102,7 @@ describe('Sanitized SVG previews', () => {
       .poll(() => view.container.querySelector('iframe')?.contentDocument?.querySelector('svg'))
       .toBeTruthy();
     const playback = view.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Pause animation"], [aria-label="Resume animation"]'
+      '[aria-label="Pause animation"]'
     )!;
     expect(playback).not.toBeNull();
     await userEvent.click(playback);

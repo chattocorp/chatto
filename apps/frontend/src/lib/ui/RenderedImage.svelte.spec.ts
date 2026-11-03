@@ -70,7 +70,7 @@ describe('RenderedImage', () => {
         )
         .toBeTruthy();
       const control = document.querySelector<HTMLButtonElement>(
-        'dialog [aria-label="Pause animation"], dialog [aria-label="Resume animation"]'
+        'dialog [aria-label="Pause animation"]'
       )!;
       expect(control.closest('[data-image-controls]')).not.toBeNull();
       const poster = document.querySelector<HTMLImageElement>('dialog img')!;
@@ -82,8 +82,10 @@ describe('RenderedImage', () => {
         .querySelector<HTMLIFrameElement>('dialog iframe')!
         .contentDocument!.querySelector('svg')!;
       const paused = root.animationsPaused();
+      expect(control.getAttribute('aria-pressed')).toBe(String(paused));
       await userEvent.click(document.querySelector('dialog [aria-label="Zoom in"]')!);
       expect(root.animationsPaused()).toBe(paused);
+      expect(control.getAttribute('aria-pressed')).toBe(String(paused));
       expect(document.querySelector('dialog output')?.textContent).toBe('125%');
     } finally {
       await view.unmount();
