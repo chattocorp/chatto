@@ -132,7 +132,7 @@ func (c *MediaModel) uploadAttachmentBinary(
 	if int64(len(content)) > maxSize {
 		return nil, fmt.Errorf("attachment exceeds maximum size of %d bytes", maxSize)
 	}
-	attachment, _, err := c.storeSeekableAttachmentBinary(ctx, roomID, filename, contentType, bytes.NewReader(content), int64(len(content)))
+	attachment, _, err := c.storeSeekableAttachmentBinary(ctx, roomID, filename, contentType, bytes.NewReader(content), int64(len(content)), false)
 	return attachment, err
 }
 
@@ -141,16 +141,24 @@ func (c *MediaModel) uploadAttachmentBinary(
 // type, it reads only the image headers to get the dimensions, then streams
 // the original bytes. Thus, memory use does not increase with the file size
 // or the image dimensions. The returned ImageInfo is empty for other types.
+// gifVideo permits GIF animation sizes above the image-decoder limits. Only
+// callers that route animated GIFs to video processing can set it to true.
 func (c *MediaModel) storeSeekableAttachmentBinary(
 	ctx context.Context,
 	roomID, filename, contentType string,
 	reader io.ReadSeeker,
 	size int64,
+	gifVideo bool,
 ) (*evtv1.Attachment, assets.ImageInfo, error) {
 	var image assets.ImageInfo
 	if strings.HasPrefix(contentType, "image/") {
 		var err error
-		if image, err = assets.InspectImage(reader); err != nil {
+		if gifVideo && contentType == "image/gif" {
+			image, err = assets.InspectImageForVideo(reader)
+		} else {
+			image, err = assets.InspectImage(reader)
+		}
+		if err != nil {
 			return nil, assets.ImageInfo{}, fmt.Errorf("failed to process image: %w", err)
 		}
 	}
@@ -261,7 +269,7 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 	if err != nil {
 		return nil, fmt.Errorf("measure derivative binary: %w", err)
 	}
-	attachment, _, err := c.storeSeekableAttachmentBinary(ctx, roomID, filename, contentType, reader, size)
+	attachment, _, err := c.storeSeekableAttachmentBinary(ctx, roomID, filename, contentType, reader, size, false)
 	if err != nil {
 		return nil, err
 	}

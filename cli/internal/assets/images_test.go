@@ -1122,6 +1122,86 @@ func TestInspectImageRejectsTruncatedGIF(t *testing.T) {
 	}
 }
 
+func TestInspectImageForVideoAcceptsGIFAboveImageLimits(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		width  int
+		height int
+		frames int
+	}{
+		{name: "frame count", width: 2, height: 2, frames: MaxAnimatedImageFrames + 1},
+		{name: "cumulative pixels", width: 1024, height: 1024, frames: 96},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := createAnimatedGIF(tt.width, tt.height, tt.frames)
+			info, err := InspectImageForVideo(bytes.NewReader(data))
+			if err != nil {
+				t.Fatalf("InspectImageForVideo: %v", err)
+			}
+			if info.Format != "gif" || info.Frames != tt.frames || info.Width != tt.width || info.Height != tt.height {
+				t.Fatalf("got %+v, want a %dx%d GIF with %d frames", info, tt.width, tt.height, tt.frames)
+			}
+			if _, err := InspectImage(bytes.NewReader(data)); err == nil {
+				t.Fatal("InspectImage accepted an animation above the image limits")
+			}
+			if _, err := TransformImage(data, 2, 2, FitContain); err == nil {
+				t.Fatal("TransformImage accepted an animation above the image limits")
+			}
+		})
+	}
+}
+
+func TestInspectImageForVideoRejectsUnsafeGIFHeaders(t *testing.T) {
+	// Header inspection does not decode pixels. Use small encoded frames and
+	// change their size fields to exercise rejection without large allocations.
+	data := createAnimatedGIF(2, 2, MaxAnimatedImageFrames+1)
+	frameOffset := 13
+	if data[10]&0x80 != 0 {
+		frameOffset += 3 * (1 << ((data[10] & 0x07) + 1))
+	}
+	for data[frameOffset] == 0x21 {
+		frameOffset += 2
+		for data[frameOffset] != 0 {
+			frameOffset += 1 + int(data[frameOffset])
+		}
+		frameOffset++
+	}
+	if data[frameOffset] != 0x2c {
+		t.Fatal("test GIF does not have an image descriptor")
+	}
+	for _, tt := range []struct {
+		name string
+		edit func([]byte) []byte
+	}{
+		{name: "truncated", edit: func(data []byte) []byte { return data[:len(data)-1] }},
+		{name: "canvas dimension", edit: func(data []byte) []byte {
+			binary.LittleEndian.PutUint16(data[6:8], MaxDecodedImageDimension+1)
+			return data
+		}},
+		{name: "canvas pixels", edit: func(data []byte) []byte {
+			binary.LittleEndian.PutUint16(data[6:8], 10_000)
+			binary.LittleEndian.PutUint16(data[8:10], 10_000)
+			return data
+		}},
+		{name: "frame dimension", edit: func(data []byte) []byte {
+			binary.LittleEndian.PutUint16(data[frameOffset+5:frameOffset+7], MaxDecodedImageDimension+1)
+			return data
+		}},
+		{name: "frame pixels", edit: func(data []byte) []byte {
+			binary.LittleEndian.PutUint16(data[frameOffset+5:frameOffset+7], 10_000)
+			binary.LittleEndian.PutUint16(data[frameOffset+7:frameOffset+9], 10_000)
+			return data
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			input := tt.edit(bytes.Clone(data))
+			if _, err := InspectImageForVideo(bytes.NewReader(input)); err == nil {
+				t.Fatal("InspectImageForVideo accepted unsafe GIF headers")
+			}
+		})
+	}
+}
+
 // ============================================================================
 // GIF Compositing Tests
 // ============================================================================

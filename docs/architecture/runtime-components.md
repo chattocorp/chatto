@@ -420,7 +420,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`AssetUploadModel`**
   ([`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)): Eagerly
   wired chunked attachment upload sessions, temporary object assembly,
-  pending-asset expiry, and process-local periodic cleanup.
+  pending-asset expiry, and process-local periodic cleanup. GIF uploads use
+  header-only video admission when video processing is enabled; the shared
+  [image inspector](../../cli/internal/assets/images.go) keeps ordinary
+  image-decoder limits separate from this admission path.
 
 ## Realtime
 

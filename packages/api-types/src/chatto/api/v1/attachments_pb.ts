@@ -64,14 +64,16 @@ export class Asset extends Message<Asset> {
   assetUrl?: MessageAssetUrl;
 
   /**
-   * Signed URL for a transformed image thumbnail.
+   * Signed thumbnail image URL, when available. GIFs routed to video processing
+   * use the generated video thumbnail without image transform options. Absent
+   * when that thumbnail is unavailable.
    *
    * @generated from field: chatto.api.v1.MessageAssetUrl thumbnail_asset_url = 8;
    */
   thumbnailAssetUrl?: MessageAssetUrl;
 
   /**
-   * Video processing state when this asset is a video attachment.
+   * Video processing state for videos and animated GIFs.
    *
    * @generated from field: chatto.api.v1.MessageVideoProcessing video_processing = 9;
    */

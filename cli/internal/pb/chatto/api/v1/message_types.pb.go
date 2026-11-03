@@ -408,8 +408,10 @@ type MessageAttachment struct {
 	// Signed URL for the original asset, when available.
 	AssetUrl *MessageAssetUrl `protobuf:"bytes,6,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
 	// Signed URL for a thumbnail image, when available.
+	// GIFs routed to video processing use the generated video thumbnail. The URL
+	// is absent when that thumbnail is unavailable.
 	ThumbnailAssetUrl *MessageAssetUrl `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
-	// Video-specific processing metadata, when this attachment is a video.
+	// Video processing metadata for videos and animated GIFs.
 	VideoProcessing *MessageVideoProcessing `protobuf:"bytes,8,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
 	// User-provided description for accessibility and attachment details.
 	// Absent when the attachment has no description.

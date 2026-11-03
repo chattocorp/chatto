@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -187,6 +188,116 @@ func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
 	}
 	if attachment == nil || attachment.GetId() == "" {
 		t.Fatal("CompleteUpload did not return an attachment")
+	}
+}
+
+func TestAssetUploadAnimatedGIFVideoProcessingLimits(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		width        int
+		height       int
+		frames       int
+		videoEnabled bool
+		wantError    bool
+	}{
+		{name: "at image frame limit", width: 2, height: 2, frames: assets.MaxAnimatedImageFrames, videoEnabled: true},
+		{name: "above image frame limit", width: 2, height: 2, frames: assets.MaxAnimatedImageFrames + 1, videoEnabled: true},
+		{name: "above image frame limit without video", width: 2, height: 2, frames: assets.MaxAnimatedImageFrames + 1, wantError: true},
+		{name: "above image cumulative pixel limit", width: 1024, height: 1024, frames: 96, videoEnabled: true},
+		{name: "above image cumulative pixel limit without video", width: 1024, height: 1024, frames: 96, wantError: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			core, _ := newTestCore(t)
+			core.VideoUploadsEnabled = tt.videoEnabled
+			startCoreServices(t, core)
+			ctx := testContext(t)
+
+			user, err := core.CreateUser(ctx, SystemActorID, "large-gif-upload", "Large GIF Upload", "password")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "large-gif-uploads", "")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+			if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+				t.Fatalf("JoinRoom: %v", err)
+			}
+
+			// Reuse two frames to keep fixture memory below the tested decode budget.
+			palette := color.Palette{color.Black, color.White}
+			frame1 := image.NewPaletted(image.Rect(0, 0, tt.width, tt.height), palette)
+			frame2 := image.NewPaletted(image.Rect(0, 0, tt.width, tt.height), palette)
+			frame2.SetColorIndex(tt.width-1, tt.height-1, 1)
+			animation := &gif.GIF{
+				Image: make([]*image.Paletted, tt.frames),
+				Delay: make([]int, tt.frames),
+			}
+			for i := range tt.frames {
+				animation.Image[i] = frame1
+				if i%2 != 0 {
+					animation.Image[i] = frame2
+				}
+				animation.Delay[i] = 10
+			}
+			var buf bytes.Buffer
+			if err := gif.EncodeAll(&buf, animation); err != nil {
+				t.Fatalf("EncodeAll animated GIF: %v", err)
+			}
+			content := buf.Bytes()
+			sum := sha256.Sum256(content)
+			hash := hex.EncodeToString(sum[:])
+			upload, err := core.AssetUploads().CreateUpload(ctx, AssetUploadCreateInput{
+				ActorID:     user.Id,
+				RoomID:      room.Id,
+				Filename:    "animated.gif",
+				ContentType: "image/gif",
+				Size:        int64(len(content)),
+				SHA256:      hash,
+			})
+			if err != nil {
+				t.Fatalf("CreateUpload: %v", err)
+			}
+			if _, err := core.AssetUploads().UploadChunk(ctx, AssetUploadChunkInput{
+				ActorID:     user.Id,
+				UploadID:    upload.UploadID,
+				Offset:      0,
+				Content:     content,
+				ChunkSHA256: hash,
+			}); err != nil {
+				t.Fatalf("UploadChunk: %v", err)
+			}
+
+			completed, attachment, err := core.AssetUploads().CompleteUpload(ctx, AssetUploadCompleteInput{
+				ActorID:  user.Id,
+				UploadID: upload.UploadID,
+			})
+			if tt.wantError {
+				if err == nil || !strings.Contains(err.Error(), "animated image exceeds supported frame limits") {
+					t.Fatalf("CompleteUpload = %v, want animation limit rejection", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("CompleteUpload with %d GIF frames and video enabled: %v", tt.frames, err)
+			}
+			if completed.Status != AssetUploadStatusCompleted {
+				t.Fatalf("completed status = %q, want %q", completed.Status, AssetUploadStatusCompleted)
+			}
+			if attachment == nil || attachment.GetId() == "" {
+				t.Fatal("CompleteUpload did not return an attachment")
+			}
+			if attachment.GetWidth() != int32(tt.width) || attachment.GetHeight() != int32(tt.height) {
+				t.Fatalf("attachment dimensions = %dx%d, want %dx%d", attachment.GetWidth(), attachment.GetHeight(), tt.width, tt.height)
+			}
+			declared, ok := core.assetModel.AssetCreation(attachment.GetId())
+			if !ok {
+				t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
+			}
+			if !declared.GetNeedsVideoProcessing() {
+				t.Fatal("animated GIF upload did not request video processing")
+			}
+		})
 	}
 }
 

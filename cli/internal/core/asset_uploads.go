@@ -585,7 +585,8 @@ func (m *AssetUploadModel) materializeUpload(ctx context.Context, session *Asset
 }
 
 func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *AssetUploadSession, reader io.ReadSeeker) (*evtv1.Attachment, bool, error) {
-	attachment, image, err := m.core.mediaModel.storeSeekableAttachmentBinary(ctx, session.RoomID, session.Filename, session.ContentType, reader, session.Size)
+	gifVideo := m.core.VideoUploadsEnabled && session.ContentType == "image/gif"
+	attachment, image, err := m.core.mediaModel.storeSeekableAttachmentBinary(ctx, session.RoomID, session.Filename, session.ContentType, reader, session.Size, gifVideo)
 	if err != nil {
 		return nil, false, err
 	}

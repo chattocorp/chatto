@@ -403,17 +403,16 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 		if attachment.MessageBodyId == "" {
 			attachment.MessageBodyId = messageEventID
 		}
-		assetURL := h.api.core.GetStableAttachmentAssetURL(attachment.Id, h.viewerID)
-		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)
+		asset := apiAsset(h.ctx, h.api, attachment, h.viewerID, thumbnail)
 		view := &apiv1.MessageAttachment{
 			Id:                attachment.Id,
 			Filename:          attachment.Filename,
 			ContentType:       attachment.ContentType,
 			Width:             attachment.Width,
 			Height:            attachment.Height,
-			AssetUrl:          h.api.assetURLView(h.ctx, assetURL),
-			ThumbnailAssetUrl: h.api.assetURLView(h.ctx, thumbnailURL),
-			VideoProcessing:   apiVideoProcessing(h.ctx, h.api, h.viewerID, attachment),
+			AssetUrl:          asset.GetAssetUrl(),
+			ThumbnailAssetUrl: asset.GetThumbnailAssetUrl(),
+			VideoProcessing:   asset.GetVideoProcessing(),
 		}
 		if description := descriptions[attachment.GetId()]; description != "" {
 			view.Description = &description
