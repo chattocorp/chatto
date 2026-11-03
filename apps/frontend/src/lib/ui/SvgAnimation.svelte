@@ -56,22 +56,22 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
     const failed = onerror;
     ready = false;
     const load = () => {
-      const document = frame.contentDocument;
-      if (!document) {
+      const frameDocument = frame.contentDocument;
+      if (!frameDocument) {
         failed?.();
         return;
       }
-      const root = document.importNode(parsedRoot, true);
+      const root = frameDocument.importNode(parsedRoot, true);
       // A viewBox makes fixed dimensions fit the existing image stage.
       if (!root.hasAttribute('viewBox')) root.setAttribute('viewBox', fallbackViewBox);
-      document.body.replaceChildren(root);
+      frameDocument.body.replaceChildren(root);
       svg = root;
       const startPaused = motionPreference().matches;
       paused = startPaused;
       if (startPaused) svg.setCurrentTime(0);
       ready = true;
       // Keep initial setup independent of the reactive Pause button state.
-      if (startPaused || !visible || window.document.hidden) root.pauseAnimations();
+      if (startPaused || !visible || document.hidden) root.pauseAnimations();
       else root.unpauseAnimations();
     };
     frame.addEventListener('load', load);
@@ -100,8 +100,6 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
     return () => {
       observer.disconnect();
       motion.removeEventListener('change', changed);
-      svg?.pauseAnimations();
-      svg = undefined;
     };
   }
 

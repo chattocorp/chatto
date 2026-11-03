@@ -12,13 +12,16 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   let {
     image,
     initialSize,
-    svgSource
+    svgSource,
+    onerror
   }: {
     image: HTMLImageElement;
     /** Reserve the previous intrinsic size while a remounted image loads. */
     initialSize?: RenderedImageSize;
     /** Sanitized source, present only for supported SVG animations. */
     svgSource?: string;
+    /** Let the Markdown owner reveal source if the playback frame fails. */
+    onerror?: () => void;
   } = $props();
   const descriptionId = $props.id();
   let width = $state(1);
@@ -81,7 +84,14 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   >
     <span class="hidden" {@attach preview}></span>
     {#if ready}
-      <SvgAnimation source={svgSource} alt={image.alt} {width} {height} onopen={openViewer} />
+      <SvgAnimation
+        source={svgSource}
+        alt={image.alt}
+        {width}
+        {height}
+        onopen={openViewer}
+        {onerror}
+      />
     {/if}
   </div>
 {:else}

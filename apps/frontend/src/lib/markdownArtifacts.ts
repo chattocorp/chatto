@@ -144,7 +144,12 @@ export function attachCodeFrames(
           rememberRenderedImageSize(sizeKey, image);
           const canvas = mount(RenderedImage, {
             target: renderPanel,
-            props: { image, initialSize: size, svgSource: animatedSvgSources.get(image) }
+            props: {
+              image,
+              initialSize: size,
+              svgSource: animatedSvgSources.get(image),
+              onerror: fail
+            }
           });
           placeholder?.remove();
           disposeCanvas = () => {

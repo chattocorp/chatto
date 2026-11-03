@@ -94,20 +94,21 @@ test('SVG playback survives local and remote room messages', async ({
   await frame.evaluate((frame: HTMLIFrameElement) =>
     frame.contentDocument!.querySelector('svg')!.setCurrentTime(123)
   );
+  const playback = () =>
+    frame.evaluate(
+      (frame: HTMLIFrameElement, original) => {
+        const svg = frame.contentDocument!.querySelector('svg')!;
+        return {
+          sameFrame: frame === original.frame,
+          sameSvg: svg === original.svg,
+          paused: svg.animationsPaused(),
+          time: svg.getCurrentTime()
+        };
+      },
+      { frame: originalFrame, svg: originalSvg }
+    );
   const assertPaused = async () => {
-    expect(await frame.evaluate((frame, original) => frame === original, originalFrame)).toBe(true);
-    expect(
-      await frame.evaluate(
-        (frame: HTMLIFrameElement, original) =>
-          frame.contentDocument!.querySelector('svg') === original,
-        originalSvg
-      )
-    ).toBe(true);
-    expect(
-      await frame.evaluate((frame: HTMLIFrameElement) =>
-        frame.contentDocument!.querySelector('svg')!.getCurrentTime()
-      )
-    ).toBe(123);
+    expect(await playback()).toEqual({ sameFrame: true, sameSvg: true, paused: true, time: 123 });
     await expect(page.getByRole('button', { name: 'Resume animation', exact: true })).toBeVisible();
   };
   await postMessageOnRemote(serverURL, sender.token, roomId, 'Remote SVG continuity check');
@@ -120,18 +121,9 @@ test('SVG playback survives local and remote room messages', async ({
   await resume.press('Enter');
   await postMessageOnRemote(serverURL, sender.token, roomId, 'Playing SVG continuity check');
   await expect(page.getByText('Playing SVG continuity check', { exact: true })).toBeVisible();
-  expect(
-    await frame.evaluate(
-      (frame: HTMLIFrameElement, original) =>
-        frame.contentDocument!.querySelector('svg') === original,
-      originalSvg
-    )
-  ).toBe(true);
-  expect(
-    await frame.evaluate((frame: HTMLIFrameElement) =>
-      frame.contentDocument!.querySelector('svg')!.getCurrentTime()
-    )
-  ).toBeGreaterThan(123);
+  const playing = await playback();
+  expect(playing).toMatchObject({ sameFrame: true, sameSvg: true, paused: false });
+  expect(playing.time).toBeGreaterThan(123);
   expect(pageErrors).toEqual([]);
 });
 

@@ -27,6 +27,7 @@ describe('SVG preview sanitization', () => {
     'attributeName="fill" values="red;url(https://example.invalid/paint)"',
     'attributeName="fill" values="red;var(--paint,url(https://example.invalid/paint))"',
     'attributeName="fill" values="red;blue" from="url(https://example.invalid/paint)"',
+    'attributeName="fill" values="red;blue" by="url(https://example.invalid/paint)"',
     'attributeName="x" values="0;1" begin="other.click"',
     'attributeName="x" values="0;999999999"',
     'attributeName="x" values="0;NaN"'
