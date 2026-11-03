@@ -61,6 +61,10 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
       return;
     }
     const fallbackViewBox = `0 0 ${width} ${height}`;
+    // Fit the SVG viewport as an image would, including author "none"/"slice"
+    // aspect rules. Frame viewport units keep this responsive without observers.
+    const fittedWidth = `min(100vw, ${(100 * width) / height}vh)`;
+    const fittedHeight = `min(100vh, ${(100 * height) / width}vw)`;
     const failed = onerror;
     ready = false;
     const load = () => {
@@ -72,6 +76,8 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
       const root = frameDocument.importNode(parsedRoot, true);
       // A viewBox makes fixed dimensions fit the existing image stage.
       if (!root.hasAttribute('viewBox')) root.setAttribute('viewBox', fallbackViewBox);
+      root.style.width = fittedWidth;
+      root.style.height = fittedHeight;
       frameDocument.body.replaceChildren(root);
       svg = root;
       const startPaused = motionPreference().matches;

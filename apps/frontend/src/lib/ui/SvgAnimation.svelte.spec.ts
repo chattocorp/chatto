@@ -18,6 +18,30 @@ async function nextFrames() {
 afterEach(() => applyAnimationPreference('automatic'));
 
 describe('SVG animation playback', () => {
+  it.each(['none', 'xMidYMid slice'])(
+    'fits the artwork viewport before applying preserveAspectRatio="%s"',
+    async (preserveAspectRatio) => {
+      const view = render(SvgAnimation, {
+        source: source.replace('<svg ', `<svg preserveAspectRatio="${preserveAspectRatio}" `),
+        alt: 'Moving circle',
+        width: 200,
+        height: 100
+      });
+      view.container.style.cssText = 'width:400px;height:400px';
+      try {
+        const frame = view.container.querySelector('iframe')!;
+        const bounds = () => frame.contentDocument?.querySelector('svg')?.getBoundingClientRect();
+        await expect.poll(() => bounds()?.width).toBe(400);
+        await expect.poll(() => bounds()?.height).toBe(200);
+        view.container.style.cssText = 'width:44px;height:200px';
+        await expect.poll(() => bounds()?.width).toBe(44);
+        await expect.poll(() => bounds()?.height).toBe(22);
+      } finally {
+        await view.unmount();
+      }
+    }
+  );
+
   it('pauses the actual timeline and resumes at the same position', async () => {
     applyAnimationPreference('enabled');
     const view = render(SvgAnimation, { source, alt: 'Moving circle', width: 200, height: 100 });
