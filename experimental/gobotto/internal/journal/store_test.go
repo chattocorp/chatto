@@ -353,3 +353,29 @@ func TestReadReturnsDetachedPendingEvidence(t *testing.T) {
 		t.Fatal("reader mutated pending store evidence", err)
 	}
 }
+
+func TestSnapshotReplacementPreservesEarlierUncertainty(t *testing.T) {
+	s, err := Open(t.TempDir(), "account", testmeans.Command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	scope := Scope{Room: "room"}
+	if err := s.StageSnapshot(scope, Entry{Key: "failed", State: "failed", Receipts: []Receipt{{Name: "write", Result: "unknown"}}}, 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.StageSnapshot(scope, Entry{Key: "later", State: "delivered"}, 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	d, err := s.Read(scope)
+	if err != nil || len(d.Entries) != 1 || d.Entries[0].Key != "later" {
+		t.Fatal("snapshots accumulated", err)
+	}
+	if err := s.Summarize(scope, 0, 0, "", []string{}); err != nil {
+		t.Fatal(err)
+	}
+	d, err = s.Read(scope)
+	if err != nil || !d.Uncertain || d.LastKey != "later" {
+		t.Fatal("filler checkpoint lost prior uncertainty", err)
+	}
+}

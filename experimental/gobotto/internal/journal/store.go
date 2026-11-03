@@ -24,11 +24,19 @@ const (
 	MaxDocument = 8 << 20
 	MaxEntry    = 64 << 10
 	MaxSummary  = 16000
+	MaxNotes    = 2400 // complete appended note batch, including Markdown separators
 )
 const separator = "\n\n# Journal entries\n\n```json\n"
 
 // ErrStorage reports safe, content-free storage or checkpoint validation errors.
 var ErrStorage = errors.New("conversation journal unavailable; original context retained")
+
+// Validation errors contain no document data and can be shown in inspection.
+var (
+	ErrStale         = errors.New("journal checkpoint changed during note generation")
+	ErrNoteLimit     = errors.New("journal note exceeds 600 bytes")
+	ErrNotebookLimit = errors.New("journal notebook or note batch exceeds its size limit")
+)
 
 // Scope is supplied by the host. Empty Thread selects only top-level room activity.
 type Scope struct {
@@ -307,6 +315,17 @@ func (s *Store) Append(scope Scope, e Entry) error {
 // AppendAt rejects a turn prepared before a journal invalidation or other edit.
 // A negative revision is for host ingestion that has no model work in flight.
 func (s *Store) AppendAt(scope Scope, e Entry, revision, generation int) error {
+	return s.stage(scope, e, revision, generation, false)
+}
+
+// StageSnapshot replaces earlier pending snapshots of the same uncheckpointed
+// transcript. The caller supplies all evidence since the last durable checkpoint.
+// Preserve uncertainty from earlier failed attempts even after a successful reply.
+func (s *Store) StageSnapshot(scope Scope, e Entry, revision, generation int) error {
+	return s.stage(scope, e, revision, generation, true)
+}
+
+func (s *Store) stage(scope Scope, e Entry, revision, generation int, snapshot bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, err := s.read(scope)
@@ -314,7 +333,7 @@ func (s *Store) AppendAt(scope Scope, e Entry, revision, generation int) error {
 		return err
 	}
 	if generation >= 0 && d.Generation != generation {
-		return ErrStorage
+		return ErrStale
 	}
 	b, _ := json.Marshal(e)
 	if e.Key == "" || len(b) > MaxEntry {
@@ -335,11 +354,19 @@ func (s *Store) AppendAt(scope Scope, e Entry, revision, generation int) error {
 		}
 	}
 	if revision >= 0 && d.Revision != revision {
-		return ErrStorage
+		return ErrStale
 	}
 	var owned Entry
 	_ = json.Unmarshal(b, &owned)
 	owned.Digest = hash(string(b))
+	if snapshot {
+		for _, prior := range d.Entries {
+			if uncertain(prior) {
+				owned.State = "uncertain"
+			}
+		}
+		d.Entries = nil
+	}
 	d.Entries = append(d.Entries, owned)
 	encoded, _ := json.Marshal(d.Entries)
 	if len(encoded) > 128<<10 {
@@ -359,17 +386,23 @@ func (s *Store) Summarize(scope Scope, revision, generation int, summary string,
 	if err != nil {
 		return err
 	}
-	if d.Revision != revision || d.Generation != generation || len(summary) > MaxSummary || len(notes) != len(d.Entries) {
-		return ErrStorage
+	if d.Revision != revision || d.Generation != generation {
+		return ErrStale
+	}
+	if len(summary) > MaxSummary {
+		return ErrNotebookLimit
 	}
 	addition := ""
 	for _, n := range notes {
 		if len(n) > 600 {
-			return ErrStorage
+			return ErrNoteLimit
 		}
 		if n = strings.TrimSpace(n); n != "" {
 			addition += "- " + strings.TrimPrefix(n, "- ") + "\n"
 		}
+	}
+	if len(addition) > MaxNotes {
+		return ErrNotebookLimit
 	}
 	next := d.Summary
 	if next != "" && !strings.HasSuffix(next, "\n") && addition != "" {
@@ -381,7 +414,7 @@ func (s *Store) Summarize(scope Scope, revision, generation int, summary string,
 		next = summary
 	}
 	if len(next) > MaxSummary {
-		return ErrStorage
+		return ErrNotebookLimit
 	}
 	i := &intent{Before: hash(d.Summary), After: hash(next), Revision: d.Revision + 1, LastKey: d.LastKey, LastDigest: d.LastDigest, Uncertain: d.Uncertain}
 	for _, e := range d.Entries {
