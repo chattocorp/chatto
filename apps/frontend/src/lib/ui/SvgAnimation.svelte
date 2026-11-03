@@ -3,7 +3,7 @@ Plays a sanitized SVG in a frame with scripts and resource loads disabled.
 The parent controls the SVG timeline. Offscreen and hidden frames pause work.
 -->
 <script lang="ts">
-  import { SVG_ANIMATION_FRAME_DOCUMENT } from '$lib/svgAnimationFrame';
+  import { SVG_ANIMATION_FRAME_DOCUMENT, SVG_ANIMATION_FRAME_POLICY } from '$lib/svgAnimationFrame';
   import { motionPreference } from '$lib/dom/motionPreference';
   import { m } from '$lib/i18n/messages';
   import PreviewToolbar from './PreviewToolbar.svelte';
@@ -40,6 +40,14 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
     else svg.unpauseAnimations();
   }
 
+  /** Check the host policy before importing any author content. */
+  function hasFramePolicy(frameDocument: Document | null): frameDocument is Document {
+    return (
+      frameDocument?.querySelector<HTMLMetaElement>('meta[http-equiv="Content-Security-Policy"]')
+        ?.content === SVG_ANIMATION_FRAME_POLICY
+    );
+  }
+
   /** Replace artwork when its source changes, after the fixed frame policy loads. */
   function content(frame: HTMLIFrameElement) {
     const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
@@ -57,7 +65,7 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
     ready = false;
     const load = () => {
       const frameDocument = frame.contentDocument;
-      if (!frameDocument) {
+      if (!hasFramePolicy(frameDocument)) {
         failed?.();
         return;
       }
@@ -76,7 +84,7 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
     };
     frame.addEventListener('load', load);
     // A new source can reuse a frame whose restrictive policy is already active.
-    if (frame.contentDocument?.querySelector('meta[http-equiv="Content-Security-Policy"]')) load();
+    if (hasFramePolicy(frame.contentDocument)) load();
     return () => {
       frame.removeEventListener('load', load);
       svg?.pauseAnimations();

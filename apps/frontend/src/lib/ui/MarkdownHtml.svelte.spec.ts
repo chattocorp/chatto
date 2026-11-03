@@ -32,38 +32,45 @@ import { testSnippet } from '$lib/test-utils';
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Sanitized SVG previews', () => {
-  it('reveals source when the animation frame cannot be accessed', async () => {
-    const documentGetter = Object.getOwnPropertyDescriptor(
-      HTMLIFrameElement.prototype,
-      'contentDocument'
-    )!.get!;
-    const blockedFrame = vi
-      .spyOn(HTMLIFrameElement.prototype, 'contentDocument', 'get')
-      .mockImplementation(function (this: HTMLIFrameElement) {
-        return this.getAttribute('sandbox') === 'allow-same-origin'
-          ? null
-          : documentGetter.call(this);
+  it.each(['blocked', 'missing-policy'])(
+    'reveals source for a %s animation frame',
+    async (failure) => {
+      const documentGetter = Object.getOwnPropertyDescriptor(
+        HTMLIFrameElement.prototype,
+        'contentDocument'
+      )!.get!;
+      const blockedFrame = vi
+        .spyOn(HTMLIFrameElement.prototype, 'contentDocument', 'get')
+        .mockImplementation(function (this: HTMLIFrameElement) {
+          const frameDocument: Document | null = documentGetter.call(this);
+          if (this.getAttribute('sandbox') !== 'allow-same-origin') return frameDocument;
+          if (failure === 'blocked') return null;
+          frameDocument?.querySelector('meta[http-equiv="Content-Security-Policy"]')?.remove();
+          return frameDocument;
+        });
+      const source =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle r="8"><animate attributeName="cx" values="10;190" dur="60s" repeatCount="indefinite"/></circle></svg>';
+      const view = render(MarkdownHtml, {
+        html: await renderMarkdown('```svg rendered\n' + source + '\n```')
       });
-    const source =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle r="8"><animate attributeName="cx" values="10;190" dur="60s" repeatCount="indefinite"/></circle></svg>';
-    const view = render(MarkdownHtml, {
-      html: await renderMarkdown('```svg rendered\n' + source + '\n```')
-    });
-    try {
-      await expect
-        .poll(
-          () =>
-            view.container.querySelector<HTMLButtonElement>('[data-code-tab="render"]')?.disabled
-        )
-        .toBe(true);
-      expect(view.container.querySelector('iframe')).toBeNull();
-      expect(view.container.querySelector<HTMLElement>('.markdown-code-error')?.hidden).toBe(false);
-      expect(view.container.querySelector('code')?.textContent).toContain(source);
-    } finally {
-      blockedFrame.mockRestore();
-      await view.unmount();
+      try {
+        await expect
+          .poll(
+            () =>
+              view.container.querySelector<HTMLButtonElement>('[data-code-tab="render"]')?.disabled
+          )
+          .toBe(true);
+        expect(view.container.querySelector('iframe')).toBeNull();
+        expect(view.container.querySelector<HTMLElement>('.markdown-code-error')?.hidden).toBe(
+          false
+        );
+        expect(view.container.querySelector('code')?.textContent).toContain(source);
+      } finally {
+        blockedFrame.mockRestore();
+        await view.unmount();
+      }
     }
-  });
+  );
 
   it('keeps the frame when unchanged HTML and owner props are assigned again', async () => {
     const html = await renderMarkdown(
