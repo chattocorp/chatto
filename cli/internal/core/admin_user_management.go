@@ -39,9 +39,13 @@ type AdminMemberRole struct {
 }
 
 type AdminMember struct {
-	ID                          string
-	Login                       string
-	DisplayName                 string
+	ID          string
+	Login       string
+	DisplayName string
+	// Bio is the user's public biography. Empty means unset.
+	Bio string
+	// SharedTimezone is public only while the user enables time-zone sharing.
+	SharedTimezone              string
 	AvatarURL                   string
 	Roles                       []string
 	CreatedAt                   *timestamppb.Timestamp
@@ -158,24 +162,9 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	assignableRoleNames := make([]string, 0, len(roles))
 	revocableRoleNames := make([]string, 0, len(roles))
 	if canAssignRoles {
-		for _, role := range roles {
-			if role.Name == RoleEveryone {
-				continue
-			}
-			canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
-			if err != nil {
-				return nil, err
-			}
-			if canAssign {
-				assignableRoleNames = append(assignableRoleNames, role.Name)
-			}
-			canRevoke, err := c.CanRevokeRoleFromUser(ctx, actorID, targetUserID, role.Name)
-			if err != nil {
-				return nil, err
-			}
-			if canRevoke {
-				revocableRoleNames = append(revocableRoleNames, role.Name)
-			}
+		assignableRoleNames, revocableRoleNames, err = c.roleAssignmentLimits(ctx, actorID, targetUserID, roles)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -189,6 +178,84 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		AssignableRoleNames:            assignableRoleNames,
 		RevocableRoleNames:             revocableRoleNames,
 	}, nil
+}
+
+// UserRoleAssignments contains explicit human-account roles and advisory action
+// limits. It excludes private account fields and the implicit everyone role.
+type UserRoleAssignments struct {
+	UserID              string
+	RoleNames           []string
+	AssignableRoleNames []string
+	RevocableRoleNames  []string
+}
+
+// GetUserRoleAssignments checks role.assign independently of admin.view-users.
+// Each call reads current state; commands must still recheck their own policy.
+func (c *ChattoCore) GetUserRoleAssignments(ctx context.Context, actorID, targetUserID string) (*UserRoleAssignments, error) {
+	if actorID == "" {
+		return nil, ErrNotAuthenticated
+	}
+	allowed, err := c.CanAssignRoles(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, ErrPermissionDenied
+	}
+	if targetUserID == "" {
+		return nil, fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
+	}
+	// Assignment reads need lifecycle metadata, not an encrypted profile.
+	isBot, _, exists := c.userModel.isBotAndOwner(targetUserID)
+	if !exists {
+		return nil, ErrNotFound
+	}
+	if isBot {
+		return nil, ErrHumanAccountRequired
+	}
+	assigned, err := c.GetUserRoles(ctx, targetUserID)
+	if err != nil {
+		return nil, err
+	}
+	roles, err := c.ListServerRoles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	assignable, revocable, err := c.roleAssignmentLimits(ctx, actorID, targetUserID, roles)
+	if err != nil {
+		return nil, err
+	}
+	return &UserRoleAssignments{
+		UserID: targetUserID, RoleNames: assigned,
+		AssignableRoleNames: assignable, RevocableRoleNames: revocable,
+	}, nil
+}
+
+// roleAssignmentLimits uses the same domain policy as assignment commands and
+// member details, including target-specific revocation restrictions.
+func (c *ChattoCore) roleAssignmentLimits(ctx context.Context, actorID, targetUserID string, roles []RoleWithPermissions) (assignable, revocable []string, err error) {
+	assignable = make([]string, 0, len(roles))
+	revocable = make([]string, 0, len(roles))
+	for _, role := range roles {
+		if role.Name == RoleEveryone {
+			continue
+		}
+		canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+		if canAssign {
+			assignable = append(assignable, role.Name)
+		}
+		canRevoke, err := c.CanRevokeRoleFromUser(ctx, actorID, targetUserID, role.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+		if canRevoke {
+			revocable = append(revocable, role.Name)
+		}
+	}
+	return assignable, revocable, nil
 }
 
 func (c *ChattoCore) BatchGetAdminMembers(ctx context.Context, actorID string, userIDs []string) (*AdminMemberList, error) {
@@ -296,6 +363,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		ID:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
+		Bio:            user.GetBio(),
 		AvatarURL:      avatarURL,
 		Roles:          roles,
 		CreatedAt:      user.GetCreatedAt(),
@@ -304,6 +372,13 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		IsBot:          user.GetIsBot(),
 		BotOwnerUserID: user.GetBotOwnerUserId(),
 		CustomStatus:   user.GetCustomStatus(),
+	}
+	settings, err := c.GetUserSettings(ctx, user.GetId())
+	if err != nil {
+		return nil, err
+	}
+	if settings.GetShareTimezone() {
+		member.SharedTimezone = settings.GetTimezone()
 	}
 
 	if canViewEmails, err := c.canViewAdminMemberEmails(ctx, actorID, user.GetId()); err != nil {

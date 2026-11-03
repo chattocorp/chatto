@@ -457,8 +457,9 @@ type UpdateOAuthClientPolicyRequest struct {
 	Policy OauthClientPolicy `protobuf:"varint,2,opt,name=policy,proto3,enum=chatto.admin.v1.OauthClientPolicy" json:"policy,omitempty"`
 	// Editable fields to apply or reset: policy.
 	// Omit to infer populated fields; * selects all editable fields. An explicit
-	// empty mask is invalid. Unselected values are ignored. Selected absent values
-	// reset the field to its default, subject to field validation.
+	// empty mask is invalid. Unselected values are ignored. A selected absent
+	// policy resets to DEFAULT. An explicit UNSPECIFIED value is also a reset
+	// when policy is selected by the mask.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

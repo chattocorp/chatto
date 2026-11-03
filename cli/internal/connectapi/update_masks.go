@@ -7,6 +7,7 @@ import (
 
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -35,7 +36,7 @@ var updateMaskSpecs = map[protoreflect.FullName]updateMaskSpec{
 	"chatto.admin.v1.UpdateRoleRequest":                                      {fields: "display_name description pingable"},
 	"chatto.admin.v1.UpdateRoomGroupRequest":                                 {fields: "name description"},
 	"chatto.admin.v1.UpdateSidebarLinkRequest":                               {fields: "label url"},
-	"chatto.admin.v1.UpdateOAuthClientPolicyRequest":                         {fields: "policy"},
+	"chatto.admin.v1.UpdateOAuthClientPolicyRequest":                         {fields: "policy", defaults: map[string]protoreflect.Value{"policy": protoreflect.ValueOfEnum(protoreflect.EnumNumber(adminv1.OauthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT))}},
 	"chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest": {fields: "direct_messages direct_mentions replies role_mentions here_mentions all_mentions followed_threads followed_rooms reactions room_messages", container: "overrides", preserveAbsence: true},
 }
 

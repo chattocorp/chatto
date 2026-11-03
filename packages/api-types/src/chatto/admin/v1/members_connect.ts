@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, GetUserRoleAssignmentsRequest, GetUserRoleAssignmentsResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -47,6 +47,20 @@ export const AdminUserService = {
       name: "BatchGetMembers",
       I: BatchGetMembersRequest,
       O: BatchGetMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets explicit roles and current assignment limits for one human user.
+     * Requires role.assign, with privileged mode active for human sessions;
+     * admin.view-users is not required. Returns NOT_FOUND for an unknown or
+     * deleted user, and FAILED_PRECONDITION for a bot account.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.GetUserRoleAssignments
+     */
+    getUserRoleAssignments: {
+      name: "GetUserRoleAssignments",
+      I: GetUserRoleAssignmentsRequest,
+      O: GetUserRoleAssignmentsResponse,
       kind: MethodKind.Unary,
     },
     /**

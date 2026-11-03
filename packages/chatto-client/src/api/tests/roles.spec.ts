@@ -1,22 +1,63 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
+import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
 import { createRoleAPI } from '../roles.js';
 import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const roles = mockService(RoleService);
 const adminRoles = mockService(AdminRoleService);
+const adminUsers = mockService(AdminUserService);
 
 function roleAPI() {
   return createRoleAPI(
-    fakeServer((router) => router.service(RoleService, roles).service(AdminRoleService, adminRoles))
+    fakeServer((router) =>
+      router
+        .service(RoleService, roles)
+        .service(AdminRoleService, adminRoles)
+        .service(AdminUserService, adminUsers)
+    )
   );
 }
 
 describe('createRoleAPI', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it('reads role assignments independently of private member details', async () => {
+    adminUsers.getUserRoleAssignments.mockReturnValue({
+      assignments: {
+        userId: 'target',
+        roleNames: ['helper'],
+        assignableRoleNames: ['helper', 'reader'],
+        revocableRoleNames: ['helper']
+      }
+    });
+    const result = await roleAPI().getUserRoleAssignments('target');
+    expect(result).toEqual({
+      userId: 'target',
+      roleNames: ['helper'],
+      assignableRoleNames: ['helper', 'reader'],
+      revocableRoleNames: ['helper']
+    });
+    expect(receivedRequest(adminUsers.getUserRoleAssignments)).toMatchObject({ userId: 'target' });
+    expect(adminUsers.getMember).not.toHaveBeenCalled();
+  });
+
+  it('preserves assignment-read errors and rejects a missing resource', async () => {
+    const api = roleAPI();
+    adminUsers.getUserRoleAssignments.mockImplementation(() => {
+      throw new ConnectError('denied', Code.PermissionDenied);
+    });
+    await expect(api.getUserRoleAssignments('target')).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
+    adminUsers.getUserRoleAssignments.mockReturnValue({});
+    await expect(api.getUserRoleAssignments('target')).rejects.toThrow(
+      'did not include assignment state'
+    );
   });
 
   it('lists public roles', async () => {

@@ -172,7 +172,7 @@ also expose a disconnect hint; it is not mutation authorization. See
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
 | `chatto.discovery.v1` | `ServerDiscoveryService`                                                                                                                                                                                                                                                                                                                                         | Public discovery                                                                                           |
 | `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
-| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                         | Authenticated user; methods enforce administrative permissions                                             |
+| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                     | Authenticated user; methods enforce administrative permissions                                             |
 
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
 change the caller's private availability across devices. `RefreshPresence`
@@ -286,6 +286,11 @@ mutation responses retain their KV-backed presence reads. The frontend caches
 rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
+
+`AdminUserService.GetUserRoleAssignments` uses `role.assign` without requiring
+`admin.view-users`. It returns explicit human-account roles and current
+assignment limits through the same policies as member details and mutation
+commands. It does not return account details or change stored state.
 
 `AdminUserService.SetUserDeactivated` delegates access changes to the
 [account lifecycle operation](../../cli/internal/core/user_deactivation.go).

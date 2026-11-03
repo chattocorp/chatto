@@ -42,6 +42,9 @@ const (
 	// AdminUserServiceBatchGetMembersProcedure is the fully-qualified name of the AdminUserService's
 	// BatchGetMembers RPC.
 	AdminUserServiceBatchGetMembersProcedure = "/chatto.admin.v1.AdminUserService/BatchGetMembers"
+	// AdminUserServiceGetUserRoleAssignmentsProcedure is the fully-qualified name of the
+	// AdminUserService's GetUserRoleAssignments RPC.
+	AdminUserServiceGetUserRoleAssignmentsProcedure = "/chatto.admin.v1.AdminUserService/GetUserRoleAssignments"
 	// AdminUserServiceAssignRoleProcedure is the fully-qualified name of the AdminUserService's
 	// AssignRole RPC.
 	AdminUserServiceAssignRoleProcedure = "/chatto.admin.v1.AdminUserService/AssignRole"
@@ -72,6 +75,11 @@ type AdminUserServiceClient interface {
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
+	// Gets explicit roles and current assignment limits for one human user.
+	// Requires role.assign, with privileged mode active for human sessions;
+	// admin.view-users is not required. Returns NOT_FOUND for an unknown or
+	// deleted user, and FAILED_PRECONDITION for a bot account.
+	GetUserRoleAssignments(context.Context, *connect.Request[v1.GetUserRoleAssignmentsRequest]) (*connect.Response[v1.GetUserRoleAssignmentsResponse], error)
 	// Assigns a role to a user. Requires role.assign, and non-owner callers may
 	// only assign roles whose granted authority they already possess.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
@@ -125,6 +133,12 @@ func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminUserServiceMethods.ByName("BatchGetMembers")),
 			connect.WithClientOptions(opts...),
 		),
+		getUserRoleAssignments: connect.NewClient[v1.GetUserRoleAssignmentsRequest, v1.GetUserRoleAssignmentsResponse](
+			httpClient,
+			baseURL+AdminUserServiceGetUserRoleAssignmentsProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("GetUserRoleAssignments")),
+			connect.WithClientOptions(opts...),
+		),
 		assignRole: connect.NewClient[v1.AssignRoleRequest, v1.AssignRoleResponse](
 			httpClient,
 			baseURL+AdminUserServiceAssignRoleProcedure,
@@ -166,15 +180,16 @@ func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // adminUserServiceClient implements AdminUserServiceClient.
 type adminUserServiceClient struct {
-	listMembers           *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
-	getMember             *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
-	batchGetMembers       *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
-	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
-	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
-	changeUserPassword    *connect.Client[v1.ChangeUserPasswordRequest, v1.ChangeUserPasswordResponse]
-	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
-	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
-	setUserDeactivated    *connect.Client[v1.SetUserDeactivatedRequest, v1.SetUserDeactivatedResponse]
+	listMembers            *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
+	getMember              *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
+	batchGetMembers        *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
+	getUserRoleAssignments *connect.Client[v1.GetUserRoleAssignmentsRequest, v1.GetUserRoleAssignmentsResponse]
+	assignRole             *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
+	revokeRole             *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
+	changeUserPassword     *connect.Client[v1.ChangeUserPasswordRequest, v1.ChangeUserPasswordResponse]
+	clearUsernameCooldown  *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
+	deleteUser             *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
+	setUserDeactivated     *connect.Client[v1.SetUserDeactivatedRequest, v1.SetUserDeactivatedResponse]
 }
 
 // ListMembers calls chatto.admin.v1.AdminUserService.ListMembers.
@@ -190,6 +205,11 @@ func (c *adminUserServiceClient) GetMember(ctx context.Context, req *connect.Req
 // BatchGetMembers calls chatto.admin.v1.AdminUserService.BatchGetMembers.
 func (c *adminUserServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
 	return c.batchGetMembers.CallUnary(ctx, req)
+}
+
+// GetUserRoleAssignments calls chatto.admin.v1.AdminUserService.GetUserRoleAssignments.
+func (c *adminUserServiceClient) GetUserRoleAssignments(ctx context.Context, req *connect.Request[v1.GetUserRoleAssignmentsRequest]) (*connect.Response[v1.GetUserRoleAssignmentsResponse], error) {
+	return c.getUserRoleAssignments.CallUnary(ctx, req)
 }
 
 // AssignRole calls chatto.admin.v1.AdminUserService.AssignRole.
@@ -232,6 +252,11 @@ type AdminUserServiceHandler interface {
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
+	// Gets explicit roles and current assignment limits for one human user.
+	// Requires role.assign, with privileged mode active for human sessions;
+	// admin.view-users is not required. Returns NOT_FOUND for an unknown or
+	// deleted user, and FAILED_PRECONDITION for a bot account.
+	GetUserRoleAssignments(context.Context, *connect.Request[v1.GetUserRoleAssignmentsRequest]) (*connect.Response[v1.GetUserRoleAssignmentsResponse], error)
 	// Assigns a role to a user. Requires role.assign, and non-owner callers may
 	// only assign roles whose granted authority they already possess.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
@@ -281,6 +306,12 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 		connect.WithSchema(adminUserServiceMethods.ByName("BatchGetMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminUserServiceGetUserRoleAssignmentsHandler := connect.NewUnaryHandler(
+		AdminUserServiceGetUserRoleAssignmentsProcedure,
+		svc.GetUserRoleAssignments,
+		connect.WithSchema(adminUserServiceMethods.ByName("GetUserRoleAssignments")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminUserServiceAssignRoleHandler := connect.NewUnaryHandler(
 		AdminUserServiceAssignRoleProcedure,
 		svc.AssignRole,
@@ -325,6 +356,8 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 			adminUserServiceGetMemberHandler.ServeHTTP(w, r)
 		case AdminUserServiceBatchGetMembersProcedure:
 			adminUserServiceBatchGetMembersHandler.ServeHTTP(w, r)
+		case AdminUserServiceGetUserRoleAssignmentsProcedure:
+			adminUserServiceGetUserRoleAssignmentsHandler.ServeHTTP(w, r)
 		case AdminUserServiceAssignRoleProcedure:
 			adminUserServiceAssignRoleHandler.ServeHTTP(w, r)
 		case AdminUserServiceRevokeRoleProcedure:
@@ -356,6 +389,10 @@ func (UnimplementedAdminUserServiceHandler) GetMember(context.Context, *connect.
 
 func (UnimplementedAdminUserServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.BatchGetMembers is not implemented"))
+}
+
+func (UnimplementedAdminUserServiceHandler) GetUserRoleAssignments(context.Context, *connect.Request[v1.GetUserRoleAssignmentsRequest]) (*connect.Response[v1.GetUserRoleAssignmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.GetUserRoleAssignments is not implemented"))
 }
 
 func (UnimplementedAdminUserServiceHandler) AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {

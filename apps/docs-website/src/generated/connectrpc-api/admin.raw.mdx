@@ -665,6 +665,41 @@ Batch server-admin member response.
 | `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 
 
+<a id="chatto-admin-v1-AdminUserService-GetUserRoleAssignments"></a>
+
+### GetUserRoleAssignments
+
+Gets explicit roles and current assignment limits for one human user.
+Requires role.assign, with privileged mode active for human sessions;
+admin.view-users is not required. Returns NOT_FOUND for an unknown or
+deleted user, and FAILED_PRECONDITION for a bot account.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/GetUserRoleAssignments
+```
+
+<a id="chatto-admin-v1-GetUserRoleAssignmentsRequest"></a>
+
+#### Input: GetUserRoleAssignmentsRequest
+
+Request role assignments without administrative account details.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required stable ID of a human user. |
+
+
+<a id="chatto-admin-v1-GetUserRoleAssignmentsResponse"></a>
+
+#### Result: GetUserRoleAssignmentsResponse
+
+Current role assignments and limits for the requested user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `assignments` | [`UserRoleAssignments`](#chatto-admin-v1-UserRoleAssignments) | Requested assignment state. Resolve role metadata with RoleService. |
+
+
 <a id="chatto-admin-v1-AdminUserService-AssignRole"></a>
 
 ### AssignRole
@@ -955,7 +990,7 @@ Replaces the administrative policy for one OAuth client.
 | --- | --- | --- |
 | `client_id` | `string` | Exact CIMD URL or built-in application URI. |
 | `policy` | [`OauthClientPolicy`](#chatto-admin-v1-OauthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: policy. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: policy. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. A selected absent policy resets to DEFAULT. An explicit UNSPECIFIED value is also a reset when policy is selected by the mask. |
 
 
 <a id="chatto-admin-v1-UpdateOAuthClientPolicyResponse"></a>
@@ -2528,6 +2563,25 @@ admin/member metadata with visibility controlled by the service.
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
 | `deactivated` | `bool` | Deactivated accounts retain their data but cannot use the server. |
 | `viewer_can_change_deactivation` | `optional bool` | Whether the caller may deactivate or reactivate this account. Absent on servers that do not support account deactivation. |
+
+
+
+<a id="chatto-admin-v1-UserRoleAssignments"></a>
+
+### UserRoleAssignments
+
+Explicit role assignments and current assignment limits for one human user.
+This resource contains no account details. The implicit everyone role is
+omitted from all lists. List order is not significant. Limits are advisory:
+commands check current authority again. Read this resource again after an
+assignment, revocation, or permission change.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target stable user ID. |
+| `role_names` | `repeated string` | Roles explicitly assigned to the target. |
+| `assignable_role_names` | `repeated string` | Roles within the caller's current grant authority. |
+| `revocable_role_names` | `repeated string` | Roles within the caller's current revoke authority for this target, including self-protection and configured-owner restrictions. A listed role need not currently be assigned. |
 
 
 
