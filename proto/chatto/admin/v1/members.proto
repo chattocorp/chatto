@@ -11,7 +11,8 @@ import "chatto/admin/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // Compatibility user row returned by member-management reads and commands.
-// New account integrations use AdminUser through GetUser and BatchGetUsers.
+// Read profiles, assigned roles, and creation times through
+// chatto.api.v1.UserService. Private account fields have separate admin reads.
 //
 // The embedded user record carries public identity fields; remaining fields are
 // admin/member metadata with visibility controlled by the service.
@@ -255,26 +256,28 @@ message SetUserDeactivatedResponse {
 
 // Server-admin user management commands and member-detail reads.
 service AdminUserService {
-  // Lists administrative user IDs. Requires admin.view-users.
-  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
-  // Gets one administrative account without catalogues or editor state.
+  // Lists one user's verified email addresses without profile or role data.
   // Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
-  rpc GetUser(GetUserRequest) returns (GetUserResponse);
-  // Gets administrative accounts in first-seen request order. Requires
-  // admin.view-users. Unknown or deleted users are omitted; repeated IDs are
-  // returned once. The whole request fails if access or account hydration fails.
-  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
-  // Compatibility account-ID read. New integrations use ListUsers.
+  rpc ListVerifiedEmails(ListVerifiedEmailsRequest) returns (ListVerifiedEmailsResponse);
+  // Reads one user's username-change history. Requires admin.view-users and
+  // either user.manage-accounts or the caller's own user ID. Missing authority
+  // returns PERMISSION_DENIED; unknown or deleted users return NOT_FOUND.
+  rpc GetUsernameCooldown(GetUsernameCooldownRequest) returns (GetUsernameCooldownResponse);
+  // Compatibility account-ID read. New integrations use
+  // chatto.api.v1.UserService.ListUsers for directory data.
   // Requires admin.view-users.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Compatibility detail bootstrap with role/permission editor metadata.
-  // New integrations use GetUser and the separate role and permission reads.
+  // Use chatto.api.v1.UserService for profiles and assigned roles, and separate
+  // admin reads for private account data, assignment limits, and permissions.
   // Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
   // Compatibility account rows with a role catalogue. New integrations use
-  // BatchGetUsers. Requires admin.view-users.
+  // chatto.api.v1.UserService.BatchGetUsers for directory data.
+  // Requires admin.view-users.
   rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
-  // Gets explicit roles and current assignment limits for one human user.
+  // Gets current assignment limits and explicit roles for one human user.
+  // Reading assigned roles alone uses chatto.api.v1.UserService instead.
   // Requires role.assign, with privileged mode active for human sessions;
   // admin.view-users is not required. Returns NOT_FOUND for an unknown or
   // deleted user, and FAILED_PRECONDITION for a bot account.

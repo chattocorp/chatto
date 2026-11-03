@@ -9,11 +9,12 @@ The server-management section gives owners and admins visibility into the server
 
 ## Behavior
 
-- Administrative account reads return account resources separately from role
-  catalogues, assignment limits, and permission-editor data. They require
-  `admin.view-users`. Account-management authority alone does not grant access
-  to these private reads. Existing member-detail calls remain available for
-  client compatibility.
+- User profiles, assigned roles, and creation times use the ordinary user
+  directory. Private email addresses and username-change history have separate
+  administrative reads. Both require `admin.view-users`; history for another
+  user also requires `user.manage-accounts`. Role-assignment limits have their
+  own read. Existing member-detail calls remain available for client
+  compatibility.
 
 - Room General settings have four independent forms: name and description,
   visibility, Slow Mode, and Threading Mode. Each form has Save changes and

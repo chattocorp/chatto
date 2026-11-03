@@ -31,12 +31,22 @@ Do not expose the Operator API over a network.
 
 ## Administrative Resources
 
-Use `AdminUserService.ListUsers`, `GetUser`, and `BatchGetUsers` for account
-data. They require `admin.view-users` and return no role catalogue or
-permission-editor state. List results contain IDs; hydrate them in batches of
-at most 100. Read role metadata through `RoleService` or `AdminRoleService` and
-assignment limits through `AdminUserService.GetUserRoleAssignments`.
-Assignment reads require `role.assign`, without access to private account data.
+Use `chatto.api.v1.UserService.ListUsers`, `GetUser`, and `BatchGetUsers` for
+profiles, assigned role names, and creation times. These existing reads return
+`DirectoryMember`; there is no separate administrative user resource.
+Read role metadata through `RoleService` or `AdminRoleService`. Use
+`AdminUserService.GetUserRoleAssignments` when you need the caller's current
+assignment limits. That read requires `role.assign`.
+
+Private account data has separate reads keyed by `user_id`:
+
+- `AdminUserService.ListVerifiedEmails` returns verified addresses,
+  verification times, and the primary choice. It requires `admin.view-users`.
+- `AdminUserService.GetUsernameCooldown` returns username-change history.
+  It requires `admin.view-users` and either `user.manage-accounts` or the
+  caller's own user ID. An absent timestamp means no change is recorded.
+
+Neither private read returns a profile, assigned roles, or editor data.
 
 Room-group metadata and complete layouts have separate contracts:
 
@@ -55,11 +65,12 @@ link mutations return canonical `link` configuration. Role commands expose an
 `assignment` outcome, and deactivation exposes the updated public `profile`.
 Human sessions must activate privileged mode for the applicable permissions.
 
-The `@chatto/client/api/adminUsers` and `@chatto/client/api/adminRoomLayout`
-modules provide stateless reads. They adapt older account reads and equivalent
-server-layout snapshots only when a server returns `UNIMPLEMENTED`. New scoped
-layout and link reads require a server that implements them. Do not substitute
-a visibility-filtered public directory for an authoritative admin layout.
+The `@chatto/client/api/adminAccounts` and `@chatto/client/api/adminRoomLayout`
+modules provide stateless reads. Private account, scoped layout, and link reads
+require a server that implements them. Group metadata and complete server
+layouts adapt equivalent older admin responses; the server-layout fallback
+applies only to `UNIMPLEMENTED`. Do not substitute a visibility-filtered public
+directory for an authoritative admin layout.
 
 ## Start With Server Discovery
 

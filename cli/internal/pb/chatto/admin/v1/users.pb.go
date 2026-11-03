@@ -24,43 +24,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Administrative account data, available with admin.view-users. Role catalogues,
-// assignment limits, and permission editors have separate reads. The public
-// profile is canonical, including its deactivated flag.
-type AdminUser struct {
+// Request one user's private verified email addresses.
+type ListVerifiedEmailsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public user profile.
-	Profile *v1.User `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
-	// Explicit assigned role names. The implicit everyone role is omitted.
-	RoleNames []string `protobuf:"bytes,2,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
-	// Account creation time, when known.
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Verified email addresses. An empty list means there are none.
-	VerifiedEmails []string `protobuf:"bytes,4,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
-	// Primary verified email. Absent when none is selected.
-	PrimaryVerifiedEmail *string `protobuf:"bytes,5,opt,name=primary_verified_email,json=primaryVerifiedEmail,proto3,oneof" json:"primary_verified_email,omitempty"`
-	// Present only for the account itself or callers with user.manage-accounts.
-	// Absent means hidden or not reported by this server.
-	// A present empty message means no username change has been recorded.
-	UsernameCooldown *AdminUsernameCooldown `protobuf:"bytes,6,opt,name=username_cooldown,json=usernameCooldown,proto3" json:"username_cooldown,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Required stable user ID. Resolve users through chatto.api.v1.UserService.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AdminUser) Reset() {
-	*x = AdminUser{}
+func (x *ListVerifiedEmailsRequest) Reset() {
+	*x = ListVerifiedEmailsRequest{}
 	mi := &file_chatto_admin_v1_users_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AdminUser) String() string {
+func (x *ListVerifiedEmailsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AdminUser) ProtoMessage() {}
+func (*ListVerifiedEmailsRequest) ProtoMessage() {}
 
-func (x *AdminUser) ProtoReflect() protoreflect.Message {
+func (x *ListVerifiedEmailsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_users_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -72,78 +58,92 @@ func (x *AdminUser) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AdminUser.ProtoReflect.Descriptor instead.
-func (*AdminUser) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListVerifiedEmailsRequest.ProtoReflect.Descriptor instead.
+func (*ListVerifiedEmailsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AdminUser) GetProfile() *v1.User {
+func (x *ListVerifiedEmailsRequest) GetUserId() string {
 	if x != nil {
-		return x.Profile
+		return x.UserId
 	}
-	return nil
+	return ""
 }
 
-func (x *AdminUser) GetRoleNames() []string {
-	if x != nil {
-		return x.RoleNames
-	}
-	return nil
+// All verified addresses, including verification times and the primary choice.
+// An empty list means the account has no verified addresses. Order is not
+// significant. This read does not include a user profile or role assignments.
+type ListVerifiedEmailsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VerifiedEmails []*v1.VerifiedEmail    `protobuf:"bytes,1,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *AdminUser) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
+func (x *ListVerifiedEmailsResponse) Reset() {
+	*x = ListVerifiedEmailsResponse{}
+	mi := &file_chatto_admin_v1_users_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
-func (x *AdminUser) GetVerifiedEmails() []string {
+func (x *ListVerifiedEmailsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVerifiedEmailsResponse) ProtoMessage() {}
+
+func (x *ListVerifiedEmailsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_users_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVerifiedEmailsResponse.ProtoReflect.Descriptor instead.
+func (*ListVerifiedEmailsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListVerifiedEmailsResponse) GetVerifiedEmails() []*v1.VerifiedEmail {
 	if x != nil {
 		return x.VerifiedEmails
 	}
 	return nil
 }
 
-func (x *AdminUser) GetPrimaryVerifiedEmail() string {
-	if x != nil && x.PrimaryVerifiedEmail != nil {
-		return *x.PrimaryVerifiedEmail
-	}
-	return ""
-}
-
-func (x *AdminUser) GetUsernameCooldown() *AdminUsernameCooldown {
-	if x != nil {
-		return x.UsernameCooldown
-	}
-	return nil
-}
-
-// Username-change history visible to account managers. This is account data,
-// not permission to change the username or a guarantee that an update succeeds.
-type AdminUsernameCooldown struct {
+// Username-change history for one account. This private resource does not
+// describe permission to change the username or guarantee a successful update.
+type UsernameCooldown struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Start of the current self-service username-change cooldown, when known.
-	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
+	// Target stable user ID.
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Start of the current self-service cooldown. Absent when no change is recorded.
+	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *AdminUsernameCooldown) Reset() {
-	*x = AdminUsernameCooldown{}
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[1]
+func (x *UsernameCooldown) Reset() {
+	*x = UsernameCooldown{}
+	mi := &file_chatto_admin_v1_users_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AdminUsernameCooldown) String() string {
+func (x *UsernameCooldown) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AdminUsernameCooldown) ProtoMessage() {}
+func (*UsernameCooldown) ProtoMessage() {}
 
-func (x *AdminUsernameCooldown) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[1]
+func (x *UsernameCooldown) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_users_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -154,100 +154,48 @@ func (x *AdminUsernameCooldown) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AdminUsernameCooldown.ProtoReflect.Descriptor instead.
-func (*AdminUsernameCooldown) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{1}
+// Deprecated: Use UsernameCooldown.ProtoReflect.Descriptor instead.
+func (*UsernameCooldown) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *AdminUsernameCooldown) GetLastLoginChange() *timestamppb.Timestamp {
+func (x *UsernameCooldown) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UsernameCooldown) GetLastLoginChange() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastLoginChange
 	}
 	return nil
 }
 
-// Request administrative user IDs in creation order, oldest first. Accounts
-// without a creation time follow, ordered by case-insensitive login. IDs break ties.
-type ListUsersRequest struct {
+// Request one user's private username-change history.
+type GetUsernameCooldownRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Case-insensitive login/display-name search. Empty selects all accounts.
-	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
-	// Default limit 20; maximum 100. Offsets count IDs, not hydrated records.
-	Page          *v1.PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	// Required stable user ID.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListUsersRequest) Reset() {
-	*x = ListUsersRequest{}
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListUsersRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListUsersRequest) ProtoMessage() {}
-
-func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListUsersRequest.ProtoReflect.Descriptor instead.
-func (*ListUsersRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *ListUsersRequest) GetSearch() string {
-	if x != nil {
-		return x.Search
-	}
-	return ""
-}
-
-func (x *ListUsersRequest) GetPage() *v1.PageRequest {
-	if x != nil {
-		return x.Page
-	}
-	return nil
-}
-
-// One live page of user IDs. Changes between requests can shift offsets.
-// Hydrate with BatchGetUsers and advance by the number of returned IDs.
-type ListUsersResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Matching IDs in list order.
-	UserIds []string `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
-	// Count and continuation information for the selected accounts.
-	Page          *v1.PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListUsersResponse) Reset() {
-	*x = ListUsersResponse{}
+func (x *GetUsernameCooldownRequest) Reset() {
+	*x = GetUsernameCooldownRequest{}
 	mi := &file_chatto_admin_v1_users_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListUsersResponse) String() string {
+func (x *GetUsernameCooldownRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListUsersResponse) ProtoMessage() {}
+func (*GetUsernameCooldownRequest) ProtoMessage() {}
 
-func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
+func (x *GetUsernameCooldownRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_users_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -259,51 +207,41 @@ func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListUsersResponse.ProtoReflect.Descriptor instead.
-func (*ListUsersResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetUsernameCooldownRequest.ProtoReflect.Descriptor instead.
+func (*GetUsernameCooldownRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ListUsersResponse) GetUserIds() []string {
+func (x *GetUsernameCooldownRequest) GetUserId() string {
 	if x != nil {
-		return x.UserIds
+		return x.UserId
 	}
-	return nil
+	return ""
 }
 
-func (x *ListUsersResponse) GetPage() *v1.PageInfo {
-	if x != nil {
-		return x.Page
-	}
-	return nil
-}
-
-// Request one administrative account by ID or login.
-type GetUserRequest struct {
+// Username-change history for an authorized account read.
+type GetUsernameCooldownResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Target:
-	//
-	//	*GetUserRequest_UserId
-	//	*GetUserRequest_Login
-	Target        isGetUserRequest_Target `protobuf_oneof:"target"`
+	// Always present on success, including when no change is recorded.
+	Cooldown      *UsernameCooldown `protobuf:"bytes,1,opt,name=cooldown,proto3" json:"cooldown,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetUserRequest) Reset() {
-	*x = GetUserRequest{}
+func (x *GetUsernameCooldownResponse) Reset() {
+	*x = GetUsernameCooldownResponse{}
 	mi := &file_chatto_admin_v1_users_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetUserRequest) String() string {
+func (x *GetUsernameCooldownResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetUserRequest) ProtoMessage() {}
+func (*GetUsernameCooldownResponse) ProtoMessage() {}
 
-func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
+func (x *GetUsernameCooldownResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_users_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -315,189 +253,14 @@ func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetUserRequest.ProtoReflect.Descriptor instead.
-func (*GetUserRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetUsernameCooldownResponse.ProtoReflect.Descriptor instead.
+func (*GetUsernameCooldownResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetUserRequest) GetTarget() isGetUserRequest_Target {
+func (x *GetUsernameCooldownResponse) GetCooldown() *UsernameCooldown {
 	if x != nil {
-		return x.Target
-	}
-	return nil
-}
-
-func (x *GetUserRequest) GetUserId() string {
-	if x != nil {
-		if x, ok := x.Target.(*GetUserRequest_UserId); ok {
-			return x.UserId
-		}
-	}
-	return ""
-}
-
-func (x *GetUserRequest) GetLogin() string {
-	if x != nil {
-		if x, ok := x.Target.(*GetUserRequest_Login); ok {
-			return x.Login
-		}
-	}
-	return ""
-}
-
-type isGetUserRequest_Target interface {
-	isGetUserRequest_Target()
-}
-
-type GetUserRequest_UserId struct {
-	// Stable user ID.
-	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3,oneof"`
-}
-
-type GetUserRequest_Login struct {
-	// Login identifier.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3,oneof"`
-}
-
-func (*GetUserRequest_UserId) isGetUserRequest_Target() {}
-
-func (*GetUserRequest_Login) isGetUserRequest_Target() {}
-
-// One account without related catalogues or editor state.
-type GetUserResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Requested account.
-	User          *AdminUser `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetUserResponse) Reset() {
-	*x = GetUserResponse{}
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetUserResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetUserResponse) ProtoMessage() {}
-
-func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetUserResponse.ProtoReflect.Descriptor instead.
-func (*GetUserResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GetUserResponse) GetUser() *AdminUser {
-	if x != nil {
-		return x.User
-	}
-	return nil
-}
-
-// Request administrative accounts for a bounded set of IDs.
-type BatchGetUsersRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unknown or deleted users are omitted. Repeated IDs are returned once.
-	UserIds       []string `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BatchGetUsersRequest) Reset() {
-	*x = BatchGetUsersRequest{}
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BatchGetUsersRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BatchGetUsersRequest) ProtoMessage() {}
-
-func (x *BatchGetUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BatchGetUsersRequest.ProtoReflect.Descriptor instead.
-func (*BatchGetUsersRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *BatchGetUsersRequest) GetUserIds() []string {
-	if x != nil {
-		return x.UserIds
-	}
-	return nil
-}
-
-// Found accounts in first-seen request order, with the same fields and access
-// rules as GetUser. No role catalogue or other related resources are included.
-type BatchGetUsersResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Requested accounts that still exist.
-	Users         []*AdminUser `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BatchGetUsersResponse) Reset() {
-	*x = BatchGetUsersResponse{}
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BatchGetUsersResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BatchGetUsersResponse) ProtoMessage() {}
-
-func (x *BatchGetUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BatchGetUsersResponse.ProtoReflect.Descriptor instead.
-func (*BatchGetUsersResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *BatchGetUsersResponse) GetUsers() []*AdminUser {
-	if x != nil {
-		return x.Users
+		return x.Cooldown
 	}
 	return nil
 }
@@ -518,7 +281,7 @@ type UserRoleAssignment struct {
 
 func (x *UserRoleAssignment) Reset() {
 	*x = UserRoleAssignment{}
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_users_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -530,7 +293,7 @@ func (x *UserRoleAssignment) String() string {
 func (*UserRoleAssignment) ProtoMessage() {}
 
 func (x *UserRoleAssignment) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_users_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_users_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +306,7 @@ func (x *UserRoleAssignment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRoleAssignment.ProtoReflect.Descriptor instead.
 func (*UserRoleAssignment) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{8}
+	return file_chatto_admin_v1_users_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UserRoleAssignment) GetUserId() string {
@@ -571,36 +334,18 @@ var File_chatto_admin_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/admin/v1/users.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x02\n" +
-	"\tAdminUser\x12-\n" +
-	"\aprofile\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\aprofile\x12\x1d\n" +
-	"\n" +
-	"role_names\x18\x02 \x03(\tR\troleNames\x129\n" +
-	"\n" +
-	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12'\n" +
-	"\x0fverified_emails\x18\x04 \x03(\tR\x0everifiedEmails\x129\n" +
-	"\x16primary_verified_email\x18\x05 \x01(\tH\x00R\x14primaryVerifiedEmail\x88\x01\x01\x12S\n" +
-	"\x11username_cooldown\x18\x06 \x01(\v2&.chatto.admin.v1.AdminUsernameCooldownR\x10usernameCooldownB\x19\n" +
-	"\x17_primary_verified_email\"_\n" +
-	"\x15AdminUsernameCooldown\x12F\n" +
-	"\x11last_login_change\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\"c\n" +
-	"\x10ListUsersRequest\x12\x1f\n" +
-	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
-	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"[\n" +
-	"\x11ListUsersResponse\x12\x19\n" +
-	"\buser_ids\x18\x01 \x03(\tR\auserIds\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"f\n" +
-	"\x0eGetUserRequest\x12\"\n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06userId\x12\x1f\n" +
-	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05loginB\x0f\n" +
-	"\x06target\x12\x05\xbaH\x02\b\x01\"A\n" +
-	"\x0fGetUserResponse\x12.\n" +
-	"\x04user\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminUserR\x04user\"C\n" +
-	"\x14BatchGetUsersRequest\x12+\n" +
-	"\buser_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\b\x01\x10d\"\x04r\x02\x10\x01R\auserIds\"I\n" +
-	"\x15BatchGetUsersResponse\x120\n" +
-	"\x05users\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminUserR\x05users\"f\n" +
+	"\x1bchatto/admin/v1/users.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bchatto/api/v1/account.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"=\n" +
+	"\x19ListVerifiedEmailsRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"c\n" +
+	"\x1aListVerifiedEmailsResponse\x12E\n" +
+	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"s\n" +
+	"\x10UsernameCooldown\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12F\n" +
+	"\x11last_login_change\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\">\n" +
+	"\x1aGetUsernameCooldownRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"\\\n" +
+	"\x1bGetUsernameCooldownResponse\x12=\n" +
+	"\bcooldown\x18\x01 \x01(\v2!.chatto.admin.v1.UsernameCooldownR\bcooldown\"f\n" +
 	"\x12UserRoleAssignment\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12\x1a\n" +
@@ -620,36 +365,26 @@ func file_chatto_admin_v1_users_proto_rawDescGZIP() []byte {
 	return file_chatto_admin_v1_users_proto_rawDescData
 }
 
-var file_chatto_admin_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_chatto_admin_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_admin_v1_users_proto_goTypes = []any{
-	(*AdminUser)(nil),             // 0: chatto.admin.v1.AdminUser
-	(*AdminUsernameCooldown)(nil), // 1: chatto.admin.v1.AdminUsernameCooldown
-	(*ListUsersRequest)(nil),      // 2: chatto.admin.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),     // 3: chatto.admin.v1.ListUsersResponse
-	(*GetUserRequest)(nil),        // 4: chatto.admin.v1.GetUserRequest
-	(*GetUserResponse)(nil),       // 5: chatto.admin.v1.GetUserResponse
-	(*BatchGetUsersRequest)(nil),  // 6: chatto.admin.v1.BatchGetUsersRequest
-	(*BatchGetUsersResponse)(nil), // 7: chatto.admin.v1.BatchGetUsersResponse
-	(*UserRoleAssignment)(nil),    // 8: chatto.admin.v1.UserRoleAssignment
-	(*v1.User)(nil),               // 9: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),        // 11: chatto.api.v1.PageRequest
-	(*v1.PageInfo)(nil),           // 12: chatto.api.v1.PageInfo
+	(*ListVerifiedEmailsRequest)(nil),   // 0: chatto.admin.v1.ListVerifiedEmailsRequest
+	(*ListVerifiedEmailsResponse)(nil),  // 1: chatto.admin.v1.ListVerifiedEmailsResponse
+	(*UsernameCooldown)(nil),            // 2: chatto.admin.v1.UsernameCooldown
+	(*GetUsernameCooldownRequest)(nil),  // 3: chatto.admin.v1.GetUsernameCooldownRequest
+	(*GetUsernameCooldownResponse)(nil), // 4: chatto.admin.v1.GetUsernameCooldownResponse
+	(*UserRoleAssignment)(nil),          // 5: chatto.admin.v1.UserRoleAssignment
+	(*v1.VerifiedEmail)(nil),            // 6: chatto.api.v1.VerifiedEmail
+	(*timestamppb.Timestamp)(nil),       // 7: google.protobuf.Timestamp
 }
 var file_chatto_admin_v1_users_proto_depIdxs = []int32{
-	9,  // 0: chatto.admin.v1.AdminUser.profile:type_name -> chatto.api.v1.User
-	10, // 1: chatto.admin.v1.AdminUser.created_at:type_name -> google.protobuf.Timestamp
-	1,  // 2: chatto.admin.v1.AdminUser.username_cooldown:type_name -> chatto.admin.v1.AdminUsernameCooldown
-	10, // 3: chatto.admin.v1.AdminUsernameCooldown.last_login_change:type_name -> google.protobuf.Timestamp
-	11, // 4: chatto.admin.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
-	12, // 5: chatto.admin.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
-	0,  // 6: chatto.admin.v1.GetUserResponse.user:type_name -> chatto.admin.v1.AdminUser
-	0,  // 7: chatto.admin.v1.BatchGetUsersResponse.users:type_name -> chatto.admin.v1.AdminUser
-	8,  // [8:8] is the sub-list for method output_type
-	8,  // [8:8] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	6, // 0: chatto.admin.v1.ListVerifiedEmailsResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	7, // 1: chatto.admin.v1.UsernameCooldown.last_login_change:type_name -> google.protobuf.Timestamp
+	2, // 2: chatto.admin.v1.GetUsernameCooldownResponse.cooldown:type_name -> chatto.admin.v1.UsernameCooldown
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_users_proto_init() }
@@ -657,18 +392,13 @@ func file_chatto_admin_v1_users_proto_init() {
 	if File_chatto_admin_v1_users_proto != nil {
 		return
 	}
-	file_chatto_admin_v1_users_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_admin_v1_users_proto_msgTypes[4].OneofWrappers = []any{
-		(*GetUserRequest_UserId)(nil),
-		(*GetUserRequest_Login)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_users_proto_rawDesc), len(file_chatto_admin_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -61,9 +61,7 @@ type AdminMember struct {
 	PrimaryVerifiedEmail   string
 	ViewerCanDeleteAccount bool
 	LastLoginChange        *time.Time
-	// UsernameCooldownVisible distinguishes a hidden cooldown from no recorded change.
-	UsernameCooldownVisible bool
-	CustomStatus            *evtv1.CustomUserStatus
+	CustomStatus           *evtv1.CustomUserStatus
 }
 
 type AdminMemberList struct {
@@ -118,7 +116,22 @@ func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input
 }
 
 func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetUserID string) (*AdminMemberDetails, error) {
-	member, err := c.ReadAdminUser(ctx, actorID, targetUserID)
+	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
+		return nil, err
+	}
+	if targetUserID == "" {
+		return nil, fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
+	}
+
+	user, err := c.GetUser(ctx, targetUserID)
+	if err != nil {
+		return nil, err
+	}
+	assignedRoles, err := c.GetUserRoles(ctx, targetUserID)
+	if err != nil {
+		return nil, err
+	}
+	member, err := c.adminMemberForViewer(ctx, actorID, user, assignedRoles)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +152,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	if err != nil {
 		return nil, err
 	}
-	if member.IsBot {
+	if user.GetIsBot() {
 		canAssignRoles = false
 		canManageRoles = false
 		canManageUserPermissions = false
@@ -245,9 +258,7 @@ func (c *ChattoCore) roleAssignmentLimits(ctx context.Context, actorID, targetUs
 	return assignable, revocable, nil
 }
 
-// ReadAdminUsers hydrates only requested account records. Missing users are
-// omitted and duplicates preserve first-seen order. No catalogues are loaded.
-func (c *ChattoCore) ReadAdminUsers(ctx context.Context, actorID string, userIDs []string) ([]AdminMember, error) {
+func (c *ChattoCore) BatchGetAdminMembers(ctx context.Context, actorID string, userIDs []string) (*AdminMemberList, error) {
 	ctx = WithDEKRequestCache(ctx)
 	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
 		return nil, err
@@ -278,15 +289,7 @@ func (c *ChattoCore) ReadAdminUsers(ctx context.Context, actorID string, userIDs
 		}
 		users = append(users, *member)
 	}
-	return users, nil
-}
 
-// BatchGetAdminMembers retains role catalogue output for compatibility clients.
-func (c *ChattoCore) BatchGetAdminMembers(ctx context.Context, actorID string, userIDs []string) (*AdminMemberList, error) {
-	users, err := c.ReadAdminUsers(ctx, actorID, userIDs)
-	if err != nil {
-		return nil, err
-	}
 	roles, err := c.ListServerRoles(ctx)
 	if err != nil {
 		return nil, err
@@ -415,7 +418,6 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 	if canViewLastLoginChange, err := c.canViewAdminMemberLastLoginChange(ctx, actorID, user.GetId()); err != nil {
 		return nil, err
 	} else if canViewLastLoginChange {
-		member.UsernameCooldownVisible = true
 		lastLoginChange, err := c.GetLastLoginChange(ctx, user.GetId())
 		if err != nil {
 			return nil, err

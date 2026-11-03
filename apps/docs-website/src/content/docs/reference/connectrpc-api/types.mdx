@@ -156,6 +156,72 @@ Public user fields.
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 | `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
 
+<a id="chatto-api-v1-ImageTransformOptions"></a>
+
+### ImageTransformOptions
+
+Image transform parameters for generated image URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `width` | `int32` | Target image width in pixels. |
+| `height` | `int32` | Target image height in pixels. |
+| `fit` | [`ImageFitMode`](#chatto-api-v1-ImageFitMode) | Image crop/fit behavior. |
+
+<a id="chatto-api-v1-ImageUpload"></a>
+
+### ImageUpload
+
+Browser-supplied image upload payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | `bytes` | Raw image bytes. |
+| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
+| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+
+<a id="chatto-api-v1-ProviderMetadata"></a>
+
+### ProviderMetadata
+
+Public login/provider metadata shared by discovery and account-linking APIs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable configured provider ID. |
+| `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
+| `label` | `string` | Human-readable provider label. |
+| `login_url` | `string` | URL that starts login for this provider. |
+| `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
+| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
+
+<a id="chatto-api-v1-ExternalIdentityProvider"></a>
+
+### ExternalIdentityProvider
+
+Public metadata for a configured external login provider.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
+| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
+| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
+| `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
+
+<a id="chatto-api-v1-LinkedExternalIdentity"></a>
+
+### LinkedExternalIdentity
+
+Linked provider identity metadata for the authenticated user's settings UI.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
+| `provider_type` | `string` | Provider type recorded when the identity was linked. |
+| `provider_label` | `string` | Current or fallback provider label. |
+| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
+
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
 ### CapabilityGrant
@@ -219,6 +285,115 @@ Effective decision for one permission key.
 | `permission` | `string` | Stable permission key, such as "server.manage". |
 | `granted` | `bool` | Whether the permission is currently granted. |
 
+<a id="chatto-api-v1-AccountActions"></a>
+
+### AccountActions
+
+Self-service decisions for the current viewer. Each action owns its states.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `change_username` | [`UsernameChangeAvailability`](#chatto-api-v1-UsernameChangeAvailability) | Changing the username, excluding input-specific exceptions such as case-only edits. |
+| `change_password` | optional [`PasswordChangeAvailability`](#chatto-api-v1-PasswordChangeAvailability) | Setting an initial password or changing an existing password. Absent on older servers. |
+| `delete_account` | optional [`AccountDeletionAvailability`](#chatto-api-v1-AccountDeletionAvailability) | Starting self-service account deletion. Absent on older servers. |
+
+<a id="chatto-api-v1-UsernameChangeAvailability"></a>
+
+### UsernameChangeAvailability
+
+Snapshot for changing a username. Missing means not reported. Commands still
+check policy and input, including case-only exceptions. ALLOWED enables it
+only when available_at is absent or has passed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`UsernameChangeAvailability.State`](#chatto-api-v1-UsernameChangeAvailability-State) | Unknown states remain disabled. Commands recheck authority and policy. |
+| `available_at` | `google.protobuf.Timestamp` | Independent earliest attempt time. Absent means no time restriction. Clients enable ALLOWED when this time passes; they should update a visible control once per second while waiting and stop its timer when it is removed or no longer waiting. This time never overrides a blocking or unknown state. |
+
+<a id="chatto-api-v1-PrivilegedModeState"></a>
+
+### PrivilegedModeState
+
+State of explicit privileged-mode activation for this authenticated session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
+| `active` | `bool` | Whether elevated permissions are effective for this session now. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
+
+<a id="chatto-api-v1-ServerViewerPermissions"></a>
+
+### ServerViewerPermissions
+
+Effective server/channel permission decisions for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
+
+<a id="chatto-api-v1-ServerViewerState"></a>
+
+### ServerViewerState
+
+Non-permission server state for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
+
+<a id="chatto-api-v1-UserSettings"></a>
+
+### UserSettings
+
+Server-level display settings for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `optional string` | Optional IANA timezone override. Absent means no choice has been recorded. Empty means the user explicitly chose the browser's local timezone. Both use browser-local time; only absence permits automatic device reporting. |
+| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
+| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
+
+<a id="chatto-api-v1-ViewerCapabilities"></a>
+
+### ViewerCapabilities
+
+Permission-derived capabilities for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
+| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
+
+<a id="chatto-api-v1-ViewerUser"></a>
+
+### ViewerUser
+
+Current authenticated user's public profile plus self-only settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
+| `viewer_can_delete_account` | `bool` | **Deprecated.** Whether the authenticated user may delete this account. New clients use actions.delete_account and fall back to this field only when that action is absent. |
+| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
+| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
+| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+| `actions` | [`AccountActions`](#chatto-api-v1-AccountActions) | Self-service account action snapshots. Absent on older servers. |
+
+<a id="chatto-api-v1-VerifiedEmail"></a>
+
+### VerifiedEmail
+
+One email address that a user has proved they control. The containing API
+controls who can read this private account data.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Normalized email address. |
+| `verified_at` | `google.protobuf.Timestamp` | Time at which the address was verified. |
+| `primary` | `bool` | Whether account-directed email is sent to this address. |
+
 <a id="chatto-api-v1-RoomInvitation"></a>
 
 ### RoomInvitation
@@ -235,45 +410,6 @@ An invitation visible only to its sender and recipient.
 | `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
 | `status` | [`RoomInvitationStatus`](#chatto-api-v1-RoomInvitationStatus) | No field description provided. |
 | `can_accept` | `bool` | True only for the recipient while current room and sender rules permit acceptance. |
-
-<a id="chatto-api-v1-ImageTransformOptions"></a>
-
-### ImageTransformOptions
-
-Image transform parameters for generated image URLs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `width` | `int32` | Target image width in pixels. |
-| `height` | `int32` | Target image height in pixels. |
-| `fit` | [`ImageFitMode`](#chatto-api-v1-ImageFitMode) | Image crop/fit behavior. |
-
-<a id="chatto-api-v1-ImageUpload"></a>
-
-### ImageUpload
-
-Browser-supplied image upload payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `image` | `bytes` | Raw image bytes. |
-| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
-| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
-
-<a id="chatto-api-v1-ProviderMetadata"></a>
-
-### ProviderMetadata
-
-Public login/provider metadata shared by discovery and account-linking APIs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable configured provider ID. |
-| `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
-| `label` | `string` | Human-readable provider label. |
-| `login_url` | `string` | URL that starts login for this provider. |
-| `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
-| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
 
 <a id="chatto-api-v1-LinkPreview"></a>
 
@@ -901,141 +1037,6 @@ Public server profile, identity, and branding fields.
 | `banner_url` | `optional string` | Optional server banner URL. |
 | `welcome_message` | `optional string` | Optional welcome message. |
 | `description` | `optional string` | Optional server description. |
-
-<a id="chatto-api-v1-ExternalIdentityProvider"></a>
-
-### ExternalIdentityProvider
-
-Public metadata for a configured external login provider.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
-| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
-| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
-| `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
-
-<a id="chatto-api-v1-LinkedExternalIdentity"></a>
-
-### LinkedExternalIdentity
-
-Linked provider identity metadata for the authenticated user's settings UI.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
-| `provider_type` | `string` | Provider type recorded when the identity was linked. |
-| `provider_label` | `string` | Current or fallback provider label. |
-| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
-| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
-
-<a id="chatto-api-v1-AccountActions"></a>
-
-### AccountActions
-
-Self-service decisions for the current viewer. Each action owns its states.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `change_username` | [`UsernameChangeAvailability`](#chatto-api-v1-UsernameChangeAvailability) | Changing the username, excluding input-specific exceptions such as case-only edits. |
-| `change_password` | optional [`PasswordChangeAvailability`](#chatto-api-v1-PasswordChangeAvailability) | Setting an initial password or changing an existing password. Absent on older servers. |
-| `delete_account` | optional [`AccountDeletionAvailability`](#chatto-api-v1-AccountDeletionAvailability) | Starting self-service account deletion. Absent on older servers. |
-
-<a id="chatto-api-v1-UsernameChangeAvailability"></a>
-
-### UsernameChangeAvailability
-
-Snapshot for changing a username. Missing means not reported. Commands still
-check policy and input, including case-only exceptions. ALLOWED enables it
-only when available_at is absent or has passed.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | [`UsernameChangeAvailability.State`](#chatto-api-v1-UsernameChangeAvailability-State) | Unknown states remain disabled. Commands recheck authority and policy. |
-| `available_at` | `google.protobuf.Timestamp` | Independent earliest attempt time. Absent means no time restriction. Clients enable ALLOWED when this time passes; they should update a visible control once per second while waiting and stop its timer when it is removed or no longer waiting. This time never overrides a blocking or unknown state. |
-
-<a id="chatto-api-v1-PrivilegedModeState"></a>
-
-### PrivilegedModeState
-
-State of explicit privileged-mode activation for this authenticated session.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
-| `active` | `bool` | Whether elevated permissions are effective for this session now. |
-| `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
-
-<a id="chatto-api-v1-ServerViewerPermissions"></a>
-
-### ServerViewerPermissions
-
-Effective server/channel permission decisions for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
-
-<a id="chatto-api-v1-ServerViewerState"></a>
-
-### ServerViewerState
-
-Non-permission server state for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
-
-<a id="chatto-api-v1-UserSettings"></a>
-
-### UserSettings
-
-Server-level display settings for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | Optional IANA timezone override. Absent means no choice has been recorded. Empty means the user explicitly chose the browser's local timezone. Both use browser-local time; only absence permits automatic device reporting. |
-| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
-| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
-
-<a id="chatto-api-v1-ViewerCapabilities"></a>
-
-### ViewerCapabilities
-
-Permission-derived capabilities for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
-| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
-
-<a id="chatto-api-v1-ViewerUser"></a>
-
-### ViewerUser
-
-Current authenticated user's public profile plus self-only settings.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | **Deprecated.** Whether the authenticated user may delete this account. New clients use actions.delete_account and fall back to this field only when that action is absent. |
-| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
-| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
-| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
-| `actions` | [`AccountActions`](#chatto-api-v1-AccountActions) | Self-service account action snapshots. Absent on older servers. |
-
-<a id="chatto-api-v1-VerifiedEmail"></a>
-
-### VerifiedEmail
-
-One email address that the authenticated user has proved they control.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `email` | `string` | Normalized email address. |
-| `verified_at` | `google.protobuf.Timestamp` | Time at which the address was verified. |
-| `primary` | `bool` | Whether account-directed email is sent to this address. |
 
 <a id="chatto-api-v1-AssetUpload"></a>
 
@@ -1751,34 +1752,6 @@ Role metadata plus administrative permission state.
 | `permissions` | `repeated string` | Permissions granted by this role. |
 | `permission_denials` | `repeated string` | Permissions denied by this role. |
 
-<a id="chatto-admin-v1-AdminUser"></a>
-
-### AdminUser
-
-Administrative account data, available with admin.view-users. Role catalogues,
-assignment limits, and permission editors have separate reads. The public
-profile is canonical, including its deactivated flag.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `profile` | `chatto.api.v1.User` | Public user profile. |
-| `role_names` | `repeated string` | Explicit assigned role names. The implicit everyone role is omitted. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time, when known. |
-| `verified_emails` | `repeated string` | Verified email addresses. An empty list means there are none. |
-| `primary_verified_email` | `optional string` | Primary verified email. Absent when none is selected. |
-| `username_cooldown` | [`AdminUsernameCooldown`](#chatto-admin-v1-AdminUsernameCooldown) | Present only for the account itself or callers with user.manage-accounts. Absent means hidden or not reported by this server. A present empty message means no username change has been recorded. |
-
-<a id="chatto-admin-v1-AdminUsernameCooldown"></a>
-
-### AdminUsernameCooldown
-
-Username-change history visible to account managers. This is account data,
-not permission to change the username or a guarantee that an update succeeds.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `last_login_change` | `google.protobuf.Timestamp` | Start of the current self-service username-change cooldown, when known. |
-
 <a id="chatto-admin-v1-UserRoleAssignment"></a>
 
 ### UserRoleAssignment
@@ -1792,12 +1765,25 @@ contains no private account fields or viewer-specific assignment limits.
 | `role_name` | `string` | Stable role name. |
 | `assigned` | `bool` | True after assignment; false after revocation, including no-op commands. |
 
+<a id="chatto-admin-v1-UsernameCooldown"></a>
+
+### UsernameCooldown
+
+Username-change history for one account. This private resource does not
+describe permission to change the username or guarantee a successful update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target stable user ID. |
+| `last_login_change` | `google.protobuf.Timestamp` | Start of the current self-service cooldown. Absent when no change is recorded. |
+
 <a id="chatto-admin-v1-AdminMember"></a>
 
 ### AdminMember
 
 Compatibility user row returned by member-management reads and commands.
-New account integrations use AdminUser through GetUser and BatchGetUsers.
+Read profiles, assigned roles, and creation times through
+chatto.api.v1.UserService. Private account fields have separate admin reads.
 
 The embedded user record carries public identity fields; remaining fields are
 admin/member metadata with visibility controlled by the service.
@@ -2186,34 +2172,6 @@ becomes public Offline when no device refreshes liveness.
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | Do Not Disturb. A saved choice suppresses alerts even while disconnected. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | No public live presence. As a saved choice, suppresses presence and typing. |
 
-<a id="chatto-api-v1-EffectivePermissionScopeKind"></a>
-
-### EffectivePermissionScopeKind
-
-Scope of effective authority. Channel scopes never include direct messages.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | No scope supplied. |
-| `EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server authority or the default for channel rooms. |
-| `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
-| `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
-| `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
-
-<a id="chatto-api-v1-RoomInvitationStatus"></a>
-
-### RoomInvitationStatus
-
-Current lifecycle state. Expiry does not extend when the invitation is read.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
-| `ROOM_INVITATION_STATUS_PENDING` | `1` | No value description provided. |
-| `ROOM_INVITATION_STATUS_ACCEPTED` | `2` | No value description provided. |
-| `ROOM_INVITATION_STATUS_DECLINED` | `3` | No value description provided. |
-| `ROOM_INVITATION_STATUS_EXPIRED` | `4` | No value description provided. |
-
 <a id="chatto-api-v1-ImageFitMode"></a>
 
 ### ImageFitMode
@@ -2240,6 +2198,103 @@ Direct-message rooms do not support threads and use UNSPECIFIED.
 | `ROOM_THREADING_MODE_ENCOURAGED` | `2` | Clients should steer replies into threads, but the server accepts both threaded and ordinary in-room replies. |
 | `ROOM_THREADING_MODE_ENABLED` | `3` | Threads are available and clients may freely choose whether to use them. |
 | `ROOM_THREADING_MODE_DISABLED` | `4` | New threads, thread replies, and channel echoes are rejected. Existing threads and echoes remain readable and ordinary in-room reply attribution remains available. |
+
+<a id="chatto-api-v1-DisconnectEligibility"></a>
+
+### DisconnectEligibility
+
+State of disconnecting a linked identity. Only ALLOWED enables the action.
+UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+Unknown future states remain disabled.
+This does not replace fresh authentication or the mutation's eligibility check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
+| `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
+| `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
+| `DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR` | `3` | The operator disabled user-initiated unlinking for this provider. |
+
+<a id="chatto-api-v1-EffectivePermissionScopeKind"></a>
+
+### EffectivePermissionScopeKind
+
+Scope of effective authority. Channel scopes never include direct messages.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | No scope supplied. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server authority or the default for channel rooms. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
+
+<a id="chatto-api-v1-AccountDeletionAvailability"></a>
+
+### AccountDeletionAvailability
+
+State of self-service account deletion. Only ALLOWED enables the action;
+commands still check authority and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `ACCOUNT_DELETION_AVAILABILITY_ALLOWED` | `1` | The user can attempt to start account deletion. |
+| `ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED` | `2` | The viewer lacks permission to delete this account. |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support self-service deletion. |
+
+<a id="chatto-api-v1-PasswordChangeAvailability"></a>
+
+### PasswordChangeAvailability
+
+State of setting or changing a password. Only ALLOWED enables the action;
+commands still validate passwords and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `PASSWORD_CHANGE_AVAILABILITY_ALLOWED` | `1` | The user can attempt to set or change a password. |
+| `PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED` | `2` | The operator disabled direct login and password self-service. |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support password self-service. |
+
+<a id="chatto-api-v1-UsernameChangeAvailability-State"></a>
+
+### UsernameChangeAvailability.State
+
+State of username self-service, including its primary blocking condition.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
+| `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
+
+<a id="chatto-api-v1-TimeFormat"></a>
+
+### TimeFormat
+
+User preference for rendering times in clients.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `TIME_FORMAT_UNSPECIFIED` | `0` | No explicit preference was stored. |
+| `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
+| `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
+| `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
+
+<a id="chatto-api-v1-RoomInvitationStatus"></a>
+
+### RoomInvitationStatus
+
+Current lifecycle state. Expiry does not extend when the invitation is read.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `ROOM_INVITATION_STATUS_PENDING` | `1` | No value description provided. |
+| `ROOM_INVITATION_STATUS_ACCEPTED` | `2` | No value description provided. |
+| `ROOM_INVITATION_STATUS_DECLINED` | `3` | No value description provided. |
+| `ROOM_INVITATION_STATUS_EXPIRED` | `4` | No value description provided. |
 
 <a id="chatto-api-v1-MessageVideoProcessingStatus"></a>
 
@@ -2303,75 +2358,6 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
-
-<a id="chatto-api-v1-DisconnectEligibility"></a>
-
-### DisconnectEligibility
-
-State of disconnecting a linked identity. Only ALLOWED enables the action.
-UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
-Unknown future states remain disabled.
-This does not replace fresh authentication or the mutation's eligibility check.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
-| `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
-| `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
-| `DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR` | `3` | The operator disabled user-initiated unlinking for this provider. |
-
-<a id="chatto-api-v1-AccountDeletionAvailability"></a>
-
-### AccountDeletionAvailability
-
-State of self-service account deletion. Only ALLOWED enables the action;
-commands still check authority and authentication.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
-| `ACCOUNT_DELETION_AVAILABILITY_ALLOWED` | `1` | The user can attempt to start account deletion. |
-| `ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED` | `2` | The viewer lacks permission to delete this account. |
-| `ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support self-service deletion. |
-
-<a id="chatto-api-v1-PasswordChangeAvailability"></a>
-
-### PasswordChangeAvailability
-
-State of setting or changing a password. Only ALLOWED enables the action;
-commands still validate passwords and authentication.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
-| `PASSWORD_CHANGE_AVAILABILITY_ALLOWED` | `1` | The user can attempt to set or change a password. |
-| `PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED` | `2` | The operator disabled direct login and password self-service. |
-| `PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support password self-service. |
-
-<a id="chatto-api-v1-UsernameChangeAvailability-State"></a>
-
-### UsernameChangeAvailability.State
-
-State of username self-service, including its primary blocking condition.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
-| `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
-| `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
-
-<a id="chatto-api-v1-TimeFormat"></a>
-
-### TimeFormat
-
-User preference for rendering times in clients.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `TIME_FORMAT_UNSPECIFIED` | `0` | No explicit preference was stored. |
-| `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
-| `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
-| `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
 
 <a id="chatto-api-v1-AssetUploadStatus"></a>
 

@@ -3,87 +3,41 @@ syntax = "proto3";
 package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/pagination.proto";
-import "chatto/api/v1/users.proto";
+import "chatto/api/v1/account.proto";
 import "google/protobuf/timestamp.proto";
 
-// Administrative account data, available with admin.view-users. Role catalogues,
-// assignment limits, and permission editors have separate reads. The public
-// profile is canonical, including its deactivated flag.
-message AdminUser {
-  // Public user profile.
-  chatto.api.v1.User profile = 1;
-  // Explicit assigned role names. The implicit everyone role is omitted.
-  repeated string role_names = 2;
-  // Account creation time, when known.
-  google.protobuf.Timestamp created_at = 3;
-  // Verified email addresses. An empty list means there are none.
-  repeated string verified_emails = 4;
-  // Primary verified email. Absent when none is selected.
-  optional string primary_verified_email = 5;
-  // Present only for the account itself or callers with user.manage-accounts.
-  // Absent means hidden or not reported by this server.
-  // A present empty message means no username change has been recorded.
-  AdminUsernameCooldown username_cooldown = 6;
+// Request one user's private verified email addresses.
+message ListVerifiedEmailsRequest {
+  // Required stable user ID. Resolve users through chatto.api.v1.UserService.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-// Username-change history visible to account managers. This is account data,
-// not permission to change the username or a guarantee that an update succeeds.
-message AdminUsernameCooldown {
-  // Start of the current self-service username-change cooldown, when known.
-  google.protobuf.Timestamp last_login_change = 1;
+// All verified addresses, including verification times and the primary choice.
+// An empty list means the account has no verified addresses. Order is not
+// significant. This read does not include a user profile or role assignments.
+message ListVerifiedEmailsResponse {
+  repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
 }
 
-// Request administrative user IDs in creation order, oldest first. Accounts
-// without a creation time follow, ordered by case-insensitive login. IDs break ties.
-message ListUsersRequest {
-  // Case-insensitive login/display-name search. Empty selects all accounts.
-  string search = 1 [(buf.validate.field).string.max_len = 100];
-  // Default limit 20; maximum 100. Offsets count IDs, not hydrated records.
-  chatto.api.v1.PageRequest page = 2;
+// Username-change history for one account. This private resource does not
+// describe permission to change the username or guarantee a successful update.
+message UsernameCooldown {
+  // Target stable user ID.
+  string user_id = 1;
+  // Start of the current self-service cooldown. Absent when no change is recorded.
+  google.protobuf.Timestamp last_login_change = 2;
 }
 
-// One live page of user IDs. Changes between requests can shift offsets.
-// Hydrate with BatchGetUsers and advance by the number of returned IDs.
-message ListUsersResponse {
-  // Matching IDs in list order.
-  repeated string user_ids = 1;
-  // Count and continuation information for the selected accounts.
-  chatto.api.v1.PageInfo page = 2;
+// Request one user's private username-change history.
+message GetUsernameCooldownRequest {
+  // Required stable user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-// Request one administrative account by ID or login.
-message GetUserRequest {
-  oneof target {
-    option (buf.validate.oneof).required = true;
-    // Stable user ID.
-    string user_id = 1 [(buf.validate.field).string.min_len = 1];
-    // Login identifier.
-    string login = 2 [(buf.validate.field).string.min_len = 1];
-  }
-}
-
-// One account without related catalogues or editor state.
-message GetUserResponse {
-  // Requested account.
-  AdminUser user = 1;
-}
-
-// Request administrative accounts for a bounded set of IDs.
-message BatchGetUsersRequest {
-  // Unknown or deleted users are omitted. Repeated IDs are returned once.
-  repeated string user_ids = 1 [(buf.validate.field).repeated = {
-    min_items: 1
-    max_items: 100
-    items: {string: {min_len: 1}}
-  }];
-}
-
-// Found accounts in first-seen request order, with the same fields and access
-// rules as GetUser. No role catalogue or other related resources are included.
-message BatchGetUsersResponse {
-  // Requested accounts that still exist.
-  repeated AdminUser users = 1;
+// Username-change history for an authorized account read.
+message GetUsernameCooldownResponse {
+  // Always present on success, including when no change is recorded.
+  UsernameCooldown cooldown = 1;
 }
 
 // Resulting explicit assignment state after a role command. This outcome

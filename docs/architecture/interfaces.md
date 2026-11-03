@@ -287,12 +287,13 @@ rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
-`AdminUserService.ListUsers`, `GetUser`, and `BatchGetUsers` provide account
-resources without role catalogues or assignment-limit evaluation. Legacy member
-reads share the account hydration path and retain their additional metadata.
-The canonical resource includes public profile data, explicit role names, and
-administrative account fields. Cooldown message presence distinguishes hidden
-or unreported history from an authorized read with no recorded change.
+`api.v1.UserService` provides the canonical directory reads for profiles,
+assigned roles, and creation times. `AdminUserService.ListUserVerifiedEmails`
+reuses the private `VerifiedEmail` resource and requires `admin.view-users`.
+`GetUserUsernameCooldown` requires that permission plus account-management
+authority or the caller's own ID. These reads use account metadata without
+profile hydration, role catalogues, or assignment-limit evaluation. Legacy
+member reads retain their screen bootstrap data for compatibility.
 
 `AdminRoomLayoutService` separates group metadata from complete layout snapshots.
 `GetRoomGroupLayout` requires effective group `room.manage`; metadata-only

@@ -127,7 +127,8 @@ func (x *ChangePasswordResponse) GetUser() *User {
 	return nil
 }
 
-// One email address that the authenticated user has proved they control.
+// One email address that a user has proved they control. The containing API
+// controls who can read this private account data.
 type VerifiedEmail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Normalized email address.

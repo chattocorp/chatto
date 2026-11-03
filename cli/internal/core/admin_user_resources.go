@@ -3,47 +3,53 @@ package core
 import (
 	"context"
 	"fmt"
-
-	"github.com/chattocorp/chatto/cli/internal/readmodel"
+	"time"
 )
 
-// ReadAdminUser returns administrative account data without loading a role
-// catalogue or evaluating role-assignment limits. It requires admin.view-users.
-func (c *ChattoCore) ReadAdminUser(ctx context.Context, actorID, userID string) (*AdminMember, error) {
-	ctx = WithDEKRequestCache(ctx)
+// ListAdminVerifiedEmails reads private addresses without hydrating profiles,
+// roles, or editor data. It requires admin.view-users.
+func (c *ChattoCore) ListAdminVerifiedEmails(ctx context.Context, actorID, userID string) ([]VerifiedEmail, error) {
 	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
 		return nil, err
 	}
+	if err := c.requireExistingAdminUser(userID); err != nil {
+		return nil, err
+	}
+	return c.GetVerifiedEmails(ctx, userID)
+}
+
+// GetAdminUsernameCooldown reads private username-change history. A nil
+// timestamp means no change is recorded. Hidden history returns an access error.
+func (c *ChattoCore) GetAdminUsernameCooldown(ctx context.Context, actorID, userID string) (*time.Time, error) {
+	// Check both permissions before resolving the target's existence.
+	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
+		return nil, err
+	}
+	allowed, err := c.canViewAdminMemberLastLoginChange(ctx, actorID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, ErrPermissionDenied
+	}
+	if err := c.requireExistingAdminUser(userID); err != nil {
+		return nil, err
+	}
+	changedAt, err := c.GetLastLoginChange(ctx, userID)
+	if err != nil || changedAt.IsZero() {
+		return nil, err
+	}
+	return &changedAt, nil
+}
+
+// requireExistingAdminUser uses lifecycle metadata without decrypting a public
+// profile. Callers must check the read's permissions before this lookup.
+func (c *ChattoCore) requireExistingAdminUser(userID string) error {
 	if userID == "" {
-		return nil, fmt.Errorf("%w: user ID is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: user ID is required", ErrInvalidArgument)
 	}
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return nil, err
+	if _, _, exists := c.userModel.isBotAndOwner(userID); !exists {
+		return ErrNotFound
 	}
-	return c.hydrateAdminUser(ctx, actorID, user)
-}
-
-func (c *ChattoCore) hydrateAdminUser(ctx context.Context, actorID string, user *readmodel.User) (*AdminMember, error) {
-	roles, err := c.GetUserRoles(ctx, user.GetId())
-	if err != nil {
-		return nil, err
-	}
-	return c.adminMemberForViewer(ctx, actorID, user, roles)
-}
-
-// ReadAdminUserByLogin applies the account-read gate before resolving a login.
-func (c *ChattoCore) ReadAdminUserByLogin(ctx context.Context, actorID, login string) (*AdminMember, error) {
-	ctx = WithDEKRequestCache(ctx)
-	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
-		return nil, err
-	}
-	if login == "" {
-		return nil, fmt.Errorf("%w: login is required", ErrInvalidArgument)
-	}
-	user, err := c.GetUserByLogin(ctx, login)
-	if err != nil {
-		return nil, err
-	}
-	return c.hydrateAdminUser(ctx, actorID, user)
+	return nil
 }

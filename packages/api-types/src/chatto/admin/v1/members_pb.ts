@@ -13,7 +13,8 @@ import { UserRoleAssignment } from "./users_pb.js";
 
 /**
  * Compatibility user row returned by member-management reads and commands.
- * New account integrations use AdminUser through GetUser and BatchGetUsers.
+ * Read profiles, assigned roles, and creation times through
+ * chatto.api.v1.UserService. Private account fields have separate admin reads.
  *
  * The embedded user record carries public identity fields; remaining fields are
  * admin/member metadata with visibility controlled by the service.

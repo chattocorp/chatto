@@ -2,68 +2,55 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it } from 'vitest';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
-import { createAdminUserAPI } from '../adminUsers.js';
+import { createAdminAccountAPI } from '../adminAccounts.js';
 import { createAdminRoomLayoutAPI } from '../adminRoomLayout.js';
 import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 describe('canonical administrative resources', () => {
-  it('reads account data without a member bootstrap or role catalogue', async () => {
+  it('reads private email and cooldown data without a user bootstrap', async () => {
     const service = mockService(AdminUserService);
-    service.getUser.mockReturnValue({
-      user: { profile: { id: 'target' }, roleNames: ['helper'], verifiedEmails: [] }
+    service.listVerifiedEmails.mockReturnValue({
+      verifiedEmails: [{ email: 'target@example.com', primary: true }]
     });
-    service.listUsers.mockReturnValue({ userIds: ['target'], page: { totalCount: 1n } });
-    service.batchGetUsers.mockReturnValue({ users: [{ profile: { id: 'target' } }] });
-    const api = createAdminUserAPI(
+    service.getUsernameCooldown.mockReturnValue({ cooldown: { userId: 'target' } });
+    const api = createAdminAccountAPI(
       fakeServer((router) => router.service(AdminUserService, service))
     );
-    expect((await api.getUser({ login: 'target' })).profile?.id).toBe('target');
-    expect(receivedRequest(service.getUser)).toMatchObject({
-      target: { case: 'login', value: 'target' }
-    });
-    expect((await api.listUsers({ page: { limit: 20 } })).userIds).toEqual(['target']);
-    expect((await api.batchGetUsers(['target']))[0]?.profile?.id).toBe('target');
+    expect((await api.listVerifiedEmails('target'))[0]?.primary).toBe(true);
+    expect(receivedRequest(service.listVerifiedEmails)).toMatchObject({ userId: 'target' });
+    expect((await api.getUsernameCooldown('target')).lastLoginChange).toBeUndefined();
+    expect(receivedRequest(service.getUsernameCooldown)).toMatchObject({ userId: 'target' });
     expect(service.getMember).not.toHaveBeenCalled();
     expect(service.batchGetMembers).not.toHaveBeenCalled();
   });
 
-  it('adapts older-server account reads without inventing hidden cooldown data', async () => {
+  it('propagates private-read failures without falling back to a member bootstrap', async () => {
     const service = mockService(AdminUserService);
-    for (const method of [service.getUser, service.listUsers, service.batchGetUsers]) {
-      method.mockImplementation(() => {
-        throw new ConnectError('older server', Code.Unimplemented);
-      });
-    }
-    service.getMember.mockReturnValue({
-      member: { user: { id: 'target' }, roles: ['helper'], verifiedEmails: ['target@example.com'] }
-    });
-    service.listMembers.mockReturnValue({ userIds: ['target'], page: { totalCount: 1n } });
-    service.batchGetMembers.mockReturnValue({ members: [{ user: { id: 'target' } }] });
-    const api = createAdminUserAPI(
+    const api = createAdminAccountAPI(
       fakeServer((router) => router.service(AdminUserService, service))
     );
-    const user = await api.getUser({ userId: 'target' });
-    expect(user.profile?.id).toBe('target');
-    expect(user.roleNames).toEqual(['helper']);
-    expect(user.usernameCooldown).toBeUndefined();
-    expect((await api.listUsers({})).userIds).toEqual(['target']);
-    expect((await api.batchGetUsers(['target']))[0]?.profile?.id).toBe('target');
+    for (const code of [Code.PermissionDenied, Code.Unimplemented, Code.Canceled]) {
+      service.listVerifiedEmails.mockImplementation(() => {
+        throw new ConnectError('read failed', code);
+      });
+      service.getUsernameCooldown.mockImplementation(() => {
+        throw new ConnectError('read failed', code);
+      });
+      await expect(api.listVerifiedEmails('target')).rejects.toMatchObject({ code });
+      await expect(api.getUsernameCooldown('target')).rejects.toMatchObject({ code });
+    }
+    expect(service.getMember).not.toHaveBeenCalled();
   });
 
-  it('does not hide access errors or malformed resources behind legacy reads', async () => {
+  it('distinguishes an empty email list from missing cooldown history', async () => {
     const service = mockService(AdminUserService);
-    service.getUser.mockImplementation(() => {
-      throw new ConnectError('denied', Code.PermissionDenied);
-    });
-    const api = createAdminUserAPI(
+    service.listVerifiedEmails.mockReturnValue({});
+    service.getUsernameCooldown.mockReturnValue({});
+    const api = createAdminAccountAPI(
       fakeServer((router) => router.service(AdminUserService, service))
     );
-    await expect(api.getUser({ userId: 'target' })).rejects.toMatchObject({
-      code: Code.PermissionDenied
-    });
-    service.getUser.mockReturnValue({});
-    await expect(api.getUser({ userId: 'target' })).rejects.toThrow('did not include an account');
-    expect(service.getMember).not.toHaveBeenCalled();
+    expect(await api.listVerifiedEmails('target')).toEqual([]);
+    await expect(api.getUsernameCooldown('target')).rejects.toThrow('did not include history');
   });
 
   it('reads canonical layout metadata and patches without replacing other fields', async () => {

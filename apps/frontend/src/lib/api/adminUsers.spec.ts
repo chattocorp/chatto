@@ -1,5 +1,4 @@
 import { Timestamp } from '@bufbuild/protobuf';
-import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import { createAdminUserManagementAPI } from './adminUsers';
@@ -16,18 +15,6 @@ function adminUserAPI() {
 describe('createAdminUserManagementAPI', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    // These fixtures model an older server. Canonical account IDs have the
-    // same semantics and fall back only when that RPC is not implemented.
-    mocks.listUsers.mockImplementation(() => {
-      throw new ConnectError('older server', Code.Unimplemented);
-    });
-  });
-
-  it('selects IDs through the canonical user collection on current servers', async () => {
-    mocks.listUsers.mockReturnValue({ userIds: [], page: { totalCount: 0n, hasMore: false } });
-    await adminUserAPI().listMembers({ limit: 20, offset: 0 });
-    expect(receivedRequest(mocks.listUsers)).toMatchObject({ page: { limit: 20, offset: 0 } });
-    expect(mocks.listMembers).not.toHaveBeenCalled();
   });
 
   it('changes account access and preserves the server permission hint', async () => {

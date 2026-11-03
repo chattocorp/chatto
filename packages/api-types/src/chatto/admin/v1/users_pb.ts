@@ -5,413 +5,219 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { User } from "../../api/v1/users_pb.js";
-import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
+import { VerifiedEmail } from "../../api/v1/account_pb.js";
 
 /**
- * Administrative account data, available with admin.view-users. Role catalogues,
- * assignment limits, and permission editors have separate reads. The public
- * profile is canonical, including its deactivated flag.
+ * Request one user's private verified email addresses.
  *
- * @generated from message chatto.admin.v1.AdminUser
+ * @generated from message chatto.admin.v1.ListVerifiedEmailsRequest
  */
-export class AdminUser extends Message<AdminUser> {
+export class ListVerifiedEmailsRequest extends Message<ListVerifiedEmailsRequest> {
   /**
-   * Public user profile.
+   * Required stable user ID. Resolve users through chatto.api.v1.UserService.
    *
-   * @generated from field: chatto.api.v1.User profile = 1;
+   * @generated from field: string user_id = 1;
    */
-  profile?: User;
+  userId = "";
 
-  /**
-   * Explicit assigned role names. The implicit everyone role is omitted.
-   *
-   * @generated from field: repeated string role_names = 2;
-   */
-  roleNames: string[] = [];
-
-  /**
-   * Account creation time, when known.
-   *
-   * @generated from field: google.protobuf.Timestamp created_at = 3;
-   */
-  createdAt?: Timestamp;
-
-  /**
-   * Verified email addresses. An empty list means there are none.
-   *
-   * @generated from field: repeated string verified_emails = 4;
-   */
-  verifiedEmails: string[] = [];
-
-  /**
-   * Primary verified email. Absent when none is selected.
-   *
-   * @generated from field: optional string primary_verified_email = 5;
-   */
-  primaryVerifiedEmail?: string;
-
-  /**
-   * Present only for the account itself or callers with user.manage-accounts.
-   * Absent means hidden or not reported by this server.
-   * A present empty message means no username change has been recorded.
-   *
-   * @generated from field: chatto.admin.v1.AdminUsernameCooldown username_cooldown = 6;
-   */
-  usernameCooldown?: AdminUsernameCooldown;
-
-  constructor(data?: PartialMessage<AdminUser>) {
+  constructor(data?: PartialMessage<ListVerifiedEmailsRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.AdminUser";
+  static readonly typeName = "chatto.admin.v1.ListVerifiedEmailsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: User },
-    { no: 2, name: "role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "created_at", kind: "message", T: Timestamp },
-    { no: 4, name: "verified_emails", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 5, name: "primary_verified_email", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 6, name: "username_cooldown", kind: "message", T: AdminUsernameCooldown },
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminUser {
-    return new AdminUser().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVerifiedEmailsRequest {
+    return new ListVerifiedEmailsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminUser {
-    return new AdminUser().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVerifiedEmailsRequest {
+    return new ListVerifiedEmailsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminUser {
-    return new AdminUser().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVerifiedEmailsRequest {
+    return new ListVerifiedEmailsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AdminUser | PlainMessage<AdminUser> | undefined, b: AdminUser | PlainMessage<AdminUser> | undefined): boolean {
-    return proto3.util.equals(AdminUser, a, b);
+  static equals(a: ListVerifiedEmailsRequest | PlainMessage<ListVerifiedEmailsRequest> | undefined, b: ListVerifiedEmailsRequest | PlainMessage<ListVerifiedEmailsRequest> | undefined): boolean {
+    return proto3.util.equals(ListVerifiedEmailsRequest, a, b);
   }
 }
 
 /**
- * Username-change history visible to account managers. This is account data,
- * not permission to change the username or a guarantee that an update succeeds.
+ * All verified addresses, including verification times and the primary choice.
+ * An empty list means the account has no verified addresses. Order is not
+ * significant. This read does not include a user profile or role assignments.
  *
- * @generated from message chatto.admin.v1.AdminUsernameCooldown
+ * @generated from message chatto.admin.v1.ListVerifiedEmailsResponse
  */
-export class AdminUsernameCooldown extends Message<AdminUsernameCooldown> {
+export class ListVerifiedEmailsResponse extends Message<ListVerifiedEmailsResponse> {
   /**
-   * Start of the current self-service username-change cooldown, when known.
+   * @generated from field: repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
+   */
+  verifiedEmails: VerifiedEmail[] = [];
+
+  constructor(data?: PartialMessage<ListVerifiedEmailsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListVerifiedEmailsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verified_emails", kind: "message", T: VerifiedEmail, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVerifiedEmailsResponse {
+    return new ListVerifiedEmailsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVerifiedEmailsResponse {
+    return new ListVerifiedEmailsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVerifiedEmailsResponse {
+    return new ListVerifiedEmailsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVerifiedEmailsResponse | PlainMessage<ListVerifiedEmailsResponse> | undefined, b: ListVerifiedEmailsResponse | PlainMessage<ListVerifiedEmailsResponse> | undefined): boolean {
+    return proto3.util.equals(ListVerifiedEmailsResponse, a, b);
+  }
+}
+
+/**
+ * Username-change history for one account. This private resource does not
+ * describe permission to change the username or guarantee a successful update.
+ *
+ * @generated from message chatto.admin.v1.UsernameCooldown
+ */
+export class UsernameCooldown extends Message<UsernameCooldown> {
+  /**
+   * Target stable user ID.
    *
-   * @generated from field: google.protobuf.Timestamp last_login_change = 1;
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * Start of the current self-service cooldown. Absent when no change is recorded.
+   *
+   * @generated from field: google.protobuf.Timestamp last_login_change = 2;
    */
   lastLoginChange?: Timestamp;
 
-  constructor(data?: PartialMessage<AdminUsernameCooldown>) {
+  constructor(data?: PartialMessage<UsernameCooldown>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.AdminUsernameCooldown";
+  static readonly typeName = "chatto.admin.v1.UsernameCooldown";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "last_login_change", kind: "message", T: Timestamp },
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "last_login_change", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminUsernameCooldown {
-    return new AdminUsernameCooldown().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UsernameCooldown {
+    return new UsernameCooldown().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminUsernameCooldown {
-    return new AdminUsernameCooldown().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UsernameCooldown {
+    return new UsernameCooldown().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminUsernameCooldown {
-    return new AdminUsernameCooldown().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UsernameCooldown {
+    return new UsernameCooldown().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AdminUsernameCooldown | PlainMessage<AdminUsernameCooldown> | undefined, b: AdminUsernameCooldown | PlainMessage<AdminUsernameCooldown> | undefined): boolean {
-    return proto3.util.equals(AdminUsernameCooldown, a, b);
+  static equals(a: UsernameCooldown | PlainMessage<UsernameCooldown> | undefined, b: UsernameCooldown | PlainMessage<UsernameCooldown> | undefined): boolean {
+    return proto3.util.equals(UsernameCooldown, a, b);
   }
 }
 
 /**
- * Request administrative user IDs in creation order, oldest first. Accounts
- * without a creation time follow, ordered by case-insensitive login. IDs break ties.
+ * Request one user's private username-change history.
  *
- * @generated from message chatto.admin.v1.ListUsersRequest
+ * @generated from message chatto.admin.v1.GetUsernameCooldownRequest
  */
-export class ListUsersRequest extends Message<ListUsersRequest> {
+export class GetUsernameCooldownRequest extends Message<GetUsernameCooldownRequest> {
   /**
-   * Case-insensitive login/display-name search. Empty selects all accounts.
+   * Required stable user ID.
    *
-   * @generated from field: string search = 1;
+   * @generated from field: string user_id = 1;
    */
-  search = "";
+  userId = "";
 
-  /**
-   * Default limit 20; maximum 100. Offsets count IDs, not hydrated records.
-   *
-   * @generated from field: chatto.api.v1.PageRequest page = 2;
-   */
-  page?: PageRequest;
-
-  constructor(data?: PartialMessage<ListUsersRequest>) {
+  constructor(data?: PartialMessage<GetUsernameCooldownRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ListUsersRequest";
+  static readonly typeName = "chatto.admin.v1.GetUsernameCooldownRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "page", kind: "message", T: PageRequest },
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListUsersRequest {
-    return new ListUsersRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUsernameCooldownRequest {
+    return new GetUsernameCooldownRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListUsersRequest {
-    return new ListUsersRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetUsernameCooldownRequest {
+    return new GetUsernameCooldownRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListUsersRequest {
-    return new ListUsersRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetUsernameCooldownRequest {
+    return new GetUsernameCooldownRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListUsersRequest | PlainMessage<ListUsersRequest> | undefined, b: ListUsersRequest | PlainMessage<ListUsersRequest> | undefined): boolean {
-    return proto3.util.equals(ListUsersRequest, a, b);
+  static equals(a: GetUsernameCooldownRequest | PlainMessage<GetUsernameCooldownRequest> | undefined, b: GetUsernameCooldownRequest | PlainMessage<GetUsernameCooldownRequest> | undefined): boolean {
+    return proto3.util.equals(GetUsernameCooldownRequest, a, b);
   }
 }
 
 /**
- * One live page of user IDs. Changes between requests can shift offsets.
- * Hydrate with BatchGetUsers and advance by the number of returned IDs.
+ * Username-change history for an authorized account read.
  *
- * @generated from message chatto.admin.v1.ListUsersResponse
+ * @generated from message chatto.admin.v1.GetUsernameCooldownResponse
  */
-export class ListUsersResponse extends Message<ListUsersResponse> {
+export class GetUsernameCooldownResponse extends Message<GetUsernameCooldownResponse> {
   /**
-   * Matching IDs in list order.
+   * Always present on success, including when no change is recorded.
    *
-   * @generated from field: repeated string user_ids = 1;
+   * @generated from field: chatto.admin.v1.UsernameCooldown cooldown = 1;
    */
-  userIds: string[] = [];
+  cooldown?: UsernameCooldown;
 
-  /**
-   * Count and continuation information for the selected accounts.
-   *
-   * @generated from field: chatto.api.v1.PageInfo page = 2;
-   */
-  page?: PageInfo;
-
-  constructor(data?: PartialMessage<ListUsersResponse>) {
+  constructor(data?: PartialMessage<GetUsernameCooldownResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ListUsersResponse";
+  static readonly typeName = "chatto.admin.v1.GetUsernameCooldownResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 2, name: "page", kind: "message", T: PageInfo },
+    { no: 1, name: "cooldown", kind: "message", T: UsernameCooldown },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListUsersResponse {
-    return new ListUsersResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUsernameCooldownResponse {
+    return new GetUsernameCooldownResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListUsersResponse {
-    return new ListUsersResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetUsernameCooldownResponse {
+    return new GetUsernameCooldownResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListUsersResponse {
-    return new ListUsersResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetUsernameCooldownResponse {
+    return new GetUsernameCooldownResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListUsersResponse | PlainMessage<ListUsersResponse> | undefined, b: ListUsersResponse | PlainMessage<ListUsersResponse> | undefined): boolean {
-    return proto3.util.equals(ListUsersResponse, a, b);
-  }
-}
-
-/**
- * Request one administrative account by ID or login.
- *
- * @generated from message chatto.admin.v1.GetUserRequest
- */
-export class GetUserRequest extends Message<GetUserRequest> {
-  /**
-   * @generated from oneof chatto.admin.v1.GetUserRequest.target
-   */
-  target: {
-    /**
-     * Stable user ID.
-     *
-     * @generated from field: string user_id = 1;
-     */
-    value: string;
-    case: "userId";
-  } | {
-    /**
-     * Login identifier.
-     *
-     * @generated from field: string login = 2;
-     */
-    value: string;
-    case: "login";
-  } | { case: undefined; value?: undefined } = { case: undefined };
-
-  constructor(data?: PartialMessage<GetUserRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.GetUserRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserRequest {
-    return new GetUserRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetUserRequest {
-    return new GetUserRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetUserRequest {
-    return new GetUserRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetUserRequest | PlainMessage<GetUserRequest> | undefined, b: GetUserRequest | PlainMessage<GetUserRequest> | undefined): boolean {
-    return proto3.util.equals(GetUserRequest, a, b);
-  }
-}
-
-/**
- * One account without related catalogues or editor state.
- *
- * @generated from message chatto.admin.v1.GetUserResponse
- */
-export class GetUserResponse extends Message<GetUserResponse> {
-  /**
-   * Requested account.
-   *
-   * @generated from field: chatto.admin.v1.AdminUser user = 1;
-   */
-  user?: AdminUser;
-
-  constructor(data?: PartialMessage<GetUserResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.GetUserResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: AdminUser },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserResponse {
-    return new GetUserResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetUserResponse {
-    return new GetUserResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetUserResponse {
-    return new GetUserResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetUserResponse | PlainMessage<GetUserResponse> | undefined, b: GetUserResponse | PlainMessage<GetUserResponse> | undefined): boolean {
-    return proto3.util.equals(GetUserResponse, a, b);
-  }
-}
-
-/**
- * Request administrative accounts for a bounded set of IDs.
- *
- * @generated from message chatto.admin.v1.BatchGetUsersRequest
- */
-export class BatchGetUsersRequest extends Message<BatchGetUsersRequest> {
-  /**
-   * Unknown or deleted users are omitted. Repeated IDs are returned once.
-   *
-   * @generated from field: repeated string user_ids = 1;
-   */
-  userIds: string[] = [];
-
-  constructor(data?: PartialMessage<BatchGetUsersRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.BatchGetUsersRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetUsersRequest {
-    return new BatchGetUsersRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetUsersRequest {
-    return new BatchGetUsersRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetUsersRequest {
-    return new BatchGetUsersRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: BatchGetUsersRequest | PlainMessage<BatchGetUsersRequest> | undefined, b: BatchGetUsersRequest | PlainMessage<BatchGetUsersRequest> | undefined): boolean {
-    return proto3.util.equals(BatchGetUsersRequest, a, b);
-  }
-}
-
-/**
- * Found accounts in first-seen request order, with the same fields and access
- * rules as GetUser. No role catalogue or other related resources are included.
- *
- * @generated from message chatto.admin.v1.BatchGetUsersResponse
- */
-export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
-  /**
-   * Requested accounts that still exist.
-   *
-   * @generated from field: repeated chatto.admin.v1.AdminUser users = 1;
-   */
-  users: AdminUser[] = [];
-
-  constructor(data?: PartialMessage<BatchGetUsersResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.BatchGetUsersResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "message", T: AdminUser, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetUsersResponse {
-    return new BatchGetUsersResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetUsersResponse {
-    return new BatchGetUsersResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetUsersResponse {
-    return new BatchGetUsersResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: BatchGetUsersResponse | PlainMessage<BatchGetUsersResponse> | undefined, b: BatchGetUsersResponse | PlainMessage<BatchGetUsersResponse> | undefined): boolean {
-    return proto3.util.equals(BatchGetUsersResponse, a, b);
+  static equals(a: GetUsernameCooldownResponse | PlainMessage<GetUsernameCooldownResponse> | undefined, b: GetUsernameCooldownResponse | PlainMessage<GetUsernameCooldownResponse> | undefined): boolean {
+    return proto3.util.equals(GetUsernameCooldownResponse, a, b);
   }
 }
 
