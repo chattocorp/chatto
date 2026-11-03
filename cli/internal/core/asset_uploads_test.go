@@ -191,17 +191,24 @@ func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
 	}
 }
 
-func TestAssetUploadAnimatedGIFAboveImageFrameLimitRequestsVideoProcessing(t *testing.T) {
+func TestAssetUploadAnimatedGIFVideoProcessingLimits(t *testing.T) {
 	for _, tt := range []struct {
-		name   string
-		frames int
+		name         string
+		width        int
+		height       int
+		frames       int
+		videoEnabled bool
+		wantError    bool
 	}{
-		{name: "at image frame limit", frames: assets.MaxAnimatedImageFrames},
-		{name: "above image frame limit", frames: assets.MaxAnimatedImageFrames + 1},
+		{name: "at image frame limit", width: 2, height: 2, frames: assets.MaxAnimatedImageFrames, videoEnabled: true},
+		{name: "above image frame limit", width: 2, height: 2, frames: assets.MaxAnimatedImageFrames + 1, videoEnabled: true},
+		{name: "above image frame limit without video", width: 2, height: 2, frames: assets.MaxAnimatedImageFrames + 1, wantError: true},
+		{name: "above image cumulative pixel limit", width: 1024, height: 1024, frames: 96, videoEnabled: true},
+		{name: "above image cumulative pixel limit without video", width: 1024, height: 1024, frames: 96, wantError: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			core, _ := newTestCore(t)
-			core.VideoUploadsEnabled = true
+			core.VideoUploadsEnabled = tt.videoEnabled
 			startCoreServices(t, core)
 			ctx := testContext(t)
 
@@ -217,16 +224,20 @@ func TestAssetUploadAnimatedGIFAboveImageFrameLimitRequestsVideoProcessing(t *te
 				t.Fatalf("JoinRoom: %v", err)
 			}
 
-			// Small frames isolate the frame-count limit from byte and pixel limits.
+			// Reuse two frames to keep fixture memory below the tested decode budget.
 			palette := color.Palette{color.Black, color.White}
+			frame1 := image.NewPaletted(image.Rect(0, 0, tt.width, tt.height), palette)
+			frame2 := image.NewPaletted(image.Rect(0, 0, tt.width, tt.height), palette)
+			frame2.SetColorIndex(tt.width-1, tt.height-1, 1)
 			animation := &gif.GIF{
 				Image: make([]*image.Paletted, tt.frames),
 				Delay: make([]int, tt.frames),
 			}
 			for i := range tt.frames {
-				frame := image.NewPaletted(image.Rect(0, 0, 2, 2), palette)
-				frame.SetColorIndex(1, 1, uint8(i%2))
-				animation.Image[i] = frame
+				animation.Image[i] = frame1
+				if i%2 != 0 {
+					animation.Image[i] = frame2
+				}
 				animation.Delay[i] = 10
 			}
 			var buf bytes.Buffer
@@ -261,6 +272,12 @@ func TestAssetUploadAnimatedGIFAboveImageFrameLimitRequestsVideoProcessing(t *te
 				ActorID:  user.Id,
 				UploadID: upload.UploadID,
 			})
+			if tt.wantError {
+				if err == nil || !strings.Contains(err.Error(), "animated image exceeds supported frame limits") {
+					t.Fatalf("CompleteUpload = %v, want animation limit rejection", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("CompleteUpload with %d GIF frames and video enabled: %v", tt.frames, err)
 			}
@@ -269,6 +286,9 @@ func TestAssetUploadAnimatedGIFAboveImageFrameLimitRequestsVideoProcessing(t *te
 			}
 			if attachment == nil || attachment.GetId() == "" {
 				t.Fatal("CompleteUpload did not return an attachment")
+			}
+			if attachment.GetWidth() != int32(tt.width) || attachment.GetHeight() != int32(tt.height) {
+				t.Fatalf("attachment dimensions = %dx%d, want %dx%d", attachment.GetWidth(), attachment.GetHeight(), tt.width, tt.height)
 			}
 			declared, ok := core.assetModel.AssetCreation(attachment.GetId())
 			if !ok {

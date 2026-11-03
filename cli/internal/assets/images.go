@@ -90,6 +90,19 @@ type ImageInfo struct {
 // InspectImage does not prove that the pixel data is valid. A decoder that
 // later reads the pixels can still fail.
 func InspectImage(r io.ReadSeeker) (ImageInfo, error) {
+	return inspectImage(r, true)
+}
+
+// InspectImageForVideo inspects headers like InspectImage, but does not apply
+// the GIF frame-count and cumulative-pixel limits used by image decoders.
+// Canvas and per-frame size limits still apply. It does not decode pixels or
+// retain frames. Callers must bound the input bytes and send animated GIFs to
+// the video processor, which applies its own processing time limit.
+func InspectImageForVideo(r io.ReadSeeker) (ImageInfo, error) {
+	return inspectImage(r, false)
+}
+
+func inspectImage(r io.ReadSeeker, enforceAnimationLimits bool) (ImageInfo, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return ImageInfo{}, fmt.Errorf("rewind image: %w", err)
 	}
@@ -114,7 +127,7 @@ func InspectImage(r io.ReadSeeker) (ImageInfo, error) {
 		if _, err := r.Seek(0, io.SeekStart); err != nil {
 			return ImageInfo{}, fmt.Errorf("rewind image: %w", err)
 		}
-		if info.Frames, err = inspectGIFFrames(r); err != nil {
+		if info.Frames, err = inspectGIFFrames(r, enforceAnimationLimits); err != nil {
 			return ImageInfo{}, err
 		}
 	}
@@ -122,8 +135,9 @@ func InspectImage(r io.ReadSeeker) (ImageInfo, error) {
 }
 
 // inspectGIFFrames walks GIF block framing without decompressing image data,
-// allowing frame and per-frame dimension limits to be enforced before DecodeAll.
-func inspectGIFFrames(input io.Reader) (int, error) {
+// allowing size limits to be enforced before decoding. Video admission keeps
+// canvas and per-frame limits but does not retain all frames in memory.
+func inspectGIFFrames(input io.Reader, enforceAnimationLimits bool) (int, error) {
 	r := bufio.NewReader(input)
 	var header [13]byte
 	if _, err := io.ReadFull(r, header[:]); err != nil {
@@ -166,7 +180,7 @@ func inspectGIFFrames(input io.Reader) (int, error) {
 			}
 			frames++
 			cumulativePixels += framePixels
-			if frames > MaxAnimatedImageFrames || cumulativePixels > MaxAnimatedImageCumulativePixels {
+			if enforceAnimationLimits && (frames > MaxAnimatedImageFrames || cumulativePixels > MaxAnimatedImageCumulativePixels) {
 				return 0, fmt.Errorf("animated image exceeds supported frame limits")
 			}
 			if err := skipGIFColorTable(r, descriptor[8]); err != nil {
@@ -272,7 +286,7 @@ func DetectImageContentType(data []byte) string {
 
 // IsAnimatedGIF checks if the given bytes represent an animated GIF (more than 1 frame).
 func IsAnimatedGIF(data []byte) bool {
-	frames, err := inspectGIFFrames(bytes.NewReader(data))
+	frames, err := inspectGIFFrames(bytes.NewReader(data), true)
 	return err == nil && frames > 1
 }
 
