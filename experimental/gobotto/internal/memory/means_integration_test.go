@@ -4,22 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
+	"github.com/hmans/means/collection"
 )
 
-// This optional local check uses the installed CLI with isolated configuration
-// and embeddings disabled. Unit tests remain mandatory on CI without means.
-func TestInstalledMeansRoundTrip(t *testing.T) {
-	binary, err := exec.LookPath("means")
-	if err != nil {
-		t.Skip("means is not installed")
-	}
+// The real embedded library must work without an installed CLI.
+func TestEmbeddedMeansRoundTrip(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	root := t.TempDir()
 	t.Chdir(root)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
@@ -32,7 +28,7 @@ func TestInstalledMeansRoundTrip(t *testing.T) {
 	path := filepath.Join(root, "collection")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := exec.CommandContext(ctx, binary, "init", "--path", path).Run(); err != nil {
+	if _, err := collection.Init(path, nil); err != nil {
 		t.Fatal("means init failed", err)
 	}
 	m, err := New([]config.Collection{{Name: "notes", Path: path, Writable: true}})
@@ -75,7 +71,7 @@ func TestInstalledMeansRoundTrip(t *testing.T) {
 	if _, err := toolCall(t, tools, "memory_update", string(update)); err != nil {
 		t.Fatal("update failed", err)
 	}
-	// Both callers read the same hash. The CLI must reject the second writer,
+	// Both callers read the same hash. The library must reject the second writer,
 	// even though its hash passes the host's current-turn read prerequisite.
 	if _, err := toolCall(t, concurrent, "memory_update", string(update)); err == nil {
 		t.Fatal("means accepted a conflicting update")

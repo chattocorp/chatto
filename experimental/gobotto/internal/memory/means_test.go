@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"strings"
 	"testing"
 
@@ -150,12 +149,5 @@ func TestUncertainWriteBlocksFurtherWrites(t *testing.T) {
 	result, err := toolCall(t, tools, "memory_create", args)
 	if err != nil || !strings.Contains(result, "uncertain") || calls != 1 {
 		t.Fatal("uncertain mutation retried")
-	}
-}
-
-func TestOutputLimitCannotBeBypassedByCopy(t *testing.T) {
-	out := &boundedOutput{}
-	if _, err := io.Copy(out, strings.NewReader(strings.Repeat("x", resultLimit+1))); err == nil || len(out.Bytes()) > resultLimit {
-		t.Fatal("unbounded subprocess output")
 	}
 }

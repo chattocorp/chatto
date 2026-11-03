@@ -96,7 +96,9 @@ it('keeps authored Markdown labels lazy until interaction', async () => {
 it('keeps inline text stable when composer metadata changes', async () => {
   const { container, rerender } = render(LinkTitleTestHarness, { href, loading: true });
   const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
-  const markup = link.outerHTML;
+  // The browser pointer can enter the fixture during rerender and toggle its
+  // native title tooltip. Compare the inline content and destination instead.
+  const markup = link.innerHTML;
   await rerender({
     href,
     loading: false,
@@ -110,7 +112,9 @@ it('keeps inline text stable when composer metadata changes', async () => {
       embedId: null
     }
   });
-  expect(link.outerHTML).toBe(markup);
+  expect(container.querySelector('.url-link')).toBe(link);
+  expect(link.innerHTML).toBe(markup);
+  expect(link.href).toBe(href);
   expect(fetchLinkPreview).not.toHaveBeenCalled();
 });
 

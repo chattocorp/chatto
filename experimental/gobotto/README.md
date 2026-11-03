@@ -505,8 +505,8 @@ is locked to one server/bot identity and one running process.
 After a turn, an isolated tool-free model request writes a short note about useful
 facts, decisions, corrections, or explicit outstanding requests. The request keeps
 each message's author and identifies the bot separately; mentions identify
-addressees, not authors. Gobotto appends the note as a Markdown bullet with
-`means append`. Greetings, repetition, skipped reactions, and casual offers need
+addressees, not authors. Gobotto appends the note as a Markdown bullet through
+means. Greetings, repetition, skipped reactions, and casual offers need
 no note. An empty notes array still checkpoints the turn, so filler cannot block
 the next useful entry. Meaningful user preferences, corrections, and decisions
 remain eligible for notes when the bot only reacts or stays silent. The inspector
@@ -529,8 +529,8 @@ weather reports or illustration descriptions. Fenced code and artifact payloads
 are omitted from note input; prose and tool excerpts are capped at 2,000 characters
 each with explicit omission markers. The original session text is unchanged.
 Only when the notebook approaches 16,000 bytes does the model condense it to at
-most 8,000 bytes, using
-`means update`. A malformed or failed note leaves the original transcript intact.
+most 8,000 bytes, replacing the body through means. A malformed or failed note
+leaves the original transcript intact.
 
 At a turn boundary, Gobotto can replace a transcript of at least 256 KiB with the
 scoped notebook and the most recent complete turn, including exact tool exchanges.
@@ -553,7 +553,7 @@ The inspector distinguishes model failures, timeouts, invalid JSON, missing fiel
 note limits, stale checkpoints, and storage failures without logging response text.
 Frontmatter keeps a fixed-size latest checkpoint and an
 uncertainty flag. Hash checks and a temporary mutation marker make interrupted
-appends recoverable without adding the note twice. Failed means commands block
+appends recoverable without adding the note twice. Failed means operations block
 journal writes until restart reconciles that marker. Recall returns the bounded
 Markdown body, or matching lines for a search query.
 
@@ -567,8 +567,8 @@ cannot all be verified from a bounded refresh.
 
 Journal files are private local data. The configured model provider receives the
 notebook and supplied turn excerpts; no additional service is contacted. Journal
-storage requires a means CLI with `append` and uses an isolated configuration with
-embeddings disabled. The documents use Markdown and JSON frontmatter. Old journals
+storage uses the embedded means library with embeddings disabled. The documents
+use Markdown and JSON frontmatter. Old journals
 remain readable and change to the notebook format on their next successful update.
 Retained transcripts contribute scoped excerpts within the same bounds.
 
@@ -604,6 +604,11 @@ individual Chatto users, plus protected `schedules` and `conversations` brains f
 recurring tasks and scoped journals. Dynamic brains are **apps**, such as a task tracker or
 project notebook. App formatting, workflow, and default rules belong in that
 app's instructions. They do not belong in personal memory.
+
+Gobotto embeds a pinned version of `github.com/hmans/means/collection`; the means
+CLI is not required. Building Gobotto requires Go 1.27.2 or later. Existing
+collection files remain compatible with means tools. Each operation reloads
+`MEANS.md` to observe instruction and schema changes.
 
 The storage directory defaults to `./brains`, relative to `gobotto.toml`:
 
@@ -654,27 +659,23 @@ have one successful lifecycle change per turn. Uncertain mutations are not retri
 
 Owners can ask Gobotto to change an app brain's schema, for example: “Add
 HIGHEST to the allowed priorities.” `memory_brain_schema_set` installs a complete
-replacement schema after a `memory_info` read in the same turn. This requires a
-means version with `schema set` support (verified with 0.4.2). Means validates the
+replacement schema after a `memory_info` read in the same turn. Means validates the
 schema and existing documents before installation; Gobotto does not expose the
 force option. Documents, title, description, and Markdown guidance are preserved.
 Existing document values are not migrated. Fixed collection schemas cannot be
 changed through this tool. After success, Gobotto must read `memory_info` again
 before document operations. The current schema defines allowed values if the
 unchanged guidance still lists older values; audience rules remain in effect.
-CLI failures block further writes in that turn because their outcome can be
+Storage failures block further writes in that turn because their outcome can be
 uncertain. Inspect the current schema before a new request.
 
 Owners can change an app's behavior with `memory_brain_instructions_set`, for
 example: “Always show these tasks as a table with priority and who added them.”
 The tool requires the definition hash from `memory_info` in the current turn and
-a complete, nonempty Markdown body. Gobotto calls `means instructions set` with
-JSON on stdin. Means rejects stale hashes and preserves frontmatter, permissions,
+a complete, nonempty Markdown body. Means rejects stale hashes and preserves frontmatter, permissions,
 and documents. Gobotto requires another `memory_info` read after success. The
 same owner-only, fixed-binding, built-in memory, and uncertain-write restrictions
-apply. Use a means binary with `instructions set` and a hash in `info --json`;
-0.4.2 does not provide this command. Check which binary is first on `PATH` if
-multiple versions are installed.
+apply.
 
 Gobotto discovers immediate child directories of `apps/` with a regular `MEANS.md`, excluding
 hidden directories and symlinks. Names follow the same rules as fixed bindings.
@@ -706,10 +707,9 @@ Initialize each collection with means before you start Gobotto. Each path must
 contain `MEANS.md`. Relative paths resolve from the configuration file's directory.
 Names must be unique and use lowercase letters, digits, underscores, or hyphens,
 starting with a letter (maximum 64 characters). Restart to apply configuration
-changes. The `means` executable must be on `PATH`; built-in memory requires it
-even when no app collections are configured.
+changes.
 
-Collection metadata comes from `MEANS.md` through `means info`. The catalog reads
+Collection metadata comes from `MEANS.md`. The catalog reads
 each collection's current title and description. The collection-info tool returns
 its complete Markdown instructions and schema as well. Keep this content in the
 collection; `gobotto.toml` contains only the binding name, path, and write access.
@@ -728,8 +728,8 @@ The agent cannot supply collection paths, delete individual documents, or run
 shell commands. App creation, schema changes, and archival are limited to the
 managed directory. App instruction updates use the same boundary.
 
-`memory_list` enumerates documents in filename order. It requires a means version
-with `list --offset` support. Start with `{"collection":"steam_deals"}`; the
+`memory_list` enumerates documents in filename order.
+Start with `{"collection":"steam_deals"}`; the
 default offset is 0 and the default limit is 20. Set `limit` to 1–50 to change
 the page size; unbounded listing is not exposed. Results include document
 metadata, diagnostics, `has_more`, and `next_offset` when more records remain.
@@ -762,11 +762,13 @@ fields to RFC 3339 timestamps with timezones. The first two comparisons are
 exclusive; the latter two are inclusive. They combine with text and data filters
 using AND. Date-only values, such as a task's `added` date, are not datetime
 filters; use an equality filter for an exact date. Inspect `has_more` before
-treating a result as complete. Filtering uses the local means CLI and does not
+treating a result as complete. Filtering uses the embedded means library and does not
 enable semantic search or contact an embedding provider.
 
-Each command has a
-20-second timeout, a 64 KiB output limit, and a 32 KiB tool-argument limit. Large
+Each operation has a
+20-second context deadline, a 64 KiB output limit, and a 32 KiB tool-argument limit.
+Cancellation can interrupt provider requests and lock waits; synchronous file
+work and schema validation can finish before cancellation is observed. Large
 results fail instead of being added to the model context. Calls execute one at a
 time. A repeated identical successful write in the same turn returns its receipt.
 After an uncertain write, further writes in that turn are blocked.
@@ -778,11 +780,24 @@ a crash. Verify the collection before requesting another write after an uncertai
 result. Removing a collection from configuration does not remove its previously
 retrieved content from saved conversations.
 
-Retrieved content is sent to OpenRouter as model context. Means runs with the
-local means configuration and inherited environment. If means embeddings are
-enabled, writes can also send document content to its configured embedding
-provider and incur charges. Gobotto itself requests lexical search only. Disable
-embeddings in means if you want collection operations to remain local.
+Retrieved content is sent to OpenRouter as model context. Embeddings are disabled
+by default. Gobotto does not read the means CLI configuration or collection-local
+`.env` files. To enable embedding maintenance for memory and apps, configure:
+
+```toml
+[memory.embeddings]
+provider = "openrouter"
+model = "openai/text-embedding-3-small"
+dimensions = 512
+```
+
+Use `OPENROUTER_API_KEY`, or provider `openai` with `OPENAI_API_KEY`. Means also
+supports the process environment overrides `MEANS_EMBEDDING_API_KEY` and
+`MEANS_EMBEDDING_BASE_URL`. Enabled writes can send document titles and bodies
+to that provider, disclose the bot host's outbound IP, and incur charges.
+Gobotto requests lexical search only. Journals never enable embeddings.
+To migrate existing CLI embedding settings, copy them into this table and
+restart Gobotto. Omit the table to keep collection operations offline.
 
 ### Session titles
 

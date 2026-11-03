@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/meansstore"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/testmeans"
+	"github.com/hmans/means/collection"
 )
 
 func TestScopeIsolationPersistenceAndInvalidation(t *testing.T) {
@@ -144,10 +145,7 @@ func TestJournalRejectsSymlinkAndMalformedDocument(t *testing.T) {
 }
 
 func TestJournalIsMeansReadable(t *testing.T) {
-	binary, err := exec.LookPath("means")
-	if err != nil {
-		t.Skip("means not installed")
-	}
+	t.Setenv("PATH", t.TempDir())
 	s, err := Open(t.TempDir(), "account")
 	if err != nil {
 		t.Fatal(err)
@@ -172,18 +170,18 @@ func TestJournalIsMeansReadable(t *testing.T) {
 	if d.Summary != "- A brief fact.\n- A second fact.\n" {
 		t.Fatal("append replaced or reformatted the notebook", d.Summary)
 	}
-	out, err := exec.Command(binary, "--path", s.dir, "--json", "list").Output()
-	var result struct {
-		Documents   []struct{ ID string }
-		Diagnostics []json.RawMessage
+	c, err := collection.Load(s.dir)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err != nil || json.Unmarshal(out, &result) != nil || len(result.Documents) != 1 || len(result.Diagnostics) != 0 {
-		t.Fatal("journal is not means-readable", err, string(out))
+	result, err := c.List(context.Background(), collection.ListOptions{})
+	if err != nil || len(result.Documents) != 1 || len(result.Diagnostics) != 0 {
+		t.Fatal("journal is not means-readable", err, result)
 	}
 	if len(result.Documents[0].ID) != 12 {
 		t.Fatal("means shows the storage digest instead of a short document ID", result.Documents[0].ID)
 	}
-	if _, err := exec.Command(binary, "--path", s.dir, "--json", "show", "--", result.Documents[0].ID).Output(); err != nil {
+	if _, err := c.Read(context.Background(), result.Documents[0].ID); err != nil {
 		t.Fatal("means cannot open the short document ID", err)
 	}
 }
@@ -192,16 +190,17 @@ func TestNotebookAppendRecoveryDoesNotDuplicateNotes(t *testing.T) {
 	for _, applied := range []bool{false, true} {
 		t.Run(map[bool]string{false: "before-append", true: "after-append"}[applied], func(t *testing.T) {
 			dir := t.TempDir()
+			runner := meansstore.Runner{Limit: 128 << 10}
 			command := func(ctx context.Context, in []byte, args ...string) ([]byte, error) {
 				if args[3] == "append" {
 					if applied {
-						if _, err := testmeans.Command(ctx, in, args...); err != nil {
+						if _, err := runner.Run(ctx, dir, args, in); err != nil {
 							return nil, err
 						}
 					}
 					return nil, errors.New("lost command acknowledgement")
 				}
-				return testmeans.Command(ctx, in, args...)
+				return runner.Run(ctx, dir, args, in)
 			}
 			s, err := Open(dir, "account", command)
 			if err != nil {
@@ -219,7 +218,7 @@ func TestNotebookAppendRecoveryDoesNotDuplicateNotes(t *testing.T) {
 				t.Fatal("uncertain store accepted further work")
 			}
 			s.Close()
-			s, err = Open(dir, "account", testmeans.Command)
+			s, err = Open(dir, "account")
 			if err != nil {
 				t.Fatal(err)
 			}

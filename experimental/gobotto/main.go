@@ -41,7 +41,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	memories, err := memory.New(cfg.Memory.Collections, cfg.Memory.Directory)
+	memories, err := memory.NewConfigured(cfg.Memory)
 	if err != nil {
 		return err
 	}
