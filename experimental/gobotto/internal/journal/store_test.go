@@ -308,3 +308,24 @@ func TestLegacyNotebookChangesFormatOnlyOnWrite(t *testing.T) {
 		t.Fatal("old format survived write or uncertainty was lost", err)
 	}
 }
+
+func TestMeansLookupCannotMutateAnotherScopeWithTheSameBody(t *testing.T) {
+	command := func(_ context.Context, _ []byte, args ...string) ([]byte, error) {
+		if args[3] != "show" {
+			t.Fatal("wrong-scope lookup reached mutation")
+		}
+		return []byte(`{"hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","body":"","frontmatter":{"data":{"scope":{"room":"other"},"generation":0}}}`), nil
+	}
+	s, err := Open(t.TempDir(), "account", command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	scope := Scope{Room: "room"}
+	if err := s.Append(scope, Entry{Key: "turn", State: "delivered"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Summarize(scope, 0, 0, "", []string{"Private note."}); err == nil {
+		t.Fatal("wrong scope accepted")
+	}
+}

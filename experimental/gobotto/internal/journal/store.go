@@ -404,8 +404,13 @@ func (s *Store) mutateBody(d Document, addition, replacement string) error {
 	defer cancel()
 	id := strings.TrimSuffix(filepath.Base(s.path(d.Scope)), ".md")[:12]
 	shown, err := s.means(ctx, nil, "show", "--", id)
-	var current struct{ Hash, Body string }
-	if err != nil || json.Unmarshal(shown, &current) != nil || current.Body != d.Summary {
+	var current struct {
+		Hash, Body  string
+		Frontmatter struct{ Data Document }
+	}
+	// Visible IDs are short labels. Never let a CLI lookup collision select
+	// another scope, even when both notebooks currently have identical bodies.
+	if err != nil || json.Unmarshal(shown, &current) != nil || current.Body != d.Summary || current.Frontmatter.Data.Scope != d.Scope || current.Frontmatter.Data.Generation != d.Generation {
 		return ErrStorage
 	}
 	verb, body := "append", addition

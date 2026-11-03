@@ -57,7 +57,7 @@ func Command(_ context.Context, input []byte, args ...string) ([]byte, error) {
 			}
 			hash = fmt.Sprintf("%x", sha256.Sum256(b))
 		}
-		return json.Marshal(map[string]string{"id": id, "hash": hash, "body": body})
+		return json.Marshal(map[string]any{"id": id, "hash": hash, "body": body, "frontmatter": json.RawMessage(strings.TrimPrefix(parts[0], "---\n"))})
 	}
 	return nil, errors.New("missing test document")
 }
