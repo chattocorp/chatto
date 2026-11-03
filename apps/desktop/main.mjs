@@ -25,6 +25,7 @@ import { createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
 import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
 import { configureNativeNavigation } from './native_navigation.mjs';
+import { configureMediaContextMenu } from './media_context_menu.mjs';
 import { configureLastServer } from './last_server.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
@@ -511,6 +512,7 @@ function createMainWindow() {
   protectNavigation(window);
   protectReloadShortcuts(window.webContents, app.isPackaged);
   configureNativeNavigation(window);
+  configureMediaContextMenu(window, Menu);
   window.on('closed', () => {
     if (mainWindow === window) {
       cancelActiveGameCaptureSourceList();

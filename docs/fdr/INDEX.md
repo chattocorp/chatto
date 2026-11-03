@@ -17,7 +17,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-005](FDR-005-reactions.md)                             | Reactions                             | Active       | 2026-11-02    |
 | [FDR-006](FDR-006-mentions.md)                              | @Mentions                             | Active       | 2026-11-02    |
 | [FDR-007](FDR-007-direct-messages.md)                       | Direct Messages                       | Active       | 2026-10-25    |
-| [FDR-008](FDR-008-file-attachments-and-video.md)            | File Attachments & Video Processing   | Active       | 2026-10-25    |
+| [FDR-008](FDR-008-file-attachments-and-video.md)            | File Attachments & Video Processing   | Active       | 2026-11-03    |
 | [FDR-009](FDR-009-link-previews.md)                         | Link Previews                         | Active       | 2026-10-15    |
 | [FDR-010](FDR-010-typing-indicators.md)                     | Typing Indicators                     | Active       | 2026-10-15    |
 | [FDR-011](FDR-011-user-presence.md)                         | User Presence                         | Active       | 2026-09-19    |
@@ -43,7 +43,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-30    |
 | [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-11-03    |
 | [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-26    |
-| [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-11-02    |
+| [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-11-03    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invitation Codes                      | Active       | 2026-10-30    |
 | [FDR-037](FDR-037-pinned-messages.md)                       | Pinned Messages                       | Active       | 2026-10-12    |

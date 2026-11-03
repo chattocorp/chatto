@@ -46,7 +46,7 @@ Controls live in the viewer footer when one is provided through context.
   let naturalHeight = $state(0);
   let stageWidth = $state(0);
   let stageHeight = $state(0);
-  // Pointer positions stay relative to the stage while it owns pointer capture.
+  // Pointer positions stay relative to the stage; capture stays on the hit element.
   const pointers = new SvelteMap<number, { x: number; y: number }>();
   const percent = $derived(Math.round(zoom * 100));
   const poster = $derived(
@@ -169,9 +169,12 @@ Controls live in the viewer footer when one is provided through context.
   }
 
   function pointerdown(event: PointerEvent) {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    // Control-click opens the native context menu on macOS.
+    if (event.button !== 0 || (event.pointerType === 'mouse' && event.ctrlKey)) return;
     pointers.set(event.pointerId, position(event));
-    stage.setPointerCapture(event.pointerId);
+    // Capturing on the stage retargets a touch's native image menu to a div.
+    const target = event.target instanceof Element ? event.target : stage;
+    target.setPointerCapture(event.pointerId);
   }
 
   function pointermove(event: PointerEvent) {
@@ -200,7 +203,8 @@ Controls live in the viewer footer when one is provided through context.
 
   function pointerend(event: PointerEvent) {
     pointers.delete(event.pointerId);
-    if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+    const target = event.target instanceof Element ? event.target : stage;
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
   }
 
   function keydown(event: KeyboardEvent) {
