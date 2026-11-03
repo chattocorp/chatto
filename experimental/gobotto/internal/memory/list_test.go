@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -70,15 +69,8 @@ func TestListingPageRejectsInvalidContinuation(t *testing.T) {
 	}
 }
 
-func TestInstalledMeansPaginatedListing(t *testing.T) {
-	binary, err := exec.LookPath("means")
-	if err != nil {
-		t.Skip("means is not installed")
-	}
-	help, err := exec.Command(binary, "list", "--help").Output()
-	if err != nil || !strings.Contains(string(help), "--offset") {
-		t.Skip("means lacks list --offset")
-	}
+func TestEmbeddedMeansPaginatedListing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	path := filepath.Join(root, "records")

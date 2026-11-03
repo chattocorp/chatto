@@ -116,8 +116,8 @@ func TestScheduleBindingAliasesRejected(t *testing.T) {
 	if err := os.WriteFile(filepath.Join("ordinary", "MEANS.md"), []byte("ordinary definition"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	// The stub means command fails initialization, after binding validation.
-	if _, err := New([]config.Collection{{Name: "ordinary", Path: "ordinary"}}, brains); err == nil || !strings.Contains(err.Error(), "cannot initialize built-in memory") {
+	// Ordinary bindings pass validation without consulting the CLI stub.
+	if _, err := New([]config.Collection{{Name: "ordinary", Path: "ordinary"}}, brains); err != nil {
 		t.Fatal("valid relative binding did not reach initialization", err)
 	}
 }

@@ -6,16 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/meansstore"
 )
 
 const resultLimit = 64 << 10
@@ -31,9 +29,23 @@ type Manager struct {
 	run     func(context.Context, string, []string, []byte) ([]byte, error)
 }
 
-// New checks existing collection roots and resolves the means executable once.
-// The optional directory enables managed brains. Without bindings or a directory,
-// means is not required. Commands never invoke a shell.
+// NewConfigured applies explicit operator embedding settings to ordinary memory
+// and app collections. It does not affect the separate journal store.
+func NewConfigured(settings config.Memory) (*Manager, error) {
+	embeddings, err := settings.EmbeddingSettings()
+	if err != nil {
+		return nil, err
+	}
+	m, err := New(settings.Collections, settings.Directory)
+	if err != nil || m == nil {
+		return m, err
+	}
+	m.run = (meansstore.Runner{Limit: resultLimit, Embeddings: embeddings}).Run
+	return m, nil
+}
+
+// New checks existing collection roots and uses the embedded means library.
+// The optional directory enables managed brains. Embeddings are disabled.
 func New(collections []config.Collection, directories ...string) (*Manager, error) {
 	directory := ""
 	if len(directories) > 0 {
@@ -42,10 +54,7 @@ func New(collections []config.Collection, directories ...string) (*Manager, erro
 	if len(collections) == 0 && directory == "" {
 		return nil, nil
 	}
-	binary, err := exec.LookPath("means")
-	if err != nil {
-		return nil, errors.New("configured memory requires the means executable on PATH")
-	}
+	var err error
 	m := &Manager{collections: append([]config.Collection(nil), collections...)}
 	if directory != "" {
 		if err := os.MkdirAll(directory, 0700); err != nil {
@@ -109,42 +118,13 @@ func New(collections []config.Collection, directories ...string) (*Manager, erro
 			return nil, errors.New("configured memory collection must contain an existing MEANS.md")
 		}
 	}
-	m.run = func(ctx context.Context, dir string, args []string, input []byte) ([]byte, error) {
-		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, binary, args...)
-		cmd.Dir = dir
-		cmd.Stdin = bytes.NewReader(input)
-		out := &boundedOutput{}
-		cmd.Stdout = out
-		// Never return stderr: it can contain paths, document text, or credentials.
-		cmd.Stderr = io.Discard
-		cmd.WaitDelay = time.Second
-		if cmd.Run() != nil {
-			return nil, errors.New("means command failed")
-		}
-		if !json.Valid(out.Bytes()) {
-			return nil, errors.New("means returned invalid JSON")
-		}
-		return out.Bytes(), nil
-	}
+	m.run = (meansstore.Runner{Limit: resultLimit}).Run
 	if m.directory != "" {
 		if err := m.initMemory(context.Background(), filepath.Join(directory, "memory")); err != nil {
 			return nil, err
 		}
 	}
 	return m, nil
-}
-
-type boundedOutput struct{ buffer bytes.Buffer }
-
-func (b *boundedOutput) Bytes() []byte { return b.buffer.Bytes() }
-
-func (b *boundedOutput) Write(p []byte) (int, error) {
-	if b.buffer.Len()+len(p) > resultLimit {
-		return 0, errors.New("means output exceeds limit")
-	}
-	return b.buffer.Write(p)
 }
 
 type arguments struct {

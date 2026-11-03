@@ -8,6 +8,39 @@ import (
 	"time"
 )
 
+func TestMemoryEmbeddingConfig(t *testing.T) {
+	for _, tc := range []struct {
+		settings       string
+		valid, enabled bool
+	}{
+		{"", true, false},
+		{"[memory.embeddings]\nprovider='openai'", true, true},
+		{"[memory.embeddings]\nprovider='openrouter'", true, true},
+		{"[memory.embeddings]", false, false},
+		{"[memory.embeddings]\nprovider='private-marker'", false, false},
+		{"[memory.embeddings]\nprovider='openai'\ndimensions=-1", false, false},
+		{"[memory.embeddings]\nprovider='openai'\napi_key='private-marker'", false, false},
+	} {
+		path := filepath.Join(t.TempDir(), "gobotto.toml")
+		if err := os.WriteFile(path, []byte("[conversation]\nmodel='test/model'\n"+tc.settings), 0600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(path)
+		if (err == nil) != tc.valid || (err != nil && strings.Contains(err.Error(), "private-marker")) {
+			t.Fatal(tc.settings, err)
+		}
+		if tc.valid {
+			settings, err := cfg.Memory.EmbeddingSettings()
+			if err != nil || (settings != nil) != tc.enabled {
+				t.Fatal(settings, err)
+			}
+			if settings != nil && settings.Dimensions != 512 {
+				t.Fatal("defaults missing")
+			}
+		}
+	}
+}
+
 func TestDebounceConfig(t *testing.T) {
 	for _, tc := range []struct {
 		setting string

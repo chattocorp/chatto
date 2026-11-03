@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -79,14 +78,8 @@ func TestInstructionUpdateGuards(t *testing.T) {
 	}
 }
 
-func TestInstalledMeansInstructionsUpdate(t *testing.T) {
-	binary, err := exec.LookPath("means")
-	if err != nil {
-		t.Skip("means is not installed")
-	}
-	if err := exec.Command(binary, "instructions", "set", "--help").Run(); err != nil {
-		t.Skip("means lacks instructions set")
-	}
+func TestEmbeddedMeansInstructionsUpdate(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	root := t.TempDir()
 	m, err := New(nil, root)
 	if err != nil {
