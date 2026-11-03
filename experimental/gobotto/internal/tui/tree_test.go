@@ -3,116 +3,162 @@ package tui
 import (
 	"context"
 	"io"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 )
 
 func treeFixture() *model {
 	m := newModel(nil)
-	m.resize(140, 30)
-	m.apply(Event{Kind: Started, Session: 1, HumanID: "calm-test-123", Title: "Example session", Text: "Session restored"})
+	m.resize(100, 24)
+	m.apply(Event{Kind: Started, Session: 1, HumanID: "quiet-fox", Title: "Plan the release", At: time.Unix(1, 0)})
 	for n := 1; n <= 3; n++ {
-		r := inspection.Turn{Number: n, Started: time.Now(), Finished: time.Now(), State: "delivered", Inputs: []inspection.Input{{Text: "private input"}}, Response: "private response", Steps: []inspection.Step{
-			{Kind: "model", Name: "Completion", State: "complete", Usage: inspection.Usage{Known: true, Input: 100, Output: 10, CostKnown: true, Cost: 0.01}},
-			{Kind: "delivery", Name: "Post reply", State: "complete"},
+		turn := inspection.Turn{Number: n, State: "delivered", Model: "hidden-model", Inputs: []inspection.Input{{Text: "hidden-input"}}, Response: "hidden-response", Steps: []inspection.Step{
+			{Name: "Completion", Kind: "model", Detail: "hidden-detail", Provider: "hidden-provider", Usage: inspection.Usage{Known: true, Input: 1234, Output: 567, CostKnown: true, Cost: 1.23}},
+			{Name: "memory_search", Kind: "tool"},
 		}}
-		if n == 3 {
-			r.State = "running"
-			r.Finished = time.Time{}
-			r.Steps[1].State = "running"
-			r.Steps[1].Started = time.Now()
-		}
-		m.apply(Event{Kind: Inspected, Session: 1, Inspection: &r})
+		m.apply(Event{Kind: Inspected, Session: 1, Inspection: &turn})
 	}
 	return m
 }
 
 func key(m *model, code rune) { m.Update(tea.KeyPressMsg{Code: code}) }
 
-func TestTreeColumnsAndContinuousBackground(t *testing.T) {
+func TestSplitViewContainsOnlySessionAndEventLabels(t *testing.T) {
 	m := treeFixture()
-	sgr := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	for _, width := range []int{32, 65, 90, 120} {
-		for _, selected := range []bool{false, true} {
-			for _, count := range []int64{10, 39500, 1600000} {
-				s := m.rows[0].s
-				s.state, s.input, s.usageKnown, s.costKnown = "idle", count, true, true
-				s.title = strings.Repeat("Long title ", 20)
-				s.turns = 256
-				line := m.renderTreeRow(m.rows[0], width, selected)
-				plain := sgr.ReplaceAllString(line, "")
-				if lipgloss.Width(plain) != width || strings.Contains(plain, "idle") || !strings.HasPrefix(plain, "  Long title") {
-					t.Fatal("idle title slot or row width incorrect")
+	if len(m.rows) != 15 || m.rows[0].label != "Turn 3" || m.rows[1].label != "Output" || m.rows[2].label != "memory_search" || m.rows[3].label != "Completion" || m.rows[4].label != "Input" {
+		t.Fatal("turn grouping incorrect", m.rows)
+	}
+	view := ansi.Strip(m.View().Content)
+	t.Log("\n" + view)
+	for _, want := range []string{"Sessions", "Events", "Plan the release", "Turn 3", "memory_search", "Output"} {
+		if !strings.Contains(view, want) {
+			t.Fatal("missing label", want)
+		}
+	}
+	listView := strings.Join(strings.Split(view, "\n")[:m.eventHeight()+1], "\n")
+	for _, unwanted := range []string{"hidden-", "Tokens", "Cost", "Runtime", "Overview", "1234", "1.23", "delivered"} {
+		if strings.Contains(listView, unwanted) {
+			t.Fatal("extra data in baseline", unwanted)
+		}
+	}
+	key(m, tea.KeyEnter)
+	if !m.eventsFocused || !strings.Contains(m.View().Content, "Sessions") {
+		t.Fatal("enter replaced split view")
+	}
+	key(m, tea.KeyEnter)
+	key(m, ' ')
+	if len(m.rows) != 15 {
+		t.Fatal("group header hid events")
+	}
+	turn := m.selected().records[2].Clone()
+	m.apply(Event{Kind: Inspected, Session: 1, Inspection: &turn})
+	if len(m.rows) != 15 {
+		t.Fatal("live update hid events")
+	}
+	key(m, tea.KeyEscape)
+	if m.eventsFocused || m.activeSession != 1 {
+		t.Fatal("escape lost session")
+	}
+}
+
+func TestSessionsSortByTimeAndPreserveManualSelection(t *testing.T) {
+	m := newModel(nil)
+	for _, id := range []uint64{2, 1, 3} {
+		m.apply(Event{Kind: Started, Session: id, At: time.Unix(int64(id), 0)})
+		if m.activeSession != m.sessions[0].id {
+			t.Fatal("startup cursor is not newest")
+		}
+	}
+	if m.sessions[0].id != 3 || m.sessions[1].id != 2 || m.sessions[2].id != 1 {
+		t.Fatal("restore order used instead of timestamps")
+	}
+	key(m, tea.KeyDown)
+	m.apply(Event{Kind: Started, Session: 4, At: time.Unix(4, 0)})
+	if m.activeSession != 2 {
+		t.Fatal("new session stole selection")
+	}
+	m.apply(Event{Kind: Evicted, Session: 2})
+	if m.selected() == nil || m.activeSession != 4 {
+		t.Fatal("eviction left stale selection")
+	}
+}
+
+func TestDividerDragResizeAndMouseHitTesting(t *testing.T) {
+	m := treeFixture()
+	m.apply(Event{Kind: Started, Session: 2, Title: "Second session", At: time.Unix(2, 0)})
+	left, _ := m.paneWidths()
+	m.Update(tea.MouseClickMsg{X: left, Y: 5, Button: tea.MouseLeft})
+	m.Update(tea.MouseMotionMsg{X: 60, Y: 5, Button: tea.MouseLeft})
+	if l, _ := m.paneWidths(); l != 60 {
+		t.Fatal("divider did not track pointer", l)
+	}
+	m.Update(tea.MouseReleaseMsg{X: 60, Y: 5, Button: tea.MouseLeft})
+	m.Update(tea.MouseMotionMsg{X: 70, Y: 5})
+	if l, _ := m.paneWidths(); l != 60 || m.dragging {
+		t.Fatal("drag continued after release")
+	}
+	m.Update(tea.MouseClickMsg{X: 4, Y: 2, Button: tea.MouseLeft})
+	if m.activeSession != 1 || m.eventsFocused {
+		t.Fatal("left row hit area incorrect")
+	}
+	m.Update(tea.MouseClickMsg{X: 62, Y: 1, Button: tea.MouseLeft})
+	if !m.eventsFocused || len(m.rows) != 15 {
+		t.Fatal("group header click hid events after drag")
+	}
+	m.resize(60, 12)
+	left, right := m.paneWidths()
+	if left < 16 || right < 16 || left+right+1 != 60 {
+		t.Fatal("resize broke pane limits")
+	}
+	m.dragDivider(-100)
+	if left, _ := m.paneWidths(); left != 16 {
+		t.Fatal("left minimum not enforced")
+	}
+	m.dragDivider(10000)
+	if _, right := m.paneWidths(); right != 16 {
+		t.Fatal("right minimum not enforced")
+	}
+}
+
+func TestSplitViewFitsTerminalAndSanitizesLabels(t *testing.T) {
+	m := treeFixture()
+	m.selected().title = strings.Repeat("界🙂", 100) + "\x1b[31m\u202e\nmalicious"
+	for _, size := range [][2]int{{40, 8}, {60, 12}, {80, 24}, {140, 40}, {20, 5}} {
+		m.resize(size[0], size[1])
+		for _, split := range []float64{0.01, 0.35, 0.99} {
+			m.split = split
+			view := m.View().Content
+			if lipgloss.Height(view) > size[1] {
+				t.Fatal("view exceeds height", size)
+			}
+			for _, line := range strings.Split(view, "\n") {
+				if lipgloss.Width(line) > size[0] {
+					t.Fatal("view exceeds width", size)
 				}
-				if width >= 65 && lipgloss.Width(plain[:strings.Index(plain, "tok")+3]) != width-13 {
-					t.Fatal("token values are not right aligned")
-				}
-				if width >= 65 && !strings.Contains(plain, "256 turns") {
-					t.Fatal("session turn count missing")
-				}
-				background := "48;2;37;42;51"
-				if selected {
-					background = "48;2;36;79;82"
-				}
-				painted, end := false, 0
-				for _, span := range sgr.FindAllStringIndex(line, -1) {
-					if span[0] > end && !painted {
-						t.Fatal("row contains an unpainted text or padding segment")
-					}
-					code := line[span[0]:span[1]]
-					if code == "\x1b[m" || code == "\x1b[0m" {
-						painted = false
-					}
-					if strings.Contains(code, background) {
-						painted = true
-					}
-					end = span[1]
-				}
-				if end < len(line) && !painted {
-					t.Fatal("trailing padding has no background")
-				}
+			}
+			if strings.Contains(view, "\u202e") {
+				t.Fatal("bidi override rendered")
 			}
 		}
 	}
 }
 
-func TestOverviewSpinnerPrecedesTitle(t *testing.T) {
+func TestEventSelectionSurvivesUpdatesAndOtherSessions(t *testing.T) {
 	m := treeFixture()
-	sgr := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	for _, state := range []string{"running", "queued", "investigating", "idle", "failed", "ready"} {
-		m.rows[0].s.state = state
-		plain := sgr.ReplaceAllString(m.renderTreeRow(m.rows[0], 90, false), "")
-		prefix := "  "
-		if state == "running" || state == "queued" || state == "investigating" {
-			prefix = m.busy.View() + " "
-		}
-		if !strings.HasPrefix(plain, prefix+"Example session") || strings.Contains(plain, state) {
-			t.Fatal("incorrect session activity placement", state)
-		}
-	}
-}
-
-func TestSessionUsageAndBackgroundState(t *testing.T) {
-	m := treeFixture()
-	cost := 0.00125
-	for range 2 {
-		m.apply(Event{Kind: TurnStarted, Session: 1})
-		m.apply(Event{Kind: Tokens, Session: 1, Input: 100, CachedInput: 80, Output: 10, Cost: &cost})
-		m.apply(Event{Kind: Completed, Session: 1, Background: true})
-	}
-	s := m.selected()
-	if s.input != 200 || s.cached != 160 || s.output != 20 || s.cost != 0.0025 || s.state != "investigating" {
-		t.Fatal("session totals or state incorrect")
-	}
-	m.apply(Event{Kind: Tokens, Session: 1, Unreported: true})
-	if !strings.Contains(m.sessionHeader(), "partial") {
-		t.Fatal("unknown charge hidden")
+	key(m, tea.KeyTab)
+	key(m, tea.KeyDown)
+	selected := m.currentRow().key
+	turn := inspection.Turn{Number: 4, Steps: []inspection.Step{{Name: "Completion"}}}
+	m.apply(Event{Kind: Inspected, Session: 1, Inspection: &turn})
+	m.apply(Event{Kind: Started, Session: 2, At: time.Unix(2, 0)})
+	if m.activeSession != 1 || m.currentRow().key != selected {
+		t.Fatal("update stole event selection")
 	}
 }
 

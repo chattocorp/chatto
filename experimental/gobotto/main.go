@@ -13,6 +13,7 @@ import (
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/bot"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/brainview"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/journal"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/mcpclient"
@@ -91,7 +92,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer journals.Close()
-	return tui.Run(ctx, func(ctx context.Context, emit tui.Emit) error {
+	return tui.RunWithBrains(ctx, brainview.New(cfg.Memory), func(ctx context.Context, emit tui.Emit) error {
 		var titles agent.TitleGenerator
 		titleModel := ""
 		if cfg.Titles != nil {

@@ -23,7 +23,7 @@ func TestDetailLoadingIsDeferredPagedAndMergesLiveUpdates(t *testing.T) {
 		return inspection.Page{Turns: []inspection.Turn{{Number: 1, State: "delivered"}}}, nil
 	}})
 	if calls != 0 {
-		t.Fatal("overview read history")
+		t.Fatal("history load was synchronous")
 	}
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if cmd == nil || calls != 0 || !strings.Contains(m.View().Content, "Loading history") {
@@ -56,13 +56,11 @@ func TestRapidNavigationSerializesLoadsAndBoundsCache(t *testing.T) {
 	for id := uint64(1); id <= 5; id++ {
 		m.apply(Event{Kind: Started, Session: id, LoadDetails: load})
 	}
-	first := m.enterSession()
+	first := m.loadSelected()
 	if first == nil {
 		t.Fatal("missing command")
 	}
-	m.leaveSession()
-	m.moveTree(1)
-	if cmd := m.enterSession(); cmd != nil {
+	if cmd := m.moveSessions(1); cmd != nil {
 		t.Fatal("concurrent history reads are unbounded")
 	}
 	current := m.activeSession
@@ -72,15 +70,13 @@ func TestRapidNavigationSerializesLoadsAndBoundsCache(t *testing.T) {
 	}
 	m.Update(next())
 	for id := uint64(1); id <= 5; id++ {
-		m.leaveSession()
-		for i, r := range m.rows {
-			if r.s.id == id {
-				m.moveTree(i - m.cursor)
+		for i, s := range m.sessions {
+			if s.id == id {
+				if cmd := m.moveSessions(i - m.sessionIndex()); cmd != nil {
+					m.Update(cmd())
+				}
 				break
 			}
-		}
-		if cmd := m.enterSession(); cmd != nil {
-			m.Update(cmd())
 		}
 	}
 	cached := 0
@@ -105,7 +101,7 @@ func TestDetailFailureRetriesAndEvictedResponsesAreIgnored(t *testing.T) {
 		}
 		return inspection.Page{}, nil
 	}})
-	cmd := m.enterSession()
+	cmd := m.loadSelected()
 	m.Update(cmd())
 	if !strings.Contains(m.View().Content, "Unable to load history") || strings.Contains(m.View().Content, "private error") {
 		t.Fatal("unsafe or missing load error")

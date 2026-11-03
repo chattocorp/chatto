@@ -57,35 +57,17 @@ func (m *model) finishDetails(result detailsResult) tea.Cmd {
 		}
 		sort.Slice(s.records, func(i, j int) bool { return s.records[i].Number < s.records[j].Number })
 		s.records = inspection.Retain(s.records)
-		if result.page.Logs != nil {
-			var logs []string
-			seen := make(map[string]bool)
-			for _, entry := range result.page.Logs {
-				text := entry.At.Format("15:04:05") + "  " + displayText(entry.Text)
-				logs = append(logs, text)
-				seen[text] = true
-			}
-			for _, text := range s.logs {
-				if !seen[text] {
-					logs = append(logs, text)
-				}
-			}
-			s.logs = logs[max(0, len(logs)-maxLogs):]
-		}
 		s.before = result.page.Before
 		s.detailsLoaded = true
 		break
 	}
 	m.trimDetails()
 	m.rebuildTree()
-	if s := m.selected(); m.activeSession != 0 && s != nil && !s.detailsLoaded && !s.detailsLoading && s.detailsError == "" {
-		return m.loadPage(s, 0)
-	}
-	return nil
+	return m.loadSelected()
 }
 
 // Keep at most three inspected sessions in memory. Metadata remains available
-// in the overview; reopening an evicted page performs a fresh disk read.
+// in the session pane; selecting an evicted page performs a fresh disk read.
 func (m *model) trimDetails() {
 	var cached []*session
 	for _, s := range m.sessions {
@@ -103,7 +85,6 @@ func (m *model) trimDetails() {
 			continue
 		}
 		s.records = nil
-		s.logs = nil
 		s.liveRecords = nil
 		s.detailsLoaded = false
 		s.before = 0
