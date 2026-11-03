@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -9,6 +10,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 )
+
+func TestFatalWorkerErrorExitsWithoutKeyboardInput(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	want := errors.New("startup failed")
+	err := Run(ctx, func(context.Context, Emit) error {
+		return want
+	}, tea.WithInput(nil), tea.WithOutput(io.Discard), tea.WithoutRenderer(), tea.WithoutSignalHandler())
+	if !errors.Is(err, want) {
+		t.Fatalf("fatal error was hidden or lost: %v", err)
+	}
+}
 
 func TestQuitWaitsAndOffersForceKey(t *testing.T) {
 	m := newModel(nil)

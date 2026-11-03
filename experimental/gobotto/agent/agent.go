@@ -122,7 +122,7 @@ func OpenRouter(key, model, sessionID string, report func(Usage), options ...Com
 		if worker, _ := ctx.Value(workerKey{}).(bool); worker {
 			input["tools"] = []any{}
 		}
-		for _, tool := range turnTools(ctx) {
+		for _, tool := range visibleTools(ctx) {
 			input["tools"] = append(input["tools"].([]any), map[string]any{"type": "function", "function": map[string]any{"name": tool.Name, "description": tool.Description, "parameters": tool.Parameters}})
 		}
 		if textOnly, _ := ctx.Value(textOnlyKey{}).(bool); textOnly {
@@ -136,6 +136,7 @@ func OpenRouter(key, model, sessionID string, report func(Usage), options ...Com
 		if strings.HasPrefix(strings.TrimPrefix(model, "~"), "anthropic/") {
 			input["cache_control"] = map[string]string{"type": "ephemeral"}
 		}
+		observeRequest(ctx, input)
 		if err := postJSON(ctx, "https://openrouter.ai/api/v1/chat/completions", key, input, &out); err != nil {
 			return nil, err
 		}

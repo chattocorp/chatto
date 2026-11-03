@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +15,45 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
 )
+
+func TestCompletionPayloadIsBoundedDetachedAndNotPersisted(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	http.DefaultTransport = recoveryTransport(func(*http.Request) (*http.Response, error) {
+		b, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"finish_reason": "stop", "message": map[string]any{"role": "assistant", "content": strings.Repeat("x", 600<<10), "reasoning": "DO_NOT_STORE"}}}})
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(string(b)))}, nil
+	})
+	store, err := OpenStore(t.TempDir(), "server", "bot", "model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	c := &conversation{id: 1, turns: 1, key: threadKey{"room", "root"}, provider: "provider", store: store, records: []inspection.Turn{{Number: 1, State: "running"}}, complete: agent.OpenRouter("secret-key", "model", "session", nil)}
+	index := c.step("model", "Completion")
+	_, err = c.inspectCompletion(context.Background(), index, []agent.Message{wireMessage(`{"role":"system","content":"injected system context"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := c.records[0].Steps[index]
+	if !strings.Contains(s.Request, "injected system context") || !strings.Contains(s.Response, "inspection truncated") || strings.Contains(s.Response, "DO_NOT_STORE") || strings.Contains(s.Request, "secret-key") {
+		t.Fatal("capture missing or unsafe")
+	}
+	clone := c.records[0].Clone()
+	c.records[0].Steps[index].Detail = "changed"
+	if clone.Steps[index].Detail == "changed" {
+		t.Fatal("UI snapshot is shared")
+	}
+	if err := store.save(c, false); err != nil {
+		t.Fatal(err)
+	}
+	page, err := store.inspectionPage(context.Background(), c.humanID, 0)
+	if err != nil || len(page.Turns) != 1 || page.Turns[0].Steps[index].Request != "" || page.Turns[0].Steps[index].Response != "" {
+		t.Fatal("live request was persisted", err)
+	}
+	if c.records[0].Steps[index].Request != s.Request || c.records[0].Steps[index].Response != s.Response {
+		t.Fatal("saving removed live inspection")
+	}
+}
 
 func TestOutputLimitIsVisibleInInspection(t *testing.T) {
 	c := &conversation{key: threadKey{"room", "root"}, records: []inspection.Turn{{Number: 1, State: "running"}}}

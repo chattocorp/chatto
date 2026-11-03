@@ -1,12 +1,46 @@
 package bot
 
 import (
+	"context"
 	"time"
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 )
+
+// inspectCompletion captures each request at the provider boundary. Inspection
+// is capped at 512 KiB per payload and 4 MiB per turn, including prior captures.
+// Strings keep cloned UI snapshots detached without copying mutable JSON trees.
+func (c *conversation) inspectCompletion(ctx context.Context, index int, messages []agent.Message) (agent.Message, error) {
+	capture := func(request bool, value string) {
+		c.inspect(func(t *inspection.Turn) {
+			if index < 0 || index >= len(t.Steps) {
+				return
+			}
+			used := 0
+			for _, s := range t.Steps {
+				used += len(s.Request) + len(s.Response)
+			}
+			limit := min(512<<10, max(0, (4<<20)-used))
+			if len(value) > limit {
+				value = value[:limit] + "\n[inspection truncated: capture size limit]"
+			}
+			if request {
+				t.Steps[index].Request = value
+			} else {
+				t.Steps[index].Response = value
+			}
+			c.records = inspection.Retain(c.records)
+		})
+	}
+	ctx = agent.WithRequestObserver(ctx, func(value string) { capture(true, value) })
+	result, err := c.complete(ctx, messages)
+	if result != nil {
+		capture(false, agent.InspectionJSON(result))
+	}
+	return result, err
+}
 
 // inspect is called only by the active turn's owner. The UI gets detached copies.
 func (c *conversation) inspect(update func(*inspection.Turn)) {

@@ -1,0 +1,78 @@
+package memory
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
+)
+
+func TestSchedulesReservedFromGenericBrainTools(t *testing.T) {
+	m := &Manager{directory: t.TempDir(), run: func(context.Context, string, []string, []byte) ([]byte, error) {
+		t.Fatal("reserved schedule reached means")
+		return nil, nil
+	}}
+	for _, operation := range []string{"create", "archive", "schema_set", "instructions_set"} {
+		out, err := toolCall(t, m.Tools(true), "memory_brain_"+operation, `{"name":"schedules"}`)
+		if err != nil || !strings.Contains(out, "error") {
+			t.Fatal("reserved lifecycle accepted", operation, out, err)
+		}
+	}
+	for _, operation := range []string{"info", "list", "search", "read", "create", "update"} {
+		args := `{"collection":"schedules"}`
+		if operation == "search" {
+			args = `{"collection":"schedules","query":""}`
+		}
+		out, err := toolCall(t, m.Tools(true), "memory_"+operation, args)
+		if err != nil || !strings.Contains(out, "error") {
+			t.Fatal("reserved collection accepted", operation, out, err)
+		}
+	}
+}
+
+func TestScheduleBindingAliasesRejected(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin")
+	if err := os.Mkdir(bin, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "means"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	brains := filepath.Join(root, "brains")
+	schedules := filepath.Join(brains, "schedules")
+	if err := os.MkdirAll(schedules, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(schedules, "MEANS.md"), []byte("private schedule definition"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "alias")
+	if err := os.Symlink(schedules, alias); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{schedules, alias} {
+		_, err := New([]config.Collection{{Name: "innocent_name", Path: path, Writable: true}}, brains)
+		if err == nil || !strings.Contains(err.Error(), "schedules is reserved") {
+			t.Fatal("schedule alias not blocked", err)
+		}
+	}
+	t.Chdir(root)
+	if _, err := New([]config.Collection{{Name: "alias", Path: "alias"}}, brains); err == nil || !strings.Contains(err.Error(), "schedules is reserved") {
+		t.Fatal("relative schedule alias not blocked", err)
+	}
+	if err := os.Mkdir("ordinary", 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join("ordinary", "MEANS.md"), []byte("ordinary definition"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	// The stub means command fails initialization, after binding validation.
+	if _, err := New([]config.Collection{{Name: "ordinary", Path: "ordinary"}}, brains); err == nil || !strings.Contains(err.Error(), "cannot initialize built-in memory") {
+		t.Fatal("valid relative binding did not reach initialization", err)
+	}
+}

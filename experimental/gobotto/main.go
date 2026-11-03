@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/mcpclient"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/scheduler"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/subagent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/tui"
 	chatto "github.com/chattocorp/chatto/experimental/chatto-go"
@@ -60,25 +62,30 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer workers.Close()
+	external, err := mcpclient.Open(ctx, cfg.MCP)
+	if err != nil {
+		return err
+	}
+	defer external.Close()
+	viewer, err := c.Viewer(ctx)
+	if err != nil {
+		return err
+	}
+	dir := os.Getenv("GOBOTTO_SESSION_DIR")
+	if dir == "" {
+		dir = ".gobotto/sessions"
+	}
+	store, err := bot.OpenStore(dir, settings["CHATTO_URL"], viewer.ID, cfg.Conversation.Model)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	schedules, err := scheduler.Open(filepath.Join(cfg.Memory.Directory, "schedules"), settings["CHATTO_URL"]+"\n"+viewer.ID)
+	if err != nil {
+		return err
+	}
+	defer schedules.Close()
 	return tui.Run(ctx, func(ctx context.Context, emit tui.Emit) error {
-		external, err := mcpclient.Open(ctx, cfg.MCP)
-		if err != nil {
-			return err
-		}
-		defer external.Close()
-		viewer, err := c.Viewer(ctx)
-		if err != nil {
-			return err
-		}
-		dir := os.Getenv("GOBOTTO_SESSION_DIR")
-		if dir == "" {
-			dir = ".gobotto/sessions"
-		}
-		store, err := bot.OpenStore(dir, settings["CHATTO_URL"], viewer.ID, cfg.Conversation.Model)
-		if err != nil {
-			return err
-		}
-		defer store.Close()
 		var titles agent.TitleGenerator
 		titleModel := ""
 		if cfg.Titles != nil {
@@ -94,7 +101,7 @@ func run(ctx context.Context) error {
 				options.Reasoning = &agent.ReasoningOptions{Enabled: r.Enabled, Effort: r.Effort, MaxTokens: r.MaxTokens, Exclude: r.Exclude}
 			}
 			return agent.OpenRouter(settings["OPENROUTER_API_KEY"], cfg.Conversation.Model, id, usage, options)
-		}, emit, bot.Options{Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Subagents: workers,
+		}, emit, bot.Options{Scheduler: schedules, Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Subagents: workers,
 			TurnTimeout: cfg.Conversation.TimeoutDuration, Limits: agent.Limits{MaxToolCalls: cfg.Conversation.MaxToolCalls, MaxModelSteps: cfg.Conversation.MaxModelSteps}, MaxDelegations: cfg.Conversation.MaxDelegations,
 			Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
 	})

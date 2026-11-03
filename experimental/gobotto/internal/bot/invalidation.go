@@ -98,7 +98,13 @@ func (c *conversation) unchangedEdit(ctx context.Context, client Client, e chatt
 	}
 	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	page, err := client.Thread(checkCtx, c.key.room, c.key.root, "")
+	var page chatto.Page
+	var err error
+	if c.scheduledRun && c.scheduled != nil {
+		page, err = scheduledContext(checkCtx, client, c.scheduled.Destination)
+	} else {
+		page, err = client.Thread(checkCtx, c.key.room, c.key.root, "")
+	}
 	if err != nil {
 		return false
 	}

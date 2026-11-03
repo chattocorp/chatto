@@ -26,6 +26,7 @@ func ShutdownRequested(ctx context.Context) <-chan struct{} {
 // Run owns the terminal and worker lifetime. Normal quit requests graceful
 // shutdown; Shift-Q cancels active work. The worker must honor both signals
 // and finish all Emit calls before it returns.
+// Fatal worker errors close the UI so the caller can report them in the terminal.
 func Run(ctx context.Context, work func(context.Context, Emit) error, options ...tea.ProgramOption) error {
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

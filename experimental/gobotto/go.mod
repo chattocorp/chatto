@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pelletier/go-toml/v2 v2.4.3
+	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/image v0.46.0
 )
 

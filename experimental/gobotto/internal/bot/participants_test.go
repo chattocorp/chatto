@@ -92,3 +92,37 @@ func TestParticipantContextRefreshAndLookupFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestContextDeltasResetAfterFailureAndTranscriptReplacement(t *testing.T) {
+	c := &conversation{key: threadKey{"room", "root"}}
+	client := newFake()
+	for i, wantContext := range []bool{true, false, false, true, true} {
+		if i == 4 {
+			c.model = nil
+		}
+		c.complete = func(_ context.Context, messages []agent.Message) (agent.Message, error) {
+			var content string
+			_ = json.Unmarshal(messages[len(messages)-1]["content"], &content)
+			var input map[string]json.RawMessage
+			if err := json.Unmarshal([]byte(content), &input); err != nil {
+				t.Fatal(err)
+			}
+			for _, field := range []string{"participants", "brainCatalog"} {
+				if _, present := input[field]; present != wantContext {
+					t.Fatalf("turn %d: %s present=%t want=%t", i, field, present, wantContext)
+				}
+			}
+			if len(input["triggerAuthors"]) == 0 {
+				t.Fatal("authority metadata omitted")
+			}
+			if i == 2 {
+				return nil, errors.New("model failed")
+			}
+			return answer(), nil
+		}
+		err := respond(context.Background(), client, c, []chatto.MessageEvent{input(fmt.Sprintf("m%d", i), "hello", true)}, nil)
+		if (err != nil) != (i == 2) {
+			t.Fatal(err)
+		}
+	}
+}

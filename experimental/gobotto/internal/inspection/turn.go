@@ -27,6 +27,11 @@ type Step struct {
 	Usage                     Usage
 	// Provider and RequestID support private inspection of cache misses.
 	Provider, RequestID string
+	// Request and Response are bounded live-only snapshots, never persisted or
+	// added to model context. The session already stores its model transcript.
+	// Request contains the provider payload with image data/reasoning omitted.
+	Request  string `json:"-"`
+	Response string `json:"-"`
 }
 
 // Input preserves a triggering message, separately from older thread context.
@@ -56,6 +61,24 @@ func (t Turn) Clone() Turn {
 // Retain bounds stored inspection history by count and encoded size. The latest
 // turn always remains available; each message is bounded at capture time.
 func Retain(turns []Turn) []Turn {
+	// Bound live payloads separately from durable event history. Drop the oldest
+	// captures first without deleting their timing, usage, or tool receipts.
+	turns = append([]Turn(nil), turns...)
+	bytes := 0
+	for _, turn := range turns {
+		for _, step := range turn.Steps {
+			bytes += len(step.Request) + len(step.Response)
+		}
+	}
+	for i := 0; i < len(turns)-1 && bytes > 4<<20; i++ {
+		turns[i] = turns[i].Clone()
+		for j := range turns[i].Steps {
+			s := &turns[i].Steps[j]
+			bytes -= len(s.Request) + len(s.Response)
+			s.Request = ""
+			s.Response = ""
+		}
+	}
 	if len(turns) > 50 {
 		turns = turns[len(turns)-50:]
 	}

@@ -70,6 +70,27 @@ func fmtJSON(w http.ResponseWriter, body string) {
 	_, _ = w.Write([]byte(body))
 }
 
+func TestRoomPostHasNoThreadOrReplyTarget(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var input map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Fatal(err)
+		}
+		if r.URL.Path != "/api/connect/chatto.api.v1.MessageService/CreateMessage" || input["roomId"] != "room" || input["threadRootEventId"] != "" || input["inReplyTo"] != "" || input["body"] != "update" {
+			t.Error("incorrect room post")
+		}
+		fmtJSON(w, `{"message":{"id":"new-root"}}`)
+	}))
+	defer s.Close()
+	c, err := New(s.URL, "test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Reply(context.Background(), "room", "", "", "update", "key"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRejectUnsafeOrigins(t *testing.T) {
 	for _, origin := range []string{"http://example.com", "https://user:pass@example.com", "https://example.com/path", "https://example.com?token=secret"} {
 		if _, err := New(origin, "key"); err == nil {

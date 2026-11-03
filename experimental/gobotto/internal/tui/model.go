@@ -105,6 +105,7 @@ func compactTokens(n int64) string {
 }
 
 type model struct {
+	detail            *detailView
 	detailBusy        bool // serialize disk reads across rapid session navigation
 	viewCounter       uint64
 	textOffset        int // horizontal offset of event text; numeric columns stay fixed
@@ -169,6 +170,9 @@ type clipboardResult struct {
 }
 
 func (m *model) apply(event Event) {
+	if event.Kind == Evicted && m.detail != nil && m.detail.session == event.Session {
+		m.detail = nil
+	}
 	if event.At.IsZero() {
 		event.At = time.Now()
 	}

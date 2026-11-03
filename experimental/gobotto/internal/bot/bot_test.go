@@ -50,6 +50,11 @@ func (f *fakeClient) Reply(_ context.Context, _, _, target, _, _ string) error {
 	f.posts <- target
 	return nil
 }
+
+func (f *fakeClient) Timeline(ctx context.Context, room, root, before string) (chatto.TimelinePage, error) {
+	p, err := f.Thread(ctx, room, root, before)
+	return chatto.TimelinePage{Messages: p.Messages, HasOlder: p.HasOlder}, err
+}
 func (f *fakeClient) React(_ context.Context, _, target, emoji string) error {
 	if emoji == "eyes" {
 		return nil

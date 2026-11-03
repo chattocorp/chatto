@@ -16,6 +16,7 @@ import (
 // sessionIndex contains no transcript, message bodies, or child ledgers. It is
 // the first JSON field in a snapshot, so startup reads a bounded prefix.
 type sessionIndex struct {
+	Scheduled                            bool
 	Epoch                                string
 	Version                              int
 	ID                                   uint64
@@ -59,11 +60,11 @@ func (s *Store) trimRuntime(sessions map[threadKey]*conversation, active *conver
 }
 
 func indexFor(c *conversation, interrupted bool) *sessionIndex {
-	return &sessionIndex{Version: 1, ID: c.id, HumanID: c.humanID, Title: c.title, Room: c.key.room, Root: c.key.root, Provider: c.provider, Started: c.started, Used: c.used, Turns: c.turns, Usage: c.usage, Interrupted: interrupted, Blocked: c.blocked}
+	return &sessionIndex{Scheduled: c.scheduledRun, Version: 1, ID: c.id, HumanID: c.humanID, Title: c.title, Room: c.key.room, Root: c.key.root, Provider: c.provider, Started: c.started, Used: c.used, Turns: c.turns, Usage: c.usage, Interrupted: interrupted, Blocked: c.blocked}
 }
 
 func (v *sessionIndex) stub() *conversation {
-	return &conversation{unloaded: true, id: v.ID, humanID: v.HumanID, title: v.Title, key: threadKey{v.Room, v.Root}, provider: v.Provider, started: v.Started, used: v.Used, turns: v.Turns, usage: v.Usage, interrupted: v.Interrupted, blocked: v.Blocked, resumed: true}
+	return &conversation{scheduledRun: v.Scheduled, unloaded: true, id: v.ID, humanID: v.HumanID, title: v.Title, key: threadKey{v.Room, v.Root}, provider: v.Provider, started: v.Started, used: v.Used, turns: v.Turns, usage: v.Usage, interrupted: v.Interrupted, blocked: v.Blocked, resumed: true}
 }
 
 // readIndex stops before inspection and transcript data. LimitReader rejects
@@ -79,7 +80,7 @@ func readIndex(r io.Reader) (*sessionIndex, error) {
 		return nil, errors.New("session index missing; use a new session directory (legacy files are unchanged)")
 	}
 	var v *sessionIndex
-	if d.Decode(&v) != nil || v == nil || v.Version != 1 || v.ID == 0 || !validHumanID.MatchString(v.HumanID) || v.Room == "" || v.Root == "" || v.Provider == "" {
+	if d.Decode(&v) != nil || v == nil || v.Version != 1 || v.ID == 0 || !validHumanID.MatchString(v.HumanID) || v.Room == "" || (v.Root == "" && !v.Scheduled) || v.Provider == "" {
 		return nil, errStore
 	}
 	return v, nil
@@ -121,14 +122,16 @@ func (s *Store) loadIndex(ctx context.Context) ([]*conversation, error) {
 		if err != nil {
 			return nil, err
 		}
-		if ids[c.id] || threads[c.key] {
+		if ids[c.id] || (!c.scheduledRun && threads[c.key]) {
 			return nil, errStore
 		}
 		ids[c.id] = true
-		threads[c.key] = true
+		if !c.scheduledRun {
+			threads[c.key] = true
+		}
 		result = append(result, c)
 	}
-	if len(result) > sessionLimit {
+	if len(threads) > sessionLimit {
 		return nil, errors.New("too many stored sessions")
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].id < result[j].id })

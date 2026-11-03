@@ -191,12 +191,106 @@ the configured OpenRouter model/provider. Child transcripts and bounded inspecti
 excerpts are retained in private local storage. No additional MCP connection is needed for these built-in
 read tools.
 
+## Recurring tasks
+
+Configured bot admins (`owner_user_ids`) can ask for recurring tasks, for
+example: “Every six hours, check for free games and post useful findings here.”
+`schedule_create` accepts a title, task, `destination` (`room` or `thread`), and
+`schedule` string. Room delivery creates a top-level message in the current room;
+thread delivery replies in the current thread. The saved destination is an object
+with `kind`, `room_id`, and, for thread delivery, `thread_id`. The host supplies IDs.
+Gobotto confirms the selected destination. To move delivery, request an update
+from the new destination and explicitly select its room or thread.
+
+Schedule examples:
+
+- `0 9 * * 1-5`: weekdays at 09:00 UTC (five-field cron).
+- `CRON_TZ=Europe/Berlin 0 9 * * 1-5`: weekdays at 09:00 Berlin time.
+- `@daily`: midnight UTC.
+- `@every 6h`: every six hours, starting six hours after creation.
+
+Calendar schedules default to UTC. Timezone schedules follow the Go cron library's
+daylight-saving rules: a missing local time is skipped; a repeated local time can
+run twice. Elapsed intervals accept whole seconds from one minute to 30 days.
+The first run is the next occurrence after creation.
+`schedule_list` shows all schedules for this bot, across rooms and threads. Any
+configured admin can manage any schedule from any conversation:
+
+- `schedule_update` changes the supplied title, task, timing, or destination fields.
+  Omitted fields and the enabled state stay unchanged. Managing a schedule from
+  another conversation does not move its destination.
+- `schedule_pause` disables future runs and revokes pending delivery.
+- `schedule_resume` enables the schedule, with its next occurrence after now.
+- `schedule_delete` revokes and removes the schedule.
+
+These mutations require `id` and the current `revision` from the list. A stale
+revision is rejected without changes. Each changed definition increments its
+revision. Receipts include the resulting state and whether a run is still active.
+An active run must finish before update or resume; pause and delete can revoke it.
+Already completed or in-flight external effects cannot be undone. Gobotto must
+not claim a schedule stopped until a pause or delete tool returns success.
+Schedule data is loaded on demand through `schedule_list`. A clear
+request such as “stop posting jokes” authorizes deletion of the matching schedule;
+the admin does not need to name the scheduling tool. Temporary stops use pause.
+
+Management tools are exposed only for entirely admin-authored input. Destination
+IDs and authorizing admin come from host context, not tool arguments. Definitions
+retain `created_by` and `created_from` as provenance. `authorized_by` records the
+admin who approved the current revision. Creation context does not restrict management.
+The built-in
+`brains/schedules/` collection has a fixed definition and one document per task.
+The document body holds the task as Markdown; frontmatter holds timing, destination,
+revision, and provenance. Approval covers both metadata and task text.
+Generic memory tools cannot access it, including through fixed binding aliases.
+The separate `.runtime.json` ledger binds execution authority to structured
+definition data, its revision, and the current server/bot identity. Markdown/JSON
+formatting does not change approval. Manual task edits do not authorize execution;
+invalid definitions are disabled and can be deleted by an admin. Do not edit files
+while Gobotto runs. An exclusive
+directory lock prevents multiple processes from executing the same schedules.
+There can be at most 100 registered schedules.
+Gobotto refreshes the code-owned `MEANS.md` schema at startup. It does not migrate
+task documents. Older definitions without the required revision and destination
+object are disabled; delete and recreate them through the management tools.
+
+Due tasks use the same serial worker as ordinary conversations. A busy worker can
+delay a run; it does not start overlapping executions or replay every elapsed
+interval. The oldest due task runs first. Startup skips overdue runs and marks
+previously running work interrupted.
+Claims are synced before model work or delivery; interrupted or uncertain work is
+never automatically replayed. Removing the authorizing admin revokes their schedules
+when next checked. A current admin can explicitly resume or update a revoked schedule
+to approve a new revision. Re-adding the former admin alone does not reactivate it.
+Deletion revokes a claimed task that has not started; completed effects remain.
+
+Each execution starts a fresh model context containing the saved task, destination,
+and up to three confirmed prior outputs, each limited to 500 characters. The model
+can search for `read_destination` to read recent room or thread messages when needed.
+It can use ordinary memory and configured external tools, but has
+no schedule management, app lifecycle, delegation, reaction, or progress tools.
+Destination access is checked before model work and again before delivery. The host
+posts the final answer only to the saved destination; `NO_UPDATE` suppresses an empty
+report. Each run is limited to five minutes, 30 tool calls, and 40 model steps,
+or lower configured conversation limits. Failures still leave any earlier tool
+effects in place. Subsequent scheduled occurrences are independent executions.
+
+The TUI keeps a separate “Scheduled:” session per schedule with retained turn
+inspection; scheduled history never becomes a normal conversation's model context.
+Deleting a schedule keeps its inspector history. Definitions, task text, tool
+receipts, and thread context are private runtime data. The configured model
+provider receives execution context, and configured MCP servers receive requested
+tool arguments and the bot's outbound IP, as with interactive turns. No new
+external service is required for scheduling.
+
 ## Web access and MCP
 
 Each turn includes a local `tool_search` capability and a reminder to search
 before work that needs tools or a claim that a capability is unavailable.
-Search matches names and descriptions by keyword; an empty query lists all
-current tools. Results include configured MCP capabilities and their discovery
+Search matches names and descriptions by keyword. A nonempty query exposes up to
+eight matching tool schemas for the rest of the turn. An empty query lists concise
+entries without exposing all schemas; search specific names next. Initial requests
+include only core conversation tools and search. Schema exposure resets each turn
+and does not change execution authority. Results include configured MCP capabilities and their discovery
 route. Search does not contact external services or grant permissions.
 The catalog is rebuilt after host permission checks on each turn. Input that is
 not entirely owner-authored excludes app lifecycle tools; a later owner-only
@@ -380,6 +474,8 @@ session storage namespace. The previous model's saved sessions remain on disk.
 ### Conversation context
 
 Each message batch includes the current UTC timestamp for calendar questions.
+The host refreshes triggering authors' profiles each turn, but sends only changed
+profiles. Failed lookups clear stale names. Authority metadata is always supplied.
 The internal prompt directs the model to use verified `@usernames` in replies,
 keep raw user IDs internal, and avoid inventing handles when none are available.
 This does not add a user-profile lookup tool.
@@ -411,8 +507,9 @@ context and stored in private session transcripts, not operational logs.
 
 ### Memory and apps
 
-Gobotto has one built-in `memory` brain for general knowledge and knowledge about
-individual Chatto users. Dynamic brains are **apps**, such as a task tracker or
+Gobotto has a built-in `memory` brain for general knowledge and knowledge about
+individual Chatto users, plus a separate protected `schedules` brain for recurring
+tasks. Dynamic brains are **apps**, such as a task tracker or
 project notebook. App formatting, workflow, and default rules belong in that
 app's instructions. They do not belong in personal memory.
 
@@ -489,8 +586,8 @@ multiple versions are installed.
 
 Gobotto discovers immediate child directories of `apps/` with a regular `MEANS.md`, excluding
 hidden directories and symlinks. Names follow the same rules as fixed bindings.
-The current catalog is included in every turn, including new and restored
-sessions. Creation and archival become visible without a restart. Full guidance
+The catalog is checked each turn and supplied when it changes, or when a session
+starts or is restored. Creation and archival become visible without a restart. Full guidance
 is retrieved through `memory_info`; the host requires this before document access.
 
 Each brain's Markdown guidance defines who may read or write, when to remember
@@ -681,7 +778,8 @@ These logs lack turn associations and are not assigned to turns by the UI.
 | Up/Down or `k`/`j` | Select a visible row                                   |
 | Right / Left       | Open or enter a node / close it or select its parent   |
 | Space              | Open or close the selected node                        |
-| Enter              | Open a session from the overview, or fold a turn       |
+| Enter              | Open a session, fold a turn, or inspect an event       |
+| `i`                | Inspect the selected session, turn, or event           |
 | Escape             | Return to the overview                                 |
 | `[` / `]`          | Pan event text left / right                            |
 | `l`                | Switch between the turn table and operational logs     |
@@ -693,6 +791,29 @@ These logs lack turn associations and are not assigned to turns by the UI.
 | Home / End         | Move to the start / end of the focused view            |
 | `q` or Ctrl-C      | Finish active work and report child results, then quit |
 | Shift-Q            | Cancel active work and quit immediately                |
+
+The private detail view supports Tab/Shift-Tab to switch sections, arrow keys or
+the mouse wheel to scroll, Page Up/Down and Home/End to navigate, `c` to copy the
+current section, and Escape to return. It shows a fixed snapshot; close and reopen
+it to refresh running work. A model completion has sections for its messages
+(including system instructions and injected JSON context), available tool schemas,
+request settings, and returned message. Other events show their recorded details.
+The completion details include a byte breakdown of compact inspection JSON:
+system instructions, tool schemas, latest input, other history, tool results, and
+settings/framing. These are not token counts or wire sizes; images and provider
+reasoning are excluded. The breakdown needs a complete live request capture.
+Older records explicitly show when a request was not captured.
+
+New ordinary and scheduled model completions capture the request after provider
+tools and per-call controls are applied. These snapshots are live-only: they are
+not written to disk and never enter model context or operational logs. Restarting
+or reloading history loses them; the existing transcript and event records remain.
+Image URLs/pixels and
+provider reasoning text are omitted; reasoning configuration remains visible.
+Capture is limited to 512 KiB per request/response and 4 MiB per turn, with explicit
+truncation markers. Older live captures are discarded when their total exceeds
+4 MiB per session, while their event records remain. Auxiliary title requests and delegated child requests are not
+captured by this view.
 
 The view resizes with the terminal and needs at least 36 columns and 12 rows.
 Normal quit keeps the UI open with a waiting message while active turns and

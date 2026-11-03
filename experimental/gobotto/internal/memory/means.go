@@ -68,7 +68,7 @@ func New(collections []config.Collection, directories ...string) (*Manager, erro
 			if entry.Name() == ".memory" {
 				return nil, errors.New("legacy memory directory found; move brains/.memory to brains/memory")
 			}
-			if entry.IsDir() && brainName.MatchString(entry.Name()) && entry.Name() != "memory" && entry.Name() != "apps" {
+			if entry.IsDir() && brainName.MatchString(entry.Name()) && entry.Name() != "memory" && entry.Name() != "schedules" && entry.Name() != "apps" {
 				if _, err := os.Lstat(filepath.Join(directory, entry.Name(), "MEANS.md")); err == nil {
 					return nil, errors.New("legacy app directory found; move app collections into brains/apps")
 				}
@@ -84,8 +84,23 @@ func New(collections []config.Collection, directories ...string) (*Manager, erro
 		}
 	}
 	for _, c := range collections {
-		if c.Name == "memory" {
-			return nil, errors.New("memory is reserved for Gobotto's built-in knowledge")
+		if c.Name == "memory" || c.Name == "schedules" {
+			return nil, errors.New("memory and schedules are reserved built-in brains")
+		}
+		if directory != "" {
+			reserved := filepath.Join(directory, "schedules")
+			resolved, err := filepath.EvalSymlinks(c.Path)
+			if err != nil {
+				return nil, errors.New("cannot resolve collection binding")
+			}
+			resolved, err = filepath.Abs(resolved)
+			if err != nil {
+				return nil, errors.New("cannot resolve collection binding")
+			}
+			rel, err := filepath.Rel(reserved, resolved)
+			if err != nil || rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))) {
+				return nil, errors.New("schedules is reserved; fixed bindings cannot expose its files")
+			}
 		}
 		info, err := os.Stat(filepath.Join(c.Path, "MEANS.md"))
 		if err != nil || !info.Mode().IsRegular() {
