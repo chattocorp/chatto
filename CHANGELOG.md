@@ -3,6 +3,31 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-rc.4](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.3...v0.5.0-rc.4) (2026-11-03)
+
+
+### Features
+
+* **frontend:** add controlled SVG animation previews ([#3478](https://github.com/chattocorp/chatto/issues/3478)) ([d585eee](https://github.com/chattocorp/chatto/commit/d585eeec3e5ba8b87026351218ffbc7ecc9f0ade))
+* **gobotto:** add durable schedules and lean prompt inspection ([#3479](https://github.com/chattocorp/chatto/issues/3479)) ([35c5c19](https://github.com/chattocorp/chatto/commit/35c5c191f1e39efedc17d2c296f56a885a245304))
+* **gobotto:** embed means collection library ([#3495](https://github.com/chattocorp/chatto/issues/3495)) ([532d373](https://github.com/chattocorp/chatto/commit/532d3732ec090fc8704a07ed3d585c056659650a))
+* **gobotto:** improve session views and add silence and image inspection ([#3464](https://github.com/chattocorp/chatto/issues/3464)) ([69195b0](https://github.com/chattocorp/chatto/commit/69195b0f9d0785524ed2b1d535c56b32060d5f10))
+
+
+### Bug Fixes
+
+* **admin:** align resource responses and role assignment reads ([#3481](https://github.com/chattocorp/chatto/issues/3481)) ([ff99b70](https://github.com/chattocorp/chatto/commit/ff99b70868d99c44f5f36073bb07364a980c6145))
+* **desktop:** allow narrower windows ([#3465](https://github.com/chattocorp/chatto/issues/3465)) ([be72278](https://github.com/chattocorp/chatto/commit/be722781e9552121389f0c55d1f3f038f444d585))
+* **desktop:** fix Linux app icon association ([#3476](https://github.com/chattocorp/chatto/issues/3476)) ([37f0c3e](https://github.com/chattocorp/chatto/commit/37f0c3e17a02391c3505112e44e7caba59d35942))
+* **desktop:** retry temporary Apple stapling failures ([#3473](https://github.com/chattocorp/chatto/issues/3473)) ([5fdffac](https://github.com/chattocorp/chatto/commit/5fdffac7a64769984ede6707edd79e623b8f5645))
+* **desktop:** skip duplicate update restart confirmation ([#3471](https://github.com/chattocorp/chatto/issues/3471)) ([9a78498](https://github.com/chattocorp/chatto/commit/9a78498c6341046926d235e42b2f5710934852e1))
+* **frontend:** defer code fade measurements until layout ([#3469](https://github.com/chattocorp/chatto/issues/3469)) ([72a5d6a](https://github.com/chattocorp/chatto/commit/72a5d6a9e8f9b30ccc2ed80733ab5589d41b4882))
+* **frontend:** remove custom Mermaid depth effects ([#3468](https://github.com/chattocorp/chatto/issues/3468)) ([54f8c68](https://github.com/chattocorp/chatto/commit/54f8c6822034abf85efdd8b20299a9ccc1630122))
+* **frontend:** remove extra outline from link preview images ([#3472](https://github.com/chattocorp/chatto/issues/3472)) ([fd43aea](https://github.com/chattocorp/chatto/commit/fd43aeaa1aa576e898e933bf9d1de30c447e352d))
+* **realtime:** keep privileged-mode recovery responsive ([#3480](https://github.com/chattocorp/chatto/issues/3480)) ([527bcd3](https://github.com/chattocorp/chatto/commit/527bcd30c700c9d511b72e18c7912c96bfdbd17e))
+* **uploads:** allow large GIFs to reach video processing ([#3483](https://github.com/chattocorp/chatto/issues/3483)) ([7700ef0](https://github.com/chattocorp/chatto/commit/7700ef0846f94f2de88e0c9034d7befdb87fab00))
+* **viewer:** preserve native image and file context menus ([#3475](https://github.com/chattocorp/chatto/issues/3475)) ([0b9780d](https://github.com/chattocorp/chatto/commit/0b9780d85fc273e47b8a6e8225a005176e480654))
+
 ## [0.5.0-rc.3](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.2...v0.5.0-rc.3) (2026-11-02)
 
 
