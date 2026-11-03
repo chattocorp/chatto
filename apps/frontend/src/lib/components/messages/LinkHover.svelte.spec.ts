@@ -55,6 +55,8 @@ it('keeps posted link text and message height stable while a hover preview loads
   await vi.waitFor(() => expect(container.querySelector('.url-link')).not.toBeNull());
   const link = container.querySelector<HTMLAnchorElement>('.url-link')!;
   await new Promise<void>((done) => requestAnimationFrame(() => done()));
+  // Font loading changes text geometry independently of the hover preview.
+  await document.fonts.ready;
   expect(fetchLinkPreview).not.toHaveBeenCalled();
   const message = link.closest('p')!;
   const height = message.getBoundingClientRect().height;
