@@ -12,6 +12,47 @@ vi.mock('$app/navigation', () => ({ pushState, goto: vi.fn() }));
 const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"/>')}`;
 
 describe('RenderedImage', () => {
+  it('keeps animation playback controls in the viewer footer when zooming', async () => {
+    const svgSource =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle></svg>';
+    const view = render(RenderedImageViewerModal, {
+      modal: {
+        type: 'renderedImageViewer',
+        src: 'data:image/svg+xml,' + encodeURIComponent(svgSource),
+        alt: 'Moving circle',
+        svgSource
+      },
+      onclose: vi.fn()
+    });
+    try {
+      await expect
+        .poll(() =>
+          document
+            .querySelector<HTMLIFrameElement>('dialog iframe')
+            ?.contentDocument?.querySelector('svg')
+        )
+        .toBeTruthy();
+      const control = document.querySelector<HTMLButtonElement>(
+        'dialog [aria-label="Pause animation"], dialog [aria-label="Resume animation"]'
+      )!;
+      expect(control.closest('[data-image-controls]')).not.toBeNull();
+      const poster = document.querySelector<HTMLImageElement>('dialog img')!;
+      expect(decodeURIComponent(poster.src.split(',')[1])).not.toContain('<animate');
+      const download = document.querySelector<HTMLAnchorElement>('dialog a[download]')!;
+      expect(decodeURIComponent(download.href.split(',')[1])).toContain('<animate');
+      await userEvent.click(control);
+      const root = document
+        .querySelector<HTMLIFrameElement>('dialog iframe')!
+        .contentDocument!.querySelector('svg')!;
+      const paused = root.animationsPaused();
+      await userEvent.click(document.querySelector('dialog [aria-label="Zoom in"]')!);
+      expect(root.animationsPaused()).toBe(paused);
+      expect(document.querySelector('dialog output')?.textContent).toBe('125%');
+    } finally {
+      await view.unmount();
+    }
+  });
+
   it('leaves scrolling alone and opens the shared viewer through shallow routing', async () => {
     const image = new Image();
     image.src = src;

@@ -149,9 +149,18 @@
     return root.innerHTML;
   }
 
-  // Render markdown, then resolve the mention candidates that it marked
-  async function render(
-    body: string,
+  // Only source and locale changes need asynchronous Markdown parsing. Room
+  // snapshots can replace mention and role arrays on every new message; they
+  // must not send unchanged artwork through the await block's loading branch.
+  const sourceBody = $derived(body);
+  const markdown = $derived.by(() => {
+    getLocale();
+    return renderMd(sourceBody, { mentions: true });
+  });
+
+  /** Apply current message metadata without replacing unchanged Markdown DOM. */
+  function render(
+    html: string,
     members: RoomMember[],
     roleHandles: string[],
     edited: boolean,
@@ -159,17 +168,21 @@
     viewerLogin: string | undefined,
     timestampSettings: TimeFormatSettings,
     timestampLocale: string | undefined
-  ): Promise<string> {
-    const html = await renderMd(body, { mentions: true });
-    const wrapped = resolveRenderedMentions(html, members, viewerLogin, roleHandles);
-    const withTimestamps = wrapMessageTimestamps(
-      wrapped,
-      timestampSettings,
-      timestampLocale ?? getLocale()
-    );
-    return edited || echoedToChannel
-      ? injectMessageStateMarkers(withTimestamps, { edited, echoedToChannel })
-      : withTimestamps;
+  ): string | null {
+    try {
+      const wrapped = resolveRenderedMentions(html, members, viewerLogin, roleHandles);
+      const withTimestamps = wrapMessageTimestamps(
+        wrapped,
+        timestampSettings,
+        timestampLocale ?? getLocale()
+      );
+      return edited || echoedToChannel
+        ? injectMessageStateMarkers(withTimestamps, { edited, echoedToChannel })
+        : withTimestamps;
+    } catch (error) {
+      console.error('[MessageContent] Render failed:', error);
+      return null;
+    }
   }
 
   // Message-specific actions; MarkdownHtml owns link navigation and code copy.
@@ -211,10 +224,24 @@
   role="presentation"
   onclick={handleContentClick}
 >
-  {#await render(body, resolvedMembers, roleHandles, edited, echoedToChannel, viewerLogin, timestampSettings, timestampLocale)}
+  {#await markdown}
     {body}
-  {:then html}
-    <MarkdownHtml {html} {enhanceLink} {artifactOwner} />
+  {:then parsed}
+    {@const html = render(
+      parsed,
+      resolvedMembers,
+      roleHandles,
+      edited,
+      echoedToChannel,
+      viewerLogin,
+      timestampSettings,
+      timestampLocale
+    )}
+    {#if html !== null}
+      <MarkdownHtml {html} {enhanceLink} {artifactOwner} />
+    {:else}
+      {body}
+    {/if}
   {:catch error}
     {body}
     {(() => {

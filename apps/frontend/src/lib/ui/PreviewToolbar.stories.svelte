@@ -60,3 +60,14 @@
     <PreviewAction label="Edit description" icon="icon-[uil--file-edit-alt]" />
   </PreviewToolbar>
 </Story>
+
+<Story name="Inside content canvas" asChild>
+  <div class="w-64 max-w-full preview-frame">
+    <div class="group/preview relative preview-content" style:--preview-toolbar-inset="0px">
+      <img src={coast} alt="Brighton coast" class="h-48 w-full object-cover" />
+      <PreviewToolbar>
+        <PreviewAction label="Pause animation" icon="icon-[uil--pause]" />
+      </PreviewToolbar>
+    </div>
+  </div>
+</Story>

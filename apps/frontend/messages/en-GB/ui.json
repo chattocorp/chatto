@@ -71,6 +71,8 @@
       "zoom_in": "Zoom in",
       "zoom_out": "Zoom out",
       "fit": "Fit",
+      "pause_animation": "Pause animation",
+      "resume_animation": "Resume animation",
       "details": "Details",
       "file_type": "File type"
     },

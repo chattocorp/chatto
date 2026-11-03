@@ -21,5 +21,10 @@ The modal container owns its lifetime and history-based dismissal.
   ondownload={(event) => event.stopPropagation()}
   {onclose}
 >
-  <ZoomableImage src={modal.src} alt={modal.alt} onerror={() => (failed = true)} />
+  <ZoomableImage
+    src={modal.src}
+    alt={modal.alt}
+    svgSource={modal.svgSource}
+    onerror={() => (failed = true)}
+  />
 </AttachmentModal>

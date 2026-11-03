@@ -7,14 +7,18 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
   import { renderedImageWidth, type RenderedImageSize } from '$lib/renderedImageSize';
+  import SvgAnimation from './SvgAnimation.svelte';
 
   let {
     image,
-    initialSize
+    initialSize,
+    svgSource
   }: {
     image: HTMLImageElement;
     /** Reserve the previous intrinsic size while a remounted image loads. */
     initialSize?: RenderedImageSize;
+    /** Sanitized source, present only for supported SVG animations. */
+    svgSource?: string;
   } = $props();
   const descriptionId = $props.id();
   let width = $state(1);
@@ -45,7 +49,7 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
   }
 
   /** Keep image activation out of message gestures, but preserve native scrolling. */
-  function consumeMessageGestures(node: HTMLButtonElement) {
+  function consumeMessageGestures(node: HTMLElement) {
     const cleanups = ['mousedown', 'mouseup', 'touchstart', 'touchend'].map((type) =>
       on(node, type, (event) => event.stopPropagation())
     );
@@ -54,22 +58,45 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
 
   function openViewer(event: MouseEvent) {
     event.stopPropagation();
-    // Snapshot the rendered image; opening never uploads it or reparses its source.
-    pushState('', { modal: { type: 'renderedImageViewer', src: image.src, alt: image.alt } });
+    // Snapshot sanitized artwork; opening never uploads or reads the current message.
+    pushState('', {
+      modal: {
+        type: 'renderedImageViewer',
+        src: svgSource
+          ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgSource)}`
+          : image.src,
+        alt: image.alt,
+        ...(svgSource ? { svgSource } : {})
+      }
+    });
   }
 </script>
 
-<button
-  type="button"
-  class="rendered-image relative rendered-image-size cursor-zoom-in overflow-hidden p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-default"
-  aria-label={m('ui.image_modal.open_larger')}
-  aria-describedby={descriptionId}
-  disabled={!ready}
-  onclick={openViewer}
-  {@attach consumeMessageGestures}
-  style:width={previewWidth}
-  style:aspect-ratio={`${width} / ${height}`}
->
-  <span class="absolute inset-0 flex items-center justify-center" {@attach preview}></span>
-</button>
-<span id={descriptionId} class="sr-only">{image.alt}</span>
+{#if svgSource}
+  <div
+    class="relative rendered-image-size"
+    {@attach consumeMessageGestures}
+    style:width={previewWidth}
+    style:aspect-ratio={`${width} / ${height}`}
+  >
+    <span class="hidden" {@attach preview}></span>
+    {#if ready}
+      <SvgAnimation source={svgSource} alt={image.alt} {width} {height} onopen={openViewer} />
+    {/if}
+  </div>
+{:else}
+  <button
+    type="button"
+    class="rendered-image relative rendered-image-size cursor-zoom-in overflow-hidden p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-default"
+    aria-label={m('ui.image_modal.open_larger')}
+    aria-describedby={descriptionId}
+    disabled={!ready}
+    onclick={openViewer}
+    {@attach consumeMessageGestures}
+    style:width={previewWidth}
+    style:aspect-ratio={`${width} / ${height}`}
+  >
+    <span class="absolute inset-0 flex items-center justify-center" {@attach preview}></span>
+  </button>
+  <span id={descriptionId} class="sr-only">{image.alt}</span>
+{/if}

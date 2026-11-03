@@ -3,6 +3,7 @@ import { createMermaidPreview } from './mermaid/previews';
 import { getMermaidLayout } from './mermaid/cache';
 import { hasRenderedImage, takeRenderedImage, rememberRenderedImage } from './renderedImageCache';
 import { mount, unmount } from 'svelte';
+import { svgAnimationPoster } from './svgAnimationFrame';
 import {
   getRenderedImageSize,
   rememberRenderedImageSize,
@@ -12,6 +13,9 @@ import {
 
 // Keep the lazy component module available for synchronous mounting of loaded images.
 let renderedImageComponent: typeof import('$lib/ui/attachments').RenderedImage | undefined;
+// Keep sanitized animation source with the cached image without parsing again
+// when a virtualized row returns. Entries end with the image's lifetime.
+const animatedSvgSources = new WeakMap<HTMLImageElement, string>();
 
 /** Scope ARIA IDs to the component, and dispose all jobs when its HTML changes. */
 export function attachCodeFrames(
@@ -125,10 +129,13 @@ export function attachCodeFrames(
           if (frame.dataset.artifact === 'svg' && !cachedImage) {
             const { sanitizeSvg } = await import('./sanitizeSvg');
             if (signal.aborted) return;
+            const clean = sanitizeSvg(source);
+            const animated = /<(?:animate|animateTransform)\b/.test(clean);
+            if (animated) animatedSvgSources.set(image, clean);
             image.className = 'markdown-svg-preview';
             image.alt = 'SVG';
             image.decoding = 'async';
-            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizeSvg(source))}`;
+            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(animated ? svgAnimationPoster(clean) : clean)}`;
           }
           const RenderedImage =
             renderedImageComponent ??
@@ -137,7 +144,7 @@ export function attachCodeFrames(
           rememberRenderedImageSize(sizeKey, image);
           const canvas = mount(RenderedImage, {
             target: renderPanel,
-            props: { image, initialSize: size }
+            props: { image, initialSize: size, svgSource: animatedSvgSources.get(image) }
           });
           placeholder?.remove();
           disposeCanvas = () => {

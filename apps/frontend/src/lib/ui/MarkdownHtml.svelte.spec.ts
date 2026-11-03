@@ -32,6 +32,50 @@ import { testSnippet } from '$lib/test-utils';
 let originalClipboard: PropertyDescriptor | undefined;
 
 describe('Sanitized SVG previews', () => {
+  it('keeps the frame when unchanged HTML and owner props are assigned again', async () => {
+    const html = await renderMarkdown(
+      '```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle r="8"><animate attributeName="cx" values="10;190" dur="60s" repeatCount="indefinite"/></circle></svg>\n```'
+    );
+    const artifactOwner = {};
+    const view = render(MarkdownHtml, { html, artifactOwner });
+    try {
+      await expect
+        .poll(() => view.container.querySelector('iframe')?.contentDocument?.querySelector('svg'))
+        .toBeTruthy();
+      const frame = view.container.querySelector('iframe')!;
+      const svg = frame.contentDocument!.querySelector('svg');
+      await view.rerender({ html, artifactOwner });
+      await new Promise(requestAnimationFrame);
+      expect(view.container.querySelector('iframe')).toBe(frame);
+      expect(frame.contentDocument!.querySelector('svg')).toBe(svg);
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('offers playback on animated SVG and passes sanitized source to the zoom viewer', async () => {
+    const source =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="4s" repeatCount="indefinite"/></circle><script>alert(1)</script></svg>';
+    const html = await renderMarkdown('```svg rendered\n' + source + '\n```');
+    const view = render(MarkdownHtml, { html });
+    await expect
+      .poll(() => view.container.querySelector('iframe')?.contentDocument?.querySelector('svg'))
+      .toBeTruthy();
+    const playback = view.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Pause animation"], [aria-label="Resume animation"]'
+    )!;
+    expect(playback).not.toBeNull();
+    await userEvent.click(playback);
+    await userEvent.click(view.container.querySelector<HTMLButtonElement>('.rendered-image')!);
+    const modal = navigationMocks.pushState.mock.lastCall![1].modal;
+    expect(modal.svgSource).toContain('<animate');
+    expect(modal.svgSource).not.toContain('<script');
+    expect(modal.src).toContain('data:image/svg+xml');
+    expect(decodeURIComponent(modal.src.split(',')[1])).toContain('<animate');
+    const poster = view.container.querySelector<HTMLImageElement>('img')!;
+    expect(decodeURIComponent(poster.src.split(',')[1])).not.toContain('<animate');
+  });
+
   it('uses sanitized SVG for the preview and viewer while retaining the original source', async () => {
     const source =
       '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><script>alert(1)</script><rect width="20" height="20" fill="red" onload="alert(1)"/></svg>';

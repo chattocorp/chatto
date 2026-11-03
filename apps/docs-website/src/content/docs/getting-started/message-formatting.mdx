@@ -277,14 +277,21 @@ message body:
 ```
 ````
 
-The image appears without a toolbar. Click or tap it to open the large viewer.
+Static images appear without a toolbar. Animated SVG previews have a Pause/Resume
+control. Click or tap the image to open the large viewer.
 You can also focus it with Tab and press Enter or Space.
 Plain `svg`, `mermaid`, and `ansi` fences show code first with a preview option.
 In the visual composer, choose **Code** or **Visual** to set this presentation.
 If the image cannot load, Chatto shows its source instead. Transparent areas
-keep the message background. Include the SVG namespace shown above. Use static
+keep the message background. Include the SVG namespace shown above. Use
 shapes, text, groups, and local gradients. Set colours and other presentation
-attributes directly on elements. Previews remove scripts, links, CSS, animations,
+attributes directly on elements. Simple `animate` and `animateTransform` elements
+can change numbers, colours, or translate, scale, and rotate transforms. CSS
+animations, motion paths, and event-based timing are not supported. Pause and
+Resume continue on the same timeline. Reduced motion starts playback paused;
+you can select Resume to play it. The large viewer and a preview that returns
+after scrolling out of the loaded view start a new timeline.
+Previews remove scripts, links, CSS,
 embedded images, filters, patterns, masks, clipping paths, markers, and `use`
 references. External resources do not load. Removed features can change the
 image. Your message source stays unchanged; the viewer downloads the sanitized SVG.

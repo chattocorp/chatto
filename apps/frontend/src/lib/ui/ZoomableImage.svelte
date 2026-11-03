@@ -13,15 +13,20 @@ Controls live in the viewer footer when one is provided through context.
   import { SvelteMap } from 'svelte/reactivity';
   import { m } from '$lib/i18n/messages';
   import { useImageControls, hasImageControls } from './imageControlsContext';
+  import SvgAnimation from './SvgAnimation.svelte';
+  import { svgAnimationPoster } from '$lib/svgAnimationFrame';
 
   let {
     src,
     alt,
-    onerror
+    onerror,
+    svgSource
   }: {
     src: string;
     alt: string;
     onerror: () => void;
+    /** Sanitized source for an animated diagram, separate from uploaded images. */
+    svgSource?: string;
   } = $props();
 
   let stage: HTMLDivElement;
@@ -44,6 +49,11 @@ Controls live in the viewer footer when one is provided through context.
   // Pointer positions stay relative to the stage while it owns pointer capture.
   const pointers = new SvelteMap<number, { x: number; y: number }>();
   const percent = $derived(Math.round(zoom * 100));
+  const poster = $derived(
+    svgSource
+      ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgAnimationPoster(svgSource))}`
+      : src
+  );
   const limits = $derived(bounds());
 
   /** Limit panning to the fitted image's enlarged edges. */
@@ -239,14 +249,25 @@ Controls live in the viewer footer when one is provided through context.
       style={`transform: translate(${offsetX}px, ${offsetY}px) scale(${zoom})`}
     >
       <img
-        {src}
+        src={poster}
         {alt}
         draggable="false"
         data-canvas-image
-        class="image-canvas-asset"
+        class={['image-canvas-asset', svgSource && 'invisible']}
         {@attach measureImage}
         {onerror}
       />
+      {#if svgSource && naturalWidth && naturalHeight}
+        <div class="absolute inset-0">
+          <SvgAnimation
+            source={svgSource}
+            {alt}
+            width={naturalWidth}
+            height={naturalHeight}
+            {onerror}
+          />
+        </div>
+      {/if}
     </div>
     <span
       aria-hidden="true"
