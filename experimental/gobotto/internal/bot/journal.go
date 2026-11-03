@@ -264,7 +264,11 @@ func (c *conversation) checkpointJournal(ctx context.Context, client Client, ent
 		fail()
 		return
 	}
-	if err := c.journals.StageSnapshot(c.journalScope(), entry, c.journalRevision, c.journalGeneration); err != nil {
+	stream := c.provider
+	if stream == "" {
+		stream = c.humanID
+	}
+	if err := c.journals.StageSnapshot(c.journalScope(), entry, c.journalRevision, c.journalGeneration, stream); err != nil {
 		fail()
 		return
 	}

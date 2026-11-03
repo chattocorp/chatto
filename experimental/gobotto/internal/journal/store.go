@@ -65,15 +65,17 @@ type Message struct {
 // Entry records a completed turn without provider reasoning or image payloads.
 // Key is stable across retries; only successful host delivery populates Reply.
 type Entry struct {
-	Digest   string    `json:"digest"`
-	Key      string    `json:"key"`
-	At       time.Time `json:"at"`
-	Inputs   []string  `json:"inputs,omitempty"`
-	Messages []Message `json:"messages,omitempty"`
-	Reply    string    `json:"reply,omitempty"`
-	State    string    `json:"state"`
-	Receipts []Receipt `json:"receipts,omitempty"`
-	Note     string    `json:"note,omitempty"`
+	// SnapshotStream is transient provenance, never note-model input or disk data.
+	SnapshotStream string    `json:"-"`
+	Digest         string    `json:"digest"`
+	Key            string    `json:"key"`
+	At             time.Time `json:"at"`
+	Inputs         []string  `json:"inputs,omitempty"`
+	Messages       []Message `json:"messages,omitempty"`
+	Reply          string    `json:"reply,omitempty"`
+	State          string    `json:"state"`
+	Receipts       []Receipt `json:"receipts,omitempty"`
+	Note           string    `json:"note,omitempty"`
 }
 
 // Document contains one Markdown notebook and a bounded host checkpoint.
@@ -285,8 +287,15 @@ func (s *Store) Read(scope Scope) (Document, error) {
 	d, err := s.read(scope)
 	// Do not expose the store's transient slices to callers.
 	b, _ := json.Marshal(d.Entries)
+	streams := make([]string, len(d.Entries))
+	for i, e := range d.Entries {
+		streams[i] = e.SnapshotStream
+	}
 	d.Entries = nil
 	_ = json.Unmarshal(b, &d.Entries)
+	for i := range d.Entries {
+		d.Entries[i].SnapshotStream = streams[i]
+	}
 	return d, err
 }
 
@@ -315,17 +324,21 @@ func (s *Store) Append(scope Scope, e Entry) error {
 // AppendAt rejects a turn prepared before a journal invalidation or other edit.
 // A negative revision is for host ingestion that has no model work in flight.
 func (s *Store) AppendAt(scope Scope, e Entry, revision, generation int) error {
-	return s.stage(scope, e, revision, generation, false)
+	return s.stage(scope, e, revision, generation, "")
 }
 
 // StageSnapshot replaces earlier pending snapshots of the same uncheckpointed
-// transcript. The caller supplies all evidence since the last durable checkpoint.
+// transcript stream. Other sessions' pending evidence in this scope stays intact.
+// The caller supplies all evidence since the last durable checkpoint.
 // Preserve uncertainty from earlier failed attempts even after a successful reply.
-func (s *Store) StageSnapshot(scope Scope, e Entry, revision, generation int) error {
-	return s.stage(scope, e, revision, generation, true)
+func (s *Store) StageSnapshot(scope Scope, e Entry, revision, generation int, stream string) error {
+	if stream == "" {
+		return ErrStorage
+	}
+	return s.stage(scope, e, revision, generation, stream)
 }
 
-func (s *Store) stage(scope Scope, e Entry, revision, generation int, snapshot bool) error {
+func (s *Store) stage(scope Scope, e Entry, revision, generation int, stream string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, err := s.read(scope)
@@ -359,13 +372,19 @@ func (s *Store) stage(scope Scope, e Entry, revision, generation int, snapshot b
 	var owned Entry
 	_ = json.Unmarshal(b, &owned)
 	owned.Digest = hash(string(b))
-	if snapshot {
+	owned.SnapshotStream = stream
+	if stream != "" {
+		var retained []Entry
 		for _, prior := range d.Entries {
+			if prior.SnapshotStream != stream {
+				retained = append(retained, prior)
+				continue
+			}
 			if uncertain(prior) {
 				owned.State = "uncertain"
 			}
 		}
-		d.Entries = nil
+		d.Entries = retained
 	}
 	d.Entries = append(d.Entries, owned)
 	encoded, _ := json.Marshal(d.Entries)

@@ -502,7 +502,8 @@ addressees, not authors. Gobotto appends the note as a Markdown bullet with
 `means append`. Greetings, repetition, skipped reactions, and casual offers need
 no note. An empty notes array still checkpoints the turn, so filler cannot block
 the next useful entry. Notes cover useful changes across the supplied evidence;
-there is no required one-to-one match between notes and turns. The document body is one notebook;
+there is no required one-to-one match between notes and turns. The document body
+is one notebook;
 there is no separate running summary or JSON event log. Raw tool receipts stay in
 the existing private session records. Notes never grant authority, prove delivery,
 or authorize replay of an old action.
@@ -517,8 +518,8 @@ to 2,400 bytes. Routine notes retain the request topic and outcome, not detailed
 weather reports or illustration descriptions. Fenced code and artifact payloads
 are omitted from note input; prose and tool excerpts are capped at 2,000 characters
 each with explicit omission markers. The original session text is unchanged.
-Only when the notebook
-approaches 16,000 bytes does the model condense it to at most 8,000 bytes, using
+Only when the notebook approaches 16,000 bytes does the model condense it to at
+most 8,000 bytes, using
 `means update`. A malformed or failed note leaves the original transcript intact.
 
 At a turn boundary, Gobotto can replace a transcript of at least 256 KiB with the
@@ -535,8 +536,9 @@ Journal failures, oversized entries, or a recent turn that is too large prevent
 rollover. The existing 1 MiB transcript guard still applies and can require a new
 thread. Transient turn evidence is limited to 64 KiB per turn and model input to
 128 KiB. Pending evidence stays in memory; the original session transcript supports
-recovery after restart. A retry replaces the previous pending transcript snapshot
-instead of accumulating overlapping copies, while preserving uncertain effects.
+recovery after restart. A retry replaces the previous pending snapshot from the
+same session instead of accumulating overlapping copies. Pending notes from other
+sessions or scheduled runs, and uncertain effects, remain intact.
 The inspector distinguishes model failures, timeouts, invalid JSON, missing fields,
 note limits, stale checkpoints, and storage failures without logging response text.
 Frontmatter keeps a fixed-size latest checkpoint and an
