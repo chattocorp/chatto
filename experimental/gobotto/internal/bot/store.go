@@ -66,6 +66,9 @@ type savedConversation struct {
 	Started              time.Time
 	Turns                int
 	History              *agent.Snapshot
+	JournalCheckpoint    string
+	JournalOffset        int
+	JournalGeneration    int
 	Seen                 map[string]bool
 	Current              map[string]string
 	Usage                totals
@@ -167,6 +170,8 @@ func (s *Store) save(c *conversation, interrupted bool) error {
 	v.Records = c.records
 	v.Logs = c.storedLogs()
 	v.Index = indexFor(c, interrupted)
+	v.JournalCheckpoint, v.JournalOffset = c.journalCheckpoint, c.journalOffset
+	v.JournalGeneration = c.journalGeneration
 	v.Index.Epoch = s.epoch
 	v.ChildRuns = c.childRuns
 	v.ChildUsageApplied = c.childUsageApplied
@@ -303,6 +308,8 @@ func (s *Store) loadPaths(paths []string) ([]*conversation, error) {
 		}
 		if v.History != nil {
 			c.model = agent.Restore(*v.History)
+			c.journalCheckpoint, c.journalOffset = v.JournalCheckpoint, v.JournalOffset
+			c.journalGeneration = v.JournalGeneration
 			if v.Interrupted {
 				c.model.RecordDelivery(errors.New("interrupted"))
 			}

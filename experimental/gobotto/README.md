@@ -480,6 +480,67 @@ The internal prompt directs the model to use verified `@usernames` in replies,
 keep raw user IDs internal, and avoid inventing handles when none are available.
 This does not add a user-profile lookup tool.
 
+### Conversation journals and context rollover
+
+Gobotto maintains the protected `brains/conversations/` means collection. Each
+room and thread has a separate document. Thread turns update only that thread's
+journal. A triggering top-level user message is also recorded in its room journal,
+but Gobotto's thread reply is not copied there. Scheduled top-level posts update
+the destination room journal. Unaddressed room traffic is not recorded.
+
+The host checks current Chatto access before journal reads. `conversation_recall`
+can search or page through only the current scope: there is no room, thread, path,
+or collection selector. Thread recall does not read its room or sibling threads.
+Configured admins do not bypass this boundary. Generic memory tools, app lifecycle
+tools, and fixed collection aliases cannot access the collection. The collection
+is locked to one server/bot identity and one running process.
+
+After a turn, an isolated tool-free model request updates a bounded summary and
+adds a brief note about meaningful changes. Greetings and repetitions can have
+empty notes. Pending raw excerpts are removed after the summary is saved; exact
+host tool receipts remain separate from model-written notes. Notes describe
+requests, decisions, corrections, and open commitments. They never grant authority,
+prove delivery, or authorize replay of an old action.
+
+Summary requests use the conversation model, appear as **Journal summary** in the
+inspector, and count toward reported usage. Each changed journal needs at most one
+request per update; a top-level request can update both room and thread journals.
+These auxiliary requests are separate from the action loop's tool and step budgets.
+Requests have a 30-second timeout and at most 4,096 output tokens, or the lower
+configured output limit. Summary text is limited to 8,000 bytes and each note to
+2,000 bytes. A malformed or failed summary leaves the original transcript intact.
+
+At a turn boundary, Gobotto can replace a transcript of at least 256 KiB with the
+scoped summary and the most recent complete turn, including exact tool exchanges.
+Current system instructions and permissions are supplied again. This byte limit
+is a conservative trigger, not a model-specific token count. Rollover requires a
+matching durable journal checkpoint, no active child work, no pending delivery,
+and no recorded uncertain delivery or failed effectful turn. Older exact receipts
+remain available through scoped recall. Work already performed is never replayed
+by the host. Child investigations keep their existing context-limit behavior.
+
+Journal failures, oversized entries, or a recent turn that is too large prevent
+rollover. The existing 1 MiB transcript guard still applies and can require a new
+thread. Entries are limited to 64 KiB, summary input to 128 KiB, and each journal
+document to 8 MiB; reaching a limit never silently deletes older commitments.
+Recall returns at most eight entries and a bounded payload, with a continuation
+cursor when more matches remain.
+
+Access or history invalidations invalidate the affected room's journals, including
+thread journals outside the loaded session cache. Generation checks prevent a
+concurrent old turn or summary from restoring them. A restored session rechecks
+access and discards context whose journal generation changed. Offline history
+changes detected by the existing thread refresh also invalidate journal context.
+As with the existing transcript, offline edits outside the fetched history window
+cannot all be verified from a bounded refresh.
+
+Journal files are private local data. The configured model provider receives the
+scoped summary and supplied turn excerpts for summarization; no additional service
+is contacted. Journal storage itself does not call means or an embedding provider.
+The documents use means-compatible Markdown and JSON frontmatter. Existing runtime
+data is not migrated: retained transcripts contribute scoped conversation excerpts
+on their next journal update, within the same bounds.
+
 ### Owners
 
 Set the top-level `owner_user_ids` list to exact Chatto user IDs:
@@ -508,8 +569,8 @@ context and stored in private session transcripts, not operational logs.
 ### Memory and apps
 
 Gobotto has a built-in `memory` brain for general knowledge and knowledge about
-individual Chatto users, plus a separate protected `schedules` brain for recurring
-tasks. Dynamic brains are **apps**, such as a task tracker or
+individual Chatto users, plus protected `schedules` and `conversations` brains for
+recurring tasks and scoped journals. Dynamic brains are **apps**, such as a task tracker or
 project notebook. App formatting, workflow, and default rules belong in that
 app's instructions. They do not belong in personal memory.
 
