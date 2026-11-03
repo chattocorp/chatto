@@ -8,7 +8,7 @@ import type {
   RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomArchiveFilter, RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '../util/roomThreading.js';
 
@@ -51,6 +51,9 @@ export type DirectoryRoomSummary = {
   /** Joining authority without an invitation, including current members; absent on older servers. */
   canRejoin?: boolean;
   canManageRoom: boolean;
+  /** Normal navigation visibility. False can accompany management-only metadata.
+   * Absent means an older server did not report a decision. */
+  canListRoom?: boolean;
 };
 
 export type DirectoryRoomDetails = DirectoryRoomSummary & {
@@ -71,6 +74,8 @@ export type DirectorySidebarLink = {
   id: string;
   label: string;
   url: string;
+  /** Owning group, when reported by the server. */
+  groupId?: string;
 };
 
 export type DirectoryRoomGroupItem =
@@ -89,6 +94,7 @@ export type DirectoryRoomGroupItem =
 export type DirectoryRoomGroup = {
   id: string;
   name: string;
+  description: string;
   canCreateRoom: boolean;
   canManageGroup: boolean;
   roomIds: string[];
@@ -96,6 +102,7 @@ export type DirectoryRoomGroup = {
 };
 
 export { RoomDirectoryScope };
+export { RoomArchiveFilter };
 export { RoomKind };
 
 const RoomPermission = {
@@ -105,6 +112,7 @@ const RoomPermission = {
   EchoMessage: 'message.echo',
   PinMessages: 'message.pin',
   JoinRoom: 'room.join',
+  ListRoom: 'room.list',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
   ReadInteractions: 'message.read-interactions',
@@ -113,6 +121,10 @@ const RoomPermission = {
   PostMessage: 'message.post',
   React: 'message.react'
 } as const;
+
+/** Read options shared by list, get, and batch group reads. Archive selection
+ * never grants visibility; current server permissions determine returned entries. */
+export type RoomGroupReadOptions = { archiveFilter?: RoomArchiveFilter; signal?: AbortSignal };
 
 export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
   const directory = createChattoClient(RoomDirectoryService, config);
@@ -151,14 +163,25 @@ export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
       });
     },
 
-    async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
-      const response = await directory.listRoomGroups({});
+    /** Read groups in configured order. ALL includes archived entries the caller can see or manage. */
+    async listRoomGroups(options: RoomGroupReadOptions = {}): Promise<DirectoryRoomGroup[]> {
+      const response = await directory.listRoomGroups(
+        { archiveFilter: options.archiveFilter },
+        { signal: options.signal }
+      );
       return response.groups.map(mapRoomGroup);
     },
 
-    async getRoomGroup(groupId: string): Promise<DirectoryRoomGroup | null> {
+    /** Read one group with the same archive and permission rules as listRoomGroups. */
+    async getRoomGroup(
+      groupId: string,
+      options: RoomGroupReadOptions = {}
+    ): Promise<DirectoryRoomGroup | null> {
       try {
-        const response = await directory.getRoomGroup({ groupId });
+        const response = await directory.getRoomGroup(
+          { groupId, archiveFilter: options.archiveFilter },
+          { signal: options.signal }
+        );
         return response.group ? mapRoomGroup(response.group) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
@@ -168,9 +191,34 @@ export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async batchGetRoomGroups(groupIds: string[]): Promise<DirectoryRoomGroup[]> {
-      const response = await directory.batchGetRoomGroups({ groupIds });
+    /** Read up to 100 groups in first-seen order, omitting unknown IDs. */
+    async batchGetRoomGroups(
+      groupIds: string[],
+      options: RoomGroupReadOptions = {}
+    ): Promise<DirectoryRoomGroup[]> {
+      const response = await directory.batchGetRoomGroups(
+        { groupIds, archiveFilter: options.archiveFilter },
+        { signal: options.signal }
+      );
       return response.groups.map(mapRoomGroup);
+    },
+
+    /** Read a link and its owner with the same visibility as links in groups. */
+    async getSidebarLink(
+      linkId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<DirectorySidebarLink> {
+      const response = await directory.getSidebarLink({ linkId }, options);
+      if (!response.link) throw new Error('sidebar link response did not include a link');
+      return mapSidebarLink(response.link);
+    },
+
+    /** Read up to 100 links, de-duplicated in request order; missing links are omitted. */
+    async batchGetSidebarLinks(
+      linkIds: string[],
+      options: { signal?: AbortSignal } = {}
+    ): Promise<DirectorySidebarLink[]> {
+      return (await directory.batchGetSidebarLinks({ linkIds }, options)).links.map(mapSidebarLink);
     }
   };
 }
@@ -239,6 +287,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     ]),
     canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
     canRejoin: entry.viewerState?.canRejoin,
+    canListRoom: roomPermissionDecision(entry.viewerState, RoomPermission.ListRoom) ?? undefined,
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
 }
@@ -247,6 +296,7 @@ export function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
   return {
     id: group.id,
     name: group.name,
+    description: group.description,
     canCreateRoom: hasRoomGroupPermission(group.viewerState, RoomPermission.CreateRoom),
     canManageGroup: hasRoomGroupPermission(group.viewerState, RoomPermission.ManageRoom),
     roomIds: uniqueRoomIds(group.items),
@@ -310,12 +360,22 @@ function mapRoomGroupItem(item: RoomGroupItem): DirectoryRoomGroupItem | null {
     return {
       id: `link:${item.item.value.id}`,
       type: 'link',
-      link: {
-        id: item.item.value.id,
-        label: item.item.value.label,
-        url: item.item.value.url
-      }
+      link: mapSidebarLink(item.item.value)
     };
   }
   return null;
+}
+
+function mapSidebarLink(link: {
+  id: string;
+  label: string;
+  url: string;
+  groupId?: string;
+}): DirectorySidebarLink {
+  return {
+    id: link.id,
+    label: link.label,
+    url: link.url,
+    ...(link.groupId === undefined ? {} : { groupId: link.groupId })
+  };
 }

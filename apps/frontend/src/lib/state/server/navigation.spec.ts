@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
-import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomGroup,
+  RoomViewerState,
+  RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { ServerProjectionStore } from '@chatto/client/server/projection';
 import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
@@ -43,6 +47,63 @@ function navigationFor(
 }
 
 describe('NavigationStore', () => {
+  it('keeps management metadata in the client while hiding it from chat navigation', () => {
+    const projection = new ServerProjectionStore();
+    const visible = projectedRoom('visible');
+    const hidden = new RoomWithViewerState({
+      room: { id: 'hidden', name: 'Management only', kind: RoomKind.CHANNEL },
+      viewerState: {
+        isMember: false,
+        permissions: [
+          { permission: 'room.list', granted: false },
+          { permission: 'room.manage', granted: true }
+        ]
+      }
+    });
+    projection.rooms.set('visible', visible);
+    projection.rooms.set('hidden', hidden);
+    projection.roomGroups = [
+      new RoomGroup({
+        id: 'g1',
+        name: 'Group',
+        items: [
+          { item: { case: 'room', value: visible } },
+          { item: { case: 'room', value: hidden } },
+          { item: { case: 'sidebarLink', value: { id: 'docs', label: 'Docs', url: '/docs' } } }
+        ]
+      })
+    ];
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp(undefined);
+    const roomList = new RoomListView(projection, sync);
+    const navigation = navigationFor(projection, {
+      roomUnreadCounts: {},
+      roomImportantUnreadCounts: {}
+    });
+    expect(roomList.rooms.map((room) => room.id)).toEqual(['visible', 'hidden']);
+    expect(roomList.roomGroups[0]?.roomIds).toEqual(['visible', 'hidden']);
+    expect(navigation.rooms.map((room) => room.id)).toEqual(['visible']);
+    expect(navigation.roomGroups[0]?.roomIds).toEqual(['visible']);
+    expect(navigation.roomGroups[0]?.items?.map((item) => item.id)).toEqual([
+      'room:visible',
+      'link:docs'
+    ]);
+    const nowVisible = hidden.clone();
+    nowVisible.viewerState!.permissions[0]!.granted = true;
+    projection.rooms.set('hidden', nowVisible);
+    projection.roomGroups = [
+      new RoomGroup({
+        ...projection.roomGroups[0],
+        items: [
+          { item: { case: 'room', value: visible } },
+          { item: { case: 'room', value: nowVisible } }
+        ]
+      })
+    ];
+    expect(navigation.rooms.map((room) => room.id)).toEqual(['visible', 'hidden']);
+    expect(navigation.roomGroups[0]?.roomIds).toEqual(['visible', 'hidden']);
+  });
+
   it('adds the notification counts of each room', () => {
     const projection = new ServerProjectionStore();
     projection.rooms.set('dm', projectedRoom('dm', { kind: RoomKind.DM, hasMessageHistory: true }));

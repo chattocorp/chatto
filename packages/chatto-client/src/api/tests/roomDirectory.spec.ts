@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomArchiveFilter, RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createRoomDirectoryAPI } from '../roomDirectory.js';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
@@ -415,6 +415,7 @@ describe('createRoomDirectoryAPI', () => {
         id: 'g1',
         name: 'Lobby',
         canCreateRoom: true,
+        description: '',
         canManageGroup: false,
         roomIds: ['general', 'random'],
         items: [
@@ -438,6 +439,62 @@ describe('createRoomDirectoryAPI', () => {
         ]
       }
     ]);
+  });
+
+  it('passes archive filters through every group read and retains management metadata', async () => {
+    const group = {
+      id: 'g1',
+      name: 'Managed',
+      description: 'Configuration',
+      items: [
+        {
+          item: {
+            case: 'room' as const,
+            value: {
+              room: { id: 'hidden', name: 'Hidden', archived: true },
+              viewerState: {
+                permissions: [
+                  { permission: 'room.list', granted: false },
+                  { permission: 'room.manage', granted: true }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    };
+    mocks.listRoomGroups.mockReturnValue({ groups: [group] });
+    mocks.getRoomGroup.mockReturnValue({ group });
+    mocks.batchGetRoomGroups.mockReturnValue({ groups: [group] });
+    const api = directoryAPI();
+    const options = { archiveFilter: RoomArchiveFilter.ALL };
+    const listed = await api.listRoomGroups(options);
+    expect(listed[0]).toMatchObject({
+      description: 'Configuration',
+      items: [{ room: { canListRoom: false, canManageRoom: true, archived: true } }]
+    });
+    expect(await api.getRoomGroup('g1', options)).toEqual(listed[0]);
+    expect(await api.batchGetRoomGroups(['g1'], options)).toEqual(listed);
+    expect(receivedRequest(mocks.listRoomGroups)?.archiveFilter).toBe(RoomArchiveFilter.ALL);
+    expect(receivedRequest(mocks.getRoomGroup)?.archiveFilter).toBe(RoomArchiveFilter.ALL);
+    expect(receivedRequest(mocks.batchGetRoomGroups)?.archiveFilter).toBe(RoomArchiveFilter.ALL);
+  });
+
+  it('reads canonical sidebar links and preserves optional owning-group metadata', async () => {
+    const link = { id: 'docs', label: 'Docs', url: '/docs', groupId: 'g1' };
+    mocks.getSidebarLink.mockReturnValue({ link });
+    mocks.batchGetSidebarLinks.mockReturnValue({ links: [link] });
+    const api = directoryAPI();
+    expect(await api.getSidebarLink('docs')).toEqual(link);
+    expect(await api.batchGetSidebarLinks(['docs', 'missing'])).toEqual([link]);
+    expect(receivedRequest(mocks.getSidebarLink)?.linkId).toBe('docs');
+    expect(receivedRequest(mocks.batchGetSidebarLinks)?.linkIds).toEqual(['docs', 'missing']);
+    mocks.getSidebarLink.mockReturnValue({});
+    await expect(api.getSidebarLink('docs')).rejects.toThrow('did not include a link');
+    mocks.getSidebarLink.mockImplementation(() => {
+      throw new ConnectError('missing', Code.NotFound);
+    });
+    await expect(api.getSidebarLink('missing')).rejects.toMatchObject({ code: Code.NotFound });
   });
 
   it('returns empty item order when no ordered sidebar items are present', async () => {

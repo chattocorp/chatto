@@ -28,6 +28,8 @@ export type RoomListItem = {
   /** Whether current authority permits joining again without an invitation. */
   viewerCanRejoin?: boolean;
   viewerCanManageRoom: boolean;
+  /** Normal navigation visibility, independent of management metadata access. */
+  viewerCanListRoom?: boolean;
   /** For a direct message: whether it has messages. Null for other rooms. */
   hasMessageHistory?: boolean | null;
   /** Latest ordinary DM post, including replies; null when unavailable. */
@@ -59,6 +61,8 @@ export type RoomListGroupItem =
       id: string;
       type: 'room';
       roomId: string;
+      /** Normal navigation visibility; absent on older servers. */
+      viewerCanListRoom?: boolean;
     }
   | {
       id: string;
@@ -117,6 +121,7 @@ export class RoomListView {
           viewerInvitation: room.invitation,
           viewerCanInvite: room.canInvite,
           viewerCanManageRoom: room.canManageRoom,
+          viewerCanListRoom: room.canListRoom,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
           lastMessageAt: room.lastMessageAt,
           lastRootMessageAt: room.lastRootMessageAt,
@@ -142,7 +147,12 @@ export class RoomListView {
         roomIds: mapped.roomIds,
         items: mapped.items.map((item) =>
           item.type === 'room'
-            ? { id: item.id, type: 'room' as const, roomId: item.roomId }
+            ? {
+                id: item.id,
+                type: 'room' as const,
+                roomId: item.roomId,
+                viewerCanListRoom: item.room.canListRoom
+              }
             : { id: item.id, type: 'link' as const, link: item.link }
         )
       };

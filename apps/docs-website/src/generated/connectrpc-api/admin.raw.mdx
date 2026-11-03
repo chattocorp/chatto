@@ -1391,101 +1391,6 @@ Result of setting one user permission state.
 
 Reads and mutates the server-admin room layout.
 
-<a id="chatto-admin-v1-AdminRoomLayoutService-GetRoomLayout"></a>
-
-### GetRoomLayout
-
-Reads the complete configured layout, including archived rooms. Requires
-server-scope room.manage. Use GetRoomGroupLayout for delegated group access.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetRoomLayout
-```
-
-<a id="chatto-admin-v1-GetRoomLayoutRequest"></a>
-
-#### Input: GetRoomLayoutRequest
-
-Request the complete server layout.
-
-
-<a id="chatto-admin-v1-GetRoomLayoutResponse"></a>
-
-#### Result: GetRoomLayoutResponse
-
-Full server layout, requiring server-scope room.manage.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `layout` | [`AdminRoomLayout`](#chatto-admin-v1-AdminRoomLayout) | Complete current layout. |
-
-
-<a id="chatto-admin-v1-AdminRoomLayoutService-GetRoomGroupLayout"></a>
-
-### GetRoomGroupLayout
-
-Reads all entries of one group. Requires effective room.manage for that
-group; role.manage alone is insufficient. Unknown groups return NOT_FOUND.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetRoomGroupLayout
-```
-
-<a id="chatto-admin-v1-GetRoomGroupLayoutRequest"></a>
-
-#### Input: GetRoomGroupLayoutRequest
-
-Request one complete group layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | Required group ID. |
-
-
-<a id="chatto-admin-v1-GetRoomGroupLayoutResponse"></a>
-
-#### Result: GetRoomGroupLayoutResponse
-
-Complete layout for one managed group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `layout` | [`AdminRoomGroupLayout`](#chatto-admin-v1-AdminRoomGroupLayout) | All group entries, including rooms absent from the ordinary directory. |
-
-
-<a id="chatto-admin-v1-AdminRoomLayoutService-GetSidebarLink"></a>
-
-### GetSidebarLink
-
-Reads one link and its owning group. Requires effective room.manage for
-that group. Unknown or deleted links return NOT_FOUND.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetSidebarLink
-```
-
-<a id="chatto-admin-v1-GetSidebarLinkRequest"></a>
-
-#### Input: GetSidebarLinkRequest
-
-Request one managed link by ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `link_id` | `string` | Required link ID. |
-
-
-<a id="chatto-admin-v1-GetSidebarLinkResponse"></a>
-
-#### Result: GetSidebarLinkResponse
-
-One link with its owning group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `link` | [`AdminSidebarLink`](#chatto-admin-v1-AdminSidebarLink) | Requested configuration snapshot. |
-
-
 <a id="chatto-admin-v1-AdminRoomLayoutService-GetRoom"></a>
 
 ### GetRoom
@@ -1551,7 +1456,6 @@ Room group metadata and the caller's management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_group` | [`AdminRoomGroup`](#chatto-admin-v1-AdminRoomGroup) | Canonical metadata, also returned by create and update operations. |
 | `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Requested room group metadata. Ordered room and link entries are omitted so role permission managers do not gain visibility into private room names. |
 | `viewer_can_manage_group` | `bool` | Whether the caller can update the room group's general settings. |
 | `viewer_can_manage_permissions` | `bool` | Whether the caller can configure role permissions for the room group. |
@@ -1561,8 +1465,8 @@ Room group metadata and the caller's management capabilities.
 
 ### ListRoomGroups
 
-Compatibility full-layout read. New integrations use GetRoomLayout.
-Requires server-scope room.manage and includes archived rooms.
+Lists the editable room group layout. Requires server-scope room.manage
+and includes archived rooms for administrative actions such as unarchiving.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups
@@ -1616,7 +1520,7 @@ Result of creating a room group.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_group` | [`AdminRoomGroup`](#chatto-admin-v1-AdminRoomGroup) | Canonical metadata. Read entries separately with GetRoomGroupLayout. |
+| `room_group` | `chatto.api.v1.RoomGroup` | Canonical room group, with all entries the caller can see or manage. |
 | `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Created room group. |
 
 
@@ -1652,7 +1556,7 @@ Result of updating a room group.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_group` | [`AdminRoomGroup`](#chatto-admin-v1-AdminRoomGroup) | Canonical updated metadata, without a layout sidecar. |
+| `room_group` | `chatto.api.v1.RoomGroup` | Canonical group, including archived entries the caller can see or manage. |
 | `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
 
 
@@ -1816,7 +1720,7 @@ Result of replacing the mixed sidebar item order.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `layout` | [`AdminRoomGroupLayout`](#chatto-admin-v1-AdminRoomGroupLayout) | Canonical complete group layout after the operation. |
+| `room_group` | `chatto.api.v1.RoomGroup` | Canonical updated group, including authorized archived entries. |
 | `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
 
 
@@ -1854,7 +1758,7 @@ Result of moving one sidebar item.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `layout` | [`AdminRoomGroupLayout`](#chatto-admin-v1-AdminRoomGroupLayout) | Canonical complete destination layout after the operation. |
+| `room_group` | `chatto.api.v1.RoomGroup` | Canonical destination group, including authorized archived entries. |
 | `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Destination room group after the move. |
 
 
@@ -1889,7 +1793,6 @@ Result of creating a sidebar link.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `link` | [`AdminSidebarLink`](#chatto-admin-v1-AdminSidebarLink) | Canonical link configuration with its owning group. |
 | `sidebar_link` | `chatto.api.v1.SidebarLink` | Created sidebar link. |
 
 
@@ -1925,7 +1828,6 @@ Result of updating a sidebar link.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `link` | [`AdminSidebarLink`](#chatto-admin-v1-AdminSidebarLink) | Canonical updated link configuration with its owning group. |
 | `sidebar_link` | `chatto.api.v1.SidebarLink` | Updated sidebar link. |
 
 
@@ -1988,7 +1890,6 @@ Result of moving a sidebar link.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `link` | [`AdminSidebarLink`](#chatto-admin-v1-AdminSidebarLink) | Canonical moved link configuration with its destination group. |
 | `sidebar_link` | `chatto.api.v1.SidebarLink` | Moved sidebar link. |
 
 
@@ -2996,55 +2897,12 @@ Complete permission matrix for one user at the matching scopes.
 
 
 
-<a id="chatto-admin-v1-AdminRoomGroup"></a>
-
-### AdminRoomGroup
-
-Room-group metadata. This resource never contains layout entries, so a
-metadata-only read cannot be mistaken for an empty layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable group ID. |
-| `name` | `string` | Group display name. |
-| `description` | `string` | Public description, when set. |
-
-
-
-<a id="chatto-admin-v1-AdminRoomGroupLayout"></a>
-
-### AdminRoomGroupLayout
-
-Complete ordered contents of one group, including archived channel rooms.
-Requires room.manage for the group. An empty items list is authoritative.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group` | [`AdminRoomGroup`](#chatto-admin-v1-AdminRoomGroup) | Canonical group metadata. |
-| `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | All room and link entries in configured order. |
-
-
-
-<a id="chatto-admin-v1-AdminRoomLayout"></a>
-
-### AdminRoomLayout
-
-Complete administrative layout in configured group order. This is a live
-snapshot; concurrent changes can appear on a later read. It grants no write authority.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `groups` | repeated [`AdminRoomGroupLayout`](#chatto-admin-v1-AdminRoomGroupLayout) | Groups with their complete ordered entries. |
-
-
-
 <a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
 
 ### AdminRoomLayoutGroup
 
-Compatibility group shape. Some metadata-only reads omit its entries.
-New integrations use AdminRoomGroup for metadata and AdminRoomGroupLayout
-for authoritative complete entries.
+Legacy management layout. Main directory reads and new mutation fields use
+chatto.api.v1.RoomGroup with permission-filtered entries.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3079,20 +2937,6 @@ One room or sidebar link reference in a move or order replacement.
 | --- | --- | --- |
 | `item.room_id` | `string` | Channel room ID. |
 | `item.sidebar_link_id` | `string` | Sidebar link ID. |
-
-
-
-<a id="chatto-admin-v1-AdminSidebarLink"></a>
-
-### AdminSidebarLink
-
-Link configuration and its owning group. The embedded link reuses public
-display data; group_id permits administrative lookup and refresh by ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `link` | `chatto.api.v1.SidebarLink` | Canonical public link metadata. |
-| `group_id` | `string` | Group that owns this link in this snapshot. |
 
 
 

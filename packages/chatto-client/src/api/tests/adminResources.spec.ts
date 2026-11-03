@@ -1,9 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it } from 'vitest';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
-import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import { createAdminAccountAPI } from '../adminAccounts.js';
-import { createAdminRoomLayoutAPI } from '../adminRoomLayout.js';
 import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 describe('canonical administrative resources', () => {
@@ -51,51 +49,5 @@ describe('canonical administrative resources', () => {
     );
     expect(await api.listVerifiedEmails('target')).toEqual([]);
     await expect(api.getUsernameCooldown('target')).rejects.toThrow('did not include history');
-  });
-
-  it('reads canonical layout metadata and patches without replacing other fields', async () => {
-    const service = mockService(AdminRoomLayoutService);
-    service.getRoomGroup.mockReturnValue({ roomGroup: { id: 'group', name: 'Name' } });
-    service.getRoomGroupLayout.mockReturnValue({ layout: { group: { id: 'group' }, items: [] } });
-    service.getRoomLayout.mockReturnValue({ layout: { groups: [] } });
-    service.getSidebarLink.mockReturnValue({
-      link: { link: { id: 'link', url: 'https://example.com' }, groupId: 'group' }
-    });
-    service.createRoomGroup.mockReturnValue({ roomGroup: { id: 'group', name: 'Name' } });
-    service.updateRoomGroup.mockReturnValue({ roomGroup: { id: 'group', description: '' } });
-    const api = createAdminRoomLayoutAPI(
-      fakeServer((router) => router.service(AdminRoomLayoutService, service))
-    );
-    expect((await api.getRoomGroup('group')).name).toBe('Name');
-    expect((await api.getRoomGroupLayout('group')).items).toEqual([]);
-    expect((await api.getRoomLayout()).groups).toEqual([]);
-    expect((await api.getSidebarLink('link')).groupId).toBe('group');
-    expect((await api.createRoomGroup({ name: 'Name' })).id).toBe('group');
-    await api.updateRoomGroup({ groupId: 'group', description: '' });
-    expect(receivedRequest(service.updateRoomGroup)?.updateMask?.paths).toEqual(['description']);
-  });
-
-  it('adapts equivalent old metadata and server snapshots, but never fabricates scoped layouts', async () => {
-    const service = mockService(AdminRoomLayoutService);
-    service.getRoomGroup.mockReturnValue({ group: { id: 'group', name: 'Old metadata' } });
-    service.getRoomLayout.mockImplementation(() => {
-      throw new ConnectError('older server', Code.Unimplemented);
-    });
-    service.listRoomGroups.mockReturnValue({
-      groups: [{ id: 'group', items: [{ item: { case: 'sidebarLink', value: { id: 'link' } } }] }]
-    });
-    service.getRoomGroupLayout.mockImplementation(() => {
-      throw new ConnectError('older server', Code.Unimplemented);
-    });
-    const api = createAdminRoomLayoutAPI(
-      fakeServer((router) => router.service(AdminRoomLayoutService, service))
-    );
-    expect((await api.getRoomGroup('group')).name).toBe('Old metadata');
-    expect((await api.getRoomLayout()).groups[0]?.items).toHaveLength(1);
-    service.listRoomGroups.mockClear();
-    await expect(api.getRoomGroupLayout('group')).rejects.toMatchObject({
-      code: Code.Unimplemented
-    });
-    expect(service.listRoomGroups).not.toHaveBeenCalled();
   });
 });

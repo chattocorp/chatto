@@ -188,7 +188,7 @@ func (m *RoomLayoutModel) AdminUpdateSidebarLink(ctx context.Context, actorID, l
 
 // AdminUpdateSidebarLinkConfiguration returns the owner used by the write,
 // rather than looking it up again after a possible concurrent move.
-func (m *RoomLayoutModel) AdminUpdateSidebarLinkConfiguration(ctx context.Context, actorID, linkID string, label, rawURL *string) (*AdminSidebarLink, error) {
+func (m *RoomLayoutModel) AdminUpdateSidebarLinkConfiguration(ctx context.Context, actorID, linkID string, label, rawURL *string) (*DirectorySidebarLink, error) {
 	groupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func (m *RoomLayoutModel) AdminUpdateSidebarLinkConfiguration(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	return &AdminSidebarLink{Link: updated, GroupID: groupID}, nil
+	return &DirectorySidebarLink{Link: updated, GroupID: groupID}, nil
 }
 
 func (m *RoomLayoutModel) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID string) error {

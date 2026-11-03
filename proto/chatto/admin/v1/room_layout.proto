@@ -7,70 +7,6 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/rooms.proto";
 
-// Room-group metadata. This resource never contains layout entries, so a
-// metadata-only read cannot be mistaken for an empty layout.
-message AdminRoomGroup {
-  // Stable group ID.
-  string id = 1;
-  // Group display name.
-  string name = 2;
-  // Public description, when set.
-  string description = 3;
-}
-
-// Complete ordered contents of one group, including archived channel rooms.
-// Requires room.manage for the group. An empty items list is authoritative.
-message AdminRoomGroupLayout {
-  // Canonical group metadata.
-  AdminRoomGroup group = 1;
-  // All room and link entries in configured order.
-  repeated AdminRoomLayoutItem items = 2;
-}
-
-// Complete administrative layout in configured group order. This is a live
-// snapshot; concurrent changes can appear on a later read. It grants no write authority.
-message AdminRoomLayout {
-  // Groups with their complete ordered entries.
-  repeated AdminRoomGroupLayout groups = 1;
-}
-
-// Link configuration and its owning group. The embedded link reuses public
-// display data; group_id permits administrative lookup and refresh by ID.
-message AdminSidebarLink {
-  // Canonical public link metadata.
-  chatto.api.v1.SidebarLink link = 1;
-  // Group that owns this link in this snapshot.
-  string group_id = 2;
-}
-
-// Request the complete server layout.
-message GetRoomLayoutRequest {}
-// Full server layout, requiring server-scope room.manage.
-message GetRoomLayoutResponse {
-  // Complete current layout.
-  AdminRoomLayout layout = 1;
-}
-// Request one complete group layout.
-message GetRoomGroupLayoutRequest {
-  // Required group ID.
-  string group_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-// Complete layout for one managed group.
-message GetRoomGroupLayoutResponse {
-  // All group entries, including rooms absent from the ordinary directory.
-  AdminRoomGroupLayout layout = 1;
-}
-// Request one managed link by ID.
-message GetSidebarLinkRequest {
-  // Required link ID.
-  string link_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-// One link with its owning group.
-message GetSidebarLinkResponse {
-  // Requested configuration snapshot.
-  AdminSidebarLink link = 1;
-}
-
 // One ordered sidebar item in an admin room group layout.
 message AdminRoomLayoutItem {
   oneof item {
@@ -81,9 +17,8 @@ message AdminRoomLayoutItem {
   }
 }
 
-// Compatibility group shape. Some metadata-only reads omit its entries.
-// New integrations use AdminRoomGroup for metadata and AdminRoomGroupLayout
-// for authoritative complete entries.
+// Legacy management layout. Main directory reads and new mutation fields use
+// chatto.api.v1.RoomGroup with permission-filtered entries.
 message AdminRoomLayoutGroup {
   reserved 4;
   reserved "rooms";
@@ -125,8 +60,6 @@ message GetRoomGroupRequest {
 
 // Room group metadata and the caller's management capabilities.
 message GetRoomGroupResponse {
-  // Canonical metadata, also returned by create and update operations.
-  AdminRoomGroup room_group = 4;
   // Requested room group metadata. Ordered room and link entries are omitted so
   // role permission managers do not gain visibility into private room names.
   AdminRoomLayoutGroup group = 1;
@@ -172,8 +105,8 @@ message CreateRoomGroupRequest {
 
 // Result of creating a room group.
 message CreateRoomGroupResponse {
-  // Canonical metadata. Read entries separately with GetRoomGroupLayout.
-  AdminRoomGroup room_group = 2;
+  // Canonical room group, with all entries the caller can see or manage.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Created room group.
   AdminRoomLayoutGroup group = 1;
 }
@@ -199,8 +132,8 @@ message UpdateRoomGroupRequest {
 
 // Result of updating a room group.
 message UpdateRoomGroupResponse {
-  // Canonical updated metadata, without a layout sidecar.
-  AdminRoomGroup room_group = 2;
+  // Canonical group, including archived entries the caller can see or manage.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Updated room group.
   AdminRoomLayoutGroup group = 1;
 }
@@ -275,8 +208,8 @@ message ReorderSidebarItemsInGroupRequest {
 
 // Result of replacing the mixed sidebar item order.
 message ReorderSidebarItemsInGroupResponse {
-  // Canonical complete group layout after the operation.
-  AdminRoomGroupLayout layout = 2;
+  // Canonical updated group, including authorized archived entries.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Updated room group.
   AdminRoomLayoutGroup group = 1;
 }
@@ -295,8 +228,8 @@ message MoveSidebarItemRequest {
 
 // Result of moving one sidebar item.
 message MoveSidebarItemResponse {
-  // Canonical complete destination layout after the operation.
-  AdminRoomGroupLayout layout = 2;
+  // Canonical destination group, including authorized archived entries.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Destination room group after the move.
   AdminRoomLayoutGroup group = 1;
 }
@@ -319,8 +252,6 @@ message CreateSidebarLinkRequest {
 
 // Result of creating a sidebar link.
 message CreateSidebarLinkResponse {
-  // Canonical link configuration with its owning group.
-  AdminSidebarLink link = 2;
   // Created sidebar link.
   chatto.api.v1.SidebarLink sidebar_link = 1;
 }
@@ -348,8 +279,6 @@ message UpdateSidebarLinkRequest {
 
 // Result of updating a sidebar link.
 message UpdateSidebarLinkResponse {
-  // Canonical updated link configuration with its owning group.
-  AdminSidebarLink link = 2;
   // Updated sidebar link.
   chatto.api.v1.SidebarLink sidebar_link = 1;
 }
@@ -376,31 +305,20 @@ message MoveSidebarLinkToGroupRequest {
 
 // Result of moving a sidebar link.
 message MoveSidebarLinkToGroupResponse {
-  // Canonical moved link configuration with its destination group.
-  AdminSidebarLink link = 2;
   // Moved sidebar link.
   chatto.api.v1.SidebarLink sidebar_link = 1;
 }
 
 // Reads and mutates the server-admin room layout.
 service AdminRoomLayoutService {
-  // Reads the complete configured layout, including archived rooms. Requires
-  // server-scope room.manage. Use GetRoomGroupLayout for delegated group access.
-  rpc GetRoomLayout(GetRoomLayoutRequest) returns (GetRoomLayoutResponse);
-  // Reads all entries of one group. Requires effective room.manage for that
-  // group; role.manage alone is insufficient. Unknown groups return NOT_FOUND.
-  rpc GetRoomGroupLayout(GetRoomGroupLayoutRequest) returns (GetRoomGroupLayoutResponse);
-  // Reads one link and its owning group. Requires effective room.manage for
-  // that group. Unknown or deleted links return NOT_FOUND.
-  rpc GetSidebarLink(GetSidebarLinkRequest) returns (GetSidebarLinkResponse);
   // Gets management-authorized channel room metadata. Requires role.manage or
   // effective room.manage for the room.
   rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
   // Gets management-authorized room group metadata. Requires role.manage or
   // effective room.manage for the group.
   rpc GetRoomGroup(GetRoomGroupRequest) returns (GetRoomGroupResponse);
-  // Compatibility full-layout read. New integrations use GetRoomLayout.
-  // Requires server-scope room.manage and includes archived rooms.
+  // Lists the editable room group layout. Requires server-scope room.manage
+  // and includes archived rooms for administrative actions such as unarchiving.
   rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
   // Creates a room group. Requires server-scope room.manage.
   rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);

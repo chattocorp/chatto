@@ -48,29 +48,32 @@ Private account data has separate reads keyed by `user_id`:
 
 Neither private read returns a profile, assigned roles, or editor data.
 
-Room-group metadata and complete layouts have separate contracts:
+Use `RoomDirectoryService.ListRoomGroups`, `GetRoomGroup`, and
+`BatchGetRoomGroups` for ordered room groups and their entries. Set
+`archive_filter` to `ACTIVE`, `ARCHIVED`, or `ALL`; the default is `ACTIVE`.
+The server returns room metadata the caller can see or manage. Group managers
+can read every room in that group. With `ALL`, they receive its complete layout.
+`role.manage` alone does not expose hidden rooms. Metadata access does not grant
+membership or message access.
 
-- `GetRoomGroup` reports canonical metadata in `room_group`. Permission editors
-  can use this read without access to layout entries.
-- `GetRoomGroupLayout` returns every ordered entry, including archived rooms.
-  It requires effective `room.manage` for that group.
-- `GetRoomLayout` returns the complete server layout and requires server-wide
-  `room.manage`.
-- `GetSidebarLink` returns the link and its owning group. It requires that
-  group's `room.manage` permission.
+Clients choose which authorized entries to show. The bundled chat sidebar uses
+the existing navigation permissions to hide management-only room metadata.
+Use `RoomDirectoryService.GetSidebarLink` or bounded `BatchGetSidebarLinks`
+reads to resolve a link and its owning group. Links have the same authenticated
+visibility as links returned in room groups.
 
 Existing member reads and legacy mutation fields remain supported. New group
-mutations also return canonical `room_group` metadata or `layout` snapshots;
-link mutations return canonical `link` configuration. Role commands expose an
+mutations also return the shared `RoomGroup` in `room_group`, including authorized
+archived entries. Link mutations return the shared `SidebarLink` with its owning
+group. Role commands expose an
 `assignment` outcome, and deactivation exposes the updated public `profile`.
 Human sessions must activate privileged mode for the applicable permissions.
 
-The `@chatto/client/api/adminAccounts` and `@chatto/client/api/adminRoomLayout`
-modules provide stateless reads. Private account, scoped layout, and link reads
-require a server that implements them. Group metadata and complete server
-layouts adapt equivalent older admin responses; the server-layout fallback
-applies only to `UNIMPLEMENTED`. Do not substitute a visibility-filtered public
-directory for an authoritative admin layout.
+The `@chatto/client/api/adminAccounts` module provides private account reads.
+`@chatto/client/api/roomDirectory` provides group archive options and link reads.
+Use a server release that implements these operations. Older servers can ignore
+an unknown archive filter; do not treat their active-only output as a complete
+archived layout. Pin and test the server releases your integration supports.
 
 ## Start With Server Discovery
 

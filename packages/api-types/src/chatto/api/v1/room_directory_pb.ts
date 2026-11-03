@@ -293,6 +293,13 @@ export class SidebarLink extends Message<SidebarLink> {
    */
   url = "";
 
+  /**
+   * Owning room group. Absent on servers that do not report ownership.
+   *
+   * @generated from field: optional string group_id = 4;
+   */
+  groupId?: string;
+
   constructor(data?: PartialMessage<SidebarLink>) {
     super();
     proto3.util.initPartial(data, this);
@@ -304,6 +311,7 @@ export class SidebarLink extends Message<SidebarLink> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SidebarLink {
@@ -334,7 +342,7 @@ export class RoomGroupItem extends Message<RoomGroupItem> {
    */
   item: {
     /**
-     * Visible room entry.
+     * Room metadata the caller can see or manage. Message access is separate.
      *
      * @generated from field: chatto.api.v1.RoomWithViewerState room = 1;
      */
@@ -421,7 +429,9 @@ export class RoomGroupViewerState extends Message<RoomGroupViewerState> {
 }
 
 /**
- * Ordered group of channel rooms and sidebar links.
+ * Ordered group of channel rooms and sidebar links. Room entries follow the
+ * caller's metadata permissions and the requested archive filter. Management
+ * metadata does not grant room membership or message access.
  *
  * @generated from message chatto.api.v1.RoomGroup
  */
@@ -602,11 +612,18 @@ export class ListRoomsResponse extends Message<ListRoomsResponse> {
 }
 
 /**
- * Request for ordered room groups visible to the current user.
+ * Request ordered room groups with entries the caller can see or manage.
  *
  * @generated from message chatto.api.v1.ListRoomGroupsRequest
  */
 export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
+  /**
+   * Defaults to ACTIVE. This filter does not grant access to room metadata.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 2;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListRoomGroupsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -615,6 +632,7 @@ export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListRoomGroupsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomGroupsRequest {
@@ -688,6 +706,13 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
    */
   groupId = "";
 
+  /**
+   * Defaults to ACTIVE. Use ALL for the complete contents of a managed group.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 3;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<GetRoomGroupRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -697,6 +722,7 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
   static readonly typeName = "chatto.api.v1.GetRoomGroupRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomGroupRequest {
@@ -723,7 +749,7 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
  */
 export class GetRoomGroupResponse extends Message<GetRoomGroupResponse> {
   /**
-   * Resolved room group. Hidden and archived room entries are omitted.
+   * Group with authorized entries that match the requested archive filter.
    *
    * @generated from field: chatto.api.v1.RoomGroup group = 1;
    */
@@ -770,6 +796,13 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
    */
   groupIds: string[] = [];
 
+  /**
+   * Defaults to ACTIVE. This filter does not grant access to room metadata.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 3;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<BatchGetRoomGroupsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -779,6 +812,7 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
   static readonly typeName = "chatto.api.v1.BatchGetRoomGroupsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomGroupsRequest {
@@ -795,6 +829,172 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
 
   static equals(a: BatchGetRoomGroupsRequest | PlainMessage<BatchGetRoomGroupsRequest> | undefined, b: BatchGetRoomGroupsRequest | PlainMessage<BatchGetRoomGroupsRequest> | undefined): boolean {
     return proto3.util.equals(BatchGetRoomGroupsRequest, a, b);
+  }
+}
+
+/**
+ * Request one sidebar link by stable ID. Links have the same visibility as
+ * links returned in room groups; authentication is required.
+ *
+ * @generated from message chatto.api.v1.GetSidebarLinkRequest
+ */
+export class GetSidebarLinkRequest extends Message<GetSidebarLinkRequest> {
+  /**
+   * Required stable sidebar link ID.
+   *
+   * @generated from field: string link_id = 1;
+   */
+  linkId = "";
+
+  constructor(data?: PartialMessage<GetSidebarLinkRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetSidebarLinkRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "link_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSidebarLinkRequest {
+    return new GetSidebarLinkRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSidebarLinkRequest {
+    return new GetSidebarLinkRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSidebarLinkRequest {
+    return new GetSidebarLinkRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSidebarLinkRequest | PlainMessage<GetSidebarLinkRequest> | undefined, b: GetSidebarLinkRequest | PlainMessage<GetSidebarLinkRequest> | undefined): boolean {
+    return proto3.util.equals(GetSidebarLinkRequest, a, b);
+  }
+}
+
+/**
+ * Current link metadata and its owning group, captured together.
+ *
+ * @generated from message chatto.api.v1.GetSidebarLinkResponse
+ */
+export class GetSidebarLinkResponse extends Message<GetSidebarLinkResponse> {
+  /**
+   * Requested link, including its owning group.
+   *
+   * @generated from field: chatto.api.v1.SidebarLink link = 1;
+   */
+  link?: SidebarLink;
+
+  constructor(data?: PartialMessage<GetSidebarLinkResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetSidebarLinkResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "link", kind: "message", T: SidebarLink },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSidebarLinkResponse {
+    return new GetSidebarLinkResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSidebarLinkResponse {
+    return new GetSidebarLinkResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSidebarLinkResponse {
+    return new GetSidebarLinkResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSidebarLinkResponse | PlainMessage<GetSidebarLinkResponse> | undefined, b: GetSidebarLinkResponse | PlainMessage<GetSidebarLinkResponse> | undefined): boolean {
+    return proto3.util.equals(GetSidebarLinkResponse, a, b);
+  }
+}
+
+/**
+ * Request a bounded set of sidebar links by stable ID.
+ *
+ * @generated from message chatto.api.v1.BatchGetSidebarLinksRequest
+ */
+export class BatchGetSidebarLinksRequest extends Message<BatchGetSidebarLinksRequest> {
+  /**
+   * Required link IDs. Maximum 100; duplicates are returned once.
+   *
+   * @generated from field: repeated string link_ids = 1;
+   */
+  linkIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetSidebarLinksRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetSidebarLinksRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "link_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetSidebarLinksRequest {
+    return new BatchGetSidebarLinksRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetSidebarLinksRequest {
+    return new BatchGetSidebarLinksRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetSidebarLinksRequest {
+    return new BatchGetSidebarLinksRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetSidebarLinksRequest | PlainMessage<BatchGetSidebarLinksRequest> | undefined, b: BatchGetSidebarLinksRequest | PlainMessage<BatchGetSidebarLinksRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetSidebarLinksRequest, a, b);
+  }
+}
+
+/**
+ * Found links in first-seen request order. Unknown/deleted links are omitted;
+ * repeated IDs are returned once. A read failure fails the whole request.
+ *
+ * @generated from message chatto.api.v1.BatchGetSidebarLinksResponse
+ */
+export class BatchGetSidebarLinksResponse extends Message<BatchGetSidebarLinksResponse> {
+  /**
+   * Requested links that still exist.
+   *
+   * @generated from field: repeated chatto.api.v1.SidebarLink links = 1;
+   */
+  links: SidebarLink[] = [];
+
+  constructor(data?: PartialMessage<BatchGetSidebarLinksResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetSidebarLinksResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "links", kind: "message", T: SidebarLink, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetSidebarLinksResponse {
+    return new BatchGetSidebarLinksResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetSidebarLinksResponse {
+    return new BatchGetSidebarLinksResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetSidebarLinksResponse {
+    return new BatchGetSidebarLinksResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetSidebarLinksResponse | PlainMessage<BatchGetSidebarLinksResponse> | undefined, b: BatchGetSidebarLinksResponse | PlainMessage<BatchGetSidebarLinksResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetSidebarLinksResponse, a, b);
   }
 }
 
