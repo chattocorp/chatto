@@ -460,6 +460,11 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		})
 		refs = append(refs, notificationOccurrenceRef{recipientID: input.RecipientID, notificationID: notificationID})
 	}
+	// Process push before in-app reasons so the source guard preserves push.
+	// These are the only two modes that produce occurrences.
+	slices.SortStableFunc(prepared, func(a, b preparedNotificationCreateInput) int {
+		return int(b.input.Mode) - int(a.input.Mode)
+	})
 	initialStates := m.projection.Projection().occurrenceStates(refs, now)
 	pendingByID := make(map[string]*pendingNotificationCreate)
 	pending := make([]*pendingNotificationCreate, 0, len(prepared))

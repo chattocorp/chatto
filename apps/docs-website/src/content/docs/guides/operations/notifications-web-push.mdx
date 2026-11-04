@@ -90,7 +90,7 @@ Members use a matrix to control each notification cause at server, room-group, a
 | In-app notification | Add an in-app notification. Important notifications can play the configured in-app sound, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
-Room invitations, direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Unread dot. Followed threads and reactions use In-app notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
+Room invitations, direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Unread dot. Followed threads and reactions use In-app notification. A message that matches several causes creates one notification per recipient within the short duplicate window. Push notification takes priority over In-app notification when both modes match. Different messages in the same thread still create separate notifications.
 
 Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. In the room list, a room shows its Important and Ambient notifications as two separate counts. Each count opens its newest notification. Important notifications use orange indicators and can play your selected sound.
 

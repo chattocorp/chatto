@@ -480,3 +480,51 @@ func TestUnsupportedNotificationSignalDetection(t *testing.T) {
 		t.Fatal("empty signal was treated as an unknown future signal")
 	}
 }
+
+// A reply can match both reply and followed-thread policy. The source ID,
+// rather than the shared thread target, must control suppression.
+func TestNotificationFanoutGuardsReasonsButKeepsDistinctReplies(t *testing.T) {
+	c, _ := newTestCore(t)
+	startCoreServices(t, c)
+	ctx := testContext(t)
+	model := c.NotificationOccurrences()
+	input := CreateNotificationOccurrenceInput{
+		RecipientID: "U-dedupe", SourceEventID: "E-reply-1", SourceCreated: time.Now().UTC(), ActorID: "U-author",
+		Signal:         testNotificationSignal(notificationTestSignalReply, "R-room", "E-reply-1"),
+		Mode:           evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, SkipReadLookup: true,
+	}
+	notificationSignalMessage(input.Signal).ThreadRootEventId = new("E-root")
+	push := input
+	push.Signal = testNotificationSignal(notificationTestSignalFollowedThread, "R-room", "E-reply-1")
+	notificationSignalMessage(push.Signal).ThreadRootEventId = new("E-root")
+	push.Mode = evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	if err := model.CreateMany(ctx, []CreateNotificationOccurrenceInput{input, push}); err != nil {
+		t.Fatal(err)
+	}
+	occurrences, err := model.List(ctx, input.RecipientID)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("List = (%v, %v), want one", occurrences, err)
+	}
+	first := occurrences[0]
+	if first.GetRead() || first.GetAlertExpiresAt() == nil || !testOccurrenceHasKind(first, notificationTestSignalFollowedThread) {
+		t.Fatalf("occurrence = %+v, want unread with strongest delivery mode", first)
+	}
+	// A separate call with a different reason exercises the broker guard.
+	if _, created, err := model.Create(ctx, input); err != nil || created {
+		t.Fatalf("duplicate = (%v, %v)", created, err)
+	}
+	input.SourceEventID = "E-reply-2"
+	input.Signal = testNotificationSignal(notificationTestSignalReply, "R-room", input.SourceEventID)
+	notificationSignalMessage(input.Signal).ThreadRootEventId = new("E-root")
+	if _, created, err := model.Create(ctx, input); err != nil || !created {
+		t.Fatalf("distinct reply = (%v, %v)", created, err)
+	}
+	if count, err := model.UnreadCount(ctx, input.RecipientID); err != nil || count != 2 {
+		t.Fatalf("UnreadCount = (%d, %v), want 2", count, err)
+	}
+	stored, err := model.Get(ctx, first.GetRecipientId(), first.GetId())
+	if err != nil || stored.GetRead() {
+		t.Fatalf("original pending notification = (%v, %v)", stored, err)
+	}
+}

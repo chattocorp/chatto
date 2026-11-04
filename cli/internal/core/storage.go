@@ -200,7 +200,7 @@ func notificationsStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
 		Compression:        jetstream.S2Compression,
 		Replicas:           cfg.Replicas,
 		MaxAge:             notificationTTL + notificationPhysicalCleanupGrace,
-		Duplicates:         notificationAlertDeliveryTTL,
+		Duplicates:         notificationstream.FanoutDedupeWindow,
 		AllowMsgTTL:        true,
 		AllowAtomicPublish: true,
 	}
