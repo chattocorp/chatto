@@ -1,23 +1,23 @@
 <!-- @component
-Groups preview actions in a top visor, or an inline row for file and audio cards.
-Overlay mode requires a positioned parent with group/preview.
-Hover and focus reveal the visor; touch devices keep it visible.
+Groups preview actions in the right rim owned by PreviewFrame.
+The inline row variant serves file and audio cards and full-screen viewers.
+PreviewFrame owns desktop reveal and touch-sheet presentation.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
   let {
     children,
-    layout = 'overlay'
+    layout = 'column'
   }: {
     children: Snippet;
     /** Inline rows remain in the card's normal layout. */
-    layout?: 'overlay' | 'row';
+    layout?: 'column' | 'row';
   } = $props();
 </script>
 
 <div
-  class={layout === 'overlay' ? 'preview-toolbar' : 'flex max-w-full flex-wrap items-center gap-1'}
+  class={layout === 'column' ? 'preview-toolbar' : 'flex max-w-full flex-wrap items-center gap-1'}
 >
   {@render children()}
 </div>

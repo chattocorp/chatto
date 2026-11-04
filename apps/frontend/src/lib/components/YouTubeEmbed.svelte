@@ -13,7 +13,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { PreviewToolbar, PreviewAction } from '$lib/ui';
+  import { PreviewFrame, PreviewAction } from '$lib/ui';
 
   let {
     videoId,
@@ -30,12 +30,26 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
   } = $props();
 </script>
 
-<!-- Context menu only. The same actions stay available from the message action menu. -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-  class="group/preview relative my-1.5 w-full max-w-md preview-frame"
+{#snippet frameActions()}
+  {#if showDismiss && onDismiss}
+    <PreviewAction
+      label={m('preview.youtube_dismiss')}
+      icon="icon-[uil--times]"
+      onclick={onDismiss}
+    />
+  {:else}
+    <PreviewAction
+      label={m('preview.youtube_delete')}
+      icon="icon-[uil--trash-alt]"
+      onclick={onDelete}
+    />
+  {/if}
+{/snippet}
+<PreviewFrame
+  class="my-1.5 w-full max-w-md"
   data-testid="youtube-embed"
   oncontextmenu={onContextMenu}
+  actions={(showDismiss && onDismiss) || onDelete ? frameActions : undefined}
 >
   <iframe
     src="https://www.youtube-nocookie.com/embed/{videoId}"
@@ -44,21 +58,4 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
   ></iframe>
-  {#if (showDismiss && onDismiss) || onDelete}
-    <PreviewToolbar>
-      {#if showDismiss && onDismiss}
-        <PreviewAction
-          label={m('preview.youtube_dismiss')}
-          icon="icon-[uil--times]"
-          onclick={onDismiss}
-        />
-      {:else}
-        <PreviewAction
-          label={m('preview.youtube_delete')}
-          icon="icon-[uil--trash-alt]"
-          onclick={onDelete}
-        />
-      {/if}
-    </PreviewToolbar>
-  {/if}
-</div>
+</PreviewFrame>

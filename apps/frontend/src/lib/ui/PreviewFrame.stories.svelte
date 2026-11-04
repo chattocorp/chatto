@@ -10,11 +10,15 @@
   import LinkHoverContent from '$lib/components/messages/LinkHoverContent.svelte';
   import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
+  import PreviewFrame from './PreviewFrame.svelte';
+  import PreviewFrameInteractionHarness from './PreviewFrameInteractionHarness.svelte';
+  import PreviewAction from './PreviewAction.svelte';
   import LoadingFog from './LoadingFog.svelte';
   import coast from '../../../e2e/fixtures/brighton.jpg?url';
 
   const { Story } = defineMeta({
     title: 'UI/Preview frames',
+    component: PreviewFrame,
     tags: ['autodocs'],
     parameters: {
       docs: {
@@ -228,3 +232,16 @@
     {@render filePreview('A very long filename that must not widen this card.pdf')}
   </div>
 </Story>
+
+<Story name="Actions in the rim" asChild>
+  <PreviewFrame class="w-80 max-w-full">
+    <img src={coast} alt="Brighton coast" class="h-48 w-full preview-content object-cover" />
+    {#snippet actions()}
+      <PreviewAction label="View image" icon="icon-[uil--expand-alt]" />
+      <PreviewAction label="Edit description" icon="icon-[uil--file-edit-alt]" />
+      <PreviewAction label="Delete image" icon="icon-[uil--trash-alt]" />
+    {/snippet}
+  </PreviewFrame>
+</Story>
+
+<Story name="Hover and keyboard reveal" asChild><PreviewFrameInteractionHarness /></Story>

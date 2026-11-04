@@ -151,7 +151,7 @@
     // after a touch release can target the newly opened sheet.
     if (
       event.target instanceof Element &&
-      event.target.closest('[data-link-preview-trigger], dialog, [popover]')
+      event.target.closest('[data-link-preview-trigger], [data-preview-actions], dialog, [popover]')
     )
       return;
     if (actionOverlayKind === 'sheet') return;

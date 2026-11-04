@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { messageEvent } from './messageEventFixture';
 
   const { Story } = defineMeta({
     title: 'Chat/Message rows',
@@ -80,5 +81,34 @@
         )}>Load author profile</button
     >
     <MessageEventTestHarness event={unresolvedMessage} userStore={lateAuthor} />
+  </div>
+</Story>
+
+<Story name="Image attachment actions" asChild>
+  <div class="max-w-xl p-4">
+    <MessageEventTestHarness
+      event={messageEvent({
+        body: 'Long-press the image for attachment actions.',
+        attachments: [
+          {
+            id: 'landscape',
+            filename: 'landscape.svg',
+            contentType: 'image/svg+xml',
+            width: 600,
+            height: 360,
+            assetUrl: {
+              url:
+                'data:image/svg+xml,' +
+                encodeURIComponent(
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360"><rect width="600" height="360" fill="#164e63"/><circle cx="300" cy="180" r="100" fill="#67e8f9"/></svg>'
+                ),
+              expiresAt: '2099-01-01T00:00:00Z'
+            },
+            thumbnailAssetUrl: null,
+            videoProcessing: null
+          }
+        ]
+      })}
+    />
   </div>
 </Story>

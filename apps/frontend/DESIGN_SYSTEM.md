@@ -652,16 +652,26 @@ keyboard focus, accessible names, and action hit areas. Image thumbnails use
 or contact a third party merely to demonstrate the frame. These utilities do
 not change preview fetch, consent, or content-warning behavior.
 
-Use `PreviewToolbar` and `PreviewAction` for image, link, social-post, and video
-preview actions. The toolbar forms a visor across the top inside the frame rim,
-with the theme's `surface` colour at 50% opacity. Its positioned parent uses
-`group/preview`. Mouse hover and keyboard focus reveal the toolbar. Touch
-devices keep it visible. Only visible controls intercept pointer input; the rest
-of the visor lets clicks reach the links and media below it.
-When the positioned parent is the content canvas inside the rim, set
-`--preview-toolbar-inset: 0px` on that parent so the visor meets the canvas edges.
-Use `layout="row"` for file and audio actions that stay in the normal layout.
-The card owns action permissions, callbacks, and confirmation dialogs.
+Use `PreviewFrame` with an `actions` snippet for image, link, social-post, video,
+and SVG playback controls. The frame uses `preview-frame` and reserves a separate
+right column in its rim for `PreviewToolbar`. The content cannot extend under
+the controls. The toolbar has no separate background. On hover-capable devices,
+its column slides out when the pointer is over the frame or a descendant has keyboard
+focus. Otherwise it is collapsed and cannot receive pointer input. Keyboard
+focus can reveal it. Reduced motion disables the transition.
+Touch-primary devices show no action bar or extra menu button. A stationary
+long-press on the preview opens its actions as labelled buttons in a context
+sheet. Movement cancels the gesture so scrolling stays native. The frame owns
+the gesture and suppresses the release click and the parent message menu.
+Disabled and toggle states remain the same. Selecting an action closes the sheet before its callback runs.
+Use `PreviewAction` for each icon button. Omit the actions snippet when no
+controls are available. Use the touchActions snippet when the sheet needs an
+action that the desktop content already provides, such as View image.
+Do not put a toolbar inside `preview-content` or add
+absolute positioning at call sites.
+Use `PreviewToolbar layout="row"` for file, audio, and full-screen viewer
+actions in the normal layout. The card owns action permissions, callbacks,
+and confirmation dialogs.
 `PreviewAction` uses the same `icon-action-emphasis` utility as standard icon
 controls: hover and visible keyboard focus use the full-intensity `text-top`
 colour. Disabled controls do not brighten. Keep this rule in the shared utility;

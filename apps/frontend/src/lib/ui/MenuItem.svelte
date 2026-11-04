@@ -31,6 +31,7 @@ three for a text-only entry.
     checked,
     pressed,
     ariaLabel,
+    describedBy,
     title,
     dataTestid,
     onclick,
@@ -54,6 +55,8 @@ three for a text-only entry.
     /** Toggle state for a button in a dialog or action sheet; keep its label stable. */
     pressed?: boolean;
     ariaLabel?: string;
+    /** IDs of text that describes this action. */
+    describedBy?: string;
     title?: string;
     dataTestid?: string;
     onclick?: (event: MouseEvent) => unknown;
@@ -117,6 +120,7 @@ three for a text-only entry.
     aria-disabled={unavailable || undefined}
     aria-busy={busy || undefined}
     aria-label={ariaLabel}
+    aria-describedby={describedBy}
     {title}
     tabindex={unavailable ? -1 : undefined}
     data-testid={dataTestid}
@@ -133,6 +137,7 @@ three for a text-only entry.
     aria-pressed={pressed}
     aria-busy={busy || undefined}
     aria-label={ariaLabel}
+    aria-describedby={describedBy}
     {title}
     disabled={unavailable}
     data-testid={dataTestid}

@@ -44,7 +44,7 @@ preview on screen.
     withAssetUrlRetryParam
   } from '@chatto/client/attachments/attachmentUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
-  import { ScrollFader, PreviewToolbar, PreviewAction } from '$lib/ui';
+  import { ScrollFader, PreviewFrame, PreviewAction } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import DeletedUserLabel from './DeletedUserLabel.svelte';
@@ -227,18 +227,23 @@ preview on screen.
 </script>
 
 {#if preview}
-  <div
+  {#snippet frameActions()}
+    <PreviewAction onclick={onDismiss} label={m('preview.dismiss')} icon="icon-[uil--times]" />
+  {/snippet}
+  <PreviewFrame
     role="link"
-    tabindex="0"
+    tabindex={0}
     aria-label={displayName
       ? m('message_preview.open_linked_message_from', {
           name: formatAccountName(displayName, preview.actor)
         })
       : m('message_preview.open_linked_message')}
     data-testid="message-preview-card"
-    class="group/preview relative my-1.5 flex w-full max-w-[min(32rem,100%)] cursor-pointer flex-col gap-1 preview-frame text-sm"
+    class="my-1.5 w-full max-w-[min(32rem,100%)] cursor-pointer text-sm"
     onclick={openPreview}
     onkeydown={handlePreviewKeydown}
+    contentClass="flex flex-col gap-1"
+    actions={showDismiss && onDismiss ? frameActions : undefined}
   >
     <div class="flex min-w-0 items-center gap-2 px-2 py-1.5">
       <div class="flex min-w-0 items-center gap-2">
@@ -353,10 +358,5 @@ preview on screen.
         <span class="iconify icon-[uil--arrow-up-right] shrink-0" aria-hidden="true"></span>
       </div>
     {/if}
-    {#if showDismiss && onDismiss}
-      <PreviewToolbar>
-        <PreviewAction onclick={onDismiss} label={m('preview.dismiss')} icon="icon-[uil--times]" />
-      </PreviewToolbar>
-    {/if}
-  </div>
+  </PreviewFrame>
 {/if}
