@@ -33,6 +33,8 @@ func TestDuration_UnmarshalText(t *testing.T) {
 		{"1w1d", 8 * 24 * time.Hour, false},
 
 		// Invalid formats
+		{"1mo", 0, true},
+		{"1y", 0, true},
 		{"invalid", 0, true},
 		{"", 0, true},
 	}
