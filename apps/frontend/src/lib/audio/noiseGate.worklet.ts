@@ -12,7 +12,7 @@ declare function registerProcessor(
   processor: new (options: AudioWorkletNodeOptions) => AudioWorkletProcessor
 ): void;
 
-/** Audio-thread owner: sample-based timing continues in background tabs. */
+/** Sample-based timing follows the audio thread while its context is running. */
 class MicrophoneGateWorklet extends AudioWorkletProcessor {
   #gate = new NoiseGate(sampleRate);
   #bass: LowFrequencyControl;

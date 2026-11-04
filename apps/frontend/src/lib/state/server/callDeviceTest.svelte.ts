@@ -1,13 +1,10 @@
+import { microphoneCaptureOptions } from '$lib/audio/microphoneCapture';
 import { normalizeMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { GATE_OFF, microphoneMeter } from '$lib/audio/noiseGate';
 import type { Track } from 'livekit-client';
 
 const MAX_RECORDING_MS = 10_000;
-
-type SelectableAudioContext = AudioContext & {
-  setSinkId?: (deviceId: string) => Promise<void>;
-};
 
 /** An explicitly started, page-owned microphone test. The recording stays in browser memory. */
 export class CallDeviceTest {
@@ -25,12 +22,10 @@ export class CallDeviceTest {
   #generation = 0;
   #stream: MediaStream | null = null;
   #context: AudioContext | null = null;
-  #playbackContext: SelectableAudioContext | null = null;
   #audio: HTMLAudioElement | null = null;
   #recordingUrl: string | null = null;
   #recorder: MediaRecorder | null = null;
   #chunks: Blob[] = [];
-  #monitor: MediaStreamAudioSourceNode | null = null;
   #frame = 0;
   #timeout: ReturnType<typeof setTimeout> | null = null;
   #outputChange: Promise<unknown> = Promise.resolve();
@@ -68,16 +63,7 @@ export class CallDeviceTest {
       if (speakerId) await this.#selectOutput(speakerId);
       if (generation !== this.#generation) return;
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          // Saved device IDs can expire or disappear between enumeration and capture.
-          ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
-          channelCount: { ideal: 1 },
-          // Capture the selected raw or processed signal. Playback starts only
-          // after capture ends, so it cannot feed into this microphone.
-          echoCancellation: false,
-          noiseSuppression: processing,
-          autoGainControl: false
-        },
+        audio: microphoneCaptureOptions(deviceId),
         video: false
       });
       if (generation !== this.#generation) {
@@ -97,12 +83,12 @@ export class CallDeviceTest {
           { once: true }
         )
       );
-      const context = new AudioContext();
-      this.#context = context;
       let processor: MicrophoneProcessor | undefined;
-      let readLevel: () => number;
+      let readLevel = () => 0;
       let recordedStream = stream;
       if (processing) {
+        const context = new AudioContext();
+        this.#context = context;
         processor = new MicrophoneProcessor(threshold());
         this.#processor = processor;
         processor.setEffects(effects());
@@ -115,18 +101,9 @@ export class CallDeviceTest {
         this.gateUnavailable = processor.unavailable;
         recordedStream = new MediaStream([processor.processedTrack ?? stream.getAudioTracks()[0]]);
         readLevel = () => processor!.level;
-      } else {
-        const analyser = context.createAnalyser();
-        this.#monitor = context.createMediaStreamSource(stream);
-        this.#monitor.connect(analyser);
-        const samples = new Float32Array(analyser.fftSize);
-        readLevel = () => {
-          analyser.getFloatTimeDomainData(samples);
-          return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
-        };
+        await context.resume();
+        if (generation !== this.#generation) return;
       }
-      await context.resume();
-      if (generation !== this.#generation) return;
       const recorder = new MediaRecorder(recordedStream);
       this.#recorder = recorder;
       recorder.ondataavailable = ({ data }) => {
@@ -229,8 +206,6 @@ export class CallDeviceTest {
     try {
       await this.#outputChange;
       if (generation !== this.#generation || !this.#audio) return;
-      await this.#playbackContext?.resume();
-      if (generation !== this.#generation || !this.#audio) return;
       this.#audio.currentTime = 0;
       await this.#audio.play();
       if (generation !== this.#generation) return;
@@ -273,34 +248,17 @@ export class CallDeviceTest {
     return change;
   }
 
-  /** Route only replay audio; context-only sinks use a separate playback graph. */
+  /** Native media-element playback shares the call's output-selection support. */
   async #selectOutput(speakerId: string): Promise<void> {
     const audio = this.#audio!;
-    if (typeof audio.setSinkId === 'function') {
-      await audio.setSinkId(speakerId);
-      return;
-    }
-    if (!speakerId && !this.#playbackContext) return;
-    let context = this.#playbackContext;
-    if (!context) {
-      context = new AudioContext() as SelectableAudioContext;
-      if (typeof context.setSinkId !== 'function') {
-        void context.close().catch(() => {});
-        throw new Error('Output selection unavailable');
-      }
-      this.#playbackContext = context;
-      context.createMediaElementSource(audio).connect(context.destination);
-      await context.resume();
-    }
-    await context.setSinkId!(speakerId);
+    if (typeof audio.setSinkId === 'function') await audio.setSinkId(speakerId);
+    else if (speakerId) throw new Error('Output selection unavailable');
   }
 
   #releaseCapture(): void {
     if (this.#timeout) clearTimeout(this.#timeout);
     this.#timeout = null;
     cancelAnimationFrame(this.#frame);
-    this.#monitor?.disconnect();
-    this.#monitor = null;
     this.#processor?.dispose();
     this.#processor = null;
     this.#stream?.getTracks().forEach((track) => track.stop());
@@ -334,8 +292,6 @@ export class CallDeviceTest {
       this.#audio.removeAttribute('src');
     }
     this.#audio = null;
-    void this.#playbackContext?.close().catch(() => {});
-    this.#playbackContext = null;
     if (this.#recordingUrl) URL.revokeObjectURL(this.#recordingUrl);
     this.#recordingUrl = null;
     this.active = false;

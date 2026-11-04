@@ -42,10 +42,10 @@
 </Story>
 
 <Story name="Sensitivity during a call" asChild>
-  <CallDeviceSettingsStoryHarness inCall threshold={-30} />
+  <CallDeviceSettingsStoryHarness inCall effects threshold={-30} />
 </Story>
 <Story name="Sensitivity unavailable" asChild>
-  <CallDeviceSettingsStoryHarness inCall threshold={-30} gateUnavailable />
+  <CallDeviceSettingsStoryHarness inCall effects threshold={-30} gateUnavailable />
 </Story>
 
 <Story name="Voice boosting off" asChild>

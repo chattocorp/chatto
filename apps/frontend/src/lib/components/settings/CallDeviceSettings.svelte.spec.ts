@@ -159,9 +159,9 @@ describe('Call device settings', () => {
       visibleCamera,
       visibleMicrophone
     ]);
-    const screen = render(CallDeviceSettings, {
-      preferences: new CallPreferencesState('threshold-control')
-    });
+    const preferences = new CallPreferencesState('threshold-control');
+    preferences.setVoiceBoosting(true);
+    const screen = render(CallDeviceSettings, { preferences });
     const slider = screen.container.querySelector<HTMLInputElement>('input[type=range]')!;
     slider.focus();
     await userEvent.keyboard('{Home}{ArrowRight}');
@@ -445,7 +445,7 @@ describe('Call device settings', () => {
   });
 });
 
-it('offers default-on voice boosting with a persistent keyboard opt-out and separate gate', async () => {
+it('offers default-off voice boosting and hides the gate until enabled', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
     visibleCamera,
     visibleMicrophone
@@ -454,23 +454,19 @@ it('offers default-on voice boosting with a persistent keyboard opt-out and sepa
   preferences.setMicrophoneThreshold(-30);
   const screen = render(CallDeviceSettings, { preferences });
   const checkbox = screen.getByRole('checkbox', { name: 'Voice Boosting' });
-  await expect.element(checkbox).toBeChecked();
-  await expect
-    .element(checkbox)
-    .toHaveAccessibleDescription(
-      'Enhance your microphone audio. Turn this off if it causes audio problems.'
-    );
-  checkbox.element().focus();
-  await userEvent.keyboard(' ');
   await expect.element(checkbox).not.toBeChecked();
-  expect(new CallPreferencesState('voice-ui').voiceBoosting).toBe(false);
-  expect(preferences.effects.compressor).toBe(false);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(0);
+  checkbox.element().focus();
   await userEvent.keyboard(' ');
   await expect.element(checkbox).toBeChecked();
   expect(new CallPreferencesState('voice-ui').voiceBoosting).toBe(true);
-  expect(preferences.effects.treble).toBe(10);
+  expect(preferences.effects.compressor).toBe(true);
+  await userEvent.keyboard(' ');
+  await expect.element(checkbox).not.toBeChecked();
+  expect(new CallPreferencesState('voice-ui').voiceBoosting).toBe(false);
+  expect(preferences.effects.treble).toBe(0);
   expect(preferences.microphoneThreshold).toBe(-30);
-  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(1);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(0);
 });
 
 it('disables voice boosting when processing is unavailable', async () => {
@@ -521,4 +517,22 @@ it('switches the selected test output without stopping capture or requiring anot
     await context.close();
     vi.restoreAllMocks();
   }
+});
+
+it('lets the call own Boost changes and allows disabling a failed processor', async () => {
+  const preferences = new CallPreferencesState('call-boost-toggle');
+  preferences.setVoiceBoosting(true);
+  const change = vi.fn(async (enabled: boolean) => preferences.setVoiceBoosting(enabled));
+  const screen = render(CallDeviceSettings, {
+    preferences,
+    inCall: true,
+    gateUnavailable: true,
+    onBoostChange: change
+  });
+  const checkbox = screen.getByRole('checkbox', { name: 'Voice Boosting' });
+  await expect.element(checkbox).toBeEnabled();
+  checkbox.element().focus();
+  await userEvent.keyboard(' ');
+  expect(change).toHaveBeenCalledWith(false);
+  await expect.element(checkbox).not.toBeChecked();
 });

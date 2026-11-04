@@ -8,21 +8,37 @@
   let {
     preferences,
     level = 0,
-    unavailable = false
+    unavailable = false,
+    onBoostChange
   }: {
     preferences: CallPreferencesState;
     level?: number;
     unavailable?: boolean;
+    onBoostChange?: (enabled: boolean) => Promise<void>;
   } = $props();
+  let changing = $state(false);
+
+  async function changeBoost(enabled: boolean): Promise<void> {
+    if (changing) return;
+    changing = true;
+    try {
+      if (onBoostChange) await onBoostChange(enabled);
+      else preferences.setVoiceBoosting(enabled);
+    } finally {
+      changing = false;
+    }
+  }
 </script>
 
 <div class="flex flex-col gap-5">
-  <MicrophoneSensitivity {preferences} {level} {unavailable} />
   <Checkbox
     id="microphone-voice-boosting"
     label={m('voice.preferences.voice_boosting')}
     description={m('voice.preferences.voice_boosting_description')}
-    disabled={unavailable}
-    bind:checked={() => preferences.voiceBoosting, (value) => preferences.setVoiceBoosting(value)}
+    disabled={changing || (unavailable && !preferences.voiceBoosting)}
+    bind:checked={() => preferences.voiceBoosting, changeBoost}
   />
+  {#if preferences.voiceBoosting}
+    <MicrophoneSensitivity {preferences} {level} {unavailable} />
+  {/if}
 </div>

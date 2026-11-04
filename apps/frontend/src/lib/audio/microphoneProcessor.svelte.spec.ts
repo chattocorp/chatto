@@ -131,7 +131,7 @@ it.each(['missing API', 'module failure', 'native node failure', 'polish node fa
       await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });
       expect(processor.unavailable).toBe(true);
       await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0));
-      expect(processor.processedTrack).toBe(track);
+      expect(processor.processedTrack).toBeUndefined();
       await processor.destroy();
       expect(track.readyState).toBe('live');
     } finally {
@@ -257,6 +257,27 @@ it('updates gate softness without changing its saved threshold or Off behavior',
     gain.gain.value = 0.07;
     await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0.03));
     expect(peak()).toBe(0);
+  } finally {
+    await processor.destroy();
+    oscillator.stop();
+    track.stop();
+    await context.close();
+  }
+});
+
+it('keeps capture live when removing a processor whose initialization used raw fallback', async () => {
+  const { context, oscillator, track } = await input();
+  vi.spyOn(context.audioWorklet, 'addModule').mockRejectedValue(new Error('Unavailable'));
+  const local = new LocalAudioTrack(track, undefined, true, context);
+  const processor = new MicrophoneProcessor();
+  try {
+    await local.setProcessor(processor);
+    expect(processor.unavailable).toBe(true);
+    expect(local.mediaStreamTrack).toBe(track);
+    await local.stopProcessor();
+    expect(track.readyState).toBe('live');
+    expect(local.mediaStreamTrack).toBe(track);
+    expect(local.getProcessor()).toBeUndefined();
   } finally {
     await processor.destroy();
     oscillator.stop();
