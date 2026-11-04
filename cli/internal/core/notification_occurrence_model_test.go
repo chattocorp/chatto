@@ -494,10 +494,10 @@ func TestNotificationFanoutCoalescesReasonsButKeepsDistinctReplies(t *testing.T)
 		Mode:           evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 		AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, SkipReadLookup: true,
 	}
-	notificationSignalMessage(input.Signal).ThreadRootEventId = proto.String("E-root")
+	notificationSignalMessage(input.Signal).ThreadRootEventId = new("E-root")
 	push := input
 	push.Signal = testNotificationSignal(notificationTestSignalFollowedThread, "R-room", "E-reply-1")
-	notificationSignalMessage(push.Signal).ThreadRootEventId = proto.String("E-root")
+	notificationSignalMessage(push.Signal).ThreadRootEventId = new("E-root")
 	push.Mode = evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
 	if err := model.CreateMany(ctx, []CreateNotificationOccurrenceInput{input, push}); err != nil {
 		t.Fatal(err)
@@ -516,7 +516,7 @@ func TestNotificationFanoutCoalescesReasonsButKeepsDistinctReplies(t *testing.T)
 	}
 	input.SourceEventID = "E-reply-2"
 	input.Signal = testNotificationSignal(notificationTestSignalReply, "R-room", input.SourceEventID)
-	notificationSignalMessage(input.Signal).ThreadRootEventId = proto.String("E-root")
+	notificationSignalMessage(input.Signal).ThreadRootEventId = new("E-root")
 	if _, created, err := model.Create(ctx, input); err != nil || !created {
 		t.Fatalf("distinct reply = (%v, %v)", created, err)
 	}

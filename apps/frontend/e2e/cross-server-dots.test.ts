@@ -376,8 +376,16 @@ test.describe('Cross-instance dots', () => {
       const spaceIcon = page.locator('.server-gutter [data-testid="server-icon"]').first();
       const spaceBadge = spaceIcon.locator('..').getByTestId('server-notification-badge');
       await expect(spaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      // The reply emits exact mention and reply signals. Presentation may
-      // consolidate them, but the authoritative unread badge counts both.
+      // Multiple causes for this reply must add only one unread notification.
+      await expect(spaceBadge).toHaveText('1');
+
+      // A distinct reply in the same thread must still add its own notification.
+      await postThreadReplyViaConnect(
+        pageB,
+        generalRoomId,
+        `@${userA.login} another reply`,
+        rootEventId
+      );
       await expect(spaceBadge).toHaveText('2');
 
       // Click the badge. The mention is on a thread message, so clicking should
