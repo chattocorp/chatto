@@ -18,10 +18,21 @@ Chatto is built, designed and maintained by humans with the help of coding agent
 
 ## What Is in This Repository
 
-- **Chatto**: the chat server, CLI, and bundled web frontend.
+- **Chatto**: the [chat server and CLI](cli/) and [bundled web frontend](apps/frontend/).
+- **[@chatto/client](packages/chatto-client/README.md)**: the TypeScript client for Chatto frontends, bots, and integrations. It manages connections, sessions, and reactive server data without a UI framework dependency.
+- **[ChattoBot](packages/chattobot/README.md)**: the Chatto project's assistant for documentation questions and maintainer tasks.
+- **[Translatto](packages/translatto/README.md)**: a JavaScript and TypeScript internationalisation library, published as `@chatto/translatto`.
 - **[Runling](packages/runling/README.md)**: an independent workflow and agent orchestrator, published to npm as `runling`.
 - **[Authling](authling/README.md)**: an independent identity provider. It is here temporarily and will move to its own repository.
+- **Public API definitions**: [protobuf sources](proto/) and [generated TypeScript API types](packages/api-types/).
 - **Shared framework modules**: [events](pkg/events/README.md), [jetstreamutil](pkg/jetstreamutil/README.md), [natsruntime](pkg/natsruntime/README.md), [datacrypto](pkg/datacrypto/README.md), and [appconfig](pkg/appconfig/README.md).
+
+### Examples
+
+- **[Botto](examples/botto/README.md)**: a TypeScript bot built with Runling and `@chatto/client`.
+- **[Runling bot](examples/runling-bot/README.md)**: a bot that receives Chatto webhooks and posts agent replies through the API.
+- **[Docker Compose](examples/dockercompose/README.md)**: a Chatto deployment with NATS, LiveKit, and Caddy.
+- **Kubernetes**: a [Chatto server deployment](examples/k8s/README.md) and [standalone frontend manifests](examples/k8s-client/).
 
 ## Development
 
