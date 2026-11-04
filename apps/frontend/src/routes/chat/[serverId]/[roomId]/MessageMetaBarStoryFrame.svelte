@@ -21,7 +21,16 @@
     | 'short-reaction-popover'
     | 'high-count-reaction-popover';
 
-  let { variant }: { variant: Variant } = $props();
+  let {
+    variant,
+    highlighted = false,
+    animateHighlight = false
+  }: {
+    variant: Variant;
+    highlighted?: boolean;
+    /** Plays the app's highlight animation when the story mounts. */
+    animateHighlight?: boolean;
+  } = $props();
 
   const storyConnection = new ServerConnection({
     serverUrl: 'http://localhost:5173',
@@ -130,7 +139,13 @@
   const readOnlyAction: MessageActionModel = { ...action, canReact: false };
 </script>
 
-<div class="group/badges inline-flex rounded-md bg-background p-4 text-text">
+<div
+  class={[
+    'group/badges inline-flex rounded-md bg-background p-4 text-text',
+    (highlighted || animateHighlight) && 'highlight-flash'
+  ]}
+  style:animation-play-state={highlighted ? 'paused' : undefined}
+>
   {#if variant === 'reactions'}
     <MessageMetaBar
       {roomId}
