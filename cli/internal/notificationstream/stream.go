@@ -4,8 +4,6 @@ package notificationstream
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -135,12 +133,9 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 			if signal.GetSourceEventId() == "" {
 				return nil, fmt.Errorf("%w: source_event_id is required", ErrInvalidEvent)
 			}
-			// Broker message IDs fence concurrent fanout across replicas, including
-			// retries after a lost acknowledgement. Keep the stored lifecycle and
-			// occurrence IDs unchanged. Old binaries use reason-specific broker IDs
-			// and bypass this guard until the rolling upgrade is complete.
-			digest := sha256.Sum256([]byte(event.GetRecipientId() + "\x00" + signal.GetSourceEventId()))
-			id = "notification-source:" + base64.RawURLEncoding.EncodeToString(digest[:])
+			// JetStream suppresses other reasons for this source and recipient.
+			// Old binaries use reason-specific IDs and bypass this guard.
+			id = fmt.Sprintf("notification-source:%q:%q", event.GetRecipientId(), signal.GetSourceEventId())
 		}
 		prepared = append(prepared, preparedEvent{
 			id:             id,

@@ -483,7 +483,7 @@ func TestUnsupportedNotificationSignalDetection(t *testing.T) {
 
 // A reply can match both reply and followed-thread policy. The source ID,
 // rather than the shared thread target, must control suppression.
-func TestNotificationFanoutCoalescesReasonsButKeepsDistinctReplies(t *testing.T) {
+func TestNotificationFanoutGuardsReasonsButKeepsDistinctReplies(t *testing.T) {
 	c, _ := newTestCore(t)
 	startCoreServices(t, c)
 	ctx := testContext(t)
