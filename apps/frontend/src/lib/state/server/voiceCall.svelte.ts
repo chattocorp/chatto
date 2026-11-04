@@ -4,6 +4,7 @@ import { microphoneMeter } from '$lib/audio/noiseGate';
 import { participantVolumeGain } from '$lib/audio/participantVolume';
 import { endCallVideo } from '$lib/state/callPictureInPicture';
 import { CallMediaSession } from '$lib/state/callMediaSession';
+import { beginCallAudioSession } from '$lib/state/callAudioSession';
 import { toastError } from '$lib/utils/errorMessage';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
@@ -213,6 +214,9 @@ export class VoiceCallState implements CallConnection {
 
   /** System media controls follow the call, independent of the current route. */
   private mediaSession: CallMediaSession | null = null;
+
+  /** Release this call's browser audio intent after its media stops. */
+  private releaseAudioSession: (() => void) | null = null;
 
   // Audio state
   isMuted = $state(false);
@@ -630,6 +634,7 @@ export class VoiceCallState implements CallConnection {
       }
 
       // Create and connect LiveKit room
+      this.releaseAudioSession = beginCallAudioSession();
       this.room = new Room({
         // Keep playback and its lifecycle under LiveKit ownership.
         webAudioMix: false,
@@ -1683,6 +1688,8 @@ export class VoiceCallState implements CallConnection {
       this.room.removeAllListeners();
       this.room = null;
     }
+    this.releaseAudioSession?.();
+    this.releaseAudioSession = null;
     this.audioPlaybackBlocked = false;
     this.outputSelectionAvailable = true;
     this.e2eeWorker?.terminate();
