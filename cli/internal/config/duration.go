@@ -7,8 +7,8 @@ import (
 	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
-// Duration is a time.Duration that supports extended parsing including days (d), weeks (w),
-// months (mo), and years (y). Examples: "7d", "1w", "168h", "24h30m"
+// Duration is a time.Duration that also accepts days (d) and weeks (w).
+// Months and years are not supported. Examples: "7d", "1w", "168h", "24h30m".
 type Duration time.Duration
 
 // UnmarshalText implements encoding.TextUnmarshaler for TOML/env parsing.
