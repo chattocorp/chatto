@@ -460,8 +460,21 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		})
 		refs = append(refs, notificationOccurrenceRef{recipientID: input.RecipientID, notificationID: notificationID})
 	}
+	// Prefer push over in-app output when several reasons match one source.
+	// The broker remains the cross-replica guard; this only coalesces a batch
+	// before publication and retains the selected reason's occurrence identity.
+	slices.SortStableFunc(prepared, func(a, b preparedNotificationCreateInput) int {
+		if a.input.Mode == b.input.Mode {
+			return 0
+		}
+		if a.input.Mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+			return -1
+		}
+		return 1
+	})
+	type sourceRecipient struct{ sourceID, recipientID string }
+	pendingBySource := make(map[sourceRecipient]*pendingNotificationCreate)
 	initialStates := m.projection.Projection().occurrenceStates(refs, now)
-	pendingByID := make(map[string]*pendingNotificationCreate)
 	pending := make([]*pendingNotificationCreate, 0, len(prepared))
 	existingReadCandidates := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, candidate := range prepared {
@@ -478,7 +491,8 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 			}
 			continue
 		}
-		if duplicate := pendingByID[candidate.notificationID]; duplicate != nil {
+		source := sourceRecipient{input.SourceEventID, input.RecipientID}
+		if duplicate := pendingBySource[source]; duplicate != nil {
 			duplicate.resultIndexes = append(duplicate.resultIndexes, candidate.resultIndex)
 			duplicate.skipRead = duplicate.skipRead && input.SkipReadLookup
 			continue
@@ -516,7 +530,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 			skipRead:      input.SkipReadLookup,
 		}
 		item.event = newNotificationSignalledLifecycleEvent(now, occurrence)
-		pendingByID[candidate.notificationID] = item
+		pendingBySource[source] = item
 		pending = append(pending, item)
 	}
 	if len(pending) == 0 {

@@ -102,7 +102,7 @@ func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.
 
 func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 	chattoCore, _ := newTestCore(t)
-	delivered := make(chan *notificationv1.NotificationOccurrence, 1)
+	delivered := make(chan *notificationv1.NotificationOccurrence, 4)
 	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *notificationv1.NotificationOccurrence) error {
 		delivered <- occurrence
 		return nil
@@ -121,7 +121,7 @@ func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "stream alert", nil, "", "", nil, false)
+	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "stream alert @stream-alert-alice", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
@@ -133,16 +133,42 @@ func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("notification alert was not delivered from NOTIFICATIONS")
 	}
-	wantID := notificationOccurrenceID(alice.Id, posted.GetId(), "direct_message_received")
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		occurrence, getErr := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, wantID)
-		if getErr == nil && occurrence.AlertDelivered != nil && occurrence.GetAlertDelivered() {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
+	// Both direct-message and direct-mention reasons match this source.
+	occurrences := testNotificationOccurrences(t, chattoCore, alice.Id)
+	if len(occurrences) != 1 || occurrences[0].GetRead() {
+		t.Fatalf("occurrences = %+v, want one unread", occurrences)
 	}
-	t.Fatal("notification alert did not reach terminal delivered state")
+	wantID := occurrences[0].GetId()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal("notification alert did not reach terminal delivered state")
+		case <-ticker.C:
+		}
+		occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, wantID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if occurrence.AlertDelivered == nil || !occurrence.GetAlertDelivered() {
+			continue
+		}
+		info, err := chattoCore.notificationAlertDelivery.consumer.Info(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.NumPending != 0 || info.NumAckPending != 0 {
+			continue
+		}
+		select {
+		case extra := <-delivered:
+			t.Fatalf("duplicate alert: %+v", extra)
+		default:
+		}
+		return
+	}
+
 }
 
 func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {

@@ -4,6 +4,8 @@ package notificationstream
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -22,6 +24,10 @@ import (
 )
 
 const (
+	// FanoutDedupeWindow bounds source/recipient suppression at the broker.
+	// It is independent of the alert deadline and can be tuned without a schema change.
+	FanoutDedupeWindow = time.Minute
+
 	StreamName           = natsresources.Notifications
 	SignalledSubject     = "notifications.signalled"
 	ReadSubject          = "notifications.read"
@@ -124,8 +130,20 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 		if err != nil {
 			return nil, fmt.Errorf("marshal notification event %d: %w", i, err)
 		}
+		id := event.GetId()
+		if signal := event.GetSignalled(); signal != nil {
+			if signal.GetSourceEventId() == "" {
+				return nil, fmt.Errorf("%w: source_event_id is required", ErrInvalidEvent)
+			}
+			// Broker message IDs fence concurrent fanout across replicas, including
+			// retries after a lost acknowledgement. Keep the stored lifecycle and
+			// occurrence IDs unchanged. Old binaries use reason-specific broker IDs
+			// and bypass this guard until the rolling upgrade is complete.
+			digest := sha256.Sum256([]byte(event.GetRecipientId() + "\x00" + signal.GetSourceEventId()))
+			id = "notification-source:" + base64.RawURLEncoding.EncodeToString(digest[:])
+		}
 		prepared = append(prepared, preparedEvent{
-			id:             event.GetId(),
+			id:             id,
 			data:           data,
 			physicalExpiry: event.GetExpiresAt().AsTime().UTC().Add(p.retentionGrace),
 		})

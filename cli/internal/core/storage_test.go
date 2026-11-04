@@ -75,7 +75,7 @@ func TestStorageConfigsArePinned(t *testing.T) {
 				"notifications.removed", "notifications.alert_resolved",
 			},
 			Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: 3,
-			MaxAge: 91 * day, Duplicates: 2 * time.Minute, AllowMsgTTL: true, AllowAtomicPublish: true,
+			MaxAge: 91 * day, Duplicates: time.Minute, AllowMsgTTL: true, AllowAtomicPublish: true,
 		}},
 		"LOG": {logStreamConfig(cfg), {
 			Name: "LOG", Description: "Retained operational diagnostics", Subjects: []string{"log.>"},
