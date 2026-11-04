@@ -19,12 +19,12 @@ Rooms support real-time voice conversations with optional camera video and scree
   guarantee that a mobile browser keeps a background call running.
 
 - Calls request a browser audio mode for simultaneous playback and recording
-  where supported, including while muted or listen-only. This helps supported
-  browsers continue call audio in the background without requesting microphone
-  access for listen-only members. Leaving restores the previous audio mode
-  unless another feature has selected a different mode. The browser can still
-  interrupt audio or terminate the page. Closing the page retains explicit
-  call departure behavior.
+  where supported, including while muted or listen-only. This is a best-effort
+  request to support background call audio. It does not request microphone
+  access for listen-only members. The last call to leave restores the previous
+  audio mode unless another feature has selected a different mode. The browser
+  can still interrupt audio or terminate the page. Closing the page retains
+  explicit call departure behavior.
 
 - Members can see an ongoing call when they join or rejoin its room, including
   when the room becomes universal. They do not need to reconnect or wait for
@@ -101,9 +101,10 @@ Rooms support real-time voice conversations with optional camera video and scree
 - LiveKit owns background capture recovery and playback recovery. The mute
   control follows SDK publication state, including a mute after failed recovery.
   **Enable call audio** calls the SDK from a user gesture and uses its playback
-  status. Chatto does not force an audio-session category or repeatedly reopen
-  capture in the background. Call cues use local audio files, without a separate
-  AudioContext. iOS background behavior still needs tests on physical devices.
+  status. Chatto requests `play-and-record` through the optional Audio Session
+  API before connecting media. It does not repeatedly reopen capture in the
+  background. Call cues use local audio files, without a separate AudioContext.
+  iOS background behavior still needs tests on physical devices.
 
 - **App Preferences → Voice & video** stores microphone, speaker, camera, and
   join-muted choices in this browser for the selected server. Successful device
