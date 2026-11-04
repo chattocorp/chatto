@@ -308,10 +308,19 @@
   const activeMobileRoomSidebarProfileUserId = $derived(
     desktopRoomLayout.current ? null : activeRoomSidebarProfileUserId
   );
-  // The mobile overlay exists only below the desktop breakpoint. Its panel stays
-  // selected in app UI state, so it reopens when the viewport narrows again.
+  const hasActiveRoomCall = $derived(
+    serverUi(stores).activeCallRooms.has(roomId) || serverUi(stores).voiceCall.isInCall(roomId)
+  );
+  const isCallMaximized = $derived(
+    activeRoomSidebarPanel === 'call' &&
+      hasActiveRoomCall &&
+      appUi.isRoomCallWideFor(activeServerId, roomId)
+  );
+  // Keep one call pane mounted in wide mode. Other mobile panels stay selected
+  // in app UI state, so they can reopen after wide mode ends.
   const hasMobileRoomSidebar = $derived(
-    !desktopRoomLayout.current &&
+    !isCallMaximized &&
+      !desktopRoomLayout.current &&
       (mobileRoomSidebarPanel !== null || activeMobileRoomSidebarProfileUserId !== null)
   );
   const roomFilesPanelActive = $derived(
@@ -330,14 +339,6 @@
   );
   const roomSidebarTogglePanels = $derived(
     roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
-  );
-  const hasActiveRoomCall = $derived(
-    serverUi(stores).activeCallRooms.has(roomId) || serverUi(stores).voiceCall.isInCall(roomId)
-  );
-  const isDesktopCallMaximized = $derived(
-    activeRoomSidebarPanel === 'call' &&
-      hasActiveRoomCall &&
-      appUi.isRoomCallWideFor(activeServerId, roomId)
   );
   const sharedRoomSidebarProps = $derived({
     roomId,
@@ -600,7 +601,7 @@
     <div
       class={[
         '@container relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
-        isDesktopCallMaximized ? 'lg:hidden' : ''
+        isCallMaximized ? 'hidden' : ''
       ]}
       data-testid="room-view-region"
       data-thread-presentation={splitThreadLayout ? 'split' : 'overlay'}
@@ -792,7 +793,7 @@
           focusSearchOnMount: focusSearchOnOpen === 'desktop',
           onSearchFocused: () => searchFocused('desktop'),
           activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
-          maximized: isDesktopCallMaximized,
+          maximized: isCallMaximized,
           onOpenFileMessage: openMessage,
           onOpenSearchResult: openMessage,
           onOpenPin: openMessage,
