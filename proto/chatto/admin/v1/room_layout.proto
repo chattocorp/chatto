@@ -17,7 +17,8 @@ message AdminRoomLayoutItem {
   }
 }
 
-// Ordered room group returned after admin layout mutations.
+// Legacy management layout. Main directory reads and new mutation fields use
+// chatto.api.v1.RoomGroup with permission-filtered entries.
 message AdminRoomLayoutGroup {
   reserved 4;
   reserved "rooms";
@@ -104,6 +105,8 @@ message CreateRoomGroupRequest {
 
 // Result of creating a room group.
 message CreateRoomGroupResponse {
+  // Canonical room group, with all entries the caller can see or manage.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Created room group.
   AdminRoomLayoutGroup group = 1;
 }
@@ -129,6 +132,8 @@ message UpdateRoomGroupRequest {
 
 // Result of updating a room group.
 message UpdateRoomGroupResponse {
+  // Canonical group, including archived entries the caller can see or manage.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Updated room group.
   AdminRoomLayoutGroup group = 1;
 }
@@ -203,6 +208,8 @@ message ReorderSidebarItemsInGroupRequest {
 
 // Result of replacing the mixed sidebar item order.
 message ReorderSidebarItemsInGroupResponse {
+  // Canonical updated group, including authorized archived entries.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Updated room group.
   AdminRoomLayoutGroup group = 1;
 }
@@ -221,6 +228,8 @@ message MoveSidebarItemRequest {
 
 // Result of moving one sidebar item.
 message MoveSidebarItemResponse {
+  // Canonical destination group, including authorized archived entries.
+  chatto.api.v1.RoomGroup room_group = 2;
   // Destination room group after the move.
   AdminRoomLayoutGroup group = 1;
 }

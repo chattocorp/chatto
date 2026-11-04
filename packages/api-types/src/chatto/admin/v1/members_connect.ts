@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, GetUserRoleAssignmentsRequest, GetUserRoleAssignmentsResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
+import { GetUsernameCooldownRequest, GetUsernameCooldownResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse } from "./users_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, GetUserRoleAssignmentsRequest, GetUserRoleAssignmentsResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
 
 /**
  * Server-admin user management commands and member-detail reads.
@@ -15,8 +16,34 @@ export const AdminUserService = {
   typeName: "chatto.admin.v1.AdminUserService",
   methods: {
     /**
-     * Lists server members for the admin members screen. Requires
-     * admin.view-users.
+     * Lists one user's verified email addresses without profile or role data.
+     * Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.ListVerifiedEmails
+     */
+    listVerifiedEmails: {
+      name: "ListVerifiedEmails",
+      I: ListVerifiedEmailsRequest,
+      O: ListVerifiedEmailsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads one user's username-change history. Requires admin.view-users and
+     * either user.manage-accounts or the caller's own user ID. Missing authority
+     * returns PERMISSION_DENIED; unknown or deleted users return NOT_FOUND.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.GetUsernameCooldown
+     */
+    getUsernameCooldown: {
+      name: "GetUsernameCooldown",
+      I: GetUsernameCooldownRequest,
+      O: GetUsernameCooldownResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Compatibility account-ID read. New integrations use
+     * chatto.api.v1.UserService.ListUsers for directory data.
+     * Requires admin.view-users.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ListMembers
      */
@@ -27,7 +54,9 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one server member plus role/permission metadata for admin details.
+     * Compatibility detail bootstrap with role/permission editor metadata.
+     * Use chatto.api.v1.UserService for profiles and assigned roles, and separate
+     * admin reads for private account data, assignment limits, and permissions.
      * Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.GetMember
@@ -39,7 +68,9 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets server member rows for multiple users. Requires admin.view-users.
+     * Compatibility account rows with a role catalogue. New integrations use
+     * chatto.api.v1.UserService.BatchGetUsers for directory data.
+     * Requires admin.view-users.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.BatchGetMembers
      */
@@ -50,7 +81,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets explicit roles and current assignment limits for one human user.
+     * Gets current assignment limits and explicit roles for one human user.
+     * Reading assigned roles alone uses chatto.api.v1.UserService instead.
      * Requires role.assign, with privileged mode active for human sessions;
      * admin.view-users is not required. Returns NOT_FOUND for an unknown or
      * deleted user, and FAILED_PRECONDITION for a bot account.

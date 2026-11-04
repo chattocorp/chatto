@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/account.proto";
+import "google/protobuf/timestamp.proto";
+
+// Request one user's private verified email addresses.
+message ListVerifiedEmailsRequest {
+  // Required stable user ID. Resolve users through chatto.api.v1.UserService.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// All verified addresses, including verification times and the primary choice.
+// An empty list means the account has no verified addresses. Order is not
+// significant. This read does not include a user profile or role assignments.
+message ListVerifiedEmailsResponse {
+  // Verified addresses and the primary choice. Empty means none are verified.
+  repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
+}
+
+// Username-change history for one account. This private resource does not
+// describe permission to change the username or guarantee a successful update.
+message UsernameCooldown {
+  // Target stable user ID.
+  string user_id = 1;
+  // Start of the current self-service cooldown. Absent when no change is recorded.
+  google.protobuf.Timestamp last_login_change = 2;
+}
+
+// Request one user's private username-change history.
+message GetUsernameCooldownRequest {
+  // Required stable user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Username-change history for an authorized account read.
+message GetUsernameCooldownResponse {
+  // Always present on success, including when no change is recorded.
+  UsernameCooldown cooldown = 1;
+}
+
+// Resulting explicit assignment state after a role command. This outcome
+// contains no private account fields or viewer-specific assignment limits.
+message UserRoleAssignment {
+  // Target user ID.
+  string user_id = 1;
+  // Stable role name.
+  string role_name = 2;
+  // True after assignment; false after revocation, including no-op commands.
+  bool assigned = 3;
+}

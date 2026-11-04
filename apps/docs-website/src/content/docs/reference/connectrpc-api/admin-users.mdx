@@ -20,12 +20,82 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Server-admin user management commands and member-detail reads.
 
+<a id="chatto-admin-v1-AdminUserService-ListVerifiedEmails"></a>
+
+### ListVerifiedEmails
+
+Lists one user's verified email addresses without profile or role data.
+Requires admin.view-users. Unknown or deleted users return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/ListVerifiedEmails
+```
+
+<a id="chatto-admin-v1-ListVerifiedEmailsRequest"></a>
+
+#### Input: ListVerifiedEmailsRequest
+
+Request one user's private verified email addresses.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required stable user ID. Resolve users through chatto.api.v1.UserService. |
+
+
+<a id="chatto-admin-v1-ListVerifiedEmailsResponse"></a>
+
+#### Result: ListVerifiedEmailsResponse
+
+All verified addresses, including verification times and the primary choice.
+An empty list means the account has no verified addresses. Order is not
+significant. This read does not include a user profile or role assignments.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | `repeated chatto.api.v1.VerifiedEmail` | Verified addresses and the primary choice. Empty means none are verified. |
+
+
+<a id="chatto-admin-v1-AdminUserService-GetUsernameCooldown"></a>
+
+### GetUsernameCooldown
+
+Reads one user's username-change history. Requires admin.view-users and
+either user.manage-accounts or the caller's own user ID. Missing authority
+returns PERMISSION_DENIED; unknown or deleted users return NOT_FOUND.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/GetUsernameCooldown
+```
+
+<a id="chatto-admin-v1-GetUsernameCooldownRequest"></a>
+
+#### Input: GetUsernameCooldownRequest
+
+Request one user's private username-change history.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required stable user ID. |
+
+
+<a id="chatto-admin-v1-GetUsernameCooldownResponse"></a>
+
+#### Result: GetUsernameCooldownResponse
+
+Username-change history for an authorized account read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `cooldown` | [`UsernameCooldown`](/reference/connectrpc-api/types/#chatto-admin-v1-UsernameCooldown) | Always present on success, including when no change is recorded. |
+
+
 <a id="chatto-admin-v1-AdminUserService-ListMembers"></a>
 
 ### ListMembers
 
-Lists server members for the admin members screen. Requires
-admin.view-users.
+Compatibility account-ID read. New integrations use
+chatto.api.v1.UserService.ListUsers for directory data.
+Requires admin.view-users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/ListMembers
@@ -63,7 +133,9 @@ omitted by a later batch read.
 
 ### GetMember
 
-Gets one server member plus role/permission metadata for admin details.
+Compatibility detail bootstrap with role/permission editor metadata.
+Use chatto.api.v1.UserService for profiles and assigned roles, and separate
+admin reads for private account data, assignment limits, and permissions.
 Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -105,7 +177,9 @@ Server-admin member detail payload.
 
 ### BatchGetMembers
 
-Gets server member rows for multiple users. Requires admin.view-users.
+Compatibility account rows with a role catalogue. New integrations use
+chatto.api.v1.UserService.BatchGetUsers for directory data.
+Requires admin.view-users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/BatchGetMembers
@@ -138,7 +212,8 @@ Batch server-admin member response.
 
 ### GetUserRoleAssignments
 
-Gets explicit roles and current assignment limits for one human user.
+Gets current assignment limits and explicit roles for one human user.
+Reading assigned roles alone uses chatto.api.v1.UserService instead.
 Requires role.assign, with privileged mode active for human sessions;
 admin.view-users is not required. Returns NOT_FOUND for an unknown or
 deleted user, and FAILED_PRECONDITION for a bot account.
@@ -200,6 +275,7 @@ Result of assigning a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `assignment` | [`UserRoleAssignment`](/reference/connectrpc-api/types/#chatto-admin-v1-UserRoleAssignment) | Canonical command outcome. Read GetUserRoleAssignments for current limits. |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
@@ -234,6 +310,7 @@ Result of revoking a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `assignment` | [`UserRoleAssignment`](/reference/connectrpc-api/types/#chatto-admin-v1-UserRoleAssignment) | Canonical command outcome, independent of administrative account access. |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
@@ -364,4 +441,5 @@ No message description provided.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `profile` | [`chatto.api.v1.User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated public profile, available under the command's existing authority. |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated administrative member record. |

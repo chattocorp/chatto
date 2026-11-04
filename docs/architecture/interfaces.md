@@ -287,6 +287,21 @@ rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
+`api.v1.UserService` provides the canonical directory reads for profiles,
+assigned roles, and creation times. `AdminUserService.ListVerifiedEmails`
+reuses the private `VerifiedEmail` resource and requires `admin.view-users`.
+`GetUsernameCooldown` requires that permission plus account-management
+authority or the caller's own ID. These reads use account metadata without
+profile hydration, role catalogues, or assignment-limit evaluation. Legacy
+member reads retain their screen bootstrap data for compatibility.
+
+`RoomDirectoryService` owns the shared room-group reads. Group
+list/get/batch methods use `RoomArchiveFilter`, with ACTIVE as the default.
+Metadata reads admit ordinary room visibility or room/group management authority;
+navigation and message permissions remain separate. Get/batch group reads hydrate
+only requested groups. Sidebar links remain in the group items. Admin layout commands retain
+their existing output and also return the shared `RoomGroup` resource.
+
 `AdminUserService.GetUserRoleAssignments` uses `role.assign` without requiring
 `admin.view-users`. It returns explicit human-account roles and current
 assignment limits through the same policies as member details and mutation
