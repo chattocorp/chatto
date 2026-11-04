@@ -2039,11 +2039,20 @@
   @apply text-current/90;
 }
 
+/* The message animates this colour; its badges inherit the same fade. */
+@property --message-highlight-ring {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
    Containers should add `group/badges` so the hover elevation works. */
 @utility meta-badge {
   @apply inline-flex h-[26px] items-center rounded-sm border py-[0.5px] leading-none;
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
+  @apply ring-1 ring-inset;
+  --tw-ring-color: var(--message-highlight-ring);
 }
 
 /* Non-interactive overlays shared by native scroll viewports. */
@@ -2242,10 +2251,12 @@
 @keyframes highlight-flash {
   0%,
   30% {
+    --message-highlight-ring: color-mix(in srgb, var(--color-muted) 15%, transparent);
     background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
     box-shadow: inset var(--jump-edge) 0 var(--color-action);
   }
   100% {
+    --message-highlight-ring: transparent;
     background-color: transparent;
     box-shadow: inset var(--jump-edge) 0 transparent;
   }
@@ -2270,6 +2281,7 @@
 @keyframes highlight-still {
   from,
   to {
+    --message-highlight-ring: color-mix(in srgb, var(--color-muted) 15%, transparent);
     background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
     box-shadow: inset var(--jump-edge) 0 var(--color-action);
   }
