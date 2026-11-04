@@ -15,7 +15,7 @@
     unavailable = false,
     inCall = false,
     threshold = -60,
-    effects = true,
+    effects = false,
     gateUnavailable = false
   }: {
     effects?: boolean;

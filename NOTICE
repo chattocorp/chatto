@@ -1,6 +1,9 @@
 Chatto
 Copyright 2026 ChattoCorp GmbH
 
+The frontend call join and leave tones are original Chatto assets, licensed
+under Apache-2.0. They contain no third-party recordings.
+
 This product includes third-party open source software. This notice lists
 direct dependencies, shipped browser assets, and upstream NOTICE text known to
 apply to the Chatto server, CLI, frontend, and documentation website.

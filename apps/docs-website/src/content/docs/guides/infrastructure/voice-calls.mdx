@@ -106,18 +106,18 @@ long-press the card. Adjust
 adjust **Stream volume** for shared audio.
 Microphone volume is also available on camera cards and from that
 participant's entry in the members list.
-Each control ranges from 0% to 200%; 100% keeps the original level. Higher
-levels amplify quiet audio and can distort audio that is already loud.
+Each control ranges from 0% to 100%; 100% keeps the original level.
 
 These settings affect only what you hear. This browser remembers them per
 server and participant. **Mute locally** silences both sources and keeps your
 levels. Sliders move in 5% steps, with a mark at 100% to help restore the original level.
-The volume curve approximates perceived loudness: 50% applies -10 dB and 200% applies
-+10 dB. Existing saved positions use this curve; 100% stays unchanged.
+The volume curve approximates perceived loudness: 50% applies -10 dB.
+Older saved values above 100% play at 100%.
+Some mobile browsers use system volume and ignore intermediate slider levels.
+Use the device volume buttons to adjust playback on those browsers.
+**Mute locally** and 0% also stop audio delivery through LiveKit.
 
-Boost requires browser Web Audio support. If boost is unavailable, the controls
-show a 100% limit. Browsers without Web Audio output selection use the system
-output for calls. Select **Enable call audio** if playback is blocked.
+Browsers without speaker selection use the system output for calls. Select **Enable call audio** if playback is blocked.
 
 ## Call permissions
 
@@ -393,7 +393,7 @@ Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) w
 - **Camera toggle** — Turn your camera on and off during a call
 - **Video device selection** — Switch between cameras without leaving the call
 - **Active call indicators** — Rooms with active calls show a call indicator in the room list
-- **Audio level visualization** — A soft accent-coloured glow behind participant names grows brighter and broader with speaking volume, then fades away in silence. Screen-share tiles use their own shared audio, not the microphone. Video stays clear. Reduced motion keeps the glow stationary.
+- **Audio level visualization** — A soft accent-coloured glow behind participant names grows brighter and broader with speaking volume, then fades away in silence. Screen-share tiles do not show an audio level glow. Video stays clear. Reduced motion keeps the glow stationary.
 
 ## Device preferences and microphone test
 
@@ -411,22 +411,26 @@ If a saved device is missing, calls use the system default and keep the saved
 choice for a later call. Successful device changes during a call are also
 saved. Speaker selection depends on browser support.
 
-Select **Start microphone test** to see the input level while the browser
-records a local sample. The speaker stays silent during recording. Select
+Select **Start microphone test** to record a local sample. The speaker stays silent during recording. Select
 **Stop and play**, or wait 10 seconds, to end capture and hear the sample through
 the selected speaker. Select **Play again** to repeat it. The sample stays in
 browser memory until you start another test, change the microphone, or leave
 the page. The test does not connect to LiveKit. Leave the selected server's call
-before running it.
+before running it. The test uses the same microphone capture settings as calls,
+including browser echo cancellation, noise suppression, and automatic gain
+control. It does not test call encoding or network quality.
 
 Under **Microphone processing**, **Voice Boosting** enhances your microphone
-audio and is enabled by default. Clear the checkbox if it causes audio problems.
+audio and is off by default. Enable it to use microphone enhancement and the
+noise gate. Disable it if calls stop working when you switch apps.
 Use the microphone test to compare the sound with Voice Boosting on and off.
-Your choice is saved for this browser and server.
+Your choice is saved for this browser and server. After this update, enable
+Boost again if you want to use it. Your device and gate settings are retained.
 
+With Boost enabled, the microphone test shows an input meter.
 Use **Noise gate threshold** to suppress quiet background sounds. Set the marker
 above the background noise level but below your speech level. Select **Off** to
-disable the gate. You can also adjust this threshold from the call's device menu.
+disable the gate. Turning Boost off also bypasses the gate.
 
 If camera names are unavailable, opening this page requests camera access
 through the browser. Capture stops immediately after discovery.
