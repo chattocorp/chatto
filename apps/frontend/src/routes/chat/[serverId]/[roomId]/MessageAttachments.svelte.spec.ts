@@ -1,6 +1,7 @@
 import '../../../../app.css';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { tick } from 'svelte';
+import { cdp, page } from 'vitest/browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
@@ -159,6 +160,15 @@ function imageFrame(container: HTMLElement, filename: string) {
   return { image: image!, button: button! };
 }
 
+// Geometry checks inspect the revealed desktop rim, after its transition.
+async function revealFrameActions(container: HTMLElement) {
+  const action = container.querySelector<HTMLButtonElement>('.preview-frame-actions button')!;
+  action.focus();
+  await expect
+    .poll(() => action.closest('.preview-frame-actions')!.getBoundingClientRect().width)
+    .toBe(32);
+}
+
 describe('MessageAttachments', () => {
   it('preserves playback across metadata updates and releases it on disposal', async () => {
     const attachment = fileAttachment({ contentType: 'audio/mpeg', filename: 'audio.mp3' });
@@ -208,6 +218,37 @@ describe('MessageAttachments', () => {
     });
     expect(attachmentMocks.refreshAssetUrls).not.toHaveBeenCalled();
     expect(view.container.querySelector('iframe')).toBeNull();
+  });
+
+  it('opens the touch video viewer from the shared sheet and pauses inline playback', async () => {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    try {
+      const view = renderAttachment(
+        fileAttachment({ filename: 'clip.mp4', contentType: 'video/mp4' })
+      );
+      const video = view.container.querySelector('video')!;
+      const pause = vi.spyOn(video, 'pause');
+      video.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          pointerType: 'touch',
+          isPrimary: true,
+          pointerId: 1
+        })
+      );
+      await expect.poll(() => document.querySelector('dialog[open]')).not.toBeNull();
+      video.dispatchEvent(
+        new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 1 })
+      );
+      await page.getByRole('button', { name: 'View clip.mp4' }).click();
+      expect(pause).toHaveBeenCalledOnce();
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: expect.objectContaining({ type: 'attachmentViewer' })
+      });
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+    } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    }
   });
 
   it.each(['audio/mpeg', 'video/mp4'])(
@@ -370,22 +411,24 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('w-full');
   });
 
-  it('keeps a narrow portrait image unchanged while fitting its action row', () => {
+  it('keeps a narrow portrait image unchanged while fitting its frame actions', async () => {
     const { container } = renderAttachment(
       imageAttachment({ filename: 'tall.jpg', width: 320, height: 1600 }),
       { canDeleteAttachment: true, canEditAttachmentDescription: true }
     );
+    await revealFrameActions(container);
     const { button } = imageFrame(container, 'tall.jpg');
-    const wrapper = button.parentElement!.getBoundingClientRect();
+    const wrapper = button.closest('.preview-action-frame')!.getBoundingClientRect();
     const actions = [...container.querySelectorAll<HTMLElement>('.attachment-action-button')];
     const [first, last] = actions.map((action) => action.getBoundingClientRect());
 
     expect(button.getBoundingClientRect().width).toBe(40);
     expect(first.left - wrapper.left).toBeGreaterThanOrEqual(8);
-    expect(wrapper.right - last.right).toBe(8);
-    expect(first.top - wrapper.top).toBe(8);
-    expect(last.top).toBe(first.top);
-    expect(last.left - first.right).toBe(4);
+    expect(wrapper.right - last.right).toBe(5);
+    expect(first.top - wrapper.top).toBe(5);
+    expect(last.left).toBe(first.left);
+    expect(last.top - first.bottom).toBe(4);
+    expect(first.left).toBeGreaterThanOrEqual(button.getBoundingClientRect().right);
     for (const action of actions) {
       expect(action.getBoundingClientRect().width).toBe(28);
       expect(action.getBoundingClientRect().height).toBe(28);
@@ -404,21 +447,24 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('object-contain');
   });
 
-  it.each([false, true])('balances image action insets (gallery: %s)', (gallery) => {
+  it.each([false, true])('balances image action insets (gallery: %s)', async (gallery) => {
     const attachments = [imageAttachment({ id: 'first', filename: 'first.jpg' })];
     if (gallery) attachments.push(imageAttachment({ id: 'second', filename: 'second.jpg' }));
     const { container } = renderAttachments(attachments, {
       canDeleteAttachment: true,
       canEditAttachmentDescription: true
     });
+    await revealFrameActions(container);
     const { button } = imageFrame(container, 'first.jpg');
-    const frame = button.getBoundingClientRect();
-    const edit = button
-      .parentElement!.querySelector<HTMLElement>('[aria-label="Add description"]')!
+    const frameElement = button.closest('.preview-action-frame')!;
+    const frame = frameElement.getBoundingClientRect();
+    const edit = frameElement
+      .querySelector<HTMLElement>('[aria-label="Add description"]')!
       .getBoundingClientRect();
 
-    expect(edit.top - frame.top).toBe(8);
-    expect(frame.right - edit.right).toBe(8);
+    expect(edit.top - frame.top).toBe(37);
+    expect(frame.right - edit.right).toBe(5);
+    expect(edit.left).toBeGreaterThanOrEqual(button.getBoundingClientRect().right);
   });
 
   it('renders ultra-wide landscape images as contained shallow strips', () => {
@@ -499,9 +545,9 @@ describe('MessageAttachments', () => {
     for (const width of [240, 120, 640]) {
       container.style.width = `${width}px`;
       await vi.waitFor(() => {
-        const bounds = button.getBoundingClientRect();
+        const bounds = button.closest('.preview-action-frame')!.getBoundingClientRect();
         const content = image.getBoundingClientRect();
-        expect(bounds.width).toBe(Math.min(width, size.frameWidth));
+        expect(bounds.width).toBe(Math.min(width, size.frameWidth + 10));
         expect(content.height).toBeCloseTo((content.width * size.height) / size.width, 1);
         expect(content.left - bounds.left).toBe(5);
         expect(bounds.right - content.right).toBe(5);
@@ -531,7 +577,7 @@ describe('MessageAttachments', () => {
         );
         view.container.style.width = '640px';
         await expect.poll(() => view.container.querySelector('video')).toBeTruthy();
-        const frame = view.container.querySelector<HTMLElement>('[data-attachment-media]')!;
+        const frame = view.container.querySelector<HTMLElement>('video')!;
         expect(frame.getBoundingClientRect().width).toBeCloseTo(expectedWidth, 0);
         expect(frame.getBoundingClientRect().height).toBeCloseTo(expectedHeight, 0);
         await view.unmount();
@@ -588,25 +634,25 @@ describe('MessageAttachments', () => {
         : 'video';
       await expect.poll(() => container.querySelector(playerSelector)).toBeTruthy();
       const player = container.querySelector<HTMLElement>(playerSelector)!;
+      await revealFrameActions(container);
       const edit = container.querySelector<HTMLElement>('[aria-label="Add description"]')!;
       const actions = [...container.querySelectorAll<HTMLElement>('.attachment-action-button')];
       for (const width of [120, 240, 320]) {
         container.style.width = `${width}px`;
         await expect.poll(() => player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
-        expect(
-          player.getBoundingClientRect().bottom - edit.getBoundingClientRect().bottom
-        ).toBeGreaterThanOrEqual(48);
         const bounds = actions.map((action) => action.getBoundingClientRect());
-        const frame = (processed ? player : player.parentElement!).getBoundingClientRect();
-        expect(bounds[0].top - frame.top).toBeCloseTo(
-          frame.right - bounds[bounds.length - 1].right,
-          1
+        const frame = player.closest('.preview-action-frame')!.getBoundingClientRect();
+        expect(edit.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+          player.getBoundingClientRect().right
         );
+        expect(bounds[0].top - frame.top).toBe(5);
+        expect(frame.right - bounds[0].right).toBe(5);
         for (const [index, bound] of bounds.entries()) {
           expect(bound.width).toBe(28);
           expect(bound.height).toBe(28);
-          expect(bound.top).toBe(bounds[0].top);
-          if (index > 0) expect(bound.left - bounds[index - 1].right).toBe(4);
+          expect(bound.left).toBe(bounds[0].left);
+          expect(bound.bottom).toBeLessThanOrEqual(frame.bottom);
+          if (index > 0) expect(bound.top - bounds[index - 1].bottom).toBe(4);
         }
       }
     }
@@ -638,7 +684,7 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('places delete before edit in a row and uses a file-edit icon for descriptions', () => {
+  it('places delete above edit in the frame rim and uses a file-edit icon for descriptions', () => {
     const { container } = renderAttachment(imageAttachment({ description: 'A chart.' }), {
       canDeleteAttachment: true,
       canEditAttachmentDescription: true
@@ -655,10 +701,10 @@ describe('MessageAttachments', () => {
         'button[aria-label="Delete attachment"], button[aria-label="Edit description"]'
       )
     ]).toEqual([remove, edit]);
-    expect(remove.getBoundingClientRect().right).toBeLessThanOrEqual(
-      edit.getBoundingClientRect().left
+    expect(remove.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      edit.getBoundingClientRect().top
     );
-    expect(remove.getBoundingClientRect().top).toBe(edit.getBoundingClientRect().top);
+    expect(remove.getBoundingClientRect().left).toBe(edit.getBoundingClientRect().left);
     expect(edit.querySelector('span')?.classList.contains('icon-[uil--file-edit-alt]')).toBe(true);
   });
 

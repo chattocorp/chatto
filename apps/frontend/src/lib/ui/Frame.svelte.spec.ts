@@ -69,10 +69,6 @@ it.each([false, true])(
   async (touch) => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
     expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
-    // Disabling touch does not imply hover support (for example, in headless CI).
-    const hoverControls =
-      !touch && matchMedia('(any-hover: hover) and (any-pointer: fine)').matches;
-    const idleOpacity = hoverControls ? '0' : '1';
     const { container } = render(Frame, {
       children: testSnippet(
         '<div><div class="group/preview relative h-40 w-64"><div class="preview-toolbar"><button aria-label="Open attachment">Open</button></div></div><button data-testid="outside-preview">Outside preview</button></div>'
@@ -81,25 +77,25 @@ it.each([false, true])(
     const toolbar = container.querySelector<HTMLElement>('.preview-toolbar')!;
     const button = toolbar.querySelector<HTMLButtonElement>('button')!;
     const outside = container.querySelector<HTMLElement>('[data-testid="outside-preview"]')!;
-    // Start focused so the test also proves it clears keyboard reveal state.
+    // Actions remain available with and without focus.
     button.focus();
     await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
     for (const width of [375, 1024]) {
       await page.viewport(width, 800);
-      // Both pointer and keyboard focus can reveal the preview controls.
+      // Leaving the frame must not hide its controls.
       await userEvent.hover(outside);
       outside.focus();
       expect(button.parentElement!.matches(':hover')).toBe(false);
       expect(button.parentElement!.matches(':focus-within')).toBe(false);
-      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe(idleOpacity);
-      expect(getComputedStyle(toolbar).pointerEvents).toBe('none');
-      expect(getComputedStyle(button).pointerEvents).toBe(hoverControls ? 'none' : 'auto');
+      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
+      expect(getComputedStyle(toolbar).pointerEvents).toBe('auto');
+      expect(getComputedStyle(button).pointerEvents).toBe('auto');
       button.focus();
       await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
-      expect(getComputedStyle(toolbar).pointerEvents).toBe('none');
+      expect(getComputedStyle(toolbar).pointerEvents).toBe('auto');
       expect(getComputedStyle(button).pointerEvents).toBe('auto');
       outside.focus();
-      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe(idleOpacity);
+      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
     }
   }
 );

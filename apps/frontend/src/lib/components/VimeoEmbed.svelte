@@ -6,7 +6,7 @@ browser to Vimeo. The parent supplies a URL from `vimeoEmbedUrl` and owns previe
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { PreviewToolbar, PreviewAction } from '$lib/ui';
+  import { PreviewFrame, PreviewAction } from '$lib/ui';
 
   let {
     embedUrl,
@@ -26,11 +26,18 @@ browser to Vimeo. The parent supplies a URL from `vimeoEmbedUrl` and owns previe
 </script>
 
 <!-- The same context-menu actions are available from the message action menu. -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-  class="group/preview relative my-1.5 w-full max-w-md preview-frame"
+{#snippet frameActions()}
+  {#if showDismiss && onDismiss}
+    <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
+  {:else}
+    <PreviewAction label={m('preview.delete')} icon="icon-[uil--trash-alt]" onclick={onDelete} />
+  {/if}
+{/snippet}
+<PreviewFrame
+  class="my-1.5 w-full max-w-md"
   data-testid="vimeo-embed"
   oncontextmenu={onContextMenu}
+  actions={(showDismiss && onDismiss) || onDelete ? frameActions : undefined}
 >
   <iframe
     src={embedUrl}
@@ -40,17 +47,4 @@ browser to Vimeo. The parent supplies a URL from `vimeoEmbedUrl` and owns previe
     allow="fullscreen; picture-in-picture; encrypted-media"
     allowfullscreen
   ></iframe>
-  {#if (showDismiss && onDismiss) || onDelete}
-    <PreviewToolbar>
-      {#if showDismiss && onDismiss}
-        <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
-      {:else}
-        <PreviewAction
-          label={m('preview.delete')}
-          icon="icon-[uil--trash-alt]"
-          onclick={onDelete}
-        />
-      {/if}
-    </PreviewToolbar>
-  {/if}
-</div>
+</PreviewFrame>

@@ -7,6 +7,7 @@ import { mockService, receivedRequest } from '@chatto/client/testing/fakeServer'
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
+import { cdp } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
@@ -523,6 +524,7 @@ describe('MessageEvent action model integration', () => {
 
   it.each([
     '<span data-link-preview-trigger><a href="#">Link</a></span>',
+    '<span data-preview-actions><button type="button">More actions</button></span>',
     '<dialog><button>Preview action</button></dialog>',
     '<div popover><button>Preview action</button></div>'
   ])('keeps message gestures out of child-owned surfaces: %s', async (html) => {
@@ -598,6 +600,64 @@ describe('MessageEvent action model integration', () => {
       expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy()
     );
   });
+
+  it.each(['viewer', 'other-user'])(
+    'opens attachment actions, not message actions, when holding an image by %s',
+    async (actorId) => {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+      mocks.touchPrimary = true;
+      try {
+        const actionOverlays = new MessageActionOverlayState();
+        const image: MessageAttachmentView = {
+          id: 'image-1',
+          filename: 'image.jpg',
+          contentType: 'image/jpeg',
+          width: 800,
+          height: 600,
+          assetUrl: {
+            url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+            expiresAt: '2099-01-01T00:00:00Z'
+          },
+          thumbnailAssetUrl: null,
+          videoProcessing: null
+        };
+        const { container } = render(MessageEventTestHarness, {
+          props: { event: messageEvent({ actorId, attachments: [image] }), actionOverlays }
+        });
+        const target = container.querySelector<HTMLImageElement>(
+          '[data-message-image-attachment] img'
+        )!;
+        expect(container.querySelector('.preview-frame-actions')).toBeNull();
+        expect(container.querySelector('.preview-touch-actions')).toBeNull();
+        target.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            bubbles: true,
+            pointerType: 'touch',
+            isPrimary: true,
+            pointerId: 1
+          })
+        );
+        target.dispatchEvent(new Event('touchstart', { bubbles: true }));
+        await vi.waitFor(() => expect(actionSheetButton(container, 'View image.jpg')).toBeTruthy());
+        expect(actionOverlays.current).toBeNull();
+        expect(actionSheetButton(container, 'Copy message link')).toBeUndefined();
+        expect(!!actionSheetButton(container, 'Delete attachment')).toBe(actorId === 'viewer');
+        const nativeMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+        target.dispatchEvent(nativeMenu);
+        expect(nativeMenu.defaultPrevented).toBe(true);
+        expect(actionOverlays.current).toBeNull();
+        expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+        target.dispatchEvent(
+          new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 1 })
+        );
+        target.dispatchEvent(new Event('touchend', { bubbles: true }));
+        target.click();
+        expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+      } finally {
+        await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+      }
+    }
+  );
 
   it('shows Copy Image only for a right-clicked image attachment', async () => {
     const imageUrl = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';

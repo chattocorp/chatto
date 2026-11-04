@@ -55,6 +55,7 @@
     filename,
     describedBy,
     autoLoop = false,
+    framed = true,
     viewer = false,
     onPlaybackChange,
     onMediaError,
@@ -72,6 +73,8 @@
     filename: string;
     describedBy?: string;
     autoLoop?: boolean;
+    /** False when a PreviewFrame owns the surrounding rim and actions. */
+    framed?: boolean;
     /** Fit the player to the shared attachment viewer rather than a timeline thumbnail. */
     viewer?: boolean;
     /**
@@ -308,7 +311,7 @@
 
 {#if status === 'COMPLETED' && selectedVariant && autoLoop}
   <!-- Converted GIFs use a native <video> for reliable autoplay + loop behavior. -->
-  <div class="my-1.5 preview-frame" style={frameStyle}>
+  <div class={framed ? 'my-1.5 preview-frame' : 'preview-content'} style={frameStyle}>
     <video
       autoplay
       loop
@@ -324,7 +327,7 @@
     </video>
   </div>
 {:else if status === 'COMPLETED' && playbackSource && elementsReady}
-  <div class="my-1.5 preview-frame" style={frameStyle}>
+  <div class={framed ? 'my-1.5 preview-frame' : 'preview-content'} style={frameStyle}>
     <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
     <media-player
       {@attach attachMediaPlayer}
@@ -370,17 +373,23 @@
   </div>
 {:else if status === 'COMPLETED' && playbackSource}
   <!-- Registration is async on every remount; preserve the ready player's geometry. -->
-  <div class="my-1.5 preview-frame" style={frameStyle}>
+  <div class={framed ? 'my-1.5 preview-frame' : 'preview-content'} style={frameStyle}>
     <LoadingFog class="h-full w-full" />
   </div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
-  <div class="my-1.5 preview-frame" style={frameStyle}>
+  <div class={framed ? 'my-1.5 preview-frame' : 'preview-content'} style={frameStyle}>
     <VideoProcessingPlaceholder
       label={status === 'PENDING' ? m('media.video_queued') : m('media.video_processing')}
     />
   </div>
 {:else if status === 'FAILED'}
-  <div class="my-1.5 flex items-center gap-3 preview-frame px-4 py-3" style={frameStyle}>
+  <div
+    class={[
+      'flex items-center gap-3 px-4 py-3',
+      framed ? 'my-1.5 preview-frame' : 'preview-content'
+    ]}
+    style={frameStyle}
+  >
     <span aria-hidden="true" class="iconify icon-[uil--exclamation-triangle] text-lg text-danger"
     ></span>
     <div class="text-sm text-muted">
@@ -391,7 +400,12 @@
     </div>
   </div>
 {:else}
-  <div class="my-1.5 flex items-center gap-2 preview-frame px-3 py-2">
+  <div
+    class={[
+      'flex items-center gap-2 px-3 py-2',
+      framed ? 'my-1.5 preview-frame' : 'preview-content'
+    ]}
+  >
     <span aria-hidden="true" class="iconify icon-[uil--video] text-lg text-muted"></span>
     <span class="text-sm">{filename}</span>
   </div>

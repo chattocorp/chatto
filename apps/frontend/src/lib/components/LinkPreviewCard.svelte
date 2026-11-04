@@ -23,7 +23,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     MenuItem,
     MenuSection,
     LoadingFog,
-    PreviewToolbar,
+    PreviewFrame,
     PreviewAction
   } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
@@ -128,7 +128,21 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     onDelete={canDelete ? openDeleteConfirmation : undefined}
   />
 {:else if preview.imageUrl || preview.title || preview.description || preview.siteName}
-  <div class="group/preview relative my-1.5 w-full max-w-md preview-frame">
+  {#snippet frameActions()}
+    {#if showDismiss && onDismiss}
+      <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
+    {:else}
+      <PreviewAction
+        label={m('preview.delete')}
+        icon="icon-[uil--trash-alt]"
+        onclick={openDeleteConfirmation}
+      />
+    {/if}
+  {/snippet}
+  <PreviewFrame
+    class="my-1.5 w-full max-w-md"
+    actions={(showDismiss && onDismiss) || canDelete ? frameActions : undefined}
+  >
     <a
       {...renderedLinkTarget(preview.url)}
       onclick={(event) => handleRenderedLinkClick(event, preview.url)}
@@ -171,24 +185,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         </div>
       </div>
     </a>
-    {#if (showDismiss && onDismiss) || canDelete}
-      <PreviewToolbar>
-        {#if showDismiss && onDismiss}
-          <PreviewAction
-            label={m('preview.dismiss')}
-            icon="icon-[uil--times]"
-            onclick={onDismiss}
-          />
-        {:else}
-          <PreviewAction
-            label={m('preview.delete')}
-            icon="icon-[uil--trash-alt]"
-            onclick={openDeleteConfirmation}
-          />
-        {/if}
-      </PreviewToolbar>
-    {/if}
-  </div>
+  </PreviewFrame>
 {/if}
 
 <!-- Context menu (posted message mode only) -->

@@ -2,7 +2,7 @@
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import { retainPlayback } from '$lib/media/playbackRetention';
   import { positiveVideoDimension, videoFrameStyle } from '$lib/media/videoFrame';
-  import { LoadingFog, LoadRetry, PreviewToolbar, PreviewAction } from '$lib/ui';
+  import { LoadingFog, LoadRetry, PreviewFrame, PreviewToolbar, PreviewAction } from '$lib/ui';
   import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
@@ -433,20 +433,10 @@
     {/if}
   {/snippet}
 
-  {#snippet attachmentControls(
-    attachment: Attachment,
-    showViewer = false,
-    layout: 'overlay' | 'row' = 'overlay'
-  )}
-    {#if canDeleteAttachment || showViewer || canEditAttachmentDescription}
-      <PreviewToolbar {layout}>
-        {@render deleteAttachmentButton(attachment)}
-        {#if showViewer}
-          {@render viewAttachmentButton(attachment)}
-        {/if}
-        {@render editDescriptionButton(attachment)}
-      </PreviewToolbar>
-    {/if}
+  {#snippet attachmentActions(attachment: Attachment, showViewer = false)}
+    {@render deleteAttachmentButton(attachment)}
+    {#if showViewer}{@render viewAttachmentButton(attachment)}{/if}
+    {@render editDescriptionButton(attachment)}
   {/snippet}
 
   {#snippet imageAttachmentButton(attachment: Attachment, variant: 'single' | 'gallery')}
@@ -460,17 +450,12 @@
           : fallbackSingleThumbDisplay()}
     <!-- Keep minimum-width portraits tall enough to show their contained image. -->
     {@const fixedHeight = variant === 'gallery' || display.width === MIN_THUMB_SIZE}
-    <div
-      class={[
-        'group/preview attachment-media-frame',
-        // Reserve room for the action row without changing the image dimensions.
-        canDeleteAttachment && canEditAttachmentDescription
-          ? 'min-w-19'
-          : canDeleteAttachment || canEditAttachmentDescription
-            ? 'min-w-11'
-            : 'min-w-0',
-        variant === 'gallery' ? 'shrink-0' : 'max-w-full'
-      ]}
+    {#snippet frameActions()}{@render attachmentActions(attachment)}{/snippet}
+    {#snippet frameTouchActions()}{@render attachmentActions(attachment, true)}{/snippet}
+    <PreviewFrame
+      class={['my-1.5 max-w-full', variant === 'gallery' && 'shrink-0']}
+      actions={canDeleteAttachment || canEditAttachmentDescription ? frameActions : undefined}
+      touchActions={frameTouchActions}
     >
       <button
         type="button"
@@ -481,7 +466,7 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={imageButtonStyle(display, fixedHeight)}
-        class="relative my-1.5 block min-w-0 cursor-pointer preview-frame overflow-hidden"
+        class="relative block max-w-full min-w-0 cursor-pointer preview-content overflow-hidden"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -499,7 +484,7 @@
             alt={attachment.description || attachment.filename}
             style:aspect-ratio={fixedHeight ? undefined : `${display.width} / ${display.height}`}
             class={[
-              'w-full preview-content',
+              'w-full',
               // The content owns the ratio; the frame adds its rim outside it.
               fixedHeight ? 'h-full' : 'h-auto',
               display.fit === 'contain' ? 'object-contain' : 'object-cover'
@@ -523,20 +508,21 @@
           </span>
         {/if}
       </button>
-      {@render attachmentControls(attachment)}
-    </div>
+    </PreviewFrame>
   {/snippet}
 
   {#snippet viewAttachmentButton(attachment: Attachment)}
     <PreviewAction
       onclick={(event) => {
         // Stop inline playback before the viewer creates another player.
-        event.currentTarget
-          .closest('[data-attachment-media]')
-          ?.querySelectorAll('audio, video')
-          .forEach((media) => {
-            if (media instanceof HTMLMediaElement) media.pause();
-          });
+        if (event.currentTarget instanceof HTMLElement) {
+          event.currentTarget
+            .closest('[data-attachment-media]')
+            ?.querySelectorAll('audio, video')
+            .forEach((media) => {
+              if (media instanceof HTMLMediaElement) media.pause();
+            });
+        }
         openAttachmentModal(attachment);
       }}
       label={m('room.attachment.view_label', { filename: attachment.filename })}
@@ -558,17 +544,20 @@
           positiveVideoDimension(manifest.width) ?? variant?.width,
           positiveVideoDimension(manifest.height) ?? variant?.height
         )}
-        <div
-          class="group/preview attachment-video-frame"
+        {#snippet frameActions()}{@render attachmentActions(attachment, true)}{/snippet}
+        <PreviewFrame
+          class="my-1.5 max-w-full min-w-0"
+          actions={frameActions}
           data-attachment-media
           title={attachment.description || undefined}
         >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <div class="my-1.5 preview-frame" style={loadingFrameStyle}>
+            <div class="preview-content" style={loadingFrameStyle}>
               <LoadingFog class="h-full w-full" />
             </div>
           {:then { default: VideoPlayer }}
             <VideoPlayer
+              framed={false}
               status={attachment.videoProcessing.status}
               variants={attachment.videoProcessing.variants}
               thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
@@ -592,12 +581,11 @@
                 )}
             />
           {:catch}
-            <div class="my-1.5 preview-frame" style={loadingFrameStyle}>
+            <div class="preview-content" style={loadingFrameStyle}>
               <LoadRetry class="h-full w-full" onretry={() => (videoPlayerLoadAttempt += 1)} />
             </div>
           {/await}
-          {@render attachmentControls(attachment, true)}
-        </div>
+        </PreviewFrame>
       {:else if attachment.contentType.startsWith('image/')}
         {@render imageAttachmentButton(attachment, 'single')}
       {:else if attachment.contentType.startsWith('video/') && attachment.url}
@@ -608,25 +596,27 @@
           original so the user can at least play it. Reserve the known dimensions
           (or a 16:9 fallback) so metadata loading cannot resize a remounted row.
         -->
-        <div
-          class="group/preview attachment-video-frame my-1.5 min-h-48 preview-frame"
+        {#snippet frameActions()}{@render attachmentActions(attachment, true)}{/snippet}
+        <PreviewFrame
+          class="my-1.5 max-w-full min-w-0"
+          actions={frameActions}
           data-attachment-media
           title={attachment.description || undefined}
-          style={videoFrameStyle(attachment.width, attachment.height)}
         >
-          <video
-            {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
-            controls
-            preload="metadata"
-            src={attachment.url}
-            class="block h-full w-full preview-content object-contain"
-            onerror={() => refreshAfterAssetError(attachment, 'asset')}
-            aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
-          >
-            <track kind="captions" />
-          </video>
-          {@render attachmentControls(attachment, true)}
-        </div>
+          <div class="preview-content" style={videoFrameStyle(attachment.width, attachment.height)}>
+            <video
+              {@attach retainPlayback((active) => setAttachmentPlaying(attachment.id, active))}
+              controls
+              preload="metadata"
+              src={attachment.url}
+              class="block h-full w-full preview-content object-contain"
+              onerror={() => refreshAfterAssetError(attachment, 'asset')}
+              aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
+            >
+              <track kind="captions" />
+            </video>
+          </div>
+        </PreviewFrame>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div
           class="my-1.5 attachment-card w-[30rem] min-w-0 flex-wrap preview-frame"
@@ -645,7 +635,8 @@
           >
             {attachment.filename}
           </audio>
-          {@render attachmentControls(attachment, true, 'row')}
+          <PreviewToolbar layout="row">{@render attachmentActions(attachment, true)}</PreviewToolbar
+          >
         </div>
       {:else}
         <div class="my-1.5 attachment-card min-w-[min(14rem,100%)] preview-frame">
@@ -675,7 +666,9 @@
               <span class="min-w-0 text-sm wrap-anywhere"><bdi>{attachment.filename}</bdi></span>
             </div>
           </button>
-          {@render attachmentControls(attachment, false, 'row')}
+          {#if canDeleteAttachment || canEditAttachmentDescription}<PreviewToolbar layout="row"
+              >{@render attachmentActions(attachment)}</PreviewToolbar
+            >{/if}
         </div>
       {/if}
       {#if attachment.description && !isGalleryImageAttachment(attachment)}

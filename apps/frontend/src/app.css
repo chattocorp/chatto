@@ -1953,19 +1953,44 @@
   }
 }
 
-@utility preview-toolbar {
-  /* Use the theme surface so the visor follows light, dark, and contrast settings. */
-  @apply pointer-events-none absolute z-10 flex items-center justify-end gap-1 rounded-t-md bg-surface/50 p-1 transition-opacity feedback-quick;
-  /* A toolbar inside the content canvas has already passed the frame's rim. */
-  inset-inline: var(--preview-toolbar-inset, calc(var(--spacing) * 1));
-  top: var(--preview-toolbar-inset, calc(var(--spacing) * 1));
-  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0;
+/* The right rim owns actions. Keep the content column first even in RTL. */
+@utility preview-action-frame {
+  @apply relative flex flex-row items-stretch;
+  direction: ltr;
+}
 
-  /* Only the controls intercept clicks; links and media under the visor stay usable. */
-  & > * {
-    @apply pointer-events-auto compact-input:hover-actions:pointer-events-none;
-    @apply group-focus-within/preview:pointer-events-auto group-hover/preview:pointer-events-auto focus-within:pointer-events-auto;
+@utility preview-frame-body {
+  @apply min-w-0 flex-1;
+  direction: inherit;
+  &:dir(rtl) {
+    direction: rtl;
   }
+}
+
+/* The frame reveals its rim without covering the content. Keep the rail's
+ * height reserved so short previews do not jump when the pointer enters. */
+@utility preview-frame-actions {
+  @apply w-8 shrink-0 overflow-hidden transition-[width,opacity,transform] duration-200 ease-out motion-reduce:transition-none;
+  & > .preview-toolbar {
+    @apply ml-1 w-7;
+  }
+
+  @variant hover-actions {
+    @apply pointer-events-none w-0 -translate-x-1 opacity-0;
+    .preview-action-frame:hover > &,
+    .preview-action-frame:focus-within > & {
+      @apply pointer-events-auto w-8 translate-x-0 opacity-100;
+    }
+  }
+}
+
+/* Let the preview own iOS image callouts as well as browser contextmenu events. */
+.preview-action-frame[data-preview-actions] img {
+  -webkit-touch-callout: none;
+}
+
+@utility preview-toolbar {
+  @apply flex shrink-0 flex-col items-center gap-1;
 }
 
 @utility attachment-action-button {
@@ -1976,27 +2001,6 @@
 
 @utility attachment-card {
   @apply flex max-w-full items-center gap-3 p-3;
-}
-
-@utility attachment-media-frame {
-  @apply relative my-1.5;
-
-  /* Put spacing outside the overlay's containing block so the top and end
-   * offsets both start at the visible media frame. */
-  & > .preview-frame {
-    @apply my-0;
-  }
-}
-
-@utility attachment-video-frame {
-  @apply attachment-media-frame max-w-full min-w-0;
-
-  /* Keep the action row above the player's bottom controls, even
-   * when a narrow message reduces the video's natural display height. */
-  & > .preview-frame,
-  & > video {
-    @apply min-h-48;
-  }
 }
 
 @utility notification-dot {

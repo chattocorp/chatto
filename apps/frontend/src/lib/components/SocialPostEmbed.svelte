@@ -6,7 +6,7 @@ preview-card styling. Its parent owns shared link-preview actions.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { PreviewToolbar, PreviewAction } from '$lib/ui';
+  import { PreviewFrame, PreviewAction } from '$lib/ui';
   import { renderedLinkTarget, handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import type { SocialPostPreviewView } from '@chatto/client/timeline/linkPreviews';
 
@@ -67,13 +67,19 @@ preview-card styling. Its parent owns shared link-preview actions.
   }
 </script>
 
-<!-- Context menu only. The same actions stay available from the message action menu. -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-  class="group/preview relative my-1.5 w-full max-w-md preview-frame"
+{#snippet frameActions()}
+  {#if showDismiss && onDismiss}
+    <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
+  {:else}
+    <PreviewAction label={m('preview.delete')} icon="icon-[uil--trash-alt]" onclick={onDelete} />
+  {/if}
+{/snippet}
+<PreviewFrame
+  class="my-1.5 w-full max-w-md"
   data-testid="social-post-embed"
   data-provider={post.provider}
   oncontextmenu={onContextMenu}
+  actions={(showDismiss && onDismiss) || onDelete ? frameActions : undefined}
 >
   <div class="flex flex-col gap-3 preview-content p-3">
     <a
@@ -298,17 +304,4 @@ preview-card styling. Its parent owns shared link-preview actions.
       {/if}
     {/if}
   </div>
-  {#if (showDismiss && onDismiss) || onDelete}
-    <PreviewToolbar>
-      {#if showDismiss && onDismiss}
-        <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
-      {:else}
-        <PreviewAction
-          label={m('preview.delete')}
-          icon="icon-[uil--trash-alt]"
-          onclick={onDelete}
-        />
-      {/if}
-    </PreviewToolbar>
-  {/if}
-</div>
+</PreviewFrame>

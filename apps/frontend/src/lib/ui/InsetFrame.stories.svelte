@@ -6,6 +6,7 @@
   import MenuItem from './MenuItem.svelte';
   import PaletteFrame from './PaletteFrame.svelte';
   import PaletteSearch from './PaletteSearch.svelte';
+  import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import ComposerLinkPreviewCard from '$lib/components/composer/ComposerLinkPreviewCard.svelte';
 
   const { Story } = defineMeta({
@@ -28,7 +29,7 @@
     const preview = canvasElement.querySelector<HTMLElement>(
       '[data-testid="composer-link-preview"]'
     )!;
-    const frames = [preview];
+    const frames = [preview, canvasElement.querySelector<HTMLElement>('.preview-action-frame')!];
     if (window.innerWidth >= 768)
       frames.push(canvasElement.querySelector<HTMLElement>('.command-palette')!);
     for (const frame of frames) {
@@ -95,6 +96,17 @@
     <section class="w-72 max-w-full">
       <p class="mb-3 text-sm font-medium">Preview</p>
       <ComposerLinkPreviewCard
+        preview={{
+          url: 'https://example.test/guide',
+          title: 'A guide to building together',
+          siteName: 'Chatto community'
+        }}
+        onDismiss={() => {}}
+      />
+    </section>
+    <section class="w-72 max-w-full">
+      <p class="mb-3 text-sm font-medium">Preview with frame actions</p>
+      <LinkPreviewCard
         preview={{
           url: 'https://example.test/guide',
           title: 'A guide to building together',

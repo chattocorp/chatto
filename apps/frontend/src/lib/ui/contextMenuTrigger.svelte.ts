@@ -11,13 +11,14 @@ export type ContextMenuTriggerDetails = {
 
 /**
  * Opens a context menu for a native context-menu gesture or a stationary touch long-press.
+ * Capture mode owns native context menus before descendant handlers run.
  * Movement cancels the pending touch gesture so normal sidebar scrolling remains native.
  * `touchOnly` leaves desktop context menus with the element's existing owner.
  * `nativeOnShift` leaves Shift-right-click to the browser.
  */
 export function contextMenuTrigger(
   onopen: (details: ContextMenuTriggerDetails) => void,
-  options: { touchOnly?: boolean; nativeOnShift?: boolean } = {}
+  options: { touchOnly?: boolean; nativeOnShift?: boolean; capture?: boolean } = {}
 ): Attachment<HTMLElement> {
   return (node) => {
     let timer: number | null = null;
@@ -73,23 +74,28 @@ export function contextMenuTrigger(
     }
 
     const cleanups = [
-      on(node, 'contextmenu', (event) => {
-        if (options.nativeOnShift && event.shiftKey) return;
-        const fromTouch = touchSequence || openedDuringTouch || suppressClick;
-        if (options.touchOnly && !fromTouch) return;
-        event.preventDefault();
-        if (options.touchOnly) event.stopPropagation();
-        if (fromTouch && (openedDuringTouch || suppressClick)) return;
-        cancelLongPress();
-        if (fromTouch) {
-          openedDuringTouch = true;
-          armClickSuppression();
-        }
-        onopen({
-          position: { x: event.clientX, y: event.clientY },
-          presentation: fromTouch ? 'sheet' : 'auto'
-        });
-      }),
+      on(
+        node,
+        'contextmenu',
+        (event) => {
+          if (options.nativeOnShift && event.shiftKey) return;
+          const fromTouch = touchSequence || openedDuringTouch || suppressClick;
+          if (options.touchOnly && !fromTouch) return;
+          event.preventDefault();
+          if (options.touchOnly || options.capture) event.stopPropagation();
+          if (fromTouch && (openedDuringTouch || suppressClick)) return;
+          cancelLongPress();
+          if (fromTouch) {
+            openedDuringTouch = true;
+            armClickSuppression();
+          }
+          onopen({
+            position: { x: event.clientX, y: event.clientY },
+            presentation: fromTouch ? 'sheet' : 'auto'
+          });
+        },
+        { capture: options.capture }
+      ),
       on(node, 'pointerdown', (event) => {
         if (event.pointerType !== 'touch' || !event.isPrimary) return;
         cancelLongPress();

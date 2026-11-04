@@ -30,12 +30,15 @@ describe('SVG animation playback', () => {
       view.container.style.cssText = 'width:400px;height:400px';
       try {
         const frame = view.container.querySelector('iframe')!;
+        await expect.element(view.getByRole('button', { name: 'Pause animation' })).toBeEnabled();
+        view.container.querySelector<HTMLButtonElement>('[aria-label="Pause animation"]')!.focus();
         const bounds = () => frame.contentDocument?.querySelector('svg')?.getBoundingClientRect();
-        await expect.poll(() => bounds()?.width).toBe(400);
-        await expect.poll(() => bounds()?.height).toBe(200);
-        view.container.style.cssText = 'width:44px;height:200px';
-        await expect.poll(() => bounds()?.width).toBe(44);
-        await expect.poll(() => bounds()?.height).toBe(22);
+        // The rim and action column reserve 42px; SVG fitting uses the remaining canvas.
+        await expect.poll(() => bounds()?.width).toBe(358);
+        await expect.poll(() => bounds()?.height).toBe(179);
+        view.container.style.cssText = 'width:120px;height:200px';
+        await expect.poll(() => bounds()?.width).toBe(78);
+        await expect.poll(() => bounds()?.height).toBe(39);
       } finally {
         await view.unmount();
       }
