@@ -1,3 +1,5 @@
+import { page as browserPage } from 'vitest/browser';
+import '../../../../app.css';
 import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -2013,15 +2015,56 @@ describe('Room local message echo', () => {
     );
 
     await expect.element(desktopSidebarPane).toBeInTheDocument();
-    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(false);
     expect(desktopSidebarPane.className).toContain('shrink-0');
 
     maximizeButton.click();
 
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
-    expect(roomRegion.className).toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(true);
     expect(desktopSidebarPane.className).toContain('flex-1');
     expect(desktopSidebarPane.className).not.toContain('shrink-0');
+  });
+
+  it('keeps a wide call visible across breakpoints without a second mobile pane', async () => {
+    const previousViewport = { width: window.innerWidth, height: window.innerHeight };
+    const setMatchMedia = stubMatchMedia(true);
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    mocks.activeCallRoomIds.add('room-1');
+    appUi.openMobileRoomSidebarPanel('call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
+      container,
+      '[data-testid="toggle-maximized-call"]'
+    );
+    maximizeButton.click();
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+
+    try {
+      for (const width of [1440, 1024, 1023, 800, 390, 1440]) {
+        await browserPage.viewport(width, 480);
+        setMatchMedia(width >= 1024);
+        await tick();
+        await expect.element(q(container, '[data-testid="room-view-region"]')).not.toBeVisible();
+        await expect
+          .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+          .toBeVisible();
+        await expect
+          .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+          .not.toBeInTheDocument();
+        await expect.element(maximizeButton).toBeVisible();
+      }
+
+      await browserPage.viewport(390, 480);
+      setMatchMedia(false);
+      maximizeButton.click();
+      await tick();
+      await expect.element(q(container, '[data-testid="room-sidebar-mobile-pane"]')).toBeVisible();
+      expect(appUi.mobileRoomSidebarPanel).toBe('call');
+    } finally {
+      await browserPage.viewport(previousViewport.width, previousViewport.height);
+    }
   });
 
   it('restores the room view when a maximized desktop call ends', async () => {
@@ -2042,14 +2085,14 @@ describe('Room local message echo', () => {
     maximizeButton.click();
 
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
-    expect(roomRegion.className).toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(true);
     expect(desktopSidebarPane.className).toContain('flex-1');
 
     mocks.activeCallRoomIds.clear();
     await rendered.rerender({ roomId: 'room-1' });
 
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'false');
-    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(false);
     expect(desktopSidebarPane.className).toContain('shrink-0');
     expect(desktopSidebarPane.className).not.toContain('flex-1');
   });
@@ -2071,14 +2114,14 @@ describe('Room local message echo', () => {
     maximizeButton.click();
 
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
-    expect(roomRegion.className).toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(true);
     expect(desktopSidebarPane.className).toContain('flex-1');
 
     appUi.disableRoomCallWideFor('server-1', 'room-1');
     await tick();
 
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'false');
-    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(false);
     expect(desktopSidebarPane.className).toContain('shrink-0');
     expect(desktopSidebarPane.className).not.toContain('flex-1');
   });
@@ -2105,7 +2148,7 @@ describe('Room local message echo', () => {
     await tick();
 
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
-    expect(roomRegion.className).toContain('lg:hidden');
+    expect(roomRegion.classList.contains('hidden')).toBe(true);
     expect(desktopSidebarPane.className).toContain('flex-1');
   });
 });

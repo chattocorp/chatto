@@ -174,7 +174,10 @@
   >
     <AppHeader />
 
-    <Frame class="relative flex-col">
+    <!-- Keep a wide call visible when the navigation would take its space. -->
+    <Frame
+      class="relative flex-col {appUi.isRoomCallWide ? 'max-lg:[&_[data-app-sidebar]]:hidden' : ''}"
+    >
       <MobileSidebarChrome>
         {@render children?.()}
       </MobileSidebarChrome>

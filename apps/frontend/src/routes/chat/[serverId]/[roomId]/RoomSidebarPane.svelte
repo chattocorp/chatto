@@ -61,7 +61,7 @@
   {/if}
 {:else if sidebarProps}
   <div
-    class={['hidden min-h-0 min-w-0 lg:flex', maximized ? 'flex-1' : 'shrink-0']}
+    class={['min-h-0 min-w-0', maximized ? 'flex flex-1' : 'hidden shrink-0 lg:flex']}
     data-testid="room-sidebar-desktop-pane"
   >
     {@render sidebar(sidebarProps)}

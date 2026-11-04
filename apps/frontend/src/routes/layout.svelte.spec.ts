@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import { page as browserPage } from 'vitest/browser';
 import { page } from '$app/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -16,6 +17,7 @@ const { mocks } = vi.hoisted(() => ({
     onNavigate: vi.fn(),
     deactivateManagementLocaleMessages: vi.fn(async () => {}),
     appUi: {
+      isRoomCallWide: false,
       setActiveRoomScope: vi.fn(),
       setActiveServer: vi.fn(),
       loadVisibleRoomMembers: vi.fn()
@@ -131,11 +133,19 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/appUi.svelte', () => ({
-  AppUiState: class {},
-  getAppUiState: () => mocks.appUi,
-  provideAppUiState: () => mocks.appUi
-}));
+vi.mock('$lib/state/appUi.svelte', async () => {
+  const { fromStore, writable } = await import('svelte/store');
+  const wide = fromStore(writable(false));
+  Object.defineProperty(mocks.appUi, 'isRoomCallWide', {
+    get: () => wide.current,
+    set: (value: boolean) => (wide.current = value)
+  });
+  return {
+    AppUiState: class {},
+    getAppUiState: () => mocks.appUi,
+    provideAppUiState: () => mocks.appUi
+  };
+});
 
 vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
   useServerRegistry: vi.fn()
@@ -329,6 +339,43 @@ describe('OAuth page layout', () => {
     const view = renderLayout();
     await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
     await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
+  });
+});
+
+describe('wide call navigation layout', () => {
+  let previousViewport: { width: number; height: number };
+  beforeEach(() => {
+    previousViewport = { width: window.innerWidth, height: window.innerHeight };
+  });
+
+  afterEach(async () => {
+    mocks.appUi.isRoomCallWide = false;
+    await browserPage.viewport(previousViewport.width, previousViewport.height);
+    resetSidebar();
+    vi.clearAllMocks();
+  });
+
+  it('hides navigation below 1024 px only while a call is wide', async () => {
+    const view = renderLayout(
+      '<div class="contents"><aside data-app-sidebar="true" data-testid="server-sidebar">Rooms</aside><main>Call</main></div>'
+    );
+    sidebarNav.setMobile(false);
+    if (!sidebarNav.isOpen) sidebarNav.toggle();
+    mocks.appUi.isRoomCallWide = true;
+
+    for (const width of [1440, 1024, 1023, 800, 390, 1440]) {
+      await browserPage.viewport(width, 480);
+      for (const testId of ['server-sidebar', 'mobile-sidebar-panel']) {
+        const panel = view.getByTestId(testId);
+        if (width < 1024) await expect.element(panel).not.toBeVisible();
+        else await expect.element(panel).toBeVisible();
+      }
+    }
+
+    await browserPage.viewport(800, 480);
+    mocks.appUi.isRoomCallWide = false;
+    await expect.element(view.getByTestId('server-sidebar')).toBeVisible();
+    await expect.element(view.getByTestId('mobile-sidebar-panel')).toBeVisible();
   });
 });
 
