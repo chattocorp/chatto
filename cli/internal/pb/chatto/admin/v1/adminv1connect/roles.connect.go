@@ -58,10 +58,9 @@ const (
 
 // AdminRoleServiceClient is a client for the chatto.admin.v1.AdminRoleService service.
 type AdminRoleServiceClient interface {
-	// Lists the role catalog including permission arrays as a finite snapshot.
-	// Requires an authenticated user. This intentionally includes permission
-	// arrays for clients that need to show a user's assigned roles and their
-	// effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
+	// Lists role metadata, optional totals, and viewer capabilities as a finite
+	// snapshot. Requires an authenticated user. Read permission decisions through
+	// AdminPermissionService; use chatto.api.v1.RoleService for public metadata.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
 	// Gets one role plus admin detail metadata. Returns NOT_FOUND when the
 	// role does not exist. Requires an authenticated user.
@@ -183,10 +182,9 @@ func (c *adminRoleServiceClient) ReorderRoles(ctx context.Context, req *connect.
 
 // AdminRoleServiceHandler is an implementation of the chatto.admin.v1.AdminRoleService service.
 type AdminRoleServiceHandler interface {
-	// Lists the role catalog including permission arrays as a finite snapshot.
-	// Requires an authenticated user. This intentionally includes permission
-	// arrays for clients that need to show a user's assigned roles and their
-	// effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
+	// Lists role metadata, optional totals, and viewer capabilities as a finite
+	// snapshot. Requires an authenticated user. Read permission decisions through
+	// AdminPermissionService; use chatto.api.v1.RoleService for public metadata.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
 	// Gets one role plus admin detail metadata. Returns NOT_FOUND when the
 	// role does not exist. Requires an authenticated user.

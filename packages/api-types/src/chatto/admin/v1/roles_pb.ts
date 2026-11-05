@@ -10,7 +10,10 @@ import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 import { User } from "../../api/v1/users_pb.js";
 
 /**
- * Role metadata plus administrative permission state.
+ * Role metadata plus optional administrative totals.
+ * Permission decisions are read through AdminPermissionService. Clients that
+ * used permissions or permission_denials must migrate to GetRolePermissionMatrix
+ * or ListRolePermissionDecisions. These reads require role.manage.
  *
  * @generated from message chatto.admin.v1.AdminRole
  */
@@ -21,20 +24,6 @@ export class AdminRole extends Message<AdminRole> {
    * @generated from field: chatto.api.v1.Role role = 1;
    */
   role?: Role;
-
-  /**
-   * Permissions granted by this role.
-   *
-   * @generated from field: repeated string permissions = 2;
-   */
-  permissions: string[] = [];
-
-  /**
-   * Permissions denied by this role.
-   *
-   * @generated from field: repeated string permission_denials = 3;
-   */
-  permissionDenials: string[] = [];
 
   /**
    * Active human members, including implicit membership for everyone.
@@ -69,8 +58,6 @@ export class AdminRole extends Message<AdminRole> {
   static readonly typeName = "chatto.admin.v1.AdminRole";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "role", kind: "message", T: Role },
-    { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 4, name: "member_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
     { no: 5, name: "permission_grant_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
     { no: 6, name: "permission_denial_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },

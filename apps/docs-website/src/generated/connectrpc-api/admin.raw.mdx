@@ -313,10 +313,9 @@ Provides authenticated role reads and administrative role definition changes.
 
 ### ListRoles
 
-Lists the role catalog including permission arrays as a finite snapshot.
-Requires an authenticated user. This intentionally includes permission
-arrays for clients that need to show a user's assigned roles and their
-effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
+Lists role metadata, optional totals, and viewer capabilities as a finite
+snapshot. Requires an authenticated user. Read permission decisions through
+AdminPermissionService; use chatto.api.v1.RoleService for public metadata.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
@@ -2532,13 +2531,14 @@ the code can use it; it is not bound to an email address or recipient.
 
 ### AdminRole
 
-Role metadata plus administrative permission state.
+Role metadata plus optional administrative totals.
+Permission decisions are read through AdminPermissionService. Clients that
+used permissions or permission_denials must migrate to GetRolePermissionMatrix
+or ListRolePermissionDecisions. These reads require role.manage.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
 | `member_count` | `optional uint64` | Active human members, including implicit membership for everyone. Reported by ListRoles only, for callers with role.manage or role.assign. |
 | `permission_grant_count` | `optional uint64` | Explicit permission grants across all scopes; excludes virtual owner access. Reported by ListRoles only, for callers with role.manage or role.assign. |
 | `permission_denial_count` | `optional uint64` | Explicit permission denials across all scopes. Reported by ListRoles only, for callers with role.manage or role.assign. |

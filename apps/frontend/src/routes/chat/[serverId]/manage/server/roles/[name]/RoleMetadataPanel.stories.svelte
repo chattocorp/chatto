@@ -7,8 +7,6 @@
     name: 'everyone',
     displayName: 'Everyone',
     description: 'All authenticated users',
-    permissions: [],
-    permissionDenials: [],
     isSystem: true,
     position: 0,
     pingable: false

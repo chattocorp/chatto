@@ -97,6 +97,12 @@ the backend permission catalog. Update both catalogs together.
   Role assigners without `role.manage` open the roster. Leaving a changed role
   form requires confirmation before the draft is discarded.
 
+- Administrative role responses contain metadata and optional aggregate counts.
+  Permission decisions belong to `AdminPermissionService`. The former
+  `AdminRole.permissions` and `AdminRole.permission_denials` fields are removed;
+  clients must use role matrix or decision reads, which require `role.manage`.
+  Role metadata and assignment-read access requirements stay the same.
+
 - Role details and assigned members are separate reads. Member lists load in
   bounded pages so large roles do not require every user profile at once.
   Roster access requires `role.assign`, not access to the full administrative

@@ -350,21 +350,10 @@ func publicAPIRoleFromAdminMemberSummary(role core.AdminMemberRoleSummary) *apiv
 	}
 }
 
-func adminAPIRolesFromAdminMemberRoles(roles []core.AdminMemberRole) []*adminv1.AdminRole {
+func adminAPIRolesFromAdminMemberRoles(roles []core.AdminMemberRoleSummary) []*adminv1.AdminRole {
 	out := make([]*adminv1.AdminRole, 0, len(roles))
 	for _, role := range roles {
-		out = append(out, &adminv1.AdminRole{
-			Role: &apiv1.Role{
-				Name:        role.Name,
-				DisplayName: role.DisplayName,
-				Description: role.Description,
-				IsSystem:    role.IsSystem,
-				Position:    role.Position,
-				Pingable:    role.Pingable,
-			},
-			Permissions:       corePermissionsToStrings(role.Permissions),
-			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
-		})
+		out = append(out, &adminv1.AdminRole{Role: publicAPIRoleFromAdminMemberSummary(role)})
 	}
 	return out
 }
