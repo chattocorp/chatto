@@ -1,14 +1,21 @@
-/** Shared geometry for the inline player and its lazy-loading placeholder. */
-export function videoFrameStyle(width?: number | null, height?: number | null): string {
+/**
+ * Shared geometry for the inline player and its loading placeholder.
+ * GIF loops need no playback controls and use the source proportions. Other
+ * videos reserve a small canvas for controls only when the media is too thin.
+ * Apply the result to a preview-frame with preview-media-frame so its first
+ * child keeps the media ratio inside the rim.
+ */
+export function videoFrameStyle(
+  width?: number | null,
+  height?: number | null,
+  autoLoop = false
+): string {
   const w = positiveVideoDimension(width) ?? 480;
   const h = positiveVideoDimension(height) ?? 270;
-  // Keep controls usable for extreme ratios; the media uses object-fit: contain.
-  const canvasWidth = Math.max(w, h * (9 / 16));
-  const canvasHeight = Math.max(h, w / (16 / 9));
-  const scale = Math.min(480 / canvasWidth, 320 / canvasHeight, 1);
-  const displayWidth = Math.max(1, Math.round(canvasWidth * scale));
-  const displayHeight = Math.max(1, Math.round(canvasHeight * scale));
-  return `width: ${displayWidth}px; max-width: 100%; aspect-ratio: ${displayWidth} / ${displayHeight};`;
+  const scale = Math.min(480 / w, 320 / h, 1);
+  const displayWidth = Math.max(autoLoop ? 1 : 180, Math.round(w * scale));
+  const displayHeight = Math.max(autoLoop ? 1 : 128, Math.round(h * scale));
+  return `width: ${displayWidth}px; max-width: 100%; --preview-media-ratio: ${displayWidth} / ${displayHeight};`;
 }
 
 /** Reject missing or invalid dimensions before choosing a frame fallback. */

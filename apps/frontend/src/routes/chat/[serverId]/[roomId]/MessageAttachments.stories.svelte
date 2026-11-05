@@ -2,6 +2,9 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import MessageAttachments from './MessageAttachments.svelte';
   import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+  import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
+  import wideClip from '$lib/test-utils/fixtures/wide-preview.mp4?url';
+  import tallClip from '$lib/test-utils/fixtures/tall-preview.mp4?url';
 
   const { Story } = defineMeta({
     title: 'Messages/Image attachments',
@@ -31,6 +34,39 @@
   const wide = image('wide', 2000, 400);
   const portrait = image('portrait', 320, 1600);
   const square = image('square', 600, 600);
+
+  /** Local clips exercise the real player, including intrinsic metadata sizing. */
+  function clip(id: string, autoLoop: boolean, tall = false): MessageAttachmentView {
+    const width = tall ? 120 : 600;
+    const height = tall ? 600 : 200;
+    const assetUrl = {
+      url: tall ? tallClip : wideClip,
+      expiresAt: '2099-01-01T00:00:00Z'
+    };
+    return {
+      ...image(id, width, height),
+      filename: `${id}.${autoLoop ? 'gif' : 'mp4'}`,
+      contentType: autoLoop ? 'image/gif' : 'video/mp4',
+      assetUrl,
+      videoProcessing: {
+        status: VideoProcessingStatus.Completed,
+        width,
+        height,
+        durationMs: 1000,
+        thumbnailAssetUrl: null,
+        hlsMasterPlaylistUrl: null,
+        sourceAvailable: true,
+        reasonCode: null,
+        variants: [{ quality: 'original', width, height, size: 1024, assetUrl }]
+      }
+    };
+  }
+
+  const wideImage = image('wide-image', 600, 200);
+  const wideLoop = clip('wide-loop', true);
+  const wideVideo = clip('wide-video', false);
+  const tallLoop = clip('tall-loop', true, true);
+  const rawWideVideo = { ...wideVideo, id: 'raw-video', videoProcessing: null };
 </script>
 
 <script lang="ts">
@@ -87,5 +123,39 @@
 <Story name="Gallery" asChild>
   <div class="max-w-xl p-4">
     {@render attachment([landscape, wide, portrait, square])}
+  </div>
+</Story>
+
+<Story name="Wide image GIF and video" asChild>
+  <div class="flex max-w-xl flex-col gap-4 p-4">
+    <div>
+      <p class="mb-2 text-muted">Image · 3:1</p>
+      {@render attachment([wideImage])}
+    </div>
+    <div>
+      <p class="mb-2 text-muted">Animated GIF · 3:1</p>
+      {@render attachment([wideLoop])}
+    </div>
+    <div>
+      <p class="mb-2 text-muted">Video · 3:1</p>
+      {@render attachment([wideVideo])}
+    </div>
+    <div>
+      <p class="mb-2 text-muted">Original video · 3:1</p>
+      {@render attachment([rawWideVideo])}
+    </div>
+  </div>
+</Story>
+
+<Story name="Tall GIF with actions" asChild>
+  <div class="w-64 max-w-full p-4">
+    <MessageAttachments
+      attachments={[tallLoop]}
+      serverId="storybook"
+      roomId="images"
+      eventId="tall-loop"
+      canDeleteAttachment
+      canEditAttachmentDescription
+    />
   </div>
 </Story>

@@ -1,9 +1,15 @@
 <script lang="ts">
+  import { videoFrameStyle } from '$lib/media/videoFrame';
+
   let {
+    width = null,
+    height = null,
     hlsUrl = null,
     autoLoop = false,
     onMediaError
   }: {
+    width?: number | null;
+    height?: number | null;
     hlsUrl?: string | null;
     autoLoop?: boolean;
     onMediaError?: () => void | Promise<string | null>;
@@ -12,12 +18,12 @@
 
 <button
   type="button"
-  class="my-1.5 preview-frame"
+  class="preview-media-frame my-1.5 preview-frame"
   data-testid="message-attachments-video-player"
   data-hls-url={hlsUrl ?? ''}
   data-auto-loop={autoLoop}
-  style="width: 480px; max-width: 100%; aspect-ratio: 16 / 9"
+  style={videoFrameStyle(width, height, autoLoop)}
   onclick={() => onMediaError?.()}
 >
-  Test video player
+  <span class="block w-full">Test video player</span>
 </button>
