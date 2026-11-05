@@ -135,7 +135,7 @@
       <div
         class="flex flex-col items-start gap-3 surface-box p-4 @min-[24rem]/role:flex-row @min-[24rem]/role:items-center @min-[24rem]/role:gap-5"
       >
-        <span aria-hidden="true" class="shrink-0 text-2xl font-semibold tracking-tight text-action"
+        <span aria-hidden="true" class="shrink-0 text-base font-semibold tracking-tight text-action"
           >@all</span
         >
         <p class="max-w-xl text-muted">{m('admin.permissions.everyone_pingable_description')}</p>
