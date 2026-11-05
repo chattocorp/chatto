@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import Panel from '../Panel.svelte';
   import RangeField from './RangeField.svelte';
 
   const { Story } = defineMeta({
@@ -10,7 +11,7 @@
       docs: {
         description: {
           component:
-            'Use RangeField for bounded numeric settings. It keeps the label, current value, optional icon, and range control in one consistent row.'
+            'Use RangeField for bounded numeric settings. A flat label and value row sits above a slim rail. The parent owns the surrounding surface and padding; the native input keeps a 44px pointer target.'
         }
       }
     }
@@ -22,6 +23,7 @@
   let steppedVolume = $state(100);
   let disabledValue = $state(35);
   let contrastAge = $state(30);
+  let threshold = $state(-35);
 </script>
 
 <Story name="Default" asChild>
@@ -35,6 +37,36 @@
       bind:value={volume}
       displayValue={`${volume}%`}
     />
+  </div>
+</Story>
+
+<Story name="Settings panel" asChild>
+  <div class="max-w-xl">
+    <Panel title="Microphone">
+      <div class="flex flex-col gap-4">
+        <RangeField
+          id="noise-gate"
+          label="Noise gate threshold"
+          min={-60}
+          max={0}
+          bind:value={threshold}
+          displayValue={`${threshold} dB`}
+          describedBy="noise-gate-help"
+        />
+        <p id="noise-gate-help" class="text-sm text-muted">
+          Sounds below this level are muted. Raise it to block more background noise.
+        </p>
+        <RangeField
+          id="panel-volume"
+          label="Notification volume"
+          icon="icon-[uil--volume]"
+          min={0}
+          max={100}
+          bind:value={volume}
+          displayValue={`${volume}%`}
+        />
+      </div>
+    </Panel>
   </div>
 </Story>
 

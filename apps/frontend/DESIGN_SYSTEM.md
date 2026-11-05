@@ -953,17 +953,19 @@ At 0%, headings, body text, and muted text become deliberately softer in both
 themes. Action colours keep their separate contrast.
 At 100%, light uses black text on a white background with dark boundaries.
 Dark uses white text on a black background with light boundaries. The app frame
-and recessed panel edges use the same clear boundary. Range fields gain a
-visible boundary as contrast increases.
+and recessed panel edges use the same clear boundary. Range rails use the
+shared input boundary.
 The Depth and Contrast controls sit side by side in the UI Style section when
 it is wide enough and stack when it is narrow.
 
 `RangeField` draws its slider from control primitives instead of native
-browser chrome: a recessed well like text inputs, a lit fill in the primary
-action colour, a pale raised grip, and optional stop marks from `ticks`. Pointer
+browser chrome: a slim recessed rail, a lit fill in the primary action colour,
+a round raised grip, and optional stop marks from `ticks`. The label and value
+sit above the rail, with no field background or padding. The parent owns the
+surrounding spacing. The rail sits inside a 44px-high pointer target. Pointer
 hover and dragging darken the fill and give the grip an accent halo. A
-transparent native range input covers the travel, so keyboard, pointer, and
-assistive-technology behaviour stay native. Do not restyle a raw
+transparent native range input covers the travel and keeps keyboard, pointer,
+and assistive-technology behaviour native. Keyboard focus outlines the grip. Do not restyle a raw
 `input[type=range]`; use `RangeField`, and extend it when a variant is missing.
 
 `ProgressBar` shows read-only completion with a recessed control frame, a

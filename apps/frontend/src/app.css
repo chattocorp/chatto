@@ -1458,23 +1458,23 @@
 }
 
 /* Form input utilities */
-/* Range fields gain a visible boundary as contrast increases. */
-@utility range-field {
-  box-shadow: 0 0 0 1px
-    color-mix(in srgb, transparent, var(--color-border) var(--contrast-strong-mix));
-}
-
-/* RangeField draws its slider from control primitives: a recessed well like
- * text inputs, a lit fill in the primary action colour, and a raised grip like
- * a segmented selection. `--range-progress` (0–1) positions the fill and grip.
- * A transparent native input covers the travel; its thumb matches the grip
- * width so pointer positions land where the grip is drawn.
+/* RangeField keeps a slim rail inside a 44px pointer target. The native thumb
+ * and drawn grip share their width and travel in either text direction.
+ * `--range-progress` (0–1) positions the fill and grip.
  */
 @utility range-track {
-  @apply relative block h-7 control-frame bg-input;
-  @apply transition-[border-color,box-shadow] feedback-quick;
-  --range-inset: 3px;
-  --range-grip-width: 1.75rem;
+  @apply relative block h-11;
+  --range-grip-width: 1.25rem;
+
+  &::before {
+    @apply control-frame bg-input;
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 0.5rem;
+    translate: 0 -50%;
+  }
 
   /* Pointer hover and dragging lift the grip and strengthen the fill. */
   @media (any-hover: hover) {
@@ -1488,7 +1488,7 @@
   }
 
   @variant keyboard-modality {
-    &:has(.range-input:focus-visible) {
+    &:has(.range-input:focus-visible) .range-grip {
       @apply border-action ring-2 ring-action/35;
     }
   }
@@ -1496,16 +1496,20 @@
 
 @utility range-travel {
   position: absolute;
-  inset: var(--range-inset);
+  inset: 0;
   pointer-events: none;
 }
 
 @utility range-fill {
-  @apply rounded-lg shell-lighting;
+  @apply rounded-full shell-lighting;
   position: absolute;
-  inset-block: 0;
+  top: 50%;
+  height: 0.5rem;
+  translate: 0 -50%;
   inset-inline-start: 0;
-  width: calc((100% - var(--range-grip-width)) * var(--range-progress) + var(--range-grip-width));
+  width: calc(
+    (100% - var(--range-grip-width)) * var(--range-progress) + var(--range-grip-width) / 2
+  );
   background-color: color-mix(
     in srgb,
     var(--color-button-action),
@@ -1532,7 +1536,7 @@
 }
 
 @utility range-grip {
-  @apply rounded-lg border border-input-border shell-lighting shadow-[var(--depth-shadow-sm)];
+  @apply rounded-full border border-input-border shell-lighting shadow-[var(--depth-shadow-sm)];
   /* Compose with the bevel's inset shadows; the halo appears while the pointer
      is over the track or dragging. */
   --tw-shadow:
@@ -1540,7 +1544,9 @@
     0 0 0 calc(var(--range-active, 0) * 3px)
       color-mix(in srgb, var(--color-action) 35%, transparent);
   position: absolute;
-  inset-block: 0;
+  top: 50%;
+  translate: 0 -50%;
+  height: var(--range-grip-width);
   width: var(--range-grip-width);
   inset-inline-start: calc((100% - var(--range-grip-width)) * var(--range-progress));
   /* A pale knob stands out against both the fill and the empty well. */
@@ -1577,7 +1583,7 @@
 
   /* Forced colours remove the focus ring's box shadow. */
   @variant keyboard-modality {
-    .range-track:has(.range-input:focus-visible) {
+    .range-track:has(.range-input:focus-visible) .range-grip {
       outline: 2px solid Highlight;
       outline-offset: 2px;
     }
@@ -1586,11 +1592,9 @@
 
 @utility range-input {
   position: absolute;
-  inset-inline-start: var(--range-inset);
-  /* Extend the 28px track to a 44px pointer target; offsets include its 1px frame. */
-  top: calc(-0.5rem - 1px);
-  width: calc(100% - 2 * var(--range-inset));
-  height: calc(100% + 1rem + 2px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
   appearance: none;
   background: transparent;
