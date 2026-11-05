@@ -30,8 +30,6 @@ export interface E2EAdminRole {
     position?: number;
     pingable?: boolean;
   };
-  permissions?: string[];
-  permissionDenials?: string[];
 }
 
 export interface E2EServerRole {
@@ -41,8 +39,6 @@ export interface E2EServerRole {
   isSystem?: boolean;
   position?: number;
   pingable?: boolean;
-  permissions: string[];
-  permissionDenials: string[];
 }
 
 export type E2ENotificationMode =
@@ -158,12 +154,7 @@ function requestContext(client: ConnectClient): APIRequestContext {
 }
 
 export function unwrapAdminRole(role: E2EAdminRole | undefined): E2EServerRole | undefined {
-  if (!role?.role) return undefined;
-  return {
-    ...role.role,
-    permissions: [...(role.permissions ?? [])],
-    permissionDenials: [...(role.permissionDenials ?? [])]
-  };
+  return role?.role;
 }
 
 export function expectPermissionDecisionUpdate(
