@@ -77,7 +77,6 @@
       "server_not_found": "Server ikke funnet",
       "load_failed": "Kunne ikke laste inn medlemmer",
       "load_more_failed": "Kunne ikke laste inn flere medlemmer",
-      "showing": "Viser {shown} av {total}-medlem(mer)",
       "member_details": "Medlemsdetaljer",
       "loading_member": "Laster inn medlem...",
       "not_found": "Medlem ikke funnet. De kan ha forlatt serveren.",

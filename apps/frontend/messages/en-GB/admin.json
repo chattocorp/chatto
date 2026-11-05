@@ -77,7 +77,6 @@
       "server_not_found": "Server not found",
       "load_failed": "Failed to load members",
       "load_more_failed": "Failed to load more members",
-      "showing": "Showing {shown} of {total} member(s)",
       "member_details": "Member Details",
       "loading_member": "Loading member...",
       "not_found": "Member not found. They may have left the server.",

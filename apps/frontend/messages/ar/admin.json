@@ -77,7 +77,6 @@
       "server_not_found": "الخادم غير موجود",
       "load_failed": "فشل في تحميل الأعضاء",
       "load_more_failed": "فشل في تحميل المزيد من الأعضاء",
-      "showing": "عرض {shown} لأعضاء {total}",
       "member_details": "تفاصيل الأعضاء",
       "loading_member": "جارٍ تحميل العضو...",
       "not_found": "لم يتم العثور على المستخدم. ربما غادر الخادم.",

@@ -77,7 +77,6 @@
       "server_not_found": "Server nenalezen",
       "load_failed": "Členy se nepodařilo načíst",
       "load_more_failed": "Nepodařilo se načíst další členy",
-      "showing": "Zobrazeno {shown} z {total} členů",
       "member_details": "Podrobnosti o členech",
       "loading_member": "Načítání člena...",
       "not_found": "Člen nenalezen. Možná opustili server.",

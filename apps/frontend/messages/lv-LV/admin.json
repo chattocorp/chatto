@@ -77,7 +77,6 @@
       "server_not_found": "Serveris nav atrasts",
       "load_failed": "Neizdevās ielādēt dalībniekus",
       "load_more_failed": "Neizdevās ielādēt vairāk dalībnieku",
-      "showing": "Rāda {shown} no {total} dalībnieka(-iem)",
       "member_details": "Sīkāka informācija par dalībnieku",
       "loading_member": "Notiek dalībnieka ielāde...",
       "not_found": "Dalībnieks nav atrasts. Iespējams, viņi ir atstājuši serveri.",

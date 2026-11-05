@@ -77,7 +77,6 @@
       "server_not_found": "Servern hittades inte",
       "load_failed": "Det gick inte att läsa in medlemmar",
       "load_more_failed": "Det gick inte att ladda fler medlemmar",
-      "showing": "Visar {shown} av {total}-medlem(mer)",
       "member_details": "Medlemsinformation",
       "loading_member": "Laddar medlem...",
       "not_found": "Medlemmen hittades inte. De kan ha lämnat servern.",

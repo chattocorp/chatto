@@ -77,7 +77,6 @@
       "server_not_found": "Nie znaleziono serwera",
       "load_failed": "Nie udało się załadować członków",
       "load_more_failed": "Nie udało się załadować większej liczby członków",
-      "showing": "Wyświetlanie {shown} członków {total}",
       "member_details": "Dane członka",
       "loading_member": "Ładowanie członka...",
       "not_found": "Nie znaleziono członka. Być może opuścili serwer.",

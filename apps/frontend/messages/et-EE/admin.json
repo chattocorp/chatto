@@ -77,7 +77,6 @@
       "server_not_found": "Serverit ei leitud",
       "load_failed": "Liikmete laadimine ebaõnnestus",
       "load_more_failed": "Rohkemate liikmete laadimine ebaõnnestus",
-      "showing": "Kuvatakse {shown} {total}-st liikmest",
       "member_details": "Liikme üksikasjad",
       "loading_member": "Liikme laadimine...",
       "not_found": "Liiget ei leitud. Nad võivad olla serverist lahkunud.",

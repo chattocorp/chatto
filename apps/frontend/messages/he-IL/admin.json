@@ -77,7 +77,6 @@
       "server_not_found": "שרת לא נמצא",
       "load_failed": "נכשל בטעינת החברים",
       "load_more_failed": "נכשלה טעינת חברים נוספים",
-      "showing": "מציג {shown} של חברים {total}",
       "member_details": "פרטי חבר",
       "loading_member": "טוען חבר...",
       "not_found": "חבר לא נמצא. יכול להיות שהם עזבו את השרת.",

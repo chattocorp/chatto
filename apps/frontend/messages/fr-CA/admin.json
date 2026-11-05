@@ -77,7 +77,6 @@
       "server_not_found": "Serveur introuvable",
       "load_failed": "Échec du chargement des membres",
       "load_more_failed": "Échec du chargement de plus de membres",
-      "showing": "Affichage de {shown} du ou des membres {total}",
       "member_details": "Détails du membre",
       "loading_member": "Chargement du membre...",
       "not_found": "Membre introuvable. Ils ont peut-être quitté le serveur.",

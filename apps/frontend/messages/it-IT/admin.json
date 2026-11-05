@@ -77,7 +77,6 @@
       "server_not_found": "Server non trovato",
       "load_failed": "Impossibile caricare i membri",
       "load_more_failed": "Impossibile caricare altri membri",
-      "showing": "Mostrando {shown} di {total} membro/i",
       "member_details": "Dettagli del membro",
       "loading_member": "Caricamento membro...",
       "not_found": "Membro non trovato. Potrebbero aver lasciato il server.",

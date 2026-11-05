@@ -508,14 +508,10 @@ test.describe('Server Roles Management', () => {
     // Real wheel interaction reaches the trailing table sentinel.
     await rosterHeading.hover();
     await page.mouse.wheel(0, 3000);
-    await page
-      .getByText('Showing 20 of 21 member(s)', { exact: true })
-      .or(page.getByText('Showing 21 of 21 member(s)', { exact: true }))
-      .waitFor();
     const table = page.locator('table').last();
+    await expect(table.locator('tbody tr').first()).toBeVisible();
     await table.hover();
     await page.mouse.wheel(0, 3000);
-    await expect(page.getByText('Showing 21 of 21 member(s)', { exact: true })).toBeVisible();
     await expect(table.locator('tbody tr')).toHaveCount(21);
     expect(memberRequests).toContain(0);
     expect(memberRequests).toContain(20);

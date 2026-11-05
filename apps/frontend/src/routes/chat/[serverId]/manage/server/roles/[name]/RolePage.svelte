@@ -336,7 +336,6 @@
             <UserList
               users={roleUsers}
               loading={membersQuery.isPending}
-              totalCount={membersQuery.data?.pages.at(-1)?.totalCount ?? 0}
               hasMore={membersQuery.hasNextPage && !membersError}
               loadingMore={membersQuery.isFetchingNextPage}
               onLoadMore={loadMoreMembers}

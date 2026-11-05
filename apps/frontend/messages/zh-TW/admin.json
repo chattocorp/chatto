@@ -77,7 +77,6 @@
       "server_not_found": "找不到伺服器",
       "load_failed": "無法載入成員",
       "load_more_failed": "無法載入更多成員",
-      "showing": "顯示 {total} 位成員中的 {shown} 位",
       "member_details": "成員詳細資料",
       "loading_member": "正在載入成員...",
       "not_found": "找不到成員。對方可能已離開伺服器。",

@@ -77,7 +77,6 @@
       "server_not_found": "Sunucu bulunamadı",
       "load_failed": "Üyeler yüklenemedi",
       "load_more_failed": "Daha fazla üye yüklenemedi",
-      "showing": "{total} üyeden {shown} gösteriliyor",
       "member_details": "Üye Detayları",
       "loading_member": "Üye yükleniyor...",
       "not_found": "Üye bulunamadı. Sunucudan ayrılmış olabilirler.",

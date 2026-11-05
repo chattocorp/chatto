@@ -77,7 +77,6 @@
       "server_not_found": "Server niet gevonden",
       "load_failed": "Kan leden niet laden",
       "load_more_failed": "Kan niet meer leden laden",
-      "showing": "{shown} van {total}-lid(en) tonen",
       "member_details": "Lidgegevens",
       "loading_member": "Lid laden...",
       "not_found": "Lid niet gevonden. Mogelijk hebben ze de server verlaten.",

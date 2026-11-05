@@ -77,7 +77,6 @@
       "server_not_found": "未找到服务器",
       "load_failed": "加载成员失败",
       "load_more_failed": "加载更多成员失败",
-      "showing": "显示 {total} 名成员中的 {shown} 名",
       "member_details": "成员详情",
       "loading_member": "正在加载成员...",
       "not_found": "未找到该成员。对方可能已离开服务器。",
