@@ -1200,6 +1200,11 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 		t.Fatalf("regular capabilities manage=%v assign=%v, want false/false", listResp.Msg.GetViewerCanManageRoles(), listResp.Msg.GetViewerCanAssignRoles())
 	}
 
+	for _, role := range listResp.Msg.GetRoles() {
+		if role.MemberCount != nil || role.PermissionGrantCount != nil || role.PermissionDenialCount != nil {
+			t.Fatal("regular viewer received administrative role totals")
+		}
+	}
 	if _, err := env.roles.CreateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.CreateRoleRequest{
 		Name:        "helpdesk",
 		DisplayName: "Helpdesk",
@@ -1209,6 +1214,16 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, env.viewer.Id, core.RoleAdmin); err != nil {
 		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+
+	adminList, err := env.roles.ListRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListRolesRequest{}))
+	if err != nil {
+		t.Fatalf("admin ListRoles: %v", err)
+	}
+	for _, role := range adminList.Msg.GetRoles() {
+		if role.MemberCount == nil || role.PermissionGrantCount == nil || role.PermissionDenialCount == nil {
+			t.Fatal("admin role totals are absent, including zero values")
+		}
 	}
 
 	if _, err := env.roles.CreateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.CreateRoleRequest{

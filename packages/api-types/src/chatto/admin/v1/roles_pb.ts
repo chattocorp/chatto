@@ -36,6 +36,30 @@ export class AdminRole extends Message<AdminRole> {
    */
   permissionDenials: string[] = [];
 
+  /**
+   * Active human members, including implicit membership for everyone.
+   * Reported only to callers with role.manage or role.assign.
+   *
+   * @generated from field: optional uint64 member_count = 4;
+   */
+  memberCount?: bigint;
+
+  /**
+   * Explicit permission grants across all scopes; excludes virtual owner access.
+   * Reported only to callers with role.manage or role.assign.
+   *
+   * @generated from field: optional uint64 permission_grant_count = 5;
+   */
+  permissionGrantCount?: bigint;
+
+  /**
+   * Explicit permission denials across all scopes.
+   * Reported only to callers with role.manage or role.assign.
+   *
+   * @generated from field: optional uint64 permission_denial_count = 6;
+   */
+  permissionDenialCount?: bigint;
+
   constructor(data?: PartialMessage<AdminRole>) {
     super();
     proto3.util.initPartial(data, this);
@@ -47,6 +71,9 @@ export class AdminRole extends Message<AdminRole> {
     { no: 1, name: "role", kind: "message", T: Role },
     { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "member_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
+    { no: 5, name: "permission_grant_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
+    { no: 6, name: "permission_denial_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRole {

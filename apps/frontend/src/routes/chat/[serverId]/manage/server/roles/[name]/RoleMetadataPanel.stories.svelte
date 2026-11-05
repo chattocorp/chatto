@@ -30,6 +30,17 @@
 
 <Story name="Everyone" />
 <Story
+  name="Owner"
+  args={{
+    role: {
+      ...everyone,
+      name: 'owner',
+      displayName: 'Owner',
+      description: 'Full server control'
+    }
+  }}
+/>
+<Story
   name="System role"
   args={{
     role: {

@@ -43,6 +43,7 @@
         "invitations": "Twórz kody zaproszeń i zarządzaj nimi.",
         "rooms": "Twórz, edytuj, organizuj i archiwizuj pokoje",
         "moderation": "Sprawdź aktywne zawieszenia dostępu do pokoi",
+        "roles": "Zarządzaj rolami i ich członkami.",
         "permissions": "Zarządzaj domyślnymi rolami na całym serwerze",
         "security": "Ograniczenia rejestracji i ochrona konta",
         "appearance": "Dostosuj aplikację za pomocą kolorów, motywów i opcji wyświetlania.",

@@ -172,9 +172,11 @@
       "new_role_action": "+ Jauna loma",
       "creating_role": "Notiek izveide...",
       "create_after_hint": "Pēc lomas izveides rediģēšanas lapā varat tai piešķirt atļaujas.",
+      "back_to_roles": "Atpakaļ pie lomām",
       "back_to_permissions": "Atgriezties pie atļaujām",
       "load_instance_failed": "Neizdevās ielādēt gadījumu",
       "need_manage_create": "Lai izveidotu lomas, nepieciešama lomas.manage atļauja.",
+      "search_roles": "Meklēt lomas…",
       "role_tab": "Loma",
       "edit_role_title": "Rediģēt lomu",
       "loading_role": "Notiek lomas ielāde...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā.",
       "update_role_failed": "Neizdevās atjaunināt lomu",
       "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
-      "delete_role_failed": "Neizdevās izdzēst lomu"
+      "delete_role_failed": "Neizdevās izdzēst lomu",
+      "owner_access_title": "Īpašnieka atļaujas",
+      "owner_access_permissions": "Ja vairogs ir ieslēgts, īpašniekiem ir visas atļaujas serverī, istabu grupās un istabās. Piešķīrumi un aizliegumi nevar ierobežot šo piekļuvi, un īpašnieka atļauju matrica ir tikai lasāma.",
+      "owner_access_shield": "Ieslēdziet vairogu blakus savam kontam, lai uz 15 minūtēm aktivizētu privileģēto režīmu. Ja vairogs ir izslēgts, tiek piemērotas jūsu tiešās atļaujas, pārējās lomas un everyone. Atļaujas, kurām nepieciešams privileģētais režīms, paliek nepieejamas."
     },
     "rooms_admin": {
       "title": "Istabas",

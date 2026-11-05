@@ -43,6 +43,7 @@
         "invitations": "Davet kodları oluşturun ve yönetin.",
         "rooms": "Odaları oluşturun, düzenleyin, organize edin ve arşivleyin",
         "moderation": "Etkin oda uzaklaştırmalarını incele",
+        "roles": "Rolleri ve üyelerini yönetin.",
         "permissions": "Sunucu genelindeki rol varsayılanlarını yönetin",
         "security": "Kayıt kısıtlamaları ve hesap koruması",
         "appearance": "Uygulamayı renkler, temalar ve görüntüleme seçenekleriyle kişiselleştirin.",

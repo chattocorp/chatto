@@ -23,12 +23,12 @@ export class ServerRolesPage {
 
   /** The page heading */
   get pageHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 });
+    return this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 });
   }
 
-  /** The create-role action at the end of the permission matrix header. */
+  /** The create-role action in the Roles catalog. */
   get createRoleButton(): Locator {
-    return this.page.getByTestId('new-role-column');
+    return this.page.getByRole('link', { name: 'Create role', exact: true });
   }
 
   /** Sidebar navigation item for General settings */
@@ -36,11 +36,7 @@ export class ServerRolesPage {
     return this.page.locator('nav a', { hasText: 'General' });
   }
 
-  /**
-   * The first matrix table on the page. The matrix renders one `<table>`
-   * per permission category (Space Operations, Messages, …); the first one
-   * is enough to assert "the matrix rendered".
-   */
+  /** The role catalog table. */
   get rolesTable(): Locator {
     return this.page.locator('table').first();
   }
@@ -85,10 +81,10 @@ export class ServerRolesPage {
     return this.page.getByRole('button', { name: 'Cancel' });
   }
 
-  /** The Back to Permissions arrow link in the pane header */
+  /** The Back to Roles link in the role header. */
   get backToRolesButton(): Locator {
-    // PaneHeader's backHref renders an <a> with aria-label="Back to permissions".
-    return this.page.getByRole('link', { name: 'Back to permissions' });
+    // PaneHeader renders the destination as an accessible link.
+    return this.page.getByRole('link', { name: 'Back to roles' });
   }
 
   // --- Navigation ---
@@ -97,15 +93,23 @@ export class ServerRolesPage {
    * Navigate to the roles list page.
    */
   async gotoRolesList(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminPermissions);
+    await this.page.goto(routes.serverAdminRoles);
     await expect(this.pageHeading).toBeVisible();
+  }
+
+  /** Open the server-wide permission matrix. */
+  async gotoPermissions(): Promise<void> {
+    await this.page.goto(routes.serverAdminPermissions);
+    await expect(
+      this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 })
+    ).toBeVisible();
   }
 
   /**
    * Navigate to the create role page.
    */
   async gotoCreateRole(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminPermissionsNew);
+    await this.page.goto(routes.serverAdminRoleNew);
     // Wait for either the form (if user has permission) or Access Denied message
     await expect(
       this.nameInput.or(this.page.getByText('Access Denied', { exact: true }))
@@ -120,7 +124,7 @@ export class ServerRolesPage {
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.page.goto(routes.serverAdminPermission(roleName));
+    await this.page.goto(routes.serverAdminRole(roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
   }
 
@@ -140,26 +144,20 @@ export class ServerRolesPage {
 
   // --- Role List Actions ---
 
-  /**
-   * Resolve the matrix column header for a role by its display name. The
-   * matrix renders one table per permission category, so the same role's
-   * `<th>` appears once per category — we take the first match to satisfy
-   * Playwright's strict mode. The `<th>`'s title attribute carries the
-   * displayName + scope marker (e.g. `"Owner (Space role) — click to
-   * manage"`), so we anchor the match to the displayName followed by
-   * ` (` to avoid partial-string collisions (e.g. "Owner" matching
-   * "Instance Owner").
-   */
+  /** Find a catalog row by its display name or stable role handle. */
   getRoleRow(displayName: string): Locator {
-    const escaped = displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return this.page.locator(`th[title^="${escaped} ("]`).first();
+    return this.page.locator('tbody tr').filter({
+      has: this.page
+        .getByRole('link', { name: displayName, exact: true })
+        .or(this.page.getByText(`@${displayName}`, { exact: true }))
+    });
   }
 
   /**
-   * Click into a role's detail page from the matrix by its column header.
+   * Open a role from its catalog row.
    */
   async clickEditRole(displayName: string): Promise<void> {
-    await this.getRoleRow(displayName).locator('button').click();
+    await this.getRoleRow(displayName).locator('a').click();
   }
 
   // --- Create/Edit Role Form Actions ---
@@ -269,8 +267,7 @@ export class ServerRolesPage {
       );
     }
     if (!this.page.url().endsWith(`/manage/server/permissions`)) {
-      await this.page.goto(routes.serverAdminPermissions);
-      await expect(this.pageHeading).toBeVisible();
+      await this.gotoPermissions();
     }
   }
 
@@ -497,32 +494,25 @@ export class ServerRolesPage {
   }
 
   /**
-   * Navigate to role permission editing — permissions are configured at
-   * server scope via the matrix on the roles list. Records the role so
-   * subsequent permission helpers target the right matrix column.
+   * Open the server permission matrix and select the role for the permission
+   * helpers. Each helper then operates on that role's column.
    */
   async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.gotoRolesList(spaceId);
+    await this.gotoPermissions();
   }
 
   /**
-   * Assert the unified roles matrix is visible. The always-present admin
-   * column header is a reliable proof that the matrix rendered.
+   * Assert that the role catalog has loaded its built-in admin role.
    */
   async expectRolesPanelVisible(): Promise<void> {
-    await expect(this.getRoleColumnHeader('admin')).toBeVisible();
-  }
-
-  /** Assert a role is listed in the matrix. */
-  async expectRoleInList(name: string): Promise<void> {
-    await expect(this.getRoleColumnHeader(name)).toBeVisible();
+    await expect(this.getRoleRow('admin')).toBeVisible();
   }
 
   /**
    * Clicking a role's column header at server scope routes to the role
-   * detail page (`/manage/server/permissions/[name]`), which carries "Edit Role" + the
+   * detail page (`/manage/server/roles/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */
   async expectRoleDetailPage(roleName: string): Promise<void> {

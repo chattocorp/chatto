@@ -172,9 +172,11 @@
       "new_role_action": "+ 添加角色",
       "creating_role": "正在创建...",
       "create_after_hint": "创建角色后，可在编辑页面为其分配权限。",
+      "back_to_roles": "返回角色",
       "back_to_permissions": "返回权限",
       "load_instance_failed": "加载实例失败",
       "need_manage_create": "你需要 roles.manage 权限才能创建角色。",
+      "search_roles": "搜索角色…",
       "role_tab": "角色",
       "edit_role_title": "编辑角色",
       "loading_role": "正在加载角色...",
@@ -194,7 +196,10 @@
       "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。",
       "update_role_failed": "更新角色失败",
       "update_ping_failed": "更新角色提及设置失败",
-      "delete_role_failed": "删除角色失败"
+      "delete_role_failed": "删除角色失败",
+      "owner_access_title": "所有者权限",
+      "owner_access_permissions": "启用盾牌后，所有者在服务器、房间组和房间中拥有全部权限。授予和拒绝无法限制此访问权限，所有者的权限矩阵为只读。",
+      "owner_access_shield": "启用账号旁的盾牌，即可使用特权模式15分钟。关闭盾牌后，将应用你的直接权限、其他角色和everyone。需要特权模式的权限仍不可用。"
     },
     "rooms_admin": {
       "title": "聊天室",

@@ -43,6 +43,7 @@
         "invitations": "Erstelle und verwalte Einladungscodes.",
         "rooms": "Räume erstellen, bearbeiten, organisieren und archivieren",
         "moderation": "Aktive Raumsperren prüfen",
+        "roles": "Verwalte Rollen und ihre Mitglieder.",
         "permissions": "Serverweite Rollenvorgaben verwalten",
         "security": "Registrierungsbeschränkungen und Kontoschutz",
         "appearance": "Gestalte die App mit Farben, Designs und Anzeigeoptionen.",

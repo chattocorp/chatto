@@ -2539,6 +2539,9 @@ Role metadata plus administrative permission state.
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
 | `permissions` | `repeated string` | Permissions granted by this role. |
 | `permission_denials` | `repeated string` | Permissions denied by this role. |
+| `member_count` | `optional uint64` | Active human members, including implicit membership for everyone. Reported only to callers with role.manage or role.assign. |
+| `permission_grant_count` | `optional uint64` | Explicit permission grants across all scopes; excludes virtual owner access. Reported only to callers with role.manage or role.assign. |
+| `permission_denial_count` | `optional uint64` | Explicit permission denials across all scopes. Reported only to callers with role.manage or role.assign. |
 
 
 

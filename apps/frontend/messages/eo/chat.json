@@ -179,6 +179,7 @@
       "members": "Membroj",
       "rooms": "Ĉambroj",
       "moderation": "Modereco",
+      "roles": "Roloj",
       "permissions": "Permesoj",
       "security": "Sekureco",
       "event_log": "Protokolo de Eventoj",

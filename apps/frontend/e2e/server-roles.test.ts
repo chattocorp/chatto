@@ -288,7 +288,7 @@ test.describe('Server Roles Management', () => {
       const refreshes = [0, 0];
       const errors: string[] = [];
       const url = perRole
-        ? `${routes.serverAdminPermission('everyone')}/permissions`
+        ? `${routes.serverAdminRole('everyone')}/permissions`
         : routes.serverAdminPermissions;
       for (const [index, client] of clients.entries()) {
         client.on('response', (response) => {
@@ -361,7 +361,7 @@ test.describe('Server Roles Management', () => {
       }
     });
     await page.setViewportSize({ width: 1000, height: 800 });
-    await page.goto(`${routes.serverAdminPermission('moderator')}/permissions`);
+    await page.goto(`${routes.serverAdminRole('moderator')}/permissions`);
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
     const viewport = page
       .locator('.data-table-viewport')
@@ -462,7 +462,7 @@ test.describe('Server Roles Management', () => {
       'aria-current',
       'page'
     );
-    await page.goto(`${routes.serverAdminPermission(roleName)}/members`);
+    await page.goto(`${routes.serverAdminRole(roleName)}/members`);
     await expect(serverRolesPage.sectionLink('Members')).toHaveAttribute('aria-current', 'page');
     await serverRolesPage.selectSection('Role');
     await expect(serverRolesPage.displayNameInput).toHaveValue('Tab navigation');
@@ -522,6 +522,41 @@ test.describe('Server Roles Management', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Roles is above Permissions and its search opens role details', async ({
+    serverRolesPage
+  }) => {
+    const { page } = serverRolesPage;
+    const server = await usePrimaryServerViaAPI(page);
+    await serverRolesPage.gotoRolesList(server.id);
+    const nav = page.getByRole('navigation', { name: 'Settings', exact: true });
+    const labels = (await nav.getByRole('link').allTextContents()).map((label) => label.trim());
+    expect(labels.indexOf('Roles')).toBeGreaterThanOrEqual(0);
+    expect(labels.indexOf('Permissions')).toBe(labels.indexOf('Roles') + 1);
+    await expect(nav.getByRole('link', { name: 'Roles', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    const search = page.getByRole('textbox', { name: 'Search roles…' });
+    await search.fill('@moderator');
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await page.getByRole('link', { name: 'Moderator', exact: true }).click();
+    await expect(page).toHaveURL(routes.serverAdminRole('moderator'));
+    await serverRolesPage.backToRolesButton.click();
+    await serverRolesPage.expectRolesListVisible();
+  });
+
+  test('old role URLs redirect to the matching canonical section', async ({ page }) => {
+    await usePrimaryServerViaAPI(page);
+    for (const suffix of ['', '/members', '/permissions']) {
+      await page.goto(`${routes.serverAdminPermissions}/everyone${suffix}?source=legacy`);
+      await expect(page).toHaveURL(`${routes.serverAdminRole('everyone')}${suffix}?source=legacy`);
+      await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+    }
+    await page.goto(`${routes.serverAdminPermissions}/new?source=legacy`);
+    await expect(page).toHaveURL(`${routes.serverAdminRoleNew}?source=legacy`);
+    await expect(page.getByTestId('role-form-name')).toBeVisible();
+  });
+
   test.describe('Roles List Page', () => {
     test('server admin can view roles list', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
@@ -561,9 +596,9 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.serverAdminPermissions);
+      await page.goto(routes.serverAdminRoles);
 
-      // Users without roles.manage permission see Access Denied
+      // Users without role management or assignment authority see Access Denied
       await serverRolesPage.expectAccessDenied();
     });
   });
@@ -640,7 +675,7 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to create role page (bypassing method that expects success)
-      await page.goto(routes.serverAdminPermissionsNew);
+      await page.goto(routes.serverAdminRoleNew);
 
       // Should see access denied
       await serverRolesPage.expectAccessDenied();

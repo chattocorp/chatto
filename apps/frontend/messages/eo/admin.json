@@ -172,9 +172,11 @@
       "new_role_action": "+ Nova Rolo",
       "creating_role": "Kreante...",
       "create_after_hint": "Post kreado de la rolo, vi povas asigni permesojn al ĝi sur la redakta paĝo.",
+      "back_to_roles": "Reen al roloj",
       "back_to_permissions": "Reen al permesoj",
       "load_instance_failed": "Malsukcesis ŝargi ekzemplon",
       "need_manage_create": "Vi bezonas la rolojn.administri permeson por krei rolojn.",
+      "search_roles": "Serĉi rolojn…",
       "role_tab": "Rolo",
       "edit_role_title": "Redakti Rolon",
       "loading_role": "Ŝarĝante rolon...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo.",
       "update_role_failed": "Malsukcesis ĝisdatigi rolon",
       "update_ping_failed": "Malsukcesis ĝisdatigi la ping-agordon de la rolo",
-      "delete_role_failed": "Malsukcesis forigi rolon"
+      "delete_role_failed": "Malsukcesis forigi rolon",
+      "owner_access_title": "Permesoj de posedanto",
+      "owner_access_permissions": "Kun la ŝildo ŝaltita, posedantoj havas ĉiujn permesojn en la servilo, ĉambrogrupoj kaj ĉambroj. Permesoj kaj malpermesoj ne povas limigi ĉi tiun aliron, kaj la permesmatrico de posedanto estas nurlega.",
+      "owner_access_shield": "Ŝaltu la ŝildon apud via konto por 15 minutoj da privilegiita reĝimo. Kun la ŝildo malŝaltita, validas viaj rektaj permesoj, aliaj roloj kaj everyone. Permesoj kiuj postulas privilegiitan reĝimon restas nehaveblaj."
     },
     "rooms_admin": {
       "title": "Ĉambroj",

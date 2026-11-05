@@ -54,6 +54,34 @@ func (c *ChattoCore) ListServerRolesForUser(ctx context.Context, actorID string)
 	}, nil
 }
 
+// AdminListServerRoles adds aggregate counts only for managers and assigners.
+// Ordinary public role catalog reads retain their lightweight response.
+func (c *ChattoCore) AdminListServerRoles(ctx context.Context, actorID string) (*RoleCatalog, error) {
+	if actorID == "" {
+		return nil, ErrNotAuthenticated
+	}
+	if err := c.waitForCurrentRoleState(ctx); err != nil {
+		return nil, err
+	}
+	var result *RoleCatalog
+	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+		catalog, err := c.ListServerRolesForUser(readCtx, actorID)
+		if err != nil {
+			return err
+		}
+		if catalog.ViewerCanManageRoles || catalog.ViewerCanAssignRoles {
+			counts := c.rbacModel.roleCounts(c.userModel.activeHumanIDs())
+			for i := range catalog.Roles {
+				count := counts[catalog.Roles[i].Name]
+				catalog.Roles[i].Counts = &count
+			}
+		}
+		result = catalog
+		return nil
+	})
+	return result, err
+}
+
 func (c *ChattoCore) GetServerRoleDetails(ctx context.Context, actorID, roleName string) (*RoleDetails, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated

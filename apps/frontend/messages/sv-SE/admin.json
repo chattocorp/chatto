@@ -172,9 +172,11 @@
       "new_role_action": "+ Ny roll",
       "creating_role": "Skapar...",
       "create_after_hint": "Efter att ha skapat rollen kan du tilldela behörigheter till den på redigeringssidan.",
+      "back_to_roles": "Tillbaka till roller",
       "back_to_permissions": "Tillbaka till behörigheter",
       "load_instance_failed": "Det gick inte att läsa in instans",
       "need_manage_create": "Du behöver behörigheten roles.manage för att skapa roller.",
+      "search_roles": "Sök roller…",
       "role_tab": "Roll",
       "edit_role_title": "Redigera roll",
       "loading_role": "Laddar roll...",
@@ -194,7 +196,10 @@
       "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå.",
       "update_role_failed": "Det gick inte att uppdatera rollen",
       "update_ping_failed": "Det gick inte att uppdatera rollens inställning för omnämnanden",
-      "delete_role_failed": "Det gick inte att ta bort rollen"
+      "delete_role_failed": "Det gick inte att ta bort rollen",
+      "owner_access_title": "Ägarens behörigheter",
+      "owner_access_permissions": "Med skölden aktiverad har ägare alla behörigheter på servern, i rumsgrupper och i rum. Beviljanden och avslag kan inte begränsa denna åtkomst, och ägarens behörighetsmatris är skrivskyddad.",
+      "owner_access_shield": "Aktivera skölden bredvid ditt konto för att använda privilegierat läge i 15 minuter. Med skölden av gäller dina direkta behörigheter, andra roller och everyone. Behörigheter som kräver privilegierat läge förblir otillgängliga."
     },
     "rooms_admin": {
       "title": "Rum",

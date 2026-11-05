@@ -172,9 +172,11 @@
       "new_role_action": "+ Nová role",
       "creating_role": "Vytváření...",
       "create_after_hint": "Po vytvoření role jí můžete přiřadit oprávnění na stránce úprav.",
+      "back_to_roles": "Zpět na role",
       "back_to_permissions": "Zpět k oprávněním",
       "load_instance_failed": "Načtení instance se nezdařilo",
       "need_manage_create": "K vytváření rolí potřebujete oprávnění roles.manage.",
+      "search_roles": "Hledat role…",
       "role_tab": "Role",
       "edit_role_title": "Upravit roli",
       "loading_role": "Načítání role...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu.",
       "update_role_failed": "Nepodařilo se aktualizovat roli",
       "update_ping_failed": "Nepodařilo se aktualizovat nastavení zmínek role",
-      "delete_role_failed": "Nepodařilo se smazat roli"
+      "delete_role_failed": "Nepodařilo se smazat roli",
+      "owner_access_title": "Oprávnění vlastníka",
+      "owner_access_permissions": "Se zapnutým štítem mají vlastníci všechna oprávnění na serveru, ve skupinách místností i v místnostech. Udělení ani zamítnutí tento přístup neomezují a matice oprávnění vlastníka je pouze pro čtení.",
+      "owner_access_shield": "Zapněte štít vedle svého účtu a aktivujte privilegovaný režim na 15 minut. S vypnutým štítem platí vaše přímá oprávnění, ostatní role a everyone. Oprávnění vyžadující privilegovaný režim zůstávají nedostupná."
     },
     "rooms_admin": {
       "title": "Pokoje",

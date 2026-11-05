@@ -43,6 +43,7 @@
         "invitations": "Kreu kaj administru invitkodojn.",
         "rooms": "Krei, redakti, organizi kaj arkivi ĉambrojn",
         "moderation": "Revizii aktivajn ĉambrajn suspendadojn",
+        "roles": "Administru rolojn kaj iliajn membrojn.",
         "permissions": "Administri defaŭltojn de roloj tutserviloj",
         "security": "Limigoj de registriĝo kaj protekto de konto",
         "appearance": "Agordu la apon per koloroj, etosoj kaj montraj opcioj.",

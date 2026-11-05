@@ -172,9 +172,11 @@
       "new_role_action": "+ Nowa rola",
       "creating_role": "Tworzenie...",
       "create_after_hint": "Po utworzeniu roli możesz przypisać do niej uprawnienia na stronie edycji.",
+      "back_to_roles": "Powrót do ról",
       "back_to_permissions": "Powrót do uprawnień",
       "load_instance_failed": "Nie udało się załadować instancji",
       "need_manage_create": "Aby tworzyć role, potrzebujesz uprawnień role.manage.",
+      "search_roles": "Szukaj ról…",
       "role_tab": "Rola",
       "edit_role_title": "Edytuj rolę",
       "loading_role": "Ładowanie roli...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie.",
       "update_role_failed": "Nie udało się zaktualizować roli",
       "update_ping_failed": "Nie udało się zaktualizować ustawienia wzmianek roli",
-      "delete_role_failed": "Nie udało się usunąć roli"
+      "delete_role_failed": "Nie udało się usunąć roli",
+      "owner_access_title": "Uprawnienia właściciela",
+      "owner_access_permissions": "Przy włączonej tarczy właściciele mają wszystkie uprawnienia na serwerze, w grupach pokoi i w pokojach. Przyznania i odmowy nie mogą ograniczyć tego dostępu, a macierz uprawnień właściciela jest tylko do odczytu.",
+      "owner_access_shield": "Włącz tarczę obok swojego konta, aby korzystać z trybu uprzywilejowanego przez 15 minut. Przy wyłączonej tarczy obowiązują twoje bezpośrednie uprawnienia, inne role i everyone. Uprawnienia wymagające trybu uprzywilejowanego pozostają niedostępne."
     },
     "rooms_admin": {
       "title": "Pokoje",

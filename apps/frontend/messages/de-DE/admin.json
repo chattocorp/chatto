@@ -172,9 +172,11 @@
       "new_role_action": "+ Neue Rolle",
       "creating_role": "Wird erstellt...",
       "create_after_hint": "Nach dem Erstellen der Rolle kannst du ihr auf der Bearbeitungsseite Berechtigungen zuweisen.",
+      "back_to_roles": "Zurück zu Rollen",
       "back_to_permissions": "Zurück zu Berechtigungen",
       "load_instance_failed": "Instanz konnte nicht geladen werden",
       "need_manage_create": "Du brauchst die Berechtigung roles.manage, um Rollen zu erstellen.",
+      "search_roles": "Rollen suchen…",
       "role_tab": "Rolle",
       "edit_role_title": "Rolle bearbeiten",
       "loading_role": "Rolle wird geladen...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene.",
       "update_role_failed": "Rolle konnte nicht aktualisiert werden",
       "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
-      "delete_role_failed": "Rolle konnte nicht gelöscht werden"
+      "delete_role_failed": "Rolle konnte nicht gelöscht werden",
+      "owner_access_title": "Berechtigungen von Eigentümern",
+      "owner_access_permissions": "Mit aktiviertem Schutzschild haben Eigentümer alle Berechtigungen auf dem Server, in Raumgruppen und Räumen. Erlaubnisse und Verbote können diesen Zugriff nicht einschränken. Die Berechtigungsmatrix für Eigentümer ist schreibgeschützt.",
+      "owner_access_shield": "Aktiviere den Schutzschild neben deinem Konto, um den privilegierten Modus für 15 Minuten einzuschalten. Ohne Schutzschild gelten deine direkten Berechtigungen, deine anderen Rollen und everyone. Berechtigungen, die den privilegierten Modus erfordern, bleiben nicht verfügbar."
     },
     "rooms_admin": {
       "title": "Räume",

@@ -172,9 +172,11 @@
       "new_role_action": "+ Nuovo ruolo",
       "creating_role": "Creazione...",
       "create_after_hint": "Dopo aver creato il ruolo, puoi assegnargli le autorizzazioni nella pagina di modifica.",
+      "back_to_roles": "Torna ai ruoli",
       "back_to_permissions": "Torniamo ai permessi",
       "load_instance_failed": "Impossibile caricare l'istanza",
       "need_manage_create": "Per creare ruoli è necessaria l'autorizzazione plans.manage.",
+      "search_roles": "Cerca ruoli…",
       "role_tab": "Ruolo",
       "edit_role_title": "Modifica ruolo",
       "loading_role": "Caricamento ruolo...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Per ciascun utente o ruolo denominato si applica il valore della sala, del gruppo o del server più vicino. Nega la vittoria tra loro. Un'autorizzazione prevale su una negazione per tutti solo nello stesso ambito o in un ambito più specifico.",
       "update_role_failed": "Impossibile aggiornare il ruolo",
       "update_ping_failed": "Impossibile aggiornare l'impostazione delle menzioni del ruolo",
-      "delete_role_failed": "Impossibile eliminare il ruolo"
+      "delete_role_failed": "Impossibile eliminare il ruolo",
+      "owner_access_title": "Permessi del proprietario",
+      "owner_access_permissions": "Con lo scudo attivo, i proprietari hanno tutti i permessi sul server, nei gruppi di stanze e nelle stanze. Concessioni e divieti non possono limitare questo accesso e la matrice dei permessi del proprietario è di sola lettura.",
+      "owner_access_shield": "Attiva lo scudo accanto al tuo account per usare la modalità privilegiata per 15 minuti. Con lo scudo disattivato, si applicano i tuoi permessi diretti, gli altri ruoli e everyone. I permessi che richiedono la modalità privilegiata restano non disponibili."
     },
     "rooms_admin": {
       "title": "Camere",

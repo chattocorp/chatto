@@ -172,9 +172,11 @@
       "new_role_action": "+ Nieuwe rol",
       "creating_role": "Aanmaken...",
       "create_after_hint": "Nadat u de rol heeft aangemaakt, kunt u er machtigingen aan toewijzen op de bewerkingspagina.",
+      "back_to_roles": "Terug naar rollen",
       "back_to_permissions": "Terug naar rechten",
       "load_instance_failed": "Kan exemplaar niet laden",
       "need_manage_create": "Je hebt de machtiging Roles.Manage nodig om rollen te maken.",
+      "search_roles": "Rollen zoeken…",
       "role_tab": "Rol",
       "edit_role_title": "Rol bewerken",
       "loading_role": "Rol laden...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau.",
       "update_role_failed": "Kan rol niet bijwerken",
       "update_ping_failed": "Kan vermeldingsinstelling van rol niet bijwerken",
-      "delete_role_failed": "Kan rol niet verwijderen"
+      "delete_role_failed": "Kan rol niet verwijderen",
+      "owner_access_title": "Rechten van de eigenaar",
+      "owner_access_permissions": "Met het schild ingeschakeld hebben eigenaars alle rechten op de server, in kamergroepen en in kamers. Toekenningen en weigeringen kunnen deze toegang niet beperken. De rechtenmatrix van de eigenaar is alleen-lezen.",
+      "owner_access_shield": "Schakel het schild naast je account in om de bevoorrechte modus 15 minuten te gebruiken. Zonder schild gelden je directe rechten, andere rollen en everyone. Rechten waarvoor de bevoorrechte modus nodig is, blijven niet beschikbaar."
     },
     "rooms_admin": {
       "title": "Kamers",

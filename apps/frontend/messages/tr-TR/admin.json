@@ -172,9 +172,11 @@
       "new_role_action": "+ Yeni Rol",
       "creating_role": "Oluşturuluyor...",
       "create_after_hint": "Rolü oluşturduktan sonra düzenleme sayfasında ona izinler atayabilirsiniz.",
+      "back_to_roles": "Rollere dön",
       "back_to_permissions": "İzinlere geri dön",
       "load_instance_failed": "Örnek yüklenemedi",
       "need_manage_create": "Rolleri oluşturmak için roller.manage iznine ihtiyacınız var.",
+      "search_roles": "Rol ara…",
       "role_tab": "Rol",
       "edit_role_title": "Rolü Düzenle",
       "loading_role": "Rol yükleniyor...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar.",
       "update_role_failed": "Rol güncellenemedi",
       "update_ping_failed": "Rol bahsetme ayarı güncellenemedi",
-      "delete_role_failed": "Rol silinemedi"
+      "delete_role_failed": "Rol silinemedi",
+      "owner_access_title": "Sahip izinleri",
+      "owner_access_permissions": "Kalkan etkinleştirildiğinde sahipler sunucuda, oda gruplarında ve odalarda tüm izinlere sahiptir. İzin vermeler ve retler bu erişimi sınırlayamaz; sahibin izin matrisi salt okunurdur.",
+      "owner_access_shield": "Ayrıcalıklı modu 15 dakikalığına açmak için hesabınızın yanındaki kalkanı etkinleştirin. Kalkan kapalıyken doğrudan izinleriniz, diğer rolleriniz ve everyone geçerli olur. Ayrıcalıklı mod gerektiren izinler kullanılamaz."
     },
     "rooms_admin": {
       "title": "Odalar",

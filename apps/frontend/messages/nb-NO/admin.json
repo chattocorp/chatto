@@ -172,9 +172,11 @@
       "new_role_action": "+ Ny rolle",
       "creating_role": "Oppretter...",
       "create_after_hint": "Etter å ha opprettet rollen, kan du tildele tillatelser til den på redigeringssiden.",
+      "back_to_roles": "Tilbake til roller",
       "back_to_permissions": "Tilbake til tillatelser",
       "load_instance_failed": "Kunne ikke laste forekomsten",
       "need_manage_create": "Du trenger roles.manage-tillatelsen for å opprette roller.",
+      "search_roles": "Søk etter roller…",
       "role_tab": "Rolle",
       "edit_role_title": "Rediger rolle",
       "loading_role": "Laster inn rolle...",
@@ -194,7 +196,10 @@
       "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå.",
       "update_role_failed": "Kunne ikke oppdatere rollen",
       "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
-      "delete_role_failed": "Kunne ikke slette rollen"
+      "delete_role_failed": "Kunne ikke slette rollen",
+      "owner_access_title": "Eierens tillatelser",
+      "owner_access_permissions": "Med skjoldet aktivert har eiere alle tillatelser på serveren, i romgrupper og i rom. Tildelinger og avslag kan ikke begrense denne tilgangen, og eierens tillatelsesmatrise er skrivebeskyttet.",
+      "owner_access_shield": "Aktiver skjoldet ved siden av kontoen din for å bruke privilegert modus i 15 minutter. Med skjoldet av gjelder dine direkte tillatelser, andre roller og everyone. Tillatelser som krever privilegert modus, forblir utilgjengelige."
     },
     "rooms_admin": {
       "title": "Rom",

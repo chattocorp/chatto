@@ -162,11 +162,28 @@ describe('role management page identity', () => {
       'Permissions'
     ]);
     expect(nav.querySelector('[aria-current="page"]')?.getAttribute('href')).toBe(
-      '/chat/origin/manage/server/permissions/role-a'
+      '/chat/origin/manage/server/roles/role-a'
     );
     expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
     expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();
     expect(mocks.listMembers).not.toHaveBeenCalled();
+  });
+
+  it.each(['owner', 'admin'])('shows the owner access notice only for owner (%s)', async (name) => {
+    activeRoleName = name;
+    const response = details(name, name, 'System role');
+    response.role!.isSystem = true;
+    mocks.getRole.mockResolvedValue(response);
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.textContent).toContain('System role metadata'));
+    if (name === 'owner') {
+      expect(container.textContent).toContain('Owner permissions');
+      expect(container.textContent).toContain('Grants and denials cannot limit this access');
+      expect(container.textContent).toContain('15 minutes of privileged mode');
+      expect(container.textContent).toContain('With the shield off, your direct permissions');
+    } else {
+      expect(container.textContent).not.toContain('Owner permissions');
+    }
   });
 
   it('shows only the permission matrix in the permissions section', async () => {

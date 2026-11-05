@@ -28,6 +28,7 @@
     const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
     const roomGroupsBase = manageBase + '/room-groups';
     const moderationBase = serverBase + '/moderation';
+    const rolesBase = serverBase + '/roles';
     const permissionsBase = serverBase + '/permissions';
     const securityBase = serverBase + '/security';
     const systemBase = serverBase + '/system';
@@ -81,11 +82,14 @@
 
     // Role creation and editors require role.manage. Assigners may browse
     // the role catalog and rosters; those pages hide the editing surfaces.
-    if (pathname === `${permissionsBase}/new` || pathname === `${permissionsBase}/new/`) {
+    if (pathname === `${rolesBase}/new` || pathname === `${rolesBase}/new/`) {
       return () => permissions.canAdminManageRoles;
     }
-    if (pathname.startsWith(permissionsBase)) {
+    if (pathname.startsWith(rolesBase) || pathname.startsWith(`${permissionsBase}/`)) {
       return () => permissions.canAdminManageRoles || permissions.canAssignRoles;
+    }
+    if (pathname === permissionsBase || pathname === `${permissionsBase}/`) {
+      return () => permissions.canAdminManageRoles;
     }
 
     // Security (blocked usernames) — server.manage

@@ -179,6 +179,7 @@
       "members": "メンバー",
       "rooms": "部屋",
       "moderation": "モデレーション",
+      "roles": "役割",
       "permissions": "権限",
       "security": "セキュリティ",
       "event_log": "イベントログ",

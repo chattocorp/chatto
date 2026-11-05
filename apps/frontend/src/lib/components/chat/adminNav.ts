@@ -113,6 +113,15 @@ export function getAdminNavItems({
 
   if (permissions.canAdminManageRoles || permissions.canAssignRoles) {
     items.push({
+      href: resolve('/chat/[serverId]/manage/server/roles', { serverId: serverSegment }),
+      label: m('chat.management_nav.roles'),
+      description: m('settings.overview.descriptions.roles'),
+      icon: 'iconify icon-[uil--shield]'
+    });
+  }
+
+  if (permissions.canAdminManageRoles) {
+    items.push({
       href: resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }),
       label: m('chat.management_nav.permissions'),
       description: m('settings.overview.descriptions.permissions'),

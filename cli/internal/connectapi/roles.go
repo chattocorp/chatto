@@ -76,7 +76,7 @@ func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.
 	if err != nil {
 		return nil, err
 	}
-	catalog, err := s.api.core.ListServerRolesForUser(ctx, caller.UserID)
+	catalog, err := s.api.core.AdminListServerRoles(ctx, caller.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -202,11 +202,17 @@ func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
 	if role == nil {
 		return nil
 	}
-	return &adminv1.AdminRole{
+	result := &adminv1.AdminRole{
 		Role:              publicAPIRole(role),
 		Permissions:       corePermissionsToStrings(role.Permissions),
 		PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
 	}
+	if counts := role.Counts; counts != nil {
+		result.MemberCount = &counts.MemberCount
+		result.PermissionGrantCount = &counts.PermissionGrantCount
+		result.PermissionDenialCount = &counts.PermissionDenialCount
+	}
+	return result
 }
 
 func (s *roleService) ListMembers(ctx context.Context, req *connect.Request[adminv1.AdminRoleServiceListMembersRequest]) (*connect.Response[adminv1.AdminRoleServiceListMembersResponse], error) {

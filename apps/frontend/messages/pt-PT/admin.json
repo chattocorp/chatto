@@ -172,9 +172,11 @@
       "new_role_action": "+ Nova função",
       "creating_role": "Criar...",
       "create_after_hint": "Após criar a função, pode atribuir-lhe permissões na página de edição.",
+      "back_to_roles": "Voltar às funções",
       "back_to_permissions": "Voltar às permissões",
       "load_instance_failed": "Falha ao carregar instância",
       "need_manage_create": "Necessita da permissão Roles.Manage para criar funções.",
+      "search_roles": "Pesquisar funções…",
       "role_tab": "Função",
       "edit_role_title": "Editar função",
       "loading_role": "Função de carregamento...",
@@ -194,7 +196,10 @@
       "resolution_hint": "Para cada utilizador ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo âmbito ou num mais específico.",
       "update_role_failed": "Falha ao atualizar função",
       "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
-      "delete_role_failed": "Falha ao eliminar função"
+      "delete_role_failed": "Falha ao eliminar função",
+      "owner_access_title": "Permissões do proprietário",
+      "owner_access_permissions": "Com o escudo ativo, os proprietários têm todas as permissões no servidor, nos grupos de salas e nas salas. As concessões e recusas não podem limitar este acesso, e a matriz de permissões do proprietário é só de leitura.",
+      "owner_access_shield": "Ative o escudo junto à sua conta para usar o modo privilegiado durante 15 minutos. Com o escudo desativado, aplicam-se as suas permissões diretas, outras funções e everyone. As permissões que exigem o modo privilegiado continuam indisponíveis."
     },
     "rooms_admin": {
       "title": "Quartos",
