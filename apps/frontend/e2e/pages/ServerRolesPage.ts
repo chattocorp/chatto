@@ -14,9 +14,8 @@ export class ServerRolesPage {
    */
   private currentRoleName: string | null = null;
   /**
-   * The server scope currently in scope, set by `gotoEditRole`. Used by the
-   * permission-interaction helpers to navigate back to the matrix when
-   * needed (the role detail page no longer carries the editor).
+   * The server set by `gotoEditRole`. The permission helpers use this scope
+   * when they return to the server-wide matrix.
    */
   private currentSpaceId: string | null = null;
 
@@ -114,17 +113,29 @@ export class ServerRolesPage {
   }
 
   /**
-   * Navigate to a specific role's edit page. The role detail page now hosts
-   * metadata + assigned-users only; permission editing happens on the matrix
-   * at the roles list. We track the role name here so subsequent permission
-   * helpers can resolve the matrix cell — they'll auto-navigate to the
-   * matrix as needed.
+   * Open the Role section, which contains metadata and deletion controls.
+   * Members and Permissions have separate section links. Track the role so
+   * the server-wide permission helpers can select its matrix column.
    */
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
     await this.page.goto(routes.serverAdminPermission(roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+  }
+
+  /** Resolve a section link in the role header, separate from sidebar links. */
+  sectionLink(section: 'Role' | 'Members' | 'Permissions'): Locator {
+    return this.page
+      .getByRole('navigation', { name: 'Role Details' })
+      .getByRole('link', { name: section, exact: true });
+  }
+
+  /** Open a role section and wait until its link becomes current. */
+  async selectSection(section: 'Role' | 'Members' | 'Permissions'): Promise<void> {
+    const link = this.sectionLink(section);
+    await link.click();
+    await expect(link).toHaveAttribute('aria-current', 'page');
   }
 
   // --- Role List Actions ---
@@ -248,8 +259,8 @@ export class ServerRolesPage {
   }
 
   /**
-   * Ensure we're on the matrix (the role detail page no longer carries the
-   * permission editor). Navigates to the listing if we're elsewhere.
+   * Open the server-wide matrix used by the permission helpers. The role's
+   * Permissions section uses scope columns instead of role columns.
    */
   private async ensureOnMatrix(): Promise<void> {
     if (!this.currentSpaceId) {
