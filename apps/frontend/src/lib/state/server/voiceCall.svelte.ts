@@ -1730,7 +1730,8 @@ export class VoiceCallState implements CallConnection {
     this.microphoneProcessor?.dispose();
     this.microphoneProcessor = null;
     this.audioLevels.clear();
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    if (typeof document !== 'undefined')
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     // A new call must not wait for a module load from the previous call.
     this.microphoneProcessingInFlight = Promise.resolve(true);
     this.microphoneLevel = 0;

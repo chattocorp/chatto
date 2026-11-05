@@ -265,7 +265,8 @@ export class CallDeviceTest {
   };
 
   #releaseCapture(): void {
-    document.removeEventListener('visibilitychange', this.#handleVisibilityChange);
+    if (typeof document !== 'undefined')
+      document.removeEventListener('visibilitychange', this.#handleVisibilityChange);
     this.#audioLevels.clear();
     if (this.#timeout) clearTimeout(this.#timeout);
     this.#timeout = null;
