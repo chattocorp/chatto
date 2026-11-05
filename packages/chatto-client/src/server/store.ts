@@ -668,6 +668,9 @@ export class ServerStateStore {
       requireCurrent();
       const failure = reads.find((read) => read.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
+      if (families.includes('channelRooms') && families.includes('directMessages')) {
+        this.clearUndiscoveredRoomAccess();
+      }
     } finally {
       this.#catchUpResourceReads--;
     }
@@ -1117,6 +1120,9 @@ export class ServerStateStore {
         })
       );
       if (!current()) return;
+      // Both kinds have completed or failed closed. A directly opened room
+      // can now be rejected even when neither directory supplied its kind.
+      this.clearUndiscoveredRoomAccess();
       const listenerResults = await listeners;
       if (!current()) return;
       this.invalidateUniversalMembership();
@@ -1143,6 +1149,13 @@ export class ServerStateStore {
     this.#projectionReconciliations.add(refresh);
   }
 
+  /** Clear unclassified room caches only after both directory reads finish. */
+  private clearUndiscoveredRoomAccess(): void {
+    for (const roomId of this.#rooms.roomIds()) {
+      if (!this.projection.rooms.has(roomId)) this.clearRoomAccess(roomId);
+    }
+  }
+
   /** Read and posting changes require fresh message content and reply capabilities. */
   private reconcileRoomPermissions(
     rooms: RoomWithViewerState[],
@@ -1155,7 +1168,8 @@ export class ServerStateStore {
       const next = nextRooms.get(roomId);
       const previous = this.projection.rooms.get(roomId);
       // A cold route can own a store before either directory read arrives.
-      // Only a combined snapshot may classify an omitted, still-unknown room.
+      // A combined snapshot, or completion of both reads, must reject an
+      // omitted room whose kind is still unknown.
       if (
         (scope === RoomDirectoryScope.CHANNELS || scope === RoomDirectoryScope.DMS) &&
         !previous?.room &&

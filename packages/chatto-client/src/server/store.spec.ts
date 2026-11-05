@@ -5254,6 +5254,40 @@ describe('ServerStateStore separate room loading', () => {
     await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('channels unavailable');
   });
 
+  it.each(['catch-up', 'permission change'])(
+    'revokes an unclassified cached room after both directories finish during %s',
+    async (reason) => {
+      const store = makeStore(new FakeServerConnection([]));
+      store.projection.viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } } });
+      const cached = store.rooms.messages('unknown');
+      const revoke = vi.spyOn(cached, 'clearForAccessRevocation');
+      const pendingDMs = deferred<RealtimeResourceUpdate[]>();
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        if (family === 'channelRooms') return [roomResource([], RoomDirectoryScope.CHANNELS)];
+        if (family === 'directMessages') return pendingDMs.promise;
+        return [];
+      });
+      let complete: Promise<void>;
+      if (reason === 'catch-up') complete = store.completeRealtimeCatchUp('reauthorized');
+      else {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            cursor: 'reauthorized',
+            event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+          })
+        );
+        complete = store.waitForRealtimeReconciliation();
+      }
+      await vi.waitFor(() =>
+        expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('directMessages', 'reauthorized')
+      );
+      expect(revoke).not.toHaveBeenCalled();
+      pendingDMs.resolve([roomResource([], RoomDirectoryScope.DMS)]);
+      await complete;
+      expect(revoke).toHaveBeenCalled();
+    }
+  );
+
   it.each([
     { id: 'channel', kind: RoomKind.CHANNEL, family: 'channelRooms' },
     { id: 'dm', kind: RoomKind.DM, family: 'directMessages' }
