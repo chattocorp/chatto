@@ -916,20 +916,23 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 // LastPostedMessageTimes returns the creation times of the latest ordinary
 // message and root message in commit order. It reads retained posting facts:
 // edits, retractions, and hidden echoes do not change activity. Historical
-// imports are excluded. Zero means no qualifying post.
-func (p *RoomTimelineProjection) LastPostedMessageTimes(roomID string) (lastMessage, lastRoot time.Time) {
+// imports are excluded. A non-nil visible predicate limits both times to
+// readable threads. It runs under the timeline read lock and must not acquire
+// another projection lock or call back into this projection. Zero means no
+// qualifying post.
+func (p *RoomTimelineProjection) LastPostedMessageTimes(roomID string, visible func(*TimelineEntry) bool) (lastMessage, lastRoot time.Time) {
 	p.RLock()
 	defer p.RUnlock()
 	for _, index := range slices.Backward(p.messagePostsByRoom[roomID]) {
 		entry := p.entryAtLocked(int(index))
-		if !entry.HistoricalImport {
+		if !entry.HistoricalImport && (visible == nil || visible(entry)) {
 			lastMessage = entry.CreatedAt
 			break
 		}
 	}
 	for _, index := range slices.Backward(p.byRoom[roomID]) {
 		entry := p.entryAtLocked(int(index))
-		if entry.IsMessagePost() && !entry.HistoricalImport {
+		if entry.IsMessagePost() && !entry.HistoricalImport && (visible == nil || visible(entry)) {
 			lastRoot = entry.CreatedAt
 			break
 		}

@@ -315,8 +315,9 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   authorization cache.
 - **`RoomDirectoryReadModel`**
   ([`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)):
-  Operation-level room directory and sidebar reads, viewer capability and Slow
-  Mode deadline hydration. It receives `RoomModel`, message policy, permission
+  Operation-level room directory and sidebar reads, DM posting activity limited
+  to readable threads, viewer capability and Slow Mode deadline hydration.
+  It receives `RoomModel`, message policy, permission
   resolution, membership, authorization, and unread dependencies. Group joins
   belong to `RoomCommandModel`.
 - **`RoomTimelineReadModel`**

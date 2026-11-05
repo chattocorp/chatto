@@ -81,7 +81,7 @@ func (a *API) BuildRealtimeSnapshot(ctx context.Context, userID string) (*Realti
 		apiRooms := make([]*apiv1.RoomWithViewerState, 0, len(rooms))
 		referencedUserIDs := map[string]struct{}{userID: {}}
 		for _, room := range rooms {
-			apiRoom, err := a.realtimeSnapshotRoom(readCtx, userID, room)
+			apiRoom, err := a.apiRoomWithViewerState(readCtx, userID, room)
 			if err != nil {
 				return fmt.Errorf("assemble room %q: %w", room.Room.GetId(), err)
 			}
@@ -156,18 +156,6 @@ func (a *API) BuildRealtimeSnapshot(ctx context.Context, userID string) (*Realti
 		Users:       &apiv1.BatchGetUsersResponse{Users: users},
 		ActiveCalls: &apiv1.ListActiveCallsResponse{Calls: materializeRealtimeSnapshotCalls(capture.activeCalls, apiUsers)},
 	}, nil
-}
-
-func (a *API) realtimeSnapshotRoom(ctx context.Context, userID string, room *core.DirectoryRoom) (*apiv1.RoomWithViewerState, error) {
-	result := apiRoomWithViewerState(room)
-	if room == nil || room.Room == nil || core.KindOfRoom(room.Room) != core.KindDM || !room.ViewerState.IsMember {
-		return result, nil
-	}
-	exists := !room.LastRootMessageAt.IsZero()
-	result.HasMessageHistory = &exists
-	var err error
-	result.MemberUserIds, err = a.core.RoomMemberships().ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
-	return result, err
 }
 
 func (a *API) captureRealtimeSnapshotActiveCalls(ctx context.Context, userID string) ([]realtimeSnapshotCallCapture, error) {
