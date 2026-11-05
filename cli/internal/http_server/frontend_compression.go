@@ -31,8 +31,9 @@ func serveFrontendGzip(c *gin.Context, source fs.FS, name string) (bool, error) 
 	defer input.Close()
 	c.Header("Content-Encoding", "gzip")
 	c.Header("Content-Type", frontendContentType(name))
+	// Replace Gin's pending 404 when serving an unmatched static asset URL.
+	c.Status(http.StatusOK)
 	if c.Request.Method == http.MethodHead {
-		c.Status(http.StatusOK)
 		return true, nil
 	}
 	writer := gzip.NewWriter(c.Writer)
