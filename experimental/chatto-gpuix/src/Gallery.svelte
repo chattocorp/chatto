@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PaneHeader from './ui/PaneHeader.svelte';
   import Theme from './ui/Theme.svelte';
   import Avatar from './ui/Avatar.svelte';
   import ChannelRow from './ui/ChannelRow.svelte';
@@ -23,17 +24,17 @@
 
 <Theme>
   <div class="gallery">
-    <div class="heading">
-      <text class="title">Chatto components</text><text class="muted gallery-subtitle"
-        >Native design gallery</text
-      >
-      {#if onClose}<ActionButton label="Back" quiet onclick={onClose} testid="close-gallery" />{/if}
-    </div>
+    <PaneHeader title="Chatto components" description="Native design gallery">
+      {#snippet actions()}{#if onClose}<ActionButton
+            label="Back"
+            quiet
+            onclick={onClose}
+            testid="close-gallery"
+          />{/if}{/snippet}
+    </PaneHeader>
     <div class="columns">
       <div class="sidebar">
-        <div class="server">
-          <Avatar name="Chatto" size={32} /><text class="title">Chatto HQ</text>
-        </div>
+        <PaneHeader title="Chatto HQ" testid="gallery-server-header" />
         <SidebarSection label="CHATTO">
           <ChannelRow
             label="announcements"
@@ -71,19 +72,23 @@
         <div class="identity"><Avatar name="Sam Chen" size={30} /><text>Sam Chen</text></div>
       </div>
       <div class="main">
-        <div class="channel-header"><text class="channel"># {selected}</text></div>
+        <PaneHeader
+          title={selected}
+          icon={selected === 'Ada' ? 'message' : 'hash'}
+          testid="gallery-channel-header"
+        />
         <div class="examples">
           <MessageFrame author="Ada" time="10:30">
             <markdown
               source="The native client is starting to feel like **Chatto**. Compact channels, familiar colors, and room for the conversation."
-              theme={markdownTheme}
+              theme={markdownTheme()}
               class="body"
             ></markdown>
           </MessageFrame>
           <MessageFrame author="Chatto Bot" time="10:32" bot>
             <markdown
               source="Messages, previews, and attachments share the same visual language. The client still uses `@chatto/client`."
-              theme={markdownTheme}
+              theme={markdownTheme()}
               class="body"
             ></markdown>
             <LinkPreview
@@ -134,7 +139,7 @@
                 {@const color = colors[key as keyof typeof colors]}
                 <div class="swatch">
                   <div
-                    style={`width: 28px; height: 20px; border-radius: 4px; background-color: ${color};`}
+                    style={`width: var(--size-28); height: var(--size-20); border-radius: var(--size-4); background-color: ${color};`}
                   ></div>
                   <text class="muted">{key}</text>
                 </div>
@@ -161,25 +166,8 @@
     width: 100%;
     height: 100%;
   }
-  .heading {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    height: 48px;
-    padding: 0 16px;
-    border-bottom-width: 1px;
-    border-color: var(--color-border);
-  }
-  .gallery-subtitle {
-    flex-grow: 1;
-  }
-  .title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-text-top);
-  }
   .muted {
-    font-size: 11px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
   .columns {
@@ -191,16 +179,10 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    width: 238px;
+    width: var(--size-238);
     flex-shrink: 0;
-    border-right-width: 1px;
+    border-right-width: var(--size-1);
     border-color: var(--color-border);
-  }
-  .server {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px;
   }
   .sidebar-spacer {
     flex-grow: 1;
@@ -208,12 +190,12 @@
   .identity {
     display: flex;
     align-items: center;
-    gap: 9px;
-    margin: 8px;
-    padding: 8px;
+    gap: var(--size-9);
+    margin: var(--size-8);
+    padding: var(--size-8);
     background-color: var(--color-surface);
     border-radius: var(--radius-panel);
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .main {
     display: flex;
@@ -221,50 +203,41 @@
     flex-grow: 1;
     min-width: 0;
   }
-  .channel-header {
-    padding: 14px 18px;
-    border-bottom-width: 1px;
-    border-color: var(--color-border);
-  }
-  .channel {
-    font-size: 15px;
-    font-weight: 600;
-  }
   .examples {
     flex-grow: 1;
     min-height: 0;
     overflow-y: scroll;
   }
   .body {
-    font-size: 14px;
+    font-size: var(--text-body);
     color: var(--color-text);
     white-space: normal;
   }
   .controls {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px 18px;
-    margin-left: 49px;
+    gap: var(--size-12);
+    padding: var(--size-16) var(--size-18);
+    margin-left: var(--size-49);
   }
   .section-title {
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: 600;
   }
   .button-row {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: var(--size-8);
   }
   .swatches {
     display: flex;
     flex-direction: row;
-    gap: 12px;
+    gap: var(--size-12);
   }
   .swatch {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--size-5);
   }
 </style>

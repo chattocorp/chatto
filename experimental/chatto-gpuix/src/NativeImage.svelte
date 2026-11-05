@@ -83,20 +83,20 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: var(--size-10);
     width: 100%;
-    height: 220px;
+    height: var(--size-220);
     flex-shrink: 0;
     background-color: var(--color-background);
-    border-radius: 8px;
+    border-radius: var(--size-8);
   }
   .image {
     width: 100%;
-    height: 220px;
+    height: var(--size-220);
   }
   .status {
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--color-muted);
-    padding: 12px;
+    padding: var(--size-12);
   }
 </style>

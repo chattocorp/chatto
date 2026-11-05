@@ -11,7 +11,7 @@
 import { parseServerUrl } from './util/serverUrl.js';
 import type { ConnectOptions, Server } from './server/server.js';
 import { EventBusManager, type LiveServers } from './server/realtimeTransport.js';
-import { ServerRegistry } from './server/registry.js';
+import { ServerRegistry, type ServerRegistryPersistence } from './server/registry.js';
 import { ServerConnectionManager } from './server/serverConnection.js';
 import { startClientRuntime, type ClientRuntime } from './server/runtime.js';
 import { emptyServerSession } from './server/sessions.js';
@@ -27,6 +27,12 @@ export interface ClientOptions {
    * can have one such client.
    */
   storage?: 'memory' | 'device';
+  /**
+   * Durable native-host storage, used instead of browser device storage.
+   * The host owns encryption and exclusive process access. Synchronous writes
+   * must be durable before returning so refresh request IDs survive a crash.
+   */
+  persistence?: ServerRegistryPersistence;
   /**
    * Treat a server on the page's own origin as the origin server, which uses
    * the browser's cookie session. Default: false. A process can have one
@@ -93,7 +99,11 @@ export class ChattoClient {
     this.connections = new ServerConnectionManager(() => this.registry);
     this.registry = new ServerRegistry(
       { connections: this.connections, realtime: this.realtime, keepRecent },
-      { deviceStorage: options.storage === 'device', originServer: options.originServer ?? false }
+      {
+        deviceStorage: options.storage === 'device',
+        originServer: options.originServer ?? false,
+        persistence: options.persistence
+      }
     );
     if (options.storage === 'device') exclusiveClients.set('deviceStorage', this);
     if (options.originServer) exclusiveClients.set('originServer', this);

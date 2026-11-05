@@ -30,18 +30,18 @@
   .section {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 12px 7px;
-    border-bottom-width: 1px;
+    gap: var(--size-2);
+    padding: var(--size-12) var(--size-7);
+    border-bottom-width: var(--size-1);
     border-color: var(--color-border);
   }
   .heading {
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 6px 7px 10px;
+    gap: var(--size-9);
+    padding: var(--size-6) var(--size-7) var(--size-10);
     color: var(--color-muted);
-    font-size: 11px;
+    font-size: var(--text-small);
     font-weight: 600;
     cursor: pointer;
   }

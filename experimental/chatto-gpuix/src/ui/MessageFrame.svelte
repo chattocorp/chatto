@@ -37,9 +37,9 @@
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 13px;
-    padding: 12px 18px;
-    min-height: 60px;
+    gap: var(--size-13);
+    padding: var(--size-12) var(--size-18);
+    min-height: var(--size-60);
   }
   .message-row:hover {
     background-color: #1b1b1b;
@@ -49,28 +49,28 @@
     flex-direction: column;
     flex-grow: 1;
     min-width: 0;
-    gap: 6px;
+    gap: var(--size-6);
   }
   .byline {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--size-8);
   }
   .author {
-    font-size: 14px;
+    font-size: var(--text-body);
     font-weight: 600;
     color: var(--color-text-top);
   }
   .time {
-    font-size: 11px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
   .badge {
-    font-size: 10px;
+    font-size: var(--text-badge);
     font-weight: 600;
     color: var(--color-text);
     background-color: var(--color-surface-emphasized);
-    border-radius: 3px;
-    padding: 1px 4px;
+    border-radius: var(--size-3);
+    padding: var(--size-1) var(--size-4);
   }
 </style>

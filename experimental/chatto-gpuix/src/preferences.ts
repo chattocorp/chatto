@@ -1,5 +1,5 @@
-/** Private, non-secret native settings. Credentials and message content are never written. */
-import { mkdirSync, readFileSync, renameSync, writeFileSync, chmodSync, lstatSync } from 'node:fs';
+/** Read legacy non-secret form preferences. New sessions and UI state use the encrypted vault. */
+import { readFileSync, lstatSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -35,18 +35,4 @@ export function readPreferences(): Preferences {
   } catch {
     return fallback;
   }
-}
-export function savePreferences(value: Preferences): void {
-  const dir = directory();
-  try {
-    if (lstatSync(dir).isSymbolicLink()) throw new Error('Invalid settings directory');
-  } catch (error) {
-    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
-      throw new Error('Could not save connection settings');
-  }
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  chmodSync(dir, 0o700);
-  const temporary = join(dir, `.settings-${crypto.randomUUID()}`);
-  writeFileSync(temporary, JSON.stringify(value), { mode: 0o600, flag: 'wx' });
-  renameSync(temporary, join(dir, 'settings.json'));
 }

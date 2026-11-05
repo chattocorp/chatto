@@ -7,14 +7,14 @@
 
 <MessageFrame author={message.author} time={message.time}>
   {#if message.format === 'markdown'}
-    <markdown source={message.body} theme={markdownTheme} class="body"></markdown>
+    <markdown source={message.body} theme={markdownTheme()} class="body"></markdown>
   {:else}<text class="body plain">{message.body}</text>{/if}
 </MessageFrame>
 
 <style>
   .body {
     color: var(--color-text);
-    font-size: 14px;
+    font-size: var(--text-body);
     user-select: text;
   }
   .plain {

@@ -39,9 +39,9 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
-    height: 32px;
-    padding: 0 9px;
+    gap: var(--size-10);
+    height: var(--size-32);
+    padding: 0 var(--size-9);
     border-radius: var(--radius-control);
     cursor: pointer;
     color: var(--color-text);
@@ -59,7 +59,7 @@
   .label {
     flex-grow: 1;
     min-width: 0;
-    font-size: 14px;
+    font-size: var(--text-body);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -67,9 +67,9 @@
   .badge {
     background-color: var(--color-action);
     color: #05232c;
-    border-radius: 8px;
-    padding: 1px 5px;
-    font-size: 10px;
+    border-radius: var(--size-8);
+    padding: var(--size-1) var(--size-5);
+    font-size: var(--text-badge);
     font-weight: 600;
   }
 </style>

@@ -13,14 +13,14 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
-    padding: 12px 18px 6px;
+    gap: var(--size-12);
+    padding: var(--size-12) var(--size-18) var(--size-6);
     color: var(--color-muted);
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .line {
     flex-grow: 1;
-    height: 1px;
+    height: var(--size-1);
     background-color: var(--color-border);
   }
 </style>

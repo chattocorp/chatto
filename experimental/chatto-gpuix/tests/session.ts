@@ -12,6 +12,8 @@ import {
 } from 'gpuix-svelte/test';
 import App from '../src/App.svelte';
 import { NativeSession } from '../src/session.svelte.ts';
+import { emptyServerSession } from '@chatto/client/server/sessions';
+import { memoryState } from '../src/state.ts';
 import { safeMarkdown } from '../src/markdown.ts';
 
 const base = fileURLToPath(new URL('../../../.context/', import.meta.url));
@@ -26,38 +28,77 @@ globalThis.fetch = async () => {
 };
 let prompts = 0;
 const session = new NativeSession({
+  openState: async () => memoryState(),
   password: async () => {
     prompts++;
     return null;
   }
 });
 session.login = 'synthetic';
+await session.ready();
 const mounted = mount_headless(App, { props: { session }, width: 900, height: 500 });
 try {
-  check('opens a real sign-in screen', all_text().includes('Sign in to Chatto'));
+  check('opens a real sign-in screen', all_text().includes('Add a Chatto server'));
+  click_test_id('show-password');
   click_test_id('sign-in');
   await wait_for(() => !session.busy);
   check('sign-in uses the injected secure-prompt boundary', prompts, 1);
   check('cancelling a prompt does not connect', session.server, null);
   check('cancelling a prompt sends no request', requests, 0);
   let complete: (value: string | null) => void = () => {};
+  let presented = false;
   const pending = new NativeSession({
-    password: () => new Promise((resolve) => (complete = resolve))
+    openState: async () => memoryState(),
+    password: () => {
+      presented = true;
+      return new Promise((resolve) => (complete = resolve));
+    }
   });
+  await pending.ready();
   pending.login = 'synthetic';
   const signIn = pending.signIn();
-  pending.close();
+  await wait_for(() => presented);
+  const closing = pending.close();
   complete('synthetic-password');
   await signIn;
+  await closing;
   check('late password delivery cannot revive a closed host', pending.server, null);
   check('late delivery sends no credential request', requests, 0);
-  const invalid = new NativeSession({ password: async () => 'synthetic-password' });
+  const invalid = new NativeSession({
+    openState: async () => memoryState(),
+    password: async () => 'synthetic-password'
+  });
   invalid.origin = 'https://example.test/path';
   invalid.login = 'synthetic';
   await invalid.signIn();
   check('invalid origins fail before transmission', requests, 0);
   check('invalid origin failure is visible', invalid.error.length > 0);
-  invalid.close();
+  await invalid.close();
+  const state = memoryState();
+  state.writeServers([
+    {
+      ...emptyServerSession(),
+      id: 'fixture-server',
+      url: 'http://127.0.0.1:1',
+      name: 'Fixture',
+      iconUrl: null,
+      addedAt: 1
+    }
+  ]);
+  const navigation = new NativeSession({ openState: async () => state });
+  await navigation.ready();
+  check(
+    'restored registrations have SDK stores before rendering',
+    !!navigation.serverFor('fixture-server')
+  );
+  navigation.activeServerId = 'fixture-server';
+  navigation.select('fixture-room');
+  check(
+    'reactive room selection persists as plain native state',
+    state.ui.rooms['fixture-server'],
+    'fixture-room'
+  );
+  await navigation.close();
   const safe = safeMarkdown(
     '**Hello** ![alt](https://example.test/image.png)\n\n![ref][pic]\n\n[pic]: https://example.test/ref.png\n\n<img src="https://example.test/html.png">'
   );
@@ -69,8 +110,8 @@ try {
   check('raw HTML becomes a code block', safe.includes('```') || safe.includes('~~~'));
 } finally {
   mounted.unmount();
-  session.close();
+  await session.close();
   globalThis.fetch = originalFetch;
   rmSync(directory, { recursive: true, force: true });
 }
-finish('Chatto GPUix session', 11);
+finish('Chatto GPUix session', 13);

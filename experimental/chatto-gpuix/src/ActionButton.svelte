@@ -54,12 +54,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    padding: 6px 10px;
+    gap: var(--size-7);
+    padding: var(--size-6) var(--size-10);
     border-radius: var(--radius-control);
     background-color: var(--color-surface-emphasized);
     color: var(--color-text);
-    font-size: 13px;
+    font-size: var(--text-body);
     cursor: pointer;
     flex-shrink: 0;
   }
@@ -89,13 +89,13 @@
     color: var(--color-text-top);
   }
   .iconOnly {
-    width: 30px;
-    height: 30px;
-    padding: 5px;
+    width: var(--size-30);
+    height: var(--size-30);
+    padding: var(--size-5);
   }
   .button:focus-visible {
     background-color: var(--color-selected);
-    border-width: 1px;
+    border-width: var(--size-1);
     border-color: var(--color-action);
   }
   .disabled {

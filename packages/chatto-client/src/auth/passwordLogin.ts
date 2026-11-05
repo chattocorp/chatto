@@ -1,6 +1,6 @@
 /** Direct native-host password sign-in. Credentials and error bodies are never logged. */
 import { directBearerSession, type NewBearerSession } from './bearerSession.js';
-import { parseServerUrl } from '../util/serverUrl.js';
+import { nativeServerOrigin } from './nativeOrigin.js';
 
 /** A private, bounded sign-in failure. The server's response text is never exposed. */
 export class PasswordLoginError extends Error {
@@ -27,19 +27,7 @@ export async function passwordLogin(
   input: { login: string; password: string },
   options: { signal?: AbortSignal } = {}
 ): Promise<NewBearerSession> {
-  const origin = parseServerUrl(serverUrl);
-  const loopback =
-    origin.hostname === 'localhost' ||
-    origin.hostname === '[::1]' ||
-    /^127\.\d+\.\d+\.\d+$/.test(origin.hostname);
-  if (
-    (origin.protocol !== 'https:' && !loopback) ||
-    origin.pathname !== '/' ||
-    origin.search ||
-    origin.hash
-  ) {
-    throw new Error('Use an HTTPS server origin, or HTTP on loopback');
-  }
+  const origin = nativeServerOrigin(serverUrl);
   if (!input.login.trim() || !input.password) throw new Error('Enter a username and password');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);

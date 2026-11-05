@@ -106,20 +106,20 @@
 
 <style>
   .filename {
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: bold;
   }
   .description {
-    font-size: 13px;
+    font-size: var(--text-body);
     white-space: pre-wrap;
     user-select: text;
   }
   .kind {
-    font-size: 11px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
   .error {
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--color-error);
   }
 </style>
