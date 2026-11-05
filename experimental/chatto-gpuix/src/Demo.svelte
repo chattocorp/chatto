@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PaneHeader from './ui/PaneHeader.svelte';
   import Theme from './ui/Theme.svelte';
   import { inputTheme } from './ui/theme.ts';
   import type { GpuixEvent } from 'gpuix-svelte';
@@ -56,12 +57,7 @@
 <Theme>
   <div class="app">
     <div class="sidebar">
-      <div class="brand">
-        <div class="brand-row">
-          <text class="brand-name">Chatto</text><text class="experiment">02</text>
-        </div>
-        <text class="muted">Native lab</text>
-      </div>
+      <PaneHeader title="Chatto" description="Native lab" />
       <div class="channels" role="tablist" aria-label="Channels">
         <text class="section-label">CHANNELS</text>
         {#each rooms as item (item.id)}
@@ -86,13 +82,9 @@
       </div>
     </div>
     <div class="conversation">
-      <div class="header">
-        <div class="room-heading">
-          <text class="room-title" testid="room-title"># {room.name}</text>
-          <text class="muted">{room.description}</text>
-        </div>
-        <div class="local-badge"><text>Local demo</text></div>
-      </div>
+      <PaneHeader title={room.name} description={room.description} icon="hash">
+        {#snippet actions()}<div class="local-badge"><text>Local demo</text></div>{/snippet}
+      </PaneHeader>
       <div class="toolbar">
         <text class="muted" testid="message-count">{messages.length} messages</text>
         <div class="spacer"></div>
@@ -123,6 +115,8 @@
           <input
             class="draft"
             theme={{
+              fontSans: 'IBM Plex Sans',
+              fontMono: 'IBM Plex Mono',
               appearance: 'dark',
               bg: 'var(--color-surface)',
               text: 'var(--color-text)',
@@ -163,60 +157,36 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    width: 250px;
+    width: var(--size-250);
     height: 100%;
     flex-shrink: 0;
     background-color: var(--color-background);
   }
-  .brand {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    padding: 24px 20px;
-  }
-  .brand-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-  }
-  .brand-name {
-    font-size: 23px;
-    font-weight: bold;
-    color: var(--color-text-top);
-  }
-  .experiment {
-    font-size: 11px;
-    color: var(--color-action);
-    background-color: var(--color-selected);
-    padding: 3px 7px;
-    border-radius: 5px;
-  }
   .muted {
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
   .channels {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 16px 10px;
+    gap: var(--size-4);
+    padding: var(--size-16) var(--size-10);
     flex-grow: 1;
   }
   .section-label {
-    font-size: 10px;
+    font-size: var(--text-badge);
     font-weight: bold;
     color: var(--color-muted);
-    padding: 0 12px 10px;
+    padding: 0 var(--size-12) var(--size-10);
   }
   .room {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-radius: 7px;
-    font-size: 14px;
+    gap: var(--size-10);
+    padding: var(--size-10) var(--size-14);
+    border-radius: var(--size-7);
+    font-size: var(--text-body);
     color: var(--color-text);
     cursor: pointer;
   }
@@ -229,16 +199,16 @@
   }
   .hash {
     color: var(--color-muted);
-    font-size: 19px;
+    font-size: var(--text-title);
   }
   .sidebar-footer {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 20px;
+    gap: var(--size-8);
+    padding: var(--size-20);
   }
   .footer-title {
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--color-text);
   }
   .conversation {
@@ -248,39 +218,19 @@
     min-width: 0;
     height: 100%;
   }
-  .header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-    padding: 20px 24px;
-    border-bottom-width: 1px;
-    border-color: var(--color-border);
-  }
-  .room-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex-grow: 1;
-  }
-  .room-title {
-    font-size: 19px;
-    font-weight: bold;
-    color: var(--color-text-top);
-  }
   .local-badge {
-    padding: 5px 9px;
+    padding: var(--size-5) var(--size-9);
     background-color: #273b32;
     color: #a8ceb7;
-    font-size: 11px;
-    border-radius: 6px;
+    font-size: var(--text-small);
+    border-radius: var(--size-6);
   }
   .toolbar {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
-    padding: 12px 24px;
+    gap: var(--size-12);
+    padding: var(--size-12) var(--size-24);
   }
   .spacer {
     flex-grow: 1;
@@ -293,27 +243,29 @@
   .composer-area {
     display: flex;
     flex-direction: column;
-    gap: 9px;
-    padding: 14px 24px 18px;
+    gap: var(--size-9);
+    padding: var(--size-14) var(--size-24) var(--size-18);
   }
   .composer {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
-    padding: 9px 12px;
-    border-radius: 10px;
+    gap: var(--size-12);
+    padding: var(--size-9) var(--size-12);
+    border-radius: var(--size-10);
     background-color: var(--color-surface);
   }
   .draft {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
     flex-grow: 1;
     min-width: 0;
-    height: 35px;
-    font-size: 14px;
+    height: var(--size-35);
+    font-size: var(--text-body);
     color: var(--color-text);
   }
   .composer-note {
-    font-size: 11px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
 </style>

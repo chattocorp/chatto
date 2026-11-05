@@ -71,7 +71,8 @@ type PersistedServerAuthentication = {
   reauthRequiredAt: number | null;
 };
 
-type ServerAuthentication = Omit<PersistedServerAuthentication, 'version'>;
+/** Durable credential fields; hosts must never log their values. */
+export type ServerAuthentication = Omit<PersistedServerAuthentication, 'version'>;
 
 function normalizeRegisteredServer(server: PersistedRegisteredServer): RegisteredServer {
   const { source: _retiredSource, ...local } = server;
@@ -341,6 +342,17 @@ function memoryStorage(): RegistryStorage {
   };
 }
 
+/**
+ * Synchronous durable persistence supplied by a native host.
+ * Writes must be committed before returning; renewal reads back its request ID
+ * before sending. Hosts own encryption, exclusive access, validation and cleanup.
+ * Authentication records override catalogue snapshots when restoring after a crash.
+ */
+export interface ServerRegistryPersistence extends RegistryStorage {
+  /** Read the saved combined catalogue; latest authentication is read separately. */
+  readServers(): RegisteredServer[];
+}
+
 /** Settings of a {@link ServerRegistry}; a client passes its own. */
 export interface ServerRegistryOptions {
   /**
@@ -348,6 +360,8 @@ export interface ServerRegistryOptions {
    * restore them at construction. Only one client in a page should use it.
    */
   deviceStorage: boolean;
+  /** Durable host storage; mutually exclusive with browser device storage. */
+  persistence?: ServerRegistryPersistence;
   /**
    * Treat a server on the page's own origin as the origin server, which uses
    * the browser's cookie session instead of a bearer token.
@@ -405,10 +419,28 @@ export class ServerRegistry {
   constructor(context: ServerRegistryContext, options: ServerRegistryOptions) {
     this.#context = context;
     this.#options = options;
-    this.#storage = options.deviceStorage ? deviceStorage : memoryStorage();
-    const persisted = options.deviceStorage
-      ? restorePersistedServerState()
-      : { registrations: [], sessions: new Map<string, ServerSession>() };
+    if (options.deviceStorage && options.persistence)
+      throw new Error('Choose browser device storage or host persistence, not both.');
+    this.#storage =
+      options.persistence ?? (options.deviceStorage ? deviceStorage : memoryStorage());
+    let persisted: ReturnType<typeof splitPersistedServers>;
+    if (options.persistence) {
+      const saved = options.persistence.readServers();
+      if (!isPersistedServerArray(saved)) throw new Error('Invalid persisted server catalogue.');
+      persisted = splitPersistedServers(
+        saved.map((server) => {
+          const authentication = options.persistence!.readAuthentication(server.id);
+          return {
+            ...server,
+            ...(authentication === undefined ? {} : (authentication ?? emptyServerAuthentication()))
+          };
+        })
+      );
+    } else {
+      persisted = options.deviceStorage
+        ? restorePersistedServerState()
+        : { registrations: [], sessions: [] };
+    }
     // Check every ID before claiming one, so a failed construction claims nothing.
     const taken = persisted.registrations.find((registration) =>
       isServerIdClaimed(registration.id)
@@ -758,6 +790,8 @@ export class ServerRegistry {
 
       const response = await fetch(new URL('/oauth/token', registration.url), {
         method: 'POST',
+        credentials: 'omit',
+        redirect: 'error',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           grant_type: 'refresh_token',
@@ -797,6 +831,11 @@ export class ServerRegistry {
         ...persistedBearerSession(credentials),
         reauthRequiredAt: null
       });
+      // A native host must not send the replacement access token until its
+      // renewal pair is durable. A lost write retries the old request identity.
+      const saved = this.#storage.readAuthentication(id);
+      if (saved?.token !== credentials.token || saved.refreshToken !== credentials.refreshToken)
+        throw new Error('Unable to persist renewed bearer session.');
       return credentials.token;
     });
   }

@@ -59,25 +59,25 @@
   .social {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border-left-width: 2px;
+    gap: var(--size-8);
+    padding: var(--size-12);
+    border-left-width: var(--size-2);
     border-color: var(--color-action);
   }
   .author {
-    font-size: 14px;
+    font-size: var(--text-body);
     font-weight: bold;
   }
   .muted {
-    font-size: 11px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
   .warning {
-    font-size: 13px;
+    font-size: var(--text-body);
     color: var(--color-error);
   }
   .body {
-    font-size: 13px;
+    font-size: var(--text-body);
     white-space: pre-wrap;
     user-select: text;
   }

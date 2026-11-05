@@ -76,13 +76,11 @@ export default {
         'standalone.ts',
         'src/App.svelte',
         'src/Gallery.svelte',
-        'tests/{app,gallery,live,media,session}.ts'
+        'tests/{app,browser-live,gallery,live,media,scale,session,threads,threads-live}.ts'
       ],
       project: ['*.{ts,js}', 'src/**/*.{ts,svelte}', 'tests/**/*.{ts,svelte}'],
       svelte: true,
-      sveltekit: false,
-      // The custom gpuix-svelte command passes this loader through --import=tsx.
-      ignoreDependencies: ['tsx']
+      sveltekit: false
     },
     'packages/api-types': {
       ignoreDependencies: ['@bufbuild/protoc-gen-es', '@connectrpc/protoc-gen-connect-es']

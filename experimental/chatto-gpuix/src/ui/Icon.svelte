@@ -1,6 +1,8 @@
 <script module lang="ts">
   /** Small built-in line icons; no network icon service is used. */
   export type IconName =
+    | 'close'
+    | 'back'
     | 'hash'
     | 'search'
     | 'send'
@@ -9,8 +11,15 @@
     | 'chevronRight'
     | 'message'
     | 'check'
-    | 'gallery';
+    | 'gallery'
+    | 'plus'
+    | 'settings';
   const paths: Record<IconName, string> = {
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    back: '<path d="m12 5-7 7 7 7M5 12h15"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    settings:
+      '<circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/>',
     hash: '<path d="M10 3 6 21M18 3l-4 18M3 9h18M2 15h18"/>',
     search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
     send: '<path d="m3 3 19 9-19 9 4-9-4-9Zm4 9h15"/>',
@@ -25,6 +34,7 @@
 </script>
 
 <script lang="ts">
+  import { scaled } from './scale.svelte.ts';
   import { colors } from './theme.ts';
   let {
     name,
@@ -38,5 +48,5 @@
 
 <svg
   {source}
-  style={`width: ${size}px; height: ${size}px; flex-shrink: 0; color: ${accent ? colors.action : colors.muted};`}
+  style={`width: ${scaled(size)}px; height: ${scaled(size)}px; flex-shrink: 0; color: ${accent ? colors.action : colors.muted};`}
 />

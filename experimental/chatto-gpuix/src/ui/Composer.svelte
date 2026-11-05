@@ -2,12 +2,18 @@
   import { inputTheme } from './theme.ts';
   import ActionButton from '../ActionButton.svelte';
   let {
+    idPrefix = 'live',
+    placeholder = 'Type a message…',
+    label = 'Message',
     draft,
     sending,
     canSend,
     onChange,
     onSend
   }: {
+    idPrefix?: string;
+    placeholder?: string;
+    label?: string;
     draft: string;
     sending: boolean;
     canSend: boolean;
@@ -22,11 +28,11 @@
     class="draft"
     value={draft}
     theme={inputTheme}
-    placeholder="Type a message…"
-    aria-label="Message"
+    {placeholder}
+    aria-label={label}
     onchange={(event) => onChange(event.value)}
     onsubmit={onSend}
-    testid="live-draft"
+    testid={`${idPrefix}-draft`}
   />
   <ActionButton
     label={sending ? 'Sending…' : 'Send'}
@@ -34,7 +40,7 @@
     quiet
     disabled={!canSend || sending}
     onclick={onSend}
-    testid="live-send"
+    testid={`${idPrefix}-send`}
   />
 </div>
 
@@ -43,22 +49,24 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
-    padding: 4px 8px 4px 12px;
-    margin: 8px 10px 10px;
+    gap: var(--size-8);
+    padding: var(--size-4) var(--size-8) var(--size-4) var(--size-12);
+    margin: var(--size-8) var(--size-10) var(--size-10);
     background-color: var(--color-surface);
-    border-width: 1px;
+    border-width: var(--size-1);
     border-color: #333333;
     border-radius: var(--radius-panel);
   }
   .format {
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: 600;
     color: var(--color-muted);
   }
   .draft {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
     flex-grow: 1;
     min-width: 0;
-    height: 38px;
+    height: var(--size-38);
   }
 </style>

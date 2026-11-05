@@ -12,10 +12,13 @@
     "dev": "gpuix-svelte --import=tsx app.ts",
     "start": "gpuix-svelte --import=tsx standalone.ts",
     "check": "tsc --noEmit && svelte-check --tsconfig tsconfig.json --fail-on-warnings",
-    "test": "gpuix-svelte --import=tsx tests/app.ts && gpuix-svelte --import=tsx tests/session.ts && gpuix-svelte --import=tsx tests/media.ts && gpuix-svelte --import=tsx tests/gallery.ts",
+    "test": "gpuix-svelte --import=tsx tests/app.ts && gpuix-svelte --import=tsx tests/session.ts && gpuix-svelte --import=tsx tests/media.ts && gpuix-svelte --import=tsx tests/gallery.ts && gpuix-svelte --import=tsx tests/scale.ts && gpuix-svelte --import=tsx tests/threads.ts && pnpm test:host",
     "build": "bun build.ts",
+    "test:threads-live": "gpuix-svelte --import=tsx tests/threads-live.ts",
     "test:live": "gpuix-svelte --import=tsx tests/live.ts",
-    "gallery": "gpuix-svelte --import=tsx gallery.ts"
+    "gallery": "gpuix-svelte --import=tsx gallery.ts",
+    "test:host": "tsx --test tests/host.test.ts",
+    "test:browser-live": "gpuix-svelte --import=tsx tests/browser-live.ts"
   },
   "dependencies": {
     "@chatto/client": "workspace:*",

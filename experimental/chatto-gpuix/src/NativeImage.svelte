@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from './ActionButton.svelte';
   import { mediaUrl, readImage } from './media.ts';
 
@@ -39,7 +40,9 @@
     failed = false;
     if (enabled && current && permitted) {
       void (async () => {
-        const fresh = resolve ? mediaUrl(await resolve(), origin) : current;
+        // The callback reads mutable SDK metadata. Only the explicit source,
+        // viewport, consent and retry inputs own this attachment's lifetime.
+        const fresh = resolve ? mediaUrl(await untrack(resolve), origin) : current;
         // A refreshed URL must not silently add another external host.
         if (!fresh || fresh.origin !== current.origin) throw new Error('Image location changed');
         return readImage(fresh, controller.signal);
@@ -80,20 +83,20 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: var(--size-10);
     width: 100%;
-    height: 220px;
+    height: var(--size-220);
     flex-shrink: 0;
     background-color: var(--color-background);
-    border-radius: 8px;
+    border-radius: var(--size-8);
   }
   .image {
     width: 100%;
-    height: 220px;
+    height: var(--size-220);
   }
   .status {
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--color-muted);
-    padding: 12px;
+    padding: var(--size-12);
   }
 </style>

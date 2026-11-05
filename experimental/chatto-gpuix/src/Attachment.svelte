@@ -6,6 +6,7 @@
   import { createAttachmentAPI } from '@chatto/client/api/attachments';
   import {
     assetUrlNeedsRefresh,
+    createAssetUrlRetainer,
     DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH
   } from '@chatto/client/attachments/attachmentUrls';
   import { mediaUrl, openMedia } from './media.ts';
@@ -24,10 +25,16 @@
     active: boolean;
   } = $props();
   const isImage = $derived(attachment.contentType.startsWith('image/'));
+  // SDK refreshes can rotate signatures for unchanged media. Keep the usable
+  // URL until expiry or a resource change, as the web attachment renderer does.
+  const retainImageUrl = createAssetUrlRetainer();
   const image = $derived(
-    isImage
-      ? (attachment.thumbnailAssetUrl ?? attachment.assetUrl)
-      : attachment.videoProcessing?.thumbnailAssetUrl
+    retainImageUrl(
+      'preview',
+      (isImage
+        ? (attachment.thumbnailAssetUrl ?? attachment.assetUrl)
+        : attachment.videoProcessing?.thumbnailAssetUrl) ?? null
+    )
   );
   let error = $state('');
   let alive = true;
@@ -99,20 +106,20 @@
 
 <style>
   .filename {
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: bold;
   }
   .description {
-    font-size: 13px;
+    font-size: var(--text-body);
     white-space: pre-wrap;
     user-select: text;
   }
   .kind {
-    font-size: 11px;
+    font-size: var(--text-small);
     color: var(--color-muted);
   }
   .error {
-    font-size: 12px;
+    font-size: var(--text-small);
     color: var(--color-error);
   }
 </style>

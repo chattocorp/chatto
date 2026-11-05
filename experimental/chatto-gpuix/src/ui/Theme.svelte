@@ -14,7 +14,7 @@
     width: 100%;
     height: 100%;
     font-family: var(--font-sans);
-    font-size: 14px;
+    font-size: var(--text-body);
     color: var(--color-text);
     background-color: var(--color-background);
   }

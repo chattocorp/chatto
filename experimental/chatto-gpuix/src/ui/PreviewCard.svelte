@@ -9,12 +9,12 @@
   .card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    width: 430px;
+    gap: var(--size-8);
+    width: var(--size-430);
     max-width: 100%;
-    padding: 10px;
+    padding: var(--size-10);
     background-color: var(--color-surface);
-    border-width: 1px;
+    border-width: var(--size-1);
     border-color: #353535;
     border-radius: var(--radius-panel);
   }

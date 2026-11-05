@@ -33,6 +33,7 @@ vi.mock('./api/viewer.js', async (original) => ({
   getCurrentUserViaConnect: mocks.viewer
 }));
 
+import { emptyServerSession as emptyNativeSession } from './server/sessions.js';
 import { createClient, type ChattoClient } from './client.js';
 import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
 import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
@@ -296,5 +297,149 @@ describe('client lifecycle', () => {
       'API key is required'
     );
     expect(bots.registry.servers).toEqual([]);
+  });
+});
+
+describe('native durable persistence', () => {
+  function persistence() {
+    let servers: import('./server/registry.js').RegisteredServer[] = [];
+    const authentication = new Map<
+      string,
+      import('./server/registry.js').ServerAuthentication | null
+    >();
+    let writable = true;
+    const storage: import('./server/registry.js').ServerRegistryPersistence = {
+      shared: false,
+      readServers: () => structuredClone(servers),
+      readAuthentication: (id) => authentication.get(id),
+      writeAuthentication: (id, value) => {
+        if (!writable) return false;
+        authentication.set(id, { ...value });
+        return true;
+      },
+      writeServers: (value) => {
+        servers = structuredClone(value);
+      }
+    };
+    return {
+      storage,
+      authentication,
+      setWritable: (value: boolean) => {
+        writable = value;
+      }
+    };
+  }
+  function add(owner: ChattoClient) {
+    owner.registry.addServer(
+      {
+        id: 'native-fixture',
+        url: 'https://native.example',
+        name: 'Fixture',
+        iconUrl: null,
+        addedAt: 1
+      },
+      {
+        ...emptyNativeSession(),
+        token: 'old-access',
+        refreshToken: 'old-refresh',
+        oauthClientId: 'native-client',
+        accessTokenExpiresAt: Date.now() + 300_000,
+        refreshTokenExpiresAt: Date.now() + 600_000
+      }
+    );
+  }
+  it('restores latest authentication rather than a stale combined snapshot', () => {
+    const disk = persistence();
+    const first = client({ persistence: disk.storage });
+    add(first);
+    disk.authentication.set('native-fixture', {
+      ...disk.authentication.get('native-fixture')!,
+      refreshRequestId: 'durable-request-id'
+    });
+    first.close();
+    const second = client({ persistence: disk.storage });
+    expect(second.registry.getServer('native-fixture')?.refreshRequestId).toBe(
+      'durable-request-id'
+    );
+  });
+  it('does not combine host persistence with browser device storage', () => {
+    expect(() => createClient({ storage: 'device', persistence: persistence().storage })).toThrow(
+      'Choose browser'
+    );
+  });
+  it('rejects a malformed restored catalogue', () => {
+    const disk = persistence();
+    disk.storage.readServers = () => JSON.parse('[{"id":"broken"}]');
+    expect(() => createClient({ persistence: disk.storage })).toThrow('Invalid persisted');
+  });
+  it('keeps a durable tombstone signed out after restart', () => {
+    const disk = persistence();
+    const first = client({ persistence: disk.storage });
+    add(first);
+    disk.authentication.set('native-fixture', null);
+    first.close();
+    const second = client({ persistence: disk.storage });
+    expect(second.registry.getServer('native-fixture')?.token).toBeNull();
+  });
+  it('retries a lost refresh across restart with the same durable request ID', async () => {
+    const disk = persistence();
+    let first = client({ persistence: disk.storage });
+    add(first);
+    const ids: string[] = [];
+    const fetch = vi.fn(async (_url: unknown, options: RequestInit) => {
+      const body = JSON.parse(String(options.body));
+      ids.push(body.refresh_request_id);
+      expect(disk.authentication.get('native-fixture')?.refreshRequestId).toBe(
+        body.refresh_request_id
+      );
+      expect(options).toMatchObject({ credentials: 'omit', redirect: 'error' });
+      if (ids.length === 1) throw new Error('lost response');
+      return Response.json({
+        access_token: 'new-access',
+        refresh_token: 'new-refresh',
+        expires_in: 300,
+        refresh_token_expires_in: 600
+      });
+    });
+    vi.stubGlobal('fetch', fetch);
+    try {
+      await expect(
+        first.registry.renewServerAuthentication('native-fixture', true)
+      ).rejects.toThrow('lost response');
+      first.close();
+      first = client({ persistence: disk.storage });
+      await expect(first.registry.renewServerAuthentication('native-fixture', true)).resolves.toBe(
+        'new-access'
+      );
+      expect(ids[0]).toBe(ids[1]);
+      expect(disk.authentication.get('native-fixture')?.refreshToken).toBe('new-refresh');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+  it('refuses a replacement token when its durable write fails', async () => {
+    const disk = persistence();
+    const owner = client({ persistence: disk.storage });
+    add(owner);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        disk.setWritable(false);
+        return Response.json({
+          access_token: 'new-access',
+          refresh_token: 'new-refresh',
+          expires_in: 300,
+          refresh_token_expires_in: 600
+        });
+      })
+    );
+    try {
+      await expect(
+        owner.registry.renewServerAuthentication('native-fixture', true)
+      ).rejects.toThrow('Unable to persist renewed');
+      expect(disk.authentication.get('native-fixture')?.token).toBe('old-access');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
