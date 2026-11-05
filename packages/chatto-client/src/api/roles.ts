@@ -11,8 +11,6 @@ export type ServerRole = {
   name: string;
   displayName: string;
   description: string;
-  permissions: string[];
-  permissionDenials: string[];
   isSystem: boolean;
   position: number;
   pingable: boolean;
@@ -186,7 +184,7 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
     throw new Error('admin role response did not include public role metadata');
   }
   return {
-    ...serverRoleFromPublic(role.role, role.permissions, role.permissionDenials),
+    ...serverRoleFromPublic(role.role),
     memberCount: role.memberCount === undefined ? undefined : Number(role.memberCount),
     permissionGrantCount:
       role.permissionGrantCount === undefined ? undefined : Number(role.permissionGrantCount),
@@ -195,17 +193,11 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   };
 }
 
-function serverRoleFromPublic(
-  role: APIRole,
-  permissions: string[] = [],
-  permissionDenials: string[] = []
-): ServerRole {
+function serverRoleFromPublic(role: APIRole): ServerRole {
   return {
     name: role.name,
     displayName: role.displayName,
     description: role.description,
-    permissions: [...permissions],
-    permissionDenials: [...permissionDenials],
     isSystem: role.isSystem,
     position: role.position,
     pingable: role.pingable

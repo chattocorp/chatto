@@ -27,17 +27,6 @@ type AdminMemberRoleSummary struct {
 	Pingable    bool
 }
 
-type AdminMemberRole struct {
-	Name              string
-	DisplayName       string
-	Description       string
-	IsSystem          bool
-	Position          int32
-	Pingable          bool
-	Permissions       []Permission
-	PermissionDenials []Permission
-}
-
 type AdminMember struct {
 	ID          string
 	Login       string
@@ -73,7 +62,7 @@ type AdminMemberList struct {
 
 type AdminMemberDetails struct {
 	Member                         *AdminMember
-	Roles                          []AdminMemberRole
+	Roles                          []AdminMemberRoleSummary
 	AvailablePermissions           []Permission
 	ViewerCanAssignRoles           bool
 	ViewerCanManageRoles           bool
@@ -170,7 +159,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 
 	return &AdminMemberDetails{
 		Member:                         member,
-		Roles:                          adminMemberRoles(roles),
+		Roles:                          adminMemberRoleSummaries(roles),
 		AvailablePermissions:           c.AllServerPermissions(),
 		ViewerCanAssignRoles:           canAssignRoles,
 		ViewerCanManageRoles:           canManageRoles,
@@ -467,23 +456,6 @@ func adminMemberRoleSummaries(roles []RoleWithPermissions) []AdminMemberRoleSumm
 			IsSystem:    role.IsSystem,
 			Position:    role.Position,
 			Pingable:    role.Pingable,
-		})
-	}
-	return out
-}
-
-func adminMemberRoles(roles []RoleWithPermissions) []AdminMemberRole {
-	out := make([]AdminMemberRole, 0, len(roles))
-	for _, role := range roles {
-		out = append(out, AdminMemberRole{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Description:       role.Description,
-			IsSystem:          role.IsSystem,
-			Position:          role.Position,
-			Pingable:          role.Pingable,
-			Permissions:       append([]Permission{}, role.Permissions...),
-			PermissionDenials: append([]Permission{}, role.PermissionDenials...),
 		})
 	}
 	return out

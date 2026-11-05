@@ -97,8 +97,6 @@ function role(name: string, displayName: string, description: string): ServerRol
     name,
     displayName,
     description,
-    permissions: [],
-    permissionDenials: [],
     isSystem: false,
     position: 1,
     pingable: false

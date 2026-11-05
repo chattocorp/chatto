@@ -203,9 +203,7 @@ func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
 		return nil
 	}
 	result := &adminv1.AdminRole{
-		Role:              publicAPIRole(role),
-		Permissions:       corePermissionsToStrings(role.Permissions),
-		PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+		Role: publicAPIRole(role),
 	}
 	if counts := role.Counts; counts != nil {
 		result.MemberCount = &counts.MemberCount

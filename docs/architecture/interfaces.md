@@ -298,7 +298,9 @@ commands. It does not return account details or change stored state.
 The public user profile exposes the deactivation flag. Administrative details
 remain private.
 
-`AdminRoleService` separates role details from explicit membership pages.
+`AdminRoleService` returns role metadata and separates it from explicit
+membership pages. `AdminRole` has no permission-decision arrays, including in
+member-detail responses; `AdminPermissionService` owns those reads.
 Its `ListRoles` adds active human member totals and explicit grant and denial
 counts across all scopes for callers with `role.manage` or `role.assign`.
 These totals come from the current content view, without profile decryption.

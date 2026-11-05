@@ -8,14 +8,15 @@ import "chatto/api/v1/roles.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/api/v1/pagination.proto";
 
-// Role metadata plus administrative permission state.
+// Role metadata plus optional administrative totals.
+// Permission decisions are read through AdminPermissionService. Clients that
+// used permissions or permission_denials must migrate to GetRolePermissionMatrix
+// or ListRolePermissionDecisions. These reads require role.manage.
 message AdminRole {
   // Public role metadata shared with ordinary role catalog reads.
   chatto.api.v1.Role role = 1;
-  // Permissions granted by this role.
-  repeated string permissions = 2;
-  // Permissions denied by this role.
-  repeated string permission_denials = 3;
+  reserved 2, 3;
+  reserved "permissions", "permission_denials";
   // Active human members, including implicit membership for everyone.
   // Reported by ListRoles only, for callers with role.manage or role.assign.
   optional uint64 member_count = 4;
@@ -149,10 +150,9 @@ message ReorderRolesResponse {
 
 // Provides authenticated role reads and administrative role definition changes.
 service AdminRoleService {
-  // Lists the role catalog including permission arrays as a finite snapshot.
-  // Requires an authenticated user. This intentionally includes permission
-  // arrays for clients that need to show a user's assigned roles and their
-  // effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
+  // Lists role metadata, optional totals, and viewer capabilities as a finite
+  // snapshot. Requires an authenticated user. Read permission decisions through
+  // AdminPermissionService; use chatto.api.v1.RoleService for public metadata.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // Gets one role plus admin detail metadata. Returns NOT_FOUND when the
   // role does not exist. Requires an authenticated user.

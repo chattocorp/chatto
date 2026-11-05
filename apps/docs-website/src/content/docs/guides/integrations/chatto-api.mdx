@@ -29,6 +29,24 @@ methods.
 
 Do not expose the Operator API over a network.
 
+## Role Metadata and Permission Decisions
+
+`chatto.admin.v1.AdminRole` contains role metadata and optional aggregate counts.
+It no longer includes the `permissions` and `permission_denials` arrays. This
+also applies to roles returned by `AdminUserService.GetMember`.
+
+If your integration used these arrays, read decisions through
+[`AdminPermissionService`](/reference/connectrpc-api/admin-permissions/):
+
+- Use `GetRolePermissionMatrix` to read one role's complete matrix.
+- Use `ListRolePermissionDecisions` to read decision rows in scope pages.
+- Set the scope to `SERVER` to replace the former server-level arrays.
+
+These role-permission reads require `role.manage`. An authenticated caller
+without that permission can read role metadata but cannot read the former
+permission summary. Role assignment limits remain available through the role
+assignment APIs.
+
 ## Start With Server Discovery
 
 Call `ServerDiscoveryService.GetServer` first. It returns the server identity,

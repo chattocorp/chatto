@@ -619,3 +619,27 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 		t.Fatalf("second trace entry applied = true, want false")
 	}
 }
+
+func TestAdminRolePermissionArraysAreReserved(t *testing.T) {
+	descriptor := (&adminv1.AdminRole{}).ProtoReflect().Descriptor()
+	for _, removed := range []struct {
+		name   protoreflect.Name
+		number protoreflect.FieldNumber
+	}{
+		{"permissions", 2},
+		{"permission_denials", 3},
+	} {
+		if descriptor.Fields().ByName(removed.name) != nil || descriptor.Fields().ByNumber(removed.number) != nil {
+			t.Fatalf("AdminRole still exposes %s", removed.name)
+		}
+		if !descriptor.ReservedNames().Has(removed.name) || !descriptor.ReservedRanges().Has(removed.number) {
+			t.Fatalf("AdminRole must reserve removed field %s (%d)", removed.name, removed.number)
+		}
+	}
+	for _, name := range []protoreflect.Name{"member_count", "permission_grant_count", "permission_denial_count"} {
+		field := descriptor.Fields().ByName(name)
+		if field == nil || !field.HasPresence() {
+			t.Fatalf("AdminRole must retain optional aggregate field %s", name)
+		}
+	}
+}
