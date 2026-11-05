@@ -175,6 +175,7 @@
       "back_to_permissions": "Terug naar rechten",
       "load_instance_failed": "Kan exemplaar niet laden",
       "need_manage_create": "Je hebt de machtiging Roles.Manage nodig om rollen te maken.",
+      "role_tab": "Rol",
       "edit_role_title": "Rol bewerken",
       "loading_role": "Rol laden...",
       "role_not_found": "Rol niet gevonden",

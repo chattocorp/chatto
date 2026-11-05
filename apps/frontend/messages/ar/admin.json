@@ -175,6 +175,7 @@
       "back_to_permissions": "العودة إلى الأذونات",
       "load_instance_failed": "فشل تحميل المثيل",
       "need_manage_create": "أنت بحاجة إلى إذن إدارة الأدوار لإنشاء الأدوار.",
+      "role_tab": "الدور",
       "edit_role_title": "تحرير الدور",
       "loading_role": "جارٍ تحميل الدور...",
       "role_not_found": "لم يتم العثور على الدور",

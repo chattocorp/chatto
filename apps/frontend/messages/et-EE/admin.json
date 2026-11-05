@@ -175,6 +175,7 @@
       "back_to_permissions": "Tagasi lubade juurde",
       "load_instance_failed": "Eksemplari laadimine ebaõnnestus",
       "need_manage_create": "Rollide loomiseks vajate luba roles.manage.",
+      "role_tab": "Roll",
       "edit_role_title": "Redigeeri rolli",
       "loading_role": "Rolli laadimine...",
       "role_not_found": "Rolli ei leitud",

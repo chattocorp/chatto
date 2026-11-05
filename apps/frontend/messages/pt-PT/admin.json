@@ -175,6 +175,7 @@
       "back_to_permissions": "Voltar às permissões",
       "load_instance_failed": "Falha ao carregar instância",
       "need_manage_create": "Necessita da permissão Roles.Manage para criar funções.",
+      "role_tab": "Função",
       "edit_role_title": "Editar função",
       "loading_role": "Função de carregamento...",
       "role_not_found": "Função não encontrada",

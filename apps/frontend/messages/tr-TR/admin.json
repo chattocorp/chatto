@@ -175,6 +175,7 @@
       "back_to_permissions": "İzinlere geri dön",
       "load_instance_failed": "Örnek yüklenemedi",
       "need_manage_create": "Rolleri oluşturmak için roller.manage iznine ihtiyacınız var.",
+      "role_tab": "Rol",
       "edit_role_title": "Rolü Düzenle",
       "loading_role": "Rol yükleniyor...",
       "role_not_found": "Rol bulunamadı",

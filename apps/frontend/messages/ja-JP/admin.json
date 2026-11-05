@@ -175,6 +175,7 @@
       "back_to_permissions": "権限に戻る",
       "load_instance_failed": "インスタンスのロードに失敗しました",
       "need_manage_create": "ロールを作成するには、roles.manage 権限が必要です。",
+      "role_tab": "役割",
       "edit_role_title": "役割の編集",
       "loading_role": "ロールを読み込んでいます...",
       "role_not_found": "ロールが見つかりません",

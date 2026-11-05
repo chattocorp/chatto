@@ -175,6 +175,7 @@
       "back_to_permissions": "Назад до дозволів",
       "load_instance_failed": "Не вдалося завантажити примірник",
       "need_manage_create": "Для створення ролей вам потрібен дозвіл roles.manage.",
+      "role_tab": "Роль",
       "edit_role_title": "Редагувати роль",
       "loading_role": "Завантаження ролі...",
       "role_not_found": "Роль не знайдено",

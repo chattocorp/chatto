@@ -30,6 +30,11 @@
   const metadataChanged = $derived(
     editDisplayName !== role.displayName || editDescription !== role.description
   );
+  /** Reports unsaved metadata to the page navigation guard. */
+  export function hasChanges(): boolean {
+    return metadataChanged;
+  }
+
   const canEditPingable = $derived(role.name !== 'everyone');
 
   function saveMetadata(event: SubmitEvent): void {

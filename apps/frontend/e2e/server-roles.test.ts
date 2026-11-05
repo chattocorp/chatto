@@ -453,6 +453,10 @@ test.describe('Server Roles Management', () => {
       }
     });
     await serverRolesPage.gotoEditRole(server.id, roleName);
+    await page
+      .getByRole('navigation', { name: 'Role Details' })
+      .getByRole('link', { name: 'Members', exact: true })
+      .click();
     const rosterHeading = page.getByRole('heading', { name: 'Users with this Role' });
     await rosterHeading.scrollIntoViewIfNeeded();
     // Real wheel interaction reaches the trailing table sentinel.

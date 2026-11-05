@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-11-03
+**Last reviewed:** 2026-11-05
 
 ## Overview
 
@@ -74,6 +74,14 @@ the backend permission catalog. Update both catalogs together.
 
 - Account permission matrices fill the available page height. Permission rows
   scroll inside the matrix, while the filter and column headings stay visible.
+
+- The Edit Role page has Role, Members, and Permissions tabs. Each tab has
+  its own URL and supports browser history and direct links. Role contains
+  metadata, ping settings, and deletion. Members contains the assigned users;
+  for `everyone`, it explains automatic membership. Permissions contains the
+  role's permission matrix. Tabs require the same authority as their content.
+  Role assigners without `role.manage` open the roster. Leaving a changed role
+  form requires confirmation before the draft is discarded.
 
 - Role details and assigned members are separate reads. Member lists load in
   bounded pages so large roles do not require every user profile at once.
