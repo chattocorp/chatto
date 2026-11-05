@@ -196,10 +196,7 @@
       "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene.",
       "update_role_failed": "Rolle konnte nicht aktualisiert werden",
       "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
-      "delete_role_failed": "Rolle konnte nicht gelöscht werden",
-      "owner_access_title": "Berechtigungen von Eigentümern",
-      "owner_access_permissions": "Die Eigentümerrolle hat automatisch alle Berechtigungen auf diesem Server.",
-      "owner_access_shield": "Aktiviere den privilegierten Modus, um diese Berechtigungen zu nutzen. Klicke auf den Schutzschild neben deinem Namen, um ihn für 15 Minuten einzuschalten."
+      "delete_role_failed": "Rolle konnte nicht gelöscht werden"
     },
     "rooms_admin": {
       "title": "Räume",

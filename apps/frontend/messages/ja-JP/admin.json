@@ -196,10 +196,7 @@
       "resolution_hint": "各ユーザーまたは名前付きロールには、最も近いルーム、グループ、サーバーの値が適用されます。それらの間では拒否が優先されます。許可が everyone の拒否を上書きできるのは、同じか、より限定的なスコープの場合だけです。",
       "update_role_failed": "ロールの更新に失敗しました",
       "update_ping_failed": "ロールのメンション設定の更新に失敗しました",
-      "delete_role_failed": "ロールの削除に失敗しました",
-      "owner_access_title": "所有者の権限",
-      "owner_access_permissions": "所有者ロールは、このサーバーのすべての権限を自動的に持ちます。",
-      "owner_access_shield": "これらの権限を使用するには、特権モードを有効にしてください。名前の横にあるシールドボタンをクリックすると、15分間有効になります。"
+      "delete_role_failed": "ロールの削除に失敗しました"
     },
     "rooms_admin": {
       "title": "部屋",

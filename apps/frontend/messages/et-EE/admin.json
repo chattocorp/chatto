@@ -196,10 +196,7 @@
       "resolution_hint": "Iga kasutaja või nimega rolli puhul kehtib lähim ruumi, rühma või serveri väärtus. Eitab nende vahel võitu. Lubamine alistab kõik keelamise ainult samas või konkreetsemas ulatuses.",
       "update_role_failed": "Rolli uuendamine ebaõnnestus",
       "update_ping_failed": "Rolli mainimisseade uuendamine ebaõnnestus",
-      "delete_role_failed": "Rolli kustutamine ebaõnnestus",
-      "owner_access_title": "Omaniku õigused",
-      "owner_access_permissions": "Omaniku rollil on automaatselt kõik selle serveri õigused.",
-      "owner_access_shield": "Nende õiguste kasutamiseks aktiveerige privilegeeritud režiim. Selle 15 minutiks sisselülitamiseks klõpsake oma nime kõrval olevat kilbinuppu."
+      "delete_role_failed": "Rolli kustutamine ebaõnnestus"
     },
     "rooms_admin": {
       "title": "Toad",

@@ -196,10 +196,7 @@
       "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå.",
       "update_role_failed": "Det gick inte att uppdatera rollen",
       "update_ping_failed": "Det gick inte att uppdatera rollens inställning för omnämnanden",
-      "delete_role_failed": "Det gick inte att ta bort rollen",
-      "owner_access_title": "Ägarens behörigheter",
-      "owner_access_permissions": "Ägarrollen har automatiskt alla behörigheter på den här servern.",
-      "owner_access_shield": "Aktivera privilegierat läge för att använda dessa behörigheter. Klicka på sköldknappen bredvid ditt namn för att slå på det i 15 minuter."
+      "delete_role_failed": "Det gick inte att ta bort rollen"
     },
     "rooms_admin": {
       "title": "Rum",

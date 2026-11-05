@@ -196,10 +196,7 @@
       "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie.",
       "update_role_failed": "Nie udało się zaktualizować roli",
       "update_ping_failed": "Nie udało się zaktualizować ustawienia wzmianek roli",
-      "delete_role_failed": "Nie udało się usunąć roli",
-      "owner_access_title": "Uprawnienia właściciela",
-      "owner_access_permissions": "Rola właściciela automatycznie ma wszystkie uprawnienia na tym serwerze.",
-      "owner_access_shield": "Włącz tryb uprzywilejowany, aby korzystać z tych uprawnień. Kliknij przycisk tarczy obok swojej nazwy, aby włączyć go na 15 minut."
+      "delete_role_failed": "Nie udało się usunąć roli"
     },
     "rooms_admin": {
       "title": "Pokoje",

@@ -196,10 +196,7 @@
       "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar.",
       "update_role_failed": "Rol güncellenemedi",
       "update_ping_failed": "Rol bahsetme ayarı güncellenemedi",
-      "delete_role_failed": "Rol silinemedi",
-      "owner_access_title": "Sahip izinleri",
-      "owner_access_permissions": "Sahip rolü bu sunucudaki tüm izinlere otomatik olarak sahiptir.",
-      "owner_access_shield": "Bu izinleri kullanmak için ayrıcalıklı modu etkinleştirin. 15 dakikalığına açmak için adınızın yanındaki kalkan düğmesine tıklayın."
+      "delete_role_failed": "Rol silinemedi"
     },
     "rooms_admin": {
       "title": "Odalar",

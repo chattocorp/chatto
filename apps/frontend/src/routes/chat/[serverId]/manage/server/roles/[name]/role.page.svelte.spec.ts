@@ -169,23 +169,6 @@ describe('role management page identity', () => {
     expect(mocks.listMembers).not.toHaveBeenCalled();
   });
 
-  it.each(['owner', 'admin'])('shows the owner access notice only for owner (%s)', async (name) => {
-    activeRoleName = name;
-    const response = details(name, name, 'System role');
-    response.role!.isSystem = true;
-    mocks.getRole.mockResolvedValue(response);
-    const { container } = render(RolePage);
-    await vi.waitFor(() => expect(container.textContent).toContain('System role metadata'));
-    if (name === 'owner') {
-      expect(container.textContent).toContain('Owner permissions');
-      expect(container.textContent).toContain('The owner role automatically has all permissions');
-      expect(container.textContent).toContain('Activate Privileged Mode to use these permissions');
-      expect(container.textContent).toContain('shield button next to your name');
-    } else {
-      expect(container.textContent).not.toContain('Owner permissions');
-    }
-  });
-
   it('shows only the permission matrix in the permissions section', async () => {
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', ''));
     const { container } = render(RolePage, { section: 'permissions' });

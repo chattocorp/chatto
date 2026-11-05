@@ -196,10 +196,7 @@
       "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo.",
       "update_role_failed": "Malsukcesis ĝisdatigi rolon",
       "update_ping_failed": "Malsukcesis ĝisdatigi la ping-agordon de la rolo",
-      "delete_role_failed": "Malsukcesis forigi rolon",
-      "owner_access_title": "Permesoj de posedanto",
-      "owner_access_permissions": "La posedanta rolo aŭtomate havas ĉiujn permesojn en ĉi tiu servilo.",
-      "owner_access_shield": "Aktivigu Privilegiitan Reĝimon por uzi ĉi tiujn permesojn. Alklaku la ŝildbutonon apud via nomo por ŝalti ĝin dum 15 minutoj."
+      "delete_role_failed": "Malsukcesis forigi rolon"
     },
     "rooms_admin": {
       "title": "Ĉambroj",

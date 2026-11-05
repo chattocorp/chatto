@@ -196,10 +196,7 @@
       "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico.",
       "update_role_failed": "No se pudo actualizar el rol",
       "update_ping_failed": "No se pudo actualizar la configuración de menciones del rol",
-      "delete_role_failed": "No se pudo eliminar el rol",
-      "owner_access_title": "Permisos del propietario",
-      "owner_access_permissions": "El rol de propietario tiene automáticamente todos los permisos de este servidor.",
-      "owner_access_shield": "Activa el modo privilegiado para usar estos permisos. Haz clic en el botón del escudo junto a tu nombre para activarlo durante 15 minutos."
+      "delete_role_failed": "No se pudo eliminar el rol"
     },
     "rooms_admin": {
       "title": "Habitaciones",

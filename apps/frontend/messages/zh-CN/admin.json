@@ -196,10 +196,7 @@
       "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。",
       "update_role_failed": "更新角色失败",
       "update_ping_failed": "更新角色提及设置失败",
-      "delete_role_failed": "删除角色失败",
-      "owner_access_title": "所有者权限",
-      "owner_access_permissions": "所有者角色自动拥有此服务器上的全部权限。",
-      "owner_access_shield": "启用特权模式即可使用这些权限。点击你名字旁的盾牌按钮，可启用15分钟。"
+      "delete_role_failed": "删除角色失败"
     },
     "rooms_admin": {
       "title": "聊天室",

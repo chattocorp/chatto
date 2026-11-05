@@ -196,10 +196,7 @@
       "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā.",
       "update_role_failed": "Neizdevās atjaunināt lomu",
       "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
-      "delete_role_failed": "Neizdevās izdzēst lomu",
-      "owner_access_title": "Īpašnieka atļaujas",
-      "owner_access_permissions": "Īpašnieka lomai automātiski ir visas atļaujas šajā serverī.",
-      "owner_access_shield": "Lai izmantotu šīs atļaujas, aktivizējiet privileģēto režīmu. Noklikšķiniet uz vairoga pogas blakus savam vārdam, lai to ieslēgtu uz 15 minūtēm."
+      "delete_role_failed": "Neizdevās izdzēst lomu"
     },
     "rooms_admin": {
       "title": "Istabas",

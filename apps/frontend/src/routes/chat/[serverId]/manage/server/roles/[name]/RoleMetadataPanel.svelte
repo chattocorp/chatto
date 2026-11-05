@@ -2,7 +2,7 @@
 <script lang="ts">
   import type { Role } from '$lib/components/rbac';
   import { untrack } from 'svelte';
-  import { Hint, Panel } from '$lib/ui';
+  import { Panel } from '$lib/ui';
   import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
 
@@ -120,16 +120,6 @@
         label={m('rbac.role_form.description')}
         bind:value={editDescription}
       />
-    {/if}
-
-    {#if role.name === 'owner'}
-      <Hint icon="icon-[uil--shield-check]">
-        <div class="space-y-3">
-          <h3 class="font-semibold text-text">{m('admin.permissions.owner_access_title')}</h3>
-          <p>{m('admin.permissions.owner_access_permissions')}</p>
-          <p>{m('admin.permissions.owner_access_shield')}</p>
-        </div>
-      </Hint>
     {/if}
 
     {#if canEditPingable}

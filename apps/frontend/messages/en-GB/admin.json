@@ -196,10 +196,7 @@
       "resolution_hint": "For each user or named role, the nearest room, group, or server value applies. Denies win between them. An allow overrides an everyone deny only at the same or a more specific scope.",
       "update_role_failed": "Failed to update role",
       "update_ping_failed": "Failed to update role ping setting",
-      "delete_role_failed": "Failed to delete role",
-      "owner_access_title": "Owner permissions",
-      "owner_access_permissions": "The owner role automatically has all permissions on this server.",
-      "owner_access_shield": "Activate Privileged Mode to use these permissions. Click the shield button next to your name to enable it for 15 minutes."
+      "delete_role_failed": "Failed to delete role"
     },
     "rooms_admin": {
       "title": "Rooms",

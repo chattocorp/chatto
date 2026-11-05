@@ -196,10 +196,7 @@
       "resolution_hint": "對每位使用者或具名角色，會套用最接近的聊天室、群組或伺服器值。若設定衝突，以拒絕為準。只有在相同或更具體的範圍內，允許設定才能覆寫 everyone 的拒絕設定。",
       "update_role_failed": "無法更新角色",
       "update_ping_failed": "無法更新角色提及設定",
-      "delete_role_failed": "無法刪除角色",
-      "owner_access_title": "擁有者權限",
-      "owner_access_permissions": "擁有者角色自動擁有此伺服器上的全部權限。",
-      "owner_access_shield": "啟用特權模式即可使用這些權限。點選你名字旁的盾牌按鈕，可啟用15分鐘。"
+      "delete_role_failed": "無法刪除角色"
     },
     "rooms_admin": {
       "title": "聊天室",

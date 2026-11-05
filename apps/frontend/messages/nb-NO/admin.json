@@ -196,10 +196,7 @@
       "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå.",
       "update_role_failed": "Kunne ikke oppdatere rollen",
       "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
-      "delete_role_failed": "Kunne ikke slette rollen",
-      "owner_access_title": "Eierens tillatelser",
-      "owner_access_permissions": "Eierrollen har automatisk alle tillatelser på denne serveren.",
-      "owner_access_shield": "Aktiver privilegert modus for å bruke disse tillatelsene. Klikk på skjoldknappen ved siden av navnet ditt for å slå den på i 15 minutter."
+      "delete_role_failed": "Kunne ikke slette rollen"
     },
     "rooms_admin": {
       "title": "Rom",

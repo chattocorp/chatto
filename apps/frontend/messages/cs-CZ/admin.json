@@ -196,10 +196,7 @@
       "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu.",
       "update_role_failed": "Nepodařilo se aktualizovat roli",
       "update_ping_failed": "Nepodařilo se aktualizovat nastavení zmínek role",
-      "delete_role_failed": "Nepodařilo se smazat roli",
-      "owner_access_title": "Oprávnění vlastníka",
-      "owner_access_permissions": "Role vlastníka má automaticky všechna oprávnění na tomto serveru.",
-      "owner_access_shield": "Chcete-li tato oprávnění použít, aktivujte privilegovaný režim. Kliknutím na tlačítko štítu vedle svého jména jej zapnete na 15 minut."
+      "delete_role_failed": "Nepodařilo se smazat roli"
     },
     "rooms_admin": {
       "title": "Pokoje",

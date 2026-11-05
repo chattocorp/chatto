@@ -196,10 +196,7 @@
       "resolution_hint": "Para cada usuário ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo escopo ou em um mais específico.",
       "update_role_failed": "Falha ao atualizar função",
       "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
-      "delete_role_failed": "Falha ao excluir função",
-      "owner_access_title": "Permissões do proprietário",
-      "owner_access_permissions": "A função de proprietário tem automaticamente todas as permissões neste servidor.",
-      "owner_access_shield": "Ative o modo privilegiado para usar essas permissões. Clique no botão do escudo ao lado do seu nome para ativá-lo por 15 minutos."
+      "delete_role_failed": "Falha ao excluir função"
     },
     "rooms_admin": {
       "title": "Quartos",

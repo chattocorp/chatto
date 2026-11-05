@@ -95,9 +95,7 @@ the backend permission catalog. Update both catalogs together.
   for `everyone`, it explains automatic membership. Permissions contains the
   role's permission matrix. Tabs require the same authority as their content.
   Role assigners without `role.manage` open the roster. Leaving a changed role
-  form requires confirmation before the draft is discarded. The owner Role
-  tab explains that ownership automatically includes all permissions and that
-  the user must activate Privileged Mode with the shield button to use them.
+  form requires confirmation before the draft is discarded.
 
 - Role details and assigned members are separate reads. Member lists load in
   bounded pages so large roles do not require every user profile at once.

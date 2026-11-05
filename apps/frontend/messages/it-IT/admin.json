@@ -196,10 +196,7 @@
       "resolution_hint": "Per ciascun utente o ruolo denominato si applica il valore della sala, del gruppo o del server più vicino. Nega la vittoria tra loro. Un'autorizzazione prevale su una negazione per tutti solo nello stesso ambito o in un ambito più specifico.",
       "update_role_failed": "Impossibile aggiornare il ruolo",
       "update_ping_failed": "Impossibile aggiornare l'impostazione delle menzioni del ruolo",
-      "delete_role_failed": "Impossibile eliminare il ruolo",
-      "owner_access_title": "Permessi del proprietario",
-      "owner_access_permissions": "Il ruolo di proprietario ha automaticamente tutti i permessi su questo server.",
-      "owner_access_shield": "Attiva la modalità privilegiata per usare questi permessi. Fai clic sul pulsante dello scudo accanto al tuo nome per attivarla per 15 minuti."
+      "delete_role_failed": "Impossibile eliminare il ruolo"
     },
     "rooms_admin": {
       "title": "Camere",

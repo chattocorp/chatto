@@ -196,10 +196,7 @@
       "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis.",
       "update_role_failed": "Échec de la mise à jour du rôle",
       "update_ping_failed": "Échec de la mise à jour du paramètre de mention du rôle",
-      "delete_role_failed": "Échec de la suppression du rôle",
-      "owner_access_title": "Droits du propriétaire",
-      "owner_access_permissions": "Le rôle de propriétaire dispose automatiquement de tous les droits sur ce serveur.",
-      "owner_access_shield": "Activez le mode privilégié pour utiliser ces droits. Cliquez sur le bouton du bouclier à côté de votre nom pour l’activer pendant 15 minutes."
+      "delete_role_failed": "Échec de la suppression du rôle"
     },
     "rooms_admin": {
       "title": "Chambres",
