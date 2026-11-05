@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-10-25
+**Last reviewed:** 2026-11-05
 
 ## Overview
 
@@ -74,15 +74,19 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   including deleted accounts, and an optional `has_message_history` value.
   Navigation hides an empty DM when that value is explicitly false. An absent
   value is unknown. The sidebar then applies its activity and attention rules.
-  Readable DMs also include `last_message_at` for roots and replies and
-  `last_root_message_at` for roots only. Both exclude historical imports and
-  remain unchanged by edits and retractions. Servers without these fields
-  remain connectable; clients do not interpret absent times as old activity.
+  DM history includes only threads that the viewer can read, through either
+  `message.read` or `message.read-interactions` with a relationship. Readable
+  DMs also include `last_message_at` for roots and replies and
+  `last_root_message_at` for roots only, limited to these threads. Both exclude
+  historical imports and remain unchanged by edits and retractions. Servers
+  without these fields remain connectable; clients do not interpret absent
+  times as old activity.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
-- A user can discover a DM only when they are a participant. The main timeline
-  also needs `message.read`. An interaction thread can instead use
-  `message.read-interactions` when the account authored the root or another
-  account directly mentioned it in that thread.
+- A user can discover a DM only when they are a participant. Message content
+  also needs `message.read`, or `message.read-interactions` for related threads.
+  A relationship exists when the account authored the root, another account
+  directly mentioned it, or it received a DM in that thread. The limited main
+  timeline contains only the roots of related threads.
 - Operators can prevent a human user from creating new DMs, or any user from
   sending messages in existing DMs, by revoking `message.post`. A human user
   can still open an existing DM that they are a participant in.
@@ -107,8 +111,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 ### 2. Membership and message permissions authorize DM reads
 
 **Decision:** Membership authorizes discovery and participant metadata.
-`message.read` authorizes the main timeline and broad message-derived state.
-`message.read-interactions` can authorize one derived interaction thread. A
+`message.read` authorizes all DM messages and broad message-derived state.
+`message.read-interactions` authorizes related threads and their roots in the
+limited main timeline. Receiving a DM creates a relationship without a mention. A
 human needs DM-scoped `message.post` to create a DM. Every participant needs it
 to post a root in an existing DM.
 **Why:** The fixed participant set remains the privacy boundary, while the
@@ -213,7 +218,8 @@ configurable.
 - `message.read` — read the main DM timeline and all accessible DM message
   state.
 - `message.read-interactions` — read complete DM threads that the account
-  started or where another account directly mentioned it.
+  started, where another account directly mentioned it, or where it received
+  a DM from another account.
 - `message.post-in-thread` — create a thread or post a thread reply.
 - `message.echo` — echo a thread reply to the main conversation timeline. The
   action also needs `message.post`.

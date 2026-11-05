@@ -80,7 +80,7 @@ type RoomDirectoryGroupOptions struct {
 type DirectoryRoom struct {
 	Room        *readmodel.Room
 	ViewerState DirectoryRoomViewerState
-	// DM posting activity, exposed only to members with broad message access.
+	// DM posting activity in threads that the member can read.
 	// Zero means no qualifying message or no access to message-derived state.
 	LastMessageAt     time.Time
 	LastRootMessageAt time.Time
@@ -541,8 +541,10 @@ func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID stri
 		return nil, err
 	}
 	result := &DirectoryRoom{Room: room, ViewerState: state}
-	if KindOfRoom(room) == KindDM && state.IsMember && state.CanReadMessages {
-		result.LastMessageAt, result.LastRootMessageAt = s.rooms.lastPostedMessageTimes(room.Id)
+	if KindOfRoom(room) == KindDM && state.IsMember && (state.CanReadMessages || state.CanReadInteractions) {
+		result.LastMessageAt, result.LastRootMessageAt = s.rooms.lastPostedMessageTimes(room.Id, func(entry *TimelineEntry) bool {
+			return state.CanReadMessages || s.rooms.hasThreadInteraction(actorID, room.Id, entry.ThreadRootEventID)
+		})
 	}
 	return result, nil
 }

@@ -42,9 +42,10 @@ func (m *RoomModel) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roo
 }
 
 // lastPostedMessageTimes reads both posting markers from one timeline state.
-// The caller must authorize broad message access before exposing these values.
-func (m *RoomModel) lastPostedMessageTimes(roomID string) (time.Time, time.Time) {
-	return m.timeline.Projection().LastPostedMessageTimes(roomID)
+// The caller must authorize message access and, for interaction-only access,
+// supply a predicate that limits the markers to related threads.
+func (m *RoomModel) lastPostedMessageTimes(roomID string, visible func(*TimelineEntry) bool) (time.Time, time.Time) {
+	return m.timeline.Projection().LastPostedMessageTimes(roomID, visible)
 }
 
 // GetRoom returns a detached room with its current group. A missing room or kind mismatch returns ErrNotFound.
