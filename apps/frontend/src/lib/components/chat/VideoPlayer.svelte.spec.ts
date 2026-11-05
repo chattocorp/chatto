@@ -316,6 +316,21 @@ describe('VideoPlayer', () => {
     );
   });
 
+  it.each([
+    [10, 1000],
+    [1000, 10]
+  ])('keeps an inset canvas visible for a %sx%s GIF', (width, height) => {
+    const { container } = renderAutoLoopVideo({ width, height });
+    container.style.width = '640px';
+    const bounds = frame(container).getBoundingClientRect();
+    const canvas = video(container).getBoundingClientRect();
+    expect(bounds.width).toBeGreaterThanOrEqual(24);
+    expect(bounds.height).toBeGreaterThanOrEqual(24);
+    expect(canvas.width).toBeGreaterThan(0);
+    expect(canvas.height).toBeGreaterThan(0);
+    expect(getComputedStyle(video(container)).objectFit).toBe('contain');
+  });
+
   it('corrects stale metadata after the browser loads intrinsic video dimensions', async () => {
     const { container } = renderAutoLoopVideo({ width: 1024, height: 768 });
     const media = video(container);
