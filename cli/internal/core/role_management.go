@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 type RoleCatalog struct {
@@ -60,7 +62,7 @@ func (c *ChattoCore) AdminListServerRoles(ctx context.Context, actorID string) (
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
 	}
-	if err := c.waitForCurrentRoleState(ctx); err != nil {
+	if err := c.waitForCurrentRoleCatalogState(ctx); err != nil {
 		return nil, err
 	}
 	var result *RoleCatalog
@@ -80,6 +82,16 @@ func (c *ChattoCore) AdminListServerRoles(ctx context.Context, actorID string) (
 		return nil
 	})
 	return result, err
+}
+
+// waitForCurrentRoleCatalogState includes account lifecycle facts as well as
+// RBAC facts, so a count refresh on another replica cannot miss new members.
+func (c *ChattoCore) waitForCurrentRoleCatalogState(ctx context.Context) error {
+	if active, ok := ctx.Value(serverContentViewReadContextKey{}).(serverContentViewReadContext); ok && active.view == c.contentView {
+		return nil
+	}
+	return waitForProjectionSubjectsCurrent(ctx, c.EventPublisher, "role catalog", c.contentView.projector,
+		evtstream.RBACSubjectFilter(), evtstream.UserSubjectFilter())
 }
 
 func (c *ChattoCore) GetServerRoleDetails(ctx context.Context, actorID, roleName string) (*RoleDetails, error) {

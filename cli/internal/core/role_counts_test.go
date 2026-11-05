@@ -1,6 +1,13 @@
 package core
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+)
 
 func TestAdministrativeRoleCounts(t *testing.T) {
 	c, _ := setupTestCore(t)
@@ -87,5 +94,56 @@ func TestAdministrativeRoleCounts(t *testing.T) {
 	}
 	if got := read(owner.Id, RoleEveryone).Counts; got == nil || got.MemberCount != 1 {
 		t.Fatalf("everyone counts after deletion = %+v, want 1 human member", got)
+	}
+}
+
+// An account can be created without a new RBAC fact. The count read must wait
+// for that account boundary too, even when this replica has current roles.
+func TestAdministrativeRoleCountsWaitForAccountChanges(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	primary := startReplica(t, ns, testCoreConfig())
+	ctx := testContext(t)
+	owner, err := primary.CreateUser(ctx, SystemActorID, "count-replica-owner", "Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := primary.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
+		t.Fatal(err)
+	}
+	replica, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	stop := testutil.StartService(t, "count replica", replica.Run, replica.WaitForBoot)
+	if _, err := replica.AdminListServerRoles(ctx, owner.Id); err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	if _, err := primary.CreateUser(ctx, SystemActorID, "count-replica-member", "Member", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	// Nested reads retain the captured generation and must not wait while the
+	// content-view barrier prevents this replica from advancing.
+	if err := replica.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+		bounded, cancel := context.WithTimeout(readCtx, 50*time.Millisecond)
+		defer cancel()
+		catalog, err := replica.AdminListServerRoles(bounded, owner.Id)
+		if err != nil {
+			return err
+		}
+		for _, role := range catalog.Roles {
+			if role.Name == RoleEveryone && (role.Counts == nil || role.Counts.MemberCount != 1) {
+				t.Fatalf("nested count read did not retain its captured generation: %+v", role.Counts)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	bounded, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+	if _, err := replica.AdminListServerRoles(bounded, owner.Id); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("count read returned before the account projection caught up: %v", err)
 	}
 }
