@@ -75,13 +75,13 @@ describe('CallDeviceTest', () => {
     });
     const processor = vi.spyOn(MicrophoneProcessor.prototype, 'init');
     const context = vi.fn(function () {
-      throw new Error('No custom context in bypass');
+      throw new Error('Analysis unavailable');
     });
     vi.stubGlobal('AudioContext', context);
     const test = makeTest();
 
     await test.start('microphone');
-    expect(context).not.toHaveBeenCalled();
+    expect(context).toHaveBeenCalledOnce();
     expect(test.active).toBe(true);
     expect(FakeRecorder.instances[0].stream).toBe(stream);
     expect(processor).not.toHaveBeenCalled();

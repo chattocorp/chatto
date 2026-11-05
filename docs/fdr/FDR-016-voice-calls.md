@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-11-04
+**Last reviewed:** 2026-11-05
 
 ## Overview
 
@@ -76,28 +76,31 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Calls use the system output when the browser cannot select a media-element
   output device. If the browser blocks playback, **Enable call audio** resumes it.
 
-- **Voice Boosting** is off by default. Users must enable it in Voice & video
-  settings. This choice is saved per browser and server. Previous default-on
-  values do not enable the new opt-in. Device, volume, gate, and join-muted
-  choices are retained.
-  With Boost off, calls use LiveKit capture, playback, and audio levels. Chatto
-  adds no AudioContext, worklet, mixer, or analysis graph. The saved noise gate
-  threshold is inactive. Disabling Boost removes the processor from the active
-  microphone through the SDK without leaving the call.
-  With Boost on, optional microphone processing uses the SDK's audio context.
-  It adds low-cut filtering, EQ, compression, bass control, de-essing, and peak
-  limiting. The gate has a softer closing transition to preserve quiet word
-  endings. Capture retains LiveKit's browser echo cancellation, noise suppression,
-  and automatic gain control. Received audio and screen sharing use native
-  LiveKit playback in both modes.
-  Users can disable Boost if processing fails. A failed optional processor
-  does not own or stop the original capture track.
-- **Noise gate threshold** and its input meter appear when Boost is enabled.
-  The threshold defaults to **Off** and is saved per browser and server.
-  Higher thresholds suppress quieter sounds. The meter shows input before the
-  gate. Muted calls show no input activity. The gate uses a short attack, a hold
-  period, a lower closing threshold, and a slower release. It does not change
-  participant mute state.
+- **Voice Boosting** is off by default. It enables microphone enhancement
+  independently of the noise gate. Both choices are saved per browser and server.
+  Previous default-on Boost values do not enable the explicit opt-in. Device,
+  volume, gate, and join-muted choices are retained. A saved gate threshold
+  applies with Boost off too.
+  With both controls off, calls use native LiveKit capture and playback.
+  With Boost on, optional microphone processing adds low-cut filtering, EQ,
+  compression, bass control, de-essing, and peak limiting. The gate has a softer
+  closing transition to preserve quiet word endings. Capture retains browser
+  echo cancellation, noise suppression, and automatic gain control.
+  Disabling Boost keeps an active gate. Setting the gate to Off and disabling
+  Boost removes optional processing without leaving the call.
+  Users can disable both controls if processing fails. A failed optional
+  processor does not own or stop the original capture track.
+- **Noise gate threshold** and its input meter remain visible with Boost off.
+  The threshold defaults to **Off**. Higher thresholds suppress quieter sounds.
+  The meter shows input before the gate. Muted calls show no input activity.
+  The gate uses a short attack, a hold period, a lower closing threshold, and a
+  slower release. It does not change participant mute state.
+- Voice activity follows browser-local audio measurements where available,
+  independently of Boost and the gate. Received activity follows decoded audio.
+  Local activity and the settings meter use microphone input before processing.
+  Optional measurement failures fall back to SDK activity reports. Measurements
+  stop when the page is hidden and resume in the foreground. They do not replace
+  or stop capture or playback tracks and open no external connections.
 - LiveKit owns background capture recovery and playback recovery. The mute
   control follows SDK publication state, including a mute after failed recovery.
   **Enable call audio** calls the SDK from a user gesture and uses its playback
@@ -134,9 +137,9 @@ Rooms support real-time voice conversations with optional camera video and scree
   and late capture results are stopped. The test and calls share microphone
   capture options: mono input, echo cancellation, noise suppression, automatic
   gain control, and voice isolation where the browser supports it.
-  With Voice Boosting off, the test records the browser capture stream without
-  a Chatto AudioContext or input meter. With Boost on, it shows the pre-gate
-  meter and records the processed track. Switching between
+  With both processing controls off, the test records the browser capture
+  stream. With either control enabled, it records the processed track. The
+  input meter works in both modes and shows input before the gate. Switching between
   this bypass and processing starts a new sample and keeps the selected speaker.
 - Opening the settings page requests microphone and camera access separately
   when their device names are unavailable and no call is active on the selected
@@ -236,8 +239,9 @@ Rooms support real-time voice conversations with optional camera video and scree
 ### 5. Voice activity fills the identity row
 
 **Decision:** Soft, flowing accent-coloured fog illuminates each speaking
-participant's identity row. Calls use LiveKit participant audio levels. When
-Boost is enabled, the local level comes from the processor before the gate.
+participant's identity row. Calls measure microphone input before processing
+and decoded remote audio. SDK activity reports provide a fallback when
+measurement is unavailable or listener-local controls pause audio delivery.
 Microphone volume controls the fog's brightness,
 spread, and movement speed. Quiet speech produces a gentle drift; louder speech
 moves the fog faster. Three translucent layers of broad wisps move independently
@@ -248,12 +252,14 @@ microphones show no activity. Muting someone locally does not hide their
 speaking activity. Reduced motion keeps the glow stationary and updates its
 intensity without animation.
 Screen-share tiles do not show an audio meter. The SDK does not provide a
-separate screen-audio level, and Chatto adds no analysis graph for it.
+separate screen-audio level. Activity feedback is limited to microphone tracks.
 **Why:** The card background makes active speakers easy to find without a
 pulsing outline or an extra status icon. The effect uses existing call audio
 levels and needs no additional audio capture or external connection.
 **Tradeoff:** Glow intensity conveys relative activity rather than a calibrated
 volume measurement. Only users who joined the call receive this feedback.
+Foreground measurements use one analysis-only audio context. Capture and
+playback do not pass through it. SDK fallback reports can respond more slowly.
 
 ### 6. Screen sharing is joined-client LiveKit track state
 

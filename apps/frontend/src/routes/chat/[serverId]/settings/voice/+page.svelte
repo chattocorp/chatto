@@ -19,6 +19,7 @@
       callLevel={voiceCall.microphoneLevel}
       gateUnavailable={voiceCall.microphoneGateUnavailable}
       onBoostChange={(enabled) => voiceCall.setVoiceBoosting(enabled)}
+      onThresholdChange={(value) => voiceCall.setMicrophoneThreshold(value)}
       onDeviceChange={(kind, id) =>
         kind === 'audioinput'
           ? voiceCall.setAudioDevice(id)

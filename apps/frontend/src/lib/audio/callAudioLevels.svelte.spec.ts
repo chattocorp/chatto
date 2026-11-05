@@ -1,0 +1,176 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
+import { CallAudioLevels } from './callAudioLevels';
+
+const cleanups: Array<() => void | Promise<void>> = [];
+afterEach(async () => {
+  try {
+    for (const cleanup of cleanups.splice(0)) await cleanup();
+  } finally {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
+});
+
+/** Produce silent, browser-local media without requesting microphone access or playing sound. */
+async function signal() {
+  const context = new AudioContext();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  gain.gain.value = 0;
+  const destination = context.createMediaStreamDestination();
+  oscillator.connect(gain).connect(destination);
+  oscillator.start();
+  const button = document.createElement('button');
+  document.body.append(button);
+  button.onclick = () => {
+    void context.resume().catch(() => {});
+  };
+  await userEvent.click(button);
+  await context.resume();
+  button.remove();
+  cleanups.push(async () => {
+    oscillator.stop();
+    destination.stream.getTracks().forEach((track) => track.stop());
+    await context.close();
+  });
+  return {
+    context,
+    gain,
+    stream: destination.stream,
+    track: destination.stream.getAudioTracks()[0]
+  };
+}
+
+function levels() {
+  const levels = new CallAudioLevels();
+  cleanups.unshift(() => levels.clear());
+  return levels;
+}
+
+it('shares one context across tracks and releases only analysis on replacement', async () => {
+  const first = await signal();
+  const second = await signal();
+  const create = vi.spyOn(AudioContext.prototype, 'createMediaStreamSource');
+  const meters = levels();
+  let capture = first.track;
+  const update = () =>
+    meters.update([
+      ['local', capture],
+      ['remote', second.track]
+    ]);
+  first.gain.gain.value = 0.2;
+  await expect
+    .poll(() => {
+      update();
+      return meters.get('local') ?? 0;
+    })
+    .toBeGreaterThan(0.1);
+  expect(meters.get('remote')).toBe(0);
+  expect(create).toHaveBeenCalledTimes(2);
+  expect(create.mock.contexts[0]).toBe(create.mock.contexts[1]);
+  capture = second.track;
+  await expect
+    .poll(() => {
+      update();
+      return meters.get('local');
+    })
+    .toBe(0);
+  first.gain.gain.value = 0;
+  second.gain.gain.value = 0.1;
+  await expect
+    .poll(() => {
+      update();
+      return meters.get('remote') ?? 0;
+    })
+    .toBeGreaterThan(0.05);
+  const close = vi.spyOn(AudioContext.prototype, 'close');
+  meters.update([]);
+  meters.clear();
+  expect(close).toHaveBeenCalledOnce();
+  expect(first.track.readyState).toBe('live');
+  expect(second.track.readyState).toBe('live');
+  expect(meters.get('local')).toBeUndefined();
+});
+
+it('silences disabled tracks and releases meters in a hidden document', async () => {
+  const { track, gain } = await signal();
+  const meters = levels();
+  const update = () => meters.update([['local', track]]);
+  gain.gain.value = 0.2;
+  await expect
+    .poll(() => {
+      update();
+      return meters.get('local') ?? 0;
+    })
+    .toBeGreaterThan(0.1);
+  track.enabled = false;
+  update();
+  expect(meters.get('local')).toBe(0);
+  track.enabled = true;
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+  update();
+  expect(meters.get('local')).toBeUndefined();
+  expect(track.readyState).toBe('live');
+});
+
+it('keeps source tracks usable when optional analysis fails', async () => {
+  const { track } = await signal();
+  vi.stubGlobal(
+    'AudioContext',
+    vi.fn(function () {
+      throw new Error('Unavailable');
+    })
+  );
+  const meters = levels();
+  meters.update([['local', track]]);
+  expect(meters.get('local')).toBeUndefined();
+  expect(track.readyState).toBe('live');
+});
+
+it('releases a suspended context even before its resume finishes', () => {
+  let rejectResume: (reason: Error) => void = () => {};
+  const resume = new Promise<void>((_resolve, reject) => {
+    rejectResume = reject;
+  });
+  const close = vi.fn(async () => {
+    rejectResume(new Error('Closed before resume'));
+  });
+  const create = vi.fn(function () {
+    return { state: 'suspended', resume: () => resume, close };
+  });
+  vi.stubGlobal('AudioContext', create);
+  const meters = levels();
+  const stream = { enabled: true, muted: false, readyState: 'live' } as MediaStreamTrack;
+  meters.update([['local', stream]]);
+  meters.update([['local', stream]]);
+  expect(create).toHaveBeenCalledOnce();
+  expect(meters.get('local')).toBeUndefined();
+  meters.clear();
+  expect(close).toHaveBeenCalledOnce();
+});
+
+it('releases a failed graph and avoids repeated analyser failures until reset', async () => {
+  const { track } = await signal();
+  const createAnalyser = vi.fn(() => {
+    throw new Error('Analysis failed');
+  });
+  const close = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal(
+    'AudioContext',
+    vi.fn(function () {
+      return { state: 'running', resume: () => Promise.resolve(), createAnalyser, close };
+    })
+  );
+  const meters = levels();
+  const entries = [['local', track]] as const;
+  meters.update(entries);
+  meters.update(entries);
+  expect(createAnalyser).toHaveBeenCalledOnce();
+  expect(close).toHaveBeenCalledOnce();
+  expect(meters.get('local')).toBeUndefined();
+  expect(track.readyState).toBe('live');
+  meters.clear();
+  meters.update(entries);
+  expect(createAnalyser).toHaveBeenCalledTimes(2);
+});

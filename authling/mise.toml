@@ -22,6 +22,8 @@ sources = ["go.mod", "go.sum"]
 description = "Install browser asset dependencies"
 run = "pnpm install"
 sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "web/package.json"]
+# Check local install outputs so a cached task cannot skip missing dependencies.
+outputs = ["node_modules/.modules.yaml", "web/node_modules/.bin/vite"]
 
 [tasks.deps-playwright]
 description = "Install the Chromium browser used by Authling E2E tests"

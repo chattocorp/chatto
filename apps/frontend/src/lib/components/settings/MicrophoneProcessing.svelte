@@ -9,12 +9,14 @@
     preferences,
     level = 0,
     unavailable = false,
-    onBoostChange
+    onBoostChange,
+    onThresholdChange
   }: {
     preferences: CallPreferencesState;
     level?: number;
     unavailable?: boolean;
     onBoostChange?: (enabled: boolean) => Promise<void>;
+    onThresholdChange?: (value: number) => Promise<void>;
   } = $props();
   let changing = $state(false);
 
@@ -38,7 +40,5 @@
     disabled={changing || (unavailable && !preferences.voiceBoosting)}
     bind:checked={() => preferences.voiceBoosting, changeBoost}
   />
-  {#if preferences.voiceBoosting}
-    <MicrophoneSensitivity {preferences} {level} {unavailable} />
-  {/if}
+  <MicrophoneSensitivity {preferences} {level} {unavailable} {onThresholdChange} />
 </div>

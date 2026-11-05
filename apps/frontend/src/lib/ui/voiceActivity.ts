@@ -1,4 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
+import { AUDIO_LEVEL_SAMPLE_INTERVAL_MS } from '$lib/audio/callAudioLevels';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import { paintVoiceFog } from './voiceFog';
 import { motionPreference } from '$lib/dom/motionPreference';
@@ -136,7 +137,7 @@ export function voiceActivity(readLevel: () => number): Attachment<HTMLCanvasEle
     resize.observe(canvas);
     intersection.observe(canvas);
     if (layers.size === 1) {
-      timer = setInterval(sample, 60);
+      timer = setInterval(sample, AUDIO_LEVEL_SAMPLE_INTERVAL_MS);
       document.addEventListener('visibilitychange', sample);
     }
     motion.addEventListener('change', sample);

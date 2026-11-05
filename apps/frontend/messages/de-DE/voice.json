@@ -82,7 +82,7 @@
       "output_unsupported": "Dieser Browser verwendet den Systemlautsprecher. Eine Lautsprecherauswahl ist nicht verfügbar.",
       "sensitivity": "Noise-Gate-Schwelle",
       "gate_off": "Aus",
-      "gate_unavailable": "Mikrofonverarbeitung fehlgeschlagen. Deaktiviere Voice Boosting oder tritt dem Anruf erneut bei.",
+      "gate_unavailable": "Mikrofonverarbeitung fehlgeschlagen. Deaktiviere die Sprachverbesserung und stelle die Noise-Gate-Schwelle auf Aus oder tritt dem Anruf erneut bei.",
       "call_settings": "Anrufeinstellungen",
       "join_muted": "Anrufen mit stummgeschaltetem Mikrofon beitreten",
       "input_level": "Mikrofonpegel",
@@ -98,7 +98,7 @@
       "test_in_call": "Verlasse deinen Anruf, bevor du das Mikrofon testest.",
       "processing": "Mikrofonverarbeitung",
       "voice_boosting": "Sprachverbesserung",
-      "voice_boosting_description": "Optionale Mikrofonverbesserung und Rauschschwelle. Standardmäßig aus. Bei Anrufproblemen nach einem App-Wechsel deaktivieren."
+      "voice_boosting_description": "Verbessere deinen Mikrofonklang. Standardmäßig aus. Die Noise-Gate-Schwelle funktioniert unabhängig davon."
     },
     "participant_audio": {
       "title": "Teilnehmeraudio",
