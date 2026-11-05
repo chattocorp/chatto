@@ -43,6 +43,7 @@
         "invitations": "Skapa och hantera inbjudningskoder.",
         "rooms": "Skapa, redigera, organisera och arkivera rum",
         "moderation": "Granska aktiva avstängningar från rum",
+        "roles": "Hantera roller och deras medlemmar.",
         "permissions": "Hantera standardinställningar för serveromfattande roller",
         "security": "Registreringsbegränsningar och kontoskydd",
         "appearance": "Anpassa appen med färger, teman och visningsalternativ.",

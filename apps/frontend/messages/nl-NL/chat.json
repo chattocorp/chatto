@@ -179,6 +179,7 @@
       "members": "Leden",
       "rooms": "Kamers",
       "moderation": "Moderatie",
+      "roles": "Rollen",
       "permissions": "Rechten",
       "security": "Beveiliging",
       "event_log": "Gebeurtenislogboek",

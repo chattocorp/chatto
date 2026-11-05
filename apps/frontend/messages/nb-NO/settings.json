@@ -43,6 +43,7 @@
         "invitations": "Opprett og administrer invitasjonskoder.",
         "rooms": "Opprett, rediger, organiser og arkiver rom",
         "moderation": "Se aktive utestengelser fra rom",
+        "roles": "Administrer roller og medlemmene deres.",
         "permissions": "Administrer standarder for roller for hele serveren",
         "security": "Registreringsbegrensninger og kontobeskyttelse",
         "appearance": "Tilpass appen med farger, temaer og visningsvalg.",

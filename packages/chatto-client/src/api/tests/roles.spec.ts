@@ -134,7 +134,10 @@ describe('createRoleAPI', () => {
             pingable: true
           },
           permissions: ['room.manage'],
-          permissionDenials: ['message.post']
+          permissionDenials: ['message.post'],
+          memberCount: 12n,
+          permissionGrantCount: 5n,
+          permissionDenialCount: 0n
         }
       ],
       viewerCanManageRoles: true,
@@ -152,6 +155,9 @@ describe('createRoleAPI', () => {
           description: 'Moderates rooms',
           permissions: ['room.manage'],
           permissionDenials: ['message.post'],
+          memberCount: 12,
+          permissionGrantCount: 5,
+          permissionDenialCount: 0,
           isSystem: true,
           position: 100,
           pingable: true

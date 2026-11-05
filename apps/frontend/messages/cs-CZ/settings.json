@@ -43,6 +43,7 @@
         "invitations": "Vytvářejte a spravujte kódy pozvánek.",
         "rooms": "Vytvářejte, upravujte, organizujte a archivujte místnosti",
         "moderation": "Zkontrolovat aktivní pozastavení přístupu do místností",
+        "roles": "Spravujte role a jejich členy.",
         "permissions": "Spravujte výchozí hodnoty rolí na celém serveru",
         "security": "Omezení registrace a ochrana účtu",
         "appearance": "Přizpůsobte aplikaci pomocí barev, motivů a možností zobrazení.",

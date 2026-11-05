@@ -210,7 +210,7 @@ describe('server admin members pagination', () => {
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
-    expect(container.textContent).toContain('Showing 20 of 21 member(s)');
+    expect(container.querySelectorAll('tbody tr:has(a)')).toHaveLength(20);
 
     expect(observers).toHaveLength(1);
     observers[0].trigger(true);
@@ -226,7 +226,7 @@ describe('server admin members pagination', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(container.textContent).toContain('@member20');
-    expect(container.textContent).toContain('Showing 21 of 21 member(s)');
+    expect(container.querySelectorAll('tbody tr:has(a)')).toHaveLength(21);
   });
 
   it('advances past a page whose IDs all disappeared before hydration', async () => {
@@ -314,7 +314,7 @@ describe('server admin members pagination', () => {
       .element(botLink?.querySelector<HTMLElement>('[data-testid="bot-badge"]') ?? null)
       .toBeVisible();
     expect(humanLink?.querySelector('[data-testid="bot-badge"]')).toBeNull();
-    expect(container.textContent).toContain('Showing 2 of 2 member(s)');
+    expect(container.querySelectorAll('tbody tr:has(a)')).toHaveLength(2);
   });
 
   it('shows only the explicitly selected primary email', async () => {

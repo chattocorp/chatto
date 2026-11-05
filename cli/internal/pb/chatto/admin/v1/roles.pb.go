@@ -33,8 +33,17 @@ type AdminRole struct {
 	Permissions []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	// Permissions denied by this role.
 	PermissionDenials []string `protobuf:"bytes,3,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Active human members, including implicit membership for everyone.
+	// Reported by ListRoles only, for callers with role.manage or role.assign.
+	MemberCount *uint64 `protobuf:"varint,4,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
+	// Explicit permission grants across all scopes; excludes virtual owner access.
+	// Reported by ListRoles only, for callers with role.manage or role.assign.
+	PermissionGrantCount *uint64 `protobuf:"varint,5,opt,name=permission_grant_count,json=permissionGrantCount,proto3,oneof" json:"permission_grant_count,omitempty"`
+	// Explicit permission denials across all scopes.
+	// Reported by ListRoles only, for callers with role.manage or role.assign.
+	PermissionDenialCount *uint64 `protobuf:"varint,6,opt,name=permission_denial_count,json=permissionDenialCount,proto3,oneof" json:"permission_denial_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *AdminRole) Reset() {
@@ -86,6 +95,27 @@ func (x *AdminRole) GetPermissionDenials() []string {
 		return x.PermissionDenials
 	}
 	return nil
+}
+
+func (x *AdminRole) GetMemberCount() uint64 {
+	if x != nil && x.MemberCount != nil {
+		return *x.MemberCount
+	}
+	return 0
+}
+
+func (x *AdminRole) GetPermissionGrantCount() uint64 {
+	if x != nil && x.PermissionGrantCount != nil {
+		return *x.PermissionGrantCount
+	}
+	return 0
+}
+
+func (x *AdminRole) GetPermissionDenialCount() uint64 {
+	if x != nil && x.PermissionDenialCount != nil {
+		return *x.PermissionDenialCount
+	}
+	return 0
 }
 
 // Request the role catalog.
@@ -841,11 +871,17 @@ var File_chatto_admin_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1echatto/api/v1/pagination.proto\"\x85\x01\n" +
+	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1echatto/api/v1/pagination.proto\"\xed\x02\n" +
 	"\tAdminRole\x12'\n" +
 	"\x04role\x18\x01 \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12 \n" +
 	"\vpermissions\x18\x02 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x03 \x03(\tR\x11permissionDenials\"\x12\n" +
+	"\x12permission_denials\x18\x03 \x03(\tR\x11permissionDenials\x12&\n" +
+	"\fmember_count\x18\x04 \x01(\x04H\x00R\vmemberCount\x88\x01\x01\x129\n" +
+	"\x16permission_grant_count\x18\x05 \x01(\x04H\x01R\x14permissionGrantCount\x88\x01\x01\x12;\n" +
+	"\x17permission_denial_count\x18\x06 \x01(\x04H\x02R\x15permissionDenialCount\x88\x01\x01B\x0f\n" +
+	"\r_member_countB\x19\n" +
+	"\x17_permission_grant_countB\x1a\n" +
+	"\x18_permission_denial_count\"\x12\n" +
 	"\x10ListRolesRequest\"\xb3\x01\n" +
 	"\x11ListRolesResponse\x120\n" +
 	"\x05roles\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x125\n" +
@@ -976,6 +1012,7 @@ func file_chatto_admin_v1_roles_proto_init() {
 	if File_chatto_admin_v1_roles_proto != nil {
 		return
 	}
+	file_chatto_admin_v1_roles_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_admin_v1_roles_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -179,6 +179,7 @@
       "members": "liikmed",
       "rooms": "Toad",
       "moderation": "Mõõdukus",
+      "roles": "Rollid",
       "permissions": "load",
       "security": "Turvalisus",
       "event_log": "Sündmuste logi",

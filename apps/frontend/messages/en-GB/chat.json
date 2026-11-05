@@ -179,6 +179,7 @@
       "members": "Members",
       "rooms": "Rooms",
       "moderation": "Moderation",
+      "roles": "Roles",
       "permissions": "Permissions",
       "security": "Security",
       "event_log": "Event Log",

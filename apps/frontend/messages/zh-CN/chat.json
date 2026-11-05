@@ -179,6 +179,7 @@
       "members": "成员",
       "rooms": "聊天室",
       "moderation": "内容管理",
+      "roles": "角色",
       "permissions": "权限",
       "security": "安全",
       "event_log": "事件日志",

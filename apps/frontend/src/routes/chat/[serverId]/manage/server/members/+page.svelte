@@ -190,14 +190,6 @@
           {/snippet}
         </DataTable>
       </Panel>
-
-      {#if !initialLoading}
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="text-sm text-muted">
-            {m('admin.members.showing', { shown: users.length, total: totalCount })}
-          </div>
-        </div>
-      {/if}
     </div>
   </PaneContent>
 </div>

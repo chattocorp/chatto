@@ -139,7 +139,7 @@
         () => {
           removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
           void goto(
-            resolve('/chat/[serverId]/manage/server/permissions', {
+            resolve('/chat/[serverId]/manage/server/roles', {
               serverId: serverIdToSegment(variables.serverId)
             })
           );
@@ -198,8 +198,8 @@
     deleteMutation.mutate(mutationScope(role));
   }
 
-  const permissionsHref = $derived(
-    resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })
+  const rolesHref = $derived(
+    resolve('/chat/[serverId]/manage/server/roles', { serverId: serverSegment })
   );
 
   const sectionTabs = $derived.by<TabNavItem[]>(() => {
@@ -207,7 +207,7 @@
     const items: TabNavItem[] = [];
     if (canManageRoles) {
       items.push({
-        href: resolve('/chat/[serverId]/manage/server/permissions/[name]', params),
+        href: resolve('/chat/[serverId]/manage/server/roles/[name]', params),
         label: m('admin.permissions.role_tab'),
         icon: 'icon-[uil--shield]',
         current: activeSection === 'role'
@@ -215,7 +215,7 @@
     }
     if (canViewMembers) {
       items.push({
-        href: resolve('/chat/[serverId]/manage/server/permissions/[name]/members', params),
+        href: resolve('/chat/[serverId]/manage/server/roles/[name]/members', params),
         label: m('admin.rooms_admin.tabs.members'),
         icon: 'icon-[uil--users-alt]',
         current: activeSection === 'members'
@@ -223,7 +223,7 @@
     }
     if (canManageRoles) {
       items.push({
-        href: resolve('/chat/[serverId]/manage/server/permissions/[name]/permissions', params),
+        href: resolve('/chat/[serverId]/manage/server/roles/[name]/permissions', params),
         label: m('admin.permissions.title'),
         icon: 'icon-[uil--shield-check]',
         current: activeSection === 'permissions'
@@ -278,8 +278,8 @@
     title={canManageRoles ? m('admin.permissions.edit_role_title') : m('admin.common.role_details')}
     subtitle={role?.displayName ?? m('admin.permissions.loading_role')}
     subtitleContent={roleSubtitle}
-    backHref={permissionsHref}
-    backLabel={m('admin.permissions.back_to_permissions')}
+    backHref={rolesHref}
+    backLabel={m('admin.permissions.back_to_roles')}
   >
     {#snippet tabs()}
       <TabNav label={m('admin.common.role_details')} items={sectionTabs} />
@@ -336,7 +336,6 @@
             <UserList
               users={roleUsers}
               loading={membersQuery.isPending}
-              totalCount={membersQuery.data?.pages.at(-1)?.totalCount ?? 0}
               hasMore={membersQuery.hasNextPage && !membersError}
               loadingMore={membersQuery.isFetchingNextPage}
               onLoadMore={loadMoreMembers}

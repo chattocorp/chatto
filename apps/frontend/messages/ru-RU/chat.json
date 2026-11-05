@@ -185,6 +185,7 @@
       "members": "Члены",
       "rooms": "Номера",
       "moderation": "Модерация",
+      "roles": "Роли",
       "permissions": "Разрешения",
       "security": "Безопасность",
       "event_log": "Журнал событий",

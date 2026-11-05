@@ -10,9 +10,7 @@ export function invalidateRolePermissionDependents(
   connection: AdminQueryConnection,
   roleName?: string
 ): void {
-  void queryClient.invalidateQueries({
-    queryKey: adminQueryKeys.permissionTiers(serverId, connection)
-  });
+  invalidatePermissionTiers(serverId, connection);
   void queryClient.invalidateQueries({
     queryKey: adminQueryKeys.userPermissionsRoot(serverId, connection)
   });

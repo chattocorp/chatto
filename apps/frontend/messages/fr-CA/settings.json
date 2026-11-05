@@ -43,6 +43,7 @@
         "invitations": "Créez et gérez les codes d’invitation.",
         "rooms": "Créer, modifier, organiser et archiver des salles",
         "moderation": "Examiner les suspensions actives des salons",
+        "roles": "Gérez les rôles et leurs membres.",
         "permissions": "Gérer les valeurs par défaut des rôles à l'échelle du serveur",
         "security": "Restrictions d'inscription et protection du compte",
         "appearance": "Personnalisez l’application avec les couleurs, thèmes et options d’affichage.",

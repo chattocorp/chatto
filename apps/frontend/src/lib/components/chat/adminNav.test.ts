@@ -79,7 +79,7 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Members')).toBe(false);
   });
 
-  it('shows Permissions for role assigners without role management', () => {
+  it('shows Roles without Permissions for role assigners', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
       permissions: permissions({
@@ -89,7 +89,8 @@ describe('getAdminNavItems', () => {
       })
     });
 
-    expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+    expect(items.some((item) => item.label === 'Roles')).toBe(true);
+    expect(items.some((item) => item.label === 'Permissions')).toBe(false);
   });
 
   it('shows Permissions for role managers', () => {
@@ -98,7 +99,9 @@ describe('getAdminNavItems', () => {
       permissions: permissions({ canViewAdmin: true, canAdminManageRoles: true })
     });
 
-    expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+    const roleIndex = items.findIndex((item) => item.label === 'Roles');
+    expect(roleIndex).toBeGreaterThanOrEqual(0);
+    expect(items[roleIndex + 1]?.label).toBe('Permissions');
   });
 
   it('shows Invites, but not Registration, for either invitation permission', () => {

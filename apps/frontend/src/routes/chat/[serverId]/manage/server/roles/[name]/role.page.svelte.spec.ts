@@ -162,7 +162,7 @@ describe('role management page identity', () => {
       'Permissions'
     ]);
     expect(nav.querySelector('[aria-current="page"]')?.getAttribute('href')).toBe(
-      '/chat/origin/manage/server/permissions/role-a'
+      '/chat/origin/manage/server/roles/role-a'
     );
     expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
     expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();

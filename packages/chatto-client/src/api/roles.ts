@@ -16,6 +16,12 @@ export type ServerRole = {
   isSystem: boolean;
   position: number;
   pingable: boolean;
+  /** Active human members; absent when not reported or not authorized. */
+  memberCount?: number;
+  /** Explicit grants across all scopes, excluding virtual owner access. */
+  permissionGrantCount?: number;
+  /** Explicit denials across all scopes. */
+  permissionDenialCount?: number;
 };
 
 export type RoleUser = {
@@ -179,7 +185,14 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   if (!role.role) {
     throw new Error('admin role response did not include public role metadata');
   }
-  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
+  return {
+    ...serverRoleFromPublic(role.role, role.permissions, role.permissionDenials),
+    memberCount: role.memberCount === undefined ? undefined : Number(role.memberCount),
+    permissionGrantCount:
+      role.permissionGrantCount === undefined ? undefined : Number(role.permissionGrantCount),
+    permissionDenialCount:
+      role.permissionDenialCount === undefined ? undefined : Number(role.permissionDenialCount)
+  };
 }
 
 function serverRoleFromPublic(

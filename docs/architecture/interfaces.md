@@ -299,6 +299,9 @@ The public user profile exposes the deactivation flag. Administrative details
 remain private.
 
 `AdminRoleService` separates role details from explicit membership pages.
+Its `ListRoles` adds active human member totals and explicit grant and denial
+counts across all scopes for callers with `role.manage` or `role.assign`.
+These totals come from the current content view, without profile decryption.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.
 See [role operations](../../cli/internal/core/role_management.go) and the

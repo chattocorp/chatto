@@ -75,3 +75,8 @@ func (m *RBACModel) hasAnyPrivilegedModeAllow(userID string) bool {
 func (m *RBACModel) nextAvailablePosition() int32 {
 	return m.rbac.Projection().NextAvailablePosition()
 }
+
+// roleCounts returns administrative totals without reading member profiles.
+func (m *RBACModel) roleCounts(activeHumanIDs []string) map[string]RoleCounts {
+	return m.rbac.Projection().RoleCounts(activeHumanIDs)
+}

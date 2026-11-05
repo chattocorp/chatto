@@ -83,7 +83,7 @@ describe('management route admission', () => {
   it.each(['', '/moderator'])(
     'admits role assigners to the role list and roster: %s',
     async (suffix) => {
-      page.url = new URL(`https://example.test/chat/origin/manage/server/permissions${suffix}`);
+      page.url = new URL(`https://example.test/chat/origin/manage/server/roles${suffix}`);
       server.permissions.canAdminManageRoles = false;
       server.permissions.canAssignRoles = true;
       const { container } = render(Layout, {
@@ -98,7 +98,7 @@ describe('management route admission', () => {
     }
   );
 
-  it.each(['/permissions/new', '/members'])(
+  it.each(['/roles/new', '/permissions', '/members'])(
     'keeps broader tools blocked for role assigners: %s',
     async (suffix) => {
       page.url = new URL(`https://example.test/chat/origin/manage/server${suffix}`);

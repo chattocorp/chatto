@@ -43,6 +43,7 @@
         "invitations": "Crie e faça a gestão de códigos de convite.",
         "rooms": "Criar, editar, organizar e arquivar salas",
         "moderation": "Rever suspensões ativas das salas",
+        "roles": "Faça a gestão das funções e dos seus membros.",
         "permissions": "Gerir padrões de funções em todo o servidor",
         "security": "Restrições de registo e proteção de conta",
         "appearance": "Personalize a aplicação com cores, temas e opções de apresentação.",

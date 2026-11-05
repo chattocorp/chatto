@@ -334,12 +334,12 @@ describe('PermissionMatrix', () => {
 
   it('renders a final column that links to create a role when supplied', async () => {
     const { container } = render(PermissionMatrix, {
-      props: { newRoleHref: '/chat/server/manage/server/permissions/new' }
+      props: { newRoleHref: '/chat/server/manage/server/roles/new' }
     });
     await settle();
 
     const newRoleColumn = container.querySelector('[data-testid="new-role-column"]');
-    expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/permissions/new');
+    expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/roles/new');
     expect(newRoleColumn?.textContent).toContain('+ New Role');
     expect(container.querySelectorAll('thead th')).toHaveLength(6);
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4);

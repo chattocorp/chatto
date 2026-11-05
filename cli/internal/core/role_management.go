@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 type RoleCatalog struct {
@@ -52,6 +54,44 @@ func (c *ChattoCore) ListServerRolesForUser(ctx context.Context, actorID string)
 		ViewerCanManageRoles: canManage,
 		ViewerCanAssignRoles: canAssign,
 	}, nil
+}
+
+// AdminListServerRoles adds aggregate counts only for managers and assigners.
+// Ordinary public role catalog reads retain their lightweight response.
+func (c *ChattoCore) AdminListServerRoles(ctx context.Context, actorID string) (*RoleCatalog, error) {
+	if actorID == "" {
+		return nil, ErrNotAuthenticated
+	}
+	if err := c.waitForCurrentRoleCatalogState(ctx); err != nil {
+		return nil, err
+	}
+	var result *RoleCatalog
+	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+		catalog, err := c.ListServerRolesForUser(readCtx, actorID)
+		if err != nil {
+			return err
+		}
+		if catalog.ViewerCanManageRoles || catalog.ViewerCanAssignRoles {
+			counts := c.rbacModel.roleCounts(c.userModel.activeHumanIDs())
+			for i := range catalog.Roles {
+				count := counts[catalog.Roles[i].Name]
+				catalog.Roles[i].Counts = &count
+			}
+		}
+		result = catalog
+		return nil
+	})
+	return result, err
+}
+
+// waitForCurrentRoleCatalogState includes account lifecycle facts as well as
+// RBAC facts, so a count refresh on another replica cannot miss new members.
+func (c *ChattoCore) waitForCurrentRoleCatalogState(ctx context.Context) error {
+	if active, ok := ctx.Value(serverContentViewReadContextKey{}).(serverContentViewReadContext); ok && active.view == c.contentView {
+		return nil
+	}
+	return waitForProjectionSubjectsCurrent(ctx, c.EventPublisher, "role catalog", c.contentView.projector,
+		evtstream.RBACSubjectFilter(), evtstream.UserSubjectFilter())
 }
 
 func (c *ChattoCore) GetServerRoleDetails(ctx context.Context, actorID, roleName string) (*RoleDetails, error) {
