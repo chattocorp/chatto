@@ -150,3 +150,28 @@ it('releases a suspended context even before its resume finishes', () => {
   meters.clear();
   expect(close).toHaveBeenCalledOnce();
 });
+
+it('releases a failed graph and avoids repeated analyser failures until reset', async () => {
+  const { track } = await signal();
+  const createAnalyser = vi.fn(() => {
+    throw new Error('Analysis failed');
+  });
+  const close = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal(
+    'AudioContext',
+    vi.fn(function () {
+      return { state: 'running', resume: () => Promise.resolve(), createAnalyser, close };
+    })
+  );
+  const meters = levels();
+  const entries = [['local', { mediaStreamTrack: track }]] as const;
+  meters.update(entries);
+  meters.update(entries);
+  expect(createAnalyser).toHaveBeenCalledOnce();
+  expect(close).toHaveBeenCalledOnce();
+  expect(meters.get('local')).toBeUndefined();
+  expect(track.readyState).toBe('live');
+  meters.clear();
+  meters.update(entries);
+  expect(createAnalyser).toHaveBeenCalledTimes(2);
+});

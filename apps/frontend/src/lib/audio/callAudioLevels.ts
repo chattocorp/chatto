@@ -79,8 +79,10 @@ export class CallAudioLevels {
         this.#levels.set(identity, Math.min(1, Math.sqrt(energy / meter.samples.length)));
       } catch {
         // Visual feedback must never prevent a call from sending or playing audio.
+        // Release a failed graph instead of retrying the same nodes on every sample.
+        this.clear();
         this.#unavailable = true;
-        this.#remove(identity);
+        return;
       }
     }
     if (!needsAnalysis) this.#closeContext();
