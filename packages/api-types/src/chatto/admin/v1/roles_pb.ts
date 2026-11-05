@@ -38,7 +38,7 @@ export class AdminRole extends Message<AdminRole> {
 
   /**
    * Active human members, including implicit membership for everyone.
-   * Reported only to callers with role.manage or role.assign.
+   * Reported by ListRoles only, for callers with role.manage or role.assign.
    *
    * @generated from field: optional uint64 member_count = 4;
    */
@@ -46,7 +46,7 @@ export class AdminRole extends Message<AdminRole> {
 
   /**
    * Explicit permission grants across all scopes; excludes virtual owner access.
-   * Reported only to callers with role.manage or role.assign.
+   * Reported by ListRoles only, for callers with role.manage or role.assign.
    *
    * @generated from field: optional uint64 permission_grant_count = 5;
    */
@@ -54,7 +54,7 @@ export class AdminRole extends Message<AdminRole> {
 
   /**
    * Explicit permission denials across all scopes.
-   * Reported only to callers with role.manage or role.assign.
+   * Reported by ListRoles only, for callers with role.manage or role.assign.
    *
    * @generated from field: optional uint64 permission_denial_count = 6;
    */

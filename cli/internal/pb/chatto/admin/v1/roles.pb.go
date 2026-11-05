@@ -34,13 +34,13 @@ type AdminRole struct {
 	// Permissions denied by this role.
 	PermissionDenials []string `protobuf:"bytes,3,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
 	// Active human members, including implicit membership for everyone.
-	// Reported only to callers with role.manage or role.assign.
+	// Reported by ListRoles only, for callers with role.manage or role.assign.
 	MemberCount *uint64 `protobuf:"varint,4,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
 	// Explicit permission grants across all scopes; excludes virtual owner access.
-	// Reported only to callers with role.manage or role.assign.
+	// Reported by ListRoles only, for callers with role.manage or role.assign.
 	PermissionGrantCount *uint64 `protobuf:"varint,5,opt,name=permission_grant_count,json=permissionGrantCount,proto3,oneof" json:"permission_grant_count,omitempty"`
 	// Explicit permission denials across all scopes.
-	// Reported only to callers with role.manage or role.assign.
+	// Reported by ListRoles only, for callers with role.manage or role.assign.
 	PermissionDenialCount *uint64 `protobuf:"varint,6,opt,name=permission_denial_count,json=permissionDenialCount,proto3,oneof" json:"permission_denial_count,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache

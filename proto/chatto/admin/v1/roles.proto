@@ -17,13 +17,13 @@ message AdminRole {
   // Permissions denied by this role.
   repeated string permission_denials = 3;
   // Active human members, including implicit membership for everyone.
-  // Reported only to callers with role.manage or role.assign.
+  // Reported by ListRoles only, for callers with role.manage or role.assign.
   optional uint64 member_count = 4;
   // Explicit permission grants across all scopes; excludes virtual owner access.
-  // Reported only to callers with role.manage or role.assign.
+  // Reported by ListRoles only, for callers with role.manage or role.assign.
   optional uint64 permission_grant_count = 5;
   // Explicit permission denials across all scopes.
-  // Reported only to callers with role.manage or role.assign.
+  // Reported by ListRoles only, for callers with role.manage or role.assign.
   optional uint64 permission_denial_count = 6;
 }
 
