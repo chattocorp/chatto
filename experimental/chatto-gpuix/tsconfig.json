@@ -1,44 +1,24 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable"
-    ],
+    "lib": ["esnext", "dom", "dom.iterable"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "customConditions": [
-      "custom-renderer",
-      "development"
-    ],
-    "types": [
-      "node",
-      "gpuix-svelte/html"
-    ],
+    "customConditions": ["custom-renderer", "development"],
+    "types": ["node", "gpuix-svelte/html"],
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "paths": {
-      "svelte": [
-        "./node_modules/gpuix-svelte/node_modules/svelte"
-      ],
-      "svelte/*": [
-        "./node_modules/gpuix-svelte/node_modules/svelte/*"
-      ]
+      "svelte": ["./node_modules/gpuix-svelte/node_modules/svelte"],
+      "svelte/*": ["./node_modules/gpuix-svelte/node_modules/svelte/*"]
     },
     "resolveJsonModule": true
   },
   "svelteOptions": {
     "namespace": "gpuixHTML"
   },
-  "include": [
-    "*.ts",
-    "src/**/*.ts",
-    "src/**/*.svelte",
-    "tests/**/*.ts",
-    "tests/**/*.svelte"
-  ]
+  "include": ["*.ts", "src/**/*.ts", "src/**/*.svelte", "tests/**/*.ts", "tests/**/*.svelte"]
 }
