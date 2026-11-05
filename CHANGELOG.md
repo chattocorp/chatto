@@ -3,6 +3,43 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-rc.5](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.4...v0.5.0-rc.5) (2026-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** remove permission arrays from AdminRole ([#3527](https://github.com/chattocorp/chatto/issues/3527))
+
+### Features
+
+* **experimental:** add Rust GPUI and GPUix Chatto clients ([#3525](https://github.com/chattocorp/chatto/issues/3525)) ([9df0596](https://github.com/chattocorp/chatto/commit/9df0596cdd3489019d749de9c068ce050b24b0f7))
+* **experimental:** add saved servers and threads to GPUix ([#3528](https://github.com/chattocorp/chatto/issues/3528)) ([d3d21f4](https://github.com/chattocorp/chatto/commit/d3d21f4a4fb6c1315aa62df97a6cb6617680af95))
+* **frontend:** add tabs to role management ([#3524](https://github.com/chattocorp/chatto/issues/3524)) ([aa269b4](https://github.com/chattocorp/chatto/commit/aa269b4052d00d6695ec24e694384c3f12fb6d60))
+* **gobotto:** simplify the TUI and add a live brains browser ([#3498](https://github.com/chattocorp/chatto/issues/3498)) ([624cfe8](https://github.com/chattocorp/chatto/commit/624cfe8299742541ecba708dc7f301ebfbdd0283))
+* **rbac:** restore the Roles management page ([#3526](https://github.com/chattocorp/chatto/issues/3526)) ([950447f](https://github.com/chattocorp/chatto/commit/950447f1d72b67a9dd169cffa64f25362d7de1ae))
+
+
+### Bug Fixes
+
+* **desktop:** hide Windows and Linux menu bars by default ([#3503](https://github.com/chattocorp/chatto/issues/3503)) ([11ac004](https://github.com/chattocorp/chatto/commit/11ac004a1cd0e6e1b6b0dd498ec32505c91a6d04))
+* **desktop:** restore main window state across restarts ([#3500](https://github.com/chattocorp/chatto/issues/3500)) ([0584b34](https://github.com/chattocorp/chatto/commit/0584b344f7d141d9883c6391a7ef121a29541807))
+* **dm:** show received interactions in the sidebar ([#3522](https://github.com/chattocorp/chatto/issues/3522)) ([e5ac372](https://github.com/chattocorp/chatto/commit/e5ac372bf2281ce7e78e13893ce403a1e97d2271))
+* **frontend:** fade message badge rings with navigation highlights ([#3507](https://github.com/chattocorp/chatto/issues/3507)) ([42d51ff](https://github.com/chattocorp/chatto/commit/42d51ffc8ae53ceb6172599c0ca19c0ecac48729))
+* **frontend:** fit inline media frames to unusual aspect ratios ([#3515](https://github.com/chattocorp/chatto/issues/3515)) ([f84fb2c](https://github.com/chattocorp/chatto/commit/f84fb2ccc32df20e61aefb4caa8f0308b13a69a5))
+* **frontend:** keep wide calls visible in narrow viewports ([#3511](https://github.com/chattocorp/chatto/issues/3511)) ([8e8e349](https://github.com/chattocorp/chatto/commit/8e8e3493acbe7664c22403cc93ba85d7a8f86ed9))
+* **frontend:** make call audio processing opt-in ([#3505](https://github.com/chattocorp/chatto/issues/3505)) ([fd1cdf9](https://github.com/chattocorp/chatto/commit/fd1cdf9a82e24515827533346aa88867fd3d58a2))
+* **frontend:** request audio sessions for background calls ([#3512](https://github.com/chattocorp/chatto/issues/3512)) ([61d3177](https://github.com/chattocorp/chatto/commit/61d31772bb3c9763823c34f663254280b6ea30e2))
+* **frontend:** restore responsive voice activity and independent noise gate ([#3516](https://github.com/chattocorp/chatto/issues/3516)) ([3c8ae1a](https://github.com/chattocorp/chatto/commit/3c8ae1ad5c2d9f212c266b8077bec541688a1e0f))
+* **frontend:** return success for on-demand gzip assets ([#3514](https://github.com/chattocorp/chatto/issues/3514)) ([7f6a16b](https://github.com/chattocorp/chatto/commit/7f6a16b764c80891d9e4cd4fe7387eb68e677dc6))
+* **frontend:** simplify shared slider controls ([#3520](https://github.com/chattocorp/chatto/issues/3520)) ([2dfcdd8](https://github.com/chattocorp/chatto/commit/2dfcdd8991eea42bb56ac141e8cc239b97c03187))
+* **notifications:** deduplicate fanout by source event and recipient ([#3510](https://github.com/chattocorp/chatto/issues/3510)) ([7952d9f](https://github.com/chattocorp/chatto/commit/7952d9f55c90600f8bfc10c67f61d0e597389f2d))
+* stabilize CI tests and concurrent stream startup ([#3529](https://github.com/chattocorp/chatto/issues/3529)) ([96b1d4d](https://github.com/chattocorp/chatto/commit/96b1d4d406c9fe299a92825e95887816ca094068))
+
+
+### Code Refactoring
+
+* **api:** remove permission arrays from AdminRole ([#3527](https://github.com/chattocorp/chatto/issues/3527)) ([455bbc7](https://github.com/chattocorp/chatto/commit/455bbc7c184e38b1be1fda730a65ec0839c7fa91))
+
 ## [0.5.0-rc.4](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.3...v0.5.0-rc.4) (2026-11-03)
 
 
