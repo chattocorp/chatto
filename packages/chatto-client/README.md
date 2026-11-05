@@ -314,6 +314,22 @@ If a host fetches discovery before `registry.addServer`, pass that response as
 settles, read `server.serverInfo.discovery` for the response, or `null` on
 failure. A later call makes a fresh request.
 
+### Native password sign-in
+
+`passwordLogin(origin, { login, password }, { signal })` returns renewable human
+credentials on servers that permit direct password login. Native hosts supply
+their own secure password field. The request has a 15-second timeout and a
+64 KiB response limit. It omits cookies, rejects redirects, and accepts HTTPS
+or loopback HTTP origins without paths, queries, or fragments.
+
+Pass the credentials through `persistedBearerSession` from
+`@chatto/client/auth/bearerSession`, combine them with `emptyServerSession()`
+from `@chatto/client/server/sessions`, and supply that session to
+`client.registry.addServer(registration, session)`. The SDK then owns token
+renewal and realtime state. This function does not save passwords or sessions.
+Errors expose a status and a fixed message, never the server response body.
+Remote `signOutServer` requests also omit cookies and reject redirects.
+
 ### State of the host
 
 The client keeps server data. A host keeps its own state, such as sidebar

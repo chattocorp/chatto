@@ -55,6 +55,8 @@ describe('signOutServer', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('https://remote.example.test/auth/logout', {
       method: 'POST',
+      redirect: 'error',
+      credentials: 'omit',
       headers: {
         Authorization: 'Bearer remote-token',
         'Content-Type': 'application/json'

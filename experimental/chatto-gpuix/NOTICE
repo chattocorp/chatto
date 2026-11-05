@@ -1,0 +1,35 @@
+Chatto GPUix experiment
+Copyright 2026 ChattoCorp GmbH
+
+This experiment is licensed under AGPL-3.0-or-later. Its package.json and the
+root pnpm-lock.yaml record the dependency set, including transitive dependencies.
+
+The app uses these libraries and assets:
+- gpuix-svelte (https://github.com/khromov/gpuix-svelte) - MIT
+- The custom Svelte build bundled with gpuix-svelte (https://svelte.dev/) - MIT
+- @gpuix/native (https://github.com/remorses/gpuix) - Apache-2.0; includes GPUI
+- GPUI (https://github.com/zed-industries/zed) - Apache-2.0
+  Copyright 2022 - 2025 Zed Industries, Inc.
+- Bun (https://bun.sh/) - MIT; included in standalone builds
+- The default application icon from gpuix-svelte - MIT
+- mdast-util-from-markdown (https://github.com/syntax-tree/mdast-util-from-markdown) - MIT
+- mdast-util-to-markdown (https://github.com/syntax-tree/mdast-util-to-markdown) - MIT
+- unist-util-map (https://github.com/syntax-tree/unist-util-map) - MIT
+
+The app bundles unmodified IBM Plex Sans Regular and SemiBold and IBM Plex
+Mono Regular (https://github.com/IBM/plex), licensed under OFL-1.1.
+Copyright 2017-2018 IBM Corp. with Reserved Font Name "Plex".
+The font license is in assets/OFL.txt. The source revision is in
+assets/plex.json.license.
+
+The app includes the workspace @chatto/client and generated API types,
+licensed under Apache-2.0.
+
+@chatto/client NOTICE:
+
+Copyright (c) 2026 Hendrik Mans and contributors
+Copyright (c) 2026 ChattoCorp GmbH
+
+The Chatto client is licensed under Apache-2.0.
+The bundled generated protocol code in api-types/ is copyright ChattoCorp GmbH
+and contributors, and is licensed under Apache-2.0. See api-types/LICENSE.

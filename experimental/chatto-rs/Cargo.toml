@@ -1,0 +1,23 @@
+[package]
+name = "chatto"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+license = "AGPL-3.0-or-later"
+description = "Experimental framework-neutral Rust client for Chatto"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+futures-util = { version = "0.3", features = ["sink"] }
+prost = "0.14"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "net", "macros"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

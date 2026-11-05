@@ -1,0 +1,24 @@
+[package]
+name = "chatto-native"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+license = "AGPL-3.0-or-later"
+description = "Experimental native Chatto app built with GPUI"
+
+[dependencies]
+chatto = { path = "../chatto-rs" }
+# macOS selects a dummy text renderer when font-kit is disabled.
+gpui = { version = "=0.2.2", default-features = false, features = ["font-kit"] }
+gpui-component = "=0.5.1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+security-framework = "3"
+uuid = { version = "1", features = ["v4"] }
+url = "2"
+pulldown-cmark = { version = "0.13", default-features = false }
+
+[dev-dependencies]
+gpui = { version = "=0.2.2", default-features = false, features = ["font-kit", "test-support"] }

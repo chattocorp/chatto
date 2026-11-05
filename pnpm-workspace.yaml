@@ -2,6 +2,7 @@ packages:
   - apps/*
   - examples/*
   - packages/*
+  - experimental/chatto-gpuix
 
 engineStrict: true
 
