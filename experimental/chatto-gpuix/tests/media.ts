@@ -62,6 +62,15 @@ try {
         lastOptions.redirect === 'error' &&
         lastOptions.referrerPolicy === 'no-referrer'
     );
+    const imageId = find_test_id('media-image')?.id;
+    mounted.component.updateMetadata();
+    settle();
+    check(
+      'metadata refresh preserves the displayed image',
+      find_test_id('media-image')?.id,
+      imageId
+    );
+    if (!find_test_id('media-image')) throw new Error('Metadata refresh removed a settled image');
     mounted.component.setActive(false);
     settle();
     check('leaving the viewport releases image data', find_test_id('media-image'), null);
@@ -169,4 +178,4 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
 }
-finish('Chatto GPUix media', 18);
+finish('Chatto GPUix media', 19);

@@ -17,6 +17,7 @@ import {
   wheel,
   settle
 } from 'gpuix-svelte/test';
+import { dispatch } from 'gpuix-svelte';
 import App from '../src/App.svelte';
 import { createMessageAPI } from '@chatto/client/api/messages';
 import { NativeSession } from '../src/session.svelte.ts';
@@ -94,6 +95,28 @@ try {
     });
 
     check('realtime attachments reach the native image renderer', !!find_test_id('media-image'));
+    const imageId = find_test_id('media-image')?.id;
+    const list = find_test_id('live-timeline');
+    if (!list) throw new Error('Missing live timeline');
+    let stable = true;
+    // A delayed paint report must not override the current sampled viewport.
+    // Sample and report updates used to alternate image activation every 200ms.
+    for (let sample = 0; sample < 3; sample++) {
+      dispatch({ elementId: list.id, eventType: 'visibleRange', startIndex: 3, endIndex: 4 });
+      settle();
+      stable &&= find_test_id('media-image')?.id === imageId;
+      await new Promise<void>((resolve) => setTimeout(resolve, 250));
+      settle();
+      stable &&= find_test_id('media-image')?.id === imageId;
+    }
+    check('stale paint ranges cannot evict a displayed image', stable);
+    await timeline.refreshCurrentWindow();
+    settle();
+    check(
+      'SDK metadata refresh retains the displayed image',
+      find_test_id('media-image')?.id,
+      imageId
+    );
     if (process.env.CHATTO_GPUIX_SCREENSHOT) screenshot(process.env.CHATTO_GPUIX_SCREENSHOT);
   }
   const previous = timeline.events.length;
@@ -140,5 +163,5 @@ finish(
   'Chatto GPUix live',
   5 +
     Number(process.env.CHATTO_GPUIX_TEST_LONG_HISTORY === '1') +
-    Number(process.env.CHATTO_GPUIX_TEST_MEDIA === '1')
+    3 * Number(process.env.CHATTO_GPUIX_TEST_MEDIA === '1')
 );

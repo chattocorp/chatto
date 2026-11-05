@@ -267,10 +267,9 @@
           overdraw={240}
           estimatedItemHeight={100}
           onvisiblerange={(event) => {
-            visible = {
-              start: event.startIndex ?? 0,
-              end: event.endIndex ?? event.startIndex ?? 0
-            };
+            // Image activation has one owner: the sampled native anchor below.
+            // Paint reports and its conservative buffer can disagree at an edge;
+            // alternating them would repeatedly discard and reload image bytes.
             void older(event.startIndex ?? 0).catch(() => {
               session.error = 'Older history could not be loaded';
             });

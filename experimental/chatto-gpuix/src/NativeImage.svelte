@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from './ActionButton.svelte';
   import { mediaUrl, readImage } from './media.ts';
 
@@ -39,7 +40,9 @@
     failed = false;
     if (enabled && current && permitted) {
       void (async () => {
-        const fresh = resolve ? mediaUrl(await resolve(), origin) : current;
+        // The callback reads mutable SDK metadata. Only the explicit source,
+        // viewport, consent and retry inputs own this attachment's lifetime.
+        const fresh = resolve ? mediaUrl(await untrack(resolve), origin) : current;
         // A refreshed URL must not silently add another external host.
         if (!fresh || fresh.origin !== current.origin) throw new Error('Image location changed');
         return readImage(fresh, controller.signal);
