@@ -33,6 +33,18 @@ Use an HTTPS address and an up-to-date browser. If a link opens inside another a
 
 If **Add to Home Screen** is missing, scroll to **Edit Actions** in the Share menu and add it. See [Apple's Safari instructions](https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios) for more help.
 
+<Aside type="caution" title="iOS PWA limitations">
+  For more reliable voice and video calls, open Chatto in a normal Safari tab instead of the Home Screen app. In Safari, you can navigate away from the call while audio continues. This does not work reliably in the installed PWA.
+
+  In the PWA, keep Chatto open and your screen unlocked for the most reliable call audio. Switching apps or locking your phone can interrupt call audio. New participants can be silent while the app is in the background; see [LiveKit issue #1751](https://github.com/livekit/client-sdk-js/issues/1751). Audio can also fail to resume when you return, as reported in [WebKit issue #263627](https://bugs.webkit.org/show_bug.cgi?id=263627) and [PWA issue #291892](https://bugs.webkit.org/show_bug.cgi?id=291892). These reports cover specific iOS versions; results can differ on your phone.
+
+  Related Apple/WebKit reports cover [silent WebRTC call audio (#239996)](https://bugs.webkit.org/show_bug.cgi?id=239996), [Web Audio silence after closing another audio tab (#276687)](https://bugs.webkit.org/show_bug.cgi?id=276687), and background audio suspension ([#237878](https://bugs.webkit.org/show_bug.cgi?id=237878) and [#261554](https://bugs.webkit.org/show_bug.cgi?id=261554), both marked fixed).
+
+  If audio stops, return to Chatto and select **Enable call audio** if shown. If needed, leave the call and join again, or close and reopen the PWA. Keep iOS up to date.
+
+  An official Chatto app for iOS is in development.
+</Aside>
+
 ## Android: Chrome
 
 <Steps>
