@@ -96,6 +96,7 @@
       : null
   );
 
+  // Asset URLs have no file extension. Give Vidstack the media type explicitly.
   const fallbackSource = $derived(
     selectedVariant
       ? ({ src: selectedVariant.url, type: 'video/mp4' } as const)
@@ -125,13 +126,8 @@
   const frameStyle = $derived(
     viewer
       ? 'width: 100%; height: 100%; max-width: 100%; max-height: 100%;'
-      : videoFrameStyle(sourceDimensions.width, sourceDimensions.height)
+      : videoFrameStyle(sourceDimensions.width, sourceDimensions.height, autoLoop)
   );
-
-  // Vidstack auto-detects media type from URL extensions, but our stable asset
-  // URLs have no extension (/assets/files/...). We must provide an
-  // explicit type so Vidstack recognizes it as video/mp4.
-  const videoSrc = $derived(playbackSource);
 
   const failureMessage = $derived.by(() => {
     switch (reasonCode) {
@@ -306,78 +302,74 @@
   }
 </script>
 
-{#if status === 'COMPLETED' && selectedVariant && autoLoop}
-  <!-- Converted GIFs use a native <video> for reliable autoplay + loop behavior. -->
-  <div class="my-1.5 preview-frame" style={frameStyle}>
-    <video
-      autoplay
-      loop
-      muted
-      playsinline
-      data-autoloop
-      onerror={handlePlayerError}
-      onloadedmetadata={handleVideoMetadata}
-      class="block h-full w-full preview-content object-contain"
-      aria-describedby={describedBy}
-    >
-      <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
-    </video>
-  </div>
-{:else if status === 'COMPLETED' && playbackSource && elementsReady}
-  <div class="my-1.5 preview-frame" style={frameStyle}>
-    <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
-    <media-player
-      {@attach attachMediaPlayer}
-      {@attach retainPlayback((active) => onPlaybackChange?.(active))}
-      src={videoSrc}
-      stream-type="on-demand"
-      playsinline
-      onerror={handlePlayerError}
-      class="block h-full w-full preview-content"
-      aria-describedby={describedBy}
-    >
-      <media-provider>
-        {#if thumbnailUrl}
-          <media-poster
-            class="vds-poster"
-            src={thumbnailUrl}
-            alt={filename}
-            onerror={onPosterError ?? onMediaError}
-          ></media-poster>
-        {/if}
-      </media-provider>
-      <media-video-layout></media-video-layout>
-      <!-- Vidstack's compact layout omits PiP; use its native button beside casting. -->
-      <media-controls class="vds-controls preview-pip-controls">
-        <media-tooltip class="vds-tooltip">
-          <media-tooltip-trigger>
-            <media-pip-button
-              class="vds-pip-button vds-button preview-pip-button"
-              aria-label={m('voice.picture_in_picture')}
-            >
-              <span
-                class="iconify icon-[mdi--picture-in-picture-bottom-right] size-6"
-                aria-hidden="true"
-              ></span>
-            </media-pip-button>
-          </media-tooltip-trigger>
-          <media-tooltip-content class="vds-tooltip-content" placement="bottom">
-            {m('voice.picture_in_picture')}
-          </media-tooltip-content>
-        </media-tooltip>
-      </media-controls>
-    </media-player>
-  </div>
-{:else if status === 'COMPLETED' && playbackSource}
-  <!-- Registration is async on every remount; preserve the ready player's geometry. -->
-  <div class="my-1.5 preview-frame" style={frameStyle}>
-    <LoadingFog class="h-full w-full" />
-  </div>
-{:else if status === 'PENDING' || status === 'PROCESSING'}
-  <div class="my-1.5 preview-frame" style={frameStyle}>
-    <VideoProcessingPlaceholder
-      label={status === 'PENDING' ? m('media.video_queued') : m('media.video_processing')}
-    />
+{#if (status === 'COMPLETED' && playbackSource) || status === 'PENDING' || status === 'PROCESSING'}
+  <!-- Keep the same frame while loading, processing, and player registration change. -->
+  <div class={['my-1.5 preview-frame', !viewer && 'preview-media-frame']} style={frameStyle}>
+    {#if status === 'COMPLETED' && selectedVariant && autoLoop}
+      <!-- Converted GIFs use native video for reliable autoplay and looping. -->
+      <video
+        autoplay
+        loop
+        muted
+        playsinline
+        data-autoloop
+        onerror={handlePlayerError}
+        onloadedmetadata={handleVideoMetadata}
+        class="block h-full w-full preview-content object-contain"
+        aria-describedby={describedBy}
+      >
+        <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
+      </video>
+    {:else if status === 'COMPLETED' && elementsReady}
+      <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
+      <media-player
+        {@attach attachMediaPlayer}
+        {@attach retainPlayback((active) => onPlaybackChange?.(active))}
+        src={playbackSource}
+        stream-type="on-demand"
+        playsinline
+        onerror={handlePlayerError}
+        class="block h-full w-full preview-content"
+        aria-describedby={describedBy}
+      >
+        <media-provider>
+          {#if thumbnailUrl}
+            <media-poster
+              class="vds-poster"
+              src={thumbnailUrl}
+              alt={filename}
+              onerror={onPosterError ?? onMediaError}
+            ></media-poster>
+          {/if}
+        </media-provider>
+        <media-video-layout></media-video-layout>
+        <!-- Vidstack's compact layout omits PiP; use its native button beside casting. -->
+        <media-controls class="vds-controls preview-pip-controls">
+          <media-tooltip class="vds-tooltip">
+            <media-tooltip-trigger>
+              <media-pip-button
+                class="vds-pip-button vds-button preview-pip-button"
+                aria-label={m('voice.picture_in_picture')}
+              >
+                <span
+                  class="iconify icon-[mdi--picture-in-picture-bottom-right] size-6"
+                  aria-hidden="true"
+                ></span>
+              </media-pip-button>
+            </media-tooltip-trigger>
+            <media-tooltip-content class="vds-tooltip-content" placement="bottom">
+              {m('voice.picture_in_picture')}
+            </media-tooltip-content>
+          </media-tooltip>
+        </media-controls>
+      </media-player>
+    {:else if status === 'COMPLETED'}
+      <LoadingFog class="h-full w-full" />
+    {:else}
+      <VideoProcessingPlaceholder
+        label={status === 'PENDING' ? m('media.video_queued') : m('media.video_processing')}
+      />
+    {/if}
   </div>
 {:else if status === 'FAILED'}
   <div class="my-1.5 flex items-center gap-3 preview-frame px-4 py-3" style={frameStyle}>
@@ -420,8 +412,8 @@
     display: none !important;
   }
 
-  /* Vidstack defaults every video player to 16:9. Inherit the attachment's
-   * measured ratio and fill that frame while preserving the whole image. */
+  /* Viewer players fill their viewport. Inline geometry belongs to the shared
+   * preview-media-frame rule, which also sizes the loading placeholder. */
   :global(media-player) {
     aspect-ratio: inherit;
     height: 100%;

@@ -1933,6 +1933,19 @@
   @apply overflow-hidden inset-content;
 }
 
+/* The inset canvas owns the ratio. Keep this rule outside Tailwind layers so
+ * it can override Vidstack's unlayered defaults for players and native video. */
+.preview-media-frame > :first-child {
+  aspect-ratio: var(--preview-media-ratio);
+  height: auto;
+  min-height: inherit;
+}
+
+/* Vidstack's inline-flex default leaves a text baseline gap below the canvas. */
+.preview-media-frame > media-player {
+  display: flex;
+}
+
 @utility preview-thumbnail {
   @apply overflow-hidden inset-content border border-text/10;
 }
@@ -1993,9 +2006,9 @@
 
   /* Keep the action row above the player's bottom controls, even
    * when a narrow message reduces the video's natural display height. */
-  & > .preview-frame,
-  & > video {
-    @apply min-h-48;
+  &.preview-frame,
+  & > .preview-frame {
+    @apply min-h-32;
   }
 }
 

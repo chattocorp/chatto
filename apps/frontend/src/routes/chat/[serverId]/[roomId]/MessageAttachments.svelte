@@ -259,6 +259,15 @@
     return `width: ${display.width}px; max-width: 100%`;
   }
 
+  /** Fit the action row beside thin media without changing the media dimensions. */
+  function mediaActionMinWidth(showViewer = false): string {
+    const count =
+      Number(canDeleteAttachment) + Number(canEditAttachmentDescription) + Number(showViewer);
+    if (count === 0) return 'min-w-0';
+    if (count === 1) return 'min-w-11';
+    return count === 2 ? 'min-w-19' : 'min-w-27';
+  }
+
   function imageAttachmentUrl(attachment: Attachment): string | null {
     return attachment.thumbnailUrl ?? attachment.url;
   }
@@ -463,12 +472,7 @@
     <div
       class={[
         'group/preview attachment-media-frame',
-        // Reserve room for the action row without changing the image dimensions.
-        canDeleteAttachment && canEditAttachmentDescription
-          ? 'min-w-19'
-          : canDeleteAttachment || canEditAttachmentDescription
-            ? 'min-w-11'
-            : 'min-w-0',
+        mediaActionMinWidth(),
         variant === 'gallery' ? 'shrink-0' : 'max-w-full'
       ]}
     >
@@ -556,15 +560,20 @@
         )}
         {@const loadingFrameStyle = videoFrameStyle(
           positiveVideoDimension(manifest.width) ?? variant?.width,
-          positiveVideoDimension(manifest.height) ?? variant?.height
+          positiveVideoDimension(manifest.height) ?? variant?.height,
+          autoLoop
         )}
         <div
-          class="group/preview attachment-video-frame"
+          class={[
+            'group/preview',
+            autoLoop ? 'attachment-media-frame max-w-full' : 'attachment-video-frame',
+            autoLoop && mediaActionMinWidth(true)
+          ]}
           data-attachment-media
           title={attachment.description || undefined}
         >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <div class="my-1.5 preview-frame" style={loadingFrameStyle}>
+            <div class="preview-media-frame my-1.5 preview-frame" style={loadingFrameStyle}>
               <LoadingFog class="h-full w-full" />
             </div>
           {:then { default: VideoPlayer }}
@@ -592,7 +601,7 @@
                 )}
             />
           {:catch}
-            <div class="my-1.5 preview-frame" style={loadingFrameStyle}>
+            <div class="preview-media-frame my-1.5 preview-frame" style={loadingFrameStyle}>
               <LoadRetry class="h-full w-full" onretry={() => (videoPlayerLoadAttempt += 1)} />
             </div>
           {/await}
@@ -609,7 +618,7 @@
           (or a 16:9 fallback) so metadata loading cannot resize a remounted row.
         -->
         <div
-          class="group/preview attachment-video-frame my-1.5 min-h-48 preview-frame"
+          class="group/preview preview-media-frame attachment-video-frame preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
           style={videoFrameStyle(attachment.width, attachment.height)}

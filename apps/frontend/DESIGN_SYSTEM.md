@@ -718,8 +718,15 @@ Image and video action groups appear on desktop hover or keyboard focus. The sta
 tone supplies the fill, border, focus, pressed state, and shared depth finish.
 These controls follow the Flat, Kinda 3D, and Very 3D preference.
 See `UI/Attachment actions` in Storybook.
-`attachment-video-frame` keeps the video canvas at least 12 rem high so the
-action row leaves space for playback controls on narrow screens.
+GIF loops use their source proportions and `attachment-media-frame`, with a
+24 px minimum on each dimension so the inset stays visible inside the rim.
+They do not reserve space for playback controls. Inline videos fit within 480 × 320 px,
+with a minimum canvas of 180 × 128 px for controls. `attachment-video-frame`
+keeps the canvas at least 8 rem high when the message is narrow. This leaves
+space between the action row and playback controls.
+Use `preview-media-frame` with `preview-frame` for these players and their
+loading placeholders. It applies `--preview-media-ratio` to the inset canvas,
+so the rim does not change the media proportions.
 
 ### Shared Depth Utilities
 
