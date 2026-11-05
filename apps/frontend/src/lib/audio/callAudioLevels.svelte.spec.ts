@@ -48,17 +48,16 @@ function levels() {
   return levels;
 }
 
-it('measures raw capture before processing, shares one context, and releases only analysis on replacement', async () => {
+it('shares one context across tracks and releases only analysis on replacement', async () => {
   const first = await signal();
   const second = await signal();
   const create = vi.spyOn(AudioContext.prototype, 'createMediaStreamSource');
   const meters = levels();
-  const capture = { mediaStream: first.stream, mediaStreamTrack: second.track };
-  const remote = { mediaStreamTrack: second.track };
+  let capture = first.track;
   const update = () =>
     meters.update([
       ['local', capture],
-      ['remote', remote]
+      ['remote', second.track]
     ]);
   first.gain.gain.value = 0.2;
   await expect
@@ -70,7 +69,7 @@ it('measures raw capture before processing, shares one context, and releases onl
   expect(meters.get('remote')).toBe(0);
   expect(create).toHaveBeenCalledTimes(2);
   expect(create.mock.contexts[0]).toBe(create.mock.contexts[1]);
-  capture.mediaStream = second.stream;
+  capture = second.track;
   await expect
     .poll(() => {
       update();
@@ -97,7 +96,7 @@ it('measures raw capture before processing, shares one context, and releases onl
 it('silences disabled tracks and releases meters in a hidden document', async () => {
   const { track, gain } = await signal();
   const meters = levels();
-  const update = () => meters.update([['local', { mediaStreamTrack: track }]]);
+  const update = () => meters.update([['local', track]]);
   gain.gain.value = 0.2;
   await expect
     .poll(() => {
@@ -124,7 +123,7 @@ it('keeps source tracks usable when optional analysis fails', async () => {
     })
   );
   const meters = levels();
-  meters.update([['local', { mediaStreamTrack: track }]]);
+  meters.update([['local', track]]);
   expect(meters.get('local')).toBeUndefined();
   expect(track.readyState).toBe('live');
 });
@@ -143,8 +142,8 @@ it('releases a suspended context even before its resume finishes', () => {
   vi.stubGlobal('AudioContext', create);
   const meters = levels();
   const stream = { enabled: true, muted: false, readyState: 'live' } as MediaStreamTrack;
-  meters.update([['local', { mediaStreamTrack: stream }]]);
-  meters.update([['local', { mediaStreamTrack: stream }]]);
+  meters.update([['local', stream]]);
+  meters.update([['local', stream]]);
   expect(create).toHaveBeenCalledOnce();
   expect(meters.get('local')).toBeUndefined();
   meters.clear();
@@ -164,7 +163,7 @@ it('releases a failed graph and avoids repeated analyser failures until reset', 
     })
   );
   const meters = levels();
-  const entries = [['local', { mediaStreamTrack: track }]] as const;
+  const entries = [['local', track]] as const;
   meters.update(entries);
   meters.update(entries);
   expect(createAnalyser).toHaveBeenCalledOnce();

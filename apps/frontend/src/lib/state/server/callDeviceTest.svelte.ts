@@ -36,7 +36,7 @@ export class CallDeviceTest {
   async start(
     deviceId: string,
     speakerId = '',
-    threshold: () => number = () => -60,
+    threshold: () => number = () => GATE_OFF,
     effects: () => MicrophoneEffects = normalizeMicrophoneEffects
   ): Promise<void> {
     this.cancel();
@@ -86,11 +86,8 @@ export class CallDeviceTest {
           { once: true }
         )
       );
+      const track = stream.getAudioTracks()[0];
       let processor: MicrophoneProcessor | undefined;
-      const readLevel = () => {
-        this.#audioLevels.update([['microphone', { mediaStream: stream }]]);
-        return this.#audioLevels.get('microphone') ?? processor?.level ?? 0;
-      };
       let recordedStream = stream;
       if (processing) {
         const context = new AudioContext();
@@ -99,13 +96,13 @@ export class CallDeviceTest {
         this.#processor = processor;
         processor.setEffects(effects());
         await processor.init({
-          track: stream.getAudioTracks()[0],
+          track,
           audioContext: context,
           kind: 'audio' as Track.Kind.Audio
         });
         if (generation !== this.#generation) return;
         this.gateUnavailable = processor.unavailable;
-        recordedStream = new MediaStream([processor.processedTrack ?? stream.getAudioTracks()[0]]);
+        recordedStream = new MediaStream([processor.processedTrack ?? track]);
         await context.resume();
         if (generation !== this.#generation) return;
       }
@@ -139,7 +136,8 @@ export class CallDeviceTest {
         processor?.setThreshold(threshold());
         processor?.setEffects(effects());
         this.gateUnavailable = processor?.unavailable ?? false;
-        this.level = microphoneMeter(readLevel());
+        this.#audioLevels.update(track ? [['microphone', track]] : []);
+        this.level = microphoneMeter(this.#audioLevels.get('microphone') ?? processor?.level ?? 0);
         this.#frame = requestAnimationFrame(sample);
       };
       sample();

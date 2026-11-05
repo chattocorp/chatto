@@ -1,12 +1,5 @@
 /** Browser-local call meters. Analysis never replaces, plays, or stops a media track. */
 
-/** The media surfaces exposed by LiveKit audio tracks. */
-export interface AudioLevelTrack {
-  mediaStreamTrack?: MediaStreamTrack;
-  /** Local tracks retain their original capture here, before optional processing. */
-  mediaStream?: MediaStream;
-}
-
 /** Poll current audio often enough to show activity within one tenth of a second. */
 export const AUDIO_LEVEL_SAMPLE_INTERVAL_MS = 30;
 
@@ -29,8 +22,8 @@ export class CallAudioLevels {
     }
   >();
 
-  /** Reconcile replacements and removals, then sample all current audio tracks. */
-  update(entries: Iterable<readonly [string, AudioLevelTrack]>): void {
+  /** Sample current audio tracks. Owners supply original capture for pre-gate input. */
+  update(entries: Iterable<readonly [string, MediaStreamTrack]>): void {
     if (document.hidden) {
       this.clear();
       return;
@@ -41,12 +34,7 @@ export class CallAudioLevels {
     for (const identity of this.#meters.keys()) {
       if (!tracks.has(identity)) this.#remove(identity);
     }
-    for (const [identity, audio] of tracks) {
-      const track = audio.mediaStream?.getAudioTracks()[0] ?? audio.mediaStreamTrack;
-      if (!track) {
-        this.#remove(identity);
-        continue;
-      }
+    for (const [identity, track] of tracks) {
       if (!track.enabled || track.muted || track.readyState !== 'live') {
         this.#remove(identity);
         this.#levels.set(identity, 0);

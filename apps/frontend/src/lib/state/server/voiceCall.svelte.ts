@@ -1,8 +1,4 @@
-import {
-  AUDIO_LEVEL_SAMPLE_INTERVAL_MS,
-  CallAudioLevels,
-  type AudioLevelTrack
-} from '$lib/audio/callAudioLevels';
+import { AUDIO_LEVEL_SAMPLE_INTERVAL_MS, CallAudioLevels } from '$lib/audio/callAudioLevels';
 import { microphoneCaptureOptions } from '$lib/audio/microphoneCapture';
 import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { GATE_OFF, microphoneMeter } from '$lib/audio/noiseGate';
@@ -1588,12 +1584,13 @@ export class VoiceCallState implements CallConnection {
       return;
     }
     const { Track } = getLoadedLiveKit();
-    const tracks: Array<readonly [string, AudioLevelTrack]> = [];
-    for (const participant of [
+    const allParticipants = [
       this.room.localParticipant,
       ...this.room.remoteParticipants.values()
-    ]) {
-      if (isCompanionPublisher(participant) || isParticipantMuted(participant)) continue;
+    ].filter((participant) => !isCompanionPublisher(participant));
+    const tracks: Array<readonly [string, MediaStreamTrack]> = [];
+    for (const participant of allParticipants) {
+      if (isParticipantMuted(participant)) continue;
       // Listener-local mute and zero volume pause delivery. Keep the SDK activity
       // fallback for those participants, so their speaking indicator stays useful.
       if (
@@ -1612,7 +1609,10 @@ export class VoiceCallState implements CallConnection {
                   publication.source === Track.Source.Microphone ||
                   publication.track?.source === Track.Source.Microphone
               )?.audioTrack;
-      if (track) tracks.push([participant.identity, track]);
+      // LocalTrack retains original capture in mediaStream while mediaStreamTrack
+      // can refer to the noise gate output. Settings and fog need pre-gate input.
+      const source = track?.mediaStream?.getAudioTracks()[0] ?? track?.mediaStreamTrack;
+      if (source) tracks.push([participant.identity, source]);
     }
     this.audioLevels.update(tracks);
     this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? GATE_OFF);
@@ -1626,12 +1626,8 @@ export class VoiceCallState implements CallConnection {
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
 
-    const allParticipants: Participant[] = [
-      this.room.localParticipant,
-      ...Array.from(this.room.remoteParticipants.values()).filter(
-        (participant) => !isCompanionPublisher(participant)
-      )
-    ];
+    // A participant who left must not retain the last sampled activity.
+    this.audioLevelCache.clear();
 
     for (const p of allParticipants) {
       const isLocal = p === this.room!.localParticipant;

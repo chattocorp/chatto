@@ -66,6 +66,7 @@ let mockMicrophonePublication:
         setProcessor: ReturnType<typeof vi.fn>;
         stopProcessor?: ReturnType<typeof vi.fn>;
         mediaStream?: MediaStream;
+        mediaStreamTrack?: MediaStreamTrack;
       };
     }
   | undefined;
@@ -2586,13 +2587,27 @@ describe('VoiceCallState', () => {
     const mediaStreamTrack = sourceContext
       .createMediaStreamDestination()
       .stream.getAudioTracks()[0];
+    const capture = sourceContext.createMediaStreamDestination().stream;
+    const processed = sourceContext.createMediaStreamDestination().stream;
+    const analysedTracks: MediaStreamTrack[] = [];
+    mockMicrophonePublication = {
+      audioTrack: {
+        getProcessor: vi.fn(),
+        setProcessor: vi.fn(),
+        mediaStream: capture,
+        mediaStreamTrack: processed.getAudioTracks()[0]
+      }
+    };
     vi.stubGlobal(
       'AudioContext',
       class {
         state = 'running';
         resume = vi.fn().mockResolvedValue(undefined);
         close = vi.fn().mockResolvedValue(undefined);
-        createMediaStreamSource = () => ({ connect: vi.fn(), disconnect: vi.fn() });
+        createMediaStreamSource = (stream: MediaStream) => {
+          analysedTracks.push(stream.getAudioTracks()[0]);
+          return { connect: vi.fn(), disconnect: vi.fn() };
+        };
         createAnalyser = () => ({
           fftSize: 1024,
           getFloatTimeDomainData: (samples: Float32Array) => samples.fill(level),
@@ -2621,6 +2636,8 @@ describe('VoiceCallState', () => {
     try {
       await state.join('wss://livekit.example.test', 'R1');
       await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
+      expect(analysedTracks).toContain(capture.getAudioTracks()[0]);
+      expect(analysedTracks).not.toContain(processed.getAudioTracks()[0]);
       level = 0;
       remote.audioLevel = 0.9;
       await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBe(0);
@@ -2637,12 +2654,18 @@ describe('VoiceCallState', () => {
       publication.isMuted = false;
       document.dispatchEvent(new Event('visibilitychange'));
       await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
+      mockRemoteParticipants.delete(remote.identity);
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBe(0);
+      mockRemoteParticipants.set(remote.identity, remote);
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
       vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
       document.dispatchEvent(new Event('visibilitychange'));
       expect(state.getAudioLevel(remote.identity).audioLevel).toBe(0);
     } finally {
       await state.leave();
       mediaStreamTrack.stop();
+      capture.getTracks().forEach((track) => track.stop());
+      processed.getTracks().forEach((track) => track.stop());
       await sourceContext.close();
       vi.restoreAllMocks();
     }
