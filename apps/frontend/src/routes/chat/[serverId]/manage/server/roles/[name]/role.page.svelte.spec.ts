@@ -178,9 +178,9 @@ describe('role management page identity', () => {
     await vi.waitFor(() => expect(container.textContent).toContain('System role metadata'));
     if (name === 'owner') {
       expect(container.textContent).toContain('Owner permissions');
-      expect(container.textContent).toContain('Grants and denials cannot limit this access');
-      expect(container.textContent).toContain('15 minutes of privileged mode');
-      expect(container.textContent).toContain('With the shield off, your direct permissions');
+      expect(container.textContent).toContain('The owner role automatically has all permissions');
+      expect(container.textContent).toContain('Activate Privileged Mode to use these permissions');
+      expect(container.textContent).toContain('shield button next to your name');
     } else {
       expect(container.textContent).not.toContain('Owner permissions');
     }

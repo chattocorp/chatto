@@ -198,8 +198,8 @@
       "update_ping_failed": "Malsukcesis ĝisdatigi la ping-agordon de la rolo",
       "delete_role_failed": "Malsukcesis forigi rolon",
       "owner_access_title": "Permesoj de posedanto",
-      "owner_access_permissions": "Kun la ŝildo ŝaltita, posedantoj havas ĉiujn permesojn en la servilo, ĉambrogrupoj kaj ĉambroj. Permesoj kaj malpermesoj ne povas limigi ĉi tiun aliron, kaj la permesmatrico de posedanto estas nurlega.",
-      "owner_access_shield": "Ŝaltu la ŝildon apud via konto por 15 minutoj da privilegiita reĝimo. Kun la ŝildo malŝaltita, validas viaj rektaj permesoj, aliaj roloj kaj everyone. Permesoj kiuj postulas privilegiitan reĝimon restas nehaveblaj."
+      "owner_access_permissions": "La posedanta rolo aŭtomate havas ĉiujn permesojn en ĉi tiu servilo.",
+      "owner_access_shield": "Aktivigu Privilegiitan Reĝimon por uzi ĉi tiujn permesojn. Alklaku la ŝildbutonon apud via nomo por ŝalti ĝin dum 15 minutoj."
     },
     "rooms_admin": {
       "title": "Ĉambroj",

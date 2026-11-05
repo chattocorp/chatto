@@ -198,8 +198,8 @@
       "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
       "delete_role_failed": "Neizdevās izdzēst lomu",
       "owner_access_title": "Īpašnieka atļaujas",
-      "owner_access_permissions": "Ja vairogs ir ieslēgts, īpašniekiem ir visas atļaujas serverī, istabu grupās un istabās. Piešķīrumi un aizliegumi nevar ierobežot šo piekļuvi, un īpašnieka atļauju matrica ir tikai lasāma.",
-      "owner_access_shield": "Ieslēdziet vairogu blakus savam kontam, lai uz 15 minūtēm aktivizētu privileģēto režīmu. Ja vairogs ir izslēgts, tiek piemērotas jūsu tiešās atļaujas, pārējās lomas un everyone. Atļaujas, kurām nepieciešams privileģētais režīms, paliek nepieejamas."
+      "owner_access_permissions": "Īpašnieka lomai automātiski ir visas atļaujas šajā serverī.",
+      "owner_access_shield": "Lai izmantotu šīs atļaujas, aktivizējiet privileģēto režīmu. Noklikšķiniet uz vairoga pogas blakus savam vārdam, lai to ieslēgtu uz 15 minūtēm."
     },
     "rooms_admin": {
       "title": "Istabas",

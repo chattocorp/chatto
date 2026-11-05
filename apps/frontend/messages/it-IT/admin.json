@@ -198,8 +198,8 @@
       "update_ping_failed": "Impossibile aggiornare l'impostazione delle menzioni del ruolo",
       "delete_role_failed": "Impossibile eliminare il ruolo",
       "owner_access_title": "Permessi del proprietario",
-      "owner_access_permissions": "Con lo scudo attivo, i proprietari hanno tutti i permessi sul server, nei gruppi di stanze e nelle stanze. Concessioni e divieti non possono limitare questo accesso e la matrice dei permessi del proprietario è di sola lettura.",
-      "owner_access_shield": "Attiva lo scudo accanto al tuo account per usare la modalità privilegiata per 15 minuti. Con lo scudo disattivato, si applicano i tuoi permessi diretti, gli altri ruoli e everyone. I permessi che richiedono la modalità privilegiata restano non disponibili."
+      "owner_access_permissions": "Il ruolo di proprietario ha automaticamente tutti i permessi su questo server.",
+      "owner_access_shield": "Attiva la modalità privilegiata per usare questi permessi. Fai clic sul pulsante dello scudo accanto al tuo nome per attivarla per 15 minuti."
     },
     "rooms_admin": {
       "title": "Camere",

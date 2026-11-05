@@ -198,8 +198,8 @@
       "update_ping_failed": "更新角色提及设置失败",
       "delete_role_failed": "删除角色失败",
       "owner_access_title": "所有者权限",
-      "owner_access_permissions": "启用盾牌后，所有者在服务器、房间组和房间中拥有全部权限。授予和拒绝无法限制此访问权限，所有者的权限矩阵为只读。",
-      "owner_access_shield": "启用账号旁的盾牌，即可使用特权模式15分钟。关闭盾牌后，将应用你的直接权限、其他角色和everyone。需要特权模式的权限仍不可用。"
+      "owner_access_permissions": "所有者角色自动拥有此服务器上的全部权限。",
+      "owner_access_shield": "启用特权模式即可使用这些权限。点击你名字旁的盾牌按钮，可启用15分钟。"
     },
     "rooms_admin": {
       "title": "聊天室",

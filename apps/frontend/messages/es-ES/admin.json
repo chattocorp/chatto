@@ -198,8 +198,8 @@
       "update_ping_failed": "No se pudo actualizar la configuración de menciones del rol",
       "delete_role_failed": "No se pudo eliminar el rol",
       "owner_access_title": "Permisos del propietario",
-      "owner_access_permissions": "Con el escudo activado, los propietarios tienen todos los permisos en el servidor, los grupos de salas y las salas. Las concesiones y denegaciones no pueden limitar este acceso, y la matriz de permisos del propietario es de solo lectura.",
-      "owner_access_shield": "Activa el escudo junto a tu cuenta para usar el modo privilegiado durante 15 minutos. Con el escudo desactivado, se aplican tus permisos directos, tus otros roles y everyone. Los permisos que requieren el modo privilegiado siguen sin estar disponibles."
+      "owner_access_permissions": "El rol de propietario tiene automáticamente todos los permisos de este servidor.",
+      "owner_access_shield": "Activa el modo privilegiado para usar estos permisos. Haz clic en el botón del escudo junto a tu nombre para activarlo durante 15 minutos."
     },
     "rooms_admin": {
       "title": "Habitaciones",

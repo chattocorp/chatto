@@ -198,8 +198,8 @@
       "update_ping_failed": "Nie udało się zaktualizować ustawienia wzmianek roli",
       "delete_role_failed": "Nie udało się usunąć roli",
       "owner_access_title": "Uprawnienia właściciela",
-      "owner_access_permissions": "Przy włączonej tarczy właściciele mają wszystkie uprawnienia na serwerze, w grupach pokoi i w pokojach. Przyznania i odmowy nie mogą ograniczyć tego dostępu, a macierz uprawnień właściciela jest tylko do odczytu.",
-      "owner_access_shield": "Włącz tarczę obok swojego konta, aby korzystać z trybu uprzywilejowanego przez 15 minut. Przy wyłączonej tarczy obowiązują twoje bezpośrednie uprawnienia, inne role i everyone. Uprawnienia wymagające trybu uprzywilejowanego pozostają niedostępne."
+      "owner_access_permissions": "Rola właściciela automatycznie ma wszystkie uprawnienia na tym serwerze.",
+      "owner_access_shield": "Włącz tryb uprzywilejowany, aby korzystać z tych uprawnień. Kliknij przycisk tarczy obok swojej nazwy, aby włączyć go na 15 minut."
     },
     "rooms_admin": {
       "title": "Pokoje",

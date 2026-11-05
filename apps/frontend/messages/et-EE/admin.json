@@ -198,8 +198,8 @@
       "update_ping_failed": "Rolli mainimisseade uuendamine ebaõnnestus",
       "delete_role_failed": "Rolli kustutamine ebaõnnestus",
       "owner_access_title": "Omaniku õigused",
-      "owner_access_permissions": "Kui kilp on sisse lülitatud, on omanikel kõik õigused serveris, ruumirühmades ja ruumides. Lubamised ega keeldumised ei piira seda juurdepääsu ning omaniku õiguste maatriks on kirjutuskaitstud.",
-      "owner_access_shield": "Lülitage oma konto kõrval olev kilp sisse, et aktiveerida privilegeeritud režiim 15 minutiks. Kui kilp on välja lülitatud, kehtivad teie otsesed õigused, muud rollid ja everyone. Privilegeeritud režiimi nõudvad õigused jäävad kättesaamatuks."
+      "owner_access_permissions": "Omaniku rollil on automaatselt kõik selle serveri õigused.",
+      "owner_access_shield": "Nende õiguste kasutamiseks aktiveerige privilegeeritud režiim. Selle 15 minutiks sisselülitamiseks klõpsake oma nime kõrval olevat kilbinuppu."
     },
     "rooms_admin": {
       "title": "Toad",

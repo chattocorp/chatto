@@ -198,8 +198,8 @@
       "update_ping_failed": "Kan vermeldingsinstelling van rol niet bijwerken",
       "delete_role_failed": "Kan rol niet verwijderen",
       "owner_access_title": "Rechten van de eigenaar",
-      "owner_access_permissions": "Met het schild ingeschakeld hebben eigenaars alle rechten op de server, in kamergroepen en in kamers. Toekenningen en weigeringen kunnen deze toegang niet beperken. De rechtenmatrix van de eigenaar is alleen-lezen.",
-      "owner_access_shield": "Schakel het schild naast je account in om de bevoorrechte modus 15 minuten te gebruiken. Zonder schild gelden je directe rechten, andere rollen en everyone. Rechten waarvoor de bevoorrechte modus nodig is, blijven niet beschikbaar."
+      "owner_access_permissions": "De eigenaarsrol heeft automatisch alle rechten op deze server.",
+      "owner_access_shield": "Activeer de bevoorrechte modus om deze rechten te gebruiken. Klik op de schildknop naast je naam om deze 15 minuten in te schakelen."
     },
     "rooms_admin": {
       "title": "Kamers",

@@ -198,8 +198,8 @@
       "update_ping_failed": "Failed to update role ping setting",
       "delete_role_failed": "Failed to delete role",
       "owner_access_title": "Owner permissions",
-      "owner_access_permissions": "With the shield enabled, owners have all permissions across the server, room groups and rooms. Grants and denials cannot limit this access, and the owner permission matrix is read-only.",
-      "owner_access_shield": "Enable the shield next to your account for 15 minutes of privileged mode. With the shield off, your direct permissions, other roles and everyone apply. Permissions that require privileged mode stay unavailable."
+      "owner_access_permissions": "The owner role automatically has all permissions on this server.",
+      "owner_access_shield": "Activate Privileged Mode to use these permissions. Click the shield button next to your name to enable it for 15 minutes."
     },
     "rooms_admin": {
       "title": "Rooms",

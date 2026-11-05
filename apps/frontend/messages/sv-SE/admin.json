@@ -198,8 +198,8 @@
       "update_ping_failed": "Det gick inte att uppdatera rollens inställning för omnämnanden",
       "delete_role_failed": "Det gick inte att ta bort rollen",
       "owner_access_title": "Ägarens behörigheter",
-      "owner_access_permissions": "Med skölden aktiverad har ägare alla behörigheter på servern, i rumsgrupper och i rum. Beviljanden och avslag kan inte begränsa denna åtkomst, och ägarens behörighetsmatris är skrivskyddad.",
-      "owner_access_shield": "Aktivera skölden bredvid ditt konto för att använda privilegierat läge i 15 minuter. Med skölden av gäller dina direkta behörigheter, andra roller och everyone. Behörigheter som kräver privilegierat läge förblir otillgängliga."
+      "owner_access_permissions": "Ägarrollen har automatiskt alla behörigheter på den här servern.",
+      "owner_access_shield": "Aktivera privilegierat läge för att använda dessa behörigheter. Klicka på sköldknappen bredvid ditt namn för att slå på det i 15 minuter."
     },
     "rooms_admin": {
       "title": "Rum",

@@ -198,8 +198,8 @@
       "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
       "delete_role_failed": "Kunne ikke slette rollen",
       "owner_access_title": "Eierens tillatelser",
-      "owner_access_permissions": "Med skjoldet aktivert har eiere alle tillatelser på serveren, i romgrupper og i rom. Tildelinger og avslag kan ikke begrense denne tilgangen, og eierens tillatelsesmatrise er skrivebeskyttet.",
-      "owner_access_shield": "Aktiver skjoldet ved siden av kontoen din for å bruke privilegert modus i 15 minutter. Med skjoldet av gjelder dine direkte tillatelser, andre roller og everyone. Tillatelser som krever privilegert modus, forblir utilgjengelige."
+      "owner_access_permissions": "Eierrollen har automatisk alle tillatelser på denne serveren.",
+      "owner_access_shield": "Aktiver privilegert modus for å bruke disse tillatelsene. Klikk på skjoldknappen ved siden av navnet ditt for å slå den på i 15 minutter."
     },
     "rooms_admin": {
       "title": "Rom",

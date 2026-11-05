@@ -198,8 +198,8 @@
       "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
       "delete_role_failed": "Falha ao excluir função",
       "owner_access_title": "Permissões do proprietário",
-      "owner_access_permissions": "Com o escudo ativado, os proprietários têm todas as permissões no servidor, nos grupos de salas e nas salas. Concessões e negações não podem limitar esse acesso, e a matriz de permissões do proprietário é somente leitura.",
-      "owner_access_shield": "Ative o escudo ao lado da sua conta para usar o modo privilegiado por 15 minutos. Com o escudo desativado, valem suas permissões diretas, outras funções e everyone. As permissões que exigem o modo privilegiado continuam indisponíveis."
+      "owner_access_permissions": "A função de proprietário tem automaticamente todas as permissões neste servidor.",
+      "owner_access_shield": "Ative o modo privilegiado para usar essas permissões. Clique no botão do escudo ao lado do seu nome para ativá-lo por 15 minutos."
     },
     "rooms_admin": {
       "title": "Quartos",

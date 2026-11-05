@@ -198,8 +198,8 @@
       "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
       "delete_role_failed": "Rolle konnte nicht gelöscht werden",
       "owner_access_title": "Berechtigungen von Eigentümern",
-      "owner_access_permissions": "Mit aktiviertem Schutzschild haben Eigentümer alle Berechtigungen auf dem Server, in Raumgruppen und Räumen. Erlaubnisse und Verbote können diesen Zugriff nicht einschränken. Die Berechtigungsmatrix für Eigentümer ist schreibgeschützt.",
-      "owner_access_shield": "Aktiviere den Schutzschild neben deinem Konto, um den privilegierten Modus für 15 Minuten einzuschalten. Ohne Schutzschild gelten deine direkten Berechtigungen, deine anderen Rollen und everyone. Berechtigungen, die den privilegierten Modus erfordern, bleiben nicht verfügbar."
+      "owner_access_permissions": "Die Eigentümerrolle hat automatisch alle Berechtigungen auf diesem Server.",
+      "owner_access_shield": "Aktiviere den privilegierten Modus, um diese Berechtigungen zu nutzen. Klicke auf den Schutzschild neben deinem Namen, um ihn für 15 Minuten einzuschalten."
     },
     "rooms_admin": {
       "title": "Räume",
