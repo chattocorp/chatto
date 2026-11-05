@@ -917,8 +917,9 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 // message and root message in commit order. It reads retained posting facts:
 // edits, retractions, and hidden echoes do not change activity. Historical
 // imports are excluded. A non-nil visible predicate limits both times to
-// readable threads. It runs under the projection read lock and must not call
-// back into this projection. Zero means no qualifying post.
+// readable threads. It runs under the timeline read lock and must not acquire
+// another projection lock or call back into this projection. Zero means no
+// qualifying post.
 func (p *RoomTimelineProjection) LastPostedMessageTimes(roomID string, visible func(*TimelineEntry) bool) (lastMessage, lastRoot time.Time) {
 	p.RLock()
 	defer p.RUnlock()

@@ -41,11 +41,16 @@ func (m *RoomModel) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roo
 	return entry.CreatedAt, nil
 }
 
-// lastPostedMessageTimes reads both posting markers from one timeline state.
-// The caller must authorize message access and, for interaction-only access,
-// supply a predicate that limits the markers to related threads.
-func (m *RoomModel) lastPostedMessageTimes(roomID string, visible func(*TimelineEntry) bool) (time.Time, time.Time) {
-	return m.timeline.Projection().LastPostedMessageTimes(roomID, visible)
+// lastReadablePostedMessageTimes reads both posting markers from one timeline
+// state. The caller must verify membership and broad or interaction read
+// permission. Narrow reads acquire the thread lock before the timeline lock,
+// matching latestPostAt, and filter to the account's related threads.
+func (m *RoomModel) lastReadablePostedMessageTimes(userID, roomID string, broad bool) (time.Time, time.Time) {
+	timeline := m.timeline.Projection()
+	if broad {
+		return timeline.LastPostedMessageTimes(roomID, nil)
+	}
+	return m.threads.Projection().lastInteractionPostedMessageTimes(timeline, userID, roomID)
 }
 
 // GetRoom returns a detached room with its current group. A missing room or kind mismatch returns ErrNotFound.

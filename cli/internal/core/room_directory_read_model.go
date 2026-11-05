@@ -542,9 +542,7 @@ func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID stri
 	}
 	result := &DirectoryRoom{Room: room, ViewerState: state}
 	if KindOfRoom(room) == KindDM && state.IsMember && (state.CanReadMessages || state.CanReadInteractions) {
-		result.LastMessageAt, result.LastRootMessageAt = s.rooms.lastPostedMessageTimes(room.Id, func(entry *TimelineEntry) bool {
-			return state.CanReadMessages || s.rooms.hasThreadInteraction(actorID, room.Id, entry.ThreadRootEventID)
-		})
+		result.LastMessageAt, result.LastRootMessageAt = s.rooms.lastReadablePostedMessageTimes(actorID, room.Id, state.CanReadMessages)
 	}
 	return result, nil
 }

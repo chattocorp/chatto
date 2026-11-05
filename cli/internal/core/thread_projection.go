@@ -26,6 +26,7 @@ type threadEntry struct {
 // Timeline facts exclude imports and echoes and provide the root before its
 // first reply. Both components must have reached the command's OCC position.
 // The scan is bounded by this thread, not by the room's history.
+// Reads that need both projections must acquire threads before the timeline.
 func (p *ThreadProjection) latestPostAt(timeline *RoomTimelineProjection, roomID, threadID, actorID string) (time.Time, bool) {
 	p.RLock()
 	defer p.RUnlock()
@@ -42,6 +43,18 @@ func (p *ThreadProjection) latestPostAt(timeline *RoomTimelineProjection, roomID
 		}
 	}
 	return timeline.originalPostAt(roomID, threadID, actorID)
+}
+
+// lastInteractionPostedMessageTimes limits activity to related threads. Hold
+// the thread read lock before the timeline read lock, as latestPostAt does.
+// The timeline predicate must use the thread lock already held. Calling
+// HasInteraction would try to acquire that lock again.
+func (p *ThreadProjection) lastInteractionPostedMessageTimes(timeline *RoomTimelineProjection, userID, roomID string) (time.Time, time.Time) {
+	p.RLock()
+	defer p.RUnlock()
+	return timeline.LastPostedMessageTimes(roomID, func(entry *TimelineEntry) bool {
+		return p.hasInteractionLocked(userID, roomID, entry.ThreadRootEventID)
+	})
 }
 
 // threadSummary caches display metadata for one thread. It is derived from
@@ -788,6 +801,11 @@ func (p *ThreadProjection) ThreadRootForMessage(roomID, eventID string) (string,
 func (p *ThreadProjection) HasInteraction(userID, roomID, threadRootEventID string) bool {
 	p.RLock()
 	defer p.RUnlock()
+	return p.hasInteractionLocked(userID, roomID, threadRootEventID)
+}
+
+// hasInteractionLocked requires the thread read or write lock to be held.
+func (p *ThreadProjection) hasInteractionLocked(userID, roomID, threadRootEventID string) bool {
 	user, userKnown := p.principalIDs.Lookup(userID)
 	root, rootKnown := p.eventIDs.Lookup(threadRootEventID)
 	if !userKnown || !rootKnown {
