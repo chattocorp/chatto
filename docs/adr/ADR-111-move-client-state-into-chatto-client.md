@@ -109,6 +109,14 @@ state next to each server:
 The client scrubs its own data at every boundary. It cannot make a host clear
 the host's copies; a copy is the host's to clear.
 
+Channel rooms and DMs use separate scoped directory reads, pagination, and
+replacement boundaries. Each response replaces only its own kind in the shared
+room projection. A combined realtime snapshot still supplies both kinds over
+the same connection. Successful recovery reads are retained if another kind
+fails; the shared cursor advances only after the complete recovery succeeds.
+Permission checks clear only the kind whose read failed. Hosts that copy room
+resource updates must honor the update's scope.
+
 We considered host extensions that the client creates through factories and
 calls through optional hooks, as the first voice-call integration did. We
 rejected them: the client would still know the host's state, and an optional

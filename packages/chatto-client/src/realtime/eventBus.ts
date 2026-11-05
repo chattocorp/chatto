@@ -18,7 +18,7 @@ export class RealtimeProjectionUpdate {
   readonly event: RealtimeEvent | null;
   /** Authorized canonical resource response, when this is a resource update. */
   readonly resource: RealtimeResource | null;
-  /** Whether this response replaces the complete resource family. */
+  /** Whether this response replaces the resource family; rooms replace only their declared scope. */
   readonly replaceResource: boolean;
   /** Opaque minimum cursor for reads caused by this event. */
   readonly cursor: string | null;

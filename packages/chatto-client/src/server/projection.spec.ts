@@ -3,6 +3,7 @@ import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
 import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
 import {
   ListRoomsResponse,
+  RoomDirectoryScope,
   RoomWithViewerState,
   RoomViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -115,6 +116,50 @@ describe('ServerProjectionStore', () => {
     );
     expect(store.rooms.get('dm')?.hasMessageHistory).toBe(true);
   });
+
+  it.each([
+    {
+      scope: RoomDirectoryScope.CHANNELS,
+      replacedKind: RoomKind.CHANNEL,
+      retainedKind: RoomKind.DM
+    },
+    { scope: RoomDirectoryScope.DMS, replacedKind: RoomKind.DM, retainedKind: RoomKind.CHANNEL }
+  ])(
+    'replaces only rooms in scope $scope, including empty responses',
+    ({ scope, replacedKind, retainedKind }) => {
+      const store = new ServerProjectionStore();
+      const retained = new RoomWithViewerState({
+        room: { id: 'retained', kind: retainedKind },
+        hasMessageHistory: true
+      });
+      store.rooms.set('retained', retained);
+      store.rooms.set(
+        'removed',
+        new RoomWithViewerState({ room: { id: 'removed', kind: replacedKind } })
+      );
+      const apply = (rooms: RoomWithViewerState[]) =>
+        store.apply(
+          new RealtimeProjectionUpdate({
+            resource: new RealtimeResourceUpdate({
+              resource: { case: 'rooms', scope, value: new ListRoomsResponse({ rooms }) }
+            })
+          })
+        );
+      apply([
+        new RoomWithViewerState({ room: { id: 'added', kind: replacedKind } }),
+        // A faulty response must not overwrite an entry in the other collection.
+        new RoomWithViewerState({
+          room: { id: 'retained', kind: retainedKind },
+          hasMessageHistory: false
+        })
+      ]);
+      expect([...store.rooms.keys()]).toEqual(['retained', 'added']);
+      expect(store.rooms.get('retained')).toBe(retained);
+      apply([]);
+      expect([...store.rooms.keys()]).toEqual(['retained']);
+      expect(store.rooms.get('retained')).toBe(retained);
+    }
+  );
 
   it('advances DM activity for roots and replies without regressing on duplicate or older facts', () => {
     const store = new ServerProjectionStore();

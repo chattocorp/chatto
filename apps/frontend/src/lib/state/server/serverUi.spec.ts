@@ -3,7 +3,11 @@ import { computed, effect, effectRoot } from '@chatto/client/reactivity';
 import type { ServerStateStore } from '@chatto/client/server/store';
 import type { ProjectionReset, RoomAccessLoss } from '@chatto/client/server/storeEvents';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  ListRoomsResponse,
+  RoomDirectoryScope,
+  RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import type { NotificationAPI } from '@chatto/client/api/notifications';
 import { NotificationStore } from '@chatto/client/server/notifications';
 import { ServerProjectionStore } from '@chatto/client/server/projection';
@@ -63,6 +67,36 @@ function fakeStore() {
 }
 
 describe('serverUi', () => {
+  it.each([RoomDirectoryScope.CHANNELS, RoomDirectoryScope.DMS])(
+    'acknowledges only rows returned for directory scope %s',
+    (scope) => {
+      const { store, emit } = fakeStore();
+      const ui = serverUi(store);
+      vi.spyOn(ui.voiceCall, 'reconcilePermissions').mockResolvedValue();
+      const membership = vi.spyOn(ui.roomDirectory, 'acknowledgeMembership');
+      const unread = vi.spyOn(ui.roomUnread, 'acknowledgeRoomProjection');
+      const channel = new RoomWithViewerState({
+        room: { id: 'channel' },
+        viewerState: { isMember: true, hasUnread: false }
+      });
+      const dm = new RoomWithViewerState({
+        room: { id: 'dm' },
+        viewerState: { isMember: true, hasUnread: true }
+      });
+      store.projection.rooms.set('channel', channel);
+      store.projection.rooms.set('dm', dm);
+      const returned = scope === RoomDirectoryScope.CHANNELS ? channel : dm;
+      emit.update({
+        resource: { case: 'rooms', scope, value: new ListRoomsResponse({ rooms: [returned] }) }
+      });
+      expect(membership).toHaveBeenCalledExactlyOnceWith(returned.room!.id, true);
+      expect(unread).toHaveBeenCalledExactlyOnceWith(
+        returned.room!.id,
+        returned.viewerState!.hasUnread
+      );
+    }
+  );
+
   it('keeps one state for each store', () => {
     const { store } = fakeStore();
     expect(serverUi(store)).toBe(serverUi(store));
@@ -312,7 +346,12 @@ describe('serverUi', () => {
     const request = vi.spyOn(ui.adminRoomLayout, 'requestProjectionRefresh');
     const deactivate = vi.spyOn(ui.adminRoomLayout, 'deactivateProjectionRefresh');
 
-    emit.update({ resource: { case: 'rooms' } });
+    emit.update({
+      resource: {
+        case: 'rooms',
+        value: new ListRoomsResponse({ rooms: [...store.projection.rooms.values()] })
+      }
+    });
     expect(request).not.toHaveBeenCalled();
 
     const release = ui.activateAdminRoomLayout();
@@ -362,7 +401,12 @@ describe('serverUi', () => {
           }
         })
       );
-      emit.update({ resource: { case: 'rooms' } });
+      emit.update({
+        resource: {
+          case: 'rooms',
+          value: new ListRoomsResponse({ rooms: [...store.projection.rooms.values()] })
+        }
+      });
       expect(call.permissionsFor('R1').join).toBe(join);
     }
     expect(reconcile).toHaveBeenCalledTimes(2);
@@ -443,7 +487,12 @@ describe('serverUi', () => {
       })
     );
 
-    emit.update({ resource: { case: 'rooms' } });
+    emit.update({
+      resource: {
+        case: 'rooms',
+        value: new ListRoomsResponse({ rooms: [...store.projection.rooms.values()] })
+      }
+    });
     expect(ui.roomUnread.roomIsUnread('R1')).toBe(false);
     expect(acknowledge).toHaveBeenCalledWith('R1', true);
     emit.update({ resource: { case: 'viewer' } });

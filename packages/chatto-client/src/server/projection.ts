@@ -1,14 +1,18 @@
-import { ReactiveMap, signal } from '../reactivity/index.js';
+import { batch, ReactiveMap, signal } from '../reactivity/index.js';
 import { UserStore } from './users.js';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import type { RoomGroup, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomDirectoryScope,
+  type RoomGroup,
+  type RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
 import type { Timestamp } from '@bufbuild/protobuf';
-import { RoomKind } from '../api/roomDirectory.js';
+import { RoomKind, roomMatchesDirectoryScope } from '../api/roomDirectory.js';
 
 /** Authenticated server resources assembled from two canonical responses. */
 export type ProjectedServerState = {
@@ -92,14 +96,7 @@ export class ServerProjectionStore {
           break;
         }
         case 'rooms': {
-          const nextIds = new Set<string>();
-          for (const room of chunk.value.rooms) {
-            const roomId = room.room?.id;
-            if (!roomId) continue;
-            nextIds.add(roomId);
-            this.rooms.set(roomId, room);
-          }
-          for (const roomId of this.rooms.keys()) if (!nextIds.has(roomId)) this.removeRoom(roomId);
+          this.replaceRooms(chunk.value.rooms, chunk.scope);
           break;
         }
         case 'roomGroups':
@@ -123,6 +120,28 @@ export class ServerProjectionStore {
         update.event?.createdAt
       );
     }
+  }
+
+  /**
+   * Replace one directory scope atomically. A channel read cannot remove or
+   * overwrite DMs, and a DM read cannot change channels. Combined snapshots
+   * omit the scope and replace both kinds.
+   */
+  replaceRooms(rooms: readonly RoomWithViewerState[], scope = RoomDirectoryScope.ALL): void {
+    batch(() => {
+      const nextIds = new Set<string>();
+      for (const room of rooms) {
+        const roomId = room.room?.id;
+        if (!roomId || !roomMatchesDirectoryScope(room.room?.kind, scope)) continue;
+        nextIds.add(roomId);
+        this.rooms.set(roomId, room);
+      }
+      for (const [roomId, room] of this.rooms) {
+        if (roomMatchesDirectoryScope(room.room?.kind, scope) && !nextIds.has(roomId)) {
+          this.removeRoom(roomId);
+        }
+      }
+    });
   }
 
   reset({ preserveViewer = false }: { preserveViewer?: boolean } = {}): void {

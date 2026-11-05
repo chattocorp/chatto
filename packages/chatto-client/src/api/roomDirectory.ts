@@ -12,6 +12,16 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '../util/roomThreading.js';
 
+/** Match a room to a directory scope. Missing and legacy kinds are channels. */
+export function roomMatchesDirectoryScope(
+  kind: RoomKind | undefined,
+  scope: RoomDirectoryScope = RoomDirectoryScope.ALL
+): boolean {
+  if (scope === RoomDirectoryScope.DMS) return kind === RoomKind.DM;
+  if (scope === RoomDirectoryScope.CHANNELS) return kind !== RoomKind.DM;
+  return true;
+}
+
 /** Pending invitation metadata does not grant room-content access. */
 export type ViewerRoomInvitation = {
   id: string;

@@ -40,7 +40,8 @@ import {
   RoomGroup,
   RoomGroupViewerState,
   RoomViewerState,
-  RoomWithViewerState
+  RoomWithViewerState,
+  RoomDirectoryScope
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
   GetViewerResponse,
@@ -220,15 +221,7 @@ const { apiMocks, eventMocks } = vi.hoisted(() => ({
 vi.mock('../api/roomDirectory.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/roomDirectory.js')>();
   return {
-    RoomDirectoryScope: {
-      ALL: 1
-    },
-    RoomKind: {
-      CHANNEL: 1,
-      DM: 2
-    },
-    mapDirectoryRoom: actual.mapDirectoryRoom,
-    mapRoomGroup: actual.mapRoomGroup,
+    ...actual,
     createRoomDirectoryAPI: vi.fn(() => ({
       listRooms: apiMocks.listRooms,
       listRoomGroups: apiMocks.listRoomGroups
@@ -487,9 +480,12 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function roomResource(rooms: RoomWithViewerState[]): RealtimeResourceUpdate {
+function roomResource(
+  rooms: RoomWithViewerState[],
+  scope?: RoomDirectoryScope
+): RealtimeResourceUpdate {
   return new RealtimeResourceUpdate({
-    resource: { case: 'rooms', value: new ListRoomsResponse({ rooms }) }
+    resource: { case: 'rooms', value: new ListRoomsResponse({ rooms }), scope }
   });
 }
 
@@ -699,7 +695,7 @@ describe('ServerStateStore invitation expiry', () => {
     expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(101);
     expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
-      'rooms',
+      'channelRooms',
       'roomGroups'
     ]);
     expect(store.notifications.canDisplayOccurrence(notification)).toBe(false);
@@ -708,11 +704,19 @@ describe('ServerStateStore invitation expiry', () => {
 });
 
 describe('ServerStateStore catch-up', () => {
-  it('applies the resources of a catch-up before effects run', async () => {
+  it('applies each completed catch-up resource atomically before effects run', async () => {
     const store = makeStore(new FakeServerConnection([]));
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms'
-        ? [roomResource([new RoomWithViewerState({ room: { id: 'R1', name: 'general' } })])]
+      family === 'channelRooms'
+        ? [
+            roomResource(
+              [
+                new RoomWithViewerState({ room: { id: 'R1', name: 'general' } }),
+                new RoomWithViewerState({ room: { id: 'R2', name: 'random' } })
+              ],
+              RoomDirectoryScope.CHANNELS
+            )
+          ]
         : family === 'roomGroups'
           ? [
               new RealtimeResourceUpdate({
@@ -726,11 +730,11 @@ describe('ServerStateStore catch-up', () => {
     );
     const observed: string[] = [];
     const stop = effect(() => {
-      observed.push(`${store.projection.rooms.has('R1')}:${store.projection.roomGroups.length}`);
+      observed.push(`${store.projection.rooms.size}:${store.projection.roomGroups.length}`);
     });
     try {
       await store.completeRealtimeCatchUp('cursor');
-      expect(observed).toEqual(['false:0', 'true:1']);
+      expect(observed).toEqual(['0:0', '2:0', '2:1']);
     } finally {
       stop();
       apiMocks.readRealtimeResource.mockReset().mockResolvedValue([]);
@@ -940,7 +944,7 @@ describe('ServerStateStore privileged mode', () => {
 
         const heldRooms = deferred<RealtimeResourceUpdate[]>();
         apiMocks.readRealtimeResource.mockImplementation((family, cursor) => {
-          if (family === 'rooms' && cursor === 'activation') return heldRooms.promise;
+          if (family === 'channelRooms' && cursor === 'activation') return heldRooms.promise;
           if (family === 'viewer') {
             return Promise.resolve([
               new RealtimeResourceUpdate({
@@ -960,7 +964,7 @@ describe('ServerStateStore privileged mode', () => {
         expect(sockets).toHaveLength(2);
         sockets[1].onopen?.();
         await catchUp(sockets[1], 'activation');
-        expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'activation');
+        expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('channelRooms', 'activation');
         expect(connection.status).toBe('connecting');
         expect(activationFinished).toBe(false);
 
@@ -1258,7 +1262,7 @@ describe('ServerStateStore privileged mode', () => {
       new RealtimeProjectionUpdate({ resource: roomResource([room('R1', 'general')]) })
     );
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
-      if (family !== 'rooms') return [];
+      if (family !== 'channelRooms') return [];
       const rooms = [room('R1', 'general')];
       // Owners see restricted rooms only while privileged mode is active.
       if (store.projection.viewer?.privilegedMode?.active) rooms.push(room('R2', 'restricted'));
@@ -1272,7 +1276,7 @@ describe('ServerStateStore privileged mode', () => {
     });
 
     await store.setPrivilegedMode(true);
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'cursor-after');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('channelRooms', 'cursor-after');
     expect(store.roomList.rooms.map((entry) => entry.id).sort()).toEqual(['R1', 'R2']);
 
     await store.setPrivilegedMode(false);
@@ -1304,7 +1308,8 @@ describe('ServerStateStore privileged mode', () => {
       await store.setPrivilegedMode(active);
 
       expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
-        ['rooms', 'privilege-cursor'],
+        ['channelRooms', 'privilege-cursor'],
+        ['directMessages', 'privilege-cursor'],
         ['roomGroups', 'privilege-cursor']
       ]);
       expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
@@ -1420,7 +1425,7 @@ describe('ServerStateStore privileged mode', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.projection.users.set('cached', new DirectoryMember({ user: new User({ id: 'cached' }) }));
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms'
+      family === 'channelRooms'
         ? [
             roomResource([
               new RoomWithViewerState({
@@ -1453,7 +1458,7 @@ describe('ServerStateStore privileged mode', () => {
     const store = makeStore(new FakeServerConnection([]));
     let finish!: (resources: RealtimeResourceUpdate[]) => void;
     apiMocks.readRealtimeResource.mockImplementation((family) =>
-      family === 'rooms'
+      family === 'channelRooms'
         ? new Promise((resolve) => {
             finish = resolve;
           })
@@ -1495,7 +1500,9 @@ describe('ServerStateStore privileged mode', () => {
       .spyOn(unchanged, 'hydrateRealtimeProjection')
       .mockResolvedValue(true);
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms' ? [roomResource([room('changed', false), room('unchanged', true)])] : []
+      family === 'channelRooms'
+        ? [roomResource([room('changed', false), room('unchanged', true)])]
+        : []
     );
     const generation = store.realtimeSync.invalidateAuthorization();
 
@@ -1554,7 +1561,7 @@ describe('ServerStateStore privileged mode', () => {
       changed: true
     });
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms' ? [roomResource([room(false)])] : []
+      family === 'channelRooms' ? [roomResource([room(false)])] : []
     );
     const generation = store.realtimeSync.invalidateAuthorization();
     await store.completeRealtimeCatchUp('privilege-cursor', generation);
@@ -1576,7 +1583,8 @@ describe('ServerStateStore privileged mode', () => {
       'server',
       'serverState',
       'viewer',
-      'rooms',
+      'channelRooms',
+      'directMessages',
       'roomGroups',
       'notifications'
     ]);
@@ -1600,7 +1608,8 @@ describe('ServerStateStore privileged mode', () => {
       'server',
       'serverState',
       'viewer',
-      'rooms',
+      'channelRooms',
+      'directMessages',
       'roomGroups',
       'notifications'
     ]);
@@ -1725,7 +1734,7 @@ describe('ServerStateStore room search state', () => {
     const refresh = deferred<MemberDirectoryPage>();
     apiMocks.listRoomMembers.mockReturnValueOnce(refresh.promise);
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms' ? [roomResource([room])] : []
+      family === 'channelRooms' ? [roomResource([room])] : []
     );
     apiMocks.readRealtimeUsers.mockResolvedValue([
       new RealtimeResourceUpdate({
@@ -1756,7 +1765,7 @@ describe('ServerStateStore room search state', () => {
       viewerState: { isMember: true }
     });
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms' ? [roomResource([room])] : []
+      family === 'channelRooms' ? [roomResource([room])] : []
     );
     apiMocks.listRoomMembers.mockClear();
     apiMocks.listRoomMembers.mockResolvedValue({
@@ -1837,7 +1846,7 @@ describe('ServerStateStore room search state', () => {
       viewerState: { isMember: true }
     });
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms' ? [roomResource([room])] : []
+      family === 'channelRooms' ? [roomResource([room])] : []
     );
     const members = store.rooms.members('room');
     await members.searchMembers('alice');
@@ -1872,7 +1881,7 @@ describe('ServerStateStore room search state', () => {
         viewerState: { isMember: true }
       });
       apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-        family === 'rooms' ? [roomResource([room])] : []
+        family === 'channelRooms' ? [roomResource([room])] : []
       );
       const gate = deferred<MemberDirectoryPage>();
       apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
@@ -1916,7 +1925,7 @@ describe('ServerStateStore room search state', () => {
         viewerState: { isMember: true }
       });
       apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-        family === 'rooms' ? [roomResource([room])] : []
+        family === 'channelRooms' ? [roomResource([room])] : []
       );
       const gate = deferred<MemberDirectoryPage>();
       apiMocks.listRoomMembers.mockClear();
@@ -2004,7 +2013,7 @@ describe('ServerStateStore room search state', () => {
       const gate = deferred<void>();
       apiMocks.readRealtimeResource.mockImplementation(async (family) => {
         await gate.promise;
-        return family === 'rooms' ? [roomResource([room, invited])] : [];
+        return family === 'channelRooms' ? [roomResource([room, invited])] : [];
       });
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate(
@@ -2047,7 +2056,7 @@ describe('ServerStateStore room search state', () => {
       apiMocks.listRoomMembers.mockClear();
       apiMocks.listRoomMembers.mockReturnValueOnce(gate.promise);
       apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-        family === 'rooms' ? [roomResource(rooms)] : []
+        family === 'channelRooms' ? [roomResource(rooms)] : []
       );
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate(
@@ -2528,7 +2537,7 @@ describe('ServerStateStore unified realtime resources', () => {
             }
           })
         ];
-      if (family === 'rooms')
+      if (family === 'channelRooms')
         return [
           roomResource(
             change === 'room revoked'
@@ -2617,7 +2626,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     const releases: Array<() => void> = [];
     apiMocks.readRealtimeResource.mockImplementation(async (family, cursor) => {
-      if (family === 'rooms' && cursor !== 'permission') {
+      if (family === 'channelRooms' && cursor !== 'permission') {
         await new Promise<void>((resolve) => {
           releases.push(resolve);
         });
@@ -2667,7 +2676,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const hydrate = vi.spyOn(messages, 'hydrateRealtimeProjection').mockResolvedValue(true);
     let fail = true;
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
-      if (family !== 'rooms') return [];
+      if (family !== 'channelRooms') return [];
       if (fail) throw new Error('room offline');
       return [roomResource([room])];
     });
@@ -2818,7 +2827,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.loadRoomMembers('R1');
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
       if (family === 'viewer') throw new Error('viewer offline');
-      if (family === 'rooms')
+      if (family === 'channelRooms')
         return [
           roomResource([
             new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true } })
@@ -2974,7 +2983,10 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     await store.waitForRealtimeReconciliation();
-    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['rooms', 'a-read']]);
+    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
+      ['channelRooms', 'a-read'],
+      ['directMessages', 'a-read']
+    ]);
     expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['POST'], 'z-post');
     expect(apiMocks.readRealtimeUsers.mock.calls.every(([ids]) => [...ids].length === 0)).toBe(
       true
@@ -3040,7 +3052,14 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       );
       await store.waitForRealtimeReconciliation();
-      expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['rooms', undefined]]);
+      expect(apiMocks.readRealtimeResource.mock.calls).toEqual(
+        state === 'unknown'
+          ? [
+              ['channelRooms', undefined],
+              ['directMessages', undefined]
+            ]
+          : [['channelRooms', undefined]]
+      );
     }
   );
 
@@ -3091,8 +3110,8 @@ describe('ServerStateStore unified realtime resources', () => {
     stale.resolve([roomResource([row(true)])]);
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
-      ['rooms', undefined],
-      ['rooms', undefined]
+      ['channelRooms', undefined],
+      ['channelRooms', undefined]
     ]);
     expect(store.projection.rooms.get('R1')?.viewerState?.hasUnread).toBe(false);
   });
@@ -3127,7 +3146,7 @@ describe('ServerStateStore unified realtime resources', () => {
         unread
           ? [
               ['notifications', undefined],
-              ['rooms', undefined]
+              ['channelRooms', undefined]
             ]
           : []
       );
@@ -3193,7 +3212,12 @@ describe('ServerStateStore unified realtime resources', () => {
       } else store.dispose();
       await store.waitForRealtimeReconciliation();
       expect(apiMocks.readRealtimeResource.mock.calls).toEqual(
-        boundary === 'reset' ? [['rooms', 'new']] : []
+        boundary === 'reset'
+          ? [
+              ['channelRooms', 'new'],
+              ['directMessages', 'new']
+            ]
+          : []
       );
     }
   );
@@ -3497,7 +3521,7 @@ describe('ServerStateStore unified realtime resources', () => {
     ]);
     let roomReads = 0;
     apiMocks.readRealtimeResource.mockImplementation((family) => {
-      if (family !== 'rooms') return Promise.resolve([]);
+      if (family !== 'channelRooms') return Promise.resolve([]);
       roomReads++;
       return roomReads === 1 ? firstRooms.promise : Promise.resolve([finalRooms]);
     });
@@ -3540,12 +3564,12 @@ describe('ServerStateStore unified realtime resources', () => {
     await store.completeRealtimeCatchUp('cursor-final');
 
     const roomCalls = apiMocks.readRealtimeResource.mock.calls.filter(
-      ([family]) => family === 'rooms'
+      ([family]) => family === 'channelRooms'
     );
     expect(roomCalls).toEqual([
-      ['rooms', 'cursor-join-1'],
-      ['rooms', 'cursor-final'],
-      ['rooms', 'cursor-join-2']
+      ['channelRooms', 'cursor-join-1'],
+      ['channelRooms', 'cursor-final'],
+      ['channelRooms', 'cursor-join-2']
     ]);
     expect(store.projection.rooms.get('R1')?.memberUserIds).toEqual(['U1', 'U2']);
   });
@@ -3645,7 +3669,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('skips the user read in the poll of an inactive server after a resumed stream', async () => {
     const store = makeStore(new FakeServerConnection([]));
     await store.completeRealtimeCatchUp('poll-cursor', undefined, true);
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'poll-cursor');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('channelRooms', 'poll-cursor');
     expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
 
     await store.completeRealtimeCatchUp('live-cursor');
@@ -3693,7 +3717,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.realtimeSync.markCaughtUp('previous-cursor');
     apiMocks.readRealtimeResource.mockImplementation(async (family) =>
-      family === 'rooms'
+      family === 'channelRooms'
         ? [
             roomResource([
               new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true } })
@@ -3724,7 +3748,10 @@ describe('ServerStateStore unified realtime resources', () => {
       'opaque-reset-cursor'
     );
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('viewer', 'opaque-reset-cursor');
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'opaque-reset-cursor');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
+      'channelRooms',
+      'opaque-reset-cursor'
+    );
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
       'notifications',
       'opaque-reset-cursor'
@@ -4067,7 +4094,7 @@ describe('ServerStateStore unified realtime resources', () => {
       const auxiliaryRead = deferred<RealtimeResourceUpdate[]>();
       const messageRead = deferred<MessageResource[]>();
       apiMocks.readRealtimeResource.mockImplementation((family) =>
-        family === 'rooms' ? auxiliaryRead.promise : Promise.resolve([])
+        family === 'channelRooms' ? auxiliaryRead.promise : Promise.resolve([])
       );
       apiMocks.readMessages.mockReturnValueOnce(messageRead.promise);
       const sync = store.realtimeSync;
@@ -4114,8 +4141,10 @@ describe('ServerStateStore unified realtime resources', () => {
       .mockReturnValueOnce(first.promise);
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'FIRST'));
     await Promise.all(
-      ['rooms', 'roomGroups'].map((family) =>
-        store.waitForRealtimeResourceRefresh(family as 'rooms' | 'roomGroups')
+      ['channelRooms', 'directMessages', 'roomGroups'].map((family) =>
+        store.waitForRealtimeResourceRefresh(
+          family as 'channelRooms' | 'directMessages' | 'roomGroups'
+        )
       )
     );
     apiMocks.readRealtimeResource.mockClear();
@@ -4144,7 +4173,11 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(edit);
     store.realtimeProjectionHandler(edit);
     apiMocks.readMessages.mockReturnValueOnce(last.promise);
-    await store.waitForRealtimeResourceRefresh('rooms');
+    await Promise.all(
+      ['channelRooms', 'directMessages'].map((family) =>
+        store.waitForRealtimeResourceRefresh(family as 'channelRooms' | 'directMessages')
+      )
+    );
     apiMocks.readRealtimeResource.mockClear();
     apiMocks.readRealtimeUsers.mockClear();
     const complete = vi.fn();
@@ -4180,8 +4213,10 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'FIRST'));
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U3', 'SECOND'));
     await Promise.all(
-      ['rooms', 'roomGroups'].map((family) =>
-        store.waitForRealtimeResourceRefresh(family as 'rooms' | 'roomGroups')
+      ['channelRooms', 'directMessages', 'roomGroups'].map((family) =>
+        store.waitForRealtimeResourceRefresh(
+          family as 'channelRooms' | 'directMessages' | 'roomGroups'
+        )
       )
     );
     const settled = vi.fn();
@@ -4548,7 +4583,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     await store.waitForRealtimeReconciliation();
-    expect(refresh).toHaveBeenCalledWith('rooms', undefined);
+    expect(refresh).toHaveBeenCalledWith('channelRooms', undefined);
     expect(refreshWindow).not.toHaveBeenCalled();
   });
 
@@ -4985,21 +5020,26 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     const rooms = deferred<RealtimeResourceUpdate[]>();
     const users = deferred<RealtimeResourceUpdate[]>();
-    apiMocks.readRealtimeResource.mockReturnValueOnce(rooms.promise);
+    apiMocks.readRealtimeResource.mockImplementation((family) =>
+      family === 'directMessages' ? rooms.promise : Promise.resolve([])
+    );
     apiMocks.readRealtimeUsers.mockReturnValueOnce(users.promise);
     const ready = vi.fn();
     const pending = store.ensureRoomAvailable('DM1').then(ready);
     await vi.waitFor(() =>
-      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined)
+      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('directMessages', undefined)
     );
     rooms.resolve([
-      roomResource([
-        new RoomWithViewerState({
-          room: { id: 'DM1' },
-          memberUserIds: ['U2'],
-          viewerState: { isMember: true }
-        })
-      ])
+      roomResource(
+        [
+          new RoomWithViewerState({
+            room: { id: 'DM1', kind: RoomKind.DM },
+            memberUserIds: ['U2'],
+            viewerState: { isMember: true }
+          })
+        ],
+        RoomDirectoryScope.DMS
+      )
     ]);
     await flushPromises();
     expect(apiMocks.readRealtimeUsers).toHaveBeenCalledWith(['U2'], undefined);
@@ -5059,7 +5099,174 @@ describe('ServerStateStore unified realtime resources', () => {
 
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).not.toHaveBeenCalledWith('notifications', undefined);
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('channelRooms', undefined);
+  });
+});
+
+describe('ServerStateStore separate room loading', () => {
+  function member(id: string, kind: RoomKind): RoomWithViewerState {
+    return new RoomWithViewerState({
+      room: { id, kind },
+      viewerState: {
+        isMember: true,
+        hasUnread: true,
+        permissions: [{ permission: 'message.read', granted: true }]
+      },
+      hasMessageHistory: kind === RoomKind.DM ? true : undefined
+    });
+  }
+
+  it.each([
+    { scope: RoomDirectoryScope.CHANNELS, removed: 'channel', retained: 'dm' },
+    { scope: RoomDirectoryScope.DMS, removed: 'dm', retained: 'channel' }
+  ])(
+    'reconciles empty scope $scope without revoking the other kind',
+    ({ scope, removed, retained }) => {
+      const store = makeStore(new FakeServerConnection([]));
+      store.projection.rooms.set('channel', member('channel', RoomKind.CHANNEL));
+      store.projection.rooms.set('dm', member('dm', RoomKind.DM));
+      const retainedRoom = store.projection.rooms.get(retained);
+      const lost = vi.fn();
+      const restored = vi.fn();
+      store.onRoomAccessLost(lost);
+      store.onRoomAccessRestored(restored);
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({ resource: roomResource([], scope) })
+      );
+      expect([...store.projection.rooms.keys()]).toEqual([retained]);
+      expect(store.projection.rooms.get(retained)).toBe(retainedRoom);
+      expect(lost.mock.calls.every(([loss]) => loss.roomId === removed)).toBe(true);
+      expect(lost).toHaveBeenCalled();
+      expect(restored).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    {
+      successful: 'directMessages',
+      scope: RoomDirectoryScope.DMS,
+      id: 'dm',
+      kind: RoomKind.DM,
+      failed: 'channelRooms'
+    },
+    {
+      successful: 'channelRooms',
+      scope: RoomDirectoryScope.CHANNELS,
+      id: 'channel',
+      kind: RoomKind.CHANNEL,
+      failed: 'directMessages'
+    }
+  ] as const)(
+    'applies $successful while $failed recovery is pending or fails',
+    async ({ successful, scope, id, kind, failed }) => {
+      const store = makeStore(new FakeServerConnection([]));
+      store.realtimeSync.markCaughtUp('before');
+      store.realtimeSync.markStale();
+      const retainedId = id === 'dm' ? 'channel' : 'dm';
+      const retained = member(retainedId, kind === RoomKind.DM ? RoomKind.CHANNEL : RoomKind.DM);
+      store.projection.rooms.set(retainedId, retained);
+      const success = deferred<RealtimeResourceUpdate[]>();
+      const failure = deferred<RealtimeResourceUpdate[]>();
+      apiMocks.readRealtimeResource.mockImplementation((family) => {
+        if (family === successful) return success.promise;
+        if (family === failed) return failure.promise;
+        return Promise.resolve([]);
+      });
+      const error = new Error('one directory is unavailable');
+      const catchUp = expect(store.completeRealtimeCatchUp('attempt')).rejects.toBe(error);
+      success.resolve([roomResource([member(id, kind)], scope)]);
+      await flushPromises();
+      expect(store.projection.rooms.get(id)?.viewerState?.isMember).toBe(true);
+      expect(store.projection.rooms.get(retainedId)).toBe(retained);
+      failure.reject(error);
+      await catchUp;
+      expect(store.realtimeSync.resumeCursor).toBe('before');
+      expect(store.projection.rooms.get(retainedId)).toBe(retained);
+      expect(store.projection.rooms.has(id)).toBe(true);
+
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        if (family === 'channelRooms')
+          return [roomResource([member('channel', RoomKind.CHANNEL)], RoomDirectoryScope.CHANNELS)];
+        if (family === 'directMessages')
+          return [roomResource([member('dm', RoomKind.DM)], RoomDirectoryScope.DMS)];
+        return [];
+      });
+      await store.completeRealtimeCatchUp('retry');
+      store.realtimeSync.markCaughtUp('retry');
+      expect([...store.projection.rooms.keys()].sort()).toEqual(['channel', 'dm']);
+      expect(store.realtimeSync.resumeCursor).toBe('retry');
+    }
+  );
+
+  it.each([
+    {
+      failed: 'channelRooms',
+      surviving: 'directMessages',
+      scope: RoomDirectoryScope.DMS,
+      id: 'dm',
+      kind: RoomKind.DM
+    },
+    {
+      failed: 'directMessages',
+      surviving: 'channelRooms',
+      scope: RoomDirectoryScope.CHANNELS,
+      id: 'channel',
+      kind: RoomKind.CHANNEL
+    }
+  ] as const)(
+    'clears only $failed after its authorization read fails',
+    async ({ failed, surviving, scope, id, kind }) => {
+      const store = makeStore(new FakeServerConnection([]));
+      store.projection.viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } } });
+      store.projection.rooms.set('channel', member('channel', RoomKind.CHANNEL));
+      store.projection.rooms.set('dm', member('dm', RoomKind.DM));
+      const error = new Error('authorization read failed');
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        if (family === failed) throw error;
+        if (family === surviving) return [roomResource([member(id, kind)], scope)];
+        return [];
+      });
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          cursor: 'permissions',
+          event: new RealtimeEvent({
+            event: { case: 'rolePermissionsChanged', value: { roleName: 'everyone' } }
+          })
+        })
+      );
+      await expect(store.waitForRealtimeReconciliation()).rejects.toBe(error);
+      expect([...store.projection.rooms.keys()]).toEqual([id]);
+      expect(store.projection.rooms.get(id)?.viewerState?.isMember).toBe(true);
+    }
+  );
+
+  it('opens a newly loaded DM even when the unrelated channel read fails', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+      if (family === 'channelRooms') throw new Error('channels unavailable');
+      if (family === 'directMessages')
+        return [roomResource([member('dm', RoomKind.DM)], RoomDirectoryScope.DMS)];
+      return [];
+    });
+    await store.ensureRoomAvailable('dm');
+    expect(store.projection.rooms.get('dm')?.hasMessageHistory).toBe(true);
+    await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('channels unavailable');
+  });
+
+  it.each([
+    { id: 'channel', kind: RoomKind.CHANNEL, family: 'channelRooms' },
+    { id: 'dm', kind: RoomKind.DM, family: 'directMessages' }
+  ])('refreshes only $family for a known room event', async ({ id, kind, family }) => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.rooms.set(id, member(id, kind));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ event: { case: 'roomReadStateChanged', value: { roomId: id } } })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([read]) => read)).toEqual([family]);
   });
 });
 
@@ -5214,7 +5421,7 @@ describe('ServerStateStore realtime resource hints', () => {
         ]);
       store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ resource: rooms() }));
       apiMocks.readRealtimeResource.mockImplementation(async (family) => {
-        if (family === 'rooms') return [rooms()];
+        if (family === 'channelRooms') return [rooms()];
         if (family === 'activeCalls')
           return [
             new RealtimeResourceUpdate({
@@ -5283,17 +5490,33 @@ describe('ServerStateStore realtime resource hints', () => {
     ['voiceCallParticipantLeft', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallStarted', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallEnded', { roomId: 'R1' }, ['activeCalls']],
-    ['roomCreated', { roomId: 'R1' }, ['rooms', 'roomGroups']],
-    ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups', 'activeCalls']],
-    ['roomInvitationCreated', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
-    ['roomInvitationAccepted', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
-    ['roomInvitationDeclined', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
-    ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
-    ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomCreated', { roomId: 'R1' }, ['channelRooms', 'roomGroups']],
+    [
+      'roomUniversalChanged',
+      { roomId: 'R1' },
+      ['channelRooms', 'directMessages', 'roomGroups', 'activeCalls']
+    ],
+    ['roomInvitationCreated', { roomId: 'R1', invitationId: 'I1' }, ['channelRooms', 'roomGroups']],
+    [
+      'roomInvitationAccepted',
+      { roomId: 'R1', invitationId: 'I1' },
+      ['channelRooms', 'roomGroups']
+    ],
+    [
+      'roomInvitationDeclined',
+      { roomId: 'R1', invitationId: 'I1' },
+      ['channelRooms', 'roomGroups']
+    ],
+    [
+      'roomThreadingModeChanged',
+      { roomId: 'R1' },
+      ['channelRooms', 'directMessages', 'roomGroups']
+    ],
+    ['roomDeleted', { roomId: 'R1' }, ['channelRooms', 'directMessages', 'roomGroups']],
     ['roomLayoutChanged', {}, ['roomGroups']],
     ['serverProfileChanged', {}, ['server']],
     ['serverMotdChanged', {}, ['serverState']],
-    ['viewerPreferencesChanged', {}, ['viewer', 'rooms']]
+    ['viewerPreferencesChanged', {}, ['viewer', 'channelRooms', 'directMessages']]
   ] as const)('reads the resources that a %s event changes', async (kind, value, families) => {
     const store = makeStore(new FakeServerConnection([]));
     store.rooms.members('R1');

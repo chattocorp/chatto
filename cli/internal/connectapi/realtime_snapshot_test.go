@@ -152,6 +152,97 @@ func TestBuildRealtimeSnapshotHidesDMHistoryWithoutReadPermission(t *testing.T) 
 	t.Fatalf("DM %q is absent from realtime snapshot", dm.GetId())
 }
 
+// DM reading stays allowed through the everyone baseline, with no account or
+// DM-role overrides. Disabling room.list must not hide a nonempty DM in the
+// fresh room resources that the client uses after a reload.
+func TestDMHistorySurvivesReloadWithoutRoomListPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "history-reload-peer", "History Reload Peer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignOwnerRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	if err := env.core.ClearServerPermissionState(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("clear room.list baseline: %v", err)
+	}
+	ctx := withBearerCredential(env.ctx, env.viewer, "history-reload-session")
+	canList, err := env.core.HasServerPermission(ctx, env.viewer.Id, core.PermRoomList)
+	if err != nil || canList {
+		t.Fatalf("server room.list = %v, %v; want false, nil", canList, err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(ctx, env.viewer.Id, []string{peer.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	const body = "DM history must survive a UI reload"
+	post, err := env.core.PostMessage(ctx, core.KindDM, dm.Id, env.viewer.Id, body, nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	const peerBody = "A recent message from the other participant"
+	peerPost, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, peer.Id, peerBody, nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage from peer: %v", err)
+	}
+
+	// Direct entry works with shield off: the viewer can read the actual post.
+	timeline, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: dm.Id, Limit: 20}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	if got := timelinePageEvent(timeline.Msg.GetPage(), post.Id).GetMessagePosted().GetMessage().GetBody(); got != body {
+		t.Fatalf("readable message body = %q, want %q", got, body)
+	}
+	if got := timelinePageEvent(timeline.Msg.GetPage(), peerPost.Id).GetMessagePosted().GetMessage().GetBody(); got != peerBody {
+		t.Fatalf("readable peer message body = %q, want %q", got, peerBody)
+	}
+
+	// Shield mode must not change whether this DM has message history.
+	armed, err := env.api.BuildRealtimeSnapshot(withArmedBearerCredential(env.ctx, env.viewer, "history-reload-session"), env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeSnapshot with shield: %v", err)
+	}
+	if room := directoryRoomsByID(armed.Rooms.GetRooms())[dm.Id]; room == nil || !room.GetHasMessageHistory() {
+		t.Fatal("DM history is absent with shield active")
+	}
+
+	snapshot, err := env.api.BuildRealtimeSnapshot(ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeSnapshot without shield: %v", err)
+	}
+	listed, err := env.directory.ListRooms(ctx, connect.NewRequest(&apiv1.ListRoomsRequest{
+		Scope: apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS,
+	}))
+	if err != nil {
+		t.Fatalf("ListRooms without shield: %v", err)
+	}
+	for _, resource := range []struct {
+		name  string
+		rooms []*apiv1.RoomWithViewerState
+	}{
+		{"snapshot", snapshot.Rooms.GetRooms()},
+		{"directory", listed.Msg.GetRooms()},
+	} {
+		t.Run(resource.name, func(t *testing.T) {
+			room := directoryRoomsByID(resource.rooms)[dm.Id]
+			if room == nil || !room.GetViewerState().GetIsMember() {
+				t.Fatal("DM membership is absent from the fresh room resource")
+			}
+			if !apiRoomPermissionGranted(room, core.PermMessageRead) {
+				t.Fatal("message.read must remain allowed with shield off")
+			}
+			if room.GetLastMessageAt() == nil || room.GetLastRootMessageAt() == nil {
+				t.Error("readable DM is missing its activity timestamps")
+			}
+			if !room.GetHasMessageHistory() {
+				t.Error("fresh room resource marks a readable, nonempty DM as empty; the sidebar hides it after reload")
+			}
+		})
+	}
+}
+
 func TestDMWithDeletedParticipantKeepsTheParticipant(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "deleted-dm-peer", "Deleted DM Peer", "password")

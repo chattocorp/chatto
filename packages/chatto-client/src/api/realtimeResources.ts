@@ -1,4 +1,5 @@
 import { listAllDirectoryRooms } from './roomPages.js';
+import { roomMatchesDirectoryScope } from './roomDirectory.js';
 import { createChattoClient, type ConnectAPIConfig, minimumCursorHeaders } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
@@ -9,7 +10,8 @@ import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import {
   type ListRoomGroupsResponse,
-  ListRoomsResponse
+  ListRoomsResponse,
+  RoomDirectoryScope
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type {
@@ -24,7 +26,15 @@ const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 const USER_BATCH_SIZE = 100;
 
 export type RealtimeResourceFamily =
-  'server' | 'serverState' | 'viewer' | 'rooms' | 'roomGroups' | 'notifications' | 'activeCalls';
+  | 'server'
+  | 'serverState'
+  | 'viewer'
+  | 'rooms'
+  | 'channelRooms'
+  | 'directMessages'
+  | 'roomGroups'
+  | 'notifications'
+  | 'activeCalls';
 
 export type RealtimeResource =
   | { case: 'server'; value: ServerPublicProfile }
@@ -32,7 +42,12 @@ export type RealtimeResource =
   | { case: 'runtimeConfig'; value: GetRuntimeConfigResponse }
   | { case: 'viewer'; value: GetViewerResponse }
   | { case: 'users'; value: { users: DirectoryMember[] } }
-  | { case: 'rooms'; value: ListRoomsResponse }
+  | {
+      case: 'rooms';
+      value: ListRoomsResponse;
+      /** Only this kind is replaced. Omitted for a combined wire snapshot. */
+      scope?: RoomDirectoryScope;
+    }
   | { case: 'roomGroups'; value: ListRoomGroupsResponse }
   | { case: 'notifications'; value: ListNotificationOccurrencesResponse }
   | { case: 'activeCalls'; value: ListActiveCallsResponse };
@@ -40,7 +55,7 @@ export type RealtimeResource =
 /** One canonical ConnectRPC resource response applied to local server state. */
 export class RealtimeResourceUpdate {
   readonly resource: RealtimeResource;
-  /** Replace the complete resource family instead of merging returned rows. */
+  /** Replace the resource family instead of merging rows. Room resources replace only their scope. */
   readonly replace: boolean;
 
   constructor(init: { resource: RealtimeResource; replace?: boolean }) {
@@ -88,12 +103,26 @@ export function createRealtimeResourceAPI(config: ConnectAPIConfig) {
         const response = await viewer.getViewer({}, options(minimumCursor));
         return [new RealtimeResourceUpdate({ resource: { case: 'viewer', value: response } })];
       }
-      case 'rooms': {
+      case 'rooms':
+      case 'channelRooms':
+      case 'directMessages': {
+        // The runtime loads each kind independently. Keep the combined read
+        // available for hosts that explicitly need the complete directory.
+        const scope =
+          family === 'channelRooms'
+            ? RoomDirectoryScope.CHANNELS
+            : family === 'directMessages'
+              ? RoomDirectoryScope.DMS
+              : RoomDirectoryScope.ALL;
         const entries = await listAllDirectoryRooms((page) =>
-          rooms.listRooms({ page }, options(minimumCursor))
+          rooms.listRooms({ scope, page }, options(minimumCursor))
         );
-        const response = new ListRoomsResponse({ rooms: entries });
-        return [new RealtimeResourceUpdate({ resource: { case: 'rooms', value: response } })];
+        const response = new ListRoomsResponse({
+          rooms: entries.filter((entry) => roomMatchesDirectoryScope(entry.room?.kind, scope))
+        });
+        return [
+          new RealtimeResourceUpdate({ resource: { case: 'rooms', value: response, scope } })
+        ];
       }
       case 'roomGroups': {
         const response = await rooms.listRoomGroups({}, options(minimumCursor));

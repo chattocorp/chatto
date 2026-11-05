@@ -7,6 +7,8 @@ import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 import { createRealtimeResourceAPI } from '../realtimeResources.js';
+import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   fakeServer,
   mockService,
@@ -87,35 +89,83 @@ describe('createRealtimeResourceAPI', () => {
     expect(users.listUsers).not.toHaveBeenCalled();
   });
 
-  it('collects every room page before replacing the directory and retains the cursor', async () => {
-    rooms.listRooms
-      .mockReturnValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
-      .mockReturnValueOnce({ rooms: [{ room: { id: 'b' } }], page: { hasMore: false } });
-    const [update] = await realtimeAPI().read('rooms', 'cursor');
-    expect(update.replace).toBe(true);
-    expect(update.resource.case).toBe('rooms');
-    if (update.resource.case !== 'rooms') throw new Error('expected rooms');
-    expect(update.resource.value.rooms.map((entry) => entry.room?.id)).toEqual(['a', 'b']);
-    expect(rooms.listRooms.mock.calls.map(([request]) => request.page)).toMatchObject([
-      { limit: 100, offset: 0 },
-      { limit: 100, offset: 1 }
-    ]);
-    for (const [, context] of rooms.listRooms.mock.calls) {
-      expect(context.requestHeader.get('Chatto-Realtime-Minimum-Cursor')).toBe('cursor');
+  it.each([
+    { family: 'channelRooms', scope: RoomDirectoryScope.CHANNELS, kind: RoomKind.CHANNEL },
+    { family: 'directMessages', scope: RoomDirectoryScope.DMS, kind: RoomKind.DM }
+  ] as const)(
+    'collects every $family page independently at the minimum cursor',
+    async ({ family, scope, kind }) => {
+      rooms.listRooms
+        .mockReturnValueOnce({ rooms: [{ room: { id: 'a', kind } }], page: { hasMore: true } })
+        .mockReturnValueOnce({ rooms: [{ room: { id: 'b', kind } }], page: { hasMore: false } });
+      const [update] = await realtimeAPI().read(family, 'cursor');
+      expect(update.replace).toBe(true);
+      expect(update.resource.case).toBe('rooms');
+      if (update.resource.case !== 'rooms') throw new Error('expected rooms');
+      expect(update.resource.scope).toBe(scope);
+      expect(update.resource.value.rooms.map((entry) => entry.room?.id)).toEqual(['a', 'b']);
+      expect(rooms.listRooms.mock.calls.map(([request]) => request.page)).toMatchObject([
+        { limit: 100, offset: 0 },
+        { limit: 100, offset: 1 }
+      ]);
+      for (const [, context] of rooms.listRooms.mock.calls) {
+        expect(context.requestHeader.get('Chatto-Realtime-Minimum-Cursor')).toBe('cursor');
+      }
+      expect(rooms.listRooms.mock.calls.every(([request]) => request.scope === scope)).toBe(true);
     }
+  );
+
+  it.each(['channelRooms', 'directMessages'] as const)(
+    'rejects a failed later %s page instead of returning a partial replacement',
+    async (family) => {
+      rooms.listRooms
+        .mockReturnValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
+        .mockImplementationOnce(() => {
+          throw new ConnectError('second page failed', Code.Unavailable);
+        });
+      await expect(realtimeAPI().read(family)).rejects.toMatchObject({
+        code: Code.Unavailable,
+        rawMessage: 'second page failed'
+      });
+    }
+  );
+
+  it('keeps DM collection independent when the channel list changes between pages', async () => {
+    const channels = Array.from({ length: 100 }, (_, index) => ({
+      room: { id: `channel-${index}`, kind: RoomKind.CHANNEL }
+    }));
+    const dm = { room: { id: 'dm', kind: RoomKind.DM }, hasMessageHistory: true };
+    const requests: Array<{ scope: RoomDirectoryScope; offset: number }> = [];
+    rooms.listRooms.mockImplementation(({ scope, page }) => {
+      requests.push({ scope, offset: page?.offset ?? 0 });
+      if (scope === RoomDirectoryScope.DMS) return { rooms: [dm] };
+      return { rooms: channels, page: { hasMore: false } };
+    });
+    const api = realtimeAPI();
+    const [channelUpdate] = await api.read('channelRooms');
+    channels.shift();
+    const [dmUpdate] = await api.read('directMessages');
+    expect(
+      channelUpdate.resource.case === 'rooms' && channelUpdate.resource.value.rooms
+    ).toHaveLength(100);
+    expect(dmUpdate.resource.case === 'rooms' && dmUpdate.resource.value.rooms).toMatchObject([dm]);
+    expect(requests).toEqual([
+      { scope: RoomDirectoryScope.CHANNELS, offset: 0 },
+      { scope: RoomDirectoryScope.DMS, offset: 0 }
+    ]);
   });
 
-  it('rejects a failed later room page instead of returning a partial replacement', async () => {
-    rooms.listRooms
-      .mockReturnValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
-      .mockImplementationOnce(() => {
-        throw new ConnectError('second page failed', Code.Unavailable);
-      });
-    await expect(realtimeAPI().read('rooms')).rejects.toMatchObject({
-      code: Code.Unavailable,
-      rawMessage: 'second page failed'
-    });
-  });
+  it.each([
+    { family: 'channelRooms', kind: RoomKind.DM },
+    { family: 'directMessages', kind: RoomKind.CHANNEL }
+  ] as const)(
+    'does not publish the other kind from a mis-scoped $family response',
+    async ({ family, kind }) => {
+      rooms.listRooms.mockReturnValue({ rooms: [{ room: { id: 'other', kind } }] });
+      const [update] = await realtimeAPI().read(family);
+      expect(update.resource.case === 'rooms' && update.resource.value.rooms).toEqual([]);
+    }
+  );
 
   it('rejects an empty continuation instead of looping', async () => {
     rooms.listRooms.mockReturnValue({ rooms: [], page: { hasMore: true } });

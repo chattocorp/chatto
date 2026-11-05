@@ -106,6 +106,22 @@ the server rejects the key or does not support this client, and, without
   `notifications.occurrences`, `projection.users`, and `rooms.messages(id)`
   for a paged, live room timeline.
 
+### Room directory updates
+
+The client reads channel rooms and DMs through separate directory requests.
+Each request collects all pages for its own kind before it replaces that kind
+in `projection.rooms`. Both kinds still share one room map and one realtime
+connection. A combined realtime snapshot replaces both kinds.
+
+A failed recovery read does not discard a successful read of the other kind.
+The shared recovery cursor advances only after all required reads succeed.
+During a permission check, a failed directory read clears only its own kind.
+
+If an `onUpdate` listener copies room resources, use the room resource's
+`scope` when replacing the copy. `CHANNELS` replaces channel rooms only;
+`DMS` replaces DMs only. An omitted scope or `ALL` replaces both kinds.
+Read `projection.rooms` when the listener needs the complete current room map.
+
 ### Live timelines and room stores
 
 `rooms.messages(roomId)` and `rooms.thread(roomId, rootId)` return a live

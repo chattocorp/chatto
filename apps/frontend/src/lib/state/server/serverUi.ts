@@ -18,6 +18,7 @@ import { roomNoticeDismissalKey, writeNoticeDismissal } from '$lib/storage/roomN
 import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { createMessageSearchAPI, type MessageSearchAPI } from '@chatto/client/api/messageSearch';
 import { createRoomCommandAPI } from '@chatto/client/api/rooms';
+import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { createVoiceCallAPI } from '@chatto/client/api/voiceCalls';
 import type { RealtimeEvent } from '@chatto/client';
 import type { ServerStateStore } from '@chatto/client/server/store';
@@ -171,19 +172,27 @@ export class ServerUi {
     });
     store.onUpdate((update) => {
       const resource = update.resource?.case;
+      const roomsUpdate = update.resource?.case === 'rooms' ? update.resource : null;
       // A reset temporarily removes room data, not call access. Keep the media
       // session until fresh permissions arrive; the server also enforces
       // LiveKit access.
-      if (resource === 'rooms') {
+      if (roomsUpdate) {
         void this.voiceCall.reconcilePermissions();
-        // The projected rooms confirm or replace optimistic state.
-        for (const [roomId, room] of store.projection.rooms) {
+        // Only returned rooms confirm optimistic changes. A channel response
+        // does not acknowledge a DM command or unread change that is in flight.
+        for (const room of roomsUpdate.value.rooms) {
+          const roomId = room.room?.id;
+          if (!roomId) continue;
           this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
           this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);
         }
       }
       if (resource === 'viewer') this.roomUnread.acknowledgeViewerProjection();
-      if (update.reset || resource === 'rooms' || resource === 'roomGroups') {
+      if (
+        update.reset ||
+        (roomsUpdate && roomsUpdate.scope !== RoomDirectoryScope.DMS) ||
+        resource === 'roomGroups'
+      ) {
         if (this.#adminRoomLayoutActive) this.adminRoomLayout.requestProjectionRefresh();
       }
       this.#handleCallEvent(update.event);
