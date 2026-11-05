@@ -2617,6 +2617,7 @@ describe('VoiceCallState', () => {
     );
     const audioTrack = {
       source: 'microphone',
+      mediaStream: processed,
       mediaStreamTrack
     };
     const publication = { source: 'microphone', isMuted: false, track: audioTrack, audioTrack };
@@ -2637,6 +2638,7 @@ describe('VoiceCallState', () => {
       await state.join('wss://livekit.example.test', 'R1');
       await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
       expect(analysedTracks).toContain(capture.getAudioTracks()[0]);
+      expect(analysedTracks).toContain(mediaStreamTrack);
       expect(analysedTracks).not.toContain(processed.getAudioTracks()[0]);
       level = 0;
       remote.audioLevel = 0.9;

@@ -1591,27 +1591,29 @@ export class VoiceCallState implements CallConnection {
     const tracks: Array<readonly [string, MediaStreamTrack]> = [];
     for (const participant of allParticipants) {
       if (isParticipantMuted(participant)) continue;
+      const isLocal = participant === this.room.localParticipant;
       // Listener-local mute and zero volume pause delivery. Keep the SDK activity
       // fallback for those participants, so their speaking indicator stays useful.
       if (
-        participant !== this.room.localParticipant &&
+        !isLocal &&
         (this.isParticipantLocallyMuted(participant.identity) ||
           this.getParticipantAudio(participant.identity).voiceVolume === 0)
       )
         continue;
-      const track =
-        participant === this.room.localParticipant
-          ? participant.getTrackPublication(Track.Source.Microphone)?.audioTrack
-          : participant
-              .getTrackPublications()
-              .find(
-                (publication) =>
-                  publication.source === Track.Source.Microphone ||
-                  publication.track?.source === Track.Source.Microphone
-              )?.audioTrack;
+      const track = isLocal
+        ? participant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+        : participant
+            .getTrackPublications()
+            .find(
+              (publication) =>
+                publication.source === Track.Source.Microphone ||
+                publication.track?.source === Track.Source.Microphone
+            )?.audioTrack;
       // LocalTrack retains original capture in mediaStream while mediaStreamTrack
       // can refer to the noise gate output. Settings and fog need pre-gate input.
-      const source = track?.mediaStream?.getAudioTracks()[0] ?? track?.mediaStreamTrack;
+      const source = isLocal
+        ? (track?.mediaStream?.getAudioTracks()[0] ?? track?.mediaStreamTrack)
+        : track?.mediaStreamTrack;
       if (source) tracks.push([participant.identity, source]);
     }
     this.audioLevels.update(tracks);
