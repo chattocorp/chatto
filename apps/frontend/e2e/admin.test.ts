@@ -562,14 +562,18 @@ test.describe('User Permission Management', () => {
 });
 
 test.describe('Role Assignment', () => {
-  test('everyone role page shows special message instead of user list', async ({
+  test('everyone Members section shows special message instead of user list', async ({
     page,
     adminPage
   }) => {
     await createAndLoginAdminUser(page);
 
-    // Navigate to everyone role page
+    // Open the membership section of the everyone role.
     await adminPage.gotoRole('everyone');
+    await page
+      .getByRole('navigation', { name: 'Role Details' })
+      .getByRole('link', { name: 'Members', exact: true })
+      .click();
 
     // Should see special message about implicit membership
     await adminPage.expectMemberRoleMessage();

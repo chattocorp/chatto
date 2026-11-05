@@ -175,6 +175,7 @@
       "back_to_permissions": "Powrót do uprawnień",
       "load_instance_failed": "Nie udało się załadować instancji",
       "need_manage_create": "Aby tworzyć role, potrzebujesz uprawnień role.manage.",
+      "role_tab": "Rola",
       "edit_role_title": "Edytuj rolę",
       "loading_role": "Ładowanie roli...",
       "role_not_found": "Nie znaleziono roli",

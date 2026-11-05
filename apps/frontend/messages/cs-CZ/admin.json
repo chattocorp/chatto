@@ -175,6 +175,7 @@
       "back_to_permissions": "Zpět k oprávněním",
       "load_instance_failed": "Načtení instance se nezdařilo",
       "need_manage_create": "K vytváření rolí potřebujete oprávnění roles.manage.",
+      "role_tab": "Role",
       "edit_role_title": "Upravit roli",
       "loading_role": "Načítání role...",
       "role_not_found": "Role nenalezena",

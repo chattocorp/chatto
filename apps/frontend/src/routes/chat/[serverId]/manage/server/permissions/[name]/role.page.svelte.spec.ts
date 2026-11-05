@@ -6,6 +6,7 @@ beforeAll(() => loadLocaleMessages('en-GB'));
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { render } from 'vitest-browser-svelte';
 import type { RoleDetails, RoleMemberPage, ServerRole } from '@chatto/client/api/roles';
 import { adminQueryKeys } from '$lib/query/admin';
@@ -18,7 +19,8 @@ const { mocks } = vi.hoisted(() => ({
     listMembers: vi.fn(),
     updateRole: vi.fn(),
     deleteRole: vi.fn(),
-    goto: vi.fn()
+    goto: vi.fn(),
+    beforeNavigate: vi.fn()
   }
 }));
 
@@ -32,8 +34,9 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$app/navigation', () => ({ goto: mocks.goto }));
+vi.mock('$app/navigation', () => ({ goto: mocks.goto, beforeNavigate: mocks.beforeNavigate }));
 vi.mock('$app/paths', () => ({
+  base: '',
   resolve: (path: string, params?: Record<string, string>) =>
     Object.entries(params ?? {}).reduce(
       (resolved, [key, value]) => resolved.replace(`[${key}]`, value),
@@ -58,6 +61,8 @@ vi.mock('$lib/ui', async () => ({
   LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
   Panel: (await import('$lib/ui/Panel.svelte')).default,
   Hint: (await import('./RolePageSnippetMock.svelte')).default,
+  TabNav: (await import('$lib/ui/TabNav.svelte')).default,
+  ConfirmDialog: (await import('./RolePageSnippetMock.svelte')).default,
   PaneContent: (await import('./RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/components/rbac', async () => ({
@@ -77,7 +82,7 @@ vi.mock('$lib/ui/toast', () => ({
 let activeRoleName = $state('role-a');
 let server: TestServerScope;
 
-import RolePage from './+page.svelte';
+import RolePage from './RolePage.svelte';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -146,6 +151,111 @@ describe('role management page identity', () => {
     );
   });
 
+  it('shows role metadata and links to separate members and permissions sections', async () => {
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', ''));
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+    const nav = container.querySelector('nav')!;
+    expect([...nav.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual([
+      'Role',
+      'Members',
+      'Permissions'
+    ]);
+    expect(nav.querySelector('[aria-current="page"]')?.getAttribute('href')).toBe(
+      '/chat/origin/manage/server/permissions/role-a'
+    );
+    expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
+    expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();
+    expect(mocks.listMembers).not.toHaveBeenCalled();
+  });
+
+  it('shows only the permission matrix in the permissions section', async () => {
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', ''));
+    const { container } = render(RolePage, { section: 'permissions' });
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="role-permissions"]')).not.toBeNull()
+    );
+    expect(container.querySelector('input')).toBeNull();
+    expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
+    expect(mocks.listMembers).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[aria-current="page"]')?.textContent?.trim()).toBe(
+        'Permissions'
+      )
+    );
+  });
+
+  it('waits for role authority before mounting the permissions section', async () => {
+    const pendingRole = deferred<RoleDetails>();
+    mocks.getRole.mockReturnValue(pendingRole.promise);
+    const { container } = render(RolePage, { section: 'permissions' });
+    await vi.waitFor(() => expect(mocks.getRole).toHaveBeenCalledOnce());
+    expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();
+
+    pendingRole.resolve({ ...details('role-a', 'Role A', ''), viewerCanManageRoles: false });
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('You do not have permission to do that.')
+    );
+    expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();
+    expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
+    expect(mocks.listMembers).not.toHaveBeenCalled();
+  });
+
+  it.each(['role', 'members', 'permissions'] as const)(
+    'shows a failed role read in the %s section',
+    async (section) => {
+      mocks.getRole.mockRejectedValue(new ConnectError('Denied', Code.PermissionDenied));
+      const { container } = render(RolePage, { section });
+      await vi.waitFor(() =>
+        expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+          'You do not have permission to do that.'
+        )
+      );
+      expect(container.textContent).not.toContain('Role not found');
+      expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();
+      expect(mocks.listMembers).not.toHaveBeenCalled();
+    }
+  );
+
+  it('shows automatic everyone membership without requesting a roster', async () => {
+    activeRoleName = 'everyone';
+    mocks.getRole.mockResolvedValue({
+      ...details('everyone', 'Everyone', ''),
+      viewerCanAssignRoles: false
+    });
+    const { container } = render(RolePage, { section: 'members' });
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain(
+        'All server members have the everyone role implicitly.'
+      )
+    );
+    expect(container.querySelector('[aria-current="page"]')?.textContent?.trim()).toBe('Members');
+    expect(mocks.listMembers).not.toHaveBeenCalled();
+  });
+
+  it('blocks section navigation when role metadata has unsaved changes', async () => {
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', ''));
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+    const navigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    const cancel = vi.fn();
+    const navigation = {
+      type: 'link',
+      to: { url: new URL('https://chatto.test/members') },
+      cancel
+    };
+    navigate(navigation);
+    expect(cancel).not.toHaveBeenCalled();
+
+    const input = container.querySelector('#displayName') as HTMLInputElement;
+    input.value = 'Unsaved name';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    navigate(navigation);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(mocks.updateRole).not.toHaveBeenCalled();
+  });
+
   it('shows the roster without exposing editors to a role assigner', async () => {
     mocks.getRole.mockResolvedValue({
       ...details('role-a', 'Role A', ''),
@@ -169,7 +279,7 @@ describe('role management page identity', () => {
         hasMore: name === 'role-a'
       });
     });
-    const { container } = render(RolePage);
+    const { container } = render(RolePage, { section: 'members' });
     await vi.waitFor(() => expect(container.textContent).toContain('role-a member'));
     (
       Array.from(container.querySelectorAll('button')).find(
@@ -238,17 +348,13 @@ describe('role management page identity', () => {
     expect((container.querySelector('#description') as HTMLTextAreaElement).value).toBe(
       'Role B description'
     );
-    expect(container.querySelector('[data-testid="role-users"]')?.textContent).toContain(
-      'Role B User'
-    );
+    expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
 
     roleA.resolve(details('role-a', 'Role A', 'Role A description'));
     await settle();
     expect(container.querySelector('code')?.textContent).toBe('role-b');
     expect((container.querySelector('#displayName') as HTMLInputElement).value).toBe('Role B');
-    expect(container.querySelector('[data-testid="role-users"]')?.textContent).not.toContain(
-      'Role A User'
-    );
+    expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
   });
 
   it('reuses a fresh cached role snapshot after remounting', async () => {

@@ -175,6 +175,7 @@
       "back_to_permissions": "Atgriezties pie atļaujām",
       "load_instance_failed": "Neizdevās ielādēt gadījumu",
       "need_manage_create": "Lai izveidotu lomas, nepieciešama lomas.manage atļauja.",
+      "role_tab": "Loma",
       "edit_role_title": "Rediģēt lomu",
       "loading_role": "Notiek lomas ielāde...",
       "role_not_found": "Loma nav atrasta",

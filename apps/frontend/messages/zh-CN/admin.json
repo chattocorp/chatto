@@ -175,6 +175,7 @@
       "back_to_permissions": "返回权限",
       "load_instance_failed": "加载实例失败",
       "need_manage_create": "你需要 roles.manage 权限才能创建角色。",
+      "role_tab": "角色",
       "edit_role_title": "编辑角色",
       "loading_role": "正在加载角色...",
       "role_not_found": "未找到角色",

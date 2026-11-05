@@ -175,6 +175,7 @@
       "back_to_permissions": "חזרה להרשאות",
       "load_instance_failed": "טעינת המופע נכשלה",
       "need_manage_create": "אתה צריך את ההרשאה roles.manage כדי ליצור תפקידים.",
+      "role_tab": "תפקיד",
       "edit_role_title": "עריכת תפקיד",
       "loading_role": "טוען תפקיד...",
       "role_not_found": "התפקיד לא נמצא",

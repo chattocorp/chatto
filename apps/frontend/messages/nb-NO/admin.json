@@ -175,6 +175,7 @@
       "back_to_permissions": "Tilbake til tillatelser",
       "load_instance_failed": "Kunne ikke laste forekomsten",
       "need_manage_create": "Du trenger roles.manage-tillatelsen for å opprette roller.",
+      "role_tab": "Rolle",
       "edit_role_title": "Rediger rolle",
       "loading_role": "Laster inn rolle...",
       "role_not_found": "Rollen ble ikke funnet",

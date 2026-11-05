@@ -175,6 +175,7 @@
       "back_to_permissions": "Reen al permesoj",
       "load_instance_failed": "Malsukcesis ŝargi ekzemplon",
       "need_manage_create": "Vi bezonas la rolojn.administri permeson por krei rolojn.",
+      "role_tab": "Rolo",
       "edit_role_title": "Redakti Rolon",
       "loading_role": "Ŝarĝante rolon...",
       "role_not_found": "Rolo ne trovita",

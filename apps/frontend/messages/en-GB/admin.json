@@ -175,6 +175,7 @@
       "back_to_permissions": "Back to permissions",
       "load_instance_failed": "Failed to load instance",
       "need_manage_create": "You need the roles.manage permission to create roles.",
+      "role_tab": "Role",
       "edit_role_title": "Edit Role",
       "loading_role": "Loading role...",
       "role_not_found": "Role not found",

@@ -175,6 +175,7 @@
       "back_to_permissions": "Torniamo ai permessi",
       "load_instance_failed": "Impossibile caricare l'istanza",
       "need_manage_create": "Per creare ruoli è necessaria l'autorizzazione plans.manage.",
+      "role_tab": "Ruolo",
       "edit_role_title": "Modifica ruolo",
       "loading_role": "Caricamento ruolo...",
       "role_not_found": "Ruolo non trovato",

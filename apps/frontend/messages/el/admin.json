@@ -175,6 +175,7 @@
       "back_to_permissions": "Επιστροφή στα δικαιώματα",
       "load_instance_failed": "Αποτυχία φόρτωσης εγκατάστασης",
       "need_manage_create": "Χρειάζεστε το δικαίωμα roles.manage για να δημιουργήσετε ρόλους.",
+      "role_tab": "Ρόλος",
       "edit_role_title": "Επεξεργασία ρόλου",
       "loading_role": "Φόρτωση ρόλου...",
       "role_not_found": "Ο ρόλος δεν βρέθηκε",
