@@ -15,6 +15,7 @@
     preferences,
     onDeviceChange,
     onBoostChange,
+    onThresholdChange,
     inCall = false,
     callLevel = 0,
     gateUnavailable = false
@@ -23,6 +24,7 @@
     /** The active call owns switching and persists only successful changes. */
     onDeviceChange?: (kind: MediaDeviceKind, deviceId: string) => Promise<void>;
     onBoostChange?: (enabled: boolean) => Promise<void>;
+    onThresholdChange?: (value: number) => Promise<void>;
     inCall?: boolean;
     callLevel?: number;
     gateUnavailable?: boolean;
@@ -103,7 +105,7 @@
             devices.filter((device) => device.kind === 'audiooutput')
           )
         : '',
-      () => (preferences.voiceBoosting ? preferences.microphoneThreshold : -60),
+      () => preferences.microphoneThreshold,
       () => preferences.effects
     );
     if (alive) await refresh();
@@ -177,6 +179,7 @@
           <MicrophoneProcessing
             {preferences}
             {onBoostChange}
+            {onThresholdChange}
             level={inCall ? callLevel : test.level}
             unavailable={inCall ? gateUnavailable : test.gateUnavailable}
           />

@@ -48,6 +48,6 @@
   <CallDeviceSettingsStoryHarness inCall effects threshold={-30} gateUnavailable />
 </Story>
 
-<Story name="Voice boosting off" asChild>
+<Story name="Noise gate without voice boosting" asChild>
   <CallDeviceSettingsStoryHarness inCall threshold={-35} effects={false} />
 </Story>

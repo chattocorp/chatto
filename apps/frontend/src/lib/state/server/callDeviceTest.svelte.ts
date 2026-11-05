@@ -1,3 +1,4 @@
+import { CallAudioLevels } from '$lib/audio/callAudioLevels';
 import { microphoneCaptureOptions } from '$lib/audio/microphoneCapture';
 import { normalizeMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
@@ -19,6 +20,7 @@ export class CallDeviceTest {
   error = $state(false);
   gateUnavailable = $state(false);
   #processor: MicrophoneProcessor | null = null;
+  #audioLevels = new CallAudioLevels();
   #generation = 0;
   #stream: MediaStream | null = null;
   #context: AudioContext | null = null;
@@ -71,6 +73,7 @@ export class CallDeviceTest {
         return;
       }
       this.#stream = stream;
+      document.addEventListener('visibilitychange', this.#handleVisibilityChange);
       stream.getAudioTracks().forEach((track) =>
         track.addEventListener(
           'ended',
@@ -84,7 +87,10 @@ export class CallDeviceTest {
         )
       );
       let processor: MicrophoneProcessor | undefined;
-      let readLevel = () => 0;
+      const readLevel = () => {
+        this.#audioLevels.update([['microphone', { mediaStream: stream }]]);
+        return this.#audioLevels.get('microphone') ?? processor?.level ?? 0;
+      };
       let recordedStream = stream;
       if (processing) {
         const context = new AudioContext();
@@ -100,7 +106,6 @@ export class CallDeviceTest {
         if (generation !== this.#generation) return;
         this.gateUnavailable = processor.unavailable;
         recordedStream = new MediaStream([processor.processedTrack ?? stream.getAudioTracks()[0]]);
-        readLevel = () => processor!.level;
         await context.resume();
         if (generation !== this.#generation) return;
       }
@@ -255,7 +260,13 @@ export class CallDeviceTest {
     else if (speakerId) throw new Error('Output selection unavailable');
   }
 
+  #handleVisibilityChange = (): void => {
+    if (document.hidden) this.#audioLevels.clear();
+  };
+
   #releaseCapture(): void {
+    document.removeEventListener('visibilitychange', this.#handleVisibilityChange);
+    this.#audioLevels.clear();
     if (this.#timeout) clearTimeout(this.#timeout);
     this.#timeout = null;
     cancelAnimationFrame(this.#frame);

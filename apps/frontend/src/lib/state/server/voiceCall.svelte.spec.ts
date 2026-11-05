@@ -39,6 +39,7 @@ import {
 import { Room } from 'livekit-client';
 import { participantVolumeGain } from '$lib/audio/participantVolume';
 
+const NativeAudioContext = window.AudioContext;
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
 let lastKeyProvider: { setKey: ReturnType<typeof vi.fn> } | null = null;
@@ -1212,7 +1213,7 @@ describe('VoiceCallState', () => {
     }
   });
 
-  it('attaches only on opt-in and removes processing while keeping the call connected', async () => {
+  it('runs the gate independently and removes processing only when both controls are off', async () => {
     const preferences = new CallPreferencesState('call-effects');
     preferences.setVoiceBoosting(false);
     preferences.setMicrophoneThreshold(-20);
@@ -1233,15 +1234,91 @@ describe('VoiceCallState', () => {
     );
     try {
       await state.join('wss://livekit.example.test', 'R1');
-      expect(setProcessor).not.toHaveBeenCalled();
+      expect(setProcessor).toHaveBeenCalledOnce();
+      expect(preferences.voiceBoosting).toBe(false);
       await state.setVoiceBoosting(true);
       expect(setProcessor).toHaveBeenCalledOnce();
       await state.setVoiceBoosting(false);
+      expect(stopProcessor).not.toHaveBeenCalled();
+      expect(preferences.microphoneThreshold).toBe(-20);
+      await state.setMicrophoneThreshold(-60);
       expect(stopProcessor).toHaveBeenCalledOnce();
       expect(processor).toBeUndefined();
       expect(state.connected).toBe(true);
       expect(state.isMuted).toBe(false);
-      expect(preferences.microphoneThreshold).toBe(-20);
+      expect(preferences.microphoneThreshold).toBe(-60);
+    } finally {
+      await state.leave();
+    }
+  });
+
+  it('enables and changes the gate with Boost off, and retains its setting if removal fails', async () => {
+    const preferences = new CallPreferencesState('independent-gate');
+    let processor: import('$lib/audio/microphoneProcessor').MicrophoneProcessor | undefined;
+    const setProcessor = vi.fn(async (value) => {
+      processor = value;
+    });
+    const stopProcessor = vi.fn().mockRejectedValue(new Error('Cannot remove processor'));
+    mockMicrophonePublication = {
+      audioTrack: { getProcessor: vi.fn(() => processor), setProcessor, stopProcessor }
+    };
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({ start: true, join: true, voice: true, camera: true, screenshare: true }),
+      preferences
+    );
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(setProcessor).not.toHaveBeenCalled();
+      await state.setMicrophoneThreshold(-30);
+      expect(setProcessor).toHaveBeenCalledOnce();
+      expect(preferences.voiceBoosting).toBe(false);
+      expect(preferences.effects.polish).toBe(0);
+      const threshold = vi.spyOn(processor!, 'setThreshold');
+      await state.setMicrophoneThreshold(-25);
+      expect(threshold).toHaveBeenCalledWith(-25);
+      await state.setMicrophoneThreshold(-60);
+      expect(stopProcessor).toHaveBeenCalledOnce();
+      expect(preferences.microphoneThreshold).toBe(-25);
+      expect(state.microphoneGateUnavailable).toBe(true);
+      expect(state.connected).toBe(true);
+    } finally {
+      await state.leave();
+    }
+  });
+
+  it('keeps a later gate choice when an earlier processor removal fails', async () => {
+    const preferences = new CallPreferencesState('queued-gate');
+    preferences.setMicrophoneThreshold(-30);
+    let processor: unknown;
+    let rejectRemoval: (reason: Error) => void = () => {};
+    const removal = new Promise<void>((_resolve, reject) => {
+      rejectRemoval = reject;
+    });
+    const stopProcessor = vi.fn(() => removal);
+    mockMicrophonePublication = {
+      audioTrack: {
+        getProcessor: vi.fn(() => processor),
+        setProcessor: vi.fn(async (value) => {
+          processor = value;
+        }),
+        stopProcessor
+      }
+    };
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({ start: true, join: true, voice: true, camera: true, screenshare: true }),
+      preferences
+    );
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      const disable = state.setMicrophoneThreshold(-60);
+      await vi.waitFor(() => expect(stopProcessor).toHaveBeenCalledOnce());
+      const change = state.setMicrophoneThreshold(-40);
+      rejectRemoval(new Error('Cannot remove processor'));
+      await Promise.all([disable, change]);
+      expect(preferences.microphoneThreshold).toBe(-40);
+      expect(preferences.voiceBoosting).toBe(false);
     } finally {
       await state.leave();
     }
@@ -2503,7 +2580,76 @@ describe('VoiceCallState', () => {
     ).toMatchObject({ login: 'automation_bot', isBot: true });
   });
 
-  it('uses SDK remote activity without creating a decoded-audio meter', async () => {
+  it('shows decoded activity and silence even while server speaker levels are stale', async () => {
+    let level = 0.2;
+    const sourceContext = new NativeAudioContext();
+    const mediaStreamTrack = sourceContext
+      .createMediaStreamDestination()
+      .stream.getAudioTracks()[0];
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        state = 'running';
+        resume = vi.fn().mockResolvedValue(undefined);
+        close = vi.fn().mockResolvedValue(undefined);
+        createMediaStreamSource = () => ({ connect: vi.fn(), disconnect: vi.fn() });
+        createAnalyser = () => ({
+          fftSize: 1024,
+          getFloatTimeDomainData: (samples: Float32Array) => samples.fill(level),
+          disconnect: vi.fn()
+        });
+      }
+    );
+    const audioTrack = {
+      source: 'microphone',
+      mediaStreamTrack
+    };
+    const publication = { source: 'microphone', isMuted: false, track: audioTrack, audioTrack };
+    const remote = {
+      identity: 'meter-user',
+      name: 'Remote',
+      metadata: '{}',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: vi.fn(),
+      trackPublications: new Map(),
+      getTrackPublications: () => [publication]
+    };
+    mockRemoteParticipants.set(remote.identity, remote);
+    const state = createPermittedCallState(createVoiceCallClient());
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
+      level = 0;
+      remote.audioLevel = 0.9;
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBe(0);
+      level = 0.2;
+      state.toggleParticipantLocalMute(remote.identity);
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBe(0.9);
+      state.toggleParticipantLocalMute(remote.identity);
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
+      state.setParticipantVolume(remote.identity, 'voiceVolume', 0);
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBe(0.9);
+      state.setParticipantVolume(remote.identity, 'voiceVolume', 100);
+      publication.isMuted = true;
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBe(0);
+      publication.isMuted = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      await expect.poll(() => state.getAudioLevel(remote.identity).audioLevel).toBeCloseTo(0.2);
+      vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(state.getAudioLevel(remote.identity).audioLevel).toBe(0);
+    } finally {
+      await state.leave();
+      mediaStreamTrack.stop();
+      await sourceContext.close();
+      vi.restoreAllMocks();
+    }
+    expect(state.getAudioLevel(remote.identity).audioLevel).toBe(0);
+  });
+
+  it('uses SDK remote activity as a fallback when local measurement is unavailable', async () => {
     const remote = {
       identity: 'remote-user',
       name: 'Remote',
@@ -2513,7 +2659,7 @@ describe('VoiceCallState', () => {
       audioLevel: 0.1,
       setVolume: vi.fn(),
       trackPublications: new Map(),
-      getTrackPublications: () => []
+      getTrackPublications: () => [{ isMuted: false, track: { source: 'microphone' } }]
     };
     mockRemoteParticipants.set(remote.identity, remote);
     const state = createPermittedCallState(createVoiceCallClient());

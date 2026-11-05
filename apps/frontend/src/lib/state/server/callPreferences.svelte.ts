@@ -49,7 +49,7 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
-  /** Explicit opt-in to microphone enhancement and the optional noise gate. */
+  /** Explicit opt-in to microphone enhancement, independent of the noise gate. */
   voiceBoostingEnabled: boolean;
 }
 

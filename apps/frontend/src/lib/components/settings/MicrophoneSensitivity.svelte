@@ -8,12 +8,14 @@
     preferences,
     level = 0,
     unavailable = false,
-    id = 'microphone-sensitivity'
+    id = 'microphone-sensitivity',
+    onThresholdChange
   }: {
     preferences: CallPreferencesState;
     level?: number;
     unavailable?: boolean;
     id?: string;
+    onThresholdChange?: (value: number) => Promise<void>;
   } = $props();
 </script>
 
@@ -25,12 +27,14 @@
     max={0}
     bind:value={
       () => preferences.microphoneThreshold,
-      (value) => preferences.setMicrophoneThreshold(value ?? -60)
+      (value) =>
+        onThresholdChange
+          ? void onThresholdChange(value ?? -60)
+          : preferences.setMicrophoneThreshold(value ?? -60)
     }
     displayValue={preferences.microphoneThreshold === -60
       ? m('voice.preferences.gate_off')
       : `${preferences.microphoneThreshold} dB`}
-    disabled={unavailable}
   />
   <div
     role="meter"

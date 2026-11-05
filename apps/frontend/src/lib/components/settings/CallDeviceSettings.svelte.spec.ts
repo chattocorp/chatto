@@ -160,7 +160,6 @@ describe('Call device settings', () => {
       visibleMicrophone
     ]);
     const preferences = new CallPreferencesState('threshold-control');
-    preferences.setVoiceBoosting(true);
     const screen = render(CallDeviceSettings, { preferences });
     const slider = screen.container.querySelector<HTMLInputElement>('input[type=range]')!;
     slider.focus();
@@ -445,7 +444,7 @@ describe('Call device settings', () => {
   });
 });
 
-it('offers default-off voice boosting and hides the gate until enabled', async () => {
+it('keeps the noise gate visible and independent of default-off voice boosting', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
     visibleCamera,
     visibleMicrophone
@@ -455,7 +454,7 @@ it('offers default-off voice boosting and hides the gate until enabled', async (
   const screen = render(CallDeviceSettings, { preferences });
   const checkbox = screen.getByRole('checkbox', { name: 'Voice Boosting' });
   await expect.element(checkbox).not.toBeChecked();
-  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(0);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(1);
   checkbox.element().focus();
   await userEvent.keyboard(' ');
   await expect.element(checkbox).toBeChecked();
@@ -466,7 +465,7 @@ it('offers default-off voice boosting and hides the gate until enabled', async (
   expect(new CallPreferencesState('voice-ui').voiceBoosting).toBe(false);
   expect(preferences.effects.treble).toBe(0);
   expect(preferences.microphoneThreshold).toBe(-30);
-  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(0);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(1);
 });
 
 it('disables voice boosting when processing is unavailable', async () => {
@@ -535,4 +534,27 @@ it('lets the call own Boost changes and allows disabling a failed processor', as
   await userEvent.keyboard(' ');
   expect(change).toHaveBeenCalledWith(false);
   await expect.element(checkbox).not.toBeChecked();
+});
+
+it('routes independent gate changes through the active call and keeps Off available after a failure', async () => {
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
+    visibleCamera,
+    visibleMicrophone
+  ]);
+  const preferences = new CallPreferencesState('active-gate');
+  preferences.setMicrophoneThreshold(-30);
+  const change = vi.fn(async (value: number) => preferences.setMicrophoneThreshold(value));
+  const screen = render(CallDeviceSettings, {
+    preferences,
+    inCall: true,
+    gateUnavailable: true,
+    onThresholdChange: change
+  });
+  const slider = screen.getByRole('slider', { name: 'Noise gate threshold' });
+  await expect.element(slider).toBeEnabled();
+  slider.element().focus();
+  await userEvent.keyboard('{Home}');
+  expect(change).toHaveBeenCalledWith(-60);
+  expect(preferences.microphoneThreshold).toBe(-60);
+  expect(preferences.voiceBoosting).toBe(false);
 });
