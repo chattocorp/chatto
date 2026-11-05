@@ -1,0 +1,35 @@
+min_version = "2026.8.9"
+
+[tools]
+# Node and pnpm come from the repository mise.toml. Bun builds standalone apps.
+bun = "1.4.4"
+
+[tasks.setup]
+description = "Install the workspace dependencies for the GPUix app"
+dir = "{{config_root}}"
+run = "pnpm install --frozen-lockfile"
+
+[tasks.dev]
+description = "Run the GPUix app with Svelte hot reload"
+dir = "{{config_root}}"
+run = "pnpm dev"
+
+[tasks.check]
+description = "Check all TypeScript and native Svelte components"
+dir = "{{config_root}}"
+run = "pnpm check"
+
+[tasks.test]
+description = "Test the native UI headlessly on macOS or Windows"
+dir = "{{config_root}}"
+run = "pnpm test"
+
+[tasks.build]
+description = "Build the standalone GPUix app for this platform"
+dir = "{{config_root}}"
+run = "pnpm build"
+
+[tasks.gallery]
+description = "Run the native component gallery without a server"
+dir = "{{config_root}}"
+run = "pnpm gallery"

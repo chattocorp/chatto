@@ -630,8 +630,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # The frontend suite is the longest, so it runs on its own runner. The other
-    # entry excludes only the frontend, so new workspace tests run without a
-    # matrix change.
+    # entry excludes the frontend; both entries exclude local experiments.
+    # New product workspace tests run without a matrix change.
     name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -675,7 +675,7 @@ jobs:
       - name: Run workspace unit tests
         env:
           TURBO_FILTER: ${{ matrix.filter }}
-        run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER"
+        run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER" '--filter=!./experimental/*'
 
   test-workspace:
     needs: [changes, test-workspace-packages]

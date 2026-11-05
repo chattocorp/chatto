@@ -1,0 +1,20 @@
+min_version = "2026.8.9"
+
+[tools]
+# Keep this version equal to rust-toolchain.toml.
+rust = "1.92.0"
+
+[tasks.check]
+description = "Check Rust formatting and lint all client targets"
+dir = "{{config_root}}"
+run = ["cargo fmt --all -- --check", "cargo clippy --locked --all-targets -- -D warnings"]
+
+[tasks.test]
+description = "Test the Rust client against synthetic HTTP fixtures"
+dir = "{{config_root}}"
+run = "cargo test --locked --all-targets"
+
+[tasks.build]
+description = "Build the Rust client"
+dir = "{{config_root}}"
+run = "cargo build --locked"

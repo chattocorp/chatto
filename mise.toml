@@ -1053,7 +1053,7 @@ depends = ["setup-frontend"]
 run = "pnpm run check"
 
 [tasks.test-workspace]
-description = "Run all pnpm workspace package tests"
+description = "Run pnpm workspace package tests except local experiments"
 depends = ["setup-frontend"]
 run = "pnpm test"
 

@@ -20,7 +20,7 @@
     "format": "prettier --write",
     "format:check": "prettier --check",
     "format:changed": "node tools/check-format.mjs",
-    "test": "pnpm turbo run test --concurrency=1",
+    "test": "pnpm turbo run test --concurrency=1 \"--filter=!./experimental/*\"",
     "test:translatto": "pnpm turbo run test --filter=@chatto/translatto",
     "test:frontend": "pnpm turbo run test --filter=chatto-frontend",
     "test:frontend:focused": "pnpm turbo run test:focused --filter=chatto-frontend --output-logs=new-only --"
