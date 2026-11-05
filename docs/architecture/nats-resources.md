@@ -30,6 +30,10 @@ Chatto provisions its core streams, KV buckets, and Object Stores through
 snapshot storage. Chatto owns resource configuration and identity metadata.
 The shared framework owns the bounded retry and cancellation mechanics.
 
+Concurrent startup preserves published `EVT` and `NOTIFICATIONS` identities
+and metadata. An earlier result that the stream does not exist must not clear
+metadata that another replica has stored.
+
 Chatto allows three attempts, with delays of 25 ms and 50 ms. Request deadline
 errors are retried only while the parent startup context remains active. The
 existing transient store-creation and stream-name conflict errors are also

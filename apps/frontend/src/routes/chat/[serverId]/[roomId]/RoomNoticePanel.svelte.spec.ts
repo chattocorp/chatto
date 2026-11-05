@@ -65,15 +65,20 @@ describe('RoomNoticePanel', () => {
           }
         ],
         viewerLogin: 'bob',
-        searchMembers: vi.fn(async () => [
-          {
-            id: 'alice-id',
-            login: 'alice',
-            displayName: 'Alice Remote',
-            avatarUrl: null,
-            presenceStatus: 0
-          }
-        ]),
+        // A bare @ must keep the loaded member first after the search completes.
+        searchMembers: vi.fn(async (query: string) =>
+          query
+            ? [
+                {
+                  id: 'alice-id',
+                  login: 'alice',
+                  displayName: 'Alice Remote',
+                  avatarUrl: null,
+                  presenceStatus: 0
+                }
+              ]
+            : []
+        ),
         onMentionClick
       };
       const view = render(RoomNoticePanel, {

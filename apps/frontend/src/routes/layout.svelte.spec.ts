@@ -392,16 +392,23 @@ describe('room member navigation boundary', () => {
     try {
       renderLayout();
       const navigate = mocks.afterNavigate.mock.calls.at(-1)![0];
-      await navigate({ from: null, to: { route: page.route } });
+      // Native resize events can arrive after the previous viewport test.
+      // Check each synchronous trigger before yielding to browser events.
+      mocks.appUi.loadVisibleRoomMembers.mockClear();
+      const entered = navigate({ from: null, to: { route: page.route } });
       expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledOnce();
+      await entered;
 
       page.route.id = '/chat/[serverId]/[roomId]/[threadId]';
       Object.assign(page, { params: { serverId: '-', roomId: 'room-2', threadId: 'thread' } });
       await tick();
-      await navigate({ from: null, to: { route: page.route } });
-      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledTimes(2);
+      mocks.appUi.loadVisibleRoomMembers.mockClear();
+      const changedRoom = navigate({ from: null, to: { route: page.route } });
+      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledOnce();
+      await changedRoom;
+      mocks.appUi.loadVisibleRoomMembers.mockClear();
       window.dispatchEvent(new Event('resize'));
-      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledTimes(3);
+      expect(mocks.appUi.loadVisibleRoomMembers).toHaveBeenCalledOnce();
       expect(loadRoomMembers).not.toHaveBeenCalled();
     } finally {
       page.route.id = '/';

@@ -1352,15 +1352,18 @@ test.describe('Clickable Notification Badges', () => {
     await expect(roomNotificationBadge).toHaveText('1');
 
     // Click the notification badge (not the room link itself).
-    await roomNotificationBadge.click();
+    const target = roomPage.getMessage(messageText).locator;
+    // Start observing before navigation can consume the brief highlight flash.
+    await Promise.all([
+      expect(target).toHaveClass(/highlight-flash/),
+      roomNotificationBadge.click()
+    ]);
 
     // Verify navigated to general room. Highlight intent is delivered via
     // PendingHighlightStore now (not ?highlight= URL param), so the URL is clean.
     await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
-    const target = roomPage.getMessage(messageText).locator;
     await expect(target).toBeInViewport();
-    await expect(target).toHaveClass(/highlight-flash/);
 
     // Verify notification badge is gone (notification was marked read).
     await expect(roomNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

@@ -121,6 +121,14 @@ runs:
       shell: bash
       run: mise setup-cli
 
+    - name: Download Go build and test dependencies
+      if: inputs.install-cli-deps == 'true'
+      shell: bash
+      working-directory: cli
+      # Fetch only imported packages. Listing dependencies does not compile or
+      # run tests, so a transport retry cannot hide a test failure.
+      run: node ../tools/ci-retry-download.mjs go list -deps -test -tags bootstrap,test_endpoints ./... > /dev/null
+
     - name: Set up Frontend
       if: inputs.install-frontend-deps == 'true'
       shell: bash
