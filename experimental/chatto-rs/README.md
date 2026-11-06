@@ -19,6 +19,17 @@ The asynchronous methods require a Tokio runtime:
   the password. The returned `HumanSession` provides an authenticated `client()`,
   access/session expiry estimates, explicit refresh methods, and `logout()` to
   revoke the session.
+- `oauth::discover(origin)` reads public server discovery. `oauth::Flow::new`
+  builds an S256 PKCE authorization URL. The host opens the browser and accepts
+  one callback after exact route, state, duplicate-parameter, and issuer checks.
+  `exchange()` returns a `HumanSession`. The host owns callback transport and
+  secure persistence. Do not log or save flow secrets or callback URLs.
+- `SessionCredentials::oauth_client_id` retains the client identity needed for
+  refresh. Old serialized password sessions default to an empty identity.
+  Rust callers that construct credentials directly must set this new field.
+- `attachment_urls(room_id, asset_ids)` renews signed asset URLs through
+  `AssetService/BatchGetAssets`. Keep returned URLs in the same account/room
+  scope. This does not download image bytes or contact third-party media hosts.
 - `server_profile()`, `room_groups()`, `profiles()`, and `notification_counts()`
   read sidebar resources. `mark_room_read()` is an explicit read command.
 - `viewer()` reads the authenticated account's public profile.

@@ -14,6 +14,7 @@ use std::{
 use reqwest::{header, redirect::Policy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+pub mod oauth;
 pub mod realtime;
 mod wire;
 use serde_json::{Value, json};
@@ -164,6 +165,29 @@ impl Client {
         serde_json::from_slice(&bytes).map_err(|_| Error::InvalidResponse)
     }
 
+    /// Renew signed attachment URLs through the authorized room contract.
+    /// The host must not reuse returned URLs across accounts or rooms.
+    pub async fn attachment_urls(
+        &self,
+        room_id: &str,
+        asset_ids: &[String],
+    ) -> Result<Value, Error> {
+        if room_id.is_empty()
+            || asset_ids.is_empty()
+            || asset_ids.len() > 32
+            || asset_ids.iter().any(String::is_empty)
+        {
+            return Err(Error::InvalidInput(
+                "A room and one to 32 asset IDs are required",
+            ));
+        }
+        self.call(
+            "AssetService/BatchGetAssets",
+            json!({"roomId":room_id,"assetIds":asset_ids,"thumbnail":{"width":800,"height":600}}),
+        )
+        .await
+    }
+
     /// Sign in through the server's direct-login endpoint. The server must allow
     /// password login. Passwords are neither retained nor logged. The request is
     /// anonymous, bounded, and never follows redirects or retries.
@@ -205,6 +229,7 @@ impl Client {
             client,
             access_token: response.token,
             refresh_request_id: String::new(),
+            oauth_client_id: String::new(),
             refresh_token: response.refresh_token,
             access_expires_at: now
                 .checked_add(Duration::from_secs(response.expires_in as u64))
@@ -394,6 +419,7 @@ pub struct HumanSession {
     client: Client,
     access_token: String,
     refresh_request_id: String,
+    oauth_client_id: String,
     refresh_token: String,
     /// The access token's local expiry estimate from the server's lifetime.
     pub access_expires_at: SystemTime,
@@ -414,6 +440,7 @@ impl HumanSession {
             access_token: self.access_token.clone(),
             refresh_token: self.refresh_token.clone(),
             refresh_request_id: self.refresh_request_id.clone(),
+            oauth_client_id: self.oauth_client_id.clone(),
             access_expires_at: self.access_expires_at,
             session_expires_at: self.session_expires_at,
         }
@@ -431,6 +458,7 @@ impl HumanSession {
             access_token: saved.access_token,
             refresh_token: saved.refresh_token,
             refresh_request_id: saved.refresh_request_id,
+            oauth_client_id: saved.oauth_client_id,
             access_expires_at: saved.access_expires_at,
             session_expires_at: saved.session_expires_at,
         })
@@ -462,7 +490,7 @@ impl HumanSession {
             .post(
                 "/oauth/token",
                 json!({"grant_type":"refresh_token", "refresh_token":self.refresh_token,
-            "refresh_request_id":self.refresh_request_id,"client_id":""}),
+            "refresh_request_id":self.refresh_request_id,"client_id":self.oauth_client_id}),
                 false,
             )
             .await?;
@@ -476,6 +504,7 @@ impl HumanSession {
         let now = SystemTime::now();
         Self::restore(SessionCredentials {
             origin: self.client.origin.to_string(),
+            oauth_client_id: self.oauth_client_id.clone(),
             access_token: response.access_token,
             refresh_token: response.refresh_token,
             refresh_request_id: String::new(),
@@ -512,6 +541,8 @@ pub struct Profile {
     pub id: String,
     pub login: String,
     pub display_name: String,
+    /// Optional server-provided image address; hosts choose when and how to load it.
+    pub avatar_url: Option<String>,
 }
 
 /// Directory metadata; it does not grant access to the room's history.
@@ -667,6 +698,9 @@ pub struct SessionCredentials {
     pub refresh_token: String,
     /// Retain this exact UUID across uncertain refresh attempts.
     pub refresh_request_id: String,
+    /// OAuth identity required for refresh; empty for legacy password sessions.
+    #[serde(default)]
+    pub oauth_client_id: String,
     pub access_expires_at: SystemTime,
     pub session_expires_at: SystemTime,
 }
@@ -676,6 +710,13 @@ pub struct SessionCredentials {
 #[serde(default)]
 pub struct ServerProfile {
     pub name: String,
+    #[serde(default, rename = "logoUrl")]
+    pub logo_url: Option<String>,
+    /// Optional sidebar artwork supplied by the server. Hosts control image reads.
+    #[serde(default, rename = "bannerUrl")]
+    pub banner_url: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 /// Ordered channel navigation supplied by the server.

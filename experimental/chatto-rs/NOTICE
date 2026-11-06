@@ -15,3 +15,6 @@ The Rust client uses these libraries:
 - tokio-tungstenite (https://github.com/snapview/tokio-tungstenite) - MIT
 - rustls (https://github.com/rustls/rustls) - Apache-2.0 OR ISC OR MIT
   TLS uses rustls through reqwest and tokio-tungstenite.
+
+Browser OAuth also uses sha2 (https://github.com/RustCrypto/hashes) and
+base64 (https://github.com/marshallpierce/rust-base64), both MIT OR Apache-2.0.

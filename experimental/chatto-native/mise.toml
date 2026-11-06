@@ -2,7 +2,7 @@ min_version = "2026.8.9"
 
 [tools]
 # Keep this version equal to rust-toolchain.toml.
-rust = "1.92.0"
+rust = "1.99.0"
 
 [tasks.dev]
 description = "Run the native app"
@@ -23,3 +23,8 @@ run = ["cargo fmt --all -- --check", "cargo clippy --locked --all-targets -- -D 
 description = "Run the native app test targets"
 dir = "{{config_root}}"
 run = "cargo test --locked --all-targets"
+
+[tasks.preview]
+description = "Open the offline interface preview"
+dir = "{{config_root}}"
+run = "cargo run --locked -- --preview"
