@@ -60,6 +60,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Electron's bundled Chromium WebRTC implementation. Camera and microphone
   requests use operating-system permission prompts; screen sharing requires an
   explicit native source choice.
+- Linux Wayland screen sharing uses the system portal to select a screen or
+  window. Chatto does not show an additional dialog for the portal's unnamed
+  source. The desktop session must provide PipeWire and a screen-sharing
+  portal backend. X11 uses Chatto's source dialog. Linux shares video only;
+  cancellation or a failed capture request does not start a share.
 - Every macOS build embeds a native screen-capture provider. The shared
   screen-share control opens a Chatto-owned picker of ordinary visible windows
   and complete displays, with static in-memory previews. Window capture
