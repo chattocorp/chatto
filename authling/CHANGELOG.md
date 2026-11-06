@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.4](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.3...authling/v0.1.0-alpha.4) (2026-11-06)
+
+
+### Bug Fixes
+
+* **frontend:** restore responsive voice activity and independent noise gate ([#3516](https://github.com/chattocorp/chatto/issues/3516)) ([3c8ae1a](https://github.com/chattocorp/chatto/commit/3c8ae1ad5c2d9f212c266b8077bec541688a1e0f))
+
 ## [0.1.0-alpha.3](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.2...authling/v0.1.0-alpha.3) (2026-11-02)
 
 
