@@ -297,7 +297,7 @@
         "empty": "Ingen OAuth-klienter er autorisert",
         "application": "App",
         "origins": "Tilbakekallingsopprinnelser",
-        "users": "Autoriserte brukere",
+        "users": "Brukere",
         "last_authorization": "Siste autorisering",
         "policy": "Retningslinje",
         "policy_for": "Retningslinje for {client}",

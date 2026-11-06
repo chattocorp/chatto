@@ -297,7 +297,7 @@
         "empty": "לא אושרו לקוחות OAuth",
         "application": "יישום",
         "origins": "מקורות חזרה",
-        "users": "משתמשים מורשים",
+        "users": "משתמשים",
         "last_authorization": "הרשאה אחרונה",
         "policy": "מדיניות",
         "policy_for": "מדיניות עבור {client}",

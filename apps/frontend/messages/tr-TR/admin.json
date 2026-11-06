@@ -297,7 +297,7 @@
         "empty": "Hiçbir OAuth istemcisi yetkilendirilmedi",
         "application": "Uygulama",
         "origins": "Geri çağırma kaynakları",
-        "users": "Yetkili kullanıcılar",
+        "users": "Kullanıcılar",
         "last_authorization": "Son yetkilendirme",
         "policy": "İlke",
         "policy_for": "{client} için ilke",

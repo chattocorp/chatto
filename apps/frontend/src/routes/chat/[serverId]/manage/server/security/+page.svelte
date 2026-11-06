@@ -8,7 +8,7 @@
     type EditableOAuthClientPolicyName
   } from '$lib/api/oauthClients';
   import { getServerSecurityConfig, updateBlockedUsernames } from '@chatto/client/api/serverState';
-  import { PaneHeader, PageTitle, DataTable, Panel, Hint, PaneContent, LoadingFog } from '$lib/ui';
+  import { PaneHeader, PageTitle, Panel, Hint, PaneContent, LoadingFog, EmptyState } from '$lib/ui';
   import { TextArea, Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -16,17 +16,13 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
-  import { getLocale } from '$lib/i18n/runtime';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import { parseWebLink } from '$lib/navigation/webLink';
+  import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 
   const PAGE_SIZE = 20;
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
-  const activeLocale = $derived(getLocale());
-  let scrollContainer = $state<HTMLDivElement>();
   const session = createSessionGuard(serverScope);
 
   type SecurityMutationVariables = SessionSnapshot & {
@@ -205,15 +201,17 @@
     );
   }
 
-  function formatTimestamp(value: string): string {
-    return formatDateTime(value, userSettings, activeLocale);
-  }
-
   async function loadMoreOAuthClients() {
     if (!oauthClientsLoading && !oauthClientsLoadingMore && oauthClientsHasMore) {
       await oauthClientsQuery.fetchNextPage();
     }
   }
+
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () => (oauthClientsHasMore ? oauthClients.length : null),
+    loadMore: loadMoreOAuthClients,
+    hasError: () => oauthClientsQuery.isError
+  });
 </script>
 
 <PageTitle
@@ -223,7 +221,7 @@
 <div class="pane-page">
   <PaneHeader title={m('admin.security.title')} subtitle={m('admin.security.subtitle')} />
 
-  <PaneContent bind:scrollContainer>
+  <PaneContent>
     <div class="flex flex-col gap-6">
       <Panel
         title={m('admin.security.blocked_usernames')}
@@ -266,59 +264,72 @@
           <div class="p-5"><Hint tone="danger">{errorMessage(oauthClientsQuery.error)}</Hint></div>
         {/if}
         {#if oauthClientsQuery.data !== undefined}
-          <DataTable
-            items={oauthClients}
-            columns={5}
-            getKey={(client) => client.clientId}
-            emptyMessage={m('admin.security.oauth_clients.empty')}
-            hasMore={oauthClientsHasMore}
-            loadingMore={oauthClientsLoadingMore}
-            onLoadMore={loadMoreOAuthClients}
-            loadMoreRoot={scrollContainer}
-            loadingMoreMessage={m('admin.common.loading')}
+          <ul
+            class="@container/oauth-clients selectable-list"
+            aria-label={m('admin.security.oauth_clients.title')}
           >
-            {#snippet header()}
-              <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
-              <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
-              <th class="table-header-cell">{m('admin.security.oauth_clients.users')}</th>
-              <th class="table-header-cell"
-                >{m('admin.security.oauth_clients.last_authorization')}</th
-              >
-              <th class="table-header-cell">{m('admin.security.oauth_clients.policy')}</th>
-            {/snippet}
-            {#snippet row(client)}
-              <td class="max-w-72 px-4 py-3 align-top">
-                <div class="font-medium">{client.clientName || m('admin.common.unknown')}</div>
-                <div class="mt-1 truncate font-mono text-xs text-muted" title={client.clientId}>
-                  <bdi dir="ltr">{client.clientId}</bdi>
+            {#each oauthClients as client (client.clientId)}
+              {@const metadataURL = parseWebLink(client.clientId)}
+              <li class="selectable-list-item p-3">
+                <div
+                  class="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] gap-4 @xl/oauth-clients:grid-cols-[minmax(0,1fr)_4rem_10rem]"
+                >
+                  <div class="col-span-2 min-w-0 @xl/oauth-clients:col-span-1">
+                    <h3 class="font-medium wrap-anywhere">
+                      <bdi>{client.clientName || m('admin.common.unknown')}</bdi>
+                    </h3>
+                    <div class="mt-1 text-sm wrap-anywhere text-muted">
+                      {#each client.redirectOrigins as origin, index (origin)}
+                        {#if index > 0},
+                        {/if}
+                        {#if metadataURL}
+                          <a
+                            {...renderedLinkTarget(metadataURL.href)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="link"><bdi dir="ltr">{origin}</bdi></a
+                          >
+                        {:else}
+                          <bdi dir="ltr">{origin}</bdi>
+                        {/if}
+                      {/each}
+                    </div>
+                  </div>
+                  <div>
+                    <p class="mb-1.5 text-sm font-medium">
+                      {m('admin.security.oauth_clients.users')}
+                    </p>
+                    <p>{client.authorizedUserCount}</p>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="mb-1.5 text-sm font-medium">
+                      {m('admin.security.oauth_clients.policy')}
+                    </p>
+                    <Select
+                      id={`oauth-client-policy-${client.clientId}`}
+                      name="oauth-client-policy"
+                      label={m('admin.security.oauth_clients.policy_for', {
+                        client: client.clientName || client.clientId
+                      })}
+                      labelHidden
+                      value={client.policy}
+                      options={oauthClientPolicyOptions(client)}
+                      disabled={client.policy === 'unknown' || policySaving(client)}
+                      onValueChange={(policy) => updateOAuthClientPolicy(client, policy)}
+                    />
+                  </div>
                 </div>
-              </td>
-              <td class="max-w-64 px-4 py-3 align-top text-sm text-muted">
-                {#each client.redirectOrigins as origin, index (origin)}
-                  {#if index > 0},
-                  {/if}<bdi dir="ltr">{origin}</bdi>
-                {/each}
-              </td>
-              <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
-              <td class="px-4 py-3 align-top text-sm whitespace-nowrap text-muted">
-                {formatTimestamp(client.lastAuthorizationAt)}
-              </td>
-              <td class="min-w-44 px-4 py-3 align-top">
-                <Select
-                  id={`oauth-client-policy-${client.clientId}`}
-                  name="oauth-client-policy"
-                  label={m('admin.security.oauth_clients.policy_for', {
-                    client: client.clientName || client.clientId
-                  })}
-                  labelHidden
-                  value={client.policy}
-                  options={oauthClientPolicyOptions(client)}
-                  disabled={client.policy === 'unknown' || policySaving(client)}
-                  onValueChange={(policy) => updateOAuthClientPolicy(client, policy)}
-                />
-              </td>
-            {/snippet}
-          </DataTable>
+              </li>
+            {:else}
+              <li><EmptyState>{m('admin.security.oauth_clients.empty')}</EmptyState></li>
+            {/each}
+          </ul>
+          {#if oauthClientsHasMore}
+            <div class="h-px" aria-hidden="true" {@attach loadMoreWhenVisible}></div>
+          {/if}
+          {#if oauthClientsLoadingMore}
+            <LoadingFog class="m-4 h-10" label={m('admin.common.loading')} />
+          {/if}
         {:else if oauthClientsLoading}
           <LoadingFog class="m-5 h-32" />
         {/if}

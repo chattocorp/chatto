@@ -297,7 +297,7 @@
         "empty": "Es wurden noch keine OAuth-Clients autorisiert",
         "application": "Anwendung",
         "origins": "Callback-Ursprünge",
-        "users": "Autorisierte Benutzer",
+        "users": "Benutzer",
         "last_authorization": "Letzte Autorisierung",
         "policy": "Richtlinie",
         "policy_for": "Richtlinie für {client}",

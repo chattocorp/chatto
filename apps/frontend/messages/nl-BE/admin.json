@@ -297,7 +297,7 @@
         "empty": "Er zijn geen OAuth-clients geautoriseerd",
         "application": "Applicatie",
         "origins": "Callback-origins",
-        "users": "Geautoriseerde gebruikers",
+        "users": "Gebruikers",
         "last_authorization": "Laatste autorisatie",
         "policy": "Beleid",
         "policy_for": "Beleid voor {client}",

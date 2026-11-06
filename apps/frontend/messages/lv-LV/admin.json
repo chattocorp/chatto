@@ -297,7 +297,7 @@
         "empty": "Nav autorizētu OAuth klientu",
         "application": "Lietotne",
         "origins": "Atzvana izcelsmes",
-        "users": "Autorizētie lietotāji",
+        "users": "Lietotāji",
         "last_authorization": "Pēdējā autorizācija",
         "policy": "Politika",
         "policy_for": "Politika klientam {client}",

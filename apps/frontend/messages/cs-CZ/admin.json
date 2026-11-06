@@ -297,7 +297,7 @@
         "empty": "Žádní klienti OAuth nebyli autorizováni",
         "application": "Aplikace",
         "origins": "Počátky zpětného volání",
-        "users": "Autorizovaní uživatelé",
+        "users": "Uživatelé",
         "last_authorization": "Poslední autorizace",
         "policy": "Zásada",
         "policy_for": "Zásada pro {client}",
