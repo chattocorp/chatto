@@ -5,12 +5,13 @@ import { loadLocaleMessages } from '$lib/i18n/messages';
 // Standalone management components do not run the route catalog loader.
 beforeAll(() => loadLocaleMessages('en-GB'));
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { OAuthClient } from '$lib/api/oauthClients';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { serverRegistry } from '$lib/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
@@ -276,6 +277,40 @@ describe('server security query lifecycle', () => {
     await vi.waitFor(() => expect(mocks.listOAuthClients).toHaveBeenCalledTimes(2));
     expect(mocks.success).toHaveBeenCalledWith('OAuth client policy saved');
     expect(policy.value).toBe('blocked');
+  });
+
+  it('keeps a CIMD URL unchanged when its path looks like a Chatto route', async () => {
+    const originSpy = vi.spyOn(serverRegistry, 'originServer', 'get').mockReturnValue({
+      id: 'origin',
+      url: window.location.origin,
+      name: 'Local server',
+      iconUrl: null,
+      token: null,
+      userId: null,
+      userLogin: null,
+      userDisplayName: null,
+      userAvatarUrl: null,
+      reauthRequiredAt: null,
+      addedAt: 1
+    });
+    onTestFinished(() => originSpy.mockRestore());
+    const clientId = `${window.location.origin}/chat/-/client-metadata.json`;
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [
+        {
+          clientId,
+          clientName: 'Local metadata client',
+          policy: 'default',
+          redirectOrigins: [window.location.origin],
+          authorizedUserCount: 1
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.querySelector('a')).not.toBeNull());
+    expect(container.querySelector('a')!.getAttribute('href')).toBe(clientId);
   });
 
   it.each(['chatto://desktop', 'javascript:alert(1)'])(

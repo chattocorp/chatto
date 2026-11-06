@@ -18,7 +18,6 @@
   import { m } from '$lib/i18n/messages';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { parseWebLink } from '$lib/navigation/webLink';
-  import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 
   const PAGE_SIZE = 20;
 
@@ -201,6 +200,13 @@
     );
   }
 
+  /** Keep CIMD destinations exact; metadata paths must not use Chatto route rewriting. */
+  function oauthClientMetadataLink(clientId: string) {
+    return parseWebLink(clientId)
+      ? { href: clientId, target: '_blank', rel: 'noopener noreferrer' }
+      : null;
+  }
+
   async function loadMoreOAuthClients() {
     if (!oauthClientsLoading && !oauthClientsLoadingMore && oauthClientsHasMore) {
       await oauthClientsQuery.fetchNextPage();
@@ -269,7 +275,7 @@
             aria-label={m('admin.security.oauth_clients.title')}
           >
             {#each oauthClients as client (client.clientId)}
-              {@const metadataURL = parseWebLink(client.clientId)}
+              {@const metadataLink = oauthClientMetadataLink(client.clientId)}
               <li class="selectable-list-item p-3">
                 <div
                   class="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] gap-4 @xl/oauth-clients:grid-cols-[minmax(0,1fr)_4rem_10rem]"
@@ -282,13 +288,8 @@
                       {#each client.redirectOrigins as origin, index (origin)}
                         {#if index > 0},
                         {/if}
-                        {#if metadataURL}
-                          <a
-                            {...renderedLinkTarget(metadataURL.href)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="link"><bdi dir="ltr">{origin}</bdi></a
-                          >
+                        {#if metadataLink}
+                          <a {...metadataLink} class="link"><bdi dir="ltr">{origin}</bdi></a>
                         {:else}
                           <bdi dir="ltr">{origin}</bdi>
                         {/if}
