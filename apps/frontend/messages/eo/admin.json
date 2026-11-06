@@ -297,7 +297,7 @@
         "empty": "Neniu OAuth-kliento estas rajtigita",
         "application": "Aplikaĵo",
         "origins": "Revokaj originoj",
-        "users": "Rajtigitaj uzantoj",
+        "users": "Uzantoj",
         "last_authorization": "Lasta rajtigo",
         "policy": "Politiko",
         "policy_for": "Politiko por {client}",

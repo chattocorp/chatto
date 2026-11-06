@@ -297,7 +297,7 @@
         "empty": "لم يتم تفويض أي عميل OAuth",
         "application": "التطبيق",
         "origins": "أصول معاودة الاتصال",
-        "users": "المستخدمون المفوضون",
+        "users": "المستخدمون",
         "last_authorization": "آخر تفويض",
         "policy": "السياسة",
         "policy_for": "سياسة {client}",

@@ -297,7 +297,7 @@
         "empty": "承認された OAuth クライアントはありません",
         "application": "アプリケーション",
         "origins": "コールバックオリジン",
-        "users": "承認済みユーザー",
+        "users": "ユーザー",
         "last_authorization": "最終認可",
         "policy": "ポリシー",
         "policy_for": "{client} のポリシー",

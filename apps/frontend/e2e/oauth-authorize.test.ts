@@ -305,11 +305,23 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
       await adminPage.goto(`${baseURL}/chat/-/manage/server/security`);
 
       const clientID = `${new URL(serverURL).origin}/oauth/frontend-client-metadata.json`;
-      const clientRow = adminPage.getByRole('row').filter({ hasText: 'Chatto Web' });
-      await expect(clientRow).toContainText(clientID, { timeout: TIMEOUTS.COMPLEX_OPERATION });
-      await expect(clientRow.getByRole('cell', { name: '1', exact: true })).toBeVisible();
+      const clientRecord = adminPage
+        .getByRole('list', { name: 'OAuth clients' })
+        .getByRole('listitem')
+        .filter({ has: adminPage.getByRole('heading', { name: 'Chatto Web', exact: true }) });
+      const originLink = clientRecord.getByRole('link', {
+        name: new URL(serverURL).origin,
+        exact: true
+      });
+      await expect(originLink).toHaveAttribute('href', clientID, {
+        timeout: TIMEOUTS.COMPLEX_OPERATION
+      });
+      await expect(originLink).toHaveAttribute('target', '_blank');
+      await expect(clientRecord).not.toContainText(clientID);
+      await expect(clientRecord.getByText('Users', { exact: true })).toBeVisible();
+      await expect(clientRecord.getByText('1', { exact: true })).toBeVisible();
 
-      const policy = clientRow.getByRole('combobox', { name: 'Policy for Chatto Web' });
+      const policy = clientRecord.getByRole('combobox', { name: 'Policy for Chatto Web' });
       const updateResponse = adminPage.waitForResponse(
         (response) =>
           response.url().includes('AdminOAuthClientService/UpdateOAuthClientPolicy') &&

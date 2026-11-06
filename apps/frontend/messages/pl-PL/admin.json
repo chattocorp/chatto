@@ -297,7 +297,7 @@
         "empty": "Nie autoryzowano żadnych klientów OAuth",
         "application": "Aplikacja",
         "origins": "Źródła wywołań zwrotnych",
-        "users": "Autoryzowani użytkownicy",
+        "users": "Użytkownicy",
         "last_authorization": "Ostatnia autoryzacja",
         "policy": "Zasada",
         "policy_for": "Zasada dla {client}",

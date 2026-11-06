@@ -297,7 +297,7 @@
         "empty": "Aucun client OAuth n’a été autorisé",
         "application": "Application",
         "origins": "Origines de rappel",
-        "users": "Utilisateurs autorisés",
+        "users": "Utilisateurs",
         "last_authorization": "Dernière autorisation",
         "policy": "Politique",
         "policy_for": "Politique pour {client}",
