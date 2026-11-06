@@ -3,6 +3,15 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-rc.6](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.5...v0.5.0-rc.6) (2026-11-06)
+
+
+### Bug Fixes
+
+* **desktop:** handle Linux Wayland screen sharing ([#3534](https://github.com/chattocorp/chatto/issues/3534)) ([a62b389](https://github.com/chattocorp/chatto/commit/a62b389d3a7bd5b173f72977dde420b5ba36bdfb))
+* **frontend:** align permission matrix scroll fade with header ([#3531](https://github.com/chattocorp/chatto/issues/3531)) ([986bfce](https://github.com/chattocorp/chatto/commit/986bfce72a18417c916ac5b9a30b6cafc72b4a13))
+* **frontend:** simplify OAuth client settings layout ([#3533](https://github.com/chattocorp/chatto/issues/3533)) ([afbc75e](https://github.com/chattocorp/chatto/commit/afbc75e24580f5f044a62d455a5126d2775eb6a2))
+
 ## [0.5.0-rc.5](https://github.com/chattocorp/chatto/compare/v0.5.0-rc.4...v0.5.0-rc.5) (2026-11-05)
 
 
