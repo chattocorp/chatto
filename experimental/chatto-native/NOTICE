@@ -7,10 +7,28 @@ Cargo.lock record the dependency set, including transitive dependencies.
 The app uses GPUI (https://github.com/zed-industries/zed), licensed under
 Apache-2.0. Copyright 2022 - 2025 Zed Industries, Inc.
 GPUI's native text backend uses zed-font-kit (MIT OR Apache-2.0).
-The app uses gpui-component (https://github.com/longbridge/gpui-component),
-licensed under Apache-2.0, for native controls.
+The app uses GPUI Kit (https://github.com/longbridge/gpui-kit), including
+GPUI Base and GPUI Component, licensed under Apache-2.0, for native controls.
+Its bundled Lucide icons (https://lucide.dev/) use the ISC license, with
+Feather-derived icons under MIT. Copyright 2026 Lucide Icons and Contributors;
+copyright 2013-present Cole Bemis. See assets/LICENSE-LUCIDE.txt.
+
+The app bundles unmodified IBM Plex Sans Regular and SemiBold and IBM Plex
+Mono Regular (https://github.com/IBM/plex), licensed under OFL-1.1.
+Copyright 2017-2018 IBM Corp. with Reserved Font Name "Plex".
+The font license is in assets/OFL.txt. Font source revisions are in the
+adjacent .license files.
+
+The app bundles the unmodified Chatto icon from the web frontend, licensed
+under Apache-2.0. Copyright 2026 ChattoCorp GmbH. See
+assets/chatto-icon.png.license.
 
 The app also uses these libraries:
+- Axum (https://github.com/tokio-rs/axum) - MIT, for the loopback callback
+- image (https://github.com/image-rs/image) - MIT OR Apache-2.0,
+  for bounded raster decoding
+- Chrono (https://github.com/chronotope/chrono) - MIT OR Apache-2.0,
+  for local message times
 - security-framework (https://github.com/kornelski/rust-security-framework) -
   MIT OR Apache-2.0, for macOS Keychain
 - pulldown-cmark (https://github.com/pulldown-cmark/pulldown-cmark) - MIT,
@@ -20,6 +38,8 @@ The app includes the Chatto Rust SDK experiment, licensed under
 AGPL-3.0-or-later.
 
 The Rust client uses these libraries:
+- sha2 (https://github.com/RustCrypto/hashes) - MIT OR Apache-2.0
+- base64 (https://github.com/marshallpierce/rust-base64) - MIT OR Apache-2.0
 - reqwest (https://github.com/seanmonstar/reqwest) - MIT OR Apache-2.0
 - serde and serde_json (https://github.com/serde-rs) - MIT OR Apache-2.0
 - url (https://github.com/servo/rust-url) - MIT OR Apache-2.0

@@ -333,12 +333,15 @@ async fn prepared_refresh_identity_survives_restart_and_uncertain_failure() {
         access_token: "original-access".into(),
         refresh_token: "original-refresh".into(),
         refresh_request_id: String::new(),
+        oauth_client_id: String::new(),
         access_expires_at: std::time::SystemTime::now(),
         session_expires_at: std::time::SystemTime::now() + std::time::Duration::from_secs(3600),
     })
     .unwrap();
     session.prepare_refresh();
-    let saved = serde_json::to_vec(&session.credentials()).unwrap();
+    let mut legacy = serde_json::to_value(session.credentials()).unwrap();
+    legacy.as_object_mut().unwrap().remove("oauth_client_id");
+    let saved = serde_json::to_vec(&legacy).unwrap();
     let request_id = session.credentials().refresh_request_id;
     assert!(uuid::Uuid::parse_str(&request_id).is_ok());
     assert!(matches!(session.refresh().await, Err(Error::Http(503))));
@@ -354,4 +357,124 @@ async fn prepared_refresh_identity_survives_restart_and_uncertain_failure() {
         assert_eq!(input["refresh_token"], "original-refresh");
         assert_eq!(input["grant_type"], "refresh_token");
     }
+}
+
+#[tokio::test]
+async fn browser_oauth_binds_pkce_callback_client_and_durable_refresh_identity() {
+    use base64::Engine;
+    use chatto::oauth::{DESKTOP_CALLBACK, DESKTOP_CLIENT_ID, Flow};
+    use sha2::Digest;
+    let (origin, peer) = fixture(vec![
+        json_response(
+            json!({"access_token":"oauth-access", "refresh_token":"oauth-refresh", "expires_in":900, "refresh_token_expires_in":3600, "token_type":"Bearer"}),
+        ),
+        json_response(
+            json!({"access_token":"rotated-access", "refresh_token":"rotated-refresh", "expires_in":900, "refresh_token_expires_in":3600}),
+        ),
+    ]);
+    let flow = Flow::new(
+        &origin,
+        "/authorize?client_id=untrusted&state=untrusted",
+        DESKTOP_CLIENT_ID,
+        DESKTOP_CALLBACK,
+    )
+    .unwrap();
+    let authorization = flow.authorization_url();
+    assert_eq!(
+        authorization
+            .query_pairs()
+            .filter(|(key, _)| key == "client_id")
+            .count(),
+        1
+    );
+    let state = authorization
+        .query_pairs()
+        .find(|(key, _)| key == "state")
+        .unwrap()
+        .1
+        .into_owned();
+    let challenge = authorization
+        .query_pairs()
+        .find(|(key, _)| key == "code_challenge")
+        .unwrap()
+        .1
+        .into_owned();
+    let mut callback = url::Url::parse(DESKTOP_CALLBACK).unwrap();
+    callback.query_pairs_mut().extend_pairs([
+        ("state", state.as_str()),
+        ("code", "synthetic-code"),
+        ("iss", origin.as_str()),
+    ]);
+    assert!(flow.accepts(callback.as_str()));
+    for wrong in [
+        callback
+            .as_str()
+            .replace("chatto://desktop/", "chatto://other/"),
+        callback
+            .as_str()
+            .replace("servers/callback", "servers/other"),
+        format!("{}&state={state}", callback),
+        format!("{}&code=other", callback),
+        format!("{}&error=access_denied", callback),
+        callback.as_str().replace("mode=popup", "mode=other"),
+    ] {
+        assert!(!flow.accepts(&wrong));
+    }
+    let mut session = flow.exchange(callback.as_str()).await.unwrap();
+    assert_eq!(session.credentials().oauth_client_id, DESKTOP_CLIENT_ID);
+    session.prepare_refresh();
+    let saved = serde_json::to_vec(&session.credentials()).unwrap();
+    let restored = chatto::HumanSession::restore(serde_json::from_slice(&saved).unwrap()).unwrap();
+    let fresh = restored.refresh().await.unwrap();
+    assert_eq!(fresh.credentials().oauth_client_id, DESKTOP_CLIENT_ID);
+    assert_eq!(fresh.credentials().access_token, "rotated-access");
+    let requests = peer.join().unwrap();
+    assert!(requests[0].0.starts_with("POST /oauth/token "));
+    assert!(!requests[0].0.to_lowercase().contains("authorization:"));
+    assert!(!requests[0].0.to_lowercase().contains("cookie:"));
+    assert_eq!(requests[0].1["client_id"], DESKTOP_CLIENT_ID);
+    let verifier = requests[0].1["code_verifier"].as_str().unwrap();
+    assert_eq!(
+        base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(sha2::Sha256::digest(verifier.as_bytes())),
+        challenge
+    );
+    assert_eq!(requests[1].1["client_id"], DESKTOP_CLIENT_ID);
+    assert_eq!(
+        requests[1].1["refresh_request_id"],
+        session.credentials().refresh_request_id
+    );
+}
+
+#[tokio::test]
+async fn discovery_and_asset_renewal_use_their_public_and_authenticated_contracts() {
+    let (origin, peer) = fixture(vec![
+        json_response(
+            json!({"profile":{"name":"Synthetic server"},"login":{"authorizeUrl":"/authorize"}}),
+        ),
+        json_response(json!({"assets":[{"id":"asset","assetUrl":{"url":"/fresh-image"}}]})),
+    ]);
+    let info = chatto::oauth::discover(&origin).await.unwrap();
+    assert_eq!(info.profile.name, "Synthetic server");
+    let client = Client::new(&origin, "asset-read").unwrap();
+    assert!(client.attachment_urls("", &["asset".into()]).await.is_err());
+    let assets = client
+        .attachment_urls("room", &["asset".into()])
+        .await
+        .unwrap();
+    assert_eq!(assets["assets"][0]["id"], "asset");
+    let requests = peer.join().unwrap();
+    assert!(
+        requests[0]
+            .0
+            .starts_with("POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer ")
+    );
+    assert!(!requests[0].0.to_lowercase().contains("authorization:"));
+    assert!(
+        requests[1]
+            .0
+            .starts_with("POST /api/connect/chatto.api.v1.AssetService/BatchGetAssets ")
+    );
+    assert_eq!(requests[1].1["roomId"], "room");
+    assert_eq!(requests[1].1["assetIds"], json!(["asset"]));
 }

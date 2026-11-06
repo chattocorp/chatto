@@ -20,6 +20,8 @@ pub struct Settings {
     pub origin: String,
     pub selected: Option<String>,
     pub collapsed: BTreeSet<String>,
+    /// Optional for settings written before native UI scaling was available.
+    pub ui_scale: Option<f32>,
 }
 
 trait Secrets: Send + Sync {
@@ -53,6 +55,8 @@ impl Secrets for Keychain {
     }
 }
 
+pub type StoreOpener = Arc<dyn Fn(PathBuf) -> Result<(Arc<Storage>, bool), Error> + Send + Sync>;
+
 pub struct Storage {
     session: AsyncMutex<Option<HumanSession>>,
     secret: Arc<dyn Secrets>,
@@ -67,13 +71,32 @@ impl Storage {
             .unwrap()
             .0
     }
-    /// Runs off the UI thread: Keychain may ask the user for access.
-    pub fn open_default() -> Result<(Arc<Self>, bool), Error> {
-        let dir = match std::env::var_os("CHATTO_NATIVE_CONFIG_DIR") {
+    #[cfg(test)]
+    pub fn test_opener() -> StoreOpener {
+        let secrets = Mutex::new(std::collections::BTreeMap::<
+            PathBuf,
+            Arc<tests::MemorySecrets>,
+        >::new());
+        Arc::new(move |directory| {
+            let secret = secrets
+                .lock()
+                .unwrap()
+                .entry(directory.clone())
+                .or_default()
+                .clone();
+            Self::open(directory, secret)
+        })
+    }
+    /// The legacy root stays valid when its session becomes the first registry entry.
+    pub fn default_dir() -> Result<PathBuf, Error> {
+        Ok(match std::env::var_os("CHATTO_NATIVE_CONFIG_DIR") {
             Some(path) => PathBuf::from(path),
             None => PathBuf::from(std::env::var_os("HOME").ok_or(Error::Persistence)?)
                 .join("Library/Application Support/Chatto Native"),
-        };
+        })
+    }
+    /// Each server has a private settings directory and independent Keychain item.
+    pub fn open_at(dir: PathBuf) -> Result<(Arc<Self>, bool), Error> {
         let secret = Arc::new(Keychain {
             account: dir.to_string_lossy().into_owned(),
         });
@@ -122,6 +145,7 @@ impl Storage {
                 if settings.origin != saved.origin {
                     settings = Settings {
                         origin: saved.origin.clone(),
+                        ui_scale: settings.ui_scale,
                         ..Default::default()
                     };
                 }
@@ -172,6 +196,7 @@ impl Storage {
         self.update_settings(|settings| {
             *settings = Settings {
                 origin,
+                ui_scale: settings.ui_scale,
                 ..Default::default()
             }
         })?;
@@ -237,21 +262,9 @@ impl Storage {
         }
         Ok(())
     }
-    pub async fn forget(&self) -> Result<(), Error> {
-        let mut current = self.session.lock().await;
-        let secret = self.secret.clone();
-        tokio::task::spawn_blocking(move || secret.delete())
-            .await
-            .map_err(|_| Error::Persistence)??;
-        *current = None;
-        self.update_settings(|settings| {
-            settings.selected = None;
-            settings.collapsed.clear();
-        })
-    }
 }
 
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), Error> {
+pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), Error> {
     let parent = path.parent().ok_or(Error::Persistence)?;
     let temporary = parent.join(format!(".settings-{}", uuid::Uuid::new_v4()));
     let result = (|| {
@@ -310,6 +323,7 @@ mod tests {
             .update_settings(|settings| {
                 settings.origin = "https://example.test".into();
                 settings.selected = Some("room".into());
+                settings.ui_scale = Some(1.37);
                 settings.collapsed.insert("dms".into());
             })
             .unwrap();
@@ -331,6 +345,7 @@ mod tests {
         assert!(!has_session);
         assert_eq!(restored.settings().selected.as_deref(), Some("room"));
         assert!(restored.settings().collapsed.contains("dms"));
+        assert_eq!(restored.settings().ui_scale, Some(1.37));
         drop(restored);
         fs::remove_dir_all(dir).unwrap();
     }
@@ -418,6 +433,7 @@ mod tests {
                     access_token: "synthetic-old-access".into(),
                     refresh_token: "synthetic-old-refresh".into(),
                     refresh_request_id: String::new(),
+                    oauth_client_id: String::new(),
                     access_expires_at: SystemTime::now(),
                     session_expires_at: SystemTime::now() + Duration::from_secs(3600),
                 })

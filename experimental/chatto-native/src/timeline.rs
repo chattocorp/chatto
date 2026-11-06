@@ -73,6 +73,7 @@ mod rendering_tests {
     }
     #[gpui::test]
     fn only_visible_markdown_rows_are_built_in_a_large_timeline(cx: &mut TestAppContext) {
+        cx.update(gpui::init);
         let cx = cx.add_empty_window();
         let state = ListState::new(10_000, ListAlignment::Bottom, px(100.));
         let rendered = Rc::new(Cell::new(0));
@@ -81,6 +82,7 @@ mod rendering_tests {
                 state: state.clone(),
                 rendered: rendered.clone(),
             })
+            .into_any_element()
         });
         assert!(
             rendered.get() > 0 && rendered.get() < 100,
@@ -96,6 +98,7 @@ mod rendering_tests {
                 state: state.clone(),
                 rendered: rendered.clone(),
             })
+            .into_any_element()
         });
         assert!(
             rendered.get() > 0 && rendered.get() < 100,
