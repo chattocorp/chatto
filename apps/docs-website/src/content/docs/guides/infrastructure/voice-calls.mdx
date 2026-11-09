@@ -5,119 +5,18 @@ description: How to set up and configure voice and video call capabilities in Ch
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto supports real-time voice and video calls inside rooms using [LiveKit](https://livekit.io/), an open-source WebRTC media server. When enabled, any room member can start or join a call directly from the room header.
-
-Supported browsers let you mute or unmute your microphone, toggle your camera,
-and hang up through system media controls. Available controls depend on your
-browser and device. The controls show the Chatto name without room or participant
-names. They do not guarantee that a call continues when you switch apps or lock
-your phone.
-
-Where supported, Chatto also requests a call audio mode to help audio continue
-in the background, including while you are muted or listening only. This does
-not enable your microphone. The mode can affect audio routing and volume;
-test your speaker or Bluetooth headset when switching apps. Leaving the call
-restores the previous audio mode unless another feature has changed it.
+Chatto uses [LiveKit](https://livekit.io/) for voice and video calls. Deploy it
+as a separate service and configure Chatto to use its API and webhooks.
 
 ## How It Works
 
-LiveKit runs as a **separate service** alongside Chatto. Chatto handles authentication and call state, while LiveKit handles the WebRTC media transport:
+Chatto checks room membership and permissions, then issues a short-lived LiveKit
+token and a key for the call. The member's client connects directly to LiveKit.
+Current Chatto clients encrypt call media end to end. When the last participant
+leaves, the call ends and Chatto destroys its key.
 
-1. A user joins the call from the room header.
-2. Chatto verifies the user's room membership and generates a short-lived LiveKit JWT token.
-3. The user's browser connects directly to the LiveKit server using the token and a per-call E2EE key from Chatto.
-4. Other room members see active call indicators update in real time.
-
-The first person to select **Start call** and join creates the call and a fresh E2EE key. When the last person leaves, the call ends and Chatto shreds that key.
-
-Screen sharing can include audio from a browser tab when the browser supports it. In Chrome, select a browser tab and enable **Share tab audio** in the browser picker. Chatto does not request whole-system audio because that could capture remote call playback and feed it back into the room.
-
-Chatto Desktop uses the same screen-share button but provides its own chooser
-on macOS 15 and newer. It shows previews of application windows and complete
-displays. Application-window sharing includes that application's audio;
-complete-display sharing is video-only so call audio cannot be captured and
-echoed back to other participants. The first use asks for macOS **Screen &
-System Audio Recording** permission and may require Chatto Desktop to be
-restarted after access is granted. In ordinary web browsers, the button keeps
-using the browser's window/tab/screen chooser.
-
-Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
-
-## Connection quality
-
-An amber network icon on a participant card means a poor connection; a red
-disconnected icon means the connection is lost. Click the icon to read its status.
-Your current-user card shows the same warning for your connection, even outside
-the call sidebar. These warnings describe network quality, not microphone volume.
-
-## Choose the featured video
-
-The call sidebar keeps the featured source above the scrolling participant list.
-Select a camera or screen-share video to pin it there. Select the pinned video
-again to unpin it, or use **Unpin from the stage** in its header or three-dot menu.
-The same selection stays in place when you maximize the call or enter fullscreen.
-
-A new screen share receives the pin if nothing is pinned. It does not replace
-an existing pin. After you unpin a share, it does not receive the pin again
-unless it stops and starts again. Without a pin, the featured area follows the
-remote active speaker while a camera is on. When the pinned source ends, the
-pin clears.
-
-## Open a video in picture-in-picture
-
-Right-click a camera or screen-share tile and select **Picture-in-picture** to
-open or close that tile's video in a floating window. This action appears when
-your browser supports it, including on secondary stage tiles. Wide tiles also
-show the header button in the sidebar and on the featured stage video.
-Closing the menu does not close the floating window.
-
-For a fullscreen view of the complete call, select **Fullscreen call** in the
-call pane's header. To exit fullscreen, select the close icon in the header.
-You return to the previous call layout and stay connected to the call.
-
-## Report desktop screen-share quality problems
-
-In Chatto Desktop on macOS, share a moving scene for at least 15 seconds.
-Select **Diagnostics → Copy Screen Sharing Diagnostics** from the app menu
-and paste the report into your support request. It contains recent native
-publisher performance measurements, without account names, source names,
-addresses, or credentials. The app does not send the report automatically.
-
-Native macOS sharing defaults to tuned H.264 with a video maximum of 8 Mbps,
-plus audio and transport overhead. It uses hardware variable-bitrate encoding
-where supported, with an average-rate fallback on older Macs. All viewers
-receive one encoded resolution. The encoder preserves resolution and can reduce
-frame rate under pressure. Receivers must support H.264 Constrained High profile.
-
-The **Diagnostics** menu also offers stock H.264, HEVC, and explicit tuning
-comparisons. Select a mode, then stop and start sharing. Select **Default:
-Tuned H.264 (Automatic VBR) for Next Share** to restore the default. If a viewer
-cannot receive the default stream, try **Use H.264 for Next Share**. HEVC
-requires support from the server and viewers; select H.264 if a viewer cannot
-receive HEVC. The stock H.264 and HEVC options send multiple resolution layers
-and can use more upload bandwidth.
-
-## Adjust another participant's volume
-
-During a call, open the three-dot menu in a participant card's header, or
-right-click anywhere on the card, including its video. On touch devices,
-long-press the card. Adjust
-**Voice volume** for their microphone. Open the screen-share card's menu to
-adjust **Stream volume** for shared audio.
-Microphone volume is also available on camera cards and from that
-participant's entry in the members list.
-Each control ranges from 0% to 100%; 100% keeps the original level.
-
-These settings affect only what you hear. This browser remembers them per
-server and participant. **Mute locally** silences both sources and keeps your
-levels. Sliders move in 5% steps, with a mark at 100% to help restore the original level.
-The volume curve approximates perceived loudness: 50% applies -10 dB.
-Older saved values above 100% play at 100%.
-Some mobile browsers use system volume and ignore intermediate slider levels.
-Use the device volume buttons to adjust playback on those browsers.
-**Mute locally** and 0% also stop audio delivery through LiveKit.
-
-Browsers without speaker selection use the system output for calls. Select **Enable call audio** if playback is blocked.
+LiveKit webhooks and periodic participant checks keep call state consistent after
+server restarts. Keep webhook delivery working as well as the media connection.
 
 ## Call permissions
 
@@ -386,56 +285,12 @@ certificate must match the advertised TURN domain.
 
 Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration. The same coturn deployment can provide the private STUN endpoint listed in `rtc.stun_servers`, but these settings serve different paths: `stun_servers` discovers the LiveKit host's public IP, while `turn_servers` gives browsers a media relay.
 
-## Features
-
-- **Mute/unmute** — Toggle your microphone during a call
-- **Audio device selection** — Switch between microphones without leaving the call
-- **Camera toggle** — Turn your camera on and off during a call
-- **Video device selection** — Switch between cameras without leaving the call
-- **Active call indicators** — Rooms with active calls show a call indicator in the room list
-- **Audio level visualization** — A soft accent-coloured glow behind participant names grows brighter and broader with speaking volume, then fades away in silence. Screen-share tiles do not show an audio level glow. Video stays clear. Reduced motion keeps the glow stationary.
-
 ## Device preferences and microphone test
 
-The glow on your participant card shows microphone activity. If it does not
-appear when you speak, use the call toolbar's gear to open Voice & video
-preferences and test your input device.
-
-Open **App Preferences → Voice & video** to choose a microphone, speaker,
-and camera for the selected server. Choices stay in this browser. Enable
-**Join calls with microphone muted** to start calls quietly. Selecting a
-camera does not turn it on.
-Changing a device here during a call also switches that call's device.
-
-If a saved device is missing, calls use the system default and keep the saved
-choice for a later call. Successful device changes during a call are also
-saved. Speaker selection depends on browser support.
-
-Select **Start microphone test** to record a local sample. The speaker stays silent during recording. Select
-**Stop and play**, or wait 10 seconds, to end capture and hear the sample through
-the selected speaker. Select **Play again** to repeat it. The sample stays in
-browser memory until you start another test, change the microphone, or leave
-the page. The test does not connect to LiveKit. Leave the selected server's call
-before running it. The test uses the same microphone capture settings as calls,
-including browser echo cancellation, noise suppression, and automatic gain
-control. It does not test call encoding or network quality.
-
-Under **Microphone processing**, **Voice Boosting** enhances your microphone
-audio and is off by default. It works independently of the noise gate.
-Use the microphone test to compare the sound with Voice Boosting on and off.
-Your choices are saved for this browser and server.
-
-The input meter works with Voice Boosting on or off.
-Use **Noise gate threshold** to suppress quiet background sounds. Set the marker
-above the background noise level but below your speech level. Select **Off** to
-disable the gate. Turning Boost off keeps your noise gate active.
-Your saved threshold also applies with Boost off. Select **Off** to disable it.
-
-If calls stop working when you switch apps, turn Voice Boosting off and set the
-noise gate to **Off**.
-
-If camera names are unavailable, opening this page requests camera access
-through the browser. Capture stops immediately after discovery.
+Microphone processing, device selection, and participant volume are client
+preferences. They need no LiveKit server configuration. When you test a deployment,
+check media delivery from two devices before you investigate one client's audio
+preferences. See [Check the setup](#check-the-setup) for server diagnostics.
 
 ## Disabling Voice & Video Calls
 

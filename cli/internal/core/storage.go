@@ -269,7 +269,9 @@ var (
 // existing stream, or from the new stream before its first update. A stale
 // absent-stream read must not clear metadata published by another replica.
 func createIdentifiedStream(ctx context.Context, js jetstream.JetStream, cfg jetstream.StreamConfig, identity streamIdentity) (jetstream.Stream, error) {
-	metadata, err := prepareStreamIdentityMetadata(ctx, js, cfg.Name, identity)
+	metadata, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (map[string]string, error) {
+		return prepareStreamIdentityMetadata(ctx, js, cfg.Name, identity)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("prepare %s stream metadata: %w", cfg.Name, err)
 	}
@@ -341,8 +343,10 @@ func prepareStreamIdentityMetadata(ctx context.Context, js jetstream.JetStream, 
 // shared provisioning mechanics. The callback retains ownership of configuration.
 func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(context.Context) (T, error)) (T, error) {
 	return jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{
-		MaxAttempts: 3,
-		RetryDelay:  25 * time.Millisecond,
+		MaxAttempts:    60,
+		RetryDelay:     250 * time.Millisecond,
+		MaxRetryDelay:  5 * time.Second,
+		RequestTimeout: 5 * time.Second,
 	}, create)
 }
 

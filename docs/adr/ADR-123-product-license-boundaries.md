@@ -1,4 +1,4 @@
-# ADR-122: EUPL for Chatto and Apache-2.0 for Independent Products
+# ADR-123: EUPL for Chatto and Apache-2.0 for Independent Products
 
 **Date:** 2026-11-09
 

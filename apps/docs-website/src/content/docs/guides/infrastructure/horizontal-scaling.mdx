@@ -20,6 +20,14 @@ JetStream, so any replica can serve any request.
 
 <ArchDiagram />
 
+## Memory and startup
+
+Each Chatto replica keeps its own complete read models in memory. More replicas
+increase request capacity; they do not split that memory requirement. Server
+history increases memory use and startup work. Projection snapshots reduce the
+events that a replica must read at startup. Monitor startup duration, readiness,
+and memory use when you size replicas.
+
 ## Requirements
 
 - An external NATS deployment with JetStream. Use a cluster of 3 or more nodes
@@ -231,9 +239,13 @@ startupProbe:
   httpGet:
     path: /readyz
     port: 4000
-  failureThreshold: 15
+  failureThreshold: 300
   periodSeconds: 2
 ```
+
+Allow enough startup time for JetStream recovery and event replay. These
+probes allow ten minutes. Chatto retries transient storage provisioning errors
+with bounded backoff. It does not become ready until initialization completes.
 
 ## Voice and Video Calls with Multiple Server Processes
 

@@ -420,14 +420,15 @@ message; adding an emoji that already exists remains an idempotent success.
 Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
 without surrounding colons. Known emoji also accept valid Slack-style skin-tone
 suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
-Names are case-sensitive and are stored unchanged, including
-unknown names. Clients can display an unknown name as :name:.
+Names are case-sensitive, must be in the bundled emoji catalogue, and are
+stored unchanged. Unknown names return INVALID_ARGUMENT. Unicode glyphs are
+not accepted; clients must send a supported shortcode name.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
+| `emoji` | `string` | Required. Supported reaction name, such as "heart" or "joy". |
 
 
 <a id="chatto-api-v1-AddReactionResponse"></a>

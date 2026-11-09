@@ -34,12 +34,14 @@ Concurrent startup preserves published `EVT` and `NOTIFICATIONS` identities
 and metadata. An earlier result that the stream does not exist must not clear
 metadata that another replica has stored.
 
-Chatto allows three attempts, with delays of 25 ms and 50 ms. Request deadline
-errors are retried only while the parent startup context remains active. The
-existing transient store-creation and stream-name conflict errors are also
-retried. Parent cancellation or expiry stops provisioning. Permanent errors
-and retry exhaustion fail startup. The JetStream default request timeout is
-30 seconds; nats.go uses a supplied context deadline instead when one exists.
+Chatto uses bounded exponential backoff with jitter during provisioning.
+Each request has its own timeout, so a request can expire without ending the
+startup context. Timeouts, missing responders, cluster unavailability, and the
+existing transient store-creation and stream-name conflict errors are retried.
+Parent cancellation stops provisioning. Permanent errors and retry exhaustion
+fail startup. Resource configuration and stored identities do not change.
+Readiness requires completed initialization and replay. The Kubernetes example
+allows ten minutes for storage recovery and replay before it restarts the pod.
 
 ## Current resources
 

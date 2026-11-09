@@ -75,29 +75,6 @@ grant `message.read` and `message.post-in-interactions`.
 You can add your own bots to rooms without `room.manage`. Room suspensions and
 archived rooms prevent joining. Universal-room membership is automatic.
 
-## View a bot's access
-
-Open the profile pane of the bot. **Owned by** shows its human owner. **What
-it can do** lists its effective permissions, such as **Read all messages** and
-**Reply in threads**. All signed-in members can see this summary, but it shows
-room names only to members who can see those rooms. Owners and managers can
-expand **Inactive grants** to see saved grants that the owner ceiling blocks.
-
-## Change the profile of a bot
-
-The owner of a bot can change its display name, username, bio, and avatar.
-Open the bot in **Server Admin → Bots**, or select **Manage bot** in the user
-menu of the bot. Accounts with `bot.manage` or `user.manage-accounts` can do
-this for all bots. API clients use the same `UserService` methods as the bot,
-with the user ID of the bot.
-
-The username of a bot has the same 30-day cooldown as the username of a
-person. A username change by the bot, its owner, or an account with
-`bot.manage` starts the cooldown. During the cooldown, these accounts cannot
-change the username again. `Bot.last_login_change` shows when the cooldown
-started. An account with `user.manage-accounts` can change the username at any
-time.
-
 ## Authenticate requests
 
 Send the API key as a bearer credential:
@@ -106,31 +83,12 @@ Send the API key as a bearer credential:
 Authorization: Bearer cht_BK_…
 ```
 
-Chatto authorizes the request as the bot user. For example, a post needs an
-effective `message.post` and normal room access. API clients can identify bot
-authors with `User.bot`. The bundled client shows a **BOT** label. This label
-does not mean that the account is verified.
+Requests use the bot's permissions and its owner's current authority. Grant
+`bot.manage` only when you intend to delegate management of other bots, including
+issuing their credentials. Bots cannot acquire human passwords, sessions,
+OAuth tokens, verified email addresses, or external logins.
 
-A bot can change its own profile with `UserService.UpdateUserProfile`, and its
-own avatar with `UserService.UploadAvatar` and `UserService.DeleteAvatar`. Send
-the user ID of the bot as `user_id`. To update another account, grant the bot
-`user.manage-accounts`. Bots can also use administrative API operations with
-the required permissions. The owner's authority remains the ceiling, and API
-keys do not require interactive privileged mode.
-
-Grant `bot.manage` to let a bot manage other bots, their permissions, keys,
-webhooks, and ownership. This includes issuing a key for a more powerful bot:
-that key uses the target bot's permissions and owner ceiling. Grant this
-permission only when you intend to delegate that authority.
-
-Bots cannot acquire human passwords, sessions, OAuth tokens, verified emails,
-or external logins. Bots remain owned by human accounts.
-
-`BotService` manages bots, owners, API keys, and incoming webhooks. To read
-the effective permissions of a bot, use
-`PermissionService.ListEffectivePermissions`. To change them, use the
-`AdminPermissionService` user-permission methods with the user ID of the bot.
-See the [BotService reference](/reference/connectrpc-api/bots/).
+See the [BotService reference](/reference/connectrpc-api/bots/) for API methods.
 
 ## Create and revoke API keys
 
@@ -233,6 +191,8 @@ Grafana notification templates there. Firing and resolved alerts post separate
 messages. Chatto does not update or group earlier alerts. See
 [Grafana's webhook documentation](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/manage-contact-points/integrations/webhook-notifier/).
 
+<span id="activate-a-bot-from-chatto-activity"></span>
+
 ## Outbound webhooks
 
 An outbound webhook sends an HTTP request to your tool when someone speaks to
@@ -270,101 +230,6 @@ such as `127.0.0.1` and other private-network hosts are not permitted.
 The [Runling bot example](https://github.com/chattocorp/chatto/tree/main/examples/runling-bot)
 receives these requests and replies through the Chatto API.
 
-### Request body
-
-```json
-{
-  "version": 1,
-  "id": "stable-delivery-id",
-  "type": "message.created",
-  "triggers": ["direct_message", "mention"],
-  "occurred_at": "2026-09-05T12:00:00Z",
-  "bot_id": "bot-id",
-  "room_id": "room-id",
-  "thread_root_id": null,
-  "message": {
-    "id": "message-id",
-    "author_id": "author-id",
-    "body": "Hello @helper_bot"
-  }
-}
-```
-
-Use `triggers` to route mentions and DMs. `thread_root_id` is null for a root
-message. The body does not contain attachments. Chatto does not change this
-format for specific tools.
-
-Return HTTP 2xx when you accept the request. Do long tasks separately, and
-reply with the bot API key through the normal API. Chatto ignores the response
-body.
-
-### Signatures and authentication
-
-Chatto adds these headers:
-
-- `Chatto-Webhook-Id`: the delivery ID from the body.
-- `Chatto-Webhook-Timestamp`: Unix time in seconds for this attempt.
-- `Chatto-Webhook-Signature`: `v1=` followed by a hexadecimal HMAC-SHA256.
-
-To verify a request:
-
-1. Use the signing secret as its displayed UTF-8 text. Do not Base64-decode it.
-2. Compute HMAC-SHA256 over the timestamp, a full stop (`.`), and the exact
-   request body bytes.
-3. Compare the result in constant time.
-4. Reject old timestamps, for example older than five minutes.
-5. Deduplicate by delivery ID. A retry has the same ID and a new timestamp.
-
-If your tool cannot verify signatures, authenticate with a secret URL or the
-`Authorization` header instead.
-
-### Retries, expiry, and access
-
-Chatto retries transport failures and all non-2xx responses. It does not
-follow redirects. By default, Chatto makes up to five attempts within 24 hours
-of the message. The delay starts at 30 seconds and doubles up to 30 minutes.
-Each request has a 10-second timeout. To change these values, see
-[Outbound bot webhooks](/reference/environment-variables/#outbound-bot-webhooks).
-
-Delivery is best effort. A server restart discards pending requests and
-retries without a failure record. Requests can arrive more than once or out of
-order, so use the delivery ID to prevent repeated work.
-
-Before each attempt, Chatto checks the current access of the bot. It skips the
-request if the bot lost access, the message is unavailable, or the endpoint is
-paused or revoked. The body contains the current message text, so an edit can
-change it between attempts.
-
-Select **Recent failures** on an endpoint to see failed deliveries with time,
-attempt count, HTTP status, and failure category. Chatto keeps failures for
-seven days; change this with `core.log.retention`. Chatto does not record
-successes, so an empty list does not prove that delivery succeeded.
-
-## Activate a bot from Chatto activity
-
-To react to all activity that the bot can see, use the normal realtime
-subscription with `LIVE_ONLY`. There is no bot-only channel. See
-[Realtime](/guides/integrations/realtime-protocol/) and the
-[`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
-reference.
-
-To react only when Chatto would notify the bot, read
-`NotificationService.ListNotificationOccurrences` and filter by cause:
-
-| Cause                      | When Chatto creates it                                                      |
-| -------------------------- | --------------------------------------------------------------------------- |
-| `direct_message_received`  | Another account sends a message in a DM with the bot.                       |
-| `direct_mention_received`  | Another account mentions the bot directly in a channel room.                |
-| `reply_received`           | Another account replies to a message from the bot.                          |
-| `followed_thread_activity` | Another account posts in a thread that the bot follows.                     |
-
-Ignore other causes. A delivered direct mention also makes the bot follow the
-thread, so later replies arrive as `followed_thread_activity`. An explicit
-unfollow stays in effect.
-
-Save the IDs of processed occurrences, because one occurrence can appear more
-than once. One message can create more than one cause. To act only once for
-each message, also deduplicate by `event_id`. After a disconnect, read the list
-again to recover missed occurrences within the notification retention period.
-Then load the message or thread, for example with
-`ThreadService.GetThreadEvents`.
+See the [Bot Webhook Reference](/reference/bot-webhooks/) for payloads,
+signature verification, delivery retries, and reply handling. Your receiving tool
+gets message content; check its data policy before you connect it.

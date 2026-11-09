@@ -1,21 +1,21 @@
 # EUPL migration
 
 Updated on 2026-11-09. The maintainer authorized implementation after merging
-`origin/main`. [ADR-122](../adr/ADR-122-product-license-boundaries.md) records
+`origin/main`. [ADR-123](../adr/ADR-123-product-license-boundaries.md) records
 the accepted repository-wide decision.
 
 ## Implemented boundary
 
-| Area | License |
-| --- | --- |
-| Chatto server, CLI, and previously AGPL-covered repository files | EUPL-1.2 with its standard later-version provision |
-| Runling, ChattoBot, and Authling | Apache-2.0 |
-| Existing Apache-2.0 clients, modules, protocols, documentation, and examples | Apache-2.0 |
-| Third-party code and assets | Their existing licenses |
+| Area                                                                         | License                                            |
+| ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| Chatto server, CLI, and previously AGPL-covered repository files             | EUPL-1.2 with its standard later-version provision |
+| Runling, ChattoBot, and Authling                                             | Apache-2.0                                         |
+| Existing Apache-2.0 clients, modules, protocols, documentation, and examples | Apache-2.0                                         |
+| Third-party code and assets                                                  | Their existing licenses                            |
 
 [REUSE.toml](../../REUSE.toml) and explicit file metadata define the exact
 boundary. [LICENSING.md](../../LICENSING.md) describes source access and
-earlier grants. The switch applies from the commit introducing ADR-122 and
+earlier grants. The switch applies from the commit introducing ADR-123 and
 to releases that contain it. Previous releases retain their grants.
 
 ## HEIC result

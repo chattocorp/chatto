@@ -11,6 +11,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
@@ -196,4 +197,45 @@ func waitForRecoveryTest(t *testing.T, timeout time.Duration, condition func() b
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", description)
+}
+
+// Construction must survive a disconnected broker before any runtime starts.
+func TestStorageStartupRecoversAfterNATSRestart(t *testing.T) {
+	dir := testutil.StoreDir(t)
+	ns := startRecoveryTestNATS(t, dir, -1)
+	port := ns.Addr().(*net.TCPAddr).Port
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	cfg := config.ChattoConfig{}
+	cfg.NATS.Client.URL = fmt.Sprintf("nats://127.0.0.1:%d", port)
+	nc, err := runtimeunit.ConnectToNATS(ctx, cfg, nil)
+	if err != nil {
+		stopRecoveryTestNATS(ns)
+		t.Fatal(err)
+	}
+	defer nc.Close()
+	js, err := jetstream.New(nc, jetstream.WithDefaultTimeout(100*time.Millisecond))
+	if err != nil {
+		stopRecoveryTestNATS(ns)
+		t.Fatal(err)
+	}
+	stopRecoveryTestNATS(ns)
+	done := make(chan error, 1)
+	go func() { _, err := newStorage(js, ctx, config.CoreConfig{}); done <- err }()
+	// Keep provisioning pending while the broker is unavailable.
+	select {
+	case err := <-done:
+		t.Fatalf("startup returned during outage: %v", err)
+	case <-time.After(time.Second):
+	}
+	ns = startRecoveryTestNATS(t, dir, port)
+	defer stopRecoveryTestNATS(ns)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal("startup did not recover")
+	}
 }

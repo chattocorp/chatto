@@ -13,6 +13,7 @@ task.source_freshness_hash_contents = true
 frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | hash(len=16) }}-{{ env.CHATTO_FRONTEND_PRECOMPRESS | default(value='') | hash(len=16) }}-{{ env.NODE_OPTIONS | default(value='') | hash(len=16) }}"
 
 [tools]
+"github:chattocorp/sweet-release" = "sweet@0.3.0"
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"

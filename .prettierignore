@@ -10,7 +10,7 @@ apps/frontend/src/lib/gql/
 apps/frontend/src/lib/types/core.ts
 apps/frontend/static/
 pnpm-lock.yaml
-# Preserve release-please's generated changelog format.
+# Preserve generated changelog formatting, including historical entries.
 CHANGELOG.md
 # Protobuf documentation codegen output; CI requires it to match `mise codegen-proto`.
 apps/docs-website/src/generated/

@@ -1,0 +1,6 @@
+name: authling
+version: 0.1.0-alpha.3
+tag-prefix: authling/v
+version-files:
+  - path: version.go
+    format: annotated

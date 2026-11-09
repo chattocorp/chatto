@@ -40,8 +40,20 @@ func IsValidReactionName(name string) bool {
 }
 
 // resolveEmojiInput accepts reaction names without surrounding colons, not Unicode emoji.
-// Unknown names remain usable before a client can render their emoji.
+// Client adds require a case-sensitive name from the bundled catalogue.
+// Imports and reads use resolveReactionName to preserve unknown names.
 func resolveEmojiInput(input string) (string, error) {
+	if _, err := resolveReactionName(input); err != nil {
+		return "", err
+	}
+	if _, ok := emojiNameToUnicode[input]; !ok {
+		return "", invalidArgument("unsupported emoji")
+	}
+	return input, nil
+}
+
+// resolveReactionName checks syntax without requiring catalogue membership.
+func resolveReactionName(input string) (string, error) {
 	if IsValidReactionName(input) {
 		return input, nil
 	}

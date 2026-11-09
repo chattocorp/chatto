@@ -23,16 +23,17 @@
   });
 
   const canonicalPreferencePath = $derived.by(() => {
-    if (page.url.pathname === resolve('/chat/preferences/desktop')) return null;
     if (!authenticatedServerId) return null;
     const suffix =
       page.url.pathname === resolve('/chat/preferences')
         ? '/overview'
-        : page.url.pathname.endsWith('/language')
-          ? '/language'
-          : page.url.pathname.endsWith('/composer')
-            ? '/composer'
-            : '/appearance';
+        : page.url.pathname.endsWith('/desktop')
+          ? '/desktop'
+          : page.url.pathname.endsWith('/language')
+            ? '/language'
+            : page.url.pathname.endsWith('/composer')
+              ? '/composer'
+              : '/appearance';
     const settingsPath = resolve('/chat/[serverId]/settings', {
       serverId: serverIdToSegment(authenticatedServerId)
     });

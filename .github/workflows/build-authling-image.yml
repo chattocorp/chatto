@@ -11,7 +11,7 @@ on:
       - 'LICENSE'
       - 'NOTICE'
       - '.github/workflows/build-authling-image.yml'
-      # Release-please changelogs do not change the image.
+      # Changelogs do not change the image.
       - '!**/CHANGELOG.md'
   push:
     branches: [main]
@@ -26,7 +26,7 @@ on:
       - 'LICENSE'
       - 'NOTICE'
       - '.github/workflows/build-authling-image.yml'
-      # Release-please changelogs do not change the image.
+      # Changelogs do not change the image.
       - '!**/CHANGELOG.md'
   workflow_dispatch:
 
@@ -49,7 +49,6 @@ jobs:
         id: metadata
         shell: python
         run: |
-          import json
           import os
           import pathlib
           import re
@@ -71,8 +70,8 @@ jobs:
               semver = rf"{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?"
               if not re.fullmatch(semver, tag) or len(tag) > 128:
                   raise SystemExit("Release version is not a supported SemVer image tag")
-              manifest = json.loads(pathlib.Path(".release-please-manifest.json").read_text())
-              if tag != version or tag != manifest["authling"]:
+              manifest = re.search(r"(?m)^version: ([^\r\n]+)$", pathlib.Path("authling/.sweet.yml").read_text()).group(1)
+              if tag != version or tag != manifest:
                   raise SystemExit("Release tag, version.go and release manifest must agree")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"sha={sha}\nversion={version}\ntag={tag}\n")

@@ -98,7 +98,8 @@ describe('App Preferences layout', () => {
     ['/chat/preferences', '/chat/remote.example.com/settings/overview'],
     ['/chat/preferences/appearance', '/chat/remote.example.com/settings/appearance'],
     ['/chat/preferences/language', '/chat/remote.example.com/settings/language'],
-    ['/chat/preferences/composer', '/chat/remote.example.com/settings/composer']
+    ['/chat/preferences/composer', '/chat/remote.example.com/settings/composer'],
+    ['/chat/preferences/desktop', '/chat/remote.example.com/settings/desktop']
   ])('replace-navigates %s to the matching unified page', async (pathname, destination) => {
     mocks.pathname = pathname;
     mocks.authenticatedServerId = 'remote';
@@ -110,9 +111,8 @@ describe('App Preferences layout', () => {
     expect(container.querySelector('[data-testid="server-sidebar"]')).toBeNull();
   });
 
-  it('keeps Updates preferences independent of an authenticated server', async () => {
+  it('keeps Updates preferences available without an authenticated server', async () => {
     mocks.pathname = '/chat/preferences/desktop';
-    mocks.authenticatedServerId = 'remote';
     desktopUpdates.status = {
       revision: 0,
       version: '0.5.0',

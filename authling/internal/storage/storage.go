@@ -34,8 +34,10 @@ type Stores struct {
 // provisioning. A clustered JetStream can reject a request while it elects a
 // meta leader or places replicas.
 var provisioningRetry = jetstreamutil.JetStreamResourceRetryPolicy{
-	MaxAttempts: 3,
-	RetryDelay:  25 * time.Millisecond,
+	MaxAttempts:    60,
+	RetryDelay:     250 * time.Millisecond,
+	MaxRetryDelay:  5 * time.Second,
+	RequestTimeout: 5 * time.Second,
 }
 
 // KeyValue is the runtime-state access that Authling services use: the bucket's

@@ -136,4 +136,5 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-119](ADR-119-portable-history-interchange.md)                       | Portable History Interchange                                     | Accepted             | 2026-10-26 |
 | [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                     | Accepted             | 2026-10-27 |
 | [ADR-121](ADR-121-github-desktop-updates.md)                             | Publish Complete GitHub Releases for Desktop Updates             | Accepted             | 2026-10-29 |
-| [ADR-122](ADR-122-product-license-boundaries.md)                         | EUPL for Chatto and Apache-2.0 for Independent Products          | Accepted             | 2026-11-09 |
+| [ADR-122](ADR-122-changeset-driven-releases.md)                          | Changeset-Driven Releases                                        | Accepted             | 2026-11-09 |
+| [ADR-123](ADR-123-product-license-boundaries.md)                         | EUPL for Chatto and Apache-2.0 for Independent Products          | Accepted             | 2026-11-09 |

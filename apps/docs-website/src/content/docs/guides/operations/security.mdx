@@ -76,15 +76,14 @@ controls the server, its storage, and its keys can read more.
 <LinkCard
   title="Permissions & Roles"
   href="/guides/operations/permissions/"
-  description="Roles, scopes, privileged mode, and how Chatto resolves a permission check."
+  description="Roles, scopes, privileged mode, and checks for restricted room access."
 />
 
 ## Encryption and Data Erasure
 
 Chatto encrypts some fields before it stores them. This is not full-disk
 encryption or end-to-end encryption. The running server decrypts these fields
-for authorized clients. See [Encryption](/how-chatto-works/encryption/) for
-the keys, algorithms, and threat model.
+for authorized clients. The table below gives the protection boundary.
 
 | Data | Encrypted by Chatto |
 | ---- | ------------------- |
@@ -134,20 +133,12 @@ relationships, and other metadata stay in the event history.
 
 ### Backups and keys
 
-`chatto backup` leaves out the `ENCRYPTION_KEYS` bucket unless you add
-`--include-keys`. It also leaves out S3 objects.
+Use [Backup & Restore](/guides/operations/backup-restore/) to choose whether to
+include keys, protect key exports, and restore data. The guide also covers S3
+objects and retention after account deletion.
 
-| Backup | Result |
-| ------ | ------ |
-| `chatto backup --encrypt --include-keys` | One archive can restore all data. A person with its passphrase can read message text. |
-| `chatto backup --encrypt` and `chatto keys export` | Data and keys are in separate files. A restore needs both. |
-| `chatto backup` without keys | The archive cannot restore message text or protected profile fields. If you lose all keys, you lose this data. |
-
-<Aside type="caution">
-  An old backup that has keys can make deleted data readable again. Keep
-  backups, key exports, NATS snapshots, S3 object versions, and storage
-  snapshots only as long as your deletion policy allows.
-</Aside>
+An old backup with keys can make deleted data readable again. Apply your deletion
+policy to data archives, key exports, object versions, and storage snapshots.
 
 ## HTTPS and reverse proxies
 

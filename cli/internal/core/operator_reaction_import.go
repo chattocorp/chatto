@@ -21,12 +21,13 @@ type HistoricalReactionInput struct {
 // ImportHistoricalReaction records a mapped reactor as a system operation.
 // It bypasses membership and interactive count limits, but requires an existing
 // user and message (including a tombstone), join, or leave event in an active channel. Room OCC makes concurrent repeats
-// idempotent. The event time is the import time, not an invented source time.
+// idempotent. Names outside the bundled emoji catalogue are preserved.
+// The event time is the import time, not an invented source time.
 func (c *ChattoCore) ImportHistoricalReaction(ctx context.Context, input HistoricalReactionInput) (bool, error) {
 	if input.RoomID == "" || input.MessageEventID == "" || input.UserID == "" {
 		return false, invalidArgument("room_id, message_event_id, and user_id are required")
 	}
-	emoji, err := resolveEmojiInput(input.Emoji)
+	emoji, err := resolveReactionName(input.Emoji)
 	if err != nil {
 		return false, err
 	}

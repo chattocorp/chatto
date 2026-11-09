@@ -19,7 +19,7 @@ declarations. Set `CHATTO_CLIENT_RELEASE_DIR` to save the verified tarball.
 `check:release` rejects versions already in npm history. Set `RELEASE_TAG`
 to also check that the tag matches the package version.
 
-Release-please gives the client, Chatto server, frontend, and desktop the same
+Sweet Release gives the client, Chatto server, frontend, and desktop the same
 version and release PR. Client changes contribute to the root changelog.
 Tags use `v<VERSION>`. After the `chatto-release` approval, server build, and
 desktop assembly succeed, `release.yml` calls the reusable
@@ -52,6 +52,6 @@ npm publish <verified-tarball.tgz> --access public --ignore-scripts --registry=h
 ```
 
 Do not publish the same version again. If the first version is published
-manually, align the release-please manifest and release tag before the next
+manually, align the root Sweet manifest and release tag before the next
 release. Use pnpm to build and pack from source; `npm publish` from the source
 directory does not apply pnpm's publication-directory settings.

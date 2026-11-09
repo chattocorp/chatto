@@ -37,7 +37,7 @@ See [authling/LICENSE](authling/LICENSE).
 ## Source access and earlier versions
 
 The license switch applies from the commit that introduces
-[ADR-122](docs/adr/ADR-122-product-license-boundaries.md) and to subsequent
+[ADR-123](docs/adr/ADR-123-product-license-boundaries.md) and to subsequent
 releases that contain it. Earlier releases retain their existing license
 grants. The switch does not withdraw earlier AGPL or MIT permissions.
 Third-party code and assets retain their own licenses and notices.

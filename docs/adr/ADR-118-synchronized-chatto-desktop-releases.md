@@ -22,8 +22,9 @@ Desktop-only changes contribute to the shared changelog and release version.
 This supersedes the independent desktop release decision in ADR-067.
 
 The client package joins this release group on 2026-10-26. Client-only changes
-also contribute to the shared changelog and version. Release-please updates its
-package version through the root component. The former independent client
+also contribute to the shared changelog and version. Sweet Release updates its
+package version through the root manifest, as specified in
+[ADR-122](ADR-122-changeset-driven-releases.md). The former independent client
 tags and changelog remain historical records.
 
 Each shared tag starts the client npm publication workflow. Prereleases use

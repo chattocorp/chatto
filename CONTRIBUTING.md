@@ -607,3 +607,34 @@ The inactive-server notification tests advance the browser clock past the
 background poll interval. They wait for real projection catch-up and socket
 closure before and after the advance. Keep server requests and message delivery
 real when adding tests that control browser time.
+
+## Release notes
+
+Releasable packages use Sweet Release. Add a change note in each affected
+release unit with user-visible changes:
+
+```sh
+mise x -- sweet change .                   # Chatto, including client and desktop
+mise x -- sweet change packages/runling
+mise x -- sweet change authling
+```
+
+Choose `fix` for a patch release, `feature` for a minor release, or `breaking`
+for a breaking change. While these packages are below 1.0, breaking changes use
+a minor release. Describe the changed behavior and any required action. Commit
+the package's `.sweet/*.md` file with the change. Internal changes do not need
+a release note. Commit titles do not supply release notes.
+
+Changes to Sweet notes, manifests, repository configuration, or the preparation
+workflow on `main` create or update one release PR per package. Run the Prepare
+releases workflow manually to refresh a PR after unrelated changes or retry a
+failure. Correct release content on `main`; generated PR edits can be replaced.
+
+After all selected CI checks pass, CI tags each release commit in the full push
+range. Existing artifact workflows publish from those tags. The migration
+manifests record existing versions without creating replacement tags.
+
+Inspect pending notes with `mise x -- sweet status`. In a clean checkout, run
+`mise x -- sweet bump <package-path>` to preview a release and inspect the diff.
+This changes files but does not commit or publish them. See
+[the release guide](docs/RELEASING.md) for tag names, publication, and limits.

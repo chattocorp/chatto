@@ -64,5 +64,5 @@ coupled to the `nats-server/v2` options type. Applications remain responsible
 for validating and testing their option mapping.
 
 The repository gains a fourth Go module and release component. Workspace,
-standalone tests, dependency caches, Release Please configuration, and
+standalone tests, dependency caches, Sweet Release manifests, and
 consumer module replacements must include it.
