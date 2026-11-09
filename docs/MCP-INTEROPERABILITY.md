@@ -357,7 +357,8 @@ including author and moderation checks. Unknown write outcomes require inspectio
 `send_direct_message` accepts a user ID and body, resolves or creates the canonical
 DM, and uses the existing post operation and 30-minute key contract. It returns
 message and room IDs for later thread replies. DM creation can succeed before
-posting fails; the error reports this partial effect. Inputs use bounded IDs and
+posting fails; `conversationCreated` and `roomId` report that partial effect
+without changing the message-delivery outcome. Inputs use bounded IDs and
 the existing 10000-byte body limit. The optional key keeps its idempotent hint false.
 
 Message-read scope covers lookup; message-write covers corrections, deletion,
@@ -371,3 +372,14 @@ intent rejection, conversation reuse, subsequent thread replies, current-body
 reads, reaction counts, edits, deletions, and denied access to private messages.
 Scope-subset tests cover discovery and dispatch for each new tool. These are
 SDK-driven tests; no new live-model behavior is claimed for this extension.
+
+### Review corrections
+
+Regression tests cover chronological thread pages with the root first and the
+oldest reply as cursor; rejected delivery after a new DM reports `not_applied`
+plus separate conversation-creation fields. The MCP HTTP consistency barrier
+accepts viewer-bound cursors, rejects invalid cursors before dispatch, and does
+not run a tool on a cold replica when the wait times out. Gobotto sends accepted
+checkpoint cursors to Chatto only. Its host-delivery session tolerates unrelated
+catalog changes while model-tool snapshots remain pinned. No writes are retried
+implicitly on either connection.

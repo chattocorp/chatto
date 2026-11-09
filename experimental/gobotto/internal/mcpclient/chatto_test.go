@@ -33,6 +33,9 @@ func TestChattoDiscoveryAndCrossRoomDelivery(t *testing.T) {
 	})
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return remote }, &mcp.StreamableHTTPOptions{JSONResponse: true})
 	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Mcp-Method") == "tools/call" && r.Header.Get("Chatto-Realtime-Minimum-Cursor") != "accepted-cursor" {
+			t.Error("missing realtime boundary")
+		}
 		if r.URL.Path != "/mcp" || r.Header.Get("Authorization") != "Bearer synthetic-secret" {
 			t.Error("wrong endpoint or credential")
 		}
@@ -44,6 +47,7 @@ func TestChattoDiscoveryAndCrossRoomDelivery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer manager.Close()
+	manager.SetChattoCursor("accepted-cursor")
 	if len(manager.tools) != 3 {
 		t.Fatal("automatic catalog missing tools")
 	}
@@ -67,19 +71,38 @@ func TestChattoDiscoveryAndCrossRoomDelivery(t *testing.T) {
 	if len(calls) != 2 || calls[0]["room_id"] != "other-room" || calls[0]["thread_root_message_id"] != "other-thread" || calls[0]["in_reply_to_message_id"] != "other-message" || calls[1]["room_id"] != "current-room" {
 		t.Fatal("destination arguments changed")
 	}
+	// Unrelated catalog changes invalidate model snapshots, but not host delivery.
+	remote.AddTool(&mcp.Tool{Name: "search_messages", InputSchema: map[string]any{"type": "object"}}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return &mcp.CallToolResult{}, nil
+	})
+	_ = manager.chatto.session.Close()
+	manager.chatto.session = nil
+	_ = manager.delivery.session.Close()
+	manager.delivery.session = nil
+	result, _ = manager.dispatch(context.Background(), json.RawMessage(`{"name":"mcp_chatto__post_message","arguments":{"body":"must not run"}}`))
+	if !strings.Contains(result, `"status":"failed"`) {
+		t.Fatal("model accepted changed catalog")
+	}
+	if err := manager.Deliver(context.Background(), "post_message", map[string]string{"body": "host still works"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 3 {
+		t.Fatal("host failed or model replayed a write")
+	}
+	remote.RemoveTools("search_messages")
 	// A same-size catalog replacement must not pass reconnect validation.
 	remote.RemoveTools("post_message")
 	remote.AddTool(&mcp.Tool{Name: "replacement", InputSchema: map[string]any{"type": "object"}}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return &mcp.CallToolResult{}, nil
 	})
-	manager.chatto.mu.Lock()
-	_ = manager.chatto.session.Close()
-	manager.chatto.session = nil
-	manager.chatto.mu.Unlock()
+	manager.delivery.mu.Lock()
+	_ = manager.delivery.session.Close()
+	manager.delivery.session = nil
+	manager.delivery.mu.Unlock()
 	if err := manager.Deliver(context.Background(), "post_message", map[string]string{"room_id": "other-room", "body": "must not run"}); err == nil {
 		t.Fatal("accepted changed catalog")
 	}
-	if len(calls) != 2 {
+	if len(calls) != 3 {
 		t.Fatal("reconnect replayed a write")
 	}
 

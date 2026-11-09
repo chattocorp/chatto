@@ -55,6 +55,15 @@ Chatto connections. They also tell the host not to infer rooms or messages
 from Kubernetes, deployment, DNS, or repository configuration. The host still
 decides which available tool it calls.
 
+## Read after realtime delivery
+
+A client that also consumes Chatto realtime can send its latest accepted opaque
+cursor in `Chatto-Realtime-Minimum-Cursor` on an MCP tool request. The serving
+replica waits for that viewer-bound content boundary before it runs the tool.
+An invalid or expired cursor returns HTTP `400`; a wait timeout returns HTTP
+`503` without running the tool. Refresh expired boundaries through realtime.
+This header does not grant permission or make uncertain writes safe to repeat.
+
 ## Work with individual messages
 
 Use `get_message` with `room_id` and `message_id` to read the current body and
@@ -77,7 +86,10 @@ to `post_message`.
 An optional `idempotency_key` uses the same 30-minute exact-request retry
 contract as `post_message`. Keep the recipient, body, and key unchanged. A
 failed send can leave an empty DM because conversation creation and message
-posting are separate operations. Without a key, check uncertain delivery before
+posting are separate operations. On this partial failure, `conversationCreated`
+and `roomId` report the new conversation; `outcome` still describes message
+delivery, so room creation alone never means that a message was sent.
+Without a key, check uncertain delivery before
 sending again.
 
 `get_message` needs message-read scope. Editing, deletion, and direct sending
@@ -146,6 +158,8 @@ Use these stable fields. Do not parse `message`; its wording can change.
 | `missingPermissions` | Optional confirmed missing RBAC identifiers. If more than one is listed, any one satisfies the permission gate; other gates still apply. |
 | `requiredScope` | Optional MCP OAuth scope that needs fresh consent. |
 | `retryAfterMs` | Optional minimum wait in milliseconds when `retry` is `after_delay`. If absent, use bounded backoff. |
+| `conversationCreated` | Optional direct-send partial effect: a DM was created. It does not indicate message delivery. |
+| `roomId` | Optional ID of the DM created before a failed send. |
 | `retrySameRequest` | When true, retry with the original key and exact arguments within the 30-minute window. Do not allocate a new key for this retry. |
 
 | `code` | `nextAction` and human guidance |

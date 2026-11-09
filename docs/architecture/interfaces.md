@@ -115,6 +115,10 @@ hydration, and user-bound cursor checks. See
 [`mcpserver/search.go`](../../cli/internal/mcpserver/search.go) and
 [FDR-033](../fdr/FDR-033-message-search.md).
 
+MCP tool requests can carry `Chatto-Realtime-Minimum-Cursor`. After credential
+and scope validation, the server calls the canonical realtime content barrier
+before tool dispatch. The request deadline bounds the wait.
+
 MCP accepts any nonempty subset of the five supported room/message/profile OAuth
 scopes. Protected-resource metadata requests room-read access for initial
 discovery. Any valid grant permits discovery and identity tools. Each other

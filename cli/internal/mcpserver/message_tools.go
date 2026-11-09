@@ -149,7 +149,8 @@ func sendDirectMessageHandler(c *core.ChattoCore) mcp.ToolHandlerFor[sendDirectM
 		result, output, err := postMessageHandler(c)(ctx, request, postMessageInput{RoomID: room.Id, Body: in.Body, IdempotencyKey: in.IdempotencyKey})
 		if err != nil && created {
 			f := classifyToolError(err, "send_direct_message")
-			f.Outcome = "applied"
+			f.ConversationCreated = true
+			f.RoomID = room.Id
 			f.Message += " The direct conversation was created, but message delivery was not confirmed."
 			return nil, postMessageOutput{}, f
 		}

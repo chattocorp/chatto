@@ -306,7 +306,9 @@ MCP operations. Final text defaults to the triggering conversation (or a saved
 schedule destination); explicit MCP posts can choose another destination. The
 agent can end silently after a tool post to avoid a duplicate final reply.
 Realtime intake, reconnects, typing, and initial context reads stay on the Go SDK.
-No message write is retried automatically after an uncertain result.
+No message write is retried automatically after an uncertain result. Durable
+realtime checkpoints supply the MCP minimum cursor so another replica catches
+up before it handles a tool call. Recovery gaps clear the previous boundary.
 
 Each turn includes a local `tool_search` capability and a reminder to search
 before work that needs tools or a claim that a capability is unavailable.
@@ -357,7 +359,10 @@ functions: `mcp_discover` returns one tool's description and argument schema;
 `mcp_call` executes it. Discovery also supplies bounded server instructions, including formatting guidance; instruction changes invalidate saved schema revisions. Memory and local conversation tools remain directly available.
 Schemas are loaded into conversation history only when needed and can be reused
 across turns and restarts when their revision matches the current name list.
-A changed revision tells the model to discover that tool again.
+A changed revision tells the model to discover that tool again. Host replies
+and acknowledgments use a separate connection with a fixed delivery contract.
+Unrelated catalog or instruction changes do not stop host delivery after a
+reconnect; model-selected tools retain their startup snapshot until restart.
 First use adds a local discovery step and another
 model request. This reduces the always-present MCP tool payload, especially in
 conversations that do not use web access. Once all schemas have been requested,

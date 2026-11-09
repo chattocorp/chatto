@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -31,10 +32,12 @@ const maxWireBytes = 4 << 20
 // Manager owns sessions until Close. Tools returns the startup catalog in a
 // stable order. Callers must stop agent work before closing the manager.
 type Manager struct {
-	servers      []*server
-	tools        []agent.Tool
-	instructions map[string]string
-	chatto       *server
+	servers       []*server
+	tools         []agent.Tool
+	instructions  map[string]string
+	chatto        *server
+	delivery      *server
+	minimumCursor atomic.Pointer[string]
 }
 type server struct {
 	mu           sync.Mutex
@@ -44,6 +47,8 @@ type server struct {
 	definitions  map[string]*mcp.Tool
 	closed       bool
 	discoverAll  bool
+	hostDelivery bool
+	cursor       func() string
 	instructions string
 }
 
@@ -73,7 +78,7 @@ func Open(ctx context.Context, cfg config.MCP, chatto ...ChattoConnection) (*Man
 		endpoint.RawPath = ""
 		endpoint.RawQuery = ""
 		endpoint.Fragment = ""
-		m.chatto = &server{config: config.MCPServer{URL: endpoint.String()}, headers: http.Header{"Authorization": []string{"Bearer " + chatto[0].Token}}, discoverAll: true}
+		m.chatto = &server{config: config.MCPServer{URL: endpoint.String()}, headers: http.Header{"Authorization": []string{"Bearer " + chatto[0].Token}}, discoverAll: true, cursor: m.chattoCursor}
 	}
 
 	names := make([]string, 0, len(cfg.Servers))
@@ -141,7 +146,24 @@ func Open(ctx context.Context, cfg config.MCP, chatto ...ChattoConnection) (*Man
 			})
 		}
 	}
+	if m.chatto != nil {
+		// Host delivery has a fixed contract and a separate session. Model tool
+		// snapshots can remain pinned without blocking ordinary replies on upgrades.
+		m.delivery = &server{config: config.MCPServer{URL: m.chatto.config.URL, Tools: []string{"post_message", "add_reaction"}}, headers: m.chatto.headers.Clone(), hostDelivery: true, cursor: m.chattoCursor, definitions: map[string]*mcp.Tool{"post_message": m.chatto.definitions["post_message"], "add_reaction": m.chatto.definitions["add_reaction"]}}
+		m.servers = append(m.servers, m.delivery)
+	}
 	return m, nil
+}
+
+// SetChattoCursor records the latest durably accepted realtime boundary. It is
+// sent only to Chatto, never to external MCP servers. An empty cursor clears it
+// after a recovery gap; subsequent checkpoints supply a fresh boundary.
+func (m *Manager) SetChattoCursor(cursor string) { m.minimumCursor.Store(&cursor) }
+func (m *Manager) chattoCursor() string {
+	if cursor := m.minimumCursor.Load(); cursor != nil {
+		return *cursor
+	}
+	return ""
 }
 
 // Tools exposes a compact discovery and dispatch pair. Full remote schemas are
@@ -182,7 +204,7 @@ func (m *Manager) Close() {
 
 func (s *server) connect(ctx context.Context) error {
 	client := mcp.NewClient(&mcp.Implementation{Name: "gobotto", Version: "experimental"}, &mcp.ClientOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
-	httpClient := &http.Client{Timeout: callTimeout, Transport: credentialTransport{s.headers}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	httpClient := &http.Client{Timeout: callTimeout, Transport: credentialTransport{headers: s.headers, cursor: s.cursor}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: s.config.URL, HTTPClient: httpClient, DisableStandaloneSSE: true, MaxRetries: -1, MaxEventSize: maxWireBytes}, nil)
 	if err != nil {
 		return err
@@ -217,7 +239,7 @@ func (s *server) connect(ctx context.Context) error {
 		if err != nil || len(data) > 32000 {
 			return errors.New("MCP tool definition too large")
 		}
-		if previous := s.definitions[tool.Name]; previous != nil {
+		if previous := s.definitions[tool.Name]; previous != nil && !s.hostDelivery {
 			old, _ := json.Marshal(previous)
 			if string(old) != string(data) {
 				return errors.New("MCP definition changed; restart required")
@@ -237,8 +259,16 @@ func (s *server) connect(ctx context.Context) error {
 	if len(instructions) > 16000 {
 		return errors.New("MCP instructions too large")
 	}
-	if s.definitions != nil && instructions != s.instructions {
+	if s.definitions != nil && instructions != s.instructions && !s.hostDelivery {
 		return errors.New("MCP instructions changed; restart required")
+	}
+	if s.hostDelivery {
+		post := definitions["post_message"]
+		schema, _ := post.InputSchema.(map[string]any)
+		properties, _ := schema["properties"].(map[string]any)
+		if _, ok := properties["thread_root_message_id"]; !ok {
+			return errors.New("Chatto host delivery contract unavailable")
+		}
 	}
 	s.instructions = instructions
 	s.definitions = definitions
@@ -333,13 +363,21 @@ func (s *server) call(ctx context.Context, name string, raw json.RawMessage) str
 
 // credentialTransport keeps credentials on the configured origin (redirects
 // are disabled) and bounds both JSON and SSE response bodies before decoding.
-type credentialTransport struct{ headers http.Header }
+type credentialTransport struct {
+	headers http.Header
+	cursor  func() string
+}
 
 func (t credentialTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	r := request.Clone(request.Context())
 	r.Header = request.Header.Clone()
 	for key, values := range t.headers {
 		r.Header[key] = append([]string(nil), values...)
+	}
+	if t.cursor != nil && r.Header.Get("Mcp-Method") == "tools/call" {
+		if cursor := t.cursor(); cursor != "" {
+			r.Header.Set("Chatto-Realtime-Minimum-Cursor", cursor)
+		}
 	}
 	response, err := http.DefaultTransport.RoundTrip(r)
 	if err == nil {
@@ -360,14 +398,14 @@ func (m *Manager) Deliver(ctx context.Context, name string, arguments any) error
 	if name != "post_message" && name != "add_reaction" {
 		return errors.New("unsupported Chatto delivery operation")
 	}
-	if m.chatto == nil {
+	if m.delivery == nil {
 		return errors.New("Chatto MCP unavailable")
 	}
 	raw, err := json.Marshal(arguments)
 	if err != nil {
 		return errors.New("invalid Chatto delivery arguments")
 	}
-	result := m.chatto.call(ctx, name, raw)
+	result := m.delivery.call(ctx, name, raw)
 	var envelope struct {
 		Status    string
 		Content   string

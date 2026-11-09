@@ -283,7 +283,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	}
 	var thread listRoomMessagesOutput
 	decodeStructuredContent(t, threadResult.StructuredContent, &thread)
-	if len(thread.Messages) != 2 {
+	if len(thread.Messages) != 2 || thread.Messages[0].ID != posted.Message.ID || thread.Messages[1].ID != reply.Message.ID {
 		t.Fatalf("thread root and reply missing: %#v", thread)
 	}
 

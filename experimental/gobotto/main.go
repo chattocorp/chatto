@@ -127,3 +127,25 @@ func (c *chattoActions) Reply(ctx context.Context, room, root, replyTo, body, ke
 func (c *chattoActions) React(ctx context.Context, room, message, emoji string) error {
 	return c.mcp.Deliver(ctx, "add_reaction", map[string]string{"room_id": room, "message_id": message, "emoji": emoji})
 }
+
+// ObserveResumable forwards durable realtime checkpoints to MCP so writes and
+// reads on another replica wait for the events already accepted by Gobotto.
+func (c *chattoActions) ObserveResumable(ctx context.Context, viewer string, options chatto.RecoveryOptions, ready func(), handle func(context.Context, chatto.MessageEvent) error) error {
+	c.mcp.SetChattoCursor(options.Cursor)
+	options.Checkpoint = chattoCheckpoint(options.Checkpoint, c.mcp.SetChattoCursor)
+	return c.Client.ObserveResumable(ctx, viewer, options, ready, handle)
+}
+
+// chattoCheckpoint publishes a consistency boundary only after durable inbox
+// acceptance. Empty checkpoints clear an expired boundary during recovery.
+func chattoCheckpoint(checkpoint func(string, *chatto.MessageEvent) error, publish func(string)) func(string, *chatto.MessageEvent) error {
+	return func(cursor string, event *chatto.MessageEvent) error {
+		if checkpoint != nil {
+			if err := checkpoint(cursor, event); err != nil {
+				return err
+			}
+		}
+		publish(cursor)
+		return nil
+	}
+}

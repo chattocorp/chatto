@@ -144,7 +144,13 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 			output.Messages = append(output.Messages, message)
 		}
 		if page.Page.HasOlder && len(page.Page.Events) > 0 {
-			output.NextBeforeEventID = page.Page.Events[0].GetId()
+			for _, event := range page.Page.Events {
+				if input.ThreadRootMessageID != "" && event.GetId() == input.ThreadRootMessageID {
+					continue
+				}
+				output.NextBeforeEventID = event.GetId()
+				break
+			}
 		}
 		return nil, output, nil
 	}
@@ -345,10 +351,10 @@ func readMessagePage(ctx context.Context, c *core.ChattoCore, actor string, in l
 		return nil, err
 	}
 	page := *thread.Replies
-	// Keep the oldest reply as the pagination cursor; the root is appended only
-	// after the reply page, and each message carries its thread relationship.
+	// Keep chronological order. The caller skips the root when selecting a
+	// pagination cursor, so older pages continue before the oldest reply.
 	if thread.IncludeRoot {
-		page.Events = append(append([]*core.RoomEvent(nil), page.Events...), thread.Root)
+		page.Events = append([]*core.RoomEvent{thread.Root}, page.Events...)
 	}
 	return &core.RoomTimelineEventsResult{Kind: thread.Kind, Page: &page}, nil
 }

@@ -144,7 +144,7 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 	protected := auth.RequireBearerToken(tokenVerifier(chattoCore, resource), &auth.RequireBearerTokenOptions{
 		ResourceMetadataURL:    metadataURL,
 		AllowMissingExpiration: true,
-	})(requireToolScope(metadataURL, streamable))
+	})(requireToolScope(metadataURL, withRealtimeMinimum(chattoCore, streamable)))
 
 	mux := http.NewServeMux()
 	mcpHandler := http.NewCrossOriginProtection().Handler(withRequestDeadline(protected))

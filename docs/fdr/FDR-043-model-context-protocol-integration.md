@@ -101,9 +101,14 @@ primitive.
   canonical DM, and posts through the normal message operation. Its receipt
   includes the message and room IDs for later thread replies. Exact keyed sends
   use the existing 30-minute retry contract. DM creation and posting are separate
-  operations; a failed send can leave an empty DM. Message-write consent covers
+  operations; a failed send can leave an empty DM. Error fields
+  `conversationCreated` and `roomId` describe this separately from the message
+  delivery `outcome`. Message-write consent covers
   this complete sending action, including destination creation. Existing
   message-write grants also permit edits and deletions subject to account rights.
+- Authenticated tool calls can supply `Chatto-Realtime-Minimum-Cursor`. The
+  canonical viewer-bound content wait runs before tool dispatch. Invalid or
+  expired cursors and wait timeouts have no tool effects.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
   effective Chatto server name as its display title.
 - Static MCP instructions identify the tools as the source of truth for rooms,

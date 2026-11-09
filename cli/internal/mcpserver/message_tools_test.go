@@ -71,7 +71,12 @@ func TestMCPMessageTools(t *testing.T) {
 	args["body"] = "Changed intent"
 	call("send_direct_message", args, true)
 	args["user_id"] = actor
-	call("send_direct_message", args, true)
+	failed := call("send_direct_message", args, true)
+	var partial toolErrorOutput
+	decodeStructuredContent(t, failed.StructuredContent, &partial)
+	if partial.Error.Code != "idempotency_conflict" || partial.Error.Outcome != "not_applied" || !partial.Error.ConversationCreated || partial.Error.RoomID == "" {
+		t.Fatalf("DM creation misreported message outcome: %#v", partial.Error)
+	}
 	decodeStructuredContent(t, call("send_direct_message", map[string]any{"user_id": recipient.Id, "body": "Another message"}, false).StructuredContent, &second)
 	if second.Message.RoomID != sent.Message.RoomID || second.Message.ID == sent.Message.ID {
 		t.Fatal("DM was not reused")
