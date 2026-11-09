@@ -25,7 +25,11 @@ export default {
   workspaces: {
     '.': {
       // The lifecycle tests launch the fixture in a child process.
-      entry: ['tools/*.mjs', 'tools/fixtures/paseo-lifecycle.mjs'],
+      entry: [
+        'tools/*.mjs',
+        'tools/slack/test-slack-markdown.mjs',
+        'tools/fixtures/paseo-lifecycle.mjs'
+      ],
       project: ['tools/**/*.mjs'],
       // These commands come from mise, the operating system, or Paseo.
       ignoreBinaries: ['go', 'buf', 'gofmt', 'traefik', 'paseo', 'python3'],

@@ -40,7 +40,7 @@ chatto operator import ./converted --validate-only
 chatto operator import ./converted --accept-omissions
 ```
 
-The [Slack converter](../../tools/slack-export.md) produces this format with
+The [Slack converter](../../tools/slack/slack-export.md) produces this format with
 local file bytes. It needs no operator socket. Its output is also readable by
 an archive reader or another platform's importer. The legacy direct Slack
 importer remains available for existing runs.

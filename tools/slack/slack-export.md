@@ -1,12 +1,12 @@
 # Convert Slack history to a Chatto archive
 
 Use `slack-export.py` to convert a Slack ZIP or extracted directory into the
-[draft interchange format](../docs/interchange/v1.md). The command writes users,
+[draft interchange format](../../docs/interchange/v1.md). The command writes users,
 channels, events, and original file bytes. It does not connect to Chatto.
 Python 3.11 or later and `uv` are required. Run from the repository checkout:
 
 ```sh
-mise x -- uv run --script tools/slack-export.py /path/to/slack-export \
+mise x -- uv run --script tools/slack/slack-export.py /path/to/slack-export \
   --output /path/to/new-chatto-archive
 ```
 
@@ -61,7 +61,7 @@ conversion from reading its own output as new Slack source data:
 
 ```sh
 mkdir -m 700 /path/to/slack-export/.chatto-import
-mise x -- uv run --script tools/slack-export.py /path/to/slack-export \
+mise x -- uv run --script tools/slack/slack-export.py /path/to/slack-export \
   --output /path/to/slack-export/.chatto-import/archive-v1
 ```
 
@@ -190,7 +190,7 @@ bots have no credentials. Private channels and unavailable files remain
 unsupported. The CLI streams events and files to
 individual Operator APIs. There is no total archive size or record-count limit;
 one JSON record is limited to 1 MiB. Shared files are supported. See the
-[current import limits](../schema/interchange/README.md) before loading it.
+[current import limits](../../schema/interchange/README.md) before loading it.
 Channel and username decorations belong to `chatto operator import`.
 
 The legacy [direct Slack importer](slack-import.md) remains available for
@@ -214,7 +214,7 @@ Conversion reads this lookup locally and does not contact GitHub or Slack for
 standard emoji. To regenerate it, run:
 
 ```sh
-mise x -- uv run python -B tools/gen-slack-emoji-map.py
+mise x -- uv run python -B tools/slack/gen-slack-emoji-map.py
 ```
 
 Only this maintenance command fetches the public dataset from GitHub. Its source

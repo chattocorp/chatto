@@ -14,6 +14,9 @@ from unittest.mock import patch
 
 from slack_apply import ApplyError
 from slack_files import FileImports
+
+# Share the format's conformance checks with converters outside Slack.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from test_interchange import validate_records
 
 spec = importlib.util.spec_from_file_location("slack_export", Path(__file__).with_name("slack-export.py"))
@@ -356,7 +359,7 @@ class SlackArchiveTests(unittest.TestCase):
                 exporter.reaction_unicode("future::skin-tone-2", {})
 
     def test_supplemental_standard_emoji_convert_to_unicode(self):
-        emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+        emojis = json.loads((Path(__file__).resolve().parents[1] / "emoji-map.json").read_text())
         for name, glyph in {
             "face_with_bags_under_eyes": "🫩", "head_shaking_vertically": "🙂‍↕️",
             "leafless_tree": "🪾", "phoenix": "🐦‍🔥", "shovel": "🪏", "splatter": "🫟",
@@ -365,7 +368,7 @@ class SlackArchiveTests(unittest.TestCase):
                 self.assertEqual(exporter.reaction_unicode(name, emojis), glyph)
 
     def test_invalid_skin_tone_combinations_are_not_constructed(self):
-        emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+        emojis = json.loads((Path(__file__).resolve().parents[1] / "emoji-map.json").read_text())
         for name in ("heart::skin-tone-4", "custom::skin-tone-4", "hugs::skin-tone-4",
                      "thumbsup::skin-tone-1", "thumbsup::skin-tone-7", "thumbsup::skin-tone-4-4"):
             with self.subTest(name=name), self.assertRaises(ApplyError):

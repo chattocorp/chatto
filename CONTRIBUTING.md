@@ -570,6 +570,10 @@ import tooling. The task installs workspace dependencies and discovers
 then runs the launcher shell test and the Python suites through
 `mise test-interchange` and `mise test-slack`.
 
+Slack scripts, tests, documentation, and Slack-specific assets are in
+`tools/slack/`. The Slack task also checks converted Markdown with the
+frontend's Markdown engine and link policy.
+
 CI and `mise test` use this same task. Add new Node tooling tests as
 `tools/<name>.test.mjs` so both commands include them. The focused tasks, such
 as `mise test-dev-tooling` and `mise test-clean`, remain available.

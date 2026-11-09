@@ -10,7 +10,7 @@ The server must support historical threads, reactions, and import idempotency ke
 Update every server replica before import.
 
 ```sh
-mise x -- python3 tools/slack-import.py path/to/export.zip \
+mise x -- python3 tools/slack/slack-import.py path/to/export.zip \
   --operator-socket /absolute/path/to/operator.sock
 ```
 
@@ -29,7 +29,7 @@ and conversion errors in the progress directory. Reports contain no message
 content, user names, source IDs, or channel names.
 
 ```sh
-mise x -- python3 -B tools/slack-import.py /path/to/extracted-export \
+mise x -- python3 -B tools/slack/slack-import.py /path/to/extracted-export \
   --preflight --save-report --max-source-mib 512
 ```
 
@@ -48,7 +48,7 @@ For an export with unavailable attachments and canvas metadata, explicitly accep
 these omissions:
 
 ```sh
-mise x -- python3 tools/slack-import.py path/to/export.zip \
+mise x -- python3 tools/slack/slack-import.py path/to/export.zip \
   --operator-socket /absolute/path/to/operator.sock \
   --allow-missing-files --skip-canvases --allow-attachment-summaries
 ```
@@ -93,7 +93,7 @@ it is excluded from source inspection. Set the file mode to `0600`. Do not put
 the token in a command argument or paste it into logs.
 
 ```sh
-mise x -- python3 -B tools/slack-import.py /path/to/extracted-export \
+mise x -- python3 -B tools/slack/slack-import.py /path/to/extracted-export \
   --preflight --slack-token-file /path/to/extracted-export/.chatto-import/slack-token
 ```
 
@@ -131,7 +131,7 @@ The export URLs must still grant access to the files.
 Inspect availability before importing:
 
 ```sh
-mise x -- python3 -B tools/slack-import.py /path/to/extracted-export \
+mise x -- python3 -B tools/slack/slack-import.py /path/to/extracted-export \
   --preflight --download-files --max-source-mib 512
 ```
 
@@ -281,7 +281,7 @@ the write did not occur; a timeout is not proof. Then repeat the normal command.
   `--skip-canvases` omits canvas content. Avatars are always omitted. The final
   summary records all these omissions.
 
-See [FDR-028](../docs/fdr/FDR-028-operator-api-and-cli.md) for the operator API.
+See [FDR-028](../../docs/fdr/FDR-028-operator-api-and-cli.md) for the operator API.
 Recovery beyond the bounded retry window, broader formatting support, and
 avatar import remain separate work.
 
@@ -289,12 +289,11 @@ avatar import remain separate work.
 
 ```sh
 mise test-slack
-mise x -- pnpm --dir apps/frontend exec tsx ../../tools/test-slack-markdown.mjs
 ```
 
 Tests use synthetic exports and cover source validation, conversion, thread and
 reaction placement, restart recovery, duplicate prevention, and destination
 checks. Private exports are never repository fixtures.
-The optional rendering check uses the frontend's installed Markdown engine and
-link policy with synthetic input. It requires the workspace development dependencies;
-the importer itself still has no external Python or Node dependencies.
+The task also checks rendering with the frontend's Markdown engine and link
+policy. It installs the workspace development dependencies for this check.
+The importer itself still has no external Python or Node dependencies.

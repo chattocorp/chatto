@@ -63,7 +63,7 @@ def slack_emoji_catalog():
     """Load pinned Slack aliases and the destination Unicode set once, offline."""
     directory = Path(__file__).parent
     aliases = json.loads((directory / "slack-emoji-map.json").read_text(encoding="utf-8"))["emoji"]
-    supported = frozenset(json.loads((directory / "emoji-map.json").read_text(encoding="utf-8")).values())
+    supported = frozenset(json.loads((directory.parent / "emoji-map.json").read_text(encoding="utf-8")).values())
     return aliases, supported
 
 
@@ -210,7 +210,7 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
     logins = {u["source_id"]: u["proposed_login"] or u["source_id"] for u in plan["users"]}
     logins.update({u["id"]: u.get("display_name", u["id"]) for u in users if u["id"] not in logins})
     channels = {r["source_id"]: r["name"] for r in plan["rooms"]}
-    emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+    emojis = json.loads((Path(__file__).resolve().parents[1] / "emoji-map.json").read_text())
     unknown_names = set()
     introduced, membership = set(), {}
     for position, row in enumerate(plan["messages"], 1):
@@ -304,7 +304,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
         raise ApplyError("Export contains unsupported records or missing thread roots.")
     if plan["canvases"] and not skip_canvases:
         raise ApplyError("Canvas metadata requires --skip-canvases.")
-    emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+    emojis = json.loads((Path(__file__).resolve().parents[1] / "emoji-map.json").read_text())
     omissions = [{"category": "history", "reason": "Slack supplies final message and reaction state, without a consistent capture cut or complete history.", "count": None}]
 
     def omit(category, reason, count):
@@ -479,7 +479,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
 
 def validate_records(records):
     """Check the authoritative local schemas without network resolution or PII errors."""
-    directory = Path(__file__).resolve().parents[1] / "schema/interchange/v1"
+    directory = Path(__file__).resolve().parents[2] / "schema/interchange/v1"
     schemas = {name: json.loads((directory / (name + ".schema.json")).read_text())
                for name in ("common", "manifest", "user", "room", "asset", "event")}
     registry = Registry().with_resources((s["$id"], Resource.from_contents(s)) for s in schemas.values())
