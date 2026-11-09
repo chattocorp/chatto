@@ -11,8 +11,9 @@ on:
       - 'LICENSE'
       - 'NOTICE'
       - '.github/workflows/build-authling-image.yml'
-      # Changelogs do not change the image.
+      # Release notes and changelogs do not change the image.
       - '!**/CHANGELOG.md'
+      - '!**/.sweet/**'
   push:
     branches: [main]
     tags: ['authling/v*']
@@ -26,8 +27,9 @@ on:
       - 'LICENSE'
       - 'NOTICE'
       - '.github/workflows/build-authling-image.yml'
-      # Changelogs do not change the image.
+      # Release notes and changelogs do not change the image.
       - '!**/CHANGELOG.md'
+      - '!**/.sweet/**'
   workflow_dispatch:
 
 concurrency:
