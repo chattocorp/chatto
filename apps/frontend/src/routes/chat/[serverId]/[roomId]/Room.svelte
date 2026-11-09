@@ -49,7 +49,7 @@
   import { buildRoomPresentation } from './roomPresentation';
   import type { ThreadOpenOptions } from './threadOpenOptions';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
-  import { recentThreadRootCandidate } from './recentThreadRoot';
+  import { latestThreadRootCandidate } from './latestThreadRoot';
 
   let {
     roomId,
@@ -172,7 +172,7 @@
     permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
   );
 
-  function getRecentThreadRootCandidate() {
+  function getLatestThreadRootCandidate() {
     const currentUserId = stores.viewerId;
     if (
       !currentUserId ||
@@ -181,12 +181,7 @@
     ) {
       return null;
     }
-    return recentThreadRootCandidate(
-      roomMessageStore.rootEvents,
-      roomId,
-      currentUserId,
-      Date.now()
-    );
+    return latestThreadRootCandidate(roomMessageStore.rootEvents, roomId);
   }
 
   createRoomPermissions(() => permissions);
@@ -635,7 +630,7 @@
           createThreadRequired: composerRequiresThread,
           createThreadDefault: threadingMode === RoomThreadingMode.ENCOURAGED,
           threadsEncouraged: threadingMode === RoomThreadingMode.ENCOURAGED,
-          getRecentThreadRootCandidate,
+          getLatestThreadRootCandidate,
           autoFocus: !threadId && !hasMobileRoomSidebar,
           onThreadMessageSent: (threadRootEventId, event) =>
             openThread(threadRootEventId, { highlightEventId: event?.id })

@@ -50,7 +50,7 @@ export type MessageComposerApi = {
   insertQuote: (text: QuoteInsertionContent) => void;
 };
 
-export type RecentThreadRootCandidate = {
+export type LatestThreadRootCandidate = {
   threadRootEventId: string;
 };
 
@@ -77,7 +77,7 @@ export type MessageComposerProps = {
   threadsEncouraged?: boolean;
   /** Users that rank first in @mention autocomplete, such as thread participants. */
   mentionPriorityUserIds?: ReadonlySet<string>;
-  getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
+  getLatestThreadRootCandidate?: () => LatestThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
   /**
    * Inline status badges, such as the typing indicator. The composer places
@@ -100,7 +100,7 @@ type MessageComposerDependencies = {
   getCanCreateThread: () => boolean;
   getCreateThreadRequired: () => boolean;
   getCreateThreadDefault: () => boolean;
-  getRecentThreadRootCandidate: () => RecentThreadRootCandidate | null;
+  getLatestThreadRootCandidate: () => LatestThreadRootCandidate | null;
   getAutoFocus: () => boolean;
   getComposerSendMode: () => ComposerSendMode;
   getPlaceholder: () => string | undefined;
@@ -166,7 +166,7 @@ export class MessageComposerState {
   #cancelPreviewDetection: (() => void) | undefined;
   pendingThreadDestinationConfirmation = $state<{
     post: PreparedPost;
-    candidate: RecentThreadRootCandidate;
+    candidate: LatestThreadRootCandidate;
   } | null>(null);
 
   constructor(dependencies: MessageComposerDependencies) {
@@ -348,7 +348,7 @@ export class MessageComposerState {
     this.pendingThreadDestinationConfirmation = null;
   }
 
-  async postInRecentThread(): Promise<void> {
+  async postInLatestThread(): Promise<void> {
     const pending = this.pendingThreadDestinationConfirmation;
     if (!pending || this.#threadDestinationChoicePending) return;
     this.#threadDestinationChoicePending = true;
@@ -640,9 +640,10 @@ export class MessageComposerState {
           !this.#dependencies.getThreadRootEventId() &&
           this.createThread)
     };
+    // An explicit reply already has a destination. Never suggest an unrelated thread.
     const candidate =
       post.threadRootEventId === null && post.inReplyTo === null
-        ? this.#dependencies.getRecentThreadRootCandidate()
+        ? this.#dependencies.getLatestThreadRootCandidate()
         : null;
     if (candidate) {
       this.pendingThreadDestinationConfirmation = { post, candidate };
