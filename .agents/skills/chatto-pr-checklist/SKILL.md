@@ -10,6 +10,10 @@ Review the complete branch diff against the target branch.
 - Check tests for the changed behavior. Add missing coverage within the task.
 - Check the documentation listed in root `AGENTS.md`. Update affected records
   and public docs within the task.
+- Review Sweet notes using
+  [Writing change notes](../../../CONTRIBUTING.md#writing-change-notes):
+  describe the result for the reader and required upgrade actions, with one
+  short entry per meaningful change rather than implementation instructions.
 - For public API or protocol changes, use
   [chatto-api-compatibility](../chatto-api-compatibility/SKILL.md).
 - For frontend changes, use

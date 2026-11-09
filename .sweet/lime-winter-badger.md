@@ -2,4 +2,4 @@
 type: fix
 ---
 
-Open an existing thread when Reply is selected in Enabled rooms, with Reply in room available as a secondary action.
+Clicking **Reply** on a message with an existing thread now opens that thread in Enabled rooms too. You can still choose **Reply in room** from the message menu.
