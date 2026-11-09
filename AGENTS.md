@@ -248,6 +248,11 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Issues, Commits, And PRs
 
+- Releasable packages use Sweet Release. Add a note with
+  `mise x -- sweet change <package-path>` for user-visible changes in each
+  affected release unit. Chatto, its client, frontend, and desktop share the
+  root note directory. See `CONTRIBUTING.md` and `docs/RELEASING.md`.
+
 - Every review that includes `apps/frontend/` must use
   [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).
   This includes self-review, branch and PR review, and architecture review.

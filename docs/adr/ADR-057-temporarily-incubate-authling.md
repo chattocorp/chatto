@@ -44,13 +44,11 @@ adapter must supply Authling's own NATS connection and preserve the same
 application boundary as the standalone executable. Chatto does not embed
 Authling initially.
 
-Chatto, Authling, and the shared modules have independent Release Please
-components, versions, changelogs, release pull requests, and tags:
+Chatto, Authling, and the shared modules have independent Sweet Release
+manifests, versions, changelogs, release pull requests, and tags:
 
-- Chatto remains the root component and uses `v<version>` tags. Its release
-  component excludes commits whose files are entirely under `authling/`,
-  `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`,
-  `pkg/appconfig/`, or `.agents/skills/`.
+- Chatto remains the root release unit and uses `v<version>` tags. Authors add
+  explicit notes for each affected unit; commit paths do not select releases.
 - Authling uses the `authling/` component and `authling/v<version>` tags. The
   slash follows Go's nested-module tag convention and keeps module versions
   consumable through normal Go tooling.
@@ -67,10 +65,9 @@ components, versions, changelogs, release pull requests, and tags:
 - The application-configuration module uses the `pkg/appconfig/` component and
   `pkg/appconfig/v<version>` tags, matching its nested-module repository path.
 
-Release Please does not infer dependencies between Go workspace modules. A
-change to a shared module that requires a new Chatto or Authling version must
-also update that consumer's module dependency or another file under the
-consumer's component, making its release explicit.
+Sweet does not infer dependencies between Go workspace modules. A shared-module
+change that requires a new consumer version must also update that dependency
+and include a consumer release note. See [ADR-122](ADR-122-changeset-driven-releases.md).
 
 Authling uses the module path `github.com/chattocorp/chatto/authling` while it
 is in this repository. All Go module paths match their repository location, so

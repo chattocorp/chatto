@@ -26,7 +26,7 @@ block for easy copying. When using a code block, put no text outside it.
   announcement, compare with the preceding stable release, unless the user
   specifies another range.
 - Read the release PR and changelog to identify candidate changes. Inspect
-  the underlying feature and fix PRs or commits for details. A release-please
+  the underlying feature and fix PRs or commits for details. A generated release
   PR normally contains version and changelog edits, not the implementation.
 - Check source code or product documentation when the reader impact, platform
   scope, compatibility, or required action is unclear. Do not infer these

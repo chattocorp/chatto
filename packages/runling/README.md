@@ -290,14 +290,13 @@ To run the bundled demos, run `mise x -- pnpm --dir packages/runling dev` from
 the monorepo root. Demos that use agents need model-provider credentials in Pi
 or in `packages/runling/.env`. Restart the server after changing `.env`.
 
-Runling has its own entry in the root release-please configuration and
-manifest. Its imported version is 0.7.0, from upstream commit
+Runling has its own `.sweet.yml` release manifest and `.sweet/` change notes. Its imported version is 0.7.0, from upstream commit
 `2fe061bc9904d4a5cb2c0db3973dbe0fbe337f1c`. The existing changelog records
 releases made in the former repository. New releases use tags such as
-`runling/v0.8.0`. Chatto releases exclude Runling package changes.
+`runling/v0.8.0`. Runling notes select only Runling releases.
 
-After CI succeeds, the root release workflow uses `RELEASE_PLEASE_PAT` to
-create release PRs and tags. A Runling tag starts `publish-runling.yml`, which
+The Prepare releases workflow creates a PR from Runling notes. After it merges
+and CI succeeds, CI creates its version tag. A Runling tag starts `publish-runling.yml`, which
 checks the version, rejects versions previously published to npm, and tests
 the package. A separate job publishes that exact tarball with npm provenance.
 Manual workflow runs only test and save the tarball.

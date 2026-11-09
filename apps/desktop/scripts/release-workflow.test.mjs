@@ -204,23 +204,15 @@ test('manual verification fails without a development version', (t) => {
   );
 });
 
-test('release-please owns both version files through the Chatto component', () => {
+test('Sweet owns both version files through the Chatto package', () => {
   const root = new URL('../../../', import.meta.url);
-  const config = JSON.parse(readFileSync(new URL('.release-please-config.json', root), 'utf8'));
-  const manifest = JSON.parse(readFileSync(new URL('.release-please-manifest.json', root), 'utf8'));
-  assert.equal(config.packages['apps/desktop'], undefined);
-  assert.equal(manifest['apps/desktop'], undefined);
-  assert.ok(!config.packages['.']['exclude-paths'].includes('apps/desktop'));
+  const manifest = readFileSync(new URL('.sweet.yml', root), 'utf8').replaceAll('\r\n', '\n');
   for (const name of ['desktop', 'frontend']) {
     const packagePath = `apps/${name}/package.json`;
-    assert.ok(
-      config.packages['.']['extra-files'].some(
-        (file) => file.path === packagePath && file.jsonpath === '$.version'
-      )
-    );
+    assert.ok(manifest.includes(`path: ${packagePath}\n    format: json\n    key: version`));
     assert.equal(
       JSON.parse(readFileSync(new URL(packagePath, root), 'utf8')).version,
-      manifest['.']
+      manifest.match(/^version: (.+)$/m)[1]
     );
   }
 });

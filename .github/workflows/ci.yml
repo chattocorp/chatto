@@ -54,9 +54,9 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || '' }}
           ref: ${{ github.event_name == 'push' && github.sha || '' }}
           predicate-quantifier: some-with-excludes
-          # Release-please writes changelogs and the release manifest. Only
-          # release tooling reads the changelogs, so they do not select product
-          # jobs. Of the products, only a Runling test reads the manifest.
+          # Sweet writes changelogs and package manifests. Only
+          # release tooling reads changelogs, so they do not select product
+          # jobs. Package-local manifests select their own product checks.
           # Version files in release pull requests still select their product.
           filters: |
             chatto:
@@ -77,8 +77,6 @@ jobs:
               - '!**/CHANGELOG.md'
             translatto:
               - 'packages/translatto/**'
-              - '.release-please-config.json'
-              - '.release-please-manifest.json'
               - '!**/CHANGELOG.md'
             runling:
               - 'packages/runling/**'
@@ -86,8 +84,7 @@ jobs:
               - 'packages/chatto-client/**'
               - 'packages/api-types/**'
               - 'examples/runling-bot/**'
-              # A release test compares the manifest with the Runling version.
-              - '.release-please-manifest.json'
+              # Runling owns its release manifest.
               - '!**/CHANGELOG.md'
             chattobot:
               - 'packages/chattobot/**'
@@ -125,7 +122,6 @@ jobs:
               # Experimental modules have their own workflow.
               - '!experimental/**'
               - '!*.md'
-              - '!.release-please-manifest.json'
 
   test-translatto-package:
     needs: changes
@@ -1260,3 +1256,55 @@ jobs:
           install-cli-deps: 'false'
       - run: pnpm turbo run check --filter=docs-website
       - run: pnpm run build:docs
+
+  tag-releases:
+    # Optional product jobs may be skipped; failures and cancellations block tags.
+    if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    needs:
+      - changes
+      - test-translatto-package
+      - test-runling
+      - test-botto
+      - test-chattobot
+      - build-main-image-contexts
+      - license-check
+      - workflow-lint
+      - desktop
+      - desktop-macos-capture
+      - codegen-proto-drift
+      - check-workspace
+      - check-unused
+      - check-format
+      - test-workspace-packages
+      - test-workspace
+      - test-cli-shared
+      - test-cli-chatto
+      - lint-cli
+      - test-oidc-conformance
+      - test-cli
+      - test-authling-e2e
+      - test-e2e-shards
+      - test-e2e
+      - test-e2e-media
+      - test-e2e-performance
+      - publish-main-image
+      - check-docs
+    runs-on: ubuntu-latest
+    concurrency:
+      group: sweet-tag-${{ github.sha }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
+      - uses: jdx/mise-action@v3
+        with:
+          install: false
+      - name: Tag committed package releases
+        shell: bash
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: bash tools/tag-releases.sh

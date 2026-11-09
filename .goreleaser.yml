@@ -41,8 +41,8 @@ archives:
         formats: [zip]
 
 changelog:
-  # release-please now owns the changelog (CHANGELOG.md + the GitHub
-  # Release body). Don't let GoReleaser generate or attach a second one.
+  # Sweet Release builds CHANGELOG.md from change notes. The release workflow
+  # uses that entry for the GitHub Release body. Do not generate a second one.
   disable: true
 
 dockers:
@@ -135,17 +135,14 @@ release:
   github:
     owner: chattocorp
     name: chatto
-  # release-please creates a draft GitHub Release with its changelog body.
-  # GoReleaser must NOT overwrite it: it should attach artifacts to that
-  # draft and leave publication to the workflow step that runs after release
-  # artifacts and container images have been pushed.
+  # CI runs GoReleaser with --skip=publish. The release workflow creates the
+  # draft from Sweet's changelog entry, uploads artifacts, and publishes it
+  # after the container images are pushed. Keep any existing draft and its
+  # body if GoReleaser is used to publish outside that workflow.
   draft: true
   use_existing_draft: true
   replace_existing_artifacts: true
   mode: keep-existing
-  # `auto` marks the GitHub Release as prerelease when the tag carries
-  # a prerelease suffix (e.g. v0.1.0-alpha.1). release-please-action
-  # already creates the Release with the correct prerelease flag for
-  # prerelease tags; this is belt-and-suspenders in case GoReleaser is
-  # invoked outside the release-please flow.
+  # The release workflow sets the prerelease flag from the tag suffix.
+  # Use the same rule when GoReleaser publishes outside that workflow.
   prerelease: auto
