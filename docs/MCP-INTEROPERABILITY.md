@@ -345,7 +345,6 @@ mobile widths. The separate profile permission and reaction wording were visible
 without submitting a grant. This supplements the browser component scope-isolation
 tests; it does not repeat the OAuth authorization-code tester flows above.
 
-
 ### Message workflow extension (2026-11-09)
 
 The added tools serve concrete Gobotto requests: inspect a known message,
