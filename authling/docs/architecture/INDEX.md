@@ -177,8 +177,11 @@ still read from any replica. The bucket's `Create` also checks for a delete
 marker on any replica. Revision-checked counter updates treat both JetStream
 conflict codes as a conflict and read the counter again: a replicated stream
 reports a conflict with a write in progress as a different code. Startup tries
-stream and bucket provisioning up to three times when JetStream reports a
-transient error, for example while a cluster elects a leader.
+stream and bucket provisioning with bounded exponential backoff and jitter
+when JetStream reports a transient error, for example while a cluster elects
+a leader. Each request has its own timeout. Cancellation stops retries, and
+permanent configuration or authentication errors fail startup. The HTTP
+listener starts only after initialization and replay complete.
 
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event

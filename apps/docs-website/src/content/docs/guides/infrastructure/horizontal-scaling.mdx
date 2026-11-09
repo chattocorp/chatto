@@ -239,9 +239,13 @@ startupProbe:
   httpGet:
     path: /readyz
     port: 4000
-  failureThreshold: 15
+  failureThreshold: 300
   periodSeconds: 2
 ```
+
+Allow enough startup time for JetStream recovery and event replay. These
+probes allow ten minutes. Chatto retries transient storage provisioning errors
+with bounded backoff. It does not become ready until initialization completes.
 
 ## Voice and Video Calls with Multiple Server Processes
 

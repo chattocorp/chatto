@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"strings"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -15,9 +17,17 @@ import (
 type JetStreamResourceRetryPolicy struct {
 	// MaxAttempts includes the initial call and must be positive.
 	MaxAttempts int
-	// RetryDelay is multiplied by the failed attempt number before the next call.
-	// It must be non-negative and the largest delay must fit in time.Duration.
+	// RetryDelay is the initial exponential delay when MaxRetryDelay is positive.
+	// Otherwise it is multiplied by the failed attempt number. It must be
+	// non-negative and the largest linear delay must fit in time.Duration.
 	RetryDelay time.Duration
+	// MaxRetryDelay selects exponential backoff with equal jitter when positive.
+	// Each wait is between half and all of the exponential delay, capped here.
+	// Zero preserves linear backoff. It must be at least RetryDelay.
+	MaxRetryDelay time.Duration
+	// RequestTimeout bounds each callback when positive, independently of the
+	// overall startup context. Zero leaves request deadlines to the caller.
+	RequestTimeout time.Duration
 }
 
 // CreateJetStreamResourceWithRetry retries transient JetStream provisioning errors.
@@ -32,15 +42,23 @@ func CreateJetStreamResourceWithRetry[T any](ctx context.Context, policy JetStre
 	if err := ctx.Err(); err != nil {
 		return zero, err
 	}
-	if policy.MaxAttempts < 1 || policy.RetryDelay < 0 ||
-		(policy.MaxAttempts > 1 && policy.RetryDelay > time.Duration(1<<63-1)/time.Duration(policy.MaxAttempts-1)) {
+	if policy.MaxAttempts < 1 || policy.RetryDelay < 0 || policy.MaxRetryDelay < 0 || policy.RequestTimeout < 0 ||
+		(policy.MaxRetryDelay > 0 && (policy.RetryDelay <= 0 || policy.MaxRetryDelay < policy.RetryDelay)) ||
+		(policy.MaxRetryDelay == 0 && policy.MaxAttempts > 1 && policy.RetryDelay > time.Duration(1<<63-1)/time.Duration(policy.MaxAttempts-1)) {
 		return zero, fmt.Errorf("invalid JetStream resource retry policy")
 	}
+	delay := policy.RetryDelay
 	for attempt := 1; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return zero, err
 		}
-		resource, err := create(ctx)
+		attemptCtx := ctx
+		cancel := func() {}
+		if policy.RequestTimeout > 0 {
+			attemptCtx, cancel = context.WithTimeout(ctx, policy.RequestTimeout)
+		}
+		resource, err := create(attemptCtx)
+		cancel()
 		if parentErr := ctx.Err(); parentErr != nil {
 			return zero, parentErr
 		}
@@ -50,7 +68,16 @@ func CreateJetStreamResourceWithRetry[T any](ctx context.Context, policy JetStre
 		if attempt == policy.MaxAttempts || !isTransientJetStreamResourceError(err) {
 			return zero, err
 		}
-		timer := time.NewTimer(time.Duration(attempt) * policy.RetryDelay)
+		wait := time.Duration(attempt) * policy.RetryDelay
+		if policy.MaxRetryDelay > 0 {
+			wait = delay/2 + time.Duration(rand.Int64N(int64(delay-delay/2)+1))
+			if delay > policy.MaxRetryDelay/2 {
+				delay = policy.MaxRetryDelay
+			} else {
+				delay *= 2
+			}
+		}
+		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -66,7 +93,7 @@ func isTransientJetStreamResourceError(err error) bool {
 	}
 	// nats.go's context-based management requests return ctx.Err(), including
 	// when its default request timeout expires under an active parent context.
-	if errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) || errors.Is(err, nats.ErrNoResponders) {
 		return true
 	}
 	type apiErrorProvider interface {
@@ -80,6 +107,8 @@ func isTransientJetStreamResourceError(err error) bool {
 	if apiErr == nil {
 		return false
 	}
-	return (apiErr.ErrorCode == 10049 && strings.Contains(apiErr.Description, "error creating store for stream")) ||
+	// 10008 means the cluster cannot serve the request temporarily. Do not
+	// retry all 503 errors: disabled JetStream accounts are configuration errors.
+	return apiErr.ErrorCode == 10008 || (apiErr.ErrorCode == 10049 && strings.Contains(apiErr.Description, "error creating store for stream")) ||
 		(apiErr.ErrorCode == 10058 && strings.Contains(apiErr.Description, "stream name already in use"))
 }

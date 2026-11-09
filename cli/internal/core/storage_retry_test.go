@@ -233,3 +233,33 @@ func TestStorageRetryPreservesStreamMetadata(t *testing.T) {
 		})
 	}
 }
+
+// Stream identity reads are part of provisioning and must also tolerate outages.
+func TestStreamIdentityLookupRetriesStartupTimeout(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unavailable := &identityLookupOutage{JetStream: js}
+	stream, err := createIdentifiedStream(testContext(t), unavailable, evtStreamConfig(config.CoreConfig{}), evtStreamIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unavailable.attempts != 2 || !evtStreamIdentity.valid(stream.CachedInfo().Config.Metadata[evtStreamIdentity.metadataKey]) {
+		t.Fatal("stream identity not initialized after recovery")
+	}
+}
+
+type identityLookupOutage struct {
+	jetstream.JetStream
+	attempts int
+}
+
+func (js *identityLookupOutage) Stream(ctx context.Context, name string) (jetstream.Stream, error) {
+	js.attempts++
+	if js.attempts == 1 {
+		return nil, context.DeadlineExceeded
+	}
+	return js.JetStream.Stream(ctx, name)
+}

@@ -55,3 +55,40 @@ func TestRuntimeStateUpdatePreservesAndResetsPerKeyTTL(t *testing.T) {
 	}
 	t.Fatal("updated key did not expire after its reset TTL")
 }
+
+// An outage lasts longer than the former three-attempt budget. The remaining
+// operations use a real JetStream server to verify complete bucket provisioning.
+func TestOpenStoresRecoversFromStartupTimeouts(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancel()
+	connection, err := natsruntime.Open(ctx, config.NATSConfig{Embedded: config.EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	js, err := jetstream.New(connection.NATS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unavailable := &startupOutageJetStream{JetStream: js}
+	stores, err := OpenStores(ctx, unavailable, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stores.Keys == nil || stores.RuntimeState == nil || unavailable.attempts != 6 {
+		t.Fatalf("incomplete provisioning after %d attempts", unavailable.attempts)
+	}
+}
+
+type startupOutageJetStream struct {
+	jetstream.JetStream
+	attempts int
+}
+
+func (js *startupOutageJetStream) CreateOrUpdateKeyValue(ctx context.Context, cfg jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
+	js.attempts++
+	if js.attempts <= 4 {
+		return nil, context.DeadlineExceeded
+	}
+	return js.JetStream.CreateOrUpdateKeyValue(ctx, cfg)
+}

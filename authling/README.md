@@ -53,6 +53,9 @@ This extends Go's process-wide trust store, including outbound HTTPS. Do not
 disable TLS verification. Authling starts its HTTP listener only after startup
 replay and issuer initialization finish. A TCP startup/readiness probe can
 check that milestone, but does not prove continuing NATS or JetStream health.
+Allow at least ten minutes for startup probes if the process must wait for
+JetStream recovery. Authling retries transient stream and bucket provisioning
+errors with bounded backoff; permanent configuration errors still fail startup.
 
 When the external account uses tiered JetStream quotas, provide an R1 tier for
 Authling's temporary ordered consumers and browser-session KV watcher, even
