@@ -5,20 +5,24 @@
   } from '@chatto/client/timeline/timelineEvents';
   import { getComposerContext } from '$lib/state/room';
   import type { Snippet } from 'svelte';
+  import type { LatestThreadRootCandidate } from '$lib/components/composer/messageComposerState.svelte';
 
   let {
     showCreateThread = false,
     createThreadRequired = false,
     onMessageSent,
+    getLatestThreadRootCandidate = () => null,
     inputStatus
   }: {
     showCreateThread?: boolean;
     createThreadRequired?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
     inputStatus?: Snippet;
+    getLatestThreadRootCandidate?: () => LatestThreadRootCandidate | null;
   } = $props();
 
   const composerContext = getComposerContext();
+  let candidateId = $state('');
 
   const returnedPost = {
     id: 'msg-local',
@@ -72,3 +76,11 @@
 >
 <output data-testid="composer-can-create-thread">{String(showCreateThread)}</output>
 <output data-testid="composer-requires-thread">{String(createThreadRequired)}</output>
+
+<button
+  data-testid="check-thread-candidate"
+  onclick={() => (candidateId = getLatestThreadRootCandidate()?.threadRootEventId ?? '')}
+>
+  check thread candidate
+</button>
+<output data-testid="thread-candidate-id">{candidateId}</output>

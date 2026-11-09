@@ -59,7 +59,7 @@
     showCreateThread = false,
     createThreadRequired = false,
     createThreadDefault = false,
-    getRecentThreadRootCandidate = () => null,
+    getLatestThreadRootCandidate = () => null,
     threadsEncouraged = false,
     mentionPriorityUserIds,
     inputStatus
@@ -144,7 +144,7 @@
     getCanCreateThread: () => showCreateThread,
     getCreateThreadRequired: () => createThreadRequired,
     getCreateThreadDefault: () => createThreadDefault,
-    getRecentThreadRootCandidate: () => getRecentThreadRootCandidate(),
+    getLatestThreadRootCandidate: () => getLatestThreadRootCandidate(),
     getAutoFocus: () => autoFocus,
     getComposerSendMode: () => userPreferences.composerSendMode,
     getPlaceholder: () => placeholder,
@@ -466,11 +466,13 @@
     {/snippet}
     {#snippet secondaryActions()}
       <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
-        {m('composer.post_as_new_message')}
+        {composer.pendingThreadDestinationConfirmation?.post.createThread
+          ? m('composer.start_new_thread')
+          : m('composer.post_as_new_message')}
       </Button>
     {/snippet}
     {#snippet primaryAction()}
-      <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
+      <Button defaultAction variant="action" onclick={() => composer.postInLatestThread()}>
         <span aria-hidden="true" class="iconify icon-[uil--comment-alt-lines]"></span>
         {m('composer.continue_in_thread')}
       </Button>
