@@ -321,9 +321,10 @@ answer. Interim text before tool calls is posted during the turn. Conversation
 title generation does not keep typing active.
 Typing stops when the turn ends, including on failure. It posts completed parent assistant messages in
 the thread, referencing the last message in the batch. These include interim
-updates and the final answer. After choosing a textual reply, the model should
-send a brief update before any tool call, including memory reads. Answers without tools, reaction-only
-turns, and silent turns do not need an update. A successful turn can return no
+updates and the final answer. The model should send a brief update before substantial
+research or other lengthy work. Simple requests, quick lookups, reaction-only
+turns, and silent turns do not need an update. Further updates should report useful
+findings or a blocker without repeating an acknowledgement. A successful turn can return no
 text; provider errors and cancellation still fail the turn. Tools stay available
 throughout the turn. The model decides when to send text; the prompt does not
 guarantee an early update.
