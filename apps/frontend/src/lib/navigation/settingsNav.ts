@@ -117,7 +117,9 @@ export function getAppPreferenceNavItems(serverSegment?: string): SettingsNavIte
 
   if (desktopUpdates.available)
     appPreferenceNavItems.push({
-      href: resolve('/chat/preferences/desktop'),
+      href: serverSegment
+        ? resolve('/chat/[serverId]/settings/desktop', { serverId: serverSegment })
+        : resolve('/chat/preferences/desktop'),
       label: m('settings.desktop.title'),
       description: m('settings.desktop.subtitle'),
       icon: 'iconify icon-[uil--desktop]'

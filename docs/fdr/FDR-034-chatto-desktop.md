@@ -133,7 +133,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
   restart ends active calls and screen sharing. The restart button proceeds
   without another confirmation. The native Updates menu keeps this warning
   in a confirmation dialog.
-- Updates preferences are independent of the selected server and remain
+- Updates preferences keep the server settings sidebar when a server is selected.
+  Without an authenticated server, they use the standalone App Preferences sidebar.
+  Update controls are independent of the selected server and remain
   available without a server connection. All desktop builds show the page in
   navigation. Development builds and installations without automatic updates show
   their installed version and an unavailable message, without update controls.
