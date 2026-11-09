@@ -171,26 +171,30 @@ fixture checks.
 with each catalog change and before a stable Chatto release that includes MCP.
 API completeness and CRUD symmetry are not admission criteria.
 
-The seven tools form one tester workflow: identify the server and account,
-choose a visible room, join a channel when needed, read context, send a text
-reply, and leave the channel. The local Codex and Inspector flows above are
-host evidence for this workflow. They do not establish deployment conformance
-or large-instance cost bounds.
+The catalog supports the tester workflow: identify the server and account,
+choose a visible room, join a channel when needed, read room/thread context, load a public profile, post a message with an optional
+reply marker, add or remove a reaction, and leave the channel. The local Codex
+and Inspector flows above cover the original room workflow. The extension
+checks below cover the added operations. These checks do not establish
+deployment conformance or large-instance cost bounds.
 
-| Tool                 | Workflow, effect, and output                                                                                              | Disposition                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `get_server_info`    | Match the connected server to the user's task; return one server identity. No write.                                      | Pass.                                                                                                       |
-| `get_current_user`   | Confirm the account that acts for the host; return that account's identity. No write.                                     | Pass.                                                                                                       |
-| `list_rooms`         | Select a visible conversation; return at most 100 rooms and a continuation, with the exact visible count. No write.       | Existing tester exception for backend cost; see below.                                                      |
-| `list_room_messages` | Read context in one joined room; return at most 100 messages and a continuation. No write.                                | Existing tester exception for backend cost; see below.                                                      |
-| `post_message`       | Send one root text reply as the current account; body limit is 10000 bytes. Return one message.                           | Pass. Non-idempotent; never automatically repeat a completed or uncertain post.                             |
-| `join_room`          | Join one visible channel as the current account; return one room. Changes membership.                                     | Pass. Idempotent membership intent; bounded retry must obey current scope, authority, and outcome guidance. |
-| `leave_room`         | Leave one channel as the current account; return the room ID and result. Changes membership and access to future content. | Pass. Idempotent membership intent; bounded retry must obey current scope, authority, and outcome guidance. |
+| Tool                 | Workflow, effect, and output                                                                                              | Disposition                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_server_info`    | Match the connected server to the user's task; return one server identity. No write.                                      | Pass.                                                                                                                                   |
+| `get_current_user`   | Confirm the account that acts for the host; return that account's identity. No write.                                     | Pass.                                                                                                                                   |
+| `list_rooms`         | Select a visible conversation; return at most 100 rooms and a continuation, with the exact visible count. No write.       | Existing tester exception for backend cost; see below.                                                                                  |
+| `list_room_messages` | Read room/thread context; at most 100 timeline entries or replies, plus a thread root. No write.                          | Existing tester exception for backend cost; see below.                                                                                  |
+| `post_message`       | Send one room/thread message with an optional reply marker; body limit is 10000 bytes.                                    | Pass. Exact keyed retries use the canonical 30-minute idempotency contract; unkeyed uncertain posts must not be repeated automatically. |
+| `join_room`          | Join one visible channel as the current account; return one room. Changes membership.                                     | Pass. Idempotent membership intent; bounded retry must obey current scope, authority, and outcome guidance.                             |
+| `leave_room`         | Leave one channel as the current account; return the room ID and result. Changes membership and access to future content. | Pass. Idempotent membership intent; bounded retry must obey current scope, authority, and outcome guidance.                             |
+| `get_user`           | Resolve one public profile by ID or exact username for mentions and user context; no write.                               | Pass. Separate `chatto:profile:read` consent; same authenticated lookup as the public user API, without admin fields.                   |
+| `add_reaction`       | Add the caller's emoji reaction to one readable message, including thread replies.                                        | Pass. Message-write scope plus canonical read/react authorization; repeated intent is idempotent.                                       |
+| `remove_reaction`    | Remove only the caller's matching reaction.                                                                               | Pass. Same authority and retry semantics as adding a reaction.                                                                          |
 
 All tools require a verified user or bot credential. The scope and permission
 rules in FDR-043 apply to every call; discovery is not target authorization.
 The adapters use existing application identity, directory, timeline, message,
-and membership behavior. Registration is an explicit seven-tool allowlist.
+and membership behavior. Registration is explicit; search is added only when enabled.
 Results contain only each tool's declared fields. Resources, prompts, and
 excluded operator, credential, diagnostic, and storage classes are absent.
 The current schemas and structured error/outcome contracts have SDK and raw
@@ -273,7 +277,7 @@ covered tool calls. Missing tool scope returns `403 insufficient_scope`
 before domain work. False method/name headers cannot bypass the scope check.
 The official Go client starts with room-read access and completes fresh
 consent for message-write access after a `403` challenge. Its next tool list
-contains only identity, room-list, and posting tools. The host matrix above
+contains identity, room-list, and message-write tools. The host matrix above
 records earlier full-grant tests; it does not verify this scope upgrade in
 Codex or Inspector. The public guide gives an explicit full-scope Codex login
 command for hosts that need the complete catalog.
@@ -308,3 +312,74 @@ is absent from diagnostics.
 
 Keep #2214 open until the remaining conformance and deployment checks are
 complete.
+
+### Gobotto host workflow verification (2026-11-03)
+
+The local development server ran through `mise dev` with fresh synthetic data.
+A bot API key exercised room posting, thread posting with a reply marker,
+thread reads, public-profile lookup, and reaction add/remove. Repeated reaction
+addition returned an unchanged result. The same account posted in a DM and a
+channel, confirming that destinations are account-authorized rather than
+conversation-bound. Gobotto's actual MCP manager connected to the server,
+discovered formatting guidance, and completed its default reply/reaction delivery
+path. No model-provider request was needed for this transport check; it does not
+prove live-model task selection.
+
+Automated SDK and raw-HTTP tests cover catalog discovery, every nonempty subset
+of the five OAuth scopes, missing-scope challenges, thread/reply relationships,
+reaction idempotence, and membership loss. Existing message-operation tests cover
+the shared keyed-post contract. Profile reads return one public profile; messages
+remain byte-limited and thread pages contain at most 100 replies plus the root.
+Room/thread scans retain the existing backend-cost limitation above. Tool results
+and profile bios remain untrusted data, and no remote media fetch is added.
+
+The profile tool supports a concrete mention/profile lookup action. A resource
+would not replace username resolution or its authorization checks. Reaction tools
+express add/remove intent rather than a toggle so uncertain retries do not reverse
+an earlier successful action. Thread and reply selection extend the existing post
+operation instead of adding overlapping tools. Human hosts need fresh consent
+for `chatto:profile:read`; existing grants remain valid without profile access.
+
+Chrome DevTools checks used a synthetic OAuth consent response at desktop and
+mobile widths. The separate profile permission and reaction wording were visible,
+without submitting a grant. This supplements the browser component scope-isolation
+tests; it does not repeat the OAuth authorization-code tester flows above.
+
+### Message workflow extension (2026-11-09)
+
+The added tools serve concrete Gobotto requests: inspect a known message,
+correct or retract a mistaken post, and send directly to a named recipient.
+`get_message` uses canonical message-read authorization before body and reaction
+hydration. It returns reaction counts rather than unbounded user lists.
+`update_message` and `delete_message` delegate to the existing message operations,
+including author and moderation checks. Unknown write outcomes require inspection.
+
+`send_direct_message` accepts a user ID and body, resolves or creates the canonical
+DM, and uses the existing post operation and 30-minute key contract. It returns
+message and room IDs for later thread replies. DM creation can succeed before
+posting fails; `conversationCreated` and `roomId` report that partial effect
+without changing the message-delivery outcome. Inputs use bounded IDs and
+the existing 10000-byte body limit. The optional key keeps its idempotent hint false.
+
+Message-read scope covers lookup; message-write covers corrections, deletion,
+and direct sending, including destination creation. Consent descriptions include
+these actions. Account permissions still apply. These adapters add no storage
+or authorization model. Existing message-write grants cover the added operations;
+the separate profile scope still needs its own consent.
+
+The MCP integration tests exercise direct-send retry deduplication, changed-key
+intent rejection, conversation reuse, subsequent thread replies, current-body
+reads, reaction counts, edits, deletions, and denied access to private messages.
+Scope-subset tests cover discovery and dispatch for each new tool. These are
+SDK-driven tests; no new live-model behavior is claimed for this extension.
+
+### Review corrections
+
+Regression tests cover chronological thread pages with the root first and the
+oldest reply as cursor; rejected delivery after a new DM reports `not_applied`
+plus separate conversation-creation fields. The MCP HTTP consistency barrier
+accepts viewer-bound cursors, rejects invalid cursors before dispatch, and does
+not run a tool on a cold replica when the wait times out. Gobotto sends accepted
+checkpoint cursors to Chatto only. Its host-delivery session tolerates unrelated
+catalog changes while model-tool snapshots remain pinned. No writes are retried
+implicitly on either connection.

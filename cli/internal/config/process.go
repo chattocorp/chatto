@@ -116,10 +116,12 @@ type MCPConfig struct {
 const (
 	// MCPMessagesReadScope grants bounded message reads through MCP.
 	MCPMessagesReadScope = "chatto:messages:read"
-	// MCPMessagesWriteScope grants message creation through MCP.
+	// MCPMessagesWriteScope grants message sends, edits, deletions, and reaction changes through MCP.
 	MCPMessagesWriteScope = "chatto:messages:write"
 	// MCPRoomsReadScope grants bounded room-directory reads through MCP.
 	MCPRoomsReadScope = "chatto:rooms:read"
+	// MCPProfileReadScope grants public user-profile lookup through MCP.
+	MCPProfileReadScope = "chatto:profile:read"
 	// MCPRoomsWriteScope grants room membership changes through MCP.
 	MCPRoomsWriteScope = "chatto:rooms:write"
 )
@@ -130,6 +132,7 @@ func MCPOAuthScopes() []string {
 	return []string{
 		MCPMessagesReadScope,
 		MCPMessagesWriteScope,
+		MCPProfileReadScope,
 		MCPRoomsReadScope,
 		MCPRoomsWriteScope,
 	}
@@ -143,7 +146,7 @@ func ValidMCPOAuthScopes(scopes []string) bool {
 	}
 	for _, scope := range scopes {
 		switch scope {
-		case MCPMessagesReadScope, MCPMessagesWriteScope, MCPRoomsReadScope, MCPRoomsWriteScope:
+		case MCPMessagesReadScope, MCPMessagesWriteScope, MCPRoomsReadScope, MCPRoomsWriteScope, MCPProfileReadScope:
 		default:
 			return false
 		}

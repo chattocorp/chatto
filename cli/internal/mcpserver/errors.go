@@ -29,15 +29,17 @@ type toolErrorOutput struct {
 // toolFailure contains only caller-safe facts. Message text is for humans;
 // hosts use Code, NextAction, Retry, and Outcome without parsing that text.
 type toolFailure struct {
-	Code               string   `json:"code" jsonschema:"Stable failure code."`
-	Message            string   `json:"message" jsonschema:"Short caller-safe explanation."`
-	NextAction         string   `json:"nextAction" jsonschema:"Suggested action; it does not grant authority."`
-	Retry              string   `json:"retry" jsonschema:"never, after_change, or after_delay. Never automatically retry after_change."`
-	Outcome            string   `json:"outcome" jsonschema:"not_applied, applied, or unknown. Reads use not_applied."`
-	MissingPermissions []string `json:"missingPermissions,omitempty" jsonschema:"Confirmed missing RBAC permissions; any one of these alternatives permits the permission gate."`
-	RequiredScope      string   `json:"requiredScope,omitempty" jsonschema:"OAuth scope that requires fresh consent."`
-	RetryAfterMs       int64    `json:"retryAfterMs,omitempty" jsonschema:"Minimum delay in milliseconds when retry is after_delay."`
-	RetrySameRequest   bool     `json:"retrySameRequest,omitempty" jsonschema:"Retry only with the same idempotency key and exact arguments, within 30 minutes of the first attempt."`
+	ConversationCreated bool     `json:"conversationCreated,omitempty" jsonschema:"A direct conversation was created; outcome still describes message delivery only."`
+	RoomID              string   `json:"roomId,omitempty" jsonschema:"Direct conversation created before message delivery failed."`
+	Code                string   `json:"code" jsonschema:"Stable failure code."`
+	Message             string   `json:"message" jsonschema:"Short caller-safe explanation."`
+	NextAction          string   `json:"nextAction" jsonschema:"Suggested action; it does not grant authority."`
+	Retry               string   `json:"retry" jsonschema:"never, after_change, or after_delay. Never automatically retry after_change."`
+	Outcome             string   `json:"outcome" jsonschema:"not_applied, applied, or unknown. Reads use not_applied."`
+	MissingPermissions  []string `json:"missingPermissions,omitempty" jsonschema:"Confirmed missing RBAC permissions; any one of these alternatives permits the permission gate."`
+	RequiredScope       string   `json:"requiredScope,omitempty" jsonschema:"OAuth scope that requires fresh consent."`
+	RetryAfterMs        int64    `json:"retryAfterMs,omitempty" jsonschema:"Minimum delay in milliseconds when retry is after_delay."`
+	RetrySameRequest    bool     `json:"retrySameRequest,omitempty" jsonschema:"Retry only with the same idempotency key and exact arguments, within 30 minutes of the first attempt."`
 }
 
 // Error permits a safe failure to pass through the typed domain adapter.
@@ -199,7 +201,7 @@ func classifyToolError(err error, name string) *toolFailure {
 	case errors.Is(err, core.ErrNotFound), errors.Is(err, core.ErrMessageNotFound):
 		f := failure("not_found", "The requested resource does not exist or is not visible. Check access with your administrator.", "check_access", "after_change")
 		// Membership commands can fail when reading state after a commit.
-		if name == "join_room" || name == "leave_room" {
+		if name == "join_room" || name == "leave_room" || name == "add_reaction" || name == "remove_reaction" {
 			f.Outcome = "unknown"
 		}
 		return f
@@ -216,12 +218,12 @@ func classifyToolError(err error, name string) *toolFailure {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		f.Code, f.Message = "timeout", "The request timed out or was canceled."
 	}
-	if name == "post_message" || name == "join_room" || name == "leave_room" {
+	if name == "update_message" || name == "delete_message" || name == "send_direct_message" || name == "post_message" || name == "join_room" || name == "leave_room" || name == "add_reaction" || name == "remove_reaction" {
 		f.Outcome = "unknown"
 	}
-	if name == "post_message" {
+	if name == "post_message" || name == "send_direct_message" || name == "update_message" || name == "delete_message" {
 		f.NextAction, f.Retry = "check_result", "never"
-		f.Message += " The message may have been posted. Check the room before taking another action."
+		f.Message += " The operation may have completed. Check the room before taking another action."
 	}
 	return f
 }

@@ -58,8 +58,15 @@ describe('OAuth consent client identity', () => {
     await expect
       .element(getByText('It can read messages in rooms you have joined.'))
       .not.toBeInTheDocument();
-    await expect.element(getByText('It can send messages as you.')).not.toBeInTheDocument();
+    await expect
+      .element(
+        getByText(
+          'It can send messages, including direct messages, and edit or delete messages within your permissions. It can add and remove reactions as you.'
+        )
+      )
+      .not.toBeInTheDocument();
     await expect.element(getByText('It can identify this server and your account.')).toBeVisible();
+    await expect.element(getByText('It can read public user profiles.')).not.toBeInTheDocument();
   });
 
   it('shows every capability in the complete MCP grant', async () => {
@@ -75,7 +82,8 @@ describe('OAuth consent client identity', () => {
                   'chatto:messages:read',
                   'chatto:messages:write',
                   'chatto:rooms:read',
-                  'chatto:rooms:write'
+                  'chatto:rooms:write',
+                  'chatto:profile:read'
                 ]
               })
             ),
@@ -91,22 +99,34 @@ describe('OAuth consent client identity', () => {
       .toBeVisible();
     await expect.element(getByText('It can join and leave rooms as you.')).toBeVisible();
     await expect.element(getByText('It can read messages in rooms you have joined.')).toBeVisible();
-    await expect.element(getByText('It can send messages as you.')).toBeVisible();
+    await expect
+      .element(
+        getByText(
+          'It can send messages, including direct messages, and edit or delete messages within your permissions. It can add and remove reactions as you.'
+        )
+      )
+      .toBeVisible();
     await expect.element(getByText('It can identify this server and your account.')).toBeVisible();
+    await expect.element(getByText('It can read public user profiles.')).toBeVisible();
   });
 
   it.each([
     [
       'chatto:messages:read',
       'It can read messages in rooms you have joined.',
-      'It can send messages as you.'
+      'It can send messages, including direct messages, and edit or delete messages within your permissions. It can add and remove reactions as you.'
     ],
     [
       'chatto:messages:write',
-      'It can send messages as you.',
+      'It can send messages, including direct messages, and edit or delete messages within your permissions. It can add and remove reactions as you.',
+      'It can read messages in rooms you have joined.'
+    ],
+    [
+      'chatto:profile:read',
+      'It can read public user profiles.',
       'It can read messages in rooms you have joined.'
     ]
-  ])('shows only the message capability granted by %s', async (scope, allowed, absent) => {
+  ])('shows only the capability granted by %s', async (scope, allowed, absent) => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -125,6 +145,17 @@ describe('OAuth consent client identity', () => {
     const { getByText } = render(ConsentPage);
     await expect.element(getByText(allowed)).toBeVisible();
     await expect.element(getByText(absent)).not.toBeInTheDocument();
+    if (scope !== 'chatto:profile:read') {
+      await expect.element(getByText('It can read public user profiles.')).not.toBeInTheDocument();
+    } else {
+      await expect
+        .element(
+          getByText(
+            'It can send messages, including direct messages, and edit or delete messages within your permissions. It can add and remove reactions as you.'
+          )
+        )
+        .not.toBeInTheDocument();
+    }
     await expect
       .element(getByText('It can read and send messages as you.'))
       .not.toBeInTheDocument();

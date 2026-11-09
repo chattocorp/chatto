@@ -215,6 +215,15 @@
                 ></span>
                 <span>{m('auth.oauth.allow_mcp_identity')}</span>
               </li>
+              {#if request.scopes.includes('chatto:profile:read')}
+                <li class="flex gap-2">
+                  <span
+                    aria-hidden="true"
+                    class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                  ></span>
+                  <span>{m('auth.oauth.allow_users_read')}</span>
+                </li>
+              {/if}
               {#if request.scopes.includes('chatto:rooms:read')}
                 <li class="flex gap-2">
                   <span
@@ -248,7 +257,10 @@
                     aria-hidden="true"
                     class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
                   ></span>
-                  <span>{m('auth.oauth.allow_messages_write')}</span>
+                  <span>
+                    {m('auth.oauth.allow_messages_write')}
+                    {m('auth.oauth.allow_reactions_write')}
+                  </span>
                 </li>
               {/if}
             {/if}
