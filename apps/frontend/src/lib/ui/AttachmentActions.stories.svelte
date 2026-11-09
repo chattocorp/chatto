@@ -63,7 +63,7 @@
         <video controls preload="none" class="w-full preview-content"
           ><track kind="captions" /></video
         >
-        <PreviewToolbar {viewing}>
+        <PreviewToolbar>
           {@render actions()}
         </PreviewToolbar>
       </div>

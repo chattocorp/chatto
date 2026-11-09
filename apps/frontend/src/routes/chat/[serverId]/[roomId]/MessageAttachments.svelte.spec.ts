@@ -413,7 +413,7 @@ describe('MessageAttachments', () => {
       .parentElement!.querySelector<HTMLElement>('[aria-label="Delete attachment"]')!
       .getBoundingClientRect();
 
-    expect(edit.top).toBeGreaterThanOrEqual(frame.top);
+    expect(edit.top).toBeGreaterThanOrEqual(frame.bottom);
     expect(edit.bottom).toBeLessThanOrEqual(button.parentElement!.getBoundingClientRect().bottom);
     expect(edit.right).toBeLessThanOrEqual(button.parentElement!.getBoundingClientRect().right);
   });
@@ -593,6 +593,9 @@ describe('MessageAttachments', () => {
       for (const width of [120, 240, 320]) {
         container.style.width = `${width}px`;
         await expect.poll(() => player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+        expect(edit.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+          player.getBoundingClientRect().bottom
+        );
         expect(edit.getBoundingClientRect().bottom).toBeLessThanOrEqual(
           player.parentElement!.getBoundingClientRect().bottom
         );
