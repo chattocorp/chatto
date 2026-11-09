@@ -23,6 +23,9 @@ examples/dockercompose/backups/
 # Test results
 test-results/
 
+# Python tooling caches
+/tools/**/__pycache__/
+
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 /cli/cmd/embedded/

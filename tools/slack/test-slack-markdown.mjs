@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { configureMarkdownLinks } from '../apps/frontend/src/lib/markdownLinks.ts';
+import { configureMarkdownLinks } from '../../apps/frontend/src/lib/markdownLinks.ts';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
-const requireFrontend = createRequire(new URL('../apps/frontend/package.json', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const requireFrontend = createRequire(new URL('../../apps/frontend/package.json', import.meta.url));
 const MarkdownIt = requireFrontend('markdown-it');
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
 markdown.disable(['lheading', 'hr', 'reference', 'image', 'html_inline', 'escape']);
@@ -27,7 +27,7 @@ const generated = spawnSync(
     '-B',
     '-c',
     `import sys,json
-sys.path.insert(0,'tools')
+sys.path.insert(0,'tools/slack')
 from slack_apply import escape,code_span,rich_link,attachment_summary
 from test_slack_rich_text import render,section,text
 print(json.dumps({

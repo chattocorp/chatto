@@ -216,7 +216,11 @@ run = "uv run --script tools/test_interchange.py"
 
 [tasks.test-slack]
 description = "Test Slack conversion and legacy import with synthetic exports"
-run = "uv run --with 'jsonschema[format]==4.26.0' python -B -m unittest discover -s tools -p 'test_slack*.py'"
+depends = ["setup-frontend"]
+run = [
+    "uv run --with 'jsonschema[format]==4.26.0' python -B -m unittest discover -s tools/slack -p 'test_slack*.py'",
+    "pnpm --dir apps/frontend exec tsx ../../tools/slack/test-slack-markdown.mjs",
+]
 
 # =============================================================================
 # Code Generation
