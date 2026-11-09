@@ -5,6 +5,7 @@ import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet, flushSync, tick, type ComponentProps } from 'svelte';
 import { loadEditor } from './loadEditor';
+import { latestThreadRootCandidate } from '../../../routes/chat/[serverId]/[roomId]/latestThreadRoot';
 import { SvelteMap } from 'svelte/reactivity';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import ReplyFocusTestHarness from './ReplyFocusTestHarness.svelte';
@@ -4651,6 +4652,39 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ createThread: false });
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('checks the latest thread age when sending a draft left open past 30 minutes', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-09T12:29:00Z'));
+      const root = postedMessageEvent('previous-root');
+      root.createdAt = '2026-11-09T12:00:00Z';
+      const events = [{ ...root, event: { ...root.event, threadExists: true } }];
+      const getLatestThreadRootCandidate = vi.fn(() =>
+        latestThreadRootCandidate(events, 'room_456')
+      );
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        getLatestThreadRootCandidate
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'a new topic after a break');
+      expect(getLatestThreadRootCandidate).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date('2026-11-09T12:30:00.001Z'));
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(getLatestThreadRootCandidate).toHaveBeenCalledOnce();
+      await expect
+        .element(getByRole('dialog', { name: 'Continue the latest thread?' }))
+        .not.toBeInTheDocument();
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'a new topic after a break',
+        threadRootEventId: null
+      });
     });
 
     it('offers the latest thread before upload and routes the draft into it', async () => {

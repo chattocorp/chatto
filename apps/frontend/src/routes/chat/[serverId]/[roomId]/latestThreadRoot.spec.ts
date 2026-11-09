@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import { latestThreadRootCandidate } from './latestThreadRoot';
 
 function root(
   id: string,
   overrides: {
+    createdAt?: string;
     actorId?: string;
     roomId?: string;
     threadExists?: boolean;
@@ -16,7 +17,7 @@ function root(
     id,
     actorId: overrides.actorId ?? 'me',
     actor: null,
-    createdAt: '2020-01-01T00:00:00Z',
+    createdAt: overrides.createdAt ?? '2026-11-09T12:00:00Z',
     event: {
       kind: TimelineEventKind.MessagePosted,
       roomId: overrides.roomId ?? 'room-1',
@@ -33,11 +34,44 @@ function root(
 }
 
 describe('latestThreadRootCandidate', () => {
-  it('offers the newest root regardless of its author or age, even without replies', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-09T12:30:00Z'));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('offers the newest root regardless of its author, even without replies', () => {
     const events = [root('mine'), root('someone-else', { actorId: 'other' })];
     expect(latestThreadRootCandidate(events, 'room-1')).toEqual({
       threadRootEventId: 'someone-else'
     });
+  });
+
+  it.each([
+    ['just posted', '2026-11-09T12:30:00Z', true],
+    ['just under 30 minutes old', '2026-11-09T12:00:00.001Z', true],
+    ['exactly 30 minutes old', '2026-11-09T12:00:00Z', true],
+    ['over 30 minutes old', '2026-11-09T11:59:59.999Z', false],
+    ['from the future', '2026-11-09T12:30:00.001Z', false],
+    ['invalid', 'invalid', false]
+  ])('checks the original posting time when it is %s', (_, createdAt, eligible) => {
+    expect(latestThreadRootCandidate([root('thread', { createdAt })], 'room-1')).toEqual(
+      eligible ? { threadRootEventId: 'thread' } : null
+    );
+  });
+
+  it('does not extend the window for edits or new replies', () => {
+    const event = root('old-thread', { createdAt: '2026-11-09T11:00:00Z' });
+    const activeThread = {
+      ...event,
+      event: {
+        ...event.event,
+        updatedAt: '2026-11-09T12:30:00Z',
+        lastReplyAt: '2026-11-09T12:30:00Z'
+      }
+    };
+    expect(latestThreadRootCandidate([activeThread], 'room-1')).toBeNull();
   });
 
   it('does not skip a newer flat root to find an older thread', () => {
