@@ -12,6 +12,7 @@ Hi. We're here to develop a feature, or make a change, that the user has asked y
   - Writing code
   - Running tests
   - Code review
+- Simplification Pass
 - Final Head Gate
 - Loop:
   - Publish a Pull Request
@@ -77,6 +78,10 @@ It is imperative to note that the three steps "Writing Code", "Running tests" an
 - Run an appropriate race detector or concurrency-focused test when the change introduces or materially alters concurrent behavior and the project supports one.
 - Treat every commit, merge, rebase, generated-artifact update, or other HEAD mutation as invalidating all previous clean verdicts.
 - Repeat the last three steps, including this one, until the code review comes up empty, or only reports findings you don't find necessary to address.
+
+### Simplification Pass
+
+- Now it's time to review the changes we've made for potential simplification, consolidation, cleaning up, or other improvements. Apply these where feasible.
 
 ### Final Head Gate
 
