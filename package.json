@@ -26,9 +26,7 @@
     "test:frontend:focused": "pnpm turbo run test:focused --filter=chatto-frontend --output-logs=new-only --"
   },
   "devDependencies": {
-    "js-yaml": "^4.2.0",
     "knip": "^6.22.0",
-    "picomatch": "^2.3.2",
     "prettier": "^3.9.6",
     "prettier-plugin-svelte": "^3.5.2",
     "prettier-plugin-tailwindcss": "^0.7.4",

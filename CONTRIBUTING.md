@@ -558,9 +558,8 @@ PR diff; pushes use the exact before and after commits.
 - Workflow/tooling checks, license checks, and PR formatting checks run
   independently of product selection.
 
-When you change these filters, run
-`mise x -- node --test tools/ci-path-filters.test.mjs`. The tests read the
-workflow rules and check product selection for representative paths.
+When you change these filters, run `mise lint-actions` and inspect the
+**Select affected products** step in CI to confirm which paths selected jobs.
 
 ## Repository Tooling Tests
 
