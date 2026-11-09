@@ -1233,7 +1233,11 @@ describe('Room local message echo', () => {
   it('offers the latest thread only while the room timeline is current', async () => {
     const thread = (id: string) => {
       const event = roomMessageEvent(id);
-      return { ...event, event: { ...event.event, threadExists: true } };
+      return {
+        ...event,
+        createdAt: new Date().toISOString(),
+        event: { ...event.event, threadExists: true }
+      };
     };
     mocks.timeline.getRoomEvents.mockResolvedValue({
       ...emptyTimelinePage(),

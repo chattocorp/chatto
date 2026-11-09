@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-11-09
 
 ## Overview
 
@@ -91,7 +91,7 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - Outside Required rooms, a root explicitly posted as a thread is immediately marked as a thread and the author follows it, while the composer remains in the room timeline. If nobody explicitly establishes an ordinary root's thread, the first thread reply establishes one implicitly.
 - Threading Mode changes are prospective: they do not backfill threads for existing roots or remove historical thread state.
 - A successful Threading Mode change appears as an actor-attributed room timeline event. The same ordered realtime update also refreshes room metadata, so open composers and reply actions react immediately.
-- Before a user posts a root in an Enabled, Encouraged, or Required room, the client checks whether the newest root in the loaded room timeline has a thread. If it does, the client asks whether to reply in that thread or post the prepared root as-is. The author and age of the newest root do not affect this check. The prompt is omitted unless the loaded timeline is current; a history window must not supply the suggested thread. A newer flat or deleted root prevents an older thread from qualifying. Explicit room replies bypass this prompt and keep their selected reply target. Cancelling preserves the draft. The prompt is omitted when the user cannot post in that thread or when the current room policy forbids thread replies.
+- Before a user posts a root in an Enabled, Encouraged, or Required room, the client checks whether the newest root in the loaded room timeline has a thread. If it does, the client asks whether to reply in that thread or post the prepared root as-is. The prompt appears only when that root was posted at most 30 minutes ago. The client checks its age when the user submits the draft. Edits and new thread replies do not restart this window. The author does not affect this check. After the window ends, the client posts normally without the prompt. The prompt is omitted unless the loaded timeline is current; a history window must not supply the suggested thread. A newer flat or deleted root prevents an older thread from qualifying. Explicit room replies bypass this prompt and keep their selected reply target. Cancelling preserves the draft. The prompt is omitted when the user cannot post in that thread or when the current room policy forbids thread replies.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
 - My Threads lists followed conversations with their root, latest visible
@@ -172,8 +172,8 @@ thread projection data require explicit client opt-ins.
 
 ### 10. Latest-thread steering is a client-side destination choice
 
-**Decision:** When the newest root in the loaded room timeline has a thread, a subsequent root submission without an explicit reply target pauses before uploads or mentions are processed and offers two explicit destinations: the latest thread or a new root. Choosing the thread preserves the message contents but clears root-only thread creation intent. Choosing the room preserves the prepared root, including Encouraged or Required mode behavior. This action is labelled **Start a new thread** when the prepared root creates a thread, and **Post as new message** otherwise.
-**Why:** A room message can accidentally start a new conversation when its author intended to reply to the latest thread. An explicit destination choice prevents this mistake without moving messages automatically.
+**Decision:** When the newest root in the loaded room timeline has a thread and was posted at most 30 minutes ago, a subsequent root submission without an explicit reply target pauses before uploads or mentions are processed and offers two explicit destinations: the latest thread or a new root. Choosing the thread preserves the message contents but clears root-only thread creation intent. Choosing the room preserves the prepared root, including Encouraged or Required mode behavior. This action is labelled **Start a new thread** when the prepared root creates a thread, and **Post as new message** otherwise.
+**Why:** A room message can accidentally start a new conversation when its author intended to reply to the latest thread. An explicit destination choice prevents this mistake without moving messages automatically. The 30-minute limit avoids interruptions when a user returns to a quiet room.
 **Tradeoff:** The safeguard depends on the client's current retained timeline, so it is guidance rather than a server invariant. The server continues to enforce only permissions and Threading Mode.
 
 ## Permissions
