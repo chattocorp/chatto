@@ -563,14 +563,23 @@ func TestMessageServiceUnknownReactionName(t *testing.T) {
 	room := env.createJoinedRoom("unknown-reaction")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
 	ctx := withCaller(env.ctx, env.viewer)
-	added, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
-		RoomId: room.Id, MessageEventId: event.Id, Emoji: "Party_Parrot",
-	}))
-	if err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"Party_Parrot", "face_with_tears_of_joy"} {
+		_, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+			RoomId: room.Id, MessageEventId: event.Id, Emoji: name,
+		}))
+		if errorCode(err) != connect.CodeInvalidArgument || err.Error() != "unsupported emoji" {
+			t.Fatalf("AddReaction(%q) error = %v, want invalid argument: unsupported emoji", name, err)
+		}
 	}
-	if !added.Msg.Added || added.Msg.GetReaction().GetEmoji() != "Party_Parrot" || added.Msg.GetReaction().GetCount() != 1 {
-		t.Fatalf("unexpected reaction response: %v", added.Msg)
+	reactions, err := env.core.GetReactions(env.ctx, event.Id)
+	if err != nil || len(reactions) != 0 {
+		t.Fatalf("rejected reactions were stored: %v, %v", reactions, err)
+	}
+	added, err := env.core.ImportHistoricalReaction(env.ctx, core.HistoricalReactionInput{
+		RoomID: room.Id, MessageEventID: event.Id, UserID: env.viewer.Id, Emoji: "Party_Parrot",
+	})
+	if err != nil || !added {
+		t.Fatalf("import unknown reaction: %v, %v", added, err)
 	}
 	users, err := env.messages.ListReactionUsers(ctx, connect.NewRequest(&apiv1.ListReactionUsersRequest{
 		RoomId: room.Id, MessageEventId: event.Id, Emoji: "Party_Parrot",
@@ -583,6 +592,12 @@ func TestMessageServiceUnknownReactionName(t *testing.T) {
 	}))
 	if err != nil || !removed.Msg.Removed {
 		t.Fatalf("remove reaction: %v, %v", removed, err)
+	}
+	users, err = env.messages.ListReactionUsers(ctx, connect.NewRequest(&apiv1.ListReactionUsersRequest{
+		RoomId: room.Id, MessageEventId: event.Id, Emoji: "Party_Parrot",
+	}))
+	if err != nil || len(users.Msg.UserIds) != 0 {
+		t.Fatalf("removed reaction users: %v, %v", users, err)
 	}
 }
 

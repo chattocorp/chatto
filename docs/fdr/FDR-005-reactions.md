@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-11-02
+**Last reviewed:** 2026-11-09
 
 ## Overview
 
@@ -56,7 +56,11 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 underscores, plus signs, or hyphens, without surrounding colons. Names remain
 unchanged. Aliases such as `+1` and `thumbsup` remain separate reactions. The
 frontend shows known names as emoji and unknown names as `:name:`. Both support
-counts, toggling, and reactor lists. Known names also accept Slack-style skin-tone
+counts, removal, and reactor lists. Client adds require a name in the bundled
+catalogue. Unknown names return an invalid-argument error. Operator imports
+can store unknown names. Bots and bridges that add reactions through the client
+API must send supported names or use the operator import API for unknown names.
+Raw Unicode glyphs are not accepted by the client API. Known names also accept Slack-style skin-tone
 suffixes, from `::skin-tone-2` (light) to `::skin-tone-6` (dark). For example,
 `thumbsup::skin-tone-4` displays as 👍🏽. Compound emoji use complete Unicode
 sequences. Supported mixed-tone pairs use a suffix such as `::skin-tone-2-6`,

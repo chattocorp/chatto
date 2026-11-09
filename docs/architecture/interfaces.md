@@ -190,6 +190,9 @@ server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.
+`MessageService.AddReaction` accepts only case-sensitive names from the bundled
+emoji catalogue, including supported skin-tone suffixes. Operator imports can
+store unknown names. Reads and removal preserve these stored names.
 `MessageService.UpdateMessage` permits an author or a user with effective
 `message.manage` to remove a thread reply's channel echo. Enabling an echo
 remains author-only and requires `message.echo` and `message.post`. Clients omit

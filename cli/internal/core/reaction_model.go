@@ -31,7 +31,8 @@ type ReactionModel struct {
 
 // AddReaction adds actorID's reaction to a message. Authorization: actor must
 // be a room member and have message.react. Reactions also require permission
-// to read the target message.
+// to read the target message. The emoji must be a case-sensitive name from
+// the bundled catalogue, including a supported skin-tone suffix if present.
 func (s *ReactionModel) AddReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
 	return s.mutateAuthorizedReaction(ctx, input, true)
 }
