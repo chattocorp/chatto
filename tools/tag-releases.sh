@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tag every release in a verified push. The first Sweet manifest is a baseline.
+# Tag every package release in a verified push. The first Sweet manifest is a baseline.
 set -euo pipefail
 
 base="${PUSH_BEFORE:?}"
@@ -13,7 +13,7 @@ fi
 
 if ! git cat-file -e "$base:.sweet.yml" 2>/dev/null; then
   # A migration push can also contain later releases. Start after the first
-  # manifest, rather than skipping the whole push or retagging version 0.5.0.
+  # manifest, rather than skipping the whole push or retagging existing package versions.
   base=""
   while IFS= read -r commit; do
     if git cat-file -e "$commit:.sweet.yml" 2>/dev/null; then

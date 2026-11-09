@@ -158,41 +158,10 @@ ${script}`
   };
 }
 
-test('all release-please components are drafts until publication explicitly sets Latest', () => {
-  const config = JSON.parse(
-    readFileSync(new URL('../.release-please-config.json', import.meta.url), 'utf8')
-  );
-  assert.equal(config['force-tag-creation'], true);
-  for (const [name, component] of Object.entries(config.packages)) {
-    assert.equal(component.draft ?? config.draft, true, `${name} must start as a draft`);
-  }
-});
-
-test('component publication leaves Chatto draft and publishes all components without Latest', (t) => {
-  const outputs = {
-    paths_released: JSON.stringify(['.', 'packages/translatto', 'pkg/events']),
-    tag_name: 'v0.5.0',
-    'packages/translatto--tag_name': 'translatto/v0.2.0',
-    'pkg/events--tag_name': 'pkg/events/v0.1.0'
-  };
-  assert.deepEqual(
-    runShell(t, shellStep('Publish component releases without Latest'), {
-      RELEASE_OUTPUTS: JSON.stringify(outputs)
-    }).calls,
-    [
-      'release edit translatto/v0.2.0 --draft=false --latest=false',
-      'release edit pkg/events/v0.1.0 --draft=false --latest=false'
-    ]
-  );
-});
-
 test('Sweet owns the Chatto client version', () => {
   const root = new URL('../', import.meta.url);
-  const config = JSON.parse(readFileSync(new URL('.release-please-config.json', root), 'utf8'));
   const manifest = readFileSync(new URL('.sweet.yml', root), 'utf8');
   const packagePath = 'packages/chatto-client/package.json';
-  assert.equal(config.packages['.'], undefined);
-  assert.equal(config.packages['packages/chatto-client'], undefined);
   assert.ok(manifest.includes(`path: ${packagePath}\n    format: json\n    key: version`));
   assert.equal(
     JSON.parse(readFileSync(new URL(packagePath, root), 'utf8')).version,
@@ -230,26 +199,6 @@ ${script}`,
   });
 }
 
-test('a root-only release never publishes through the component step', (t) => {
-  assert.deepEqual(
-    runShell(t, shellStep('Publish component releases without Latest'), {
-      RELEASE_OUTPUTS: JSON.stringify({ paths_released: '["."]', tag_name: 'v0.5.0' })
-    }).calls,
-    []
-  );
-});
-
-test('component outputs cannot accidentally publish a root Chatto tag', (t) => {
-  assert.throws(() =>
-    runShell(t, shellStep('Publish component releases without Latest'), {
-      RELEASE_OUTPUTS: JSON.stringify({
-        paths_released: '["packages/translatto"]',
-        'packages/translatto--tag_name': 'v0.5.0'
-      })
-    })
-  );
-});
-
 // Use the actual selection block from the existing trusted-tag validation step.
 const validation = shellStep('Verify release tag');
 const selectionStart = validation.indexOf('version="${GITHUB_REF_NAME#v}"');
@@ -274,3 +223,53 @@ for (const [version, tags, expected] of [
     );
   });
 }
+
+const componentScript = readFileSync(
+  new URL('./publish-component-release.sh', import.meta.url),
+  'utf8'
+);
+
+test('component notes start as drafts and never claim Latest, including retries', (t) => {
+  for (const exists of ['true', 'false']) {
+    const result = runShell(
+      t,
+      `
+      export RUNNER_TEMP="$PWD"
+      gh() {
+        if [[ "$1 $2" == 'release view' ]]; then ${exists}; return; fi
+        printf '%s\\n' "$*" >> calls
+      }
+      mise() {
+        if [[ "$*" == 'x -- sweet status --json' ]]; then
+          printf '%s' '[{"path":"authling","name":"authling","tagPrefix":"authling/v","version":"0.1.1"}]'
+        else
+          printf 'Release notes\\n'
+        fi
+      }
+      ${componentScript}
+    `,
+      { GITHUB_REF_NAME: 'authling/v0.1.1' }
+    );
+    assert.equal(result.calls.at(-1), 'release edit authling/v0.1.1 --draft=false --latest=false');
+    if (exists === 'false')
+      assert.match(
+        result.calls[0],
+        /release create authling\/v0\.1\.1 --verify-tag --draft --latest=false/
+      );
+    else assert.equal(result.calls.length, 1);
+  }
+});
+
+test('component publication rejects a root Chatto tag', (t) => {
+  assert.throws(() =>
+    runShell(
+      t,
+      `
+    export RUNNER_TEMP="$PWD"
+    mise() { printf '%s' '[{"path":".","tagPrefix":"v","version":"0.5.0"}]'; }
+    ${componentScript}
+  `,
+      { GITHUB_REF_NAME: 'v0.5.0' }
+    )
+  );
+});

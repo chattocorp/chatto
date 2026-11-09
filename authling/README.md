@@ -31,11 +31,10 @@ The `build Authling image` workflow builds and checks Linux amd64 images for
 pull requests. Relevant changes on `main` and manual workflow runs also publish
 `ghcr.io/chattocorp/authling:<full-commit-sha>` when run from a branch.
 
-Merging Authling's Release Please PR creates an independent `authling/v<version>`
-tag. A tag push builds and publishes `ghcr.io/chattocorp/authling:<version>`;
+Merging Authling's Sweet release PR starts CI. Successful checks create its
+independent `authling/v<version>` tag. A tag push builds and publishes `ghcr.io/chattocorp/authling:<version>`;
 for example, `authling/v0.1.0-alpha.1` publishes `:0.1.0-alpha.1`. The workflow
-rejects a release tag that differs from `version.go` or the Release Please
-manifest, and checks the executable's version before publishing. Manual runs
+rejects a release tag that differs from `version.go` or `.sweet.yml`, and checks the executable's version before publishing. Manual runs
 on an Authling release tag use the same checks and versioned image name.
 Release versions can include a prerelease suffix, but not `+` build metadata.
 The workflow does not publish floating `latest` or `stable` tags.

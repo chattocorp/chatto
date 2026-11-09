@@ -608,36 +608,33 @@ background poll interval. They wait for real projection catch-up and socket
 closure before and after the advance. Keep server requests and message delivery
 real when adding tests that control browser time.
 
-## Chatto release notes
+## Release notes
 
-Chatto uses Sweet Release. Add a change note with user-visible changes:
+Releasable packages use Sweet Release. Add a change note in each affected
+release unit with user-visible changes:
 
 ```sh
-mise x -- sweet change .
+mise x -- sweet change .                   # Chatto, including client and desktop
+mise x -- sweet change packages/runling
+mise x -- sweet change authling
 ```
 
 Choose `fix` for a patch release, `feature` for a minor release, or `breaking`
-for a breaking change. While Chatto is below 1.0, breaking changes use a minor
-release. Describe the changed behavior and any required action. Commit the
-`.sweet/*.md` file with the change. Internal changes do not need a release note.
-Commit titles do not supply Chatto release notes.
+for a breaking change. While these packages are below 1.0, breaking changes use
+a minor release. Describe the changed behavior and any required action. Commit
+the package's `.sweet/*.md` file with the change. Internal changes do not need
+a release note. Commit titles do not supply release notes.
 
-On `main`, changes to `.sweet/`, `.sweet.yml`, `.sweet.config.yml`, or the
-Prepare Chatto release workflow create or update a release PR. Other pushes do
-not run release preparation. Run the workflow manually to refresh a release PR
-after an unrelated change, or to retry a failed run.
-It consumes the notes, updates `CHANGELOG.md`, and updates the server, client,
-frontend, and desktop versions together. Correct release content on `main`;
-the workflow replaces generated PR content on its next run.
+Changes to Sweet notes, manifests, repository configuration, or the preparation
+workflow on `main` create or update one release PR per package. Run the Prepare
+releases workflow manually to refresh a PR after unrelated changes or retry a
+failure. Correct release content on `main`; generated PR edits can be replaced.
 
-After the release PR merges and all selected CI checks succeed, CI tags each
-release commit in the full push range. The existing release approval, builds, and publication then run.
-GitHub release notes come from the matching changelog entry. The initial Sweet
-manifest records version 0.5.0 without creating a new tag. Other products and
-libraries still use release-please. Do not add Sweet manifests for them until
-their release workflow is migrated. This integration prepares Chatto releases
-from `main`; maintenance-branch release automation needs a separate design.
+After all selected CI checks pass, CI tags each release commit in the full push
+range. Existing artifact workflows publish from those tags. The migration
+manifests record existing versions without creating replacement tags.
 
-Inspect pending notes with `mise x -- sweet status`. To preview a release in a
-clean local checkout, run `mise x -- sweet bump .` and inspect the diff. This
-changes files but does not commit or publish them.
+Inspect pending notes with `mise x -- sweet status`. In a clean checkout, run
+`mise x -- sweet bump <package-path>` to preview a release and inspect the diff.
+This changes files but does not commit or publish them. See
+[the release guide](docs/RELEASING.md) for tag names, publication, and limits.

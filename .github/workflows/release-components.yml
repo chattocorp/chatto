@@ -1,0 +1,30 @@
+name: Publish component release notes
+
+on:
+  push:
+    tags:
+      - 'authling/v*'
+      - 'runling/v*'
+      - 'translatto/v*'
+      - 'pkg/*/v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: component-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v3
+        with:
+          install: false
+      - name: Publish notes without Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bash tools/publish-component-release.sh

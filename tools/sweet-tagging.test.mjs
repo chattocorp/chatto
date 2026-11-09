@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
-const script = path.join(root, 'tools/tag-chatto-release.sh');
+const script = path.join(root, 'tools/tag-releases.sh');
 
 /** Make an isolated repository and bare remote; never use the project remote. */
 function fixture(t) {
@@ -71,13 +71,117 @@ test('migration preserves the historical tag and includes later releases in the 
 
 test('CI waits for every other job and uses the push boundaries', () => {
   const ci = readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
-  const tag = ci.split('\n  tag-chatto:\n')[1];
+  const tag = ci.split('\n  tag-releases:\n')[1];
   const jobs = [...ci.split('jobs:\n')[1].matchAll(/^  ([\w-]+):$/gm)]
     .map((m) => m[1])
-    .filter((name) => name !== 'tag-chatto');
+    .filter((name) => name !== 'tag-releases');
   for (const job of jobs) assert.ok(tag.includes(`      - ${job}\n`), `Missing dependency: ${job}`);
   assert.ok(tag.includes('PUSH_BEFORE: ${{ github.event.before }}'));
   assert.ok(tag.includes('PUSH_AFTER: ${{ github.sha }}'));
   assert.ok(tag.includes("!contains(needs.*.result, 'failure')"));
   assert.ok(tag.includes("!contains(needs.*.result, 'cancelled')"));
+});
+
+test('all release units preserve migration tags and bump independently configured version files', (t) => {
+  const f = fixture(t);
+  const before = f.commit('old.txt', 'Historical release');
+  f.git('tag', 'v0.5.0');
+  f.git('tag', 'authling/v0.1.0-alpha.3');
+  f.git('tag', 'runling/v0.7.0');
+  f.git('tag', 'translatto/v0.2.0');
+  f.git('tag', 'pkg/events/v0.1.0');
+  const repo = f.git('rev-parse', '--show-toplevel');
+  const units = [
+    '.',
+    'authling',
+    'packages/runling',
+    'packages/translatto',
+    ...['appconfig', 'datacrypto', 'events', 'jetstreamutil', 'natsruntime'].map((p) => `pkg/${p}`)
+  ];
+  for (const unit of units) {
+    mkdirSync(path.join(repo, unit), { recursive: true });
+    writeFileSync(
+      path.join(repo, unit, '.sweet.yml'),
+      readFileSync(path.join(root, unit, '.sweet.yml'))
+    );
+  }
+  for (const file of [
+    '.sweet.config.yml',
+    'cli/version.go',
+    'authling/version.go',
+    ...['packages/runling', 'packages/translatto'].flatMap((p) => [
+      `${p}/package.json`,
+      `${p}/version.txt`
+    ]),
+    ...['packages/chatto-client', 'apps/frontend', 'apps/desktop'].map((p) => `${p}/package.json`)
+  ]) {
+    mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+    writeFileSync(path.join(repo, file), readFileSync(path.join(root, file)));
+  }
+  const migration = f.commit('migration.txt', 'Baseline');
+  f.tag(before, migration);
+  assert.equal(f.git('tag', '--list').split('\n').length, 5);
+  for (const unit of units) {
+    execFileSync('mise', ['x', '--', 'sweet', 'change', '--type', 'fix', '--stdin', unit], {
+      cwd: repo,
+      input: 'Fix a release fixture.\n',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+  }
+  execFileSync('mise', ['x', '--', 'sweet', 'bump', '--all'], { cwd: repo, stdio: 'pipe' });
+  const released = f.commit('release.txt', 'Prepared all packages');
+  const after = f.commit('later.txt', 'After release');
+  f.tag(migration, after);
+  for (const tag of [
+    'v0.5.1',
+    'authling/v0.1.1',
+    'runling/v0.7.1',
+    'translatto/v0.2.1',
+    ...['appconfig', 'datacrypto', 'jetstreamutil', 'natsruntime'].map((p) => `pkg/${p}/v0.0.1`),
+    'pkg/events/v0.1.1'
+  ]) {
+    assert.equal(f.git('rev-parse', `${tag}^{}`), released);
+  }
+  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.1"/);
+  assert.equal(
+    readFileSync(path.join(repo, 'packages/runling/version.txt'), 'utf8').trim(),
+    '0.7.1'
+  );
+  assert.equal(
+    JSON.parse(readFileSync(path.join(repo, 'apps/desktop/package.json'))).version,
+    '0.5.1'
+  );
+});
+
+test('Authling image metadata checks its Sweet manifest against the source and tag', (t) => {
+  const f = fixture(t);
+  f.commit('old.txt', 'Fixture');
+  const repo = f.git('rev-parse', '--show-toplevel');
+  mkdirSync(path.join(repo, 'authling'));
+  writeFileSync(path.join(repo, 'authling/version.go'), 'package main\nconst Version = "0.1.1"\n');
+  writeFileSync(path.join(repo, 'authling/.sweet.yml'), 'version: 0.1.1\n');
+  const workflow = readFileSync(
+    path.join(root, '.github/workflows/build-authling-image.yml'),
+    'utf8'
+  );
+  const step = workflow
+    .split('      - name: Resolve image metadata\n')[1]
+    .split('\n      - name:')[0];
+  const script = step
+    .split('        run: |\n')[1]
+    .split('\n')
+    .filter((line) => line.startsWith('          '))
+    .map((line) => line.slice(10))
+    .join('\n');
+  const output = path.join(repo, 'output');
+  const run = () =>
+    execFileSync('python3', ['-c', script], {
+      cwd: repo,
+      env: { ...process.env, GITHUB_REF: 'refs/tags/authling/v0.1.1', GITHUB_OUTPUT: output },
+      stdio: 'pipe'
+    });
+  run();
+  assert.match(readFileSync(output, 'utf8'), /tag=0\.1\.1/);
+  writeFileSync(path.join(repo, 'authling/.sweet.yml'), 'version: 0.1.2\n');
+  assert.throws(run, (error) => error.stderr.toString().includes('must agree'));
 });

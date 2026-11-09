@@ -46,23 +46,12 @@ test('publishes only tested tag artifacts with a dedicated OIDC permission', asy
 test('keeps Runling versioning independent of Chatto prereleases', async () => {
   const readJson = async (path: string) =>
     JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
-  const config = await readJson('../../../.release-please-config.json');
-  const manifest = await readJson('../../../.release-please-manifest.json');
+  const release = await readFile(new URL('../.sweet.yml', import.meta.url), 'utf8');
   const pkg = await readJson('../package.json');
-  expect(config.packages['packages/runling']).toMatchObject({
-    'release-type': 'simple',
-    'package-name': 'runling',
-    component: 'runling',
-    versioning: 'default',
-    prerelease: false,
-    // The workflow publishes this draft with Latest explicitly disabled.
-    draft: true,
-    'include-component-in-tag': true,
-    'tag-separator': '/',
-    'extra-files': [{ type: 'json', path: 'package.json', jsonpath: '$.version' }]
-  });
-  expect(config.packages['.']['exclude-paths']).toContain('packages/runling');
-  expect(manifest['packages/runling']).toBe(pkg.version);
+  expect(release).toMatch(/^tag-prefix: runling\/v\r?$/m);
+  expect(release.match(/^version: (.+?)\r?$/m)?.[1]).toBe(pkg.version);
+  expect(release).toMatch(/path: package\.json\r?\n\s+format: json\r?\n\s+key: version/);
+  expect(release).toMatch(/path: version\.txt\r?\n\s+format: text/);
   expect((await readFile(new URL('../version.txt', import.meta.url), 'utf8')).trim()).toBe(
     pkg.version
   );

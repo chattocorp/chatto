@@ -1,6 +1,6 @@
 ---
 name: chatto-release-notes
-description: Create or update Chatto release pages from release-please state, tags, changelog entries, and PRs.
+description: Create or update Chatto release pages from Sweet Release state, tags, changelog entries, and PRs.
 ---
 
 # Chatto Release Notes
@@ -11,8 +11,8 @@ Paths below are relative to the repository root.
 
 ## Release And Evidence
 
-- Read `.release-please-config.json`, `.release-please-manifest.json`, and the
-  release-please PR, if present. Target the next stable minor release unless
+- Read `.sweet.config.yml`, `.sweet.yml`, root `.sweet/` notes, and the
+  Sweet release PR, if present. Target the next stable minor release unless
   the user specifies another release.
 - Remove prerelease suffixes and normalize the page version to `x.y.0`.
   For example, `0.5.0-beta.4` belongs on the `0.5.0` page.

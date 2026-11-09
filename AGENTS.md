@@ -248,9 +248,10 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Issues, Commits, And PRs
 
-- Chatto uses Sweet Release. Add a root change note with `mise x -- sweet change .`
-  for user-visible changes. See `CONTRIBUTING.md` for change types and release flow.
-  Other packages still use release-please.
+- Releasable packages use Sweet Release. Add a note with
+  `mise x -- sweet change <package-path>` for user-visible changes in each
+  affected release unit. Chatto, its client, frontend, and desktop share the
+  root note directory. See `CONTRIBUTING.md` and `docs/RELEASING.md`.
 
 - Every review that includes `apps/frontend/` must use
   [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).

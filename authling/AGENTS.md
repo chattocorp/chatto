@@ -112,8 +112,7 @@ Authling-specific skills must use the path
 `.agents/skills/authling-<name>/SKILL.md`, have a matching `authling-<name>`
 skill name, and state that they operate on Authling's namespaces. Do not
 substitute a similarly named Chatto skill. Global, plugin, and other configured
-skills remain applicable when their trigger rules match. Release Please treats
-repository skills as non-product infrastructure.
+skills remain applicable when their trigger rules match. Repository skills do not require product release notes unless behavior changes.
 
 ## Security
 
@@ -194,12 +193,11 @@ repository skills as non-product infrastructure.
 
 ## Releases And Compatibility
 
-- Authling's Release Please component is `authling/`, its version source is
+- Authling's Sweet manifest is `.sweet.yml`, its version target is
   `version.go`, its changelog is `CHANGELOG.md`, and its tags use
   `authling/v<version>`. The slash follows Go's nested-module tag convention.
-- Authling releases are source-only during the initial scaffold. Add binary or
-  container artifact workflows only when an implemented runtime is ready to
-  distribute.
+- Authling tags start its container image workflow. GitHub release notes and
+  image publication are separate jobs; check both before announcing a release.
 - Authling releases are independent from Chatto releases. An Authling-only
   commit must not require a Chatto release.
 - Treat persisted identity data, signing-key references, issuer identifiers,

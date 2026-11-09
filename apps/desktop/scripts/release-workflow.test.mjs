@@ -206,10 +206,7 @@ test('manual verification fails without a development version', (t) => {
 
 test('Sweet owns both version files through the Chatto package', () => {
   const root = new URL('../../../', import.meta.url);
-  const config = JSON.parse(readFileSync(new URL('.release-please-config.json', root), 'utf8'));
-  const manifest = readFileSync(new URL('.sweet.yml', root), 'utf8');
-  assert.equal(config.packages['.'], undefined);
-  assert.equal(config.packages['apps/desktop'], undefined);
+  const manifest = readFileSync(new URL('.sweet.yml', root), 'utf8').replaceAll('\r\n', '\n');
   for (const name of ['desktop', 'frontend']) {
     const packagePath = `apps/${name}/package.json`;
     assert.ok(manifest.includes(`path: ${packagePath}\n    format: json\n    key: version`));

@@ -1,13 +1,13 @@
-name: Prepare Chatto release
+name: Prepare releases
 
 on:
   push:
     branches: [main]
     paths:
-      - '.sweet/**'
-      - '.sweet.yml'
+      - '**/.sweet/**'
+      - '**/.sweet.yml'
       - '.sweet.config.yml'
-      - '.github/workflows/bump-chatto.yml'
+      - '.github/workflows/bump-releases.yml'
   workflow_dispatch:
 
 permissions:

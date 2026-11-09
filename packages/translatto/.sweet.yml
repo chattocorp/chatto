@@ -1,0 +1,9 @@
+name: translatto
+version: 0.2.0
+tag-prefix: translatto/v
+version-files:
+  - path: package.json
+    format: json
+    key: version
+  - path: version.txt
+    format: text

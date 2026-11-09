@@ -54,9 +54,9 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || '' }}
           ref: ${{ github.event_name == 'push' && github.sha || '' }}
           predicate-quantifier: some-with-excludes
-          # Release-please writes changelogs and the release manifest. Only
-          # release tooling reads the changelogs, so they do not select product
-          # jobs. Of the products, only a Runling test reads the manifest.
+          # Sweet writes changelogs and package manifests. Only
+          # release tooling reads changelogs, so they do not select product
+          # jobs. Package-local manifests select their own product checks.
           # Version files in release pull requests still select their product.
           filters: |
             chatto:
@@ -77,8 +77,6 @@ jobs:
               - '!**/CHANGELOG.md'
             translatto:
               - 'packages/translatto/**'
-              - '.release-please-config.json'
-              - '.release-please-manifest.json'
               - '!**/CHANGELOG.md'
             runling:
               - 'packages/runling/**'
@@ -86,8 +84,7 @@ jobs:
               - 'packages/chatto-client/**'
               - 'packages/api-types/**'
               - 'examples/runling-bot/**'
-              # A release test compares the manifest with the Runling version.
-              - '.release-please-manifest.json'
+              # Runling owns its release manifest.
               - '!**/CHANGELOG.md'
             chattobot:
               - 'packages/chattobot/**'
@@ -125,7 +122,6 @@ jobs:
               # Experimental modules have their own workflow.
               - '!experimental/**'
               - '!*.md'
-              - '!.release-please-manifest.json'
 
   test-translatto-package:
     needs: changes
@@ -1261,7 +1257,7 @@ jobs:
       - run: pnpm turbo run check --filter=docs-website
       - run: pnpm run build:docs
 
-  tag-chatto:
+  tag-releases:
     # Optional product jobs may be skipped; failures and cancellations block tags.
     if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     needs:
@@ -1306,9 +1302,9 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           install: false
-      - name: Tag committed Chatto release
+      - name: Tag committed package releases
         shell: bash
         env:
           PUSH_BEFORE: ${{ github.event.before }}
           PUSH_AFTER: ${{ github.sha }}
-        run: bash tools/tag-chatto-release.sh
+        run: bash tools/tag-releases.sh

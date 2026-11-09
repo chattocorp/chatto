@@ -47,23 +47,13 @@ test('allows an initial package but rejects registry failures', async () => {
 test('keeps the release independent and the workspace exports on source', async () => {
   const readJson = async (path: string) =>
     JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
-  const config = await readJson('../../../.release-please-config.json');
+  const release = await readFile(new URL('../.sweet.yml', import.meta.url), 'utf8');
   const pkg = await readJson('../package.json');
-  expect(config.packages['packages/translatto']).toMatchObject({
-    component: 'translatto',
-    'initial-version': '0.1.1',
-    versioning: 'default',
-    prerelease: false,
-    // The workflow publishes this draft with Latest explicitly disabled.
-    draft: true,
-    'include-component-in-tag': true,
-    'tag-separator': '/'
-  });
-  expect(config.packages['.']['exclude-paths']).toContain('packages/translatto');
+  expect(release).toMatch(/^tag-prefix: translatto\/v\r?$/m);
+  expect(release.match(/^version: (.+?)\r?$/m)?.[1]).toBe(pkg.version);
+  expect(release).toMatch(/path: package\.json\r?\n\s+format: json\r?\n\s+key: version/);
+  expect(release).toMatch(/path: version\.txt\r?\n\s+format: text/);
   expect(pkg.exports['.']).toBe('./src/index.ts');
-  expect((await readJson('../../../.release-please-manifest.json'))['packages/translatto']).toBe(
-    pkg.version
-  );
   expect((await readFile(new URL('../version.txt', import.meta.url), 'utf8')).trim()).toBe(
     pkg.version
   );

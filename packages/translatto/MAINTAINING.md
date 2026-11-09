@@ -43,16 +43,17 @@ Use pnpm for publication from the package directory. `npm publish` does not
 apply pnpm's export overrides. CI packs with pnpm, tests the tarball, and
 publishes that exact artifact with npm.
 
-Translatto has independent release-please releases. A `translatto/v<VERSION>`
+Translatto has independent Sweet releases. A `translatto/v<VERSION>`
 tag starts `publish-translatto.yml`. The workflow checks the version, tests
 the tarball, and publishes that artifact. A manual workflow run only tests
 and saves the artifact, including for an already published version. PR CI also
 uploads the tested tarball as `translatto-package`. Download this artifact to
 inspect it before merge.
 
-Version `0.1.0` was published manually without a GitHub release. The first
-release-please release starts at `0.1.1` to avoid reusing that version. Later
-releases use conventional commits to select the next version.
+Version `0.1.0` was published manually without a GitHub release. Never reuse
+published versions. Add notes with `mise x -- sweet change packages/translatto`
+from the repository root. The package manifest updates `package.json` and
+`version.txt` together. See [the release guide](../../docs/RELEASING.md).
 
 Before the next automated release, configure the npm trusted publisher for repository
 `chattocorp/chatto`, workflow `publish-translatto.yml`, and GitHub environment

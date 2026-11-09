@@ -1,12 +1,6 @@
 name: release
 
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
-    branches:
-      - main
-      - 'release-[0-9]*'
   push:
     tags:
       - 'v*'
@@ -29,47 +23,6 @@ permissions:
   contents: read
 
 jobs:
-  release-please:
-    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    concurrency:
-      group: release-please-${{ github.event.workflow_run.head_branch }}
-      cancel-in-progress: false
-    env:
-      TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
-      CONFIG_FILE: .release-please-config.json
-      MANIFEST_FILE: .release-please-manifest.json
-    steps:
-      - uses: googleapis/release-please-action@v5
-        id: release_please
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_PAT }}
-          config-file: ${{ env.CONFIG_FILE }}
-          manifest-file: ${{ env.MANIFEST_FILE }}
-          target-branch: ${{ env.TARGET_BRANCH }}
-
-      # Publish components only after creation as drafts, so they never claim
-      # the repository-wide Latest designation, even briefly.
-      - name: Publish component releases without Latest
-        if: steps.release_please.outputs.releases_created == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_OUTPUTS: ${{ toJSON(steps.release_please.outputs) }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          while IFS= read -r path; do
-            tag="$(jq -er --arg path "$path" \
-              '.[$path + "--tag_name"] | select(type == "string" and contains("/"))' \
-              <<< "$RELEASE_OUTPUTS")"
-            gh release edit "$tag" --draft=false --latest=false
-          done < <(jq -r '.paths_released | fromjson | .[] | select(. != ".")' <<< "$RELEASE_OUTPUTS")
-
   build-image:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'image' }}
     # runs-on: ubicloud-standard-4
@@ -741,10 +694,6 @@ jobs:
           disallowed=()
           while IFS= read -r path; do
             case "$path" in
-              .release-please-config.json|\
-              .release-please-config-main.json|\
-              .release-please-manifest.json|\
-              .release-please-manifest-main.json|\
               .sweet.yml|\
               .sweet/*.md|\
               CHANGELOG.md|\
