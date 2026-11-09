@@ -11,6 +11,21 @@ server.
 This guide helps you select the standalone binary, Docker Compose, or
 Kubernetes.
 
+## Components
+
+| Component | Required for | What to protect |
+| --------- | ------------ | --------------- |
+| Chatto server | Web client, API, and background work | Configuration and secrets |
+| NATS with JetStream | Durable server data; embedded or external | Persistent storage and encryption keys |
+| S3-compatible storage | Optional external file storage | Uploaded objects and storage credentials |
+| Search provider | Optional full-text search | Index with text from decrypted messages |
+| Asset processing worker | Optional video and GIF conversion | CPU capacity and temporary disk space |
+| LiveKit | Optional voice and video calls | Credentials, public media ports, and TLS |
+
+Search and asset processing can run inside the Chatto server or as separate
+processes. Clients send call media directly to LiveKit. See the configuration
+guides for each optional service.
+
 ## What You Must Know
 
 ### NATS and JetStream
@@ -53,7 +68,7 @@ Chatto encrypts message text and selected account fields before it writes them
 to durable storage. Chatto does not encrypt each record or uploaded asset.
 
 Read [Encryption at Rest and Data
-Erasure](/how-chatto-works/encryption/) for the full protection
+Erasure](/guides/operations/security/#encryption-and-data-erasure) for the full protection
 boundary. Chatto includes a built-in key management service (KMS). You cannot
 configure an external KMS currently.
 

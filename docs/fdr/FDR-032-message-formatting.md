@@ -156,5 +156,5 @@ Both editors highlight labelled Mermaid source with a shared, lazily loaded gram
 ## Related
 
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
-- **Guide:** [Format Messages](../../apps/docs-website/src/content/docs/getting-started/message-formatting.mdx)
+- **Integration reference:** [Message Syntax](../../apps/docs-website/src/content/docs/reference/message-syntax.mdx)
 - **Issue:** [#2007](https://github.com/chattocorp/chatto/issues/2007)

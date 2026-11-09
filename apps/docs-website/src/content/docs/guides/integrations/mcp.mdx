@@ -9,37 +9,9 @@ Chatto can expose a small tool catalog through the Model Context
 Protocol (MCP). The optional MCP integration uses the same public HTTP server,
 OAuth implementation, and version as the rest of Chatto.
 
-The experimental integration supports MCP `2026-07-28` and these tools:
-
-| Tool | Result or action |
-| --- | --- |
-| `get_server_info` | Identify the connected server and get its effective name, canonical public URL, connected MCP URL, and Chatto version. |
-| `get_current_user` | Get the account ID, display name, and account type for this connection. |
-| `list_rooms` | List a bounded page of visible rooms and get the exact visible-room count. |
-| `list_room_messages` | List a bounded page of messages in a joined room on the connected server. |
-| `search_messages` | Search current messages when search is enabled, including accessible direct messages and thread replies. |
-| `post_message` | Post one root text message in a joined room on the connected server. |
-| `join_room` | Join one visible channel room on the connected server. |
-| `leave_room` | Leave one joined channel room on the connected server. |
-
-Use a host that supports the stateless `2026-07-28` protocol. Older hosts that
-start with `initialize` cannot connect. Chatto does not expose MCP resources,
-prompts, logging, or catalog-change subscriptions.
-
-The tools apply the same RBAC, membership, validation, and visibility rules as
-the public Chatto API. For retry safety, give `post_message` a caller-generated
-UUID in `idempotency_key`. Keep that key and all arguments unchanged for retries
-within 30 minutes of the first attempt. Exact retries return the same message
-ID; changed arguments fail. Retries do not extend the window. After expiry, a
-key can create another message. Without a key, check an uncertain result before
-posting again. The tool's idempotent hint stays false because the key is optional.
-
-The MCP instructions tell an agent host to use these tools as the source of
-truth for Chatto application data on the connected server. They tell the host
-to use the advertised server title to distinguish the connection from other
-Chatto connections. They also tell the host not to infer rooms or messages
-from Kubernetes, deployment, DNS, or repository configuration. The host still
-decides which available tool it calls.
+The endpoint supports stateless MCP `2026-07-28`. Hosts that start with
+`initialize` cannot connect. See the [MCP Reference](/reference/mcp/) for tools,
+search arguments, response schemas, and retry rules.
 
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only
@@ -95,13 +67,9 @@ tools. A host that needs message reads or writes must request those scopes.
 Additional scopes require fresh consent. Refresh keeps the approved scope
 set; the token response reports it in `scope`. Existing full grants still work.
 
-A native agent host can register an HTTP callback on `127.0.0.1`, `[::1]`,
-`localhost`, or one concrete `.localhost` hostname, even when Chatto is on a
-remote server. Its CIMD document must set `application_type` to `native` and
-must list the callback without a wildcard. Chatto shows the local callback
-origin and asks for consent on every authorization. Literal loopback IP
-callbacks can select a runtime port; named localhost callbacks must use their
-registered port.
+Native hosts must publish client metadata with `application_type: native` and
+an exact callback. Runtime callback ports require literal loopback IP addresses.
+Named localhost callbacks must use the registered port.
 
 An unattended integration can send a current bot API key as its bearer token.
 The bot acts as its own account. Its explicit permission allowlist and its
@@ -141,58 +109,7 @@ codex mcp login chatto --oauth-client-registration cimd \
   --scopes chatto:rooms:read,chatto:rooms:write,chatto:messages:read,chatto:messages:write
 ```
 
-### MCP Inspector
-
-MCP Inspector `2.9.0` requires `--protocol-era modern` for this endpoint. Use a
-client metadata document that you control. For example:
-
-```json
-{
-  "client_id": "https://example.com/mcp-inspector-client.json",
-  "client_name": "My MCP Inspector",
-  "application_type": "native",
-  "redirect_uris": ["http://127.0.0.1/callback"],
-  "grant_types": ["authorization_code", "refresh_token"],
-  "response_types": ["code"],
-  "token_endpoint_auth_method": "none"
-}
-```
-
-Publish it at the exact `client_id` URL. Then run:
-
-```sh
-npx --yes @modelcontextprotocol/inspector@2.9.0 --cli \
-  --server-url https://chat.example.com/mcp --protocol-era modern \
-  --client-metadata-url https://example.com/mcp-inspector-client.json \
-  --callback-url http://127.0.0.1:6276/callback --method tools/list
-```
-
-Open the printed authorization URL and approve the consent request. The
-Inspector lists the tools covered by the approved scopes. Use `--method tools/call --tool-name
-get_server_info` to check the connected server. Use `--stored-auth-only` on
-later calls to use the stored grant without starting a new consent flow.
-
-## Search messages
-
-`search_messages` is available when the operator enables `[search].enabled`
-and your grant includes `chatto:messages:read`. It uses the server's existing
-search provider and current message-access rules. It does not search user or
-room directories.
-
-Supply `query` with words, quoted phrases, or filters such as `in:`, `from:`,
-`before:`, `after:`, and `has:attachment`. You can also supply `room_id` and
-`author_id`. Set `order` to `relevance` (the default) or `newest`. Set `limit`
-from 1 to 100; the default is 50.
-
-The result contains `serverName` and `results`. Each match has `message`
-details and a `relevanceScore`. Pass `nextCursor` as `cursor` with all other
-arguments unchanged to read the next page. Continue until `nextCursor` is
-absent, even if a page has no results: stale or inaccessible matches are
-removed. Pages use a live index, so results can move between requests.
-
-If the provider is not ready or is unavailable, the tool returns a structured
-failure. Wait before retrying. Search results, like message history, are sent
-to your connected agent host.
+For a diagnostic client, see [MCP Inspector](/reference/mcp/#mcp-inspector).
 
 ## Troubleshoot connection failures
 
@@ -213,81 +130,11 @@ metadata document agree. Do not disable callback validation.
 
 ## Understand permission failures
 
-An MCP call can succeed only when both the MCP OAuth grant and the normal
-Chatto authorization permit it. A missing tool scope returns HTTP `403` with
-an OAuth `insufficient_scope` challenge. A host can use this challenge to
-request additional consent. RBAC and room membership can still reject one
-operation or target after its scope is granted.
-
-Chatto returns a failed operation with `isError: true`. Read
-`structuredContent.error` to decide what to tell the human driver. Each tool's
-output schema permits its success result or this error object. Success fields
-keep their existing shape. Hosts that discard structured content receive a
-short text explanation and the same error object as JSON text.
-
-For example, a confirmed missing posting permission returns:
-
-```json
-{
-  "error": {
-    "code": "permission_denied",
-    "message": "Chatto RBAC requires message.post. Ask an administrator to grant access.",
-    "nextAction": "contact_administrator",
-    "retry": "after_change",
-    "outcome": "not_applied",
-    "missingPermissions": ["message.post"]
-  }
-}
-```
-
-Use these stable fields. Do not parse `message`; its wording can change.
-
-| Field | Meaning |
-| --- | --- |
-| `code` | Failure category from the table below. |
-| `message` | Short explanation for a human. |
-| `nextAction` | Suggested action. It does not grant permission or confirm that another call will succeed. |
-| `retry` | `after_change`: correct the input, consent, access, or policy first. `after_delay`: wait before retrying. `never`: do not automatically repeat this operation. |
-| `outcome` | `not_applied`: this request made no change. Reads also use this value. `applied`: the command completed, but its response could not be assembled. `unknown`: the command may have completed. |
-| `missingPermissions` | Optional confirmed missing RBAC identifiers. If more than one is listed, any one satisfies the permission gate; other gates still apply. |
-| `requiredScope` | Optional MCP OAuth scope that needs fresh consent. |
-| `retryAfterMs` | Optional minimum wait in milliseconds when `retry` is `after_delay`. If absent, use bounded backoff. |
-| `retrySameRequest` | When true, retry with the original key and exact arguments within the 30-minute window. Do not allocate a new key for this retry. |
-
-| `code` | `nextAction` and human guidance |
-| --- | --- |
-| `invalid_argument` | `fix_arguments`: correct the tool arguments. Submitted values are not copied into the error. |
-| `authentication_required` | `authorize_scope`: authorize the connection again. |
-| `insufficient_scope` | `authorize_scope`: request fresh consent for `requiredScope`. Keep the existing scopes that the host still needs. |
-| `not_room_member` | `join_room`: request membership in the visible room. Joining still needs its own scope and Chatto authority. |
-| `permission_denied` | `contact_administrator`: report `missingPermissions`, such as `room.join` or `message.post`, to an administrator. |
-| `policy_denied` | `contact_administrator`: ask an administrator to check access. The response does not name a private policy or claim that an RBAC grant will fix it. |
-| `not_found` | `check_access`: verify the target and access with an administrator. Hidden and absent resources have the same error. |
-| `conflict` | `retry`: concurrent state changed. Use bounded backoff and obey `retry`. |
-| `idempotency_conflict` | `check_result`: the key belongs to different arguments. Check the original send before starting another operation. |
-| `rate_limited` | `retry`: wait for `retryAfterMs`, if present. |
-| `timeout` | Obey `nextAction`, `retry`, and `outcome`. |
-| `temporary_failure` | Obey `nextAction`, `retry`, and `outcome`. Backend diagnostics are not exposed. |
-
-Scope rejection before MCP dispatch keeps HTTP `403` and its
-`WWW-Authenticate` challenge. Admission rejection keeps HTTP `429` and
-`Retry-After`. Their JSON bodies use the same `error` object. These bodies are
-HTTP error details, not JSON-RPC tool results. Malformed protocol requests and
-unknown tools remain protocol errors.
-
-Room tools check visibility before they run. They do not reveal whether an
-inaccessible channel or direct-message room exists. A joined room remains
-visible to its members. To join a channel as a nonmember, the account needs
-normal room visibility, usually `room.list`, as well as `room.join`. A bot needs
-the relevant explicit grants and sufficient current authority from its owner.
-
-When `nextAction` is `check_result`, ask the human to check the room. Do not
-automatically repeat an unkeyed `post_message` when its outcome is `applied` or
-`unknown`, or when the connection closes without a result. A keyed call can be
-repeated with the exact original request within its window, including after a
-lost response. Current read access still controls the returned result. Stop
-retries before the window ends and check the original send before starting a
-new one. Retry safety requires all serving replicas to support this contract.
+An operation needs both the relevant OAuth scope and normal Chatto permissions
+and room membership. A scope error requires fresh consent; an account permission
+error requires a change to that account's access. A bot also needs its owner's
+current authority. See the [MCP error reference](/reference/mcp/#understand-permission-failures)
+for response fields and retry rules.
 
 ## Disable access
 
