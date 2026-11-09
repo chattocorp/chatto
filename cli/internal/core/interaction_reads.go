@@ -51,7 +51,7 @@ func (s *RoomTimelineReadModel) ListReactionUsers(ctx context.Context, actorID, 
 			return interactionUserPage(append([]string(nil), reaction.UserIDs...), limit, offset), nil
 		}
 	}
-	if _, err := resolveEmojiInput(emoji); err != nil {
+	if _, err := resolveReactionName(emoji); err != nil {
 		return nil, err
 	}
 	return interactionUserPage(nil, limit, offset), nil

@@ -19,8 +19,9 @@ import { PageInfo, PageRequest } from "./pagination_pb.js";
  * Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
  * without surrounding colons. Known emoji also accept valid Slack-style skin-tone
  * suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
- * Names are case-sensitive and are stored unchanged, including
- * unknown names. Clients can display an unknown name as :name:.
+ * Names are case-sensitive, must be in the bundled emoji catalogue, and are
+ * stored unchanged. Unknown names return INVALID_ARGUMENT. Unicode glyphs are
+ * not accepted; clients must send a supported shortcode name.
  *
  * @generated from message chatto.api.v1.AddReactionRequest
  */
@@ -41,7 +42,7 @@ export class AddReactionRequest extends Message<AddReactionRequest> {
   messageEventId = "";
 
   /**
-   * Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
+   * Required. Supported reaction name, such as "heart" or "joy".
    *
    * @generated from field: string emoji = 3;
    */

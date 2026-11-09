@@ -871,15 +871,26 @@ func TestEmoji(t *testing.T) {
 		}
 	})
 
-	t.Run("resolveEmojiInput preserves names without catalogue lookup", func(t *testing.T) {
-		for _, input := range []string{"Party_Parrot", "custom-party", "+1", "thumbsup", strings.Repeat("a", 128), "thumbsup::skin-tone-4", "+1::skin-tone-4", "woman_health_worker::skin-tone-2", "couple::skin-tone-2-6"} {
+	t.Run("resolveEmojiInput rejects unknown and case-mismatched names", func(t *testing.T) {
+		for _, input := range []string{"face_with_tears_of_joy", "Party_Parrot", "custom-party", "Thumbsup", strings.Repeat("a", 128)} {
+			if _, err := resolveEmojiInput(input); err == nil || err.Error() != "unsupported emoji" {
+				t.Errorf("resolveEmojiInput(%q) error = %v, want unsupported emoji", input, err)
+			}
+			if got, err := resolveReactionName(input); err != nil || got != input {
+				t.Errorf("resolveReactionName(%q) = %q, %v", input, got, err)
+			}
+		}
+	})
+
+	t.Run("resolveEmojiInput preserves supported names", func(t *testing.T) {
+		for _, input := range []string{"joy", "+1", "thumbsup", "thumbsup::skin-tone-4", "+1::skin-tone-4", "woman_health_worker::skin-tone-2", "couple::skin-tone-2-6"} {
 			name, err := resolveEmojiInput(input)
 			if err != nil || name != input {
 				t.Errorf("resolveEmojiInput(%q) = %q, %v", input, name, err)
 			}
 		}
 		for name := range emojiNameToUnicode {
-			if !IsValidReactionName(name) {
+			if got, err := resolveEmojiInput(name); err != nil || got != name {
 				t.Errorf("previously supported name rejected: %q", name)
 			}
 		}
@@ -946,7 +957,7 @@ func TestHistoricalReactionCanBeReadAndRemoved(t *testing.T) {
 }
 
 func TestUnknownReactionRoundTrip(t *testing.T) {
-	for _, name := range []string{"Party_Parrot", "thumbsup::skin-tone-4", "woman_health_worker::skin-tone-2", "couple::skin-tone-2-6"} {
+	for _, name := range []string{"Party_Parrot", "face_with_tears_of_joy", "thumbsup::skin-tone-4", "woman_health_worker::skin-tone-2", "couple::skin-tone-2-6"} {
 		t.Run(name, func(t *testing.T) {
 			testReactionNameRoundTrip(t, name)
 		})
@@ -960,7 +971,7 @@ func testReactionNameRoundTrip(t *testing.T, name string) {
 	user, room, messageID := setupReactionTest(t, c, ctx)
 	input := ReactionMutationInput{ActorID: user.Id, RoomID: room.Id, MessageEventID: messageID, Emoji: name}
 	for i := range 2 {
-		added, err := c.ReactionModel().AddReaction(ctx, input)
+		added, err := c.ImportHistoricalReaction(ctx, HistoricalReactionInput{RoomID: room.Id, MessageEventID: messageID, UserID: user.Id, Emoji: name})
 		if err != nil || added != (i == 0) {
 			t.Fatalf("add attempt %d: %v, %v", i, added, err)
 		}

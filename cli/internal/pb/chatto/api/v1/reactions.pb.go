@@ -32,8 +32,9 @@ const (
 // Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
 // without surrounding colons. Known emoji also accept valid Slack-style skin-tone
 // suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
-// Names are case-sensitive and are stored unchanged, including
-// unknown names. Clients can display an unknown name as :name:.
+// Names are case-sensitive, must be in the bundled emoji catalogue, and are
+// stored unchanged. Unknown names return INVALID_ARGUMENT. Unicode glyphs are
+// not accepted; clients must send a supported shortcode name.
 type AddReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message event.
@@ -41,7 +42,7 @@ type AddReactionRequest struct {
 	// Required. Event ID of the message being reacted to, or a channel echo of
 	// the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	// Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
+	// Required. Supported reaction name, such as "heart" or "joy".
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
