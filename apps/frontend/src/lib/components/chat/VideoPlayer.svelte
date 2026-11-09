@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, onMount, type Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import type { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import VideoProcessingPlaceholder from './VideoProcessingPlaceholder.svelte';
@@ -228,15 +228,6 @@
         fullscreenFallbackSource,
         refreshSource
       );
-
-      // Request native fullscreen on the overlay after Svelte renders it.
-      // tick() preserves the user activation from this click event.
-      tick().then(() => {
-        document
-          .querySelector('.fullscreen-overlay')
-          ?.requestFullscreen()
-          .catch(() => {});
-      });
     }
 
     // Use capture phase so we intercept before Vidstack's internal handler.
