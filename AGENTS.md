@@ -207,10 +207,12 @@ Never leave a dev stack running in a detached or yielded terminal session.
   behavior, or development tools to it.
 - Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
   vocabulary.
-- Public documentation requires a meaningful reader impact. Update
-  `apps/docs-website/` only when a change introduces a meaningful feature,
-  changes observable behavior, requires reader action, or makes existing public
-  documentation incorrect.
+- The public docs website serves self-hosted server operators first. Update
+  `apps/docs-website/` when installation, configuration, security, monitoring,
+  upgrades, troubleshooting, recovery, or a public integration contract changes
+  for its readers. Member controls and feature walkthroughs belong in in-app
+  help; until that help exists, keep feature behavior in the relevant FDR.
+  Follow the human-authored page restrictions in `apps/docs-website/AGENTS.md`.
 - Internal refactors, storage changes, implementation details, and added tests
   do not by themselves require public documentation updates. Record these in
   FDRs, ADRs, and architecture docs as applicable.

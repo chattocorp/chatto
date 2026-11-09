@@ -51,17 +51,16 @@ owner ceilings. See [Bot accounts](/guides/integrations/bot-accounts/).
 Every server has four system roles. You cannot delete them. The order of the
 roles does not change which setting wins.
 
-| Role | Defaults on a new server (Server scope) |
-| ---- | --------------------------------------- |
-| `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
-| `moderator` | `message.manage`, `message.pin`, `room.remove-member` |
-| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-invites`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
-| `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
+| Role | Purpose |
+| ---- | ------- |
+| `everyone` | Baseline member access. |
+| `moderator` | Message moderation and room-member removal. |
+| `admin` | Server, account, room, role, and bot administration. |
+| `owner` | Full authority while privileged mode is active. |
 
-Moderators and admins get their member permissions from `everyone`. A new
-server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone` and allows it for `admin` and `owner`. Owners can
-post there without privileged mode.
+Moderators and admins also have the baseline member permissions of `everyone`.
+Inspect the server's saved grants before you delegate access. Existing servers
+keep their settings when defaults change.
 
 ## Privileged mode
 
@@ -81,7 +80,7 @@ session where you enabled it. The event log records each activation and
 deactivation.
 
 Privileged mode turns on permissions, not roles. It applies to each permission
-marked **Yes** in the [permission reference](#permission-reference), from any
+marked as privileged in the server's permission settings, from any
 role or user setting. It does not give you permissions that you do not have.
 
 For owners, privileged mode also turns on the owner permissions. Without the
@@ -102,58 +101,15 @@ permission without privileged mode.
 
 ## Permission reference
 
-Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
-**All** means all four scopes.
+Use the server's permission settings to inspect the available permissions.
+For API integrations, see the
+[permission API reference](/reference/connectrpc-api/permissions/) and
+[role administration reference](/reference/connectrpc-api/admin-roles/).
 
-| Permission | Scopes | Privileged | Allows |
-| ---------- | ------ | ---------- | ------ |
-| `server.manage` | S | Yes | Change server settings, such as the name, description, and logo. Includes `server.manage-neighbors`. |
-| `server.manage-neighbors` | S | Yes | Manage the public Neighbor directory. |
-| `room.list` | S, G, R | | See rooms in the room directory and room lists. |
-| `room.join` | S, G, R | | Join channel rooms. |
-| `room.create` | S, G | Yes | Create channel rooms. |
-| `room.manage` | S, G, R | Yes | Configure, rename, archive, and delete rooms and room groups at that scope, and add or remove room members. At Server scope, also create and order room groups. |
-| `room.manage-notice` | S, G, R | No | Publish, correct, republish, and clear a channel notice. Requires current room membership. New instances grant it to Admin only. |
-| `room.remove-member` | S, G, R | Yes | Remove a member from a channel room, with a reason and an optional suspension. Replaces `room.ban-member`. |
-| `message.read` | All | | Read messages, threads, attachments, search results, and typing indicators. Includes `message.read-interactions`. |
-| `message.read-interactions` | All | | Read only threads that the account started, where another account mentioned it directly, or where it received a DM. It can read the full thread. |
-| `message.post` | All | | Post messages and thread replies. At DM scope, a person can also start DMs. Includes `message.post-in-thread` and `message.post-in-interactions`. |
-| `message.post-in-thread` | All | | Reply in each thread that the account can read. |
-| `message.post-in-interactions` | All | | Reply only in the threads that `message.read-interactions` describes. |
-| `message.attach` | All | | Attach files to new messages. |
-| `message.react` | All | | Add and remove reactions. |
-| `message.echo` | All | | Echo a thread reply to the room. |
-| `message.pin` | Server, Room group, Room | | Pin and unpin channel messages. Pinning also requires read access to the message. |
-| `message.manage` | All | Yes | Edit or delete messages from other accounts. Remove a thread reply's room echo through the edit checkbox. Adding an echo remains author-only. |
-| `call.start` | All | | Start a call. Also needs `call.join`. |
-| `call.join` | All | | Join a call, also as a listener. |
-| `call.voice` | All | | Send microphone audio. |
-| `call.camera` | All | | Send camera video. |
-| `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
-| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. |
-| `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
-| `admin.view-users` | S | Yes | See the member list in Server Administration. |
-| `admin.view-audit` | S | Yes | See the event log. |
-| `user.invite` | S | No | Create, list, copy, and revoke your own invitation codes. |
-| `user.manage-invites` | S | Yes | List, create, copy, and revoke all invitation codes. |
-| `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
-| `user.manage-permissions` | S | Yes | Change the permission settings of one user. |
-| `user.delete-any` | S | Yes | Delete any account. |
-| `user.delete-self` | S | | Delete your own account. |
-| `bot.create` | S | | Create bots that you own. |
-| `bot.manage` | S | Yes | Manage all bots on the server. |
-
-System diagnostics are only for owners. They are not a permission.
-
-An allow for a broad permission also allows the permissions that it includes. A
-deny for an included permission does not restrict that broad allow. For
-example, to stop all posting, deny `message.post`, `message.post-in-thread`,
-and `message.post-in-interactions`.
-
-Posting also needs room membership and must agree with the room's Threading
-Mode. A thread reply also needs read access to the thread. `room.manage` and
-`message.manage` bypass Slow Mode. See [Calls](/guides/infrastructure/voice-calls/) for media limits in
-calls.
+An allow for a broad permission also permits the actions that it includes.
+A deny for an included permission does not restrict that broad allow. To stop
+all posting, deny `message.post`, `message.post-in-thread`, and
+`message.post-in-interactions`.
 
 ## Direct messages
 
@@ -167,58 +123,37 @@ messages value, the Server setting applies.
 - A participant with `message.manage` can edit or delete the messages of other
   participants. Nobody can moderate a DM that they are not part of.
 
-## Common patterns
+## Check room access
 
-### Read-only room
+Explicit membership gives access independently of `room.list` and `room.join`.
+A deny of discovery or self-join does not remove current members. Check the member
+list when you restrict a room. Message access still requires a read permission.
+Owners and administrators cannot read conversations through Chatto without
+membership.
 
-In the room's permissions, deny `message.post` for `everyone`. Allow it for
-each role that can post, in the same room. To also stop replies, deny
-`message.post-in-thread` and `message.post-in-interactions` for `everyone`. To
-stop uploads, deny `message.attach`. Remove the denies to go back to the server
-defaults.
+A universal room adds members according to `room.join`. Members cannot leave it;
+to remove access, change the relevant permissions or suspend the member in that
+room. Archiving hides a room from active lists but does not erase its data.
 
-### Room for one role only
+## Threading Mode
 
-<Steps>
+A room's Threading Mode controls whether threads are required, encouraged,
+optional, or disabled. It applies to new posts and does not remove existing
+threads. It does not replace message permissions. Check both room policy and
+permissions when an integration cannot post.
 
-1. Create a role, such as `engineering`, and assign it.
-2. In the room's permissions, deny `room.list` and `room.join` for `everyone`.
-3. In the same room, allow `room.list` and `room.join` for `engineering`.
-4. Turn on **Universal** to add each member of the role to the room
-   automatically.
-5. Remove the current room members who must not have access.
+## Neighbors
 
-</Steps>
+The Neighbors directory publishes server origins that your community recommends.
+A recommendation grants no access and creates no trust relationship. Limit
+`server.manage-neighbors` to accounts that can maintain this public list. It is
+not a federation or data-replication setting.
 
-Other roles need their own allow in the room. A server or room-group allow does
-not override the room-level `everyone` deny. Owners can access the room only in
-privileged mode, unless they have the role or their own allow. If **Universal** added a user,
-removing the role also removes the user from the room.
+## Room invitations
 
-### Suspend a user
-
-Create a `suspended` role. At Server scope, deny `message.post`,
-`message.post-in-thread`, and `message.post-in-interactions`. You can also deny
-`message.attach`, `message.react`, and `message.echo`. Assign the role to the
-user. Do not add room or room-group allows to this role, because they replace
-its server-level denies.
-
-For a single case, set the same denies directly on the user. First remove room
-or room-group allows on that user. To remove a user from one room, use
-`room.remove-member` instead.
-
-### Delegate one room or room group
-
-Allow `room.manage` for a user or role at Room or Room group scope. Add
-`message.manage` and `room.remove-member` at the same scope to let them
-moderate. They must enable privileged mode to use these permissions.
-
-### Limit an account to its own conversations
-
-Allow `message.read-interactions` and `message.post-in-interactions` instead of
-`message.read` and `message.post`. The account can then read and reply only in
-the threads that `message.read-interactions` describes. This is useful for
-bots.
+Grant `room.invite` only to members who can admit other server members to a room.
+An accepted invitation bypasses `room.join`, but does not grant message or call
+permissions. Check invitations and current membership when you restrict access.
 
 ## Where to configure permissions
 
@@ -276,44 +211,3 @@ Make these changes on an upgraded server:
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
-
-## Room notices
-
-Grant `room.manage-notice` to the roles or accounts that should edit notices.
-New instances grant it to Admin. Upgrades keep existing permission grants.
-Select **Edit** in the notice banner, or open **Room information** and select
-**Edit notice**. Write up to 4,000 characters of Markdown. Use **Update** for
-edits that should keep existing dismissals. Use **Announce** when members should
-see the changed notice again. Both actions require a text change. **Clear** asks
-for confirmation before it removes the current notice for everyone in the room.
-The banner shows the publication date and time. Corrections preserve that time;
-**Announce** updates it.
-
-Notices belong to the room. Deleting an author's account does not remove notice
-text. Clearing a notice does not erase earlier versions from the event log.
-
-Members can dismiss the banner and read the notice in **Room information**. Dismissal
-applies only to the current device. Archived rooms keep their notices but reject
-edits. Non-members and room join previews cannot read notice content.
-
-## Room invitations
-
-Grant `room.invite` to let members invite other human server members to their
-rooms. You can grant it for the server, a room group, or one room. Fresh servers
-grant it to the admin role only. On an existing server, grant it explicitly.
-
-To send invitations, open the room menu and select **Invite member**. Select
-one or more members in the dialog. You can remove a selected member before
-you send.
-
-The recipient sees the invited room in its sidebar group. Opening the room
-shows who sent the invitation and when it expires. The recipient has seven days
-to accept or decline. Acceptance bypasses `room.join`, but does not grant
-message or call permissions. The sender must still be a member with
-`room.invite` when the recipient accepts.
-
-Invitations use Push notification by default, subject to device permission and
-Do Not Disturb. Recipients can change the **Room invitations** setting to
-Notification, Badge, or Off. The notification opens the room. Reading or
-deleting it does not respond to the invitation. It disappears after acceptance,
-decline, or expiry.

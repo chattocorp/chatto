@@ -1,6 +1,6 @@
 ---
 title: Server Operations
-description: Day-to-day operations for Chatto operators, including diagnostics, metrics, backups, upgrades, recovery, and community badges.
+description: Day-to-day operations for Chatto operators, including diagnostics, metrics, upgrades, and recovery.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -217,22 +217,9 @@ attempt time and duration. Reading metrics does not start an S3 listing.
 
 ## Backups
 
-A live server must have backups:
-
-1. Schedule encrypted backups.
-2. Decide whether your backups include the encryption keys.
-3. Keep backup archives away from the Chatto data directory.
-4. Test a restore before you rely on a backup.
-5. Set the backup retention to agree with your account deletion policy.
-
-For a small server, the simplest reliable backup includes the keys:
-
-```bash
-chatto backup -c chatto.toml --encrypt --include-keys
-```
-
-Export the keys separately only when you want different retention and
-recovery procedures for them. See [Backup & Restore](/guides/operations/backup-restore/).
+Schedule encrypted backups, keep them away from the server's data volume, and
+test restores. See [Backup & Restore](/guides/operations/backup-restore/) for
+key exports, S3 assets, retention, and disaster recovery.
 
 ## Message Search Provider
 
@@ -290,46 +277,6 @@ To operate more than one replica, see
 
 ## Community Badges
 
-Chatto can publish [Shields.io](https://shields.io) badges with the number of
-members online and registered. Use them in a README or on a website. Badges
-are off by default, because they make the size and activity of your community
-public.
-
-<Tabs>
-<TabItem label="TOML">
-
-```toml
-[webserver.shields]
-enabled = true
-```
-
-</TabItem>
-<TabItem label="Environment">
-
-```bash
-CHATTO_WEBSERVER_SHIELDS_ENABLED=true
-```
-
-</TabItem>
-</Tabs>
-
-Add the badges with Markdown image syntax:
-
-```md
-![Chatto online](https://chat.example.com/.well-known/chatto/shields/online.png)
-![Chatto registered](https://chat.example.com/.well-known/chatto/shields/registered.png)
-```
-
-`online.png` counts users who are Online, Away, or Do Not Disturb.
-`registered.png` counts verified accounts. Chatto redirects these URLs to
-Shields.io. Shields.io then reads the public JSON endpoints `online.json` and
-`registered.json` from the same path on your server.
-
-If your Markdown host does not follow image redirects, link to Shields.io
-directly:
-
-```md
-![Chatto online](https://img.shields.io/endpoint?url=https%3A%2F%2Fchat.example.com%2F.well-known%2Fchatto%2Fshields%2Fonline.json)
-```
-
-You cannot change the labels or colors.
+Public badges expose the server's registered and online member counts. They are
+off by default. Enable them only if you intend to publish this activity. See the
+[Shields configuration reference](/reference/environment-variables/#shields).

@@ -57,30 +57,6 @@ Browsers upload message attachments in chunks of up to 10 MiB. If your reverse
 proxy limits the request body size, allow at least 11 MiB for each request.
 Avatar and branding uploads can need larger request bodies.
 
-The bundled client adjusts chunk sizes to the connection speed and retries
-temporary upload failures from the progress confirmed by the server. Keep the
-page open during recovery. Reloading the page does not resume an unfinished
-upload automatically. Older clients can still use fixed chunk sizes.
-
-## Attachment Descriptions
-
-Members add a description in the attachment preview before they send a
-message. After they send it, they can add, replace, or remove it in the
-attachment controls. A description can have line breaks and up to 1,000
-characters.
-
-Chatto uses the description as alt text for images, and the filename when no
-description exists. The image viewer also shows it as a caption. Video, audio,
-and file controls give it to assistive technology.
-
-Hover over an image, video, audio player, or file card in a message to read its
-description in a browser tooltip. You can also open the attachment viewer to
-read the description with a keyboard or on a touch screen.
-
-Chatto encrypts each description with the content key of the message author.
-Description changes use the same three-hour window and `message.manage`
-override as message-text edits.
-
 ## Permission And Access Model
 
 To attach a file, a member needs:
@@ -94,12 +70,6 @@ Attachment URLs are signed for one user and expire. Each request also checks
 that this user can still read the room. When a member leaves the room or loses
 access, old URLs stop working for them.
 
-## Room Files
-
-The **Files** panel in the room sidebar lists the attachments of visible
-messages and thread replies. A file disappears from the list when its message
-or attachment is deleted. The panel has no search or filter.
-
 ## Link Previews
 
 When a member writes a message with a URL, the Chatto server fetches the page
@@ -110,16 +80,12 @@ including shared-address space (`100.64.0.0/10`) and standard NAT64 ranges
 a linked site, provide native IPv4 or IPv6 connectivity for previews. Results
 are cached for a limited time. You do not need a separate worker.
 
-Supported Vimeo video links show an inline player in posted messages. This
-includes player links and unlisted links with a privacy hash. The player uses
-Vimeo's Do Not Track option and does not start playback automatically. Loading
-the player connects your browser to Vimeo and reveals your IP address to Vimeo.
+Embedded Vimeo players connect the member's browser directly to Vimeo, which
+receives the member's IP address. This connection is separate from the server
+request for link-preview metadata.
 
-Public Bluesky and Mastodon posts show as native cards with the author, text,
-images, and one quoted post. Mastodon content warnings stay closed until the
-reader opens them. Chatto supports all compatible public Mastodon servers.
-Clients show the stored card and do not contact the provider. When Chatto
-cannot read the post, it shows a normal link preview.
+For supported Bluesky and Mastodon previews, the server gets the post details
+and images. Clients show the stored preview without contacting those services.
 
 ## Storage Backend Choice
 
@@ -308,47 +274,6 @@ keep their MP4 files.
 Chatto stores the original, the thumbnail, and the HLS segments. Put
 `asset_processing.temp_dir` on fast disk with space for the jobs that run at
 the same time.
-
-## PDF Attachments
-
-Select a PDF attachment to open its preview. If your browser supports inline
-PDFs, the preview opens automatically with the browser's PDF controls. The
-available controls depend on your browser.
-
-If your browser does not support PDF previews, or a document cannot render,
-select **Download** to save the original file. **Download** and **Close** stay
-available outside the preview.
-
-## Markdown Attachments
-
-Select a Markdown attachment to read its rendered preview. The preview opens
-automatically and supports the same Markdown formatting as messages. It does
-not run HTML or load embedded images. Document links open only when you select
-them.
-
-Chatto recognises Markdown document types. It also recognises `.md` and
-`.markdown` files with a plain-text, generic, or missing document type.
-**Download** saves the original file. **Download** and **Close** stay available
-while you scroll through the preview.
-
-## HTML Attachments
-
-Select an HTML or XHTML attachment to open its viewer. The viewer shows the
-document type and file size. **Download** saves the original file and does not
-load the preview.
-
-**Show preview** loads the document. Before this, Chatto loads nothing from the
-document. A notice tells the member that external websites can see their IP
-address if the document loads content from them. The member must make this
-choice each time.
-
-The preview blocks scripts, forms, popups, and access to Chatto. Documents that
-need scripts can fail. **Download** and **Close** stay available outside the
-preview.
-
-API clients can add `download=1` to the original attachment URL. Keep the
-`access` parameter. Chatto then returns the original file as a download, also
-for S3 storage.
 
 ## Active Document Safety
 

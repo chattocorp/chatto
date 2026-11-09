@@ -72,24 +72,10 @@ With `direct_login = false`, the login page shows only the configured
 providers, and the password login endpoint returns `403`. Existing sessions
 stay valid. `direct_registration` controls registration separately.
 
-Users cannot add, change, or reset local passwords while password login is
-disabled. Account settings keeps the password controls visible but disabled,
-with an SSO notice. Stored passwords and operator recovery remain available.
-For sensitive account actions that require fresh authentication, sign in again
-through SSO on the server that owns the account, then complete the action in
-that server's account settings. A stored local password cannot replace this
-SSO authentication.
-
-Users cannot disconnect their last enabled sign-in method. On SSO-only
-servers, a stored password does not count as an alternative. Link another
-provider that the server still supports before disconnecting the current one.
-A link to a removed provider or an old OIDC issuer does not prevent lockout
-and does not count as an alternative.
-
-After an upgrade, an old OIDC link can contain only an identity hash. Sign in
-through that OIDC provider once to let Chatto record its verified issuer.
-Until then, the link does not count as an alternative when disconnecting
-another provider. This update does not require group-role mappings.
+Password changes and resets are unavailable while password login is disabled.
+Stored passwords and local operator recovery remain available. Before you disable
+password login, link the owner account to a working provider. An old or removed
+provider link does not provide an alternative sign-in method.
 
 <Aside type="caution">
   If no provider works, signed-out users cannot sign in. Keep an operator
@@ -173,108 +159,39 @@ provider accepted the email, not that the email arrived.
 
 ## External Providers
 
-Add login providers as repeated `[[auth.providers]]` entries. Chatto supports
-`oidc`, `github`, `gitlab`, `google`, and `discord`:
-
-```toml
-[[auth.providers]]
-id = "company-oidc"
-type = "oidc"
-label = "Company SSO"
-issuer_url = "https://idp.example.com"
-client_id = "..."
-client_secret = "..."
-auto_provision = false
-```
-
-Do not change a provider `id` after users link accounts. A change disconnects
-those links.
-
-Chatto never merges accounts by email address. It links an external identity
-by its provider and subject. With `auto_provision = true`, a new user confirms
-a username before Chatto creates the account. A signed-in user can link a
-provider from account settings. Chatto does not let a user remove the last
-sign-in method of an account without a password.
-
-See [Login Providers](/guides/integrations/external-login-providers/) for
-callback URLs, scopes, and examples.
+Use [Login Providers](/guides/integrations/external-login-providers/) to configure
+provider IDs, callback URLs, claims, and role mappings. Keep provider IDs stable
+after accounts are linked. Chatto does not merge accounts by email address.
 
 ## Verified Email Addresses
 
-Users add email addresses under **Settings → Account**. The user enters the
-address twice. Chatto then sends a six-digit code. Chatto adds the address only
-after the user enters this code. If the user reloads the page in the same tab,
-the pending verification stays available.
-
-An account can have multiple verified addresses. The first address is the
-primary address until the user selects another one. Chatto sends account email
+An account can have multiple verified email addresses. Chatto sends account email
 to the primary address. Sign-in, password reset, and owner matching accept all
-verified addresses.
+verified addresses. Configure transactional email before members need verification
+or password recovery.
 
 ## Invite-Only Account Creation
 
-Open **Server Admin → Registration → Account creation**. Select **Invite Code
-Required**. The selection saves immediately. This requires the `server.manage` permission. Registration is open
-by default. Changes apply to all replicas without a restart.
+Open **Server Admin → Registration → Account creation** and select **Invite Code
+Required**. This needs `server.manage`. Registration is open by default; changes
+apply to all replicas without a restart.
 
-The policy at account creation also applies to signups already in progress.
+The policy applies to email/password registration and provider auto-provisioning,
+including signups already in progress. It does not affect existing accounts or
+accounts that operators create. Chatto consumes a code only after successful
+account creation. Each code permits one account and expires after seven days.
 
-Each new self-service account then needs an invitation code. This applies to
-email/password registration and to provider auto-provisioning. Existing users
-can still sign in and link providers. Accounts that operators create are not
-affected.
+Grant `user.manage-invites` to administrators who manage all codes. Grant
+`user.invite` only to members who can issue and revoke their own codes. The
+**Server Admin → Invites** page provides these actions. Invitation managers need
+privileged mode; members who manage only their own codes do not.
 
-Administrators with `user.manage-invites` create and revoke codes under
-**Server Admin → Invites**. Each code permits one new account.
-Use **Create code** in the table header, then confirm in the dialog. Each new code expires after seven
-days. Copy an active code and send it through your chosen channel. Chatto does
-not send it for you. The server sets the seven-day expiry for everyone,
-including administrators and API callers. The expiry cannot be configured.
+A code grants admission to anyone who has it. Do not put codes in logs or URLs.
+Keep `core.secret_key` stable on all replicas and after a restore. A change makes
+existing invitation credentials invalid.
 
-Members with `user.invite` use the same **Invites** page. They can see, copy,
-and revoke only codes they created. Send the code and server address to the
-recipient. You can return to this page to copy the code again. Invitation
-managers see all codes and their creators.
-
-Code management stays available when registration is open,
-but open signup does not require or consume codes.
-
-Fresh servers grant both permissions to admins. Other members need an explicit
-`user.invite` grant. That permission does not require privileged mode and does
-not grant access to Registration. Management of all codes requires privileged mode.
-
-In Server Admin, you can add an optional note when you create a code, for example to record who
-it is for. Notes accept up to 250 characters and appear beneath the code in the
-table. Creators and invitation managers can read them. A note does not restrict who can
-use the code. API integrations can set the `note` field when creating a code.
-
-People open **Create Account** and enter the code before choosing a signup
-method. Chatto remembers admission during signup and consumes the code only
-when account creation succeeds. Failed signup does not consume it. Chatto
-still verifies the email address or provider identity. A new provider identity
-that enters through **Sign In** must also supply a code before account creation.
-Expired, used, revoked, or incorrect codes show as unavailable.
-
-For external integrations, use
-[`AdminInvitationCodeService`](/reference/connectrpc-api/admin-invitation-codes/)
-with a credential that has `user.invite` to create and manage its own codes, or
-`user.manage-invites` to manage all codes. Do not retry creation automatically:
-each create call issues a separate code. After a lost response, list your codes
-to retrieve the created code. Direct API registration can send `invitationCode` with the email to
-`POST /auth/register`. SSO account creation can send `invitation_code` with
-`CreateExternalIdentityAccount`. Both paths check and consume admission on
-successful account creation.
-
-<Aside type="caution">
-  A code grants admission to anyone who has it. Share it only with its intended
-  recipient. Do not put codes in request logs or URLs.
-</Aside>
-
-<Aside type="caution">
-  Keep `core.secret_key` the same on all replicas and after a restore. A new
-  key makes all shared codes invalid. Administrators can then copy new
-  codes for the same active invitations.
-</Aside>
+See the [invitation API reference](/reference/connectrpc-api/admin-invitation-codes/)
+for automated invitation management.
 
 ## Owner Recovery
 

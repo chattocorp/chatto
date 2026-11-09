@@ -1,0 +1,41 @@
+---
+/**
+ * Preserve fragments in published guide links. Astro's generated meta-refresh
+ * redirects discard them, including links from human-authored release notes.
+ */
+export function getStaticPaths() {
+  return [
+    {
+      params: { legacyGuide: 'getting-started/message-formatting' },
+      props: { destination: '/reference/message-syntax/' }
+    },
+    {
+      params: { legacyGuide: 'guides/operations/community-structure' },
+      props: { destination: '/guides/operations/permissions/' }
+    }
+  ];
+}
+
+interface Props {
+  /** Canonical replacement for the removed guide, without a fragment. */
+  destination: string;
+}
+
+const { destination } = Astro.props;
+const canonical = new URL(destination, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Guide moved</title>
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={canonical} />
+    <script is:inline define:vars={{ destination }}>
+      window.location.replace(destination + window.location.hash);
+    </script>
+    <noscript><meta http-equiv="refresh" content={`0;url=${destination}`} /></noscript>
+  </head>
+  <body><a href={destination}>Open the updated guide</a></body>
+</html>

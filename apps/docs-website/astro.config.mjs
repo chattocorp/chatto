@@ -9,12 +9,14 @@ export default defineConfig({
   // Paseo's route points to one allocated port. Fail instead of switching ports.
   vite: { server: { strictPort: Boolean(process.env.PASEO_PORT) } },
   redirects: {
+    '/how-chatto-works/architecture': '/guides/deployment/read-this-first',
+    '/how-chatto-works/encryption': '/guides/operations/security#encryption-and-data-erasure',
     '/getting-started/overview': '/getting-started/introduction',
     '/guides/deployment-read-this-first': '/guides/deployment/read-this-first',
     '/guides/binary': '/guides/deployment/binary',
     '/guides/dockercompose': '/guides/deployment/docker-compose',
     '/guides/kubernetes': '/guides/infrastructure/horizontal-scaling',
-    '/guides/community-structure': '/guides/operations/community-structure',
+    '/guides/community-structure': '/guides/operations/permissions',
     '/guides/identity-login': '/guides/operations/identity-login',
     '/guides/permissions': '/guides/operations/permissions',
     '/guides/notifications-web-push': '/guides/operations/notifications-web-push',
@@ -34,8 +36,8 @@ export default defineConfig({
     '/guides/community-shields': '/guides/operations/server-operations',
     '/guides/infrastructure/high-availability': '/guides/infrastructure/horizontal-scaling',
     '/guides/deployment/kubernetes': '/guides/infrastructure/horizontal-scaling',
-    '/guides/operations/pinned-messages': '/guides/operations/community-structure',
-    '/guides/operations/neighbors': '/guides/operations/community-structure',
+    '/guides/operations/pinned-messages': '/guides/operations/permissions',
+    '/guides/operations/neighbors': '/guides/operations/permissions#neighbors',
     '/guides/integrations/community-shields': '/guides/operations/server-operations',
     '/guides/operations/cross-server-connections': '/guides/operations/identity-login',
     '/guides/integrations/pocket-id': '/guides/integrations/external-login-providers',
@@ -74,108 +76,54 @@ export default defineConfig({
           ]
         },
         {
-          label: 'Deployment',
+          label: 'Self-Hosting',
           items: [
             'guides/deployment/read-this-first',
             'guides/deployment/docker-compose',
             'guides/deployment/binary',
-            'guides/infrastructure/horizontal-scaling',
-            'reference/environment-variables'
-          ]
-        },
-        {
-          label: 'Running a Server',
-          items: [
-            'guides/operations/community-structure',
-            'guides/operations/permissions',
+            'reference/environment-variables',
             'guides/operations/identity-login',
             'guides/integrations/external-login-providers',
             'guides/infrastructure/media-attachments',
             'guides/infrastructure/voice-calls',
             'guides/operations/search',
-            'guides/operations/notifications-web-push',
-            'guides/operations/server-operations',
-            'guides/operations/backup-restore',
-            'guides/operations/operator-cli',
-            'guides/operations/security'
+            'guides/operations/notifications-web-push'
           ]
         },
         {
-          label: 'Integrations',
+          label: 'Operations',
+          collapsed: true,
+          items: [
+            'guides/operations/server-operations',
+            'guides/operations/backup-restore',
+            'guides/operations/security',
+            'guides/operations/permissions',
+            'guides/operations/operator-cli',
+            'guides/infrastructure/horizontal-scaling'
+          ]
+        },
+        {
+          label: 'Releases',
+          collapsed: true,
+          items: ['releases/0-5-0', 'releases/0-4-0', 'releases/0-3-0', 'releases/0-2-0']
+        },
+        {
+          label: 'Developers',
+          collapsed: true,
           items: [
             'guides/integrations/chatto-api',
             'guides/integrations/bot-accounts',
             'guides/integrations/realtime-protocol',
             'guides/integrations/mcp',
-            'guides/integrations/api-compatibility'
-          ]
-        },
-        {
-          label: 'How Chatto Works',
-          items: ['how-chatto-works/architecture', 'how-chatto-works/encryption']
-        },
-        {
-          label: 'Releases',
-          items: ['releases/0-5-0', 'releases/0-4-0', 'releases/0-3-0', 'releases/0-2-0']
-        },
-        {
-          label: 'API Reference',
-          items: [
-            'reference/connectrpc-api',
+            'guides/integrations/api-compatibility',
+            'reference/message-syntax',
+            'reference/bot-webhooks',
+            'reference/mcp',
             {
-              label: 'chatto.auth.v1',
-              items: [
-                'reference/connectrpc-api/external-identity-auth',
-                'reference/connectrpc-api/server-setup',
-                'reference/connectrpc-api/push-subscription-cleanup'
-              ]
-            },
-            {
-              label: 'chatto.discovery.v1',
-              items: ['reference/connectrpc-api/server-discovery']
-            },
-            {
-              label: 'chatto.api.v1',
-              items: [
-                'reference/connectrpc-api/assets',
-                'reference/connectrpc-api/asset-uploads',
-                'reference/connectrpc-api/bots',
-                'reference/connectrpc-api/permissions',
-                'reference/connectrpc-api/messages',
-                'reference/connectrpc-api/message-search',
-                'reference/connectrpc-api/account',
-                'reference/connectrpc-api/notifications',
-                'reference/connectrpc-api/push-notifications',
-                'reference/connectrpc-api/roles',
-                'reference/connectrpc-api/room-directory',
-                'reference/connectrpc-api/room-invitations',
-                'reference/connectrpc-api/rooms',
-                'reference/connectrpc-api/server',
-                'reference/connectrpc-api/threads',
-                'reference/connectrpc-api/users',
-                'reference/connectrpc-api/viewer',
-                'reference/connectrpc-api/calls'
-              ]
-            },
-            {
-              label: 'chatto.admin.v1',
-              items: [
-                'reference/connectrpc-api/admin-invitation-codes',
-                'reference/connectrpc-api/admin-oauth-clients',
-                'reference/connectrpc-api/admin-diagnostics',
-                'reference/connectrpc-api/admin-event-log',
-                'reference/connectrpc-api/admin-permissions',
-                'reference/connectrpc-api/admin-roles',
-                'reference/connectrpc-api/admin-room-layout',
-                'reference/connectrpc-api/admin-server',
-                'reference/connectrpc-api/admin-users'
-              ]
-            },
-            {
-              label: 'chatto.realtime.v1',
-              items: ['reference/connectrpc-api/realtime']
-            },
-            'reference/connectrpc-api/types'
+              label: 'API Reference',
+              collapsed: true,
+              items: [{ autogenerate: { directory: 'reference/connectrpc-api' } }]
+            }
           ]
         }
       ]
