@@ -705,7 +705,7 @@ jobs:
       - name: Fetch release branches
         run: git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
 
-      - name: Verify release-please tag
+      - name: Verify release tag
         id: release_meta
         shell: bash
         run: |
@@ -745,6 +745,8 @@ jobs:
               .release-please-config-main.json|\
               .release-please-manifest.json|\
               .release-please-manifest-main.json|\
+              .sweet.yml|\
+              .sweet/*.md|\
               CHANGELOG.md|\
               cli/version.go|\
               apps/frontend/package.json|\
@@ -758,12 +760,16 @@ jobs:
           done < <(git diff --name-only "${tag_commit}^" "$tag_commit")
 
           if (( ${#disallowed[@]} > 0 )); then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit contains non-release-please files."
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit contains non-release files."
             printf 'Disallowed file: %s\n' "${disallowed[@]}"
             exit 1
           fi
 
           version="${GITHUB_REF_NAME#v}"
+          if [[ -f .sweet.yml ]]; then
+            manifest_version="$(sed -n 's/^version: //p' .sweet.yml)"
+            [[ "$version" == "$manifest_version" ]] || { echo 'Tag and manifest version differ'; exit 1; }
+          fi
           push_latest=false
           is_stable=false
           if [[ "$version" != *-* ]]; then
@@ -905,6 +911,8 @@ jobs:
     outputs:
       is_stable: ${{ needs.build-server-release.outputs.is_stable }}
     steps:
+      - uses: actions/checkout@v6
+
       - name: Download server release archives
         uses: actions/download-artifact@v8
         with:
@@ -940,6 +948,25 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: jdx/mise-action@v3
+        with:
+          install: false
+
+      - name: Create draft from change notes
+        env:
+          GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            mise x -- sweet changelog --version "${GITHUB_REF_NAME#v}" -- . > "$RUNNER_TEMP/release-notes.md"
+            flags=()
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --latest=false \
+              --title "Chatto ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
+          fi
 
       # Overwrite assets on a retry, including a retry after GitHub publication.
       - name: Upload release assets

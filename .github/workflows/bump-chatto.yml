@@ -1,0 +1,21 @@
+name: Prepare Chatto release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.sweet/**'
+      - '.sweet.yml'
+      - '.sweet.config.yml'
+      - '.github/workflows/bump-chatto.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    uses: chattocorp/sweet-release/.github/workflows/bump.yml@f84d8d338e19126919521d7aff97bb3f067779d4
+    secrets:
+      release-token: ${{ secrets.RELEASE_PLEASE_PAT }}

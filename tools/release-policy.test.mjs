@@ -186,21 +186,19 @@ test('component publication leaves Chatto draft and publishes all components wit
   );
 });
 
-test('the root release owns the client version and includes client changes', () => {
+test('Sweet owns the Chatto client version', () => {
   const root = new URL('../', import.meta.url);
   const config = JSON.parse(readFileSync(new URL('.release-please-config.json', root), 'utf8'));
-  const manifest = JSON.parse(readFileSync(new URL('.release-please-manifest.json', root), 'utf8'));
+  const manifest = readFileSync(new URL('.sweet.yml', root), 'utf8');
   const packagePath = 'packages/chatto-client/package.json';
+  assert.equal(config.packages['.'], undefined);
   assert.equal(config.packages['packages/chatto-client'], undefined);
-  assert.equal(manifest['packages/chatto-client'], undefined);
-  assert.ok(!config.packages['.']['exclude-paths'].includes('packages/chatto-client'));
-  assert.ok(
-    config.packages['.']['extra-files'].some(
-      (file) => file.path === packagePath && file.jsonpath === '$.version'
-    )
+  assert.ok(manifest.includes(`path: ${packagePath}\n    format: json\n    key: version`));
+  assert.equal(
+    JSON.parse(readFileSync(new URL(packagePath, root), 'utf8')).version,
+    manifest.match(/^version: (.+)$/m)[1]
   );
-  assert.equal(JSON.parse(readFileSync(new URL(packagePath, root), 'utf8')).version, manifest['.']);
-  assert.ok(shellStep('Verify release-please tag').includes(`${packagePath})`));
+  assert.ok(shellStep('Verify release tag').includes(`${packagePath})`));
 });
 
 for (const [tag, expected] of [
@@ -253,7 +251,7 @@ test('component outputs cannot accidentally publish a root Chatto tag', (t) => {
 });
 
 // Use the actual selection block from the existing trusted-tag validation step.
-const validation = shellStep('Verify release-please tag');
+const validation = shellStep('Verify release tag');
 const selectionStart = validation.indexOf('version="${GITHUB_REF_NAME#v}"');
 assert.ok(selectionStart >= 0);
 const selection = validation.slice(selectionStart);

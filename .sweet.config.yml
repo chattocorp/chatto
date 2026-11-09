@@ -1,0 +1,16 @@
+repository: https://github.com/chattocorp/chatto
+types:
+  breaking:
+    bump: minor
+    section: Breaking changes
+  feature:
+    bump: minor
+    section: Features
+  fix:
+    bump: patch
+    section: Fixes
+  performance:
+    bump: patch
+    section: Performance
+  chore:
+    bump: none

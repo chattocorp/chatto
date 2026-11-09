@@ -607,3 +607,37 @@ The inactive-server notification tests advance the browser clock past the
 background poll interval. They wait for real projection catch-up and socket
 closure before and after the advance. Keep server requests and message delivery
 real when adding tests that control browser time.
+
+## Chatto release notes
+
+Chatto uses Sweet Release. Add a change note with user-visible changes:
+
+```sh
+mise x -- sweet change .
+```
+
+Choose `fix` for a patch release, `feature` for a minor release, or `breaking`
+for a breaking change. While Chatto is below 1.0, breaking changes use a minor
+release. Describe the changed behavior and any required action. Commit the
+`.sweet/*.md` file with the change. Internal changes do not need a release note.
+Commit titles do not supply Chatto release notes.
+
+On `main`, changes to `.sweet/`, `.sweet.yml`, `.sweet.config.yml`, or the
+Prepare Chatto release workflow create or update a release PR. Other pushes do
+not run release preparation. Run the workflow manually to refresh a release PR
+after an unrelated change, or to retry a failed run.
+It consumes the notes, updates `CHANGELOG.md`, and updates the server, client,
+frontend, and desktop versions together. Correct release content on `main`;
+the workflow replaces generated PR content on its next run.
+
+After the release PR merges and all selected CI checks succeed, CI tags each
+release commit in the full push range. The existing release approval, builds, and publication then run.
+GitHub release notes come from the matching changelog entry. The initial Sweet
+manifest records version 0.5.0 without creating a new tag. Other products and
+libraries still use release-please. Do not add Sweet manifests for them until
+their release workflow is migrated. This integration prepares Chatto releases
+from `main`; maintenance-branch release automation needs a separate design.
+
+Inspect pending notes with `mise x -- sweet status`. To preview a release in a
+clean local checkout, run `mise x -- sweet bump .` and inspect the diff. This
+changes files but does not commit or publish them.
