@@ -173,9 +173,8 @@
   );
 
   function getLatestThreadRootCandidate() {
-    const currentUserId = stores.viewerId;
     if (
-      !currentUserId ||
+      !roomMessageStore.isCurrent ||
       !permissions.canPostInThread ||
       threadingMode === RoomThreadingMode.DISABLED
     ) {

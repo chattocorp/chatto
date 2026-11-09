@@ -1230,6 +1230,44 @@ describe('Room local message echo', () => {
     });
   });
 
+  it('offers the latest thread only while the room timeline is current', async () => {
+    const thread = (id: string) => {
+      const event = roomMessageEvent(id);
+      return { ...event, event: { ...event.event, threadExists: true } };
+    };
+    mocks.timeline.getRoomEvents.mockResolvedValue({
+      ...emptyTimelinePage(),
+      events: [thread('latest-thread')]
+    });
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [thread('historical-thread')],
+      startCursor: 'tl:historical',
+      endCursor: 'tl:historical',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const messages = mocks.roomMessages('room-1') as MessagesStore;
+    await vi.waitFor(() => expect(messages.isCurrent).toBe(true));
+
+    const checkCandidate = () =>
+      (q(container, '[data-testid="check-thread-candidate"]') as HTMLButtonElement).click();
+    const candidate = () => q(container, '[data-testid="thread-candidate-id"]');
+    checkCandidate();
+    await expect.element(candidate()).toHaveTextContent('latest-thread');
+
+    await messages.jumpToMessage('historical-thread');
+    expect(messages.isCurrent).toBe(false);
+    expect(messages.rootEvents.at(-1)?.id).toBe('historical-thread');
+    checkCandidate();
+    await expect.element(candidate()).toHaveTextContent('');
+
+    await messages.jumpToLatest();
+    expect(messages.isCurrent).toBe(true);
+    checkCandidate();
+    await expect.element(candidate()).toHaveTextContent('latest-thread');
+  });
+
   it('keeps root message-link highlights pending until the jump completes', async () => {
     highlights.set('room-1', null, 'msg-linked', 'notification-linked');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({
