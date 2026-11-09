@@ -133,6 +133,7 @@ jobs:
               # Repository tooling tests run in the unconditional workflow-lint job.
               - '!tools/*.test.mjs'
               - '!{docs,.agents,.claude,.conductor}/**'
+              - '!skills-lock.json'
               # Experimental modules have their own workflow.
               - '!experimental/**'
               - '!*.md'
