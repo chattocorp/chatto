@@ -29,7 +29,12 @@ func TestCreateJetStreamResourceWithRetryErrors(t *testing.T) {
 		{"configuration", &jetstream.APIError{Code: 400, ErrorCode: 10052, Description: "invalid configuration"}, false},
 		{"other store failure", &jetstream.APIError{Code: 500, ErrorCode: 10049, Description: "permanent failure"}, false},
 		{"canceled", context.Canceled, false},
-		{"legacy timeout", nats.ErrTimeout, false},
+		{"legacy timeout", nats.ErrTimeout, true},
+		{"no responders", nats.ErrNoResponders, true},
+		{"cluster unavailable", &jetstream.APIError{Code: 503, ErrorCode: 10008}, true},
+		{"account disabled", jetstream.ErrJetStreamNotEnabledForAccount, false},
+		{"server disabled", jetstream.ErrJetStreamNotEnabled, false},
+		{"authentication", nats.ErrAuthorization, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -74,7 +79,14 @@ func TestCreateJetStreamResourceWithRetryExhaustion(t *testing.T) {
 
 func TestCreateJetStreamResourceWithRetryInvalidPolicy(t *testing.T) {
 	for _, policy := range []jetstreamutil.JetStreamResourceRetryPolicy{
-		{}, {MaxAttempts: -1}, {MaxAttempts: 1, RetryDelay: -1}, {MaxAttempts: 3, RetryDelay: time.Duration(1<<63 - 1)},
+		{},
+		{MaxAttempts: -1},
+		{MaxAttempts: 1, RetryDelay: -1},
+		{MaxAttempts: 3, RetryDelay: time.Duration(1<<63 - 1)},
+		{MaxAttempts: 3, RequestTimeout: -1},
+		{MaxAttempts: 3, RetryDelay: time.Second, MaxRetryDelay: time.Millisecond},
+		{MaxAttempts: 3, MaxRetryDelay: time.Second},
+		{MaxAttempts: 3, MaxRetryDelay: -1},
 	} {
 		_, err := jetstreamutil.CreateJetStreamResourceWithRetry(context.Background(), policy, func(context.Context) (int, error) {
 			t.Fatal("invalid policy called operation")
@@ -190,4 +202,76 @@ func TestCreateJetStreamResourceWithRetryClientTimeout(t *testing.T) {
 	if err != nil || stream == nil || attempts != 2 {
 		t.Fatalf("stream %v, error %v, attempts %d", stream, err, attempts)
 	}
+}
+
+func TestCappedRetryBackoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		previous := time.Now()
+		attempts := 0
+		_, err := jetstreamutil.CreateJetStreamResourceWithRetry(t.Context(), jetstreamutil.JetStreamResourceRetryPolicy{
+			MaxAttempts: 8, RetryDelay: time.Second, MaxRetryDelay: 4 * time.Second,
+		}, func(context.Context) (int, error) {
+			if attempts > 0 {
+				cap := time.Second
+				if attempts == 2 {
+					cap = 2 * time.Second
+				}
+				if attempts >= 3 {
+					cap = 4 * time.Second
+				}
+				elapsed := time.Since(previous)
+				if elapsed < cap/2 || elapsed > cap {
+					t.Fatalf("wait %v outside [%v, %v]", elapsed, cap/2, cap)
+				}
+			}
+			previous = time.Now()
+			attempts++
+			if attempts == 8 {
+				return 1, nil
+			}
+			return 0, context.DeadlineExceeded
+		})
+		if err != nil || attempts != 8 {
+			t.Fatalf("attempts %d: %v", attempts, err)
+		}
+	})
+}
+
+func TestRetryRequestDeadlineDoesNotEndStartup(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Hour)
+		defer cancel()
+		attempts := 0
+		_, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 2, RequestTimeout: time.Second}, func(ctx context.Context) (int, error) {
+			attempts++
+			if attempts == 1 {
+				<-ctx.Done()
+				return 0, ctx.Err()
+			}
+			return 1, nil
+		})
+		if err != nil || attempts != 2 || ctx.Err() != nil {
+			t.Fatalf("attempts %d, error %v, parent %v", attempts, err, ctx.Err())
+		}
+	})
+}
+
+func TestCappedRetryCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan error, 1)
+		attempts := 0
+		go func() {
+			_, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{MaxAttempts: 60, RetryDelay: time.Second, MaxRetryDelay: 5 * time.Second, RequestTimeout: time.Second}, func(context.Context) (int, error) {
+				attempts++
+				return 0, context.DeadlineExceeded
+			})
+			done <- err
+		}()
+		synctest.Wait()
+		cancel()
+		if err := <-done; !errors.Is(err, context.Canceled) || attempts != 1 {
+			t.Fatalf("attempts %d, error %v", attempts, err)
+		}
+	})
 }
