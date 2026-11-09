@@ -64,7 +64,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer workers.Close()
-	external, err := mcpclient.Open(ctx, cfg.MCP)
+	external, err := mcpclient.Open(ctx, cfg.MCP, mcpclient.ChattoConnection{URL: settings["CHATTO_URL"], Token: settings["CHATTO_API_KEY"]})
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func run(ctx context.Context) error {
 			titleModel = cfg.Titles.Model
 			titles = agent.OpenRouterTitles(settings["OPENROUTER_API_KEY"], cfg.Titles.Model, cfg.Titles.SystemPrompt)
 		}
-		return bot.Run(ctx, c, viewer, func(id string, usage func(agent.Usage)) agent.Complete {
+		return bot.Run(ctx, &chattoActions{Client: c, mcp: external}, viewer, func(id string, usage func(agent.Usage)) agent.Complete {
 			options := agent.CompletionOptions{}
 			if cfg.Conversation.MaxOutputTokens != nil {
 				options.MaxOutputTokens = *cfg.Conversation.MaxOutputTokens
@@ -112,4 +112,18 @@ func run(ctx context.Context) error {
 			TurnTimeout: cfg.Conversation.TimeoutDuration, Limits: agent.Limits{MaxToolCalls: cfg.Conversation.MaxToolCalls, MaxModelSteps: cfg.Conversation.MaxModelSteps}, MaxDelegations: cfg.Conversation.MaxDelegations,
 			Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
 	})
+}
+
+// chattoActions keeps realtime and context intake on the SDK while using the
+// same MCP operations as model-selected actions for all message delivery.
+type chattoActions struct {
+	*chatto.Client
+	mcp *mcpclient.Manager
+}
+
+func (c *chattoActions) Reply(ctx context.Context, room, root, replyTo, body, key string) error {
+	return c.mcp.Deliver(ctx, "post_message", map[string]string{"room_id": room, "thread_root_message_id": root, "in_reply_to_message_id": replyTo, "body": body, "idempotency_key": key})
+}
+func (c *chattoActions) React(ctx context.Context, room, message, emoji string) error {
+	return c.mcp.Deliver(ctx, "add_reaction", map[string]string{"room_id": room, "message_id": message, "emoji": emoji})
 }

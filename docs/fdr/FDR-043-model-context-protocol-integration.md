@@ -46,7 +46,8 @@ primitive.
 - Human MCP access tokens are valid only for the exact MCP resource that the
   user approved. A token for one configured origin is not valid for another
   origin. A grant can contain any nonempty subset of `chatto:rooms:read`,
-  `chatto:rooms:write`, `chatto:messages:read`, and `chatto:messages:write`.
+  `chatto:rooms:write`, `chatto:messages:read`, `chatto:messages:write`, and
+  `chatto:profile:read`.
   These scopes are an additional ceiling on the user's normal Chatto authority.
   Writes do not imply reads. Empty sets and unknown scopes are rejected.
   The consent screen states only the approved capabilities and identifies
@@ -61,15 +62,18 @@ primitive.
   bearer session that has no MCP resource and scope grant.
 - The tool catalog contains `get_server_info`, `get_current_user`,
   `list_rooms`, `list_room_messages`, `post_message`, `join_room`, and
-  `leave_room`.
+  `leave_room`, `get_user`, `add_reaction`, `remove_reaction`, `get_message`,
+  `update_message`, `delete_message`, and `send_direct_message`.
 - Any valid MCP grant permits discovery and the two identity tools.
   `list_rooms` requires room-read scope; `list_room_messages` requires
-  message-read scope; `post_message` requires message-write scope; `join_room`
+  message-read scope, as does `get_message`; sends, edits, deletions, and
+  reactions require message-write scope;
+  `get_user` requires the separate `chatto:profile:read` scope; `join_room`
   and `leave_room` require room-write scope. `tools/list` shows only tools
   covered by the grant. Its result has private cache scope and a zero TTL.
   Bot keys have the complete catalog but retain their normal authority ceiling.
 - Protected-resource metadata requests only `chatto:rooms:read` for initial
-  discovery. Issuer metadata lists all four scopes. A host can request more
+  discovery. Issuer metadata lists all five scopes. A host can request more
   scopes through fresh consent. Existing complete grants remain valid.
 - A call without its tool scope returns HTTP `403` with an OAuth
   `insufficient_scope` challenge that names only the required scope and the
@@ -83,8 +87,23 @@ primitive.
   connected MCP URL. Room and message list tools return bounded pages. The
   room-list result also returns the exact number of rooms that the account can
   see, independent of the page size.
-  `post_message` creates one root text message. The room membership tools join
+  `post_message` creates one room or thread message and can mark a reply to
+  another message. Thread selection and reply markers have separate arguments; omitted thread
+  selection retains the canonical reply-target inheritance behavior. Profile
+  lookup returns public fields only; reaction tools change only the caller’s
+  reaction. Cross-room actions use current server permissions. The room membership tools join
   or leave one channel room.
+- `get_message` returns the current body, thread references, and reaction counts
+  after canonical message-read authorization. Edits replace only the body;
+  deletions use normal author and moderation rules. Uncertain edits and deletions
+  require inspection before another mutation.
+- `send_direct_message` takes a recipient ID and body, resolves or creates the
+  canonical DM, and posts through the normal message operation. Its receipt
+  includes the message and room IDs for later thread replies. Exact keyed sends
+  use the existing 30-minute retry contract. DM creation and posting are separate
+  operations; a failed send can leave an empty DM. Message-write consent covers
+  this complete sending action, including destination creation. Existing
+  message-write grants also permit edits and deletions subject to account rights.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
   effective Chatto server name as its display title.
 - Static MCP instructions identify the tools as the source of truth for rooms,
@@ -153,12 +172,12 @@ should become a tool.
 
 ### 2. Keep the tester catalog small
 
-**Decision:** Expose identity, bounded room and message reads, root text
-posting, and channel membership changes. Admit later tools only through the
+**Decision:** Expose identity, bounded room and message reads, room/thread and
+direct posting, message corrections, reactions, and channel membership changes. Admit later tools only through the
 [tool-admission checklist](#tool-admission-policy). Prefer a bounded agent task
 over a tool for each public API method. Keep registration as an explicit
 allowlist; do not generate tools from protobuf services. The current catalog
-does not expose reactions, edits, deletions, attachments, moderation,
+does not expose attachment management, dedicated moderation commands,
 administration, resources, or prompts.
 **Why:** This catalog is sufficient to test discovery, OAuth, schemas,
 pagination, RBAC, membership, reads, and writes in a real agent host. API

@@ -199,7 +199,7 @@ func classifyToolError(err error, name string) *toolFailure {
 	case errors.Is(err, core.ErrNotFound), errors.Is(err, core.ErrMessageNotFound):
 		f := failure("not_found", "The requested resource does not exist or is not visible. Check access with your administrator.", "check_access", "after_change")
 		// Membership commands can fail when reading state after a commit.
-		if name == "join_room" || name == "leave_room" {
+		if name == "join_room" || name == "leave_room" || name == "add_reaction" || name == "remove_reaction" {
 			f.Outcome = "unknown"
 		}
 		return f
@@ -216,12 +216,12 @@ func classifyToolError(err error, name string) *toolFailure {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		f.Code, f.Message = "timeout", "The request timed out or was canceled."
 	}
-	if name == "post_message" || name == "join_room" || name == "leave_room" {
+	if name == "update_message" || name == "delete_message" || name == "send_direct_message" || name == "post_message" || name == "join_room" || name == "leave_room" || name == "add_reaction" || name == "remove_reaction" {
 		f.Outcome = "unknown"
 	}
-	if name == "post_message" {
+	if name == "post_message" || name == "send_direct_message" || name == "update_message" || name == "delete_message" {
 		f.NextAction, f.Retry = "check_result", "never"
-		f.Message += " The message may have been posted. Check the room before taking another action."
+		f.Message += " The operation may have completed. Check the room before taking another action."
 	}
 	return f
 }

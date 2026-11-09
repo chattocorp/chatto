@@ -1632,7 +1632,7 @@ func TestOfficialMCPClientCompletesChattoOAuthAndDiscoversTools(t *testing.T) {
 	for _, tool := range tools.Tools {
 		upgradedTools = append(upgradedTools, tool.Name)
 	}
-	if !slices.Equal(upgradedTools, []string{"get_current_user", "get_server_info", "list_rooms", "post_message"}) {
+	if !slices.Equal(upgradedTools, []string{"add_reaction", "delete_message", "get_current_user", "get_server_info", "list_rooms", "post_message", "remove_reaction", "send_direct_message", "update_message"}) {
 		t.Fatalf("upgraded tool catalog = %v", upgradedTools)
 	}
 }

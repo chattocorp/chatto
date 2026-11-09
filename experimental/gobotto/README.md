@@ -266,8 +266,10 @@ Deletion revokes a claimed task that has not started; completed effects remain.
 Each execution starts a fresh model context containing the saved task, destination,
 and up to three confirmed prior outputs, each limited to 500 characters. The model
 can search for `read_destination` to read recent room or thread messages when needed.
-It can use ordinary memory and configured external tools, but has
-no schedule management, app lifecycle, delegation, reaction, or progress tools.
+It can use ordinary memory, connected Chatto MCP tools, and configured external
+tools, but has no schedule management, app lifecycle, delegation, or host progress
+tools. Chatto tools can perform reactions and cross-room actions within the task
+and the bot account’s permissions.
 Destination access is checked before model work and again before delivery. The host
 posts the final answer only to the saved destination; `NO_UPDATE` suppresses an empty
 report. Each run is limited to five minutes, 30 tool calls, and 40 model steps,
@@ -283,6 +285,28 @@ tool arguments and the bot's outbound IP, as with interactive turns. No new
 external service is required for scheduling.
 
 ## Web access and MCP
+
+Gobotto connects automatically to `/mcp` on `CHATTO_URL` with `CHATTO_API_KEY`.
+Enable `[mcp].enabled = true` on Chatto and use a server version with thread-aware
+`post_message` and `add_reaction`. The reserved MCP connection name is `chatto`;
+do not add it under `[mcp.servers]`. Its complete advertised tool catalog is
+available through discovery, including room/thread posts, reply markers,
+reactions, profile lookup, message lookup/editing/deletion, and direct sends by
+recipient ID. Message search is available when the server enables it.
+
+The model can act in another room or thread, including at a request from a DM.
+Chatto enforces the bot account's permissions and its owner's authority on every
+call. Gobotto does not restrict these tools to the triggering destination.
+Grant only the server permissions that the bot should exercise for participants.
+Conversation journals remain scoped to their original room/thread; this does not
+make all journals available to other sessions.
+
+Final text, initial acknowledgments, progress updates, and reactions use the same
+MCP operations. Final text defaults to the triggering conversation (or a saved
+schedule destination); explicit MCP posts can choose another destination. The
+agent can end silently after a tool post to avoid a duplicate final reply.
+Realtime intake, reconnects, typing, and initial context reads stay on the Go SDK.
+No message write is retried automatically after an uncertain result.
 
 Each turn includes a local `tool_search` capability and a reminder to search
 before work that needs tools or a claim that a capability is unavailable.
@@ -321,7 +345,7 @@ enabled. See [Exa's MCP documentation](https://exa.ai/docs/get-started/exa-mcp).
 
 Additional servers use the same configuration shape. Gobotto supports MCP
 Streamable HTTP over HTTPS, with HTTP allowed for loopback development servers.
-Each server needs an explicit nonempty tool list. Optional credential headers
+Each additional server needs an explicit nonempty tool list. Optional credential headers
 are `Authorization`, `x-api-key`, or `api-key`, sourced from environment variables.
 OAuth, local subprocess servers, remote prompts, sampling, and interactive
 elicitation are not supported. Configured tools are available to all conversation
@@ -330,7 +354,7 @@ participants; configure only capabilities that they are permitted to use.
 Gobotto discovers remote tools at startup and assigns names such as
 `mcp_exa__web_search_exa`. The model receives only a compact name list and two
 functions: `mcp_discover` returns one tool's description and argument schema;
-`mcp_call` executes it. Chatto and memory tools remain directly available.
+`mcp_call` executes it. Discovery also supplies bounded server instructions, including formatting guidance; instruction changes invalidate saved schema revisions. Memory and local conversation tools remain directly available.
 Schemas are loaded into conversation history only when needed and can be reused
 across turns and restarts when their revision matches the current name list.
 A changed revision tells the model to discover that tool again.
@@ -986,7 +1010,7 @@ uses embeddings, or contacts a provider, regardless of memory embedding settings
 - Assistant messages, reasoning metadata, tool calls, tool results, and delivery
   receipts stay in the transcript. The bot's own realtime posts are not inserted
   again. A failed tool turn does not leave an incomplete tool exchange.
-- The model cannot choose another Chatto destination. External tools are limited
+- The model can choose Chatto destinations within its server permissions. Additional external tools are limited
   to configured capabilities; shell and arbitrary file access are not supplied.
 - Turn deadlines, tool calls, model steps, and delegation counts are configurable
   in `gobotto.toml`; omitted or zero execution limits are unlimited. Batched

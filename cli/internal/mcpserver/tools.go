@@ -49,9 +49,10 @@ func getCurrentUserHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[getCu
 }
 
 type listRoomMessagesInput struct {
-	RoomID        string `json:"room_id" jsonschema:"Required Chatto room ID."`
-	Limit         int    `json:"limit,omitempty" jsonschema:"Minimum 1, maximum 100. Default 50."`
-	BeforeEventID string `json:"before_event_id,omitempty" jsonschema:"Return timeline entries before this event ID."`
+	ThreadRootMessageID string `json:"thread_root_message_id,omitempty" jsonschema:"Read this thread instead of the room timeline. The first page includes its root; older pages contain replies only."`
+	RoomID              string `json:"room_id" jsonschema:"Required Chatto room ID."`
+	Limit               int    `json:"limit,omitempty" jsonschema:"Minimum 1, maximum 100. Default 50."`
+	BeforeEventID       string `json:"before_event_id,omitempty" jsonschema:"Return timeline entries before this event ID."`
 }
 
 type messageResult struct {
@@ -83,6 +84,9 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 		if err := validateResourceID("room_id", input.RoomID, true); err != nil {
 			return nil, listRoomMessagesOutput{}, err
 		}
+		if err := validateResourceID("thread_root_message_id", input.ThreadRootMessageID, false); err != nil {
+			return nil, listRoomMessagesOutput{}, err
+		}
 		if err := validateResourceID("before_event_id", input.BeforeEventID, false); err != nil {
 			return nil, listRoomMessagesOutput{}, err
 		}
@@ -101,9 +105,7 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 		if input.BeforeEventID != "" {
 			// Authorize the room read before resolving the opaque cursor. This
 			// prevents an event ID from becoming a cross-room existence probe.
-			authorized, err := chattoCore.RoomTimelineReads().GetRoomEvents(ctx, core.RoomTimelineEventsInput{
-				ActorID: userID, RoomID: input.RoomID, Limit: 1,
-			})
+			authorized, err := readMessagePage(ctx, chattoCore, userID, input, 1, nil)
 			if err != nil {
 				return nil, listRoomMessagesOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessageRead, core.PermMessageReadInteractions}, err, "list_room_messages")
 			}
@@ -111,7 +113,7 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 			if err != nil {
 				return nil, listRoomMessagesOutput{}, err
 			}
-			if cursorEvent == nil {
+			if cursorEvent == nil || (input.ThreadRootMessageID != "" && cursorEvent.GetMessagePosted().GetInThread() != input.ThreadRootMessageID) {
 				return nil, listRoomMessagesOutput{}, invalidToolArgument("before_event_id is not a valid cursor for this room")
 			}
 			seq, err := chattoCore.GetEventSequence(ctx, authorized.Kind, input.RoomID, input.BeforeEventID)
@@ -121,9 +123,7 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 			beforeSeq = &seq
 		}
 
-		page, err := chattoCore.RoomTimelineReads().GetRoomEvents(ctx, core.RoomTimelineEventsInput{
-			ActorID: userID, RoomID: input.RoomID, Limit: limit, BeforeSeq: beforeSeq,
-		})
+		page, err := readMessagePage(ctx, chattoCore, userID, input, limit, beforeSeq)
 		if err != nil {
 			return nil, listRoomMessagesOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessageRead, core.PermMessageReadInteractions}, err, "list_room_messages")
 		}
@@ -151,8 +151,12 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 }
 
 type postMessageInput struct {
+	CreateThread        bool   `json:"create_thread,omitempty" jsonschema:"Start a new thread with this root post, including rooms that require threads. Cannot be combined with thread_root_message_id."`
+	ThreadRootMessageID string `json:"thread_root_message_id,omitempty" jsonschema:"Post in this thread, using the root message ID. Omit for a top-level room post."`
+	InReplyToMessageID  string `json:"in_reply_to_message_id,omitempty" jsonschema:"Mark this message as a reply to this message ID. Supply thread_root_message_id explicitly for a thread reply. When omitted, Chatto can inherit the target reply’s thread."`
+
 	RoomID         string `json:"room_id" jsonschema:"Required Chatto room ID."`
-	Body           string `json:"body" jsonschema:"Required message body, maximum 10000 bytes."`
+	Body           string `json:"body" jsonschema:"Required Markdown message body, maximum 10000 bytes. Mention users with verified @username. Fenced code tagged svg rendered or mermaid rendered is rendered by compatible Chatto clients; plain svg or mermaid shows source."`
 	IdempotencyKey string `json:"idempotency_key,omitempty" jsonschema:"Optional caller-generated UUID. Reuse the same key and exact arguments to retry safely within 30 minutes of the first attempt. Retries do not extend the window. Generate a new key only for an intended new message."`
 }
 
@@ -170,6 +174,11 @@ func postMessageHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[postMess
 		if err := validateResourceID("room_id", input.RoomID, true); err != nil {
 			return nil, postMessageOutput{}, err
 		}
+		for name, value := range map[string]string{"thread_root_message_id": input.ThreadRootMessageID, "in_reply_to_message_id": input.InReplyToMessageID} {
+			if err := validateResourceID(name, value, false); err != nil {
+				return nil, postMessageOutput{}, err
+			}
+		}
 		if !core.HasVisibleContent(input.Body) {
 			return nil, postMessageOutput{}, invalidToolArgument("body must contain visible text")
 		}
@@ -179,7 +188,7 @@ func postMessageHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[postMess
 		if err := requireVisibleToolRoom(ctx, chattoCore, userID, input.RoomID); err != nil {
 			return nil, postMessageOutput{}, err
 		}
-		result, err := chattoCore.Messages().PostMessage(ctx, core.MessagePostInput{ActorID: userID, RoomID: input.RoomID, Body: input.Body, IdempotencyKey: input.IdempotencyKey})
+		result, err := chattoCore.Messages().PostMessage(ctx, core.MessagePostInput{ActorID: userID, RoomID: input.RoomID, Body: input.Body, CreateThread: input.CreateThread, ThreadRootEventID: input.ThreadRootMessageID, InReplyTo: input.InReplyToMessageID, IdempotencyKey: input.IdempotencyKey})
 		if err != nil {
 			f := toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessagePost}, err, "post_message")
 			return nil, postMessageOutput{}, keyedPostFailure(f, input.IdempotencyKey)
@@ -323,4 +332,23 @@ func roomResultFromRoom(room *readmodel.Room, isMember bool) roomResult {
 
 func formatTimestamp(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
+}
+
+// readMessagePage uses the canonical room/thread read gates before resolving
+// or returning any timeline data. Thread roots appear only on the initial page.
+func readMessagePage(ctx context.Context, c *core.ChattoCore, actor string, in listRoomMessagesInput, limit int, before *uint64) (*core.RoomTimelineEventsResult, error) {
+	if in.ThreadRootMessageID == "" {
+		return c.RoomTimelineReads().GetRoomEvents(ctx, core.RoomTimelineEventsInput{ActorID: actor, RoomID: in.RoomID, Limit: limit, BeforeSeq: before})
+	}
+	thread, err := c.RoomTimelineReads().GetThreadEvents(ctx, core.ThreadTimelineEventsInput{ActorID: actor, RoomID: in.RoomID, ThreadRootEventID: in.ThreadRootMessageID, Limit: limit, BeforeSeq: before})
+	if err != nil {
+		return nil, err
+	}
+	page := *thread.Replies
+	// Keep the oldest reply as the pagination cursor; the root is appended only
+	// after the reply page, and each message carries its thread relationship.
+	if thread.IncludeRoot {
+		page.Events = append(append([]*core.RoomEvent(nil), page.Events...), thread.Root)
+	}
+	return &core.RoomTimelineEventsResult{Kind: thread.Kind, Page: &page}, nil
 }

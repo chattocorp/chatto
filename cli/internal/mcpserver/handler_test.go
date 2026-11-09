@@ -126,7 +126,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room"}
+	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room", "get_user", "add_reaction", "remove_reaction", "get_message", "update_message", "delete_message", "send_direct_message"}
 	if len(tools.Tools) != len(wantTools) {
 		t.Fatalf("tools = %#v, want %v", tools.Tools, wantTools)
 	}
@@ -258,6 +258,80 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if posted.Message.RoomID != visible.GetId() || posted.Message.AuthorID != viewer.GetId() || posted.Message.Body != "Hello from MCP" || posted.Message.ID == "" {
 		t.Fatalf("post_message = %#v", posted)
 	}
+
+	profileResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_user", Arguments: map[string]any{"username": viewer.GetLogin()}})
+	if err != nil || profileResult.IsError {
+		t.Fatalf("profile: %v %#v", err, profileResult)
+	}
+	var profile getUserOutput
+	decodeStructuredContent(t, profileResult.StructuredContent, &profile)
+	if profile.ID != viewer.GetId() || profile.Username != viewer.GetLogin() {
+		t.Fatal("wrong public profile")
+	}
+	replyResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "post_message", Arguments: map[string]any{"room_id": visible.GetId(), "body": "Thread reply", "thread_root_message_id": posted.Message.ID, "in_reply_to_message_id": posted.Message.ID}})
+	if err != nil || replyResult.IsError {
+		t.Fatalf("thread reply: %v %#v", err, replyResult)
+	}
+	var reply postMessageOutput
+	decodeStructuredContent(t, replyResult.StructuredContent, &reply)
+	if reply.Message.ThreadRootMessageID != posted.Message.ID || reply.Message.InReplyToMessageID != posted.Message.ID {
+		t.Fatal("lost thread/reply relationship")
+	}
+	threadResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{"room_id": visible.GetId(), "thread_root_message_id": posted.Message.ID, "limit": 1}})
+	if err != nil || threadResult.IsError {
+		t.Fatalf("thread read: %v %#v", err, threadResult)
+	}
+	var thread listRoomMessagesOutput
+	decodeStructuredContent(t, threadResult.StructuredContent, &thread)
+	if len(thread.Messages) != 2 {
+		t.Fatalf("thread root and reply missing: %#v", thread)
+	}
+
+	secondReplyResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "post_message", Arguments: map[string]any{"room_id": visible.Id, "body": "Second thread reply", "thread_root_message_id": posted.Message.ID}})
+	if err != nil || secondReplyResult.IsError {
+		t.Fatal("second reply failed", err)
+	}
+	var secondReply postMessageOutput
+	decodeStructuredContent(t, secondReplyResult.StructuredContent, &secondReply)
+	firstPage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{"room_id": visible.Id, "thread_root_message_id": posted.Message.ID, "limit": 1}})
+	if err != nil || firstPage.IsError {
+		t.Fatal("first thread page failed", err)
+	}
+	decodeStructuredContent(t, firstPage.StructuredContent, &thread)
+	if thread.NextBeforeEventID != secondReply.Message.ID || len(thread.Messages) != 2 {
+		t.Fatal("thread cursor/root incorrect")
+	}
+	older, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{"room_id": visible.Id, "thread_root_message_id": posted.Message.ID, "before_event_id": thread.NextBeforeEventID, "limit": 1}})
+	if err != nil || older.IsError {
+		t.Fatal("older thread page failed", err)
+	}
+	var olderPage listRoomMessagesOutput
+	decodeStructuredContent(t, older.StructuredContent, &olderPage)
+	if len(olderPage.Messages) != 1 || olderPage.Messages[0].ID != reply.Message.ID || olderPage.NextBeforeEventID != "" {
+		t.Fatalf("bad older page: %#v", olderPage)
+	}
+	badCursor, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{"room_id": visible.Id, "thread_root_message_id": posted.Message.ID, "before_event_id": posted.Message.ID}})
+	if err != nil || !badCursor.IsError {
+		t.Fatal("thread accepted non-reply cursor", err)
+	}
+	changedThread, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "post_message", Arguments: map[string]any{"room_id": visible.Id, "body": "Hello from MCP", "thread_root_message_id": posted.Message.ID, "idempotency_key": "cdd8d7d2-a6ab-4bb3-a30a-edcc15266d41"}})
+	if err != nil || !changedThread.IsError {
+		t.Fatal("key replay accepted changed thread", err)
+	}
+	for _, test := range []struct {
+		name    string
+		changed bool
+	}{{"add_reaction", true}, {"add_reaction", false}, {"remove_reaction", true}, {"remove_reaction", false}} {
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: test.name, Arguments: map[string]any{"room_id": visible.GetId(), "message_id": reply.Message.ID, "emoji": "thumbsup"}})
+		if err != nil || result.IsError {
+			t.Fatalf("reaction: %v %#v", err, result)
+		}
+		var reaction reactionOutput
+		decodeStructuredContent(t, result.StructuredContent, &reaction)
+		if reaction.Changed != test.changed {
+			t.Fatalf("%s changed=%v", test.name, reaction.Changed)
+		}
+	}
 	replayResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "post_message", Arguments: map[string]any{
 		"room_id": visible.GetId(), "body": "Hello from MCP", "idempotency_key": "cdd8d7d2-a6ab-4bb3-a30a-edcc15266d41",
 	}})
@@ -317,6 +391,15 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if left.RoomID != visible.GetId() || !left.Left {
 		t.Fatalf("leave_room = %#v", left)
 	}
+	deniedReaction, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "add_reaction", Arguments: map[string]any{"room_id": visible.Id, "message_id": reply.Message.ID, "emoji": "heart"}})
+	if err != nil || !deniedReaction.IsError {
+		t.Fatal("reaction bypassed membership", err)
+	}
+	deniedThread, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{"room_id": visible.Id, "thread_root_message_id": posted.Message.ID}})
+	if err != nil || !deniedThread.IsError {
+		t.Fatal("thread read bypassed membership", err)
+	}
+
 }
 
 func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
@@ -476,7 +559,7 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 		} `json:"result"`
 	}
 	decodeMCPResponse(t, list, &tools)
-	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room"}
+	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room", "get_user", "add_reaction", "remove_reaction", "get_message", "update_message", "delete_message", "send_direct_message"}
 	if len(tools.Result.Tools) != len(wantTools) {
 		t.Fatalf("tools = %#v, want %v", tools.Result.Tools, wantTools)
 	}

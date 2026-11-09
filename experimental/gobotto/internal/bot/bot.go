@@ -1149,17 +1149,19 @@ func respond(ctx context.Context, client Client, c *conversation, batch []chatto
 	}
 	c.model.SetInstructions(c.identity, c.systemPrompt, c.ownerUserIDs...)
 	input := struct {
-		CurrentTime    string               `json:"currentTime"`
-		ToolGuidance   string               `json:"toolGuidance"`
-		Messages       []modelMessage       `json:"newMessages"`
-		Addressed      []string             `json:"addressedMessageIds"`
-		Triggers       []string             `json:"triggerMessageIds"`
-		Authors        []triggerAuthor      `json:"triggerAuthors"`
-		Brains         json.RawMessage      `json:"brainCatalog,omitempty"`
-		Participants   []participantProfile `json:"participants,omitempty"`
-		Investigations []map[string]any     `json:"investigations,omitempty"`
-		Completed      []string             `json:"completedInvestigations,omitempty"`
-	}{CurrentTime: time.Now().UTC().Format(time.RFC3339), ToolGuidance: toolSearchReminder}
+		CurrentRoomID       string               `json:"currentRoomId"`
+		CurrentThreadRootID string               `json:"currentThreadRootMessageId"`
+		CurrentTime         string               `json:"currentTime"`
+		ToolGuidance        string               `json:"toolGuidance"`
+		Messages            []modelMessage       `json:"newMessages"`
+		Addressed           []string             `json:"addressedMessageIds"`
+		Triggers            []string             `json:"triggerMessageIds"`
+		Authors             []triggerAuthor      `json:"triggerAuthors"`
+		Brains              json.RawMessage      `json:"brainCatalog,omitempty"`
+		Participants        []participantProfile `json:"participants,omitempty"`
+		Investigations      []map[string]any     `json:"investigations,omitempty"`
+		Completed           []string             `json:"completedInvestigations,omitempty"`
+	}{CurrentRoomID: c.key.room, CurrentThreadRootID: c.key.root, CurrentTime: time.Now().UTC().Format(time.RFC3339), ToolGuidance: toolSearchReminder}
 	input.Investigations = c.jobs.Context()
 	input.Completed = completed
 	catalog, catalogErr := c.memory.Catalog(ctx)
