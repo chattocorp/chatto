@@ -1942,7 +1942,6 @@
 .preview-media-frame > :first-child {
   aspect-ratio: var(--preview-media-ratio);
   height: auto;
-  min-height: inherit;
 }
 
 /* Vidstack's inline-flex default leaves a text baseline gap below the canvas. */
@@ -1971,24 +1970,14 @@
 }
 
 @utility preview-toolbar {
-  /* Use the theme surface so the visor follows light, dark, and contrast settings. */
-  @apply pointer-events-none absolute z-10 flex items-center justify-end gap-1 rounded-t-md bg-surface/50 p-1 transition-opacity feedback-quick;
-  /* A toolbar inside the content canvas has already passed the frame's rim. */
-  inset-inline: var(--preview-toolbar-inset, calc(var(--spacing) * 1));
-  top: var(--preview-toolbar-inset, calc(var(--spacing) * 1));
-  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0;
-
-  /* Only the controls intercept clicks; links and media under the visor stay usable. */
-  & > * {
-    @apply pointer-events-auto compact-input:hover-actions:pointer-events-none;
-    @apply group-focus-within/preview:pointer-events-auto group-hover/preview:pointer-events-auto focus-within:pointer-events-auto;
-  }
+  /* Reserve space in normal flow so controls never cover or move the content. */
+  @apply flex min-h-8 max-w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-1;
 }
 
 @utility attachment-action-button {
-  /* Pair with a standard button tone; it owns the shared depth and feedback. */
-  @apply h-7 min-h-7 w-7 min-w-7 shrink-0 rounded-md p-0 text-sm;
-  @apply icon-action-emphasis;
+  @apply inline-flex h-7 min-h-7 w-7 min-w-7 shrink-0 cursor-pointer items-center justify-center icon-action-feedback p-0 text-sm;
+  @apply comfortable-density:h-11 comfortable-density:min-h-11 comfortable-density:w-11 comfortable-density:min-w-11;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:bg-text/10 aria-pressed:text-text-top;
 }
 
 @utility attachment-card {
@@ -1998,8 +1987,6 @@
 @utility attachment-media-frame {
   @apply relative my-1.5;
 
-  /* Put spacing outside the overlay's containing block so the top and end
-   * offsets both start at the visible media frame. */
   & > .preview-frame {
     @apply my-0;
   }
@@ -2007,13 +1994,6 @@
 
 @utility attachment-video-frame {
   @apply attachment-media-frame max-w-full min-w-0;
-
-  /* Keep the action row above the player's bottom controls, even
-   * when a narrow message reduces the video's natural display height. */
-  &.preview-frame,
-  & > .preview-frame {
-    @apply min-h-32;
-  }
 }
 
 @utility notification-dot {

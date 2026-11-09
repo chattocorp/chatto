@@ -653,20 +653,24 @@ or contact a third party merely to demonstrate the frame. These utilities do
 not change preview fetch, consent, or content-warning behavior.
 
 Use `PreviewToolbar` and `PreviewAction` for image, link, social-post, and video
-preview actions. The toolbar forms a visor across the top inside the frame rim,
-with the theme's `surface` colour at 50% opacity. Its positioned parent uses
-`group/preview`. Mouse hover and keyboard focus reveal the toolbar. Touch
-devices keep it visible. Only visible controls intercept pointer input; the rest
-of the visor lets clicks reach the links and media below it.
-When the positioned parent is the content canvas inside the rim, set
-`--preview-toolbar-inset: 0px` on that parent so the visor meets the canvas edges.
-Use `layout="row"` for file and audio actions that stay in the normal layout.
-The card owns action permissions, callbacks, and confirmation dialogs.
-`PreviewAction` uses the same `icon-action-emphasis` utility as standard icon
-controls: hover and visible keyboard focus use the full-intensity `text-top`
-colour. Disabled controls do not brighten. Keep this rule in the shared utility;
-do not add colour overrides at call sites. Preview actions keep a neutral tone,
-including the delete icon. Delete confirmations retain their destructive tone.
+preview actions. The default toolbar is a row below the content, inside the
+frame rim. It stays visible and reserves its own space. It must not cover links,
+images, or playback controls. Use `layout="row"` for file and audio actions that
+share a row with content, and for viewer controls. Keep the canvas aspect ratio
+independent of the toolbar height. Video playback controls, including Cast, PiP,
+and fullscreen, stay inside the player. Video previews have no separate viewer opener.
+Attachment description/delete actions stay visible in the footer on all devices.
+Do not render a footer without permitted actions.
+Use `AttachmentActions` for direct description and delete icons. Keep all actions
+accessible in the footer; narrow rows can wrap. Pass viewing and playback
+actions through the toolbar's `viewing` snippet, at the start of the row.
+Keep permission-gated description and delete actions at the end. These sides
+follow text direction, so RTL layouts mirror the groups. The card owns permissions,
+callbacks, and confirmation dialogs.
+`PreviewAction` uses the shared `icon-action-feedback` utility: icons are muted
+at rest and brighten on hover or keyboard focus. Touch input uses larger targets.
+Preview actions keep a neutral tone, including the delete icon. Delete
+confirmations retain their destructive tone.
 
 Link hover cards use one native link around their image, text, and destination
 footer. Use the same navigation rules as their trigger. Keep the card open

@@ -58,15 +58,17 @@ async function menuButton(label: string): Promise<HTMLButtonElement> {
 }
 
 describe('LinkPreviewCard', () => {
-  it('keeps the link under the visible visor clickable', () => {
+  it('keeps the toolbar below the link without covering its content', () => {
     const { container } = render(LinkPreviewCard, {
       preview: preview({ url: 'https://bar.com/chat/-/overview', title: 'Overview' }),
       canDelete: true
     });
     const card = container.querySelector<HTMLAnchorElement>('[data-testid="link-preview-card"]')!;
     container.querySelector<HTMLButtonElement>('[aria-label="Delete preview"]')!.focus();
-    const visor = container.querySelector('.preview-toolbar')!.getBoundingClientRect();
-    const target = document.elementFromPoint(visor.left + 12, visor.top + 12) as HTMLElement;
+    const toolbar = container.querySelector('.preview-toolbar')!.getBoundingClientRect();
+    const link = card.getBoundingClientRect();
+    expect(toolbar.top).toBeGreaterThanOrEqual(link.bottom);
+    const target = document.elementFromPoint(link.left + 12, link.top + 12) as HTMLElement;
     expect(target.closest('a')).toBe(card);
     target.click();
     expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');

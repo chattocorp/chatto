@@ -74,10 +74,10 @@ shared attachment viewer for pan and zoom. The owner retains image/theme loading
 
 {#if svgSource}
   <div
-    class="rendered-image relative rendered-image-size"
+    class="rendered-image relative mx-auto block max-w-full min-w-11"
     {@attach consumeMessageGestures}
     style:width={previewWidth}
-    style:aspect-ratio={`${width} / ${height}`}
+    style:aspect-ratio={ready ? undefined : `${width} / ${height}`}
   >
     <span class="hidden" {@attach preview}></span>
     {#if ready}

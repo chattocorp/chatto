@@ -99,7 +99,7 @@ test('SVG playback survives local and remote room messages', async ({
   const originalSvg = await frame.evaluateHandle((frame: HTMLIFrameElement) =>
     frame.contentDocument!.querySelector('svg')!
   );
-  // Keyboard focus reveals the visor even when the headless browser has no hover support.
+  // The visible footer supports keyboard activation without moving the animation.
   const toggle = page.getByRole('button', { name: 'Pause animation', exact: true });
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await toggle.focus();
