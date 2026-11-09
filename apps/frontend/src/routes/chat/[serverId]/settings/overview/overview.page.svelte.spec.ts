@@ -13,12 +13,14 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 import Overview from './+page.svelte';
+import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 let scope: TestServerScope;
 const mode = new SvelteMap<string, boolean>();
 
 beforeEach(() => {
   mode.clear();
+  desktopUpdates.status = null;
   scope = createTestServerScope({
     serverId: 'remote.example.com',
     store: {
@@ -88,4 +90,21 @@ describe('settings Overview', () => {
     scope.permissions = { ...scope.permissions, loaded: true };
     await expect.element(view.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
   });
+});
+
+it('keeps desktop Updates in server settings', async () => {
+  desktopUpdates.status = {
+    revision: 0,
+    version: '0.5.0',
+    status: 'unavailable',
+    busy: false,
+    progress: null,
+    availableVersion: null,
+    automatic: false,
+    channel: 'stable'
+  };
+  const view = render(Overview);
+  await expect
+    .element(view.getByRole('link', { name: 'Updates' }))
+    .toHaveAttribute('href', '/chat/remote.example.com/settings/desktop');
 });
