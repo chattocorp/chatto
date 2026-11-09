@@ -84,3 +84,16 @@ test('subagents receive web guidance without the main persona or capabilities', 
     'mcp__exa__'
   );
 });
+
+test('custom tools can provide web access without granting it to subagents', () => {
+  const custom = {
+    ...settings,
+    web: false,
+    extraMcpServers: parseSettings(
+      '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/model"\n[mcp.servers.search]\nurl="https://example.com/mcp"',
+      'botto.toml'
+    ).extraMcpServers
+  };
+  expect(systemPrompt(custom, main)).not.toContain('Web access is disabled');
+  expect(systemPrompt(custom, { role: 'subagent' })).toContain('Web access is disabled');
+});
