@@ -130,6 +130,8 @@ jobs:
               - '!apps/{frontend,desktop,docs-website}/**'
               - '!examples/botto/**'
               - '!tools/test-desktop-*'
+              # Repository tooling tests run in the unconditional workflow-lint job.
+              - '!tools/*.test.mjs'
               - '!{docs,.agents,.claude,.conductor}/**'
               # Experimental modules have their own workflow.
               - '!experimental/**'
