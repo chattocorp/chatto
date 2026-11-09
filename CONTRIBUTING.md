@@ -539,6 +539,29 @@ only while the Runling bot of `mise dev-full` runs.
 
 Use `alice` when you need server administration access.
 
+## CI Job Selection
+
+CI selects product jobs from the changed paths. Pull requests use the complete
+PR diff; pushes use the exact before and after commits.
+
+- Sweet notes in any `.sweet/` directory and generated `CHANGELOG.md` files
+  do not select product jobs or Authling image builds. Release preparation
+  still runs for Sweet notes on `main`.
+- Ordinary frontend source, translations, and tests select Chatto checks,
+  including the frontend build and browser tests, without native desktop
+  packaging.
+- Desktop shell files, the frontend desktop bridge, frontend build settings,
+  scripts and static assets, shared client packages, protobufs, and desktop
+  test scripts select the full desktop platform matrix.
+- Shared build and dependency configuration selects all products. Release
+  version files and package manifests still select their product checks.
+- Workflow/tooling checks, license checks, and PR formatting checks run
+  independently of product selection.
+
+When you change these filters, run
+`mise x -- node --test tools/ci-path-filters.test.mjs`. The tests read the
+workflow rules and check product selection for representative paths.
+
 ## Repository Tooling Tests
 
 Run `mise test-repo-tooling` to test repository checks, release policy,

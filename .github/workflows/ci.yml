@@ -54,9 +54,9 @@ jobs:
           base: ${{ github.event_name == 'push' && github.event.before || '' }}
           ref: ${{ github.event_name == 'push' && github.sha || '' }}
           predicate-quantifier: some-with-excludes
-          # Sweet writes changelogs and package manifests. Only
-          # release tooling reads changelogs, so they do not select product
-          # jobs. Package-local manifests select their own product checks.
+          # Sweet notes and changelogs do not select product jobs.
+          # Release preparation still reads notes on main. Package-local
+          # manifests select their own product checks.
           # Version files in release pull requests still select their product.
           filters: |
             chatto:
@@ -69,15 +69,18 @@ jobs:
               - 'proto/**'
               - 'docker/**'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             authling:
               # Go workspace dependency selection can change across product modules.
               - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             translatto:
               - 'packages/translatto/**'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             runling:
               - 'packages/runling/**'
               # The Runling bot example uses the Chatto client.
@@ -86,6 +89,7 @@ jobs:
               - 'examples/runling-bot/**'
               # Runling owns its release manifest.
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             chattobot:
               - 'packages/chattobot/**'
               - 'packages/runling/**'
@@ -93,6 +97,7 @@ jobs:
               - 'packages/api-types/**'
               - 'proto/**'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             botto:
               - 'examples/botto/**'
               - 'packages/runling/**'
@@ -100,17 +105,24 @@ jobs:
               - 'packages/api-types/**'
               - 'proto/**'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             docs:
               - 'apps/docs-website/**'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             desktop:
               - 'apps/desktop/**'
-              - 'apps/frontend/**'
-              - 'packages/**'
-              - '!packages/runling/**'
+              # Ordinary frontend changes use the browser build and tests.
+              # Native integration and build inputs still verify every package.
+              - 'apps/frontend/src/lib/desktop/**'
+              - 'apps/frontend/{package.json,vite.config.*,svelte.config.*,tsconfig.json}'
+              - 'apps/frontend/scripts/**'
+              - 'apps/frontend/static/**'
+              - 'packages/{api-types,chatto-client,translatto}/**'
               - 'proto/**'
               - 'tools/test-desktop-*'
               - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
             # Files outside product roots and repository documentation run all products.
             common:
               - '**'
@@ -122,6 +134,7 @@ jobs:
               # Experimental modules have their own workflow.
               - '!experimental/**'
               - '!*.md'
+              - '!**/.sweet/**'
 
   test-translatto-package:
     needs: changes
