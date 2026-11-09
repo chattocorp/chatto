@@ -30,9 +30,11 @@ RUN set -eux; \
       *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
     esac; \
  archive="nats-${NATS_CLI_VERSION}-linux-${arch}.zip"; \
- curl -fsSL -o "/tmp/${archive}" \
+ curl -fsSL --retry 4 --retry-max-time 180 --connect-timeout 15 --max-time 60 \
+      -o "/tmp/${archive}" \
       "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/${archive}"; \
- curl -fsSL -o /tmp/nats-SHA256SUMS \
+ curl -fsSL --retry 4 --retry-max-time 180 --connect-timeout 15 --max-time 60 \
+      -o /tmp/nats-SHA256SUMS \
       "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/SHA256SUMS"; \
  cd /tmp; \
  grep "  ${archive}$" nats-SHA256SUMS | sha256sum -c -; \
