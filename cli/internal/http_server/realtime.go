@@ -368,22 +368,16 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 	resumeCursor := strings.TrimSpace(subscribe.GetResumeCursor())
-	cursorAtBoundary, err := s.core.RealtimeCursorAtCurrentBoundary(ctx, user.Id, resumeCursor)
-	if err != nil {
-		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime replay is temporarily unavailable", true, time.Second)
-		return
-	}
-	// A cursorless snapshot or live-only start cannot request history.
-	// Bound it by catch-up concurrency and timeout. Reserve the per-user rate
-	// budget for explicit stale-cursor replay attempts, including cursor reuse.
-	meteredReplay := resumeCursor != "" && !cursorAtBoundary
-	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id, meteredReplay)
-	if admissionErr != nil {
+	rejectCatchUp := func(admissionErr *realtimeCatchUpAdmissionError) {
 		s.metrics.realtimeCatchUpRejected(admissionErr.code)
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
-		}})
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime catch-up capacity is temporarily unavailable", true, admissionErr.retryAfter)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
+	}
+	// Every catch-up uses the general budget and concurrency limits. The plan
+	// charges the additional replay budget at its exact boundary, before scanning.
+	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id)
+	if admissionErr != nil {
+		rejectCatchUp(admissionErr)
 		return
 	}
 	s.metrics.realtimeCatchUpStarted()
@@ -427,8 +421,17 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
 		return
 	}
-	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, subscribe.GetResumeCursor())
+	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, resumeCursor, func() error {
+		if admissionErr := s.realtimeCatchUps.consumeReplayToken(user.Id); admissionErr != nil {
+			return admissionErr
+		}
+		return nil
+	})
 	if err != nil {
+		if errors.As(err, &admissionErr) {
+			rejectCatchUp(admissionErr)
+			return
+		}
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
 			failCatchUp("Realtime replay planning timed out", err)
 			return
@@ -437,17 +440,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		writeClose(code, message, code == realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "replay unavailable"), time.Now().Add(time.Second))
 		return
-	}
-	if resumeCursor != "" && !meteredReplay && replayPlan.HadSequenceGap {
-		// EVT advanced after the current-boundary check. Charge the newly-real
-		// replay gap before emitting subscribed, snapshot, or event frames.
-		if chargeErr := s.realtimeCatchUps.consumeReplayToken(user.Id); chargeErr != nil {
-			s.metrics.realtimeCatchUpRejected(chargeErr.code)
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(chargeErr.retryAfter)},
-			}})
-			return
-		}
 	}
 
 	boundaryCursor := replayPlan.BoundaryCursor

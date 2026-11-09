@@ -56,7 +56,14 @@ describe('RangeField', () => {
     );
   });
 
-  it('draws the grip where the native thumb receives the pointer', () => {
+  it.each([
+    { direction: 'ltr', value: 0 },
+    { direction: 'ltr', value: 30 },
+    { direction: 'ltr', value: 100 },
+    { direction: 'rtl', value: 0 },
+    { direction: 'rtl', value: 30 },
+    { direction: 'rtl', value: 100 }
+  ])('aligns the visible and native thumbs at $value in $direction', ({ direction, value }) => {
     const { container } = render(RangeField, {
       props: {
         id: 'ui-depth',
@@ -64,21 +71,24 @@ describe('RangeField', () => {
         min: 0,
         max: 100,
         step: 10,
-        value: 30,
-        displayValue: '30%',
+        value,
+        displayValue: `${value}%`,
         ticks: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
       }
     });
 
     const input = container.querySelector('input') as HTMLInputElement;
+    container.dir = direction;
     const grip = container.querySelector('.range-grip') as HTMLElement;
     const inputBox = input.getBoundingClientRect();
     const gripBox = grip.getBoundingClientRect();
     // The native thumb centre travels between half a grip width from each end.
-    const thumbCentre = inputBox.left + gripBox.width / 2 + (inputBox.width - gripBox.width) * 0.3;
+    const progress = direction === 'rtl' ? 1 - value / 100 : value / 100;
+    const thumbCentre =
+      inputBox.left + gripBox.width / 2 + (inputBox.width - gripBox.width) * progress;
     expect(gripBox.left + gripBox.width / 2).toBeCloseTo(thumbCentre, 0);
     expect(container.querySelectorAll('.range-tick')).toHaveLength(11);
-    expect(container.querySelectorAll('.range-tick-filled')).toHaveLength(4);
+    expect(container.querySelectorAll('.range-tick-filled')).toHaveLength(value / 10 + 1);
   });
 
   it('keeps the bevel lighting on the grip', () => {

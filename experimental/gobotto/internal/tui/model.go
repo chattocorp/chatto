@@ -1,17 +1,14 @@
-// Package tui presents a session overview and private turn event tables.
+// Package tui presents sessions and their turn events in a split terminal view.
 // Conversation bodies are confined to inspector records, never operational logs.
 package tui
 
 import (
+	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
-	"github.com/atotto/clipboard"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/inspection"
 )
 
@@ -66,97 +63,65 @@ type Event struct {
 }
 
 const maxSessions = 100
-const maxLogs = 200
 
 type session struct {
-	loadDetails                      func(int) (inspection.Page, error)
-	detailsLoaded, detailsLoading    bool
-	detailsError                     string
-	before                           int
-	loadGeneration                   uint64
-	lastViewed                       uint64
-	liveRecords                      map[int]inspection.Turn
-	id                               uint64
-	humanID                          string
-	title                            string
-	started                          time.Time
-	state                            string
-	logs                             []string
-	turns                            int
-	input, cached, output            int64
-	reasoning                        int64
-	reasoningKnown, reasoningMissing bool
-	usageKnown                       bool
-	cost                             float64
-	costKnown, costMissing           bool
-	records                          []inspection.Turn
-	inspected                        int
-	pending                          int
-}
-
-// compactTokens keeps cumulative usage legible without widening table columns.
-func compactTokens(n int64) string {
-	if n >= 1_000_000 {
-		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
-	}
-	if n >= 1_000 {
-		return fmt.Sprintf("%.1fk", float64(n)/1_000)
-	}
-	return fmt.Sprint(n)
+	loadDetails                   func(int) (inspection.Page, error)
+	detailsLoaded, detailsLoading bool
+	detailsError                  string
+	before                        int
+	loadGeneration                uint64
+	lastViewed                    uint64
+	liveRecords                   map[int]inspection.Turn
+	id                            uint64
+	humanID                       string
+	title                         string
+	started                       time.Time
+	busy                          bool
+	records                       []inspection.Turn
 }
 
 type model struct {
-	detail            *detailView
-	detailBusy        bool // serialize disk reads across rapid session navigation
-	viewCounter       uint64
-	textOffset        int // horizontal offset of event text; numeric columns stay fixed
-	operationalLog    bool
-	requestQuit       func()
-	quitting          bool
-	workerStopped     bool
-	copyText          func(string) error
-	clipboardNotice   string
-	clipboardUntil    time.Time
-	events            <-chan tea.Msg
-	busy              spinner.Model // one clock keeps visible busy rows in sync
-	sessions          []*session    // newest first; all mutation belongs to the UI goroutine
-	width, height     int
-	activeSession     uint64 // zero selects the overview
-	overviewSelection uint64
-	overviewOffset    int
-	overviewNavigated bool // until first navigation, keep startup restores on the newest row
-	runtimeStarted    time.Time
-	status            string
-	rows              []treeRow
-	cursor, offset    int
-	folds             map[nodeKey]bool // choices survive snapshot updates
-	followActive      bool
+	detailBusy     bool // serialize disk reads across rapid session navigation
+	viewCounter    uint64
+	requestQuit    func()
+	quitting       bool
+	workerStopped  bool
+	events         <-chan tea.Msg
+	sessions       []*session // newest first; all mutation belongs to the UI goroutine
+	width, height  int
+	activeSession  uint64
+	sessionOffset  int
+	navigated      bool // startup restores stay on the newest session until navigation
+	eventsFocused  bool
+	split          float64 // fraction of available width assigned to sessions
+	dragging       bool
+	detailSplit    float64 // fraction of right-side content assigned to events
+	draggingDetail bool
+	status         string
+	rows           []treeRow
+	cursor, offset int
+	detailOffset   int
+	activityFrame  int
+	showBrains     bool
+	brains         brainsView
 }
 
 func newModel(events <-chan tea.Msg) *model {
-	m := &model{events: events, status: "Connecting to Chatto…", width: 80, height: 24, folds: make(map[nodeKey]bool), copyText: clipboard.WriteAll}
-	m.runtimeStarted = time.Now()
-	m.busy = spinner.New(spinner.WithSpinner(spinner.MiniDot))
+	m := &model{events: events, status: "Connecting to Chatto…", width: 80, height: 24, split: 0.35, detailSplit: 0.65}
+	m.brains = brainsView{ctx: context.Background(), split: 0.35}
 	m.resize(80, 24)
 	return m
 }
 
-type inspectorTick struct{}
-
-func tickInspector() tea.Cmd {
-	return tea.Tick(time.Second, func(time.Time) tea.Msg { return inspectorTick{} })
+func (m *model) Init() tea.Cmd {
+	return tea.Batch(waitEvent(m.events), activityTick(), waitBrainChanges(m.brains.changes))
 }
-
-func (m *model) Init() tea.Cmd { return tea.Batch(waitEvent(m.events), tickInspector(), m.busy.Tick) }
 
 func waitEvent(events <-chan tea.Msg) tea.Cmd {
 	return func() tea.Msg { return <-events }
 }
 
 func (m *model) selected() *session {
-	if row := m.currentRow(); row != nil {
-		return row.s
-	}
 	for _, s := range m.sessions {
 		if s.id == m.activeSession {
 			return s
@@ -165,15 +130,7 @@ func (m *model) selected() *session {
 	return nil
 }
 
-type clipboardResult struct {
-	id  string
-	err error
-}
-
 func (m *model) apply(event Event) {
-	if event.Kind == Evicted && m.detail != nil && m.detail.session == event.Session {
-		m.detail = nil
-	}
 	if event.At.IsZero() {
 		event.At = time.Now()
 	}
@@ -182,7 +139,7 @@ func (m *model) apply(event Event) {
 		return
 	}
 	var target *session
-	defer m.rebuildTree()
+	defer func() { m.syncSession(); m.rebuildTree() }()
 	for _, s := range m.sessions {
 		if s.id == event.Session {
 			target = s
@@ -190,22 +147,24 @@ func (m *model) apply(event Event) {
 		}
 	}
 	if event.Kind == Started && target == nil {
-		target = &session{id: event.Session, started: event.At, state: "running", turns: event.Turns}
+		target = &session{id: event.Session, started: event.At}
 		target.humanID = event.HumanID
 		target.loadDetails = event.LoadDetails
 		target.detailsLoaded = event.LoadDetails == nil
 		target.title = event.Title
 		for _, t := range event.Records {
 			target.records = append(target.records, t.Clone())
-			target.inspected = t.Number
-		}
-		for _, entry := range event.Logs {
-			target.logs = append(target.logs, entry.At.Format("15:04:05")+"  "+displayText(entry.Text))
 		}
 		if target.humanID == "" {
 			target.humanID = fmt.Sprintf("#%03d", event.Session)
 		}
 		m.sessions = append([]*session{target}, m.sessions...)
+		sort.SliceStable(m.sessions, func(i, j int) bool {
+			if m.sessions[i].started.Equal(m.sessions[j].started) {
+				return m.sessions[i].id > m.sessions[j].id
+			}
+			return m.sessions[i].started.After(m.sessions[j].started)
+		})
 		if len(m.sessions) > maxSessions {
 			m.sessions = m.sessions[:maxSessions]
 		}
@@ -224,6 +183,12 @@ func (m *model) apply(event Event) {
 		return
 	}
 	switch event.Kind {
+	case TurnStarted:
+		target.busy = true
+	case Completed:
+		target.busy = event.Background
+	case Failed, Queued:
+		target.busy = false
 	case Inspected:
 		if event.Inspection != nil {
 			if target.loadDetails != nil && !target.detailsLoaded && !target.detailsLoading {
@@ -254,82 +219,13 @@ func (m *model) apply(event Event) {
 				}
 			}
 			if !found {
-				followTurn := len(target.records) == 0 || target.inspected == target.records[len(target.records)-1].Number
 				target.records = inspection.Retain(append(target.records, t))
-				if followTurn {
-					target.inspected = t.Number
-				}
 			}
 			// Existing turns grow on every completion, not only when appended.
 			target.records = inspection.Retain(target.records)
 		}
 	case TitleChanged:
 		target.title = event.Title
-	case Completed:
-		target.state = "idle"
-		if event.Background {
-			target.state = "investigating"
-		}
-	case Failed:
-		target.state = "failed"
-	case Queued:
-		target.state = "queued"
-		target.pending = event.Pending
-	case TurnStarted:
-		target.pending = 0
-		target.state = "running"
-		target.turns++
-	case Tokens:
-		target.reasoning += event.Reasoning
-		target.reasoningMissing = target.reasoningMissing || event.ReasoningMissing || !event.ReasoningKnown
-		target.reasoningKnown = target.reasoningKnown || event.ReasoningKnown
-		target.costMissing = target.costMissing || event.CostMissing
-		if !event.Unreported {
-			target.usageKnown = true
-		}
-		target.input += event.Input
-		target.cached += event.CachedInput
-		target.output += event.Output
-		if event.Cost != nil {
-			target.cost += *event.Cost
-			target.costKnown = true
-		} else {
-			target.costMissing = true
-		}
-	}
-	if event.Pending > 0 {
-		target.pending = event.Pending
-	}
-	if event.Text != "" {
-		// Bound each entry and strip terminal controls as a second line of defense.
-		text := strings.Map(func(r rune) rune {
-			if r < 32 || (r >= 127 && r <= 159) {
-				return -1
-			}
-			return r
-		}, event.Text)
-		runes := []rune(text)
-		if len(runes) > 1000 {
-			text = string(runes[:1000]) + "…"
-		}
-		target.logs = append(target.logs, event.At.Format("15:04:05")+"  "+text)
-		if len(target.logs) > maxLogs {
-			target.logs = target.logs[len(target.logs)-maxLogs:]
-		}
 	}
 
-}
-
-// renderPane places a padded title inside a pane's own top border.
-func renderPane(title, body string, width int, focused bool) string {
-	color := lipgloss.Color("240")
-	if focused {
-		color = lipgloss.Color("86")
-	}
-	label := " " + lipgloss.NewStyle().Bold(true).MaxWidth(max(1, width-6)).MaxHeight(1).Render(title) + " "
-	border := lipgloss.NewStyle().Foreground(color)
-	top := border.Render("╭─") + label + border.Render(strings.Repeat("─", max(0, width-3-lipgloss.Width(label)))+"╮")
-	frame := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(color).Padding(0, 1).Width(width).Render(body)
-	_, rest, _ := strings.Cut(frame, "\n")
-	return top + "\n" + rest
 }

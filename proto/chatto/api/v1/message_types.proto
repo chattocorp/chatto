@@ -94,8 +94,10 @@ message MessageAttachment {
   // Signed URL for the original asset, when available.
   MessageAssetUrl asset_url = 6;
   // Signed URL for a thumbnail image, when available.
+  // GIFs routed to video processing use the generated video thumbnail. The URL
+  // is absent when that thumbnail is unavailable.
   MessageAssetUrl thumbnail_asset_url = 7;
-  // Video-specific processing metadata, when this attachment is a video.
+  // Video processing metadata for videos and animated GIFs.
   MessageVideoProcessing video_processing = 8;
   // User-provided description for accessibility and attachment details.
   // Absent when the attachment has no description.

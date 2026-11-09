@@ -49,6 +49,7 @@ import { configureUpdateBridge } from './update_bridge.mjs';
 import { unavailableDesktopUpdates } from './updates.mjs';
 import { configureBackgroundWindow } from './background.mjs';
 import { configureDesktopNotifications } from './notifications.mjs';
+import { configureScreenSharing } from './screen_sharing.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 app.setName(buildProfile.productName);
@@ -492,11 +493,16 @@ async function runMacOSCaptureProbeList() {
 function createMainWindow() {
   const window = new BrowserWindow({
     title: 'Chatto',
+    // Keep this name stable so Electron can restore this window across releases.
+    name: 'main-window',
+    windowStatePersistence: true,
     width: 1280,
     height: 820,
     minWidth: 480,
     minHeight: 600,
     show: false,
+    // Hide the Windows and Linux menu bars until the user presses Alt.
+    autoHideMenuBar: process.platform === 'linux' || process.platform === 'win32',
     // Match the frontend's default loading colours before its first paint.
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#f3f4f6',
     // Let the app header share the title area with the native window buttons.
@@ -817,34 +823,10 @@ function configureSession(appSession) {
   appSession.setPermissionRequestHandler((contents, permission, callback) => {
     callback(isDesktopPermissionAllowed(permission, contents.getURL()));
   });
-  appSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    if (!hasAppOrigin(request.securityOrigin) || !request.userGesture) {
-      callback({});
-      return;
-    }
-
-    try {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen', 'window']
-      });
-      if (sources.length === 0) {
-        callback({});
-        return;
-      }
-      const choice = await dialog.showMessageBox(mainWindow, {
-        type: 'question',
-        title: 'Share your screen',
-        message: 'Choose what Chatto may share',
-        buttons: [...sources.map((source) => source.name), 'Cancel'],
-        cancelId: sources.length,
-        defaultId: 0,
-        noLink: true
-      });
-      const source = sources[choice.response];
-      callback(source ? { video: source } : {});
-    } catch {
-      callback({});
-    }
+  configureScreenSharing(appSession, {
+    desktopCapturer,
+    dialog,
+    getMainWindow: () => mainWindow
   });
 }
 

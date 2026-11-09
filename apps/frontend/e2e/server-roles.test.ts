@@ -288,7 +288,7 @@ test.describe('Server Roles Management', () => {
       const refreshes = [0, 0];
       const errors: string[] = [];
       const url = perRole
-        ? routes.serverAdminPermission('everyone')
+        ? `${routes.serverAdminRole('everyone')}/permissions`
         : routes.serverAdminPermissions;
       for (const [index, client] of clients.entries()) {
         client.on('response', (response) => {
@@ -361,7 +361,7 @@ test.describe('Server Roles Management', () => {
       }
     });
     await page.setViewportSize({ width: 1000, height: 800 });
-    await page.goto(routes.serverAdminPermission('moderator'));
+    await page.goto(`${routes.serverAdminRole('moderator')}/permissions`);
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
     const viewport = page
       .locator('.data-table-viewport')
@@ -406,6 +406,7 @@ test.describe('Server Roles Management', () => {
       })
     );
     await serverRolesPage.gotoEditRole(server.id, roleName);
+    await serverRolesPage.selectSection('Members');
     const before = snapshots;
     await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
       userId: other.id!,
@@ -419,10 +420,58 @@ test.describe('Server Roles Management', () => {
       updateMask: 'displayName'
     });
     await expect.poll(() => updates).toBe(1);
-    // The page label updates; the edit form keeps its draft across background reads.
+    // The Members header updates without replacing the server snapshot.
     await expect(page.getByText('After rename', { exact: true })).toBeVisible();
     expect(snapshots).toBe(before);
     expect(errors).toEqual([]);
+  });
+
+  test('role tabs preserve history and protect drafts without blocking confirmed deletion', async ({
+    serverRolesPage
+  }) => {
+    const { page } = serverRolesPage;
+    const server = await usePrimaryServerViaAPI(page);
+    const roleName = generateRoleName('tabs');
+    await serverRolesPage.createRole(server.id, { name: roleName, displayName: 'Tab navigation' });
+    await expect(serverRolesPage.sectionLink('Role')).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByTestId('permission-filter')).not.toBeVisible();
+    await serverRolesPage.displayNameInput.fill('Unsaved name');
+    await serverRolesPage.sectionLink('Members').click();
+    const discard = page.getByRole('dialog', { name: 'Discard changes', exact: true });
+    await expect(discard).toBeVisible();
+    await discard.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(serverRolesPage.displayNameInput).toHaveValue('Unsaved name');
+    await expect(serverRolesPage.sectionLink('Role')).toHaveAttribute('aria-current', 'page');
+
+    await serverRolesPage.sectionLink('Members').click();
+    await discard.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await expect(serverRolesPage.sectionLink('Members')).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('heading', { name: 'Users with this Role' })).toBeVisible();
+    await expect(serverRolesPage.displayNameInput).not.toBeVisible();
+    await serverRolesPage.selectSection('Permissions');
+    await expect(page.getByTestId('permission-filter')).toBeVisible();
+    await page.goBack();
+    await expect(serverRolesPage.sectionLink('Members')).toHaveAttribute('aria-current', 'page');
+    await page.goForward();
+    await expect(serverRolesPage.sectionLink('Permissions')).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    await page.reload();
+    await expect(serverRolesPage.sectionLink('Permissions')).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    await page.goto(`${routes.serverAdminRole(roleName)}/members`);
+    await expect(serverRolesPage.sectionLink('Members')).toHaveAttribute('aria-current', 'page');
+    await serverRolesPage.selectSection('Role');
+    await expect(serverRolesPage.displayNameInput).toHaveValue('Tab navigation');
+
+    // The delete confirmation also authorizes discarding the metadata draft.
+    await serverRolesPage.displayNameInput.fill('Draft before deletion');
+    await serverRolesPage.deleteCurrentRole();
+    await serverRolesPage.expectRolesListVisible();
+    await expect(discard).not.toBeVisible();
   });
 
   test('role member roster loads the next page when scrolled', async ({ serverRolesPage }) => {
@@ -453,23 +502,55 @@ test.describe('Server Roles Management', () => {
       }
     });
     await serverRolesPage.gotoEditRole(server.id, roleName);
+    await serverRolesPage.selectSection('Members');
     const rosterHeading = page.getByRole('heading', { name: 'Users with this Role' });
     await rosterHeading.scrollIntoViewIfNeeded();
     // Real wheel interaction reaches the trailing table sentinel.
     await rosterHeading.hover();
     await page.mouse.wheel(0, 3000);
-    await page
-      .getByText('Showing 20 of 21 member(s)', { exact: true })
-      .or(page.getByText('Showing 21 of 21 member(s)', { exact: true }))
-      .waitFor();
     const table = page.locator('table').last();
+    await expect(table.locator('tbody tr').first()).toBeVisible();
     await table.hover();
     await page.mouse.wheel(0, 3000);
-    await expect(page.getByText('Showing 21 of 21 member(s)', { exact: true })).toBeVisible();
     await expect(table.locator('tbody tr')).toHaveCount(21);
     expect(memberRequests).toContain(0);
     expect(memberRequests).toContain(20);
     expect(errors).toEqual([]);
+  });
+
+  test('Roles is above Permissions and its search opens role details', async ({
+    serverRolesPage
+  }) => {
+    const { page } = serverRolesPage;
+    const server = await usePrimaryServerViaAPI(page);
+    await serverRolesPage.gotoRolesList(server.id);
+    const nav = page.getByRole('navigation', { name: 'Settings', exact: true });
+    const labels = (await nav.getByRole('link').allTextContents()).map((label) => label.trim());
+    expect(labels.indexOf('Roles')).toBeGreaterThanOrEqual(0);
+    expect(labels.indexOf('Permissions')).toBe(labels.indexOf('Roles') + 1);
+    await expect(nav.getByRole('link', { name: 'Roles', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    const search = page.getByRole('textbox', { name: 'Search roles…' });
+    await search.fill('@moderator');
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await page.getByRole('link', { name: 'Moderator', exact: true }).click();
+    await expect(page).toHaveURL(routes.serverAdminRole('moderator'));
+    await serverRolesPage.backToRolesButton.click();
+    await serverRolesPage.expectRolesListVisible();
+  });
+
+  test('old role URLs redirect to the matching canonical section', async ({ page }) => {
+    await usePrimaryServerViaAPI(page);
+    for (const suffix of ['', '/members', '/permissions']) {
+      await page.goto(`${routes.serverAdminPermissions}/everyone${suffix}?source=legacy`);
+      await expect(page).toHaveURL(`${routes.serverAdminRole('everyone')}${suffix}?source=legacy`);
+      await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+    }
+    await page.goto(`${routes.serverAdminPermissions}/new?source=legacy`);
+    await expect(page).toHaveURL(`${routes.serverAdminRoleNew}?source=legacy`);
+    await expect(page.getByTestId('role-form-name')).toBeVisible();
   });
 
   test.describe('Roles List Page', () => {
@@ -511,9 +592,9 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.serverAdminPermissions);
+      await page.goto(routes.serverAdminRoles);
 
-      // Users without roles.manage permission see Access Denied
+      // Users without role management or assignment authority see Access Denied
       await serverRolesPage.expectAccessDenied();
     });
   });
@@ -590,7 +671,7 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to create role page (bypassing method that expects success)
-      await page.goto(routes.serverAdminPermissionsNew);
+      await page.goto(routes.serverAdminRoleNew);
 
       // Should see access denied
       await serverRolesPage.expectAccessDenied();

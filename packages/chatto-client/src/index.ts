@@ -62,3 +62,7 @@ export type { KeepRecent } from './server/roomStores.js';
 export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+
+export { passwordLogin, PasswordLoginError } from './auth/passwordLogin.js';
+
+export type { ServerRegistryPersistence, ServerAuthentication } from './server/registry.js';

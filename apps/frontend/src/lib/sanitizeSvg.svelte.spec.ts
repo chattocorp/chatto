@@ -5,6 +5,54 @@ const wrap = (content: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">${content}</svg>`;
 
 describe('SVG preview sanitization', () => {
+  it('keeps simple numeric, colour and transform animations', () => {
+    const clean = sanitizeSvg(
+      wrap(
+        '<rect width="20" height="20">' +
+          '<animate attributeName="x" values="0;10;0" dur="2s" repeatCount="indefinite"/>' +
+          '<animate attributeName="fill" from="red" to="blue" dur="200ms" fill="freeze"/>' +
+          '<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s"/>' +
+          '</rect>'
+      )
+    );
+    const root = new DOMParser().parseFromString(clean, 'image/svg+xml');
+    expect(root.querySelectorAll('animate, animateTransform')).toHaveLength(3);
+    expect(root.querySelector('[attributeName="fill"]')?.getAttribute('fill')).toBe('freeze');
+  });
+
+  it.each([
+    'attributeName="href" values="x;javascript:alert(1)"',
+    'attributeName="style" to="fill:red"',
+    'attributeName="id" to="other"',
+    'attributeName="fill" values="red;url(https://example.invalid/paint)"',
+    'attributeName="fill" values="red;var(--paint,url(https://example.invalid/paint))"',
+    'attributeName="fill" values="red;blue" from="url(https://example.invalid/paint)"',
+    'attributeName="fill" values="red;blue" by="url(https://example.invalid/paint)"',
+    'attributeName="x" values="0;1" begin="other.click"',
+    'attributeName="x" values="0;999999999"',
+    'attributeName="x" values="0;NaN"'
+  ])('drops unsafe animation targets, values and timing: %s', (attributes) => {
+    const clean = sanitizeSvg(wrap(`<rect><animate ${attributes} dur="1s"/></rect>`));
+    expect(
+      new DOMParser().parseFromString(clean, 'image/svg+xml').querySelector('animate')
+    ).toBeNull();
+  });
+
+  it('bounds animation count and removes event handlers and target references', () => {
+    const clean = sanitizeSvg(
+      wrap(
+        '<rect>' +
+          '<animate attributeName="x" values="0;1" dur="1s" onbegin="alert(1)" href="#other"/>'.repeat(
+            33
+          ) +
+          '</rect>'
+      )
+    );
+    const root = new DOMParser().parseFromString(clean, 'image/svg+xml');
+    expect(root.querySelectorAll('animate')).toHaveLength(32);
+    expect(root.querySelector('[onbegin], [href]')).toBeNull();
+  });
+
   it.each([
     ['g', "url('#g')"],
     ['g', 'url("#g")'],
@@ -104,7 +152,9 @@ describe('SVG preview sanitization', () => {
     "url('#g') url(https://example.invalid/a)",
     'url(\'#g") red',
     'u\\72l(https://example.invalid/a)',
-    'url/**/(https://example.invalid/a)'
+    'url/**/(https://example.invalid/a)',
+    'var(--paint,url(https://example.invalid/a))',
+    'v\\61r(--paint,url(https://example.invalid/a))'
   ])('does not allow CSS syntax to disguise an external paint reference: %s', (paint) => {
     const clean = sanitizeSvg(wrap(`<rect fill="${paint.replaceAll('"', '&quot;')}"/>`));
     expect(clean).not.toContain('example.invalid');

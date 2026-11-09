@@ -13,6 +13,7 @@ import PermissionMatrix from './PermissionMatrix.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 import { refreshRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { PERMISSION_DEFINITIONS } from '@chatto/client/util/permissionCatalog';
 
 type TierRoles = {
   applicablePermissions: string[];
@@ -334,12 +335,12 @@ describe('PermissionMatrix', () => {
 
   it('renders a final column that links to create a role when supplied', async () => {
     const { container } = render(PermissionMatrix, {
-      props: { newRoleHref: '/chat/server/manage/server/permissions/new' }
+      props: { newRoleHref: '/chat/server/manage/server/roles/new' }
     });
     await settle();
 
     const newRoleColumn = container.querySelector('[data-testid="new-role-column"]');
-    expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/permissions/new');
+    expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/roles/new');
     expect(newRoleColumn?.textContent).toContain('+ New Role');
     expect(container.querySelectorAll('thead th')).toHaveLength(6);
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
@@ -384,6 +385,42 @@ describe('PermissionMatrix', () => {
     const fades = panel.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
     expect(getComputedStyle(fades[fades.length - 1]).zIndex).toBe('30');
   });
+
+  it.each([1000, 360])(
+    'starts the scroll fade at the sticky header boundary in a %ipx pane',
+    async (width) => {
+      nextTierRoles = {
+        ...HAPPY_TIER_ROLES,
+        applicablePermissions: Object.keys(PERMISSION_DEFINITIONS)
+      };
+      const host = document.createElement('div');
+      host.style.cssText = `width: ${width}px; height: 520px; display: flex; flex-direction: column`;
+      document.body.append(host);
+      try {
+        const { container } = render(PermissionMatrix, {
+          target: host,
+          props: { fillHeight: true }
+        });
+        await expect.poll(() => container.querySelector('tbody td[data-permission]')).toBeTruthy();
+
+        const viewport = container.querySelector<HTMLElement>('.data-table-viewport')!;
+        const scroll = viewport.querySelector<HTMLElement>('[role="region"]')!;
+        const header = viewport.querySelector<HTMLElement>('thead')!;
+        const fade = viewport.querySelector<HTMLElement>('.scroll-edge-fade')!;
+        const headerTop = header.getBoundingClientRect().top;
+        expect(scroll.scrollHeight).toBeGreaterThan(scroll.clientHeight);
+        expect(getComputedStyle(fade).opacity).toBe('0');
+
+        scroll.scrollTop = 24;
+        await expect.poll(() => getComputedStyle(fade).opacity).toBe('1');
+        expect(header.getBoundingClientRect().top).toBeCloseTo(headerTop);
+        // A gap paints an opaque band across rows that are still fully visible.
+        expect(fade.getBoundingClientRect().top).toBeCloseTo(header.getBoundingClientRect().bottom);
+      } finally {
+        host.remove();
+      }
+    }
+  );
 
   it('flows vertically with the page when contained scrolling is disabled', async () => {
     const { container } = render(PermissionMatrix, {

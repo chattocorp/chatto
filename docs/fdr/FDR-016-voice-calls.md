@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-11-02
+**Last reviewed:** 2026-11-05
 
 ## Overview
 
@@ -19,12 +19,12 @@ Rooms support real-time voice conversations with optional camera video and scree
   guarantee that a mobile browser keeps a background call running.
 
 - Calls request a browser audio mode for simultaneous playback and recording
-  where supported, including while muted or listen-only. This helps supported
-  browsers continue call audio in the background without requesting microphone
-  access for listen-only members. Leaving restores the previous audio mode
-  unless another feature has selected a different mode. The browser can still
-  interrupt audio or terminate the page. Closing the page retains explicit
-  call departure behavior.
+  where supported, including while muted or listen-only. This is a best-effort
+  request to support background call audio. It does not request microphone
+  access for listen-only members. The last call to leave restores the previous
+  audio mode unless another feature has selected a different mode. The browser
+  can still interrupt audio or terminate the page. Closing the page retains
+  explicit call departure behavior.
 
 - Members can see an ongoing call when they join or rejoin its room, including
   when the room becomes universal. They do not need to reconnect or wait for
@@ -55,8 +55,8 @@ Rooms support real-time voice conversations with optional camera video and scree
   participants in the active call, participant and camera card menus include
   **Voice volume** alongside profile actions. This control is also available
   from the members list. Screen-share card menus show **Stream volume** instead.
-  Adjust each independently from 0% to 200%. 100% is the original
-  level. A perceptual curve maps 50% to -10 dB and 200% to +10 dB;
+  Adjust each independently from 0% to 100%. 100% is the original
+  level. A perceptual curve maps 50% to -10 dB;
   percentages approximate relative loudness, not signal amplitude. Both sources
   use the same curve, including saved slider positions. These settings change
   only what this listener hears. The browser saves
@@ -64,52 +64,50 @@ Rooms support real-time voice conversations with optional camera video and scree
   sharing user's stream level.
 - **Mute locally** silences both sources without changing saved levels.
   Sliders move in 5% steps and mark 100% as the original level.
-  Boost needs Web Audio; if it is unavailable, playback is limited to 100%
-  and the controls explain the limit. Saved boosted levels are retained.
+  Playback is limited to 100%. Older saved values above 100% are retained,
+  but playback uses 100%. Calls use LiveKit media-element playback.
+  Some mobile browsers use system volume and ignore intermediate levels.
+  Local mute and zero volume also disable audio delivery through LiveKit
+  track settings. They do not rely on media-element volume.
 - Microphone activity appears as a glow on the participant card. Quiet input
   does not show a warning because normal pauses do not indicate a microphone
-  fault. The call toolbar's gear opens Voice & video preferences for an input
-  level check and a microphone test.
-- Calls use the system output when the browser cannot select a Web Audio
+  fault. The call toolbar's gear opens Voice & video preferences for a
+  microphone test.
+- Calls use the system output when the browser cannot select a media-element
   output device. If the browser blocks playback, **Enable call audio** resumes it.
 
-- **Voice Boosting** in Voice & video settings is a checkbox that is enabled by default
-  for new and existing users. It adds warmth, clarity, and loudness with EQ and
-  moderate compression. Users can turn it off if it causes audio problems.
-  Previous slider and preset choices do not disable the new default. An explicit
-  opt-out with the checkbox is saved.
-  Saturation is excluded because the combined effects must not distort ordinary
-  speech. Automatic plosive control reduces brief bass thumps, and adaptive bass
-  control reduces sustained boom while preserving vocal warmth. These cuts run
-  before compression so excessive bass is less likely to lower the whole voice.
-  Automatic de-essing reduces sharp S and SH sounds, and a final limiter catches
-  near-clipping sample peaks. Automatic corrections stay conservative.
-  An enabled gate gets a softer closing transition to preserve quiet word
-  endings; Off still disables the gate. These additions need no separate controls
-  and are bypassed when Voice Boosting is off. Changes use short ramps to avoid
-  clicks. The checkbox is disabled when processing is unavailable.
-  The noise gate stays separate because its threshold depends on the microphone
-  and room. Voice Boosting affects microphone audio in calls and the local test,
-  not received audio or screen sharing. Its state is saved per browser and server
-  without changing gate, device, or join-muted choices.
-  Compression receives the boosted EQ signal to reduce loud peaks and uses the
-  browser compressor's built-in makeup gain. A small additional gain after
-  compression increases loudness before the final peak limiter. Browser automatic gain control is disabled
-  to avoid competing volume adjustments. Calls retain browser echo cancellation
-  and noise suppression. The local test disables echo cancellation so it does
-  not cancel its own playback.
-- **Noise gate threshold** is available beside a live microphone meter in call
-  devices and **App Preferences → Voice & video**. It defaults to **Off**
-  and is saved per browser and server. Higher thresholds suppress quieter
-  sounds. The meter shows input before the gate, on the same scale as its
-  threshold marker. Muted calls show no input activity.
-- Sensitivity changes affect outgoing microphone audio and the local test.
-  The gate uses a short attack, a hold period, a lower closing threshold,
-  and a slower release to limit abrupt changes and repeated opening near
-  the threshold. It does not change participant mute state. Basic audio
-  remains available if the browser cannot run the optional gate; the UI
-  shows that microphone processing is unavailable. This does not add a media service
-  or change room permissions.
+- **Voice Boosting** is off by default. It enables microphone enhancement
+  independently of the noise gate. Both choices are saved per browser and server.
+  Previous default-on Boost values do not enable the explicit opt-in. Device,
+  volume, gate, and join-muted choices are retained. A saved gate threshold
+  applies with Boost off too.
+  With both controls off, calls use native LiveKit capture and playback.
+  With Boost on, optional microphone processing adds low-cut filtering, EQ,
+  compression, bass control, de-essing, and peak limiting. The gate has a softer
+  closing transition to preserve quiet word endings. Capture retains browser
+  echo cancellation, noise suppression, and automatic gain control.
+  Disabling Boost keeps an active gate. Setting the gate to Off and disabling
+  Boost removes optional processing without leaving the call.
+  Users can disable both controls if processing fails. A failed optional
+  processor does not own or stop the original capture track.
+- **Noise gate threshold** and its input meter remain visible with Boost off.
+  The threshold defaults to **Off**. Higher thresholds suppress quieter sounds.
+  The meter shows input before the gate. Muted calls show no input activity.
+  The gate uses a short attack, a hold period, a lower closing threshold, and a
+  slower release. It does not change participant mute state.
+- Voice activity follows browser-local audio measurements where available,
+  independently of Boost and the gate. Received activity follows decoded audio.
+  Local activity and the settings meter use microphone input before processing.
+  Optional measurement failures fall back to SDK activity reports. Measurements
+  stop when the page is hidden and resume in the foreground. They do not replace
+  or stop capture or playback tracks and open no external connections.
+- LiveKit owns background capture recovery and playback recovery. The mute
+  control follows SDK publication state, including a mute after failed recovery.
+  **Enable call audio** calls the SDK from a user gesture and uses its playback
+  status. Chatto requests `play-and-record` through the optional Audio Session
+  API before connecting media. It does not repeatedly reopen capture in the
+  background. Call cues use local audio files, without a separate AudioContext.
+  iOS background behavior still needs tests on physical devices.
 
 - **App Preferences → Voice & video** stores microphone, speaker, camera, and
   join-muted choices in this browser for the selected server. Successful device
@@ -127,7 +125,7 @@ Rooms support real-time voice conversations with optional camera video and scree
   a speaker can be selected.
 - Device choices use compact dropdowns so long device lists do not expand the
   settings page. The controls follow the app's depth preference where browser
-  support permits. A local microphone test shows an input meter and records a
+  support permits. A local microphone test records a
   sample without playing live audio. Stop or the 10-second limit ends capture
   before replay starts through the selected speaker. The sample stays in browser
   memory until the next test, microphone change, or navigation. Users can replay
@@ -136,9 +134,12 @@ Rooms support real-time voice conversations with optional camera video and scree
   keep capture active. A failed explicit output selection stops the test instead
   of silently playing through another device. Input changes restart an active
   test. Camera choices do not interrupt it. Navigation discards the sample,
-  and late capture results are stopped. With Voice Boosting off and the gate
-  Off, the test records the original capture stream. It disables browser noise
-  suppression and does not initialize custom processing. Switching between
+  and late capture results are stopped. The test and calls share microphone
+  capture options: mono input, echo cancellation, noise suppression, automatic
+  gain control, and voice isolation where the browser supports it.
+  With both processing controls off, the test records the browser capture
+  stream. With either control enabled, it records the processed track. The
+  input meter works in both modes and shows input before the gate. Switching between
   this bypass and processing starts a new sample and keeps the selected speaker.
 - Opening the settings page requests microphone and camera access separately
   when their device names are unavailable and no call is active on the selected
@@ -171,13 +172,13 @@ Rooms support real-time voice conversations with optional camera video and scree
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
 - Joining the call switches the call tab into participant mode. The sidebar keeps a featured source above a separate scrolling participant list. Other screen shares come first in the list, then cameras, then compact voice-only cards. The featured person has no second card in the list, with or without a camera. A screen share is a separate source: its owner's person card stays visible when the share is featured. Participant mode exposes a voice activity glow, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
 - The pane header shows maximize and fullscreen controls only while the viewer is connected to that room's call. An active call alone does not show these controls.
-- On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout.
+- On desktop, an active call sidebar can be maximized from the pane header. Maximized mode hides the Room View and turns the call panel into a stage layout. The call stays visible at all viewport widths. Below 1024 px, the Server Sidebar and Server Gutter are hidden to give the call the available width. At 1024 px and above, they stay visible.
 - The stage layout features one source in the largest 16:9 card that fits the stage, so very wide or tall screens do not crop camera feeds or stretch the card. Both layouts use the same selection: a pin comes first, then the remote active speaker, then a remote camera, then the viewer's own camera. The active speaker counts only while at least one camera is on, and is featured with or without a camera of their own. All other screen shares, cameras, and participants show as equal tiles. The tiles go in one row below the featured source, which scrolls horizontally when the tiles do not fit, or beside it when that gives the featured source a larger card, as on ultrawide screens. Beside the featured source, the tiles fill the remaining width in a near-square grid that starts at the top edge of the featured card.
 - The viewer can select a camera or screen share in the sidebar, or any secondary stage tile, to pin it to the featured area. A screen share that starts while no source is pinned acquires the pin automatically. If several shares first appear together, a remote share comes before the viewer's own share. A new share never replaces an existing pin. Unpinning returns to automatic selection; an existing share does not acquire the pin again unless it stops and starts again. Clicking the pinned tile again unpins it. On hover or keyboard focus, the featured tile shows a pin icon when unpinned and a crossed-out pin icon when pinned. The featured card also offers an unpin action. A pin is local to the viewer and lasts while the panel is mounted. Switching between sidebar, maximized, and fullscreen layouts keeps the pin. When the pinned source ends or the viewer leaves the call, the pin clears and the stage selects a source automatically again.
 - Without a pin or any camera, the stage shows all sources as equal tiles in a balanced grid. Voice-only calls keep compact participant rows in the sidebar.
 - The active speaker comes from LiveKit's server-side active speaker updates. The viewer never counts as the active speaker. The last speaker stays the active speaker during silence. A new speaker replaces the current one only after staying the loudest remote speaker for 3 seconds without interruption, so short interjections do not move the stage. The first speaker, and the next speaker after the current one leaves, apply at once.
 - An active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route. Fullscreen always uses the stage layout and keeps the pane header visible. The header close button exits fullscreen and returns to the previous pane layout without leaving the call. The maximize and fullscreen controls and the resize handle are hidden in fullscreen. Fullscreen ends when the call controls leave the pane, for example when the viewer leaves the call or opens a profile from the call user menu.
-- Fullscreen applies to the complete call pane. Individual camera and screen-share tiles use picture-in-picture for a separate video window. Joined participant cards offer mute. Cards narrower than 20rem put unpin and mute in their three-dot menu. Wider cards show these actions and picture-in-picture in their header. The card width selects the layout independently of the window width. Names, usernames, connection warnings, and mute status stay visible. Mute keeps the menu open; unpin closes it. Remote cards keep volume controls in their menu. Voice cards use the same height for local and remote participants. Calls with up to three participants use one sidebar column, including camera tiles. With more than three participants, a wide sidebar with a screen share or multiple video feeds uses two equal-width participant columns; screen shares span the full row. Narrow sidebars use one column. Remote participant mute is local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.
+- Fullscreen applies to the complete call pane. Individual camera and screen-share tiles use picture-in-picture for a separate video window. Joined participant cards offer mute. Cards narrower than 20rem put unpin and mute in their three-dot menu. Wider cards show these actions and picture-in-picture in their header. The card width selects the layout independently of the window width. Names, usernames, connection warnings, and mute status stay visible. Mute keeps the menu open; unpin closes it. Remote cards keep volume controls in their menu. Voice cards use the same height for local and remote participants. Calls with up to three participants use one sidebar column, including camera tiles. With more than three participants, a wide sidebar with a screen share or multiple video feeds uses two equal-width participant columns; screen shares span the full row. Narrow sidebars use one column. Remote participant mute is local to the viewer and does not change call membership or other participants' audio. The local participant card controls the viewer's own microphone.
 - Call controls form one joined pill with separators at the bottom of the call pane. Its height and rounded corners match the composer and other bottom-row controls. Participant content scrolls above it.
 - Camera and screen-share tile menus include **Picture-in-picture** when the
   browser supports requests from the page, including secondary stage tiles.
@@ -238,10 +239,10 @@ Rooms support real-time voice conversations with optional camera video and scree
 ### 5. Voice activity fills the identity row
 
 **Decision:** Soft, flowing accent-coloured fog illuminates each speaking
-participant's identity row. Local capture and received microphone audio use the
-same measured amplitude scale. Remote levels come from decoded audio before
-listener volume or local mute, rather than server speaker-status updates.
-Unavailable or unsubscribed remote audio has no glow. Microphone volume controls the fog's brightness,
+participant's identity row. Calls measure microphone input before processing
+and decoded remote audio. SDK activity reports provide a fallback when
+measurement is unavailable or listener-local controls pause audio delivery.
+Microphone volume controls the fog's brightness,
 spread, and movement speed. Quiet speech produces a gentle drift; louder speech
 moves the fog faster. Three translucent layers of broad wisps move independently
 and overlap. Animated simplex noise gives them uneven density and shape.
@@ -250,14 +251,15 @@ and fades away in silence. Video and screen-share content stays clear. Muted
 microphones show no activity. Muting someone locally does not hide their
 speaking activity. Reduced motion keeps the glow stationary and updates its
 intensity without animation.
-Screen-share tiles use their screen audio track's level, including native
-companion publishers. They stay quiet when the share has no audio; microphone
-activity and microphone mute do not affect this separate meter.
+Screen-share tiles do not show an audio meter. The SDK does not provide a
+separate screen-audio level. Activity feedback is limited to microphone tracks.
 **Why:** The card background makes active speakers easy to find without a
 pulsing outline or an extra status icon. The effect uses existing call audio
 levels and needs no additional audio capture or external connection.
 **Tradeoff:** Glow intensity conveys relative activity rather than a calibrated
 volume measurement. Only users who joined the call receive this feedback.
+Foreground measurements use one analysis-only audio context. Capture and
+playback do not pass through it. SDK fallback reports can respond more slowly.
 
 ### 6. Screen sharing is joined-client LiveKit track state
 
@@ -267,13 +269,13 @@ volume measurement. Only users who joined the call receive this feedback.
 
 ### 7. Big-call mode is a desktop pane state, not a separate route
 
-**Decision:** Maximized call mode expands the room call sidebar across the chat route content area while leaving the app's left navigation sidebars in place. It is session-only UI state and uses one featured stage plus a secondary strip. A new screen share acquires an empty pin in all layouts. An existing pin protects the viewer's choice. Without a pin, the remote active speaker is featured; a new speaker must stay the loudest for a hold time, so short interjections do not move the stage. The viewer can pin any tile to the featured stage. A voice-only call uses an equal grid, also while someone speaks, because no participant has media that needs a large view and the speaking glow already shows who talks. Browser fullscreen of the call pane uses the same stage layout; a sidebar layout stretched across the screen wastes most of the space.
-**Why:** The sidebar keeps the featured source visible while the participant list scrolls, so a new share cannot appear outside the visible area when no other source is pinned. Calls remain room-scoped context, not a separate destination. Keeping the left navigation visible lets users stay oriented and move between rooms while giving the call enough canvas for screen shares and active video.
-**Tradeoff:** The maximized layout is desktop-first. Mobile keeps the existing overlay sidebar model instead of adding a second maximize/fullscreen interaction layer.
+**Decision:** Maximized call mode expands the room call sidebar across the chat route content area while keeping the call visible at every viewport width. Below 1024 px, it hides the Server Sidebar and Server Gutter. At 1024 px and above, they stay visible. It is session-only UI state and uses one featured stage plus a secondary strip. A new screen share acquires an empty pin in all layouts. An existing pin protects the viewer's choice. Without a pin, the remote active speaker is featured; a new speaker must stay the loudest for a hold time, so short interjections do not move the stage. The viewer can pin any tile to the featured stage. A voice-only call uses an equal grid, also while someone speaks, because no participant has media that needs a large view and the speaking glow already shows who talks. Browser fullscreen of the call pane uses the same stage layout; a sidebar layout stretched across the screen wastes most of the space.
+**Why:** The sidebar keeps the featured source visible while the participant list scrolls, so a new share cannot appear outside the visible area when no other source is pinned. Calls remain room-scoped context, not a separate destination. Keeping the left navigation visible on larger screens lets users move between rooms. On smaller screens, the call takes priority over navigation.
+**Tradeoff:** The maximize control is available in the desktop call pane. A maximized pane stays visible when the viewport narrows. Other mobile call panes keep the existing overlay model.
 
 ### 8. Fullscreen and local mute are viewer-local controls
 
-**Decision:** The fullscreen control uses the browser Fullscreen API on the complete call pane. Individual videos have a picture-in-picture control. Local mute changes only this viewer's local audio: remote participants are muted through LiveKit remote participant volume, and local participant tiles reuse the viewer's microphone mute.
+**Decision:** The fullscreen control uses the browser Fullscreen API on the complete call pane. Individual videos have a picture-in-picture control. Local mute changes only this viewer's local audio: remote participants are muted through LiveKit track delivery settings and remote participant volume, and local participant tiles reuse the viewer's microphone mute.
 **Why:** One fullscreen mode avoids conflicts between an individual tile and the complete call pane. Fullscreen and local mute are personal presentation choices. They should not create durable call facts, alter room state, or surprise other participants.
 **Tradeoff:** Local mute is intentionally not visible to other participants and does not change the remote participant's published mute state. Users need to distinguish it from the normal microphone mute indicator.
 

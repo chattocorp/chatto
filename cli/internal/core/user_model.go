@@ -353,3 +353,15 @@ func (m *UserModel) botIDs() []string {
 func (m *UserModel) isBotAndOwner(userID string) (bool, string, bool) {
 	return m.users.Projection().IsBotAndOwner(userID)
 }
+
+// activeHumanIDs returns current human account IDs without decrypting profiles.
+func (m *UserModel) activeHumanIDs() []string {
+	ids := m.users.Projection().AllActiveIDs()
+	result := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if isBot, _, exists := m.users.Projection().IsBotAndOwner(id); exists && !isBot {
+			result = append(result, id)
+		}
+	}
+	return result
+}

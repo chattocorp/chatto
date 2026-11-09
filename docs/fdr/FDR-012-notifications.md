@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-04
 
 ## Overview
 
@@ -317,11 +317,15 @@ A later reply in the projection does not change this. Thus the decisions for a
 reply do not depend on how far the projection advanced before the materializer
 processed the reply.
 A user's own activity does not notify them. One source activity produces at
-most one delivery decision per recipient and cause. For example, a root
-message that contains `@all` and a direct mention can produce room-message,
-`@all`, and direct-mention decisions for one recipient. If these decisions use
-a notification mode, they create separate occurrences. Unread dot decisions
-coalesce into one latest-value marker for the applicable room or thread.
+most one notification per recipient within the short duplicate window. The
+broker guard uses the exact source event ID and recipient ID. Different
+messages in the same thread remain separate. When several causes match in one
+batch, Push notification takes priority over Notification. Equal modes keep
+the first cause in the stable decision order. The selected occurrence keeps
+its cause and ID. The guard does not read or delete it. The window is tunable. This is a mitigation for duplicate
+fanout, not a change to how each cause is detected. Old replicas bypass this
+guard until the upgrade is complete. Badge decisions still use the applicable
+room or thread.
 Channel-room recipients must currently have `message.read`.
 A direct mention also permits its recipient when `message.read-interactions`
 applies, because the same message fact creates the interaction relationship.

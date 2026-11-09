@@ -10,22 +10,22 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 
 | #                                                           | Feature                               | Status       | Last reviewed |
 | ----------------------------------------------------------- | ------------------------------------- | ------------ | ------------- |
-| [FDR-001](FDR-001-roles-and-permissions.md)                 | Roles & Permissions (RBAC)            | Active       | 2026-11-03    |
+| [FDR-001](FDR-001-roles-and-permissions.md)                 | Roles & Permissions (RBAC)            | Active       | 2026-11-05    |
 | [FDR-002](FDR-002-replies-and-threads.md)                   | Replies & Threads                     | Active       | 2026-10-28    |
 | [FDR-003](FDR-003-thread-reply-echo.md)                     | Thread Reply Echo                     | Active       | 2026-09-18    |
 | [FDR-004](FDR-004-message-editing-and-deletion.md)          | Message Editing & Deletion            | Active       | 2026-10-12    |
 | [FDR-005](FDR-005-reactions.md)                             | Reactions                             | Active       | 2026-11-02    |
 | [FDR-006](FDR-006-mentions.md)                              | @Mentions                             | Active       | 2026-11-02    |
-| [FDR-007](FDR-007-direct-messages.md)                       | Direct Messages                       | Active       | 2026-10-25    |
+| [FDR-007](FDR-007-direct-messages.md)                       | Direct Messages                       | Active       | 2026-11-05    |
 | [FDR-008](FDR-008-file-attachments-and-video.md)            | File Attachments & Video Processing   | Active       | 2026-11-03    |
 | [FDR-009](FDR-009-link-previews.md)                         | Link Previews                         | Active       | 2026-10-15    |
 | [FDR-010](FDR-010-typing-indicators.md)                     | Typing Indicators                     | Active       | 2026-10-15    |
 | [FDR-011](FDR-011-user-presence.md)                         | User Presence                         | Active       | 2026-09-19    |
-| [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-11-01    |
+| [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-11-04    |
 | [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-28    |
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-11-02    |
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-10-28    |
-| [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-11-02    |
+| [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-11-05    |
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-11-03    |
 | [FDR-018](FDR-018-account-lifecycle.md)                     | Account Lifecycle                     | Active       | 2026-10-27    |
 | [FDR-019](FDR-019-room-lifecycle.md)                        | Room Lifecycle                        | Active       | 2026-10-28    |
@@ -41,7 +41,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-029](FDR-029-chatto-shields.md)                        | Chatto Shields                        | Active       | 2026-08-23    |
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-10-15    |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-30    |
-| [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-11-02    |
+| [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-11-03    |
 | [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-26    |
 | [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-11-03    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
@@ -55,7 +55,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
 | [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-30    |
 | [FDR-045](FDR-045-realtime-event-stream.md)                 | Realtime Event Stream                 | Experimental | 2026-09-25    |
-| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-01    |
+| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-03    |
 | [FDR-047](FDR-047-first-run-setup.md)                       | First-Run Setup                       | Active       | 2026-10-10    |
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-09-25    |
 | [FDR-049](FDR-049-server-gutter.md)                         | Server Gutter                         | Active       | 2026-10-09    |

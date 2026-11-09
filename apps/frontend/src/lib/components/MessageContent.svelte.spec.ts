@@ -50,6 +50,51 @@ vi.mock('$lib/navigation', () => ({
 }));
 
 import MessageContent, { renderMarkdown } from './MessageContent.svelte';
+import { applyAnimationPreference } from '$lib/dom/motionPreference';
+
+describe('animated message content', () => {
+  it.each(['playing', 'paused'])(
+    'keeps the SVG timeline %s when room metadata refreshes',
+    async (mode) => {
+      applyAnimationPreference('enabled');
+      const body =
+        '```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><circle cx="10" cy="50" r="8"><animate attributeName="cx" values="10;190;10" dur="60s" repeatCount="indefinite"/></circle></svg>\n```';
+      const view = render(MessageContent, {
+        body,
+        artifactOwner: {},
+        members: [],
+        roleHandles: []
+      });
+      try {
+        const currentFrame = () => view.container.querySelector('iframe');
+        await expect.poll(() => currentFrame()?.contentDocument?.querySelector('svg')).toBeTruthy();
+        const frame = currentFrame()!;
+        const svg = frame.contentDocument!.querySelector('svg')!;
+        svg.setCurrentTime(12);
+        if (mode === 'paused')
+          await userEvent.click(view.getByRole('button', { name: 'Pause animation' }));
+        const pausedAt = svg.getCurrentTime();
+        const markdownRoot = view.container.querySelector('.markdown-html');
+        const poster = view.container.querySelector('img');
+
+        // New room snapshots can replace these arrays without changing this body.
+        await view.rerender({ members: [member('bob')], roleHandles: ['moderators'] });
+        await new Promise(requestAnimationFrame);
+        await expect.poll(() => currentFrame()?.contentDocument?.querySelector('svg')).toBeTruthy();
+        expect(view.container.querySelector('.markdown-html')).toBe(markdownRoot);
+        expect(view.container.querySelector('img')).toBe(poster);
+        expect(currentFrame()).toBe(frame);
+        expect(frame.contentDocument!.querySelector('svg')).toBe(svg);
+        expect(svg.animationsPaused()).toBe(mode === 'paused');
+        if (mode === 'paused') expect(svg.getCurrentTime()).toBe(pausedAt);
+        else expect(svg.getCurrentTime()).toBeGreaterThanOrEqual(pausedAt);
+      } finally {
+        await view.unmount();
+        applyAnimationPreference('automatic');
+      }
+    }
+  );
+});
 
 const channelRoomId = 'R123456789abcde';
 const dmRoomId = 'abcdef12345678';

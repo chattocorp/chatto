@@ -43,6 +43,7 @@
         "invitations": "Create and manage invitation codes.",
         "rooms": "Create, edit, organise, and archive rooms",
         "moderation": "Review active room suspensions",
+        "roles": "Manage roles and their members.",
         "permissions": "Manage server-wide role defaults",
         "security": "Sign-up restrictions and account protection",
         "appearance": "Make the app your own with colours, themes, and display options.",

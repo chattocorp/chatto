@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
@@ -45,8 +48,14 @@ func testLogger() *log.Logger {
 // the wired-up bits plus a cleanup-registered teardown.
 func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 	t.Helper()
+	js, stream, _ := setupTestStreamWithServer(t)
+	return js, stream
+}
 
-	_, nc := testutil.StartNATS(t)
+// setupTestStreamWithServer also exposes the isolated store for recreation tests.
+func setupTestStreamWithServer(t *testing.T) (jetstream.JetStream, jetstream.Stream, *server.Server) {
+	t.Helper()
+	ns, nc := testutil.StartNATS(t)
 
 	js, err := jetstream.New(nc)
 	if err != nil {
@@ -64,7 +73,7 @@ func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 		t.Fatalf("create test stream: %v", err)
 	}
 
-	return js, stream
+	return js, stream, ns
 }
 
 func testStreamIdentity(t *testing.T, stream jetstream.Stream) string {
@@ -101,10 +110,17 @@ func testCreatedStreamIdentity(t *testing.T, ctx context.Context, stream jetstre
 	return identity
 }
 
-func recreateTestStream(t *testing.T, ctx context.Context, js jetstream.JetStream) jetstream.Stream {
+func recreateTestStream(t *testing.T, ctx context.Context, js jetstream.JetStream, ns *server.Server) jetstream.Stream {
 	t.Helper()
 	if err := js.DeleteStream(ctx, "EVT_TEST"); err != nil {
 		t.Fatalf("delete original stream: %v", err)
+	}
+	// DeleteStream returns before the server removes the old store. Remove
+	// both names before reusing EVT_TEST, as ResetChattoJetStream does.
+	for _, name := range []string{"EVT_TEST", ".EVT_TEST"} {
+		if err := os.RemoveAll(filepath.Join(ns.JetStreamConfig().StoreDir, "$G", "streams", name)); err != nil {
+			t.Fatalf("remove deleted stream directory: %v", err)
+		}
 	}
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
 		Name:               "EVT_TEST",
@@ -1220,7 +1236,7 @@ func TestProjectorResetsCheckpointBehindRetainedEVT(t *testing.T) {
 }
 
 func TestProjectorResolvesCheckpointIdentityWithFreshStreamBounds(t *testing.T) {
-	js, originalStream := setupTestStream(t)
+	js, originalStream, ns := setupTestStreamWithServer(t)
 	ctx := testContext(t)
 	originalIdentity := testCreatedStreamIdentity(t, ctx, originalStream)
 
@@ -1229,7 +1245,7 @@ func TestProjectorResolvesCheckpointIdentityWithFreshStreamBounds(t *testing.T) 
 	projection.expectedStreamIdentity = originalIdentity
 	projector := must(NewProjector(js, originalStream, projection, ProjectorOptions{Checkpoint: &CheckpointOptions{Key: "search", ResolveStreamIdentity: createdStreamIdentity}}))
 
-	recreatedStream := recreateTestStream(t, ctx, js)
+	recreatedStream := recreateTestStream(t, ctx, js, ns)
 	recreatedIdentity := testCreatedStreamIdentity(t, ctx, recreatedStream)
 	if recreatedIdentity == originalIdentity {
 		t.Fatalf("recreated identity = original identity %q", originalIdentity)
@@ -1252,7 +1268,7 @@ func TestProjectorResolvesCheckpointIdentityWithFreshStreamBounds(t *testing.T) 
 }
 
 func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
-	js, originalStream := setupTestStream(t)
+	js, originalStream, ns := setupTestStreamWithServer(t)
 	ctx := testContext(t)
 	originalIdentity := testCreatedStreamIdentity(t, ctx, originalStream)
 
@@ -1267,7 +1283,7 @@ func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
 	}
 	projector := must(NewProjector(js, originalStream, projection, ProjectorOptions{Snapshots: &SnapshotOptions{Key: "tracking", Source: source, ResolveStreamIdentity: createdStreamIdentity}}))
 
-	recreatedStream := recreateTestStream(t, ctx, js)
+	recreatedStream := recreateTestStream(t, ctx, js, ns)
 	recreatedIdentity := testCreatedStreamIdentity(t, ctx, recreatedStream)
 	if recreatedIdentity == originalIdentity {
 		t.Fatalf("recreated identity = original identity %q", originalIdentity)
@@ -1294,7 +1310,7 @@ func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
 	if captured.StreamIdentity != recreatedIdentity {
 		t.Fatalf("captured snapshot identity = %q, want recreated %q", captured.StreamIdentity, recreatedIdentity)
 	}
-	recreateTestStream(t, ctx, js)
+	recreateTestStream(t, ctx, js, ns)
 	if _, err := projector.CaptureSnapshot(ctx); err == nil || !strings.Contains(err.Error(), "stream identity changed") {
 		t.Fatalf("CaptureSnapshot after another recreation error = %v, want stream identity change", err)
 	}

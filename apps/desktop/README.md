@@ -44,6 +44,13 @@ and realtime access requires no server origin configuration.
 
 ## Notifications and background operation
 
+Chatto restores the main window's position, size, and maximized or fullscreen
+state after a restart. If the display layout changes, the restored window is
+adjusted to keep it visible.
+
+On Windows and Linux, the application menu bar is hidden by default. Press
+**Alt** to show the menu and use commands such as Diagnostics and Updates.
+
 On macOS, closing the main window hides it and keeps Chatto running. Select
 Chatto in the Dock to open the window again. **Command-Q** quits the app and
 stops its connections and new alerts. On Windows and Linux, closing the main
@@ -100,6 +107,22 @@ profile or sign out registered servers.
 Linux releases provide AppImage and `.tar.gz` downloads for x64 and ARM64.
 Choose `Linux_X64` for x64 systems or `Linux_ARM64` for 64-bit ARM systems.
 Build the AppImage on a Linux host with the same architecture as the bundle.
+
+### Linux screen sharing
+
+On Wayland, the system screen-sharing portal selects the screen or window.
+Chatto does not show an additional source dialog for the portal's unnamed
+source. The desktop session must provide PipeWire, `xdg-desktop-portal`, and
+a portal backend with screen-sharing support. On X11, select a source in
+Chatto's dialog. Linux screen sharing sends video only.
+
+Before release, test the AppImage on a Wayland session and an X11 session.
+Join a call with a second participant. Share a window, then a full screen,
+and check that the second participant receives the selected content. Stop
+sharing and start again with another source. Cancel the source choice and
+check that no share starts. On Wayland, also check portal rejection and a
+session without a screen-sharing portal backend. A failed request must not
+start a share. Unit tests do not verify portal or PipeWire integration.
 
 ### Desktop updates
 

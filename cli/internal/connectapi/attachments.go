@@ -108,6 +108,7 @@ func apiAsset(ctx context.Context, api *API, attachment *evtv1.Attachment, viewe
 	if attachment == nil {
 		return nil
 	}
+	video := apiVideoProcessing(ctx, api, viewerID, attachment)
 	return &apiv1.Asset{
 		Id:                attachment.Id,
 		Filename:          attachment.Filename,
@@ -116,9 +117,24 @@ func apiAsset(ctx context.Context, api *API, attachment *evtv1.Attachment, viewe
 		Width:             attachment.Width,
 		Height:            attachment.Height,
 		AssetUrl:          api.assetURLView(ctx, api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
-		ThumbnailAssetUrl: api.assetURLView(ctx, api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
-		VideoProcessing:   apiVideoProcessing(ctx, api, viewerID, attachment),
+		ThumbnailAssetUrl: apiAttachmentThumbnail(ctx, api, attachment, viewerID, thumbnail, video),
+		VideoProcessing:   video,
 	}
+}
+
+// apiAttachmentThumbnail never advertises an image transform for a GIF routed
+// to video processing: its frames can exceed image-decoder limits. Such GIFs
+// use the generated video thumbnail, or no thumbnail until one is available.
+// The creation hint covers completed uploads before their message is posted;
+// the manifest also covers historical GIFs without that hint.
+func apiAttachmentThumbnail(ctx context.Context, api *API, attachment *evtv1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest, video *apiv1.MessageVideoProcessing) *apiv1.MessageAssetUrl {
+	if attachment.GetContentType() == "image/gif" {
+		created := api.core.GetAssetState(attachment.GetId()).Creation
+		if video != nil || created.GetNeedsVideoProcessing() {
+			return video.GetThumbnailAssetUrl()
+		}
+	}
+	return api.assetURLView(ctx, api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit))
 }
 
 func apiVideoProcessing(ctx context.Context, api *API, viewerID string, attachment *evtv1.Attachment) *apiv1.MessageVideoProcessing {

@@ -244,15 +244,16 @@ test.describe('jump to message', () => {
 
     await roomPage.gotoThread(roomId, rootId);
     const thread = roomPage.threadPane;
-    await expect(thread.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    await expect(thread.locator('p', { hasText: targetBody })).not.toBeVisible();
+    await expect(thread.getByText(replyBody)).toBeInViewport({ timeout: TIMEOUTS.REALTIME_EVENT });
+    // The virtualizer can retain offscreen rows in its buffer.
+    await expect(thread.locator('p', { hasText: targetBody })).not.toBeInViewport();
 
     await thread
       .locator('[role="article"]', { hasText: replyBody })
       .getByTestId('reply-attribution')
       .click({ position: { x: 8, y: 8 } });
 
-    await expect(thread.locator('p', { hasText: targetBody })).toBeVisible({
+    await expect(thread.locator('p', { hasText: targetBody })).toBeInViewport({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await expect(thread.getByTestId('jump-to-present')).toBeVisible({
@@ -261,11 +262,13 @@ test.describe('jump to message', () => {
 
     await thread.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
 
-    await expect(thread.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(thread.getByText(replyBody)).toBeInViewport({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
     await expect(thread.getByTestId('jump-to-present')).not.toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(thread.locator('p', { hasText: targetBody })).not.toBeVisible();
+    await expect(thread.locator('p', { hasText: targetBody })).not.toBeInViewport();
   });
 
   test('jump to message works for nearby messages already in DOM', async ({

@@ -342,10 +342,10 @@ it('includes volume controls in the remote user context menu', async () => {
   expect(document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
   const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
   expect(document.querySelectorAll('input[type="range"]')).toHaveLength(1);
-  expect(input.max).toBe('200');
-  input.value = '175';
+  expect(input.max).toBe('100');
+  input.value = '75';
   input.dispatchEvent(new Event('input', { bubbles: true }));
-  expect(change).toHaveBeenCalledWith('bob', 'voiceVolume', 175);
+  expect(change).toHaveBeenCalledWith('bob', 'voiceVolume', 75);
   expect(
     screen.container.querySelector('[title="Alice"] [data-testid="call-participant-menu-button"]')
   ).not.toBeNull();

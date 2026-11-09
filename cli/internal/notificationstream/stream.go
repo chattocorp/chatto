@@ -22,6 +22,10 @@ import (
 )
 
 const (
+	// FanoutDedupeWindow bounds source/recipient suppression at the broker.
+	// It is independent of the alert deadline and can be tuned without a schema change.
+	FanoutDedupeWindow = time.Minute
+
 	StreamName           = natsresources.Notifications
 	SignalledSubject     = "notifications.signalled"
 	ReadSubject          = "notifications.read"
@@ -124,8 +128,17 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 		if err != nil {
 			return nil, fmt.Errorf("marshal notification event %d: %w", i, err)
 		}
+		id := event.GetId()
+		if signal := event.GetSignalled(); signal != nil {
+			if signal.GetSourceEventId() == "" {
+				return nil, fmt.Errorf("%w: source_event_id is required", ErrInvalidEvent)
+			}
+			// JetStream suppresses other reasons for this source and recipient.
+			// Old binaries use reason-specific IDs and bypass this guard.
+			id = fmt.Sprintf("notification-source:%q:%q", event.GetRecipientId(), signal.GetSourceEventId())
+		}
 		prepared = append(prepared, preparedEvent{
-			id:             event.GetId(),
+			id:             id,
 			data:           data,
 			physicalExpiry: event.GetExpiresAt().AsTime().UTC().Add(p.retentionGrace),
 		})

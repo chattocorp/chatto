@@ -243,11 +243,13 @@ type RoomWithViewerState struct {
 	// accounts were deleted. Clients show those as deleted users. Empty for
 	// channel rooms.
 	MemberUserIds []string `protobuf:"bytes,15,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
-	// Whether this DM has received a root message. Absent for channel rooms.
+	// Whether this DM has an ordinary root message that the viewer can read.
+	// Absent for channel rooms.
 	HasMessageHistory *bool `protobuf:"varint,16,opt,name=has_message_history,json=hasMessageHistory,proto3,oneof" json:"has_message_history,omitempty"`
-	// Creation time of the latest ordinary DM message, including thread replies.
+	// Creation time of the latest ordinary DM message that the viewer can read,
+	// including thread replies. Interaction-only access includes related threads.
 	// Edits and retractions do not change this value; historical imports are excluded.
-	// Absent for other room kinds, no ordinary messages, or no message.read permission.
+	// Absent for other room kinds or when no ordinary message is readable.
 	// Older servers can omit this field. Absence does not prove inactivity.
 	LastMessageAt *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=last_message_at,json=lastMessageAt,proto3" json:"last_message_at,omitempty"`
 	// Creation time of the latest ordinary DM root message, excluding thread replies.

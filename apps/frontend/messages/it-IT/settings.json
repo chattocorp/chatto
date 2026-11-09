@@ -43,6 +43,7 @@
         "invitations": "Crea e gestisci i codici di invito.",
         "rooms": "Crea, modifica, organizza e archivia le stanze",
         "moderation": "Esamina le sospensioni attive dalle stanze",
+        "roles": "Gestisci i ruoli e i loro membri.",
         "permissions": "Gestisci le impostazioni predefinite dei ruoli a livello di server",
         "security": "Restrizioni di registrazione e protezione dell'account",
         "appearance": "Personalizza l’app con colori, temi e opzioni di visualizzazione.",

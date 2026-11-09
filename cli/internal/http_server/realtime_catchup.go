@@ -20,6 +20,10 @@ type realtimeCatchUpAdmissionError struct {
 	retryAfter time.Duration
 }
 
+func (e *realtimeCatchUpAdmissionError) Error() string {
+	return e.code
+}
+
 type realtimeCatchUpUserState struct {
 	active            bool
 	tokens            float64
@@ -64,12 +68,10 @@ func newRealtimeCatchUpAdmissionWithLimits(maxConcurrent, burst int, refillInter
 }
 
 // acquire admits at most one catch-up per authenticated user on this replica
-// and reserves one global slot. Metered stale-cursor replay attempts consume a
-// per-user replay token. Cursorless snapshot or live-only starts cannot request history,
-// and a cursor already at the current EVT boundary cannot request replay work,
-// so both use a separate, more permissive general catch-up token bucket. The
-// returned release function is idempotent.
-func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(), *realtimeCatchUpAdmissionError) {
+// and reserves one global slot. Every attempt consumes a general catch-up
+// token. Planning charges an additional replay token for large gaps and invalid
+// cursors. The returned release function is idempotent.
+func (a *realtimeCatchUpAdmission) acquire(userID string) (func(), *realtimeCatchUpAdmissionError) {
 	now := a.now()
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -97,14 +99,8 @@ func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(),
 	a.refill(state, now)
 	a.refillGeneral(state, now)
 	state.lastSeen = now
-	availableTokens := state.generalTokens
-	retryInterval := realtimeCatchUpGeneralRefillInterval
-	if metered {
-		availableTokens = state.tokens
-		retryInterval = a.refillInterval
-	}
-	if availableTokens < 1 {
-		retryAfter := max(time.Duration((1-availableTokens)*float64(retryInterval)), time.Second)
+	if state.generalTokens < 1 {
+		retryAfter := max(time.Duration((1-state.generalTokens)*float64(realtimeCatchUpGeneralRefillInterval)), time.Second)
 		return nil, &realtimeCatchUpAdmissionError{code: "catch_up_rate_limited", retryAfter: retryAfter}
 	}
 
@@ -114,11 +110,7 @@ func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(),
 		return nil, &realtimeCatchUpAdmissionError{code: "catch_up_server_busy", retryAfter: time.Second}
 	}
 
-	if metered {
-		state.tokens--
-	} else {
-		state.generalTokens--
-	}
+	state.generalTokens--
 	state.active = true
 	var once sync.Once
 	return func() {
@@ -132,10 +124,9 @@ func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(),
 	}, nil
 }
 
-// consumeReplayToken charges an already-active unmetered admission when EVT
-// advanced after current-boundary classification but before replay planning.
-// The caller must reject the catch-up before delivery when this returns an
-// error, so every actual cursor gap remains rate-bounded despite that race.
+// consumeReplayToken charges an already-active general admission before a large
+// replay is scanned or an invalid cursor selects a fallback. Core calls it at
+// the captured replay boundary so concurrent writes cannot bypass this budget.
 func (a *realtimeCatchUpAdmission) consumeReplayToken(userID string) *realtimeCatchUpAdmissionError {
 	now := a.now()
 	a.mu.Lock()
@@ -160,10 +151,7 @@ func (a *realtimeCatchUpAdmission) refill(state *realtimeCatchUpUserState, now t
 	if elapsed <= 0 {
 		return
 	}
-	state.tokens += float64(elapsed) / float64(a.refillInterval)
-	if state.tokens > float64(a.burst) {
-		state.tokens = float64(a.burst)
-	}
+	state.tokens = min(float64(a.burst), state.tokens+float64(elapsed)/float64(a.refillInterval))
 	state.lastRefill = now
 }
 
@@ -172,10 +160,7 @@ func (a *realtimeCatchUpAdmission) refillGeneral(state *realtimeCatchUpUserState
 	if elapsed <= 0 {
 		return
 	}
-	state.generalTokens += float64(elapsed) / float64(realtimeCatchUpGeneralRefillInterval)
-	if state.generalTokens > realtimeCatchUpGeneralRateBurst {
-		state.generalTokens = realtimeCatchUpGeneralRateBurst
-	}
+	state.generalTokens = min(realtimeCatchUpGeneralRateBurst, state.generalTokens+float64(elapsed)/float64(realtimeCatchUpGeneralRefillInterval))
 	state.generalLastRefill = now
 }
 

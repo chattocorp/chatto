@@ -555,8 +555,8 @@ be absent while processing is pending or when the source is unavailable.
 | `width` | `int32` | Image or video width in pixels, when known. |
 | `height` | `int32` | Image or video height in pixels, when known. |
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset, when available. |
-| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a thumbnail image, when available. |
-| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a thumbnail image, when available. GIFs routed to video processing use the generated video thumbnail. The URL is absent when that thumbnail is unavailable. |
+| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing metadata for videos and animated GIFs. |
 | `description` | `optional string` | User-provided description for accessibility and attachment details. Absent when the attachment has no description. |
 
 <a id="chatto-api-v1-MessageReaction"></a>
@@ -675,8 +675,8 @@ Room-scoped binary asset metadata and freshly signed URLs.
 | `width` | `int32` | Media width when known. |
 | `height` | `int32` | Media height when known. |
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset bytes. |
-| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a transformed image thumbnail. |
-| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing state when this asset is a video attachment. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed thumbnail image URL, when available. GIFs routed to video processing use the generated video thumbnail without image transform options. Absent when that thumbnail is unavailable. |
+| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing state for videos and animated GIFs. |
 
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
@@ -995,8 +995,8 @@ viewer.
 | `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
 | `member_user_ids` | `repeated string` | Complete participant user IDs for a DM, including participants whose accounts were deleted. Clients show those as deleted users. Empty for channel rooms. |
-| `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
-| `last_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM message, including thread replies. Edits and retractions do not change this value; historical imports are excluded. Absent for other room kinds, no ordinary messages, or no message.read permission. Older servers can omit this field. Absence does not prove inactivity. |
+| `has_message_history` | `optional bool` | Whether this DM has an ordinary root message that the viewer can read. Absent for channel rooms. |
+| `last_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM message that the viewer can read, including thread replies. Interaction-only access includes related threads. Edits and retractions do not change this value; historical imports are excluded. Absent for other room kinds or when no ordinary message is readable. Older servers can omit this field. Absence does not prove inactivity. |
 | `last_root_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM root message, excluding thread replies. Uses the same visibility, import, and absence rules as last_message_at. |
 
 <a id="chatto-api-v1-SidebarLink"></a>
@@ -1746,13 +1746,17 @@ the code can use it; it is not bound to an email address or recipient.
 
 ### AdminRole
 
-Role metadata plus administrative permission state.
+Role metadata plus optional administrative totals.
+Permission decisions are read through AdminPermissionService. Clients that
+used permissions or permission_denials must migrate to GetRolePermissionMatrix
+or ListRolePermissionDecisions. These reads require role.manage.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
+| `member_count` | `optional uint64` | Active human members, including implicit membership for everyone. Reported by ListRoles only, for callers with role.manage or role.assign. |
+| `permission_grant_count` | `optional uint64` | Explicit permission grants across all scopes; excludes virtual owner access. Reported by ListRoles only, for callers with role.manage or role.assign. |
+| `permission_denial_count` | `optional uint64` | Explicit permission denials across all scopes. Reported by ListRoles only, for callers with role.manage or role.assign. |
 
 <a id="chatto-admin-v1-UserRoleAssignment"></a>
 

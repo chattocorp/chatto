@@ -60,7 +60,7 @@ describe('admin room-layout query invalidation', () => {
 });
 
 describe('admin role query invalidation', () => {
-  it('invalidates only permission tiers after role metadata changes', () => {
+  it('invalidates role listings after metadata or membership changes', () => {
     invalidatePermissionTiers(serverId, connection);
 
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
@@ -69,10 +69,11 @@ describe('admin role query invalidation', () => {
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(false);
   });
 
-  it('invalidates tier, role details, and derived user matrices after role permission changes', () => {
+  it('invalidates role counts, details, and derived user matrices after permission changes', () => {
     invalidateRolePermissionDependents(serverId, connection, 'moderator');
 
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(roleDetailsKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
   });

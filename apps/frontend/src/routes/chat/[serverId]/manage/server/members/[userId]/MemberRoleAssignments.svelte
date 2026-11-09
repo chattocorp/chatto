@@ -90,7 +90,7 @@
         </div>
         {#if details.viewerCanManageRoles}
           <a
-            href={resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+            href={resolve('/chat/[serverId]/manage/server/roles/[name]', {
               serverId: serverIdToSegment(serverId),
               name: role.name
             })}

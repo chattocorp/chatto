@@ -4,12 +4,10 @@
 Standard labeled range control for settings. Owns the value readout, optional
 icon, disabled state, and field spacing.
 
-The visible control is drawn from design-system primitives: a recessed well
-like text inputs, a lit fill in the primary action colour, and a raised grip
-like a segmented selection. A transparent native range input sits on top of
-the travel area, so keyboard, pointer, and assistive-technology behaviour stay
-native. Its thumb has the grip's width, so pointer positions map exactly onto
-the drawn grip.
+The field has no background of its own. A slim recessed rail, a lit fill, and
+a round raised grip use the shared control primitives. The transparent native
+range input covers a 44px-high travel area. Its thumb has the grip's width, so
+pointer positions match the drawn grip while keyboard behaviour stays native.
 -->
 <script lang="ts">
   let {
@@ -57,14 +55,8 @@ the drawn grip.
   const progress = $derived(fraction(value ?? (min + max) / 2));
 </script>
 
-<label
-  for={id}
-  class={[
-    'flex flex-col gap-2.5 rounded-md bg-surface px-3 py-2.5 range-field',
-    disabled && 'opacity-60'
-  ]}
->
-  <span class="flex items-center justify-between gap-3 text-sm">
+<label for={id} class={['flex flex-col', disabled && 'opacity-60']}>
+  <span class="flex items-center justify-between gap-3 text-base">
     <span class="flex min-w-0 items-center gap-2 font-medium text-text">
       {#if icon}
         <span class={['iconify shrink-0 text-base text-muted', icon]} aria-hidden="true"></span>

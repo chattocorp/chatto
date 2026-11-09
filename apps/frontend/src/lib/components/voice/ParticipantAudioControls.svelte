@@ -27,20 +27,22 @@
 
 <MenuSection>
   <p class="px-3 py-1 text-sm text-muted">{m('voice.participant_audio.local_only')}</p>
-  <RangeField
-    id={`${id}-${source}`}
-    label={source === 'voiceVolume'
-      ? m('voice.participant_audio.voice')
-      : m('voice.participant_audio.stream')}
-    value={volume}
-    displayValue={`${volume}%`}
-    min={0}
-    max={maximum}
-    step={5}
-    ticks={[100]}
-    oninput={(event) =>
-      onVolumeChange(source, (event.currentTarget as HTMLInputElement).valueAsNumber)}
-  />
+  <div class="px-3 py-1">
+    <RangeField
+      id={`${id}-${source}`}
+      label={source === 'voiceVolume'
+        ? m('voice.participant_audio.voice')
+        : m('voice.participant_audio.stream')}
+      value={volume}
+      displayValue={`${volume}%`}
+      min={0}
+      max={maximum}
+      step={5}
+      ticks={[100]}
+      oninput={(event) =>
+        onVolumeChange(source, (event.currentTarget as HTMLInputElement).valueAsNumber)}
+    />
+  </div>
   {#if !boostAvailable}
     <p class="px-3 py-1 text-sm text-muted">{m('voice.participant_audio.boost_unavailable')}</p>
   {/if}

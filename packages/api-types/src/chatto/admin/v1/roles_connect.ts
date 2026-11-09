@@ -15,10 +15,9 @@ export const AdminRoleService = {
   typeName: "chatto.admin.v1.AdminRoleService",
   methods: {
     /**
-     * Lists the role catalog including permission arrays as a finite snapshot.
-     * Requires an authenticated user. This intentionally includes permission
-     * arrays for clients that need to show a user's assigned roles and their
-     * effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
+     * Lists role metadata, optional totals, and viewer capabilities as a finite
+     * snapshot. Requires an authenticated user. Read permission decisions through
+     * AdminPermissionService; use chatto.api.v1.RoleService for public metadata.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.ListRoles
      */

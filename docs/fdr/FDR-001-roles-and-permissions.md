@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-11-03
+**Last reviewed:** 2026-11-05
 
 ## Overview
 
@@ -75,14 +75,42 @@ the backend permission catalog. Update both catalogs together.
 - Account permission matrices fill the available page height. Permission rows
   scroll inside the matrix, while the filter and column headings stay visible.
 
+- Server settings lists Roles directly above Permissions. Roles opens a
+  searchable catalog with display names, role handles, descriptions, and system
+  role labels. Each role uses one row with its active human member count and
+  its explicit grant and denial counts across all scopes. The implicit
+  `everyone` membership includes all active human accounts. Counts exclude
+  virtual owner access. Zero grants and denials show blank cells. Older servers
+  that omit counts show a dash.
+  Role managers can create roles and use row buttons to open metadata or
+  permissions. Role assigners can browse the list and open each role's roster.
+  Permissions opens the server-wide permission matrix and requires `role.manage`.
+- Role pages use `/manage/server/roles`. Earlier role URLs under
+  `/manage/server/permissions` redirect to the same role or section. Back and
+  successful deletion return to the Roles list.
+
+- The Edit Role page has Role, Members, and Permissions tabs. Each tab has
+  its own URL and supports browser history and direct links. Role contains
+  metadata, ping settings, and deletion. Members contains the assigned users;
+  for `everyone`, it explains automatic membership. Permissions contains the
+  role's permission matrix. Tabs require the same authority as their content.
+  Role assigners without `role.manage` open the roster. Leaving a changed role
+  form requires confirmation before the draft is discarded.
+
+- Administrative role responses contain metadata and optional aggregate counts.
+  Permission decisions belong to `AdminPermissionService`. The former
+  `AdminRole.permissions` and `AdminRole.permission_denials` fields are removed;
+  clients must use role matrix or decision reads, which require `role.manage`.
+  Role metadata and assignment-read access requirements stay the same.
+
 - Role details and assigned members are separate reads. Member lists load in
   bounded pages so large roles do not require every user profile at once.
   Roster access requires `role.assign`, not access to the full administrative
   user directory. Only explicit assignments appear; `everyone` has no roster.
   Pages reflect current assignments, so concurrent changes can shift offsets.
-  In the bundled frontend, `role.assign` also gives access to the role list
+  In the bundled frontend, `role.assign` also gives access to the Roles list
   and each role's roster. Without `role.manage`, the list is read-only and
-  shows no permission matrix, role editor, or role creation action. Roster
+  shows no role editor or role creation action. Roster
   rows link to member management only when the viewer has `admin.view-users`.
 
 - Role assigners can read one human user's explicit assignments and the roles

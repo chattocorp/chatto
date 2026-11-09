@@ -74,8 +74,9 @@ export class MicrophoneProcessor implements TrackProcessor<
     void this.destroy();
     const generation = this.#generation;
     this.unavailable = false;
-    // A failed optional processor must leave the microphone usable.
-    this.processedTrack = track;
+    // With no processed output, LiveKit keeps the source track. Never expose
+    // the source as an owned output: stopProcessor stops its processed track.
+    this.processedTrack = undefined;
     try {
       if (!audioContext.audioWorklet) throw new Error('Audio worklets unavailable');
       let loaded = modules.get(audioContext);
@@ -136,7 +137,7 @@ export class MicrophoneProcessor implements TrackProcessor<
     } catch {
       if (generation !== this.#generation) return;
       void this.destroy();
-      this.processedTrack = track;
+      this.processedTrack = undefined;
       this.unavailable = true;
       try {
         this.#source = audioContext.createMediaStreamSource(new MediaStream([track]));

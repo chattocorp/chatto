@@ -3,14 +3,16 @@ interface BrowserAudioSession {
   type: 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record';
 }
 
-/** Release the previous call's audio intent before a replacement call takes ownership. */
-let releaseActiveSession: (() => void) | undefined;
+/** All calls in this document share one browser audio session. */
+let activeSession:
+  | { session: BrowserAudioSession; previousType: BrowserAudioSession['type']; owners: number }
+  | undefined;
 
 /**
- * Request call audio handling before capture and playback start. An explicit
- * type lets supported browsers retain Web Audio playback in the background,
- * including while the microphone is muted. It does not prevent page termination.
- * Return an idempotent cleanup that restores the previous type.
+ * Request simultaneous capture and playback before a call starts its media.
+ * This is a best-effort audio intent, not background execution permission.
+ * No capture device is opened. The last call restores the previous mode unless
+ * another feature changed it. The returned release function is idempotent.
  */
 export function beginCallAudioSession(): () => void {
   try {
@@ -18,24 +20,29 @@ export function beginCallAudioSession(): () => void {
     const session = (navigator as Navigator & { audioSession?: BrowserAudioSession }).audioSession;
     if (!session) return () => {};
 
-    releaseActiveSession?.();
-    const previousType = session.type;
-    session.type = 'play-and-record';
+    if (activeSession?.session !== session) {
+      const previousType = session.type;
+      session.type = 'play-and-record';
+      activeSession = { session, previousType, owners: 0 };
+    }
+    const ownedSession = activeSession;
+    ownedSession.owners += 1;
+    let released = false;
 
-    const release = () => {
-      if (releaseActiveSession !== release) return;
-      releaseActiveSession = undefined;
+    return () => {
+      if (released) return;
+      released = true;
+      ownedSession.owners -= 1;
+      if (ownedSession.owners > 0) return;
+      if (activeSession === ownedSession) activeSession = undefined;
       try {
-        // Do not overwrite a different audio intent set by another feature.
-        if (session.type === 'play-and-record') session.type = previousType;
+        if (session.type === 'play-and-record') session.type = ownedSession.previousType;
       } catch {
         // Optional browser audio handling must not block call cleanup.
       }
     };
-    releaseActiveSession = release;
-    return release;
   } catch {
-    // Experimental API support can be incomplete even when the property exists.
+    // Missing or rejecting Audio Session APIs must not prevent calls.
     return () => {};
   }
 }

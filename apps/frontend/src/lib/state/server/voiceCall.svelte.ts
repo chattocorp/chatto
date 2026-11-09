@@ -1,6 +1,7 @@
+import { AUDIO_LEVEL_SAMPLE_INTERVAL_MS, CallAudioLevels } from '$lib/audio/callAudioLevels';
+import { microphoneCaptureOptions } from '$lib/audio/microphoneCapture';
 import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
-import { microphoneMeter } from '$lib/audio/noiseGate';
-import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
+import { GATE_OFF, microphoneMeter } from '$lib/audio/noiseGate';
 import { participantVolumeGain } from '$lib/audio/participantVolume';
 import { endCallVideo } from '$lib/state/callPictureInPicture';
 import { CallMediaSession } from '$lib/state/callMediaSession';
@@ -215,7 +216,7 @@ export class VoiceCallState implements CallConnection {
   /** System media controls follow the call, independent of the current route. */
   private mediaSession: CallMediaSession | null = null;
 
-  /** Restore browser audio intent after this call's media has stopped. */
+  /** Release this call's browser audio intent after its media stops. */
   private releaseAudioSession: (() => void) | null = null;
 
   // Audio state
@@ -302,23 +303,18 @@ export class VoiceCallState implements CallConnection {
   // Deliberately NOT $state to avoid triggering Svelte reactivity at 60Hz.
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- deliberately non-reactive, polled imperatively at 60Hz
   private audioLevelCache = new Map<string, AudioLevelInfo>();
-  private screenAudioLevels = new TrackAudioLevels();
-  private remoteMicrophoneAudioLevels = new TrackAudioLevels();
-  private microphoneAudioLevels = new TrackAudioLevels();
 
-  // Local microphone audio analysis (Web Audio API) for instant level feedback.
+  // Optional microphone processing uses the context owned by LiveKit.
   private microphoneProcessor: MicrophoneProcessor | null = null;
-  /** Pre-gate level for the settings meter; zero while muted. */
+  private audioLevels = new CallAudioLevels();
+  private microphoneProcessingInFlight: Promise<boolean> = Promise.resolve(true);
+  /** Pre-gate microphone activity, with SDK fallback; zero while muted. */
   microphoneLevel = $state(0);
   microphoneGateUnavailable = $state(false);
-  private changingMicrophoneDevice = false;
 
-  /** The call owns this context; LiveKit uses its gain nodes for received audio. */
-  private playbackContext: (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null =
-    null;
   private unsavedParticipantAudio = $state<Record<string, ParticipantAudioPreferences>>({});
-  /** True when the call mixer can amplify above the media-element limit. */
-  audioBoostAvailable = $state(false);
+  /** Native LiveKit playback uses media elements and cannot amplify above 100%. */
+  readonly audioBoostAvailable = false;
   /** A user gesture must resume blocked call playback. */
   audioPlaybackBlocked = $state(false);
   /** Whether the active playback path supports a non-default speaker. */
@@ -489,9 +485,11 @@ export class VoiceCallState implements CallConnection {
     return this.audioLevelCache.get(identity) ?? { isSpeaking: false, audioLevel: 0 };
   }
 
-  /** Screen-share audio only, before listener volume; absent tracks return silence. */
+  /** Native LiveKit has no separate screen-audio meter; report no activity. */
   getScreenShareAudioLevel(identity: string): number {
-    return this.screenAudioLevels.get(identity);
+    // LiveKit does not expose a separate screen-audio level.
+    void identity;
+    return 0;
   }
 
   /** Saved listener-local levels for a logical Chatto participant. */
@@ -529,11 +527,13 @@ export class VoiceCallState implements CallConnection {
 
   /** Resume browser-blocked audio from an explicit user gesture. */
   async resumeAudio(): Promise<void> {
+    const room = this.room;
+    if (!room) return;
     try {
-      await this.room?.startAudio();
-      this.audioPlaybackBlocked = this.playbackContext?.state === 'suspended';
+      await room.startAudio();
+      if (this.room === room) this.audioPlaybackBlocked = !room.canPlaybackAudio;
     } catch {
-      this.audioPlaybackBlocked = true;
+      if (this.room === room) this.audioPlaybackBlocked = true;
     }
   }
 
@@ -625,38 +625,8 @@ export class VoiceCallState implements CallConnection {
         : [];
       let outputDevice = availableCallDevice(this.preferences?.speaker ?? '', outputDevices);
 
-      try {
-        const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
-        this.microphoneProcessor = new MicrophoneProcessor(this.preferences?.microphoneThreshold);
-        if (this.preferences) this.microphoneProcessor.setEffects(this.preferences.effects);
-      } catch {
-        this.microphoneGateUnavailable = true;
-      }
-
-      // LiveKit's Web Audio gain supports amplification; media element volume stops at 1.
-      try {
-        this.playbackContext = new AudioContext();
-        this.audioBoostAvailable = true;
-      } catch {
-        this.playbackContext = null;
-        this.audioBoostAvailable = false;
-      }
-      const playbackContext = this.playbackContext;
-      this.outputSelectionAvailable = playbackContext
-        ? typeof playbackContext.setSinkId === 'function'
-        : typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
-      if (playbackContext?.setSinkId && outputDevice) {
-        try {
-          await playbackContext.setSinkId(outputDevice === 'default' ? '' : outputDevice);
-          this.selectedOutputDeviceId = outputDevice;
-        } catch (err) {
-          outputDevice = '';
-          this.selectedOutputDeviceId = 'default';
-          this.notifyMediaDeviceError(
-            getVoiceCallMediaDeviceErrorMessage('speaker', err, 'switch')
-          );
-        }
-      }
+      this.outputSelectionAvailable =
+        typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
       if (!this.outputSelectionAvailable) outputDevice = '';
 
       // A store disposed during the join must not connect or capture media.
@@ -668,7 +638,8 @@ export class VoiceCallState implements CallConnection {
       // Create and connect LiveKit room
       this.releaseAudioSession = beginCallAudioSession();
       this.room = new Room({
-        webAudioMix: playbackContext ? { audioContext: playbackContext } : false,
+        // Keep playback and its lifecycle under LiveKit ownership.
+        webAudioMix: false,
         encryption: {
           keyProvider,
           worker: this.e2eeWorker
@@ -678,17 +649,7 @@ export class VoiceCallState implements CallConnection {
         'setSinkId' in HTMLMediaElement.prototype
           ? { audioOutput: { deviceId: outputDevice } }
           : {}),
-        audioCaptureDefaults: {
-          // A remembered microphone is a preference. Let the browser choose a
-          // replacement when it is absent, without first failing capture.
-          ...(this.preferences?.microphone
-            ? { deviceId: { ideal: this.preferences.microphone } }
-            : {}),
-          channelCount: { ideal: 1 },
-          autoGainControl: false,
-          echoCancellation: true,
-          noiseSuppression: true
-        },
+        audioCaptureDefaults: microphoneCaptureOptions(this.preferences?.microphone),
         videoCaptureDefaults: {
           ...(this.preferences?.camera ? { deviceId: { ideal: this.preferences.camera } } : {}),
           resolution: VideoPresets.h720.resolution
@@ -757,7 +718,10 @@ export class VoiceCallState implements CallConnection {
           void this.leave().catch((error) => toastError(error));
         }
       });
-      this.audioPlaybackBlocked = this.playbackContext?.state === 'suspended';
+      this.audioPlaybackBlocked = !room.canPlaybackAudio;
+      // This also installs LiveKit's iOS foreground playback recovery. A blocked
+      // start exposes the existing user-gesture action; it must not delay joining.
+      void this.resumeAudio();
       this.applyAllParticipantAudioVolumes();
       await this.reconcilePermissions();
       if (this.room !== room) return;
@@ -1274,7 +1238,6 @@ export class VoiceCallState implements CallConnection {
   async setAudioDevice(deviceId: string): Promise<void> {
     const room = this.room;
     if (!room) return;
-    this.changingMicrophoneDevice = true;
 
     try {
       const changed = await this.runExplicitMediaDeviceOperation(() =>
@@ -1291,8 +1254,6 @@ export class VoiceCallState implements CallConnection {
     } catch (err) {
       this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('microphone', err, 'switch'));
       return;
-    } finally {
-      this.changingMicrophoneDevice = false;
     }
 
     // Attach processing if the device change created a new local track.
@@ -1308,28 +1269,17 @@ export class VoiceCallState implements CallConnection {
     const room = this.room;
     if (!room) return;
 
-    const context = this.playbackContext;
-    const previousOutput = this.selectedOutputDeviceId;
     try {
-      // Await the context operation ourselves: the SDK does not await setSinkId.
-      const changed = await this.runExplicitMediaDeviceOperation(async () => {
-        if (this.playbackContext) {
-          if (!this.playbackContext.setSinkId) throw new Error('Output selection unavailable');
-          await this.playbackContext.setSinkId(deviceId === 'default' ? '' : deviceId);
-        }
-        return room.switchActiveDevice('audiooutput', deviceId || 'default');
-      });
-      if (changed === false) throw new Error('Device switch failed');
+      const changed = await this.runExplicitMediaDeviceOperation(() =>
+        room.switchActiveDevice('audiooutput', deviceId || 'default')
+      );
+      if (changed === false) throw new Error('Output selection unavailable');
       if (this.room !== room) return;
       this.selectedOutputDeviceId = deviceId;
       this.preferences?.setDevice('audiooutput', deviceId);
     } catch (err) {
-      if (this.room === room && context?.setSinkId) {
-        await context
-          .setSinkId(previousOutput === 'default' ? '' : (previousOutput ?? ''))
-          .catch(() => undefined);
-      }
-      this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('speaker', err, 'switch'));
+      if (this.room === room)
+        this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('speaker', err, 'switch'));
     }
   }
 
@@ -1363,10 +1313,11 @@ export class VoiceCallState implements CallConnection {
     });
 
     this.room.on(RoomEvent.AudioPlaybackStatusChanged, (playing: boolean) => {
-      this.audioPlaybackBlocked = !playing;
+      if (this.room === room) this.audioPlaybackBlocked = !playing;
     });
     this.room.on(RoomEvent.Reconnected, () => {
-      this.applyAllParticipantAudioVolumes();
+      this.updateParticipants();
+      void this.setupMicrophoneProcessor();
     });
     this.room.on(RoomEvent.ParticipantConnected, () => {
       this.applyAllParticipantAudioVolumes();
@@ -1459,10 +1410,11 @@ export class VoiceCallState implements CallConnection {
     });
 
     // Keep audio level snapshots fresh for call UI consumers without pushing
-    // 60Hz updates through Svelte's reactive graph.
+    // frequent updates through Svelte's reactive graph.
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
     this.audioLevelInterval = setInterval(() => {
       this.updateAudioLevels();
-    }, 60);
+    }, AUDIO_LEVEL_SAMPLE_INTERVAL_MS);
   }
 
   /**
@@ -1508,8 +1460,6 @@ export class VoiceCallState implements CallConnection {
         if (track) endCallVideo(track);
       }
       this.participants = [];
-      this.screenAudioLevels.clear();
-      this.remoteMicrophoneAudioLevels.clear();
       return;
     }
 
@@ -1522,6 +1472,7 @@ export class VoiceCallState implements CallConnection {
         (participant) => !isCompanionPublisher(participant)
       )
     ];
+    this.isMuted = isParticipantMuted(this.room.localParticipant);
     this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
     this.mediaSession?.update(
       !isParticipantMuted(this.room.localParticipant),
@@ -1532,8 +1483,6 @@ export class VoiceCallState implements CallConnection {
       this.isNativeScreenShareEnabled;
     this.applyAllParticipantAudioVolumes();
 
-    const screenAudioTracks: Array<readonly [string, MediaStreamTrack]> = [];
-    const microphoneAudioTracks: Array<readonly [string, MediaStreamTrack]> = [];
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
       const isLocal = p === this.room!.localParticipant;
@@ -1543,21 +1492,6 @@ export class VoiceCallState implements CallConnection {
       const screenShareTrack =
         getParticipantScreenShareTrack(p) ??
         (companion ? getParticipantScreenShareTrack(companion) : null);
-      const { Track } = getLoadedLiveKit();
-      const microphone = p
-        .getTrackPublications()
-        .find((publication) => publication.track?.source === Track.Source.Microphone);
-      if (!isLocal && microphone?.track?.mediaStreamTrack && !microphone.isMuted) {
-        microphoneAudioTracks.push([p.identity, microphone.track.mediaStreamTrack]);
-      }
-      // Match the publisher that supplies the visible screen tile.
-      const screenPublisher = getParticipantScreenShareTrack(p) ? p : companion;
-      const audio = screenPublisher
-        ?.getTrackPublications()
-        .find((publication) => publication.track?.source === Track.Source.ScreenShareAudio);
-      if (audio?.track?.mediaStreamTrack && !audio.isMuted) {
-        screenAudioTracks.push([p.identity, audio.track.mediaStreamTrack]);
-      }
       return {
         identity: p.identity,
         name: p.name ?? p.identity,
@@ -1575,8 +1509,6 @@ export class VoiceCallState implements CallConnection {
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
-    this.remoteMicrophoneAudioLevels.sync(this.playbackContext, microphoneAudioTracks);
-    this.screenAudioLevels.sync(this.playbackContext, screenAudioTracks);
     const currentTracks = this.participants.flatMap((participant) => [
       participant.videoTrack,
       participant.screenShareTrack
@@ -1611,6 +1543,15 @@ export class VoiceCallState implements CallConnection {
       logicalIdentity === this.room?.localParticipant.identity ||
       this.isParticipantLocallyMuted(logicalIdentity);
     const settings = this.getParticipantAudio(logicalIdentity);
+    // Native media volume can be ignored on iOS. Stop delivery through LiveKit
+    // as well, so local mute and zero volume do not depend on that control.
+    for (const publication of participant.trackPublications.values()) {
+      if (publication.source === Track.Source.Microphone) {
+        publication.setEnabled(!muted && settings.voiceVolume > 0);
+      } else if (publication.source === Track.Source.ScreenShareAudio) {
+        publication.setEnabled(!muted && settings.streamVolume > 0);
+      }
+    }
     participant.setVolume(
       muted ? 0 : participantVolumeGain(settings.voiceVolume, this.audioBoostAvailable),
       Track.Source.Microphone
@@ -1629,40 +1570,75 @@ export class VoiceCallState implements CallConnection {
     );
   }
 
-  /**
-   * Update the non-reactive audio level cache. Called at ~60ms.
-   * Participant levels stay in a plain Map; only the settings meter and
-   * optional processor availability enter Svelte's reactive graph.
-   */
+  private handleVisibilityChange = (): void => {
+    this.updateAudioLevels();
+  };
+
+  /** Sample current audio without reactive updates to participant cards. */
   private updateAudioLevels(): void {
     if (!this.room) return;
-    this.screenAudioLevels.sample();
-    this.remoteMicrophoneAudioLevels.sample();
-
-    this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
-    if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
+    if (document.hidden) {
+      this.audioLevels.clear();
+      this.audioLevelCache.clear();
+      this.microphoneLevel = 0;
+      return;
+    }
+    const { Track } = getLoadedLiveKit();
+    const allParticipants = [
+      this.room.localParticipant,
+      ...this.room.remoteParticipants.values()
+    ].filter((participant) => !isCompanionPublisher(participant));
+    const tracks: Array<readonly [string, MediaStreamTrack]> = [];
+    for (const participant of allParticipants) {
+      if (isParticipantMuted(participant)) continue;
+      const isLocal = participant === this.room.localParticipant;
+      // Listener-local mute and zero volume pause delivery. Keep the SDK activity
+      // fallback for those participants, so their speaking indicator stays useful.
+      if (
+        !isLocal &&
+        (this.isParticipantLocallyMuted(participant.identity) ||
+          this.getParticipantAudio(participant.identity).voiceVolume === 0)
+      )
+        continue;
+      const track = isLocal
+        ? participant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+        : participant
+            .getTrackPublications()
+            .find(
+              (publication) =>
+                publication.source === Track.Source.Microphone ||
+                publication.track?.source === Track.Source.Microphone
+            )?.audioTrack;
+      // LocalTrack retains original capture in mediaStream while mediaStreamTrack
+      // can refer to the noise gate output. Settings and fog need pre-gate input.
+      const source = isLocal
+        ? (track?.mediaStream?.getAudioTracks()[0] ?? track?.mediaStreamTrack)
+        : track?.mediaStreamTrack;
+      if (source) tracks.push([participant.identity, source]);
+    }
+    this.audioLevels.update(tracks);
+    this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? GATE_OFF);
+    const inputLevel =
+      this.isMuted || isParticipantMuted(this.room.localParticipant)
+        ? 0
+        : (this.audioLevels.get(this.room.localParticipant.identity) ??
+          this.microphoneProcessor?.level ??
+          this.room.localParticipant.audioLevel);
+    this.microphoneLevel = microphoneMeter(inputLevel);
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
-    this.updateMicrophoneAudioLevels();
-    const inputLevel = this.isMuted
-      ? 0
-      : this.microphoneAudioLevels.has('microphone')
-        ? this.microphoneAudioLevels.get('microphone')
-        : (this.microphoneProcessor?.level ?? 0);
-    this.microphoneLevel = microphoneMeter(inputLevel);
 
-    const allParticipants: Participant[] = [
-      this.room.localParticipant,
-      ...Array.from(this.room.remoteParticipants.values()).filter(
-        (participant) => !isCompanionPublisher(participant)
-      )
-    ];
+    // A participant who left must not retain the last sampled activity.
+    this.audioLevelCache.clear();
 
     for (const p of allParticipants) {
       const isLocal = p === this.room!.localParticipant;
-      // Meter decoded audio before listener gain, using the same RMS scale as
-      // local capture. Server speaker updates are too sparse for animation.
-      const audioLevel = isLocal ? inputLevel : this.remoteMicrophoneAudioLevels.get(p.identity);
+      // Measure decoded audio and capture without waiting for server speaker reports.
+      const audioLevel = isParticipantMuted(p)
+        ? 0
+        : isLocal
+          ? inputLevel
+          : (this.audioLevels.get(p.identity) ?? p.audioLevel);
       this.audioLevelCache.set(p.identity, {
         isSpeaking: audioLevel > 0.000316,
         audioLevel
@@ -1670,52 +1646,76 @@ export class VoiceCallState implements CallConnection {
     }
   }
 
-  /** Sample capture before Chatto effects for the settings meter and participant glow. */
-  private updateMicrophoneAudioLevels(): void {
-    const { Track } = getLoadedLiveKit();
-    const publication = this.room?.localParticipant.getTrackPublication(Track.Source.Microphone);
-    // LocalTrack.mediaStream retains the original capture, unlike mediaStreamTrack,
-    // which can refer to the processor's output (and thus to a closed noise gate).
-    const track = publication?.audioTrack?.mediaStream?.getAudioTracks()[0];
-    const canMeasure =
-      this.connected &&
-      !this.connecting &&
-      !this.isMuted &&
-      !this.changingMicrophoneDevice &&
-      !publication?.isMuted &&
-      track &&
-      track.enabled &&
-      track.readyState === 'live' &&
-      this.playbackContext?.state === 'running';
-    this.microphoneAudioLevels.sync(
-      this.playbackContext,
-      canMeasure ? [['microphone', track]] : []
-    );
-    this.microphoneAudioLevels.sample();
+  /** Apply the user's processing choice to the current publication without rejoining. */
+  async setVoiceBoosting(enabled: boolean): Promise<void> {
+    const room = this.room;
+    this.preferences?.setVoiceBoosting(enabled);
+    const applied = await this.setupMicrophoneProcessor();
+    // Do not claim a raw path if the SDK could not remove the processor.
+    if (
+      !applied &&
+      !enabled &&
+      this.room === room &&
+      this.preferences?.microphoneThreshold === GATE_OFF &&
+      !this.preferences.voiceBoosting
+    )
+      this.preferences.setVoiceBoosting(true);
   }
 
-  /**
-   * Attach optional processing after LiveKit assigns the audio context.
-   * The processor also owns the input meter and its analyser fallback.
-   */
-  private async setupMicrophoneProcessor(): Promise<void> {
+  /** Apply the independent gate without enabling microphone enhancement. */
+  async setMicrophoneThreshold(value: number): Promise<void> {
     const room = this.room;
-    const processor = this.microphoneProcessor;
-    if (!room) return;
+    const previous = this.preferences?.microphoneThreshold ?? GATE_OFF;
+    this.preferences?.setMicrophoneThreshold(value);
+    const requested = this.preferences?.microphoneThreshold;
+    const applied = await this.setupMicrophoneProcessor();
+    if (!applied && this.room === room && this.preferences?.microphoneThreshold === requested)
+      this.preferences?.setMicrophoneThreshold(previous);
+  }
 
-    const { Track } = getLoadedLiveKit();
-    const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-    const audioTrack = micPub?.audioTrack;
-    if (audioTrack && processor) {
-      try {
-        if (audioTrack.getProcessor() !== processor) await audioTrack.setProcessor(processor);
-      } catch {
-        // Optional processing must not fail microphone enable or a device switch.
-        processor.unavailable = true;
-      }
-      if (this.room !== room || this.isMuted) return;
-      this.microphoneGateUnavailable = processor.unavailable;
-    }
+  /** Serialize processor changes with join, device changes, and reconnects. */
+  private setupMicrophoneProcessor(): Promise<boolean> {
+    const room = this.room;
+    const change = this.microphoneProcessingInFlight
+      .then(async () => {
+        if (!room || this.room !== room) return true;
+        const { Track } = getLoadedLiveKit();
+        const track = room.localParticipant.getTrackPublication(
+          Track.Source.Microphone
+        )?.audioTrack;
+        if (
+          !this.preferences ||
+          (!this.preferences.voiceBoosting && this.preferences.microphoneThreshold === GATE_OFF)
+        ) {
+          if (track?.getProcessor()) await track.stopProcessor();
+          if (this.room !== room) return true;
+          this.microphoneProcessor?.dispose();
+          this.microphoneProcessor = null;
+          this.microphoneGateUnavailable = false;
+          return true;
+        }
+        if (!track) return true;
+        if (!this.microphoneProcessor) {
+          const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
+          if (this.room !== room) return true;
+          this.microphoneProcessor = new MicrophoneProcessor(this.preferences.microphoneThreshold);
+        }
+        const processor = this.microphoneProcessor;
+        processor.setThreshold(this.preferences.microphoneThreshold);
+        processor.setEffects(this.preferences.effects);
+        if (track.getProcessor() !== processor) await track.setProcessor(processor);
+        if (this.room === room) this.microphoneGateUnavailable = processor.unavailable;
+        return true;
+      })
+      .catch(() => {
+        if (this.room === room) {
+          if (this.microphoneProcessor) this.microphoneProcessor.unavailable = true;
+          this.microphoneGateUnavailable = true;
+        }
+        return false;
+      });
+    this.microphoneProcessingInFlight = change;
+    return change;
   }
 
   private cleanup(): void {
@@ -1727,6 +1727,11 @@ export class VoiceCallState implements CallConnection {
     }
     this.microphoneProcessor?.dispose();
     this.microphoneProcessor = null;
+    this.audioLevels.clear();
+    if (typeof document !== 'undefined')
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    // A new call must not wait for a module load from the previous call.
+    this.microphoneProcessingInFlight = Promise.resolve(true);
     this.microphoneLevel = 0;
     this.microphoneGateUnavailable = false;
     const disconnectedRoomId = this.roomId;
@@ -1754,14 +1759,8 @@ export class VoiceCallState implements CallConnection {
       this.room.removeAllListeners();
       this.room = null;
     }
-    this.screenAudioLevels.clear();
-    this.remoteMicrophoneAudioLevels.clear();
-    this.microphoneAudioLevels.clear();
-    if (this.playbackContext) void this.playbackContext.close().catch(() => undefined);
-    this.playbackContext = null;
     this.releaseAudioSession?.();
     this.releaseAudioSession = null;
-    this.audioBoostAvailable = false;
     this.audioPlaybackBlocked = false;
     this.outputSelectionAvailable = true;
     this.e2eeWorker?.terminate();

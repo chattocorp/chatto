@@ -43,6 +43,7 @@
         "invitations": "Crea y administra códigos de invitación.",
         "rooms": "Crear, editar, organizar y archivar salas",
         "moderation": "Revisar las suspensiones activas de salas",
+        "roles": "Administra los roles y sus miembros.",
         "permissions": "Administrar los valores predeterminados de roles en todo el servidor",
         "security": "Restricciones de registro y protección de cuenta",
         "appearance": "Personaliza la aplicación con colores, temas y opciones de visualización.",

@@ -1,0 +1,37 @@
+{
+  "name": "chatto-gpuix",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "gpuix-svelte --import=tsx app.ts",
+    "start": "gpuix-svelte --import=tsx standalone.ts",
+    "check": "tsc --noEmit && svelte-check --tsconfig tsconfig.json --fail-on-warnings",
+    "test": "gpuix-svelte --import=tsx tests/app.ts && gpuix-svelte --import=tsx tests/session.ts && gpuix-svelte --import=tsx tests/media.ts && gpuix-svelte --import=tsx tests/gallery.ts && gpuix-svelte --import=tsx tests/scale.ts && gpuix-svelte --import=tsx tests/threads.ts && pnpm test:host",
+    "build": "bun build.ts",
+    "test:threads-live": "gpuix-svelte --import=tsx tests/threads-live.ts",
+    "test:live": "gpuix-svelte --import=tsx tests/live.ts",
+    "gallery": "gpuix-svelte --import=tsx gallery.ts",
+    "test:host": "tsx --test tests/host.test.ts",
+    "test:browser-live": "gpuix-svelte --import=tsx tests/browser-live.ts"
+  },
+  "dependencies": {
+    "@chatto/client": "workspace:*",
+    "gpuix-svelte": "0.4.1",
+    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-to-markdown": "2.1.2",
+    "unist-util-map": "4.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "@types/node": "24.13.2",
+    "svelte-check": "4.7.6",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3"
+  }
+}

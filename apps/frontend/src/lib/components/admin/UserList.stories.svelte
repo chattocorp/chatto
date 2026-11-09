@@ -29,7 +29,7 @@
 
 <Story name="Partial page" asChild>
   <Panel title="Role members" noPadding>
-    <UserList {users} totalCount={45} hasMore loadingMore clickable={false} />
+    <UserList {users} hasMore loadingMore clickable={false} />
   </Panel>
 </Story>
 

@@ -8,10 +8,11 @@
   const rows = $derived(html.map((value) => ({ html: value })));
 </script>
 
+<!-- Match EventList: the virtualizer owns scroll anchoring. -->
 <div
   bind:this={scroller}
   class="prose"
-  style="height: 400px; width: 360px; overflow: auto"
+  style="height: 400px; width: 360px; overflow: auto; overflow-anchor: none"
   data-testid="diagram-timeline"
 >
   <Virtualizer data={rows} scrollRef={scroller} itemSize={60}>

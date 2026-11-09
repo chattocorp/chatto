@@ -3111,6 +3111,9 @@ func TestRoomDirectoryDMActivityAcrossReads(t *testing.T) {
 			if room == nil {
 				t.Fatalf("%s missing DM", name)
 			}
+			if room.HasMessageHistory == nil || room.GetHasMessageHistory() != (root != nil) {
+				t.Fatalf("%s DM history: present = %v, value = %v, want %v", name, room.HasMessageHistory != nil, room.GetHasMessageHistory(), root != nil)
+			}
 			if !room.LastMessageAt.AsTime().Equal(message.AsTime()) || (room.LastMessageAt == nil) != (message == nil) ||
 				!room.LastRootMessageAt.AsTime().Equal(root.AsTime()) || (room.LastRootMessageAt == nil) != (root == nil) {
 				t.Fatalf("%s activity = %v/%v, want %v/%v", name, room.LastMessageAt, room.LastRootMessageAt, message, root)
@@ -3132,6 +3135,16 @@ func TestRoomDirectoryDMActivityAcrossReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateDeny); err != nil {
+		t.Fatal(err)
+	}
+	check(nil, nil)
+	// A received DM needs no mention to create a readable interaction. History
+	// must survive both directory reads and a fresh realtime snapshot.
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageReadInteractions, core.PermissionStateAllow); err != nil {
+		t.Fatal(err)
+	}
+	check(reply.CreatedAt, root.CreatedAt)
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageReadInteractions, core.PermissionStateNone); err != nil {
 		t.Fatal(err)
 	}
 	check(nil, nil)

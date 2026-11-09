@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/hmans/means/collection"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -32,6 +33,29 @@ type Config struct {
 type Memory struct {
 	Directory   string       `toml:"directory"`
 	Collections []Collection `toml:"collections"`
+	// Embeddings explicitly enables provider requests for memory and apps only.
+	Embeddings *Embeddings `toml:"embeddings"`
+}
+
+// Embeddings contains non-secret provider settings. Credentials stay in the environment.
+type Embeddings struct {
+	Provider   string `toml:"provider"`
+	Model      string `toml:"model"`
+	Dimensions int    `toml:"dimensions"`
+}
+
+// EmbeddingSettings validates and resolves library defaults without enabling
+// embeddings when the operator omitted the table.
+func (m Memory) EmbeddingSettings() (*collection.EmbeddingConfig, error) {
+	if m.Embeddings == nil {
+		return nil, nil
+	}
+	e := m.Embeddings
+	cfg, err := (collection.EmbeddingConfig{Provider: e.Provider, Model: e.Model, Dimensions: e.Dimensions}).WithDefaults()
+	if err != nil {
+		return nil, errors.New("invalid memory.embeddings settings")
+	}
+	return &cfg, nil
 }
 
 // Collection binds a collection with an optional hard read-only limit.
@@ -94,6 +118,9 @@ func Load(path string) (Config, error) {
 	}
 	if cfg.Memory.Directory == "" {
 		cfg.Memory.Directory = "./brains"
+	}
+	if _, err := cfg.Memory.EmbeddingSettings(); err != nil {
+		return Config{}, err
 	}
 	if err := cfg.MCP.Validate(); err != nil {
 		return Config{}, err

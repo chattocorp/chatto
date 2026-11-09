@@ -235,7 +235,7 @@ export async function revokePermission(
 
 /**
  * Denies a permission on a role (admin-only operation).
- * This adds the permission to the role's permissionDenials list.
+ * Stores an explicit denial at server scope.
  * Must be called while logged in as an admin user.
  */
 export async function denyPermission(page: Page, role: string, permission: string): Promise<void> {

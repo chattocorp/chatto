@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -48,10 +47,8 @@ func TestRejectInvalidSearchFiltersBeforeCLI(t *testing.T) {
 	}
 }
 
-func TestInstalledMeansStructuredSearch(t *testing.T) {
-	if _, err := exec.LookPath("means"); err != nil {
-		t.Skip("means is not installed")
-	}
+func TestEmbeddedMeansStructuredSearch(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	if err := os.MkdirAll(filepath.Join(root, "config", "means"), 0700); err != nil {

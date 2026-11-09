@@ -22,6 +22,7 @@ import {
   connectPost,
   expectPermissionDecisionUpdate,
   type E2EAdminRole,
+  type E2EServerRole,
   type E2EPermissionDecision,
   type E2EPermissionDecisionUpdateResponse,
   unwrapAdminRole
@@ -73,7 +74,7 @@ async function createRoleViaConnect(
   name: string,
   displayName: string,
   description: string
-): Promise<{ name?: string; permissionDenials?: string[] }> {
+): Promise<E2EServerRole> {
   const data = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/CreateRole',
@@ -93,22 +94,6 @@ async function deleteRoleViaConnect(page: Page, name: string): Promise<void> {
     { name }
   );
   expect(data).toEqual({});
-}
-
-async function getRoleViaConnect(
-  page: Page,
-  name: string
-): Promise<{ name?: string; permissionDenials?: string[] }> {
-  const data = await connectPost<{ role?: E2EAdminRole }>(
-    page,
-    'chatto.admin.v1.AdminRoleService/GetRole',
-    { name }
-  );
-  const role = unwrapAdminRole(data.role);
-  if (!role?.name) {
-    throw new Error(`Role ${name} not found: ${JSON.stringify(data)}`);
-  }
-  return role;
 }
 
 async function setRolePermissionViaConnect(
@@ -562,14 +547,18 @@ test.describe('User Permission Management', () => {
 });
 
 test.describe('Role Assignment', () => {
-  test('everyone role page shows special message instead of user list', async ({
+  test('everyone Members section shows special message instead of user list', async ({
     page,
     adminPage
   }) => {
     await createAndLoginAdminUser(page);
 
-    // Navigate to everyone role page
+    // Open the membership section of the everyone role.
     await adminPage.gotoRole('everyone');
+    await page
+      .getByRole('navigation', { name: 'Role Details' })
+      .getByRole('link', { name: 'Members', exact: true })
+      .click();
 
     // Should see special message about implicit membership
     await adminPage.expectMemberRoleMessage();
@@ -764,14 +753,29 @@ test.describe('Instance Role Permission Denials', () => {
       'Test Denial Role',
       'A role for testing permission denials'
     );
-    expect(createdRole.permissionDenials ?? []).toEqual([]);
+    expect(createdRole.name).toBe(roleName);
 
     // Deny a permission on the role
     await setRolePermissionViaConnect(page, roleName, 'message.post', 'PERMISSION_DECISION_DENY');
 
-    // Query the role and verify the denial persists
-    const role = await getRoleViaConnect(page, roleName);
-    expect(role.permissionDenials).toContain('message.post');
+    // Read the stored decision through the permission API.
+    const data = await connectPost<{
+      decisions?: Array<{
+        permission?: string;
+        override?: E2EPermissionDecision;
+        scope?: { kind?: string };
+      }>;
+    }>(page, 'chatto.admin.v1.AdminPermissionService/ListRolePermissionDecisions', {
+      roleName,
+      scope: { kind: 'PERMISSION_SCOPE_KIND_SERVER' }
+    });
+    expect(data.decisions).toContainEqual(
+      expect.objectContaining({
+        permission: 'message.post',
+        override: 'PERMISSION_DECISION_DENY',
+        scope: expect.objectContaining({ kind: 'PERMISSION_SCOPE_KIND_SERVER' })
+      })
+    );
 
     // Clean up - delete the role
     await deleteRoleViaConnect(page, roleName);

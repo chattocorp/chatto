@@ -49,8 +49,8 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
-  /** Full microphone enhancement, enabled by default; the noise gate remains independent. */
-  voiceBoosting: boolean;
+  /** Explicit opt-in to microphone enhancement, independent of the noise gate. */
+  voiceBoostingEnabled: boolean;
 }
 
 const defaults: CallPreferences = {
@@ -59,7 +59,7 @@ const defaults: CallPreferences = {
   speaker: '',
   camera: '',
   joinMuted: false,
-  voiceBoosting: true,
+  voiceBoostingEnabled: false,
   microphoneThreshold: GATE_OFF
 };
 
@@ -77,8 +77,8 @@ export class CallPreferencesState {
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
       microphoneThreshold: normalizeGateThreshold(raw?.microphoneThreshold),
-      // Old amounts and presets do not opt out of the new default.
-      voiceBoosting: raw?.voiceBoosting !== false,
+      // Previous versions saved default-on values without an explicit opt-in.
+      voiceBoostingEnabled: raw?.voiceBoostingEnabled === true,
       joinMuted: raw?.joinMuted === true
     });
   }
@@ -111,16 +111,16 @@ export class CallPreferencesState {
   }
 
   get effects() {
-    return microphoneEffectsForAmount(this.#value.voiceBoosting ? 100 : 0);
+    return microphoneEffectsForAmount(this.#value.voiceBoostingEnabled ? 100 : 0);
   }
 
   get voiceBoosting(): boolean {
-    return this.#value.voiceBoosting;
+    return this.#value.voiceBoostingEnabled;
   }
 
   /** Change voice processing without changing the gate or capture choices. */
   setVoiceBoosting(enabled: boolean): void {
-    this.#value.voiceBoosting = enabled;
+    this.#value.voiceBoostingEnabled = enabled;
     this.#slot.set(this.#value);
   }
 

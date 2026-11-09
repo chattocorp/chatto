@@ -1,0 +1,20 @@
+Chatto Rust SDK experiment
+Copyright 2026 ChattoCorp GmbH
+
+This experiment is licensed under AGPL-3.0-or-later. Its Cargo.toml and
+Cargo.lock record the dependency set, including transitive dependencies.
+
+The Rust client uses these libraries:
+- reqwest (https://github.com/seanmonstar/reqwest) - MIT OR Apache-2.0
+- serde and serde_json (https://github.com/serde-rs) - MIT OR Apache-2.0
+- url (https://github.com/servo/rust-url) - MIT OR Apache-2.0
+- prost (https://github.com/tokio-rs/prost) - Apache-2.0
+- futures-util (https://github.com/rust-lang/futures-rs) - MIT OR Apache-2.0
+- uuid (https://github.com/uuid-rs/uuid) - MIT OR Apache-2.0
+- Tokio (https://github.com/tokio-rs/tokio) - MIT
+- tokio-tungstenite (https://github.com/snapview/tokio-tungstenite) - MIT
+- rustls (https://github.com/rustls/rustls) - Apache-2.0 OR ISC OR MIT
+  TLS uses rustls through reqwest and tokio-tungstenite.
+
+Browser OAuth also uses sha2 (https://github.com/RustCrypto/hashes) and
+base64 (https://github.com/marshallpierce/rust-base64), both MIT OR Apache-2.0.

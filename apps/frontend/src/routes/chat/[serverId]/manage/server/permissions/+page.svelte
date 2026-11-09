@@ -3,21 +3,18 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
+  import { PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
-  import RoleRosterCatalog from '$lib/components/rbac/RoleRosterCatalog.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 
-  // Assigners browse rosters without requesting the private permission matrix.
   const canManageRoles = $derived(serverScope.store.permissions.canAdminManageRoles);
-  const error = $derived(null);
 
   function openRoleDetail(role: { roleName: string }) {
     goto(
-      resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+      resolve('/chat/[serverId]/manage/server/roles/[name]', {
         serverId: serverSegment,
         name: role.roleName
       })
@@ -37,16 +34,12 @@
 
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6">
-      {#if error}
-        <Hint tone="danger">{error}</Hint>
-      {:else if !canManageRoles}
-        <RoleRosterCatalog />
-      {:else}
+      {#if canManageRoles}
         <PermissionMatrix
           onRoleClick={openRoleDetail}
           isRoleClickable={() => canManageRoles}
           newRoleHref={canManageRoles
-            ? resolve('/chat/[serverId]/manage/server/permissions/new', { serverId: serverSegment })
+            ? resolve('/chat/[serverId]/manage/server/roles/new', { serverId: serverSegment })
             : undefined}
           fillHeight
         >

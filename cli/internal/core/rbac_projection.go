@@ -644,3 +644,52 @@ func (p *RBACProjection) NextAvailablePosition() int32 {
 func sortPermissions(perms []Permission) {
 	slices.Sort(perms)
 }
+
+// RoleCounts describes current human membership and explicit permission rows.
+// Grants and denials count each scope separately; inherited and virtual
+// permission outcomes do not add rows.
+type RoleCounts struct {
+	MemberCount           uint64
+	PermissionGrantCount  uint64
+	PermissionDenialCount uint64
+}
+
+// RoleCounts returns detached totals in one pass over active humans and
+// permission decisions. The caller supplies active human IDs without profiles.
+func (p *RBACProjection) RoleCounts(activeHumanIDs []string) map[string]RoleCounts {
+	p.RLock()
+	defer p.RUnlock()
+	counts := make(map[string]RoleCounts, len(p.roles))
+	for name := range p.roles {
+		counts[name] = RoleCounts{}
+	}
+	for _, userID := range activeHumanIDs {
+		for roleName := range p.assignments[userID] {
+			if roleName == RoleEveryone || p.roles[roleName] == nil {
+				continue
+			}
+			entry := counts[roleName]
+			entry.MemberCount++
+			counts[roleName] = entry
+		}
+	}
+	if _, exists := counts[RoleEveryone]; exists {
+		entry := counts[RoleEveryone]
+		entry.MemberCount = uint64(len(activeHumanIDs))
+		counts[RoleEveryone] = entry
+	}
+	for key, decision := range p.decisions {
+		if key.subjectKind != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE || p.roles[key.subject] == nil {
+			continue
+		}
+		entry := counts[key.subject]
+		switch decision {
+		case DecisionAllow:
+			entry.PermissionGrantCount++
+		case DecisionDeny:
+			entry.PermissionDenialCount++
+		}
+		counts[key.subject] = entry
+	}
+	return counts
+}

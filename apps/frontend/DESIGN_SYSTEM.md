@@ -658,6 +658,8 @@ with the theme's `surface` colour at 50% opacity. Its positioned parent uses
 `group/preview`. Mouse hover and keyboard focus reveal the toolbar. Touch
 devices keep it visible. Only visible controls intercept pointer input; the rest
 of the visor lets clicks reach the links and media below it.
+When the positioned parent is the content canvas inside the rim, set
+`--preview-toolbar-inset: 0px` on that parent so the visor meets the canvas edges.
 Use `layout="row"` for file and audio actions that stay in the normal layout.
 The card owns action permissions, callbacks, and confirmation dialogs.
 `PreviewAction` uses the same `icon-action-emphasis` utility as standard icon
@@ -676,7 +678,10 @@ visual composer. Keep its geometry in `app.css`, rather than separate editor
 and message recipes. `code-frame` adds the artifact layout to this primitive;
 the thin header holds the language, copy action, and Source/Render controls.
 Source and rendered panels use `preview-content`. Visual fences show only their
-output, with no header, tabs, copy action or overlay. SVG and Mermaid show fitted
+output, with no header, tabs or copy action. Animated SVG adds a playback toggle
+through `PreviewToolbar` and `PreviewAction`. Its accessible name stays
+**Pause animation**; `aria-pressed` exposes the pause state. The zoom viewer puts
+this toggle beside its zoom controls. SVG and Mermaid show fitted
 images that open the attachment viewer when clicked or activated with the keyboard.
 Their frames follow the image dimensions, bounded by the message width and a
 height of 30 rem or 60 vh, whichever is smaller. Enlarge small artwork to use the
@@ -713,8 +718,15 @@ Image and video action groups appear on desktop hover or keyboard focus. The sta
 tone supplies the fill, border, focus, pressed state, and shared depth finish.
 These controls follow the Flat, Kinda 3D, and Very 3D preference.
 See `UI/Attachment actions` in Storybook.
-`attachment-video-frame` keeps the video canvas at least 12 rem high so the
-action row leaves space for playback controls on narrow screens.
+GIF loops use their source proportions and `attachment-media-frame`, with a
+24 px minimum on each dimension so the inset stays visible inside the rim.
+They do not reserve space for playback controls. Inline videos fit within 480 × 320 px,
+with a minimum canvas of 180 × 128 px for controls. `attachment-video-frame`
+keeps the canvas at least 8 rem high when the message is narrow. This leaves
+space between the action row and playback controls.
+Use `preview-media-frame` with `preview-frame` for these players and their
+loading placeholders. It applies `--preview-media-ratio` to the inset canvas,
+so the rim does not change the media proportions.
 
 ### Shared Depth Utilities
 
@@ -941,17 +953,19 @@ At 0%, headings, body text, and muted text become deliberately softer in both
 themes. Action colours keep their separate contrast.
 At 100%, light uses black text on a white background with dark boundaries.
 Dark uses white text on a black background with light boundaries. The app frame
-and recessed panel edges use the same clear boundary. Range fields gain a
-visible boundary as contrast increases.
+and recessed panel edges use the same clear boundary. Range rails use the
+shared input boundary.
 The Depth and Contrast controls sit side by side in the UI Style section when
 it is wide enough and stack when it is narrow.
 
 `RangeField` draws its slider from control primitives instead of native
-browser chrome: a recessed well like text inputs, a lit fill in the primary
-action colour, a pale raised grip, and optional stop marks from `ticks`. Pointer
+browser chrome: a slim recessed rail, a lit fill in the primary action colour,
+a round raised grip, and optional stop marks from `ticks`. The label and value
+sit above the rail, with no field background or padding. The parent owns the
+surrounding spacing. The rail sits inside a 44px-high pointer target. Pointer
 hover and dragging darken the fill and give the grip an accent halo. A
-transparent native range input covers the travel, so keyboard, pointer, and
-assistive-technology behaviour stay native. Do not restyle a raw
+transparent native range input covers the travel and keeps keyboard, pointer,
+and assistive-technology behaviour native. Keyboard focus outlines the grip. Do not restyle a raw
 `input[type=range]`; use `RangeField`, and extend it when a variant is missing.
 
 `ProgressBar` shows read-only completion with a recessed control frame, a

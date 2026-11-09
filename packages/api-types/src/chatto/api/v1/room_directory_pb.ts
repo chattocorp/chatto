@@ -209,16 +209,18 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
   memberUserIds: string[] = [];
 
   /**
-   * Whether this DM has received a root message. Absent for channel rooms.
+   * Whether this DM has an ordinary root message that the viewer can read.
+   * Absent for channel rooms.
    *
    * @generated from field: optional bool has_message_history = 16;
    */
   hasMessageHistory?: boolean;
 
   /**
-   * Creation time of the latest ordinary DM message, including thread replies.
+   * Creation time of the latest ordinary DM message that the viewer can read,
+   * including thread replies. Interaction-only access includes related threads.
    * Edits and retractions do not change this value; historical imports are excluded.
-   * Absent for other room kinds, no ordinary messages, or no message.read permission.
+   * Absent for other room kinds or when no ordinary message is readable.
    * Older servers can omit this field. Absence does not prove inactivity.
    *
    * @generated from field: google.protobuf.Timestamp last_message_at = 17;

@@ -200,7 +200,7 @@ func notificationsStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
 		Compression:        jetstream.S2Compression,
 		Replicas:           cfg.Replicas,
 		MaxAge:             notificationTTL + notificationPhysicalCleanupGrace,
-		Duplicates:         notificationAlertDeliveryTTL,
+		Duplicates:         notificationstream.FanoutDedupeWindow,
 		AllowMsgTTL:        true,
 		AllowAtomicPublish: true,
 	}
@@ -266,33 +266,43 @@ var (
 // createIdentifiedStream creates or updates a stream and keeps its incarnation
 // identity in the stream metadata. It keeps the existing metadata. When the
 // identity is missing, it derives one from the stream creation time: from the
-// existing stream, or from the new stream after a second update.
+// existing stream, or from the new stream before its first update. A stale
+// absent-stream read must not clear metadata published by another replica.
 func createIdentifiedStream(ctx context.Context, js jetstream.JetStream, cfg jetstream.StreamConfig, identity streamIdentity) (jetstream.Stream, error) {
 	metadata, err := prepareStreamIdentityMetadata(ctx, js, cfg.Name, identity)
 	if err != nil {
 		return nil, fmt.Errorf("prepare %s stream metadata: %w", cfg.Name, err)
 	}
 	cfg.Metadata = metadata
-	create := func(ctx context.Context) (jetstream.Stream, error) {
+	if !identity.valid(metadata[identity.metadataKey]) {
+		// Another replica can create and identify the stream after our lookup.
+		// CreateStream never updates an existing stream with the empty metadata.
+		stream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+			stream, err := js.CreateStream(ctx, cfg)
+			if errors.Is(err, jetstream.ErrStreamNameAlreadyInUse) {
+				return js.Stream(ctx, cfg.Name)
+			}
+			return stream, err
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create %s stream: %w", cfg.Name, err)
+		}
+		info := stream.CachedInfo()
+		if info == nil {
+			return nil, fmt.Errorf("created %s stream info is unavailable", cfg.Name)
+		}
+		maps.Copy(metadata, info.Config.Metadata)
+		if !identity.valid(metadata[identity.metadataKey]) {
+			value, err := identity.derive(info.Created)
+			if err != nil {
+				return nil, err
+			}
+			metadata[identity.metadataKey] = value
+		}
+	}
+	stream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
 		return js.CreateOrUpdateStream(ctx, cfg)
-	}
-	stream, err := createJetStreamResourceWithRetry(ctx, create)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s stream: %w", cfg.Name, err)
-	}
-	if identity.valid(metadata[identity.metadataKey]) {
-		return stream, nil
-	}
-	info := stream.CachedInfo()
-	if info == nil {
-		return nil, fmt.Errorf("created %s stream info is unavailable", cfg.Name)
-	}
-	value, err := identity.derive(info.Created)
-	if err != nil {
-		return nil, err
-	}
-	metadata[identity.metadataKey] = value
-	stream, err = createJetStreamResourceWithRetry(ctx, create)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("persist %s stream identity: %w", cfg.Name, err)
 	}

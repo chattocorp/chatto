@@ -12,6 +12,7 @@ import (
 
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -296,5 +297,93 @@ func TestAlertResolutionEventIDMakesTerminalOutcomeSingleWinner(t *testing.T) {
 	}
 	if !event.GetAlertResolved().GetDelivered() {
 		t.Fatal("duplicate resolution replaced the first terminal outcome")
+	}
+}
+
+func TestPublisherGuardsSourceAcrossConcurrentPublishers(t *testing.T) {
+	ns, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "NOTIFICATIONS_SOURCE_TEST", Subjects: Subjects(), Storage: jetstream.FileStorage,
+		Duplicates: FanoutDedupeWindow, AllowMsgTTL: true, AllowAtomicPublish: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	signal := func(id, recipient, source string) *notificationv1.NotificationEvent {
+		return &notificationv1.NotificationEvent{
+			Id: id, RecipientId: recipient, NotificationId: id,
+			OccurredAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+			Event: &notificationv1.NotificationEvent_Signalled{Signalled: &notificationv1.NotificationSignalled{SourceEventId: source}},
+		}
+	}
+	// Separate connections and publisher instances share only the broker guard.
+	nc2, err := nats.Connect(nats.DefaultURL, nats.InProcessServer(ns))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nc2.Close()
+	js2, err := jetstream.New(nc2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishers := []*Publisher{NewPublisher(js, stream, time.Hour, nil), NewPublisher(js2, stream, time.Hour, nil)}
+	type outcome struct {
+		results []AppendResult
+		err     error
+	}
+	outcomes := make(chan outcome, 2)
+	start := make(chan struct{})
+	for i, publisher := range publishers {
+		go func() {
+			<-start
+			results, err := publisher.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{signal(fmt.Sprintf("reason-%d", i), "U1", "E1")})
+			outcomes <- outcome{results, err}
+		}()
+	}
+	close(start)
+	committed := 0
+	var sequence uint64
+	for range publishers {
+		result := <-outcomes
+		if result.err != nil || len(result.results) != 1 {
+			t.Fatalf("publish = %+v", result)
+		}
+		if result.results[0].Committed {
+			committed++
+		}
+		if sequence != 0 && sequence != result.results[0].Position.Seq {
+			t.Fatal("duplicate did not reuse stored source sequence")
+		}
+		sequence = result.results[0].Position.Seq
+	}
+	if committed != 1 {
+		t.Fatalf("committed = %d, want 1", committed)
+	}
+	// A new publisher models a backend restart. Different source and recipient
+	// coordinates must remain independent of the still-active duplicate window.
+	restarted := NewPublisher(js2, stream, time.Hour, nil)
+	for _, tc := range []struct {
+		id, user, source string
+		created          bool
+	}{
+		{"reason-after-restart", "U1", "E1", false},
+		{"distinct-reply", "U1", "E2", true},
+		{"distinct-recipient", "U2", "E1", true},
+	} {
+		results, err := restarted.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{signal(tc.id, tc.user, tc.source)})
+		if err != nil || len(results) != 1 || results[0].Committed != tc.created {
+			t.Fatalf("%s: results=%v err=%v", tc.id, results, err)
+		}
+	}
+	info, err := stream.Info(ctx)
+	if err != nil || info.State.Msgs != 3 {
+		t.Fatalf("stored signals = %v, %v; want 3", info, err)
 	}
 }

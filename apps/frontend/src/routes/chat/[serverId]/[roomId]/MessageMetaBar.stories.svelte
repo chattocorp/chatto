@@ -29,6 +29,14 @@
   <MessageMetaBarStoryFrame variant="replies-and-reactions" />
 </Story>
 
+<Story name="Highlighted message" asChild>
+  <MessageMetaBarStoryFrame variant="replies-and-reactions" highlighted />
+</Story>
+
+<Story name="Highlight animation" asChild>
+  <MessageMetaBarStoryFrame variant="replies-and-reactions" animateHighlight />
+</Story>
+
 <Story name="Unread followed thread" asChild>
   <MessageMetaBarStoryFrame variant="unread-followed-thread" />
 </Story>

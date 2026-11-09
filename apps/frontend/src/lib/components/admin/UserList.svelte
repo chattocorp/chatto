@@ -25,7 +25,6 @@ When `clickable` is set, each row links to the member's Server Admin page.
     loading = false,
     clickable = true,
     emptyMessage = m('common.no_users'),
-    totalCount = users.length,
     hasMore = false,
     loadingMore = false,
     onLoadMore,
@@ -35,8 +34,6 @@ When `clickable` is set, each row links to the member's Server Admin page.
     loading?: boolean;
     clickable?: boolean;
     emptyMessage?: string;
-    /** Total matching users, including pages not yet loaded. */
-    totalCount?: number;
     hasMore?: boolean;
     loadingMore?: boolean;
     onLoadMore?: () => void | Promise<void>;
@@ -82,8 +79,4 @@ When `clickable` is set, each row links to the member's Server Admin page.
       <td class="px-4 py-3 text-muted"><CopyId value={user.id} /></td>
     {/snippet}
   </DataTable>
-
-  <div class="px-5 py-3 text-sm text-muted">
-    {m('admin.members.showing', { shown: users.length, total: totalCount })}
-  </div>
 {/if}

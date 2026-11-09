@@ -58,6 +58,8 @@ export async function signOutServer(
   const response = await withSignOutTimeout((signal) =>
     fetch(logoutUrl(server), {
       method: 'POST',
+      redirect: 'error',
+      credentials: 'omit',
       headers,
       body,
       signal

@@ -1,0 +1,10 @@
+{
+  "client_id": "https://native.example/oauth/client.json",
+  "client_name": "Chatto GPUix experiment",
+  "client_uri": "https://native.example",
+  "application_type": "native",
+  "redirect_uris": ["http://127.0.0.1/servers/callback?mode=popup"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}

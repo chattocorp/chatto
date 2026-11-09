@@ -36,7 +36,11 @@ targets are unique to each component, including when callers reuse rendered HTML
   } = $props();
 
   const footnoteScope = $props.id();
-  const trusted = $derived(trustedMarkdownHtml(scopeFootnotes(html)));
+  // Parent metadata updates can invalidate prop getters while their values stay
+  // equal. Compare the values before creating another artifact attachment.
+  const markup = $derived(html);
+  const previewOwner = $derived(artifactOwner);
+  const trusted = $derived(trustedMarkdownHtml(scopeFootnotes(markup)));
 
   /** Keep failure markup in the same audited sink as the initial Markdown. */
   function showArtifactSource(frame: HTMLElement, source: string, language: string) {
@@ -44,7 +48,7 @@ targets are unique to each component, including when callers reuse rendered HTML
     frame.replaceChildren(...parseTrustedMarkdownHtml(fallback).body.childNodes);
     frame.dataset.presentation = 'code';
     delete frame.dataset.artifactSource;
-    return attachCodeScrollFades(html)(frame);
+    return attachCodeScrollFades(markup)(frame);
   }
 
   /** Qualifies only the numeric footnote attributes emitted by markdown-it. */
@@ -103,7 +107,7 @@ targets are unique to each component, including when callers reuse rendered HTML
   function attachMarkdownActions(element: HTMLDivElement) {
     // Rerun after the HTML changes, and dispose mounted link content before replacement.
     const linkCleanups =
-      enhanceLink && html.includes('data-content-href=')
+      enhanceLink && markup.includes('data-content-href=')
         ? Array.from(
             element.querySelectorAll<HTMLAnchorElement>('a[data-content-href]'),
             enhanceLink
@@ -131,8 +135,8 @@ targets are unique to each component, including when callers reuse rendered HTML
 <div
   class="markdown-html contents"
   {@attach attachMarkdownActions}
-  {@attach attachCodeFrames(html, footnoteScope, showArtifactSource, artifactOwner)}
-  {@attach attachCodeScrollFades(html)}
+  {@attach attachCodeFrames(markup, footnoteScope, showArtifactSource, previewOwner)}
+  {@attach attachCodeScrollFades(markup)}
 >
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- rendered markdown from `$lib/markdown`; see component docs above -->
   {@html trusted}

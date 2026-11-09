@@ -1,15 +1,17 @@
+import '../../../../../../app.css';
 import { beforeAll } from 'vitest';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 
 // Standalone management components do not run the route catalog loader.
 beforeAll(() => loadLocaleMessages('en-GB'));
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { OAuthClient } from '$lib/api/oauthClients';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { serverRegistry } from '$lib/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
@@ -41,25 +43,22 @@ vi.mock('@chatto/client/api/serverState', async () => {
 });
 
 vi.mock('$lib/ui/Panel.svelte', async () => ({
-  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
-}));
-vi.mock('$lib/ui/DataTable.svelte', async () => ({
-  default: (await import('./DataTableMock.svelte')).default
+  default: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui', async () => ({
   Panel: (await import('$lib/ui/Panel.svelte')).default,
   PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
   PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
   LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
-  DataTable: (await import('$lib/ui/DataTable.svelte')).default,
-  Hint: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,
-  PaneContent: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  EmptyState: (await import('$lib/ui/EmptyState.svelte')).default,
+  Hint: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default,
+  PaneContent: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/PaneHeader.svelte', async () => ({
-  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  default: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/PageTitle.svelte', async () => ({
-  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  default: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.success, error: mocks.error }
@@ -254,10 +253,17 @@ describe('server security query lifecycle', () => {
 
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
-    expect(container.textContent).toContain('Last authorisation');
+    expect(container.textContent).not.toContain('Last authorisation');
+    expect(container.textContent).toContain('Users');
+    expect(container.textContent).not.toContain(client.clientId);
+    const metadataLink = container.querySelector('a')!;
+    expect(metadataLink.textContent).toBe(client.redirectOrigins[0]);
+    expect(metadataLink.getAttribute('href')).toBe(client.clientId);
+    expect(metadataLink.getAttribute('target')).toBe('_blank');
+    expect(metadataLink.getAttribute('rel')).toBe('noopener noreferrer');
     expect(
       Array.from(container.querySelectorAll('bdi[dir="ltr"]'), (element) => element.textContent)
-    ).toEqual([client.clientId, client.redirectOrigins[0]]);
+    ).toEqual([client.redirectOrigins[0]]);
 
     const policy = container.querySelector(
       'select:not(#registration-admission)'
@@ -271,6 +277,101 @@ describe('server security query lifecycle', () => {
     await vi.waitFor(() => expect(mocks.listOAuthClients).toHaveBeenCalledTimes(2));
     expect(mocks.success).toHaveBeenCalledWith('OAuth client policy saved');
     expect(policy.value).toBe('blocked');
+  });
+
+  it('keeps a CIMD URL unchanged when its path looks like a Chatto route', async () => {
+    const originSpy = vi.spyOn(serverRegistry, 'originServer', 'get').mockReturnValue({
+      id: 'origin',
+      url: window.location.origin,
+      name: 'Local server',
+      iconUrl: null,
+      token: null,
+      userId: null,
+      userLogin: null,
+      userDisplayName: null,
+      userAvatarUrl: null,
+      reauthRequiredAt: null,
+      addedAt: 1
+    });
+    onTestFinished(() => originSpy.mockRestore());
+    const clientId = `${window.location.origin}/chat/-/client-metadata.json`;
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [
+        {
+          clientId,
+          clientName: 'Local metadata client',
+          policy: 'default',
+          redirectOrigins: [window.location.origin],
+          authorizedUserCount: 1
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.querySelector('a')).not.toBeNull());
+    expect(container.querySelector('a')!.getAttribute('href')).toBe(clientId);
+  });
+
+  it.each(['chatto://desktop', 'javascript:alert(1)'])(
+    'does not link a non-web client identifier: %s',
+    async (clientId) => {
+      mocks.listOAuthClients.mockResolvedValue({
+        oauthClients: [
+          {
+            clientId,
+            clientName: 'Native client',
+            policy: 'default',
+            redirectOrigins: ['chatto://desktop'],
+            authorizedUserCount: 1
+          }
+        ],
+        totalCount: 1,
+        hasMore: false
+      });
+      const { container } = render(SecurityPage);
+      await vi.waitFor(() => expect(container.textContent).toContain('Native client'));
+      expect(container.textContent).toContain('chatto://desktop');
+      expect(container.querySelector('a')).toBeNull();
+    }
+  );
+
+  it.each([320, 480, 960])('keeps client details and policy within a %ipx pane', async (width) => {
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [
+        {
+          clientId: 'https://remote.example/oauth/client-metadata.json',
+          clientName: 'Remote Chatto',
+          policy: 'default',
+          redirectOrigins: ['https://remote.example'],
+          authorizedUserCount: 2,
+          lastAuthorizationAt: '2026-08-11T12:00:00.000Z'
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const host = document.createElement('div');
+    host.style.width = `${width}px`;
+    document.body.append(host);
+    const view = render(SecurityPage, { target: host });
+    try {
+      await vi.waitFor(() => expect(host.querySelector('select')).not.toBeNull());
+      const list = host.querySelector<HTMLUListElement>('ul[aria-label="OAuth clients"]')!;
+      const policy = host.querySelector('select')!;
+      const listBounds = list.getBoundingClientRect();
+      const policyBounds = policy.getBoundingClientRect();
+
+      expect(list.scrollWidth).toBeLessThanOrEqual(list.clientWidth);
+      expect(policyBounds.left).toBeGreaterThanOrEqual(listBounds.left);
+      expect(policyBounds.right).toBeLessThanOrEqual(listBounds.right);
+      expect(policyBounds.width).toBeGreaterThanOrEqual(144);
+      expect(list.textContent).toContain('https://remote.example');
+      expect(list.textContent).not.toContain('Last authorisation');
+    } finally {
+      view.unmount();
+      host.remove();
+    }
   });
 
   it('tracks pending policy saves independently for each OAuth client', async () => {

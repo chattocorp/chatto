@@ -314,6 +314,53 @@ If a host fetches discovery before `registry.addServer`, pass that response as
 settles, read `server.serverInfo.discovery` for the response, or `null` on
 failure. A later call makes a fresh request.
 
+### Native storage and browser sign-in
+
+Native hosts can pass `persistence: ServerRegistryPersistence` to `createClient`
+instead of `storage: 'device'`. This adapter restores server registrations and
+stores authentication separately. The latest authentication record overrides
+the combined catalogue snapshot; `null` is a cleared-session record. Writes
+must complete durably before returning. A failed write must throw or return
+`false` from `writeAuthentication`. Read-back must return the committed value.
+The host owns encryption, access control, and exclusive process access. Do not
+let two processes renew the same saved session without shared coordination.
+
+The SDK saves a refresh request ID before sending a renewal. On restart it
+reuses that ID, then saves and verifies the replacement credentials before
+returning the new access token. Renewal requests omit cookies and reject
+redirects. Keep all authentication fields, including the OAuth client ID and
+refresh request ID, in the durable record.
+
+`@chatto/client/auth/oauth` provides `createOAuthFlow`, `isOAuthCallback`, and
+`exchangeOAuthCode` for native hosts. Supply discovery's authorization URL, the
+host's public OAuth client ID, and a literal loopback HTTP callback URL
+or the built-in `chatto://desktop/servers/callback?mode=popup` callback. The
+host opens the returned authorization URL in the system browser and receives
+the callback. The helpers use S256 PKCE, transaction state, exact callback
+validation, an optional issuer check, and a bounded token exchange. Keep the
+flow and callback in memory. Never log their code or verifier. The host owns
+the loopback listener, cancellation, consent UI, and client metadata document.
+
+Pass returned credentials through `persistedBearerSession`, combine them with
+`emptyServerSession()`, and supply the session to `registry.addServer`.
+The SDK then owns renewal and realtime state.
+
+### Native password sign-in
+
+`passwordLogin(origin, { login, password }, { signal })` returns renewable human
+credentials on servers that permit direct password login. Native hosts supply
+their own secure password field. The request has a 15-second timeout and a
+64 KiB response limit. It omits cookies, rejects redirects, and accepts HTTPS
+or loopback HTTP origins without paths, queries, or fragments.
+
+Pass the credentials through `persistedBearerSession` from
+`@chatto/client/auth/bearerSession`, combine them with `emptyServerSession()`
+from `@chatto/client/server/sessions`, and supply that session to
+`client.registry.addServer(registration, session)`. The SDK then owns token
+renewal and realtime state. This function does not save passwords or sessions.
+Errors expose a status and a fixed message, never the server response body.
+Remote `signOutServer` requests also omit cookies and reject redirects.
+
 ### State of the host
 
 The client keeps server data. A host keeps its own state, such as sidebar

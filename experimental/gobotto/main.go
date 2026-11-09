@@ -13,7 +13,9 @@ import (
 
 	"github.com/chatto-chat/chatto/experimental/gobotto/agent"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/bot"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/brainview"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/config"
+	"github.com/chatto-chat/chatto/experimental/gobotto/internal/journal"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/mcpclient"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/memory"
 	"github.com/chatto-chat/chatto/experimental/gobotto/internal/scheduler"
@@ -40,7 +42,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	memories, err := memory.New(cfg.Memory.Collections, cfg.Memory.Directory)
+	memories, err := memory.NewConfigured(cfg.Memory)
 	if err != nil {
 		return err
 	}
@@ -85,7 +87,12 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer schedules.Close()
-	return tui.Run(ctx, func(ctx context.Context, emit tui.Emit) error {
+	journals, err := journal.Open(filepath.Join(cfg.Memory.Directory, "conversations"), settings["CHATTO_URL"]+"\n"+viewer.ID)
+	if err != nil {
+		return err
+	}
+	defer journals.Close()
+	return tui.RunWithBrains(ctx, brainview.New(cfg.Memory), func(ctx context.Context, emit tui.Emit) error {
 		var titles agent.TitleGenerator
 		titleModel := ""
 		if cfg.Titles != nil {
@@ -101,7 +108,7 @@ func run(ctx context.Context) error {
 				options.Reasoning = &agent.ReasoningOptions{Enabled: r.Enabled, Effort: r.Effort, MaxTokens: r.MaxTokens, Exclude: r.Exclude}
 			}
 			return agent.OpenRouter(settings["OPENROUTER_API_KEY"], cfg.Conversation.Model, id, usage, options)
-		}, emit, bot.Options{Scheduler: schedules, Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Subagents: workers,
+		}, emit, bot.Options{Journals: journals, Scheduler: schedules, Shutdown: tui.ShutdownRequested(ctx), Tools: external.Tools(), Subagents: workers,
 			TurnTimeout: cfg.Conversation.TimeoutDuration, Limits: agent.Limits{MaxToolCalls: cfg.Conversation.MaxToolCalls, MaxModelSteps: cfg.Conversation.MaxModelSteps}, MaxDelegations: cfg.Conversation.MaxDelegations,
 			Debounce: cfg.Conversation.DebounceDuration, Store: store, SystemPrompt: cfg.Conversation.SystemPrompt, OwnerUserIDs: cfg.OwnerUserIDs, Memory: memories, Titles: titles, Model: cfg.Conversation.Model, TitleModel: titleModel})
 	})

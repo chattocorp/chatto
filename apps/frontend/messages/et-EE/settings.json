@@ -43,6 +43,7 @@
         "invitations": "Looge ja hallake kutsekoode.",
         "rooms": "Looge, redigeerige, korraldage ja arhiivige ruume",
         "moderation": "Vaata üle aktiivsed ruumi kasutamise peatamised",
+        "roles": "Hallake rolle ja nende liikmeid.",
         "permissions": "Hallake kogu serveri rolli vaikeseadeid",
         "security": "Registreerumispiirangud ja konto kaitse",
         "appearance": "Kohandage rakendust värvide, teemade ja kuvamisvalikutega.",

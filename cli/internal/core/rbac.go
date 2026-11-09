@@ -43,6 +43,8 @@ type RoleWithPermissions struct {
 	IsSystem          bool
 	Position          int32 // Display/order position. Everyone=0, Owner=1000.
 	Pingable          bool
+	// Counts is present on authorized administrative catalog reads.
+	Counts *RoleCounts
 }
 
 // ============================================================================

@@ -25,6 +25,44 @@ func brotliFrontendTestData(t testing.TB, data []byte) []byte {
 	return encoded.Bytes()
 }
 
+func TestFrontendOnDemandGzipFallback(t *testing.T) {
+	original := []byte("console.log('fallback');\n")
+	source := fstest.MapFS{"app.js.br": {Data: brotliFrontendTestData(t, original)}}
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		t.Run(method, func(t *testing.T) {
+			router := gin.New()
+			// Static assets use middleware on unmatched URLs. Gin sets a pending
+			// 404 before this middleware runs, which the asset handler must replace.
+			router.Use(func(c *gin.Context) {
+				require.NoError(t, serveFrontendFile(c, source, "app.js"))
+				c.Abort()
+			})
+			router.NoRoute(func(c *gin.Context) {
+				t.Fatal("asset middleware must stop the fallback chain")
+			})
+			request := httptest.NewRequest(method, "/app.js", nil)
+			request.Header.Set("Accept-Encoding", "gzip")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			require.Equal(t, http.StatusOK, response.Code)
+			require.Equal(t, "gzip", response.Header().Get("Content-Encoding"))
+			require.Equal(t, "Accept-Encoding", response.Header().Get("Vary"))
+			require.Contains(t, response.Header().Get("Content-Type"), "javascript")
+			if method == http.MethodHead {
+				require.Empty(t, response.Body.Bytes())
+				return
+			}
+			reader, err := gzip.NewReader(response.Body)
+			require.NoError(t, err)
+			defer reader.Close()
+			body, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			require.Equal(t, original, body)
+		})
+	}
+}
+
 func TestFrontendOnDemandCompression(t *testing.T) {
 	original := bytes.Repeat([]byte("console.log('on demand');\n"), 4096)
 	encoded := brotliFrontendTestData(t, original)

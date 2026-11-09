@@ -14,6 +14,8 @@
   let {
     preferences,
     onDeviceChange,
+    onBoostChange,
+    onThresholdChange,
     inCall = false,
     callLevel = 0,
     gateUnavailable = false
@@ -21,6 +23,8 @@
     preferences: CallPreferencesState;
     /** The active call owns switching and persists only successful changes. */
     onDeviceChange?: (kind: MediaDeviceKind, deviceId: string) => Promise<void>;
+    onBoostChange?: (enabled: boolean) => Promise<void>;
+    onThresholdChange?: (value: number) => Promise<void>;
     inCall?: boolean;
     callLevel?: number;
     gateUnavailable?: boolean;
@@ -47,9 +51,7 @@
 
   onMount(() => {
     alive = true;
-    outputSupported =
-      (typeof AudioContext !== 'undefined' && 'setSinkId' in AudioContext.prototype) ||
-      'setSinkId' in HTMLMediaElement.prototype;
+    outputSupported = 'setSinkId' in HTMLMediaElement.prototype;
     void discoverDevices();
     navigator.mediaDevices?.addEventListener('devicechange', refresh);
     return () => {
@@ -176,6 +178,8 @@
         <div class="flex max-w-xl flex-col gap-4">
           <MicrophoneProcessing
             {preferences}
+            {onBoostChange}
+            {onThresholdChange}
             level={inCall ? callLevel : test.level}
             unavailable={inCall ? gateUnavailable : test.gateUnavailable}
           />

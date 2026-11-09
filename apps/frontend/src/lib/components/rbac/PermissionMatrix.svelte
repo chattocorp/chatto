@@ -388,7 +388,7 @@ focusing a cell highlights its permission row and role column.
       columnHeaderHeight="10rem"
       stickyHeader={scrollContents}
       {fillHeight}
-      stickyHeaderFadeOffset="top-48"
+      stickyHeaderFadeOffset="top-40"
       trailingColumns={newRoleHref ? 1 : 0}
       spacerTestId="permission-matrix-spacer"
       columnAttributes={(role) => ({ 'data-role': role.roleName })}

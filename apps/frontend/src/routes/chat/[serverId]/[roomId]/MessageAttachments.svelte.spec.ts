@@ -533,7 +533,10 @@ describe('MessageAttachments', () => {
         await expect.poll(() => view.container.querySelector('video')).toBeTruthy();
         const frame = view.container.querySelector<HTMLElement>('[data-attachment-media]')!;
         expect(frame.getBoundingClientRect().width).toBeCloseTo(expectedWidth, 0);
-        expect(frame.getBoundingClientRect().height).toBeCloseTo(expectedHeight, 0);
+        expect(frame.getBoundingClientRect().height - 10).toBeCloseTo(
+          ((expectedWidth - 10) * expectedHeight) / expectedWidth,
+          0
+        );
         await view.unmount();
       }
     }
@@ -611,6 +614,34 @@ describe('MessageAttachments', () => {
       }
     }
   );
+
+  it.each([
+    [3000, 1000, 480, 160],
+    [1000, 100, 480, 48],
+    [100, 1000, 32, 320]
+  ])('does not add a playback canvas to a %sx%s GIF', async (width, height, w, h) => {
+    const attachment = hlsVideoAttachment({ filename: 'loop.gif', contentType: 'image/gif' });
+    attachment.videoProcessing = { ...attachment.videoProcessing!, width, height };
+    const { container } = renderAttachment(attachment, {
+      canDeleteAttachment: true,
+      canEditAttachmentDescription: true
+    });
+    container.style.width = '640px';
+    await expect
+      .poll(() => container.querySelector('[data-testid="message-attachments-video-player"]'))
+      .toBeTruthy();
+    const player = container.querySelector<HTMLElement>('.preview-frame')!;
+    expect(player.getBoundingClientRect().width).toBe(w);
+    expect(player.getBoundingClientRect().height - 10).toBeCloseTo(((w - 10) * h) / w, 0);
+    const wrapper = player.parentElement!;
+    expect(wrapper.classList.contains('attachment-video-frame')).toBe(false);
+    const actions = [...wrapper.querySelectorAll<HTMLElement>('.attachment-action-button')];
+    for (const action of actions) {
+      expect(action.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+        wrapper.getBoundingClientRect().left
+      );
+    }
+  });
 
   it('uses descriptions as image alt text and sends them to the image viewer', async () => {
     const description = 'A chart with a rising blue line.';

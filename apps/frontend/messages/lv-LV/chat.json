@@ -182,6 +182,7 @@
       "members": "Biedri",
       "rooms": "Istabas",
       "moderation": "Mērenība",
+      "roles": "Lomas",
       "permissions": "Atļaujas",
       "security": "Drošība",
       "event_log": "Notikumu žurnāls",

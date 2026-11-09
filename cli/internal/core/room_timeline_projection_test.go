@@ -1386,7 +1386,7 @@ func TestRoomTimeline_LastPostedMessageTimes(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	assertTimes := func(p *RoomTimelineProjection, message, root time.Time) {
 		t.Helper()
-		gotMessage, gotRoot := p.LastPostedMessageTimes("R1")
+		gotMessage, gotRoot := p.LastPostedMessageTimes("R1", nil)
 		if !gotMessage.Equal(message) || !gotRoot.Equal(root) {
 			t.Fatalf("posting times = %v / %v, want %v / %v", gotMessage, gotRoot, message, root)
 		}
@@ -1431,4 +1431,37 @@ func TestRoomTimeline_LastPostedMessageTimes(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertTimes(restored, fixedTime(8), fixedTime(6))
+}
+
+func TestRoomTimeline_LastPostedMessageTimesVisibility(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	imported := postedEvent(postedOpts{envelopeID: "import", roomID: "R1", actorID: "U1", at: 5})
+	imported.GetMessagePosted().HistoricalImport = true
+	applyAll(t, p, []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "related", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "reply", roomID: "R1", actorID: "U2", inThread: "related", at: 2}),
+		postedEvent(postedOpts{envelopeID: "unrelated", roomID: "R1", actorID: "U1", at: 3}),
+		postedEvent(postedOpts{envelopeID: "other-reply", roomID: "R1", actorID: "U2", inThread: "unrelated", at: 4}),
+		imported,
+		editedEvent("edit", "reply", "R1", "U2", "edited", 6),
+		retractedEvent("retract", "related", "R1", "U1", "", 7),
+	})
+	for _, tc := range []struct {
+		name, rootID  string
+		message, root time.Time
+	}{
+		{name: "related thread", rootID: "related", message: fixedTime(2), root: fixedTime(1)},
+		{name: "other thread", rootID: "unrelated", message: fixedTime(4), root: fixedTime(3)},
+		{name: "no relationship", rootID: "absent"},
+		{name: "historical import", rootID: "import"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			message, root := p.LastPostedMessageTimes("R1", func(entry *TimelineEntry) bool {
+				return entry.ThreadRootEventID == tc.rootID
+			})
+			if !message.Equal(tc.message) || !root.Equal(tc.root) {
+				t.Fatalf("posting times = %v / %v, want %v / %v", message, root, tc.message, tc.root)
+			}
+		})
+	}
 }

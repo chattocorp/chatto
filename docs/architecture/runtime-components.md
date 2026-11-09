@@ -315,8 +315,9 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   authorization cache.
 - **`RoomDirectoryReadModel`**
   ([`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)):
-  Operation-level room directory and sidebar reads, viewer capability and Slow
-  Mode deadline hydration. It receives `RoomModel`, message policy, permission
+  Operation-level room directory and sidebar reads, DM posting activity limited
+  to readable threads, viewer capability and Slow Mode deadline hydration.
+  It receives `RoomModel`, message policy, permission
   resolution, membership, authorization, and unread dependencies. Group joins
   belong to `RoomCommandModel`.
 - **`RoomTimelineReadModel`**
@@ -420,7 +421,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`AssetUploadModel`**
   ([`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)): Eagerly
   wired chunked attachment upload sessions, temporary object assembly,
-  pending-asset expiry, and process-local periodic cleanup.
+  pending-asset expiry, and process-local periodic cleanup. GIF uploads use
+  header-only video admission when video processing is enabled; the shared
+  [image inspector](../../cli/internal/assets/images.go) keeps ordinary
+  image-decoder limits separate from this admission path.
 
 ## Realtime
 

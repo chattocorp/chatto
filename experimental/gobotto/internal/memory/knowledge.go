@@ -112,10 +112,10 @@ func (m *Manager) KnowledgeIndex(ctx context.Context, userIDs []string) (json.Ra
 		index.Truncated = true
 		ids = ids[:8]
 	}
-	filters := [][]string{{"kind=general_fact"}}
+	filters := [][]string{{`kind="general_fact"`}}
 	for _, id := range ids {
 		encoded, _ := json.Marshal(id)
-		filters = append(filters, []string{"kind=user_fact", "user_id=" + string(encoded)})
+		filters = append(filters, []string{`kind="user_fact"`, "user_id=" + string(encoded)})
 	}
 	for _, filter := range filters {
 		args := []string{"--path", m.builtin, "--json", "search", "--limit", "20"}

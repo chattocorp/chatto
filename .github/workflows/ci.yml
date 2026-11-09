@@ -350,6 +350,23 @@ jobs:
         with:
           configuration: release
 
+      - name: Cache Electron downloads
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
+          restore-keys: |
+            electron-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install Electron
+        run: node tools/ci-retry-download.mjs node apps/desktop/node_modules/electron/install.js
+
       - name: Check and test desktop shell
         run: mise test-desktop
 
@@ -368,7 +385,9 @@ jobs:
 
       - name: Build Linux AppImage
         if: runner.os == 'Linux'
-        run: mise x -- pnpm --filter chatto-desktop build:linux-appimage
+        # Packaging downloads builder binaries. Retry only transport failures;
+        # ordinary packaging errors still fail on the first attempt.
+        run: node tools/ci-retry-download.mjs pnpm --filter chatto-desktop build:linux-appimage
 
       - name: Verify Linux launcher and icons
         if: runner.os == 'Linux'
@@ -630,8 +649,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # The frontend suite is the longest, so it runs on its own runner. The other
-    # entry excludes only the frontend, so new workspace tests run without a
-    # matrix change.
+    # entry excludes the frontend; both entries exclude local experiments.
+    # New product workspace tests run without a matrix change.
     name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -675,7 +694,7 @@ jobs:
       - name: Run workspace unit tests
         env:
           TURBO_FILTER: ${{ matrix.filter }}
-        run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER"
+        run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER" '--filter=!./experimental/*'
 
   test-workspace:
     needs: [changes, test-workspace-packages]

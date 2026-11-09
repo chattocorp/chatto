@@ -74,9 +74,14 @@ describe('CallDeviceTest', () => {
       expect(stream.getTracks().every((track) => track.readyState === 'ended')).toBe(true);
     });
     const processor = vi.spyOn(MicrophoneProcessor.prototype, 'init');
+    const context = vi.fn(function () {
+      throw new Error('Analysis unavailable');
+    });
+    vi.stubGlobal('AudioContext', context);
     const test = makeTest();
 
     await test.start('microphone');
+    expect(context).toHaveBeenCalledOnce();
     expect(test.active).toBe(true);
     expect(FakeRecorder.instances[0].stream).toBe(stream);
     expect(processor).not.toHaveBeenCalled();
@@ -85,9 +90,10 @@ describe('CallDeviceTest', () => {
       audio: {
         deviceId: { ideal: 'microphone' },
         channelCount: { ideal: 1 },
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        voiceIsolation: true
       },
       video: false
     });
@@ -122,6 +128,17 @@ describe('CallDeviceTest', () => {
     expect(FakeRecorder.instances[0].stream.getAudioTracks()[0]).toBe(
       processed.getAudioTracks()[0]
     );
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        deviceId: { ideal: 'default' },
+        channelCount: { ideal: 1 },
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        voiceIsolation: true
+      },
+      video: false
+    });
     expect(monitor).not.toHaveBeenCalled();
     expect(play).not.toHaveBeenCalled();
     test.stop();
@@ -246,7 +263,7 @@ describe('CallDeviceTest', () => {
     expect(capture).toHaveBeenCalledOnce();
   });
 
-  it('routes replay through Web Audio when only context output selection is available', async () => {
+  it('rejects unsupported output selection without creating a playback graph', async () => {
     const descriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'setSinkId');
     Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', {
       configurable: true,
@@ -263,12 +280,9 @@ describe('CallDeviceTest', () => {
     const test = makeTest();
     try {
       await test.start('', 'first');
-      expect(await test.setSpeaker('second')).toBe(true);
-      test.stop();
-      await vi.waitFor(() => expect(test.playing).toBe(true));
-      expect(sink.mock.calls.map(([id]) => id)).toEqual(['first', 'second']);
-      expect(capture).toHaveBeenCalledOnce();
-      expect(stream.getAudioTracks()[0].readyState).toBe('ended');
+      expect(test.error).toBe(true);
+      expect(sink).not.toHaveBeenCalled();
+      expect(capture).not.toHaveBeenCalled();
     } finally {
       if (descriptor) Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', descriptor);
       else delete (HTMLMediaElement.prototype as { setSinkId?: unknown }).setSinkId;

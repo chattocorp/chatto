@@ -105,16 +105,12 @@ function details(value: AdminMember): AdminMemberDetails {
       {
         name: 'everyone',
         displayName: 'Everyone',
-        position: 0,
-        permissions: [],
-        permissionDenials: []
+        position: 0
       },
       {
         name: 'admin',
         displayName: 'Admin',
-        position: 1,
-        permissions: [],
-        permissionDenials: []
+        position: 1
       }
     ],
     availablePermissions: [],
