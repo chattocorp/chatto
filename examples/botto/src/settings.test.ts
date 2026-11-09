@@ -9,6 +9,68 @@ const source =
 const env = { BOTTO_CHATTO_API_KEY: 'secret' };
 const parse = (text = source) => parseSettings(text, '/config/botto.toml', env);
 
+test('configures remote and local MCP servers with literal environment credentials', () => {
+  expect(parse().extraMcpServers).toEqual([]);
+  const settings = parseSettings(
+    `${source}
+[mcp.servers.remote]
+url="https://example.com/mcp"
+[mcp.servers.remote.headers_from_env]
+Authorization="REMOTE_AUTH"
+[mcp.servers.local]
+command="./server"
+args=["--stdio", ""]
+[mcp.servers.local.env_from_env]
+TOKEN="REMOTE_AUTH"
+`,
+    '/config/botto.toml',
+    { ...env, REMOTE_AUTH: '!literal${TOKEN}' }
+  );
+  expect(settings.extraMcpServers.map((entry) => entry.config)).toEqual([
+    {
+      url: 'https://example.com/mcp',
+      headers: { Authorization: '$!literal$${TOKEN}' },
+      exposure: 'direct'
+    },
+    {
+      command: './server',
+      args: ['--stdio', ''],
+      cwd: '/config',
+      env: { TOKEN: '$!literal$${TOKEN}' },
+      exposure: 'direct'
+    }
+  ]);
+});
+
+test.each([
+  '[mcp]\nunknown=true',
+  '[mcp.servers.memory]\ncommand="server"',
+  '[mcp.servers."bad-name"]\ncommand="server"',
+  '[mcp.servers.custom]\nurl="http://example.com/mcp"',
+  '[mcp.servers.custom]\nurl="https://user:private-secret@example.com/mcp"',
+  '[mcp.servers.custom]\nurl="https://example.com/mcp"\ncommand="server"',
+  '[mcp.servers.custom]\ncommand="server"\nargs=[1]',
+  '[mcp.servers.custom]\ncommand="server"\nheaders_from_env={Authorization="MISSING"}',
+  '[mcp.servers.custom]\nurl="https://example.com/mcp"\nheaders_from_env={Authorization="MISSING"}',
+  '[mcp.servers.custom]\nurl="https://example.com/mcp"\nheaders_from_env={Authorization="BAD_HEADER"}',
+  '[mcp.servers.custom]\ncommand=""'
+])('rejects invalid MCP settings without exposing secrets: %s', (configuration) => {
+  const load = () =>
+    parseSettings(`${source}\n${configuration}`, '/config/botto.toml', {
+      ...env,
+      BAD_HEADER: 'private-secret\r\nInjected: value'
+    });
+  expect(load).toThrow('Invalid mcp.servers');
+  expect(load).not.toThrow('private-secret');
+});
+
+test.each(['http://127.0.0.1:8080/mcp', 'http://localhost:8080/mcp', 'http://[::1]:8080/mcp'])(
+  'allows loopback MCP: %s',
+  (url) => {
+    expect(parse(`${source}\n[mcp.servers.local]\nurl="${url}"`).extraMcpServers).toHaveLength(1);
+  }
+);
+
 test('subagent profiles resolve defaults without inheriting the root prompt', () => {
   expect(parse().subagents).toEqual({});
   const settings = parse(

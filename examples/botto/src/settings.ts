@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { parse } from 'smol-toml';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import type { ThinkingLevel } from 'runling';
+import { parseMcpServers } from './mcp-settings.ts';
 import {
   ADDRESSING_REASONS,
   DEFAULT_ADDRESSING_REASONS,
@@ -40,6 +41,8 @@ export interface Settings extends InboxSettings {
   apiKey: string;
   /** Expose all tools from this server's MCP endpoint to Pi. */
   mcp: boolean;
+  /** Operator-installed MCP tools for the main agent only. */
+  extraMcpServers: ReturnType<typeof parseMcpServers>;
   /** Local Means memory is independent of Chatto MCP. */
   memory: boolean;
   /** One Means collection, resolved relative to the TOML file. */
@@ -115,7 +118,7 @@ export function parseSettings(
   };
   knownKeys(
     root,
-    ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles', 'participation', 'subagents'],
+    ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles', 'participation', 'subagents', 'mcp'],
     'the root table'
   );
   const table = (value: unknown, name: string): Record<string, unknown> => {
@@ -290,6 +293,7 @@ export function parseSettings(
       )
     ],
     mcp: chatto.mcp === true,
+    extraMcpServers: parseMcpServers(root.mcp, configPath, env),
     reportPresence: chatto.report_presence !== false,
     respondTo: [...new Set(respondTo as AddressingReason[])],
     memory: memory.enabled === true,

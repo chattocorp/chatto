@@ -48,7 +48,7 @@ export function mcpServers(settings: Settings, memoryDirectory?: string): McpSer
         exposure: 'direct'
       }
     });
-  return servers;
+  return [...servers, ...settings.extraMcpServers];
 }
 
 /** Configure Pi's native MCP extension with Botto's servers. */

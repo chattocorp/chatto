@@ -35,6 +35,14 @@ async function setup(web = false, subagents: Settings['subagents'] = {}) {
       'botto.toml'
     ),
     web,
+    extraMcpServers: [
+      {
+        name: 'private_service',
+        source: 'botto.toml',
+        scope: 'extension' as const,
+        config: { url: 'https://example.com/mcp' }
+      }
+    ],
     subagents,
     systemPrompt: 'You are a patient gardening expert.',
     reasoningLevel: 'low' as const
@@ -159,7 +167,9 @@ test('enables only web MCP and no memory or Chatto tools', async () => {
   const { call, finish } = await setup(true);
   await call();
   await finish();
-  expect(mock.mcp).toHaveBeenCalledWith(expect.objectContaining({ mcp: false, web: true }));
+  expect(mock.mcp).toHaveBeenCalledWith(
+    expect.objectContaining({ mcp: false, web: true, extraMcpServers: [] })
+  );
   expect(mock.mcp.mock.calls[0]).toHaveLength(1);
   expect(mock.create.mock.calls[0]![0].extensions).toHaveLength(2);
 });

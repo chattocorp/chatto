@@ -75,6 +75,10 @@ export function systemPrompt(settings: Settings, agent: PromptRole): string {
   }
   if (settings.web)
     sections.push('Exa web tools use the mcp__exa__ prefix. Cite the source URLs you use.');
+  else if (agent.role === 'main' && settings.extraMcpServers.length)
+    sections.push(
+      'Use supplied tools for external capabilities; do not assume web access unless a supplied tool provides it. Cite source URLs when searching or fetching pages.'
+    );
   else sections.push('Web access is disabled. Do not claim to search or fetch web pages.');
   if (agent.role === 'main') sections.push('# Instance instructions', settings.systemPrompt);
   else if (agent.prompt) sections.push('# Profile instructions', agent.prompt);

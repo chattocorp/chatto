@@ -364,6 +364,49 @@ Normal thread context and assistant messages still use `@chatto/client`.
 The model is told that its text messages are posted automatically, so it should use
 the posting tool only for additional messages required by the task.
 
+## Additional MCP servers
+
+Add named servers to `botto.toml` and restart Botto:
+
+```toml
+[mcp.servers.github]
+url = "https://example.com/mcp"
+
+[mcp.servers.github.headers_from_env]
+Authorization = "GITHUB_MCP_AUTHORIZATION"
+
+[mcp.servers.custom]
+command = "my-mcp-server"
+args = ["--stdio"]
+
+[mcp.servers.custom.env_from_env]
+API_KEY = "CUSTOM_API_KEY"
+```
+
+Replace the example URL and command with your server. Environment mappings name
+required, non-empty environment variables; header values must include any required
+prefix, such as `Bearer `. Botto treats their values as literal data. URL, command,
+and argument fields are literal strings, not environment templates.
+Remote URLs require HTTPS, except HTTP on `localhost`, `127.0.0.1`, or `[::1]`.
+URL credentials and fragments are rejected. Local servers use stdio and run with
+the TOML file's directory as their working directory. Commands use PATH lookup
+or a path relative to that directory. Local servers are trusted programs: they
+inherit Botto's environment and run with its operating-system permissions.
+
+Names must start with a lowercase letter and contain only lowercase letters,
+digits, or underscores. `chatto`, `exa`, and `memory` are reserved. Configure
+exactly one transport per server: `url` with optional `headers_from_env`, or
+`command` with optional `args` and `env_from_env`.
+
+The main agent receives all advertised tools as `mcp__<server>__<tool>`.
+Subagents and classifiers do not receive these connections. Skills can explain
+how to use the tools, but cannot grant permissions. Server credentials determine
+what actions are possible; Botto adds no per-user authorization for custom tools.
+Remote services receive tool arguments, configured headers, and the bot host's
+IP address. Tool descriptions and results enter the model context and can remain
+in private transcripts. Use server permissions and `chatto.allowed_user_id` to
+limit access as needed. Connections use the same per-turn lifecycle as Chatto MCP.
+
 ## Optional web access
 
 Set `enabled = true` in the `[web]` table to connect Exa's hosted MCP server at

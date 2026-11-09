@@ -58,6 +58,17 @@ path = "memory"
 enabled = false
 # exa_api_key = "${EXA_API_KEY}"
 
+# Additional MCP tools for the main agent. Restart after changing connections.
+# [mcp.servers.github]
+# url = "https://example.com/mcp"
+# [mcp.servers.github.headers_from_env]
+# Authorization = "GITHUB_MCP_AUTHORIZATION" # Full value, including Bearer if needed.
+# [mcp.servers.custom]
+# command = "my-mcp-server"
+# args = ["--stdio"]
+# [mcp.servers.custom.env_from_env]
+# API_KEY = "CUSTOM_API_KEY"
+
 [runtime]
 # React to the message that starts a new conversation. An empty string disables this.
 acknowledgement_emoji = "eyes"

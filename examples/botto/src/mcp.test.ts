@@ -7,7 +7,8 @@ import {
   DefaultResourceLoader,
   ModelRuntime,
   SessionManager,
-  SettingsManager
+  SettingsManager,
+  type McpTransportFactory
 } from '@earendil-works/pi-coding-agent';
 import { EXA_MCP_URL, mcpExtension, memoryLockExtension, mcpServers } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
@@ -20,14 +21,14 @@ test('Runling starts native MCP extensions and awaits their shutdown without a m
   await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/botto-runling-mcp-'));
   const settings = parseSettings(
-    '[chatto]\nurl="https://example.com"\napi_key="unused"\nmcp=true\n[agent]\nmodel="anthropic/claude-sonnet-4-6"',
+    '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="anthropic/claude-sonnet-4-6"\n[mcp.servers.custom]\nurl="https://example.com/mcp"',
     'botto.toml'
   );
   const transport = mcpFixture([{ name: 'read', inputSchema: { type: 'object' } }], async () => ({
     content: []
   }));
   const close = vi.spyOn(transport, 'close');
-  const create = vi.fn(() => transport);
+  const create = vi.fn<McpTransportFactory>(() => transport);
   try {
     const session = await createRunlingSession({
       cwd: directory,
@@ -48,6 +49,7 @@ test('Runling starts native MCP extensions and awaits their shutdown without a m
     });
     try {
       await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
+      expect(create.mock.calls[0]?.[0]).toMatchObject({ name: 'custom' });
       expect(close).not.toHaveBeenCalled();
     } finally {
       await session.dispose();

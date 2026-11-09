@@ -41,7 +41,9 @@ function worker(settings: Settings) {
           },
           extensions: [
             skillReadExtension(settings.skillsDirectory),
-            ...(settings.web ? [mcpExtension({ ...settings, mcp: false })] : [])
+            ...(settings.web
+              ? [mcpExtension({ ...settings, mcp: false, extraMcpServers: [] })]
+              : [])
           ],
           systemPrompt: systemPrompt(settings, { role: 'subagent', prompt: profile?.systemPrompt }),
           onEvent(event) {
