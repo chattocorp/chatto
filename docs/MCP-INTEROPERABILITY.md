@@ -173,9 +173,10 @@ API completeness and CRUD symmetry are not admission criteria.
 
 The catalog supports the tester workflow: identify the server and account,
 choose a visible room, join a channel when needed, read room/thread context, load a public profile, post a message with an optional
-reply marker, add or remove a reaction, and leave the channel. The local Codex and Inspector flows above are
-host evidence for this workflow. They do not establish deployment conformance
-or large-instance cost bounds.
+reply marker, add or remove a reaction, and leave the channel. The local Codex
+and Inspector flows above cover the original room workflow. The extension
+checks below cover the added operations. These checks do not establish
+deployment conformance or large-instance cost bounds.
 
 | Tool                 | Workflow, effect, and output                                                                                              | Disposition                                                                                                                             |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |

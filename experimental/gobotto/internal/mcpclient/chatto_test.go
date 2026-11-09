@@ -15,6 +15,7 @@ import (
 func TestChattoDiscoveryAndCrossRoomDelivery(t *testing.T) {
 	remote := mcp.NewServer(&mcp.Implementation{Name: "Chatto", Version: "test"}, &mcp.ServerOptions{Instructions: "Use Markdown and mermaid rendered fences."})
 	var calls []map[string]string
+	var unsupportedCalls int
 	remote.AddTool(&mcp.Tool{Name: "post_message", Description: "Post a message", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"thread_root_message_id": map[string]any{"type": "string"}}, "additionalProperties": true}}, func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		var args map[string]string
 		if err := json.Unmarshal(request.Params.Arguments, &args); err != nil {
@@ -25,6 +26,10 @@ func TestChattoDiscoveryAndCrossRoomDelivery(t *testing.T) {
 	})
 	remote.AddTool(&mcp.Tool{Name: "add_reaction", InputSchema: map[string]any{"type": "object", "additionalProperties": true}}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return &mcp.CallToolResult{StructuredContent: map[string]any{"messageId": "target", "changed": true}}, nil
+	})
+	remote.AddTool(&mcp.Tool{Name: "remove_reaction", InputSchema: map[string]any{"type": "object"}}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		unsupportedCalls++
+		return &mcp.CallToolResult{StructuredContent: map[string]any{"messageId": "target"}}, nil
 	})
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return remote }, &mcp.StreamableHTTPOptions{JSONResponse: true})
 	host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +44,11 @@ func TestChattoDiscoveryAndCrossRoomDelivery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer manager.Close()
-	if len(manager.tools) != 2 {
+	if len(manager.tools) != 3 {
 		t.Fatal("automatic catalog missing tools")
+	}
+	if err := manager.Deliver(context.Background(), "remove_reaction", map[string]string{}); err == nil || unsupportedCalls != 0 {
+		t.Fatal("host delivery dispatched an unsupported operation")
 	}
 	discovery, _ := manager.discover(context.Background(), json.RawMessage(`{"name":"mcp_chatto__post_message"}`))
 	if !strings.Contains(discovery, "mermaid rendered") || strings.Contains(discovery, "synthetic-secret") {

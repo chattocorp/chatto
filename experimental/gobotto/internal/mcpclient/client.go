@@ -357,6 +357,9 @@ type boundedBody struct {
 // tool, or malformed-result failure is uncertain; callers retain their existing
 // delivery checkpoint and must not replay it automatically.
 func (m *Manager) Deliver(ctx context.Context, name string, arguments any) error {
+	if name != "post_message" && name != "add_reaction" {
+		return errors.New("unsupported Chatto delivery operation")
+	}
 	if m.chatto == nil {
 		return errors.New("Chatto MCP unavailable")
 	}
