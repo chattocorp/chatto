@@ -62,3 +62,5 @@ export {
   type MenuContext,
   type MenuPresentation
 } from './menuContext.svelte';
+
+export { default as AttachmentActions } from './AttachmentActions.svelte';

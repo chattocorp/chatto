@@ -1,5 +1,6 @@
 {
   "media": {
+    "google_cast": "Google Cast",
     "server_banner_alt": "Server banner",
     "fullscreen_video": "Fullscreen video",
     "close_fullscreen_video": "Close fullscreen video",
