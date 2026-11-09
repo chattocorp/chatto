@@ -252,6 +252,10 @@ Never leave a dev stack running in a detached or yielded terminal session.
   `mise x -- sweet change <package-path>` for user-visible changes in each
   affected release unit. Chatto, its client, frontend, and desktop share the
   root note directory. See `CONTRIBUTING.md` and `docs/RELEASING.md`.
+  If a change amends an existing unreleased note in the same release unit,
+  you may update that note or combine the notes and remove duplicates. Describe the
+  final behavior and preserve required upgrade actions and the release type
+  needed for the combined change. Do not rewrite published release notes.
 
 - Every review that includes `apps/frontend/` must use
   [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).

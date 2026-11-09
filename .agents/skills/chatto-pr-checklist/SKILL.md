@@ -14,6 +14,9 @@ Review the complete branch diff against the target branch.
   [Writing change notes](../../../CONTRIBUTING.md#writing-change-notes):
   describe the result for the reader and required upgrade actions, with one
   short entry per meaningful change rather than implementation instructions.
+  An amendment may update an existing unreleased note in the same release
+  unit, or combine notes and remove duplicates. Check that the combined note
+  preserves required upgrade actions and the appropriate release type.
 - For public API or protocol changes, use
   [chatto-api-compatibility](../chatto-api-compatibility/SKILL.md).
 - For frontend changes, use
