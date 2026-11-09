@@ -244,9 +244,9 @@
 >
   <Button onclick={() => (dialogWithFooterVisible = true)}>Open Dialog With Footer</Button>
 
-  <Dialog bind:visible={dialogWithFooterVisible} title="Continue your previous thread?" size="md">
+  <Dialog bind:visible={dialogWithFooterVisible} title="Continue the latest thread?" size="md">
     <p class="text-pretty">
-      Your previous message already has a thread. Where should this message go?
+      The latest message in this room has a thread. Where should this message go?
     </p>
 
     {#snippet dismissAction()}

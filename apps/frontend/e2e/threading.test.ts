@@ -114,40 +114,53 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadPaneFollowing();
   });
 
-  test('recent threaded root offers to receive the next message', async ({
+  test('latest threaded root offers to receive another user’s message after five minutes', async ({
     page,
     chatPage,
-    roomPage
+    roomPage,
+    browser,
+    serverURL
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const rootMessage = `Recent thread ${Date.now()}`;
+    const rootMessage = `Latest thread ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await page.getByRole('button', { name: 'Post as thread' }).click();
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Control+Enter');
-    await roomPage.expectThreadRouteClosed();
-    await expect(roomPage.threadPane).not.toBeVisible();
     await expect(
       roomPage.getMessage(rootMessage).locator.getByRole('link', { name: 'Thread' })
     ).toBeVisible();
 
-    const followup = `Recent follow-up ${Date.now()}`;
-    await roomPage.messageInput.fill(followup);
-    await roomPage.messageInput.press('Control+Enter');
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await page2.clock.setFixedTime(new Date(Date.now() + 10 * 60 * 1000));
+        const followup = `Follow-up from another author ${Date.now()}`;
+        await roomPage2.waitForInputEditable();
+        await roomPage2.messageInput.fill(followup);
+        await roomPage2.messageInput.press('Control+Enter');
 
-    await expect(roomPage.recentThreadConfirmationDialog).toBeVisible();
-    await expect(roomPage.messageInput).toHaveText(followup);
-    await roomPage.recentThreadConfirmationDialog
-      .getByRole('button', { name: 'Continue in thread' })
-      .click();
+        await expect(roomPage2.latestThreadConfirmationDialog).toBeVisible();
+        await expect(roomPage2.messageInput).toHaveText(followup);
+        await roomPage2.latestThreadConfirmationDialog
+          .getByRole('button', { name: 'Continue in thread' })
+          .click();
 
-    await expect(roomPage.recentThreadConfirmationDialog).toBeHidden();
-    await roomPage.expectThreadPaneVisible();
-    await roomPage.expectTextInThreadPane(rootMessage);
-    await roomPage.expectTextInThreadPane(followup);
+        await expect(roomPage2.latestThreadConfirmationDialog).toBeHidden();
+        await roomPage2.expectThreadPaneVisible();
+        await roomPage2.expectTextInThreadPane(rootMessage);
+        await roomPage2.expectTextInThreadPane(followup);
+        await expect(
+          roomPage.getMessage(rootMessage).locator.getByRole('link', { name: '1 reply' })
+        ).toBeVisible();
+      }
+    );
   });
 
   test('another user attaching a thread triggers the safeguard for the root author', async ({
@@ -187,10 +200,10 @@ test.describe('Message Threading', () => {
     await roomPage.messageInput.fill(followup);
     await roomPage.messageInput.press('Control+Enter');
 
-    await expect(roomPage.recentThreadConfirmationDialog).toBeVisible();
+    await expect(roomPage.latestThreadConfirmationDialog).toBeVisible();
     await expect(roomPage.messageInput).toHaveText(followup);
-    await roomPage.recentThreadConfirmationDialog
-      .getByRole('button', { name: 'Post as new message' })
+    await roomPage.latestThreadConfirmationDialog
+      .getByRole('button', { name: /^(Post as new message|Start a new thread)$/ })
       .click();
 
     await expect(roomPage.getMessage(followup).locator).toBeVisible();

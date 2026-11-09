@@ -806,6 +806,63 @@ describe('MessageEvent action model integration', () => {
   });
 
   it.each([RoomThreadingMode.ENABLED, RoomThreadingMode.ENCOURAGED, RoomThreadingMode.REQUIRED])(
+    'routes Reply on an existing empty thread into that thread in %s mode',
+    async (threadingMode) => {
+      const onOpenThread = vi.fn();
+      const event = messageEvent({ threadExists: true, replyCount: 0 });
+      const rendered = render(MessageEventTestHarness, {
+        props: { event, onOpenThread, threadingMode }
+      });
+      (q(rendered.container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+      expect(onOpenThread).toHaveBeenCalledWith(
+        event.id,
+        expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
+      );
+
+      onOpenThread.mockClear();
+      await openContextMenu(rendered.container);
+      menuButton(rendered.container, 'Reply')!.click();
+      expect(onOpenThread).toHaveBeenCalledWith(
+        event.id,
+        expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
+      );
+    }
+  );
+
+  it('keeps Reply in room available for an existing thread in Enabled mode', async () => {
+    const onOpenThread = vi.fn();
+    const event = messageEvent({ threadExists: true });
+    const rendered = render(MessageEventTestHarness, {
+      props: { event, onOpenThread, threadingMode: RoomThreadingMode.ENABLED }
+    });
+    await openContextMenu(rendered.container);
+    menuButton(rendered.container, 'Reply in room')!.click();
+    expect(onOpenThread).not.toHaveBeenCalled();
+    await expect
+      .element(q(rendered.container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
+  });
+
+  it.each([
+    { threadingMode: RoomThreadingMode.ENABLED, threadExists: false },
+    { threadingMode: RoomThreadingMode.DISABLED, threadExists: true }
+  ])(
+    'keeps Reply in the room in $threadingMode mode with threadExists=$threadExists',
+    async ({ threadingMode, threadExists }) => {
+      const onOpenThread = vi.fn();
+      const event = messageEvent({ threadExists, replyCount: 0 });
+      const rendered = render(MessageEventTestHarness, {
+        props: { event, onOpenThread, threadingMode }
+      });
+      (q(rendered.container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+      expect(onOpenThread).not.toHaveBeenCalled();
+      await expect
+        .element(q(rendered.container, '[data-testid="active-reply-target"]'))
+        .toHaveTextContent(event.id);
+    }
+  );
+
+  it.each([RoomThreadingMode.ENABLED, RoomThreadingMode.ENCOURAGED, RoomThreadingMode.REQUIRED])(
     'opens and focuses the thread without root attribution from the context menu in %s mode',
     async (threadingMode) => {
       const onOpenThread = vi.fn();
@@ -939,27 +996,30 @@ describe('MessageEvent action model integration', () => {
       .toHaveTextContent(event.id);
   });
 
-  it('falls back to an in-room reply in Encouraged mode without thread permission', async () => {
-    const event = messageEvent();
-    const onOpenThread = vi.fn();
-    const { container } = render(MessageEventTestHarness, {
-      props: {
-        event,
-        onOpenThread,
-        threadingMode: RoomThreadingMode.ENCOURAGED,
-        canPostMessage: true,
-        canPostInThread: false
-      }
-    });
+  it.each([RoomThreadingMode.ENABLED, RoomThreadingMode.ENCOURAGED])(
+    'falls back to an in-room reply without thread permission in %s mode',
+    async (threadingMode) => {
+      const event = messageEvent({ threadExists: true });
+      const onOpenThread = vi.fn();
+      const { container } = render(MessageEventTestHarness, {
+        props: {
+          event,
+          onOpenThread,
+          threadingMode,
+          canPostMessage: true,
+          canPostInThread: false
+        }
+      });
 
-    expect(q(container, 'button[aria-label="Reply"]')).toBeTruthy();
-    expect(q(container, 'button[aria-label="Reply in thread"]')).toBeNull();
-    (q(container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
-    expect(onOpenThread).not.toHaveBeenCalled();
-    await expect
-      .element(q(container, '[data-testid="active-reply-target"]'))
-      .toHaveTextContent(event.id);
-  });
+      expect(q(container, 'button[aria-label="Reply"]')).toBeTruthy();
+      expect(q(container, 'button[aria-label="Reply in thread"]')).toBeNull();
+      (q(container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+      expect(onOpenThread).not.toHaveBeenCalled();
+      await expect
+        .element(q(container, '[data-testid="active-reply-target"]'))
+        .toHaveTextContent(event.id);
+    }
+  );
 
   it.each([true, false])('uses resolved interaction reply authority: %s', (allowed) => {
     const event = messageEvent();

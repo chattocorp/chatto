@@ -638,3 +638,32 @@ Inspect pending notes with `mise x -- sweet status`. In a clean checkout, run
 `mise x -- sweet bump <package-path>` to preview a release and inspect the diff.
 This changes files but does not commit or publish them. See
 [the release guide](docs/RELEASING.md) for tag names, publication, and limits.
+
+### Writing change notes
+
+Write each Sweet note as a changelog entry for the affected reader: a member,
+administrator, operator, or integration author.
+
+- Describe what the reader will notice after the upgrade. Use “Reply now opens
+  the existing thread” rather than an implementation instruction such as
+  “Route replies into threads”.
+- For a fix, name the problem the reader experienced. For example: “Fixed
+  thread suggestions pointing to old conversations while browsing history.”
+- Use one note per meaningful change, usually one or two short sentences.
+  Group supporting changes, such as a button label, with the behavior they
+  support when that detail is useful.
+- Include conditions only when readers need them to understand the change.
+  Always state required upgrade actions.
+- Keep implementation details, test results, and exhaustive exceptions in the
+  PR or decision record.
+- Describe the final behavior. Do not list each correction made while the
+  feature was developed.
+
+For example:
+
+> When the latest room message has a thread, Chatto now asks whether you want
+> to continue it or start a new conversation. Replies to a specific message
+> keep their chosen destination.
+
+Before you commit a note, ask: “Does this help the reader understand what
+changed for them after upgrading?” Shorten or omit text that does not.
