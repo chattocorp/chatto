@@ -678,6 +678,10 @@ administrator, operator, or integration author.
 - Use one note per meaningful change, usually one or two short sentences.
   Group supporting changes, such as a button label, with the behavior they
   support when that detail is useful.
+- If a change amends an existing unreleased note in the same release unit,
+  you can update that note or combine the notes and remove duplicates. Describe
+  the final behavior. Preserve required upgrade actions and the release type
+  needed for the combined change. Do not rewrite published release notes.
 - Include conditions only when readers need them to understand the change.
   Always state required upgrade actions.
 - Keep implementation details, test results, and exhaustive exceptions in the

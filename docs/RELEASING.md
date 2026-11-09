@@ -28,6 +28,12 @@ Add notes with `mise x -- sweet change <package-path>`. `fix` selects a patch,
 `feature` and `breaking` select a minor while versions are below 1.0. Review
 this policy before any package reaches 1.0. `chore` alone does not release.
 
+If a change amends an existing unreleased note in the same release unit, you
+can update that note or combine the notes and remove duplicates. Preserve the
+final behavior, required upgrade actions, and release type needed for the
+combined change. Do not rewrite published release notes. See
+[Writing change notes](../CONTRIBUTING.md#writing-change-notes).
+
 The Prepare releases workflow runs on `main` when notes, manifests, Sweet
 configuration, or the workflow change. It uses Sweet's pinned reusable workflow
 to create one PR per package. Run it manually to refresh a PR or retry a failure.
