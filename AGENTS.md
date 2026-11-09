@@ -230,10 +230,9 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 - Chatto uses REUSE/SPDX license metadata. Keep `mise license-check` passing
   when adding files or changing license boundaries.
-- Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
+- Files are EUPL-1.2 by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
-- Runling under `packages/runling/` keeps its MIT license. `@chatto/client`
-  under `packages/` uses Apache-2.0.
+- Runling, ChattoBot, Authling, and `@chatto/client` use Apache-2.0.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
   `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
@@ -242,7 +241,8 @@ Never leave a dev stack running in a detached or yielded terminal session.
   protocol/API definitions, generated TypeScript API clients, documentation,
   and examples.
 - The Chatto server, CLI, and bundled server release artifacts should stay
-  AGPL-3.0-or-later unless the license boundary is deliberately changed.
+  EUPL-1.2 unless the license boundary is deliberately changed. Keep EUPL's
+  standard later-version provision. Preserve third-party licenses and notices.
 
 ## Issues, Commits, And PRs
 

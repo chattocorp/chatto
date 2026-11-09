@@ -313,4 +313,5 @@ new Runling releases.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Earlier MIT grants remain valid.

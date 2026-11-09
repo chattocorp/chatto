@@ -107,7 +107,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ steps.metadata.outputs.sha }}
             org.opencontainers.image.version=${{ steps.metadata.outputs.version }}
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Check executable
         env:
           VERSION: ${{ steps.metadata.outputs.version }}

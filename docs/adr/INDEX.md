@@ -74,7 +74,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md)          | Incubate an Extractable NATS Event-Sourcing Framework            | Accepted             | 2026-07-30 |
 | [ADR-057](ADR-057-temporarily-incubate-authling.md)                      | Temporarily Incubate Authling in the Chatto Repository           | Accepted             | 2026-07-30 |
 | [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md)          | Extract an Application-Neutral Embedded NATS Runtime             | Accepted             | 2026-07-31 |
-| [ADR-059](ADR-059-apache-license-shared-framework-modules.md)            | License Shared Framework Modules under Apache-2.0                | Accepted             | 2026-07-31 |
+| [ADR-059](ADR-059-apache-license-shared-framework-modules.md)            | License Shared Framework Modules under Apache-2.0                | Partially superseded | 2026-07-31 |
 | [ADR-060](ADR-060-application-neutral-data-cryptography.md)              | Extract Application-Neutral Data Cryptography                    | Accepted             | 2026-07-31 |
 | [ADR-061](ADR-061-application-neutral-configuration-loading.md)          | Extract Application-Neutral Configuration Loading                | Accepted             | 2026-07-31 |
 | [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md)                  | TanStack Query for Snapshot-Style Frontend Reads                 | Accepted             | 2026-09-17 |
@@ -133,6 +133,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-116](ADR-116-consume-internal-packages-from-source.md)              | Consume Internal TypeScript Packages from Source                 | Accepted             | 2026-10-18 |
 | [ADR-117](ADR-117-message-post-idempotency.md)                           | Message Post Idempotency in Runtime State                        | Accepted             | 2026-10-08 |
 | [ADR-118](ADR-118-synchronized-chatto-desktop-releases.md)               | Synchronize Chatto and Desktop Releases                          | Partially superseded | 2026-10-25 |
-| [ADR-119](ADR-119-portable-history-interchange.md)                       | Portable History Interchange                                    | Accepted             | 2026-10-26 |
-| [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                    | Accepted             | 2026-10-27 |
+| [ADR-119](ADR-119-portable-history-interchange.md)                       | Portable History Interchange                                     | Accepted             | 2026-10-26 |
+| [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                     | Accepted             | 2026-10-27 |
 | [ADR-121](ADR-121-github-desktop-updates.md)                             | Publish Complete GitHub Releases for Desktop Updates             | Accepted             | 2026-10-29 |
+| [ADR-122](ADR-122-product-license-boundaries.md)                         | EUPL for Chatto and Apache-2.0 for Independent Products          | Accepted             | 2026-11-09 |

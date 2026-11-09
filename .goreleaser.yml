@@ -24,7 +24,7 @@ builds:
 archives:
   - formats: [tar.gz]
     files:
-      - LICENSES/AGPL-3.0-or-later.txt
+      - LICENSES/EUPL-1.2.txt
       - NOTICE
     # this name template makes the OS and Arch compatible with the results of `uname`.
     # GoReleaser's `title` renders `freebsd` as `Freebsd`, but `uname` reports `FreeBSD`.
@@ -52,7 +52,7 @@ dockers:
     extra_files:
       - docker/docker-entrypoint.sh
       - docker/nats-wrapper.sh
-      - LICENSES/AGPL-3.0-or-later.txt
+      - LICENSES/EUPL-1.2.txt
       - NOTICE
     build_flag_templates:
       - '--pull'
@@ -62,7 +62,7 @@ dockers:
       - '--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto'
       - '--label=org.opencontainers.image.version={{ .Version }}'
       - '--label=org.opencontainers.image.created={{ .Date }}'
-      - '--label=org.opencontainers.image.licenses=AGPL-3.0-or-later'
+      - '--label=org.opencontainers.image.licenses=EUPL-1.2'
     use: buildx
     goarch: amd64
     goos: linux
@@ -72,7 +72,7 @@ dockers:
     extra_files:
       - docker/docker-entrypoint.sh
       - docker/nats-wrapper.sh
-      - LICENSES/AGPL-3.0-or-later.txt
+      - LICENSES/EUPL-1.2.txt
       - NOTICE
     build_flag_templates:
       - '--pull'
@@ -82,7 +82,7 @@ dockers:
       - '--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto'
       - '--label=org.opencontainers.image.version={{ .Version }}'
       - '--label=org.opencontainers.image.created={{ .Date }}'
-      - '--label=org.opencontainers.image.licenses=AGPL-3.0-or-later'
+      - '--label=org.opencontainers.image.licenses=EUPL-1.2'
     use: buildx
     goarch: arm64
     goos: linux

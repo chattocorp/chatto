@@ -157,7 +157,7 @@ jobs:
           cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
           cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
           mkdir -p "$context/LICENSES"
-          cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+          cp LICENSES/EUPL-1.2.txt "$context/LICENSES/EUPL-1.2.txt"
           cp NOTICE "$context/NOTICE"
 
           (
@@ -183,7 +183,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
             org.opencontainers.image.version=${{ steps.image.outputs.version }}
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.licenses=EUPL-1.2
 
   # All protected environments request approval at the start of a tagged run.
   # Keep this job independent of builds so one review can approve all three.
@@ -1040,7 +1040,7 @@ jobs:
             desc "Real-time chat app CLI and server"
             homepage "https://github.com/chattocorp/chatto"
             version "${VERSION}"
-            license "AGPL-3.0-or-later"
+            license "EUPL-1.2"
 
             on_macos do
               on_arm do

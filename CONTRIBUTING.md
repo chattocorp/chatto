@@ -73,7 +73,7 @@ request helpers and message loop for bots. The bundled frontend and ChattoBot
 use it.
 The independent [Runling](packages/runling/README.md) workflow and agent
 orchestrator lives in `packages/runling/` and is published to npm as `runling`.
-It keeps its own version and MIT license. The Chatto bot uses this local package.
+It keeps its own version and Apache-2.0 license. The Chatto bot uses this local package.
 Use `mise check-runling`, `mise test-runling`, and `mise test-runling-package`
 to verify it without running the complete Chatto test suite.
 

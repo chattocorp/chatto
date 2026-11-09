@@ -260,7 +260,7 @@ jobs:
             cp docker/Dockerfile.goreleaser "$context/Dockerfile"
             cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
             cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
-            cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+            cp LICENSES/EUPL-1.2.txt "$context/LICENSES/EUPL-1.2.txt"
             cp NOTICE "$context/NOTICE"
             (
               cd cli
@@ -1212,7 +1212,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.licenses=EUPL-1.2
 
       - name: Build and push arm64 image
         uses: docker/build-push-action@v6
@@ -1228,7 +1228,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.licenses=EUPL-1.2
 
       - name: Publish multi-platform commit image
         shell: bash

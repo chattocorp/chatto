@@ -1,6 +1,6 @@
 [![CI](https://github.com/chattocorp/chatto/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chattocorp/chatto/actions/workflows/ci.yml?query=branch%3Amain)
 [![Latest release](https://img.shields.io/github/v/release/chattocorp/chatto?include_prereleases&sort=semver)](https://github.com/chattocorp/chatto/releases)
-[![License: AGPL-3.0-or-later with Apache-2.0 exceptions](https://img.shields.io/badge/license-AGPL--3.0--or--later%20with%20Apache--2.0%20exceptions-blue.svg)](LICENSE)
+[![License: EUPL-1.2 with Apache-2.0 exceptions](https://img.shields.io/badge/license-EUPL--1.2%20with%20Apache--2.0%20exceptions-blue.svg)](LICENSE)
 
 # Chatto
 
@@ -44,7 +44,7 @@ This installs the tools and dependencies of Chatto, then starts it. `mise dev-fu
 
 ## License
 
-Chatto uses `AGPL-3.0-or-later` by default. The shared framework modules, standalone frontend, integration surfaces, documentation, and examples use Apache-2.0. Runling uses MIT. See [LICENSING.md](LICENSING.md) and [REUSE.toml](REUSE.toml) for the exact boundary.
+Chatto uses `EUPL-1.2` by default. The shared framework modules, standalone frontend, integration surfaces, documentation, and examples use Apache-2.0. Runling, ChattoBot, and Authling also use Apache-2.0. See [LICENSING.md](LICENSING.md) and [REUSE.toml](REUSE.toml) for the exact boundary.
 
 The licenses do not give permission to use Chatto names or logos as official branding for a fork or modified version. See [NOTICE](NOTICE).
 

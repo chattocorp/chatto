@@ -9,7 +9,7 @@
   },
   "homepage": "https://github.com/chattocorp/chatto/tree/main/packages/runling#readme",
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=22.19.0"
   },
@@ -31,6 +31,7 @@
     "./extensions/trust": "./extensions/trust.ts"
   },
   "files": [
+    "NOTICE",
     "dist",
     "bin/runling.js",
     "bin/workflow-loader.js"

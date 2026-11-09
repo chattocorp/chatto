@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: EUPL-1.2
 
 /** Test-only Paseo boundary: allocate fixed fixture ports, expose health, and
  * stop launchers with Paseo's SIGHUP/two-second grace period. Real mise tasks
