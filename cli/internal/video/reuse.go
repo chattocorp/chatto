@@ -79,7 +79,7 @@ func reusableSource(probe *ProbeResult, size int64) bool {
 			if err != nil || !finite(start) || math.Abs(start) > 0.05 {
 				return false
 			}
-			if stream.CodecName != "aac" || stream.Profile != "LC" || stream.Channels < 1 || stream.Channels > 2 || (stream.SampleRate != "44100" && stream.SampleRate != "48000") {
+			if stream.CodecName != "aac" || stream.Profile != "LC" || stream.Channels != 2 || (stream.SampleRate != "44100" && stream.SampleRate != "48000") {
 				return false
 			}
 		default:
@@ -171,33 +171,43 @@ func alignedRenditions(source, candidate *packagedRendition) bool {
 // prepareVideoVariants tries source reuse entirely on disk. Any unsuitable
 // input, failed preflight, or misaligned lower rendition returns to the normal
 // ladder. Cancellation must not start another expensive encoding attempt.
-func (s *Service) prepareVideoVariants(ctx context.Context, input, tmp string, probe *ProbeResult, inputOpts []string) []processedVariantOutput {
-	if outputs, err := s.tryReuseVideo(ctx, input, tmp, probe); err == nil {
+func (s *Service) prepareVideoVariants(ctx context.Context, assetID, input, tmp string, probe *ProbeResult, inputOpts []string) []processedVariantOutput {
+	outputs, reason := s.tryReuseVideo(ctx, assetID, input, tmp, probe)
+	if reason == "" {
 		return outputs
 	}
 	if ctx.Err() != nil {
 		return nil
 	}
-	return s.encodeVariants(ctx, input, tmp, selectVariantHeights(probe.Height), probe.AudioCodec != "", inputOpts, false)
+	// Log a bounded reason code, not raw ffmpeg output, which can contain
+	// uploaded media metadata. Every attempt remains attributable to its asset.
+	if reason == "requires_normalization" {
+		s.logger.Debug("Video source requires encoding", "asset_id", assetID, "reason", reason)
+	} else {
+		s.logger.Warn("Video source reuse fell back", "asset_id", assetID, "reason", reason)
+	}
+	return s.encodeVariants(ctx, assetID, input, tmp, selectVariantHeights(probe.Height), probe.AudioCodec != "", inputOpts, false)
 }
 
-func (s *Service) tryReuseVideo(ctx context.Context, input, tmp string, probe *ProbeResult) ([]processedVariantOutput, error) {
+// tryReuseVideo returns a fixed diagnostic reason on failure, or an empty
+// reason with locally validated renditions on success. Raw tool output stays private.
+func (s *Service) tryReuseVideo(ctx context.Context, assetID, input, tmp string, probe *ProbeResult) ([]processedVariantOutput, string) {
 	info, err := os.Stat(input)
 	if err != nil {
-		return nil, err
+		return nil, "source_stat"
 	}
 	if !reusableSource(probe, info.Size()) {
-		return nil, fmt.Errorf("source requires normalization")
+		return nil, "requires_normalization"
 	}
 	source, err := s.packageRendition(ctx, input, filepath.Join(tmp, "reuse-source"))
 	if err != nil {
-		return nil, err
+		return nil, "source_packaging"
 	}
 	if err := s.validateCopiedRendition(ctx, source); err != nil {
-		return nil, err
+		return nil, "independent_decode"
 	}
 	if err := s.readSegmentStarts(ctx, source); err != nil {
-		return nil, err
+		return nil, "source_timestamps"
 	}
 	outputs := []processedVariantOutput{{path: input, quality: fmt.Sprintf("%dp", probe.Height), width: probe.Width, height: probe.Height, size: info.Size(), packaged: source}}
 	var heights []int
@@ -206,24 +216,24 @@ func (s *Service) tryReuseVideo(ctx context.Context, input, tmp string, probe *P
 			heights = append(heights, height)
 		}
 	}
-	lower := s.encodeVariants(ctx, input, tmp, heights, probe.AudioCodec != "", nil, true)
+	lower := s.encodeVariants(ctx, assetID, input, tmp, heights, probe.AudioCodec != "", nil, true)
 	// A failed lower encode should use the normal ladder rather than silently
 	// removing adaptive choices solely because the reuse path was selected.
 	if len(lower) != len(heights) {
-		return nil, fmt.Errorf("lower rendition encoding failed")
+		return nil, "lower_encode"
 	}
 	for i := range lower {
 		packaged, err := s.packageRendition(ctx, lower[i].path, filepath.Join(tmp, fmt.Sprintf("reuse-%d", i)))
 		if err != nil {
-			return nil, err
+			return nil, "lower_packaging"
 		}
 		if err := s.readSegmentStarts(ctx, packaged); err != nil {
-			return nil, err
+			return nil, "lower_timestamps"
 		}
 		if !alignedRenditions(source, packaged) {
-			return nil, fmt.Errorf("copied and encoded segment boundaries differ")
+			return nil, "alignment"
 		}
 		lower[i].packaged = packaged
 	}
-	return append(outputs, lower...), nil
+	return append(outputs, lower...), ""
 }

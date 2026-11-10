@@ -1,6 +1,7 @@
 package video
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -46,6 +48,7 @@ func TestReusableSource(t *testing.T) {
 		{"unknown rate", func(p *ProbeResult) { p.source.Streams[0].FrameRate = "0/0" }, false},
 		{"high rate", func(p *ProbeResult) { p.source.Streams[0].FrameRate = "120/1" }, false},
 		{"offset", func(p *ProbeResult) { p.source.Streams[0].StartTime = "5" }, false},
+		{"mono audio", func(p *ProbeResult) { p.source.Streams[1].Channels = 1 }, false},
 		{"audio layout", func(p *ProbeResult) { p.source.Streams[1].Channels = 4 }, false},
 		{"audio codec", func(p *ProbeResult) { p.source.Streams[1].CodecName = "opus" }, false},
 		{"extra stream", func(p *ProbeResult) { p.source.Streams = append(p.source.Streams, p.source.Streams[0]) }, false},
@@ -96,7 +99,7 @@ func TestCancelledPreparationDoesNotStartFallback(t *testing.T) {
 	cancel()
 	// No executable or logger: starting fallback work would fail this test.
 	service := &Service{}
-	if got := service.prepareVideoVariants(ctx, filepath.Join(t.TempDir(), "absent"), t.TempDir(), suitableProbe(), nil); len(got) != 0 {
+	if got := service.prepareVideoVariants(ctx, "asset-test-123", filepath.Join(t.TempDir(), "absent"), t.TempDir(), suitableProbe(), nil); len(got) != 0 {
 		t.Fatal("cancelled attempt produced output")
 	}
 }
@@ -119,15 +122,20 @@ func TestReuseVideoWithFFmpeg(t *testing.T) {
 		wantReuse bool
 		height    int
 		variants  int
+		rate      int
 	}{
-		{"frequent keyframes", "48", true, 1080, 3},
-		{"sparse keyframes", "10000", false, 1080, 2},
-		{"small source needs no encoder", "48", true, 360, 1},
+		{"frequent keyframes", "48", true, 1080, 3, 24},
+		{"long GOP at 60 fps", "300", true, 1080, 3, 60},
+		{"long GOP at 30 fps", "300", true, 1080, 3, 30},
+		{"sparse keyframes", "10000", false, 1080, 2, 24},
+		{"small source needs no encoder", "48", true, 360, 1, 24},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			service.logger = log.New(&logs)
 			tmp := t.TempDir()
 			input := filepath.Join(tmp, "source.mp4")
-			cmd := exec.CommandContext(ctx, ffmpeg, "-v", "error", "-f", "lavfi", "-i", fmt.Sprintf("testsrc2=size=192x%d:rate=24:duration=13", tc.height), "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000:duration=13", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-g", tc.gop, "-keyint_min", tc.gop, "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-y", input)
+			cmd := exec.CommandContext(ctx, ffmpeg, "-v", "error", "-f", "lavfi", "-i", fmt.Sprintf("testsrc2=size=192x%d:rate=%d:duration=13", tc.height, tc.rate), "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000:duration=13", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-g", tc.gop, "-keyint_min", tc.gop, "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-y", input)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("fixture: %v\n%s", err, out)
 			}
@@ -135,7 +143,7 @@ func TestReuseVideoWithFFmpeg(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			outputs := service.prepareVideoVariants(ctx, input, tmp, probe, nil)
+			outputs := service.prepareVideoVariants(ctx, "asset-test-123", input, tmp, probe, nil)
 			if len(outputs) == 0 {
 				t.Fatal("no output")
 			}
@@ -143,6 +151,14 @@ func TestReuseVideoWithFFmpeg(t *testing.T) {
 			if reused != tc.wantReuse {
 				t.Fatalf("reused = %v, want %v; probe=%+v", reused, tc.wantReuse, probe.source)
 			}
+			if !reused && (!strings.Contains(logs.String(), "Video source reuse fell back") || !strings.Contains(logs.String(), "reason=independent_decode")) {
+				t.Fatalf("missing fallback log: %s", logs.String())
+			}
+
+			if tc.variants > 1 && (!strings.Contains(logs.String(), "Transcoding variant") || !strings.Contains(logs.String(), "asset_id=asset-test-123")) {
+				t.Fatalf("missing asset-scoped variant log: %s", logs.String())
+			}
+
 			if reused {
 				if len(outputs) != tc.variants || outputs[0].height != int32(tc.height) {
 					t.Fatalf("want source plus lower renditions, got %+v", outputs)

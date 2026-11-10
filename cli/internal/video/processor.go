@@ -309,7 +309,10 @@ func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, h
 	if sourceKeyframes {
 		keyframes = "source"
 		// Avoid a decode-time offset relative to the copied, B-frame-free source.
-		args = append(args, "-bf", "0")
+		// The default x264 keyint (250 frames) would add keyframes between
+		// source keyframes and can move HLS boundaries. Forced source
+		// keyframes remain active with this effectively unbounded keyint.
+		args = append(args, "-bf", "0", "-g", "2147483647")
 	}
 	args = append(args,
 		"-vf", fmt.Sprintf("scale=-2:%d", height),
@@ -460,27 +463,27 @@ func selectVariantHeights(sourceHeight int32) []int {
 }
 
 // encodeVariants generates local files; failed heights leave remaining renditions usable.
-func (s *Service) encodeVariants(ctx context.Context, inputPath, tmpDir string, heights []int, hasAudio bool, inputOpts []string, sourceKeyframes bool) []processedVariantOutput {
+func (s *Service) encodeVariants(ctx context.Context, assetID, inputPath, tmpDir string, heights []int, hasAudio bool, inputOpts []string, sourceKeyframes bool) []processedVariantOutput {
 	var variantOutputs []processedVariantOutput
 	for _, h := range heights {
 		outputPath := filepath.Join(tmpDir, fmt.Sprintf("%dp.mp4", h))
-		s.logger.Info("Transcoding variant", "height", h)
+		s.logger.Info("Transcoding variant", "asset_id", assetID, "height", h)
 
 		if err := s.transcode(ctx, inputPath, outputPath, h, hasAudio, inputOpts, sourceKeyframes); err != nil {
-			s.logger.Error("Variant transcoding failed", "height", h, "error", err)
+			s.logger.Error("Variant transcoding failed", "asset_id", assetID, "height", h, "error", err)
 			continue // Try remaining variants
 		}
 
 		// Get file info for size
 		info, err := os.Stat(outputPath)
 		if err != nil {
-			s.logger.Error("Failed to stat transcoded file", "error", err)
+			s.logger.Error("Failed to stat transcoded file", "asset_id", assetID, "error", err)
 			continue
 		}
 
 		variantProbe, err := s.probe(ctx, outputPath, "video/mp4")
 		if err != nil {
-			s.logger.Error("Failed to probe transcoded variant", "height", h, "error", err)
+			s.logger.Error("Failed to probe transcoded variant", "asset_id", assetID, "height", h, "error", err)
 			continue
 		}
 
@@ -573,7 +576,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	}
 
 	var variants []*runtimestatev1.VideoVariant
-	variantOutputs := s.prepareVideoVariants(ctx, inputPath, tmpDir, probeResult, inputOpts)
+	variantOutputs := s.prepareVideoVariants(ctx, req.AssetID, inputPath, tmpDir, probeResult, inputOpts)
 
 	if len(variantOutputs) == 0 {
 		return fail(nil, fmt.Errorf("all variant transcodes failed"))
