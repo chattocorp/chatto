@@ -1,6 +1,7 @@
 <!-- @component Build-generated article links. The route shows this only beside wide reading columns. -->
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { getTextDirection } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
   import type { HelpHeading } from './articles';
   import type { HelpTopic } from './navigation';
@@ -12,11 +13,7 @@
 <p class="mb-4 text-xs font-semibold tracking-wider text-text-top uppercase">
   {m('help.contents')}
 </p>
-<nav
-  aria-label={m('help.contents')}
-  lang={locale}
-  dir={locale === 'ar' || locale === 'he-IL' ? 'rtl' : 'ltr'}
->
+<nav aria-label={m('help.contents')} lang={locale} dir={getTextDirection(locale)}>
   <ol class="flex flex-col gap-1 border-s border-border">
     {#each headings as heading (heading.id)}
       <li>
