@@ -170,6 +170,7 @@ Frontend, Examples, and Documentation Components:
 - TypeScript ESLint (https://typescript-eslint.io/) - MIT License
 - Vidstack (https://www.vidstack.io/) - MIT License
 - Virtua (https://github.com/inokawa/virtua) - MIT License
+  Used by the Chatto message timeline and the Runling log viewer.
   Includes a local patch to keep retained Svelte rows mounted during pagination.
 - Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License
 - zod (https://zod.dev/) - MIT License
