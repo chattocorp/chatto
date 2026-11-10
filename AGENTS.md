@@ -257,6 +257,10 @@ Never leave a dev stack running in a detached or yielded terminal session.
   final behavior and preserve required upgrade actions and the release type
   needed for the combined change. Do not rewrite published release notes.
 
+- Do not hard-wrap Markdown prose in Sweet Release notes. Keep each paragraph
+  and each list item on one source line. Use line breaks only for Markdown
+  structure, such as separate paragraphs, list items, headings, and code blocks.
+
 - Every review that includes `apps/frontend/` must use
   [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).
   This includes self-review, branch and PR review, and architecture review.
