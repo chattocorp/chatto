@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-22
 
-**Updated:** 2026-10-12
+**Updated:** 2026-11-10
 
 **Status:** Partially superseded
 
@@ -249,10 +249,9 @@ would treat a new short-lived access record as a sliding bearer record and
 could extend it beyond its intended expiry. Rolling back to a pre-renewal
 binary after issuing new credentials has the same problem; revoke the affected
 bearer sessions or require users to sign in again before such a rollback.
-The 0.5 bundled frontend automatically migrates a valid typed browser cookie
-from 0.4 to the dedicated SCS cookie path. It does not migrate the older
-`cookie_session.*` storage shape. Users with that older shape, an expired
-record, or a revoked record sign in again.
+Version 0.6 removes the browser-cookie migration route supplied by 0.5.
+A browser with only a 0.4 typed cookie must sign in again. Existing SCS cookie
+sessions keep their login, renewal, logout, and realtime behavior.
 
 The additive fields on `chatto.auth.v1.CreateExternalIdentityAccountResponse`
 remain wire-compatible, but clients participating in human bearer auth must

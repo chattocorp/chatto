@@ -103,7 +103,6 @@ func isCSRFExemptUnsafePath(path string) bool {
 	switch path {
 	case "/auth/login",
 		"/auth/browser/login",
-		"/auth/browser/session/migrate",
 		"/auth/browser/revoke-bearer-session",
 		"/auth/register",
 		"/auth/register/verify-code",

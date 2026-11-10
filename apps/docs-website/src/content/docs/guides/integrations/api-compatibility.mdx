@@ -100,6 +100,12 @@ server versions. Follow its upgrade recommendation if one appears.
 
 </Steps>
 
+## Browser cookie upgrades in 0.6
+
+Chatto 0.6 removes `POST /auth/browser/session/migrate`. Browsers that still
+have only a Chatto 0.4 session cookie must sign in again. Existing Chatto 0.5
+browser sessions keep their normal login, renewal, logout, and realtime behavior.
+
 ## Migrate from 0.4 to 0.5
 
 This migration starts from **0.4.26**, the last stable 0.4 release. It describes

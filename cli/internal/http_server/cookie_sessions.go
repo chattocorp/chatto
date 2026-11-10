@@ -18,15 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	// Retired signed-session keys are deleted when new browser authentication is
-	// issued. The 0.5 migration route reads runtime_credential_id once; ordinary
-	// authentication never accepts these values.
-	sessionKeyRuntimeCredentialID = "runtime_credential_id"
-	retiredSessionKeyUserID       = "user_id"
-	retiredSessionKeyCredentialID = "cookie_session_id"
-	issuedBrowserSessionKey       = "issued_browser_session"
-)
+const issuedBrowserSessionKey = "issued_browser_session"
 
 func (s *HTTPServer) createCookieSession(c *gin.Context, userID, source string) error {
 	data, err := s.core.NewCookieSessionData(c.Request.Context(), userID, source)
@@ -91,7 +83,6 @@ func (s *HTTPServer) issueBrowserSession(c *gin.Context, data core.AuthTokenData
 	s.clearBrowserSessionCookie(c)
 	c.Set(issuedBrowserSessionKey, issuedBrowserSession{name: cookieName, token: token})
 	s.writeBrowserSessionCookie(c, cookieName, token, expiry)
-	clearLegacyCookieAuthentication(sessions.Default(c))
 	return token, nil
 }
 
@@ -122,34 +113,6 @@ func markAuthenticationCookieResponsePrivate(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "private, no-store")
-}
-
-func clearLegacyCookieAuthentication(session sessions.Session) {
-	_ = removeLegacyCookieAuthentication(session)
-}
-
-func removeLegacyCookieAuthentication(session sessions.Session) error {
-	if session == nil {
-		return nil
-	}
-	hadAuthentication := session.Get(sessionKeyRuntimeCredentialID) != nil ||
-		session.Get(retiredSessionKeyUserID) != nil ||
-		session.Get(retiredSessionKeyCredentialID) != nil
-	if !hadAuthentication {
-		return nil
-	}
-	session.Delete(sessionKeyRuntimeCredentialID)
-	session.Delete(retiredSessionKeyUserID)
-	session.Delete(retiredSessionKeyCredentialID)
-	return session.Save()
-}
-
-func legacyCookieSessionID(session sessions.Session) (string, bool) {
-	if session == nil {
-		return "", false
-	}
-	sessionID, _ := session.Get(sessionKeyRuntimeCredentialID).(string)
-	return sessionID, sessionID != ""
 }
 
 func (s *HTTPServer) clearBrowserSessionCookie(c *gin.Context) {
