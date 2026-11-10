@@ -14,6 +14,90 @@ import { EXA_MCP_URL, mcpExtension, memoryLockExtension, mcpServers } from './mc
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
 import { createAgentSession as createRunlingSession } from 'runling';
+import { adminOnlyBatch } from './authorization.ts';
+
+test.each([
+  { authors: ['admin'], expectedAdmin: true },
+  { authors: ['reader'], expectedAdmin: false },
+  { authors: ['admin', 'reader'], expectedAdmin: false },
+  { authors: [], expectedAdmin: false },
+  { authors: [''], expectedAdmin: false },
+  { authors: ['admin', 'other-admin'], expectedAdmin: true }
+])('MCP enforces current batch authority for $authors', async ({ authors, expectedAdmin }) => {
+  const directory = await mkdtemp(resolve('../../.context/botto-mcp-access-'));
+  const settings = parseSettings(
+    '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/model"\n[mcp.servers.github]\ncommand="unused"\ntools=["issue_read"]\nadmin_tools=["issue_write"]',
+    'botto.toml'
+  );
+  const privileged = adminOnlyBatch(authors, ['admin', 'other-admin']);
+  expect(privileged).toBe(expectedAdmin);
+  const call = vi.fn(async () => ({ content: [] }));
+  const transport = mcpFixture(
+    ['issue_read', 'issue_write', 'new_write'].map((name) => ({
+      name,
+      inputSchema: { type: 'object' }
+    })),
+    call
+  );
+  const modelRuntime = await ModelRuntime.create({
+    authPath: join(directory, 'auth.json'),
+    modelsPath: null,
+    refreshOnCreate: false,
+    allowModelNetwork: false
+  });
+  const settingsManager = SettingsManager.inMemory();
+  const loader = new DefaultResourceLoader({
+    cwd: directory,
+    agentDir: directory,
+    settingsManager,
+    noExtensions: true,
+    noSkills: true,
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true,
+    extensionFactories: [mcpExtension(settings, undefined, () => transport, privileged)]
+  });
+  await loader.reload();
+  const { session } = await createAgentSession({
+    cwd: directory,
+    agentDir: directory,
+    modelRuntime,
+    settingsManager,
+    resourceLoader: loader,
+    sessionManager: SessionManager.inMemory(directory),
+    noTools: 'builtin'
+  });
+  try {
+    await session.bindExtensions({});
+    const expected = [
+      'mcp__github__issue_read',
+      ...(privileged ? ['mcp__github__issue_write'] : [])
+    ];
+    await vi.waitFor(() => expect(session.getActiveToolNames().sort()).toEqual(expected));
+    for (const name of ['issue_read', 'issue_write', 'new_write']) {
+      const toolName = `mcp__github__${name}`;
+      const result = await session.extensionRunner.emitToolCall({
+        type: 'tool_call',
+        toolCallId: name,
+        toolName,
+        input: {}
+      });
+      if (expected.includes(toolName)) {
+        expect(result?.block).not.toBe(true);
+        const tool = session.agent.state.tools.find((tool) => tool.name === toolName)!;
+        await tool.execute(name, {}, new AbortController().signal);
+      } else {
+        expect(result?.block).toBe(true);
+        expect(session.agent.state.tools.some((tool) => tool.name === toolName)).toBe(false);
+      }
+    }
+    expect(call).toHaveBeenCalledTimes(expected.length);
+  } finally {
+    await session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' });
+    session.dispose();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 afterEach(() => vi.restoreAllMocks());
 
