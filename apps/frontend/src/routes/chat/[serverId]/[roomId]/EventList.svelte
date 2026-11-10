@@ -212,13 +212,22 @@
   // Apply display settings after structural filtering, retaining the original
   // window for unread boundaries and pagination through entirely hidden pages.
   const activityFilteredEvents = $derived(
-    showMembershipEvents
-      ? timelineEvents
-      : timelineEvents.filter(
-          (event) =>
-            event.event?.kind !== TimelineEventKind.UserJoinedRoom &&
-            event.event?.kind !== TimelineEventKind.UserLeftRoom
-        )
+    timelineEvents.filter((event) => {
+      switch (event.event?.kind) {
+        case TimelineEventKind.UserJoinedRoom:
+        case TimelineEventKind.UserLeftRoom:
+          // SystemEventGroup omits membership activity without a visible actor.
+          return showMembershipEvents && !!event.actor && !event.actor.deleted;
+        case TimelineEventKind.RoomCreated:
+        case TimelineEventKind.RoomUpdated:
+        case TimelineEventKind.RoomDeleted:
+          // SystemEvent renders no row for these events. They must not own
+          // date headers or break message groups when a message is deleted.
+          return false;
+        default:
+          return true;
+      }
+    })
   );
   let filteredEvents = $derived(
     showTombstones ? activityFilteredEvents : visibleTombstoneEvents(activityFilteredEvents)
