@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { ListFeaturesResponse } from '@chatto/api-types/chatto/discovery/v1/server_pb';
+import {
+  ListFeaturesRequest,
+  ListFeaturesResponse
+} from '@chatto/api-types/chatto/discovery/v1/server_pb';
 import { ServerInfoState } from '@chatto/client/server/state';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -32,9 +35,12 @@ describe('public feature catalog on Server information', () => {
     const originalFetch = globalThis.fetch;
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const request = new Request(input, init);
-      if (!request.url.endsWith('ServerDiscoveryService/ListFeatures'))
+      const url = new URL(request.url);
+      if (!url.pathname.endsWith('ServerDiscoveryService/ListFeatures'))
         return originalFetch(input, init);
-      const filters = await request.json();
+      expect(request.method).toBe('GET');
+      expect(url.searchParams.get('encoding')).toBe('json');
+      const filters = ListFeaturesRequest.fromJsonString(url.searchParams.get('message')!);
       requests.push(filters);
       return new Response(
         new ListFeaturesResponse({
