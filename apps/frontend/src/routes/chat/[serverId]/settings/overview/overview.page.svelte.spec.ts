@@ -40,21 +40,25 @@ describe('settings Overview', () => {
     const view = render(Overview);
     expect(view.container.querySelectorAll('h2')).toHaveLength(3);
     for (const link of view.container.querySelectorAll('nav a')) {
-      const description = link.querySelector('p');
+      const description = document.getElementById(link.getAttribute('aria-describedby')!);
       expect(description?.textContent?.trim()).toBeTruthy();
     }
     await expect
       .element(view.getByRole('link', { name: 'Appearance' }))
       .toHaveAttribute('href', '/chat/remote.example.com/settings/appearance');
     await expect
-      .element(view.getByRole('link', { name: /^Account\b/ }))
+      .element(view.getByRole('link', { name: 'Account', exact: true }))
       .toHaveAttribute('href', '/chat/remote.example.com/settings/account');
-    await expect.element(view.getByRole('link', { name: /^Bots\b/ })).toBeVisible();
-    await expect.element(view.getByRole('link', { name: /^General\b/ })).not.toBeInTheDocument();
+    await expect.element(view.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
+    await expect
+      .element(view.getByRole('link', { name: 'General', exact: true }))
+      .not.toBeInTheDocument();
     scope.permissions = { ...scope.permissions, canManageServer: true };
-    await expect.element(view.getByRole('link', { name: /^General\b/ })).toBeVisible();
+    await expect.element(view.getByRole('link', { name: 'General', exact: true })).toBeVisible();
     scope.permissions = { ...scope.permissions, canManageServer: false };
-    await expect.element(view.getByRole('link', { name: /^General\b/ })).not.toBeInTheDocument();
+    await expect
+      .element(view.getByRole('link', { name: 'General', exact: true }))
+      .not.toBeInTheDocument();
   });
 
   it('shows the notice in Server only for available inactive Shield Mode, including state changes', async () => {
@@ -84,7 +88,7 @@ describe('settings Overview', () => {
       .element(view.getByRole('heading', { name: 'Server', exact: true }))
       .not.toBeInTheDocument();
     scope.permissions = { ...scope.permissions, loaded: true };
-    await expect.element(view.getByRole('link', { name: /^Bots\b/ })).toBeVisible();
+    await expect.element(view.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
   });
 });
 
