@@ -127,15 +127,6 @@
       <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
     </a>
 
-    <a
-      href={resolve('/help')}
-      class="app-header-icon"
-      aria-label={m('ui.help')}
-      title={m('ui.help')}
-    >
-      <span class="iconify icon-[uil--question-circle] text-lg" aria-hidden="true"></span>
-    </a>
-
     <!-- Connection lost indicator: only show when an authenticated server has lost connection.
          Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
     {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}
@@ -160,7 +151,7 @@
     <span class="flex-1"></span>
   {/if}
 
-  <!-- Client version and About action -->
+  <!-- Client version, About, and Help actions -->
   <div class="flex shrink-0 items-center gap-3">
     {#if updates.status?.status === 'ready'}
       <a
@@ -187,6 +178,14 @@
         <span class="iconify icon-[uil--info-circle] text-lg" aria-hidden="true"></span>
       </button>
     {/if}
+    <a
+      href={resolve('/help')}
+      class="app-header-icon"
+      aria-label={m('ui.help')}
+      title={m('ui.help')}
+    >
+      <span class="iconify icon-[uil--question-circle] text-lg" aria-hidden="true"></span>
+    </a>
   </div>
 </header>
 
