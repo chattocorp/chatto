@@ -6,7 +6,6 @@
   import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import ReleaseHighlights from '$lib/help/highlights/ReleaseHighlights.svelte';
   import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
-  import type { ServerScope } from '$lib/state/server/scope.svelte';
 
   const serverId = $derived(
     page.url.searchParams.has('server')
@@ -14,29 +13,14 @@
       : firstAuthenticatedServerId()
   );
   const store = $derived(serverId ? serverRegistry.tryGetStore(serverId) : undefined);
-  const scope = $derived.by((): ServerScope | undefined => {
-    if (!serverId || !store) return undefined;
-    const selectedId = serverId;
-    const selectedStore = store;
-    const connection = serverConnectionManager.getClient(selectedId);
-    return {
-      serverId: selectedId,
-      store: selectedStore,
-      connection,
-      isCurrent: () =>
-        serverRegistry.tryGetStore(selectedId) === selectedStore &&
-        serverConnectionManager.getClient(selectedId) === connection
-    };
-  });
+  const connection = $derived(
+    serverId && store ? serverConnectionManager.getClient(serverId) : undefined
+  );
 </script>
 
-{#if scope}
-  {#key scope.store}
-    <ServerScopeProvider
-      serverId={scope.serverId}
-      store={scope.store}
-      connection={scope.connection}
-    >
+{#if serverId && store && connection}
+  {#key store}
+    <ServerScopeProvider {serverId} {store} {connection}>
       <ReleaseHighlights />
     </ServerScopeProvider>
   {/key}

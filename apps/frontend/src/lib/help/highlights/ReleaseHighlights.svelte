@@ -107,7 +107,9 @@
     } catch (error) {
       if (guard.isCurrent(snapshot)) saveError = error;
     } finally {
-      if (guard.isCurrent(snapshot)) saving = false;
+      // Pending state belongs to this component, even when a privacy refresh
+      // fences the response. Clearing it cannot apply retired account data.
+      saving = false;
     }
   }
 

@@ -9,6 +9,7 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import ReleaseHighlights from './ReleaseHighlights.svelte';
+import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -123,6 +124,30 @@ describe('release highlights', () => {
     fixture.current = false;
     release();
     await account.dismissReleaseHighlights.mock.results[0].value;
+    expect(fixture.currentUser.user?.settings?.releaseHighlights?.dismissedIds).toEqual([]);
+  });
+  it('allows another dismissal after a private-data refresh fences a pending response', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    account.dismissReleaseHighlights.mockImplementation(async (request) => {
+      await gate;
+      return {
+        settings: {
+          timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+          releaseHighlights: { ...saved, dismissedIds: request.ids }
+        }
+      };
+    });
+    const { screen, fixture } = show();
+    await screen.getByRole('button', { name: 'Dismiss', exact: true }).click();
+    await vi.waitFor(() => expect(account.dismissReleaseHighlights).toHaveBeenCalledOnce());
+    removeRegisteredServerQueries(fixture.scope.serverId);
+    release();
+    await expect
+      .element(screen.getByRole('button', { name: 'Dismiss', exact: true }))
+      .toBeEnabled();
     expect(fixture.currentUser.user?.settings?.releaseHighlights?.dismissedIds).toEqual([]);
   });
   it('restores a deep link at the article heading after the MDX loads', async () => {
