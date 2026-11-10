@@ -63,7 +63,19 @@ export async function compressVideo(file: File, options: VideoCompressionOptions
     if (!Number.isFinite(duration) || duration <= 0 || bitrate < 150_000) {
       throw new Error('The size budget is too small for this duration');
     }
-    const scale = Math.min(1, 1920 / Math.max(video.displayWidth, video.displayHeight));
+    // A conservative quality ladder: spend a small budget on fewer pixels. These
+    // are longest-side caps for either orientation, not a perceptual quality guarantee.
+    const longestSide =
+      bitrate >= 2_500_000
+        ? 1920
+        : bitrate >= 1_200_000
+          ? 1280
+          : bitrate >= 600_000
+            ? 854
+            : bitrate >= 300_000
+              ? 640
+              : 426;
+    const scale = Math.min(1, longestSide / Math.max(video.displayWidth, video.displayHeight));
     const width = Math.max(2, Math.floor((video.displayWidth * scale) / 2) * 2);
     const height = Math.max(2, Math.floor((video.displayHeight * scale) / 2) * 2);
     // Pair codecs with their containers and require audio support before choosing.
