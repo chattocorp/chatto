@@ -277,7 +277,7 @@ test('Markdown attachments render automatically and download their original byte
   await expect(trigger).toBeFocused();
 });
 
-test('another user can preview PDFs, download unsupported files and play audio in the shared mobile viewer', async ({
+test('another user can preview PDFs and text, download unsupported files and play audio in the shared mobile viewer', async ({
   page,
   chatPage,
   serverURL
@@ -341,6 +341,9 @@ test('another user can preview PDFs, download unsupported files and play audio i
         await element.play();
       });
       await expect(dialog.locator('audio')).toHaveJSProperty('paused', false);
+    } else if (contentType === 'text/plain') {
+      await expect(dialog.locator('pre')).toHaveText(`Original bytes for ${filename}\n`);
+      await expect(dialog.getByRole('region', { name: `Preview of ${filename}` })).toBeVisible();
     } else if (nativePdf) {
       await expect(dialog.getByTitle(`Preview of ${filename}`)).toBeVisible();
       await expect(dialog.locator('iframe')).toHaveAttribute('referrerpolicy', 'no-referrer');
