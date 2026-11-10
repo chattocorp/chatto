@@ -6,6 +6,7 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { queryClient } from '$lib/query/queryClient';
 import { applyAnimationPreference } from '$lib/dom/motionPreference';
 import LinkHover from './LinkHover.svelte';
+import ContextMenu from '$lib/ui/ContextMenu.svelte';
 import LinkTitleTestHarness from './LinkTitleTestHarness.svelte';
 import MessageContent from '../MessageContent.svelte';
 import {
@@ -551,4 +552,66 @@ it('shares cached previews across cards and keeps a URL fallback on failure', as
   await vi.waitFor(() => expect(failed.container.querySelector('[role="status"]')).toBeNull());
   expect(failed.container.textContent).toContain(href + '/missing');
   expect(failed.container.textContent).toContain('No preview is available');
+});
+
+it('cancels pending previews even when a pill stops the context-menu event', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const { container } = render(LinkHover, { href, children });
+    const link = container.querySelector('a')!;
+    link.addEventListener('contextmenu', (event) => event.stopPropagation());
+    hover(container);
+    link.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    vi.advanceTimersByTime(400);
+    await tick();
+    expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each(['floating', 'sheet'] as const)(
+  'blocks pending and new hover/focus previews while a %s menu is open',
+  async (presentation) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const { container } = render(LinkHover, { href, children });
+      hover(container);
+      const menu = render(ContextMenu, {
+        presentation,
+        position: { x: 100, y: 100 },
+        onclose: vi.fn(),
+        children: createRawSnippet(() => ({ render: () => '<button>Copy link</button>' }))
+      });
+      await tick();
+      vi.advanceTimersByTime(400);
+      await tick();
+      expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+      hover(container);
+      container.querySelector('a')!.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      vi.advanceTimersByTime(400);
+      await tick();
+      expect(container.querySelector('[data-testid="link-hover-card"]')).toBeNull();
+      expect(fetchLinkPreview).not.toHaveBeenCalled();
+      expect(menu.container.querySelector('[data-menu-presentation]')).not.toBeNull();
+      await menu.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+);
+
+it('permits a new hover after the context menu closes', async () => {
+  const { container } = render(LinkHover, { href, children });
+  const menu = render(ContextMenu, {
+    presentation: 'floating',
+    position: { x: 100, y: 100 },
+    onclose: vi.fn(),
+    children: createRawSnippet(() => ({ render: () => '<button>Copy link</button>' }))
+  });
+  await menu.unmount();
+  hover(container);
+  await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledExactlyOnceWith(href));
+  expect(container.querySelector('[data-testid="link-hover-card"]')).not.toBeNull();
 });
