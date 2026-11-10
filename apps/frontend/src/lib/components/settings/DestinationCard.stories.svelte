@@ -1,15 +1,29 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, within } from 'storybook/test';
   import DestinationCard from './DestinationCard.svelte';
   const { Story } = defineMeta({ title: 'Settings/Destination card', component: DestinationCard });
 </script>
 
-<Story name="Help and settings" asChild>
+<Story
+  name="Help and settings"
+  asChild
+  play={async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const help = canvas.getByRole('link', { name: 'Using Chatto' });
+    await expect(help).toHaveAccessibleDescription(
+      'Threads, notifications, and connection problems.'
+    );
+    await expect(canvas.getByRole('link', { name: 'Appearance' })).toHaveAccessibleDescription(
+      'Choose the colours and theme for this device.'
+    );
+  }}
+>
   <div class="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
     <DestinationCard
       href="/help/conversations"
-      label="Rooms and threads"
-      description="Keep conversations organised."
+      label="Using Chatto"
+      description="Threads, notifications, and connection problems."
       icon="iconify icon-[uil--comments]"
     />
     <DestinationCard
