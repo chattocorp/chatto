@@ -205,6 +205,7 @@ export function bearerRenewalInterceptor(config: {
   };
 }
 
+/** Create a credential-free public client with GET for side-effect-free RPCs. */
 export function createPublicChattoClient<T extends ServiceType>(
   service: T,
   baseUrl: string
@@ -214,6 +215,8 @@ export function createPublicChattoClient<T extends ServiceType>(
     createConnectTransport({
       baseUrl: connectEndpoint(baseUrl),
       useBinaryFormat: false,
+      // The connection floor already excludes 0.4 servers, which reject GET discovery.
+      useHttpGet: true,
       fetch: (input, init) =>
         fetch(input, {
           ...init,

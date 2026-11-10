@@ -11,7 +11,13 @@ test('shares origin discovery on first visit and authenticated reload', async ({
   let discoveryRequests = 0;
   const errors: string[] = [];
   page.on('request', (request) => {
-    if (request.url().endsWith('/chatto.discovery.v1.ServerDiscoveryService/GetServer')) {
+    if (
+      new URL(request.url()).pathname.endsWith(
+        '/chatto.discovery.v1.ServerDiscoveryService/GetServer'
+      )
+    ) {
+      expect(request.method()).toBe('GET');
+      expect(new URL(request.url()).searchParams.get('message')).toBe('{}');
       discoveryRequests++;
     }
   });
