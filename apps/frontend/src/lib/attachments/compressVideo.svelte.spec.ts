@@ -5,22 +5,22 @@ import {
   ALL_FORMATS,
   Output,
   BufferTarget,
-  Mp4OutputFormat,
+  WebMOutputFormat,
   CanvasSource,
   AudioBufferSource
 } from 'mediabunny';
 import { compressVideo } from './compressVideo';
 
-/** Build a local audio/video fixture; MP4 padding exercises the upload-size budget. */
+/** Build a local audio/video fixture; WebM padding exercises the upload-size budget. */
 async function makeVideo(): Promise<File> {
   const canvas = document.createElement('canvas');
   canvas.width = 320;
   canvas.height = 180;
   const context = canvas.getContext('2d')!;
   const target = new BufferTarget();
-  const output = new Output({ target, format: new Mp4OutputFormat() });
-  const video = new CanvasSource(canvas, { codec: 'avc', bitrate: 1_000_000 });
-  const audio = new AudioBufferSource({ codec: 'aac', bitrate: 96_000 });
+  const output = new Output({ target, format: new WebMOutputFormat() });
+  const video = new CanvasSource(canvas, { codec: 'vp8', bitrate: 1_000_000 });
+  const audio = new AudioBufferSource({ codec: 'opus', bitrate: 96_000 });
   output.addVideoTrack(video);
   output.addAudioTrack(audio);
   try {
@@ -36,10 +36,10 @@ async function makeVideo(): Promise<File> {
       data[i] = Math.sin((i * 2 * Math.PI * 440) / 48_000) * 0.1;
     await audio.add(buffer);
     await output.finalize();
-    const padding = new Uint8Array(1024 * 1024);
-    new DataView(padding.buffer).setUint32(0, padding.length);
-    padding.set([102, 114, 101, 101], 4); // MP4 free box.
-    return new File([target.buffer!, padding], 'source.mp4', { type: 'video/mp4' });
+    // An EBML Void element holds 1 MiB of padding without changing the media.
+    const padding = new Uint8Array(4 + 1024 * 1024);
+    padding.set([0xec, 0x30, 0x00, 0x00]);
+    return new File([target.buffer!, padding], 'source.webm', { type: 'video/webm' });
   } finally {
     if (output.state !== 'finalized') await output.cancel();
   }
@@ -60,7 +60,7 @@ describe('local browser video compression', () => {
     });
     expect(file.size).toBeLessThanOrEqual(128 * 1024);
     expect(file.size).toBeLessThan(source.size);
-    expect(file.type).toBe('video/mp4');
+    expect(['video/mp4', 'video/webm']).toContain(file.type);
     const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
     try {
       expect(await (await input.getPrimaryVideoTrack())?.canDecode()).toBe(true);
