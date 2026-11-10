@@ -69,6 +69,21 @@ async function scanRoute(page: Page, state: string, route: string): Promise<void
 }
 
 test.describe('Route accessibility', () => {
+  for (const locale of ['en-GB', 'ar']) {
+    test(`help pages meet WCAG A and AA rules (${locale})`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.addInitScript((locale) => localStorage.setItem('chatto:locale', locale), locale);
+      await page.setViewportSize({ width: locale === 'ar' ? 390 : 1440, height: 900 });
+      await scanRoute(page, `help overview (${locale})`, '/help');
+      for (const topic of ['conversations', 'formatting', 'bots', 'phone']) {
+        await page.goto(`/help/${topic}`);
+        await expect(page.locator('article')).toBeVisible();
+        await settle(page);
+        await expectNoAccessibilityViolations(page, `help ${topic} (${locale})`);
+      }
+    });
+  }
+
   test('touch link preview sheet meets WCAG A and AA rules', async ({
     page,
     chatPage,
