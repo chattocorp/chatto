@@ -71,7 +71,7 @@ type ThreadServiceClient interface {
 	// Reads up to 100 states under the same authorization as GetThreadReadState.
 	// Missing and inaccessible resources are omitted; duplicates use first-seen order.
 	BatchGetThreadReadStates(context.Context, *connect.Request[v1.BatchGetThreadReadStatesRequest]) (*connect.Response[v1.BatchGetThreadReadStatesResponse], error)
-	// Lists the root author and distinct authors of non-retracted replies,
+	// Lists distinct authors of non-retracted replies,
 	// excluding erased users. Each author appears once. Requires the same
 	// membership and message-read access as GetThreadEvents.
 	ListThreadParticipants(context.Context, *connect.Request[v1.ListThreadParticipantsRequest]) (*connect.Response[v1.ListThreadParticipantsResponse], error)
@@ -247,7 +247,7 @@ type ThreadServiceHandler interface {
 	// Reads up to 100 states under the same authorization as GetThreadReadState.
 	// Missing and inaccessible resources are omitted; duplicates use first-seen order.
 	BatchGetThreadReadStates(context.Context, *connect.Request[v1.BatchGetThreadReadStatesRequest]) (*connect.Response[v1.BatchGetThreadReadStatesResponse], error)
-	// Lists the root author and distinct authors of non-retracted replies,
+	// Lists distinct authors of non-retracted replies,
 	// excluding erased users. Each author appears once. Requires the same
 	// membership and message-read access as GetThreadEvents.
 	ListThreadParticipants(context.Context, *connect.Request[v1.ListThreadParticipantsRequest]) (*connect.Response[v1.ListThreadParticipantsResponse], error)

@@ -3045,7 +3045,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it.each(['other', 'root', 'deleted-root'])(
-    'includes the root author once when the first live reply arrives: %s',
+    'includes only the reply author when the first live reply arrives: %s',
     async (author) => {
       const store = new MessagesStore(
         new FakeQueryClient() as unknown as ServerConnection,
@@ -3077,10 +3077,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       store.ingestEvent(reply);
       expect(store.rootEvents[0].event).toMatchObject({
         replyCount: 1,
-        threadParticipants:
-          author === 'other'
-            ? [rootActor, replyActor]
-            : [author === 'root' ? rootActor : replyActor]
+        threadParticipants: [replyActor]
       });
       store.dispose();
     }

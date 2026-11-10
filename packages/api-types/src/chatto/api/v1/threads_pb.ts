@@ -582,8 +582,7 @@ export class ListThreadParticipantsRequest extends Message<ListThreadParticipant
 }
 
 /**
- * A page of distinct thread authors. A thread without replies includes its
- * root author unless that user has been erased.
+ * A page of distinct reply authors. A thread without replies has no participants.
  *
  * @generated from message chatto.api.v1.ListThreadParticipantsResponse
  */

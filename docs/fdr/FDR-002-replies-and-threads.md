@@ -23,11 +23,11 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - A message jump marks its destination with a soft accent fill and a leading-edge
   marker, then fades the cue. With reduced motion, the cue stays still before it
   clears. Repeating a jump marks the destination again.
-- Integrations can read the root author and all distinct authors of current
-  thread replies in bounded pages. Retracted replies and erased authors do not
-  contribute. Each author counts once, including when the root author also
-  replies. Counts cover the full set. A thread without replies includes its
-  root author unless that user has been erased.
+- Integrations can read all distinct authors of current thread replies in
+  bounded pages. Retracted replies and erased authors do not contribute.
+  Counts cover the full set. A thread without replies has no reply authors.
+  The thread badge shows only reply authors. The root author appears there
+  only when they also have a current reply.
 - Integrations can read their own stored room and thread read positions, one
   target at a time or in bounded batches. A read does not mark content as read
   or initialize a missing position. These positions are separate from
@@ -60,11 +60,11 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - The thread header shows up to 3, 5, 8, or 12 participant avatars at pane widths
   below 360 px, from 360 px, from 480 px, or from 640 px respectively, plus the
   number of additional participants. It adapts when the pane is resized.
-  Timeline and followed-thread responses include up to 12 participant identities
+  Timeline and followed-thread responses include up to 12 reply-author identities
   for this preview. The total count can be larger.
   Left-click, right-click, or long-press an avatar to
   open the user context menu. The menu includes the full profile action.
-  Participants are the root author and authors of current replies. The root
+  The header adds the root author to the reply authors. The root
   author appears first and counts once, including when they also reply.
   Erased authors are excluded. The preview stays compact to leave room for header controls.
 - A root message with an attached thread does not group with adjacent messages
