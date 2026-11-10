@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 Abre la ayuda para consultar guías traducidas sobre conversaciones, formato e instalación de Chatto en tu teléfono.
 
-<a href={resolve('/help/[topic]', { topic: 'conversations' })}>Lee la guía</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Lee la guía</a>

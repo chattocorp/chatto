@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 Die Bot-Anleitung erklärt dir, wie du ein externes Werkzeug verbindest und seinen Zugriff steuerst.
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>Anleitung lesen</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Anleitung lesen</a>

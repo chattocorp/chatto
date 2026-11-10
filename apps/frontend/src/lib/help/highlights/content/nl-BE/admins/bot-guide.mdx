@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 De bothandleiding legt uit hoe je een extern hulpmiddel koppelt en de toegang beheert.
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>Lees de handleiding</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Lees de handleiding</a>

@@ -153,7 +153,7 @@ describe('AppHeader', () => {
           // With Help beside About, narrow screens use the header's scroll fallback.
           // Preserve navigation spacing and the call controls' minimum target sizes.
           const about = header.querySelector<HTMLButtonElement>('button[title="About Chatto"]')!;
-          const help = header.querySelector<HTMLAnchorElement>('a[href="/help"]')!;
+          const help = header.querySelector<HTMLAnchorElement>('a[aria-label="Help"]')!;
           help.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           expect(about.getBoundingClientRect().left).toBeGreaterThanOrEqual(bounds.left);
           expect(help.getBoundingClientRect().right).toBeLessThanOrEqual(bounds.right);
@@ -388,7 +388,7 @@ describe('release highlight indicator', () => {
     }));
     await expect
       .element(screen.getByRole('link', { name: 'Help', exact: true }))
-      .toHaveAttribute('href', '/help');
+      .toHaveAttribute('href', '/help?server=new-server.example.com');
     await expect
       .element(screen.getByTestId('release-highlights-unread-dot'))
       .not.toBeInTheDocument();

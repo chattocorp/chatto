@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 機器人指南說明如何連接外部工具並控制其存取權限。
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>閱讀指南</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>閱讀指南</a>

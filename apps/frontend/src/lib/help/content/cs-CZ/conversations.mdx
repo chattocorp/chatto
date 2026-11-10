@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Odpovědi a vlákna
@@ -61,7 +63,7 @@ Například použijte **Tečka nepřečteného obsahu** pro nové zprávy v mís
 **Push oznámení** pro přímé zmínky, pokud chcete běžný chat číst, až se vám to hodí.
 
 <p>Push upozornění vyžadují také oprávnění zařízení. Na telefonu postupujte podle
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalace Chatto na telefon</a>,
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Instalace Chatto na telefon</a>,
 abyste aplikaci nainstalovali a povolili oznámení. Nastavení oznámení telefonu určuje,
 zda se na zamčené obrazovce zobrazí jména a náhledy zpráv.</p>
 

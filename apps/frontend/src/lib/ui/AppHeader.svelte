@@ -10,6 +10,7 @@
   import { version } from '$app/environment';
   import { version as frontendRelease } from '../../../package.json';
   import { applicableHighlights, unreadHighlights } from '$lib/help/highlights/catalog';
+  import { withHelpServer } from '$lib/help/links';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import { m } from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -95,11 +96,10 @@
       : []
   );
   const helpHref = $derived(
-    newHighlights.length > 0 && helpServerId
-      ? `/help/whats-new?server=${encodeURIComponent(serverIdToSegment(helpServerId))}#highlight-${newHighlights[0].id}`
-      : explicitHelpServer
-        ? `/help?server=${encodeURIComponent(serverIdToSegment(explicitHelpServer))}`
-        : '/help'
+    withHelpServer(
+      newHighlights.length > 0 ? `/help/whats-new#highlight-${newHighlights[0].id}` : '/help',
+      helpServerId ? serverIdToSegment(helpServerId) : undefined
+    )
   );
 
   function showAboutChatto() {

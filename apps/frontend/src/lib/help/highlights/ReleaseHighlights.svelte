@@ -28,6 +28,7 @@
   import { applicableHighlights, unreadHighlights, type HighlightSurface } from './catalog';
 
   import { loadHighlight } from './articles';
+  import { withHelpServer } from '../links';
 
   let { surface = 'users' }: { surface?: HighlightSurface } = $props();
   const scope = hasServerScope() ? useServerScope() : undefined;
@@ -158,7 +159,11 @@
   <PaneHeader
     title={m('ui.release_highlights.title')}
     subtitle={store?.serverInfo.name}
-    backHref={surface === 'users' && sidebarNav.isMobile ? resolve('/help') : undefined}
+    backHref={surface === 'users' && sidebarNav.isMobile
+      ? resolve(
+          withHelpServer('/help', scope ? serverIdToSegment(scope.serverId) : undefined) as '/'
+        )
+      : undefined}
     backLabel={m('ui.help')}
   />
   <PaneContent wide>

@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 Atveriet palīdzību, lai lasītu tulkotus ceļvežus par sarunām, formatēšanu un Chatto instalēšanu tālrunī.
 
-<a href={resolve('/help/[topic]', { topic: 'conversations' })}>Lasiet ceļvedi</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Lasiet ceļvedi</a>

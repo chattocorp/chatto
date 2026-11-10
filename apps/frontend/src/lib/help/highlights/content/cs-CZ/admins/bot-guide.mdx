@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 Průvodce boty vysvětluje, jak připojit externí nástroj a řídit jeho přístup.
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>Přečtěte si průvodce</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Přečtěte si průvodce</a>

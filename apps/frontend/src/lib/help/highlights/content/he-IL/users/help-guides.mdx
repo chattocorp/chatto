@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 פתח את העזרה למדריכים מתורגמים על שיחות, עיצוב טקסט והתקנת Chatto בטלפון.
 
-<a href={resolve('/help/[topic]', { topic: 'conversations' })}>קרא את המדריך</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>קרא את המדריך</a>

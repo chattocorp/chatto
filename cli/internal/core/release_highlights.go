@@ -3,8 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/Masterminds/semver"
 	"regexp"
+
+	"github.com/Masterminds/semver"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"

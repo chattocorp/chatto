@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 ボットのガイドでは、外部ツールの接続方法とアクセスの管理方法を説明します。
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>ガイドを読む</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>ガイドを読む</a>

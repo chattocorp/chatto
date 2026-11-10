@@ -12,7 +12,10 @@ when necessary, the minimum server release for the described behavior. Keep the
 ID when correcting or translating text. A new ID announces a new message.
 
 Write the article in `content/<locale>/<surface>/<id>.mdx`. Keep it short and link
-to Help for instructions. Review British English first, then translate each
+to Help for instructions. Use `withHelpServer` from `../links.ts` to preserve
+the selected server in guide links. Pass the server query value, with the
+current route server parameter as its fallback. Give raw anchor elements the
+`link` class. Review British English first, then translate each
 complete locale. Regional inheritance follows the Help locale rules. Do not
 publish incomplete translations. Keep article bodies out of the catalog so the
 header does not load the articles or their import map.

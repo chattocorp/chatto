@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Risposte e discussioni
@@ -63,7 +65,7 @@ Per esempio, usa **Punto dei contenuti non letti** per i nuovi messaggi della st
 **Notifica push** per le menzioni dirette se vuoi leggere la chat generale quando preferisci.
 
 <p>Anche gli avvisi push richiedono il permesso del dispositivo. Sul telefono, segui
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installare Chatto sul telefono</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Installare Chatto sul telefono</a>
 per installare l'app e abilitare le notifiche. Le impostazioni del telefono controllano
 se nomi e anteprime dei messaggi compaiono nella schermata di blocco.</p>
 

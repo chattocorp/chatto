@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Yanıtlar ve konular
@@ -63,7 +65,7 @@ için **Okunmamış içerik noktası**, doğrudan bahsetmeler için **Anlık bil
 
 <p>Anlık uyarılar için cihaz izni de gerekir. Telefonda uygulamayı yüklemek ve
 bildirimleri etkinleştirmek için
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto'yu telefonunuza yükleme</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Chatto'yu telefonunuza yükleme</a>
 kılavuzunu izleyin. Telefonun bildirim ayarları, adların ve mesaj önizlemelerinin kilit
 ekranında görünüp görünmeyeceğini belirler.</p>
 

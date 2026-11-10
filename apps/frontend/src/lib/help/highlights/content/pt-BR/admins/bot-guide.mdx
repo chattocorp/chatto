@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 O guia de bots explica como conectar uma ferramenta externa e controlar seu acesso.
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>Leia o guia</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Leia o guia</a>

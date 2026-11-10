@@ -1,5 +1,9 @@
-<script>import { resolve } from '$app/paths';</script>
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
 
 Bottguiden förklarar hur du ansluter ett externt verktyg och styr dess åtkomst.
 
-<a href={resolve('/help/[topic]', { topic: 'bots' })}>Läs guiden</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Läs guiden</a>

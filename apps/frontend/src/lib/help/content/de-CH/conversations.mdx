@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Antworten und Threads
@@ -43,7 +45,7 @@ Drücke **Strg+Umschalt+K**, auf einem Mac **Command+Umschalt+K**, um die verfü
 Wähle zum Beispiel **Ungelesen-Punkt** für neue Raumnachrichten und **Push-Benachrichtigung** für direkte Erwähnungen, wenn du allgemeine Unterhaltungen in deinem eigenen Tempo lesen möchtest.
 
 <p>Push-Benachrichtigungen benötigen auch die Erlaubnis des Geräts. Folge auf dem Handy der Anleitung
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto auf deinem Handy installieren</a>,
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Chatto auf deinem Handy installieren</a>,
 um die App zu installieren und Benachrichtigungen zu aktivieren. Die Benachrichtigungseinstellungen deines Handys bestimmen, ob Namen und Nachrichtenvorschauen auf dem Sperrbildschirm erscheinen.</p>
 
 ## Wenn die Verbindung abbricht
