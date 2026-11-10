@@ -82,8 +82,5 @@ and forwards keys; selecting a result inserts its owning server's share URL.
         <bdi class="text-muted">{` (${source.name})`}</bdi>
       {/if}
     </span>
-    {#if !room}
-      <bdi class="ms-auto min-w-0 truncate text-sm text-muted">{new URL(source.origin).host}</bdi>
-    {/if}
   {/snippet}
 </AutocompletePopup>

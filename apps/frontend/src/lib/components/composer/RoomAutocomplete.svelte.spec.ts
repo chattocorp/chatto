@@ -152,6 +152,7 @@ describe('RoomAutocomplete', () => {
     expect(onSelect).toHaveBeenLastCalledWith('https://alpha.test/chat/-/', 'Enter');
     await rerender({ query: 'beta.test' });
     expect(container.querySelectorAll('button')).toHaveLength(1);
+    expect(container.textContent).not.toContain('beta.test');
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
     expect(onSelect).toHaveBeenLastCalledWith('https://beta.test/chat/-/', 'Tab');
   });
