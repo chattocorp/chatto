@@ -80,7 +80,7 @@ func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
 	}
 
 	service := &Service{ffmpegPath: ffmpegPath}
-	if err := service.transcode(context.Background(), input, output, 90, true, nil); err != nil {
+	if err := service.transcode(context.Background(), input, output, 90, true, nil, false); err != nil {
 		t.Fatalf("transcode quad-audio fixture: %v", err)
 	}
 	playlistPath, segmentPaths, err := service.packageHLSRendition(context.Background(), output, filepath.Join(tmp, "hls"))

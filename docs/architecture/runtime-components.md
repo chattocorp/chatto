@@ -138,8 +138,9 @@ operations do not duplicate these outcomes.
   mutations.
 - **`video.Service`** ([`service.go`](../../cli/internal/video/service.go),
   [`processor.go`](../../cli/internal/video/processor.go)): Synchronous
-  video/animated-GIF processing attempts: web-compatible stereo audio
-  normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and
+  video/animated-GIF processing attempts: source-rendition inspection and
+  reuse preflight, fallback encoding with web-compatible stereo audio
+  normalization, aligned HLS segment packaging and upload, animated-GIF MP4 upload, and
   terminal asset processing events; queue and concurrency remain owned by
   `video.Unit`.
 
