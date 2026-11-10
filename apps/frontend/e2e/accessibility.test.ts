@@ -187,7 +187,7 @@ test.describe('Route accessibility', () => {
 
   test('server recommendation info meets WCAG A and AA rules', async ({ page }) => {
     await page.route(
-      '**/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers',
+      '**/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers?*',
       (route) =>
         route.fulfill({
           json: {
