@@ -1,0 +1,53 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Réponses et fils de discussion
+
+Utilisez **Répondre dans le fil de discussion** sur un message pour conserver votre réponse dans cette conversation. Pour commencer un fil avec un nouveau message, sélectionnez **Publier comme fil de discussion** dans l'éditeur avant l'envoi. Le salon reste ouvert ; sélectionnez le lien du fil sur le message pour l'ouvrir.
+
+Un fil ouvert possède sa propre adresse. Copiez l'adresse du navigateur pour la partager avec une personne qui a accès au salon. Fermer le fil vous ramène au salon, sans arrêter de suivre la conversation.
+
+<p>Pour garder le salon visible pendant votre réponse, ouvrez
+<a href={resolve('/chat/preferences/appearance')}>Préférences de l’application → Apparence</a>
+et réglez le <strong>Volet du fil</strong> sur <strong>Côte à côte</strong>. Si l'espace manque, Chatto affiche le fil par-dessus le salon.</p>
+
+## Suivre les conversations
+
+Sélectionnez **Suivre le fil de discussion** pour conserver une conversation dans votre liste **Sujets**. Vous pouvez suivre un fil sans y écrire.
+
+Dans **Sujets**, **Suivis** affiche les fils que vous suivez. **Les miens** affiche ceux que vous avez commencés et que vous suivez encore. Arrêter de suivre un fil le retire des deux vues. Sélectionnez **Pas lu** pour trouver les conversations qui contiennent des réponses non lues.
+
+Le champ de recherche parcourt les messages et les réponses des fils suivis, y compris les fils de messages privés. Recherchez des mots, une expression entre guillemets ou un auteur avec `from:username`. La recherche est disponible si votre serveur la prend en charge et l'active.
+
+## Passer entre salons et activités non lues
+
+Appuyez sur **Ctrl+K**, ou **Commande+K** sur Mac, pour ouvrir le sélecteur rapide. Cherchez-y des salons et des serveurs pour les ouvrir sans parcourir la barre latérale.
+
+Appuyez sur **Alt+Maj+Bas**, ou **Option+Maj+Bas** sur Mac, pour passer à la prochaine source non lue parmi les serveurs auxquels vous êtes connecté. Chatto ouvre d'abord les notifications importantes, puis les autres notifications, puis les salons avec un point de non-lecture. Votre brouillon actuel reste en place.
+
+La cloche de l'en-tête ouvre les notifications de tous vos serveurs connectés. Lire un salon ou un fil marque les notifications comme lues seulement jusqu'aux messages visibles. Ouvrir un ancien message ne marque pas les réponses plus récentes comme lues.
+
+Pour afficher les raccourcis clavier disponibles, appuyez sur **Ctrl+Maj+K**, ou **Commande+Maj+K** sur Mac.
+
+## Choisir vos notifications
+
+Ouvrez les paramètres **Notifications** de votre serveur pour modifier les alertes de mentions, réponses, réactions et autres activités. Chaque réglage peut s'appliquer au serveur entier, à un groupe de salons ou à un seul salon.
+
+- **Hériter** reprend le réglage du groupe de salons ou du serveur.
+- **Désactivé** ne crée ni notification ni point de non-lecture pour cette activité.
+- **Point de contenu non lu** marque le salon sans créer de notification.
+- **Notification dans l’application** ajoute une entrée au centre de notifications.
+- **Notification poussée** permet aussi une alerte sur un appareil où vous avez activé les notifications.
+
+Par exemple, choisissez **Point de contenu non lu** pour les nouveaux messages du salon et **Notification poussée** pour les mentions directes si vous souhaitez lire les discussions générales à votre rythme.
+
+<p>Les alertes push nécessitent aussi l'autorisation de l'appareil. Sur téléphone, suivez
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installer Chatto sur votre téléphone</a>
+pour installer l'application et activer les notifications. Les paramètres de notification du téléphone déterminent si les noms et aperçus des messages apparaissent sur l'écran verrouillé.</p>
+
+## En cas de perte de connexion
+
+Les messages déjà chargés restent visibles, mais Chatto a besoin d'une connexion au serveur pour charger d'autres messages ou envoyer une réponse. Quand la connexion revient, il charge les mises à jour manquées.
+
+Si l'envoi échoue, votre brouillon reste dans l'éditeur. Il n'est pas mis en attente d'un envoi automatique : vérifiez la connexion et envoyez-le à nouveau. Installer Chatto sur votre téléphone ne rend pas votre historique accessible hors connexion.

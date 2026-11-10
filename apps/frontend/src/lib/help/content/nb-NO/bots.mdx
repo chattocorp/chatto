@@ -1,0 +1,120 @@
+Med boter kan eksterne verktøy publisere meldinger og svare på samtaler i Chatto. Opprett en botkonto, gi den tilgang til rommene den trenger, og koble til verktøyet med en API-nøkkel eller webhook. Du kjører botprogramvaren separat.
+
+Trinnene nedenfor setter opp en bot som publiserer utrullingsoppdateringer. Du trenger tillatelse til å opprette boter og tilgang til målrommet.
+
+## Velg hvordan verktøyet kobler til
+
+Det finnes tre tilkoblingsmetoder. En bot kan bruke flere.
+
+- **Innkommende webhook: verktøyet ditt → Chatto.** Gi en varslingstjeneste eller et automatiseringsverktøy en URL å sende meldinger til.
+- **API-nøkkel: programmet ditt → Chatto.** Gi botprogrammet en nøkkel for å lese meldinger, sende svar eller bruke andre API-operasjoner du tillater.
+- **Utgående webhook: Chatto → verktøyet ditt.** Gi Chatto et endepunkt som skal varsles når noen omtaler boten eller sender den en direktemelding. Verktøyet behandler hendelsen og bruker en API-nøkkel hvis det må svare.
+
+Bruk en innkommende webhook for utrullingsoppdateringer. For en bot som svarer på omtaler eller direktemeldinger, bruker du en utgående webhook for å motta meldinger og en API-nøkkel for å sende svar.
+
+## 1. Opprett botkontoen
+
+1. Åpne **Serveradministrasjon → Boter** på serveren der boten skal arbeide.
+2. Velg **Opprett bot**. Bruk `release-bot` som brukernavn og **Versjonsoppdateringer** som visningsnavn i dette eksemplet. Brukernavnet identifiserer kontoen; medlemmer ser visningsnavnet ved meldingene.
+3. Opprett boten. Chatto viser en API-nøkkel én gang. Lagre den i integrasjonens hemmelighetslager hvis du skal bruke API-et. Du kan ikke vise nøkkelen igjen etter at dialogboksen er lukket.
+4. Åpne botens detaljside. Gi profilen en kort beskrivelse, for eksempel «Publiserer utrullingsresultater fra utgivelsesløpet vårt.»
+
+Hvis **Opprett bot** ikke er tilgjengelig, ber du en administrator om `bot.create`. Som eier kan du administrere den boten; tillatelse til å administrere alle boter gis separat.
+
+Hvis verktøyet bare bruker en innkommende webhook, trenger det ingen API-nøkkel. Tilbakekall den ubrukte første nøkkelen under **Integrasjoner → API-nøkler**.
+
+## 2. Gi tilgang til ett rom
+
+En ny bot har ingen tillatelser. Den arver ikke eierens roller eller tillatelsene til rollen `everyone`. Å være med i et rom og ha lov til å skrive der er separate krav.
+
+1. Åpne botens **Tillatelser**-fane.
+2. Finn kolonnen for rommet med utrullingsoppdateringer.
+3. Velg rommet i raden **Ble med** øverst i matrisen, og bekreft medlemskapsendringen.
+4. Tillat `message.post` for rommet. La andre, unødvendige tillatelser være udefinerte.
+
+Utrullingsboten trenger ikke lesetilgang. Gi `message.post` i romkolonnen for å begrense publisering til det rommet. En servertillatelse gjelder på tvers av rom.
+
+Du trenger også myndighet til å legge boten til i rommet. Arkiverte rom og romutestengelser kan hindre tilkobling. Botens egen `room.join`-tillatelse brukes til å bli med via API-et; den erstatter ikke raden **Ble med**.
+
+### En bot kan ikke ha mer tilgang enn eieren
+
+Hver bottillatelse begrenses av den menneskelige eierens nåværende tillatelser i samme omfang. En lagret tillatelse kan være inaktiv: en lås i matrisen viser at eierens tillatelser blokkerer den. Hvis eieren mister tilgang, mister boten den også. Å logge ut stopper ikke boten.
+
+Noen tillatelser krever privilegert modus. Hvis Chatto ber deg aktivere den, gjør du det før du gir tillatelsen.
+
+## 3. Koble til en innkommende webhook
+
+1. Åpne **Integrasjoner** på botens detaljside.
+2. Velg **Innkommende webhooks** under **Opprett webhook**.
+3. Gi den navn etter den som kaller den, for eksempel **Utgivelsesløp**.
+4. Velg rommet med utrullingsoppdateringer som **Målrom**.
+5. Opprett webhooken og kopier hele URL-en til verktøyets webhookkonfigurasjon. Behold delen `?room_id=…` i URL-en.
+
+Konfigurer verktøyet til å sende en HTTP-**POST** med `Content-Type: application/json` og denne kroppen:
+
+```json
+{
+  "text": "Utrullingen er fullført: versjon **0.5** er klar for testing."
+}
+```
+
+Det valgte rommet står allerede i URL-en, så forespørselen trenger ikke et `channel`-felt. Hvis du velger **Velg i hver forespørsel**, legger du til `"channel": "YOUR_ROOM_ID"` i JSON. Bruk rommets ID, ikke navnet.
+
+Når du velger et mål, legges en rom-ID til i URL-en. Den som kaller webhooken, kan endre ID-en og skrive i alle rom der boten kan skrive. Begrens webhooken til ett rom ved å gi boten skrivetillatelse bare der.
+
+## 4. Send en test og kontroller resultatet
+
+Bruk testfunksjonen i det eksterne verktøyet. En vellykket innkommende forespørsel returnerer HTTP `200` med teksten `ok`. I Chatto skal meldingen vises i valgt rom under **Versjonsoppdateringer**, med en **BOT**-etikett og «0.5» i fet skrift.
+
+Hvis forespørselen mislykkes, kontrollerer du svaret:
+
+- **`401 invalid_token`:** URL-en er ufullstendig, ugyldig eller tilbakekalt. Opprett en ny innkommende webhook hvis du ikke lenger har hele URL-en.
+- **`404 channel_not_found`:** kontroller rom-ID-en, botens medlemskap, dens `message.post`-tillatelse og eierens skrivetilgang i rommet.
+- **`400 invalid_payload`:** send gyldig JSON med meldingstekst som ikke er tom, og en rom-ID. Hvis rom-ID-en finnes i både URL-en og kroppen, må verdiene samsvare. Romregler og grenser for meldingsstørrelse gjelder også.
+- **Meldingen vises to ganger:** et nytt forsøk kan opprette en ny melding. Innkommende webhooks har ingen idempotensnøkkel som undertrykker duplikater.
+
+Når testen lykkes, konfigurerer du verktøyet til å kalle webhooken når en utrulling er fullført.
+
+## Lag en bot som svarer mennesker
+
+Konfigurer botprogrammet med Chatto-API-nøkkelen. Lagre nøkkelen i programmets hemmelige konfigurasjon. API-forespørsler autentiseres med headeren `Authorization: Bearer YOUR_API_KEY`.
+
+Velg tillatelsene boten trenger:
+
+- **Svar bare når den blir tiltalt:** gi `message.read-interactions` og `message.post-in-interactions`. Boten kan lese hele tråder den har startet, tråder der noen har omtalt den direkte, og direktemeldingene sine. En omtale kan dermed også gi tilgang til tidligere meldinger i tråden.
+- **Les rommet, men svar bare når den blir tiltalt:** gi `message.read` og `message.post-in-interactions`.
+- **Les alle meldinger og start samtaler:** gi `message.read` og `message.post`.
+
+Gi tillatelsene i de aktuelle rommene. Bruk omfanget **Direktemeldinger** i matrisen for direktemeldinger. Eierens tillatelser begrenser fortsatt disse rettighetene.
+
+### Fortell programmet når det skal svare
+
+Hvis programmet godtar webhookhendelser fra Chatto:
+
+1. Åpne **Integrasjoner → Utgående webhooks → Opprett webhook**.
+2. Skriv inn et navn og programmets offentlige HTTPS-endepunkt.
+3. Hvis mottakeren krever en **Authorization-header**, skriver du inn hele den forventede verdien, inkludert et prefiks som `Bearer`.
+4. Kopier signeringshemmeligheten til mottakerens konfigurasjon hvis den verifiserer Chatto-webhooksignaturer. Hemmeligheten vises bare én gang.
+5. Omtal boten i et rom den kan lese, eller send den en direktemelding. Kontroller mottakerens logger og botens svar i Chatto.
+
+Endepunktet mottar nye meldinger som omtaler boten direkte, eller som er blant direktemeldingene dens. Vanlige rommeldinger, redigeringer, reaksjoner og meldinger boten selv sender, utløser ikke disse webhookene. Et vanlig senere svar i en romtråd utløser ikke webhooken med mindre det omtaler boten igjen.
+
+Mottakeren bør godta hendelsen med et HTTP-2xx-svar og deretter sende eventuelle chatsvar via API-et. Chatto ignorerer HTTP-svarets kropp. Leveringer kan gjentas, så mottakeren må bruke leverings-ID-en for å unngå å gjøre samme arbeid to ganger. Hvis programmet trenger all lesbar aktivitet, bruker du Chattos sanntids-API i stedet for webhooken for omtaler og direktemeldinger.
+
+Se [referansen for botwebhooks](https://docs.chatto.run/reference/bot-webhooks/) og [API-referansen](https://docs.chatto.run/reference/connectrpc-api/) for hendelsesdata, signaturverifisering og API-operasjoner.
+
+En utgående webhook sender meldingstekst og identifikatorer for meldinger, forfattere, rom og boter til det konfigurerte endepunktet. Mottakeren ser også Chatto-serverens utgående IP-adresse. Hvis boten videresender meldinger til en KI-leverandør eller annen tjeneste, forklarer du dette for medlemmene før du bruker den i samtalene deres.
+
+### Hvis boten forblir stille
+
+Kontroller om programmet mottok hendelsen. Åpne **Nylige feil** under den utgående webhooken for registrerte leveringsfeil. Kontroller at endepunktet er aktivert, tilgjengelig, godtar den konfigurerte autentiseringen og returnerer 2xx uten omdirigering. En tom feilliste beviser ikke vellykket levering.
+
+Hvis hendelsen kom frem, men det ikke vises noe svar, kontrollerer du programmets API-nøkkel, svaroperasjonen og botens effektive lese- og skrivetillatelser.
+
+## Vedlikehold integrasjonen
+
+- **Bytt en tilgangsopplysning:** opprett en ny navngitt nøkkel eller webhook, oppdater den som kaller den, test den og tilbakekall deretter den gamle. API-nøkler utløper ikke automatisk. Lim aldri inn en ekte nøkkel eller en URL med tilgangsopplysninger i chatten eller kildekontrollen.
+- **Stopp utgående levering midlertidig:** velg **Sett på pause** på endepunktet. **Gjenoppta** tillater nye hendelser, men spiller ikke av pauseperioden på nytt.
+- **Overfør boten til en annen eier:** en konto med `bot.manage` kan bruke **Tilordne eier på nytt**. Botens effektive tilgang følger den nye eieren umiddelbart. Eksisterende nøkler forblir gyldige, så bytt tilgangsopplysninger hvis den forrige operatøren skal miste tilgang.
+- **Fjern en eierkonto:** tilordne først boter som skal fortsette å eksistere til en annen eier. Sletting av en menneskelig eier sletter også botene vedkommende eier.
+- **Vis medlemmene hva boten kan gjøre:** åpne profilen og se **Eies av** og **Hva den kan gjøre**. Kontroller tilgangen etter endringer i rom eller eierskap.

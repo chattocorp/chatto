@@ -1,0 +1,120 @@
+Botoj ebligas al eksteraj iloj afiŝi mesaĝojn kaj respondi al konversacioj en Chatto. Kreu botkonton, donu al ĝi aliron al la bezonataj ĉambroj kaj konektu vian ilon per API-ŝlosilo aŭ rethoko. Vi rulas la botprogramon aparte.
+
+La subaj paŝoj agordas boton, kiu afiŝas deplojo-ĝisdatigojn. Vi bezonas permeson krei botojn kaj aliron al la celĉambro.
+
+## Elekti kiel via ilo konektiĝas
+
+Estas tri konektaj metodoj. Boto povas uzi pli ol unu.
+
+- **Envenanta rethoko: via ilo → Chatto.** Donu al atentiga servo aŭ aŭtomatiga ilo URL-on por afiŝi mesaĝojn.
+- **API-ŝlosilo: via programo → Chatto.** Donu ŝlosilon al via botprogramo por ke ĝi povu legi mesaĝojn, sendi respondojn aŭ uzi aliajn API-operaciojn, kiujn vi permesas.
+- **Eliranta rethoko: Chatto → via ilo.** Donu al Chatto finpunkton sciigotan kiam iu mencias la boton aŭ sendas al ĝi rektan mesaĝon. Via ilo traktas la eventon kaj uzas API-ŝlosilon se ĝi devas respondi.
+
+Por deplojo-ĝisdatigoj uzu envenantan rethokon. Por boto, kiu respondas al mencioj aŭ rektaj mesaĝoj, uzu elirantan rethokon por ricevi mesaĝojn kaj API-ŝlosilon por sendi respondojn.
+
+## 1. Krei la botkonton
+
+1. Malfermu **Servila administrado → Botoj** ĉe la servilo, kie la boto laboros.
+2. Elektu **Krei Bot**. Por ĉi tiu ekzemplo uzu `release-bot` kiel uzantnomon kaj **Eldonaj ĝisdatigoj** kiel montratan nomon. La uzantnomo identigas la konton; la montrata nomo aperas apud ĝiaj mesaĝoj por la membroj.
+3. Kreu la boton. Chatto montras API-ŝlosilon unufoje. Konservu ĝin en la sekreta deponejo de via integriĝo se vi uzos la API-on. Vi ne povos denove montri tiun ŝlosilon post fermo de la dialogo.
+4. Malfermu la detalan paĝon de la boto. Donu al ĝia profilo mallongan priskribon, ekzemple «Afiŝas deplojrezultojn el nia eldona ĉeno.»
+
+Se **Krei Bot** ne disponeblas, petu administranton pri `bot.create`. Posedi boton permesas administri tiun boton; la permeso administri ĉiujn botojn estas aparta rajto.
+
+Se via ilo uzas nur envenantan rethokon, ĝi ne bezonas API-ŝlosilon. Revoku la neuzatan komencan ŝlosilon sub **Integriĝoj → API-ŝlosiloj**.
+
+## 2. Doni aliron al unu ĉambro
+
+Nova boto ne havas permesojn. Ĝi ne heredas la rolojn de sia posedanto aŭ la permesojn de la rolo `everyone`. Aliĝi al ĉambro kaj rajti afiŝi en ĝi estas apartaj kondiĉoj.
+
+1. Malfermu la langeton **Permesoj** de la boto.
+2. Trovu la kolumnon por via ĉambro de deplojo-ĝisdatigoj.
+3. En la vico **Aliĝis** ĉe la supro de la matrico, elektu tiun ĉambron kaj konfirmu la membrecan ŝanĝon.
+4. Permesu `message.post` por tiu ĉambro. Lasu nebezonatajn permesojn neagorditaj.
+
+La deploja boto ne bezonas legan aliron. Donu `message.post` en la ĉambra kolumno por limigi afiŝadon al tiu ĉambro. Tutservila permeso validas trans ĉambroj.
+
+Vi ankaŭ bezonas la rajton aldoni la boton al la ĉambro. Arkivitaj ĉambroj kaj ĉambraj suspendoj povas malhelpi aliĝon. La propra permeso `room.join` de la boto servas por aliĝi per la API; ĝi ne anstataŭas la vicon **Aliĝis**.
+
+### Boto ne povas superi la aliron de sia posedanto
+
+Ĉiu botpermeso estas limigita de la nunaj permesoj de la homa posedanto en la sama amplekso. Konservita permeso povas esti neaktiva: seruro en la matrico indikas, ke la permesoj de la posedanto blokas ĝin. Se la posedanto perdas aliron, ankaŭ la boto perdas ĝin. Elsaluti ne haltigas la boton.
+
+Iuj permesoj postulas privilegiitan reĝimon. Se Chatto petas aktivigi ĝin, faru tion antaŭ ol doni la permeson.
+
+## 3. Konekti envenantan rethokon
+
+1. Malfermu **Integriĝoj** sur la detala paĝo de la boto.
+2. Sub **Envenaj rethokoj**, elektu **Krei rethokon**.
+3. Nomu ĝin laŭ la vokanto, ekzemple **Eldona ĉeno**.
+4. Elektu la ĉambron de deplojo-ĝisdatigoj kiel **Celĉambron**.
+5. Kreu la rethokon kaj kopiu la tutan URL-on en la rethokan agordon de via ilo. Konservu la parton `?room_id=…` de la URL.
+
+Agordu la ilon por sendi HTTP-**POST** kun `Content-Type: application/json` kaj ĉi tiu korpo:
+
+```json
+{
+  "text": "Deplojo finiĝis: versio **0.5** estas preta por testado."
+}
+```
+
+La elektita ĉambro jam estas en la URL, do la peto ne bezonas kampon `channel`. Se vi elektas **Elekti en ĉiu peto**, enmetu `"channel": "YOUR_ROOM_ID"` en la JSON. Uzu la identigilon de la ĉambro, ne ĝian nomon.
+
+Elekti celon aldonas ĉambran identigilon al la URL. La vokanto povas ŝanĝi tiun identigilon kaj afiŝi en ĉiu ĉambro, kie la boto rajtas afiŝi. Por limigi la rethokon al unu ĉambro, donu al la boto afiŝpermeson nur en tiu ĉambro.
+
+## 4. Sendi teston kaj kontroli la rezulton
+
+Uzu la testan funkcion de la ekstera ilo. Sukcesa envenanta peto redonas HTTP `200` kun la teksto `ok`. En Chatto, la mesaĝo devas aperi en la elektita ĉambro sub **Eldonaj ĝisdatigoj**, kun etikedo **BOT** kaj «0.5» en grasa teksto.
+
+Se la peto malsukcesas, kontrolu la respondon:
+
+- **`401 invalid_token`:** la URL estas nekompleta, nevalida aŭ revokita. Kreu novan envenantan rethokon se vi ne plu havas la kompletan URL-on.
+- **`404 channel_not_found`:** kontrolu la ĉambran identigilon, la membrecon de la boto, ĝian permeson `message.post` kaj la afiŝan aliron de la posedanto en tiu ĉambro.
+- **`400 invalid_payload`:** sendu validan JSON kun nemalplena mesaĝteksto kaj ĉambra identigilo. Se la identigilo aperas en kaj la URL kaj la korpo, la valoroj devas kongrui. Ankaŭ validas la ĉambraj reguloj kaj limoj pri mesaĝa grandeco.
+- **La mesaĝo aperas dufoje:** reprovo povas krei plian mesaĝon. Envenantaj rethokoj ne provizas idempotentan ŝlosilon por malebligi duoblaĵojn.
+
+Post sukcesa testo, agordu vian ilon por voki la rethokon kiam deplojo finiĝas.
+
+## Fari boton, kiu respondas al homoj
+
+Agordu vian botprogramon per ĝia Chatto-API-ŝlosilo. Konservu la ŝlosilon en la sekreta agordo de la programo. API-petoj aŭtentikiĝas per la kapo `Authorization: Bearer YOUR_API_KEY`.
+
+Elektu la permesojn, kiujn la boto bezonas:
+
+- **Respondi nur kiam alparolite:** donu `message.read-interactions` kaj `message.post-in-interactions`. La boto povas legi kompletajn fadenojn, kiujn ĝi komencis, fadenojn kie iu rekte menciis ĝin, kaj siajn rektajn mesaĝojn. Mencii la boton povas do ankaŭ doni aliron al pli fruaj mesaĝoj en tiu fadeno.
+- **Legi la ĉambron, sed respondi nur kiam alparolite:** donu `message.read` kaj `message.post-in-interactions`.
+- **Legi ĉiujn mesaĝojn kaj komenci konversaciojn:** donu `message.read` kaj `message.post`.
+
+Apliku la permesojn al la celitaj ĉambroj. Por rektaj mesaĝoj uzu la amplekson **Rektaj mesaĝoj** en la matrico. La permesoj de la posedanto ankoraŭ limigas ĉi tiujn rajtojn.
+
+### Informi vian programon kiam respondi
+
+Se via programo akceptas rethokajn eventojn de Chatto:
+
+1. Malfermu **Integriĝoj → Eliraj rethokoj → Krei rethokon**.
+2. Enigu nomon kaj la publikan HTTPS-finpunkton de via programo.
+3. Se la ricevanto postulas **Aŭtorizan kapon**, enigu la tutan atendatan valoron, inkluzive de prefikso kiel `Bearer`.
+4. Kopiu la subskriban sekreton en la agordon de la ricevanto se ĝi kontrolas Chatto-rethokajn subskribojn. La sekreto estas montrata nur unufoje.
+5. Menciu la boton en ĉambro, kiun ĝi povas legi, aŭ sendu al ĝi rektan mesaĝon. Kontrolu la protokolojn de la ricevanto kaj la respondon de la boto en Chatto.
+
+La finpunkto ricevas novajn mesaĝojn, kiuj rekte mencias la boton aŭ estas en ĝiaj rektaj mesaĝoj. Ordinaraj ĉambraj mesaĝoj, redaktoj, reagoj kaj mesaĝoj senditaj de la boto mem ne ekigas ĉi tiujn rethokojn. Ordinara posta respondo en ĉambra fadeno ne ekigas ilin krom se ĝi denove mencias la boton.
+
+Via ricevanto devas akcepti la eventon per HTTP-2xx-respondo, poste sendi eventualan babilrespondon per la API. Chatto ignoras la korpon de la HTTP-respondo. Liveroj povas ripetiĝi, do la ricevanto devas uzi la liveran identigilon por eviti fari la saman laboron dufoje. Por programo, kiu bezonas ĉiun legeblan agadon, uzu la realtempan API-on de Chatto anstataŭ la rethokon por mencioj kaj rektaj mesaĝoj.
+
+Por eventaj datumoj, kontrolo de subskriboj kaj API-operacioj, uzu la [referencon pri botaj rethokoj](https://docs.chatto.run/reference/bot-webhooks/) kaj la [API-referencon](https://docs.chatto.run/reference/connectrpc-api/).
+
+Eliranta rethoko sendas mesaĝtekston kaj identigilojn de mesaĝoj, aŭtoroj, ĉambroj kaj botoj al la agordita finpunkto. La ricevanto ankaŭ vidas la eliran IP-adreson de la Chatto-servilo. Se via boto plusendas mesaĝojn al AI-provizanto aŭ alia servo, klarigu tion al la membroj antaŭ ol uzi ĝin en iliaj konversacioj.
+
+### Se la boto restas silenta
+
+Kontrolu, ĉu via programo ricevis la eventon. Sub la eliranta rethoko malfermu **Lastatempaj malsukcesoj** por registritaj liveraj eraroj. Kontrolu, ke la finpunkto estas ebligita, atingebla, akceptas la agorditan aŭtentikigon kaj redonas 2xx sen alidirektado. Malplena erarlisto ne pruvas sukcesan liveron.
+
+Se la evento alvenis sed neniu respondo aperis, kontrolu la API-ŝlosilon de la programo, ĝian respondan operacion kaj la efektivajn legajn kaj afiŝajn permesojn de la boto.
+
+## Prizorgi la integriĝon
+
+- **Anstataŭigi akreditaĵon:** kreu novan nomitan ŝlosilon aŭ rethokon, ĝisdatigu la vokanton, testu ĝin kaj poste revoku la malnovan. API-ŝlosiloj ne eksvalidiĝas aŭtomate. Neniam algluu veran ŝlosilon aŭ URL-on kun akreditaĵoj en babilejon aŭ fontkodan deponejon.
+- **Provizore haltigi elirantan liveron:** elektu **Paŭzigi** ĉe la finpunkto. **Rekomenci** permesas novajn eventojn; ĝi ne reludas la paŭzitan periodon.
+- **Transdoni la boton al alia posedanto:** konto kun `bot.manage` povas uzi **Reasigni posedanton**. La efektiva aliro de la boto tuj sekvas la novan posedanton. Ekzistantaj ŝlosiloj restas validaj, do anstataŭigu akreditaĵojn se la antaŭa funkciiganto devas perdi aliron.
+- **Forigi posedantan konton:** unue reasignu longdaŭrajn botojn. Forigi homan posedanton ankaŭ forigas la botojn, kiujn tiu posedas.
+- **Montri al membroj kion la boto povas fari:** malfermu ĝian profilon kaj kontrolu **Posedanto** kaj **Kion ĝi povas fari**. Rekontrolu la aliron post ŝanĝoj de ĉambroj aŭ posedanto.

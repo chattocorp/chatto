@@ -1,0 +1,53 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Svar och trådar
+
+Använd **Svara i tråden** på ett meddelande för att hålla svaret i samma samtal. För att starta en tråd med ett nytt meddelande väljer du **Publicera som tråd** i redigeraren innan du skickar. Rummet förblir öppet. Välj meddelandets trådlänk för att öppna tråden.
+
+En öppen tråd har en egen adress. Kopiera webbläsarens adress för att dela den med någon som har tillgång till rummet. När du stänger tråden återgår du till rummet, men du slutar inte följa samtalet.
+
+<p>Om du vill se rummet medan du svarar öppnar du
+<a href={resolve('/chat/preferences/appearance')}>Appinställningar → Utseende</a>
+och ställer in <strong>Trådpanel</strong> på <strong>Sida vid sida</strong>. När utrymmet inte räcker visar Chatto tråden ovanpå rummet i stället.</p>
+
+## Följ samtal
+
+Välj **Följ tråden** för att behålla ett samtal i listan **Trådar**. Du kan följa en tråd utan att skriva i den.
+
+Under **Trådar** visar **Följda** de trådar du följer. **Mina** visar dem du startat och fortfarande följer. När du slutar följa en tråd tas den bort från båda vyerna. Välj **Oläst** för att hitta samtal med svar du inte läst.
+
+Sökfältet söker i meddelanden och svar i dina följda trådar, inklusive direktmeddelandetrådar. Sök efter ord, en fras inom citattecken eller en författare med `from:username`. Sökning är tillgänglig när din server stöder och aktiverar den.
+
+## Växla mellan rum och oläst aktivitet
+
+Tryck på **Ctrl+K**, eller **Command+K** på Mac, för att öppna snabbväxlaren. Sök där för att växla mellan rum och servrar utan att gå genom sidofältet.
+
+Tryck på **Alt+Skift+Ned**, eller **Option+Skift+Ned** på Mac, för att gå till nästa olästa källa bland servrarna där du är inloggad. Chatto visar viktiga aviseringar först, sedan andra aviseringar och därefter rum med olästprickar. Ditt aktuella meddelandeutkast ligger kvar.
+
+Klockan i appens sidhuvud öppnar aviseringar från alla servrar där du är inloggad. När du läser ett rum eller en tråd markeras aviseringar som lästa bara fram till meddelandena du ser. Att öppna ett äldre meddelande markerar inte nyare svar som lästa.
+
+Tryck på **Ctrl+Skift+K**, eller **Command+Skift+K** på Mac, för att se tillgängliga kortkommandon.
+
+## Välj vad du får aviseringar om
+
+Öppna serverns inställningar för **Aviseringar** för att ändra aviseringar om omnämnanden, svar, reaktioner och annan aktivitet. Varje inställning kan gälla hela servern, en rumsgrupp eller ett rum.
+
+- **Ärv** använder inställningen från rumsgruppen eller servern.
+- **Av** skapar varken avisering eller olästprick för den aktiviteten.
+- **Prick för oläst innehåll** markerar rummet utan att skapa en avisering.
+- **Avisering i appen** lägger till en post i aviseringscentret.
+- **Pushavisering** tillåter även en avisering på en enhet där du aktiverat aviseringar.
+
+Välj exempelvis **Prick för oläst innehåll** för nya rumsmeddelanden och **Pushavisering** för direkta omnämnanden om du vill läsa allmänna samtal när det passar dig.
+
+<p>Pushaviseringar kräver också enhetens tillåtelse. Följ på telefonen
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installera Chatto på din telefon</a>
+för att installera appen och aktivera aviseringar. Telefonens aviseringsinställningar styr om namn och meddelandeförhandsvisningar visas på låsskärmen.</p>
+
+## När anslutningen bryts
+
+Redan inlästa meddelanden förblir synliga, men Chatto behöver en serveranslutning för att läsa in fler meddelanden eller skicka ett svar. När anslutningen återkommer hämtas missade uppdateringar.
+
+Om ett meddelande inte kan skickas finns utkastet kvar i redigeraren. Det köas inte för automatisk leverans: kontrollera anslutningen och skicka igen. Att installera Chatto på telefonen gör inte chatthistoriken tillgänglig offline.

@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Na tej stronie",
+    "design": {
+      "welcome": "Odnajdź się w Chatto.",
+      "explore": "Odkryj więcej",
+      "reference": "Formatowanie w skrócie",
+      "reference_hint": "Wybierz przykład, aby wypróbować go w edytorze.",
+      "question": "Kto dołączy do następnej rozmowy?"
+    },
+    "overview": "Przegląd",
+    "intro": "Krótkie poradniki dotyczące rozmów i administracji serwerem.",
+    "users": "Dla członków",
+    "admins": "Dla administratorów",
+    "example": "Wypróbuj tutaj",
+    "example_hint": "Ten przykład pozostaje na tej stronie. Nie wysyła wiadomości.",
+    "input": "Treść wiadomości",
+    "preview": "Podgląd",
+    "sample": "Cześć **wszystkim**!",
+    "conversations": {
+      "title": "Korzystanie z Chatto",
+      "description": "Wątki, nieprzeczytana aktywność, powiadomienia i problemy z połączeniem."
+    },
+    "formatting": {
+      "title": "Formatowanie wiadomości",
+      "description": "Dodaj wyróżnienia i kod w tekście."
+    },
+    "bots": {
+      "title": "Boty",
+      "description": "Twórz konta API i dokładnie kontroluj ich możliwości"
+    },
+    "phone": {
+      "title": "Zainstaluj Chatto na telefonie",
+      "description": "Dodaj Chatto do ekranu głównego i włącz powiadomienia."
+    }
+  }
+}

@@ -1,0 +1,80 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Respostas e tópicos
+
+Use **Responder no tópico** em uma mensagem para manter sua resposta naquela conversa.
+Para iniciar um tópico com uma mensagem nova, selecione **Publicar como tópico** no
+editor antes de enviar. A sala continua aberta; selecione o link do tópico na mensagem
+para abri-lo.
+
+Um tópico aberto tem seu próprio endereço. Copie o endereço do navegador para compartilhá-lo
+com alguém que tenha acesso à sala. Fechar um tópico leva você de volta à sala;
+isso não deixa de seguir a conversa.
+
+<p>Se preferir manter a sala visível enquanto responde, abra
+<a href={resolve('/chat/preferences/appearance')}>Preferências do aplicativo → Aparência</a>
+e defina <strong>Painel da conversa</strong> como <strong>Lado a lado</strong>. Quando
+não há espaço suficiente, o Chatto mostra o tópico sobre a sala.</p>
+
+## Acompanhe as conversas
+
+Selecione **Seguir tópico** para manter uma conversa na sua lista de **Tópicos**.
+Você pode seguir um tópico sem publicar nele.
+
+Em **Tópicos**, **Seguidos** mostra os tópicos que você segue. **Meus** mostra os que
+você iniciou e ainda segue. Deixar de seguir um tópico o remove das duas visualizações.
+Selecione **Não lido** para encontrar conversas com respostas que você ainda não leu.
+
+O campo de busca verifica mensagens e respostas nos tópicos que você segue, incluindo
+os de mensagens diretas. Busque palavras, uma frase entre aspas ou um autor com
+`from:username`. A busca está disponível quando o servidor oferece e ativa esse recurso.
+
+## Alterne entre salas e atividades não lidas
+
+Pressione **Ctrl+K**, ou **Command+K** em um Mac, para abrir o seletor rápido. Busque
+ali para alternar entre salas e servidores sem percorrer a barra lateral.
+
+Pressione **Alt+Shift+Down**, ou **Option+Shift+Down** em um Mac, para ir à próxima
+fonte não lida entre os servidores em que você está conectado. O Chatto leva você
+primeiro às notificações importantes, depois às outras notificações e então às salas
+com pontos de não lido. Seu rascunho atual permanece no editor.
+
+O sino no cabeçalho abre as notificações de todos os servidores em que você está
+conectado. Ao ler uma sala ou um tópico, as notificações são marcadas como lidas apenas
+até as mensagens que você pode ver. Abrir uma mensagem antiga não marca respostas
+mais recentes como lidas.
+
+Para ver os atalhos disponíveis, pressione **Ctrl+Shift+K**, ou **Command+Shift+K** em um Mac.
+
+## Escolha o que gera notificações
+
+Abra as configurações de **Notificações** do servidor para alterar os alertas de menções,
+respostas, reações e outras atividades. Cada configuração pode valer para todo o servidor,
+um grupo de salas ou uma sala.
+
+- **Herdar** usa a configuração do grupo de salas ou do servidor.
+- **Desativado** não cria notificações nem pontos de não lido para essa atividade.
+- **Ponto de conteúdo não lido** marca a sala sem criar uma notificação.
+- **Notificação no aplicativo** adiciona uma entrada à central de notificações.
+- **Notificação push** também permite um alerta em um dispositivo no qual você ativou
+  as notificações.
+
+Por exemplo, use **Ponto de conteúdo não lido** para mensagens novas na sala e **Notificação push**
+para menções diretas se quiser conferir as conversas gerais no seu próprio ritmo.
+
+<p>Os alertas push também precisam de permissão do dispositivo. No celular, siga
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalar o Chatto no celular</a>
+para instalar o aplicativo e ativar notificações. As configurações de notificações do
+celular controlam se nomes e prévias de mensagens aparecem na tela de bloqueio.</p>
+
+## Quando a conexão cai
+
+As mensagens já carregadas continuam visíveis, mas o Chatto precisa de conexão com
+um servidor para carregar mais mensagens ou enviar uma resposta. Quando a conexão
+volta, ele carrega as atualizações que faltam.
+
+Se o envio falhar, o rascunho permanece no editor. Ele não fica em uma fila de envio
+automático: confira a conexão e envie novamente. Instalar o Chatto no celular não
+torna seu histórico de conversas disponível sem conexão.

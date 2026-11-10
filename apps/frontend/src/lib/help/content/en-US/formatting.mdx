@@ -1,0 +1,140 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+You can format Chatto messages with Markdown. For example, `**hello**` displays as
+**hello**. Type the formatting marks yourself, or select text and use the
+formatting toolbar.
+
+## Choose your editor and send shortcut
+
+Open <a href={resolve('/chat/preferences/composer')}>App Preferences → Composer</a>
+and choose **Markdown** to edit the source text. Choose **Visual** if you prefer
+to work with formatted text. The formatting toolbar is available in both editors.
+
+The **Send messages with** setting controls the Enter key:
+
+- **Return:** Enter sends the message. Ctrl+Enter inserts a new line, or
+  Command+Enter on a Mac.
+- **Cmd/Ctrl+Return:** Ctrl+Enter sends the message, or Command+Enter on a Mac.
+  Enter inserts a new line.
+
+Leave a blank line between paragraphs.
+
+## Bold, italic, underline, and strikethrough
+
+Put formatting marks on both sides of the text:
+
+- `**bold**` for bold
+- `*italic*` for italic
+- `__underline__` for underline
+- `~~strikethrough~~` for strikethrough
+
+<MarkdownSample source={"Please review this **before Friday**.\nThe date is *provisional*.\n__Approval required__ before release.\nThe old deadline was ~~Thursday~~."} />
+
+In Chatto, `__text__` means underline. If you use double underscores for bold in
+another Markdown tool, use double asterisks here instead.
+
+Select text and press Ctrl+B, Ctrl+I, or Ctrl+U for bold, italic, or underline.
+On a Mac, use Command instead of Ctrl. The toolbar buttons perform the same actions.
+
+Do not put spaces between the marks and the text: `**important**` works;
+`** important **` does not apply bold.
+
+## Headings and lists
+
+Start a heading with `#` characters followed by a space. Start each bullet with
+`- `, or each numbered item with a number and a period, such as `1. `.
+
+<MarkdownSample source={"## Release checklist\n\nBefore we start:\n- Confirm the version.\n- Tell the support team.\n\nThen:\n1. Deploy the update.\n2. Check the status page.\n3. Post the result here."} />
+
+The toolbar's **Heading** button inserts a level-two heading (`##`). You can type
+heading levels from `#` through `######` yourself.
+
+Use **Indent** to nest a list item under the preceding item. Use **Outdent** to
+move it back. Leave a blank line after the list to start a paragraph.
+
+## Quotes
+
+Start each quoted line with `>` and a space. Leave a blank line after the quote
+before you write your reply.
+
+<MarkdownSample source={"> Can we move the release to Friday?\n\nYes. The final review is on Thursday afternoon."} />
+
+Typing a quote does not link it to the original message. To reply to that message
+in a thread, use its reply action.
+
+## Code
+
+Use a single backtick on each side of a short command, file name, or identifier.
+Formatting marks inside inline code appear as typed.
+
+<MarkdownSample source={"Run `git status` before you start.\nThe setting is called `send_mode`.\nType `**hello**` to make hello bold."} />
+
+For several lines, put three backticks on a line before the code and three on a
+line after it. Add a language name immediately after the opening backticks for
+syntax highlighting, such as `js`, `json`, or `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+The **Code block** toolbar button inserts the opening and closing backticks.
+Without the closing line, the rest of the message becomes part of the code block.
+To show a backtick inside inline code, use two backticks around the text.
+
+## Links
+
+A pasted web address becomes a link. To display a label instead of the address,
+put the label in square brackets and the address in parentheses:
+
+```text
+Read the [release notes](https://example.com/releases).
+```
+
+Do not put a space between `]` and `(`. To link to a room or mention a person in
+Chatto, select them from the composer's suggestions.
+
+## Footnotes
+
+Put a reference such as `[^window]` after the text you want to annotate. On a
+separate line, write `[^window]:` followed by the note. The labels must match.
+
+<MarkdownSample source={"The maintenance window is 30 minutes.[^window]\n\n[^window]: Most servers will be unavailable for less than five minutes."} />
+
+You can also put the cursor after the relevant text and select **Insert footnote**
+in the toolbar. Footnotes cannot be inserted inside inline code or a code block.
+
+## Tables
+
+Separate columns with `|` and put a row of dashes below the column headings.
+Use `---:` to align a column to the right, or `:---:` to center it.
+
+<MarkdownSample source={"| Environment | Version |\n| --- | ---: |\n| Test | 0.5 |\n| Production | 0.4 |"} />
+
+Edit tables in the Markdown composer. The Visual editor does not have a table
+editing control.
+
+## Try a complete message
+
+Edit the message below to try the formatting. The preview updates as you type.
+You can switch between the Markdown and Visual editors. Nothing you enter here
+is sent to a room.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Friday release\n\nPlease finish the review **before 14:00**.\n\n1. Run `git status`.\n2. Check the release notes.\n3. Reply in this thread when you are ready.\n\n> What if a check fails?\n\nPost the error here before you continue."} />
+</div>
+
+## When formatting does not look right
+
+- **The marks are still visible.** Check that both ends match and that there is
+  no space just inside the opening or closing marks. Inside code, visible marks
+  are intentional.
+- **The rest of the message looks like code.** Put the closing three backticks on
+  a line of their own.
+- **A heading or list stays as plain text.** Put a space after `##`, `-`, or `1.`
+  and start it on a new line.
+- **You want the punctuation itself.** Put a backslash before a formatting mark,
+  as in `\*not italic\*`, or use inline code for a literal example.
+- **HTML appears as text.** Chatto does not accept raw HTML as message formatting.
+  Use Markdown instead of tags such as `<b>` or `<span>`.

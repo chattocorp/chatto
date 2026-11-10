@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Sur cette page",
+    "design": {
+      "welcome": "Prenez vos repères dans Chatto.",
+      "explore": "À découvrir aussi",
+      "reference": "La mise en forme en un coup d’œil",
+      "reference_hint": "Sélectionnez un exemple pour l’essayer dans l’éditeur.",
+      "question": "Qui participe au prochain appel ?"
+    },
+    "overview": "Vue d’ensemble",
+    "intro": "Des guides courts pour discuter et administrer un serveur.",
+    "users": "Pour les membres",
+    "admins": "Pour les administrateurs",
+    "example": "Essayez ici",
+    "example_hint": "Cet exemple reste sur cette page. Il n’envoie aucun message.",
+    "input": "Texte du message",
+    "preview": "Aperçu",
+    "sample": "Bonjour **tout le monde** !",
+    "conversations": {
+      "title": "Utiliser Chatto",
+      "description": "Fils de discussion, activité non lue, notifications et problèmes de connexion."
+    },
+    "formatting": {
+      "title": "Mettre un message en forme",
+      "description": "Ajoutez de l’emphase et du code en ligne."
+    },
+    "bots": {
+      "title": "Robots",
+      "description": "Créez des comptes API et contrôlez exactement ce qu'ils peuvent faire"
+    },
+    "phone": {
+      "title": "Installer Chatto sur votre téléphone",
+      "description": "Ajoutez Chatto à votre écran d’accueil et activez les notifications."
+    }
+  }
+}

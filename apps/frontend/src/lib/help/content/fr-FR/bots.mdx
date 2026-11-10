@@ -1,0 +1,120 @@
+Les bots permettent à des outils externes de publier des messages et de répondre aux conversations dans Chatto. Créez un compte de bot, donnez-lui accès aux salons nécessaires et connectez votre outil avec une clé API ou un webhook. Vous exécutez le logiciel du bot séparément.
+
+Les étapes ci-dessous configurent un bot qui publie des mises à jour de déploiement. Vous devez avoir l'autorisation de créer des bots et l'accès au salon de destination.
+
+## Choisir le mode de connexion
+
+Il existe trois méthodes de connexion. Un bot peut en utiliser plusieurs.
+
+- **Webhook entrant : votre outil → Chatto.** Donnez à un service d'alerte ou à un outil d'automatisation une URL où publier des messages.
+- **Clé API : votre programme → Chatto.** Donnez une clé à votre programme pour lire les messages, envoyer des réponses ou utiliser les autres opérations API que vous autorisez.
+- **Webhook sortant : Chatto → votre outil.** Donnez à Chatto un point de terminaison à prévenir quand quelqu'un mentionne le bot ou lui envoie un message privé. Votre outil traite l'événement et utilise une clé API s'il doit répondre.
+
+Pour les mises à jour de déploiement, utilisez un webhook entrant. Pour un bot qui répond aux mentions ou aux messages privés, utilisez un webhook sortant pour recevoir les messages et une clé API pour envoyer les réponses.
+
+## 1. Créer le compte du bot
+
+1. Ouvrez **Administration du serveur → Bots** sur le serveur où le bot travaillera.
+2. Sélectionnez **Créer un robot**. Pour cet exemple, utilisez `release-bot` comme nom d'utilisateur et **Actualités des versions** comme nom affiché. Le nom d'utilisateur identifie le compte ; les membres voient le nom affiché à côté des messages.
+3. Créez le bot. Chatto affiche une clé API une seule fois. Conservez-la dans le stockage sécurisé de votre intégration si vous comptez utiliser l'API. Vous ne pourrez plus afficher cette clé après la fermeture de la boîte de dialogue.
+4. Ouvrez la page détaillée du bot. Ajoutez une courte description à son profil, par exemple « Publie les résultats de déploiement de notre chaîne de publication. »
+
+Si **Créer un robot** est indisponible, demandez `bot.create` à un administrateur. Posséder un bot permet de gérer ce bot ; la gestion de tous les bots nécessite une autorisation distincte.
+
+Si votre outil utilise seulement un webhook entrant, il n'a pas besoin de clé API. Révoquez la clé initiale inutilisée sous **Intégrations → Clés API**.
+
+## 2. Donner accès à un salon
+
+Un nouveau bot n'a aucune permission. Il n'hérite ni des rôles de son propriétaire ni des permissions du rôle `everyone`. Rejoindre un salon et avoir le droit d'y publier sont deux conditions distinctes.
+
+1. Ouvrez l'onglet **Autorisations** du bot.
+2. Repérez la colonne du salon des mises à jour de déploiement.
+3. Dans la ligne **Rejoint** en haut de la matrice, sélectionnez ce salon et confirmez le changement d'adhésion.
+4. Autorisez `message.post` pour ce salon. Laissez les permissions sans rapport non définies.
+
+Le bot de déploiement n'a pas besoin d'accès en lecture. Accordez `message.post` dans la colonne du salon pour limiter la publication à ce salon. Une permission au niveau du serveur s'applique à plusieurs salons.
+
+Vous devez aussi avoir le droit d'ajouter le bot au salon. Les salons archivés et les suspensions de salon peuvent empêcher l'adhésion. La permission `room.join` du bot sert à rejoindre des salons par l'API ; elle ne remplace pas la ligne **Rejoint**.
+
+### Un bot ne peut pas dépasser l'accès de son propriétaire
+
+Chaque permission du bot est limitée par les permissions actuelles de son propriétaire humain dans la même portée. Une permission enregistrée peut être inactive : un cadenas dans la matrice indique que les permissions du propriétaire la bloquent. Si le propriétaire perd un accès, le bot le perd aussi. Se déconnecter n'arrête pas le bot.
+
+Certaines permissions exigent le mode privilégié. Si Chatto vous demande de l'activer, faites-le avant d'accorder la permission.
+
+## 3. Connecter un webhook entrant
+
+1. Ouvrez **Intégrations** sur la page détaillée du bot.
+2. Sous **Webhooks entrants**, sélectionnez **Créer un webhook**.
+3. Donnez-lui le nom de l'appelant, par exemple **Chaîne de publication**.
+4. Sélectionnez le salon des mises à jour de déploiement comme **Salon de destination**.
+5. Créez le webhook et copiez l'URL complète dans la configuration de votre outil. Conservez la partie `?room_id=…` de l'URL.
+
+Configurez l'outil pour envoyer une requête HTTP **POST** avec `Content-Type: application/json` et ce corps :
+
+```json
+{
+  "text": "Déploiement terminé : la version **0.5** est prête à être testée."
+}
+```
+
+Le salon choisi figure déjà dans l'URL, donc cette requête ne nécessite pas de champ `channel`. Si vous choisissez plutôt **Choisir dans chaque requête**, ajoutez `"channel": "YOUR_ROOM_ID"` dans le JSON. Utilisez l'identifiant du salon, pas son nom.
+
+Choisir une destination ajoute un identifiant de salon à l'URL. L'appelant peut modifier cet identifiant et publier dans tout salon où le bot peut publier. Pour limiter le webhook à un salon, accordez au bot la permission de publier uniquement dans ce salon.
+
+## 4. Envoyer un test et vérifier le résultat
+
+Utilisez la fonction de test de l'outil externe. Une requête entrante réussie renvoie HTTP `200` avec le texte `ok`. Dans Chatto, le message doit apparaître dans le salon choisi sous **Actualités des versions**, avec une étiquette **BOT** et « 0.5 » en gras.
+
+Si la requête échoue, vérifiez la réponse :
+
+- **`401 invalid_token` :** l'URL est incomplète, invalide ou révoquée. Créez un nouveau webhook entrant si vous n'avez plus l'URL complète.
+- **`404 channel_not_found` :** vérifiez l'identifiant du salon, l'adhésion du bot, sa permission `message.post` et le droit de publication du propriétaire dans ce salon.
+- **`400 invalid_payload` :** envoyez du JSON valide avec un texte de message non vide et un identifiant de salon. Si l'identifiant figure dans l'URL et le corps, les valeurs doivent correspondre. Les règles du salon et les limites de taille des messages s'appliquent aussi.
+- **Le message apparaît deux fois :** une nouvelle tentative peut créer un autre message. Les webhooks entrants ne proposent pas de clé d'idempotence pour supprimer les doublons.
+
+Après un test réussi, configurez votre outil pour appeler le webhook à la fin d'un déploiement.
+
+## Créer un bot qui répond aux personnes
+
+Configurez votre programme avec sa clé API Chatto. Stockez la clé dans la configuration secrète du programme. Les requêtes API s'authentifient avec l'en-tête `Authorization: Bearer YOUR_API_KEY`.
+
+Choisissez les permissions nécessaires :
+
+- **Répondre seulement lorsqu'on s'adresse à lui :** accordez `message.read-interactions` et `message.post-in-interactions`. Le bot peut lire les fils entiers qu'il a commencés, ceux où quelqu'un l'a directement mentionné et ses messages privés. Mentionner le bot peut donc aussi lui donner accès aux messages précédents du fil.
+- **Lire le salon, mais répondre seulement lorsqu'on s'adresse à lui :** accordez `message.read` et `message.post-in-interactions`.
+- **Lire tous les messages et commencer des conversations :** accordez `message.read` et `message.post`.
+
+Appliquez les permissions aux salons prévus. Pour les messages privés, utilisez la portée **Messages directs** dans la matrice. Les permissions du propriétaire limitent toujours ces droits.
+
+### Indiquer au programme quand répondre
+
+Si votre programme accepte les événements webhook de Chatto :
+
+1. Ouvrez **Intégrations → Webhooks sortants → Créer un webhook**.
+2. Saisissez un nom et le point de terminaison HTTPS public de votre programme.
+3. Si le destinataire exige un **En-tête d'autorisation**, saisissez la valeur complète attendue, y compris un préfixe comme `Bearer`.
+4. Copiez le secret de signature dans la configuration du destinataire s'il vérifie les signatures webhook de Chatto. Le secret n'est affiché qu'une fois.
+5. Mentionnez le bot dans un salon qu'il peut lire, ou envoyez-lui un message privé. Vérifiez les journaux du destinataire et la réponse du bot dans Chatto.
+
+Le point de terminaison reçoit les nouveaux messages qui mentionnent directement le bot ou qui font partie de ses messages privés. Les messages ordinaires de salon, modifications, réactions et messages envoyés par le bot lui-même ne déclenchent pas ces webhooks. Une réponse ordinaire ultérieure dans un fil de salon ne les déclenche pas, sauf si elle mentionne à nouveau le bot.
+
+Votre destinataire doit accepter l'événement avec une réponse HTTP 2xx, puis envoyer toute réponse de chat par l'API. Chatto ignore le corps de la réponse HTTP. Les livraisons peuvent se répéter ; le destinataire doit donc utiliser l'identifiant de livraison pour éviter de faire le même travail deux fois. Si un programme a besoin de toute l'activité lisible, utilisez l'API temps réel de Chatto plutôt que le webhook de mentions et de messages privés.
+
+Pour le contenu des événements, la vérification des signatures et les opérations API, consultez la [référence des webhooks de bots](https://docs.chatto.run/reference/bot-webhooks/) et la [référence API](https://docs.chatto.run/reference/connectrpc-api/).
+
+Un webhook sortant envoie le texte des messages ainsi que les identifiants des messages, auteurs, salons et bots au point de terminaison configuré. Le destinataire voit aussi l'adresse IP sortante du serveur Chatto. Si votre bot transmet les messages à un fournisseur d'IA ou un autre service, expliquez-le aux membres avant de l'utiliser dans leurs conversations.
+
+### Si le bot reste silencieux
+
+Vérifiez si votre programme a reçu l'événement. Sous le webhook sortant, ouvrez **Échecs récents** pour consulter les erreurs de livraison enregistrées. Vérifiez que le point de terminaison est activé, accessible, accepte l'authentification configurée et renvoie 2xx sans redirection. Une liste vide ne prouve pas que la livraison a réussi.
+
+Si l'événement est arrivé mais qu'aucune réponse n'apparaît, vérifiez la clé API du programme, son opération de réponse et les permissions effectives de lecture et de publication du bot.
+
+## Maintenir l'intégration
+
+- **Remplacer un identifiant secret :** créez une nouvelle clé nommée ou un webhook, mettez l'appelant à jour, testez-le, puis révoquez l'ancien. Les clés API n'expirent pas automatiquement. Ne collez jamais une vraie clé ou une URL contenant des identifiants secrets dans le chat ou le dépôt de code.
+- **Arrêter temporairement les livraisons sortantes :** sélectionnez **Mettre en pause** sur le point de terminaison. **Reprendre** autorise de nouveaux événements ; cela ne rejoue pas la période de pause.
+- **Transférer le bot à un autre propriétaire :** un compte disposant de `bot.manage` peut utiliser **Réattribuer le propriétaire**. L'accès effectif du bot suit immédiatement le nouveau propriétaire. Les clés existantes restent valides ; remplacez donc les identifiants secrets si l'ancien opérateur doit perdre l'accès.
+- **Supprimer un compte propriétaire :** réattribuez d'abord les bots durables. Supprimer un propriétaire humain supprime aussi les bots qu'il possède.
+- **Montrer aux membres ce que le bot peut faire :** ouvrez son profil et consultez **Propriétaire** et **Ce qu’il peut faire**. Vérifiez cet accès après un changement de salons ou de propriétaire.

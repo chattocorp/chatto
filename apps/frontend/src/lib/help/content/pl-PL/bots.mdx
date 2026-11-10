@@ -1,0 +1,186 @@
+Boty pozwalają zewnętrznym narzędziom publikować wiadomości i odpowiadać na rozmowy w
+Chatto. Utwórz konto bota, daj mu dostęp do potrzebnych pokojów i połącz narzędzie za
+pomocą klucza API lub webhooka. Oprogramowanie bota uruchamiasz oddzielnie.
+
+Poniższe kroki konfigurują bota publikującego informacje o wdrożeniach. Potrzebujesz
+uprawnienia do tworzenia botów i dostępu do pokoju docelowego.
+
+## Wybierz sposób połączenia narzędzia
+
+Są trzy metody połączenia. Bot może używać więcej niż jednej.
+
+- **Webhook przychodzący: twoje narzędzie → Chatto.** Przekaż usłudze alertów lub
+  narzędziu automatyzacji adres URL do publikowania wiadomości.
+- **Klucz API: twój program → Chatto.** Daj programowi bota klucz, aby mógł czytać
+  wiadomości, wysyłać odpowiedzi lub używać innych dozwolonych operacji API.
+- **Webhook wychodzący: Chatto → twoje narzędzie.** Podaj Chatto punkt końcowy, który
+  otrzyma powiadomienie, gdy ktoś wspomni bota lub wyśle mu wiadomość bezpośrednią.
+  Narzędzie obsługuje zdarzenie i używa klucza API, jeśli musi odpowiedzieć.
+
+Do informacji o wdrożeniach użyj webhooka przychodzącego. Dla bota odpowiadającego na
+wzmianki i wiadomości bezpośrednie użyj webhooka wychodzącego do odbierania wiadomości
+i klucza API do wysyłania odpowiedzi.
+
+## 1. Utwórz konto bota
+
+1. Otwórz **Administracja serwerem → Boty** na serwerze, gdzie bot będzie działał.
+2. Wybierz **Utwórz bota**. W tym przykładzie użyj `release-bot` jako nazwy użytkownika
+   i **Aktualizacje wydań** jako nazwy wyświetlanej. Nazwa użytkownika identyfikuje konto;
+   nazwę wyświetlaną członkowie widzą przy jego wiadomościach.
+3. Utwórz bota. Chatto pokazuje klucz API tylko raz. Jeśli użyjesz API, zapisz go w
+   magazynie sekretów integracji. Po zamknięciu okna nie można go ponownie wyświetlić.
+4. Otwórz stronę szczegółów bota. Dodaj krótki opis profilu, na przykład
+   „Publikuje wyniki wdrożeń z naszego procesu wydawniczego”.
+
+Jeśli **Utwórz bota** jest niedostępne, poproś administratora o `bot.create`. Własność
+bota pozwala nim zarządzać; zarządzanie wszystkimi botami wymaga osobnego uprawnienia.
+
+Jeśli narzędzie używa tylko webhooka przychodzącego, nie potrzebuje klucza API.
+Unieważnij nieużywany klucz początkowy w **Integracje → Klucze API**.
+
+## 2. Daj mu dostęp do jednego pokoju
+
+Nowy bot nie ma uprawnień. Nie dziedziczy ról właściciela ani uprawnień roli `everyone`.
+Dołączenie do pokoju i prawo publikowania w nim to osobne wymagania.
+
+1. Otwórz kartę **Uprawnienia** bota.
+2. Znajdź kolumnę pokoju z informacjami o wdrożeniach.
+3. W wierszu **Dołączono** u góry macierzy wybierz pokój i potwierdź zmianę członkostwa.
+4. Zezwól na `message.post` w tym pokoju. Nie ustawiaj niepotrzebnych uprawnień.
+
+Bot wdrożeniowy nie potrzebuje odczytu. Przyznaj `message.post` w kolumnie pokoju,
+aby ograniczyć publikowanie do niego. Uprawnienie na poziomie serwera dotyczy wielu pokojów.
+
+Musisz też mieć prawo dodania bota do pokoju. Zarchiwizowane pokoje i zawieszenia mogą
+uniemożliwić dołączenie. Własne uprawnienie bota `room.join` służy do dołączania przez
+API; nie zastępuje wiersza **Dołączono**.
+
+### Bot nie może mieć większego dostępu niż właściciel
+
+Każde uprawnienie bota ograniczają bieżące uprawnienia jego ludzkiego właściciela w tym
+samym zakresie. Zapisane uprawnienie może być nieaktywne: kłódka w macierzy oznacza, że
+blokują je uprawnienia właściciela. Gdy właściciel traci dostęp, bot też go traci.
+Wylogowanie nie zatrzymuje bota.
+
+Niektóre uprawnienia wymagają trybu uprzywilejowanego. Jeśli Chatto poprosi o jego
+włączenie, zrób to przed dodaniem uprawnienia.
+
+## 3. Podłącz webhook przychodzący
+
+1. Otwórz **Integracje** na stronie szczegółów bota.
+2. W **Przychodzące webhooki** wybierz **Utwórz webhook**.
+3. Nadaj mu nazwę wywołującego systemu, na przykład **Proces wydawniczy**.
+4. Wybierz pokój z informacjami o wdrożeniach jako **Pokój docelowy**.
+5. Utwórz webhook i skopiuj cały URL do konfiguracji narzędzia. Zachowaj część `?room_id=…`.
+
+Skonfiguruj narzędzie do wysyłania żądania HTTP **POST** z `Content-Type: application/json`
+i następującą treścią:
+
+```json
+{
+  "text": "Wdrożenie zakończone: wersja **0.5** jest gotowa do testów."
+}
+```
+
+Wybrany pokój jest już w URL, więc żądanie nie potrzebuje pola `channel`. Jeśli wybierzesz
+**Wybierz w każdym żądaniu**, dodaj `"channel": "YOUR_ROOM_ID"` do JSON. Użyj ID pokoju, nie nazwy.
+
+Wybranie celu dodaje ID pokoju do URL. Wywołujący może zmienić to ID i publikować w
+każdym pokoju, w którym bot ma takie prawo. Aby ograniczyć webhook do jednego pokoju,
+przyznaj botowi prawo publikowania tylko w nim.
+
+## 4. Wyślij test i sprawdź wynik
+
+Użyj funkcji testowej zewnętrznego narzędzia. Poprawne żądanie przychodzące zwraca
+HTTP `200` z tekstem `ok`. W Chatto wiadomość powinna pojawić się w wybranym pokoju
+jako **Aktualizacje wydań**, z etykietą **BOT** i pogrubionym „0.5”.
+
+Jeśli żądanie się nie powiedzie, sprawdź odpowiedź:
+
+- **`401 invalid_token`:** URL jest niepełny, nieprawidłowy lub unieważniony. Utwórz
+  nowy webhook przychodzący, jeśli nie masz już pełnego URL.
+- **`404 channel_not_found`:** sprawdź ID pokoju, członkostwo bota, jego `message.post`
+  i prawo właściciela do publikowania w tym pokoju.
+- **`400 invalid_payload`:** wyślij poprawny JSON z niepustym tekstem i ID pokoju.
+  Jeśli ID jest w URL i w treści, wartości muszą się zgadzać. Obowiązują też zasady
+  pokoju i limity rozmiaru wiadomości.
+- **Wiadomość pojawia się dwa razy:** ponowienie może utworzyć kolejną wiadomość.
+  Webhooki przychodzące nie udostępniają klucza idempotencji do usuwania duplikatów.
+
+Po udanym teście skonfiguruj narzędzie, aby wywoływało webhook po zakończeniu wdrożenia.
+
+## Utwórz bota, który odpowiada ludziom
+
+Skonfiguruj program bota z jego kluczem API Chatto. Przechowuj klucz w tajnej konfiguracji
+programu. Żądania API uwierzytelniają się nagłówkiem `Authorization: Bearer YOUR_API_KEY`.
+
+Wybierz potrzebne uprawnienia:
+
+- **Odpowiadaj tylko po zwróceniu się do bota:** przyznaj `message.read-interactions`
+  i `message.post-in-interactions`. Bot może czytać całe wątki, które rozpoczął, wątki,
+  w których ktoś bezpośrednio go wspomniał, i własne wiadomości bezpośrednie. Wzmianka
+  może więc dać mu dostęp także do wcześniejszych wiadomości w tym wątku.
+- **Czytaj pokój, ale odpowiadaj tylko po zwróceniu się do bota:** przyznaj `message.read`
+  i `message.post-in-interactions`.
+- **Czytaj wszystkie wiadomości i rozpoczynaj rozmowy:** przyznaj `message.read` i `message.post`.
+
+Zastosuj uprawnienia do wybranych pokojów. Dla wiadomości bezpośrednich użyj zakresu
+**Wiadomości bezpośrednie** w macierzy. Uprawnienia właściciela nadal ograniczają te nadania.
+
+### Wskaż programowi, kiedy ma odpowiadać
+
+Jeśli program przyjmuje zdarzenia webhook Chatto:
+
+1. Otwórz **Integracje → Wychodzące webhooki → Utwórz webhook**.
+2. Wpisz nazwę i publiczny punkt końcowy HTTPS programu.
+3. Jeśli odbiorca wymaga **Nagłówka autoryzacji**, wpisz pełną oczekiwaną wartość,
+   łącznie z przedrostkiem takim jak `Bearer`.
+4. Skopiuj sekret podpisywania do konfiguracji odbiorcy, jeśli weryfikuje podpisy
+   webhooków Chatto. Sekret jest pokazywany tylko raz.
+5. Wspomnij bota w pokoju, który może czytać, lub wyślij mu wiadomość bezpośrednią.
+   Sprawdź logi odbiorcy i odpowiedź bota w Chatto.
+
+Punkt końcowy otrzymuje nowe wiadomości bezpośrednio wspominające bota lub należące do
+jego wiadomości bezpośrednich. Zwykłe wiadomości w pokoju, edycje, reakcje i wiadomości
+samego bota nie uruchamiają tych webhooków. Zwykła późniejsza odpowiedź w wątku pokoju
+też ich nie uruchamia, chyba że ponownie wspomina bota.
+
+Odbiorca powinien przyjąć zdarzenie odpowiedzią HTTP 2xx, a potem wysłać ewentualną
+odpowiedź na czat przez API. Chatto ignoruje treść odpowiedzi HTTP. Dostarczenia mogą
+się powtarzać, dlatego odbiorca musi używać ID dostarczenia, aby nie wykonać tej samej
+pracy dwa razy. Program potrzebujący całej dostępnej do odczytu aktywności powinien
+używać API czasu rzeczywistego Chatto zamiast webhooka wzmianek i wiadomości bezpośrednich.
+
+Opis danych zdarzenia, weryfikacji podpisów i operacji API znajdziesz w
+[dokumentacji webhooków botów](https://docs.chatto.run/reference/bot-webhooks/)
+i [dokumentacji API](https://docs.chatto.run/reference/connectrpc-api/).
+
+Webhook wychodzący wysyła tekst oraz identyfikatory wiadomości, autora, pokoju i bota
+do skonfigurowanego punktu końcowego. Odbiorca widzi też wychodzący adres IP serwera
+Chatto. Jeśli bot przekazuje wiadomości dostawcy AI lub innej usłudze, wyjaśnij to
+członkom przed użyciem go w ich rozmowach.
+
+### Jeśli bot milczy
+
+Sprawdź, czy program otrzymał zdarzenie. Przy webhooku wychodzącym otwórz **Ostatnie błędy**,
+aby zobaczyć zapisane błędy dostarczenia. Sprawdź, czy punkt końcowy jest włączony,
+osiągalny, akceptuje skonfigurowane uwierzytelnianie i zwraca 2xx bez przekierowania.
+Pusta lista błędów nie dowodzi udanego dostarczenia.
+
+Jeśli zdarzenie dotarło, ale odpowiedź się nie pojawiła, sprawdź klucz API programu,
+operację odpowiedzi oraz efektywne uprawnienia bota do czytania i publikowania.
+
+## Utrzymuj integrację
+
+- **Wymień dane dostępowe:** utwórz nowy nazwany klucz lub webhook, zaktualizuj
+  wywołującego, przetestuj i unieważnij poprzedni. Klucze API nie wygasają automatycznie.
+  Nigdy nie wklejaj prawdziwego klucza ani URL z danymi dostępowymi do czatu lub systemu kontroli wersji.
+- **Wstrzymaj wysyłanie tymczasowo:** wybierz **Wstrzymaj** przy punkcie końcowym.
+  **Wznów** pozwala na nowe zdarzenia; nie odtwarza okresu wstrzymania.
+- **Przekaż bota innemu właścicielowi:** konto z `bot.manage` może użyć **Przypisz właściciela ponownie**.
+  Efektywny dostęp bota natychmiast podąża za nowym właścicielem. Istniejące klucze nadal
+  działają, więc wymień dane dostępowe, jeśli poprzedni operator ma stracić dostęp.
+- **Usuń konto właściciela:** najpierw przekaż długotrwałe boty komuś innemu. Usunięcie
+  ludzkiego właściciela usuwa też należące do niego boty.
+- **Pokaż członkom możliwości bota:** otwórz jego profil i sprawdź **Właściciel** oraz
+  **Co może robić**. Przejrzyj dostęp po zmianie pokojów lub właściciela.

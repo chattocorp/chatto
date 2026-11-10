@@ -1,0 +1,202 @@
+Boti ļauj ārējiem rīkiem publicēt ziņojumus un atbildēt uz sarunām Chatto.
+Izveidojiet bota kontu, piešķiriet tam piekļuvi vajadzīgajām telpām un savienojiet
+savu rīku ar API atslēgu vai tīmekļa aizķeri. Bota programmatūru darbināt atsevišķi.
+
+Tālāk aprakstītās darbības iestata botu, kas publicē izvietošanas atjauninājumus.
+Jums vajadzīga atļauja veidot botus un piekļuve mērķa telpai.
+
+## Rīka savienojuma veida izvēle
+
+Ir trīs savienojuma veidi. Bots var izmantot vairākus.
+
+- **Ienākošā tīmekļa aizķere: jūsu rīks → Chatto.** Norādiet brīdinājumu pakalpojumam
+  vai automatizācijas rīkam URL, uz kuru publicēt ziņojumus.
+- **API atslēga: jūsu programma → Chatto.** Piešķiriet savai bota programmai
+  atslēgu, lai tā varētu lasīt ziņojumus, sūtīt atbildes vai izmantot citas
+  atļautās API darbības.
+- **Izejošā tīmekļa aizķere: Chatto → jūsu rīks.** Norādiet Chatto galapunktu, uz
+  kuru sūtīt paziņojumu, kad kāds piemin botu vai nosūta tam tiešu ziņojumu.
+  Rīks apstrādā notikumu un izmanto API atslēgu, ja ir jāatbild.
+
+Izvietošanas atjauninājumiem izmantojiet ienākošo tīmekļa aizķeri. Botam, kas
+atbild uz pieminēšanu vai tiešajiem ziņojumiem, izmantojiet izejošo tīmekļa aizķeri
+ziņojumu saņemšanai un API atslēgu atbilžu sūtīšanai.
+
+## 1. Bota konta izveide
+
+1. Serverī, kurā bots darbosies, atveriet **Servera administrēšana → Boti**.
+2. Izvēlieties **Izveidot robotu**. Šajā piemērā izmantojiet lietotājvārdu
+   `release-bot` un parādāmo vārdu **Izlaidumu atjauninājumi**. Lietotājvārds
+   identificē kontu; parādāmo vārdu dalībnieki redz blakus bota ziņojumiem.
+3. Izveidojiet botu. Chatto vienu reizi parāda API atslēgu. Ja izmantosiet API,
+   saglabājiet to integrācijas noslēpumu krātuvē. Pēc dialoglodziņa aizvēršanas
+   šo atslēgu vairs nevarēs parādīt.
+4. Atveriet bota informācijas lapu. Pievienojiet profilam īsu aprakstu, piemēram,
+   “Publicē izvietošanas rezultātus no mūsu izlaidumu konveijera.”
+
+Ja **Izveidot robotu** nav pieejams, lūdziet administratoram `bot.create`.
+Bota īpašumtiesības ļauj pārvaldīt šo botu; visu botu pārvaldībai vajadzīga atsevišķa
+atļauja.
+
+Ja rīks izmanto tikai ienākošo tīmekļa aizķeri, tam nav vajadzīga API atslēga.
+Atsauciet neizmantoto sākotnējo atslēgu sadaļā **Integrācijas → API atslēgas**.
+
+## 2. Piekļuves piešķiršana vienai telpai
+
+Jaunam botam nav atļauju. Tas nemanto īpašnieka lomas vai lomas `everyone`
+atļaujas. Dalība telpā un atļauja tajā publicēt ir atsevišķas prasības.
+
+1. Atveriet bota cilni **Atļaujas**.
+2. Atrodiet izvietošanas atjauninājumu telpas kolonnu.
+3. Matricas augšējā rindā **Pievienojies** atlasiet šo telpu un apstipriniet
+   dalības izmaiņu.
+4. Atļaujiet `message.post` šai telpai. Nesaistītās atļaujas atstājiet neiestatītas.
+
+Izvietošanas botam nav vajadzīga lasīšanas piekļuve. Piešķiriet `message.post`
+telpas kolonnā, lai ierobežotu publicēšanu ar šo telpu. Servera līmeņa atļauja
+attiecas uz vairākām telpām.
+
+Arī jums jābūt tiesībām pievienot botu telpai. Arhivētas telpas un darbības
+apturēšana telpā var liegt pievienošanos. Bota atļauja `room.join` paredzēta
+telpu pievienošanai caur API; tā neaizstāj rindu **Pievienojies**.
+
+### Bots nevar pārsniegt īpašnieka piekļuvi
+
+Katru bota atļauju ierobežo cilvēka īpašnieka pašreizējās atļaujas tajā pašā
+tvērumā. Saglabāta atļauja var būt neaktīva: slēdzene matricā norāda, ka to bloķē
+īpašnieka atļaujas. Ja īpašnieks zaudē piekļuvi, to zaudē arī bots.
+Izrakstīšanās botu neaptur.
+
+Dažām atļaujām vajadzīgs priviliģētais režīms. Ja Chatto lūdz to aktivizēt,
+izdariet to pirms atļaujas piešķiršanas.
+
+## 3. Ienākošās tīmekļa aizķeres savienošana
+
+1. Bota informācijas lapā atveriet **Integrācijas**.
+2. Sadaļā **Ienākošie tīmekļa aizķeres punkti** izvēlieties **Izveidot tīmekļa aizķeres punktu**.
+3. Nosauciet to pēc izsaucēja, piemēram, **Izlaidumu konveijers**.
+4. Laukā **Mērķa istaba** izvēlieties izvietošanas atjauninājumu telpu.
+5. Izveidojiet tīmekļa aizķeri un nokopējiet pilnu URL rīka tīmekļa aizķeres
+   konfigurācijā. Saglabājiet URL daļu `?room_id=…`.
+
+Konfigurējiet rīku, lai tas sūtītu HTTP **POST** ar
+`Content-Type: application/json` un šādu saturu:
+
+```json
+{
+  "text": "Izvietošana pabeigta: versija **0.5** ir gatava testēšanai."
+}
+```
+
+Izvēlētā telpa jau ir URL, tāpēc šim pieprasījumam nav vajadzīgs lauks `channel`.
+Ja tā vietā izvēlaties **Izvēlēties katrā pieprasījumā**, JSON iekļaujiet
+`"channel": "YOUR_ROOM_ID"`. Izmantojiet telpas ID, nevis nosaukumu.
+
+Izvēloties galamērķi, URL tiek pievienots telpas ID. Izsaucējs var mainīt šo ID
+un publicēt jebkurā telpā, kur bots drīkst publicēt. Lai ierobežotu tīmekļa aizķeri
+ar vienu telpu, piešķiriet botam publicēšanas atļauju tikai šajā telpā.
+
+## 4. Testa nosūtīšana un rezultāta pārbaude
+
+Izmantojiet ārējā rīka testa funkciju. Veiksmīgs ienākošs pieprasījums atgriež
+HTTP `200` ar tekstu `ok`. Chatto izvēlētajā telpā jāparādās ziņojumam ar vārdu
+**Izlaidumu atjauninājumi**, marķējumu **BOT** un “0.5” treknrakstā.
+
+Ja pieprasījums neizdodas, pārbaudiet atbildi:
+
+- **`401 invalid_token`:** URL ir nepilnīgs, nederīgs vai atsaukts. Ja pilnais
+  URL vairs nav pieejams, izveidojiet jaunu ienākošo tīmekļa aizķeri.
+- **`404 channel_not_found`:** pārbaudiet telpas ID, bota dalību, tā `message.post`
+  atļauju un īpašnieka publicēšanas piekļuvi šajā telpā.
+- **`400 invalid_payload`:** nosūtiet derīgu JSON ar netukšu ziņojuma tekstu un
+  telpas ID. Ja telpas ID ir gan URL, gan saturā, vērtībām jāsakrīt.
+  Piemēro arī telpas politiku un ziņojuma lieluma ierobežojumus.
+- **Ziņojums parādās divreiz:** atkārtots mēģinājums var izveidot vēl vienu
+  ziņojumu. Ienākošās tīmekļa aizķeres nepiedāvā idempotences atslēgu dublikātu
+  novēršanai.
+
+Kad tests ir veiksmīgs, konfigurējiet rīku izsaukt tīmekļa aizķeri pēc izvietošanas
+pabeigšanas.
+
+## Bota izveide atbildēšanai cilvēkiem
+
+Konfigurējiet bota programmu ar tā Chatto API atslēgu. Glabājiet atslēgu programmas
+slepenajā konfigurācijā. API pieprasījumi autentificējas ar galveni
+`Authorization: Bearer YOUR_API_KEY`.
+
+Izvēlieties botam vajadzīgās atļaujas:
+
+- **Atbildēt tikai tad, kad to uzrunā:** piešķiriet `message.read-interactions` un
+  `message.post-in-interactions`. Bots var lasīt visus ziņojumus pavedienos,
+  kurus sācis pats, pavedienos, kuros tas tieši pieminēts, un savos tiešajos
+  ziņojumos. Tāpēc bota pieminēšana var dot tam piekļuvi arī agrākiem ziņojumiem
+  šajā pavedienā.
+- **Lasīt telpu, bet atbildēt tikai tad, kad to uzrunā:** piešķiriet `message.read`
+  un `message.post-in-interactions`.
+- **Lasīt visus ziņojumus un sākt sarunas:** piešķiriet `message.read` un
+  `message.post`.
+
+Piešķiriet atļaujas paredzētajām telpām. Tiešajiem ziņojumiem izmantojiet matricas
+tvērumu **Tiešie ziņojumi**. Šīs atļaujas joprojām ierobežo īpašnieka atļaujas.
+
+### Norādiet programmai, kad jāatbild
+
+Ja programma pieņem Chatto tīmekļa aizķeres notikumus:
+
+1. Atveriet **Integrācijas → Izejošās tīmekļa aizķeres → Izveidot tīmekļa aizķeri**.
+2. Ievadiet nosaukumu un programmas publisko HTTPS galapunktu.
+3. Ja saņēmējam vajadzīga **Authorization galvene**, ievadiet pilnu sagaidīto
+   vērtību, tostarp prefiksu, piemēram, `Bearer`.
+4. Ja saņēmējs pārbauda Chatto tīmekļa aizķeres parakstus, nokopējiet parakstīšanas
+   noslēpumu saņēmēja konfigurācijā. Noslēpumu parāda tikai vienu reizi.
+5. Pieminiet botu telpā, kuru tas var lasīt, vai nosūtiet tam tiešu ziņojumu.
+   Pārbaudiet saņēmēja žurnālus un bota atbildi Chatto.
+
+Galapunkts saņem jaunus ziņojumus, kuros bots tieši pieminēts vai kuri ir tā
+tiešie ziņojumi. Parasti telpas ziņojumi, labojumi, reakcijas un paša bota
+sūtītie ziņojumi šīs tīmekļa aizķeres neiedarbina. Arī parasta vēlāka atbilde
+telpas pavedienā tās neiedarbina, ja vien tajā bots netiek pieminēts vēlreiz.
+
+Saņēmējam jāapstiprina notikums ar HTTP 2xx atbildi un pēc tam jānosūta iespējamā
+tērzēšanas atbilde caur API. Chatto ignorē HTTP atbildes saturu. Piegādes var
+atkārtoties, tāpēc saņēmējam jāizmanto piegādes ID, lai to pašu darbu neveiktu
+divreiz. Ja programmai vajadzīgas visas lasāmās darbības, izmantojiet Chatto
+reāllaika API, nevis pieminēšanas un tiešo ziņojumu tīmekļa aizķeri.
+
+Notikuma saturu, paraksta pārbaudi un API darbības skatiet
+[botu tīmekļa aizķeru uzziņā](https://docs.chatto.run/reference/bot-webhooks/) un
+[API uzziņā](https://docs.chatto.run/reference/connectrpc-api/).
+
+Izejošā tīmekļa aizķere nosūta ziņojuma tekstu un ziņojuma, autora, telpas un bota
+identifikatorus uz konfigurēto galapunktu. Saņēmējs redz arī Chatto servera izejošo
+IP adresi. Ja bots pārsūta ziņojumus mākslīgā intelekta pakalpojuma sniedzējam vai
+citam pakalpojumam, paskaidrojiet to dalībniekiem pirms izmantošanas viņu sarunās.
+
+### Ja bots klusē
+
+Pārbaudiet, vai programma saņēma notikumu. Pie izejošās tīmekļa aizķeres atveriet
+**Nesenās kļūmes**, lai skatītu ierakstītās piegādes kļūdas. Pārbaudiet, vai
+galapunkts ir iespējots, sasniedzams, pieņem konfigurēto autentifikāciju un
+atgriež 2xx bez pāradresācijas. Tukšs kļūmju saraksts nepierāda veiksmīgu piegādi.
+
+Ja notikums pienāca, bet atbilde neparādījās, pārbaudiet programmas API atslēgu,
+atbildēšanas darbību un bota faktiskās lasīšanas un publicēšanas atļaujas.
+
+## Integrācijas uzturēšana
+
+- **Aizstāt piekļuves datus:** izveidojiet jaunu nosauktu atslēgu vai tīmekļa
+  aizķeri, atjauniniet izsaucēju, pārbaudiet to un tad atsauciet veco.
+  API atslēgas automātiski nezaudē derīgumu. Nekad neielīmējiet īstu atslēgu vai
+  URL ar piekļuves datiem tērzēšanā vai pirmkoda versiju kontrolē.
+- **Īslaicīgi apturēt izejošo piegādi:** pie galapunkta izvēlieties **Apturēt**.
+  **Atsākt** ļauj sūtīt jaunus notikumus; pauzes laikā notikušie netiek atkārtoti
+  atskaņoti.
+- **Nodot botu citam īpašniekam:** konts ar `bot.manage` var izmantot
+  **Mainīt īpašnieku**. Bota faktiskā piekļuve nekavējoties sāk atbilst jaunajam
+  īpašniekam. Esošās atslēgas paliek derīgas, tāpēc nomainiet piekļuves datus,
+  ja iepriekšējam operatoram jāzaudē piekļuve.
+- **Dzēst īpašnieka kontu:** vispirms nododiet ilgstoši izmantotos botus citam
+  īpašniekam. Dzēšot cilvēka īpašnieka kontu, tiek dzēsti arī viņam piederošie boti.
+- **Parādīt dalībniekiem bota iespējas:** atveriet tā profilu un pārbaudiet
+  **Īpašnieks** un **Ko tas var darīt**. Pārskatiet piekļuvi pēc telpu vai
+  īpašumtiesību izmaiņām.

@@ -33,7 +33,10 @@ const DISABLED_RULES = [
   'escape'
 ] as const;
 
-const ALPHANUMERIC = /[a-zA-Z0-9]/;
+// Combining marks belong to their word even when text is not NFC-normalized.
+const WORD_START = /^(?:\p{L}|\p{N}|\p{M})/u;
+const WORD_END = /(?:\p{L}|\p{N}|\p{M})$/u;
+const PARENTHESIZED_GLYPH = /^\([\p{L}\p{N}\p{S}]\p{M}*\)/u;
 const MAX_TABLE_COLUMNS = 64;
 const MAX_TABLE_ROWS = 256;
 const MAX_TABLE_CELLS = 4_096;
@@ -151,10 +154,9 @@ function boundedTableRule(tableRule: MarkdownBlockRule): MarkdownBlockRule {
 
 /**
  * Inline rule that consumes `*` or `_` marker runs as literal text when they
- * are not at a word boundary. A word boundary requires exactly one side of
- * the run to be alphanumeric. This neuters intraword emphasis like
- * `foo*bar*baz` and punctuation-flanked markers like `_(ツ)_`, while
- * preserving normal `*italic*`, `_italic_`, and `**bold**`.
+ * occur inside words or surround only punctuation. Unicode letters, numbers,
+ * and combining marks are word characters. Single-marker, parenthesized
+ * one-glyph faces stay literal by shape, not by the glyph's writing system.
  */
 function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
   const start = state.pos;
@@ -167,44 +169,55 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
   }
   const runLength = runEnd - start;
 
-  const before = start > 0 ? state.src[start - 1] : '';
-  const after = runEnd < state.src.length ? state.src[runEnd] : '';
-  const beforeAlnum = ALPHANUMERIC.test(before);
-  const afterAlnum = ALPHANUMERIC.test(after);
+  // Preserve faces such as _(ツ)_ and *(x)* without classifying their letters
+  // as punctuation. Longer parenthesized words remain eligible for emphasis.
+  if (runLength === 1 && state.src[runEnd] === '(') {
+    const face = PARENTHESIZED_GLYPH.exec(state.src.slice(runEnd, state.posMax));
+    const close = runEnd + (face?.[0].length ?? 0);
+    if (
+      face &&
+      close < state.posMax &&
+      state.src.charCodeAt(close) === marker &&
+      state.src.charCodeAt(close + 1) !== marker
+    ) {
+      if (!silent) state.pending += state.src.slice(start, close + 1);
+      state.pos = close + 1;
+      return true;
+    }
+  }
+
+  // Two UTF-16 code units include a complete adjacent supplementary character.
+  const beforeWord = WORD_END.test(state.src.slice(Math.max(0, start - 2), start));
+  const afterWord = WORD_START.test(state.src.slice(runEnd, runEnd + 2));
 
   // Single-marker intraword runs are definitely literal (`snake_case`,
   // `foo*bar*baz`). Double-marker runs are still allowed so bold can end next
   // to a following word (`**bold**text`).
-  const intraword = runLength === 1 && beforeAlnum && afterAlnum;
-  // Kaomoji-like: punctuation on both sides AND neither direction crosses an
-  // alphanumeric before hitting a same-marker run or the input boundary. The
-  // bidirectional check distinguishes a true kaomoji marker (e.g. the trailing
-  // `_` in `_(ツ)_/¯` — only punctuation back to the opener and only
-  // punctuation forward to end of input) from a closer of a real emphasis
-  // run that happens to be followed by punctuation/another emphasis (e.g.
-  // the closing `**` in `**foo:** **bar**` — alnum `o` is right behind it).
-  let kaomojiLike = false;
-  if (!beforeAlnum && !afterAlnum) {
+  const intraword = runLength === 1 && beforeWord && afterWord;
+  // Punctuation-only runs stay literal. Search both directions so a closing
+  // marker after punctuation in real text still works, as in **word:** **next**.
+  let punctuationOnly = false;
+  if (!beforeWord && !afterWord) {
     let forwardOK = true;
     for (let i = runEnd; i < state.posMax; i++) {
       if (state.src.charCodeAt(i) === marker) break;
-      if (ALPHANUMERIC.test(state.src[i])) {
+      if (WORD_START.test(state.src.slice(i, i + 2))) {
         forwardOK = false;
         break;
       }
     }
     if (forwardOK) {
-      kaomojiLike = true;
+      punctuationOnly = true;
       for (let i = start - 1; i >= 0; i--) {
         if (state.src.charCodeAt(i) === marker) break;
-        if (ALPHANUMERIC.test(state.src[i])) {
-          kaomojiLike = false;
+        if (WORD_START.test(state.src.slice(i, i + 2))) {
+          punctuationOnly = false;
           break;
         }
       }
     }
   }
-  if (intraword || kaomojiLike) {
+  if (intraword || punctuationOnly) {
     if (!silent) state.pending += state.src.slice(start, runEnd);
     state.pos = runEnd;
     return true;

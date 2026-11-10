@@ -1,0 +1,187 @@
+Botlar, dış araçların Chatto'da mesaj göndermesini ve konuşmalara yanıt vermesini sağlar.
+Bir bot hesabı oluşturun, gereken odalara erişim verin ve aracınızı bir API anahtarı
+veya webhook ile bağlayın. Bot yazılımını ayrı olarak çalıştırırsınız.
+
+Aşağıdaki adımlar, dağıtım güncellemeleri gönderen bir bot kurar. Bot oluşturma iznine
+ve hedef odaya erişime ihtiyacınız vardır.
+
+## Aracınızın bağlantı yöntemini seçin
+
+Üç bağlantı yöntemi vardır. Bir bot birden fazlasını kullanabilir.
+
+- **Gelen webhook: aracınız → Chatto.** Bir uyarı hizmetine veya otomasyon aracına
+  mesaj gönderebileceği bir URL verin.
+- **API anahtarı: programınız → Chatto.** Bot programınıza mesaj okuması, yanıt göndermesi
+  veya izin verdiğiniz diğer API işlemlerini yapması için bir anahtar verin.
+- **Giden webhook: Chatto → aracınız.** Chatto'ya, biri bottan bahsettiğinde veya doğrudan
+  mesaj gönderdiğinde bildireceği bir uç nokta verin. Aracınız olayı işler ve yanıt
+  vermesi gerekiyorsa bir API anahtarı kullanır.
+
+Dağıtım güncellemeleri için gelen webhook kullanın. Bahsetmelere veya doğrudan mesajlara
+yanıt veren bir bot için mesajları almak üzere giden webhook, yanıt göndermek üzere
+API anahtarı kullanın.
+
+## 1. Bot hesabını oluşturun
+
+1. Botun çalışacağı sunucuda **Sunucu Yönetimi → Botlar** bölümünü açın.
+2. **Bot Oluştur** seçeneğini seçin. Bu örnekte kullanıcı adı olarak `release-bot`,
+   görünen ad olarak **Sürüm güncellemeleri** kullanın. Kullanıcı adı hesabı tanımlar;
+   görünen ad, üyelerin mesajların yanında gördüğü addır.
+3. Botu oluşturun. Chatto API anahtarını yalnızca bir kez gösterir. API'yi kullanacaksanız
+   anahtarı entegrasyonunuzun gizli bilgi deposuna kaydedin. İletişim kutusunu kapattıktan
+   sonra anahtarı yeniden göremezsiniz.
+4. Botun ayrıntı sayfasını açın. Profile «Yayım sürecimizden dağıtım sonuçlarını paylaşır»
+   gibi kısa bir açıklama ekleyin.
+
+**Bot Oluştur** kullanılamıyorsa yöneticiden `bot.create` izni isteyin. Bir botun sahibi
+olmak o botu yönetmenizi sağlar; tüm botları yönetme izni ayrıca verilir.
+
+Aracınız yalnızca gelen webhook kullanıyorsa API anahtarına ihtiyacı yoktur. Kullanılmayan
+ilk anahtarı **Entegrasyonlar → API anahtarları** altında iptal edin.
+
+## 2. Bir odaya erişim verin
+
+Yeni bir botun izni yoktur. Sahibinin rollerini veya `everyone` rolünün izinlerini
+devralmaz. Bir odaya katılmak ve oraya mesaj gönderebilmek ayrı gerekliliklerdir.
+
+1. Botun **İzinler** sekmesini açın.
+2. Dağıtım güncellemeleri odanızın sütununu bulun.
+3. Matrisin üstündeki **Katıldı** satırında bu odayı seçip üyelik değişikliğini onaylayın.
+4. Bu oda için `message.post` izni verin. İlgisiz izinleri ayarlamadan bırakın.
+
+Dağıtım botunun okuma erişimine ihtiyacı yoktur. Göndermeyi bu odayla sınırlamak için
+`message.post` iznini oda sütununda verin. Sunucu genelindeki bir izin odalar arasında geçerlidir.
+
+Botu odaya ekleme yetkisine de ihtiyacınız vardır. Arşivlenmiş odalar ve oda uzaklaştırmaları
+katılmayı engelleyebilir. Botun kendi `room.join` izni, API üzerinden odalara katılması
+içindir; **Katıldı** satırının yerini almaz.
+
+### Bot, sahibinin erişimini aşamaz
+
+Botun her izni, insan sahibinin aynı kapsamdaki güncel izinleriyle sınırlıdır. Kaydedilmiş
+bir izin etkin olmayabilir: matristeki kilit, sahibin izinlerinin onu engellediğini
+gösterir. Sahip erişimini kaybederse bot da kaybeder. Oturumu kapatmak botu durdurmaz.
+
+Bazı izinler ayrıcalıklı mod gerektirir. Chatto etkinleştirmenizi isterse izni eklemeden
+önce bu modu etkinleştirin.
+
+## 3. Gelen webhook bağlayın
+
+1. Botun ayrıntı sayfasında **Entegrasyonlar** bölümünü açın.
+2. **Gelen webhook’lar** altında **Webhook oluştur** seçeneğini seçin.
+3. Çağıran sisteme göre adlandırın; örneğin **Yayım süreci**.
+4. **Hedef oda** olarak dağıtım güncellemeleri odasını seçin.
+5. Webhook'u oluşturup tam URL'yi aracınızın webhook yapılandırmasına kopyalayın.
+   URL'nin `?room_id=…` bölümünü koruyun.
+
+Aracı `Content-Type: application/json` ve şu gövdeyle HTTP **POST** gönderecek şekilde yapılandırın:
+
+```json
+{
+  "text": "Dağıtım tamamlandı: **0.5** sürümü test için hazır."
+}
+```
+
+Seçilen oda zaten URL'de olduğundan bu istek `channel` alanı gerektirmez. Bunun yerine
+**Her istekte seç** seçeneğini kullanırsanız JSON'a `"channel": "YOUR_ROOM_ID"` ekleyin.
+Odanın adını değil kimliğini kullanın.
+
+Hedef seçmek URL'ye bir oda kimliği ekler. Çağıran bu kimliği değiştirip botun mesaj
+gönderebildiği herhangi bir odaya gönderebilir. Webhook'u tek odayla sınırlamak için
+bota yalnızca o odada gönderme izni verin.
+
+## 4. Test gönderip sonucu kontrol edin
+
+Dış aracın test işlevini kullanın. Başarılı bir gelen istek, `ok` metniyle HTTP `200`
+döndürür. Chatto'da mesaj seçtiğiniz odada **Sürüm güncellemeleri** adıyla, **BOT**
+etiketiyle ve «0.5» kalın olacak şekilde görünmelidir.
+
+İstek başarısız olursa yanıtı kontrol edin:
+
+- **`401 invalid_token`:** URL eksik, geçersiz veya iptal edilmiştir. Tam URL artık
+  elinizde yoksa yeni bir gelen webhook oluşturun.
+- **`404 channel_not_found`:** oda kimliğini, botun üyeliğini, `message.post` iznini ve
+  sahibin o odadaki gönderme erişimini kontrol edin.
+- **`400 invalid_payload`:** boş olmayan mesaj metni ve oda kimliği içeren geçerli JSON
+  gönderin. Oda kimliği hem URL'de hem gövdede varsa değerler eşleşmelidir. Oda politikası
+  ve mesaj boyutu sınırları da geçerlidir.
+- **Mesaj iki kez görünüyor:** yeniden denemek başka bir mesaj oluşturabilir. Gelen
+  webhook'lar yinelenen mesajları önlemek için idempotency anahtarı sağlamaz.
+
+Test başarılı olduktan sonra aracınızı dağıtım bittiğinde webhook'u çağıracak şekilde ayarlayın.
+
+## İnsanlara yanıt veren bir bot oluşturun
+
+Bot programınızı Chatto API anahtarıyla yapılandırın. Anahtarı programın gizli yapılandırmasında
+saklayın. API istekleri `Authorization: Bearer YOUR_API_KEY` başlığıyla kimlik doğrular.
+
+Botun ihtiyaç duyduğu izinleri seçin:
+
+- **Yalnızca kendisine hitap edildiğinde yanıt ver:** `message.read-interactions` ve
+  `message.post-in-interactions` verin. Bot başlattığı konuların tamamını, doğrudan
+  bahsedildiği konuları ve doğrudan mesajlarını okuyabilir. Bottan bahsetmek, o konudaki
+  önceki mesajlara da erişim verebilir.
+- **Odayı oku ama yalnızca hitap edildiğinde yanıt ver:** `message.read` ve
+  `message.post-in-interactions` verin.
+- **Tüm mesajları oku ve konuşma başlat:** `message.read` ve `message.post` verin.
+
+İzinleri amaçlanan odalara uygulayın. Doğrudan mesajlar için matriste **Doğrudan mesajlar**
+kapsamını kullanın. Sahibin izinleri bu yetkileri sınırlamaya devam eder.
+
+### Programınıza ne zaman yanıt vereceğini bildirin
+
+Programınız Chatto webhook olaylarını kabul ediyorsa:
+
+1. **Entegrasyonlar → Giden webhook’lar → Webhook oluştur** bölümünü açın.
+2. Bir ad ve programınızın herkese açık HTTPS uç noktasını girin.
+3. Alıcı bir **Yetkilendirme başlığı** istiyorsa `Bearer` gibi önekler dahil beklediği
+   tam değeri girin.
+4. Alıcı Chatto webhook imzalarını doğruluyorsa imzalama sırrını alıcının yapılandırmasına
+   kopyalayın. Sır yalnızca bir kez gösterilir.
+5. Botun okuyabildiği bir odada bottan bahsedin veya ona doğrudan mesaj gönderin.
+   Alıcının günlüklerini ve Chatto'daki bot yanıtını kontrol edin.
+
+Uç nokta, doğrudan bottan bahseden yeni mesajları veya botun doğrudan mesajlarını alır.
+Sıradan oda mesajları, düzenlemeler, tepkiler ve botun kendi gönderdiği mesajlar bu
+webhook'ları tetiklemez. Bir oda konusundaki sonraki sıradan yanıt, bottan yeniden
+bahsetmedikçe webhook'u tetiklemez.
+
+Alıcınız olayı HTTP 2xx yanıtıyla kabul etmeli, ardından sohbete yanıtı API üzerinden
+göndermelidir. Chatto HTTP yanıt gövdesini yok sayar. Teslimatlar tekrarlanabilir; alıcı
+aynı işi iki kez yapmamak için teslimat kimliğini kullanmalıdır. Okunabilir tüm etkinliğe
+ihtiyacı olan bir program için bahsetme ve doğrudan mesaj webhook'u yerine Chatto'nun
+gerçek zamanlı API'sini kullanın.
+
+Olay verileri, imza doğrulama ve API işlemleri için
+[bot webhook başvurusuna](https://docs.chatto.run/reference/bot-webhooks/)
+ve [API başvurusuna](https://docs.chatto.run/reference/connectrpc-api/) bakın.
+
+Giden webhook, mesaj metni ile mesaj, yazar, oda ve bot kimliklerini yapılandırılmış
+uç noktaya gönderir. Alıcı Chatto sunucusunun çıkış IP adresini de görür. Botunuz mesajları
+bir yapay zekâ sağlayıcısına veya başka bir hizmete iletiyorsa üyelerin konuşmalarında
+kullanmadan önce bunu açıklayın.
+
+### Bot sessiz kalırsa
+
+Programınızın olayı alıp almadığını kontrol edin. Giden webhook altında **Son hatalar**
+bölümünü açıp kaydedilmiş teslimat hatalarını inceleyin. Uç noktanın etkin ve erişilebilir
+olduğunu, yapılandırılmış kimlik doğrulamayı kabul ettiğini ve yönlendirme olmadan 2xx
+döndürdüğünü kontrol edin. Boş hata listesi başarılı teslimatı kanıtlamaz.
+
+Olay geldiği hâlde yanıt görünmediyse programın API anahtarını, yanıt işlemini ve botun
+etkin okuma ve gönderme izinlerini kontrol edin.
+
+## Entegrasyonu sürdürün
+
+- **Kimlik bilgisini değiştirin:** yeni, adlandırılmış bir anahtar veya webhook oluşturun,
+  çağıranı güncelleyin, test edin ve eskiyi iptal edin. API anahtarları otomatik olarak
+  sona ermez. Gerçek bir anahtarı veya kimlik bilgisi içeren URL'yi asla sohbete ya da sürüm kontrolüne yapıştırmayın.
+- **Giden teslimatı geçici olarak durdurun:** uç noktada **Duraklat** seçeneğini seçin.
+  **Devam ettir** yeni olaylara izin verir; duraklatılan dönemi yeniden oynatmaz.
+- **Botu başka bir sahibe devredin:** `bot.manage` izni olan bir hesap **Sahibi yeniden ata**
+  seçeneğini kullanabilir. Botun etkin erişimi hemen yeni sahibini izler. Mevcut anahtarlar
+  geçerliliğini korur; önceki işletmeci erişimi kaybetmeliyse kimlik bilgilerini değiştirin.
+- **Sahip hesabını kaldırın:** uzun süre kullanılacak botları önce yeniden atayın.
+  İnsan sahibini silmek sahip olduğu botları da siler.
+- **Üyelere botun yapabileceklerini gösterin:** profilini açıp **Sahibi** ve **Yapabilecekleri**
+  bölümlerini inceleyin. Odalar veya sahiplik değiştikten sonra erişimi yeniden gözden geçirin.

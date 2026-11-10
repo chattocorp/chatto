@@ -1,0 +1,140 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Chatto sõnumeid saab vormindada Markdowniga. Näiteks `**tere**` kuvatakse kujul
+**tere**. Sisestage vormindusmärgid ise või valige tekst ja kasutage
+vormindustööriistariba.
+
+## Redaktori ja saatmise kiirklahvi valimine
+
+Avage <a href={resolve('/chat/preferences/composer')}>Rakenduse eelistused → Sõnumi koostamine</a>
+ja valige **Markdown**, et muuta lähteteksti. Kui eelistate töötada vormindatud
+tekstiga, valige **Visuaalne**. Vormindustööriistariba on saadaval mõlemas redaktoris.
+
+Säte **Sõnumite saatmine klahviga** määrab Enter-klahvi käitumise:
+
+- **Return:** Enter saadab sõnumi. Ctrl+Enter lisab uue rea, Macis Command+Enter.
+- **Cmd/Ctrl+Return:** Ctrl+Enter saadab sõnumi, Macis Command+Enter.
+  Enter lisab uue rea.
+
+Jätke lõikude vahele tühi rida.
+
+## Paks kiri, kaldkiri, allajoonimine ja läbikriipsutus
+
+Pange vormindusmärgid teksti mõlemale poole:
+
+- `**paks kiri**` paksu kirja jaoks
+- `*kaldkiri*` kaldkirja jaoks
+- `__allajoonitud__` allajoonimise jaoks
+- `~~läbikriipsutatud~~` läbikriipsutuse jaoks
+
+<MarkdownSample source={"Palun vaadake see üle **enne reedet**.\nKuupäev on *esialgne*.\nEnne väljalaset on __vaja kinnitust__.\nVana tähtaeg oli ~~neljapäev~~."} />
+
+Chattos tähendab `__tekst__` allajoonimist. Kui kasutate mõnes teises Markdowni
+tööriistas paksu kirja jaoks kaht alakriipsu, kasutage siin nende asemel kaht tärni.
+
+Valige tekst ja vajutage paksu kirja, kaldkirja või allajoonimise jaoks vastavalt
+Ctrl+B, Ctrl+I või Ctrl+U. Macis kasutage Ctrl asemel Command. Tööriistariba nupud
+teevad samu toiminguid.
+
+Ärge jätke märkide ja teksti vahele tühikuid: `**oluline**` töötab;
+`** oluline **` ei muuda teksti paksuks.
+
+## Pealkirjad ja loendid
+
+Alustage pealkirja `#` märkidega, millele järgneb tühik. Alustage iga täpploendi
+rida märkidega `- ` või nummerdatud loendi rida numbri ja punktiga, näiteks `1. `.
+
+<MarkdownSample source={"## Väljalaske kontrollnimekiri\n\nEnne alustamist:\n- Kinnitage versioon.\n- Teavitage tugimeeskonda.\n\nSeejärel:\n1. Paigaldage uuendus.\n2. Kontrollige olekulehte.\n3. Postitage tulemus siia."} />
+
+Tööriistariba nupp **Pealkiri** lisab teise taseme pealkirja (`##`). Ise saate
+sisestada pealkirjatasemeid alates `#` kuni `######`.
+
+Kasutage **Suurenda taanet**, et paigutada loendiüksus eelmise üksuse alla.
+Kasutage **Vähenda taanet**, et tuua see tagasi. Uue lõigu alustamiseks jätke
+loendi järele tühi rida.
+
+## Tsitaadid
+
+Alustage iga tsiteeritud rida märgiga `>` ja tühikuga. Jätke tsitaadi järele
+üks tühi rida, enne kui kirjutate oma vastuse.
+
+<MarkdownSample source={"> Kas saame väljalaske reedele viia?\n\nJah. Viimane ülevaatus toimub neljapäeva pärastlõunal."} />
+
+Tsitaadi sisestamine ei seo seda algse sõnumiga. Sellele sõnumile lõimes
+vastamiseks kasutage sõnumi vastamise toimingut.
+
+## Kood
+
+Pange lühikese käsu, failinime või identifikaatori mõlemale poole üks längülakoma.
+Reasisese koodi sees kuvatakse vormindusmärgid täpselt sisestatud kujul.
+
+<MarkdownSample source={"Enne alustamist käivitage `git status`.\nSätte nimi on `send_mode`.\nSisestage `**tere**`, et kuvada tere paksus kirjas."} />
+
+Mitme rea jaoks pange koodi ette eraldi reale kolm längülakoma ja koodi järele
+teisele reale veel kolm. Süntaksi esiletõstmiseks lisage kohe esimeste märkide
+järele keele nimi, näiteks `js`, `json` või `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Tööriistariba nupp **Koodiplokk** lisab avavad ja sulgevad märgid. Ilma sulgeva
+reata muutub ülejäänud sõnum koodiploki osaks. Längülakoma näitamiseks reasisese
+koodi sees kasutage teksti ümber kaht längülakoma.
+
+## Lingid
+
+Kleebitud veebiaadress muutub lingiks. Aadressi asemel sildi kuvamiseks pange silt
+nurksulgudesse ja aadress ümarsulgudesse:
+
+```text
+Lugege [väljalaskemärkmeid](https://example.com/releases).
+```
+
+Ärge pange märkide `]` ja `(` vahele tühikut. Chattos ruumile viitamiseks või
+inimese mainimiseks valige ta koostaja soovituste hulgast.
+
+## Allmärkused
+
+Pange viide, näiteks `[^window]`, teksti järele, mida soovite selgitada.
+Eraldi reale kirjutage `[^window]:` ja selle järele märkus. Tähised peavad kattuma.
+
+<MarkdownSample source={"Hooldusaken kestab 30 minutit.[^window]\n\n[^window]: Enamik servereid on kättesaamatud vähem kui viis minutit."} />
+
+Võite ka viia kursori vastava teksti järele ja valida tööriistaribalt
+**Lisage allmärkus**. Allmärkusi ei saa lisada reasisese koodi ega koodiploki sisse.
+
+## Tabelid
+
+Eraldage veerud märgiga `|` ja lisage veerupealkirjade alla kriipsudest rida.
+Kasutage `---:`, et joondada veerg paremale, või `:---:`, et joondada see keskele.
+
+<MarkdownSample source={"| Keskkond | Versioon |\n| --- | ---: |\n| Test | 0.5 |\n| Tootmine | 0.4 |"} />
+
+Muutke tabeleid Markdowni koostajas. Visuaalses redaktoris puudub tabelite
+muutmise tööriist.
+
+## Proovige tervet sõnumit
+
+Muutke allolevat sõnumit, et vormindust proovida. Eelvaade uueneb kirjutamise ajal.
+Saate vahetada Markdowni ja visuaalse redaktori vahel. Siia sisestatut ei saadeta
+ühtegi ruumi.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Reedene väljalase\n\nPalun lõpetage ülevaatus **enne 14:00**.\n\n1. Käivitage `git status`.\n2. Kontrollige väljalaskemärkmeid.\n3. Kui olete valmis, vastake selles lõimes.\n\n> Mis siis, kui kontroll ebaõnnestub?\n\nEnne jätkamist postitage viga siia."} />
+</div>
+
+## Kui vormindus ei paista õige
+
+- **Märgid on endiselt nähtavad.** Kontrollige, et mõlema otsa märgid kattuksid ja
+  et kohe avavate märkide järel ega sulgevate märkide ees poleks tühikut.
+  Koodi sees on nähtavad märgid tahtlikud.
+- **Ülejäänud sõnum näeb välja nagu kood.** Pange sulgevad kolm längülakoma eraldi reale.
+- **Pealkiri või loend jääb tavaliseks tekstiks.** Pange `##`, `-` või `1.` järele
+  tühik ja alustage uuelt realt.
+- **Soovite näidata kirjavahemärki ennast.** Pange vormindusmärgi ette kurakaldkriips,
+  näiteks `\*mitte kaldkiri\*`, või kasutage sõnasõnalise näite jaoks reasisest koodi.
+- **HTML ilmub tekstina.** Chatto ei luba sõnumite vormindamiseks toorest HTML-i.
+  Kasutage Markdowni, mitte silte nagu `<b>` või `<span>`.

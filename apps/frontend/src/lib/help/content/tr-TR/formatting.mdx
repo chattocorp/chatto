@@ -1,0 +1,137 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Chatto mesajlarını Markdown ile biçimlendirebilirsiniz. Örneğin `**merhaba**`,
+**merhaba** olarak görünür. Biçimlendirme işaretlerini yazın veya metni seçip
+biçimlendirme araç çubuğunu kullanın.
+
+## Düzenleyicinizi ve gönderme kısayolunu seçin
+
+<a href={resolve('/chat/preferences/composer')}>Uygulama tercihleri → Mesaj yazma</a>
+bölümünü açıp kaynak metni düzenlemek için **Markdown**'ı seçin. Biçimlendirilmiş
+metinle çalışmak istiyorsanız **Görsel**'i seçin. Araç çubuğu her iki düzenleyicide de bulunur.
+
+**Mesajları şu tuşla gönder** ayarı Enter tuşunu kontrol eder:
+
+- **Enter:** Enter mesajı gönderir. Ctrl+Enter, Mac'te Command+Enter yeni satır ekler.
+- **Cmd/Ctrl+Enter:** Ctrl+Enter, Mac'te Command+Enter mesajı gönderir.
+  Enter yeni satır ekler.
+
+Paragraflar arasında boş bir satır bırakın.
+
+## Kalın, italik, altı çizili ve üstü çizili metin
+
+Biçimlendirme işaretlerini metnin iki yanına yerleştirin:
+
+- Kalın için `**kalın**`
+- İtalik için `*italik*`
+- Altı çizili için `__altı çizili__`
+- Üstü çizili için `~~üstü çizili~~`
+
+<MarkdownSample source={"Lütfen bunu **cumadan önce** inceleyin.\nTarih *geçicidir*.\nYayımdan önce __onay gereklidir__.\nEski son tarih ~~perşembeydi~~."} />
+
+Chatto'da `__metin__` altı çizili demektir. Başka bir Markdown aracında kalın için
+çift alt çizgi kullanıyorsanız burada çift yıldız kullanın.
+
+Metni seçip kalın, italik veya altı çizili için Ctrl+B, Ctrl+I veya Ctrl+U tuşlarına
+basın. Mac'te Ctrl yerine Command kullanın. Araç çubuğu düğmeleri aynı işlemleri yapar.
+
+İşaretlerle metin arasına boşluk koymayın: `**önemli**` çalışır;
+`** önemli **` kalın biçimini uygulamaz.
+
+## Başlıklar ve listeler
+
+Başlığı `#` karakterleri ve bir boşlukla başlatın. Her maddeyi `- ` ile veya her
+numaralı öğeyi `1. ` gibi bir sayı ve noktayla başlatın.
+
+<MarkdownSample source={"## Yayım kontrol listesi\n\nBaşlamadan önce:\n- Sürümü doğrulayın.\n- Destek ekibine haber verin.\n\nArdından:\n1. Güncellemeyi dağıtın.\n2. Durum sayfasını kontrol edin.\n3. Sonucu burada paylaşın."} />
+
+Araç çubuğundaki **Başlık** düğmesi ikinci düzey başlık (`##`) ekler. `#` ile `######`
+arasındaki başlık düzeylerini kendiniz yazabilirsiniz.
+
+Bir liste öğesini öncekinin altına yerleştirmek için **Girintiyi artır** seçeneğini
+kullanın. Geri taşımak için **Girintiyi azalt** seçeneğini kullanın. Yeni paragraf
+başlatmak için listeden sonra boş bir satır bırakın.
+
+## Alıntılar
+
+Her alıntı satırını `>` ve bir boşlukla başlatın. Yanıtınızı yazmadan önce alıntıdan
+sonra boş bir satır bırakın.
+
+<MarkdownSample source={"> Yayımı cumaya alabilir miyiz?\n\nEvet. Son inceleme perşembe öğleden sonra."} />
+
+Alıntı yazmak onu özgün mesaja bağlamaz. O mesaja bir konuda yanıt vermek için
+mesajın yanıt eylemini kullanın.
+
+## Kod
+
+Kısa bir komutun, dosya adının veya tanımlayıcının iki yanına birer ters tırnak koyun.
+Satır içi kodun içindeki biçimlendirme işaretleri yazıldığı gibi görünür.
+
+<MarkdownSample source={"Başlamadan önce `git status` çalıştırın.\nAyarın adı `send_mode`.\nMerhaba sözcüğünü kalın yapmak için `**merhaba**` yazın."} />
+
+Birden fazla satır için koddan önceki satıra üç, koddan sonraki satıra üç ters tırnak
+koyun. Sözdizimini vurgulamak için açılış ters tırnaklarından hemen sonra `js`, `json`
+veya `bash` gibi bir dil adı ekleyin.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+**Kod bloğu** düğmesi açılış ve kapanış ters tırnaklarını ekler. Kapanış satırı yoksa
+mesajın geri kalanı kod bloğuna dahil olur. Satır içi kodda ters tırnak göstermek
+istiyorsanız metnin çevresinde ikişer ters tırnak kullanın.
+
+## Bağlantılar
+
+Yapıştırılan web adresi bağlantıya dönüşür. Adres yerine bir etiket göstermek için
+etiketi köşeli paranteze, adresi normal paranteze alın:
+
+```text
+[Sürüm notlarını](https://example.com/releases) okuyun.
+```
+
+`]` ile `(` arasına boşluk koymayın. Chatto'da bir odaya bağlantı vermek veya bir
+kişiden bahsetmek için düzenleyicinin önerilerinden seçin.
+
+## Dipnotlar
+
+Açıklama eklemek istediğiniz metnin arkasına `[^window]` gibi bir başvuru koyun.
+Ayrı bir satırda `[^window]:` yazıp notu ekleyin. Etiketler aynı olmalıdır.
+
+<MarkdownSample source={"Bakım aralığı 30 dakikadır.[^window]\n\n[^window]: Çoğu sunucu beş dakikadan kısa süre kullanılamayacaktır."} />
+
+İmleci ilgili metnin sonuna getirip araç çubuğunda **Dipnot ekleyin** seçeneğini de
+seçebilirsiniz. Satır içi kod veya kod bloğu içine dipnot eklenemez.
+
+## Tablolar
+
+Sütunları `|` ile ayırın ve sütun başlıklarının altına tirelerden oluşan bir satır
+koyun. Sağa hizalama için `---:`, ortalama için `:---:` kullanın.
+
+<MarkdownSample source={"| Ortam | Sürüm |\n| --- | ---: |\n| Test | 0.5 |\n| Üretim | 0.4 |"} />
+
+Tabloları Markdown düzenleyicisinde düzenleyin. Görsel düzenleyicide tablo düzenleme aracı yoktur.
+
+## Tam bir mesaj deneyin
+
+Biçimlendirmeyi denemek için aşağıdaki mesajı düzenleyin. Önizleme yazdıkça güncellenir.
+Markdown ve Görsel düzenleyicileri arasında geçiş yapabilirsiniz. Buraya yazdıklarınız
+hiçbir odaya gönderilmez.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Cuma yayımı\n\nLütfen incelemeyi **14:00'ten önce** bitirin.\n\n1. `git status` çalıştırın.\n2. Sürüm notlarını kontrol edin.\n3. Hazır olduğunuzda bu konuda yanıt verin.\n\n> Bir kontrol başarısız olursa ne olur?\n\nDevam etmeden önce hatayı burada paylaşın."} />
+</div>
+
+## Biçimlendirme doğru görünmediğinde
+
+- **İşaretler hâlâ görünüyor.** İki ucun eşleştiğini ve açılış veya kapanış işaretlerinin
+  hemen içinde boşluk olmadığını kontrol edin. Kod içindeki işaretlerin görünmesi beklenir.
+- **Mesajın geri kalanı kod gibi görünüyor.** Kapanıştaki üç ters tırnağı ayrı bir satıra koyun.
+- **Başlık veya liste düz metin olarak kalıyor.** `##`, `-` veya `1.` sonrasına bir
+  boşluk ekleyin ve yeni satırdan başlayın.
+- **Noktalama işaretini göstermek istiyorsunuz.** `\*italik değil\*` örneğindeki gibi
+  işaretin önüne ters eğik çizgi koyun veya olduğu gibi gösterilecek örnek için satır içi kod kullanın.
+- **HTML metin olarak görünüyor.** Chatto mesaj biçimlendirmesi için ham HTML kabul etmez.
+  `<b>` veya `<span>` gibi etiketler yerine Markdown kullanın.

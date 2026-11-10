@@ -32,17 +32,29 @@ outside management belong in shared sections: room actions and moderation text
 in `room`, management navigation in `chat`, and permission descriptions in
 `permissions`.
 
-SvelteKit layout loads own three catalog groups: public, chat, and management.
+SvelteKit layout loads own four catalog groups: public, chat, management, and help.
 The root layout loads the public shell. The `/chat` layout loads shared chat
 sections without reading the child route. The management layout loads its
-sections on entry. This keeps child navigation from rerunning ancestor access
+sections on entry. The `/help` layout loads the help catalog, including its
+English fallback, only on entry. Help is available without signing in. Its
+articles use the same locale and regional fallbacks as the rest of the client.
+The help examples also load shared composer and permission messages. The editor
+loads only when its guide opens. Examples use local data and do not require a
+server session or send changes to the server.
+Help article bodies are authored as `.mdx` files and compiled by MDsveX during
+the frontend build. Each article and locale is a separate dynamic import.
+Regional articles follow the catalog fallback rules. Titles, card summaries,
+and example controls remain in the help JSON catalogs; article prose does not.
+The Markdown compiler is a build dependency and does not run in the browser.
+
+The header's help label belongs to the shared `ui` catalog. This keeps child navigation from rerunning ancestor access
 checks or refreshing all translated text. Repeated requests for the same sections
 do not change the translation revision. Rolldown keeps these groups in separate
 payloads per locale. Catalog downloads never block a global navigation hook.
-The existing completed-navigation handler deactivates management sections on
+The existing completed-navigation handler deactivates management and help sections on
 exit, without downloads or a translation refresh. Switching locales
 loads the currently active group before publishing the new locale. Leaving
-management removes its sections from subsequent locale loads but keeps previous
+management or help removes its sections from subsequent locale loads but keeps previous
 downloads cached. Sparse locale catalogs, including `en-US`, fall back
 per key through their configured language parent when one exists and then to
 British English. The current sparse regional overlays are `de-AT -> de-DE`,

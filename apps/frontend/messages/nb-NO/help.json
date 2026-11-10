@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "På denne siden",
+    "design": {
+      "welcome": "Finn frem i Chatto.",
+      "explore": "Utforsk mer",
+      "reference": "Formatering på et øyeblikk",
+      "reference_hint": "Velg et eksempel for å prøve det i redigeringsverktøyet.",
+      "question": "Hvem blir med på neste samtale?"
+    },
+    "overview": "Oversikt",
+    "intro": "Korte veiledninger for chatting og serveradministrasjon.",
+    "users": "For medlemmer",
+    "admins": "For administratorer",
+    "example": "Prøv her",
+    "example_hint": "Dette eksemplet blir på denne siden. Det sender ingen melding.",
+    "input": "Meldingstekst",
+    "preview": "Forhåndsvisning",
+    "sample": "Hei **alle sammen**!",
+    "conversations": {
+      "title": "Bruk Chatto",
+      "description": "Tråder, ulest aktivitet, varsler og tilkoblingsproblemer."
+    },
+    "formatting": {
+      "title": "Formater en melding",
+      "description": "Legg til utheving og kode i teksten."
+    },
+    "bots": {
+      "title": "Botter",
+      "description": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre"
+    },
+    "phone": {
+      "title": "Installer Chatto på telefonen",
+      "description": "Legg Chatto til på startskjermen og slå på varsler."
+    }
+  }
+}

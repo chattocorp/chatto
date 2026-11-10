@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Nesta página",
+    "design": {
+      "welcome": "Encontre seu caminho no Chatto.",
+      "explore": "Explore mais",
+      "reference": "Formatação de relance",
+      "reference_hint": "Selecione um exemplo para experimentar no editor.",
+      "question": "Quem vai participar da próxima chamada?"
+    },
+    "overview": "Visão geral",
+    "intro": "Guias rápidos para conversar e administrar um servidor.",
+    "users": "Para membros",
+    "admins": "Para administradores",
+    "example": "Experimente aqui",
+    "example_hint": "Este exemplo fica nesta página. Ele não envia mensagens.",
+    "input": "Texto da mensagem",
+    "preview": "Prévia",
+    "sample": "Olá, **pessoal**!",
+    "conversations": {
+      "title": "Usar o Chatto",
+      "description": "Conversas em tópicos, atividades não lidas, notificações e problemas de conexão."
+    },
+    "formatting": {
+      "title": "Formatar uma mensagem",
+      "description": "Adicione destaque e código em linha."
+    },
+    "bots": {
+      "title": "Bots",
+      "description": "Crie contas de API e controle exatamente o que elas podem fazer"
+    },
+    "phone": {
+      "title": "Instale o Chatto no seu celular",
+      "description": "Adicione o Chatto à tela inicial e ative as notificações."
+    }
+  }
+}

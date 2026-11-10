@@ -1,0 +1,145 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Chatto ziņojumus var formatēt ar Markdown. Piemēram, `**sveiki**` tiek parādīts kā
+**sveiki**. Ierakstiet formatēšanas zīmes pats vai atlasiet tekstu un izmantojiet
+formatēšanas rīkjoslu.
+
+## Redaktora un nosūtīšanas īsinājumtaustiņa izvēle
+
+Atveriet <a href={resolve('/chat/preferences/composer')}>Lietotnes preferences → Ziņojumu rakstīšana</a>
+un izvēlieties **Markdown**, lai rediģētu avota tekstu. Izvēlieties **Vizuāls**, ja
+vēlaties strādāt ar formatētu tekstu. Formatēšanas rīkjosla ir pieejama abos redaktoros.
+
+Iestatījums **Sūtīt ziņojumus ar** nosaka Enter taustiņa darbību:
+
+- **Return:** Enter nosūta ziņojumu. Ctrl+Enter ievieto jaunu rindu; Mac datorā —
+  Command+Enter.
+- **Cmd/Ctrl+Return:** Ctrl+Enter nosūta ziņojumu; Mac datorā — Command+Enter.
+  Enter ievieto jaunu rindu.
+
+Starp rindkopām atstājiet tukšu rindu.
+
+## Treknraksts, slīpraksts, pasvītrojums un pārsvītrojums
+
+Ievietojiet formatēšanas zīmes abās teksta pusēs:
+
+- `**treknraksts**` treknrakstam
+- `*slīpraksts*` slīprakstam
+- `__pasvītrots__` pasvītrojumam
+- `~~pārsvītrots~~` pārsvītrojumam
+
+<MarkdownSample source={"Lūdzu, pārskatiet šo **pirms piektdienas**.\nDatums ir *provizorisks*.\nPirms izlaišanas __vajadzīgs apstiprinājums__.\nVecais termiņš bija ~~ceturtdiena~~."} />
+
+Chatto sintaksē `__teksts__` nozīmē pasvītrojumu. Ja citā Markdown rīkā izmantojat
+divus pasvītrojumus treknrakstam, šeit to vietā izmantojiet divas zvaigznītes.
+
+Atlasiet tekstu un nospiediet Ctrl+B, Ctrl+I vai Ctrl+U, lai lietotu attiecīgi
+treknrakstu, slīprakstu vai pasvītrojumu. Mac datorā izmantojiet Command, nevis
+Ctrl. Rīkjoslas pogas veic tās pašas darbības.
+
+Neievietojiet atstarpes starp zīmēm un tekstu: `**svarīgi**` darbojas;
+`** svarīgi **` netiek attēlots treknrakstā.
+
+## Virsraksti un saraksti
+
+Sāciet virsrakstu ar `#` zīmēm, pēc kurām ir atstarpe. Katru aizzīmētu vienumu
+sāciet ar `- `, bet numurētu vienumu — ar skaitli un punktu, piemēram, `1. `.
+
+<MarkdownSample source={"## Izlaišanas kontrolsaraksts\n\nPirms sākam:\n- Apstipriniet versiju.\n- Informējiet atbalsta komandu.\n\nPēc tam:\n1. Izvietojiet atjauninājumu.\n2. Pārbaudiet statusa lapu.\n3. Publicējiet rezultātu šeit."} />
+
+Rīkjoslas poga **Virsraksts** ievieto otrā līmeņa virsrakstu (`##`). Pats varat
+ierakstīt virsrakstu līmeņus no `#` līdz `######`.
+
+Izmantojiet **Palielināt atkāpi**, lai ievietotu saraksta vienumu zem iepriekšējā
+vienuma. Izmantojiet **Samazināt atkāpi**, lai pārvietotu to atpakaļ. Lai sāktu
+rindkopu, pēc saraksta atstājiet tukšu rindu.
+
+## Citāti
+
+Katru citāta rindu sāciet ar `>` un atstarpi. Pēc citāta atstājiet tukšu rindu
+un tad rakstiet atbildi.
+
+<MarkdownSample source={"> Vai varam pārcelt izlaišanu uz piektdienu?\n\nJā. Pēdējā pārskatīšana ir ceturtdienas pēcpusdienā."} />
+
+Ierakstot citātu, netiek izveidota saite uz sākotnējo ziņojumu. Lai atbildētu uz
+šo ziņojumu pavedienā, izmantojiet tā atbildēšanas darbību.
+
+## Kods
+
+Abās īsas komandas, faila nosaukuma vai identifikatora pusēs ievietojiet pa vienai
+atpakaļpēdiņai. Iekļautajā kodā formatēšanas zīmes tiek parādītas tieši tā,
+kā tās ierakstītas.
+
+<MarkdownSample source={"Pirms sākšanas izpildiet `git status`.\nIestatījuma nosaukums ir `send_mode`.\nIerakstiet `**sveiki**`, lai sveiki būtu treknrakstā."} />
+
+Vairākām rindām ievietojiet trīs atpakaļpēdiņas atsevišķā rindā pirms koda un
+trīs atpakaļpēdiņas rindā pēc tā. Lai izceltu sintaksi, uzreiz pēc sākuma
+atpakaļpēdiņām pievienojiet valodas nosaukumu, piemēram, `js`, `json` vai `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Rīkjoslas poga **Koda bloks** ievieto sākuma un beigu atpakaļpēdiņas. Bez beigu
+rindas pārējais ziņojums kļūst par koda bloka daļu. Lai iekļautajā kodā parādītu
+atpakaļpēdiņu, abās teksta pusēs izmantojiet divas atpakaļpēdiņas.
+
+## Saites
+
+Ielīmēta tīmekļa adrese kļūst par saiti. Lai adreses vietā parādītu nosaukumu,
+ievietojiet nosaukumu kvadrātiekavās un adresi apaļajās iekavās:
+
+```text
+Lasiet [izlaiduma piezīmes](https://example.com/releases).
+```
+
+Neievietojiet atstarpi starp `]` un `(`. Lai Chatto izveidotu saiti uz telpu vai
+pieminētu cilvēku, atlasiet to no redaktora ieteikumiem.
+
+## Zemsvītras piezīmes
+
+Pēc teksta, ko vēlaties paskaidrot, ievietojiet atsauci, piemēram, `[^window]`.
+Atsevišķā rindā ierakstiet `[^window]:` un pēc tam piezīmi. Apzīmējumiem jāsakrīt.
+
+<MarkdownSample source={"Apkopes logs ir 30 minūtes.[^window]\n\n[^window]: Lielākā daļa serveru nebūs pieejami mazāk nekā piecas minūtes."} />
+
+Varat arī novietot kursoru pēc attiecīgā teksta un rīkjoslā izvēlēties
+**Ievietot zemsvītras piezīmi**. Zemsvītras piezīmes nevar ievietot iekļautajā kodā
+vai koda blokā.
+
+## Tabulas
+
+Atdaliet kolonnas ar `|` un zem kolonnu virsrakstiem ievietojiet defisu rindu.
+Izmantojiet `---:`, lai kolonnu līdzinātu pa labi, vai `:---:`, lai to centrētu.
+
+<MarkdownSample source={"| Vide | Versija |\n| --- | ---: |\n| Tests | 0.5 |\n| Ražošana | 0.4 |"} />
+
+Rediģējiet tabulas Markdown redaktorā. Vizuālajā redaktorā nav tabulu rediģēšanas
+vadīklas.
+
+## Izmēģiniet pilnu ziņojumu
+
+Rediģējiet zemāk esošo ziņojumu, lai izmēģinātu formatēšanu. Priekšskatījums
+atjauninās rakstīšanas laikā. Varat pārslēgties starp Markdown un vizuālo
+redaktoru. Nekas no šeit ievadītā netiek nosūtīts uz telpu.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Piektdienas izlaidums\n\nLūdzu, pabeidziet pārskatīšanu **pirms 14:00**.\n\n1. Izpildiet `git status`.\n2. Pārbaudiet izlaiduma piezīmes.\n3. Atbildiet šajā pavedienā, kad esat gatavs.\n\n> Ko darīt, ja pārbaude neizdodas?\n\nPirms turpināšanas publicējiet kļūdu šeit."} />
+</div>
+
+## Ja formatējums neizskatās pareizi
+
+- **Zīmes joprojām ir redzamas.** Pārbaudiet, vai zīmes abās pusēs sakrīt un vai
+  uzreiz pēc sākuma zīmēm vai pirms beigu zīmēm nav atstarpes. Kodā zīmēm ir
+  jābūt redzamām.
+- **Pārējais ziņojums izskatās kā kods.** Ievietojiet trīs beigu atpakaļpēdiņas
+  atsevišķā rindā.
+- **Virsraksts vai saraksts paliek parasts teksts.** Pēc `##`, `-` vai `1.`
+  ievietojiet atstarpi un sāciet jaunā rindā.
+- **Vēlaties parādīt pašu pieturzīmi.** Pirms formatēšanas zīmes ievietojiet
+  atpakaļslīpsvītru, piemēram, `\*nav slīpraksts\*`, vai precīzam piemēram
+  izmantojiet iekļauto kodu.
+- **HTML tiek rādīts kā teksts.** Chatto nepieņem neapstrādātu HTML ziņojumu
+  formatēšanai. Tādu tagu kā `<b>` vai `<span>` vietā izmantojiet Markdown.

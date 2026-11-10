@@ -257,6 +257,12 @@ behavior. Apply those rules when choosing an implementation too.
 - Do not double-nest `Panel`.
 - `PaneHeader` actions are icon affordances. Put primary actions such as Save,
   Cancel, and Create in the page body or form area.
+- For a detail page with navigation in the sidebar, show its parent-route
+  `PaneHeader` back link in the narrow drawer layout only. Use
+  `sidebarNav.isMobile` to match the shared sidebar breakpoint, including narrow
+  desktop windows. Omit the link when the sidebar and content are side by side.
+  Check both layouts and click the narrow-layout back link before completing
+  the change. Do not remove the link from both layouts to fix the desktop view.
 - Use forms for input groups with submit buttons: real `<form>`, submit button,
   native validation, and Enter-to-submit.
 - Keep modal footer actions visible, horizontal, and `justify-end gap-2`.

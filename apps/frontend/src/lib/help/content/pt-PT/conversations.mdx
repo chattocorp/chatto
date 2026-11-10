@@ -1,0 +1,79 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Respostas e tópicos
+
+Use **Responder no tópico** numa mensagem para manter a resposta nessa conversa.
+Para iniciar um tópico com uma nova mensagem, selecione **Publicar como tópico** no
+editor antes de a enviar. A sala permanece aberta; selecione a ligação para o tópico
+na mensagem para o abrir.
+
+Um tópico aberto tem o seu próprio endereço. Copie o endereço do navegador para o
+partilhar com alguém que tenha acesso à sala. Fechar um tópico leva-o de volta à sala;
+não deixa de seguir a conversa.
+
+<p>Se preferir manter a sala visível enquanto responde, abra
+<a href={resolve('/chat/preferences/appearance')}>Preferências da aplicação → Aspeto</a>
+e defina <strong>Painel da conversa</strong> como <strong>Lado a lado</strong>. Quando
+não há espaço suficiente, o Chatto mostra o tópico sobre a sala.</p>
+
+## Acompanhe as conversas
+
+Selecione **Seguir tópico** para manter uma conversa na lista de **Tópicos**.
+Pode seguir um tópico sem publicar nele.
+
+Em **Tópicos**, **Seguidas** mostra os tópicos que segue. **Meus** mostra os que
+iniciou e ainda segue. Deixar de seguir um tópico remove-o de ambas as vistas.
+Selecione **Não lido** para encontrar conversas com respostas que ainda não leu.
+
+O campo de pesquisa procura mensagens e respostas nos tópicos que segue, incluindo
+os de mensagens diretas. Pesquise palavras, uma expressão entre aspas ou um autor com
+`from:username`. A pesquisa está disponível quando o servidor a suporta e tem a função ativada.
+
+## Alterne entre salas e atividade não lida
+
+Prima **Ctrl+K**, ou **Command+K** num Mac, para abrir o seletor rápido. Pesquise
+ali para alternar entre salas e servidores sem percorrer a barra lateral.
+
+Prima **Alt+Shift+Down**, ou **Option+Shift+Down** num Mac, para ir à próxima fonte
+não lida entre os servidores onde tem sessão iniciada. O Chatto leva-o primeiro às
+notificações importantes, depois às restantes e, por fim, às salas com pontos de
+atividade não lida. O rascunho atual permanece no editor.
+
+O sino no cabeçalho abre as notificações de todos os servidores onde tem sessão
+iniciada. Ao ler uma sala ou um tópico, as notificações são marcadas como lidas apenas
+até às mensagens que consegue ver. Abrir uma mensagem antiga não marca as respostas
+mais recentes como lidas.
+
+Para ver os atalhos disponíveis, prima **Ctrl+Shift+K**, ou **Command+Shift+K** num Mac.
+
+## Escolha o que gera notificações
+
+Abra as definições de **Notificações** do servidor para alterar os alertas de menções,
+respostas, reações e outras atividades. Cada definição pode aplicar-se a todo o servidor,
+a um grupo de salas ou a uma sala.
+
+- **Herdar** usa a definição do grupo de salas ou do servidor.
+- **Desativado** não cria notificações nem pontos de atividade não lida para essa atividade.
+- **Ponto de conteúdo não lido** assinala a sala sem criar uma notificação.
+- **Notificação na aplicação** adiciona uma entrada ao centro de notificações.
+- **Notificação push** também permite um alerta num dispositivo onde ativou as notificações.
+
+Por exemplo, use **Ponto de conteúdo não lido** para novas mensagens na sala e **Notificação push**
+para menções diretas, se quiser consultar as conversas gerais quando lhe for conveniente.
+
+<p>Os alertas push também precisam de autorização do dispositivo. No telemóvel, siga
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalar o Chatto no telemóvel</a>
+para instalar a aplicação e ativar as notificações. As definições de notificações do
+telemóvel controlam se os nomes e as pré-visualizações de mensagens aparecem no ecrã de bloqueio.</p>
+
+## Quando a ligação falha
+
+As mensagens já carregadas permanecem visíveis, mas o Chatto precisa de ligação ao
+servidor para carregar mais mensagens ou enviar uma resposta. Quando a ligação é
+restabelecida, carrega as atualizações em falta.
+
+Se o envio falhar, o rascunho permanece no editor. Não fica numa fila para envio
+automático: verifique a ligação e envie novamente. Instalar o Chatto no telemóvel
+não torna o histórico de conversas disponível sem ligação.

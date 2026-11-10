@@ -63,7 +63,7 @@ test.describe('App and User Preferences', () => {
       .poll(() =>
         card.evaluate(
           (el) =>
-            el.querySelector('.hover-lift')?.getBoundingClientRect().y ??
+            el.parentElement!.querySelector('.hover-lift')?.getBoundingClientRect().y ??
             el.getBoundingClientRect().y
         )
       )
@@ -73,7 +73,7 @@ test.describe('App and User Preferences', () => {
     const animationTime = () =>
       card.evaluate((el) => {
         const animation = el
-          .getAnimations({ subtree: true })
+          .parentElement!.getAnimations({ subtree: true })
           .find((item) => item instanceof CSSAnimation);
         return typeof animation?.currentTime === 'number' ? animation.currentTime : 0;
       });
@@ -82,8 +82,9 @@ test.describe('App and User Preferences', () => {
     const animationStart = () =>
       card.evaluate(
         (el) =>
-          el.getAnimations({ subtree: true }).find((item) => item instanceof CSSAnimation)
-            ?.startTime
+          el
+            .parentElement!.getAnimations({ subtree: true })
+            .find((item) => item instanceof CSSAnimation)?.startTime
       );
     const startedAt = await animationStart();
     await page.mouse.move(x + width / 2, y + height - 1);
@@ -105,7 +106,7 @@ test.describe('App and User Preferences', () => {
       await expect
         .poll(() =>
           card.evaluate((el) => {
-            const artwork = el.querySelector('[aria-hidden="true"]')!;
+            const artwork = el.parentElement!.querySelector('[aria-hidden="true"]')!;
             return [...artwork.querySelectorAll('*')]
               .map((piece) => getComputedStyle(piece).translate)
               .filter((translate) => translate !== 'none');

@@ -1,0 +1,79 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Vastused ja lõimed
+
+Valige sõnumi juures **Vasta lõimes**, et hoida vastus sama vestluse juures.
+Uue sõnumiga lõime alustamiseks valige enne saatmist koostajas **Postita lõimena**.
+Ruum jääb avatuks. Lõime avamiseks valige sõnumi lõimelink.
+
+Avatud lõimel on oma aadress. Kopeerige brauseri aadress, et jagada lõime inimesega,
+kellel on ruumile juurdepääs. Lõime sulgemine viib teid tagasi ruumi, kuid ei lõpeta
+lõime jälgimist.
+
+<p>Kui soovite vastamise ajal ka ruumi näha, avage
+<a href={resolve('/chat/preferences/appearance')}>Rakenduse eelistused → Välimus</a>
+ja valige sätte <strong>Lõimepaan</strong> väärtuseks <strong>Kõrvuti</strong>.
+Kui ruumi ei jätku, kuvatakse lõim ruumi peal.</p>
+
+## Vestluste jälgimine
+
+Valige **Jälgi lõime**, et hoida vestlust loendis **Lõimed**. Lõime saab jälgida
+ka selles sõnumit saatmata.
+
+Vaates **Lõimed** näitab **Jälgitavad** teie jälgitavaid lõimi. **Minu** näitab
+neid, mille olete ise alustanud ja mida endiselt jälgite. Jälgimise lõpetamine
+eemaldab lõime mõlemast vaatest. Valige **Lugemata**, et leida vestlusi, mille
+vastuseid te pole veel lugenud.
+
+Otsinguväli otsib sõnumeid ja vastuseid teie jälgitavatest lõimedest, sealhulgas
+otsesõnumite lõimedest. Otsige sõnu, jutumärkides fraasi või autorit kujul
+`from:username`. Otsing on saadaval, kui teie server seda toetab ja see on lubatud.
+
+## Liikumine ruumide ja lugemata tegevuste vahel
+
+Kiirlüliti avamiseks vajutage **Ctrl+K**, Macis **Command+K**. Otsige seal ruume
+ja servereid, et nende vahel liikuda ilma külgriba läbimata.
+
+Järgmise lugemata allika juurde liikumiseks kõigis sisselogitud serverites
+vajutage **Alt+Shift+Down**, Macis **Option+Shift+Down**. Chatto avab esmalt olulised
+teavitused, seejärel muud teavitused ja lõpuks lugemata täpiga ruumid.
+Teie praegune sõnumimustand säilib.
+
+Rakenduse päises olev kell avab kõigi sisselogitud serverite teavitused. Ruumi või
+lõime lugemine märgib teavitused loetuks ainult nähtavate sõnumiteni. Vanema sõnumi
+avamine ei märgi uuemaid vastuseid loetuks.
+
+Saadaolevate kiirklahvide vaatamiseks vajutage **Ctrl+Shift+K**, Macis
+**Command+Shift+K**.
+
+## Teavituste valimine
+
+Avage oma serveri **Märguannete** sätted, et muuta märguandeid mainimiste, vastuste,
+reaktsioonide ja muu tegevuse kohta. Iga säte võib kehtida kogu serverile,
+ruumirühmale või ühele ruumile.
+
+- **Päri** kasutab ruumirühma või serveri sätet.
+- **Väljas** ei loo selle tegevuse kohta teavitust ega lugemata täppi.
+- **Lugemata sisu täpp** märgib ruumi ilma teavitust loomata.
+- **Rakendusesisene teavitus** lisab kirje teavituskeskusesse.
+- **Tõuketeavitus** lubab märguannet ka seadmes, kus olete teavitused sisse lülitanud.
+
+Näiteks valige uute ruumisõnumite jaoks **Lugemata sisu täpp** ja otseste mainimiste
+jaoks **Tõuketeavitus**, kui soovite üldist vestlust lugeda endale sobival ajal.
+
+<p>Tõuketeavitused vajavad ka seadme luba. Telefonis järgige juhendit
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto installimine telefoni</a>,
+et rakendus installida ja teavitused lubada. Telefoni teavitussätted määravad,
+kas nimed ja sõnumite eelvaated ilmuvad lukustuskuvale.</p>
+
+## Kui ühendus katkeb
+
+Juba laaditud sõnumid jäävad nähtavaks, kuid uute sõnumite laadimiseks või vastuse
+saatmiseks vajab Chatto serveriühendust. Ühenduse taastumisel laadib see vahepealsed
+muudatused.
+
+Kui saatmine ebaõnnestub, jääb mustand koostajasse. Seda ei panda automaatse
+saatmise järjekorda: kontrollige ühendust ja saatke sõnum uuesti. Chatto
+installimine telefoni ei tee vestlusajalugu võrguühenduseta kättesaadavaks.

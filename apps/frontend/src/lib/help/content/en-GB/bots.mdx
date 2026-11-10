@@ -1,0 +1,195 @@
+Bots let external tools post messages and respond to conversations in Chatto.
+Create a bot account, give it access to the rooms it needs, and connect your tool
+with an API key or webhook. You run the bot software separately.
+
+The steps below set up a bot that posts deployment updates. You need permission
+to create bots and access to the destination room.
+
+## Choose how your tool connects
+
+There are three connection methods. A bot can use more than one.
+
+- **Incoming webhook: your tool → Chatto.** Give an alerting service or automation
+  tool a URL to post messages to.
+- **API key: your program → Chatto.** Give your own bot program a key so it can
+  read messages, send replies, or use other API operations that you allow.
+- **Outbound webhook: Chatto → your tool.** Give Chatto an endpoint to notify
+  when someone mentions the bot or sends it a direct message. Your tool handles
+  the event and uses an API key if it needs to reply.
+
+For deployment updates, use an incoming webhook. For a bot that answers mentions
+or DMs, use an outbound webhook to receive messages and an API key to send replies.
+
+## 1. Create the bot account
+
+1. Open **Server Admin → Bots** on the server where the bot will work.
+2. Select **Create bot**. For this example, use `release-bot` as the username and
+   **Release updates** as the display name. The username identifies the account;
+   the display name is what members see beside its messages.
+3. Create the bot. Chatto shows an API key once. Save it in your integration's
+   secret storage if you will use the API. You cannot reveal this key again
+   after closing the dialog.
+4. Open the bot's detail page. Give its profile a short description, such as
+   “Posts deployment results from our release pipeline.”
+
+If **Create bot** is unavailable, ask an administrator for `bot.create`. Owning a
+bot lets you manage that bot; permission to manage all bots is a separate grant.
+
+If your tool uses only an incoming webhook, it does not need an API key. Revoke the
+unused initial key under **Integrations → API keys**.
+
+## 2. Give it access to one room
+
+A new bot has no permissions. It does not inherit its owner's roles or the
+permissions of the `everyone` role. Joining a room and being allowed to post in
+that room are separate requirements.
+
+1. Open the bot's **Permissions** tab.
+2. Find the column for your deployment-updates room.
+3. In the **Joined** row at the top of the matrix, select that room and confirm
+   the membership change.
+4. Allow `message.post` for that room. Leave unrelated permissions unset.
+
+The deployment bot does not need read access. Grant `message.post` in the room
+column to limit posting to that room. A server-wide grant applies across rooms.
+
+You also need the authority to add the bot to the room. Archived rooms and room
+suspensions can prevent joining. The bot's own `room.join` permission is for
+joining rooms through its API; it is not a substitute for the **Joined** row.
+
+### A bot cannot exceed its owner's access
+
+Every bot grant is limited by the human owner's current permissions at the same
+scope. A saved grant can be inactive: a lock in the matrix indicates that the
+owner's permissions block it. If the owner loses access, the bot loses that access
+too. Signing out does not stop the bot.
+
+Some grants require privileged mode. If Chatto asks you to activate it, do that
+before adding the grant.
+
+## 3. Connect an incoming webhook
+
+1. Open **Integrations** on the bot's detail page.
+2. Under **Incoming webhooks**, select **Create Webhook**.
+3. Name it after the caller, for example **Release pipeline**.
+4. Select the deployment-updates room as **Destination room**.
+5. Create the webhook and copy the complete URL into your tool's webhook
+   configuration. Keep the `?room_id=…` part of the URL.
+
+Configure the tool to send an HTTP **POST** with `Content-Type: application/json`
+and this body:
+
+```json
+{
+  "text": "Deployment complete: version **0.5** is ready for testing."
+}
+```
+
+The selected room is already in the URL, so this request does not need a `channel`
+field. If you choose **Choose in each request** instead, include
+`"channel": "YOUR_ROOM_ID"` in the JSON. Use the room's ID, not its name.
+
+Selecting a destination adds a room ID to the URL. The caller can change that ID
+and post to any room the bot can post in. To restrict the webhook to one room,
+grant the bot posting permission only in that room.
+
+## 4. Send a test and check the result
+
+Use the external tool's test function. A successful incoming request returns
+HTTP `200` with the text `ok`. In Chatto, the message should appear in your chosen
+room under **Release updates**, with a **BOT** label and “0.5” in bold.
+
+If the request fails, check the response:
+
+- **`401 invalid_token`:** the URL is incomplete, invalid, or revoked. Create a
+  new incoming webhook if you no longer have the complete URL.
+- **`404 channel_not_found`:** check the room ID, the bot's membership, its
+  `message.post` grant, and the owner's posting access in that room.
+- **`400 invalid_payload`:** send valid JSON with non-empty message text and a
+  room ID. If the room ID appears in both the URL and the body, the values must
+  match. Room policy and message-size limits also apply.
+- **The message appears twice:** a retry can create another message. Incoming
+  webhooks do not provide an idempotency key to suppress duplicates.
+
+After the test succeeds, configure your tool to call the webhook when a deployment
+finishes.
+
+## Make a bot that answers people
+
+Configure your bot program with its Chatto API key. Store the key in the program's
+secret configuration. API requests authenticate with an
+`Authorization: Bearer YOUR_API_KEY` header.
+
+Choose the permissions your bot needs:
+
+- **Answer only when addressed:** grant `message.read-interactions` and
+  `message.post-in-interactions`. The bot can read complete threads it started,
+  threads where someone directly mentioned it, and its DMs. Mentioning the bot
+  can therefore give it access to earlier messages in that thread too.
+- **Read the room, but answer only when addressed:** grant `message.read` and
+  `message.post-in-interactions`.
+- **Read all messages and start conversations:** grant `message.read` and
+  `message.post`.
+
+Apply the grants to the intended rooms. For direct messages, use the **Direct
+messages** scope in the matrix. The owner's permissions still limit these grants.
+
+### Tell your program when it should respond
+
+If your program accepts Chatto webhook events:
+
+1. Open **Integrations → Outbound webhooks → Create webhook**.
+2. Enter a name and your program's public HTTPS endpoint.
+3. If the receiver requires an **Authorization header**, enter the complete
+   value it expects, including a prefix such as `Bearer`.
+4. Copy the signing secret into the receiver's configuration if it verifies
+   Chatto webhook signatures. The secret is shown only once.
+5. Mention the bot in a room it can read, or send it a DM. Check the receiver's
+   logs and the bot's reply in Chatto.
+
+The endpoint receives new messages that directly mention the bot or are in its
+DMs. Ordinary room messages, edits, reactions, and messages sent by the bot itself
+do not trigger these webhooks. An ordinary later reply in a room thread does not
+trigger one unless it mentions the bot again.
+
+Your receiver should accept the event with an HTTP 2xx response, then send any
+chat reply through the API. Chatto ignores the HTTP response body. Deliveries can
+be repeated, so the receiver must use the delivery ID to avoid doing the same work
+twice. For a program that needs all readable activity, use Chatto's realtime API
+instead of the mention-and-DM webhook.
+
+For the event payload, signature verification, and API operations, use the
+[bot webhook reference](https://docs.chatto.run/reference/bot-webhooks/) and
+[API reference](https://docs.chatto.run/reference/connectrpc-api/).
+
+An outbound webhook sends message text and
+message, author, room, and bot identifiers to the configured endpoint. The receiver
+also sees the Chatto server's outgoing IP address. If your bot forwards messages to
+an AI provider or another service, explain that to members before using it in
+their conversations.
+
+### If the bot stays silent
+
+Check whether your program received the event. Under the outbound webhook, open
+**Recent failures** for recorded delivery errors. Check that the
+endpoint is enabled, reachable, accepts the configured authentication, and returns
+2xx without a redirect. An empty failure list does not prove successful delivery.
+
+If the event arrived but no reply appeared, check the program's API key, its
+reply operation, and the bot's effective read and post permissions.
+
+## Maintain the integration
+
+- **Replace a credential:** create a new named key or webhook, update the caller,
+  test it, then revoke the old one. API keys do not expire automatically. Never
+  paste a real key or credential-bearing URL into chat or source control.
+- **Stop outbound delivery temporarily:** select **Pause** on the endpoint.
+  **Resume** allows new events; it does not replay the paused period.
+- **Hand the bot to another owner:** an account with `bot.manage` can use
+  **Reassign owner**. The bot's effective access immediately follows the new
+  owner. Existing keys remain valid, so replace credentials if the previous
+  operator must lose access.
+- **Remove an owner account:** reassign long-lived bots first. Deleting a human
+  owner also deletes the bots they own.
+- **Show members what the bot can do:** open its profile and inspect **Owned by**
+  and **What it can do**. Review that access after changing rooms or ownership.
