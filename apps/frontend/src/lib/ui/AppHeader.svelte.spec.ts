@@ -96,7 +96,7 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 describe('AppHeader', () => {
-  it.each([320, 375, 1280])(
+  it.each([320, 375, 420, 1280])(
     'keeps the other server call accessible at %i pixels',
     async (width) => {
       const leave = vi.fn();
@@ -128,13 +128,19 @@ describe('AppHeader', () => {
           expect(rect.bottom).toBeLessThanOrEqual(bounds.bottom);
         }
         expect(getComputedStyle(header.firstElementChild!).gap).toBe('12px');
-        if (width >= 375) {
+        if (width >= 420) {
           expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
         } else {
-          // At the smallest width, preserve navigation spacing and allow scrolling
-          // to the trailing About action instead of compressing the buttons.
+          // With Help beside About, narrow screens use the header's scroll fallback.
+          // Preserve navigation spacing and the call controls' minimum target sizes.
           const about = header.querySelector<HTMLButtonElement>('button[title="About Chatto"]')!;
-          about.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          const help = header.querySelector<HTMLAnchorElement>('a[href="/help"]')!;
+          help.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          expect(about.getBoundingClientRect().left).toBeGreaterThanOrEqual(bounds.left);
+          expect(help.getBoundingClientRect().right).toBeLessThanOrEqual(bounds.right);
+          expect(help.getBoundingClientRect().left).toBeGreaterThan(
+            about.getBoundingClientRect().left
+          );
           expect(about.getBoundingClientRect().right).toBeLessThanOrEqual(bounds.right);
         }
         await getByRole('button', { name: 'Leave call', exact: true }).click();
