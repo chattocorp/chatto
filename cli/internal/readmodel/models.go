@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2024-present Chatto contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: EUPL-1.2
 
 // Package readmodel owns internal read results shared by core and transports.
 // These types are not serialization contracts. Snapshot and API adapters map

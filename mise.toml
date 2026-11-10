@@ -269,12 +269,12 @@ run = { task = "codegen-*" }
 description = "Copy root legal files into the CLI module for go:embed"
 run = [
     "mkdir -p cli/cmd/embedded",
-    "cp LICENSES/AGPL-3.0-or-later.txt cli/LICENSE",
+    "cp LICENSES/EUPL-1.2.txt cli/LICENSE",
     "cp NOTICE cli/NOTICE",
-    "cp LICENSES/AGPL-3.0-or-later.txt cli/cmd/embedded/LICENSE",
+    "cp LICENSES/EUPL-1.2.txt cli/cmd/embedded/LICENSE",
     "cp NOTICE cli/cmd/embedded/NOTICE",
 ]
-sources = ["LICENSES/AGPL-3.0-or-later.txt", "NOTICE"]
+sources = ["LICENSES/EUPL-1.2.txt", "NOTICE"]
 outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
 
 [tasks.build]
@@ -1180,7 +1180,7 @@ cp docker/Dockerfile.goreleaser "$context/Dockerfile"
 cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
 cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
 mkdir -p "$context/LICENSES"
-cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+cp LICENSES/EUPL-1.2.txt "$context/LICENSES/EUPL-1.2.txt"
 cp NOTICE "$context/NOTICE"
 printf '#!/bin/sh\necho chatto dummy\n' > "$context/chatto"
 chmod +x "$context/chatto"

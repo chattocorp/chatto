@@ -1,6 +1,12 @@
 Chatto
 Copyright 2026 ChattoCorp GmbH
 
+Licensed under the EUPL-1.2, with its standard later-version provision,
+except for the Apache-2.0 components and third-party material described below.
+Source code: https://github.com/chattocorp/chatto
+For released builds, use the tag that matches the version. For development
+builds, use the build's source commit. Build instructions are in CONTRIBUTING.md.
+
 The frontend call join and leave tones are original Chatto assets, licensed
 under Apache-2.0. They contain no third-party recordings.
 
@@ -148,7 +154,7 @@ Frontend, Examples, and Documentation Components:
 - node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
 - Undici, used by the Runling bot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License
-- Runling workflow runner, also used by the Botto example (packages/runling, originally https://github.com/chattocorp/runling) - MIT License; Copyright (c) 2026 Hendrik Mans and contributors
+- Runling workflow runner, also used by the Botto example (packages/runling, originally https://github.com/chattocorp/runling) - Apache License 2.0; Copyright (c) 2026 Hendrik Mans and contributors. Earlier MIT grants and notices are retained in packages/runling/NOTICE.
 - Pi coding agent, AI SDK, MCP client, and terminal UI, used by Runling and the Botto example (https://github.com/earendil-works/pi) - MIT License
 - smol-toml, used by the Botto example (https://github.com/squirrelchat/smol-toml) - BSD-3-Clause License
 - TypeBox, used by the Botto example (https://github.com/sinclairzx81/typebox) - MIT License
@@ -236,10 +242,11 @@ Copyright 2018 Twitch Interactive, Inc. All Rights Reserved.
 
 Trademark Notice:
 Chatto's source code uses mixed licensing. The default repository license is
-the GNU Affero General Public License version 3 or any later version, with
+the European Union Public Licence version 1.2, with its standard later-version
+provision and
 Apache License 2.0 exceptions for the independently versioned shared framework
 modules and selected frontend, integration, and documentation surfaces, and
-MIT License exceptions for Runling and ChattoBot under `packages/`,
+Apache License 2.0 for Runling and ChattoBot under `packages/` and Authling,
 as annotated in REUSE.toml. These licenses do not grant permission to use the
 "Chatto" name, Chatto logos, or other Chatto marks except as otherwise
 permitted by law. "Chatto" and the Chatto logos are marks and trade names of

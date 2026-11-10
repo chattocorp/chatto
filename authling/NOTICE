@@ -1,0 +1,269 @@
+Authling
+Copyright 2026 ChattoCorp GmbH
+
+Licensed under Apache-2.0. See LICENSE.
+Source code: https://github.com/chattocorp/chatto/tree/main/authling
+
+The shared repository notices follow. They also describe other products;
+those products and their licenses do not change Authling's Apache-2.0 license.
+
+Chatto
+Copyright 2026 ChattoCorp GmbH
+
+Licensed under the EUPL-1.2, with its standard later-version provision,
+except for the Apache-2.0 components and third-party material described below.
+Source code: https://github.com/chattocorp/chatto
+For released builds, use the tag that matches the version. For development
+builds, use the build's source commit. Build instructions are in CONTRIBUTING.md.
+
+The frontend call join and leave tones are original Chatto assets, licensed
+under Apache-2.0. They contain no third-party recordings.
+
+This product includes third-party open source software. This notice lists
+direct dependencies, shipped browser assets, and upstream NOTICE text known to
+apply to the Chatto server, CLI, frontend, and documentation website.
+
+Dependency manifests and lockfiles in this repository remain the authoritative
+set of third-party packages, including transitive dependencies, used to build
+each artifact.
+
+The experimental Gobotto bot and Chatto Go SDK also use the Gorilla WebSocket,
+Go Protobuf, Bubble Tea, Lip Gloss, and go-toml dependencies listed below.
+Gobotto uses robfig/cron (https://github.com/robfig/cron), licensed under the
+MIT License, for recurring task schedules (Copyright 2012 Rob Figueiredo).
+Gobotto also uses golang.org/x/image (BSD 3-Clause License) for image resizing
+and WebP decoding before model requests.
+Gobotto embeds means (https://github.com/hmans/means), licensed under the
+Apache License 2.0 (Copyright 2026 the means contributors), for Markdown
+collections. It also uses means' Bleve search and JSON Schema dependencies.
+Gobotto uses Glamour (https://github.com/charmbracelet/glamour), licensed under
+the MIT License, to render brain document bodies and instructions locally.
+Gobotto uses fsnotify (https://github.com/fsnotify/fsnotify), licensed under
+the BSD 3-Clause License, to refresh its local brain browser after file changes.
+The experimental Chatty terminal client also uses Bubble Tea, Bubbles, Lip Gloss,
+and the Chatto Go SDK. It uses Glamour (https://github.com/charmbracelet/glamour),
+licensed under the MIT License, to render Markdown locally.
+Chatty also uses golang.org/x/image (BSD 3-Clause License) for image preview
+resizing and WebP decoding, and Charm's x/ansi (MIT License) for Kitty graphics.
+It uses goldmark-emoji (https://github.com/yuin/goldmark-emoji), licensed under
+the MIT License, to display named emoji reactions as Unicode.
+
+Slack conversion data:
+
+- emoji-data (https://github.com/iamcal/emoji-data) - MIT License
+  Copyright (c) 2013 Cal Henderson. Generated alias and skin-tone mappings only;
+  no upstream image assets are included.
+
+ChattoBot:
+
+- Paseo client SDK (https://github.com/getpaseo/paseo) - Apache License 2.0
+- LinkeDOM (https://github.com/WebReflection/linkedom) - ISC License
+
+Server and CLI Go Components:
+
+- Brotli for Go (https://github.com/andybalholm/brotli) - MIT License
+- Masterminds semver (https://github.com/Masterminds/semver) - MIT License
+- age (https://filippo.io/age) - BSD 3-Clause License
+- AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
+- AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
+- Bleve full-text search (https://github.com/blevesearch/bleve) - Apache License 2.0
+- Buf Protovalidate and generated protocol buffer tooling
+  (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
+- caarlos0/env (https://github.com/caarlos0/env) - MIT License
+- Charmbracelet Bubble Tea terminal framework (https://github.com/charmbracelet/bubbletea) - MIT License
+- Charmbracelet Bubbles terminal components (https://github.com/charmbracelet/bubbles) - MIT License
+- Charmbracelet Huh terminal forms (https://github.com/charmbracelet/huh) - MIT License
+- Charmbracelet Lip Gloss terminal styling (https://github.com/charmbracelet/lipgloss) - MIT License
+- Charmbracelet log (https://github.com/charmbracelet/log) - MIT License
+- ConnectRPC, Connect Authn, Connect validation, and Connect gRPC reflection packages
+  (https://connectrpc.com/) - Apache License 2.0
+- Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0
+- CoreOS go-oidc (https://github.com/coreos/go-oidc) - Apache License 2.0
+- datasize (https://github.com/c2h5oh/datasize) - MIT License
+- Gin web framework (https://github.com/gin-gonic/gin) - MIT License
+- gin-contrib/sessions (https://github.com/gin-contrib/sessions) - MIT License
+- go-jwt (https://github.com/golang-jwt/jwt) - MIT License
+- go-mail (https://github.com/wneessen/go-mail) - MIT License
+- go-jose (https://github.com/go-jose/go-jose) - Apache License 2.0
+- go-nanoid (https://github.com/matoous/go-nanoid) - MIT License
+- gofakeit (https://github.com/brianvoe/gofakeit) - MIT License
+  (development and test data generation)
+- go-smtp-mock (https://github.com/mocktools/go-smtp-mock) - MIT License
+- go-str2duration (https://github.com/xhit/go-str2duration) - BSD 3-Clause License
+- go-toml (https://github.com/pelletier/go-toml) - MIT License
+- Goldmark Markdown parser (https://github.com/yuin/goldmark) - MIT License
+- Gorilla securecookie, sessions, and websocket
+  (https://github.com/gorilla) - BSD 3-Clause License
+- Goth OAuth/OIDC authentication (https://github.com/markbates/goth) -
+  MIT License
+- imageorient (https://github.com/disintegration/imageorient) - MIT License
+- h265 (https://github.com/gen2brain/h265) - MIT License.
+  Copyright (c) 2025 roticv; Copyright (c) 2026 Karpeles Lab Inc.
+- jellydator/ttlcache (https://github.com/jellydator/ttlcache) - MIT License
+- rs/cors (https://github.com/rs/cors) - MIT License
+- SCS session management (https://github.com/alexedwards/scs) - MIT License
+- LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
+- Model Context Protocol Go SDK
+  (https://github.com/modelcontextprotocol/go-sdk) - MIT License
+- JSON Schema Go (https://github.com/google/jsonschema-go) - MIT License
+- Segment encoding and asm (https://github.com/segmentio/encoding,
+  https://github.com/segmentio/asm) - MIT License
+- URI Template (https://github.com/yosida95/uritemplate) - BSD-3-Clause
+- NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
+- nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
+- opengraph (https://github.com/otiai10/opengraph) - MIT License
+- Participle parser library (https://github.com/alecthomas/participle) - MIT License
+- Prometheus Go client (https://github.com/prometheus/client_golang) - Apache License 2.0
+- protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
+- Testify (https://github.com/stretchr/testify) - MIT License
+- templ (https://templ.guide/) - MIT License
+- xurls (https://github.com/mvdan/xurls) - BSD 3-Clause License
+- ZITADEL OIDC (https://github.com/zitadel/oidc) - Apache License 2.0
+- Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
+- webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License
+- Google Go libraries: x/crypto, x/image, x/oauth2, x/sync, x/term,
+  and protobuf (https://go.googlesource.com/) - BSD 3-Clause License
+
+Frontend, Examples, and Documentation Components:
+
+- DOMPurify (https://github.com/cure53/DOMPurify) - Apache License 2.0
+
+- xterm.js headless terminal (https://github.com/xtermjs/xterm.js) - MIT License
+- Pele Mermaid renderer (https://github.com/obsidianmd/pele) - MIT License
+
+- Astro and Starlight (https://astro.build/) - MIT License
+- Buf Protobuf runtime and ES code generation for TypeScript
+  (https://github.com/bufbuild/protobuf-es) - Apache License 2.0
+- CodeMirror and Lezer (https://codemirror.net/, https://lezer.codemirror.net/) -
+  MIT License
+- ConnectRPC for Web and Connect-ES code generation
+  (https://connectrpc.com/) - Apache License 2.0
+- ESLint packages (https://eslint.org/) - MIT License and Apache License 2.0
+- Fontsource IBM Plex Sans and IBM Plex Mono
+  (https://fontsource.org/fonts/ibm-plex-sans,
+  https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
+- daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
+- gemoji (https://github.com/github/gemoji) - MIT License
+- Unicode Emoji 15.0 data (https://www.unicode.org/Public/emoji/15.0/)
+  - Unicode Data Files and Software License (Unicode-DFS-2016)
+  - Copyright © 2022 Unicode, Inc. Used to generate skin-tone emoji mappings.
+- heic2any (https://github.com/alexcorvi/heic2any) - MIT License
+- highlight.js (https://highlightjs.org/) - BSD 3-Clause License
+- hls.js (https://github.com/video-dev/hls.js) - Apache License 2.0
+- Iconify packages (https://iconify.design/) - MIT License
+- js-sha256 (https://github.com/emn178/js-sha256) - MIT License
+- linkify-it (https://github.com/markdown-it/linkify-it) - MIT License
+- LiveKit client SDK for JS (https://github.com/livekit/client-sdk-js) -
+  Apache License 2.0
+- lowlight (https://github.com/wooorm/lowlight) - MIT License
+- lru-cache, used by @chatto/client (https://github.com/isaacs/node-lru-cache) - Blue Oak Model License 1.0.0
+- machina (https://github.com/ifandelse/machina.js) - MIT License
+- markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
+- markdown-it-footnote (https://github.com/markdown-it/markdown-it-footnote) - MIT License
+- node-semver (https://github.com/npm/node-semver) - ISC License
+- Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
+- Undici, used by the Runling bot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License
+- Runling workflow runner, also used by the Botto example (packages/runling, originally https://github.com/chattocorp/runling) - Apache License 2.0; Copyright (c) 2026 Hendrik Mans and contributors. Earlier MIT grants and notices are retained in packages/runling/NOTICE.
+- Pi coding agent, AI SDK, MCP client, and terminal UI, used by Runling and the Botto example (https://github.com/earendil-works/pi) - MIT License
+- smol-toml, used by the Botto example (https://github.com/squirrelchat/smol-toml) - BSD-3-Clause License
+- TypeBox, used by the Botto example (https://github.com/sinclairzx81/typebox) - MIT License
+- Playwright (https://playwright.dev/) - Apache License 2.0
+- Prettier and plugins (https://prettier.io/) - MIT License
+- Sharp image toolkit, also used by Botto for image crops (https://sharp.pixelplumbing.com/) - Apache License 2.0
+- Storybook packages (https://storybook.js.org/) - MIT License
+- Svelte, SvelteKit, Svelte check, and Svelte tooling
+  (https://svelte.dev/) - MIT License
+- TanStack Query (https://tanstack.com/query) - MIT License
+- svelte-dnd-action (https://github.com/isaacHagoel/svelte-dnd-action) -
+  MIT License
+- Tailwind CSS packages (https://tailwindcss.com/) - MIT License
+- htmx (https://htmx.org/) - Zero-Clause BSD License (0BSD); bundled locally by Authling
+- Tiptap and ProseMirror (https://tiptap.dev/, https://prosemirror.net/) -
+  MIT License
+- tlds (https://github.com/segmentio/tlds) - MIT License
+- TypeScript (https://www.typescriptlang.org/) - Apache License 2.0
+- TypeScript ESLint (https://typescript-eslint.io/) - MIT License
+- Vidstack (https://www.vidstack.io/) - MIT License
+- Virtua (https://github.com/inokawa/virtua) - MIT License
+  Includes a local patch to keep retained Svelte rows mounted during pagination.
+- Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License
+- zod (https://zod.dev/) - MIT License
+
+Mobile Components:
+- Capacitor (https://capacitorjs.com/) - MIT License; Copyright (c)
+  2017-present Drifty Co. The mobile web bundle includes capacitor-license.txt.
+- Capacitor Keyboard (https://github.com/ionic-team/capacitor-plugins) - MIT
+  License; Copyright 2020-present Ionic. The mobile web bundle includes
+  capacitor-keyboard-license.txt.
+- Capacitor's bundled Cordova compatibility code - Apache License 2.0;
+  Copyright The Apache Software Foundation.
+
+Desktop Components:
+
+- electron-builder (https://www.electron.build/) - MIT License
+  (Windows installer, macOS disk-image, and Linux AppImage packaging)
+- electron-updater (https://www.electron.build/) - MIT License. Bundled
+  dependency licence texts are in app.asar/updater-licenses.txt.
+- esbuild (https://github.com/evanw/esbuild) - MIT License (build tool)
+- macOS disk-image background artwork (`apps/desktop/icons/background*.png`) -
+  Apache License 2.0, as specified in REUSE.toml
+- NSIS (https://nsis.sourceforge.io/) - zlib/libpng License; installer components
+  include bzip2 and LZMA code under their respective licences
+
+- Electron (https://www.electronjs.org/) - MIT License; Copyright OpenJS
+  Foundation and Electron contributors
+- LiveKit client SDK for Swift (https://github.com/livekit/client-sdk-swift) -
+  Apache License 2.0; Copyright 2023 LiveKit, Inc.
+- LiveKit UniFFI XCFramework
+  (https://github.com/livekit/livekit-uniffi-xcframework) - Apache License 2.0
+- LiveKit WebRTC XCFramework (https://github.com/livekit/webrtc-xcframework) -
+  MIT License; Copyright 2021 WebRTC SDKs; bundled WebRTC is BSD 3-Clause and
+  includes third-party components under their respective licences
+- nanopb (https://github.com/nanopb/nanopb), bundled by the LiveKit Swift SDK -
+  zlib License; Copyright 2011 Petteri Aimonen
+- Chromium (https://www.chromium.org/) - BSD 3-Clause License and other
+  licences included in Electron's bundled `LICENSES.chromium.html`
+
+Upstream NOTICE Text:
+
+CoreOS go-oidc:
+CoreOS Project
+Copyright 2014 CoreOS, Inc
+This product includes software developed at CoreOS, Inc. (http://www.coreos.com/).
+
+LiveKit Protocol:
+Copyright 2023 LiveKit, Inc.
+
+AWS SDK for Go:
+AWS SDK for Go
+Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright 2014-2015 Stripe, Inc.
+
+Prometheus Go client:
+Prometheus instrumentation library for Go applications
+Copyright 2012-2015 The Prometheus Authors
+This product includes software developed at SoundCloud Ltd.
+(http://soundcloud.com/).
+
+Twirp:
+Twirp
+Copyright 2018 Twitch Interactive, Inc. All Rights Reserved.
+
+Trademark Notice:
+Chatto's source code uses mixed licensing. The default repository license is
+the European Union Public Licence version 1.2, with its standard later-version
+provision and
+Apache License 2.0 exceptions for the independently versioned shared framework
+modules and selected frontend, integration, and documentation surfaces, and
+Apache License 2.0 for Runling and ChattoBot under `packages/` and Authling,
+as annotated in REUSE.toml. These licenses do not grant permission to use the
+"Chatto" name, Chatto logos, or other Chatto marks except as otherwise
+permitted by law. "Chatto" and the Chatto logos are marks and trade names of
+ChattoCorp GmbH, and are not registered trademarks at this time.
+
+You may truthfully refer to Chatto to describe the origin of the software, for
+example by saying that a project is "based on Chatto" or "forked from Chatto".
+You may not use the Chatto name, logos, or marks in a way that suggests your
+project, service, distribution, or modified version is official, endorsed by,
+sponsored by, or operated by ChattoCorp GmbH unless you have separate written
+permission.

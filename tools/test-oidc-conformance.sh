@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: EUPL-1.2
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
