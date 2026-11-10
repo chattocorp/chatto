@@ -3,6 +3,7 @@
   import { expect, within, userEvent, waitFor } from 'storybook/test';
   import FormattingExample from './FormattingExample.svelte';
   import HelpDocument from './HelpDocument.svelte';
+  import MarkdownSample from './MarkdownSample.svelte';
 
   const { Story } = defineMeta({ title: 'Help/Interactive guides', component: FormattingExample });
 </script>
@@ -30,6 +31,38 @@
   }}
 >
   <div class="flex max-w-5xl flex-col gap-10 p-6"><FormattingExample /></div>
+</Story>
+
+<Story
+  name="Code overflow cues"
+  asChild
+  play={async ({ canvasElement }) => {
+    for (const frame of canvasElement.querySelectorAll('pre')) {
+      const viewport = frame.querySelector('code')!;
+      const left = frame.querySelector('.markdown-code-fade-left');
+      const right = frame.querySelector('.markdown-code-fade-right');
+      await waitFor(() => {
+        expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
+        expect(left).toHaveClass('opacity-0');
+        expect(right).not.toHaveClass('opacity-0');
+      });
+      viewport.scrollLeft = viewport.scrollWidth;
+      await waitFor(() => {
+        expect(left).not.toHaveClass('opacity-0');
+        expect(right).toHaveClass('opacity-0');
+      });
+    }
+  }}
+>
+  <div class="w-80 p-6">
+    <HelpDocument locale="en-GB">
+      <pre><code>A long code example with enough text to overflow the narrow article column.</code
+        ></pre>
+      <MarkdownSample
+        source="A long Markdown source example with enough text to overflow the narrow source column."
+      />
+    </HelpDocument>
+  </div>
 </Story>
 
 <Story
