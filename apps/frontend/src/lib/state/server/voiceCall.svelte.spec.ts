@@ -230,6 +230,10 @@ vi.mock('livekit-client', () => {
       roomEventHandlers.set(event, handler);
       return this;
     });
+    off = vi.fn((event: string, handler: () => void) => {
+      if (roomEventHandlers.get(event) === handler) roomEventHandlers.delete(event);
+      return this;
+    });
     switchActiveDevice = vi.fn(async (kind: MediaDeviceKind, deviceId: string) => {
       calls.push(`switchActiveDevice:${kind}:${deviceId}`);
       if (switchActiveDeviceFailure) {
