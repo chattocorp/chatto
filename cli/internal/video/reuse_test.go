@@ -32,6 +32,7 @@ func TestReusableSource(t *testing.T) {
 		want   bool
 	}{
 		{"compatible", func(*ProbeResult) {}, true},
+		{"missing aspect ratio", func(p *ProbeResult) { p.source.Streams[0].SampleAspectRatio = "" }, true},
 		{"silent", func(p *ProbeResult) { p.source.Streams = p.source.Streams[:1] }, true},
 		{"webm", func(p *ProbeResult) { p.source.Format.Name = "matroska,webm" }, false},
 		{"hevc", func(p *ProbeResult) { p.source.Streams[0].CodecName = "hevc" }, false},
@@ -123,25 +124,30 @@ func TestReuseVideoWithFFmpeg(t *testing.T) {
 		height    int
 		variants  int
 		rate      int
+		sar       int
 	}{
-		{"frequent keyframes", "48", true, 1080, 3, 24},
-		{"long GOP at 60 fps", "300", true, 1080, 3, 60},
-		{"long GOP at 30 fps", "300", true, 1080, 3, 30},
-		{"sparse keyframes", "10000", false, 1080, 2, 24},
-		{"small source needs no encoder", "48", true, 360, 1, 24},
+		{"missing aspect ratio", "48", true, 1080, 3, 24, 0},
+		{"frequent keyframes", "48", true, 1080, 3, 24, 1},
+		{"long GOP at 60 fps", "300", true, 1080, 3, 60, 1},
+		{"long GOP at 30 fps", "300", true, 1080, 3, 30, 1},
+		{"sparse keyframes", "10000", false, 1080, 2, 24, 1},
+		{"small source needs no encoder", "48", true, 360, 1, 24, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var logs bytes.Buffer
 			service.logger = log.New(&logs)
 			tmp := t.TempDir()
 			input := filepath.Join(tmp, "source.mp4")
-			cmd := exec.CommandContext(ctx, ffmpeg, "-v", "error", "-f", "lavfi", "-i", fmt.Sprintf("testsrc2=size=192x%d:rate=%d:duration=13", tc.height, tc.rate), "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000:duration=13", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-g", tc.gop, "-keyint_min", tc.gop, "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-y", input)
+			cmd := exec.CommandContext(ctx, ffmpeg, "-v", "error", "-f", "lavfi", "-i", fmt.Sprintf("testsrc2=size=192x%d:rate=%d:duration=13", tc.height, tc.rate), "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000:duration=13", "-vf", fmt.Sprintf("setsar=%d", tc.sar), "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-g", tc.gop, "-keyint_min", tc.gop, "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-y", input)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("fixture: %v\n%s", err, out)
 			}
 			probe, err := service.probe(ctx, input, "video/mp4")
 			if err != nil {
 				t.Fatal(err)
+			}
+			if tc.sar == 0 && probe.source.Streams[0].SampleAspectRatio != "" {
+				t.Fatalf("fixture has an aspect ratio tag: %q", probe.source.Streams[0].SampleAspectRatio)
 			}
 			outputs := service.prepareVideoVariants(ctx, "asset-test-123", input, tmp, probe, nil)
 			if len(outputs) == 0 {

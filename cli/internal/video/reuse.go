@@ -46,7 +46,9 @@ func reusableSource(probe *ProbeResult, size int64) bool {
 			if stream.Width < 2 || stream.Height < 2 || stream.Width%2 != 0 || stream.Height%2 != 0 || max(stream.Width, stream.Height) > 1920 || min(stream.Width, stream.Height) > 1080 {
 				return false
 			}
-			if stream.SampleAspectRatio != "1:1" || stream.FieldOrder != "progressive" {
+			// An absent aspect-ratio tag implies square pixels, as in
+			// videoDisplayDimensions. Square-pixel encoders can omit the tag.
+			if (stream.SampleAspectRatio != "" && stream.SampleAspectRatio != "1:1") || stream.FieldOrder != "progressive" {
 				return false
 			}
 			switch stream.ColorTransfer {
