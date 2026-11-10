@@ -2,6 +2,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import { expect, within, userEvent, waitFor } from 'storybook/test';
   import FormattingExample from './FormattingExample.svelte';
+  import HelpDocument from './HelpDocument.svelte';
 
   const { Story } = defineMeta({ title: 'Help/Interactive guides', component: FormattingExample });
 </script>
@@ -29,4 +30,26 @@
   }}
 >
   <div class="flex max-w-5xl flex-col gap-10 p-6"><FormattingExample /></div>
+</Story>
+
+<Story
+  name="Right-to-left article"
+  asChild
+  play={async ({ canvasElement }) => {
+    const document = canvasElement.querySelector('[lang="ar"]')!;
+    expect(getComputedStyle(document).direction).toBe('rtl');
+    for (const code of document.querySelectorAll('code')) {
+      expect(getComputedStyle(code).direction).toBe('ltr');
+      expect(getComputedStyle(code).unicodeBidi).toBe('isolate');
+    }
+    expect(getComputedStyle(document.querySelector('pre')!).direction).toBe('ltr');
+  }}
+>
+  <div class="max-w-prose p-6">
+    <HelpDocument locale="ar">
+      <h2>اربط أداتك</h2>
+      <p>امنح البوت الإذن <code>message.post</code> في الغرفة المطلوبة.</p>
+      <pre><code>Authorization: Bearer YOUR_API_KEY</code></pre>
+    </HelpDocument>
+  </div>
 </Story>

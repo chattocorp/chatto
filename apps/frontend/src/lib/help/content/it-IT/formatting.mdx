@@ -1,0 +1,137 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Puoi formattare i messaggi di Chatto con Markdown. Per esempio, `**ciao**` appare
+come **ciao**. Digita i segni di formattazione oppure seleziona il testo e usa la barra degli strumenti.
+
+## Scegli l'editor e la scorciatoia di invio
+
+Apri <a href={resolve('/chat/preferences/composer')}>Preferenze dell'app → Composizione</a>
+e scegli **Markdown** per modificare il testo sorgente. Scegli **Visuale** se preferisci
+lavorare con testo formattato. La barra di formattazione è disponibile in entrambi gli editor.
+
+L'impostazione **Invia messaggi con** controlla il tasto Invio:
+
+- **Return:** Invio invia il messaggio. Ctrl+Invio inserisce una nuova riga, o Command+Invio su un Mac.
+- **Cmd/Ctrl+Return:** Ctrl+Invio invia il messaggio, o Command+Invio su un Mac.
+  Invio inserisce una nuova riga.
+
+Lascia una riga vuota tra i paragrafi.
+
+## Grassetto, corsivo, sottolineato e barrato
+
+Metti i segni di formattazione su entrambi i lati del testo:
+
+- `**grassetto**` per il grassetto
+- `*corsivo*` per il corsivo
+- `__sottolineato__` per il sottolineato
+- `~~barrato~~` per il barrato
+
+<MarkdownSample source={"Controlla questo **prima di venerdì**.\nLa data è *provvisoria*.\n__Approvazione necessaria__ prima del rilascio.\nLa scadenza precedente era ~~giovedì~~."} />
+
+In Chatto, `__testo__` significa sottolineato. Se usi due trattini bassi per il grassetto
+in un altro strumento Markdown, qui usa due asterischi.
+
+Seleziona testo e premi Ctrl+B, Ctrl+I o Ctrl+U per grassetto, corsivo o sottolineato.
+Su un Mac usa Command al posto di Ctrl. I pulsanti della barra eseguono le stesse azioni.
+
+Non mettere spazi tra i segni e il testo: `**importante**` funziona;
+`** importante **` non applica il grassetto.
+
+## Titoli ed elenchi
+
+Inizia un titolo con caratteri `#` seguiti da uno spazio. Inizia ogni punto con `- `,
+oppure ogni voce numerata con un numero e un punto, come `1. `.
+
+<MarkdownSample source={"## Elenco per il rilascio\n\nPrima di iniziare:\n- Conferma la versione.\n- Avvisa il gruppo di assistenza.\n\nPoi:\n1. Distribuisci l'aggiornamento.\n2. Controlla la pagina di stato.\n3. Pubblica qui il risultato."} />
+
+Il pulsante **Intestazione** inserisce un titolo di secondo livello (`##`). Puoi digitare
+livelli da `#` a `######`.
+
+Usa **Aumenta rientro** per inserire una voce sotto quella precedente. Usa
+**Riduci rientro** per riportarla al livello precedente. Lascia una riga vuota dopo
+l'elenco per iniziare un paragrafo.
+
+## Citazioni
+
+Inizia ogni riga citata con `>` e uno spazio. Lascia una riga vuota dopo la citazione
+prima di scrivere la risposta.
+
+<MarkdownSample source={"> Possiamo spostare il rilascio a venerdì?\n\nSì. La revisione finale è giovedì pomeriggio."} />
+
+Digitare una citazione non la collega al messaggio originale. Per rispondere a quel
+messaggio in una discussione, usa la sua azione di risposta.
+
+## Codice
+
+Usa un accento grave su ciascun lato di un comando breve, nome di file o identificatore.
+I segni di formattazione nel codice in linea appaiono così come sono scritti.
+
+<MarkdownSample source={"Esegui `git status` prima di iniziare.\nL'impostazione si chiama `send_mode`.\nScrivi `**ciao**` per mettere ciao in grassetto."} />
+
+Per più righe, metti tre accenti gravi su una riga prima del codice e tre su una riga
+dopo. Aggiungi il nome del linguaggio subito dopo i segni di apertura per evidenziare
+la sintassi, per esempio `js`, `json` o `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Il pulsante **Blocco di codice** inserisce i segni di apertura e chiusura. Senza la
+riga di chiusura, il resto del messaggio diventa parte del blocco. Per mostrare un
+accento grave nel codice in linea, usa due accenti gravi attorno al testo.
+
+## Collegamenti
+
+Un indirizzo web incollato diventa un collegamento. Per mostrare un'etichetta invece
+dell'indirizzo, metti l'etichetta tra parentesi quadre e l'indirizzo tra parentesi tonde:
+
+```text
+Leggi le [note di rilascio](https://example.com/releases).
+```
+
+Non mettere spazi tra `]` e `(`. Per collegare una stanza o menzionare una persona in
+Chatto, selezionala dai suggerimenti dell'editor.
+
+## Note a piè di pagina
+
+Metti un riferimento come `[^window]` dopo il testo da annotare. Su un'altra riga,
+scrivi `[^window]:` seguito dalla nota. Le etichette devono coincidere.
+
+<MarkdownSample source={"La finestra di manutenzione dura 30 minuti.[^window]\n\n[^window]: La maggior parte dei server non sarà disponibile per meno di cinque minuti."} />
+
+Puoi anche posizionare il cursore dopo il testo interessato e selezionare **Inserisci
+nota a piè di pagina** nella barra. Le note non possono essere inserite nel codice
+in linea o in un blocco di codice.
+
+## Tabelle
+
+Separa le colonne con `|` e metti una riga di trattini sotto le intestazioni.
+Usa `---:` per allineare una colonna a destra, o `:---:` per centrarla.
+
+<MarkdownSample source={"| Ambiente | Versione |\n| --- | ---: |\n| Test | 0.5 |\n| Produzione | 0.4 |"} />
+
+Modifica le tabelle nell'editor Markdown. L'editor Visuale non ha un controllo per modificarle.
+
+## Prova un messaggio completo
+
+Modifica il messaggio seguente per provare la formattazione. L'anteprima si aggiorna mentre
+scrivi. Puoi passare tra gli editor Markdown e Visuale. Nulla di ciò che scrivi qui viene inviato a una stanza.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Rilascio di venerdì\n\nCompleta la revisione **prima delle 14:00**.\n\n1. Esegui `git status`.\n2. Controlla le note di rilascio.\n3. Rispondi in questa discussione quando sei pronto.\n\n> E se un controllo fallisce?\n\nPubblica qui l'errore prima di continuare."} />
+</div>
+
+## Quando la formattazione non appare corretta
+
+- **I segni sono ancora visibili.** Controlla che le due estremità corrispondano e
+  che non ci siano spazi subito dentro i segni di apertura o chiusura. Nel codice
+  i segni visibili sono intenzionali.
+- **Il resto del messaggio sembra codice.** Metti i tre accenti gravi di chiusura su una riga propria.
+- **Un titolo o un elenco rimane testo semplice.** Metti uno spazio dopo `##`, `-` o
+  `1.` e inizia su una nuova riga.
+- **Vuoi mostrare la punteggiatura stessa.** Metti una barra inversa prima di un segno,
+  come in `\*non corsivo\*`, oppure usa codice in linea per un esempio letterale.
+- **L'HTML appare come testo.** Chatto non accetta HTML grezzo per formattare i messaggi.
+  Usa Markdown invece di tag come `<b>` o `<span>`.

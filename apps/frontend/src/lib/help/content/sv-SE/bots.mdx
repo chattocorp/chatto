@@ -1,0 +1,120 @@
+Med bottar kan externa verktyg publicera meddelanden och svara på samtal i Chatto. Skapa ett botkonto, ge det tillgång till rummen det behöver och anslut ditt verktyg med en API-nyckel eller webhook. Du kör botprogrammet separat.
+
+Stegen nedan skapar en bot som publicerar driftsättningsuppdateringar. Du behöver behörighet att skapa bottar och tillgång till målrummet.
+
+## Välj hur verktyget ansluter
+
+Det finns tre anslutningsmetoder. En bot kan använda flera.
+
+- **Inkommande webhook: ditt verktyg → Chatto.** Ge en larmtjänst eller ett automatiseringsverktyg en URL att skicka meddelanden till.
+- **API-nyckel: ditt program → Chatto.** Ge botprogrammet en nyckel för att läsa meddelanden, skicka svar eller använda andra API-åtgärder som du tillåter.
+- **Utgående webhook: Chatto → ditt verktyg.** Ge Chatto en ändpunkt att meddela när någon nämner boten eller skickar ett direktmeddelande till den. Verktyget hanterar händelsen och använder en API-nyckel om det behöver svara.
+
+Använd en inkommande webhook för driftsättningsuppdateringar. För en bot som svarar på omnämnanden eller direktmeddelanden använder du en utgående webhook för att ta emot meddelanden och en API-nyckel för att skicka svar.
+
+## 1. Skapa botkontot
+
+1. Öppna **Serveradministration → Bottar** på servern där boten ska arbeta.
+2. Välj **Skapa bot**. Använd `release-bot` som användarnamn och **Versionsuppdateringar** som visningsnamn i exemplet. Användarnamnet identifierar kontot; medlemmarna ser visningsnamnet bredvid meddelandena.
+3. Skapa boten. Chatto visar en API-nyckel en gång. Spara den i integrationens hemlighetslagring om du ska använda API:t. Du kan inte visa nyckeln igen efter att dialogrutan stängts.
+4. Öppna botens detaljsida. Ge profilen en kort beskrivning, exempelvis ”Publicerar driftsättningsresultat från vår releasepipeline.”
+
+Om **Skapa bot** inte är tillgängligt ber du en administratör om `bot.create`. Att äga en bot låter dig hantera den boten; behörighet att hantera alla bottar ges separat.
+
+Om verktyget bara använder en inkommande webhook behövs ingen API-nyckel. Återkalla den oanvända första nyckeln under **Integrationer → API-nycklar**.
+
+## 2. Ge tillgång till ett rum
+
+En ny bot har inga behörigheter. Den ärver inte ägarens roller eller behörigheterna för rollen `everyone`. Medlemskap i ett rum och tillåtelse att skriva där är separata krav.
+
+1. Öppna botens flik **Behörigheter**.
+2. Hitta kolumnen för rummet med driftsättningsuppdateringar.
+3. Välj rummet i raden **Gick med** överst i matrisen och bekräfta medlemskapsändringen.
+4. Tillåt `message.post` för rummet. Lämna orelaterade behörigheter oinställda.
+
+Driftsättningsboten behöver inte läsåtkomst. Ge `message.post` i rumskolumnen för att begränsa publicering till det rummet. En behörighet på servernivå gäller över flera rum.
+
+Du behöver också rätt att lägga till boten i rummet. Arkiverade rum och rumsavstängningar kan hindra anslutning. Botens egen `room.join`-behörighet används för att ansluta via API:t; den ersätter inte raden **Gick med**.
+
+### En bot kan inte ha mer åtkomst än ägaren
+
+Varje botbehörighet begränsas av den mänskliga ägarens aktuella behörigheter i samma omfattning. En sparad behörighet kan vara inaktiv: ett lås i matrisen visar att ägarens behörigheter blockerar den. Om ägaren förlorar åtkomst förlorar boten också den. Att logga ut stoppar inte boten.
+
+Vissa behörigheter kräver privilegierat läge. Om Chatto ber dig aktivera det gör du det innan du ger behörigheten.
+
+## 3. Anslut en inkommande webhook
+
+1. Öppna **Integrationer** på botens detaljsida.
+2. Välj **Inkommande webhooks** under **Skapa webhook**.
+3. Namnge den efter anroparen, exempelvis **Releasepipeline**.
+4. Välj rummet med driftsättningsuppdateringar som **Målrum**.
+5. Skapa webhooken och kopiera hela URL:en till verktygets webhookkonfiguration. Behåll delen `?room_id=…` i URL:en.
+
+Konfigurera verktyget att skicka en HTTP-**POST** med `Content-Type: application/json` och denna kropp:
+
+```json
+{
+  "text": "Driftsättningen är klar: version **0.5** är redo att testas."
+}
+```
+
+Det valda rummet finns redan i URL:en, så begäran behöver inget `channel`-fält. Om du i stället väljer **Välj i varje begäran** lägger du till `"channel": "YOUR_ROOM_ID"` i JSON. Använd rummets ID, inte dess namn.
+
+När du väljer ett mål läggs ett rums-ID till i URL:en. Anroparen kan ändra ID:t och skriva i alla rum där boten får skriva. Begränsa webhooken till ett rum genom att bara ge boten skrivbehörighet där.
+
+## 4. Skicka ett test och kontrollera resultatet
+
+Använd det externa verktygets testfunktion. En lyckad inkommande begäran returnerar HTTP `200` med texten `ok`. I Chatto ska meddelandet visas i ditt valda rum under **Versionsuppdateringar**, med en **BOT**-etikett och ”0.5” i fetstil.
+
+Om begäran misslyckas kontrollerar du svaret:
+
+- **`401 invalid_token`:** URL:en är ofullständig, ogiltig eller återkallad. Skapa en ny inkommande webhook om du inte längre har hela URL:en.
+- **`404 channel_not_found`:** kontrollera rums-ID, botens medlemskap, dess `message.post`-behörighet och ägarens skrivåtkomst i rummet.
+- **`400 invalid_payload`:** skicka giltig JSON med meddelandetext som inte är tom och ett rums-ID. Om rums-ID:t finns både i URL:en och kroppen måste värdena matcha. Rummets regler och storleksgränser för meddelanden gäller också.
+- **Meddelandet visas två gånger:** ett nytt försök kan skapa ett till meddelande. Inkommande webhooks har ingen idempotensnyckel för att förhindra dubbletter.
+
+När testet lyckas konfigurerar du verktyget att anropa webhooken när en driftsättning är klar.
+
+## Skapa en bot som svarar människor
+
+Konfigurera botprogrammet med dess Chatto-API-nyckel. Lagra nyckeln i programmets hemliga konfiguration. API-begäranden autentiseras med headern `Authorization: Bearer YOUR_API_KEY`.
+
+Välj de behörigheter boten behöver:
+
+- **Svara bara när den tilltalas:** ge `message.read-interactions` och `message.post-in-interactions`. Boten kan läsa hela trådar som den startat, trådar där någon nämnt den direkt och sina direktmeddelanden. Ett omnämnande kan därför även ge tillgång till tidigare meddelanden i tråden.
+- **Läs rummet, men svara bara när den tilltalas:** ge `message.read` och `message.post-in-interactions`.
+- **Läs alla meddelanden och starta samtal:** ge `message.read` och `message.post`.
+
+Ge behörigheterna i avsedda rum. Använd omfattningen **Direktmeddelanden** i matrisen för direktmeddelanden. Ägarens behörigheter begränsar fortfarande dessa rättigheter.
+
+### Tala om för programmet när det ska svara
+
+Om programmet tar emot webhookhändelser från Chatto:
+
+1. Öppna **Integrationer → Utgående webhooks → Skapa webhook**.
+2. Ange ett namn och programmets offentliga HTTPS-ändpunkt.
+3. Om mottagaren kräver en **Authorization-header** anger du hela det förväntade värdet, inklusive ett prefix som `Bearer`.
+4. Kopiera signeringshemligheten till mottagarens konfiguration om den verifierar Chattos webhooksignaturer. Hemligheten visas bara en gång.
+5. Nämn boten i ett rum den kan läsa, eller skicka ett direktmeddelande till den. Kontrollera mottagarens loggar och botens svar i Chatto.
+
+Ändpunkten tar emot nya meddelanden som nämner boten direkt eller ingår i dess direktmeddelanden. Vanliga rumsmeddelanden, redigeringar, reaktioner och meddelanden från boten själv utlöser inte dessa webhooks. Ett senare vanligt svar i en rumstråd utlöser ingen webhook om det inte nämner boten igen.
+
+Mottagaren bör acceptera händelsen med ett HTTP-2xx-svar och sedan skicka eventuellt chattsvar via API:t. Chatto ignorerar HTTP-svarskroppen. Leveranser kan upprepas, så mottagaren måste använda leverans-ID:t för att inte göra samma arbete två gånger. För ett program som behöver all läsbar aktivitet använder du Chattos realtids-API i stället för webhooken för omnämnanden och direktmeddelanden.
+
+Se [referensen för botwebhooks](https://docs.chatto.run/reference/bot-webhooks/) och [API-referensen](https://docs.chatto.run/reference/connectrpc-api/) för händelsedata, signaturverifiering och API-åtgärder.
+
+En utgående webhook skickar meddelandetext och identifierare för meddelanden, författare, rum och bottar till den konfigurerade ändpunkten. Mottagaren ser också Chatto-serverns utgående IP-adress. Om boten vidarebefordrar meddelanden till en AI-leverantör eller annan tjänst ska du förklara det för medlemmarna innan du använder den i deras samtal.
+
+### Om boten förblir tyst
+
+Kontrollera om programmet tog emot händelsen. Öppna **Senaste fel** under den utgående webhooken för registrerade leveransfel. Kontrollera att ändpunkten är aktiverad, nåbar, accepterar konfigurerad autentisering och returnerar 2xx utan omdirigering. En tom fellista bevisar inte lyckad leverans.
+
+Om händelsen kom fram men inget svar visas kontrollerar du programmets API-nyckel, dess svarsåtgärd och botens effektiva läs- och skrivbehörigheter.
+
+## Underhåll integrationen
+
+- **Byt en autentiseringsuppgift:** skapa en ny namngiven nyckel eller webhook, uppdatera anroparen, testa den och återkalla sedan den gamla. API-nycklar upphör inte automatiskt att gälla. Klistra aldrig in en riktig nyckel eller en URL med autentiseringsuppgifter i chatten eller versionshanteringen.
+- **Stoppa utgående leverans tillfälligt:** välj **Pausa** på ändpunkten. **Återuppta** tillåter nya händelser men spelar inte upp pausperioden igen.
+- **Överlåt boten till en annan ägare:** ett konto med `bot.manage` kan använda **Tilldela ägare på nytt**. Botens effektiva åtkomst följer omedelbart den nya ägaren. Befintliga nycklar förblir giltiga, så byt autentiseringsuppgifter om den tidigare operatören ska förlora åtkomst.
+- **Ta bort ett ägarkonto:** tilldela först långlivade bottar en ny ägare. Att ta bort en mänsklig ägare tar också bort de bottar personen äger.
+- **Visa medlemmarna vad boten kan göra:** öppna profilen och granska **Ägs av** och **Vad den kan göra**. Kontrollera åtkomsten efter ändringar av rum eller ägare.

@@ -1,0 +1,80 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Replies and threads
+
+Use **Reply in thread** on a message to keep your reply with that conversation.
+To start a thread with a new message, select **Post as thread** in the composer
+before you send it. The room stays open; select the message's thread link to open
+the thread.
+
+An open thread has its own address. Copy the browser's address to share it with
+someone who has access to the room. Closing a thread returns you to the room;
+it does not unfollow the conversation.
+
+<p>If you prefer to keep the room visible while you reply, open
+<a href={resolve('/chat/preferences/appearance')}>App Preferences → Appearance</a>
+and set <strong>Thread pane</strong> to <strong>Side by side</strong>. When there is
+not enough space, Chatto shows the thread over the room instead.</p>
+
+## Keep track of conversations
+
+Select **Follow thread** to keep a conversation in your **Threads** list. You can
+follow a thread without posting in it.
+
+In **Threads**, **Followed** shows the threads you follow. **Mine** shows the
+ones you started and still follow. Unfollowing a thread removes it from both
+views. Select **Unread** to find conversations with replies you have not read.
+
+The search field checks messages and replies in your followed threads, including
+direct-message threads. Search for words, a quoted phrase, or an author with
+`from:username`. Search is available when your server supports and enables it.
+
+## Move between rooms and unread activity
+
+Press **Ctrl+K**, or **Command+K** on a Mac, to open the quick switcher. Search
+there to move between rooms and servers without working through the sidebar.
+
+Press **Alt+Shift+Down**, or **Option+Shift+Down** on a Mac, to go to the next
+unread source across your signed-in servers. Chatto takes you to important
+notifications first, then other notifications, then rooms with unread dots.
+Your current message draft stays in place.
+
+The bell in the app header opens notifications from all your signed-in servers.
+Reading a room or thread marks notifications read only up to the messages you
+can see. Opening an older message does not mark newer replies read.
+
+For the available keyboard shortcuts, press **Ctrl+Shift+K**, or
+**Command+Shift+K** on a Mac.
+
+## Choose what notifies you
+
+Open your server's **Notifications** settings to change alerts for mentions,
+replies, reactions, and other activity. Each setting can apply to the whole
+server, a room group, or one room.
+
+- **Inherit** uses the setting from the room group or server.
+- **Off** creates no notification or unread dot for that kind of activity.
+- **Unread dot** marks the room without creating a notification.
+- **In-app notification** adds an entry to the notification center.
+- **Push notification** also allows an alert on a device where you have enabled
+  notifications.
+
+For example, use **Unread dot** for new room messages and **Push notification**
+for direct mentions if you want to check general chat in your own time.
+
+<p>Push alerts also need device permission. On a phone, follow
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Install Chatto on your phone</a>
+to install the app and enable notifications. Your phone's notification settings
+control whether names and message previews appear on the lock screen.</p>
+
+## When the connection drops
+
+Messages already loaded remain visible, but Chatto needs a server connection to
+load more messages or send a reply. When the connection returns, it loads missed
+updates.
+
+If sending fails, your draft remains in the composer. It is not queued for
+automatic delivery: check the connection and send it again. Installing Chatto on
+your phone does not make your chat history available offline.

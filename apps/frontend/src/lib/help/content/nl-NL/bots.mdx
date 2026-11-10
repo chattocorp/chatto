@@ -1,0 +1,120 @@
+Met bots kunnen externe tools berichten plaatsen en op gesprekken in Chatto reageren. Maak een botaccount, geef het toegang tot de benodigde ruimtes en verbind je tool met een API-sleutel of webhook. Je draait de botsoftware apart.
+
+Met de stappen hieronder maak je een bot die uitrolupdates plaatst. Je hebt toestemming nodig om bots te maken en toegang tot de doelruimte.
+
+## Kiezen hoe je tool verbinding maakt
+
+Er zijn drie verbindingsmethoden. Een bot kan er meerdere gebruiken.
+
+- **Inkomende webhook: je tool → Chatto.** Geef een waarschuwingsdienst of automatiseringstool een URL om berichten naartoe te sturen.
+- **API-sleutel: je programma → Chatto.** Geef je botprogramma een sleutel om berichten te lezen, antwoorden te versturen of andere toegestane API-acties uit te voeren.
+- **Uitgaande webhook: Chatto → je tool.** Geef Chatto een eindpunt om te melden wanneer iemand de bot vermeldt of een privébericht stuurt. Je tool verwerkt de gebeurtenis en gebruikt een API-sleutel als die moet antwoorden.
+
+Gebruik voor uitrolupdates een inkomende webhook. Gebruik voor een bot die op vermeldingen of privéberichten antwoordt een uitgaande webhook om berichten te ontvangen en een API-sleutel om antwoorden te sturen.
+
+## 1. Het botaccount maken
+
+1. Open **Serverbeheer → Bots** op de server waar de bot gaat werken.
+2. Kies **Bot maken**. Gebruik in dit voorbeeld `release-bot` als gebruikersnaam en **Release-updates** als weergavenaam. De gebruikersnaam identificeert het account; leden zien de weergavenaam naast de berichten.
+3. Maak de bot. Chatto toont eenmalig een API-sleutel. Bewaar die in de beveiligde opslag van je integratie als je de API gaat gebruiken. Je kunt de sleutel niet opnieuw tonen nadat je het dialoogvenster sluit.
+4. Open de detailpagina van de bot. Geef het profiel een korte beschrijving, bijvoorbeeld “Plaatst uitrolresultaten uit onze releasepipeline.”
+
+Is **Bot maken** niet beschikbaar, vraag dan een beheerder om `bot.create`. Als eigenaar kun je die bot beheren; toestemming om alle bots te beheren is een apart recht.
+
+Gebruikt je tool alleen een inkomende webhook, dan is er geen API-sleutel nodig. Trek de ongebruikte eerste sleutel in onder **Integraties → API-sleutels**.
+
+## 2. Toegang tot één ruimte geven
+
+Een nieuwe bot heeft geen rechten. De bot erft niet de rollen van de eigenaar of de rechten van de rol `everyone`. Lid zijn van een ruimte en erin mogen schrijven zijn aparte voorwaarden.
+
+1. Open het tabblad **Rechten** van de bot.
+2. Zoek de kolom van je ruimte voor uitrolupdates.
+3. Selecteer die ruimte in de rij **Lid geworden** bovenaan de matrix en bevestig de wijziging van het lidmaatschap.
+4. Sta `message.post` toe voor die ruimte. Laat andere, niet benodigde rechten oningesteld.
+
+De uitrolbot heeft geen leestoegang nodig. Geef `message.post` in de ruimtekolom om het plaatsen tot die ruimte te beperken. Een serverbreed recht geldt voor meerdere ruimtes.
+
+Je moet ook bevoegd zijn om de bot aan de ruimte toe te voegen. Gearchiveerde ruimtes en ruimteschorsingen kunnen deelname verhinderen. Het eigen recht `room.join` van de bot is voor deelname via de API; het vervangt de rij **Lid geworden** niet.
+
+### Een bot kan niet meer toegang hebben dan de eigenaar
+
+Elk botrecht wordt beperkt door de huidige rechten van de menselijke eigenaar op hetzelfde bereik. Een opgeslagen recht kan inactief zijn: een slot in de matrix geeft aan dat de rechten van de eigenaar het blokkeren. Verliest de eigenaar toegang, dan verliest de bot die ook. Uitloggen stopt de bot niet.
+
+Sommige rechten vereisen de bevoorrechte modus. Als Chatto vraagt die te activeren, doe dat dan voordat je het recht geeft.
+
+## 3. Een inkomende webhook verbinden
+
+1. Open **Integraties** op de detailpagina van de bot.
+2. Kies bij **Inkomende webhooks** voor **Webhook maken**.
+3. Noem de webhook naar de aanroeper, bijvoorbeeld **Releasepipeline**.
+4. Kies de ruimte voor uitrolupdates als **Doelruimte**.
+5. Maak de webhook en kopieer de volledige URL naar de webhookconfiguratie van je tool. Behoud het gedeelte `?room_id=…` van de URL.
+
+Stel de tool in om een HTTP-**POST** te sturen met `Content-Type: application/json` en deze inhoud:
+
+```json
+{
+  "text": "Uitrol voltooid: versie **0.5** is klaar om te testen."
+}
+```
+
+De gekozen ruimte staat al in de URL, dus dit verzoek heeft geen `channel`-veld nodig. Kies je **In elk verzoek kiezen**, neem dan `"channel": "YOUR_ROOM_ID"` op in de JSON. Gebruik de ID van de ruimte, niet de naam.
+
+Een bestemming kiezen voegt een ruimte-ID toe aan de URL. De aanroeper kan die ID wijzigen en in elke ruimte schrijven waar de bot dat mag. Geef de bot alleen schrijfrechten in één ruimte om de webhook tot die ruimte te beperken.
+
+## 4. Een test sturen en het resultaat controleren
+
+Gebruik de testfunctie van de externe tool. Een geslaagd inkomend verzoek geeft HTTP `200` met de tekst `ok` terug. In Chatto moet het bericht in de gekozen ruimte verschijnen onder **Release-updates**, met een **BOT**-label en “0.5” in vet.
+
+Mislukt het verzoek, controleer dan het antwoord:
+
+- **`401 invalid_token`:** de URL is onvolledig, ongeldig of ingetrokken. Maak een nieuwe inkomende webhook als je de volledige URL niet meer hebt.
+- **`404 channel_not_found`:** controleer de ruimte-ID, het lidmaatschap van de bot, het recht `message.post` en de schrijfrechten van de eigenaar in die ruimte.
+- **`400 invalid_payload`:** stuur geldige JSON met niet-lege berichttekst en een ruimte-ID. Staat de ruimte-ID in zowel de URL als de inhoud, dan moeten de waarden overeenkomen. Ruimteregels en berichtgroottelimieten gelden ook.
+- **Het bericht verschijnt twee keer:** opnieuw proberen kan nog een bericht maken. Inkomende webhooks bieden geen idempotentiesleutel om duplicaten te onderdrukken.
+
+Stel na een geslaagde test je tool in om de webhook aan te roepen zodra een uitrol klaar is.
+
+## Een bot maken die mensen antwoord geeft
+
+Configureer je botprogramma met de Chatto-API-sleutel. Bewaar de sleutel in de geheime configuratie van het programma. API-verzoeken gebruiken de header `Authorization: Bearer YOUR_API_KEY` voor authenticatie.
+
+Kies de benodigde rechten:
+
+- **Alleen antwoorden wanneer aangesproken:** geef `message.read-interactions` en `message.post-in-interactions`. De bot kan volledige threads lezen die de bot begon, threads waarin de bot rechtstreeks is vermeld en de eigen privéberichten. Een vermelding kan de bot dus ook toegang geven tot eerdere berichten in de thread.
+- **De ruimte lezen, maar alleen antwoorden wanneer aangesproken:** geef `message.read` en `message.post-in-interactions`.
+- **Alle berichten lezen en gesprekken beginnen:** geef `message.read` en `message.post`.
+
+Pas de rechten toe op de bedoelde ruimtes. Gebruik voor privéberichten het bereik **Directe berichten** in de matrix. De rechten van de eigenaar blijven deze rechten begrenzen.
+
+### Je programma vertellen wanneer het moet antwoorden
+
+Als je programma Chatto-webhookgebeurtenissen ontvangt:
+
+1. Open **Integraties → Uitgaande webhooks → Webhook maken**.
+2. Voer een naam en het openbare HTTPS-eindpunt van je programma in.
+3. Vereist de ontvanger een **Authorization-header**, vul dan de volledige verwachte waarde in, inclusief een voorvoegsel zoals `Bearer`.
+4. Kopieer het ondertekeningsgeheim naar de configuratie van de ontvanger als die Chatto-webhookhandtekeningen controleert. Het geheim wordt slechts één keer getoond.
+5. Vermeld de bot in een ruimte die de bot mag lezen, of stuur een privébericht. Controleer de logboeken van de ontvanger en het antwoord van de bot in Chatto.
+
+Het eindpunt ontvangt nieuwe berichten die de bot rechtstreeks vermelden of tot de privéberichten van de bot behoren. Gewone ruimteberichten, bewerkingen, reacties en berichten van de bot zelf activeren deze webhooks niet. Een later normaal antwoord in een ruimtethread activeert de webhook alleen als het de bot opnieuw vermeldt.
+
+De ontvanger moet de gebeurtenis met een HTTP-2xx-antwoord aannemen en vervolgens een chatantwoord via de API versturen. Chatto negeert de inhoud van het HTTP-antwoord. Bezorgingen kunnen worden herhaald. De ontvanger moet daarom de bezorgings-ID gebruiken om hetzelfde werk niet twee keer te doen. Gebruik voor een programma dat alle leesbare activiteit nodig heeft de realtime-API van Chatto in plaats van de webhook voor vermeldingen en privéberichten.
+
+Zie de [referentie voor botwebhooks](https://docs.chatto.run/reference/bot-webhooks/) en de [API-referentie](https://docs.chatto.run/reference/connectrpc-api/) voor gebeurtenisinhoud, handtekeningcontrole en API-acties.
+
+Een uitgaande webhook stuurt berichttekst en identifiers van berichten, auteurs, ruimtes en bots naar het ingestelde eindpunt. De ontvanger ziet ook het uitgaande IP-adres van de Chatto-server. Als je bot berichten doorstuurt naar een AI-aanbieder of andere dienst, leg dat dan uit aan leden voordat je de bot in hun gesprekken gebruikt.
+
+### Als de bot stil blijft
+
+Controleer of je programma de gebeurtenis heeft ontvangen. Open bij de uitgaande webhook **Recente fouten** voor vastgelegde bezorgingsfouten. Controleer of het eindpunt is ingeschakeld, bereikbaar is, de ingestelde authenticatie accepteert en zonder omleiding 2xx teruggeeft. Een lege foutenlijst bewijst niet dat de bezorging is geslaagd.
+
+Is de gebeurtenis aangekomen maar verschijnt er geen antwoord, controleer dan de API-sleutel van het programma, de antwoordactie en de effectieve lees- en schrijfrechten van de bot.
+
+## De integratie onderhouden
+
+- **Een toegangsmiddel vervangen:** maak een nieuwe benoemde sleutel of webhook, werk de aanroeper bij, test die en trek daarna de oude in. API-sleutels verlopen niet automatisch. Plak nooit een echte sleutel of URL met toegangsgegevens in de chat of broncodebeheer.
+- **Uitgaande bezorging tijdelijk stoppen:** kies **Pauzeren** op het eindpunt. **Hervatten** staat nieuwe gebeurtenissen toe, maar speelt de pauzeperiode niet opnieuw af.
+- **De bot overdragen aan een andere eigenaar:** een account met `bot.manage` kan **Eigenaar opnieuw toewijzen** gebruiken. De effectieve toegang van de bot volgt meteen de nieuwe eigenaar. Bestaande sleutels blijven geldig, dus vervang toegangsgegevens als de vorige beheerder toegang moet verliezen.
+- **Een eigenaarsaccount verwijderen:** wijs bots die moeten blijven bestaan eerst opnieuw toe. Als je een menselijke eigenaar verwijdert, worden ook diens bots verwijderd.
+- **Leden laten zien wat de bot kan:** open het profiel en bekijk **Eigenaar** en **Wat hij kan doen**. Controleer die toegang na wijzigingen in ruimtes of eigendom.

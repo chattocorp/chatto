@@ -470,6 +470,27 @@ describe('renderMarkdown', () => {
   });
 
   describe('emphasis at word boundaries', () => {
+    it.each(['مرحبا', 'שלום', 'привіт', 'привет', '中文', '日本語', 'e\u0301', '𐐀𐐨'])(
+      'formats Unicode words and combining marks: %s',
+      async (word) => {
+        const html = await renderMarkdown(`**${word}** *${word}* __${word}__`);
+        expect(html).toContain(`<strong>${word}</strong>`);
+        expect(html).toContain(`<em>${word}</em>`);
+        expect(html).toContain(`<u>${word}</u>`);
+        expect(renderInlineMarkdown(`**${word}**`)).toContain(`<strong>${word}</strong>`);
+      }
+    );
+
+    it.each(['مرحبا', 'שלום', 'привет', '日本語', 'e\u0301', '𐐀𐐨'])(
+      'keeps punctuation around emphasized Unicode words: %s',
+      async (word) => {
+        const html = await renderMarkdown(`*...${word}:* **${word}:** **${word}**`);
+        expect(html).toContain(`<em>...${word}:</em>`);
+        expect(html).toContain(`<strong>${word}:</strong>`);
+        expect(html).toContain(`<strong>${word}</strong>`);
+      }
+    );
+
     it('renders `*italic*` as italic', async () => {
       const html = await renderMarkdown('*italic*');
       expect(html).toContain('<em>italic</em>');
@@ -559,6 +580,36 @@ describe('renderMarkdown', () => {
   });
 
   describe('emphasis suppressed when not at word boundaries', () => {
+    it.each(['имя_поля_значение', '字*中*字', 'e\u0301*mot*e\u0301', '𐐀*𐐨*𐐀'])(
+      'keeps Unicode intraword markers literal: %s',
+      async (source) => {
+        const html = await renderMarkdown(source);
+        expect(html).toContain(source);
+        expect(html).not.toContain('<em>');
+      }
+    );
+
+    it.each(['*(x)*', '_(ツ)_/¯', '*(ツ)*'])(
+      'keeps parenthesized single-glyph faces literal: %s',
+      async (source) => {
+        const html = await renderMarkdown(source);
+        expect(html).toContain(source);
+        expect(html).not.toContain('<em>');
+      }
+    );
+
+    it('does not mistake parenthesized words for single-glyph faces', async () => {
+      const html = await renderMarkdown('*(hello)* *(日本語)*');
+      expect(html).toContain('<em>(hello)</em>');
+      expect(html).toContain('<em>(日本語)</em>');
+    });
+
+    it('allows explicit double-marker formatting around single-glyph faces', async () => {
+      const html = await renderMarkdown('**(ツ)** __(x)__');
+      expect(html).toContain('<strong>(ツ)</strong>');
+      expect(html).toContain('<u>(x)</u>');
+    });
+
     it('does not italicize underscores between punctuation', async () => {
       const html = await renderMarkdown('_(ツ)_/¯');
       expect(html).toContain('_(ツ)_/¯');

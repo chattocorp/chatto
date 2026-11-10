@@ -1,0 +1,195 @@
+Botid võimaldavad välistel tööriistadel Chattosse sõnumeid postitada ja vestlustele
+vastata. Looge botikonto, andke sellele ligipääs vajalikele ruumidele ning ühendage
+oma tööriist API-võtme või veebihaagiga. Boti tarkvara käitate eraldi.
+
+Järgmised sammud seadistavad boti, mis postitab juurutamise teateid. Teil on vaja
+botide loomise õigust ja ligipääsu sihtruumile.
+
+## Tööriista ühendusviisi valimine
+
+Ühendusviise on kolm. Bot võib kasutada neist mitut.
+
+- **Sissetulev veebihaak: teie tööriist → Chatto.** Andke märguannete teenusele või
+  automatiseerimistööriistale URL, kuhu sõnumeid postitada.
+- **API-võti: teie programm → Chatto.** Andke oma botiprogrammile võti, et see saaks
+  lugeda sõnumeid, saata vastuseid või kasutada muid lubatud API-toiminguid.
+- **Väljaminev veebihaak: Chatto → teie tööriist.** Andke Chattole lõpp-punkt,
+  kuhu saata teade, kui keegi mainib boti või saadab sellele otsesõnumi. Teie
+  tööriist töötleb sündmust ja kasutab vastamiseks vajaduse korral API-võtit.
+
+Juurutamise teadete jaoks kasutage sissetulevat veebihaaki. Mainimistele või
+otsesõnumitele vastava boti jaoks kasutage sõnumite saamiseks väljaminevat
+veebihaaki ja vastamiseks API-võtit.
+
+## 1. Botikonto loomine
+
+1. Avage serveris, kus bot tööle hakkab, **Serveri haldus → Botid**.
+2. Valige **Loo robot**. Selles näites kasutage kasutajanime `release-bot` ja
+   kuvatavat nime **Väljalasete teated**. Kasutajanimi tuvastab konto; kuvatavat
+   nime näevad liikmed boti sõnumite kõrval.
+3. Looge bot. Chatto näitab API-võtit ühe korra. Kui kasutate API-t, salvestage see
+   integratsiooni saladuste hoidlasse. Pärast dialoogi sulgemist ei saa seda võtit
+   enam kuvada.
+4. Avage boti üksikasjade leht. Lisage profiilile lühike kirjeldus, näiteks
+   „Postitab meie väljalasketorustiku juurutamise tulemused.”
+
+Kui **Loo robot** pole saadaval, küsige administraatorilt õigust `bot.create`.
+Boti omamine võimaldab teil hallata seda boti; kõigi botide haldamine nõuab eraldi
+õigust.
+
+Kui tööriist kasutab ainult sissetulevat veebihaaki, ei vaja see API-võtit.
+Tühistage kasutamata algne võti jaotises **Integratsioonid → API-võtmed**.
+
+## 2. Ligipääsu andmine ühele ruumile
+
+Uuel botil pole õigusi. See ei päri omaniku rolle ega rolli `everyone` õigusi.
+Ruumiga liitumine ja luba sinna postitada on eraldi nõuded.
+
+1. Avage boti vahekaart **Load**.
+2. Leidke juurutamise teadete ruumi veerg.
+3. Valige maatriksi ülemises reas **Liitunud** see ruum ja kinnitage liikmesuse muutus.
+4. Lubage selles ruumis `message.post`. Jätke muud õigused määramata.
+
+Juurutamisbot ei vaja lugemisõigust. Et piirata postitamist ühe ruumiga, andke
+`message.post` selle ruumi veerus. Serveriülene õigus kehtib mitmes ruumis.
+
+Ka teil peab olema õigus boti ruumi lisada. Arhiveeritud ruumid ja ruumist
+kõrvaldamine võivad liitumist takistada. Boti enda õigus `room.join` on mõeldud
+API kaudu ruumidega liitumiseks; see ei asenda rida **Liitunud**.
+
+### Bot ei saa ületada omaniku ligipääsu
+
+Iga boti õigust piiravad inimomaniku praegused õigused samas ulatuses.
+Salvestatud õigus võib olla passiivne: lukk maatriksis tähendab, et omaniku õigused
+blokeerivad selle. Kui omanik kaotab ligipääsu, kaotab selle ka bot.
+Väljalogimine boti ei peata.
+
+Mõned õigused nõuavad kõrgendatud õigustega režiimi. Kui Chatto palub selle sisse
+lülitada, tehke seda enne õiguse lisamist.
+
+## 3. Sissetuleva veebihaagi ühendamine
+
+1. Avage boti üksikasjade lehel **Integratsioonid**.
+2. Valige jaotises **Sissetulevad veebihaagid** käsk **Loo veebihaak**.
+3. Nimetage see kutsuja järgi, näiteks **Väljalasketorustik**.
+4. Valige **Sihtruumiks** juurutamise teadete ruum.
+5. Looge veebihaak ja kopeerige täielik URL oma tööriista veebihaagi seadistusse.
+   Säilitage URL-i osa `?room_id=…`.
+
+Seadistage tööriist saatma HTTP **POST** päringut päisega
+`Content-Type: application/json` ja järgmise sisuga:
+
+```json
+{
+  "text": "Juurutamine lõpetatud: versioon **0.5** on testimiseks valmis."
+}
+```
+
+Valitud ruum on juba URL-is, seega ei vaja see päring välja `channel`.
+Kui valite selle asemel **Vali igas päringus**, lisage JSON-i
+`"channel": "YOUR_ROOM_ID"`. Kasutage ruumi ID-d, mitte nime.
+
+Sihtkoha valimine lisab URL-i ruumi ID. Kutsuja saab seda ID-d muuta ja postitada
+igasse ruumi, kuhu botil on postitamisõigus. Veebihaagi piiramiseks ühe ruumiga
+andke botile postitamisõigus ainult selles ruumis.
+
+## 4. Testi saatmine ja tulemuse kontrollimine
+
+Kasutage välise tööriista testimisfunktsiooni. Edukas sissetulev päring tagastab
+HTTP `200` koos tekstiga `ok`. Chattos peaks valitud ruumi ilmuma sõnum nimega
+**Väljalasete teated**, märgisega **BOT** ja paksus kirjas „0.5”.
+
+Kui päring ebaõnnestub, kontrollige vastust:
+
+- **`401 invalid_token`:** URL on puudulik, vigane või tühistatud. Kui täielikku
+  URL-i enam pole, looge uus sissetulev veebihaak.
+- **`404 channel_not_found`:** kontrollige ruumi ID-d, boti liikmesust, õigust
+  `message.post` ja omaniku postitamisõigust selles ruumis.
+- **`400 invalid_payload`:** saatke korrektne JSON mittetühja sõnumiteksti ja
+  ruumi ID-ga. Kui ruumi ID esineb nii URL-is kui ka sisus, peavad väärtused
+  kattuma. Kehtivad ka ruumi reeglid ja sõnumi pikkuse piirangud.
+- **Sõnum ilmub kaks korda:** uuesti proovimine võib luua teise sõnumi.
+  Sissetulevatel veebihaakidel puudub idempotentsusvõti korduste vältimiseks.
+
+Pärast edukat testi seadistage tööriist veebihaaki kutsuma, kui juurutamine lõpeb.
+
+## Inimestele vastava boti loomine
+
+Seadistage botiprogramm kasutama oma Chatto API-võtit. Hoidke võtit programmi
+salajases konfiguratsioonis. API-päringud autentitakse päisega
+`Authorization: Bearer YOUR_API_KEY`.
+
+Valige botile vajalikud õigused:
+
+- **Vastab ainult pöördumisele:** andke õigused `message.read-interactions` ja
+  `message.post-in-interactions`. Bot saab lugeda terveid lõimi, mille ta ise
+  alustas, lõimi, kus teda otse mainiti, ja oma otsesõnumeid. Boti mainimine võib
+  seega anda talle ligipääsu ka selle lõime varasematele sõnumitele.
+- **Loeb ruumi, kuid vastab ainult pöördumisele:** andke õigused `message.read`
+  ja `message.post-in-interactions`.
+- **Loeb kõiki sõnumeid ja alustab vestlusi:** andke õigused `message.read` ja
+  `message.post`.
+
+Andke õigused ettenähtud ruumides. Otsesõnumite jaoks kasutage maatriksis ulatust
+**Otsesõnumid**. Omaniku õigused piiravad endiselt neid õigusi.
+
+### Programmile teada andmine, millal vastata
+
+Kui programm võtab vastu Chatto veebihaagisündmusi:
+
+1. Avage **Integratsioonid → Väljaminevad veebihaagid → Loo veebihaak**.
+2. Sisestage nimi ja programmi avalik HTTPS-lõpp-punkt.
+3. Kui vastuvõtja nõuab **Authorization-päist**, sisestage täielik oodatud
+   väärtus koos eesliitega, näiteks `Bearer`.
+4. Kui vastuvõtja kontrollib Chatto veebihaagiallkirju, kopeerige allkirjastamise
+   saladus vastuvõtja seadistusse. Saladust näidatakse ainult ühe korra.
+5. Mainige boti ruumis, mida ta lugeda saab, või saatke talle otsesõnum.
+   Kontrollige vastuvõtja logisid ja boti vastust Chattos.
+
+Lõpp-punkt saab uusi sõnumeid, milles boti otse mainitakse või mis kuuluvad tema
+otsesõnumitesse. Tavalised ruumisõnumid, muudatused, reaktsioonid ja boti enda
+saadetud sõnumid neid veebihaake ei käivita. Hilisem tavaline vastus ruumi lõimes
+ei käivita veebihaaki, kui see boti uuesti ei maini.
+
+Vastuvõtja peaks kinnitama sündmuse HTTP 2xx vastusega ja seejärel saatma võimaliku
+vestlusvastuse API kaudu. Chatto eirab HTTP vastuse sisu. Tarneid võidakse korrata,
+seega peab vastuvõtja kasutama tarne ID-d, et sama tööd mitte kaks korda teha.
+Kui programm vajab kogu loetavat tegevust, kasutage mainimiste ja otsesõnumite
+veebihaagi asemel Chatto reaalaja API-t.
+
+Sündmuse sisu, allkirja kontrollimise ja API-toimingute kohta vaadake
+[boti veebihaakide viidet](https://docs.chatto.run/reference/bot-webhooks/) ja
+[API viidet](https://docs.chatto.run/reference/connectrpc-api/).
+
+Väljaminev veebihaak saadab seadistatud lõpp-punkti sõnumiteksti ning sõnumi,
+autori, ruumi ja boti identifikaatorid. Vastuvõtja näeb ka Chatto serveri
+väljaminevat IP-aadressi. Kui bot edastab sõnumeid tehisintellekti pakkujale või
+muule teenusele, selgitage seda liikmetele enne boti kasutamist nende vestlustes.
+
+### Kui bot vaikib
+
+Kontrollige, kas programm sai sündmuse kätte. Avage väljamineva veebihaagi juures
+**Hiljutised tõrked**, et näha salvestatud tarnevigu. Kontrollige, et lõpp-punkt
+oleks lubatud ja kättesaadav, aktsepteeriks seadistatud autentimist ning tagastaks
+2xx ilma ümbersuunamiseta. Tühi tõrkeloend ei tõesta edukat tarnet.
+
+Kui sündmus saabus, kuid vastust ei ilmunud, kontrollige programmi API-võtit,
+vastamise toimingut ning boti tegelikke lugemis- ja postitamisõigusi.
+
+## Integratsiooni hooldamine
+
+- **Tunnuse asendamine:** looge uus nimega võti või veebihaak, uuendage kutsujat,
+  testige ja seejärel tühistage vana. API-võtmed ei aegu automaatselt. Ärge
+  kleepige kunagi päris võtit ega autentimistunnust sisaldavat URL-i vestlusse
+  või lähtekoodihaldusse.
+- **Väljamineva tarne ajutine peatamine:** valige lõpp-punktil **Peata**.
+  **Jätka** lubab uusi sündmusi; peatatud ajavahemiku sündmusi ei saadeta uuesti.
+- **Boti üleandmine teisele omanikule:** konto õigusega `bot.manage` saab kasutada
+  toimingut **Määra omanik ümber**. Boti tegelik ligipääs järgib kohe uut omanikku.
+  Olemasolevad võtmed jäävad kehtima, seega vahetage tunnused, kui eelmine
+  haldaja peab ligipääsu kaotama.
+- **Omaniku konto eemaldamine:** andke pikaajaliselt kasutatavad botid esmalt
+  uuele omanikule. Inimomaniku kustutamine kustutab ka tema botid.
+- **Liikmetele boti võimaluste näitamine:** avage boti profiil ja vaadake
+  **Omanik** ja **Mida ta saab teha**. Vaadake ligipääs pärast ruumide või
+  omaniku muutmist uuesti üle.

@@ -1,0 +1,182 @@
+Boti umožňují externím nástrojům zveřejňovat zprávy a odpovídat na konverzace v Chatto.
+Vytvořte účet bota, dejte mu přístup do potřebných místností a připojte nástroj pomocí
+klíče API nebo webhooku. Software bota spouštíte samostatně.
+
+Následující kroky nastaví bota, který zveřejňuje informace o nasazení. Potřebujete
+oprávnění vytvářet boty a přístup do cílové místnosti.
+
+## Vyberte způsob připojení nástroje
+
+Existují tři způsoby připojení. Bot může používat více než jeden.
+
+- **Příchozí webhook: váš nástroj → Chatto.** Dejte službě upozornění nebo automatizačnímu
+  nástroji URL, na kterou může odesílat zprávy.
+- **Klíč API: váš program → Chatto.** Dejte programu bota klíč, aby mohl číst zprávy,
+  odpovídat nebo používat další operace API, které povolíte.
+- **Odchozí webhook: Chatto → váš nástroj.** Dejte Chatto koncový bod, který upozorní,
+  když někdo bota zmíní nebo mu pošle přímou zprávu. Nástroj zpracuje událost a použije
+  klíč API, pokud potřebuje odpovědět.
+
+Pro informace o nasazení použijte příchozí webhook. Pro bota odpovídajícího na zmínky
+nebo přímé zprávy použijte odchozí webhook k příjmu zpráv a klíč API k odesílání odpovědí.
+
+## 1. Vytvořte účet bota
+
+1. Otevřete **Správa serveru → Boti** na serveru, kde bude bot pracovat.
+2. Vyberte **Vytvořit robota**. V tomto příkladu použijte `release-bot` jako uživatelské
+   jméno a **Aktualizace vydání** jako zobrazované jméno. Uživatelské jméno identifikuje
+   účet; zobrazované jméno členové vidí vedle zpráv.
+3. Vytvořte bota. Chatto zobrazí klíč API pouze jednou. Pokud budete používat API,
+   uložte ho do úložiště tajných údajů integrace. Po zavření dialogu už jej nelze znovu zobrazit.
+4. Otevřete stránku podrobností bota. Přidejte krátký popis profilu, například
+   „Zveřejňuje výsledky nasazení z našeho procesu vydávání“.
+
+Pokud **Vytvořit robota** není dostupné, požádejte správce o `bot.create`. Vlastnictví
+bota umožňuje spravovat daného bota; správa všech botů je samostatné oprávnění.
+
+Pokud nástroj používá pouze příchozí webhook, klíč API nepotřebuje. Nepoužitý počáteční
+klíč zneplatněte v **Integrace → Klíče API**.
+
+## 2. Dejte mu přístup do jedné místnosti
+
+Nový bot nemá žádná oprávnění. Nedědí role vlastníka ani oprávnění role `everyone`.
+Členství v místnosti a oprávnění v ní psát jsou samostatné požadavky.
+
+1. Otevřete kartu **Oprávnění** bota.
+2. Najděte sloupec místnosti pro informace o nasazení.
+3. V řádku **Připojeno** nahoře v matici vyberte místnost a potvrďte změnu členství.
+4. Povolte v této místnosti `message.post`. Nesouvisející oprávnění nechte nenastavená.
+
+Bot pro nasazení nepotřebuje číst zprávy. Udělte `message.post` ve sloupci místnosti,
+aby mohl psát jen tam. Oprávnění na úrovni serveru platí napříč místnostmi.
+
+Potřebujete také právo přidat bota do místnosti. Archivované místnosti a pozastavení
+přístupu mohou připojení zabránit. Vlastní oprávnění bota `room.join` slouží pro
+připojování přes API; nenahrazuje řádek **Připojeno**.
+
+### Bot nemůže překročit přístup vlastníka
+
+Každé oprávnění bota je omezeno aktuálními oprávněními jeho lidského vlastníka ve stejném
+rozsahu. Uložené oprávnění může být neaktivní: zámek v matici znamená, že ho oprávnění
+vlastníka blokují. Pokud vlastník ztratí přístup, ztratí ho i bot. Odhlášení bota nezastaví.
+
+Některá oprávnění vyžadují privilegovaný režim. Pokud vás Chatto požádá o jeho aktivaci,
+proveďte ji před přidáním oprávnění.
+
+## 3. Připojte příchozí webhook
+
+1. Na stránce podrobností bota otevřete **Integrace**.
+2. V části **Příchozí webhooky** vyberte **Vytvořit webhook**.
+3. Pojmenujte ho podle volajícího systému, například **Proces vydávání**.
+4. Jako **Cílovou místnost** vyberte místnost pro informace o nasazení.
+5. Vytvořte webhook a zkopírujte celou URL do konfigurace nástroje. Zachovejte část `?room_id=…`.
+
+Nastavte nástroj tak, aby posílal HTTP **POST** s `Content-Type: application/json`
+a tímto tělem:
+
+```json
+{
+  "text": "Nasazení dokončeno: verze **0.5** je připravena k testování."
+}
+```
+
+Vybraná místnost už je v URL, takže tento požadavek nepotřebuje pole `channel`.
+Pokud vyberete **Vybrat v každém požadavku**, přidejte do JSON `"channel": "YOUR_ROOM_ID"`.
+Použijte ID místnosti, nikoli její název.
+
+Výběr cíle přidá ID místnosti do URL. Volající může ID změnit a psát do kterékoli
+místnosti, kam může psát bot. Chcete-li webhook omezit na jednu místnost, udělte botovi
+oprávnění psát pouze tam.
+
+## 4. Odešlete test a zkontrolujte výsledek
+
+Použijte testovací funkci externího nástroje. Úspěšný příchozí požadavek vrátí HTTP `200`
+s textem `ok`. V Chatto by se zpráva měla objevit ve vybrané místnosti pod jménem
+**Aktualizace vydání**, se štítkem **BOT** a tučně zobrazeným „0.5“.
+
+Pokud požadavek selže, zkontrolujte odpověď:
+
+- **`401 invalid_token`:** URL je neúplná, neplatná nebo zneplatněná. Pokud už nemáte
+  celou URL, vytvořte nový příchozí webhook.
+- **`404 channel_not_found`:** zkontrolujte ID místnosti, členství bota, jeho oprávnění
+  `message.post` a právo vlastníka psát do této místnosti.
+- **`400 invalid_payload`:** pošlete platný JSON s neprázdným textem zprávy a ID místnosti.
+  Pokud je ID v URL i v těle, hodnoty se musí shodovat. Platí také pravidla místnosti
+  a omezení velikosti zpráv.
+- **Zpráva se objeví dvakrát:** opakování požadavku může vytvořit další zprávu. Příchozí
+  webhooky neposkytují idempotentní klíč pro potlačení duplicit.
+
+Po úspěšném testu nastavte nástroj, aby webhook zavolal po dokončení nasazení.
+
+## Vytvořte bota, který odpovídá lidem
+
+Nastavte program bota s jeho klíčem API Chatto. Klíč uložte do tajné konfigurace programu.
+Požadavky API se ověřují hlavičkou `Authorization: Bearer YOUR_API_KEY`.
+
+Vyberte potřebná oprávnění:
+
+- **Odpovídat jen při oslovení:** udělte `message.read-interactions` a
+  `message.post-in-interactions`. Bot může číst celá vlákna, která založil, vlákna,
+  kde ho někdo přímo zmínil, a své přímé zprávy. Zmínka mu tedy může zpřístupnit i
+  starší zprávy v daném vlákně.
+- **Číst místnost, ale odpovídat jen při oslovení:** udělte `message.read` a
+  `message.post-in-interactions`.
+- **Číst všechny zprávy a zahajovat konverzace:** udělte `message.read` a `message.post`.
+
+Použijte oprávnění na zamýšlené místnosti. Pro přímé zprávy použijte rozsah **Přímé
+zprávy** v matici. Oprávnění vlastníka tyto granty nadále omezují.
+
+### Určete programu, kdy má odpovědět
+
+Pokud program přijímá webhookové události Chatto:
+
+1. Otevřete **Integrace → Odchozí webhooky → Vytvořit webhook**.
+2. Zadejte název a veřejný HTTPS koncový bod programu.
+3. Pokud příjemce vyžaduje **Autorizační hlavičku**, zadejte celou očekávanou hodnotu
+   včetně předpony, například `Bearer`.
+4. Pokud příjemce ověřuje podpisy webhooků Chatto, zkopírujte tajný podpisový klíč
+   do jeho konfigurace. Klíč se zobrazuje pouze jednou.
+5. Zmiňte bota v místnosti, kterou může číst, nebo mu pošlete přímou zprávu. Zkontrolujte
+   protokoly příjemce a odpověď bota v Chatto.
+
+Koncový bod dostává nové zprávy, které bota přímo zmiňují nebo jsou jeho přímými zprávami.
+Běžné zprávy v místnosti, úpravy, reakce a zprávy odeslané samotným botem tyto webhooky
+nespouštějí. Běžná pozdější odpověď ve vlákně místnosti ho také nespustí, pokud znovu nezmíní bota.
+
+Příjemce má přijmout událost odpovědí HTTP 2xx a potom případnou odpověď do chatu odeslat
+přes API. Chatto ignoruje tělo HTTP odpovědi. Doručení se může opakovat, takže příjemce
+musí použít ID doručení, aby neprovedl stejnou práci dvakrát. Program potřebující veškerou
+čitelnou aktivitu má použít API Chatto v reálném čase místo webhooku pro zmínky a přímé zprávy.
+
+Pro obsah událostí, ověřování podpisů a operace API použijte
+[referenci webhooků botů](https://docs.chatto.run/reference/bot-webhooks/)
+a [referenci API](https://docs.chatto.run/reference/connectrpc-api/).
+
+Odchozí webhook odesílá text a identifikátory zprávy, autora, místnosti a bota na nastavený
+koncový bod. Příjemce také vidí odchozí IP adresu serveru Chatto. Pokud bot přeposílá
+zprávy poskytovateli AI nebo jiné službě, vysvětlete to členům před použitím v jejich konverzacích.
+
+### Pokud bot mlčí
+
+Ověřte, zda program událost obdržel. U odchozího webhooku otevřete **Nedávná selhání**
+a prohlédněte zaznamenané chyby doručení. Ověřte, že je koncový bod zapnutý, dostupný,
+přijímá nastavené ověřování a vrací 2xx bez přesměrování. Prázdný seznam selhání
+nedokazuje úspěšné doručení.
+
+Pokud událost dorazila, ale odpověď se neobjevila, zkontrolujte klíč API programu,
+operaci odpovědi a skutečná oprávnění bota číst a psát.
+
+## Udržujte integraci
+
+- **Vyměňte přihlašovací údaj:** vytvořte nový pojmenovaný klíč nebo webhook, aktualizujte
+  volajícího, otestujte ho a potom zneplatněte starý. Klíče API automaticky nevyprší.
+  Nikdy nevkládejte skutečný klíč ani URL s přihlašovacími údaji do chatu nebo systému správy verzí.
+- **Dočasně zastavte odchozí doručování:** u koncového bodu vyberte **Pozastavit**.
+  **Obnovit** umožní nové události; nepřehraje období pozastavení.
+- **Předejte bota jinému vlastníkovi:** účet s `bot.manage` může použít **Změnit vlastníka**.
+  Skutečný přístup bota okamžitě odpovídá novému vlastníkovi. Existující klíče zůstávají
+  platné, takže je vyměňte, pokud má předchozí provozovatel ztratit přístup.
+- **Odstraňte účet vlastníka:** nejprve převeďte dlouhodobě používané boty. Odstranění
+  lidského vlastníka odstraní i jeho boty.
+- **Ukažte členům možnosti bota:** otevřete jeho profil a zkontrolujte **Vlastník** a
+  **Co může dělat**. Přístup znovu ověřte po změně místností nebo vlastnictví.

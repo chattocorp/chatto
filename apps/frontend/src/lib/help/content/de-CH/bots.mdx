@@ -1,0 +1,120 @@
+Mit Bots können externe Werkzeuge Nachrichten in Chatto posten und auf Unterhaltungen antworten. Erstelle ein Bot-Konto, gib ihm Zugriff auf die benötigten Räume und verbinde dein Werkzeug über einen API-Schlüssel oder Webhook. Die Bot-Software betreibst du separat.
+
+Die folgenden Schritte richten einen Bot ein, der Bereitstellungsupdates postet. Du benötigst die Berechtigung zum Erstellen von Bots und Zugriff auf den Zielraum.
+
+## Verbindungsmethode auswählen
+
+Es gibt drei Verbindungsmethoden. Ein Bot kann mehrere verwenden.
+
+- **Eingehender Webhook: dein Werkzeug → Chatto.** Gib einem Benachrichtigungsdienst oder Automatisierungswerkzeug eine URL, an die es Nachrichten senden kann.
+- **API-Schlüssel: dein Programm → Chatto.** Gib deinem Bot-Programm einen Schlüssel, damit es Nachrichten lesen, Antworten senden oder andere erlaubte API-Operationen ausführen kann.
+- **Ausgehender Webhook: Chatto → dein Werkzeug.** Gib Chatto einen Endpunkt, den es benachrichtigt, wenn jemand den Bot erwähnt oder ihm eine Direktnachricht sendet. Dein Werkzeug verarbeitet das Ereignis und verwendet zum Antworten einen API-Schlüssel.
+
+Verwende für Bereitstellungsupdates einen eingehenden Webhook. Für einen Bot, der auf Erwähnungen oder Direktnachrichten antwortet, verwendest du einen ausgehenden Webhook zum Empfangen und einen API-Schlüssel zum Antworten.
+
+## 1. Bot-Konto erstellen
+
+1. Öffne **Serververwaltung → Bots** auf dem Server, auf dem der Bot arbeiten soll.
+2. Wähle **Bot erstellen**. Verwende für dieses Beispiel `release-bot` als Benutzernamen und **Versionsupdates** als Anzeigenamen. Der Benutzername identifiziert das Konto; Mitglieder sehen den Anzeigenamen neben den Nachrichten.
+3. Erstelle den Bot. Chatto zeigt einmalig einen API-Schlüssel an. Speichere ihn im Geheimnisspeicher deiner Integration, wenn du die API verwenden möchtest. Nach dem Schliessen des Dialogs kannst du diesen Schlüssel nicht erneut anzeigen.
+4. Öffne die Detailseite des Bots. Gib seinem Profil eine kurze Beschreibung, etwa „Postet Bereitstellungsergebnisse aus unserer Release-Pipeline.“
+
+Ist **Bot erstellen** nicht verfügbar, bitte einen Administrator um `bot.create`. Als Eigentümer kannst du deinen Bot verwalten. Die Berechtigung, alle Bots zu verwalten, wird separat erteilt.
+
+Verwendet dein Werkzeug nur einen eingehenden Webhook, benötigt es keinen API-Schlüssel. Widerrufe den ungenutzten ersten Schlüssel unter **Integrationen → API-Schlüssel**.
+
+## 2. Zugriff auf einen Raum erteilen
+
+Ein neuer Bot hat keine Berechtigungen. Er erbt weder die Rollen seines Eigentümers noch die Berechtigungen der Rolle `everyone`. Raummitgliedschaft und die Erlaubnis zum Posten sind getrennte Voraussetzungen.
+
+1. Öffne den Tab **Berechtigungen** des Bots.
+2. Suche die Spalte deines Raums für Bereitstellungsupdates.
+3. Wähle diesen Raum in der Zeile **Beigetreten** oben in der Matrix und bestätige die Mitgliedschaftsänderung.
+4. Erlaube `message.post` für diesen Raum. Lass nicht benötigte Berechtigungen ungesetzt.
+
+Der Bereitstellungsbot benötigt keinen Lesezugriff. Erteile `message.post` in der Raumspalte, um das Posten auf diesen Raum zu beschränken. Eine serverweite Berechtigung gilt raumübergreifend.
+
+Du benötigst auch die Befugnis, den Bot dem Raum hinzuzufügen. Archivierte Räume und Raumsperren können den Beitritt verhindern. Die eigene Berechtigung `room.join` des Bots dient dem Beitritt über die API. Sie ersetzt nicht die Zeile **Beigetreten**.
+
+### Ein Bot kann nicht mehr als sein Eigentümer
+
+Jede Bot-Berechtigung ist durch die aktuellen Berechtigungen des menschlichen Eigentümers im selben Geltungsbereich begrenzt. Eine gespeicherte Berechtigung kann inaktiv sein: Ein Schloss in der Matrix zeigt an, dass die Berechtigungen des Eigentümers sie blockieren. Verliert der Eigentümer Zugriff, verliert ihn auch der Bot. Abmelden stoppt den Bot nicht.
+
+Manche Berechtigungen erfordern den privilegierten Modus. Fordert Chatto dich dazu auf, aktiviere ihn vor dem Erteilen der Berechtigung.
+
+## 3. Eingehenden Webhook verbinden
+
+1. Öffne **Integrationen** auf der Detailseite des Bots.
+2. Wähle unter **Eingehende Webhooks** die Aktion **Webhook erstellen**.
+3. Benenne ihn nach dem Aufrufer, zum Beispiel **Release-Pipeline**.
+4. Wähle den Raum für Bereitstellungsupdates als **Zielraum**.
+5. Erstelle den Webhook und kopiere die vollständige URL in die Webhook-Konfiguration deines Werkzeugs. Behalte den Teil `?room_id=…` der URL bei.
+
+Konfiguriere das Werkzeug so, dass es einen HTTP-**POST** mit `Content-Type: application/json` und diesem Inhalt sendet:
+
+```json
+{
+  "text": "Bereitstellung abgeschlossen: Version **0.5** ist bereit zum Testen."
+}
+```
+
+Der ausgewählte Raum steht bereits in der URL. Deshalb benötigt diese Anfrage kein `channel`-Feld. Wählst du stattdessen **In jeder Anfrage auswählen**, füge `"channel": "YOUR_ROOM_ID"` zum JSON hinzu. Verwende die ID des Raums, nicht seinen Namen.
+
+Die Zielauswahl fügt eine Raum-ID zur URL hinzu. Der Aufrufer kann diese ID ändern und in jedem Raum posten, in dem der Bot posten darf. Um den Webhook auf einen Raum zu beschränken, erteile dem Bot nur dort die Berechtigung zum Posten.
+
+## 4. Test senden und Ergebnis prüfen
+
+Verwende die Testfunktion des externen Werkzeugs. Eine erfolgreiche eingehende Anfrage liefert HTTP `200` mit dem Text `ok`. In Chatto sollte die Nachricht im ausgewählten Raum unter **Versionsupdates** erscheinen, mit einer **BOT**-Kennzeichnung und „0.5“ in Fettdruck.
+
+Schlägt die Anfrage fehl, prüfe die Antwort:
+
+- **`401 invalid_token`:** Die URL ist unvollständig, ungültig oder widerrufen. Erstelle einen neuen eingehenden Webhook, wenn du die vollständige URL nicht mehr hast.
+- **`404 channel_not_found`:** Prüfe die Raum-ID, die Mitgliedschaft des Bots, seine Berechtigung `message.post` und die Posting-Berechtigung des Eigentümers in diesem Raum.
+- **`400 invalid_payload`:** Sende gültiges JSON mit nicht leerem Nachrichtentext und einer Raum-ID. Steht die Raum-ID sowohl in der URL als auch im Inhalt, müssen beide Werte übereinstimmen. Raumregeln und Grössenlimits für Nachrichten gelten ebenfalls.
+- **Die Nachricht erscheint doppelt:** Ein erneuter Versuch kann eine weitere Nachricht erzeugen. Eingehende Webhooks bieten keinen Idempotenzschlüssel zum Unterdrücken von Duplikaten.
+
+Nach einem erfolgreichen Test konfigurierst du dein Werkzeug so, dass es den Webhook nach einer abgeschlossenen Bereitstellung aufruft.
+
+## Einen antwortenden Bot erstellen
+
+Konfiguriere dein Bot-Programm mit seinem Chatto-API-Schlüssel. Speichere den Schlüssel in der geheimen Konfiguration des Programms. API-Anfragen authentifizieren sich mit dem Header `Authorization: Bearer YOUR_API_KEY`.
+
+Wähle die benötigten Berechtigungen:
+
+- **Nur auf Ansprache antworten:** Erteile `message.read-interactions` und `message.post-in-interactions`. Der Bot kann vollständige Threads lesen, die er begonnen hat oder in denen er direkt erwähnt wurde, sowie seine Direktnachrichten. Eine Erwähnung kann ihm somit auch Zugriff auf frühere Nachrichten im Thread geben.
+- **Den Raum lesen, aber nur auf Ansprache antworten:** Erteile `message.read` und `message.post-in-interactions`.
+- **Alle Nachrichten lesen und Unterhaltungen beginnen:** Erteile `message.read` und `message.post`.
+
+Erteile diese Berechtigungen für die vorgesehenen Räume. Verwende für Direktnachrichten den Geltungsbereich **Direktnachrichten** in der Matrix. Die Berechtigungen des Eigentümers begrenzen diese Freigaben weiterhin.
+
+### Deinem Programm mitteilen, wann es antworten soll
+
+Wenn dein Programm Chatto-Webhook-Ereignisse annimmt:
+
+1. Öffne **Integrationen → Ausgehende Webhooks → Webhook erstellen**.
+2. Gib einen Namen und den öffentlichen HTTPS-Endpunkt deines Programms ein.
+3. Verlangt der Empfänger einen **Authorization-Header**, gib den vollständig erwarteten Wert einschliesslich eines Präfixes wie `Bearer` ein.
+4. Kopiere das Signiergeheimnis in die Konfiguration des Empfängers, wenn dieser Chatto-Webhook-Signaturen prüft. Das Geheimnis wird nur einmal angezeigt.
+5. Erwähne den Bot in einem Raum, den er lesen darf, oder sende ihm eine Direktnachricht. Prüfe die Protokolle des Empfängers und die Antwort des Bots in Chatto.
+
+Der Endpunkt erhält neue Nachrichten, die den Bot direkt erwähnen oder zu seinen Direktnachrichten gehören. Normale Raumnachrichten, Bearbeitungen, Reaktionen und Nachrichten des Bots selbst lösen diese Webhooks nicht aus. Eine spätere normale Antwort in einem Raum-Thread löst keinen Webhook aus, sofern sie den Bot nicht erneut erwähnt.
+
+Dein Empfänger sollte das Ereignis mit einer HTTP-2xx-Antwort annehmen und eine Chatantwort anschliessend über die API senden. Chatto ignoriert den HTTP-Antwortinhalt. Zustellungen können sich wiederholen. Der Empfänger muss deshalb die Zustellungs-ID verwenden, um Arbeit nicht doppelt auszuführen. Benötigt ein Programm alle lesbaren Aktivitäten, verwende die Echtzeit-API statt des Webhooks für Erwähnungen und Direktnachrichten.
+
+Details zu Ereignisdaten, Signaturprüfung und API-Operationen findest du in der [Bot-Webhook-Referenz](https://docs.chatto.run/reference/bot-webhooks/) und der [API-Referenz](https://docs.chatto.run/reference/connectrpc-api/).
+
+Ein ausgehender Webhook sendet Nachrichtentext sowie Nachrichten-, Autoren-, Raum- und Bot-Kennungen an den konfigurierten Endpunkt. Der Empfänger sieht auch die ausgehende IP-Adresse des Chatto-Servers. Leitet dein Bot Nachrichten an einen KI-Anbieter oder einen anderen Dienst weiter, erkläre dies den Mitgliedern, bevor du ihn in ihren Unterhaltungen verwendest.
+
+### Wenn der Bot nicht antwortet
+
+Prüfe, ob dein Programm das Ereignis erhalten hat. Öffne beim ausgehenden Webhook **Letzte Fehler**, um aufgezeichnete Zustellungsfehler zu sehen. Prüfe, ob der Endpunkt aktiviert und erreichbar ist, die konfigurierte Authentifizierung akzeptiert und ohne Weiterleitung mit 2xx antwortet. Eine leere Fehlerliste beweist keine erfolgreiche Zustellung.
+
+Ist das Ereignis angekommen, aber keine Antwort erschienen, prüfe den API-Schlüssel des Programms, seinen Antwortaufruf und die tatsächlich wirksamen Lese- und Posting-Berechtigungen des Bots.
+
+## Integration pflegen
+
+- **Zugangsdaten ersetzen:** Erstelle einen neuen benannten Schlüssel oder Webhook, aktualisiere den Aufrufer, teste ihn und widerrufe danach den alten. API-Schlüssel laufen nicht automatisch ab. Füge echte Schlüssel oder URLs mit Zugangsdaten niemals in Chats oder die Versionsverwaltung ein.
+- **Ausgehende Zustellung vorübergehend stoppen:** Wähle **Pausieren** am Endpunkt. **Fortsetzen** erlaubt neue Ereignisse, holt den pausierten Zeitraum aber nicht nach.
+- **Den Bot einem anderen Eigentümer übergeben:** Ein Konto mit `bot.manage` kann **Owner neu zuweisen** verwenden. Der wirksame Zugriff des Bots richtet sich sofort nach dem neuen Eigentümer. Bestehende Schlüssel bleiben gültig. Ersetze deshalb Zugangsdaten, wenn der vorherige Betreiber den Zugriff verlieren soll.
+- **Ein Eigentümerkonto entfernen:** Weise langlebige Bots zuerst einem anderen Eigentümer zu. Das Löschen eines menschlichen Eigentümers löscht auch dessen Bots.
+- **Mitgliedern die Fähigkeiten zeigen:** Öffne das Profil und prüfe **Gehört** und **Was er tun kann**. Prüfe den Zugriff nach Änderungen an Räumen oder Eigentümerschaft erneut.

@@ -1,0 +1,78 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Yanıtlar ve konular
+
+Yanıtınızı aynı konuşmada tutmak için mesajda **Konuda yanıtlayın** seçeneğini kullanın.
+Yeni bir mesajla konu başlatmak için göndermeden önce düzenleyicide **Konu olarak gönder**
+seçeneğini seçin. Oda açık kalır; konuyu açmak için mesajın konu bağlantısını seçin.
+
+Açık bir konunun kendine ait adresi vardır. Odaya erişimi olan biriyle paylaşmak için
+tarayıcıdaki adresi kopyalayın. Konuyu kapatmak sizi odaya döndürür; konuşmayı takip
+etmeyi bırakmış olmazsınız.
+
+<p>Yanıtlarken odayı da görmek isterseniz
+<a href={resolve('/chat/preferences/appearance')}>Uygulama tercihleri → Görünüm</a>
+bölümünü açıp <strong>Konu paneli</strong> ayarını <strong>Yan yana</strong> yapın.
+Yeterli alan yoksa Chatto konuyu odanın üzerinde gösterir.</p>
+
+## Konuşmaları takip edin
+
+Bir konuşmayı **Konular** listenizde tutmak için **Konuyu takip et** seçeneğini seçin.
+Bir konuda mesaj göndermeden de onu takip edebilirsiniz.
+
+**Konular** bölümünde **Takip edilenler**, takip ettiğiniz konuları gösterir. **Benim**,
+başlattığınız ve hâlâ takip ettiğiniz konuları gösterir. Takibi bırakmak konuyu her iki
+görünümden kaldırır. Okumadığınız yanıtları olan konuşmaları bulmak için **Okunmamış** seçeneğini seçin.
+
+Arama alanı, doğrudan mesaj konuları dahil takip ettiğiniz konulardaki mesajları ve
+yanıtları arar. Kelimeler, tırnak içinde bir ifade veya `from:username` ile bir yazar
+arayın. Arama, sunucunuz destekleyip etkinleştirdiğinde kullanılabilir.
+
+## Odalar ve okunmamış etkinlik arasında geçiş yapın
+
+Hızlı geçişi açmak için **Ctrl+K**, Mac'te **Command+K** tuşlarına basın. Kenar çubuğunu
+tek tek gezmeden odalar ve sunucular arasında geçmek için burada arama yapın.
+
+Oturum açtığınız sunuculardaki bir sonraki okunmamış kaynağa gitmek için
+**Alt+Shift+Down**, Mac'te **Option+Shift+Down** tuşlarına basın. Chatto önce önemli
+bildirimlere, ardından diğer bildirimlere, sonra okunmamış noktası olan odalara gider.
+Geçerli mesaj taslağınız yerinde kalır.
+
+Uygulama başlığındaki zil, oturum açtığınız tüm sunucuların bildirimlerini açar.
+Bir odayı veya konuyu okumak, bildirimleri yalnızca görebildiğiniz mesajlara kadar
+okundu olarak işaretler. Eski bir mesajı açmak yeni yanıtları okundu olarak işaretlemez.
+
+Kullanılabilir klavye kısayolları için **Ctrl+Shift+K**, Mac'te **Command+Shift+K** tuşlarına basın.
+
+## Hangi etkinliklerin bildirim oluşturacağını seçin
+
+Bahsetmeler, yanıtlar, tepkiler ve diğer etkinliklerin uyarılarını değiştirmek için
+sunucunuzun **Bildirimler** ayarlarını açın. Her ayar tüm sunucuya, bir oda grubuna
+veya tek bir odaya uygulanabilir.
+
+- **Devral**, oda grubunun veya sunucunun ayarını kullanır.
+- **Kapalı**, o etkinlik türü için bildirim veya okunmamış noktası oluşturmaz.
+- **Okunmamış içerik noktası**, bildirim oluşturmadan odayı işaretler.
+- **Uygulama içi bildirim**, bildirim merkezine bir kayıt ekler.
+- **Anlık bildirim**, bildirimleri etkinleştirdiğiniz bir cihazda uyarıya da izin verir.
+
+Örneğin genel sohbeti uygun olduğunuzda kontrol etmek istiyorsanız yeni oda mesajları
+için **Okunmamış içerik noktası**, doğrudan bahsetmeler için **Anlık bildirim** kullanın.
+
+<p>Anlık uyarılar için cihaz izni de gerekir. Telefonda uygulamayı yüklemek ve
+bildirimleri etkinleştirmek için
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto'yu telefonunuza yükleme</a>
+kılavuzunu izleyin. Telefonun bildirim ayarları, adların ve mesaj önizlemelerinin kilit
+ekranında görünüp görünmeyeceğini belirler.</p>
+
+## Bağlantı kesildiğinde
+
+Yüklenmiş mesajlar görünür kalır ancak Chatto'nun daha fazla mesaj yüklemek veya yanıt
+göndermek için sunucu bağlantısına ihtiyacı vardır. Bağlantı geri geldiğinde kaçırılan
+güncellemeleri yükler.
+
+Gönderme başarısız olursa taslak düzenleyicide kalır. Otomatik gönderim için sıraya
+alınmaz: bağlantıyı kontrol edip yeniden gönderin. Chatto'yu telefonunuza yüklemek,
+sohbet geçmişinizi çevrimdışı kullanılabilir hâle getirmez.

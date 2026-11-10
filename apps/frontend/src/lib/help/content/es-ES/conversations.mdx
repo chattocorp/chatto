@@ -1,0 +1,81 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Respuestas e hilos
+
+Usa **Responder en hilo** en un mensaje para mantener tu respuesta en esa conversación.
+Para iniciar un hilo con un mensaje nuevo, selecciona **Publicar como hilo** en el editor
+antes de enviarlo. La sala permanece abierta; selecciona el enlace del hilo en el mensaje
+para abrirlo.
+
+Cada hilo abierto tiene su propia dirección. Copia la dirección del navegador para
+compartirlo con alguien que tenga acceso a la sala. Al cerrar el hilo vuelves a la sala;
+no dejas de seguir la conversación.
+
+<p>Si prefieres mantener la sala visible mientras respondes, abre
+<a href={resolve('/chat/preferences/appearance')}>Preferencias de la aplicación → Apariencia</a>
+y establece <strong>Panel del hilo</strong> en <strong>Lado a lado</strong>. Si no hay
+espacio suficiente, Chatto muestra el hilo sobre la sala.</p>
+
+## Sigue las conversaciones
+
+Selecciona **Seguir hilo** para mantener una conversación en tu lista de **Temas**.
+Puedes seguir un hilo sin publicar en él.
+
+En **Temas**, **Seguidos** muestra los hilos que sigues. **Míos** muestra los que
+iniciaste y todavía sigues. Dejar de seguir un hilo lo elimina de ambas vistas.
+Selecciona **No leído** para encontrar conversaciones con respuestas que aún no has leído.
+
+El campo de búsqueda consulta los mensajes y las respuestas de los hilos que sigues,
+incluidos los de mensajes directos. Busca palabras, una frase entre comillas o un autor
+con `from:username`. La búsqueda está disponible si tu servidor la admite y la tiene activada.
+
+## Cambia entre salas y actividad sin leer
+
+Pulsa **Ctrl+K**, o **Command+K** en un Mac, para abrir el selector rápido. Busca allí
+para cambiar entre salas y servidores sin recorrer la barra lateral.
+
+Pulsa **Alt+Shift+Down**, u **Option+Shift+Down** en un Mac, para ir a la siguiente
+fuente sin leer entre los servidores donde has iniciado sesión. Chatto te lleva primero
+a las notificaciones importantes, después a las demás notificaciones y, por último,
+a las salas con puntos de no leído. El borrador de tu mensaje se conserva.
+
+La campana de la cabecera abre las notificaciones de todos los servidores donde has
+iniciado sesión. Al leer una sala o un hilo, solo se marcan como leídas las notificaciones
+hasta los mensajes que puedes ver. Abrir un mensaje antiguo no marca como leídas
+las respuestas más recientes.
+
+Para ver los atajos disponibles, pulsa **Ctrl+Shift+K**, o **Command+Shift+K** en un Mac.
+
+## Elige qué actividad te notifica
+
+Abre los ajustes de **Notificaciones** de tu servidor para cambiar los avisos de
+menciones, respuestas, reacciones y otras actividades. Cada ajuste puede aplicarse
+a todo el servidor, a un grupo de salas o a una sola sala.
+
+- **Heredar** usa el ajuste del grupo de salas o del servidor.
+- **Desactivado** no crea notificaciones ni puntos de no leído para esa actividad.
+- **Punto de contenido no leído** marca la sala sin crear una notificación.
+- **Notificación en la aplicación** añade una entrada al centro de notificaciones.
+- **Notificación push** también permite un aviso en un dispositivo donde hayas
+  activado las notificaciones.
+
+Por ejemplo, usa **Punto de contenido no leído** para los mensajes nuevos de la sala y
+**Notificación push** para las menciones directas si prefieres revisar el chat general
+cuando te venga bien.
+
+<p>Los avisos push también necesitan permiso del dispositivo. En un teléfono, sigue
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalar Chatto en tu teléfono</a>
+para instalar la aplicación y activar las notificaciones. Los ajustes de notificaciones
+del teléfono controlan si los nombres y las vistas previas aparecen en la pantalla de bloqueo.</p>
+
+## Cuando se pierde la conexión
+
+Los mensajes ya cargados permanecen visibles, pero Chatto necesita conectarse al servidor
+para cargar más mensajes o enviar una respuesta. Cuando vuelve la conexión, carga
+las actualizaciones que faltan.
+
+Si falla el envío, el borrador permanece en el editor. No queda en cola para enviarse
+automáticamente: comprueba la conexión y vuelve a enviarlo. Instalar Chatto en tu teléfono
+no hace que el historial esté disponible sin conexión.

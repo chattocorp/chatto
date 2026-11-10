@@ -1,0 +1,53 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Antwoorden en threads
+
+Gebruik **Reageer in gesprek** bij een bericht om je antwoord bij dat gesprek te houden. Wil je met een nieuw bericht een thread beginnen, kies dan vóór het versturen **Als thread plaatsen** in de editor. De ruimte blijft open; selecteer de threadlink bij het bericht om de thread te openen.
+
+Een geopende thread heeft een eigen adres. Kopieer het browseradres om de thread te delen met iemand die toegang heeft tot de ruimte. Als je de thread sluit, ga je terug naar de ruimte. Je blijft het gesprek volgen.
+
+<p>Wil je de ruimte blijven zien terwijl je antwoordt, open dan
+<a href={resolve('/chat/preferences/appearance')}>Appvoorkeuren → Weergave</a>
+en stel <strong>Threadpaneel</strong> in op <strong>Naast elkaar</strong>. Als er te weinig ruimte is, toont Chatto de thread over de ruimte heen.</p>
+
+## Gesprekken volgen
+
+Kies **Volg draad** om een gesprek in je lijst **Discussies** te bewaren. Je kunt een thread volgen zonder erin te schrijven.
+
+In **Discussies** toont **Gevolgd** de threads die je volgt. **Van mij** toont de threads die je zelf bent begonnen en nog volgt. Als je een thread niet meer volgt, verdwijnt die uit beide weergaven. Kies **Ongelezen** om gesprekken met ongelezen antwoorden te vinden.
+
+Het zoekveld doorzoekt berichten en antwoorden in de threads die je volgt, inclusief threads met privéberichten. Zoek op woorden, een zin tussen aanhalingstekens of een auteur met `from:username`. Zoeken is beschikbaar als je server het ondersteunt en heeft ingeschakeld.
+
+## Wisselen tussen ruimtes en ongelezen activiteit
+
+Druk op **Ctrl+K**, of **Command+K** op een Mac, om de snelle wisselaar te openen. Zoek daar om tussen ruimtes en servers te wisselen zonder door de zijbalk te gaan.
+
+Druk op **Alt+Shift+Omlaag**, of **Option+Shift+Omlaag** op een Mac, om naar de volgende ongelezen bron te gaan op de servers waarop je bent aangemeld. Chatto opent eerst belangrijke meldingen, daarna andere meldingen en vervolgens ruimtes met ongelezen stippen. Je huidige berichtconcept blijft staan.
+
+De bel in de appkop opent meldingen van alle servers waarop je bent aangemeld. Als je een ruimte of thread leest, worden meldingen alleen tot de zichtbare berichten als gelezen gemarkeerd. Een ouder bericht openen markeert nieuwere antwoorden niet als gelezen.
+
+Druk op **Ctrl+Shift+K**, of **Command+Shift+K** op een Mac, om de beschikbare sneltoetsen te bekijken.
+
+## Je meldingen kiezen
+
+Open de instellingen **Meldingen** van je server om meldingen voor vermeldingen, antwoorden, reacties en andere activiteit te wijzigen. Elke instelling kan gelden voor de hele server, een groep ruimtes of één ruimte.
+
+- **Overnemen** gebruikt de instelling van de ruimtegroep of server.
+- **Uit** maakt voor die activiteit geen melding of ongelezen stip.
+- **Bolletje voor ongelezen inhoud** markeert de ruimte zonder een melding te maken.
+- **Melding in de app** voegt een item toe aan het meldingencentrum.
+- **Pushmelding** staat ook een waarschuwing toe op een apparaat waarop je meldingen hebt ingeschakeld.
+
+Gebruik bijvoorbeeld **Bolletje voor ongelezen inhoud** voor nieuwe ruimteberichten en **Pushmelding** voor directe vermeldingen als je algemene gesprekken op je eigen moment wilt lezen.
+
+<p>Pushmeldingen hebben ook toestemming van het apparaat nodig. Volg op je telefoon
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto op je telefoon installeren</a>
+om de app te installeren en meldingen in te schakelen. De meldingsinstellingen van je telefoon bepalen of namen en berichtvoorbeelden op het vergrendelscherm verschijnen.</p>
+
+## Als de verbinding wegvalt
+
+Al geladen berichten blijven zichtbaar, maar Chatto heeft een serververbinding nodig om meer berichten te laden of een antwoord te versturen. Als de verbinding terugkomt, worden gemiste updates geladen.
+
+Mislukt het versturen, dan blijft je concept in de editor staan. Het wordt niet automatisch later verstuurd: controleer de verbinding en verstuur het opnieuw. Chatto op je telefoon installeren maakt je chatgeschiedenis niet offline beschikbaar.

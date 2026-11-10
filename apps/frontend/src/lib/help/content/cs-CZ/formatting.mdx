@@ -1,0 +1,132 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Zprávy v Chatto můžete formátovat pomocí Markdown. Například `**ahoj**` se zobrazí
+jako **ahoj**. Napište značky sami nebo označte text a použijte panel formátování.
+
+## Vyberte editor a zkratku pro odeslání
+
+Otevřete <a href={resolve('/chat/preferences/composer')}>Předvolby aplikace → Editor zpráv</a>
+a vyberte **Markdown** pro úpravu zdrojového textu. Pokud chcete pracovat s formátovaným
+textem, vyberte **Vizuální**. Panel formátování je k dispozici v obou editorech.
+
+Nastavení **Odesílat zprávy pomocí** ovládá klávesu Enter:
+
+- **Return:** Enter odešle zprávu. Ctrl+Enter vloží nový řádek, na Macu použijte Command+Enter.
+- **Cmd/Ctrl+Return:** Ctrl+Enter odešle zprávu, na Macu použijte Command+Enter.
+  Enter vloží nový řádek.
+
+Mezi odstavci ponechte prázdný řádek.
+
+## Tučné písmo, kurzíva, podtržení a přeškrtnutí
+
+Umístěte značky na obě strany textu:
+
+- `**tučné**` pro tučné písmo
+- `*kurzíva*` pro kurzívu
+- `__podtržení__` pro podtržení
+- `~~přeškrtnutí~~` pro přeškrtnutí
+
+<MarkdownSample source={"Zkontrolujte to **před pátkem**.\nDatum je *předběžné*.\nPřed vydáním je __nutné schválení__.\nPůvodní termín byl ~~čtvrtek~~."} />
+
+V Chatto znamená `__text__` podtržení. Pokud v jiném nástroji Markdown používáte dvě
+podtržítka pro tučné písmo, zde použijte dvě hvězdičky.
+
+Označte text a stiskněte Ctrl+B, Ctrl+I nebo Ctrl+U pro tučné písmo, kurzívu nebo podtržení.
+Na Macu použijte Command místo Ctrl. Tlačítka panelu provádějí stejné akce.
+
+Mezi značky a text nevkládejte mezery: `**důležité**` funguje;
+`** důležité **` tučné písmo nepoužije.
+
+## Nadpisy a seznamy
+
+Nadpis začněte znaky `#` následovanými mezerou. Každou odrážku začněte `- ` nebo každou
+číslovanou položku číslem a tečkou, například `1. `.
+
+<MarkdownSample source={"## Kontrolní seznam vydání\n\nNež začneme:\n- Potvrďte verzi.\n- Informujte tým podpory.\n\nPotom:\n1. Nasaďte aktualizaci.\n2. Zkontrolujte stavovou stránku.\n3. Zveřejněte zde výsledek."} />
+
+Tlačítko **Směr** vloží nadpis druhé úrovně (`##`). Sami můžete napsat úrovně od `#` do `######`.
+
+Pomocí **Zvětšit odsazení** vnoříte položku seznamu pod předchozí položku. Pomocí **Zmenšit odsazení**
+ji vrátíte zpět. Po seznamu ponechte prázdný řádek a začněte nový odstavec.
+
+## Citace
+
+Každý citovaný řádek začněte `>` a mezerou. Po citaci ponechte prázdný řádek, než napíšete odpověď.
+
+<MarkdownSample source={"> Můžeme přesunout vydání na pátek?\n\nAno. Závěrečná kontrola je ve čtvrtek odpoledne."} />
+
+Napsaná citace není propojena s původní zprávou. Chcete-li na zprávu odpovědět ve vlákně,
+použijte její akci pro odpověď.
+
+## Kód
+
+Na každou stranu krátkého příkazu, názvu souboru nebo identifikátoru umístěte jeden
+zpětný apostrof. Značky formátování uvnitř řádkového kódu se zobrazí tak, jak je napíšete.
+
+<MarkdownSample source={"Než začnete, spusťte `git status`.\nNastavení se jmenuje `send_mode`.\nNapište `**ahoj**`, aby bylo ahoj tučně."} />
+
+Pro více řádků vložte tři zpětné apostrofy na řádek před kódem a tři na řádek za ním.
+Hned za otevírací apostrofy přidejte název jazyka pro zvýraznění syntaxe, například
+`js`, `json` nebo `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Tlačítko **Blok kódu** vloží otevírací a uzavírací apostrofy. Bez uzavíracího řádku
+se zbytek zprávy stane součástí bloku. Chcete-li zobrazit zpětný apostrof v řádkovém
+kódu, použijte kolem textu dva zpětné apostrofy.
+
+## Odkazy
+
+Vložená webová adresa se změní na odkaz. Chcete-li místo adresy zobrazit popisek,
+vložte popisek do hranatých závorek a adresu do kulatých:
+
+```text
+Přečtěte si [poznámky k vydání](https://example.com/releases).
+```
+
+Mezi `]` a `(` nedávejte mezeru. Chcete-li odkázat na místnost nebo někoho zmínit
+v Chatto, vyberte místnost či osobu z návrhů editoru.
+
+## Poznámky pod čarou
+
+Za text, ke kterému chcete přidat poznámku, vložte odkaz jako `[^window]`. Na samostatný
+řádek napište `[^window]:` a text poznámky. Označení se musí shodovat.
+
+<MarkdownSample source={"Okno údržby trvá 30 minut.[^window]\n\n[^window]: Většina serverů bude nedostupná méně než pět minut."} />
+
+Můžete také umístit kurzor za příslušný text a na panelu vybrat **Vložit poznámku pod
+čarou**. Poznámky nelze vkládat do řádkového kódu ani do bloku kódu.
+
+## Tabulky
+
+Sloupce oddělte znakem `|` a pod záhlaví vložte řádek pomlček. Pomocí `---:` zarovnáte
+sloupec doprava, pomocí `:---:` na střed.
+
+<MarkdownSample source={"| Prostředí | Verze |\n| --- | ---: |\n| Test | 0.5 |\n| Produkce | 0.4 |"} />
+
+Tabulky upravujte v editoru Markdown. Vizuální editor nemá ovládací prvek pro úpravu tabulek.
+
+## Vyzkoušejte celou zprávu
+
+Upravte zprávu níže a vyzkoušejte formátování. Náhled se mění při psaní. Můžete přepínat
+mezi editory Markdown a Vizuální. Nic z toho, co sem napíšete, se neodešle do místnosti.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Páteční vydání\n\nDokončete kontrolu **před 14:00**.\n\n1. Spusťte `git status`.\n2. Zkontrolujte poznámky k vydání.\n3. Odpovězte v tomto vlákně, až budete připraveni.\n\n> Co když kontrola selže?\n\nNež budete pokračovat, zveřejněte zde chybu."} />
+</div>
+
+## Když formátování nevypadá správně
+
+- **Značky jsou stále viditelné.** Ověřte, že oba konce odpovídají a že těsně uvnitř
+  otevíracích nebo uzavíracích značek nejsou mezery. V kódu jsou viditelné značky záměrné.
+- **Zbytek zprávy vypadá jako kód.** Vložte tři uzavírací zpětné apostrofy na samostatný řádek.
+- **Nadpis nebo seznam zůstává obyčejným textem.** Za `##`, `-` nebo `1.` vložte mezeru
+  a začněte na novém řádku.
+- **Chcete samotnou interpunkci.** Před značku vložte zpětné lomítko, například
+  `\*bez kurzívy\*`, nebo pro doslovný příklad použijte řádkový kód.
+- **HTML se zobrazuje jako text.** Chatto nepřijímá surové HTML pro formátování zpráv.
+  Místo značek jako `<b>` nebo `<span>` použijte Markdown.

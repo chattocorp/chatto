@@ -1,0 +1,53 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Svar og tråder
+
+Bruk **Svar i tråden** på en melding for å holde svaret sammen med samtalen. For å starte en tråd med en ny melding velger du **Publiser som tråd** i skrivefeltet før du sender. Rommet forblir åpent. Velg trådlenken ved meldingen for å åpne tråden.
+
+En åpen tråd har sin egen adresse. Kopier adressen fra nettleseren for å dele den med noen som har tilgang til rommet. Når du lukker tråden, går du tilbake til rommet. Du slutter ikke å følge samtalen.
+
+<p>Hvis du vil beholde rommet synlig mens du svarer, åpner du
+<a href={resolve('/chat/preferences/appearance')}>Appinnstillinger → Utseende</a>
+og setter <strong>Trådpanel</strong> til <strong>Side ved side</strong>. Når det ikke er nok plass, viser Chatto tråden over rommet i stedet.</p>
+
+## Følg samtaler
+
+Velg **Følg tråden** for å beholde en samtale i listen **Tråder**. Du kan følge en tråd uten å skrive i den.
+
+Under **Tråder** viser **Fulgte** trådene du følger. **Mine** viser dem du startet og fortsatt følger. Når du slutter å følge en tråd, fjernes den fra begge visningene. Velg **Ulest** for å finne samtaler med svar du ikke har lest.
+
+Søkefeltet søker i meldinger og svar i trådene du følger, inkludert direktemeldingstråder. Søk etter ord, en frase i anførselstegn eller en forfatter med `from:username`. Søk er tilgjengelig når serveren din støtter og aktiverer det.
+
+## Bytt mellom rom og ulest aktivitet
+
+Trykk **Ctrl+K**, eller **Command+K** på Mac, for å åpne hurtigbytteren. Søk der for å bytte mellom rom og servere uten å gå gjennom sidefeltet.
+
+Trykk **Alt+Shift+Ned**, eller **Option+Shift+Ned** på Mac, for å gå til neste uleste kilde blant serverne du er logget inn på. Chatto åpner først viktige varsler, så andre varsler, og deretter rom med ulestprikker. Det nåværende meldingsutkastet blir værende.
+
+Bjellen i appens topptekst åpner varsler fra alle serverne du er logget inn på. Når du leser et rom eller en tråd, markeres varsler som lest bare frem til meldingene du kan se. Å åpne en eldre melding markerer ikke nyere svar som lest.
+
+Trykk **Ctrl+Shift+K**, eller **Command+Shift+K** på Mac, for å se tilgjengelige hurtigtaster.
+
+## Velg hva du får varsler om
+
+Åpne serverens **Varsler**-innstillinger for å endre varsler for omtaler, svar, reaksjoner og annen aktivitet. Hver innstilling kan gjelde hele serveren, en romgruppe eller ett rom.
+
+- **Arv** bruker innstillingen fra romgruppen eller serveren.
+- **Av** oppretter verken varsel eller ulestprikk for denne aktiviteten.
+- **Prikk for ulest innhold** markerer rommet uten å opprette et varsel.
+- **Varsel i appen** legger til en oppføring i varslingssenteret.
+- **Push-varsel** tillater også et varsel på en enhet der du har aktivert varsler.
+
+Bruk for eksempel **Prikk for ulest innhold** for nye rommeldinger og **Push-varsel** for direkte omtaler hvis du vil lese vanlige samtaler når det passer deg.
+
+<p>Push-varsler trenger også tillatelse fra enheten. På telefonen følger du
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installer Chatto på telefonen din</a>
+for å installere appen og aktivere varsler. Telefonens varslingsinnstillinger avgjør om navn og meldingsforhåndsvisninger vises på låseskjermen.</p>
+
+## Når tilkoblingen brytes
+
+Meldinger som allerede er lastet, forblir synlige, men Chatto trenger en servertilkobling for å laste flere meldinger eller sende et svar. Når tilkoblingen kommer tilbake, lastes oppdateringene du gikk glipp av.
+
+Hvis sending mislykkes, blir utkastet i skrivefeltet. Det legges ikke i kø for automatisk levering: kontroller tilkoblingen og send på nytt. Å installere Chatto på telefonen gjør ikke samtalehistorikken tilgjengelig uten nett.

@@ -1,0 +1,190 @@
+Bots permitem que ferramentas externas publiquem mensagens e respondam a conversas no
+Chatto. Crie uma conta de bot, dê acesso às salas necessárias e ligue a sua ferramenta
+com uma chave de API ou webhook. O software do bot é executado separadamente.
+
+Os passos abaixo configuram um bot que publica atualizações de implementação. Precisa
+de permissão para criar bots e de acesso à sala de destino.
+
+## Escolha como a ferramenta se liga
+
+Há três métodos de ligação. Um bot pode usar mais de um.
+
+- **Webhook de entrada: a sua ferramenta → Chatto.** Dê a um serviço de alertas ou
+  ferramenta de automação um URL para publicar mensagens.
+- **Chave de API: o seu programa → Chatto.** Dê uma chave ao programa do bot para ler
+  mensagens, enviar respostas ou usar outras operações de API permitidas.
+- **Webhook de saída: Chatto → a sua ferramenta.** Dê ao Chatto um endpoint para avisar
+  quando alguém mencionar o bot ou enviar uma mensagem direta. A ferramenta processa
+  o evento e usa uma chave de API se precisar responder.
+
+Para atualizações de implementação, use um webhook de entrada. Para um bot que responde
+a menções ou mensagens diretas, use um webhook de saída para receber mensagens e uma
+chave de API para enviar respostas.
+
+## 1. Crie a conta do bot
+
+1. Abra **Administração do servidor → Bots** no servidor em que o bot trabalhará.
+2. Selecione **Criar bot**. Neste exemplo, use `release-bot` como nome de utilizador e
+   **Atualizações de versões** como nome de apresentação. O nome de utilizador identifica a
+   conta; o nome de apresentação aparece ao lado das mensagens para os membros.
+3. Crie o bot. O Chatto mostra uma chave de API uma única vez. Guarde-a no repositório
+   de segredos da integração se for usar a API. Não será possível ver essa chave
+   novamente depois de fechar a caixa de diálogo.
+4. Abra a página de detalhes do bot. Dê ao perfil uma descrição curta, como
+   “Publica resultados de implementação do nosso processo de lançamento”.
+
+Se **Criar bot** não estiver disponível, peça `bot.create` a um administrador. Ser proprietário
+permite gerir esse bot; o direito de gerir todos os bots é uma permissão separada.
+
+Se a ferramenta só usa um webhook de entrada, não precisa de chave de API. Revogue
+a chave inicial não utilizada em **Integrações → Chaves API**.
+
+## 2. Dê acesso a uma sala
+
+Um bot novo não tem permissões. Não herda as funções do proprietário nem as permissões da
+função `everyone`. Aderir a uma sala e ter permissão para publicar nela são requisitos separados.
+
+1. Abra o separador **Permissões** do bot.
+2. Encontre a coluna da sala de atualizações de implementação.
+3. Na linha **Inscreveu-se**, no topo da matriz, selecione a sala e confirme a alteração de participação.
+4. Permita `message.post` nessa sala. Deixe sem definição as permissões desnecessárias.
+
+O bot de implementação não precisa de acesso de leitura. Conceda `message.post` na coluna
+da sala para limitar a publicação a essa sala. Uma permissão ao nível do servidor vale
+para várias salas.
+
+Também precisa de autoridade para adicionar o bot à sala. Salas arquivadas e
+suspensões podem impedir a entrada. A permissão `room.join` do próprio bot serve para
+entrar em salas pela API; não substitui a linha **Inscreveu-se**.
+
+### Um bot não pode superar o acesso do proprietário
+
+Cada permissão do bot é limitada pelas permissões atuais do proprietário humano no mesmo âmbito.
+Uma permissão guardada pode estar inativa: um cadeado na matriz indica que as permissões
+do proprietário a bloqueiam. Se o proprietário perder acesso, o bot também perde. Terminar sessão não interrompe o bot.
+
+Algumas permissões exigem o modo privilegiado. Se o Chatto pedir para o ativar, faça isso
+antes de adicionar a permissão.
+
+## 3. Ligue um webhook de entrada
+
+1. Abra **Integrações** na página de detalhes do bot.
+2. Em **Webhooks de entrada**, selecione **Criar webhook**.
+3. Dê o nome do sistema que fará as chamadas, por exemplo **Processo de lançamento**.
+4. Selecione a sala de atualizações de implementação como **Sala de destino**.
+5. Crie o webhook e copie o URL completo para a configuração da ferramenta.
+   Preserve a parte `?room_id=…` do URL.
+
+Configure a ferramenta para enviar um **POST** HTTP com `Content-Type: application/json`
+e este corpo:
+
+```json
+{
+  "text": "Implementação concluída: a versão **0.5** está pronta para testes."
+}
+```
+
+A sala escolhida já está no URL, por isso este pedido não precisa do campo `channel`.
+Se escolher **Escolher em cada pedido**, inclua `"channel": "YOUR_ROOM_ID"`
+no JSON. Use o ID da sala, não o nome.
+
+Escolher um destino adiciona o ID da sala ao URL. Quem faz a chamada pode mudar esse ID
+e publicar em qualquer sala em que o bot possa publicar. Para restringir o webhook
+a uma sala, conceda ao bot permissão de publicação apenas nela.
+
+## 4. Envie um teste e verifique o resultado
+
+Use a função de teste da ferramenta externa. Um pedido de entrada bem-sucedido
+devolve HTTP `200` com o texto `ok`. No Chatto, a mensagem deve aparecer na sala escolhida
+como **Atualizações de versões**, com a etiqueta **BOT** e “0.5” a negrito.
+
+Se o pedido falhar, verifique a resposta:
+
+- **`401 invalid_token`:** o URL está incompleto, é inválido ou foi revogado. Crie um
+  novo webhook de entrada se já não tiver o URL completo.
+- **`404 channel_not_found`:** verifique o ID da sala, a participação do bot, a sua permissão
+  `message.post` e o acesso de publicação do proprietário naquela sala.
+- **`400 invalid_payload`:** envie JSON válido com texto de mensagem não vazio e um ID
+  de sala. Se o ID aparecer no URL e no corpo, os valores devem ser iguais. As políticas
+  da sala e os limites de tamanho das mensagens também se aplicam.
+- **A mensagem aparece duas vezes:** uma nova tentativa pode criar outra mensagem.
+  Webhooks de entrada não fornecem uma chave de idempotência para eliminar duplicados.
+
+Depois de o teste funcionar, configure a ferramenta para chamar o webhook ao terminar uma implementação.
+
+## Crie um bot que responde às pessoas
+
+Configure o programa do bot com a sua chave de API do Chatto. Guarde a chave na configuração
+secreta do programa. Os pedidos à API autenticam-se com o cabeçalho
+`Authorization: Bearer YOUR_API_KEY`.
+
+Escolha as permissões necessárias:
+
+- **Responder apenas quando chamado:** conceda `message.read-interactions` e
+  `message.post-in-interactions`. O bot pode ler tópicos completos que iniciou, tópicos
+  em que alguém o mencionou diretamente e as suas mensagens diretas. Mencionar o bot pode,
+  portanto, dar acesso também a mensagens anteriores nesse tópico.
+- **Ler a sala, mas responder apenas quando chamado:** conceda `message.read` e
+  `message.post-in-interactions`.
+- **Ler todas as mensagens e iniciar conversas:** conceda `message.read` e `message.post`.
+
+Aplique as permissões às salas pretendidas. Para mensagens diretas, use o âmbito
+**Mensagens diretas** na matriz. As permissões do proprietário continuam a limitar essas concessões.
+
+### Informe ao programa quando responder
+
+Se o programa aceita eventos de webhook do Chatto:
+
+1. Abra **Integrações → Webhooks de saída → Criar webhook**.
+2. Introduza um nome e o endpoint HTTPS público do programa.
+3. Se o recetor exigir um **Cabeçalho de autorização**, introduza o valor completo esperado,
+   incluindo um prefixo como `Bearer`.
+4. Copie o segredo de assinatura para a configuração do recetor se ele verificar as
+   assinaturas dos webhooks do Chatto. O segredo é mostrado uma única vez.
+5. Mencione o bot numa sala que ele possa ler ou envie uma mensagem direta. Verifique
+   os registos do recetor e a resposta do bot no Chatto.
+
+O endpoint recebe mensagens novas que mencionam diretamente o bot ou que são mensagens
+diretas dele. Mensagens comuns de sala, edições, reações e mensagens enviadas pelo próprio
+bot não acionam esses webhooks. Uma resposta comum posterior num tópico de sala também
+não aciona o webhook, a menos que mencione o bot novamente.
+
+O recetor deve aceitar o evento com uma resposta HTTP 2xx e depois enviar qualquer
+resposta ao chat pela API. O Chatto ignora o corpo da resposta HTTP. As entregas podem
+repetir-se, então o recetor deve usar o ID da entrega para não fazer o mesmo trabalho
+duas vezes. Para um programa que precise de toda a atividade legível, use a API em
+tempo real do Chatto em vez do webhook de menções e mensagens diretas.
+
+Para o conteúdo dos eventos, a verificação de assinaturas e as operações da API, consulte
+a [referência de webhooks de bots](https://docs.chatto.run/reference/bot-webhooks/)
+e a [referência da API](https://docs.chatto.run/reference/connectrpc-api/).
+
+Um webhook de saída envia o texto da mensagem e os identificadores da mensagem, autor,
+sala e bot ao endpoint configurado. O recetor também vê o endereço IP de saída do
+servidor Chatto. Se o bot encaminha mensagens a um fornecedor de IA ou outro serviço,
+explique isso aos membros antes de o usar nas conversas deles.
+
+### Se o bot não responder
+
+Verifique se o programa recebeu o evento. No webhook de saída, abra **Falhas recentes**
+para ver os erros de entrega registados. Verifique se o endpoint está ativado, acessível,
+aceita a autenticação configurada e devolve 2xx sem redirecionamento. Uma lista vazia
+de falhas não comprova que a entrega funcionou.
+
+Se o evento chegou mas não apareceu resposta, verifique a chave de API do programa,
+a operação de resposta e as permissões efetivas de leitura e publicação do bot.
+
+## Mantenha a integração
+
+- **Substituir uma credencial:** crie uma chave ou webhook novo com nome, atualize o
+  sistema que o chama, teste e revogue o anterior. Chaves de API não expiram automaticamente.
+  Nunca cole uma chave real ou um URL com credenciais no chat ou no controlo de versão.
+- **Parar a entrega de saída temporariamente:** selecione **Pausar** no endpoint.
+  **Retomar** permite eventos novos; não reproduz o período pausado.
+- **Passar o bot a outro proprietário:** uma conta com `bot.manage` pode usar **Reatribuir proprietário**.
+  O acesso efetivo do bot passa imediatamente a seguir o novo proprietário. As chaves existentes
+  continuam válidas; troque as credenciais se o operador anterior tiver de perder acesso.
+- **Remover uma conta proprietária:** reatribua primeiro os bots de longa duração.
+  Eliminar um proprietário humano também elimina os seus bots.
+- **Mostrar aos membros o que o bot pode fazer:** abra o perfil e consulte **Proprietário**
+  e **O que pode fazer**. Reveja esse acesso depois de mudar as salas ou a propriedade.
