@@ -60,6 +60,7 @@ jobs:
           # Version files in release pull requests still select their product.
           filters: |
             chatto:
+              - 'ci/**'
               # Authling changes must also verify login and profile transfer into Chatto.
               - 'authling/**'
               - 'cli/**'

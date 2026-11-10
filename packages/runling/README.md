@@ -97,6 +97,9 @@ task waits for a message, the console shows "Waiting for a message". See
 - Workflows are TypeScript functions with input and result schemas
 - Embeds the Pi SDK for easy peasy agent/LLM integration
 - Automatic monitoring of token usage and cost
+- Optional [Docker operations](docs/docker.md) for image builds, disposable commands, and services,
+  with live output, cancellation, and explicit resource cleanup
+- Private [Git worktree manifests](docs/git.md) for selecting current source files
 
 ## Run references
 

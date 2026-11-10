@@ -1,16 +1,20 @@
 <script lang="ts">
   import { activityStatus, type Activity } from '$lib/timeline.ts';
   import { duration } from '$lib/runs.ts';
-  import AnsiText from './AnsiText.svelte';
+  import OutputLog from './OutputLog.svelte';
   import Usage from './Usage.svelte';
 
   let {
     activity,
+    runId,
+    running,
     elapsed,
     onclose,
     titleId
   }: {
     activity: Activity;
+    runId: string;
+    running: boolean;
     elapsed: number;
     onclose: () => void;
     titleId: string;
@@ -45,9 +49,7 @@
     {#if activity.usage}<Usage usage={activity.usage} detail />{/if}
     <div>
       <h3 class="mb-3 text-sm font-medium">Activity logs</h3>
-      <pre class="m-0 whitespace-pre-wrap font-mono text-xs leading-relaxed wrap-anywhere"><AnsiText
-          text={activity.logs.length ? activity.logs.join('\n\n') : 'No logs for this activity.'}
-        /></pre>
+      {#key `${runId}:${activity.id}`}<OutputLog {runId} activityId={activity.id} {running} />{/key}
     </div>
   </div>
 </div>

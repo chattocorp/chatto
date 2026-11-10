@@ -358,6 +358,22 @@ importers:
         specifier: ^0.34.5
         version: 0.34.5
 
+  ci:
+    dependencies:
+      runling:
+        specifier: workspace:*
+        version: link:../packages/runling
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.4
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.15
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   examples/botto:
     dependencies:
       '@chatto/api-types':
@@ -668,6 +684,9 @@ importers:
       valibot:
         specifier: ^1.4.2
         version: 1.5.0(typescript@5.9.3)
+      virtua:
+        specifier: 0.54.1
+        version: 0.54.1(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.56.10(@typescript-eslint/types@8.72.0))
       vite:
         specifier: ^7
         version: 7.3.6(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
@@ -16690,6 +16709,12 @@ snapshots:
       lit-html: 2.8.0
       media-captions: 1.0.4
       unplugin: 1.16.1
+
+  virtua@0.54.1(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.56.10(@typescript-eslint/types@8.72.0)):
+    optionalDependencies:
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+      svelte: 5.56.10(@typescript-eslint/types@8.72.0)
 
   virtua@0.54.1(patch_hash=f2fba7fdb0a6b35ea62583a9e494105045f4c622ab6bc9e0cc8df7f25f38f67a)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.72.0)):
     optionalDependencies:

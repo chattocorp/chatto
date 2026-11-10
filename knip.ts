@@ -23,6 +23,10 @@ export default {
   ignoreBinaries: ['mise', 'playwright'],
   ignoreDependencies: ['gemoji'],
   workspaces: {
+    ci: {
+      // Runling loads the console configuration and workflows by path.
+      entry: ['runling.config.ts', 'workflows/*.ts']
+    },
     '.': {
       // The lifecycle tests launch the fixture in a child process.
       entry: ['tools/*.mjs', 'tools/fixtures/paseo-lifecycle.mjs'],

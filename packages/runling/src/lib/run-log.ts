@@ -149,7 +149,10 @@ export function activityLogRows(
     }
   });
   for (const summary of summaries.values()) {
-    if (!summary.logs.length) summary.logs = summary.node.logs;
+    // A task can have its own messages as well as output from child commands. Use the
+    // timeline's journal-ordered rollup even when direct task logs are already present.
+    if (summary.node.kind === 'step' || !summary.logs.length)
+      summary.logs = summary.node.logs.map(plain);
   }
   return rows;
 }
