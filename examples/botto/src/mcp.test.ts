@@ -24,6 +24,7 @@ test.each([
   { authors: [''], expectedAdmin: false },
   { authors: ['admin', 'other-admin'], expectedAdmin: true }
 ])('MCP enforces current batch authority for $authors', async ({ authors, expectedAdmin }) => {
+  await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/botto-mcp-access-'));
   const settings = parseSettings(
     '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/model"\n[mcp.servers.github]\ncommand="unused"\ntools=["issue_read"]\nadmin_tools=["issue_write"]',
