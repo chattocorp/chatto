@@ -36,6 +36,10 @@
   let sheetOpen = $state(false);
   // Input modality is event bookkeeping, not rendered state.
   let touchInput = false;
+  // Menu surfaces own pointer interaction until they are removed.
+  function hasOpenMenu() {
+    return document.querySelector('[data-menu-presentation]') !== null;
+  }
   function close() {
     clearTimeout(timer);
     clearTimeout(closeTimer);
@@ -88,6 +92,12 @@
       try {
         const { observeLinkHover } = await import('$lib/query/linkHover');
         if (disposed || current !== generation) return;
+        if (!sheetOpen && (!anchor || hasOpenMenu())) {
+          started = false;
+          loading = false;
+          close();
+          return;
+        }
         stopPreview = observeLinkHover(scope, url, (data, pending) => {
           fetchedPreview = data;
           loading = pending;
@@ -102,12 +112,13 @@
     const link = node.querySelector('a');
     const title = link?.getAttribute('title');
     const enter = () => {
-      if (sheetOpen || touchInput) return;
+      if (sheetOpen || touchInput || hasOpenMenu()) return;
       // The hover card replaces the browser tooltip; do not display both.
       link?.removeAttribute('title');
       clearTimeout(timer);
       keepOpen();
       timer = setTimeout(() => {
+        if (hasOpenMenu()) return;
         anchor = node.getBoundingClientRect();
         void loadPreview();
       }, 350);
@@ -126,7 +137,8 @@
       on(node, 'focusin', enter),
       on(node, 'focusout', exit),
       on(node, 'click', close),
-      on(node, 'contextmenu', closeHover),
+      // Pills stop bubbling to keep the message menu closed. Cancel first.
+      on(node, 'contextmenu', closeHover, { capture: true }),
       on(node, 'pointerdown', (event) => {
         touchInput = event.pointerType === 'touch';
         if (touchInput) closeHover();
