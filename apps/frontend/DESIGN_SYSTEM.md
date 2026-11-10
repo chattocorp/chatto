@@ -245,8 +245,8 @@ uses separators; 3D adds narrow gaps, softly rounded segment corners, and faint
 individual highlights. These changes follow the animated depth preference.
 Do not add `btn` or local bevels to its segments. The default height is
 48 px, aligned with the composer and user card. Use `compact` for a 28 px
-secondary row with 15 px icons and a smaller corner radius, such as the call controls above the user card
-or the composer formatting bar. Use `gaps={false}` for a continuous surface with separators and square inner
+secondary row with 15 px icons and a smaller corner radius, such as the
+composer formatting bar. Use `gaps={false}` for a continuous surface with separators and square inner
 corners in every depth mode. The composer and user-card control rows use a 4 px gap above their main surface.
 The composer uses this variant for three groups: inline text styles, block
 formats, and lists with indentation. Only the groups have gaps between them. Formatting buttons use `aria-pressed` for the
@@ -1272,6 +1272,16 @@ remain visible while collapsed. Room headers use this option for active calls.
 When a call is active, the collapsed header keeps the call button visible
 beside the three-dot button. It uses the same active-call colour and pulse as
 the expanded toolbar.
+
+Call controls use `PillButtonGroup` in the app header. `app-call-bar` sets a
+30 px height, with 18 px glyphs; comfortable density uses a 36 px height. In narrow
+windows, the segment width reduces to 28 px so all call actions fit. Darker
+neutral buttons separate the group from global navigation.
+`app-call-frame` uses the shared inset surface around the group. Its rim
+and inset lighting follow the depth setting and disappear at zero depth.
+The shared pill utilities supply the tabbed segments and depth lighting. Enabled media uses
+`pill-button-success`; hang-up uses `pill-button-danger`. Keep room names in
+the link's accessible label and tooltip. The bar fits the existing header height.
 
 The app header and room header hide in narrow touch-capable windows while the shared
 viewport detector reports an open software keyboard. They return when it

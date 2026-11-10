@@ -9,16 +9,25 @@ reads and selects the origin server's first room before the bar mounts.
 
   import { provideAppUiState, type AppUiState } from '$lib/state/appUi.svelte';
   import CurrentUserBar from './CurrentUserBar.svelte';
+  import AppCallControls from './voice/AppCallControls.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
   let {
-    onReady
+    onReady,
+    callControls = false
   }: {
     onReady?: (state: AppUiState) => void;
+    callControls?: boolean;
   } = $props();
 
   const appUi = provideAppUiState();
+  const scope = useServerScope();
   appUi.setActiveRoomScope('origin', 'room-1');
   onMount(() => onReady?.(appUi));
 </script>
 
-<CurrentUserBar />
+{#if callControls}
+  <AppCallControls activeStore={scope.store} />
+{:else}
+  <CurrentUserBar />
+{/if}

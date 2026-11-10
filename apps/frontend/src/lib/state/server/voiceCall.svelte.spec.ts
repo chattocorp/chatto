@@ -350,7 +350,18 @@ function createPermittedCallState(api: VoiceCallAPI) {
 }
 
 describe('VoiceCallState', () => {
+  const joinedStates = new Set<VoiceCallState>();
+  const originalJoin = VoiceCallState.prototype.join;
+  let restoreJoin: () => void;
   beforeEach(() => {
+    const joinSpy = vi.spyOn(VoiceCallState.prototype, 'join').mockImplementation(function (
+      this: VoiceCallState,
+      ...args: Parameters<VoiceCallState['join']>
+    ) {
+      joinedStates.add(this);
+      return originalJoin.apply(this, args);
+    });
+    restoreJoin = () => joinSpy.mockRestore();
     mockMicrophonePublication = undefined;
     calls.length = 0;
     lastRoomOptions = null;
@@ -397,6 +408,9 @@ describe('VoiceCallState', () => {
   });
 
   afterEach(() => {
+    for (const state of joinedStates) state.dispose();
+    joinedStates.clear();
+    restoreJoin();
     vi.unstubAllGlobals();
   });
 
@@ -587,13 +601,15 @@ describe('VoiceCallState', () => {
       expect(audioSession.type).toBe('ambient');
     });
 
-    it('retains call audio when the most recent call leaves first', async () => {
+    it('restores audio when the replacement call leaves', async () => {
       const first = createState();
       await first.join('wss://livekit.example.test', 'R1');
       const second = createState();
       await second.join('wss://livekit.example.test', 'R2');
-      await second.leave();
+      expect(first.connected).toBe(false);
       expect(audioSession.type).toBe('play-and-record');
+      await second.leave();
+      expect(audioSession.type).toBe('ambient');
       first.dispose();
       expect(audioSession.type).toBe('ambient');
     });
@@ -1099,9 +1115,10 @@ describe('VoiceCallState', () => {
     permissions.join = true;
     permissions.voice = false;
     microphoneGate = null;
-    await state.join('wss://livekit.example.test', 'R2');
+    const replacementJoin = state.join('wss://livekit.example.test', 'R2');
     gate.resolve();
     await firstJoin;
+    await replacementJoin;
     expect(state.roomId).toBe('R2');
     expect(state.connected).toBe(true);
     expect(state.isMuted).toBe(true);
@@ -1614,6 +1631,7 @@ describe('VoiceCallState', () => {
     const state = createPermittedCallState(client);
 
     const join = state.join('wss://livekit.example.test', 'R1');
+    await vi.waitFor(() => expect(calls).toContain('connect'));
     expect(state.connecting).toBe(true);
     expect(state.roomId).toBe('R1');
     await flushPromises();
@@ -1730,6 +1748,77 @@ describe('VoiceCallState', () => {
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('waits for the previous server to disconnect before joining another call', async () => {
+    const first = createPermittedCallState(createVoiceCallClient());
+    const nextAPI = createVoiceCallClient();
+    const next = createPermittedCallState(nextAPI);
+    await first.join('wss://livekit.example.test', 'R1');
+    const disconnect = deferredVoid();
+    const previousRoom = lastRoom!;
+    previousRoom.disconnect.mockImplementation(() => disconnect.promise);
+
+    const joining = next.join('wss://other.example.test', 'R2');
+    await vi.waitFor(() => expect(previousRoom.disconnect).toHaveBeenCalled());
+    expect(nextAPI.joinCall).not.toHaveBeenCalled();
+    disconnect.resolve();
+    await joining;
+
+    expect(first.connected).toBe(false);
+    expect(next.isInCall('R2')).toBe(true);
+    await next.leave();
+  });
+
+  it('serializes three concurrent joins across servers', async () => {
+    const first = createPermittedCallState(createVoiceCallClient());
+    const second = createPermittedCallState(createVoiceCallClient());
+    const third = createPermittedCallState(createVoiceCallClient());
+    await Promise.all([
+      first.join('wss://livekit.example.test', 'R1'),
+      second.join('wss://livekit.example.test', 'R2'),
+      third.join('wss://livekit.example.test', 'R3')
+    ]);
+    expect(first.connected).toBe(false);
+    expect(second.connected).toBe(false);
+    expect(third.isInCall('R3')).toBe(true);
+    await third.leave();
+  });
+
+  it('continues queued joins after a failure', async () => {
+    const first = createPermittedCallState(
+      createVoiceCallClient({
+        joinCall: vi.fn(async () => {
+          throw new Error('join failed');
+        })
+      })
+    );
+    const next = createPermittedCallState(createVoiceCallClient());
+    const failed = first.join('wss://livekit.example.test', 'R1');
+    const joining = next.join('wss://livekit.example.test', 'R2');
+    await expect(failed).rejects.toThrow('join failed');
+    await joining;
+    expect(first.connected).toBe(false);
+    expect(next.isInCall('R2')).toBe(true);
+    await next.leave();
+  });
+
+  it('serializes rapid room switches on the same server', async () => {
+    const api = createVoiceCallClient();
+    const state = createPermittedCallState(api);
+    await Promise.all([
+      state.join('wss://livekit.example.test', 'R1'),
+      state.join('wss://livekit.example.test', 'R2'),
+      state.join('wss://livekit.example.test', 'R3')
+    ]);
+    expect(vi.mocked(api.joinCall).mock.calls.map(([roomId]) => roomId)).toEqual([
+      'R1',
+      'R2',
+      'R3'
+    ]);
+    expect(vi.mocked(api.leaveCall).mock.calls.map(([roomId]) => roomId)).toEqual(['R1', 'R2']);
+    expect(state.isInCall('R3')).toBe(true);
+    await state.leave();
   });
 
   it('records a compensating leave when LiveKit connect fails after join intent', async () => {
@@ -1863,7 +1952,7 @@ describe('VoiceCallState', () => {
 
   it('publishes camera and one native screen share under the local participant', async () => {
     const session = {
-      stop: vi.fn(),
+      stop: vi.fn(async () => undefined),
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
@@ -1946,7 +2035,7 @@ describe('VoiceCallState', () => {
 
   it('replaces an existing browser screen share when native capture starts', async () => {
     const session = {
-      stop: vi.fn(),
+      stop: vi.fn(async () => undefined),
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
