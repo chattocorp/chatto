@@ -139,7 +139,7 @@ describe('renderMarkdown', () => {
       expect(renderInlineMarkdown(source)).toBe(expected);
       expect(await renderMarkdown(source)).toBe(`<p>${expected}</p>\n`);
       const url = 'https://example.com/:wave::skin-tone-4:';
-      expect(await renderMarkdown(url)).toContain(`>${url}</a>`);
+      expect(await renderMarkdown(url)).toContain(`>${url.slice(0, -1)}</a>:`);
     });
 
     it('requires Unicode word boundaries without blocking punctuation or adjacent tags', async () => {
@@ -217,7 +217,7 @@ describe('renderMarkdown', () => {
         'https://example.com/:wave: <https://example.com/:heart:> ' +
           '[:+1:](https://example.com/:wave: ":heart:")'
       );
-      expect(html).toContain('>https://example.com/:wave:</a>');
+      expect(html).toContain('>https://example.com/:wave</a>:');
       expect(html).toContain('>https://example.com/:heart:</a>');
       expect(html).toContain('href="https://example.com/:wave:"');
       expect(html).toContain('title=":heart:"');
@@ -738,6 +738,34 @@ describe('renderMarkdown', () => {
 });
 
 describe('automatic links', () => {
+  it.each([
+    'https://example.com/',
+    'http://example.com:8080/',
+    'https://example.com/chat/-/R123456789abcde',
+    'https://example.com/chat/-/user/U123456789abcde',
+    'https://example.com/chat/-/R123456789abcde/m/Eabc123DEF456gh',
+    'www.example.com/'
+  ])('leaves a following colon outside the automatic link: %s', async (url) => {
+    const href = url.startsWith('www.') ? `https://${url}` : url;
+    for (const suffix of [':', ': next', ':!', ':: next']) {
+      const source = `${url}${suffix}`;
+      for (const html of [await renderMarkdown(source), renderInlineMarkdown(source)]) {
+        expect(html).toContain(`data-content-href="${href}"`);
+        expect(html).toContain(`>${url}</a>${suffix}`);
+        expect(html).toContain('data-entity-autolink');
+      }
+    }
+  });
+
+  it('keeps colons within URLs and in explicit destinations', async () => {
+    for (const url of ['https://example.com:8080/a:b?q=c:d#e:f', 'www.example.com/a:b']) {
+      expect(await renderMarkdown(url)).toContain(`>${url}</a>`);
+    }
+    for (const source of ['[label](https://example.com/a:)', '<https://example.com/a:>']) {
+      expect(await renderMarkdown(source)).toContain('data-content-href="https://example.com/a:"');
+    }
+  });
+
   it.each([
     'path/www.example.com',
     '@www.example.com',

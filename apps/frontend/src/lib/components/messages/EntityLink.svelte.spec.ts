@@ -145,6 +145,25 @@ it.each(['ltr', 'rtl'])('wraps long URLs within a narrow %s message', (dir) => {
 });
 
 describe('entity links in messages', () => {
+  it('renders server, room, user, and message pills before a colon', async () => {
+    const urls = [
+      `${origin}/`,
+      `${origin}/chat/-/${roomId}`,
+      `${origin}/chat/-/user/${userId}`,
+      `${origin}/chat/-/${roomId}/m/Eabc123DEF456gh`
+    ];
+    const { container } = render(MessageContent, {
+      body: urls.map((url) => `${url}: next`).join('\n')
+    });
+    await vi.waitFor(() => expect(container.querySelectorAll('.entity-link')).toHaveLength(4));
+    expect(container.textContent?.match(/: next/g)).toHaveLength(4);
+    for (const pill of container.querySelectorAll('.entity-link')) {
+      expect(pill.querySelector('.link-pill-main')?.textContent).not.toContain(':');
+      expect(pill.getAttribute('href')).not.toContain('%3A');
+      expect(pill.getAttribute('href')).not.toMatch(/:$/);
+    }
+  });
+
   it('points a known DM pill directly at the participant user page', async () => {
     const store = client.registry.getStore('known');
     vi.spyOn(store, 'accountId', 'get').mockReturnValue('viewer');
