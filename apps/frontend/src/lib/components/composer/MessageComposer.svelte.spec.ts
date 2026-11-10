@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view';
 import '../../../app.css';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cdp, page, userEvent } from 'vitest/browser';
@@ -417,6 +418,24 @@ describe('MessageComposer', () => {
         }
       }
     });
+    vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue([
+      {
+        id: 'test-instance',
+        url: 'https://rooms.example.test',
+        name: 'Rooms',
+        iconUrl: null,
+        token: null,
+        userId: null,
+        userLogin: null,
+        userDisplayName: null,
+        userAvatarUrl: null,
+        reauthRequiredAt: null,
+        addedAt: 1
+      }
+    ]);
+    vi.spyOn(serverRegistry, 'tryGetStore');
+    // This component fixture supplies the store surface used by the catalogue and link pills.
+    vi.mocked(serverRegistry.tryGetStore, { partial: true }).mockReturnValue(server.scope.store);
     userPreferences.composerEditor = 'visual';
     userPreferences.composerSendMode = 'modifier-enter';
     userPreferences.composerFormattingToolbarVisible = false;
@@ -762,7 +781,11 @@ describe('MessageComposer', () => {
       // Ignore visual-editor decorations; assert the actual editable text.
       const content = editor.cloneNode(true) as HTMLElement;
       content.querySelectorAll('.ProseMirror-widget').forEach((node) => node.remove());
-      expect(content.textContent).toBe(key === ' ' ? '#designteam ' : url + ' ');
+      const text =
+        kind === 'markdown'
+          ? EditorView.findFromDOM(editor)?.state.doc.toString()
+          : content.textContent;
+      expect(text).toBe(key === ' ' ? '#designteam ' : url + ' ');
     });
 
     it.each([
