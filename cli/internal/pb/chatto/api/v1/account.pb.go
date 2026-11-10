@@ -24,6 +24,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Separate presentation surfaces for release highlights.
+type ReleaseHighlightSurface int32
+
+const (
+	// No surface selected; requests must select one.
+	ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED ReleaseHighlightSurface = 0
+	// Everyday user changes shown in Help.
+	ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_USERS ReleaseHighlightSurface = 1
+	// Administrator and operator changes shown in administration.
+	ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_ADMINS ReleaseHighlightSurface = 2
+)
+
+// Enum value maps for ReleaseHighlightSurface.
+var (
+	ReleaseHighlightSurface_name = map[int32]string{
+		0: "RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED",
+		1: "RELEASE_HIGHLIGHT_SURFACE_USERS",
+		2: "RELEASE_HIGHLIGHT_SURFACE_ADMINS",
+	}
+	ReleaseHighlightSurface_value = map[string]int32{
+		"RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED": 0,
+		"RELEASE_HIGHLIGHT_SURFACE_USERS":       1,
+		"RELEASE_HIGHLIGHT_SURFACE_ADMINS":      2,
+	}
+)
+
+func (x ReleaseHighlightSurface) Enum() *ReleaseHighlightSurface {
+	p := new(ReleaseHighlightSurface)
+	*p = x
+	return p
+}
+
+func (x ReleaseHighlightSurface) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReleaseHighlightSurface) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_account_proto_enumTypes[0].Descriptor()
+}
+
+func (ReleaseHighlightSurface) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_account_proto_enumTypes[0]
+}
+
+func (x ReleaseHighlightSurface) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReleaseHighlightSurface.Descriptor instead.
+func (ReleaseHighlightSurface) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{0}
+}
+
 // Request to update or add the authenticated user's password.
 type ChangePasswordRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -959,6 +1012,198 @@ func (*DeleteMyAccountResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{18}
 }
 
+// Dismiss specific release highlights for the authenticated account only.
+type DismissReleaseHighlightsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable IDs prefixed with users: or admins:. At most 100 IDs per request.
+	Ids           []string `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DismissReleaseHighlightsRequest) Reset() {
+	*x = DismissReleaseHighlightsRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissReleaseHighlightsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissReleaseHighlightsRequest) ProtoMessage() {}
+
+func (x *DismissReleaseHighlightsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissReleaseHighlightsRequest.ProtoReflect.Descriptor instead.
+func (*DismissReleaseHighlightsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DismissReleaseHighlightsRequest) GetIds() []string {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+// Authoritative private settings after the dismissal has been saved.
+type DismissReleaseHighlightsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Settings      *UserSettings          `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DismissReleaseHighlightsResponse) Reset() {
+	*x = DismissReleaseHighlightsResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissReleaseHighlightsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissReleaseHighlightsResponse) ProtoMessage() {}
+
+func (x *DismissReleaseHighlightsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissReleaseHighlightsResponse.ProtoReflect.Descriptor instead.
+func (*DismissReleaseHighlightsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DismissReleaseHighlightsResponse) GetSettings() *UserSettings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+// Records the first release shown on one highlight surface, without dismissing
+// articles. Subsequent calls preserve the first successfully stored version.
+type InitializeReleaseHighlightsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Selects the independent baseline to initialize.
+	Surface ReleaseHighlightSurface `protobuf:"varint,1,opt,name=surface,proto3,enum=chatto.api.v1.ReleaseHighlightSurface" json:"surface,omitempty"`
+	// Full Semantic Version of the newest applicable bundled highlights.
+	ReleaseVersion string `protobuf:"bytes,2,opt,name=release_version,json=releaseVersion,proto3" json:"release_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *InitializeReleaseHighlightsRequest) Reset() {
+	*x = InitializeReleaseHighlightsRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializeReleaseHighlightsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializeReleaseHighlightsRequest) ProtoMessage() {}
+
+func (x *InitializeReleaseHighlightsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializeReleaseHighlightsRequest.ProtoReflect.Descriptor instead.
+func (*InitializeReleaseHighlightsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *InitializeReleaseHighlightsRequest) GetSurface() ReleaseHighlightSurface {
+	if x != nil {
+		return x.Surface
+	}
+	return ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED
+}
+
+func (x *InitializeReleaseHighlightsRequest) GetReleaseVersion() string {
+	if x != nil {
+		return x.ReleaseVersion
+	}
+	return ""
+}
+
+// Current private settings after initialization.
+type InitializeReleaseHighlightsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Settings      *UserSettings          `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializeReleaseHighlightsResponse) Reset() {
+	*x = InitializeReleaseHighlightsResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializeReleaseHighlightsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializeReleaseHighlightsResponse) ProtoMessage() {}
+
+func (x *InitializeReleaseHighlightsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializeReleaseHighlightsResponse.ProtoReflect.Descriptor instead.
+func (*InitializeReleaseHighlightsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *InitializeReleaseHighlightsResponse) GetSettings() *UserSettings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
 var File_chatto_api_v1_account_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_account_proto_rawDesc = "" +
@@ -1017,8 +1262,25 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"G\n" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"(\n" +
-	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted2\xb8\x0f\n" +
-	"\x10MyAccountService\x12]\n" +
+	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted\"m\n" +
+	"\x1fDismissReleaseHighlightsRequest\x12J\n" +
+	"\x03ids\x18\x01 \x03(\tB8\xbaH5\x92\x012\b\x01\x10d\",r*\x18\x80\x012%^(users|admins):[a-z0-9][a-z0-9._-]*$R\x03ids\"[\n" +
+	" DismissReleaseHighlightsResponse\x127\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\"\xa7\x01\n" +
+	"\"InitializeReleaseHighlightsRequest\x12L\n" +
+	"\asurface\x18\x01 \x01(\x0e2&.chatto.api.v1.ReleaseHighlightSurfaceB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\asurface\x123\n" +
+	"\x0frelease_version\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x0ereleaseVersion\"^\n" +
+	"#InitializeReleaseHighlightsResponse\x127\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings*\x8f\x01\n" +
+	"\x17ReleaseHighlightSurface\x12)\n" +
+	"%RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fRELEASE_HIGHLIGHT_SURFACE_USERS\x10\x01\x12$\n" +
+	" RELEASE_HIGHLIGHT_SURFACE_ADMINS\x10\x022\xbc\x11\n" +
+	"\x10MyAccountService\x12\x84\x01\n" +
+	"\x1bInitializeReleaseHighlights\x121.chatto.api.v1.InitializeReleaseHighlightsRequest\x1a2.chatto.api.v1.InitializeReleaseHighlightsResponse\x12{\n" +
+	"\x18DismissReleaseHighlights\x12..chatto.api.v1.DismissReleaseHighlightsRequest\x1a/.chatto.api.v1.DismissReleaseHighlightsResponse\x12]\n" +
 	"\x0eChangePassword\x12$.chatto.api.v1.ChangePasswordRequest\x1a%.chatto.api.v1.ChangePasswordResponse\x12n\n" +
 	"\x12ListVerifiedEmails\x12(.chatto.api.v1.ListVerifiedEmailsRequest\x1a).chatto.api.v1.ListVerifiedEmailsResponse\"\x03\x90\x02\x01\x12{\n" +
 	"\x18RequestEmailVerification\x12..chatto.api.v1.RequestEmailVerificationRequest\x1a/.chatto.api.v1.RequestEmailVerificationResponse\x12{\n" +
@@ -1051,102 +1313,115 @@ func file_chatto_api_v1_account_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_account_proto_rawDescData
 }
 
-var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_chatto_api_v1_account_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_chatto_api_v1_account_proto_goTypes = []any{
-	(*ChangePasswordRequest)(nil),              // 0: chatto.api.v1.ChangePasswordRequest
-	(*ChangePasswordResponse)(nil),             // 1: chatto.api.v1.ChangePasswordResponse
-	(*VerifiedEmail)(nil),                      // 2: chatto.api.v1.VerifiedEmail
-	(*ListVerifiedEmailsRequest)(nil),          // 3: chatto.api.v1.ListVerifiedEmailsRequest
-	(*ListVerifiedEmailsResponse)(nil),         // 4: chatto.api.v1.ListVerifiedEmailsResponse
-	(*RequestEmailVerificationRequest)(nil),    // 5: chatto.api.v1.RequestEmailVerificationRequest
-	(*RequestEmailVerificationResponse)(nil),   // 6: chatto.api.v1.RequestEmailVerificationResponse
-	(*ConfirmEmailVerificationRequest)(nil),    // 7: chatto.api.v1.ConfirmEmailVerificationRequest
-	(*ConfirmEmailVerificationResponse)(nil),   // 8: chatto.api.v1.ConfirmEmailVerificationResponse
-	(*SetPrimaryEmailRequest)(nil),             // 9: chatto.api.v1.SetPrimaryEmailRequest
-	(*SetPrimaryEmailResponse)(nil),            // 10: chatto.api.v1.SetPrimaryEmailResponse
-	(*GetSettingsRequest)(nil),                 // 11: chatto.api.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),                // 12: chatto.api.v1.GetSettingsResponse
-	(*UpdateSettingsRequest)(nil),              // 13: chatto.api.v1.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),             // 14: chatto.api.v1.UpdateSettingsResponse
-	(*RequestAccountDeletionRequest)(nil),      // 15: chatto.api.v1.RequestAccountDeletionRequest
-	(*RequestAccountDeletionResponse)(nil),     // 16: chatto.api.v1.RequestAccountDeletionResponse
-	(*DeleteMyAccountRequest)(nil),             // 17: chatto.api.v1.DeleteMyAccountRequest
-	(*DeleteMyAccountResponse)(nil),            // 18: chatto.api.v1.DeleteMyAccountResponse
-	(*User)(nil),                               // 19: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),              // 20: google.protobuf.Timestamp
-	(*UserSettings)(nil),                       // 21: chatto.api.v1.UserSettings
-	(TimeFormat)(0),                            // 22: chatto.api.v1.TimeFormat
-	(*fieldmaskpb.FieldMask)(nil),              // 23: google.protobuf.FieldMask
-	(*ListExternalIdentitiesRequest)(nil),      // 24: chatto.api.v1.ListExternalIdentitiesRequest
-	(*StartExternalIdentityLinkRequest)(nil),   // 25: chatto.api.v1.StartExternalIdentityLinkRequest
-	(*DisconnectExternalIdentityRequest)(nil),  // 26: chatto.api.v1.DisconnectExternalIdentityRequest
-	(*SetPresenceRequest)(nil),                 // 27: chatto.api.v1.SetPresenceRequest
-	(*GetPresencePreferenceRequest)(nil),       // 28: chatto.api.v1.GetPresencePreferenceRequest
-	(*SetPresencePreferenceRequest)(nil),       // 29: chatto.api.v1.SetPresencePreferenceRequest
-	(*RefreshPresenceRequest)(nil),             // 30: chatto.api.v1.RefreshPresenceRequest
-	(*SetCustomStatusRequest)(nil),             // 31: chatto.api.v1.SetCustomStatusRequest
-	(*DeleteCustomStatusRequest)(nil),          // 32: chatto.api.v1.DeleteCustomStatusRequest
-	(*ListExternalIdentitiesResponse)(nil),     // 33: chatto.api.v1.ListExternalIdentitiesResponse
-	(*StartExternalIdentityLinkResponse)(nil),  // 34: chatto.api.v1.StartExternalIdentityLinkResponse
-	(*DisconnectExternalIdentityResponse)(nil), // 35: chatto.api.v1.DisconnectExternalIdentityResponse
-	(*SetPresenceResponse)(nil),                // 36: chatto.api.v1.SetPresenceResponse
-	(*GetPresencePreferenceResponse)(nil),      // 37: chatto.api.v1.GetPresencePreferenceResponse
-	(*SetPresencePreferenceResponse)(nil),      // 38: chatto.api.v1.SetPresencePreferenceResponse
-	(*RefreshPresenceResponse)(nil),            // 39: chatto.api.v1.RefreshPresenceResponse
-	(*SetCustomStatusResponse)(nil),            // 40: chatto.api.v1.SetCustomStatusResponse
-	(*DeleteCustomStatusResponse)(nil),         // 41: chatto.api.v1.DeleteCustomStatusResponse
+	(ReleaseHighlightSurface)(0),                // 0: chatto.api.v1.ReleaseHighlightSurface
+	(*ChangePasswordRequest)(nil),               // 1: chatto.api.v1.ChangePasswordRequest
+	(*ChangePasswordResponse)(nil),              // 2: chatto.api.v1.ChangePasswordResponse
+	(*VerifiedEmail)(nil),                       // 3: chatto.api.v1.VerifiedEmail
+	(*ListVerifiedEmailsRequest)(nil),           // 4: chatto.api.v1.ListVerifiedEmailsRequest
+	(*ListVerifiedEmailsResponse)(nil),          // 5: chatto.api.v1.ListVerifiedEmailsResponse
+	(*RequestEmailVerificationRequest)(nil),     // 6: chatto.api.v1.RequestEmailVerificationRequest
+	(*RequestEmailVerificationResponse)(nil),    // 7: chatto.api.v1.RequestEmailVerificationResponse
+	(*ConfirmEmailVerificationRequest)(nil),     // 8: chatto.api.v1.ConfirmEmailVerificationRequest
+	(*ConfirmEmailVerificationResponse)(nil),    // 9: chatto.api.v1.ConfirmEmailVerificationResponse
+	(*SetPrimaryEmailRequest)(nil),              // 10: chatto.api.v1.SetPrimaryEmailRequest
+	(*SetPrimaryEmailResponse)(nil),             // 11: chatto.api.v1.SetPrimaryEmailResponse
+	(*GetSettingsRequest)(nil),                  // 12: chatto.api.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),                 // 13: chatto.api.v1.GetSettingsResponse
+	(*UpdateSettingsRequest)(nil),               // 14: chatto.api.v1.UpdateSettingsRequest
+	(*UpdateSettingsResponse)(nil),              // 15: chatto.api.v1.UpdateSettingsResponse
+	(*RequestAccountDeletionRequest)(nil),       // 16: chatto.api.v1.RequestAccountDeletionRequest
+	(*RequestAccountDeletionResponse)(nil),      // 17: chatto.api.v1.RequestAccountDeletionResponse
+	(*DeleteMyAccountRequest)(nil),              // 18: chatto.api.v1.DeleteMyAccountRequest
+	(*DeleteMyAccountResponse)(nil),             // 19: chatto.api.v1.DeleteMyAccountResponse
+	(*DismissReleaseHighlightsRequest)(nil),     // 20: chatto.api.v1.DismissReleaseHighlightsRequest
+	(*DismissReleaseHighlightsResponse)(nil),    // 21: chatto.api.v1.DismissReleaseHighlightsResponse
+	(*InitializeReleaseHighlightsRequest)(nil),  // 22: chatto.api.v1.InitializeReleaseHighlightsRequest
+	(*InitializeReleaseHighlightsResponse)(nil), // 23: chatto.api.v1.InitializeReleaseHighlightsResponse
+	(*User)(nil),                               // 24: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),              // 25: google.protobuf.Timestamp
+	(*UserSettings)(nil),                       // 26: chatto.api.v1.UserSettings
+	(TimeFormat)(0),                            // 27: chatto.api.v1.TimeFormat
+	(*fieldmaskpb.FieldMask)(nil),              // 28: google.protobuf.FieldMask
+	(*ListExternalIdentitiesRequest)(nil),      // 29: chatto.api.v1.ListExternalIdentitiesRequest
+	(*StartExternalIdentityLinkRequest)(nil),   // 30: chatto.api.v1.StartExternalIdentityLinkRequest
+	(*DisconnectExternalIdentityRequest)(nil),  // 31: chatto.api.v1.DisconnectExternalIdentityRequest
+	(*SetPresenceRequest)(nil),                 // 32: chatto.api.v1.SetPresenceRequest
+	(*GetPresencePreferenceRequest)(nil),       // 33: chatto.api.v1.GetPresencePreferenceRequest
+	(*SetPresencePreferenceRequest)(nil),       // 34: chatto.api.v1.SetPresencePreferenceRequest
+	(*RefreshPresenceRequest)(nil),             // 35: chatto.api.v1.RefreshPresenceRequest
+	(*SetCustomStatusRequest)(nil),             // 36: chatto.api.v1.SetCustomStatusRequest
+	(*DeleteCustomStatusRequest)(nil),          // 37: chatto.api.v1.DeleteCustomStatusRequest
+	(*ListExternalIdentitiesResponse)(nil),     // 38: chatto.api.v1.ListExternalIdentitiesResponse
+	(*StartExternalIdentityLinkResponse)(nil),  // 39: chatto.api.v1.StartExternalIdentityLinkResponse
+	(*DisconnectExternalIdentityResponse)(nil), // 40: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*SetPresenceResponse)(nil),                // 41: chatto.api.v1.SetPresenceResponse
+	(*GetPresencePreferenceResponse)(nil),      // 42: chatto.api.v1.GetPresencePreferenceResponse
+	(*SetPresencePreferenceResponse)(nil),      // 43: chatto.api.v1.SetPresencePreferenceResponse
+	(*RefreshPresenceResponse)(nil),            // 44: chatto.api.v1.RefreshPresenceResponse
+	(*SetCustomStatusResponse)(nil),            // 45: chatto.api.v1.SetCustomStatusResponse
+	(*DeleteCustomStatusResponse)(nil),         // 46: chatto.api.v1.DeleteCustomStatusResponse
 }
 var file_chatto_api_v1_account_proto_depIdxs = []int32{
-	19, // 0: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
-	20, // 1: chatto.api.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
-	2,  // 2: chatto.api.v1.ListVerifiedEmailsResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
-	2,  // 3: chatto.api.v1.ConfirmEmailVerificationResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
-	2,  // 4: chatto.api.v1.SetPrimaryEmailResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
-	21, // 5: chatto.api.v1.GetSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	22, // 6: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
-	23, // 7: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
-	21, // 8: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	0,  // 9: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
-	3,  // 10: chatto.api.v1.MyAccountService.ListVerifiedEmails:input_type -> chatto.api.v1.ListVerifiedEmailsRequest
-	5,  // 11: chatto.api.v1.MyAccountService.RequestEmailVerification:input_type -> chatto.api.v1.RequestEmailVerificationRequest
-	7,  // 12: chatto.api.v1.MyAccountService.ConfirmEmailVerification:input_type -> chatto.api.v1.ConfirmEmailVerificationRequest
-	9,  // 13: chatto.api.v1.MyAccountService.SetPrimaryEmail:input_type -> chatto.api.v1.SetPrimaryEmailRequest
-	11, // 14: chatto.api.v1.MyAccountService.GetSettings:input_type -> chatto.api.v1.GetSettingsRequest
-	13, // 15: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	24, // 16: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	25, // 17: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
-	26, // 18: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
-	27, // 19: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
-	28, // 20: chatto.api.v1.MyAccountService.GetPresencePreference:input_type -> chatto.api.v1.GetPresencePreferenceRequest
-	29, // 21: chatto.api.v1.MyAccountService.SetPresencePreference:input_type -> chatto.api.v1.SetPresencePreferenceRequest
-	30, // 22: chatto.api.v1.MyAccountService.RefreshPresence:input_type -> chatto.api.v1.RefreshPresenceRequest
-	31, // 23: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
-	32, // 24: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
-	15, // 25: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
-	17, // 26: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
-	1,  // 27: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
-	4,  // 28: chatto.api.v1.MyAccountService.ListVerifiedEmails:output_type -> chatto.api.v1.ListVerifiedEmailsResponse
-	6,  // 29: chatto.api.v1.MyAccountService.RequestEmailVerification:output_type -> chatto.api.v1.RequestEmailVerificationResponse
-	8,  // 30: chatto.api.v1.MyAccountService.ConfirmEmailVerification:output_type -> chatto.api.v1.ConfirmEmailVerificationResponse
-	10, // 31: chatto.api.v1.MyAccountService.SetPrimaryEmail:output_type -> chatto.api.v1.SetPrimaryEmailResponse
-	12, // 32: chatto.api.v1.MyAccountService.GetSettings:output_type -> chatto.api.v1.GetSettingsResponse
-	14, // 33: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	33, // 34: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	34, // 35: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
-	35, // 36: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
-	36, // 37: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
-	37, // 38: chatto.api.v1.MyAccountService.GetPresencePreference:output_type -> chatto.api.v1.GetPresencePreferenceResponse
-	38, // 39: chatto.api.v1.MyAccountService.SetPresencePreference:output_type -> chatto.api.v1.SetPresencePreferenceResponse
-	39, // 40: chatto.api.v1.MyAccountService.RefreshPresence:output_type -> chatto.api.v1.RefreshPresenceResponse
-	40, // 41: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
-	41, // 42: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
-	16, // 43: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
-	18, // 44: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
-	27, // [27:45] is the sub-list for method output_type
-	9,  // [9:27] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	24, // 0: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
+	25, // 1: chatto.api.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
+	3,  // 2: chatto.api.v1.ListVerifiedEmailsResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	3,  // 3: chatto.api.v1.ConfirmEmailVerificationResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	3,  // 4: chatto.api.v1.SetPrimaryEmailResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	26, // 5: chatto.api.v1.GetSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	27, // 6: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
+	28, // 7: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	26, // 8: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	26, // 9: chatto.api.v1.DismissReleaseHighlightsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	0,  // 10: chatto.api.v1.InitializeReleaseHighlightsRequest.surface:type_name -> chatto.api.v1.ReleaseHighlightSurface
+	26, // 11: chatto.api.v1.InitializeReleaseHighlightsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	22, // 12: chatto.api.v1.MyAccountService.InitializeReleaseHighlights:input_type -> chatto.api.v1.InitializeReleaseHighlightsRequest
+	20, // 13: chatto.api.v1.MyAccountService.DismissReleaseHighlights:input_type -> chatto.api.v1.DismissReleaseHighlightsRequest
+	1,  // 14: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
+	4,  // 15: chatto.api.v1.MyAccountService.ListVerifiedEmails:input_type -> chatto.api.v1.ListVerifiedEmailsRequest
+	6,  // 16: chatto.api.v1.MyAccountService.RequestEmailVerification:input_type -> chatto.api.v1.RequestEmailVerificationRequest
+	8,  // 17: chatto.api.v1.MyAccountService.ConfirmEmailVerification:input_type -> chatto.api.v1.ConfirmEmailVerificationRequest
+	10, // 18: chatto.api.v1.MyAccountService.SetPrimaryEmail:input_type -> chatto.api.v1.SetPrimaryEmailRequest
+	12, // 19: chatto.api.v1.MyAccountService.GetSettings:input_type -> chatto.api.v1.GetSettingsRequest
+	14, // 20: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
+	29, // 21: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
+	30, // 22: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
+	31, // 23: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
+	32, // 24: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
+	33, // 25: chatto.api.v1.MyAccountService.GetPresencePreference:input_type -> chatto.api.v1.GetPresencePreferenceRequest
+	34, // 26: chatto.api.v1.MyAccountService.SetPresencePreference:input_type -> chatto.api.v1.SetPresencePreferenceRequest
+	35, // 27: chatto.api.v1.MyAccountService.RefreshPresence:input_type -> chatto.api.v1.RefreshPresenceRequest
+	36, // 28: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
+	37, // 29: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
+	16, // 30: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	18, // 31: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	23, // 32: chatto.api.v1.MyAccountService.InitializeReleaseHighlights:output_type -> chatto.api.v1.InitializeReleaseHighlightsResponse
+	21, // 33: chatto.api.v1.MyAccountService.DismissReleaseHighlights:output_type -> chatto.api.v1.DismissReleaseHighlightsResponse
+	2,  // 34: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
+	5,  // 35: chatto.api.v1.MyAccountService.ListVerifiedEmails:output_type -> chatto.api.v1.ListVerifiedEmailsResponse
+	7,  // 36: chatto.api.v1.MyAccountService.RequestEmailVerification:output_type -> chatto.api.v1.RequestEmailVerificationResponse
+	9,  // 37: chatto.api.v1.MyAccountService.ConfirmEmailVerification:output_type -> chatto.api.v1.ConfirmEmailVerificationResponse
+	11, // 38: chatto.api.v1.MyAccountService.SetPrimaryEmail:output_type -> chatto.api.v1.SetPrimaryEmailResponse
+	13, // 39: chatto.api.v1.MyAccountService.GetSettings:output_type -> chatto.api.v1.GetSettingsResponse
+	15, // 40: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
+	38, // 41: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
+	39, // 42: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
+	40, // 43: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
+	41, // 44: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
+	42, // 45: chatto.api.v1.MyAccountService.GetPresencePreference:output_type -> chatto.api.v1.GetPresencePreferenceResponse
+	43, // 46: chatto.api.v1.MyAccountService.SetPresencePreference:output_type -> chatto.api.v1.SetPresencePreferenceResponse
+	44, // 47: chatto.api.v1.MyAccountService.RefreshPresence:output_type -> chatto.api.v1.RefreshPresenceResponse
+	45, // 48: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
+	46, // 49: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
+	17, // 50: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	19, // 51: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	32, // [32:52] is the sub-list for method output_type
+	12, // [12:32] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_account_proto_init() }
@@ -1165,13 +1440,14 @@ func file_chatto_api_v1_account_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_account_proto_rawDesc), len(file_chatto_api_v1_account_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   19,
+			NumEnums:      1,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_account_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_account_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_account_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_account_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_account_proto = out.File

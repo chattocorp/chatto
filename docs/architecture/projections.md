@@ -12,6 +12,10 @@ The config component uses snapshot contract `v3`. Timezone-clear events retain
 an empty optional value for an explicit browser-default choice. Older snapshots
 are rebuilt from EVT because they represented that choice as an absent value.
 
+The config component retains private release-highlight dismissals and the first
+shown release for each surface. Its snapshot preserves those fields; account
+deletion removes them. See [release highlights](../../cli/internal/core/release_highlights.go).
+
 The config component also retains registration admission from
 `ServerRegistrationAdmissionChangedEvent`. Its snapshot includes the enum.
 Absent policy defaults to open; unknown values remain intact and account

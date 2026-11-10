@@ -32,6 +32,10 @@ enum NotificationLevel {
 // names retained per ADR-029).
 // All fields are optional - absence means "use browser/locale default".
 message ServerUserPreferences {
+  // Stable IDs acknowledged by this account; never exposed on public profiles.
+  repeated string dismissed_release_highlights = 4;
+  optional string highlights_users_since_version = 5;
+  optional string highlights_admins_since_version = 6;
   // IANA timezone name (e.g., "America/New_York", "Europe/Berlin").
   // If absent or empty, the frontend uses the browser's local timezone.
   optional string timezone = 1;

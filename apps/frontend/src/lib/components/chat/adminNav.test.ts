@@ -152,3 +152,25 @@ describe('getAdminNavItems', () => {
     expect(items.find((item) => item.label === 'Rooms')?.href).toBe('/chat/local/manage/rooms');
   });
 });
+
+describe('release highlights administration entry', () => {
+  it('requires administrative access even when a member can manage their own bots', () => {
+    expect(
+      getAdminNavItems({
+        serverSegment: 'local',
+        permissions: permissions(),
+        hasNewHighlights: true
+      }).some((item) => item.href.endsWith('/whats-new'))
+    ).toBe(false);
+  });
+  it('announces unread highlights separately from user Help', () => {
+    const item = getAdminNavItems({
+      serverSegment: 'remote',
+      permissions: permissions({ canViewAdmin: true }),
+      hasNewHighlights: true
+    }).find((item) => item.href.endsWith('/whats-new'));
+    expect(item?.href).toBe('/chat/remote/manage/server/whats-new');
+    expect(item?.label).toContain('New');
+    expect(item?.icon).toContain('star');
+  });
+});

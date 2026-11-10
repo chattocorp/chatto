@@ -104,6 +104,18 @@
       "yesterday": "Gisteren",
       "this_week": "Deze week",
       "this_month": "Deze maand"
+    },
+    "release_highlights": {
+      "title": "Wat is er nieuw?",
+      "new": "Nieuw",
+      "dismiss": "Negeren",
+      "dismiss_all": "Alles negeren",
+      "empty": "Je bent helemaal bij.",
+      "unsupported": "Deze server kan genegeerde meldingen niet tussen apparaten synchroniseren.",
+      "newer_app": "Beschikbaar met een nieuwere app",
+      "user_title": "Hulp in Chatto",
+      "admin_title": "Hulp bij bots",
+      "read_guide": "Lees de handleiding"
     }
   }
 }

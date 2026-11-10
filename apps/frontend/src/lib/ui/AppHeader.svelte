@@ -1,12 +1,15 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { page } from '$app/state';
   import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverIdToSegment } from '$lib/navigation';
+  import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
   import { version } from '$app/environment';
+  import { version as frontendRelease } from '../../../package.json';
+  import { applicableHighlights, unreadHighlights } from '$lib/help/highlights/catalog';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import { m } from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -71,6 +74,33 @@
     if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
     return firstAuthenticatedServerId();
   });
+
+  const explicitHelpServer = $derived(
+    (page.url.pathname === resolve('/help') ||
+      page.url.pathname.startsWith(`${resolve('/help')}/`)) &&
+      page.url.searchParams.has('server')
+      ? segmentToServerId(page.url.searchParams.get('server') ?? '')
+      : null
+  );
+  const helpServerId = $derived(explicitHelpServer ?? preferencesServerId);
+  const helpStore = $derived(helpServerId ? serverRegistry.tryGetStore(helpServerId) : undefined);
+  const newHighlights = $derived(
+    helpStore?.currentUser?.verifiedUserId &&
+      helpStore.currentUser.user?.settings?.releaseHighlights
+      ? unreadHighlights(
+          'users',
+          applicableHighlights('users', frontendRelease, helpStore.serverInfo.version),
+          helpStore.currentUser.user.settings.releaseHighlights
+        )
+      : []
+  );
+  const helpHref = $derived(
+    newHighlights.length > 0 && helpServerId
+      ? `/help/whats-new?server=${encodeURIComponent(serverIdToSegment(helpServerId))}#highlight-${newHighlights[0].id}`
+      : explicitHelpServer
+        ? `/help?server=${encodeURIComponent(serverIdToSegment(explicitHelpServer))}`
+        : '/help'
+  );
 
   function showAboutChatto() {
     pushState('', { modal: { type: 'aboutChatto' } });
@@ -204,12 +234,17 @@
       </button>
     {/if}
     <a
-      href={resolve('/help')}
-      class="app-header-icon"
-      aria-label={m('ui.help')}
-      title={m('ui.help')}
+      href={resolve(helpHref as '/')}
+      class="app-header-icon relative"
+      aria-label={newHighlights.length > 0 ? m('ui.release_highlights.title') : m('ui.help')}
+      title={newHighlights.length > 0 ? m('ui.release_highlights.title') : m('ui.help')}
     >
       <span class="iconify icon-[uil--question-circle] text-lg" aria-hidden="true"></span>
+      {#if newHighlights.length > 0}<UnreadDot
+          color="action"
+          class="absolute end-2 top-2"
+          testid="release-highlights-unread-dot"
+        />{/if}
     </a>
   </div>
 </header>

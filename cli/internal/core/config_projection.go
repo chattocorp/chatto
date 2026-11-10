@@ -39,12 +39,15 @@ type Neighbor struct {
 }
 
 type userConfigState struct {
-	timezone              *string
-	timeFormat            *evtv1.TimeFormat
-	shareTimezone         bool
-	serverModes           *evtv1.NotificationDeliveryModes
-	roomGroupModesByGroup map[string]*evtv1.NotificationDeliveryModes
-	roomModesByRoom       map[string]*evtv1.NotificationDeliveryModes
+	dismissedReleaseHighlights   map[string]struct{}
+	highlightsUsersSinceVersion  *string
+	highlightsAdminsSinceVersion *string
+	timezone                     *string
+	timeFormat                   *evtv1.TimeFormat
+	shareTimezone                bool
+	serverModes                  *evtv1.NotificationDeliveryModes
+	roomGroupModesByGroup        map[string]*evtv1.NotificationDeliveryModes
+	roomModesByRoom              map[string]*evtv1.NotificationDeliveryModes
 }
 
 func NewConfigProjection() *ConfigProjection {
@@ -121,6 +124,22 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 	case *evtv1.Event_ServerNeighborDeleted:
 		neighborID := e.ServerNeighborDeleted.GetNeighborId()
 		delete(p.server.neighbors, neighborID)
+	case *evtv1.Event_UserReleaseHighlightsChanged:
+		u := p.ensureUserLocked(e.UserReleaseHighlightsChanged.GetUserId())
+		if u.highlightsUsersSinceVersion == nil && e.UserReleaseHighlightsChanged.UsersSinceVersion != nil {
+			value := e.UserReleaseHighlightsChanged.GetUsersSinceVersion()
+			u.highlightsUsersSinceVersion = &value
+		}
+		if u.highlightsAdminsSinceVersion == nil && e.UserReleaseHighlightsChanged.AdminsSinceVersion != nil {
+			value := e.UserReleaseHighlightsChanged.GetAdminsSinceVersion()
+			u.highlightsAdminsSinceVersion = &value
+		}
+		if u.dismissedReleaseHighlights == nil && len(e.UserReleaseHighlightsChanged.GetIds()) > 0 {
+			u.dismissedReleaseHighlights = make(map[string]struct{})
+		}
+		for _, id := range e.UserReleaseHighlightsChanged.GetIds() {
+			u.dismissedReleaseHighlights[id] = struct{}{}
+		}
 	case *evtv1.Event_UserTimezoneChanged:
 		u := p.ensureUserLocked(e.UserTimezoneChanged.GetUserId())
 		tz := e.UserTimezoneChanged.GetTimezone()

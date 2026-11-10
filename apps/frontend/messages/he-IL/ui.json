@@ -105,6 +105,18 @@
       "yesterday": "אתמול",
       "this_week": "השבוע",
       "this_month": "החודש"
+    },
+    "release_highlights": {
+      "title": "מה חדש?",
+      "new": "חדש",
+      "dismiss": "הסתר",
+      "dismiss_all": "הסתר הכול",
+      "empty": "אתה מעודכן.",
+      "unsupported": "שרת זה אינו תומך בסנכרון הודעות מוסתרות בין מכשירים.",
+      "newer_app": "זמין ביישום חדש יותר",
+      "user_title": "עזרה בתוך Chatto",
+      "admin_title": "עזרה עם בוטים",
+      "read_guide": "קרא את המדריך"
     }
   }
 }

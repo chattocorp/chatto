@@ -81,6 +81,10 @@ test.describe('Route accessibility', () => {
         await settle(page);
         await expectNoAccessibilityViolations(page, `help ${topic} (${locale})`);
       }
+      await page.goto('/help/whats-new');
+      await expect(page.locator('[data-highlight="help-guides"]')).toBeVisible();
+      await settle(page);
+      await expectNoAccessibilityViolations(page, `release highlights (${locale})`);
     });
   }
 
@@ -351,6 +355,7 @@ test.describe('Route accessibility', () => {
 
     for (const [state, route] of [
       ['members', routes.serverAdminMembers],
+      ['administrative release highlights', routes.serverAdmin('whats-new')],
       ['member detail', routes.serverAdminMember(admin.id!)],
       ['member account', `${routes.serverAdminMember(admin.id!)}/account`],
       ['member roles', `${routes.serverAdminMember(admin.id!)}/roles`],

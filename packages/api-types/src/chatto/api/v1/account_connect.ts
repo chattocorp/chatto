@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, DismissReleaseHighlightsRequest, DismissReleaseHighlightsResponse, GetSettingsRequest, GetSettingsResponse, InitializeReleaseHighlightsRequest, InitializeReleaseHighlightsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { GetPresencePreferenceRequest, GetPresencePreferenceResponse, RefreshPresenceRequest, RefreshPresenceResponse, SetPresencePreferenceRequest, SetPresencePreferenceResponse, SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
@@ -19,6 +19,31 @@ import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusR
 export const MyAccountService = {
   typeName: "chatto.api.v1.MyAccountService",
   methods: {
+    /**
+     * Sets the caller's first shown release once per surface. This is idempotent,
+     * does not dismiss entries, and does not grant administrative access.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.InitializeReleaseHighlights
+     */
+    initializeReleaseHighlights: {
+      name: "InitializeReleaseHighlights",
+      I: InitializeReleaseHighlightsRequest,
+      O: InitializeReleaseHighlightsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Adds IDs to the caller's dismissed highlights. Repeated IDs are no-ops.
+     * Concurrent calls merge; other dismissals are never replaced. This does not
+     * grant administrative access. Article content is bundled with the client.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.DismissReleaseHighlights
+     */
+    dismissReleaseHighlights: {
+      name: "DismissReleaseHighlights",
+      I: DismissReleaseHighlightsRequest,
+      O: DismissReleaseHighlightsResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Updates or adds the authenticated user's password.
      *

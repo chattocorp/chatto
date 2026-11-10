@@ -104,6 +104,18 @@
       "yesterday": "vakar",
       "this_week": "Šonedēļ",
       "this_month": "Šomēnes"
+    },
+    "release_highlights": {
+      "title": "Kas jauns?",
+      "new": "Jaunums",
+      "dismiss": "Noraidīt",
+      "dismiss_all": "Noraidīt visu",
+      "empty": "Jūs esat iepazinušies ar visiem jaunumiem.",
+      "unsupported": "Šis serveris nevar sinhronizēt noraidītos paziņojumus starp ierīcēm.",
+      "newer_app": "Pieejams jaunākā lietotnē",
+      "user_title": "Palīdzība Chatto lietotnē",
+      "admin_title": "Palīdzība par botiem",
+      "read_guide": "Lasiet ceļvedi"
     }
   }
 }

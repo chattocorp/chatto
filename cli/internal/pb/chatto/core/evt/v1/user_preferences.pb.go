@@ -138,6 +138,10 @@ func (NotificationLevel) EnumDescriptor() ([]byte, []int) {
 // All fields are optional - absence means "use browser/locale default".
 type ServerUserPreferences struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable IDs acknowledged by this account; never exposed on public profiles.
+	DismissedReleaseHighlights   []string `protobuf:"bytes,4,rep,name=dismissed_release_highlights,json=dismissedReleaseHighlights,proto3" json:"dismissed_release_highlights,omitempty"`
+	HighlightsUsersSinceVersion  *string  `protobuf:"bytes,5,opt,name=highlights_users_since_version,json=highlightsUsersSinceVersion,proto3,oneof" json:"highlights_users_since_version,omitempty"`
+	HighlightsAdminsSinceVersion *string  `protobuf:"bytes,6,opt,name=highlights_admins_since_version,json=highlightsAdminsSinceVersion,proto3,oneof" json:"highlights_admins_since_version,omitempty"`
 	// IANA timezone name (e.g., "America/New_York", "Europe/Berlin").
 	// If absent or empty, the frontend uses the browser's local timezone.
 	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
@@ -179,6 +183,27 @@ func (x *ServerUserPreferences) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ServerUserPreferences.ProtoReflect.Descriptor instead.
 func (*ServerUserPreferences) Descriptor() ([]byte, []int) {
 	return file_chatto_core_evt_v1_user_preferences_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ServerUserPreferences) GetDismissedReleaseHighlights() []string {
+	if x != nil {
+		return x.DismissedReleaseHighlights
+	}
+	return nil
+}
+
+func (x *ServerUserPreferences) GetHighlightsUsersSinceVersion() string {
+	if x != nil && x.HighlightsUsersSinceVersion != nil {
+		return *x.HighlightsUsersSinceVersion
+	}
+	return ""
+}
+
+func (x *ServerUserPreferences) GetHighlightsAdminsSinceVersion() string {
+	if x != nil && x.HighlightsAdminsSinceVersion != nil {
+		return *x.HighlightsAdminsSinceVersion
+	}
+	return ""
 }
 
 func (x *ServerUserPreferences) GetTimezone() string {
@@ -300,12 +325,17 @@ var File_chatto_core_evt_v1_user_preferences_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_user_preferences_proto_rawDesc = "" +
 	"\n" +
-	")chatto/core/evt/v1/user_preferences.proto\x12\x12chatto.core.evt.v1\"\xad\x01\n" +
-	"\x15ServerUserPreferences\x12\x1f\n" +
-	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12?\n" +
+	")chatto/core/evt/v1/user_preferences.proto\x12\x12chatto.core.evt.v1\"\xcc\x03\n" +
+	"\x15ServerUserPreferences\x12@\n" +
+	"\x1cdismissed_release_highlights\x18\x04 \x03(\tR\x1adismissedReleaseHighlights\x12H\n" +
+	"\x1ehighlights_users_since_version\x18\x05 \x01(\tH\x00R\x1bhighlightsUsersSinceVersion\x88\x01\x01\x12J\n" +
+	"\x1fhighlights_admins_since_version\x18\x06 \x01(\tH\x01R\x1chighlightsAdminsSinceVersion\x88\x01\x01\x12\x1f\n" +
+	"\btimezone\x18\x01 \x01(\tH\x02R\btimezone\x88\x01\x01\x12?\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1e.chatto.core.evt.v1.TimeFormatR\n" +
 	"timeFormat\x12%\n" +
-	"\x0eshare_timezone\x18\x03 \x01(\bR\rshareTimezoneB\v\n" +
+	"\x0eshare_timezone\x18\x03 \x01(\bR\rshareTimezoneB!\n" +
+	"\x1f_highlights_users_since_versionB\"\n" +
+	" _highlights_admins_since_versionB\v\n" +
 	"\t_timezone\"g\n" +
 	"\x0fUserPreferences\x12T\n" +
 	"\x12notification_level\x18\x01 \x01(\x0e2%.chatto.core.evt.v1.NotificationLevelR\x11notificationLevel\"k\n" +

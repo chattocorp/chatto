@@ -1,3 +1,4 @@
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrentUserState, type CurrentUser } from './currentUser.js';
@@ -243,5 +244,34 @@ describe('CurrentUserState', () => {
     expect(state.user).toBe(user);
     expect(state.verifiedUserId).toBeNull();
     expect(state.loading).toBe(false);
+  });
+});
+
+describe('release-highlight reconciliation', () => {
+  const reader = (id: string, dismissedIds: string[]): CurrentUser => ({
+    id,
+    login: id,
+    displayName: id,
+    presenceStatus: PresenceStatus.OFFLINE,
+    hasVerifiedEmail: false,
+    hasPassword: false,
+    viewerCanDeleteAccount: false,
+    settings: { timeFormat: TimeFormat.TIME_FORMAT_AUTO, releaseHighlights: { dismissedIds } }
+  });
+  it('keeps acknowledgements when an older viewer response arrives', () => {
+    const state = new CurrentUserState();
+    state.accept(reader('U1', ['users:help']));
+    state.accept(reader('U1', []));
+    expect(state.user?.settings?.releaseHighlights?.dismissedIds).toEqual(['users:help']);
+  });
+  it('does not carry acknowledgements across accounts or invalidated sessions', () => {
+    const state = new CurrentUserState();
+    state.accept(reader('U1', ['users:help']));
+    state.accept(reader('U2', []));
+    expect(state.user?.settings?.releaseHighlights?.dismissedIds).toEqual([]);
+    state.accept(reader('U2', ['users:help']));
+    state.invalidateVerification();
+    state.accept(reader('U2', []));
+    expect(state.user?.settings?.releaseHighlights?.dismissedIds).toEqual([]);
   });
 });

@@ -104,6 +104,18 @@
       "yesterday": "včera",
       "this_week": "Tento týden",
       "this_month": "Tento měsíc"
+    },
+    "release_highlights": {
+      "title": "Co je nového?",
+      "new": "Nové",
+      "dismiss": "Skrýt",
+      "dismiss_all": "Skrýt vše",
+      "empty": "Jste v obraze.",
+      "unsupported": "Tento server nemůže synchronizovat skrytá oznámení mezi zařízeními.",
+      "newer_app": "Dostupné s novější aplikací",
+      "user_title": "Nápověda přímo v Chatto",
+      "admin_title": "Nápověda k botům",
+      "read_guide": "Přečtěte si průvodce"
     }
   }
 }

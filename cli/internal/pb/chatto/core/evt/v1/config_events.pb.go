@@ -1301,6 +1301,76 @@ func (x *ServerNeighborDeletedEvent) GetNeighborId() string {
 	return ""
 }
 
+// Records additive private release-highlight acknowledgements for one account.
+type UserReleaseHighlightsChangedEvent struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Adds these IDs; never replaces previous acknowledgements.
+	Ids                []string `protobuf:"bytes,2,rep,name=ids,proto3" json:"ids,omitempty"`
+	UsersSinceVersion  *string  `protobuf:"bytes,3,opt,name=users_since_version,json=usersSinceVersion,proto3,oneof" json:"users_since_version,omitempty"`
+	AdminsSinceVersion *string  `protobuf:"bytes,4,opt,name=admins_since_version,json=adminsSinceVersion,proto3,oneof" json:"admins_since_version,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *UserReleaseHighlightsChangedEvent) Reset() {
+	*x = UserReleaseHighlightsChangedEvent{}
+	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserReleaseHighlightsChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserReleaseHighlightsChangedEvent) ProtoMessage() {}
+
+func (x *UserReleaseHighlightsChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserReleaseHighlightsChangedEvent.ProtoReflect.Descriptor instead.
+func (*UserReleaseHighlightsChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_config_events_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UserReleaseHighlightsChangedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserReleaseHighlightsChangedEvent) GetIds() []string {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+func (x *UserReleaseHighlightsChangedEvent) GetUsersSinceVersion() string {
+	if x != nil && x.UsersSinceVersion != nil {
+		return *x.UsersSinceVersion
+	}
+	return ""
+}
+
+func (x *UserReleaseHighlightsChangedEvent) GetAdminsSinceVersion() string {
+	if x != nil && x.AdminsSinceVersion != nil {
+		return *x.AdminsSinceVersion
+	}
+	return ""
+}
+
 var File_chatto_core_evt_v1_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_config_events_proto_rawDesc = "" +
@@ -1375,7 +1445,14 @@ const file_chatto_core_evt_v1_config_events_proto_rawDesc = "" +
 	"\vtestimonial\x18\x02 \x01(\tB\x02\x18\x01R\vtestimonial\"=\n" +
 	"\x1aServerNeighborDeletedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
-	"neighborId*\x88\x01\n" +
+	"neighborId\"\xeb\x01\n" +
+	"!UserReleaseHighlightsChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x10\n" +
+	"\x03ids\x18\x02 \x03(\tR\x03ids\x123\n" +
+	"\x13users_since_version\x18\x03 \x01(\tH\x00R\x11usersSinceVersion\x88\x01\x01\x125\n" +
+	"\x14admins_since_version\x18\x04 \x01(\tH\x01R\x12adminsSinceVersion\x88\x01\x01B\x16\n" +
+	"\x14_users_since_versionB\x17\n" +
+	"\x15_admins_since_version*\x88\x01\n" +
 	"\x15RegistrationAdmission\x12&\n" +
 	"\"REGISTRATION_ADMISSION_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bREGISTRATION_ADMISSION_OPEN\x10\x01\x12&\n" +
@@ -1395,7 +1472,7 @@ func file_chatto_core_evt_v1_config_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_evt_v1_config_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_evt_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_chatto_core_evt_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_chatto_core_evt_v1_config_events_proto_goTypes = []any{
 	(RegistrationAdmission)(0),                          // 0: chatto.core.evt.v1.RegistrationAdmission
 	(*ServerRegistrationAdmissionChangedEvent)(nil),     // 1: chatto.core.evt.v1.ServerRegistrationAdmissionChangedEvent
@@ -1423,20 +1500,21 @@ var file_chatto_core_evt_v1_config_events_proto_goTypes = []any{
 	(*ServerNeighborOriginChangedEvent)(nil),            // 23: chatto.core.evt.v1.ServerNeighborOriginChangedEvent
 	(*ServerNeighborTestimonialChangedEvent)(nil),       // 24: chatto.core.evt.v1.ServerNeighborTestimonialChangedEvent
 	(*ServerNeighborDeletedEvent)(nil),                  // 25: chatto.core.evt.v1.ServerNeighborDeletedEvent
-	(*AssetRecord)(nil),                                 // 26: chatto.core.evt.v1.AssetRecord
-	(TimeFormat)(0),                                     // 27: chatto.core.evt.v1.TimeFormat
-	(NotificationLevel)(0),                              // 28: chatto.core.evt.v1.NotificationLevel
-	(*NotificationDeliveryModes)(nil),                   // 29: chatto.core.evt.v1.NotificationDeliveryModes
+	(*UserReleaseHighlightsChangedEvent)(nil),           // 26: chatto.core.evt.v1.UserReleaseHighlightsChangedEvent
+	(*AssetRecord)(nil),                                 // 27: chatto.core.evt.v1.AssetRecord
+	(TimeFormat)(0),                                     // 28: chatto.core.evt.v1.TimeFormat
+	(NotificationLevel)(0),                              // 29: chatto.core.evt.v1.NotificationLevel
+	(*NotificationDeliveryModes)(nil),                   // 30: chatto.core.evt.v1.NotificationDeliveryModes
 }
 var file_chatto_core_evt_v1_config_events_proto_depIdxs = []int32{
 	0,  // 0: chatto.core.evt.v1.ServerRegistrationAdmissionChangedEvent.admission:type_name -> chatto.core.evt.v1.RegistrationAdmission
-	26, // 1: chatto.core.evt.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
-	26, // 2: chatto.core.evt.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
-	27, // 3: chatto.core.evt.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.evt.v1.TimeFormat
-	28, // 4: chatto.core.evt.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
-	28, // 5: chatto.core.evt.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
-	29, // 6: chatto.core.evt.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	29, // 7: chatto.core.evt.v1.UserRoomGroupNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	27, // 1: chatto.core.evt.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
+	27, // 2: chatto.core.evt.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
+	28, // 3: chatto.core.evt.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.evt.v1.TimeFormat
+	29, // 4: chatto.core.evt.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
+	29, // 5: chatto.core.evt.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
+	30, // 6: chatto.core.evt.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	30, // 7: chatto.core.evt.v1.UserRoomGroupNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
 	8,  // [8:8] is the sub-list for method output_type
 	8,  // [8:8] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
@@ -1453,13 +1531,14 @@ func file_chatto_core_evt_v1_config_events_proto_init() {
 	file_chatto_core_evt_v1_notification_policy_proto_init()
 	file_chatto_core_evt_v1_user_preferences_proto_init()
 	file_chatto_core_evt_v1_config_events_proto_msgTypes[19].OneofWrappers = []any{}
+	file_chatto_core_evt_v1_config_events_proto_msgTypes[25].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_config_events_proto_rawDesc), len(file_chatto_core_evt_v1_config_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   25,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

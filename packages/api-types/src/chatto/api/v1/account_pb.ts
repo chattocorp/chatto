@@ -9,6 +9,40 @@ import { User } from "./users_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
+ * Separate presentation surfaces for release highlights.
+ *
+ * @generated from enum chatto.api.v1.ReleaseHighlightSurface
+ */
+export enum ReleaseHighlightSurface {
+  /**
+   * No surface selected; requests must select one.
+   *
+   * @generated from enum value: RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Everyday user changes shown in Help.
+   *
+   * @generated from enum value: RELEASE_HIGHLIGHT_SURFACE_USERS = 1;
+   */
+  USERS = 1,
+
+  /**
+   * Administrator and operator changes shown in administration.
+   *
+   * @generated from enum value: RELEASE_HIGHLIGHT_SURFACE_ADMINS = 2;
+   */
+  ADMINS = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ReleaseHighlightSurface)
+proto3.util.setEnumType(ReleaseHighlightSurface, "chatto.api.v1.ReleaseHighlightSurface", [
+  { no: 0, name: "RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED" },
+  { no: 1, name: "RELEASE_HIGHLIGHT_SURFACE_USERS" },
+  { no: 2, name: "RELEASE_HIGHLIGHT_SURFACE_ADMINS" },
+]);
+
+/**
  * Request to update or add the authenticated user's password.
  *
  * @generated from message chatto.api.v1.ChangePasswordRequest
@@ -836,5 +870,174 @@ export class DeleteMyAccountResponse extends Message<DeleteMyAccountResponse> {
 
   static equals(a: DeleteMyAccountResponse | PlainMessage<DeleteMyAccountResponse> | undefined, b: DeleteMyAccountResponse | PlainMessage<DeleteMyAccountResponse> | undefined): boolean {
     return proto3.util.equals(DeleteMyAccountResponse, a, b);
+  }
+}
+
+/**
+ * Dismiss specific release highlights for the authenticated account only.
+ *
+ * @generated from message chatto.api.v1.DismissReleaseHighlightsRequest
+ */
+export class DismissReleaseHighlightsRequest extends Message<DismissReleaseHighlightsRequest> {
+  /**
+   * Stable IDs prefixed with users: or admins:. At most 100 IDs per request.
+   *
+   * @generated from field: repeated string ids = 1;
+   */
+  ids: string[] = [];
+
+  constructor(data?: PartialMessage<DismissReleaseHighlightsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DismissReleaseHighlightsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DismissReleaseHighlightsRequest {
+    return new DismissReleaseHighlightsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DismissReleaseHighlightsRequest {
+    return new DismissReleaseHighlightsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DismissReleaseHighlightsRequest {
+    return new DismissReleaseHighlightsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DismissReleaseHighlightsRequest | PlainMessage<DismissReleaseHighlightsRequest> | undefined, b: DismissReleaseHighlightsRequest | PlainMessage<DismissReleaseHighlightsRequest> | undefined): boolean {
+    return proto3.util.equals(DismissReleaseHighlightsRequest, a, b);
+  }
+}
+
+/**
+ * Authoritative private settings after the dismissal has been saved.
+ *
+ * @generated from message chatto.api.v1.DismissReleaseHighlightsResponse
+ */
+export class DismissReleaseHighlightsResponse extends Message<DismissReleaseHighlightsResponse> {
+  /**
+   * @generated from field: chatto.api.v1.UserSettings settings = 1;
+   */
+  settings?: UserSettings;
+
+  constructor(data?: PartialMessage<DismissReleaseHighlightsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DismissReleaseHighlightsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "settings", kind: "message", T: UserSettings },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DismissReleaseHighlightsResponse {
+    return new DismissReleaseHighlightsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DismissReleaseHighlightsResponse {
+    return new DismissReleaseHighlightsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DismissReleaseHighlightsResponse {
+    return new DismissReleaseHighlightsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DismissReleaseHighlightsResponse | PlainMessage<DismissReleaseHighlightsResponse> | undefined, b: DismissReleaseHighlightsResponse | PlainMessage<DismissReleaseHighlightsResponse> | undefined): boolean {
+    return proto3.util.equals(DismissReleaseHighlightsResponse, a, b);
+  }
+}
+
+/**
+ * Records the first release shown on one highlight surface, without dismissing
+ * articles. Subsequent calls preserve the first successfully stored version.
+ *
+ * @generated from message chatto.api.v1.InitializeReleaseHighlightsRequest
+ */
+export class InitializeReleaseHighlightsRequest extends Message<InitializeReleaseHighlightsRequest> {
+  /**
+   * Selects the independent baseline to initialize.
+   *
+   * @generated from field: chatto.api.v1.ReleaseHighlightSurface surface = 1;
+   */
+  surface = ReleaseHighlightSurface.UNSPECIFIED;
+
+  /**
+   * Full Semantic Version of the newest applicable bundled highlights.
+   *
+   * @generated from field: string release_version = 2;
+   */
+  releaseVersion = "";
+
+  constructor(data?: PartialMessage<InitializeReleaseHighlightsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.InitializeReleaseHighlightsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "surface", kind: "enum", T: proto3.getEnumType(ReleaseHighlightSurface) },
+    { no: 2, name: "release_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitializeReleaseHighlightsRequest {
+    return new InitializeReleaseHighlightsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InitializeReleaseHighlightsRequest {
+    return new InitializeReleaseHighlightsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InitializeReleaseHighlightsRequest {
+    return new InitializeReleaseHighlightsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: InitializeReleaseHighlightsRequest | PlainMessage<InitializeReleaseHighlightsRequest> | undefined, b: InitializeReleaseHighlightsRequest | PlainMessage<InitializeReleaseHighlightsRequest> | undefined): boolean {
+    return proto3.util.equals(InitializeReleaseHighlightsRequest, a, b);
+  }
+}
+
+/**
+ * Current private settings after initialization.
+ *
+ * @generated from message chatto.api.v1.InitializeReleaseHighlightsResponse
+ */
+export class InitializeReleaseHighlightsResponse extends Message<InitializeReleaseHighlightsResponse> {
+  /**
+   * @generated from field: chatto.api.v1.UserSettings settings = 1;
+   */
+  settings?: UserSettings;
+
+  constructor(data?: PartialMessage<InitializeReleaseHighlightsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.InitializeReleaseHighlightsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "settings", kind: "message", T: UserSettings },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitializeReleaseHighlightsResponse {
+    return new InitializeReleaseHighlightsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InitializeReleaseHighlightsResponse {
+    return new InitializeReleaseHighlightsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InitializeReleaseHighlightsResponse {
+    return new InitializeReleaseHighlightsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: InitializeReleaseHighlightsResponse | PlainMessage<InitializeReleaseHighlightsResponse> | undefined, b: InitializeReleaseHighlightsResponse | PlainMessage<InitializeReleaseHighlightsResponse> | undefined): boolean {
+    return proto3.util.equals(InitializeReleaseHighlightsResponse, a, b);
   }
 }

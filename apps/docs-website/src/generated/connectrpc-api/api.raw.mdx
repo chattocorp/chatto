@@ -1829,6 +1829,75 @@ Self-service account, display preference, presence, custom-status,
 external identity, and account lifecycle commands for the authenticated
 user. Public profile and avatar changes use UserService.
 
+<a id="chatto-api-v1-MyAccountService-InitializeReleaseHighlights"></a>
+
+### InitializeReleaseHighlights
+
+Sets the caller's first shown release once per surface. This is idempotent,
+does not dismiss entries, and does not grant administrative access.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/InitializeReleaseHighlights
+```
+
+<a id="chatto-api-v1-InitializeReleaseHighlightsRequest"></a>
+
+#### Input: InitializeReleaseHighlightsRequest
+
+Records the first release shown on one highlight surface, without dismissing
+articles. Subsequent calls preserve the first successfully stored version.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `surface` | [`ReleaseHighlightSurface`](#chatto-api-v1-ReleaseHighlightSurface) | Selects the independent baseline to initialize. |
+| `release_version` | `string` | Full Semantic Version of the newest applicable bundled highlights. |
+
+
+<a id="chatto-api-v1-InitializeReleaseHighlightsResponse"></a>
+
+#### Result: InitializeReleaseHighlightsResponse
+
+Current private settings after initialization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | No field description provided. |
+
+
+<a id="chatto-api-v1-MyAccountService-DismissReleaseHighlights"></a>
+
+### DismissReleaseHighlights
+
+Adds IDs to the caller's dismissed highlights. Repeated IDs are no-ops.
+Concurrent calls merge; other dismissals are never replaced. This does not
+grant administrative access. Article content is bundled with the client.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/DismissReleaseHighlights
+```
+
+<a id="chatto-api-v1-DismissReleaseHighlightsRequest"></a>
+
+#### Input: DismissReleaseHighlightsRequest
+
+Dismiss specific release highlights for the authenticated account only.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ids` | `repeated string` | Stable IDs prefixed with users: or admins:. At most 100 IDs per request. |
+
+
+<a id="chatto-api-v1-DismissReleaseHighlightsResponse"></a>
+
+#### Result: DismissReleaseHighlightsResponse
+
+Authoritative private settings after the dismissal has been saved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | No field description provided. |
+
+
 <a id="chatto-api-v1-MyAccountService-ChangePassword"></a>
 
 ### ChangePassword
@@ -6198,6 +6267,21 @@ State of explicit privileged-mode activation for this authenticated session.
 
 
 
+<a id="chatto-api-v1-ReleaseHighlightState"></a>
+
+### ReleaseHighlightState
+
+Private release-highlight acknowledgements. Absence on UserSettings means
+this server does not support synchronised dismissal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed_ids` | `repeated string` | Stable, surface-prefixed IDs. Dismissal never removes an article from history. |
+| `users_since_version` | `optional string` | First release shown to this reader on each surface. Later releases stay new until explicitly dismissed. Older releases remain available in history. |
+| `admins_since_version` | `optional string` | No field description provided. |
+
+
+
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
 ### ServerViewerPermissions
@@ -6230,6 +6314,7 @@ Server-level display settings for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `release_highlights` | [`ReleaseHighlightState`](#chatto-api-v1-ReleaseHighlightState) | Always present on servers that support release-highlight dismissal. |
 | `timezone` | `optional string` | Optional IANA timezone override. Absent means no choice has been recorded. Empty means the user explicitly chose the browser's local timezone. Both use browser-local time; only absence permits automatic device reporting. |
 | `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
 | `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
@@ -7004,6 +7089,19 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
+
+
+<a id="chatto-api-v1-ReleaseHighlightSurface"></a>
+
+### ReleaseHighlightSurface
+
+Separate presentation surfaces for release highlights.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED` | `0` | No surface selected; requests must select one. |
+| `RELEASE_HIGHLIGHT_SURFACE_USERS` | `1` | Everyday user changes shown in Help. |
+| `RELEASE_HIGHLIGHT_SURFACE_ADMINS` | `2` | Administrator and operator changes shown in administration. |
 
 
 <a id="chatto-api-v1-AssetUploadStatus"></a>
