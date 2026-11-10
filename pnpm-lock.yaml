@@ -596,6 +596,9 @@ importers:
 
   packages/runling:
     dependencies:
+      '@bomb.sh/tty':
+        specifier: ^0.10.0
+        version: 0.10.0
       '@earendil-works/pi-coding-agent':
         specifier: 1.3.0
         version: 1.3.0(@aws-sdk/credential-provider-node@3.972.82)(@smithy/signature-v4@5.7.3)(supports-color@7.2.0)(ws@8.22.0)(zod@4.6.5)
@@ -920,6 +923,10 @@ packages:
 
   '@blazediff/core@1.9.1':
     resolution: {integrity: sha512-ehg3jIkYKulZh+8om/O25vkvSsXXwC+skXmyA87FFx6A/45eqOkZsBltMw/TVteb0mloiGT8oGRTcjRAz66zaA==}
+
+  '@bomb.sh/tty@0.10.0':
+    resolution: {integrity: sha512-ZOfMnVMhlik9CtSv5NJV4409T6SitS9GC93YZrbq1Be1nmbv83gf5wQHdOc+ic9QOb2kgpgAXKrMV6WiHLSTPA==}
+    engines: {node: '>= 22'}
 
   '@bufbuild/protobuf@1.10.1':
     resolution: {integrity: sha512-wJ8ReQbHxsAfXhrf9ixl0aYbZorRuOWpBNzm8pL8ftmSxQx/wnJD5Eg861NwJU/czy2VXFIebCeZnZrI9rktIQ==}
@@ -8932,6 +8939,8 @@ snapshots:
   '@bcoe/v8-coverage@1.0.2': {}
 
   '@blazediff/core@1.9.1': {}
+
+  '@bomb.sh/tty@0.10.0': {}
 
   '@bufbuild/protobuf@1.10.1': {}
 
