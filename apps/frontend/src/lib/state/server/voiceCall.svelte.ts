@@ -88,6 +88,12 @@ export const ACTIVE_SPEAKER_HOLD_MS = 3_000;
 let liveKitModule: LiveKitModule | null = null;
 let liveKitModulePromise: Promise<LiveKitModule> | null = null;
 
+/** Serialize media joins across servers in this app; only one call may own media. */
+const callCoordinator: { pending: Promise<void>; active: VoiceCallState | null } = {
+  pending: Promise.resolve(),
+  active: null
+};
+
 async function loadLiveKit(): Promise<LiveKitModule> {
   liveKitModulePromise ??= import('livekit-client')
     .then((module) => {
@@ -565,15 +571,14 @@ export class VoiceCallState implements CallConnection {
     // Already in this call
     if (this.isInCall(roomId)) return;
 
-    if (this.joinInFlight) {
-      if (this.joinInFlightRoomId === roomId) {
-        return this.joinInFlight;
-      }
-      await this.joinInFlight;
-      if (this.isInCall(roomId)) return;
-    }
+    if (this.joinInFlight && this.joinInFlightRoomId === roomId) return this.joinInFlight;
 
-    const joinPromise = this.performJoin(livekitUrl, roomId);
+    const joinPromise = callCoordinator.pending.then(async () => {
+      if (this.#disposed || this.isInCall(roomId)) return;
+      await this.performJoin(livekitUrl, roomId);
+    });
+    // A failed join must not block later attempts, including on another server.
+    callCoordinator.pending = joinPromise.catch(() => undefined);
     this.joinInFlight = joinPromise;
     this.joinInFlightRoomId = roomId;
     try {
@@ -591,10 +596,10 @@ export class VoiceCallState implements CallConnection {
       throw new VoiceCallJoinError('Call join denied', m('voice.permission_denied'));
     assertLiveKitE2EESupported();
 
-    // Leave existing call first
-    if (this.connected) {
-      await this.leave();
-    }
+    // Stop the previous server's media before creating any replacement media.
+    if (callCoordinator.active) await callCoordinator.active.leave();
+    if (this.#disposed) return;
+    callCoordinator.active = this;
 
     this.connecting = true;
     this.roomId = roomId;
@@ -780,13 +785,22 @@ export class VoiceCallState implements CallConnection {
   }
 
   private async performLeave(): Promise<void> {
+    const room = this.room;
     const roomId = this.roomId;
     if (roomId) {
       await this.recordLeaveIntent(roomId);
     }
 
-    this.room?.disconnect();
-    this.cleanup();
+    try {
+      // The native publisher is a separate connection and must stop too.
+      // A pending start must finish before stopNativeScreenShare can stop its session.
+      await this.nativeScreenShareToggleInFlight;
+      if (this.room === room) await this.stopNativeScreenShare();
+    } finally {
+      await room?.disconnect();
+      // A server event can have already cleared this call while intent was pending.
+      if (this.room === room) this.cleanup();
+    }
   }
 
   /**
@@ -1719,6 +1733,7 @@ export class VoiceCallState implements CallConnection {
   }
 
   private cleanup(): void {
+    if (callCoordinator.active === this) callCoordinator.active = null;
     this.mediaSession?.dispose();
     this.mediaSession = null;
     for (const participant of this.participants) {
@@ -1775,8 +1790,6 @@ export class VoiceCallState implements CallConnection {
     this.activeCallId = null;
     this.liveKitURL = null;
     this.pendingOwnJoinSound = null;
-    this.joinInFlight = null;
-    this.joinInFlightRoomId = null;
     this.microphoneToggleInFlight = null;
     this.cameraToggleInFlight = null;
     this.screenShareToggleInFlight = null;

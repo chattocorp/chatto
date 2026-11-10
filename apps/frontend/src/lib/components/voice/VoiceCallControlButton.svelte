@@ -1,7 +1,7 @@
 <!--
 @component
 
-Shared icon button for the call panel and persistent current-user call controls.
+Shared icon button for the call panel and persistent app-header call controls.
 Keeps labels, pending state, and icon presentation consistent across both surfaces.
 -->
 <script lang="ts">

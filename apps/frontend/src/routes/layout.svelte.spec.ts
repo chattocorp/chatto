@@ -133,7 +133,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/appUi.svelte', async () => {
+vi.mock('$lib/state/appUi.svelte', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/state/appUi.svelte')>();
   const { fromStore, writable } = await import('svelte/store');
   const wide = fromStore(writable(false));
   Object.defineProperty(mocks.appUi, 'isRoomCallWide', {
@@ -141,6 +142,7 @@ vi.mock('$lib/state/appUi.svelte', async () => {
     set: (value: boolean) => (wide.current = value)
   });
   return {
+    ...actual,
     AppUiState: class {},
     getAppUiState: () => mocks.appUi,
     provideAppUiState: () => mocks.appUi
