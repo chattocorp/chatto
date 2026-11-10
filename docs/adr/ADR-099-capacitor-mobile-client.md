@@ -41,6 +41,6 @@ NATS resources, or new persisted domain protocol.
 
 Mobile sign-in requires an updated server and HTTPS. Browser and desktop sign-in
 remain unchanged. Xcode and a Simulator runtime are needed for local verification;
-physical-device installation also needs development signing. Manual TestFlight
-uploads use signed Xcode archives. Public App Store distribution and release
-automation remain deferred.
+physical-device installation also needs development signing. TestFlight uploads
+use signed Xcode archives. FDR-048 describes the automated upload workflow added
+after the prototype. Public App Store distribution remains deferred.

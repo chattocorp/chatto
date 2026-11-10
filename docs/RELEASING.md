@@ -63,6 +63,15 @@ that its artifact publication succeeded. Check both runs.
 Rerun failed component notes jobs against the same tag. Existing releases are
 reused. Do not change published tag targets or rebuild a version with new content.
 
+## iOS TestFlight
+
+Chatto `v*` tags also start the independent `Publish iOS to TestFlight` workflow.
+It rebuilds the bundled frontend and uploads a signed device build. Configure
+its `mobile-testflight` environment and Apple credentials as described in the
+[mobile release guide](../apps/mobile/README.md#automated-testflight-updates).
+A successful server or desktop release does not confirm a TestFlight upload.
+The workflow can also run manually from `main`.
+
 ## Current limits
 
 Preparation and tagging run on `main`. Maintenance-branch automation is not

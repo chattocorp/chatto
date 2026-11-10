@@ -1,7 +1,7 @@
 # FDR-048: Chatto Mobile
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-11-10
 
 ## Overview
 
@@ -45,8 +45,11 @@ client. It connects to independent servers without running a local backend.
   immediate retry. Network failure does not start a new sign-in flow.
 - This first build has no native push or background-call support. Continuing
   calls with the phone locked remains a requirement for a later stage.
-- Distribution is through local Xcode builds and manual TestFlight uploads.
-  Public App Store distribution and release automation are deferred.
+- Distribution is through local Xcode builds and TestFlight. Chatto release
+  tags trigger an automated signed upload; maintainers can also start one
+  manually. Environment approval, when configured, is required before upload.
+  Apple processing and tester-group settings control availability to testers.
+  Public App Store distribution is deferred.
 
 ## Design Decisions
 
@@ -78,4 +81,4 @@ ownership, a native offline store, and public App Store distribution.
 - Native media ownership for locked-phone calls, audio routing, and interruptions.
 - Credential storage and recovery after OS process termination.
 - Native push delivery for independent servers and its privacy boundary.
-- Android packaging and mobile release automation.
+- Android packaging and public App Store distribution.
