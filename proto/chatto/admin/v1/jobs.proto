@@ -53,6 +53,9 @@ message Job {
   string failure = 9;
   // Current retry availability. Absence means the server did not report it.
   optional RetryJobState retry_state = 10;
+  // Opaque version of this attempt budget. Send unchanged when retrying.
+  // A manual retry changes the version; automatic attempts do not.
+  string retry_version = 11;
 }
 
 // Request for a bounded page. Jobs are ordered by stable opaque ID.
@@ -83,6 +86,9 @@ message GetJobResponse {
 message RetryJobRequest {
   // Required stable job ID. Concurrent requests cannot queue two generations.
   string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  // Version from the failed Job. Rejects stale actions even if a newer budget
+  // has already failed. It is not a request ID or a storage coordinate.
+  string retry_version = 2 [(buf.validate.field).string.len = 64];
 }
 // Accepted retry. The worker can have started before this response arrives.
 message RetryJobResponse {

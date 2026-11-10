@@ -17,8 +17,8 @@ processing.
 - Temporary failures retry automatically with increasing delays. Delays are
   capped at thirty minutes. Exhausted or permanent failures remain visible.
 - A failed, unexpired job can be retried manually. Retry keeps its identity and
-  payload and starts a new attempt budget. Concurrent retry requests cannot
-  create two new attempt budgets.
+  payload and starts a new attempt budget. A retry applies only to the attempt budget the operator viewed. Concurrent
+  or stale actions cannot retry a later budget that has already failed again.
 - An expired webhook job cannot be retried. Retry never extends its original
   delivery deadline. Current access and endpoint state still control delivery.
 - A media job succeeds when processing reaches a terminal asset outcome. A

@@ -175,6 +175,14 @@ export class Job extends Message<Job> {
    */
   retryState?: RetryJobState;
 
+  /**
+   * Opaque version of this attempt budget. Send unchanged when retrying.
+   * A manual retry changes the version; automatic attempts do not.
+   *
+   * @generated from field: string retry_version = 11;
+   */
+  retryVersion = "";
+
   constructor(data?: PartialMessage<Job>) {
     super();
     proto3.util.initPartial(data, this);
@@ -193,6 +201,7 @@ export class Job extends Message<Job> {
     { no: 8, name: "next_attempt_at", kind: "message", T: Timestamp },
     { no: 9, name: "failure", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "retry_state", kind: "enum", T: proto3.getEnumType(RetryJobState), opt: true },
+    { no: 11, name: "retry_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Job {
@@ -405,6 +414,14 @@ export class RetryJobRequest extends Message<RetryJobRequest> {
    */
   id = "";
 
+  /**
+   * Version from the failed Job. Rejects stale actions even if a newer budget
+   * has already failed. It is not a request ID or a storage coordinate.
+   *
+   * @generated from field: string retry_version = 2;
+   */
+  retryVersion = "";
+
   constructor(data?: PartialMessage<RetryJobRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -414,6 +431,7 @@ export class RetryJobRequest extends Message<RetryJobRequest> {
   static readonly typeName = "chatto.admin.v1.RetryJobRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "retry_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetryJobRequest {

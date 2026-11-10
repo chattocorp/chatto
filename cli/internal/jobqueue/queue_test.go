@@ -110,7 +110,7 @@ func TestQueueRetainsFailureAndManualRetryGeneration(t *testing.T) {
 	failed, _ := q.Get(ctx, job.Id)
 	require.Equal(t, Failed, failed.Status)
 	require.Equal(t, "http_error", failed.Failure)
-	retried, err := q.Retry(ctx, job.Id)
+	retried, err := q.Retry(ctx, job.Id, RetryVersion(job))
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), retried.Generation)
 	require.Zero(t, retried.Attempts)
@@ -123,7 +123,7 @@ func TestQueueRetainsFailureAndManualRetryGeneration(t *testing.T) {
 	require.Equal(t, 1, calls)
 	require.NoError(t, q.process(ctx, dispatch(retried), h))
 	require.Equal(t, 1, calls, "lost acknowledgement repeats no completed handler")
-	_, err = q.Retry(ctx, job.Id)
+	_, err = q.Retry(ctx, job.Id, RetryVersion(job))
 	require.ErrorIs(t, err, ErrNotRetryable)
 }
 func TestQueueConcurrentClaimsAndRetry(t *testing.T) {
@@ -152,7 +152,7 @@ func TestQueueConcurrentClaimsAndRetry(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 8 {
 		wg.Go(func() {
-			_, err := q.Retry(ctx, job.Id)
+			_, err := q.Retry(ctx, job.Id, RetryVersion(job))
 			if err == nil {
 				accepted.Add(1)
 			} else {
@@ -203,7 +203,7 @@ func TestQueueRecoversExpiredClaimAndPreservesDeadline(t *testing.T) {
 	expired, _ = q.Get(ctx, expired.Id)
 	require.Equal(t, Failed, expired.Status)
 	require.Equal(t, "expired", expired.Failure)
-	_, err = q.Retry(ctx, expired.Id)
+	_, err = q.Retry(ctx, expired.Id, RetryVersion(expired))
 	require.ErrorIs(t, err, ErrNotRetryable)
 }
 func TestQueueListFiltersOtherRuntimeState(t *testing.T) {
@@ -240,7 +240,7 @@ func TestQueueRepairsAcceptedRetryAfterPublishFailure(t *testing.T) {
 	publisher := &failNextPublish{JetStream: q.js}
 	publisher.fail.Store(true)
 	q.js = publisher
-	accepted, err := q.Retry(ctx, job.Id)
+	accepted, err := q.Retry(ctx, job.Id, RetryVersion(job))
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), accepted.Generation)
 	runQueue(t, q, consumer, map[string]Handler{"webhook": func(_ context.Context, attempt *statev1.JobRecord) error {
@@ -320,4 +320,34 @@ func TestQueueRetryWaitDoesNotOutliveOriginalDeadline(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Queued, pending.Status)
 	require.True(t, pending.NextAttemptAt.AsTime().Equal(job.ExpiresAt.AsTime()))
+}
+
+// Interleaving: two operators view failed budget 1, the first retries it, and
+// budget 2 fails before the second request arrives. A plain ID-only retry would
+// incorrectly start budget 3. The original version must reject that stale action.
+func TestQueueRejectsStaleRetryAfterNewBudgetAlreadyFailed(t *testing.T) {
+	q, _ := testQueue(t)
+	ctx := t.Context()
+	job := testJob("stale-retry")
+	job.MaxAttempts = 1
+	require.NoError(t, q.Enqueue(ctx, job))
+	job, err := q.Get(ctx, job.Id)
+	require.NoError(t, err)
+	fail := map[string]Handler{"webhook": func(context.Context, *statev1.JobRecord) error { return &Failure{Category: "http_error"} }}
+	require.NoError(t, q.process(ctx, dispatch(job), fail))
+	version := RetryVersion(job)
+	accepted, err := q.Retry(ctx, job.Id, version)
+	require.NoError(t, err)
+	require.NoError(t, q.process(ctx, dispatch(accepted), fail))
+	newer, err := q.Get(ctx, job.Id)
+	require.NoError(t, err)
+	require.Equal(t, Failed, newer.Status)
+	require.NotEqual(t, version, RetryVersion(newer))
+	_, err = q.Retry(ctx, job.Id, version)
+	require.ErrorIs(t, err, ErrNotRetryable)
+	current, err := q.Get(ctx, job.Id)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), current.Generation)
+	_, err = q.Retry(ctx, job.Id, RetryVersion(current))
+	require.NoError(t, err)
 }

@@ -38,7 +38,8 @@ a failed completion write can cause a duplicate.
 Automatic retries use capped exponential backoff, up to thirty minutes, and do
 not retain a worker slot while waiting. Each type supplies an attempt budget
 and initial delay. Permanent failures and exhausted budgets remain failed.
-Manual retry uses revision OCC to start one new generation with the same job ID
+Manual retry checks the viewed attempt-budget version and uses revision OCC to
+start one new generation with the same job ID
 and payload. It never extends an original deadline. Old dispatch generations
 cannot execute a new generation. A repair pass recovers a retry accepted before
 dispatch publication.

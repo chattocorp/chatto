@@ -164,7 +164,10 @@ type Job struct {
 	// Safe failure category, without exception text or external response content.
 	Failure string `protobuf:"bytes,9,opt,name=failure,proto3" json:"failure,omitempty"`
 	// Current retry availability. Absence means the server did not report it.
-	RetryState    *RetryJobState `protobuf:"varint,10,opt,name=retry_state,json=retryState,proto3,enum=chatto.admin.v1.RetryJobState,oneof" json:"retry_state,omitempty"`
+	RetryState *RetryJobState `protobuf:"varint,10,opt,name=retry_state,json=retryState,proto3,enum=chatto.admin.v1.RetryJobState,oneof" json:"retry_state,omitempty"`
+	// Opaque version of this attempt budget. Send unchanged when retrying.
+	// A manual retry changes the version; automatic attempts do not.
+	RetryVersion  string `protobuf:"bytes,11,opt,name=retry_version,json=retryVersion,proto3" json:"retry_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,6 +270,13 @@ func (x *Job) GetRetryState() RetryJobState {
 		return *x.RetryState
 	}
 	return RetryJobState_RETRY_JOB_STATE_UNSPECIFIED
+}
+
+func (x *Job) GetRetryVersion() string {
+	if x != nil {
+		return x.RetryVersion
+	}
+	return ""
 }
 
 // Request for a bounded page. Jobs are ordered by stable opaque ID.
@@ -475,7 +485,10 @@ func (x *GetJobResponse) GetJob() *Job {
 type RetryJobRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required stable job ID. Concurrent requests cannot queue two generations.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Version from the failed Job. Rejects stale actions even if a newer budget
+	// has already failed. It is not a request ID or a storage coordinate.
+	RetryVersion  string `protobuf:"bytes,2,opt,name=retry_version,json=retryVersion,proto3" json:"retry_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -513,6 +526,13 @@ func (*RetryJobRequest) Descriptor() ([]byte, []int) {
 func (x *RetryJobRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *RetryJobRequest) GetRetryVersion() string {
+	if x != nil {
+		return x.RetryVersion
 	}
 	return ""
 }
@@ -567,7 +587,7 @@ var File_chatto_admin_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/admin/v1/jobs.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
+	"\x1achatto/admin/v1/jobs.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xeb\x03\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x122\n" +
@@ -582,7 +602,8 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\afailure\x18\t \x01(\tR\afailure\x12D\n" +
 	"\vretry_state\x18\n" +
 	" \x01(\x0e2\x1e.chatto.admin.v1.RetryJobStateH\x00R\n" +
-	"retryState\x88\x01\x01B\x0e\n" +
+	"retryState\x88\x01\x01\x12#\n" +
+	"\rretry_version\x18\v \x01(\tR\fretryVersionB\x0e\n" +
 	"\f_retry_state\"Y\n" +
 	"\x0fListJobsRequest\x12'\n" +
 	"\tpage_size\x18\x01 \x01(\x05B\n" +
@@ -596,10 +617,11 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\"8\n" +
 	"\x0eGetJobResponse\x12&\n" +
-	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job\"-\n" +
+	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job\"\\\n" +
 	"\x0fRetryJobRequest\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\":\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\x12-\n" +
+	"\rretry_version\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x98\x01@R\fretryVersion\":\n" +
 	"\x10RetryJobResponse\x12&\n" +
 	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job*\x87\x01\n" +
 	"\tJobStatus\x12\x1a\n" +

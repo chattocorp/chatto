@@ -397,6 +397,7 @@ Request to start a new attempt budget for a failed, unexpired job.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Required stable job ID. Concurrent requests cannot queue two generations. |
+| `retry_version` | `string` | Version from the failed Job. Rejects stale actions even if a newer budget has already failed. It is not a request ID or a storage coordinate. |
 
 
 <a id="chatto-admin-v1-RetryJobResponse"></a>
@@ -2653,6 +2654,7 @@ are never returned. Requires server.jobs.manage, including privileged mode.
 | `next_attempt_at` | `google.protobuf.Timestamp` | Earliest next automatic attempt, when queued. |
 | `failure` | `string` | Safe failure category, without exception text or external response content. |
 | `retry_state` | optional [`RetryJobState`](#chatto-admin-v1-RetryJobState) | Current retry availability. Absence means the server did not report it. |
+| `retry_version` | `string` | Opaque version of this attempt budget. Send unchanged when retrying. A manual retry changes the version; automatic attempts do not. |
 
 
 

@@ -95,7 +95,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 			return err
 		}
 		request := event.GetAssetProcessingStarted()
-		if request == nil || request.GetAssetId() == "" || request.GetMessageEventId() == "" {
+		if event.GetId() == "" || request == nil || request.GetAssetId() == "" || request.GetMessageEventId() == "" {
 			return events.TerminateDelivery("invalid media request", errors.New("invalid media request"))
 		}
 		payload, err := proto.Marshal(&statev1.MediaJob{AssetId: request.GetAssetId(), MessageEventId: request.GetMessageEventId()})
@@ -155,11 +155,11 @@ func (c *ChattoCore) GetJob(ctx context.Context, actorID, id string) (*statev1.J
 
 // RetryJob accepts one new attempt generation without changing its source-time
 // deadline or payload. Revision OCC serializes concurrent operator requests.
-func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id string) (*statev1.JobRecord, error) {
+func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id, expectedVersion string) (*statev1.JobRecord, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
 		return nil, err
 	}
-	job, err := c.jobs.Retry(ctx, id)
+	job, err := c.jobs.Retry(ctx, id, expectedVersion)
 	if errors.Is(err, jobqueue.ErrNotFound) {
 		return nil, ErrNotFound
 	}

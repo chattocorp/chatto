@@ -696,4 +696,6 @@ privileged mode for human credential sessions. The API exposes state, safe
 failure categories, attempt counts, timestamps, and typed retry availability.
 It never exposes private payloads, lease owners, or dispatch generations.
 Page tokens are sealed and viewer-bound. Retry preserves source deadlines and
-uses revision OCC to accept one new generation. See FDR-056 and ADR-123.
+checks the viewed attempt-budget version and uses revision OCC to accept one
+new generation. Retry versions are opaque application tokens, not broker
+coordinates. See FDR-056 and ADR-123.

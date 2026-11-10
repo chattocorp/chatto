@@ -43,7 +43,7 @@ func (s *jobsService) RetryJob(ctx context.Context, req *connect.Request[adminv1
 	if err != nil {
 		return nil, err
 	}
-	job, err := s.api.core.RetryJob(ctx, caller.UserID, req.Msg.Id)
+	job, err := s.api.core.RetryJob(ctx, caller.UserID, req.Msg.Id, req.Msg.RetryVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -70,5 +70,5 @@ func jobSummary(job *statev1.JobRecord) *adminv1.Job {
 	} else if job.Status == jobqueue.Failed {
 		retry = adminv1.RetryJobState_RETRY_JOB_STATE_ALLOWED
 	}
-	return &adminv1.Job{Id: job.Id, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: job.MaxAttempts, CreatedAt: job.CreatedAt, UpdatedAt: job.UpdatedAt, NextAttemptAt: job.NextAttemptAt, Failure: job.Failure, RetryState: &retry}
+	return &adminv1.Job{Id: job.Id, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: job.MaxAttempts, CreatedAt: job.CreatedAt, UpdatedAt: job.UpdatedAt, NextAttemptAt: job.NextAttemptAt, Failure: job.Failure, RetryState: &retry, RetryVersion: jobqueue.RetryVersion(job)}
 }

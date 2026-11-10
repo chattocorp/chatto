@@ -161,14 +161,21 @@ func (q *Queue) save(ctx context.Context, job *statev1.JobRecord, revision uint6
 	return q.kv.Update(ctx, jobKey(job.Id), data, revision)
 }
 
+// RetryVersion identifies an application attempt budget without exposing broker
+// revisions or dispatch generations. A stale operator action cannot start a new
+// budget after another operator's retry has already run and failed again.
+func RetryVersion(job *statev1.JobRecord) string {
+	return ID("retry-version", fmt.Sprintf("%s:%d", job.Id, job.Generation))
+}
+
 // Retry atomically accepts one new generation. Dispatch failure after acceptance
 // is repaired in the background; callers can safely read the accepted state.
-func (q *Queue) Retry(ctx context.Context, id string) (*statev1.JobRecord, error) {
+func (q *Queue) Retry(ctx context.Context, id, expectedVersion string) (*statev1.JobRecord, error) {
 	job, rev, err := q.read(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if job.Status != Failed || Expired(job, time.Now()) {
+	if job.Status != Failed || Expired(job, time.Now()) || RetryVersion(job) != expectedVersion {
 		return nil, ErrNotRetryable
 	}
 	job.Generation++
@@ -323,7 +330,7 @@ func (q *Queue) repair(ctx context.Context, handlers map[string]Handler) error {
 
 func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers map[string]Handler) error {
 	dispatch := new(jobv1.JobDispatch)
-	if err := proto.Unmarshal(d.Data, dispatch); err != nil {
+	if err := proto.Unmarshal(d.Data, dispatch); err != nil || !safeToken.MatchString(dispatch.Id) || dispatch.Generation == 0 {
 		return events.TerminateDelivery("invalid job dispatch", errors.New("invalid job dispatch"))
 	}
 	job, revision, err := q.read(ctx, dispatch.Id)

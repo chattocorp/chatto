@@ -56,9 +56,9 @@
     jobsQuery.error ? errorMessage(jobsQuery.error, m('admin.jobs.load_failed')) : null
   );
 
-  type RetryVariables = SessionSnapshot & { id: string };
+  type RetryVariables = SessionSnapshot & { id: string; retryVersion: string };
   const retryMutation = createMutation(() => ({
-    mutationFn: ({ id }: RetryVariables) => api.retryJob(id),
+    mutationFn: ({ id, retryVersion }: RetryVariables) => api.retryJob(id, retryVersion),
     onSuccess: (job, variables) => {
       if (!session.isCurrent(variables)) return;
       queryClient.setQueryData<{ pages: AdminJobsPage[]; pageParams: string[] }>(
@@ -85,8 +85,10 @@
   }));
 
   function retry(job: AdminJob): void {
-    if (retryMutation.isPending || job.retryState !== RetryJobState.ALLOWED) return;
-    retryMutation.mutate({ ...session.snapshot(), id: job.id });
+    if (retryMutation.isPending || job.retryState !== RetryJobState.ALLOWED || !job.retryVersion)
+      return;
+    // Retry the rendered budget only; another operator may already have advanced it.
+    retryMutation.mutate({ ...session.snapshot(), id: job.id, retryVersion: job.retryVersion });
   }
 
   function jobType(job: AdminJob): string {
@@ -210,13 +212,14 @@
                           variant="secondary"
                           onclick={() => retry(job)}
                           disabled={retryMutation.isPending ||
-                            job.retryState !== RetryJobState.ALLOWED}
+                            job.retryState !== RetryJobState.ALLOWED ||
+                            !job.retryVersion}
                           loading={retryMutation.isPending &&
                             retryMutation.variables?.id === job.id}>{m('common.retry')}</Button
                         >
                         {#if job.retryState === RetryJobState.EXPIRED}
                           <span class="text-sm text-muted">{m('admin.jobs.expired')}</span>
-                        {:else if job.retryState !== RetryJobState.ALLOWED}
+                        {:else if job.retryState !== RetryJobState.ALLOWED || !job.retryVersion}
                           <span class="text-sm text-muted">{m('common.action_unavailable')}</span>
                         {/if}
                       </div>

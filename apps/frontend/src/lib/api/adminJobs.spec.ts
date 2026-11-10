@@ -23,7 +23,8 @@ describe('administrative jobs API', () => {
           maxAttempts: 4,
           failure: 'transport_error',
           createdAt: Timestamp.fromDate(new Date('2026-11-10T12:00:00Z')),
-          retryState: RetryJobState.EXPIRED
+          retryState: RetryJobState.EXPIRED,
+          retryVersion: 'a'.repeat(64)
         }
       ],
       nextPageToken: 'opaque-next'
@@ -44,7 +45,8 @@ describe('administrative jobs API', () => {
       createdAt: new Date('2026-11-10T12:00:00Z'),
       updatedAt: null,
       nextAttemptAt: null,
-      retryState: RetryJobState.EXPIRED
+      retryState: RetryJobState.EXPIRED,
+      retryVersion: 'a'.repeat(64)
     });
   });
 
@@ -75,12 +77,17 @@ describe('administrative jobs API', () => {
   it('returns the canonical job after retry and rejects an empty success response', async () => {
     mocks.retryJob.mockReturnValue({ job: { id: 'job', status: JobStatus.QUEUED } });
     const api = createAdminJobsAPI(config());
-    await expect(api.retryJob('job')).resolves.toMatchObject({
+    await expect(api.retryJob('job', 'b'.repeat(64))).resolves.toMatchObject({
       id: 'job',
       status: JobStatus.QUEUED
     });
-    expect(receivedRequest(mocks.retryJob)).toMatchObject({ id: 'job' });
+    expect(receivedRequest(mocks.retryJob)).toMatchObject({
+      id: 'job',
+      retryVersion: 'b'.repeat(64)
+    });
     mocks.retryJob.mockReturnValue({});
-    await expect(api.retryJob('job')).rejects.toMatchObject({ code: Code.Internal });
+    await expect(api.retryJob('job', 'b'.repeat(64))).rejects.toMatchObject({
+      code: Code.Internal
+    });
   });
 });

@@ -1758,6 +1758,7 @@ are never returned. Requires server.jobs.manage, including privileged mode.
 | `next_attempt_at` | `google.protobuf.Timestamp` | Earliest next automatic attempt, when queued. |
 | `failure` | `string` | Safe failure category, without exception text or external response content. |
 | `retry_state` | optional [`RetryJobState`](#chatto-admin-v1-RetryJobState) | Current retry availability. Absence means the server did not report it. |
+| `retry_version` | `string` | Opaque version of this attempt budget. Send unchanged when retrying. A manual retry changes the version; automatic attempts do not. |
 
 <a id="chatto-admin-v1-AdminRole"></a>
 

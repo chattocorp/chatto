@@ -108,6 +108,7 @@ Request to start a new attempt budget for a failed, unexpired job.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Required stable job ID. Concurrent requests cannot queue two generations. |
+| `retry_version` | `string` | Version from the failed Job. Rejects stale actions even if a newer budget has already failed. It is not a request ID or a storage coordinate. |
 
 
 <a id="chatto-admin-v1-RetryJobResponse"></a>

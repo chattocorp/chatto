@@ -22,6 +22,8 @@ export type AdminJob = {
   nextAttemptAt: Date | null;
   failure: string;
   retryState: RetryJobState | undefined;
+  /** Opaque retry budget version. Echo it unchanged when retrying this snapshot. */
+  retryVersion: string;
 };
 
 /** One page of jobs in the server's stable listing order. */
@@ -50,8 +52,12 @@ export function createAdminJobsAPI(config: ConnectAPIConfig) {
         throw error;
       }
     },
-    async retryJob(id: string, options: { signal?: AbortSignal } = {}): Promise<AdminJob> {
-      const response = await client.retryJob({ id }, { signal: options.signal });
+    async retryJob(
+      id: string,
+      retryVersion: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminJob> {
+      const response = await client.retryJob({ id, retryVersion }, { signal: options.signal });
       if (!response.job) throw new ConnectError('Missing job response', Code.Internal);
       return adminJob(response.job);
     }
@@ -69,6 +75,7 @@ function adminJob(job: Job): AdminJob {
     updatedAt: job.updatedAt?.toDate() ?? null,
     nextAttemptAt: job.nextAttemptAt?.toDate() ?? null,
     failure: job.failure,
-    retryState: job.retryState
+    retryState: job.retryState,
+    retryVersion: job.retryVersion
   };
 }

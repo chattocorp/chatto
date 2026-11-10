@@ -33,6 +33,7 @@ function job(id: string, changes: Partial<AdminJob> = {}): AdminJob {
     maxAttempts: 3,
     failure: 'http_error',
     retryState: RetryJobState.ALLOWED,
+    retryVersion: 'a'.repeat(64),
     createdAt: new Date('2026-11-10T12:00:00Z'),
     updatedAt: null,
     nextAttemptAt: null,
@@ -58,7 +59,10 @@ describe('job queue settings', () => {
         nextPageToken: 'next'
       })
       .mockResolvedValueOnce({
-        jobs: [job('unknown', { retryState: undefined })],
+        jobs: [
+          job('unknown', { retryState: undefined }),
+          job('missing-version', { retryVersion: '' })
+        ],
         nextPageToken: ''
       });
     const screen = render(JobsPage);
@@ -70,9 +74,11 @@ describe('job queue settings', () => {
       .toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeDisabled();
     await screen.getByRole('button', { name: 'Load more' }).click();
-    await expect.poll(() => screen.container.querySelectorAll('summary').length).toBe(2);
+    await expect.poll(() => screen.container.querySelectorAll('summary').length).toBe(3);
     screen.container.querySelectorAll('summary')[1].click();
+    screen.container.querySelectorAll('summary')[2].click();
     const buttons = screen.container.querySelectorAll<HTMLButtonElement>('details button');
+    expect(buttons.length).toBe(3);
     expect([...buttons].every((button) => button.disabled)).toBe(true);
     expect(mocks.listJobs.mock.calls[1][0]).toMatchObject({ pageToken: 'next' });
   });
@@ -93,7 +99,41 @@ describe('job queue settings', () => {
     await screen.getByRole('button', { name: 'Try Again' }).click();
     await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
     await expect.poll(() => screen.container.querySelectorAll('details button').length).toBe(0);
-    expect(mocks.retryJob).toHaveBeenCalledExactlyOnceWith('retry-me');
+    expect(mocks.retryJob).toHaveBeenCalledExactlyOnceWith('retry-me', 'a'.repeat(64));
+  });
+
+  it('echoes the rendered retry version and refreshes it after a stale retry is rejected', async () => {
+    mocks.listJobs
+      .mockResolvedValueOnce({ jobs: [job('stale')], nextPageToken: '' })
+      .mockResolvedValueOnce({
+        jobs: [job('stale', { retryVersion: 'b'.repeat(64), failure: 'new_failure' })],
+        nextPageToken: ''
+      })
+      .mockResolvedValue({
+        jobs: [
+          job('stale', {
+            retryVersion: 'b'.repeat(64),
+            status: JobStatus.QUEUED,
+            retryState: RetryJobState.NOT_FAILED
+          })
+        ],
+        nextPageToken: ''
+      });
+    mocks.retryJob
+      .mockRejectedValueOnce(new ConnectError('changed', Code.Aborted))
+      .mockResolvedValue(
+        job('stale', { status: JobStatus.QUEUED, retryState: RetryJobState.NOT_FAILED })
+      );
+    const screen = render(JobsPage);
+    await expect.element(screen.getByText('Webhook delivery')).toBeVisible();
+    screen.container.querySelector('summary')!.click();
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    await expect.element(screen.getByText('new_failure')).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    expect(mocks.retryJob).toHaveBeenNthCalledWith(1, 'stale', 'a'.repeat(64));
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    expect(mocks.retryJob).toHaveBeenNthCalledWith(2, 'stale', 'b'.repeat(64));
   });
 
   it('does not restore private job data when a retry finishes after an authority reset', async () => {
