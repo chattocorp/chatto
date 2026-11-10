@@ -7,6 +7,7 @@ and forwards keys; selecting a result inserts its owning server's share URL.
   import type { RoomLinkSource } from './roomLinkSources';
   import { fuzzyMatch } from '$lib/fuzzyMatch';
   import { roomIcon } from '$lib/render/roomIcon';
+  import ServerLogo from '$lib/components/ServerLogo.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
 
   let {
@@ -65,13 +66,24 @@ and forwards keys; selecting a result inserts its owning server's share URL.
   testid="room-autocomplete"
 >
   {#snippet item({ item: { room, source, name } })}
-    {@const icon = room ? roomIcon(room) : { className: 'icon-[uil--server]', text: '' }}
-    <span aria-hidden="true" class="flex h-6 w-6 shrink-0 items-center justify-center text-muted">
-      <span class={icon.className}>{icon.text}</span>
-    </span>
-    <bdi class="min-w-0 truncate text-sm text-text">{name}</bdi>
-    <bdi class="ms-auto min-w-0 truncate text-sm text-muted"
-      >{room ? source.name : new URL(source.origin).host}</bdi
+    <span
+      aria-hidden="true"
+      class="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted"
     >
+      {#if room}
+        {@const icon = roomIcon(room)}
+        <span class={icon.className}>{icon.text}</span>
+      {:else}
+        <ServerLogo server={source} compact publicImageOrigin={source.origin} />
+      {/if}
+    </span>
+    <span class="min-w-0 truncate text-sm text-text">
+      <bdi>{name}</bdi>{#if room && !source.isCurrent}
+        <bdi class="text-muted">{` (${source.name})`}</bdi>
+      {/if}
+    </span>
+    {#if !room}
+      <bdi class="ms-auto min-w-0 truncate text-sm text-muted">{new URL(source.origin).host}</bdi>
+    {/if}
   {/snippet}
 </AutocompletePopup>

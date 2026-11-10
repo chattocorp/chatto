@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, onTestFinished } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { RoomKind } from '@chatto/client/api/roomDirectory';
@@ -20,7 +20,9 @@ function room(id: string, name: string, type = RoomKind.CHANNEL): RoomListItem {
 }
 
 function sources(rooms: readonly RoomListItem[]): RoomLinkSource[] {
-  return [{ origin: 'https://rooms.test', name: 'Workspace', rooms }];
+  return [
+    { origin: 'https://rooms.test', name: 'Workspace', logoUrl: null, isCurrent: true, rooms }
+  ];
 }
 
 describe('RoomAutocomplete', () => {
@@ -82,7 +84,7 @@ describe('RoomAutocomplete', () => {
     });
     expect(
       Array.from(container.querySelectorAll('button')).map((button) => button.textContent?.trim())
-    ).toEqual(['# gen Workspace', '# general Workspace']);
+    ).toEqual(['# gen', '# general']);
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     flushSync();
     const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
@@ -120,16 +122,28 @@ describe('RoomAutocomplete', () => {
     const { container, rerender, component } = render(RoomAutocomplete, {
       query: 'general',
       sources: [
-        { origin: 'https://alpha.test', name: 'Alpha', rooms: [room('same', 'general')] },
-        { origin: 'https://beta.test', name: 'Beta', rooms: [room('same', 'general')] }
+        {
+          origin: 'https://alpha.test',
+          name: 'Alpha',
+          logoUrl: null,
+          isCurrent: true,
+          rooms: [room('same', 'general')]
+        },
+        {
+          origin: 'https://beta.test',
+          name: 'Beta',
+          logoUrl: null,
+          isCurrent: false,
+          rooms: [room('same', 'general')]
+        }
       ],
       onSelect,
       onClose: () => {}
     });
     const buttons = container.querySelectorAll('button');
     expect(buttons).toHaveLength(2);
-    expect(buttons[0].textContent).toContain('Alpha');
-    expect(buttons[1].textContent).toContain('Beta');
+    expect(buttons[0].textContent).not.toContain('Alpha');
+    expect(buttons[1].textContent?.trim()).toBe('# general (Beta)');
     buttons[1].click();
     expect(onSelect).toHaveBeenLastCalledWith('https://beta.test/chat/-/same', 'click');
     await rerender({ query: 'alpha' });
@@ -140,5 +154,39 @@ describe('RoomAutocomplete', () => {
     expect(container.querySelectorAll('button')).toHaveLength(1);
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
     expect(onSelect).toHaveBeenLastCalledWith('https://beta.test/chat/-/', 'Tab');
+  });
+  it('loads the configured server logo and falls back to its initial on failure', async () => {
+    const png = Uint8Array.from(
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+      ),
+      (char) => char.charCodeAt(0)
+    );
+    const fetchImage = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(png, {
+        headers: { 'content-type': 'image/png' }
+      })
+    );
+    onTestFinished(() => fetchImage.mockRestore());
+    const { container } = render(RoomAutocomplete, {
+      query: 'Workspace',
+      sources: [{ ...sources([])[0], logoUrl: '/assets/logo.png' }],
+      onSelect: () => {},
+      onClose: () => {}
+    });
+    const image = container.querySelector('img')!;
+    await vi.waitFor(() => expect(image.naturalWidth).toBe(1));
+    expect(fetchImage).toHaveBeenCalledWith(
+      'https://rooms.test/assets/logo.png',
+      expect.objectContaining({
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        redirect: 'error'
+      })
+    );
+    image.dispatchEvent(new Event('error'));
+    flushSync();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('button [aria-hidden="true"]')?.textContent?.trim()).toBe('W');
   });
 });

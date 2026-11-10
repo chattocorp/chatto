@@ -330,7 +330,7 @@
           <RoomAutocomplete
             bind:this={composer.autocomplete.roomRef}
             query={composer.autocomplete.room.query}
-            sources={roomLinkSources()}
+            sources={roomLinkSources(serverScope.serverId)}
             onSelect={(url) => composer.autocomplete.selectRoom(url)}
             onClose={() => composer.autocomplete.closeRoom()}
           />

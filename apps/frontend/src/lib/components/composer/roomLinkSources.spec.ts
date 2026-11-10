@@ -16,7 +16,7 @@ describe('roomLinkSources', () => {
         id: 'alpha',
         url: 'https://alpha.test',
         name: 'Alpha',
-        iconUrl: null,
+        iconUrl: '/assets/alpha.png',
         addedAt: 1
       });
       client.registry.addServer({
@@ -71,30 +71,40 @@ describe('roomLinkSources', () => {
             name: 'Discovered',
             version: '0.5.0',
             description: null,
-            iconUrl: null,
+            iconUrl: '/assets/discovered.png',
             bannerUrl: null
           }
         }
       ]);
-      const sources = roomLinkSources();
+      const sources = roomLinkSources('alpha');
       expect(sources).toHaveLength(3);
+      expect(sources.find((source) => source.name === 'Alpha')).toMatchObject({
+        isCurrent: true,
+        logoUrl: '/assets/alpha.png'
+      });
+      expect(sources.find((source) => source.name === 'Beta')?.isCurrent).toBe(false);
+      expect(sources.find((source) => source.name === 'Discovered')?.logoUrl).toBe(
+        '/assets/discovered.png'
+      );
       expect(
         sources.find((source) => source.name === 'Alpha')?.rooms.map((room) => room.id)
       ).toEqual(['active']);
       expect(sources.find((source) => source.name === 'Beta')?.rooms).toEqual([]);
       expect(sources.find((source) => source.name === 'Discovered')?.rooms).toEqual([]);
       store.projection.rooms.delete('active');
-      expect(roomLinkSources().find((source) => source.name === 'Alpha')?.rooms).toEqual([]);
+      expect(roomLinkSources('alpha').find((source) => source.name === 'Alpha')?.rooms).toEqual([]);
       store.projection.rooms.set(
         'restored',
         new RoomWithViewerState({
           room: { id: 'restored', name: 'Restored', kind: RoomKind.CHANNEL }
         })
       );
-      expect(roomLinkSources().find((source) => source.name === 'Alpha')?.rooms).toHaveLength(1);
+      expect(
+        roomLinkSources('alpha').find((source) => source.name === 'Alpha')?.rooms
+      ).toHaveLength(1);
       store.projection.reset();
       store.realtimeSync.reset();
-      expect(roomLinkSources().find((source) => source.name === 'Alpha')?.rooms).toEqual([]);
+      expect(roomLinkSources('alpha').find((source) => source.name === 'Alpha')?.rooms).toEqual([]);
       expect(createStore).not.toHaveBeenCalled();
     } finally {
       client.close();
