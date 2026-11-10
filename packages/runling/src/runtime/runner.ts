@@ -1,3 +1,4 @@
+import { createLiveTerminal, supportsLiveTerminal } from './live-terminal.ts';
 import { createTimeout } from './timeout.ts';
 import { createChannel } from './channel.ts';
 import { createRootContext, type RunIdentity, type WorkflowState } from './context.ts';
@@ -252,6 +253,9 @@ function terminalMessages(signal: AbortSignal): AsyncIterable<string> & { close(
  * indentation. Agent replies and task updates remain in the journal. */
 export async function runRunling(workflowPath: string, prompt: string, options: RunOptions) {
   const { json, verbose } = options;
+  let display: Awaited<ReturnType<typeof createLiveTerminal>> | undefined;
+  const restoreTerminal = () => display?.dispose();
+  process.on('exit', restoreTerminal);
   // The first interrupt cancels the workflow so that its cleanup runs; a second one exits.
   const controller = new AbortController();
   const interrupt = () => {
@@ -299,13 +303,21 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
             })
           )
         );
-      const execution = await (journal
-        ? observeRunlingEvents(
-            // A write failure is reported when the finished record is written.
-            (event) => void journal.writer.append(eventRecord(event, base)).catch(() => {}),
-            execute
-          )
-        : execute());
+      if (supportsLiveTerminal(options)) {
+        try {
+          display = await createLiveTerminal(journal?.run.reference ?? task.name);
+        } catch {
+          // Terminal decoration must never prevent a workflow from running.
+        }
+      }
+      const execution = await observeRunlingEvents(
+        (event) => {
+          // Journal writes remain independent of terminal presentation.
+          if (journal) void journal.writer.append(eventRecord(event, base)).catch(() => {});
+          display?.event(event);
+        },
+        () => (display ? log.withDestination('silent', execute) : execute())
+      ).finally(restoreTerminal);
 
       if (execution.error !== null) {
         log.withDestination('stderr', () => log.error(execution.error!));
@@ -357,6 +369,8 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
       console.log(JSON.stringify(execution));
     }
   } finally {
+    restoreTerminal();
+    process.off('exit', restoreTerminal);
     terminal?.close();
     process.off('SIGINT', interrupt);
     process.off('SIGTERM', interrupt);
