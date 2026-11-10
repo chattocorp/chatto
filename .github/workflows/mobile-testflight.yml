@@ -1,0 +1,96 @@
+name: Publish iOS to TestFlight
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Do not interrupt an upload when another release starts.
+concurrency:
+  group: mobile-testflight
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: macos-15
+    timeout-minutes: 45
+    environment: mobile-testflight
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify trusted release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted=false
+          while IFS= read -r ref; do
+            if git merge-base --is-ancestor HEAD "$ref"; then
+              trusted=true
+              break
+            fi
+          done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/main 'refs/remotes/origin/release-*')
+          if [[ "$trusted" != true ]]; then
+            echo '::error::TestFlight builds must come from main or a release-* branch.'
+            exit 1
+          fi
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+          turbo-remote-cache: 'false'
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -r .version apps/frontend/package.json)"
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" != "v${version}" ]]; then
+            echo '::error::The tag must match the frontend package version.'
+            exit 1
+          fi
+          if [[ ! "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo '::error::Expected a release or prerelease version.'
+            exit 1
+          fi
+          marketing_version="${BASH_REMATCH[1]}"
+          # Apple permits up to four digits in the first build component.
+          # The offset leaves room above the existing manual builds (1 and 2).
+          build_number="$((100 + GITHUB_RUN_NUMBER)).${GITHUB_RUN_ATTEMPT}.0"
+          if (( 100 + GITHUB_RUN_NUMBER > 9999 || GITHUB_RUN_ATTEMPT > 99 )); then
+            echo '::error::The TestFlight build numbering scheme needs a new range.'
+            exit 1
+          fi
+          {
+            echo "CHATTO_BUILD_VERSION=${version}+$(git rev-parse --short=12 HEAD)"
+            echo "IOS_MARKETING_VERSION=${marketing_version}"
+            echo "IOS_BUILD_NUMBER=${build_number}"
+          } >> "$GITHUB_ENV"
+          {
+            echo '### TestFlight build'
+            echo "- Commit: $(git rev-parse HEAD)"
+            echo "- Version: ${marketing_version} (${build_number})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build and sync bundled frontend
+        run: mise mobile-ios-sync
+
+      - name: Sign and upload
+        shell: bash
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: bash apps/mobile/scripts/publish-testflight.sh

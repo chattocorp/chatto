@@ -58,6 +58,50 @@ These systems can see the connecting device's IP address and the data needed
 for the requested operation. There is no mobile push gateway or analytics
 service in this prototype. Native bridge logging is disabled.
 
+## Automated TestFlight updates
+
+The `Publish iOS to TestFlight` workflow runs on Chatto `v*` tags, including
+prereleases. It rebuilds the shared frontend, signs an iOS device archive, and
+uploads it to App Store Connect. To upload between releases, run the workflow
+manually from `main` in GitHub Actions. The selected commit must be reachable
+from `main` or a `release-*` branch. This workflow is independent of server and
+desktop publication; check its result separately.
+
+Before the first run, create the `mobile-testflight` GitHub environment. Limit
+its deployment branches and tags to `main`, `release-*`, and `v*`. Add required
+reviewers if uploads need approval. Store these environment secrets:
+
+| Secret                     | Value                                                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `IOS_CERTIFICATE_BASE64`   | Base64-encoded Apple Distribution `.p12` certificate with its private key.                                           |
+| `IOS_CERTIFICATE_PASSWORD` | Password used to export the `.p12` file.                                                                             |
+| `IOS_PROFILE_BASE64`       | Base64-encoded App Store Connect provisioning profile for `eu.chattocorp.chatto.mobile`, made with that certificate. |
+| `ASC_API_KEY_BASE64`       | Base64-encoded App Store Connect team API private key (`.p8`).                                                       |
+| `ASC_API_KEY_ID`           | ID of that API key.                                                                                                  |
+| `ASC_API_ISSUER_ID`        | Issuer ID of that team API key.                                                                                      |
+
+Use an API key with permission to upload builds, such as the App Manager role.
+The existing App Store Connect app, certificate, and profile must belong to the
+same Apple team. Renew expired certificates and profiles in these secrets.
+See [GitHub's certificate setup guide](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications).
+The workflow uses a temporary keychain and removes the signing files after use.
+
+The app version comes from `apps/frontend/package.json`, without the prerelease
+suffix. The build number is `(100 + workflow run number).run attempt.0`.
+Retries get a new build number. The workflow fails before the first component
+exceeds 9999 or the attempt exceeds 99. When retrying an older run after a newer
+upload, start a new manual run instead, so its build number increases. Check the
+latest uploaded build before the first automated run or a later manual upload;
+manual build numbers must not overtake the automation's range.
+
+An accepted upload still needs Apple processing and any required compliance
+information. Configure automatic distribution for the internal TestFlight group
+in App Store Connect if testers should receive each processed build. External
+testing still requires Apple's review. This workflow does not publish to the
+public App Store or wait for processing and tester distribution. GitHub sends
+the signed app and symbols to Apple; it sends no Chatto server credentials or
+member data.
+
 ## Manual TestFlight updates
 
 1. Check out the code to distribute and run `mise mobile-ios-open`. This rebuilds
@@ -83,7 +127,7 @@ See [Apple's TestFlight guide](https://developer.apple.com/testflight/).
 - No native push notifications, incoming-call integration, or share extension.
 - Calls still use the shared web client. Continuing a call with the phone
   locked is a required follow-up, not a supported property of this build.
-- No offline message store, automated release workflow, or in-app updater.
+- No offline message store or in-app updater.
   TestFlight manages beta updates.
 - Simulator build and launch do not verify physical-device media, authentication
   with real providers, session restoration after an OS eviction, or networking
