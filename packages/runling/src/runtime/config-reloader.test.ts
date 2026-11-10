@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { ConfigReloader } from './config-reloader.ts';
+import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 
 test('programmatic configuration keeps its task objects and never reads a file on reload', async () => {
   const config = { webhooks: {}, sources: {} };
@@ -122,37 +123,73 @@ test('rejects an existing invalid config and missing imports', async () => {
 
 test('runling imports share the host runtime across config reloads', async () => {
   const { agent, taskTool, createTaskContext } = await import('./index.ts');
+  const { docker } = await import('./docker.ts');
+  const { workingTreeManifest } = await import('./git.ts');
 
   await fixture(async (loader, path) => {
     await writeFile(
       path,
       `
       import { agent, task, taskTool, Type } from "runling";
+      import { docker } from "runling/docker";
+      import { workingTreeManifest } from "runling/git";
       import { startWorkflow } from "runling/web";
       export default { webhooks: {
         probe: startWorkflow(task({ name: "Probe", input: Type.Null(), result: Type.Any() },
-          () => ({ agent, taskTool })))
+          async (ctx) => {
+            // Abort before any Docker CLI call, but record the command lifecycle.
+            await docker.run(ctx, {
+              image: "unused-probe-image",
+              signal: AbortSignal.abort(new Error("Probe cancelled"))
+            }).catch(error => {
+              if (error.message !== "Probe cancelled") throw error;
+            });
+            return { agent, taskTool, docker, workingTreeManifest };
+          }))
       }};
     `
     );
     for (const config of [await loader.load(), await loader.reload()]) {
       let result: unknown;
-      await config.webhooks.probe!(
-        {
-          start: async (task, { input }) => {
-            result = await task(createTaskContext(), input);
-            return {
-              id: 'probe',
-              steer: async () => {},
-              closeSteering: () => {},
-              cancel: () => {},
-              finished: Promise.resolve()
-            };
-          }
-        },
-        null
+      const events: RunlingEvent[] = [];
+      await observeRunlingEvents(
+        (event) => events.push(event),
+        () =>
+          config.webhooks.probe!(
+            {
+              start: async (task, { input }) => {
+                result = await task(createTaskContext(), input);
+                return {
+                  id: 'probe',
+                  steer: async () => {},
+                  closeSteering: () => {},
+                  cancel: () => {},
+                  finished: Promise.resolve()
+                };
+              }
+            },
+            null
+          )
       );
-      expect(result).toEqual({ agent, taskTool });
+      expect(result).toEqual({ agent, taskTool, docker, workingTreeManifest });
+      const step = events.find((event) => event.type === 'step.started');
+      expect(step?.type).toBe('step.started');
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'command.started',
+          activityId: step?.type === 'step.started' ? step.id : undefined
+        })
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'log',
+          source: 'command',
+          message: 'Docker unused-probe-image'
+        })
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: 'command.finished', status: 'failed' })
+      );
     }
   });
 });

@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import ColumnResizer from './ColumnResizer.svelte';
   import Usage from './Usage.svelte';
-  import AnsiText from './AnsiText.svelte';
+  import OutputLog from './OutputLog.svelte';
   import TaskMessageInspector from './TaskMessageInspector.svelte';
   import TaskMessageMarkers from './TaskMessageMarkers.svelte';
   import TimelineMinimap from './TimelineMinimap.svelte';
@@ -33,12 +33,14 @@
 
   let {
     nodes,
+    runId,
     selected,
     onselect,
     elapsed,
     running
   }: {
     nodes: Activity[];
+    runId: string;
     selected: string;
     onselect: (id: string) => void;
     elapsed: number;
@@ -624,10 +626,11 @@
         class="ml-3 text-base-content/60 text-xs">{inspected.status}</small
       >
       {#if inspected.usage}<Usage usage={inspected.usage} detail />{/if}
-      <pre
-        class="font-mono max-h-32.5 overflow-auto text-xs leading-relaxed whitespace-pre-wrap wrap-anywhere mb-0"><AnsiText
-          text={inspected.logs.length ? inspected.logs.join('\n\n') : 'No logs for this activity.'}
-        /></pre>
+      {#key `${runId}:${inspected.id}`}<OutputLog
+          {runId}
+          activityId={inspected.id}
+          {running}
+        />{/key}
     </div>
   {/if}
   <footer

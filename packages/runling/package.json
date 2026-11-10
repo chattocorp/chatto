@@ -26,6 +26,7 @@
     ".": "./src/runtime/index.ts",
     "./server": "./src/runtime/web-server.ts",
     "./git": "./src/runtime/git.ts",
+    "./docker": "./src/runtime/docker.ts",
     "./web": "./src/runtime/web-config.ts",
     "./config-reloader": "./src/runtime/config-reloader.ts",
     "./extensions/trust": "./extensions/trust.ts"
@@ -49,6 +50,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test:package": "node scripts/test-package.mjs",
     "test:server": "node --import tsx scripts/test-server.mjs",
+    "test:docker": "RUNLING_TEST_DOCKER=1 vitest run src/runtime/docker.integration.test.ts",
     "prepack": "node -e \"for (const file of ['dist/src/runtime/index.js', 'dist/src/runtime/index.d.ts', 'dist/web/handler.js']) { if (!require('node:fs').existsSync(file)) throw new Error('Run pnpm build before packing Runling'); }\""
   },
   "dependencies": {
@@ -84,6 +86,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
     "valibot": "^1.4.2",
+    "virtua": "0.54.1",
     "vite": "^7",
     "vitest": "^3.2.0",
     "yaml": "^2.8.0",
@@ -104,6 +107,10 @@
       "./git": {
         "types": "./dist/src/runtime/git.d.ts",
         "default": "./dist/src/runtime/git.js"
+      },
+      "./docker": {
+        "types": "./dist/src/runtime/docker.d.ts",
+        "default": "./dist/src/runtime/docker.js"
       },
       "./web": {
         "types": "./dist/src/runtime/web-config.d.ts",

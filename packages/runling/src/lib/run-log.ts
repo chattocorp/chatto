@@ -149,7 +149,10 @@ export function activityLogRows(
     }
   });
   for (const summary of summaries.values()) {
-    if (!summary.logs.length) summary.logs = summary.node.logs;
+    // Full-history callers retain each task's own messages in journal order.
+    // The console queries descendant output separately from the journal.
+    if (summary.node.kind === 'step' || !summary.logs.length)
+      summary.logs = summary.node.logs.map(plain);
   }
   return rows;
 }

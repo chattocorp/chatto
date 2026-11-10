@@ -38,6 +38,7 @@ try {
       .map((path) => ({ path: path.replace(/^package\//, '') }))
   };
   assert.equal(packed.exports['.'].default, './dist/src/runtime/index.js');
+  assert.equal(packed.exports['./docker'].default, './dist/src/runtime/docker.js');
   assert.equal(packed.name, 'runling');
   const manifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
   assert.equal(packed.version, manifest.version);
@@ -75,6 +76,21 @@ try {
     `
 import assert from "node:assert/strict";
 import * as runling from "runling";
+import * as dockerModule from "runling/docker";
+const { docker, DockerOperationError, DockerExitError, DockerTimeoutError } = dockerModule;
+assert.equal(typeof docker.run, "function");
+assert.equal(typeof docker.build, "function");
+assert.equal(typeof docker.start, "function");
+assert.equal(typeof docker.network, "function");
+assert.equal("createDocker" in dockerModule, false);
+assert.equal("Docker" in dockerModule, false);
+const cancelledDocker = { ...runling.createTaskContext(), signal: AbortSignal.abort(new Error("Docker task cancelled")) };
+await assert.rejects(docker.run(cancelledDocker, { image: "alpine" }), /Docker task cancelled/);
+await assert.rejects(docker.build(cancelledDocker, { contextDirectory: process.cwd() }), /Docker task cancelled/);
+await assert.rejects(docker.network(cancelledDocker), /Docker task cancelled/);
+assert.equal(new DockerExitError("container", 7).exitCode, 7);
+assert.equal(new DockerOperationError("image pull", 1).exitCode, 1);
+assert.equal(new DockerTimeoutError().name, "DockerTimeoutError");
 const { createTaskContext, createChannel, task, taskTool, awaitWithSignal, Type } = runling;
 assert.equal(await awaitWithSignal(async () => 42, new AbortController().signal), 42);
 const notifier = runling.createNotifier();
@@ -130,13 +146,17 @@ await assert.rejects(channel.send(1), { name: "ChannelClosedError" });
   await writeFile(
     resolve(project, 'workflow.ts'),
     `import { task, exec, step, log } from "runling";
+import { docker } from "runling/docker";
 import { z } from "zod";
 import { suffix } from "./helper.ts";
 export default task({ name: "Consumer echo", input: z.object({ topic: z.string(), directory: z.string() }), result: z.string() }, async (ctx, input) => {
   return step("Echo input", async () => {
+    await docker.run(ctx, { image: "unused-probe-image", signal: AbortSignal.abort(new Error("Probe cancelled")) })
+      .catch(error => { if (error.message !== "Probe cancelled") throw error; });
     await new Promise(resolve => setTimeout(resolve, input.topic === "slow" ? 2000 : 250));
     const cwd = await exec\`node -e \${"process.stdout.write(require('node:fs').readFileSync('message.txt', 'utf8'))"}\`.cwd(input.directory).text();
     log.info(input.topic);
+    if (input.topic === "bulk") for (let i = 0; i < 3000; i++) log.info("output-line-" + i);
     return input.topic + ": " + cwd + suffix;
   });
 });
@@ -150,7 +170,7 @@ import { createTrustExtension } from "runling/extensions/trust";
 if ([agent, createAgentSession, runAgent, defineAgentExtension, taskTool, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
 if (!isTask(agent({ name: "Consumer agent", model: "test/model", cwd: "." }))) throw new Error("An agent must be a task");
 export default task({ name: "CLI echo", input: Type.String(), result: Type.String() }, async (ctx, input) => {
-  if (typeof git.getPwd !== "function" || typeof git.workingTreeHash !== "function" || typeof git.WorkingDirectory.create !== "function") throw new Error("Git helpers were not exported");
+  if (typeof git.getPwd !== "function" || typeof git.workingTreeHash !== "function" || typeof git.WorkingDirectory.create !== "function" || typeof git.workingTreeManifest !== "function") throw new Error("Git helpers were not exported");
   if (process.env.RUNLING_PACKAGE_TEST_ENV !== "loaded") throw new Error("Project .env was not loaded");
   if (createTaskContext().usage.input !== 0 || "cwd" in ctx) throw new Error("Invalid task context");
   ctx.recordUsage({ input: 10, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
@@ -317,7 +337,60 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   };
   const webhookRun = await waitForRun((await webhook.json()).runs[0].id);
   assert.equal(webhookRun.output, 'webhook: consumer cwd');
+  assert(
+    webhookRun.events.some(
+      (event) =>
+        event.type === 'command.started' &&
+        event.command === 'Docker unused-probe-image' &&
+        event.activityId
+    ),
+    'Server-loaded Docker commands must reach the host journal with their parent task'
+  );
+  assert(
+    webhookRun.events.some(
+      (event) =>
+        event.type === 'log' &&
+        event.source === 'command' &&
+        event.message === 'Docker unused-probe-image'
+    ),
+    'Server-loaded Docker logs must reach the host journal'
+  );
   const workflowPath = resolve(project, 'workflow.ts');
+  const bulkResponse = await post('/api/runs/start/echo', { topic: 'bulk' });
+  const bulkId = (await bulkResponse.json()).runs[0].id;
+  const bulk = await waitForRun(bulkId);
+  const metadata = await (await fetch(`${origin}/api/runs/${bulkId}?view=console`)).json();
+  assert(metadata.events.length < 20, 'Console metadata must not contain bulk output');
+  assert(!metadata.events.some((event) => event.type === 'log'));
+  const bulkRoot = bulk.events.find((event) => event.type === 'step.started');
+  const logsUrl = `${origin}/api/runs/${bulkId}/logs?activity=${bulkRoot.id}`;
+  const tail = await (await fetch(logsUrl + '&limit=3')).json();
+  assert.equal(tail.entries.length, 3);
+  assert(tail.hasEarlier);
+  assert(tail.entries.some((entry) => entry.text.includes('output-line-2999')));
+  const earlier = await (await fetch(logsUrl + '&before=' + tail.entries[0].cursor)).json();
+  assert(earlier.entries.every((entry) => entry.cursor < tail.entries[0].cursor));
+  const later = await (
+    await fetch(logsUrl + '&limit=3&after=' + earlier.entries.at(-1).cursor)
+  ).json();
+  assert.deepEqual(later.entries, tail.entries);
+  const download = await (await fetch(logsUrl + '&download=1')).text();
+  assert(download.includes('output-line-0\n') && download.includes('output-line-2999\n'));
+  for (const query of ['after=-1', 'before=1&after=1', 'limit=501'])
+    assert.equal((await fetch(`${origin}/api/runs/${bulkId}/logs?${query}`)).status, 400);
+  const compactStream = await fetch(`${origin}/api/runs/${bulkId}/events?view=console`);
+  const compactReader = compactStream.body.getReader();
+  let compactSnapshot = '';
+  try {
+    while (!compactSnapshot.includes('\n\n'))
+      compactSnapshot += new TextDecoder().decode((await compactReader.read()).value);
+  } finally {
+    await compactReader.cancel();
+  }
+  assert(
+    !compactSnapshot.includes('output-line-'),
+    'Reconnect sends metadata without replaying output'
+  );
   const originalWorkflow = await readFile(workflowPath, 'utf8');
   await writeFile(workflowPath, originalWorkflow.replace('Consumer echo', 'Reloaded echo'));
   const waitForPage = async (text) => {

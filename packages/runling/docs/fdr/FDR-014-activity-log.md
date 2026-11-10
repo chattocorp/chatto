@@ -1,7 +1,7 @@
 # FDR-014: Compact activity log
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-27
+**Last reviewed:** 2026-11-09
 
 ## Overview
 
@@ -21,6 +21,16 @@ available for diagnosis.
   time while its status, duration, and reported usage update.
 - Names describe the work. Identifiers and structured fields are available when
   a row is expanded, together with its recorded logs. Agent rows show the model.
+- Output opens at the latest entry. Scrolling loads earlier and later output
+  into one continuous log. **Beginning** jumps to the first entry, and **Latest
+  output** returns to the live tail. History browsing stays in place while the
+  run continues. **Copy loaded output** copies the current scrollback cache;
+  **Download log** provides the complete output for the run or selected activity.
+- Task logs include recorded messages and command output from descendant activities
+  in journal order. Parallel sibling tasks keep separate logs. The timeline
+  inspector and activity details use the same task logs, during a run and after
+  reload. Command rows retain their own output. Parent views query descendants;
+  they do not collect additional copies or add journal events.
 - Compact rows show usage only for agents. Parent totals remain in expanded
   details, so the same tokens do not appear at each level of the tree.
   Successful rows use a checkmark without a repeated completion label.
@@ -31,8 +41,12 @@ available for diagnosis.
 - Task label lines and known agent startup and token-total lines are replaced by
   activity rows and metadata. Debug lines remain in the detailed view.
 - **Detailed log** restores the chronological log lines and task milestones.
-  Switching views does not change the journal. **Copy log** copies the selected
-  view, including activity status and duration in the compact view.
+  Switching views does not change the journal. **Copy activities** copies activity
+  status and duration in the compact view. Its **Recent output** viewer uses the
+  same output pages as the detailed view.
+- Reconnecting refreshes activity metadata and resumes output after the last
+  received cursor. Old output is not downloaded again. Output traffic does not
+  rebuild the timeline or the compact activity list.
 - Both views retain history across workflow reactivation and server restart.
   The timeline remains available for inspecting overlapping work.
 - The view shows only recorded information. It does not recover task inputs or
@@ -53,6 +67,15 @@ timeline to compare overlapping work or the detailed log for event order.
 **Decision:** Put identifiers and structured fields in expandable details.
 **Why:** Repeated context makes ordinary runs difficult to scan.
 **Tradeoff:** Diagnosis sometimes requires expanding a row or changing views.
+
+### 3. Bound output readers
+
+**Decision:** Virtualize visible rows and keep a bounded output cache, as specified in
+[ADR-015](../adr/ADR-015-paged-console-output.md).
+**Why:** Long CI jobs must remain readable without loading their entire output
+or collecting it at every parent task.
+**Tradeoff:** Older output loads as operators scroll. Browser search and selection
+cover mounted rows; downloading the log provides the complete text.
 
 ## Related
 

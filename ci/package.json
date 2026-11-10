@@ -1,0 +1,21 @@
+{
+  "name": "@chatto/ci",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "start": "runling serve --host 127.0.0.1",
+    "runling": "runling",
+    "test:chatto": "runling run workflows/tests.ts --input '{}'",
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test docker/*.test.ts"
+  },
+  "dependencies": {
+    "runling": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.3"
+  }
+}

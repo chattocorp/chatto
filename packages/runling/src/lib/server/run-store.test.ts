@@ -34,6 +34,42 @@ async function store() {
   return store;
 }
 
+test('active console state excludes output while full details and cursor reads retain it', async () => {
+  const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+  const history = await store();
+  const release = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  try {
+    const handle = await history.start(
+      'test',
+      work(async () => {
+        for (let index = 0; index < 1000; index++) log.info(`bulk-${index}`);
+        started.resolve();
+        await release.promise;
+      }),
+      undefined,
+      'web'
+    );
+    await started.promise;
+    await vi.waitFor(async () => {
+      expect((await history.output(handle.id))?.entries.at(-1)?.text).toBe('bulk-999');
+    });
+    const metadata = (await history.console(handle.id))!;
+    expect(metadata.status).toBe('running');
+    expect(metadata.events.filter((event) => event.type === 'log')).toEqual([]);
+    expect(metadata.lastEventAt).toBeGreaterThan(0);
+    expect(
+      (await history.get(handle.id))!.events.filter((event) => event.type === 'log').length
+    ).toBeGreaterThanOrEqual(1000);
+    release.resolve();
+    await handle.completion;
+  } finally {
+    release.resolve();
+    await history.close();
+    info.mockRestore();
+  }
+});
+
 test('source dispatch from an active run creates an independent journal that outlives it', async () => {
   const history = await store();
   const ready = Promise.withResolvers<EventSourceContext>();

@@ -31,6 +31,8 @@ import {
 import { summarizeRunActivity } from '../run-activity.ts';
 import { WorkflowStateStore } from '../../runtime/workflow-state.ts';
 import { emptyTokenUsage } from '../../runtime/usage.ts';
+import { consoleRecord } from '../console-record.ts';
+import { readOutputPage, type OutputQuery } from './output-journal.ts';
 
 const validId = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
 const DAY_MS = 24 * 60 * 60_000;
@@ -44,11 +46,17 @@ function summary(run: RunDetail): RunSummary {
 }
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
-function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
+function applyStoredRecord(
+  run: RunDetail,
+  record: RunRecord,
+  includeDetails: boolean | 'console' = 'console'
+) {
   record = projectRecord(run, record);
   if (record.type === 'event') {
+    run.lastEventAt = record.event.timestamp;
     if (record.event.type === 'run.title') run.title = record.event.title;
-    if (includeDetails) run.events.push(record.event);
+    const retained = includeDetails === 'console' ? consoleRecord(record) : record;
+    if (includeDetails && retained?.type === 'event') run.events.push(retained.event);
     if (record.event.type === 'usage.updated') run.usage = runUsage(run, record.event.usage);
   } else if (record.type === 'finished') {
     const { type: _, output, error, ...result } = record;
@@ -297,7 +305,24 @@ export class RunStore {
 
   async get(id: string): Promise<RunDetail | undefined> {
     if (!validId.test(id) || !this.runs.has(id)) return undefined;
-    return this.details.get(id) ?? (await this.read(id, true)).run;
+    return (await this.read(id, true)).run;
+  }
+
+  /** Console metadata excludes bulk output. Existing clients can still request full details. */
+  async console(id: string): Promise<RunDetail | undefined> {
+    if (!validId.test(id) || !this.runs.has(id)) return undefined;
+    return this.details.get(id) ?? (await this.read(id, 'console')).run;
+  }
+
+  /** Check a run identifier before accessing its journal path. */
+  has(id: string): boolean {
+    return validId.test(id) && this.runs.has(id);
+  }
+
+  /** Query one output window without loading the full run into memory. */
+  async output(id: string, query: OutputQuery = {}) {
+    if (!validId.test(id) || !this.runs.has(id)) return undefined;
+    return readOutputPage(resolve(this.directory, `${id}.jsonl`), query);
   }
 
   /** Validate a message and queue it for an active run's top-level task. */
@@ -340,7 +365,7 @@ export class RunStore {
     }
   }
 
-  private async read(id: string, includeDetails: boolean) {
+  private async read(id: string, includeDetails: boolean | 'console') {
     let run: RunDetail | undefined;
     let end = 0;
     let lastTimestamp = 0;
@@ -524,9 +549,11 @@ export class RunStore {
     input: unknown,
     resumed = false
   ): RunHandle & { completion: Promise<WorkflowExecution> } {
-    const { id, webhook, source } = run;
+    const { id, webhook, source, reference } = run;
     this.runs.set(id, summary(run));
-    this.details.set(id, run);
+    const metadata = consoleRecord({ type: 'started', run });
+    if (metadata?.type !== 'started') throw new Error('Invalid run metadata');
+    this.details.set(id, metadata.run);
     const controller = new AbortController();
     this.controllers.set(id, controller);
     this.inboxes.set(id, { task: workflow, channel: createChannel({ signal: controller.signal }) });
@@ -557,7 +584,7 @@ export class RunStore {
     );
     // Background runs must always have a rejection handler, even after the HTTP client leaves.
     void completion.catch((cause) =>
-      serverLog('error', 'run.error', { runId: id, runReference: run.reference, error: cause })
+      serverLog('error', 'run.error', { runId: id, runReference: reference, error: cause })
     );
     const handle = {
       id,

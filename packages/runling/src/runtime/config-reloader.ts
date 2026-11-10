@@ -5,6 +5,8 @@ import { watch } from 'chokidar';
 import { createJiti } from 'jiti';
 import * as runling from './index.ts';
 import * as web from './web-config.ts';
+import * as docker from './docker.ts';
+import * as git from './git.ts';
 import { isWebConfig, type WebConfig } from './web-config.ts';
 
 /** Reload project modules without replacing active runs or installed packages. */
@@ -103,7 +105,12 @@ export class ConfigReloader {
         tryNative: false,
         interopDefault: false,
         // Reuse the host runtime: live events must reach its AsyncLocalStorage.
-        virtualModules: { runling, 'runling/web': web }
+        virtualModules: {
+          runling,
+          'runling/web': web,
+          'runling/docker': docker,
+          'runling/git': git
+        }
       });
       const module = await jiti.import<{ default?: unknown }>(this.path);
       if (!isWebConfig(module.default))

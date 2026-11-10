@@ -27,12 +27,16 @@
   let tab = $state<'log' | 'timeline'>('log');
   let currentActivity = $derived(summarizeRunActivity(run));
   let waiting = $derived(isRunWaiting(currentActivity));
-  let nodes = $derived(buildTimeline(run.events, run.status));
+  let events = $derived(run.events);
+  let status = $derived(run.status);
+  let nodes = $derived(buildTimeline(events, status));
   let activity = $derived(findActivity(nodes, selected));
   let elapsed = $derived(run.durationMs ?? Math.max(0, now - run.startedAt));
-  let quietFor = $derived(Math.max(0, elapsed - (run.events.at(-1)?.timestamp ?? 0)));
-  let logs = $derived(runLogRows(run.events));
-  let activities = $derived(activityLogRows(run.events, run.status, nodes));
+  let quietFor = $derived(
+    Math.max(0, elapsed - (run.lastEventAt ?? events.at(-1)?.timestamp ?? 0))
+  );
+  let logs = $derived(runLogRows(events));
+  let activities = $derived(activityLogRows(events, status, nodes));
   const wide = new MediaQuery('(min-width: 96rem)', false);
   const paneTitleId = $props.id();
 
@@ -230,6 +234,7 @@
           aria-label="Log"
         >
           <RunLog
+            runId={run.id}
             detailedRows={logs}
             compactRows={activities}
             running={run.status === 'running'}
@@ -249,6 +254,7 @@
           </div>
           {#if nodes.length}
             <Timeline
+              runId={run.id}
               {nodes}
               {selected}
               onselect={(id) => (selected = selected === id ? '' : id)}
@@ -273,11 +279,13 @@
         {#key run.id}<RunMessageComposer runId={run.id} />{/key}
       {/if}
     </div>
-    {#if activity}<aside
+    {#if activity && wide.current}<aside
         class="hidden min-h-0 min-w-[25rem] w-[40%] max-w-[48rem] flex-col border-l border-base-300 2xl:flex"
         aria-label="Details pane"
       >
         <ActivityDetails
+          runId={run.id}
+          running={run.status === 'running'}
           {activity}
           {elapsed}
           titleId={paneTitleId}
@@ -286,6 +294,8 @@
       </aside>{/if}
   </div>
   {#if activity && !wide.current}<ActivityInspector
+      runId={run.id}
+      running={run.status === 'running'}
       {activity}
       {elapsed}
       onclose={() => (selected = '')}

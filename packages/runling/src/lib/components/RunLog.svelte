@@ -7,21 +7,24 @@
   import { activityStatus } from '$lib/timeline.ts';
   import { formatLogFields } from '../../runtime/log-fields.ts';
   import Usage from './Usage.svelte';
+  import OutputLog from './OutputLog.svelte';
 
   let {
     detailedRows,
+    runId,
     compactRows,
     running,
     selectedActivity,
     onselectActivity
   }: {
     detailedRows: LogRow[];
+    runId: string;
     compactRows: LogRow[];
     running: boolean;
     selectedActivity: string;
     onselectActivity: (id: string) => void;
   } = $props();
-  let viewport: HTMLDivElement;
+  let viewport = $state<HTMLDivElement>(null!);
   let detailed = $state(false);
   let rows = $derived(detailed ? detailedRows : compactRows);
   let limit = $state(500);
@@ -31,6 +34,7 @@
   let copyState = $state<'idle' | 'copied' | 'failed'>('idle');
   let expandable = $state.raw(new Set<number>());
   let expanded = $state.raw(new Set<number>());
+  let openActivities = $state.raw(new Set<string>());
   let previousTop = 0;
   const measuredLines = new Map<Element, number>();
   let lineObserver: ResizeObserver | undefined;
@@ -176,7 +180,15 @@
 {#snippet message(row: LogRow)}
   {#if row.summary}
     {@const item = row.summary}
-    <details class="group min-w-0 w-full font-sans">
+    <details
+      class="group min-w-0 w-full font-sans"
+      ontoggle={(event) => {
+        const next = new Set(openActivities);
+        if (event.currentTarget.open) next.add(item.node.id);
+        else next.delete(item.node.id);
+        openActivities = next;
+      }}
+    >
       <summary
         class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded py-0.5 focus-visible:outline-2 focus-visible:outline-primary"
       >
@@ -217,10 +229,11 @@
             class="m-0 whitespace-pre-wrap wrap-anywhere text-base-content/60">{formatLogFields(
               item.fields
             ).trim()}</pre>{/if}
-        {#if item.logs.length}<pre
-            class="m-0 whitespace-pre-wrap wrap-anywhere text-base-content/80">{item.logs.join(
-              '\n'
-            )}</pre>{/if}
+        {#if openActivities.has(item.node.id)}<OutputLog
+            {runId}
+            activityId={item.node.id}
+            {running}
+          />{/if}
         <button class="btn btn-ghost btn-xs" onclick={() => onselectActivity(item.node.id)}
           >Inspect activity</button
         >
@@ -314,103 +327,112 @@
           seen = 0;
         }}>Detailed log</button
       >
-      <button
-        class="btn btn-ghost btn-xs gap-1.5"
-        aria-pressed={wrap}
-        onclick={() => (wrap = !wrap)}
-      >
-        <span class="icon-[lucide--wrap-text] size-3.5" aria-hidden="true"></span>Wrap
-      </button>
-      <button class="btn btn-ghost btn-xs gap-1.5" onclick={copy}>
-        <span
-          class={copyState === 'copied'
-            ? 'icon-[lucide--check] size-3.5'
-            : 'icon-[lucide--copy] size-3.5'}
-          aria-hidden="true"
-        ></span>
-        {copyState === 'copied' ? 'Copied' : 'Copy log'}
-      </button>
-    </div>
-  </div>
-  <div
-    bind:this={viewport}
-    use:follow={rows.length}
-    onscroll={scroll}
-    class="min-h-0 flex-1 overflow-auto overscroll-contain [overflow-anchor:none] [scrollbar-gutter:stable]"
-    role="region"
-    aria-label="Run log lines"
-  >
-    <div class="min-h-full px-2 py-3 sm:px-4">
-      {#if rows.length > limit}
-        <button class="btn btn-ghost btn-sm mb-3 ml-2" onclick={earlier}
-          >Show earlier logs ({rows.length - limit})</button
+      {#if !detailed}<button
+          class="btn btn-ghost btn-xs gap-1.5"
+          aria-pressed={wrap}
+          onclick={() => (wrap = !wrap)}
         >
+          <span class="icon-[lucide--wrap-text] size-3.5" aria-hidden="true"></span>Wrap
+        </button>
+        <button class="btn btn-ghost btn-xs gap-1.5" onclick={copy}>
+          <span
+            class={copyState === 'copied'
+              ? 'icon-[lucide--check] size-3.5'
+              : 'icon-[lucide--copy] size-3.5'}
+            aria-hidden="true"
+          ></span>
+          {copyState === 'copied' ? 'Copied' : 'Copy activities'}
+        </button>
       {/if}
-      <ol class="m-0 list-none p-0 font-mono text-[13px] leading-5">
-        {#each treeRows as { row, depth, joinsAbove, continuesBelow } (row.id)}
-          <li
-            class={[
-              'grid gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55',
-              detailed
-                ? 'grid-cols-[4.5rem_1rem_minmax(0,1fr)] sm:grid-cols-[5rem_1rem_minmax(0,1fr)]'
-                : 'grid-cols-[1rem_minmax(0,1fr)]'
-            ]}
-            data-log-row={row.id}
-            title={!detailed ? `At ${logTime(row.event.timestamp)}` : undefined}
-          >
-            {#if detailed}<time
-                class="select-none text-base-content/40 tabular-nums"
-                title="Elapsed run time">{logTime(row.event.timestamp)}</time
-              >{/if}
-            <span
-              class={markerClass(row.event.level)}
-              title={row.event.level}
-              aria-label={row.event.level}>{marker(row.event.level)}</span
-            >
-            {#if expandable.has(row.id)}
-              <span class="flex min-w-0 w-full font-mono text-[13px] leading-5">
-                {@render treeGuide(depth, joinsAbove, continuesBelow)}
-                <span
-                  class={expanded.has(row.id)
-                    ? 'block min-w-0 flex-1'
-                    : 'block min-w-0 flex-1 max-h-15 overflow-y-clip overflow-x-visible'}
-                >
-                  {@render message(row)}
-                </span>
-                <button
-                  class="ml-2 shrink-0 self-end text-[11px] text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
-                  aria-expanded={expanded.has(row.id)}
-                  aria-label={`${expanded.has(row.id) ? 'Collapse' : 'Expand'} log line`}
-                  onclick={() => toggleLine(row.id)}
-                  >{expanded.has(row.id) ? 'Less ↑' : 'More ↓'}</button
-                >
-              </span>
-            {:else}
-              <span class="flex min-w-0">
-                {@render treeGuide(depth, joinsAbove, continuesBelow)}
-                <!-- Clipping this outer span would cut the guide at each row boundary. -->
-                <span
-                  class={[
-                    'block min-w-0 flex-1',
-                    !row.summary &&
-                      (detailed || !row.event.fields) &&
-                      'max-h-20 overflow-y-clip overflow-x-visible'
-                  ]}
-                >
-                  {@render message(row)}
-                </span>
-              </span>
-            {/if}
-          </li>
-        {:else}
-          <li class="px-4 py-12 text-center font-sans text-sm text-base-content/50">
-            {running ? 'Waiting for log lines…' : 'No log lines were recorded.'}
-          </li>
-        {/each}
-      </ol>
     </div>
   </div>
-  {#if !following}
+  {#if detailed}
+    <div class="min-h-0 flex-1 overflow-auto px-4 py-3 sm:px-6">
+      <OutputLog {runId} {running} />
+    </div>
+  {:else}<div
+      bind:this={viewport}
+      use:follow={rows.length}
+      onscroll={scroll}
+      class="min-h-0 flex-1 overflow-auto overscroll-contain [overflow-anchor:none] [scrollbar-gutter:stable]"
+      role="region"
+      aria-label="Run log lines"
+    >
+      <div class="min-h-full px-2 py-3 sm:px-4">
+        {#if rows.length > limit}
+          <button class="btn btn-ghost btn-sm mb-3 ml-2" onclick={earlier}
+            >Show earlier logs ({rows.length - limit})</button
+          >
+        {/if}
+        <ol class="m-0 list-none p-0 font-mono text-[13px] leading-5">
+          {#each treeRows as { row, depth, joinsAbove, continuesBelow } (row.id)}
+            <li
+              class={[
+                'grid gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55',
+                detailed
+                  ? 'grid-cols-[4.5rem_1rem_minmax(0,1fr)] sm:grid-cols-[5rem_1rem_minmax(0,1fr)]'
+                  : 'grid-cols-[1rem_minmax(0,1fr)]'
+              ]}
+              data-log-row={row.id}
+              title={!detailed ? `At ${logTime(row.event.timestamp)}` : undefined}
+            >
+              {#if detailed}<time
+                  class="select-none text-base-content/40 tabular-nums"
+                  title="Elapsed run time">{logTime(row.event.timestamp)}</time
+                >{/if}
+              <span
+                class={markerClass(row.event.level)}
+                title={row.event.level}
+                aria-label={row.event.level}>{marker(row.event.level)}</span
+              >
+              {#if expandable.has(row.id)}
+                <span class="flex min-w-0 w-full font-mono text-[13px] leading-5">
+                  {@render treeGuide(depth, joinsAbove, continuesBelow)}
+                  <span
+                    class={expanded.has(row.id)
+                      ? 'block min-w-0 flex-1'
+                      : 'block min-w-0 flex-1 max-h-15 overflow-y-clip overflow-x-visible'}
+                  >
+                    {@render message(row)}
+                  </span>
+                  <button
+                    class="ml-2 shrink-0 self-end text-[11px] text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
+                    aria-expanded={expanded.has(row.id)}
+                    aria-label={`${expanded.has(row.id) ? 'Collapse' : 'Expand'} log line`}
+                    onclick={() => toggleLine(row.id)}
+                    >{expanded.has(row.id) ? 'Less ↑' : 'More ↓'}</button
+                  >
+                </span>
+              {:else}
+                <span class="flex min-w-0">
+                  {@render treeGuide(depth, joinsAbove, continuesBelow)}
+                  <!-- Clipping this outer span would cut the guide at each row boundary. -->
+                  <span
+                    class={[
+                      'block min-w-0 flex-1',
+                      !row.summary &&
+                        (detailed || !row.event.fields) &&
+                        'max-h-20 overflow-y-clip overflow-x-visible'
+                    ]}
+                  >
+                    {@render message(row)}
+                  </span>
+                </span>
+              {/if}
+            </li>
+          {:else}
+            <li class="px-4 py-12 text-center font-sans text-sm text-base-content/50">
+              {running ? 'Waiting for log lines…' : 'No log lines were recorded.'}
+            </li>
+          {/each}
+        </ol>
+        <div class="mt-4 px-2">
+          <h3 class="mb-2 text-sm font-medium">Recent output</h3>
+          <OutputLog {runId} {running} />
+        </div>
+      </div>
+    </div>{/if}
+  {#if !following && !detailed}
     <div class="flex shrink-0 justify-center border-t border-base-300 bg-base-200/50 p-2">
       <button class="btn btn-sm btn-ghost gap-2" onclick={jump}
         ><span aria-hidden="true">↓</span>{unread
