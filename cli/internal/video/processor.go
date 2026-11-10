@@ -22,6 +22,8 @@ import (
 
 // ProbeResult contains metadata extracted from a video file via ffprobe.
 type ProbeResult struct {
+	// source retains probe metadata for conservative stream-copy eligibility.
+	source     ffprobeOutput
 	DurationMs int64
 	Width      int32
 	Height     int32
@@ -39,6 +41,17 @@ type ffprobeOutput struct {
 }
 
 type ffprobeStream struct {
+	Profile       string `json:"profile"`
+	Level         int    `json:"level"`
+	PixelFormat   string `json:"pix_fmt"`
+	FieldOrder    string `json:"field_order"`
+	ColorTransfer string `json:"color_transfer"`
+	Channels      int    `json:"channels"`
+	SampleRate    string `json:"sample_rate"`
+	FrameRate     string `json:"avg_frame_rate"`
+	StartTime     string `json:"start_time"`
+	HasBFrames    int    `json:"has_b_frames"`
+
 	CodecType          string            `json:"codec_type"`
 	CodecName          string            `json:"codec_name"`
 	Width              int32             `json:"width"`
@@ -55,6 +68,7 @@ type ffprobeSideData struct {
 }
 
 type ffprobeFormat struct {
+	Name     string `json:"format_name"`
 	Duration string `json:"duration"`
 }
 
@@ -86,7 +100,7 @@ func (s *Service) probe(ctx context.Context, inputPath string, contentType strin
 		return nil, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 
-	result := &ProbeResult{}
+	result := &ProbeResult{source: probe}
 
 	// Parse format-level duration (seconds as string, e.g., "12.345000")
 	if probe.Format.Duration != "" {
@@ -265,7 +279,8 @@ func thumbnailDimensions(displayWidth, displayHeight int32) (int32, int32, bool)
 // transcode converts a video to H.264 MP4 at the specified height.
 // Uses -movflags +faststart for progressive download/seeking.
 // inputOpts are placed before -i (e.g., "-ignore_loop 1" for GIF input).
-func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, height int, hasAudio bool, inputOpts []string) error {
+// sourceKeyframes follows the copied source's keyframes instead of a fixed grid.
+func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, height int, hasAudio bool, inputOpts []string, sourceKeyframes bool) error {
 	// yuv420p requires even dimensions; scale=-2 handles width, but height
 	// can be odd when transcoding at the source's original resolution.
 	if height%2 != 0 {
@@ -290,9 +305,15 @@ func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, h
 	} else {
 		args = append(args, "-an")
 	}
+	keyframes := "expr:gte(t,n_forced*6)"
+	if sourceKeyframes {
+		keyframes = "source"
+		// Avoid a decode-time offset relative to the copied, B-frame-free source.
+		args = append(args, "-bf", "0")
+	}
 	args = append(args,
 		"-vf", fmt.Sprintf("scale=-2:%d", height),
-		"-force_key_frames", "expr:gte(t,n_forced*6)",
+		"-force_key_frames", keyframes,
 		"-sc_threshold", "0",
 		"-movflags", "+faststart",
 		"-max_muxing_queue_size", "1024",
@@ -309,11 +330,13 @@ func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, h
 }
 
 type processedVariantOutput struct {
-	path    string
-	quality string
-	width   int32
-	height  int32
-	size    int64
+	// packaged is prepared locally before accepting a source-copy attempt.
+	packaged *packagedRendition
+	path     string
+	quality  string
+	width    int32
+	height   int32
+	size     int64
 }
 
 // videoProcessingFinalizationTimeout bounds compensating cleanup and terminal
@@ -436,6 +459,42 @@ func selectVariantHeights(sourceHeight int32) []int {
 	}
 }
 
+// encodeVariants generates local files; failed heights leave remaining renditions usable.
+func (s *Service) encodeVariants(ctx context.Context, inputPath, tmpDir string, heights []int, hasAudio bool, inputOpts []string, sourceKeyframes bool) []processedVariantOutput {
+	var variantOutputs []processedVariantOutput
+	for _, h := range heights {
+		outputPath := filepath.Join(tmpDir, fmt.Sprintf("%dp.mp4", h))
+		s.logger.Info("Transcoding variant", "height", h)
+
+		if err := s.transcode(ctx, inputPath, outputPath, h, hasAudio, inputOpts, sourceKeyframes); err != nil {
+			s.logger.Error("Variant transcoding failed", "height", h, "error", err)
+			continue // Try remaining variants
+		}
+
+		// Get file info for size
+		info, err := os.Stat(outputPath)
+		if err != nil {
+			s.logger.Error("Failed to stat transcoded file", "error", err)
+			continue
+		}
+
+		variantProbe, err := s.probe(ctx, outputPath, "video/mp4")
+		if err != nil {
+			s.logger.Error("Failed to probe transcoded variant", "height", h, "error", err)
+			continue
+		}
+
+		quality := fmt.Sprintf("%dp", h)
+		output := processedVariantOutput{
+			path: outputPath, quality: quality, width: variantProbe.Width,
+			height: variantProbe.Height, size: info.Size(),
+		}
+		variantOutputs = append(variantOutputs, output)
+	}
+
+	return variantOutputs
+}
+
 // processVideo handles the full processing pipeline for a single video.
 func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Per-job timeout prevents any single ffmpeg invocation from hanging forever.
@@ -513,44 +572,8 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		}
 	}
 
-	// Transcode variants
-	heights := selectVariantHeights(probeResult.Height)
-	hasAudio := probeResult.AudioCodec != ""
 	var variants []*runtimestatev1.VideoVariant
-	var variantOutputs []processedVariantOutput
-
-	for _, h := range heights {
-		outputPath := filepath.Join(tmpDir, fmt.Sprintf("%dp.mp4", h))
-		s.logger.Info("Transcoding variant",
-			"asset_id", req.AssetID,
-			"height", h,
-		)
-
-		if err := s.transcode(ctx, inputPath, outputPath, h, hasAudio, inputOpts); err != nil {
-			s.logger.Error("Variant transcoding failed", "height", h, "error", err)
-			continue // Try remaining variants
-		}
-
-		// Get file info for size
-		info, err := os.Stat(outputPath)
-		if err != nil {
-			s.logger.Error("Failed to stat transcoded file", "error", err)
-			continue
-		}
-
-		variantProbe, err := s.probe(ctx, outputPath, "video/mp4")
-		if err != nil {
-			s.logger.Error("Failed to probe transcoded variant", "height", h, "error", err)
-			continue
-		}
-
-		quality := fmt.Sprintf("%dp", h)
-		output := processedVariantOutput{
-			path: outputPath, quality: quality, width: variantProbe.Width,
-			height: variantProbe.Height, size: info.Size(),
-		}
-		variantOutputs = append(variantOutputs, output)
-	}
+	variantOutputs := s.prepareVideoVariants(ctx, inputPath, tmpDir, probeResult, inputOpts)
 
 	if len(variantOutputs) == 0 {
 		return fail(nil, fmt.Errorf("all variant transcodes failed"))
@@ -613,14 +636,15 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 
 	for i, output := range outputs {
 		renditionDir := filepath.Join(hlsDir, fmt.Sprintf("rendition-%d", i))
-		playlistPath, segmentPaths, err := s.packageHLSRendition(ctx, output.path, renditionDir)
-		if err != nil {
-			return nil, uploaded, err
+		packaged := output.packaged
+		if packaged == nil {
+			var err error
+			packaged, err = s.packageRendition(ctx, output.path, renditionDir)
+			if err != nil {
+				return nil, uploaded, err
+			}
 		}
-		bandwidth, durations, err := hlsSegmentMetadata(playlistPath, segmentPaths)
-		if err != nil {
-			return nil, uploaded, err
-		}
+		segmentPaths, durations, bandwidth := packaged.paths, packaged.durations, packaged.bandwidth
 
 		rendition := &evtv1.AssetHLSRendition{
 			Width:     output.width,
