@@ -49,7 +49,9 @@
       "video_disabled": "Alŝutoj de videoj estas malŝaltitaj en ĉi tiu servilo.",
       "prepare_failed": "Malsukcesis prepari kunsendaĵon",
       "too_many": "Vi povas aldoni ĝis {max} dosierojn al ĉiu mesaĝo. Kromaj dosieroj ne estis aldonitaj.",
-      "too_large": "{filename} estas tro granda ({size}). La maksimumo estas {limit}."
+      "too_large": "{filename} estas tro granda ({size}). La maksimumo estas {limit}.",
+      "compress_failed": "Ne eblis sufiĉe kunpremi la filmeton. Provu alian formaton aŭ pli mallongan filmeton.",
+      "compressing": "Kunpremado de filmeto… {percentage}%"
     },
     "format": {
       "underline": "Substrekita",

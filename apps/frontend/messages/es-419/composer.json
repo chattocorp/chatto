@@ -49,7 +49,9 @@
       "video_disabled": "La carga de videos está deshabilitada en este servidor.",
       "prepare_failed": "No se pudo preparar el archivo adjunto",
       "too_many": "Puedes adjuntar hasta {max} archivos por mensaje. Los archivos adicionales no se agregaron.",
-      "too_large": "{filename} es demasiado grande ({size}). El máximo es {limit}."
+      "too_large": "{filename} es demasiado grande ({size}). El máximo es {limit}.",
+      "compress_failed": "No se pudo comprimir lo suficiente. Prueba otro formato o un video más corto.",
+      "compressing": "Comprimiendo video… {percentage} %"
     },
     "format": {
       "underline": "Subrayado",

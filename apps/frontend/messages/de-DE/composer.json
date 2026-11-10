@@ -49,7 +49,9 @@
       "video_disabled": "Video-Uploads sind auf diesem Server deaktiviert.",
       "prepare_failed": "Anhang konnte nicht vorbereitet werden",
       "too_many": "Du kannst bis zu {max} Dateien pro Nachricht anhängen. Weitere Dateien wurden nicht hinzugefügt.",
-      "too_large": "{filename} ist zu groß ({size}). Maximal erlaubt: {limit}."
+      "too_large": "{filename} ist zu groß ({size}). Maximal erlaubt: {limit}.",
+      "compress_failed": "Das Video konnte nicht ausreichend komprimiert werden. Versuche ein anderes Format oder ein kürzeres Video.",
+      "compressing": "Video wird komprimiert… {percentage}%"
     },
     "format": {
       "underline": "Unterstrichen",

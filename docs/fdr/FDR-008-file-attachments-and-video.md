@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-11-09
+**Last reviewed:** 2026-11-10
 
 ## Overview
 
@@ -24,6 +24,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - One upload size limit applies to all files, including GIFs and videos. The default is 25 MB, set with `core.assets.max_upload_size`. Video upload enablement is independent of this limit.
 - The deprecated `video.max_upload_size` setting is a migration input. When set, the larger of that value and the general limit applies to all files. If the general limit is absent, its 25 MB default participates in this comparison. Operators must set the desired general limit and remove the deprecated setting. The old implicit 100 MB video default no longer applies.
 - `ServerRuntimeConfig.max_upload_size` reports the effective limit. Its deprecated `max_video_upload_size` alias reports the same value. Client upload validation uses the general limit for all file types.
+- The experimental composer automatically compresses videos above the server upload limit on the device, without contacting another service. The attachment tile appears immediately and shows queued or compression progress in the same area later used for upload progress. Removing the tile cancels processing. The source file stays unchanged; only the compressed copy is uploaded. The primary audio track is retained. A failed preparation stays visible and blocks sending until the member removes that tile. Changing drafts cancels unfinished work; a retained draft shows its cancelled tile as failed. The result must pass the current server upload policy before it becomes sendable.
+- This compression experiment accepts SDR sources up to 3840×2160 pixels and produces at most 100 MiB. It requires browser support for decoding the source and encoding a compatible video/audio pair. Output resolution falls with the video bitrate budget: longest-side caps are 1920 pixels at 2.5 Mbps or more, 1280 at 1.2 Mbps, 854 at 600 kbps, 640 at 300 kbps, and 426 below 300 kbps. Smaller sources are not enlarged; aspect ratio is retained with even output dimensions. These experimental thresholds reduce blocking at low bitrates but do not guarantee visual quality. Very long videos may not fit at the minimum quality budget. HDR conversion, background processing, and guaranteed support across browsers remain open work. Server-side video processing still runs after upload, so the two encodes can reduce quality.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - When video processing is enabled, GIF attachment uploads can exceed the image-decoder frame-count and cumulative-pixel limits. The upload byte, canvas-size, and per-frame pixel limits still apply. Without video processing, the image animation limits still apply. Image transforms keep these limits even for GIFs accepted for video conversion.
 - Thumbnail URLs for GIFs routed to video processing use the generated video thumbnail. They are absent before a thumbnail is available, after processing fails, or when processing completes without a thumbnail. Message previews and room file lists do not request an image transform of these GIFs. Static GIFs and GIFs kept as images retain image thumbnail URLs.

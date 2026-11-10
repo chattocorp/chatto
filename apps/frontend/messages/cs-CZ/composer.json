@@ -49,7 +49,9 @@
       "video_disabled": "Nahrávání videí je na tomto serveru zakázáno.",
       "prepare_failed": "Přílohu se nepodařilo připravit",
       "too_many": "Ke zprávě můžete připojit nejvýše {max} souborů. Další soubory nebyly přidány.",
-      "too_large": "Soubor {filename} je příliš velký ({size}). Maximum je {limit}."
+      "too_large": "Soubor {filename} je příliš velký ({size}). Maximum je {limit}.",
+      "compress_failed": "Video se nepodařilo dostatečně komprimovat. Zkuste jiný formát nebo kratší video.",
+      "compressing": "Komprimování videa… {percentage} %"
     },
     "format": {
       "underline": "Podtržení",

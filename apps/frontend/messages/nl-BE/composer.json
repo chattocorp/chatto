@@ -49,7 +49,9 @@
       "video_disabled": "Video-uploads zijn uitgeschakeld op deze server.",
       "prepare_failed": "Kan bijlage niet voorbereiden",
       "too_many": "Je kunt maximaal {max} bestanden per bericht bijvoegen. Extra bestanden zijn niet toegevoegd.",
-      "too_large": "{filename} is te groot ({size}). Het maximum is {limit}."
+      "too_large": "{filename} is te groot ({size}). Het maximum is {limit}.",
+      "compress_failed": "De video kon niet voldoende worden gecomprimeerd. Probeer een ander formaat of een kortere video.",
+      "compressing": "Video comprimeren… {percentage}%"
     },
     "format": {
       "underline": "Onderstrepen",

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { formatFileSize, type AttachmentsState } from './attachments.svelte';
+  import {
+    formatFileSize,
+    type AttachmentsState,
+    type VideoPreparation
+  } from './attachments.svelte';
   import { uploadPercentage, type AttachmentSubmissionStatus } from './submission.svelte';
 
   let {
@@ -23,13 +27,36 @@
     if (status.phase === 'uploaded') return m('composer.upload.uploaded');
     return m('composer.upload.uploading', { percentage: uploadPercentage(status) ?? 0 });
   }
+  /** Preparation takes precedence until the tile is ready for upload. */
+  function tileStatus(
+    preparation: VideoPreparation | undefined,
+    upload: AttachmentSubmissionStatus | null
+  ) {
+    if (preparation) {
+      const percentage =
+        preparation.phase === 'compressing' ? Math.round(preparation.progress * 100) : null;
+      let statusLabel = m('composer.upload.preparing');
+      if (preparation.phase === 'failed') statusLabel = m('composer.upload.prepare_failed');
+      if (preparation.phase === 'compressing')
+        statusLabel = m('composer.upload.compressing', { percentage: percentage ?? 0 });
+      return { percentage, statusLabel, failed: preparation.phase === 'failed', hasProgress: true };
+    }
+    return {
+      percentage: upload ? uploadPercentage(upload) : null,
+      statusLabel: upload ? uploadStatusLabel(upload) : null,
+      failed: upload?.phase === 'failed',
+      hasProgress: upload !== null
+    };
+  }
 </script>
 
 {#if attachments.filesWithUrls.length > 0}
   <div class="flex flex-wrap gap-2">
-    {#each attachments.filesWithUrls as { file, url, description }, index (url)}
-      {@const submissionStatus = getSubmissionStatus(file)}
-      {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
+    {#each attachments.filesWithUrls as { file, url, description, preparation }, index (url)}
+      {@const { percentage, failed, statusLabel, hasProgress } = tileStatus(
+        preparation,
+        getSubmissionStatus(file)
+      )}
       {@const descriptionActionLabel = description
         ? m('room.attachment.edit_description')
         : m('room.attachment.add_description')}
@@ -95,34 +122,26 @@
                 </button>
               </div>
             </div>
-            <div
-              class={[
-                'mt-0.5 truncate text-xs',
-                submissionStatus?.phase === 'failed' ? 'text-danger' : 'text-muted'
-              ]}
-            >
-              {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
+            <div class={['mt-0.5 truncate text-xs', failed ? 'text-danger' : 'text-muted']}>
+              {statusLabel ?? formatFileSize(file.size)}
             </div>
             <div
               data-testid="attachment-upload-progress"
               class={[
                 'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-emphasized',
-                !submissionStatus && 'invisible'
+                !hasProgress && 'invisible'
               ]}
-              role={submissionStatus ? 'progressbar' : undefined}
-              aria-hidden={submissionStatus ? undefined : 'true'}
-              aria-label={submissionStatus ? file.name : undefined}
-              aria-valuemin={submissionStatus ? 0 : undefined}
-              aria-valuemax={submissionStatus ? 100 : undefined}
+              role={hasProgress ? 'progressbar' : undefined}
+              aria-hidden={hasProgress ? undefined : 'true'}
+              aria-label={hasProgress ? file.name : undefined}
+              aria-valuemin={hasProgress ? 0 : undefined}
+              aria-valuemax={hasProgress ? 100 : undefined}
               aria-valuenow={percentage ?? undefined}
-              aria-valuetext={submissionStatus ? uploadStatusLabel(submissionStatus) : undefined}
+              aria-valuetext={statusLabel ?? undefined}
             >
               {#if percentage !== null}
                 <div
-                  class={[
-                    'h-full rounded-full',
-                    submissionStatus?.phase === 'failed' ? 'bg-danger' : 'bg-action'
-                  ]}
+                  class={['h-full rounded-full', failed ? 'bg-danger' : 'bg-action']}
                   style:width={`${percentage}%`}
                 ></div>
               {/if}

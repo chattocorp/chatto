@@ -49,7 +49,9 @@
       "video_disabled": "此伺服器已停用影片上傳。",
       "prepare_failed": "無法準備附件",
       "too_many": "每則訊息最多可附加 {max} 個檔案。超出的檔案未新增。",
-      "too_large": "{filename} 太大（{size}）。上限為 {limit}。"
+      "too_large": "{filename} 太大（{size}）。上限為 {limit}。",
+      "compress_failed": "無法將影片壓縮至大小限制內。請嘗試其他格式或較短的影片。",
+      "compressing": "正在壓縮影片… {percentage}%"
     },
     "format": {
       "underline": "底線",
