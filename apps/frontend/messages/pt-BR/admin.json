@@ -591,6 +591,24 @@
         "revoked": "Revogado",
         "used": "Usado"
       }
+    },
+    "jobs": {
+      "title": "Tarefas",
+      "subtitle": "Veja as tarefas em segundo plano e tente novamente as que falharam.",
+      "load_failed": "Não foi possível carregar as tarefas.",
+      "retry_failed": "Não foi possível tentar esta tarefa novamente.",
+      "webhook": "Envio de webhook",
+      "media": "Processamento de mídia",
+      "queued": "Na fila",
+      "running": "Em execução",
+      "succeeded": "Concluída",
+      "failed": "Falhou",
+      "empty": "Ainda não há tarefas",
+      "attempts": "Tentativas",
+      "updated": "Atualizada",
+      "next_attempt": "Próxima tentativa",
+      "expired": "Esta tarefa expirou e não pode ser tentada novamente.",
+      "load_more": "Carregar mais"
     }
   }
 }

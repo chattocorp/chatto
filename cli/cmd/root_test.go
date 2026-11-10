@@ -5,9 +5,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/chattocorp/chatto/cli/internal/config"
-	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 )
 
 func TestRootHelpShowsBannerAndNoResetCommand(t *testing.T) {
@@ -73,22 +70,11 @@ func TestRootRegistersAssetProcessingCommand(t *testing.T) {
 	}
 }
 
-func TestAssetProcessingRuntimeRegistrationUsesDedicatedConfig(t *testing.T) {
-	var registration *runtimeunit.Registration
-	registrations := runtimeUnitRegistrations()
-	for i := range registrations {
-		if registrations[i].Unit.Name() == "asset-processing" {
-			registration = &registrations[i]
-			break
+// Embedded media runs in the shared job pool; the standalone command remains.
+func TestMediaDoesNotStartASecondEmbeddedPool(t *testing.T) {
+	for _, registration := range runtimeUnitRegistrations() {
+		if registration.Unit.Name() == "asset-processing" {
+			t.Fatal("embedded media must use the shared job pool")
 		}
-	}
-	if registration == nil {
-		t.Fatal("asset-processing runtime unit is not registered")
-	}
-	if registration.Enabled(config.ChattoConfig{Video: config.VideoConfig{Enabled: true}}) {
-		t.Fatal("video uploads must not enable the built-in asset-processing worker")
-	}
-	if !registration.Enabled(config.ChattoConfig{AssetProcessing: config.AssetProcessingConfig{Enabled: true}}) {
-		t.Fatal("asset_processing.enabled should enable the built-in worker")
 	}
 }

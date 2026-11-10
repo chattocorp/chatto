@@ -580,6 +580,24 @@
         "revoked": "已撤銷",
         "used": "已使用"
       }
+    },
+    "jobs": {
+      "title": "工作",
+      "subtitle": "檢視背景工作並重試失敗的工作。",
+      "load_failed": "無法載入工作。",
+      "retry_failed": "無法重試此工作。",
+      "webhook": "Webhook 傳送",
+      "media": "媒體處理",
+      "queued": "排隊中",
+      "running": "執行中",
+      "succeeded": "成功",
+      "failed": "失敗",
+      "empty": "尚無工作",
+      "attempts": "嘗試次數",
+      "updated": "更新時間",
+      "next_attempt": "下次嘗試",
+      "expired": "此工作已過期，無法重試。",
+      "load_more": "載入更多"
     }
   }
 }

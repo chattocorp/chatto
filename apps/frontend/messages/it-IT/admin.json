@@ -591,6 +591,24 @@
         "revoked": "Revocato",
         "used": "Usato"
       }
+    },
+    "jobs": {
+      "title": "Attività",
+      "subtitle": "Visualizza le attività in background e riprova quelle non riuscite.",
+      "load_failed": "Impossibile caricare le attività.",
+      "retry_failed": "Impossibile riprovare questa attività.",
+      "webhook": "Invio webhook",
+      "media": "Elaborazione multimediale",
+      "queued": "In coda",
+      "running": "In corso",
+      "succeeded": "Riuscita",
+      "failed": "Non riuscita",
+      "empty": "Nessuna attività per ora",
+      "attempts": "Tentativi",
+      "updated": "Aggiornata",
+      "next_attempt": "Prossimo tentativo",
+      "expired": "Questa attività è scaduta e non può essere riprovata.",
+      "load_more": "Carica altro"
     }
   }
 }

@@ -22,6 +22,7 @@ import (
 
 // storage encapsulates JetStream resources used by Chatto Core.
 type storage struct {
+	jobsStream jetstream.Stream // Durable background-job dispatch references.
 	// Key-value buckets are bound through jetstreamutil.NewKeyValue, so Get reads
 	// through the stream leader. Use GetAnyReplica only on hot paths that
 	// tolerate an older revision.
@@ -84,7 +85,15 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("create %s stream: %w", natsresources.Log, err)
 	}
 
+	jobsStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, jobsStreamConfig(cfg))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create jobs stream: %w", err)
+	}
+
 	return &storage{
+		jobsStream:         jobsStream,
 		logStream:          logStream,
 		encryptionKV:       encryptionKV,
 		runtimeStateKV:     runtimeStateKV,
@@ -358,4 +367,10 @@ func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.Str
 		return nil, err
 	}
 	return handle.CachedInfo(), nil
+}
+
+// jobsStreamConfig retains the latest dispatch per job. Acknowledgement does not
+// delete it: state plus dispatch snapshots can be recovered independently.
+func jobsStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
+	return jetstream.StreamConfig{Name: natsresources.Jobs, Description: "Durable background job dispatch", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas, Retention: jetstream.LimitsPolicy, MaxMsgsPerSubject: 1}
 }

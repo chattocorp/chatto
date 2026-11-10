@@ -50,7 +50,8 @@
         "composer": "Kies je berichteditor en hoe je berichten verstuurt.",
         "voice": "Stel je microfoon, luidsprekers en gespreksvoorkeuren in.",
         "system": "Controleer de serverstatus, opslag en achtergrondtaken.",
-        "event_log": "Bekijk servergebeurtenissen en onderzoek wijzigingen."
+        "event_log": "Bekijk servergebeurtenissen en onderzoek wijzigingen.",
+        "jobs": "Bekijk achtergrondtaken en probeer mislukte taken opnieuw."
       },
       "title": "Overzicht",
       "shield_notice": "Activeer de bevoorrechte modus met de schildknop naast je naam om je extra rechten op deze server te gebruiken."

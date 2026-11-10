@@ -192,7 +192,8 @@
       "system": "Система",
       "back_to_server": "Вернуться на сервер",
       "invites": "Приглашения",
-      "registration": "Регистрация"
+      "registration": "Регистрация",
+      "jobs": "Задания"
     }
   }
 }

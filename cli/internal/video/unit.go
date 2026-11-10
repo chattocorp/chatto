@@ -4,41 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
-	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
-	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
-const (
-	runtimeUnitName    = "asset-processing"
-	consumerAckWait    = 2 * time.Minute
-	deliveryHeartbeat  = 30 * time.Second
-	retryDelay         = 30 * time.Second
-	acknowledgeTimeout = 5 * time.Second
-	consumerMaxPending = 64
-)
+const runtimeUnitName = "asset-processing"
 
 // Unit runs durable video derivative workers either inside chatto run or as a
-// standalone process. All replicas share one pull consumer on EVT.
+// standalone process. It consumes media dispatches from JOBS; the main server
+// performs the durable EVT-to-JOBS handoff.
 type Unit struct{}
-
-type processingRuntime interface {
-	WaitForEvent(context.Context, string, uint64) error
-	AssetState(string) core.AssetState
-}
-
-type assetProcessor interface {
-	ProcessAsset(context.Context, string, string) error
-}
 
 func (Unit) Name() string { return runtimeUnitName }
 
@@ -68,39 +51,22 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	// crash gap. Current writers commit Started atomically with the message.
 	runtime.Core().RecoverUnmanifestedVideoAttachments(ctx)
 
-	consumer, err := createConsumer(ctx, env.JS)
+	queue, consumer, err := openJobs(ctx, env)
 	if err != nil {
 		stopProjection()
 		<-projectionDone
 		return err
 	}
-	env.Logger.Info("Asset-processing worker started",
-		"consumer", core.AssetProcessingConsumerName,
-		"max_concurrent_jobs", env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
-
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
-	worker, err := evtstream.NewEffectWorker(
-		consumer,
-		func(ctx context.Context, delivery events.DurableDelivery) error {
-			return processDelivery(ctx, delivery, runtime, processor, env.Logger)
-		},
-		evtstream.EffectWorkerOptions{
-			MaxConcurrent:     env.Config.AssetProcessing.MaxConcurrentJobsOrDefault(),
-			RetryDelay:        retryDelay,
-			AckTimeout:        acknowledgeTimeout,
-			HeartbeatInterval: deliveryHeartbeat,
-			Logger:            env.Logger,
-		},
-	)
-	if err != nil {
-		stopWorker()
-		stopProjection()
-		<-projectionDone
-		return fmt.Errorf("configure asset-processing worker: %w", err)
-	}
 	go func() {
-		workerDone <- worker.Run(workerCtx)
+		workerDone <- queue.Run(workerCtx, consumer, map[string]jobqueue.Handler{"media": func(ctx context.Context, job *statev1.JobRecord) error {
+			request := new(statev1.MediaJob)
+			if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
+				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
+			}
+			return runtime.Core().ProcessMediaJob(ctx, request.AssetId, request.MessageEventId, processor.ProcessAsset)
+		}}, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
 	}()
 
 	var workerErr, projectionErr error
@@ -129,78 +95,26 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	return nil
 }
 
-func createConsumer(ctx context.Context, js jetstream.JetStream) (jetstream.Consumer, error) {
-	evt, err := js.Stream(ctx, natsresources.EVT)
-	if err != nil {
-		return nil, fmt.Errorf("open EVT stream: %w", err)
-	}
-	consumer, err := evtstream.CreateEffectConsumer(ctx, evt, evtstream.EffectConsumerConfig{
-		Name:        core.AssetProcessingConsumerName,
-		Description: "Shared durable queue for Chatto asset-processing workers",
-		FilterSubjects: []string{
-			evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted),
-			evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
-		},
-		AckWait:       consumerAckWait,
-		MaxAckPending: consumerMaxPending,
-		DeliverPolicy: jetstream.DeliverAllPolicy,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create asset-processing consumer: %w", err)
-	}
-	return consumer, nil
-}
-
-func processDelivery(
-	ctx context.Context,
-	delivery events.DurableDelivery,
-	runtime processingRuntime,
-	processor assetProcessor,
-	logger *log.Logger,
-) error {
-	var event evtv1.Event
-	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
-		logger.Error("Terminating malformed asset-processing delivery", "error", err)
-		return events.TerminateDelivery("invalid Chatto event envelope", err)
-	}
-	started := event.GetAssetProcessingStarted()
-	if started == nil || started.GetAssetId() == "" || started.GetMessageEventId() == "" {
-		logger.Error("Terminating invalid asset-processing request", "event_id", event.GetId())
-		return events.TerminateDelivery("invalid asset-processing request", errors.New("missing asset-processing request fields"))
-	}
-	if err := runtime.WaitForEvent(ctx, delivery.Subject, delivery.StreamSequence); err != nil {
-		if ctx.Err() == nil {
-			logger.Warn("Asset projection did not reach queue delivery", "asset_id", started.GetAssetId(), "error", err)
-		}
-		return err
-	}
-	if assetProcessingTerminal(runtime.AssetState(started.GetAssetId())) {
-		return nil
-	}
-
-	err := processor.ProcessAsset(ctx, started.GetAssetId(), started.GetMessageEventId())
-
-	if assetProcessingTerminal(runtime.AssetState(started.GetAssetId())) {
-		return nil
-	}
-	if err != nil && ctx.Err() == nil {
-		logger.Warn("Asset processing remains retryable", "asset_id", started.GetAssetId(), "error", err)
-	}
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("asset processing did not reach terminal state")
-}
-
-func assetProcessingTerminal(state core.AssetState) bool {
-	if state.Deleted {
-		return true
-	}
-	manifest := state.VideoManifest
-	return manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil)
-}
-
 var _ runtimeunit.Unit = Unit{}
+
+// openJobs binds application-owned resources; a standalone unit runs only media
+// handlers. Revision claims prevent concurrent effects with the shared pool.
+func openJobs(ctx context.Context, env runtimeunit.Env) (*jobqueue.Queue, jetstream.Consumer, error) {
+	stream, err := env.JS.Stream(ctx, natsresources.Jobs)
+	if err != nil {
+		return nil, nil, err
+	}
+	kv, err := env.JS.KeyValue(ctx, natsresources.RuntimeState)
+	if err != nil {
+		return nil, nil, err
+	}
+	bound, err := jetstreamutil.NewKeyValue(env.JS, kv)
+	if err != nil {
+		return nil, nil, err
+	}
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, jobqueue.ConsumerConfig(jobqueue.MediaConsumerName, []string{"media"}))
+	if err != nil {
+		return nil, nil, err
+	}
+	return jobqueue.New(env.JS, bound, env.Logger), consumer, nil
+}

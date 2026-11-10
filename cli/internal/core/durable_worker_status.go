@@ -1,12 +1,13 @@
 package core
 
 import (
+	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 )
 
 // AssetProcessingConsumerName is the durable EVT consumer of the
-// asset-processing runtime unit. The name is a persisted resource contract
+// media job source. The name is a persisted resource contract
 // (ADR-069).
 const AssetProcessingConsumerName = "chatto-asset-processing-v1"
 
@@ -43,7 +44,7 @@ type durableWorkerDiagnosticSpec struct {
 
 // durableWorkerDiagnosticSpecs lists every durable consumer that Chatto
 // creates. Add each new durable consumer here so operators can see its health.
-func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagnosticSpec {
+func durableWorkerDiagnosticSpecs() []durableWorkerDiagnosticSpec {
 	return []durableWorkerDiagnosticSpec{
 		{key: "asset_cleanup", streamName: natsresources.EVT, consumerName: assetCleanupConsumerName, required: true},
 		{key: "call_key_cleanup", streamName: natsresources.EVT, consumerName: callKeyCleanupConsumerName, required: true},
@@ -53,12 +54,14 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "notification_invitations", streamName: natsresources.EVT, consumerName: invitationNotificationConsumerName, required: true},
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
-		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: videoUploadsEnabled},
+		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
+		{key: "jobs", streamName: natsresources.Jobs, consumerName: jobqueue.ConsumerName, required: true},
+		{key: "media_jobs", streamName: natsresources.Jobs, consumerName: jobqueue.MediaConsumerName, required: false},
 	}
 }
 
-func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool) []DurableWorkerAdminStatus {
-	specs := durableWorkerDiagnosticSpecs(videoUploadsEnabled)
+func durableWorkerAdminStatuses(stats *JetStreamStats) []DurableWorkerAdminStatus {
+	specs := durableWorkerDiagnosticSpecs()
 	type consumerCoordinate struct{ stream, name string }
 	consumers := make(map[consumerCoordinate]ConsumerStats)
 	if stats != nil {
@@ -83,7 +86,6 @@ func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool)
 		hasUnacknowledgedWork := pendingCount > 0 || consumer.AckPending > 0
 		health := DurableWorkerHealthInactive
 		switch {
-		case !spec.required:
 		case consumer.Waiting > 0 && hasUnacknowledgedWork:
 			health = DurableWorkerHealthWorking
 		case consumer.Waiting > 0:

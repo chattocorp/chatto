@@ -591,6 +591,24 @@
         "revoked": "Revoked",
         "used": "Used"
       }
+    },
+    "jobs": {
+      "title": "Jobs",
+      "subtitle": "View background jobs and retry failed jobs.",
+      "load_failed": "Could not load jobs.",
+      "retry_failed": "Could not retry this job.",
+      "webhook": "Webhook delivery",
+      "media": "Media processing",
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "empty": "No jobs yet",
+      "attempts": "Attempts",
+      "updated": "Updated",
+      "next_attempt": "Next attempt",
+      "expired": "This job has expired and cannot be retried.",
+      "load_more": "Load more"
     }
   }
 }

@@ -17,7 +17,7 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		{Stream: "EVT", Name: notificationWorkerConsumerName, Waiting: 1, DeliveredStreamSeq: 52, AckFloorStreamSeq: 51},
 		{Stream: "EVT", Name: botWebhookSourceConsumer, Waiting: 1},
 		{Stream: "EVT", Name: AssetProcessingConsumerName, Waiting: 0, Pending: 4},
-	}}, false)
+	}})
 
 	byKey := make(map[string]DurableWorkerAdminStatus, len(statuses))
 	for _, status := range statuses {
@@ -41,8 +41,8 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 	if got := byKey["bot_webhook_source"]; got.Health != DurableWorkerHealthHealthy {
 		t.Fatalf("bot webhook source status = %+v, want healthy", got)
 	}
-	if got := byKey["asset_processing"]; got.Health != DurableWorkerHealthInactive {
-		t.Fatalf("asset processing status = %+v, want inactive", got)
+	if got := byKey["asset_processing"]; got.Health != DurableWorkerHealthStalled {
+		t.Fatalf("asset processing status = %+v, want stalled", got)
 	}
 }
 
@@ -54,11 +54,11 @@ func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
 
 	type coordinate struct{ stream, name string }
 	reported := make(map[coordinate]bool)
-	for _, spec := range durableWorkerDiagnosticSpecs(false) {
+	for _, spec := range durableWorkerDiagnosticSpecs() {
 		reported[coordinate{spec.streamName, spec.consumerName}] = true
 	}
 	var created []coordinate
-	for _, streamName := range []string{natsresources.EVT, notificationstream.StreamName} {
+	for _, streamName := range []string{natsresources.EVT, notificationstream.StreamName, natsresources.Jobs} {
 		stream, err := core.js.Stream(ctx, streamName)
 		if err != nil {
 			t.Fatal(err)
@@ -86,18 +86,24 @@ func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
 func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(&JetStreamStats{Consumers: []ConsumerStats{
 		{Stream: "EVT", Name: assetCleanupConsumerName, AckPending: 1},
-	}}, false)
+	}})
 	if got := statuses[0]; got.Health != DurableWorkerHealthUnconfirmed || got.AckPendingCount != 1 {
 		t.Fatalf("asset cleanup status = %+v, want unconfirmed", got)
 	}
 }
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
-	statuses := durableWorkerAdminStatuses(nil, true)
-	if len(statuses) != 9 {
-		t.Fatalf("statuses len = %d, want 9", len(statuses))
+	statuses := durableWorkerAdminStatuses(nil)
+	if len(statuses) != 11 {
+		t.Fatalf("statuses len = %d, want 11", len(statuses))
 	}
 	for _, status := range statuses {
+		if status.Key == "media_jobs" {
+			if status.Health != DurableWorkerHealthInactive {
+				t.Fatal("optional standalone consumer should be inactive when absent")
+			}
+			continue
+		}
 		if status.Health != DurableWorkerHealthUnavailable {
 			t.Fatalf("%s health = %v, want unavailable", status.Key, status.Health)
 		}

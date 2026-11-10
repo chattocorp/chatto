@@ -202,6 +202,13 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 
 ## Core
 
+<EnvVar name="CHATTO_CORE_JOB_CONCURRENCY" toml="core.job_concurrency" default="8">
+  Maximum simultaneous background jobs in each server replica. Webhook and
+  embedded media jobs share this pool. Media processing also obeys
+  `asset_processing.max_concurrent_jobs`. Standalone media processes use their
+  own `asset_processing.max_concurrent_jobs` limit.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SKIP_SETUP_WIZARD" toml="core.skip_setup_wizard" default="false">
   Disable the first-run web setup wizard. Use this for installations where you
   create accounts through the local operator API. The flag does not change or

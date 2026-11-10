@@ -196,6 +196,12 @@ const categories = [
         description: 'Recorded OAuth-client authorization and policy administration RPCs.'
       },
       {
+        name: 'JobsService',
+        title: 'Background jobs',
+        description: 'Background job inspection and retry RPCs.',
+        slug: 'jobs'
+      },
+      {
         name: 'AdminDiagnosticsService',
         slug: 'admin-diagnostics',
         title: 'Admin Diagnostics',

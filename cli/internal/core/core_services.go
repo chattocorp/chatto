@@ -174,6 +174,9 @@ func initializeCoreServices(
 		core.roomModel, core.userModel, core.roomMemberships, core.authorization,
 		core.roomTimelineReads, core.threadFollows,
 	)
+	if err := core.initializeJobs(ctx); err != nil {
+		return fmt.Errorf("initialize jobs: %w", err)
+	}
 	core.botWebhooks = newBotWebhookModel(core, projections.botWebhooks)
 	if err := core.botWebhooks.initialize(ctx); err != nil {
 		return fmt.Errorf("initialize bot webhooks: %w", err)

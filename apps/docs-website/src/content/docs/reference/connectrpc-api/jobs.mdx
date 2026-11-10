@@ -1,0 +1,121 @@
+---
+title: JobsService
+description: Background job inspection and retry RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-JobsService"></a>
+
+## JobsService
+
+Administrative background-job inspection and recovery.
+
+<a id="chatto-admin-v1-JobsService-ListJobs"></a>
+
+### ListJobs
+
+Lists jobs. Requires server.jobs.manage, including privileged mode.
+This call does not subscribe or poll; callers refresh explicitly.
+
+```http
+POST /api/connect/chatto.admin.v1.JobsService/ListJobs
+```
+
+<a id="chatto-admin-v1-ListJobsRequest"></a>
+
+#### Input: ListJobsRequest
+
+Request for a bounded page. Jobs are ordered by stable opaque ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page_size` | `int32` | Page size: zero selects 50; the maximum is 200. |
+| `page_token` | `string` | Opaque token returned by the previous page, bound to this viewer. |
+
+
+<a id="chatto-admin-v1-ListJobsResponse"></a>
+
+#### Result: ListJobsResponse
+
+A live page, not an atomic snapshot. Refresh to see state changes and new work.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `jobs` | repeated [`Job`](/reference/connectrpc-api/types/#chatto-admin-v1-Job) | Current summaries. |
+| `next_page_token` | `string` | Empty when there are no more jobs in this traversal. |
+
+
+<a id="chatto-admin-v1-JobsService-GetJob"></a>
+
+### GetJob
+
+Gets a job. Requires server.jobs.manage, including privileged mode.
+
+```http
+POST /api/connect/chatto.admin.v1.JobsService/GetJob
+```
+
+<a id="chatto-admin-v1-GetJobRequest"></a>
+
+#### Input: GetJobRequest
+
+Request for one job.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Required stable job ID. |
+
+
+<a id="chatto-admin-v1-GetJobResponse"></a>
+
+#### Result: GetJobResponse
+
+Current job summary.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job` | [`Job`](/reference/connectrpc-api/types/#chatto-admin-v1-Job) | Requested job. |
+
+
+<a id="chatto-admin-v1-JobsService-RetryJob"></a>
+
+### RetryJob
+
+Retries a failed job. Requires server.jobs.manage, including privileged mode.
+Returns FAILED_PRECONDITION for active, successful, or expired jobs.
+A lost response does not cancel an accepted retry. Read the job before retrying.
+
+```http
+POST /api/connect/chatto.admin.v1.JobsService/RetryJob
+```
+
+<a id="chatto-admin-v1-RetryJobRequest"></a>
+
+#### Input: RetryJobRequest
+
+Request to start a new attempt budget for a failed, unexpired job.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Required stable job ID. Concurrent requests cannot queue two generations. |
+
+
+<a id="chatto-admin-v1-RetryJobResponse"></a>
+
+#### Result: RetryJobResponse
+
+Accepted retry. The worker can have started before this response arrives.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job` | [`Job`](/reference/connectrpc-api/types/#chatto-admin-v1-Job) | Job after durable retry acceptance. |

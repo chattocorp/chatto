@@ -27,6 +27,7 @@ The server-management section gives owners and admins visibility into the server
   primary email explicitly instead of relying on address order. Admins can edit
   profiles, assign roles, suspend, or delete users when they hold the relevant
   permission.
+- **Jobs page** — users with `server.jobs.manage` can inspect background jobs and retry eligible failures in privileged mode. See [FDR-056](FDR-056-background-jobs.md).
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
 - The System Info page has five tabs, each with its own route: Overview, Streams, Projections, Workers, and LiveKit. The LiveKit tab is hidden when the server does not report LiveKit status. All tabs use one diagnostics snapshot. A refresh action in the page header reads a new snapshot.
 - The Overview tab starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, account limits, and calls when LiveKit is configured). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A check whose details are on a different tab links to that tab. A tab shows a status dot when one of its checks reports a warning or a problem, so a problem stays visible from every tab.
@@ -39,7 +40,7 @@ The server-management section gives owners and admins visibility into the server
 
 ### 1. Capability-based Server Configuration navigation
 
-**Decision:** There is no separate `admin.access` permission. Settings is available to every member because it contains App preferences and the member's account settings. The Server configuration group is a capability index. It shows only destinations that have a concrete capability. Child routes and API methods apply their narrower gates, such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
+**Decision:** There is no separate `admin.access` permission. Settings is available to every member because it contains App preferences and the member's account settings. The Server configuration group is a capability index. It shows only destinations that have a concrete capability. Child routes and API methods apply their narrower gates, such as `server.manage`, `server.jobs.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
 **Why:** All members need a stable location for app-wide and server-scoped choices. Some operators need a read-only admin role. Other operators need access to users but not to system information. One permission-filtered Settings surface supports these roles without a parallel role system.
 **Tradeoff:** There is no separate permission to see the admin dashboard. The Settings entry is always visible. The UI must clearly separate app-wide choices, personal server choices, and permission-gated Server configuration.
 

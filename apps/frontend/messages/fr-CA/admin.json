@@ -591,6 +591,24 @@
         "revoked": "Révoqué",
         "used": "Utilisé"
       }
+    },
+    "jobs": {
+      "title": "Tâches",
+      "subtitle": "Consultez les tâches en arrière-plan et relancez celles qui ont échoué.",
+      "load_failed": "Impossible de charger les tâches.",
+      "retry_failed": "Impossible de relancer cette tâche.",
+      "webhook": "Envoi de webhook",
+      "media": "Traitement multimédia",
+      "queued": "En attente",
+      "running": "En cours",
+      "succeeded": "Réussie",
+      "failed": "Échouée",
+      "empty": "Aucune tâche pour le moment",
+      "attempts": "Tentatives",
+      "updated": "Mise à jour",
+      "next_attempt": "Prochaine tentative",
+      "expired": "Cette tâche a expiré et ne peut plus être relancée.",
+      "load_more": "Charger plus"
     }
   }
 }

@@ -63,9 +63,12 @@ of the message. The delay starts at 30 seconds and doubles up to 30 minutes.
 Each request has a 10-second timeout. To change these values, see
 [Outbound bot webhooks](/reference/environment-variables/#outbound-bot-webhooks).
 
-Delivery is best effort. A server restart discards pending requests and
-retries without a failure record. Requests can arrive more than once or out of
-order, so use the delivery ID to prevent repeated work.
+Pending deliveries and retries survive server restarts. Requests can arrive
+more than once or out of order, so use the delivery ID to prevent repeated work.
+Users with `server.jobs.manage` can inspect jobs in **Server Settings → Jobs**
+and retry failed deliveries before their original deadline. Manual retry starts
+a new attempt budget but does not extend the deadline. Enable privileged mode
+to use these controls.
 
 Before each attempt, Chatto checks the current access of the bot. It skips the
 request if the bot lost access, the message is unavailable, or the endpoint is

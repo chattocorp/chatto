@@ -602,6 +602,24 @@
         "revoked": "Atsaukta",
         "used": "Izmantots"
       }
+    },
+    "jobs": {
+      "title": "Uzdevumi",
+      "subtitle": "Skatiet fona uzdevumus un atkārtojiet neizdevušos uzdevumus.",
+      "load_failed": "Neizdevās ielādēt uzdevumus.",
+      "retry_failed": "Neizdevās atkārtot šo uzdevumu.",
+      "webhook": "Tīmekļa aizķeres piegāde",
+      "media": "Multivides apstrāde",
+      "queued": "Rindā",
+      "running": "Darbojas",
+      "succeeded": "Pabeigts",
+      "failed": "Neizdevās",
+      "empty": "Uzdevumu vēl nav",
+      "attempts": "Mēģinājumi",
+      "updated": "Atjaunināts",
+      "next_attempt": "Nākamais mēģinājums",
+      "expired": "Šī uzdevuma termiņš ir beidzies, un to nevar atkārtot.",
+      "load_more": "Ielādēt vairāk"
     }
   }
 }

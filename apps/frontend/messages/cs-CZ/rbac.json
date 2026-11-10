@@ -182,7 +182,8 @@
       "call_voice": "Umožňuje účtu odesílat zvuk z mikrofonu v hovorech. Bez něj může účet stále poslouchat.",
       "call_camera": "Umožňuje účtu odesílat video z kamery v hovorech.",
       "call_screenshare": "Umožňuje účtu sdílet obrazovku, okno, kartu nebo aplikaci v hovorech, včetně zvuku. Neumožňuje zvuk z mikrofonu; k tomu je potřeba call.voice.",
-      "room_invite": "Pozvěte členy serveru do místností, do kterých jste se připojili."
+      "room_invite": "Pozvěte členy serveru do místností, do kterých jste se připojili.",
+      "server_jobs_manage": "Prohlížejte bezpečné podrobnosti úloh a opakujte neúspěšné úlohy na pozadí tohoto serveru."
     }
   }
 }

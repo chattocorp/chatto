@@ -182,7 +182,8 @@
       "call_voice": "Permet à un compte d’envoyer le son de son micro pendant les appels. Sans elle, le compte peut quand même écouter.",
       "call_camera": "Permet à un compte d’envoyer la vidéo de sa caméra pendant les appels.",
       "call_screenshare": "Permet à un compte de partager un écran, une fenêtre, un onglet ou une application pendant les appels, avec le son. Elle ne permet pas d’envoyer le son du micro ; il faut pour cela call.voice.",
-      "room_invite": "Inviter des membres du serveur dans les salons que vous avez rejoints."
+      "room_invite": "Inviter des membres du serveur dans les salons que vous avez rejoints.",
+      "server_jobs_manage": "Consultez les détails sans données sensibles et relancez les tâches en arrière-plan ayant échoué sur ce serveur."
     }
   }
 }

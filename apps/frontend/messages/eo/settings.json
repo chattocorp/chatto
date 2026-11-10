@@ -50,7 +50,8 @@
         "composer": "Elektu vian mesaĝredaktilon kaj kiel vi sendas mesaĝojn.",
         "voice": "Agordu vian mikrofonon, laŭtparolilojn kaj alvokajn preferojn.",
         "system": "Kontrolu servilan staton, stokadon kaj fonajn taskojn.",
-        "event_log": "Esploru servilajn eventojn kaj ekzamenu ŝanĝojn."
+        "event_log": "Esploru servilajn eventojn kaj ekzamenu ŝanĝojn.",
+        "jobs": "Vidu fonajn taskojn kaj reprovu malsukcesajn taskojn."
       },
       "title": "Superrigardo",
       "shield_notice": "Por uzi viajn aldonajn permesojn en ĉi tiu servilo, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo."

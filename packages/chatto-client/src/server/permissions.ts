@@ -12,6 +12,8 @@ export type ServerPermissions = ViewerCapabilities & {
   canManageServer: boolean;
   /** Effective server-wide `server.manage-neighbors`. */
   canManageNeighbors: boolean;
+  /** Effective server-wide `server.jobs.manage`. */
+  canManageJobs: boolean;
   /** Effective server-wide `room.manage`: the server's room layout editor. */
   canManageRooms: boolean;
   /** Effective server-wide `room.remove-member`: list and lift room suspensions. */
@@ -40,6 +42,7 @@ export const NO_SERVER_PERMISSIONS: ServerPermissions = Object.freeze({
   canManageInvites: false,
   canManageServer: false,
   canManageNeighbors: false,
+  canManageJobs: false,
   canManageRooms: false,
   canModerateRooms: false,
   canCreateBots: false,
@@ -65,6 +68,7 @@ export function serverPermissionsFromViewer(viewer: ViewerState): ServerPermissi
     canManageInvites: viewer.canManageInvites,
     canManageServer: can('server.manage'),
     canManageNeighbors: can('server.manage-neighbors'),
+    canManageJobs: can('server.jobs.manage'),
     canManageRooms: can('room.manage'),
     canModerateRooms: can('room.remove-member'),
     canCreateBots: can('bot.create'),

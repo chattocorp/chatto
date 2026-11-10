@@ -580,6 +580,24 @@
         "revoked": "取り消し済み",
         "used": "使用済み"
       }
+    },
+    "jobs": {
+      "title": "ジョブ",
+      "subtitle": "バックグラウンドジョブを確認し、失敗したジョブを再試行します。",
+      "load_failed": "ジョブを読み込めませんでした。",
+      "retry_failed": "このジョブを再試行できませんでした。",
+      "webhook": "Webhook 配信",
+      "media": "メディア処理",
+      "queued": "待機中",
+      "running": "実行中",
+      "succeeded": "成功",
+      "failed": "失敗",
+      "empty": "まだジョブはありません",
+      "attempts": "試行回数",
+      "updated": "更新日時",
+      "next_attempt": "次の試行",
+      "expired": "このジョブは期限切れのため再試行できません。",
+      "load_more": "さらに読み込む"
     }
   }
 }

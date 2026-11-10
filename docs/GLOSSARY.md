@@ -208,6 +208,8 @@ person's DM. See
 
 ## Backend
 
+**Background job** — Durable asynchronous work with an identity, execution state, and attempt budget. Failed jobs remain available for inspection and eligible manual retry. See [FDR-056](fdr/FDR-056-background-jobs.md).
+
 Infrastructure jargon. If only contributors say the word, it goes here.
 
 **ChattoCore** — Go package (`cli/internal/core`) that owns domain models, projections, and NATS access. Low-level helpers are not public transport entry points and may assume their caller has already authorized the operation; public ConnectRPC paths should delegate to core operation models that own authorization before domain state changes. See [ADR-044](adr/ADR-044-connectrpc-service-conventions.md).

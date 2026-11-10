@@ -365,6 +365,7 @@ test.describe('Route accessibility', () => {
       ['bot integrations', `${botRoute}/integrations`],
       ['bot permissions', `${botRoute}/permissions`],
       ['event log', routes.serverAdmin('event-log')],
+      ['jobs', routes.serverAdmin('jobs')],
       ['registration settings', routes.serverAdmin('registration')],
       ['moderation', routes.serverAdmin('moderation')],
       ['neighbours', routes.serverAdmin('neighbors')],

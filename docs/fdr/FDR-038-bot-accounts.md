@@ -398,7 +398,7 @@ alternate clients, and a future reliable delivery transport.
 **Tradeoff:** Realtime provides bounded reconnect recovery, not indefinite
 delivery. Bots must deduplicate stable event IDs. An integration that must
 process every event after a long outage needs a future acknowledged transport
-or paged activity feature. Outbound webhooks are also best effort.
+or paged activity feature. Outbound webhook jobs survive restart and use bounded retries.
 
 ### 11. Incoming webhooks use a separate action credential
 
@@ -456,9 +456,10 @@ The UI uses the same collection and dialog layout as API keys and incoming
 webhooks, with toast feedback for completed actions.
 
 Chatto retries failed requests within an operator-configured lifetime and
-attempt limit. Delivery is best effort: pending work and retries live in memory
-and are lost on restart, without a failure record. Eight workers per process
-use a channel with 64 slots; a full channel blocks source handoff. Requests
+attempt limit. Pending work and retries are durable jobs and survive restart. The shared job
+pool limits concurrent attempts. Exhausted or expired jobs remain failed in
+server settings. A failed, unexpired job can be retried manually with the
+required permission. Requests
 have a stable delivery ID. A receiver must tolerate duplicates. The bot page shows recent failures for each endpoint. Failures expire after
 the operator-configured retention period, seven days by default. Later success
 does not clear an earlier failure. An empty history does not prove successful
@@ -565,7 +566,7 @@ editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 
-- **ADRs:** ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-113 (one-time upgrade grants for new permissions), ADR-100 (shared integration client), ADR-111 (client state layer in `@chatto/client`), ADR-098 (retained operational log), ADR-123 (durable background jobs), ADR-097 (webhook security and selection), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

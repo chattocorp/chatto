@@ -8,6 +8,10 @@ Bots need HTTP integrations with retries. Notification preferences must not
 control bot activation. A generic durable job queue adds a subsystem for one
 current use case. This version accepts loss of pending delivery on restart.
 
+The queue and execution choices below are superseded by
+[ADR-123](ADR-123-durable-background-jobs.md). Domain lifecycle and security
+rules remain applicable.
+
 ## Decision
 
 Consume direct mentions and DM messages through one shared durable EVT

@@ -61,6 +61,7 @@ describe('serverPermissionsFromViewer', () => {
 
   it.each([
     ['server.manage', 'canManageServer'],
+    ['server.jobs.manage', 'canManageJobs'],
     ['server.manage-neighbors', 'canManageNeighbors'],
     ['room.manage', 'canManageRooms'],
     ['room.remove-member', 'canModerateRooms'],

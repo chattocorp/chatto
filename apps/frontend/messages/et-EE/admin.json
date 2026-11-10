@@ -591,6 +591,24 @@
         "revoked": "Tühistatud",
         "used": "Kasutatud"
       }
+    },
+    "jobs": {
+      "title": "Tööd",
+      "subtitle": "Vaadake taustatöid ja proovige ebaõnnestunud töid uuesti.",
+      "load_failed": "Töid ei saanud laadida.",
+      "retry_failed": "Seda tööd ei saanud uuesti proovida.",
+      "webhook": "Veebikonksu edastamine",
+      "media": "Meedia töötlemine",
+      "queued": "Järjekorras",
+      "running": "Töös",
+      "succeeded": "Õnnestus",
+      "failed": "Ebaõnnestus",
+      "empty": "Töid veel pole",
+      "attempts": "Katsed",
+      "updated": "Uuendatud",
+      "next_attempt": "Järgmine katse",
+      "expired": "See töö on aegunud ja seda ei saa uuesti proovida.",
+      "load_more": "Laadi rohkem"
     }
   }
 }

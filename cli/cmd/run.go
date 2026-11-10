@@ -73,12 +73,6 @@ func runtimeUnitRegistrations() []runtimeunit.Registration {
 				return cfg.SearchProvider.Enabled
 			},
 		},
-		{
-			Unit: video.Unit{},
-			StartWithRun: func(cfg config.ChattoConfig) bool {
-				return cfg.AssetProcessing.Enabled
-			},
-		},
 	}
 }
 
@@ -195,6 +189,24 @@ func runServer(configPath string) {
 		return
 	}
 	chattoCore.VideoUploadsEnabled = cfg.Video.Enabled
+	if cfg.AssetProcessing.Enabled {
+		processor, processingErr := video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
+		if processingErr != nil {
+			log.Warn("Media processing tools unavailable; jobs will remain retryable")
+		}
+		chattoCore.SetMediaJobHandler(func(ctx context.Context, assetID, messageID string) error {
+			if processor == nil {
+				// Tool lookup is retried on each attempt; startup remains available when
+				// an optional processing tool is temporarily absent.
+				retryProcessor, err := video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
+				if err != nil {
+					return errors.New("media processing tools unavailable")
+				}
+				return chattoCore.ProcessMediaJob(ctx, assetID, messageID, retryProcessor.ProcessAsset)
+			}
+			return chattoCore.ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
+		}, cfg.AssetProcessing.MaxConcurrentJobsOrDefault())
+	}
 
 	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {

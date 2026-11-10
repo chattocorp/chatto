@@ -591,6 +591,24 @@
         "revoked": "Revokita",
         "used": "Uzita"
       }
+    },
+    "jobs": {
+      "title": "Taskoj",
+      "subtitle": "Vidu fonajn taskojn kaj reprovu malsukcesajn taskojn.",
+      "load_failed": "Ne eblis ŝargi taskojn.",
+      "retry_failed": "Ne eblis reprovi ĉi tiun taskon.",
+      "webhook": "Rethoka livero",
+      "media": "Prilaborado de aŭdvidaĵoj",
+      "queued": "En atendovico",
+      "running": "Ruliĝanta",
+      "succeeded": "Sukcesinta",
+      "failed": "Malsukcesinta",
+      "empty": "Ankoraŭ neniuj taskoj",
+      "attempts": "Provoj",
+      "updated": "Ĝisdatigita",
+      "next_attempt": "Sekva provo",
+      "expired": "Ĉi tiu tasko eksvalidiĝis kaj ne povas esti reprovata.",
+      "load_more": "Ŝargi pli"
     }
   }
 }

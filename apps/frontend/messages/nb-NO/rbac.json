@@ -182,7 +182,8 @@
       "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
       "call_camera": "Lar en konto sende kameravideo i samtaler.",
       "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice.",
-      "room_invite": "Inviter servermedlemmer til rom du har blitt med i."
+      "room_invite": "Inviter servermedlemmer til rom du har blitt med i.",
+      "server_jobs_manage": "Se trygge jobbdetaljer og prøv mislykkede bakgrunnsjobber på denne serveren på nytt."
     }
   }
 }

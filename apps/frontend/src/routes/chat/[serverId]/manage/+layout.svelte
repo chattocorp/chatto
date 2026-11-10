@@ -32,6 +32,7 @@
     const permissionsBase = serverBase + '/permissions';
     const securityBase = serverBase + '/security';
     const systemBase = serverBase + '/system';
+    const jobsBase = serverBase + '/jobs';
     const eventLogBase = serverBase + '/event-log';
 
     // General settings page requires server manage permission
@@ -95,6 +96,10 @@
     // Security (blocked usernames) — server.manage
     if (pathname.startsWith(securityBase)) {
       return () => permissions.canManageServer;
+    }
+
+    if (pathname.startsWith(jobsBase)) {
+      return () => permissions.canManageJobs;
     }
 
     // System info (NATS/JetStream stats) — owner-only for now.

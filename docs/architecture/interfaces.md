@@ -687,3 +687,13 @@ existing room reads and realtime reconciliation.
 The authenticated public `chatto.api.v1.RoomInvitationService` provides create,
 get, batch-get, list, accept, and decline operations. Only the sender and
 recipient can read an invitation. Only the recipient can respond.
+
+## Background job administration
+
+`chatto.admin.v1.JobsService` provides bounded `ListJobs`, `GetJob`, and
+`RetryJob` operations. Core operations require `server.jobs.manage`, including
+privileged mode for human credential sessions. The API exposes state, safe
+failure categories, attempt counts, timestamps, and typed retry availability.
+It never exposes private payloads, lease owners, or dispatch generations.
+Page tokens are sealed and viewer-bound. Retry preserves source deadlines and
+uses revision OCC to accept one new generation. See FDR-056 and ADR-123.

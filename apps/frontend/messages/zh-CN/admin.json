@@ -580,6 +580,24 @@
         "revoked": "已撤销",
         "used": "已使用"
       }
+    },
+    "jobs": {
+      "title": "任务",
+      "subtitle": "查看后台任务并重试失败的任务。",
+      "load_failed": "无法加载任务。",
+      "retry_failed": "无法重试此任务。",
+      "webhook": "Webhook 投递",
+      "media": "媒体处理",
+      "queued": "排队中",
+      "running": "运行中",
+      "succeeded": "成功",
+      "failed": "失败",
+      "empty": "暂无任务",
+      "attempts": "尝试次数",
+      "updated": "更新时间",
+      "next_attempt": "下次尝试",
+      "expired": "此任务已过期，无法重试。",
+      "load_more": "加载更多"
     }
   }
 }

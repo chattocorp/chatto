@@ -591,6 +591,24 @@
         "revoked": "Ingetrokken",
         "used": "Gebruikt"
       }
+    },
+    "jobs": {
+      "title": "Taken",
+      "subtitle": "Bekijk achtergrondtaken en probeer mislukte taken opnieuw.",
+      "load_failed": "Taken konden niet worden geladen.",
+      "retry_failed": "Deze taak kon niet opnieuw worden geprobeerd.",
+      "webhook": "Webhookbezorging",
+      "media": "Mediaverwerking",
+      "queued": "In wachtrij",
+      "running": "Actief",
+      "succeeded": "Geslaagd",
+      "failed": "Mislukt",
+      "empty": "Nog geen taken",
+      "attempts": "Pogingen",
+      "updated": "Bijgewerkt",
+      "next_attempt": "Volgende poging",
+      "expired": "Deze taak is verlopen en kan niet opnieuw worden geprobeerd.",
+      "load_more": "Meer laden"
     }
   }
 }

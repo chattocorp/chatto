@@ -17,6 +17,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -52,7 +53,7 @@ func waitWebhookOutcome(t *testing.T, c *ChattoCore, owner, bot, status string) 
 	return result.Latest
 }
 
-// waitWebhookDeliveriesDrained waits for source handoff and all local delivery work.
+// waitWebhookDeliveriesDrained waits for source handoff and all durable delivery work.
 func waitWebhookDeliveriesDrained(t *testing.T, c *ChattoCore, replicas ...*ChattoCore) {
 	t.Helper()
 	ctx := testContext(t)
@@ -61,11 +62,16 @@ func waitWebhookDeliveriesDrained(t *testing.T, c *ChattoCore, replicas ...*Chat
 		if err != nil || source.NumPending != 0 || source.NumAckPending != 0 {
 			return false
 		}
-		for _, core := range append(replicas, c) {
-			if core.botWebhooks.pending.Load() != 0 {
+		jobs, _, err := c.jobs.List(ctx, "", 200)
+		if err != nil {
+			return false
+		}
+		for _, job := range jobs {
+			if job.Type == "webhook" && (job.Status == jobqueue.Queued || job.Status == jobqueue.Running) {
 				return false
 			}
 		}
+
 		return true
 	}, 5*time.Second, 10*time.Millisecond)
 }
@@ -80,7 +86,7 @@ func requireNoWebhookOutcomes(t *testing.T, c *ChattoCore) {
 		return
 	}
 	for _, key := range keys {
-		require.NotContains(t, key, "bot_webhook", "webhooks must not use KV")
+		require.NotContains(t, key, "bot_webhook", "webhooks use generic job records, not a separate KV schema")
 	}
 }
 func TestBotOutboundWebhookSourceSyncSharesOnlyCapturedPrefix(t *testing.T) {
@@ -162,15 +168,14 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 		}
 		previous = request.at
 	}
-	// A repeated source handoff can send again. The receiver gets the same ID.
+	// A repeated source handoff cannot recreate a completed job.
 	data, err := proto.Marshal(source)
 	require.NoError(t, err)
 	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RoomAggregate(room).Subject("message_posted"))
 	require.NoError(t, err)
 	require.NoError(t, c.botWebhooks.materialize(ctx, events.DurableDelivery{Data: data, StreamSequence: seq}))
 	waitWebhookDeliveriesDrained(t, c)
-	require.Equal(t, int32(4), calls.Load())
-	require.Equal(t, id, (<-received).headers.Get("Chatto-Webhook-Id"))
+	require.Equal(t, int32(3), calls.Load())
 	requireNoWebhookOutcomes(t, c)
 	stored := c.botWebhooks.projection.Projection().get(bot, metadata.ID).Configuration
 	encoded, err := proto.Marshal(stored)
@@ -292,7 +297,7 @@ func TestBotOutboundWebhookExpiryAndRevocation(t *testing.T) {
 	}
 }
 
-func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
+func TestBotOutboundWebhookRestartRecoversRetryState(t *testing.T) {
 	ns, _ := testutil.StartNATS(t)
 	firstNC := newReplicaConn(t, ns)
 	c, err := NewChattoCore(testContext(t), firstNC, testCoreConfig())
@@ -315,10 +320,10 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		info, err := c.botWebhooks.sourceConsumer.Info(ctx)
-		return err == nil && info.NumPending == 0 && info.NumAckPending == 0 && c.botWebhooks.pending.Load() == 1 && calls.Load() == 1
+		return err == nil && info.NumPending == 0 && info.NumAckPending == 0 && calls.Load() == 1
 	}, 3*time.Second, 10*time.Millisecond)
-	// EVT is already acknowledged while the delivery waits in memory. Shutdown
-	// abandons its retry; a new process must not recover that accepted work.
+	// EVT is acknowledged after durable acceptance. A new process recovers the
+	// pending retry without repeating source fanout.
 	cancel()
 	select {
 	case <-done:
@@ -329,14 +334,14 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	firstNC.Close()
 	replica := startReplica(t, ns, c.config)
 	waitWebhookDeliveriesDrained(t, replica)
-	require.Never(t, func() bool { return calls.Load() != 1 }, 1200*time.Millisecond, 10*time.Millisecond)
+	require.Equal(t, int32(2), calls.Load())
 	requireNoWebhookOutcomes(t, replica)
 }
 
 func TestBotOutboundWebhookBackoff(t *testing.T) {
 	job := &botWebhookDelivery{RetryDelay: 30 * time.Second}
 	for i, want := range []time.Duration{30 * time.Second, time.Minute, 2 * time.Minute, 4 * time.Minute, 8 * time.Minute, 16 * time.Minute, 30 * time.Minute, 30 * time.Minute} {
-		require.Equal(t, want, webhookRetryDelay(job, uint64(i+1)))
+		require.Equal(t, want, jobqueue.Backoff(job.RetryDelay, uint32(i+1)))
 	}
 }
 
@@ -588,25 +593,17 @@ func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
 	require.Equal(t, int32(1), calls.Load())
 }
 
-// A full handoff buffer blocks the source handler and remains cancellable.
-func TestBotOutboundWebhookBoundedHandoff(t *testing.T) {
-	m := &botWebhookModel{deliveries: make(chan *botWebhookDelivery, botWebhookBuffer)}
-	ctx, cancel := context.WithCancel(testContext(t))
-	defer cancel()
-	for range botWebhookBuffer {
-		require.NoError(t, m.enqueue(ctx, &botWebhookDelivery{}))
-	}
-	done := make(chan error, 1)
-	go func() { done <- m.enqueue(ctx, &botWebhookDelivery{}) }()
-	require.Eventually(t, func() bool { return m.pending.Load() == botWebhookBuffer+1 }, time.Second, time.Millisecond)
-	select {
-	case <-done:
-		t.Fatal("handoff bypassed full buffer")
-	default:
-	}
-	cancel()
-	require.ErrorIs(t, <-done, context.Canceled)
-	require.Equal(t, int64(botWebhookBuffer), m.pending.Load())
+// Repeated source handoff persists one immutable job before acknowledgement.
+func TestBotOutboundWebhookDurableHandoff(t *testing.T) {
+	c, _ := newTestCore(t)
+	ctx := testContext(t)
+	request := &botWebhookDelivery{DeliveryID: "stable-job", BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source", MaxAttempts: 3, RetryDelay: time.Second, ExpiresAt: time.Now().Add(time.Hour)}
+	require.NoError(t, c.botWebhooks.enqueue(ctx, request))
+	require.NoError(t, c.botWebhooks.enqueue(ctx, request))
+	jobs, _, err := c.jobs.List(ctx, "", 10)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
+	require.Equal(t, jobqueue.Queued, jobs[0].Status)
 }
 
 func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {
@@ -615,7 +612,7 @@ func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {
 	delivery := &botWebhookDelivery{DeliveryID: "terminal-test", BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source"}
 	require.NoError(t, c.botWebhooks.fail(ctx, delivery, 2, "http_error", 503))
 	require.NoError(t, c.botWebhooks.fail(ctx, delivery, 2, "http_error", 503))
-	require.NoError(t, c.botWebhooks.deliver(ctx, delivery))
+
 	info, err := c.storage.logStream.Info(ctx)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), info.State.Msgs)
@@ -658,7 +655,9 @@ func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 		info, err := c.botWebhooks.sourceConsumer.Info(ctx)
 		return err == nil && info.NumPending == 0 && info.NumAckPending == 0 && calls.Load() == botWebhookConcurrency
 	}, 3*time.Second, 10*time.Millisecond)
-	require.Equal(t, int64(botWebhookConcurrency+1), c.botWebhooks.pending.Load())
+	jobs, _, err := c.jobs.List(ctx, "", 100)
+	require.NoError(t, err)
+	require.Len(t, jobs, botWebhookConcurrency+1)
 	cancel()
 	select {
 	case <-done:

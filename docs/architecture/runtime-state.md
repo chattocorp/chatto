@@ -315,7 +315,7 @@ projection also reads beta-era `evt.room.{roomId}.asset_*` facts, allowing 0.1.0
 histories to replay without a stream rewrite.
 
 After appending creation and processing-started events, message posting asks
-the durable asset-processing queue to start video or animated-GIF processing.
+the durable media job source to enqueue video or animated-GIF processing.
 There is no transient NATS Core worker subject or `video_processed` live
 signal. Boot recovery derives missed work from EVT projections and calls the
 same local path.
@@ -349,15 +349,16 @@ durable message-body references.
 S3 public delivery probes only `instance/{assetId}`. This route never probes
 private current or historical attachment prefixes. Disallowed classes return 404.
 
-## Outbound webhook delivery state
+## Background job state
 
-Outbound webhooks use no KV keys. A process-local channel holds up to 64
-accepted deliveries. Eight workers per process hold active deliveries and
-retry timers. Each item contains message and endpoint references, attempt
-policy, and source-time expiry. It contains no plaintext message body or
-credentials. Shutdown discards this state. The shared EVT source consumer
-retains progress only until handoff, not until HTTP completion. See
-[NATS resources](nats-resources.md) and [effects](durable-effects.md).
+`job.{id}` stores a protobuf `JobRecord` with type, opaque payload references,
+state, attempt budget, source deadline, retry time, and generation. Revision OCC
+claims work and renews a one-minute execution lease. A filtered watcher repairs
+queued and interrupted dispatches without treating its index as authority.
+Manual retry increments the generation; old dispatches cannot execute it.
+Terminal records prevent source replay from recreating completed work. Records
+have no automatic expiry in v1. They contain no content or credentials.
+See ADR-123 and the durable-effect inventory.
 
 ## LiveKit webhook diagnostics
 

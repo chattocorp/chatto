@@ -591,6 +591,24 @@
         "revoked": "Widerrufen",
         "used": "Verwendet"
       }
+    },
+    "jobs": {
+      "title": "Aufträge",
+      "subtitle": "Sieh dir Hintergrundaufträge an und wiederhole fehlgeschlagene Aufträge.",
+      "load_failed": "Aufträge konnten nicht geladen werden.",
+      "retry_failed": "Dieser Auftrag konnte nicht wiederholt werden.",
+      "webhook": "Webhook-Zustellung",
+      "media": "Medienverarbeitung",
+      "queued": "In Warteschlange",
+      "running": "Wird ausgeführt",
+      "succeeded": "Erfolgreich",
+      "failed": "Fehlgeschlagen",
+      "empty": "Noch keine Aufträge",
+      "attempts": "Versuche",
+      "updated": "Aktualisiert",
+      "next_attempt": "Nächster Versuch",
+      "expired": "Dieser Auftrag ist abgelaufen und kann nicht wiederholt werden.",
+      "load_more": "Mehr laden"
     }
   }
 }

@@ -50,7 +50,8 @@
         "composer": "Mesaj düzenleyicinizi ve mesaj gönderme yönteminizi seçin.",
         "voice": "Mikrofonunuzu, hoparlörlerinizi ve arama tercihlerinizi ayarlayın.",
         "system": "Sunucu sağlığını, depolamayı ve arka plan görevlerini kontrol edin.",
-        "event_log": "Sunucu olaylarını keşfedin ve değişiklikleri inceleyin."
+        "event_log": "Sunucu olaylarını keşfedin ve değişiklikleri inceleyin.",
+        "jobs": "Arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin."
       },
       "title": "Genel bakış",
       "shield_notice": "Bu sunucudaki ek izinlerinizi kullanmak için adınızın yanındaki kalkan düğmesiyle ayrıcalıklı modu etkinleştirin."

@@ -17,6 +17,7 @@ export type AdminNavPermissions = Pick<
   | 'canAssignRoles'
   | 'canAdminViewAudit'
   | 'canAdminViewSystem'
+  | 'canManageJobs'
 >;
 
 export type AdminNavItem = {
@@ -144,6 +145,15 @@ export function getAdminNavItems({
       label: m('chat.management_nav.event_log'),
       description: m('settings.overview.descriptions.event_log'),
       icon: 'iconify icon-[uil--history]'
+    });
+  }
+
+  if (permissions.canManageJobs) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverSegment }),
+      label: m('chat.management_nav.jobs'),
+      description: m('settings.overview.descriptions.jobs'),
+      icon: 'iconify icon-[uil--process]'
     });
   }
 

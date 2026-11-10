@@ -591,6 +591,24 @@
         "revoked": "İptal edildi",
         "used": "Kullanıldı"
       }
+    },
+    "jobs": {
+      "title": "İşler",
+      "subtitle": "Arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin.",
+      "load_failed": "İşler yüklenemedi.",
+      "retry_failed": "Bu iş yeniden denenemedi.",
+      "webhook": "Webhook teslimi",
+      "media": "Medya işleme",
+      "queued": "Sırada",
+      "running": "Çalışıyor",
+      "succeeded": "Başarılı",
+      "failed": "Başarısız",
+      "empty": "Henüz iş yok",
+      "attempts": "Denemeler",
+      "updated": "Güncellendi",
+      "next_attempt": "Sonraki deneme",
+      "expired": "Bu işin süresi doldu ve yeniden denenemez.",
+      "load_more": "Daha fazla yükle"
     }
   }
 }

@@ -130,6 +130,9 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
+	// JobConcurrency bounds the shared job pool on each Chatto replica.
+	JobConcurrency int `toml:"job_concurrency,commented" env:"CHATTO_CORE_JOB_CONCURRENCY" comment:"Maximum simultaneous background jobs per replica. Default: 8. Media processing also obeys asset_processing.max_concurrent_jobs."`
+
 	// SkipSetupWizard suppresses first-run setup without changing its durable state.
 	SkipSetupWizard             bool                 `toml:"skip_setup_wizard,commented" env:"CHATTO_CORE_SKIP_SETUP_WIZARD" comment:"Disable the first-run web setup wizard. Does not reset server initialization. Default: false."`
 	Log                         LogConfig            `toml:"log,commented" comment:"Retained operational log."`

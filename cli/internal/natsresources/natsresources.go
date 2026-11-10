@@ -18,6 +18,8 @@ const (
 	EVT = "EVT"
 	// Notifications is the bounded notification lifecycle event log.
 	Notifications = "NOTIFICATIONS"
+	// Jobs carries durable background-job dispatch references.
+	Jobs = "JOBS"
 	// Log is the retained operational diagnostics stream (ADR-098).
 	Log = "LOG"
 	// EncryptionKeys is the KMS key-encryption-key bucket.
@@ -95,6 +97,7 @@ const (
 var current = []Resource{
 	{Name: EVT, Kind: KindStream, Backup: BackupInclude},
 	{Name: Notifications, Kind: KindStream, Backup: BackupInclude},
+	{Name: Jobs, Kind: KindStream, Backup: BackupInclude},
 	{Name: Log, Kind: KindStream, Backup: BackupSkip, SkipReason: "retained diagnostics (not recovery state)"},
 	{Name: EncryptionKeys, Kind: KindKeyValue, Backup: BackupSkipUnlessKeys, SkipReason: "security (keys excluded from backups; pass --include-keys to override)"},
 	{Name: RuntimeState, Kind: KindKeyValue, Backup: BackupInclude},
