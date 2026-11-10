@@ -1934,8 +1934,9 @@ func TestCookiePresentedCredentialRejectsRetiredSignedSessionFields(t *testing.T
 
 	s.router.GET("/test/retired-cookie-session", func(c *gin.Context) {
 		session := sessions.Default(c)
-		session.Set(retiredSessionKeyUserID, "Ulegacy")
-		session.Set(retiredSessionKeyCredentialID, "cht_CSlegacy")
+		session.Set("runtime_credential_id", "legacy-handle")
+		session.Set("user_id", "Ulegacy")
+		session.Set("cookie_session_id", "cht_CSlegacy")
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1945,7 +1946,7 @@ func TestCookiePresentedCredentialRejectsRetiredSignedSessionFields(t *testing.T
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "retired signed-session fields authenticated"})
 			return
 		}
-		if session.Get(retiredSessionKeyUserID) == nil || session.Get(retiredSessionKeyCredentialID) == nil {
+		if session.Get("user_id") == nil || session.Get("cookie_session_id") == nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "validation mutated retired signed-session fields"})
 			return
 		}

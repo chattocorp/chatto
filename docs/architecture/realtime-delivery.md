@@ -635,8 +635,7 @@ origin rejects its viewer and no loaded data remains, the chat root starts
 origin sign-in and keeps the current page as the return path.
 
 `CurrentUserState` owns the complete account and one pending account request for
-each server. Route loading and recovery use that owner. Cookie migration and
-transient retries are request policy, with no separate account cache. The
+each server. Route loading and recovery use that owner. Transient retries are request policy, with no separate account cache. The
 registry checks identity changes before it publishes the response. Account
 reset, newer live viewer data, and store disposal reject older responses.
 HTTP commands proceed independently of realtime catch-up. The composer
