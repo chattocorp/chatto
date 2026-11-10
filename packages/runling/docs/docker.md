@@ -154,14 +154,6 @@ the `dev.runling.*` prefix is reserved. A crash, lost daemon response, or failed
 cleanup can leave a labelled resource. There is no automatic prune or restart
 reconciliation. Never assume workflow state snapshots recover containers.
 
-## Migration from the factory API
-
-Replace the `createDocker` import with `docker`. Remove the factory call and
-pass `ctx` as the first argument to `run`, `start`, and `network`. The task context
-now supplies cancellation and the run label. Move factory `context` and `labels`
-settings into each operation's options. The factory and public adapter class
-are removed.
-
 ## Try the local pipeline
 
 From the repository root:

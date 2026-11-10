@@ -203,3 +203,14 @@ test('explicit Docker contexts apply to startup and cleanup', async () => {
   for (const call of cli.execute.mock.calls)
     expect(call[1].slice(0, 2)).toEqual(['--context', 'test-context']);
 });
+
+test('failed network creation removes a possibly created network by its owned name', async () => {
+  cli.execute.mockImplementation(async (_program, args: string[]) => ({
+    stdout: '',
+    stderr: '',
+    exitCode: args[1] === 'create' ? 1 : 0
+  }));
+  await expect(docker.network(ctx)).rejects.toEqual(new DockerOperationError('network create', 1));
+  const creation = cli.execute.mock.calls[0]![1] as string[];
+  expect(cli.execute.mock.calls[1]?.[1]).toEqual(['network', 'rm', creation.at(-1)]);
+});

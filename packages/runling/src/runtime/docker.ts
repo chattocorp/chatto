@@ -327,16 +327,22 @@ class DockerOperations {
   async network(): Promise<DockerNetwork> {
     this.ctx.signal.throwIfAborted();
     const name = `runling-${randomUUID()}`;
-    await this.cli.control(
-      ['network', 'create', ...this.labels(name), name],
-      AbortSignal.timeout(CONTROL_TIMEOUT_MS)
-    );
+    try {
+      await this.cli.control(
+        ['network', 'create', ...this.labels(name), name],
+        AbortSignal.timeout(CONTROL_TIMEOUT_MS)
+      );
+    } catch (error) {
+      // The daemon can create the network even when the CLI fails to receive its ID.
+      await this.cli.removeNetwork(name);
+      throw error;
+    }
     let removed = false;
     let pending: Promise<void> | undefined;
     const dispose = (): Promise<void> => {
       if (removed) return Promise.resolve();
       return (pending ??= this.cli
-        .control(['network', 'rm', name], AbortSignal.timeout(CONTROL_TIMEOUT_MS))
+        .removeNetwork(name)
         .then(() => {
           removed = true;
         })
@@ -409,6 +415,16 @@ class DockerCLI {
     );
     if (result.exitCode !== 0 && !/No such container/i.test(result.stderr))
       throw new DockerOperationError('container removal', result.exitCode);
+  }
+
+  /** Cleanup also succeeds when a failed create did not leave a network behind. */
+  async removeNetwork(name: string): Promise<void> {
+    const result = await this.execute(
+      ['network', 'rm', name],
+      AbortSignal.timeout(CONTROL_TIMEOUT_MS)
+    );
+    if (result.exitCode !== 0 && !/network .* not found|No such network/i.test(result.stderr))
+      throw new DockerOperationError('network removal', result.exitCode);
   }
 
   /** Internal streaming operation. Buffers only an incomplete secret and a bounded log line. */

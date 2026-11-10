@@ -149,8 +149,8 @@ export function activityLogRows(
     }
   });
   for (const summary of summaries.values()) {
-    // A task can have its own messages as well as output from child commands. Use the
-    // timeline's journal-ordered rollup even when direct task logs are already present.
+    // Full-history callers retain each task's own messages in journal order.
+    // The console queries descendant output separately from the journal.
     if (summary.node.kind === 'step' || !summary.logs.length)
       summary.logs = summary.node.logs.map(plain);
   }
