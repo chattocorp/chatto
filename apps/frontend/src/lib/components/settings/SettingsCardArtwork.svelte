@@ -113,10 +113,8 @@
           ></span>
         {/each}
       </div>
-    {:else if kind && ['account', 'profile', 'time', 'notifications', 'desktop', 'general', 'neighbors', 'members', 'bots', 'registration', 'rooms', 'moderation', 'permissions', 'security', 'event-log', 'system'].includes(kind)}
-      <SettingsDestinationArtwork {kind} />
     {:else}
-      <span class={[icon, 'text-7xl']} aria-hidden="true"></span>
+      <SettingsDestinationArtwork {kind} />
     {/if}
   </div>
 </div>

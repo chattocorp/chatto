@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import { expect, within } from 'storybook/test';
+  import HelpArtwork from '$lib/help/HelpArtwork.svelte';
   import DestinationCard from './DestinationCard.svelte';
   const { Story } = defineMeta({ title: 'Settings/Destination card', component: DestinationCard });
 </script>
@@ -25,7 +26,9 @@
       label="Using Chatto"
       description="Threads, notifications, and connection problems."
       icon="iconify icon-[uil--comments]"
-    />
+    >
+      {#snippet artwork()}<HelpArtwork topic="conversations" />{/snippet}
+    </DestinationCard>
     <DestinationCard
       href="/chat/preferences/appearance"
       label="Appearance"
