@@ -24,7 +24,7 @@
   import EmojiAutocomplete from './EmojiAutocomplete.svelte';
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import RoomAutocomplete from './RoomAutocomplete.svelte';
-  import { buildRoomLinkURL } from '$lib/chatLinks';
+  import { roomLinkSources } from './roomLinkSources';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
   import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
@@ -330,9 +330,8 @@
           <RoomAutocomplete
             bind:this={composer.autocomplete.roomRef}
             query={composer.autocomplete.room.query}
-            rooms={stores.roomList.rooms}
-            onSelect={(roomId) =>
-              composer.autocomplete.selectRoom(buildRoomLinkURL(serverScope.serverId, roomId))}
+            sources={roomLinkSources(serverScope.serverId)}
+            onSelect={(url) => composer.autocomplete.selectRoom(url)}
             onClose={() => composer.autocomplete.closeRoom()}
           />
         {/if}
