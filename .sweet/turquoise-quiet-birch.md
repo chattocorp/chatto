@@ -1,5 +1,5 @@
 ---
-type: breaking
+type: fix
 ---
 
-Thread badges now show only authors of current replies. Thread pane headers also show the root author once. API participant previews, counts, and ListThreadParticipants now describe reply authors only; integrations that show all thread participants must add the root message author and remove duplicates.
+Thread badges now show only users who replied. The thread pane header also includes the original message author, without duplicates.
