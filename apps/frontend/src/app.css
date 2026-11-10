@@ -2307,6 +2307,24 @@
   @apply app-header-icon w-auto min-w-11 px-3;
 }
 
+/* The shared recess adds an outer rim as the user's depth setting increases. */
+@utility app-call-frame {
+  @apply inset-content rounded-xl;
+  padding: calc(2px * min(1, var(--depth-strength)));
+}
+
+/* Darker neutral buttons separate the call controls from global navigation. */
+@utility app-call-bar {
+  @apply h-[30px] min-h-[30px] shrink-0 rounded-lg bg-background;
+  width: clamp(148px, calc(75cqw - 100px), 168px);
+  & > button {
+    @apply min-w-0 px-1 py-0;
+  }
+  @variant comfortable-density {
+    @apply h-9 min-h-9;
+  }
+}
+
 /* Compact inline icon-only action for row/input affordances such as dismiss
  * and clear. Larger toolbar icons should use HeaderIconButton or
  * pane-header-icon-button instead.

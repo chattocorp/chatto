@@ -10,15 +10,8 @@ import { contextFixture, page, row } from './context.fixture.ts';
 import { hasTranscript } from './messages.ts';
 import { createTaskContext } from 'runling';
 import { createTitleWriter } from './title.ts';
-import type { createParticipationClassifier } from './participation.ts';
 import { withTyping } from '@chatto/client/messaging/typing';
-import { Subagents, type SubagentStatus } from './delegate.ts';
-
-const participation = vi.hoisted(() => vi.fn<ReturnType<typeof createParticipationClassifier>>());
-vi.mock('./participation.ts', async (original) => ({
-  ...(await original<typeof import('./participation.ts')>()),
-  createParticipationClassifier: () => participation
-}));
+import type { ConversationResponse } from './response.ts';
 
 const naming = vi.hoisted(() => vi.fn<ReturnType<typeof createTitleWriter>>());
 vi.mock('./title.ts', () => ({ createTitleWriter: () => naming }));
@@ -26,7 +19,6 @@ vi.mock('./title.ts', () => ({ createTitleWriter: () => naming }));
 vi.mock('./messages.ts', () => ({ hasTranscript: vi.fn() }));
 
 beforeEach(() => {
-  participation.mockReset().mockResolvedValue({ action: 'reply' });
   naming.mockReset().mockResolvedValue(undefined);
   vi.mocked(hasTranscript).mockReset().mockResolvedValue(false);
   vi.useFakeTimers();
@@ -61,7 +53,9 @@ function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = (
   };
   vi.spyOn(server, 'withTyping');
   const agent = {
-    reply: vi.fn<Parameters<typeof createTurnHandler>[3]['reply']>().mockResolvedValue('One answer')
+    reply: vi
+      .fn<Parameters<typeof createTurnHandler>[3]['reply']>()
+      .mockResolvedValue({ action: 'reply', text: 'One answer' })
   };
   const controller = new AbortController();
   const handle = createTurnHandler(
@@ -73,10 +67,7 @@ function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = (
     beforeEffects
   );
   const ctx = createTaskContext();
-  const children = new Subagents(ctx, () => {});
-  const turn = (messages: readonly IncomingMessage[]) => handle(ctx, messages, children);
-  const completion = (messages: readonly IncomingMessage[], result: SubagentStatus) =>
-    handle(ctx, messages, children, result);
+  const turn = (messages: readonly IncomingMessage[]) => handle(ctx, messages);
   const one: IncomingMessage = {
     id: 'one',
     roomId: 'room',
@@ -86,36 +77,14 @@ function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = (
     reasons: ['mention']
   };
   const two: IncomingMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
-  return { ...fixture, settings, server, agent, controller, turn, completion, one, two };
+  return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
-
-test('child completion runs the parent without replaying the triggering message or delivery effects', async () => {
-  const beforeEffects = vi.fn();
-  const { completion, one, server, agent } = setup(beforeEffects);
-  await completion([one], { id: 'child', status: 'completed', progress: [], result: 'Findings' });
-  expect(participation).not.toHaveBeenCalled();
-  expect(beforeEffects).not.toHaveBeenCalled();
-  expect(server.addReaction).not.toHaveBeenCalled();
-  expect(naming).not.toHaveBeenCalled();
-  const input = agent.reply.mock.calls[0]![1];
-  expect(JSON.parse(input.prompt)).toMatchObject({
-    currentMessages: [],
-    subagentResult: { id: 'child', result: 'Findings' }
-  });
-  expect(input.context).toBeDefined();
-  expect(server.withTyping).toHaveBeenCalledOnce();
-  expect(server.postMessage).toHaveBeenCalledWith(
-    { roomId: 'room', threadRootId: 'root', inReplyTo: 'one' },
-    'One answer',
-    expect.anything()
-  );
-});
 
 test.each([true, false])(
   'finishes pending typing before the final post, independently of naming (addressed: %s)',
   async (addressed) => {
     const { turn, one, server, agent } = setup();
-    const finishModel = Promise.withResolvers<string>();
+    const finishModel = Promise.withResolvers<ConversationResponse>();
     const finishNaming = Promise.withResolvers<void>();
     const refresh = Promise.withResolvers<void>();
     const events: string[] = [];
@@ -134,7 +103,7 @@ test.each([true, false])(
     });
     const pending = turn([{ ...one, reasons: addressed ? ['mention'] : [] }]);
     await vi.waitFor(() => expect(agent.reply).toHaveBeenCalledOnce());
-    finishModel.resolve('Done');
+    finishModel.resolve({ action: 'reply', text: 'Done' });
     await vi.advanceTimersByTimeAsync(0);
     expect(server.postMessage).not.toHaveBeenCalled();
     refresh.resolve();
@@ -169,118 +138,93 @@ test('posts the reply while naming is pending and joins naming before the turn e
   expect(ended).toBe(true);
 });
 
-test('passive silence completes without typing, acknowledgement, or a post', async () => {
-  const { turn, one, server, agent } = setup();
-  participation.mockResolvedValueOnce({ action: 'ignore' });
-  await turn([{ ...one, reasons: [] }]);
-  expect(agent.reply).not.toHaveBeenCalled();
-  expect(naming).not.toHaveBeenCalled();
-  expect(server.withTyping).not.toHaveBeenCalled();
-  expect(server.addReaction).not.toHaveBeenCalled();
-  expect(server.postMessage).not.toHaveBeenCalled();
-});
-
-test('a passive reaction can be the entire response', async () => {
-  const { turn, one, server, agent } = setup();
-  participation.mockResolvedValueOnce({ action: 'react', emoji: 'tada' });
-  await turn([{ ...one, reasons: [] }]);
-  expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
-    { roomId: 'room', messageId: 'one' },
-    'tada',
-    { signal: expect.any(AbortSignal) }
-  );
-  expect(server.withTyping).not.toHaveBeenCalled();
-  expect(server.postMessage).not.toHaveBeenCalled();
-  expect(agent.reply).not.toHaveBeenCalled();
-  expect(naming).not.toHaveBeenCalled();
-});
-
-test.each(['reply', 'ignore'] as const)(
-  'reaction activity uses the classifier and delivers %s without reading the event as a message',
+test.each(['silent', 'react', 'reply'] as const)(
+  'the conversation agent selects %s for passive activity',
   async (action) => {
-    const { turn, one, server, agent, history } = setup();
-    history.mockResolvedValue(page([row('root', 'Root'), row('answer', 'Bot answer')]));
-    participation.mockResolvedValueOnce({ action });
-    const reaction = {
-      ...one,
-      id: 'reaction-event',
-      body: '',
-      reasons: [],
-      reaction: { messageId: 'answer', emoji: 'thinking_face' }
-    };
-    await turn([reaction]);
-    expect(participation).toHaveBeenCalledOnce();
-    expect(
-      server.getMessage.mock.calls.some(([target]) => target.messageId === 'reaction-event')
-    ).toBe(false);
-    expect(server.addReaction).not.toHaveBeenCalled();
-    if (action === 'reply') {
-      expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt)).toEqual({
-        currentDateTime: new Date().toISOString(),
-        currentMessages: [{ author: 'human', reaction: reaction.reaction }]
-      });
-      expect(server.postMessage).toHaveBeenCalledOnce();
-      expect(server.postMessage.mock.calls[0]![0]).toEqual({
-        roomId: 'room',
-        threadRootId: 'root',
-        inReplyTo: 'answer'
-      });
-    } else {
-      expect(agent.reply).not.toHaveBeenCalled();
-      expect(server.withTyping).not.toHaveBeenCalled();
-    }
+    const beforeEffects = vi.fn();
+    const { turn, one, server, agent } = setup(beforeEffects);
+    agent.reply.mockResolvedValueOnce(
+      action === 'reply'
+        ? { action, text: 'An answer' }
+        : action === 'react'
+          ? { action, emoji: 'heart' }
+          : { action }
+    );
+    await turn([{ ...one, reasons: [] }]);
+    expect(agent.reply).toHaveBeenCalledOnce();
+    expect(beforeEffects).toHaveBeenCalledOnce();
+    expect(server.withTyping).toHaveBeenCalledOnce();
+    expect(server.postMessage).toHaveBeenCalledTimes(action === 'reply' ? 1 : 0);
+    expect(server.addReaction).toHaveBeenCalledTimes(action === 'react' ? 1 : 0);
+    if (action === 'react')
+      expect(server.addReaction).toHaveBeenCalledWith(
+        { roomId: 'room', messageId: 'one' },
+        'heart',
+        expect.anything()
+      );
   }
 );
 
-test('a passive follow-up can still receive a textual answer', async () => {
-  const { turn, one, server, agent } = setup();
-  agent.reply.mockResolvedValueOnce('Thanks, that answers my question.');
-  await turn([{ ...one, reasons: [] }]);
-  expect(server.postMessage).toHaveBeenCalledOnce();
-  expect(server.postMessage.mock.calls[0]![1]).toBe('Thanks, that answers my question.');
+test('incoming reactions reach the conversation without offering a reaction to its own message', async () => {
+  const { turn, one, server, agent, history } = setup();
+  history.mockResolvedValue(page([row('root', 'Root'), row('answer', 'Bot answer')]));
+  agent.reply.mockResolvedValueOnce({ action: 'silent' });
+  const reaction = {
+    ...one,
+    id: 'reaction-event',
+    body: '',
+    reasons: [],
+    reaction: { messageId: 'answer', emoji: 'thinking_face' }
+  };
+  await turn([reaction]);
+  expect(agent.reply.mock.calls[0]![1].allowReaction).toBe(false);
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt).currentMessages).toEqual([
+    { author: 'human', reaction: reaction.reaction }
+  ]);
+  expect(
+    server.getMessage.mock.calls.some(([target]) => target.messageId === 'reaction-event')
+  ).toBe(false);
   expect(server.addReaction).not.toHaveBeenCalled();
-  expect(server.withTyping).toHaveBeenCalledOnce();
+  expect(server.postMessage).not.toHaveBeenCalled();
 });
 
 test.each(['direct_message', 'mention', 'reply'] as const)(
-  'addressed %s bypasses the classifier',
+  'addressed %s can end in explicit silence',
   async (reason) => {
     const { turn, one, server, agent } = setup();
-    participation.mockRejectedValue(new Error('Must not classify'));
+    vi.mocked(hasTranscript).mockResolvedValue(true);
+    agent.reply.mockResolvedValueOnce({ action: 'silent' });
     await turn([{ ...one, reasons: [reason] }]);
-    expect(participation).not.toHaveBeenCalled();
     expect(agent.reply).toHaveBeenCalledOnce();
-    expect(server.withTyping).toHaveBeenCalledOnce();
+    expect(server.postMessage).not.toHaveBeenCalled();
+    expect(server.addReaction).not.toHaveBeenCalled();
   }
 );
 
-test('classification failure leaves the batch retryable and produces no effects', async () => {
-  const beforeEffects = vi.fn();
-  const { turn, one, server, agent } = setup(beforeEffects);
-  participation.mockRejectedValueOnce(new Error('Classifier unavailable'));
-  await expect(turn([{ ...one, reasons: [] }])).rejects.toThrow('Classifier unavailable');
-  expect(beforeEffects).not.toHaveBeenCalled();
-  expect(server.withTyping).not.toHaveBeenCalled();
-  expect(server.postMessage).not.toHaveBeenCalled();
-  expect(server.addReaction).not.toHaveBeenCalled();
-  expect(agent.reply).not.toHaveBeenCalled();
-});
-
-test('failed classified reactions are not retried or replaced with a textual answer', async () => {
-  const beforeEffects = vi.fn();
-  const { turn, one, server, agent } = setup(beforeEffects);
-  participation.mockResolvedValueOnce({ action: 'react', emoji: '+1' });
-  server.addReaction.mockRejectedValueOnce(new Error('Uncertain write'));
+test('reaction delivery stops typing first and never retries an uncertain write', async () => {
+  const { turn, one, server, agent } = setup();
+  let typing = false;
+  vi.mocked(server.withTyping).mockImplementation(async (_destination, work) => {
+    typing = true;
+    try {
+      return await work();
+    } finally {
+      typing = false;
+    }
+  });
+  agent.reply.mockResolvedValueOnce({ action: 'react', emoji: '+1' });
+  server.addReaction.mockImplementationOnce(async () => {
+    expect(typing).toBe(false);
+    throw new Error('Uncertain write');
+  });
   await expect(turn([{ ...one, reasons: [] }])).rejects.toThrow('Uncertain write');
-  expect(beforeEffects).toHaveBeenCalledOnce();
   expect(server.addReaction).toHaveBeenCalledOnce();
-  expect(agent.reply).not.toHaveBeenCalled();
   expect(server.postMessage).not.toHaveBeenCalled();
 });
 
-test('cancellation after classification prevents the selected reaction', async () => {
-  const { turn, one, server, controller } = setup();
-  participation.mockImplementationOnce(async () => {
+test('cancellation after the model prevents a selected reaction', async () => {
+  const { turn, one, server, agent, controller } = setup();
+  agent.reply.mockImplementationOnce(async () => {
     controller.abort();
     return { action: 'react', emoji: 'heart' };
   });
@@ -301,11 +245,11 @@ test('passive typing starts before a completed message and ends even when later 
       typingActive = false;
     }
   });
-  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
+  agent.reply.mockImplementationOnce(async (_ctx, { postUpdate }) => {
     expect(server.withTyping).toHaveBeenCalledOnce();
     expect(typingActive).toBe(true);
     expect(server.postMessage).not.toHaveBeenCalled();
-    onText!("I'll check the forecast.");
+    await postUpdate!("I'll check the forecast.");
     acknowledged.resolve();
     await release.promise;
     throw new Error('Model failed');
@@ -330,7 +274,6 @@ test('a mixed batch keeps addressing per message and acknowledges the addressed 
   ).toEqual([[], ['mention']]);
   expect(server.withTyping).toHaveBeenCalledOnce();
   expect(server.addReaction.mock.calls[0]![0].messageId).toBe('two');
-  expect(participation).not.toHaveBeenCalled();
 });
 
 test('joins naming even when posting the reply fails', async () => {
@@ -499,7 +442,8 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
       identity: ['https://chat.example.com', 'bot', 'room', 'root'],
       prompt: expect.any(String),
       signal: expect.any(AbortSignal),
-      onText: expect.any(Function),
+      postUpdate: expect.any(Function),
+      allowReaction: true,
       loadImages: undefined,
       context: {
         messages: [
@@ -518,8 +462,8 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
         imageNotes: []
       },
       userIds: ['human', 'another'],
-      tools: [expect.any(Function), expect.any(Function), expect.any(Function)],
-      capabilities: ['delegation', 'images', 'reactions']
+      tools: [expect.any(Function)],
+      capabilities: ['images']
     }
   );
   expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt)).toEqual({
@@ -603,7 +547,7 @@ test('failed or cancelled model work never posts a reply', async () => {
   expect(server.postMessage).not.toHaveBeenCalled();
   agent.reply.mockImplementationOnce(async () => {
     controller.abort();
-    return 'Too late';
+    return { action: 'reply', text: 'Too late' };
   });
   await expect(turn([one])).rejects.toThrow();
   expect(server.postMessage).not.toHaveBeenCalled();
@@ -619,10 +563,10 @@ test('posts interim text before model completion, preserves order, and sends the
     await releasePost.promise;
     return { ids: ['interim'] };
   });
-  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
-    onText!('Let me take a closer look.');
+  agent.reply.mockImplementationOnce(async (_ctx, { postUpdate }) => {
+    await postUpdate!('Let me take a closer look.');
     await finishModel.promise;
-    return 'Here is the answer.';
+    return { action: 'reply', text: 'Here is the answer.' };
   });
   const pending = turn([one]);
   await firstPost.promise;
@@ -639,13 +583,10 @@ test('posts interim text before model completion, preserves order, and sends the
 test('a failed interim post cancels model work and is never retried', async () => {
   const { server, agent, turn, one } = setup();
   server.postMessage.mockRejectedValueOnce(new Error('Uncertain write'));
-  agent.reply.mockImplementationOnce(async (_ctx, { onText, signal }) => {
-    const stopped = new Promise<never>((_resolve, reject) =>
-      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
-    );
-    onText!('Looking now.');
-    onText!('Queued update.');
-    return stopped;
+  agent.reply.mockImplementationOnce(async (_ctx, { postUpdate, signal }) => {
+    await expect(postUpdate!('Looking now.')).rejects.toThrow('Uncertain write');
+    signal.throwIfAborted();
+    return { action: 'reply', text: 'Unreachable' };
   });
   await expect(turn([one])).rejects.toThrow();
   expect(server.postMessage).toHaveBeenCalledTimes(1);
@@ -658,8 +599,8 @@ test('an already delivered interim message survives a later model failure withou
     posted.resolve();
     return { ids: ['interim'] };
   });
-  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
-    onText!('Looking now.');
+  agent.reply.mockImplementationOnce(async (_ctx, { postUpdate }) => {
+    await postUpdate!('Looking now.');
     await posted.promise;
     throw new Error('Model failed');
   });

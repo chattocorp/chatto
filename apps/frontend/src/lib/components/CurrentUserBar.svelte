@@ -6,22 +6,10 @@ sidebar. Shows the avatar with presence and the live display name. Right-click
 or touch long-press opens the profile menu; avatar clicks open presence settings.
 -->
 <script lang="ts">
-  import { conversationPath } from '$lib/navigation/conversationPath';
-  import {
-    UserCard,
-    FadeScale,
-    PillButtonGroup,
-    ContextMenu,
-    ConfirmDialog,
-    Dialog,
-    MenuItem,
-    MenuSection
-  } from '$lib/ui';
+  import { UserCard, ContextMenu, ConfirmDialog, Dialog, MenuItem, MenuSection } from '$lib/ui';
   import { serverUi } from '$lib/state/server/serverUi';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
-  import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { goto } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
   import { deleteCustomStatus } from '@chatto/client/api/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -29,17 +17,12 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import type { CustomUserStatus } from '@chatto/client/api/userSummary';
   import { setPresenceStatus } from '$lib/state/server/presenceTracking';
   import { presencePreferences } from '$lib/state/server/presencePreference';
-  import { buildDirectMessagePresentation } from '@chatto/client/timeline/users';
-  import { directMessageLabels } from '$lib/render/directMessageLabels';
 
-  import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { Button } from '$lib/ui/form';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import { toast } from '$lib/ui/toast';
   import UserAvatar from './UserAvatar.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
-  import ScreenShareControlButton from './voice/ScreenShareControlButton.svelte';
-  import VoiceCallControlButton from './voice/VoiceCallControlButton.svelte';
   import UserMenu from './users/UserMenu.svelte';
   import { UserMenuState } from './users/UserMenuState.svelte';
 
@@ -63,7 +46,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   }
 
   const serverScope = useServerScope();
-  const appUi = getAppUiState();
   const activeServerId = serverScope.serverId;
   const activeStore = serverScope.store;
   const activeServerUser = $derived(activeStore.viewerUser);
@@ -74,7 +56,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     presenceScope ? presencePreferences.get(presenceScope) : null
   );
   const voiceCallState = $derived(serverUi(activeStore).voiceCall);
-  const navigation = $derived(serverUi(activeStore).navigation);
 
   const displayName = $derived(
     activeServerUser
@@ -92,30 +73,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
       ? getLiveCustomStatus(activeServerUser.id, activeServerUser.customStatus)
       : null
   );
-  const activeCallRoomId = $derived(
-    voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
-  );
-  const activeCallRoom = $derived(
-    activeCallRoomId
-      ? (navigation?.rooms.find((room) => room.id === activeCallRoomId) ?? null)
-      : null
-  );
-  const activeCallRoomName = $derived.by(() => {
-    const room = activeCallRoom;
-    if (!room) return m('common.current_call');
-    if (room.type === RoomKind.DM) {
-      return buildDirectMessagePresentation(
-        room.members,
-        activeStore.projectionViewerId,
-        directMessageLabels(),
-        getLiveDisplayName
-      ).label;
-    }
-    return `# ${room.name}`;
-  });
-  const compactCallButtonClass = 'pill-button';
-  const compactCallActiveButtonClass = 'pill-button-success';
-  const compactCallDangerButtonClass = 'pill-button-danger';
   const presenceModes: PresenceStatus[] = [
     PresenceStatus.ONLINE,
     PresenceStatus.AWAY,
@@ -241,14 +198,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     store.currentUser.update(store.accountId, () => ({ customStatus: status }));
   }
 
-  function openActiveCallRoom(): void {
-    const roomId = activeCallRoomId;
-    if (!roomId) return;
-
-    appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
-    goto(conversationPath(activeServerId, roomId, { store: activeStore }));
-  }
-
   async function setPrivilegedMode(active: boolean): Promise<void> {
     if (privilegedModeLoading) return;
     privilegedModeLoading = true;
@@ -269,60 +218,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
 
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
-    {#if activeCallRoomId && voiceCallState}
-      <FadeScale>
-        <PillButtonGroup compact label={m('room.sidebar.call')} testId="current-user-call-card">
-          <VoiceCallControlButton
-            class={compactCallButtonClass}
-            label={m('voice.open_call_room', { room: activeCallRoomName })}
-            testId="current-user-call-link"
-            icon="icon-[uil--phone]"
-            iconClass="text-action"
-            onclick={openActiveCallRoom}
-          />
-          <VoiceCallControlButton
-            class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
-            label={m('voice.mute')}
-            pressed={voiceCallState.isMuted}
-            testId="current-user-call-mute"
-            icon={voiceCallState.isMuted
-              ? 'icon-[uil--microphone-slash]'
-              : 'icon-[uil--microphone]'}
-            onclick={() => voiceCallState.toggleMute()}
-            pending={voiceCallState.isMicrophonePending}
-            disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
-          />
-          <VoiceCallControlButton
-            class={voiceCallState.isCameraEnabled
-              ? compactCallActiveButtonClass
-              : compactCallButtonClass}
-            label={voiceCallState.isCameraEnabled
-              ? m('voice.turn_off_camera')
-              : m('voice.turn_on_camera')}
-            testId="current-user-call-camera"
-            icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
-            onclick={() => voiceCallState.toggleCamera()}
-            pending={voiceCallState.isCameraPending}
-            disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
-          />
-          <ScreenShareControlButton
-            {voiceCallState}
-            class={voiceCallState.isScreenShareEnabled
-              ? compactCallActiveButtonClass
-              : compactCallButtonClass}
-            testId="current-user-call-screen-share"
-          />
-          <VoiceCallControlButton
-            class={compactCallDangerButtonClass}
-            label={m('voice.leave')}
-            testId="current-user-call-leave"
-            icon="icon-[uil--phone-slash]"
-            onclick={() => voiceCallState.leave()}
-          />
-        </PillButtonGroup>
-      </FadeScale>
-    {/if}
-
     <div {@attach profileMenuTrigger}>
       <UserCard
         variant="card"

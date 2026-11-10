@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { parse } from 'smol-toml';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import type { ThinkingLevel } from 'runling';
+import { expandEnvironment } from './environment.ts';
 import { parseMcpServers } from './mcp-settings.ts';
 import {
   ADDRESSING_REASONS,
@@ -26,14 +27,6 @@ export const DEFAULT_INBOX: InboxSettings = {
   maxPendingMessages: 100,
   maxThreads: 8
 };
-
-/** Operator-defined worker; omitted model/reasoning settings resolve to the main agent. */
-export interface SubagentProfile {
-  description: string;
-  model: string;
-  reasoningLevel?: ThinkingLevel;
-  systemPrompt: string;
-}
 
 /** All settings resolved before any connection starts. Paths are absolute. */
 export interface Settings extends InboxSettings {
@@ -59,11 +52,7 @@ export interface Settings extends InboxSettings {
   /** Independent description model; defaults to the main model with reasoning off. */
   titleModel: string;
   titleReasoningLevel: ThinkingLevel;
-  /** Chat-model ID for the isolated OpenRouter participation classifier. */
-  participationModel: string;
   name: string;
-  /** Named workers advertised by the delegation tool. */
-  subagents: Record<string, SubagentProfile>;
   /** Operator instructions for the main agent only. */
   systemPrompt: string;
   directory: string;
@@ -84,20 +73,6 @@ export interface Settings extends InboxSettings {
 
 const DEFAULT_PROMPT = `You are a helpful assistant. Be friendly, clear, and concise.`;
 
-/** Expand parsed strings once. Environment values are data, never TOML or more templates.
- * A doubled dollar sign is literal, so $${NAME} produces ${NAME} unchanged. */
-function expandEnvironment(value: string, env: NodeJS.ProcessEnv, label: string): string {
-  return value.replace(
-    /\$\$|\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g,
-    (match: string, name: string | undefined) => {
-      if (match === '$$') return '$';
-      if (name === undefined || !Object.hasOwn(env, name) || env[name] === undefined)
-        throw new Error(`${label} references missing environment variable ${name}`);
-      return env[name]!;
-    }
-  );
-}
-
 /** Parse without exposing TOML source text in syntax or validation errors. */
 export function parseSettings(
   source: string,
@@ -116,9 +91,13 @@ export function parseSettings(
         `Unsupported setting in ${label}. Check botto.example.toml; keep secrets in the environment.`
       );
   };
+  if (root.participation !== undefined || root.subagents !== undefined)
+    throw new Error(
+      'Remove [participation] and [subagents.*] from botto.toml; conversation classification and delegation have been removed.'
+    );
   knownKeys(
     root,
-    ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles', 'participation', 'subagents', 'mcp'],
+    ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles', 'mcp'],
     'the root table'
   );
   const table = (value: unknown, name: string): Record<string, unknown> => {
@@ -166,7 +145,6 @@ export function parseSettings(
     );
   const agent = section('agent', ['name', 'model', 'system_prompt', 'reasoning_level']);
   const titles = section('titles', ['model', 'reasoning_level']);
-  const participation = section('participation', ['model']);
   const memory = section('memory', ['enabled', 'command', 'path']);
   if (memory.enabled !== undefined && typeof memory.enabled !== 'boolean')
     throw new Error('memory.enabled must be a boolean');
@@ -236,50 +214,6 @@ export function parseSettings(
       'titles.reasoning_level must be off, minimal, low, medium, high, xhigh, or max'
     );
   const apiKey = string(chatto, 'api_key', 'chatto.api_key');
-  const subagents = Object.fromEntries(
-    Object.entries(table(root.subagents ?? {}, 'subagents')).map(([name, value]) => {
-      if (!/^[a-z][a-z0-9_-]{0,63}$/.test(name))
-        throw new Error(
-          'Subagent names must start with a lowercase letter and use up to 64 lowercase letters, digits, hyphens, or underscores'
-        );
-      const label = `subagents.${name}`;
-      const profile = table(value, label);
-      knownKeys(profile, ['description', 'model', 'reasoning_level', 'system_prompt'], label);
-      const profileModel = string(profile, 'model', `${label}.model`, model);
-      if (!/^[^/\s]+\/[^\s]+$/.test(profileModel))
-        throw new Error(`${label}.model must use provider/model format`);
-      const profileReasoning =
-        profile.reasoning_level === undefined
-          ? reasoningLevel
-          : string(profile, 'reasoning_level', `${label}.reasoning_level`);
-      if (
-        profileReasoning !== undefined &&
-        !reasoningLevels.includes(profileReasoning as ThinkingLevel)
-      )
-        throw new Error(
-          `${label}.reasoning_level must be off, minimal, low, medium, high, xhigh, or max`
-        );
-      return [
-        name,
-        {
-          description: string(profile, 'description', `${label}.description`),
-          model: profileModel,
-          reasoningLevel: profileReasoning as ThinkingLevel | undefined,
-          systemPrompt: string(profile, 'system_prompt', `${label}.system_prompt`, '', true)
-        }
-      ];
-    })
-  );
-  const participationModel = string(
-    participation,
-    'model',
-    'participation.model',
-    'z-ai/glm-5.3-flash'
-  );
-  if (!/^[^/\s]+\/[^\s]+$/.test(participationModel) || participationModel.startsWith('openrouter/'))
-    throw new Error(
-      'participation.model must be an OpenRouter model ID, without an openrouter/ prefix'
-    );
   return {
     serverUrl,
     apiKey,
@@ -309,8 +243,6 @@ export function parseSettings(
     modelId: model.slice(separator + 1),
     reasoningLevel: reasoningLevel as ThinkingLevel | undefined,
     titleModel,
-    participationModel,
-    subagents,
     titleReasoningLevel: titleReasoningLevel as ThinkingLevel,
     name: string(agent, 'name', 'agent.name', 'Botto'),
     skillsDirectory: resolve(dirname(resolve(configPath)), '.agents/skills'),

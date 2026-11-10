@@ -13,13 +13,30 @@
   import MotdContent from '$lib/ui/MotdContent.svelte';
   import { SERVER_SETTINGS_ROOT_ROUTE } from '$lib/navigation/settingsRoutes';
   import { desktopUpdates, type DesktopUpdates } from '$lib/desktop/updates.svelte';
+  import type { Snippet } from 'svelte';
+  import type { ServerStateStore } from '@chatto/client/server/store';
 
-  let { updates = desktopUpdates }: { updates?: DesktopUpdates } = $props();
+  let {
+    updates = desktopUpdates,
+    callControls
+  }: {
+    updates?: DesktopUpdates;
+    /** App-owned controls for the connected call, independent of navigation. */
+    callControls?: Snippet<[ServerStateStore]>;
+  } = $props();
 
   // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
   const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
+  // Call controls follow their owner, even when navigation selects another server.
+  const activeCallStore = $derived.by(() => {
+    for (const server of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(server.id);
+      if (store && serverUi(store).voiceCall.connected) return store;
+    }
+    return null;
+  });
 
   /** A server's notification counts without viewed ones; zero without a store. */
   function attentionCounts(serverId: string) {
@@ -62,10 +79,10 @@
 
 <!-- WebKit extends the solid background of a sticky header into its top system bar. -->
 <header
-  class="app-header sticky top-0 flex keyboard-hide-mobile h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 bg-surface p-2 text-muted desktop-presentation:text-sm"
+  class="app-header @container sticky top-0 flex keyboard-hide-mobile h-[var(--app-header-height)] shrink-0 items-center justify-between gap-1 overflow-x-auto bg-surface px-2 text-muted sm:gap-3 desktop-presentation:text-sm"
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
-  <div class="flex items-center gap-3">
+  <div class="flex shrink-0 items-center gap-3">
     <!-- Sidebar toggle - 44px tap target for mobile accessibility -->
     <button
       type="button"
@@ -144,11 +161,19 @@
     {/if}
   </div>
 
+  {#if activeCallStore && callControls}
+    <div class="shrink-0">
+      {#key activeCallStore}
+        {@render callControls(activeCallStore)}
+      {/key}
+    </div>
+  {/if}
+
   <!-- MOTD -->
   {#if motd}
     <MotdContent {motd} onclick={() => pushState('', { modal: { type: 'motd', motd } })} />
   {:else}
-    <span class="flex-1"></span>
+    <span class={['flex-1', activeCallStore && callControls && 'max-sm:hidden']}></span>
   {/if}
 
   <!-- Client version, About, and Help actions -->

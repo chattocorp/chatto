@@ -55,7 +55,7 @@ Room sidebar panel for voice/video calls.
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
-  import ScreenShareControlButton from './ScreenShareControlButton.svelte';
+  import VoiceCallMediaControls from './VoiceCallMediaControls.svelte';
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import {
@@ -360,9 +360,6 @@ Room sidebar panel for voice/video calls.
     if (isConnecting) return hasActiveCall ? m('voice.joining') : m('voice.starting');
     return hasActiveCall ? m('voice.join_call') : m('voice.start_call');
   });
-  const controlButtonClass = 'pill-button';
-  const activeControlButtonClass = 'pill-button-success';
-  const dangerControlButtonClass = 'pill-button-danger';
   const callTileCardClass =
     'participant-card group/media relative flex w-full min-w-0 flex-col overflow-hidden shell-surface text-start text-text';
   const callTileMediaButtonClass =
@@ -831,7 +828,7 @@ Room sidebar panel for voice/video calls.
         <div class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-2xl']}>
           <PillButtonGroup label={m('room.sidebar.call')}>
             <VoiceCallControlButton
-              class={controlButtonClass}
+              class="pill-button"
               label={m('voice.preferences.title')}
               testId="call-device-menu-button"
               icon="icon-[uil--setting]"
@@ -839,51 +836,14 @@ Room sidebar panel for voice/video calls.
               onclick={openVoicePreferences}
             />
 
-            <VoiceCallControlButton
-              class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
-              label={m('voice.mute')}
-              pressed={voiceCallState.isMuted}
-              testId="call-mute-toggle"
-              icon={voiceCallState.isMuted
-                ? 'icon-[uil--microphone-slash]'
-                : 'icon-[uil--microphone]'}
-              iconClass="text-lg"
-              onclick={() => voiceCallState.toggleMute()}
-              pending={voiceCallState.isMicrophonePending}
-              disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
-            />
-
-            <VoiceCallControlButton
-              class={voiceCallState.isCameraEnabled ? activeControlButtonClass : controlButtonClass}
-              label={voiceCallState.isCameraEnabled
-                ? m('voice.turn_off_camera')
-                : m('voice.turn_on_camera')}
-              testId="call-camera-toggle"
-              icon={voiceCallState.isCameraEnabled
-                ? 'icon-[uil--video]'
-                : 'icon-[uil--video-slash]'}
-              iconClass="text-lg"
-              onclick={() => voiceCallState.toggleCamera()}
-              pending={voiceCallState.isCameraPending}
-              disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
-            />
-
-            <ScreenShareControlButton
+            <VoiceCallMediaControls
               {voiceCallState}
-              class={voiceCallState.isScreenShareEnabled
-                ? activeControlButtonClass
-                : controlButtonClass}
-              testId="call-screen-share-toggle"
-              iconClass="text-lg"
-            />
-
-            <VoiceCallControlButton
-              class={dangerControlButtonClass}
-              onclick={() => voiceCallState.leave()}
-              label={m('voice.leave')}
-              testId="call-leave-button"
-              icon="icon-[uil--phone-slash]"
-              iconClass="text-lg"
+              testIds={{
+                mute: 'call-mute-toggle',
+                camera: 'call-camera-toggle',
+                screenShare: 'call-screen-share-toggle',
+                leave: 'call-leave-button'
+              }}
             />
           </PillButtonGroup>
         </div>

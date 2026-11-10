@@ -9,19 +9,47 @@ const source =
 const env = { BOTTO_CHATTO_API_KEY: 'secret' };
 const parse = (text = source) => parseSettings(text, '/config/botto.toml', env);
 
+test('extra MCP tools default to no grants and preserve explicit access lists', () => {
+  const base = `${source}\n[mcp.servers.github]\ncommand="server"`;
+  expect(parse(base).extraMcpServers[0]).toMatchObject({ tools: [], adminTools: [] });
+  expect(
+    parse(`${base}\ntools=["issue_read"]\nadmin_tools=["issue_write"]`).extraMcpServers[0]
+  ).toMatchObject({ tools: ['issue_read'], adminTools: ['issue_write'] });
+});
+
+test.each([
+  'tools=["*"]',
+  'tools="read"',
+  'tools=["read","read"]',
+  'tools=["read"]\nadmin_tools=["read"]',
+  'tools=["do-work"]\nadmin_tools=["do_work"]',
+  'admin_tools=[1]'
+])('rejects ambiguous MCP access: %s', (access) => {
+  expect(() => parse(`${source}\n[mcp.servers.github]\ncommand="server"\n${access}`)).toThrow(
+    'Invalid mcp.servers'
+  );
+});
+
+test.each(['[participation]\nmodel="test/model"', '[subagents.worker]\ndescription="Work"'])(
+  'removed conversation settings require explicit migration: %s',
+  (table) => {
+    expect(() => parse(`${source}\n${table}`)).toThrow('Remove [participation] and [subagents.*]');
+  }
+);
+
 test('configures remote and local MCP servers with literal environment credentials', () => {
   expect(parse().extraMcpServers).toEqual([]);
   const settings = parseSettings(
     `${source}
 [mcp.servers.remote]
 url="https://example.com/mcp"
-[mcp.servers.remote.headers_from_env]
-Authorization="REMOTE_AUTH"
+[mcp.servers.remote.headers]
+Authorization="Bearer \${REMOTE_AUTH}"
 [mcp.servers.local]
 command="./server"
 args=["--stdio", ""]
-[mcp.servers.local.env_from_env]
-TOKEN="REMOTE_AUTH"
+[mcp.servers.local.env]
+TOKEN="\${REMOTE_AUTH}"
 `,
     '/config/botto.toml',
     { ...env, REMOTE_AUTH: '!literal${TOKEN}' }
@@ -29,7 +57,7 @@ TOKEN="REMOTE_AUTH"
   expect(settings.extraMcpServers.map((entry) => entry.config)).toEqual([
     {
       url: 'https://example.com/mcp',
-      headers: { Authorization: '$!literal$${TOKEN}' },
+      headers: { Authorization: 'Bearer !literal$${TOKEN}' },
       exposure: 'direct'
     },
     {
@@ -50,9 +78,9 @@ test.each([
   '[mcp.servers.custom]\nurl="https://user:private-secret@example.com/mcp"',
   '[mcp.servers.custom]\nurl="https://example.com/mcp"\ncommand="server"',
   '[mcp.servers.custom]\ncommand="server"\nargs=[1]',
-  '[mcp.servers.custom]\ncommand="server"\nheaders_from_env={Authorization="MISSING"}',
-  '[mcp.servers.custom]\nurl="https://example.com/mcp"\nheaders_from_env={Authorization="MISSING"}',
-  '[mcp.servers.custom]\nurl="https://example.com/mcp"\nheaders_from_env={Authorization="BAD_HEADER"}',
+  '[mcp.servers.custom]\ncommand="server"\nheaders={Authorization="${MISSING}"}',
+  '[mcp.servers.custom]\nurl="https://example.com/mcp"\nheaders={Authorization="${MISSING}"}',
+  '[mcp.servers.custom]\nurl="https://example.com/mcp"\nheaders={Authorization="${BAD_HEADER}"}',
   '[mcp.servers.custom]\ncommand=""'
 ])('rejects invalid MCP settings without exposing secrets: %s', (configuration) => {
   const load = () =>
@@ -71,49 +99,50 @@ test.each(['http://127.0.0.1:8080/mcp', 'http://localhost:8080/mcp', 'http://[::
   }
 );
 
-test('subagent profiles resolve defaults without inheriting the root prompt', () => {
-  expect(parse().subagents).toEqual({});
-  const settings = parse(
-    `${source}\nreasoning_level="low"\nsystem_prompt="Root personality"\n[subagents.researcher]\ndescription="Compare sources"\n[subagents.reviewer]\ndescription="Find flaws"\nmodel="test/reviewer"\nreasoning_level="off"\nsystem_prompt="Review evidence"`
-  );
-  expect(settings.subagents).toEqual({
-    researcher: {
-      description: 'Compare sources',
-      model: 'openrouter/anthropic/claude-sonnet-4-6',
-      reasoningLevel: 'low',
-      systemPrompt: ''
-    },
-    reviewer: {
-      description: 'Find flaws',
-      model: 'test/reviewer',
-      reasoningLevel: 'off',
-      systemPrompt: 'Review evidence'
-    }
+test('MCP strings share single-pass interpolation and accept literal values', () => {
+  const config =
+    source +
+    '\n' +
+    `
+[mcp.servers.remote]
+url="https://\${HOST}/mcp"
+[mcp.servers.remote.headers]
+Authorization="Bearer \${TOKEN}"
+"X-Mode"="test"
+[mcp.servers.local]
+command="\${COMMAND}"
+args=["--path", "\${PATH_VALUE}", "$\${UNEXPANDED}", ""]
+[mcp.servers.local.env]
+MODE="production"
+LITERAL="!literal $\${UNEXPANDED}"
+`;
+  const parsed = parseSettings(config, '/config/botto.toml', {
+    ...env,
+    HOST: 'example.com',
+    TOKEN: '$OTHER',
+    COMMAND: './server',
+    PATH_VALUE: 'path with spaces'
   });
+  expect(parsed.extraMcpServers.map((entry) => entry.config)).toEqual([
+    {
+      url: 'https://example.com/mcp',
+      headers: { Authorization: 'Bearer $$OTHER', 'X-Mode': 'test' },
+      exposure: 'direct'
+    },
+    {
+      command: './server',
+      args: ['--path', 'path with spaces', '${UNEXPANDED}', ''],
+      cwd: '/config',
+      env: { MODE: 'production', LITERAL: '$!literal $${UNEXPANDED}' },
+      exposure: 'direct'
+    }
+  ]);
 });
 
-test.each([
-  '[subagents.worker]\nmodel="test/model"',
-  '[subagents.worker]\ndescription=""',
-  '[subagents.worker]\ndescription="Work"\nmodel="invalid"',
-  '[subagents.worker]\ndescription="Work"\nreasoning_level="secret-invalid"',
-  '[subagents.worker]\ndescription="Work"\nweb=true',
-  '[subagents]\nworker="bad"',
-  '[subagents."Bad Name"]\ndescription="Work"'
-])('rejects malformed subagent profiles: %s', (configuration) => {
-  expect(() => parse(`${source}\n${configuration}`)).toThrow();
-  expect(() => parse(`${source}\n${configuration}`)).not.toThrow('secret-invalid');
-});
-
-test('participation uses OpenRouter model IDs without a provider prefix', () => {
-  expect(parse().participationModel).toBe('z-ai/glm-5.3-flash');
-  expect(parse(`${source}\n[participation]\nmodel="openai/gpt-6-luna"`).participationModel).toBe(
-    'openai/gpt-6-luna'
-  );
-  for (const model of ['invalid', 'openrouter/typesafe/jev-1.13', ''])
-    expect(() => parse(`${source}\n[participation]\nmodel="${model}"`)).toThrow(
-      'participation.model'
-    );
+test.each(['env_from_env', 'headers_from_env'])('rejects obsolete MCP %s tables', (key) => {
+  expect(() =>
+    parse(`${source}\n[mcp.servers.local]\ncommand="server"\n${key}={TOKEN="NAME"}`)
+  ).toThrow('Invalid mcp.servers');
 });
 
 test('reasoning is optional, supports Pi levels, and rejects unknown values without exposing them', () => {

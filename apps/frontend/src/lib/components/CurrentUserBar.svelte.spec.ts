@@ -10,6 +10,7 @@ import { toast } from '$lib/ui/toast';
 
 import { presencePreferences } from '$lib/state/server/presencePreference';
 import { ServerPresence } from '@chatto/client/server/presence';
+import { UserStore } from '@chatto/client/server/users';
 import { setPresenceStatus } from '$lib/state/server/presenceTracking';
 import { deleteCustomStatus, setCustomStatus } from '@chatto/client/api/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
@@ -182,7 +183,13 @@ describe('CurrentUserBar', () => {
       ui: { voiceCall: voiceCallState },
       store: {
         navigation: roomsState,
-        projection: projectionState,
+        projection: {
+          ...projectionState,
+          users: new UserStore(),
+          get viewer() {
+            return projectionState.viewer;
+          }
+        },
         presence,
         setPrivilegedMode: privilegedModeActions.set,
         expirePrivilegedMode: privilegedModeActions.expire
@@ -852,49 +859,44 @@ describe('CurrentUserBar', () => {
   });
 
   it('hides call controls when the user is not in a call', () => {
-    const { container } = render(CurrentUserBarTestHarness);
+    const { container } = render(CurrentUserBarTestHarness, { callControls: true });
 
-    expect(container.querySelector('[data-testid="current-user-call-link"]')).toBeFalsy();
-    expect(container.querySelector('[data-testid="current-user-call-mute"]')).toBeFalsy();
+    expect(container.querySelector('[data-testid="app-header-call-link"]')).toBeFalsy();
+    expect(container.querySelector('[data-testid="app-header-call-mute"]')).toBeFalsy();
+  });
+
+  it('keeps call controls out of the current-user card during a call', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    const { container } = render(CurrentUserBarTestHarness);
+    expect(q(container, '[data-testid="current-user-identity-card"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="app-header-call-card"]')).toBeNull();
+    expect(container.querySelector('[data-testid="current-user-call-card"]')).toBeNull();
   });
 
   it('shows active call controls and links to the call room', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
 
-    const { container } = render(CurrentUserBarTestHarness);
+    const { container } = render(CurrentUserBarTestHarness, { callControls: true });
 
-    expect(q(container, '[data-testid="current-user-call-card"]')).toBeTruthy();
-    expect(q(container, '[data-testid="current-user-identity-card"]')).toBeTruthy();
-    const link = q(container, '[data-testid="current-user-call-link"]') as HTMLButtonElement;
+    expect(q(container, '[data-testid="app-header-call-card"]')).toBeTruthy();
+    const link = q(container, '[data-testid="app-header-call-link"]') as HTMLButtonElement;
     expect(link.getAttribute('aria-label')).toBe('Open # general');
     expect(link.textContent?.trim()).toBe('');
 
-    const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
+    const muteButton = q(container, '[data-testid="app-header-call-mute"]') as HTMLButtonElement;
     expect(muteButton.getAttribute('aria-label')).toBe('Mute');
     expect(muteButton.getAttribute('aria-pressed')).toBe(String(voiceCallState.isMuted));
     const cameraButton = q(
       container,
-      '[data-testid="current-user-call-camera"]'
+      '[data-testid="app-header-call-camera"]'
     ) as HTMLButtonElement;
     const screenShareButton = q(
       container,
-      '[data-testid="current-user-call-screen-share"]'
+      '[data-testid="app-header-call-screen-share"]'
     ) as HTMLButtonElement;
-    const leaveButton = q(
-      container,
-      '[data-testid="current-user-call-leave"]'
-    ) as HTMLButtonElement;
-
-    const callGroup = q(container, '[data-testid="current-user-call-card"]')!;
-    const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
-    await vi.waitFor(() => expect(getComputedStyle(callGroup.parentElement!).opacity).toBe('1'));
-    expect(callGroup.getBoundingClientRect().height).toBe(
-      (identityCard.getBoundingClientRect().height * 7) / 12
-    );
-    expect(callGroup.getBoundingClientRect().width).toBe(
-      identityCard.getBoundingClientRect().width
-    );
+    const leaveButton = q(container, '[data-testid="app-header-call-leave"]') as HTMLButtonElement;
 
     expect(muteButton.className).toContain('pill-button-success');
     expect(cameraButton.className).toContain('pill-button');
@@ -906,7 +908,7 @@ describe('CurrentUserBar', () => {
     screenShareButton.click();
     leaveButton.click();
     link.click();
-    await expect.poll(() => q(container, '[data-testid="current-user-call-card"]')).toBeTruthy();
+    await expect.poll(() => q(container, '[data-testid="app-header-call-card"]')).toBeTruthy();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe(
@@ -923,11 +925,12 @@ describe('CurrentUserBar', () => {
     voiceCallState.roomId = 'room-1';
     let appUi!: AppUiState;
     const { container } = render(CurrentUserBarTestHarness, {
+      callControls: true,
       onReady: (state) => {
         appUi = state;
       }
     });
-    const toolbar = () => q(container, '[data-testid="current-user-call-card"]');
+    const toolbar = () => q(container, '[data-testid="app-header-call-card"]');
     const desktop = window.matchMedia('(min-width: 1024px)').matches;
     const open = () =>
       desktop
@@ -954,30 +957,6 @@ describe('CurrentUserBar', () => {
     await expect.poll(toolbar).toBeTruthy();
   });
 
-  it('aligns the equal-width call controls with the user card', async () => {
-    voiceCallState.connected = true;
-    voiceCallState.roomId = 'room-1';
-
-    const { container } = render(CurrentUserBarTestHarness);
-    const bar = container.firstElementChild as HTMLElement;
-    bar.style.width = '224px';
-
-    const callCard = q(container, '[data-testid="current-user-call-card"]')!;
-    const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
-    await vi.waitFor(() => expect(getComputedStyle(callCard.parentElement!).opacity).toBe('1'));
-    const callCardRect = callCard.getBoundingClientRect();
-    const identityCardRect = identityCard.getBoundingClientRect();
-    const controlWidths = Array.from(
-      callCard.children,
-      (control) => control.getBoundingClientRect().width
-    );
-
-    expect(callCardRect.left).toBe(identityCardRect.left);
-    expect(callCardRect.right).toBe(identityCardRect.right);
-    expect(controlWidths).toHaveLength(5);
-    expect(controlWidths.every((width) => Math.abs(width - controlWidths[0]) < 1)).toBe(true);
-  });
-
   it('opens the native chooser when the host exposes screen sharing', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
@@ -1002,7 +981,7 @@ describe('CurrentUserBar', () => {
       }
     };
 
-    const { getByRole } = render(CurrentUserBarTestHarness);
+    const { getByRole } = render(CurrentUserBarTestHarness, { callControls: true });
     await tick();
     await userEvent.click(getByRole('button', { name: 'Share screen' }));
 
@@ -1014,42 +993,42 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.startNativeScreenShare).toHaveBeenCalledWith('window:42', 'Moonring');
   });
 
-  it('uses green only for active compact call media controls', () => {
+  it('highlights enabled controls in the header button row', () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
     voiceCallState.isMuted = true;
     voiceCallState.isCameraEnabled = true;
     voiceCallState.isScreenShareEnabled = true;
 
-    const { container } = render(CurrentUserBarTestHarness);
+    const { container } = render(CurrentUserBarTestHarness, { callControls: true });
 
-    expect(q(container, '[data-testid="current-user-call-mute"]')!.className).toContain(
+    expect(q(container, '[data-testid="app-header-call-mute"]')!.className).toContain(
       'pill-button'
     );
-    expect(q(container, '[data-testid="current-user-call-camera"]')!.className).toContain(
+    expect(q(container, '[data-testid="app-header-call-camera"]')!.className).toContain(
       'pill-button-success'
     );
-    expect(q(container, '[data-testid="current-user-call-screen-share"]')!.className).toContain(
+    expect(q(container, '[data-testid="app-header-call-screen-share"]')!.className).toContain(
       'pill-button-success'
     );
-    expect(q(container, '[data-testid="current-user-call-leave"]')!.className).toContain(
+    expect(q(container, '[data-testid="app-header-call-leave"]')!.className).toContain(
       'pill-button-danger'
     );
   });
 
-  it('shows spinners on pending compact call media controls', () => {
+  it('shows spinners on pending header media controls', () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
     voiceCallState.isMicrophonePending = true;
     voiceCallState.isCameraPending = true;
     voiceCallState.isScreenSharePending = true;
 
-    const { container } = render(CurrentUserBarTestHarness);
+    const { container } = render(CurrentUserBarTestHarness, { callControls: true });
 
     for (const testId of [
-      'current-user-call-mute',
-      'current-user-call-camera',
-      'current-user-call-screen-share'
+      'app-header-call-mute',
+      'app-header-call-camera',
+      'app-header-call-screen-share'
     ]) {
       const button = q(container, `[data-testid="${testId}"]`) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
@@ -1085,9 +1064,9 @@ describe('CurrentUserBar', () => {
       }
     ];
 
-    const { container } = render(CurrentUserBarTestHarness);
+    const { container } = render(CurrentUserBarTestHarness, { callControls: true });
 
-    const callLink = q(container, '[data-testid="current-user-call-link"]');
+    const callLink = q(container, '[data-testid="app-header-call-link"]');
     expect(callLink).toBeTruthy();
     expect(callLink!.getAttribute('aria-label')).toBe('Open Bob');
     expect(callLink!.textContent?.trim()).toBe('');

@@ -19,7 +19,7 @@ Edit `botto.toml` and set `chatto.url` and `agent.model`. Then create
 
 ```dotenv
 BOTTO_CHATTO_API_KEY=replace-with-the-bot-api-key
-ANTHROPIC_API_KEY=replace-with-the-provider-api-key
+OPENROUTER_API_KEY=replace-with-the-provider-api-key
 ```
 
 Use the provider environment variables for your chosen model. Pi can also use
@@ -39,10 +39,9 @@ Workspace startup loads Runling's TypeScript source and serves its console throu
 Vite. You do not need to compile Runling before `pnpm start`.
 
 Open `http://127.0.0.1:5173` to inspect conversations in Runling. Each Chatto
-thread has one run. Each accepted batch appears as a **Botto turn** child task.
-The run waits between turns and keeps its identity after a graceful restart.
-It stays open until an operator closes or cancels it in Runling. A later message
-can start a new run for that thread, using the same saved agent transcript.
+thread has a retained run. Accepted batches run serially in that conversation.
+The execution ends when its turns finish; a later message reactivates the run,
+using the same saved agent transcript.
 Use `pnpm start --port 5174` to select a different console port for another instance.
 The console binds to loopback and has no authentication. Keep it local or put
 an authenticated proxy in front of it.
@@ -70,24 +69,16 @@ or configuration changes. Use this full restart for development rather than
 
 ### System prompts
 
-Botto builds each agent's system prompt from two parts. Botto supplies the role,
-Chatto behavior, and instructions for the tools available in that session.
-`agent.system_prompt` adds the main agent's identity, personality, and workflow
-instructions. A named subagent instead receives its profile's `system_prompt`.
-Neither replaces Botto's instructions or enables tools.
-
-Subagents do not inherit the main agent's name or personality prompt. They keep
-their assignment role and return results to the main agent. They receive web
-instructions when web access is enabled, but no Chatto, memory, image, or
-delegation tool instructions. Main agents receive the modules for their enabled
-tools, plus conversation, formatting, and authorization rules.
-
-Existing TOML files still work. You can remove copied Chatto, memory, and tool
-rules from `agent.system_prompt`; Botto now supplies these rules. Keep instructions
-specific to your bot. If a child needs instructions formerly inherited from the
-main prompt, put them in its profile or pass them with the assignment.
-Restart Botto after changes. The separate title-description
+Botto combines its conversation, capability, formatting, and authorization rules
+with `agent.system_prompt`, which supplies your bot's personality and workflows.
+Instance instructions do not grant tools or permissions. Keep copied tool rules
+out of the personality prompt. Restart Botto after changes; the independent title
 task does not use the instance prompt.
+
+Remove `[participation]` and `[subagents.*]` tables from older configuration files.
+The conversation agent now chooses how to participate; classification and
+subagent tools are removed. Existing conversation transcripts remain in use.
+The example configuration uses `openrouter/z-ai/glm-5.3-flash` with low reasoning.
 
 ### Agent skills
 
@@ -96,7 +87,7 @@ file selected by `BOTTO_CONFIG`). Each skill uses a directory with a `SKILL.md`
 file containing YAML `name` and `description` fields and Markdown instructions.
 Chatto formatting guidance is part of Botto's internal prompt and needs no skill.
 
-Main agents and subagents use Pi's skill catalog. They see names and descriptions
+The conversation agent uses Pi's skill catalog. It sees names and descriptions
 and can load instructions when needed. Only this directory is discovered;
 repository and global skills are not added. Discovery runs when each session
 opens. A missing directory means no skills. Invalid skills follow Pi's validation
@@ -143,7 +134,7 @@ skills between turns. Means-managed editable skills are not supported.
 | `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                    |
 | `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                        |
 
-`agent.reasoning_level` applies to the root agent and delegated agents. Set it to
+`agent.reasoning_level` applies to the conversation agent. Set it to
 `low` to request less reasoning effort. An explicit value overrides the level in
 saved sessions. If omitted, Pi uses its defaults or the saved session level.
 Pi adjusts unsupported levels to the model's supported levels.
@@ -203,61 +194,43 @@ this does not make other threads in the room active. Messages from other bots
 and from users outside `chatto.allowed_user_id`, when set, are ignored.
 Every accepted DM message is addressed to Botto, including follow-ups and replies
 to the other user's earlier messages. The passive-chatter default does not apply
-to DMs; Botto should respond with text or an appropriate emoji reaction.
+to DM routing; the agent can still choose a reply, reaction, or silence.
 In a shared room thread, an explicit reply to another user's message does not start a turn,
 even if it mentions Botto. This rule also applies to recovered notifications.
 Accepted messages include the reply target's ID and author ID in the model input.
-Each message also includes its verified addressing reasons. Unmentioned shared
-thread activity first goes to a tool-free OpenRouter chat model with
-recent thread text and attachment types. DMs, mentions, and verified replies to
-Botto bypass it, including batches that mix addressed and unmentioned messages.
-The classifier returns validated JSON: a reply, no response, or a reaction with
-an emoji shortcode it chooses for the last message in the batch. Only a reply opens the main agent.
-Ignored batches and classifier reactions do not open memory, load images, name
-the conversation, show typing, or generate text. A classifier failure fails the
-turn before effects and leaves the batch available for delivery retry. A failed
-reaction is not retried because its outcome can be uncertain.
+Each message includes its verified addressing reasons. Every accepted batch goes
+to the same conversation agent with its retained history, thread context, memory,
+and tools. There is no separate participation classifier.
 
-Human reactions added to Botto's messages also enter the classifier, including
-in DMs. The classifier sees the emoji, its target message, and recent thread
-context. It chooses a reply or silence; it does not react to Botto's own message.
-Appreciation usually needs no reply, while confusion or an answer to a question
-can warrant follow-through. Botto ignores its own reactions, other bots,
-reaction removals, and reactions to other people's messages. The user allowlist
-and passive debounce apply. Accepted reactions are saved and deduplicated by
-event ID. Reactions missed while disconnected are not recovered from notification
-history; queued reactions survive a restart.
+The agent finishes with one of three responses:
 
-The classifier should ignore neutral acknowledgements after a completed answer,
-such as "mh" or "ok", and conversation between other people. Thanks and clear
-appreciation directed at Botto should receive an emoji reaction without a textual
-reply. The model chooses the emoji. A request after Botto
-offers help, an answer to its question, or a nudge after an unanswered request
-should receive a reply without another mention. These are model decisions,
-not guaranteed rules.
+- Ordinary final text becomes a thread reply.
+- `react_to_message` requests an emoji reaction on the latest incoming message.
+- `stay_silent` ends the turn without a final post or reaction.
 
-Set `OPENROUTER_API_KEY` in the environment for passive participation. All
-classification requests use OpenRouter; no direct provider API
-is used. OpenRouter and its selected provider receive the supplied thread text
-and attachment types; OpenRouter also receives the host's IP address. No memory
-documents or image bytes are included. Runling records the decision,
-duration, and reported token usage and cost without logging the full model response or reasoning.
-Each successful classification also adds a concise participation log entry with
-the action, a short plain-text explanation, the selected emoji if any, and elapsed time.
-The classifier is instructed to explain the conversational situation without quotes,
-personal details, or credentials. This restriction depends on model compliance.
-A missing or empty explanation is logged as "Reason not supplied" and does not
-invalidate the decision. Emoji selection remains open-ended.
+Reaction and silence tools stop the model loop without another completion request.
+If a terminal tool is accompanied by text, the terminal choice wins and that text
+is not posted. Earlier tool effects and delivered progress messages remain.
+An empty response without a terminal choice is an error, not intentional silence.
+Runling logs `Response: reply`, `Response: react`, or `Response: silent`; provider
+and delivery failures still fail the turn. A reaction decision is logged before
+delivery and is not proof that the reaction reached Chatto. Failed writes are not retried.
 
-```toml
-[participation]
-model = "z-ai/glm-5.3-flash" # Default; OpenRouter model ID without openrouter/
-```
+Human reactions to Botto's messages enter the same agent, including in DMs.
+The input contains the emoji and target message; the agent can reply or stay
+silent, but cannot react to its own message through the terminal tool. Botto ignores
+its own reactions, other bots, removals, and reactions to other people's messages.
+The user allowlist and passive debounce still apply. Accepted reactions are saved
+and deduplicated by event ID; queued reactions survive restart. Notification
+recovery does not recover reactions missed while disconnected.
 
-The classifier uses low reasoning and no saved session. Use an ordinary chat
-model that can return JSON; Decisions API models are not supported here.
-Botto reads targets outside the recent context window separately. If a target is
-missing or access is denied, its author is `null`.
+The prompt encourages reactions for thanks, silence for unrelated conversation,
+and replies to questions and useful follow-ups. These choices depend on the model.
+All accepted batches now use the configured conversation model, including batches
+that end silently. Its provider receives the supplied context and tool results;
+there is no separate classification request or classification cost.
+Botto reads reply targets outside the recent context window separately; missing
+or inaccessible targets have an unknown author.
 
 Ordinary messages in active room threads wait for 5 seconds of quiet by default
 (`runtime.passive_debounce_ms`). A mention, verified reply to Botto, or DM
@@ -309,38 +282,28 @@ Pi transcript also suppresses the acknowledgement after a restart. Set
 Reaction failures do not stop the answer. Botto leaves this reaction in place as
 an acknowledgement, not a completion indicator.
 
-The model can also use `add_reaction` for agreement, appreciation, or humor. This
-native Pi tool uses the Chatto client and works without Chatto MCP. It can react
-only to messages in the current batch or supplied thread context. The default
-prompt tells the model not to duplicate the automatic acknowledgement reaction.
+The terminal reaction tool uses the Chatto client and works without Chatto MCP.
+Its target is fixed by the host to the latest incoming message. The prompt tells
+the model not to duplicate the host acknowledgement reaction.
 
-Botto shows typing for the whole main-agent turn. Addressed batches start typing
-immediately; passive batches start typing after the classifier selects reply.
-Botto stops typing and waits for a pending refresh before it posts the final
-answer. Interim text before tool calls is posted during the turn. Conversation
-title generation does not keep typing active.
-Typing stops when the turn ends, including on failure. It posts completed parent assistant messages in
-the thread, referencing the last message in the batch. These include interim
-updates and the final answer. The model should send a brief update before substantial
-research or other lengthy work. Simple requests, quick lookups, reaction-only
-turns, and silent turns do not need an update. Further updates should report useful
-findings or a blocker without repeating an acknowledgement. A successful turn can return no
-text; provider errors and cancellation still fail the turn. Tools stay available
-throughout the turn. The model decides when to send text; the prompt does not
-guarantee an early update.
-Updates are agent-written; there is no timed or fixed host message. They arrive
-when the model completes a text message, not token by token. Child-agent text,
-reasoning, and tool results are not forwarded directly.
-Interim posts are serialized. The final answer is posted once, after the model
-finishes and typing refreshes stop. A failed post stops model work without retrying an
-uncertain write. An update already delivered remains visible if later work fails.
+Botto shows typing throughout every accepted agent turn, including turns that
+end in silence or a reaction. It stops typing and joins any pending refresh before
+posting a final reply or reaction. Title generation does not keep typing active.
+
+Only final assistant text is posted automatically. The agent can call `post_update`
+to send a brief update before substantial work or when it has useful progress.
+The tool waits for delivery before work continues. These updates are agent-written;
+there is no timed or fixed host message. Other assistant text before tools, reasoning,
+and tool results are not posted. A failed progress post stops model work without
+retrying the uncertain write. An update already delivered remains visible if later
+work fails or the agent selects silence.
 The live Pi session closes after each turn; its transcript stays on disk.
 On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
 
 Messages that exceed the in-memory queue or thread limit wait in the delivery file.
 Unaddressed room posts outside active threads do not start turns. Reactions to
-Botto's messages use the classifier described above. Botto provides the reaction tool.
+Botto's messages reach the conversation agent as described above.
 It loads only host-selected extensions and the configured instance's skill
 directory, not ambient Pi extensions, prompt templates, or project instructions.
 
@@ -371,22 +334,29 @@ Add named servers to `botto.toml` and restart Botto:
 ```toml
 [mcp.servers.github]
 url = "https://example.com/mcp"
+tools = ["search_issues", "list_issues", "issue_read"]
+admin_tools = ["issue_write", "add_issue_comment"]
 
-[mcp.servers.github.headers_from_env]
-Authorization = "GITHUB_MCP_AUTHORIZATION"
+[mcp.servers.github.headers]
+Authorization = "Bearer ${GITHUB_TOKEN}"
 
 [mcp.servers.custom]
 command = "my-mcp-server"
 args = ["--stdio"]
+tools = ["lookup"]
 
-[mcp.servers.custom.env_from_env]
-API_KEY = "CUSTOM_API_KEY"
+[mcp.servers.custom.env]
+API_KEY = "${CUSTOM_API_KEY}"
 ```
 
-Replace the example URL and command with your server. Environment mappings name
-required, non-empty environment variables; header values must include any required
-prefix, such as `Bearer `. Botto treats their values as literal data. URL, command,
-and argument fields are literal strings, not environment templates.
+Replace the example URL and command with your server. MCP string values support
+the same `${VARIABLE}` interpolation as other Botto settings, including URL,
+command, arguments, headers, and environment values. Literal values also work;
+use `$${VARIABLE}` to keep a literal `${VARIABLE}`. Expansion happens once, and
+resolved credentials are passed to Pi as literal data, never commands or templates.
+Missing variables fail validation. Header values must include any required prefix,
+such as `Bearer `. Replace older `headers_from_env` and `env_from_env` tables with
+`headers` and `env`, and wrap their variable names in `${...}`.
 Remote URLs require HTTPS, except HTTP on `localhost`, `127.0.0.1`, or `[::1]`.
 URL credentials and fragments are rejected. Local servers use stdio and run with
 the TOML file's directory as their working directory. Commands use PATH lookup
@@ -394,18 +364,31 @@ or a path relative to that directory. Local servers are trusted programs: they
 inherit Botto's environment and run with its operating-system permissions.
 
 Names must start with a lowercase letter and contain only lowercase letters,
-digits, or underscores. `chatto`, `exa`, and `memory` are reserved. Configure
-exactly one transport per server: `url` with optional `headers_from_env`, or
-`command` with optional `args` and `env_from_env`.
+digits, or underscores, without consecutive underscores. `chatto`, `exa`, and `memory` are reserved. Configure
+exactly one transport per server: `url` with optional `headers`, or
+`command` with optional `args` and `env`.
 
-The main agent receives all advertised tools as `mcp__<server>__<tool>`.
-Subagents and classifiers do not receive these connections. Skills can explain
-how to use the tools, but cannot grant permissions. Server credentials determine
-what actions are possible; Botto adds no per-user authorization for custom tools.
+Each extra server must list exact remote tool names in `tools` (available to all
+participants) or `admin_tools` (restricted to `chatto.admin_user_ids`). Omitted
+lists are empty. Unlisted tools remain unavailable, including newly advertised
+tools after a server update. Existing configurations must add these lists.
+Patterns and duplicate names are rejected. Put tools with both read and write
+operations in `admin_tools`; Botto does not inspect operation arguments.
+
+Admin tools are available only when every author in the current incoming batch
+is a configured admin. Mixed batches retain ordinary tools; an admin must send
+a separate request for restricted work. Botto checks access in code before tool
+execution and supplies only permitted tools to the model. Historical messages,
+an admin's presence in the thread, and skills cannot grant authority. The check
+is repeated each turn, including for restored conversations. Skills explain how
+to use tools; server credentials still limit which operations can succeed.
+Tool names in the agent are `mcp__<server>__<tool>`. This policy applies to extra
+MCP servers; built-in Chatto, Means, and Exa retain their existing policies.
 Remote services receive tool arguments, configured headers, and the bot host's
 IP address. Tool descriptions and results enter the model context and can remain
-in private transcripts. Use server permissions and `chatto.allowed_user_id` to
-limit access as needed. Connections use the same per-turn lifecycle as Chatto MCP.
+in private transcripts. Read access can expose private repository data to chat
+participants, so include only tools whose results they may see. Connections use
+the same per-turn lifecycle as Chatto MCP.
 
 ## Optional web access
 
@@ -586,75 +569,6 @@ transcripts, delivery files, or Runling journals. Later turns read images again
 from current thread context; images outside that window are not retained. Model
 responses can describe images, and those responses remain in the transcript.
 
-### Subagents
-
-The root agent can call `delegate` with a self-contained `task`, optional text
-`context`, and optional `agent` profile name. Each call starts an ordinary Runling
-child task and a fresh agent session. Without a profile, it uses the main agent's
-model and reasoning settings. The tool returns a child ID immediately. The root
-can acknowledge the work, finish its turn, and respond to new user messages while
-the child works. Completion starts another parent turn automatically; no new user
-message is required. Delegation is optional; image inspection stays with the root.
-
-Define named workers in `botto.toml`:
-
-```toml
-[subagents.researcher]
-description = "Research questions that need sources and comparisons."
-# model = "provider/model" # Omit to use agent.model.
-reasoning_level = "medium"
-system_prompt = "Find reliable sources and return concise findings with links."
-```
-
-Each profile requires a non-empty `description`. Names use up to 64 lowercase
-letters, digits, hyphens, or underscores, starting with a letter. Omitted `model`
-and `reasoning_level` inherit the main agent's settings; omitted `system_prompt`
-adds no profile instructions. The root sees names and descriptions in the tool
-definition and chooses a profile by use case; unknown names are rejected.
-For example, it can call `delegate` with `agent: "researcher"` and a research task.
-Runling labels the child session with the profile name and records its model,
-usage, and cost. Configure credentials for each selected provider before use.
-
-The child prompt contains Botto's core and subagent rules, available capability
-instructions, and its profile prompt. The root's personality stays with the root;
-it must pass relevant preferences and constraints as assignment context. Skills
-remain shared instructions that both the root and children can load. Profiles
-do not change tool access or grant permissions.
-
-Children receive only the supplied task and context. They do not inherit chat
-history, images, memory, or the root's tools. When web access is enabled, children
-can use the same Exa search and fetch tools. They cannot post messages, change
-memory, execute commands, or delegate further. Their only local file tool is the
-restricted skill reader described above. Ambient Pi resources are disabled.
-The task and context go to the selected profile's model provider, or the main
-agent's provider for generic delegation; web queries
-and fetch requests go to Exa when those tools are used.
-
-The root can use `inspect_subagents` to list children or inspect one child's recent
-text, tool activity, and result. `steer_subagent` queues a clarification, revised
-constraint, or progress question. Queued does not mean read: steering cannot
-interrupt an active model response or tool call. IDs belong to one conversation.
-The root must not poll for completion or start another copy of pending work.
-
-Botto keeps up to four pending assignments and the most recent 16 child records
-per live conversation. Each progress buffer keeps 12 updates of up to 2,000
-characters outside the parent transcript. Inspection copies a snapshot into the
-model context. Inspection of a finished child and completion both supply the
-result without progress history. Results
-are limited to 16,000 characters plus a truncation notice. Progress and results
-are untrusted evidence. Child text is not posted directly to Chatto.
-
-Each child has its own deadline, using `runtime.turn_timeout_ms`. Finishing a
-parent turn leaves its children running. Root failure or shutdown cancels children
-and waits for session cleanup. There is no automatic retry or saved child session;
-interrupted assignments and completion replies are not replayed after restart.
-Completion turns read fresh thread context and use the usual reply and typing flow.
-
-Runling's ordinary agent tasks provide child execution, output, steering, and
-combined usage and cost. Explicit task output and steering are recorded in the
-run journal, including child assistant text and steering text. Progress omits
-reasoning, tool arguments, and tool results. Delegation adds model calls and cost.
-
 ### External services and storage
 
 With MCP enabled, the provider also receives tool definitions and tool results,
@@ -709,12 +623,11 @@ Separate instances must use separate data directories.
 Existing transcript filenames and delivery files need no
 migration.
 
-Each conversation execution ends after its parent turns, child tasks, and
-completion replies finish. While children work, later batches enter the same root.
-The root serializes user turns and completion turns, so only one parent session
-writes the transcript at a time. A later batch reactivates a finished workflow ID.
-Idle conversations have no task to interrupt on shutdown. Active child work counts
-toward `runtime.max_threads`; excess messages stay queued in the delivery ledger.
+Each conversation execution ends after its accepted turns finish. The root
+serializes turns, so only one session writes the transcript at a time. A later
+batch reactivates the finished workflow ID. Idle conversations have no task to
+interrupt on shutdown. Active conversations count toward `runtime.max_threads`;
+excess messages stay queued in the delivery ledger.
 
 Runling saves workflow state after execution, every 60 seconds, and on graceful shutdown.
 After a crash, a newly created run can be absent from the snapshot; later input
@@ -777,8 +690,7 @@ recoverable conversation task. The Runling CLI owns serving, signal handling, an
 `src/source.ts` owns connectivity and the durable message ledger.
 `src/conversation.ts` defines an ordinary Runling root task for each Chatto
 thread. Its source routing starts, reuses, or reactivates that root and waits for
-the accepted batch. The root also owns the child handles and completion queue in
-`src/delegate.ts`. Routing reads Runling's retained source-owned runs directly.
+the accepted batch. Routing reads Runling's retained source-owned runs directly.
 Only verified, process-local callbacks admit work; console messages and recovery
 cannot replay callbacks.
 Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
@@ -789,6 +701,7 @@ quiet-period policy. `src/turn.ts` connects a batch to a model turn and reply. `
 configures Runling agent sessions; `src/thread-context.ts` connects Pi's request hook to the pure
 merge function in `src/context-messages.ts`. `src/context.ts` selects text from
 the shared client timeline in the same message format used by that merge.
+`src/response.ts` defines terminal response tools and explicit progress updates.
 `src/settings.ts` validates TOML.
 `src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
 MCP extension, and releases shared memory locks. Runling observes tool activity.

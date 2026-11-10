@@ -37,6 +37,7 @@
   import ServerRuntimeCoordinator from '$lib/state/server/ServerRuntimeCoordinator.svelte';
   import { ToastContainer } from '$lib/ui/toast';
   import { AppHeader, Frame } from '$lib/ui';
+  import AppCallControls from '$lib/components/voice/AppCallControls.svelte';
   import '../app.css';
   import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
@@ -178,7 +179,11 @@
     use:sidebarSwipe
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
   >
-    <AppHeader />
+    <AppHeader>
+      {#snippet callControls(activeStore)}
+        <AppCallControls {activeStore} />
+      {/snippet}
+    </AppHeader>
 
     <!-- Keep a wide call visible when the navigation would take its space. -->
     <Frame
