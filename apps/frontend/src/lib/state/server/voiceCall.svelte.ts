@@ -6,6 +6,7 @@ import { participantVolumeGain } from '$lib/audio/participantVolume';
 import { endCallVideo } from '$lib/state/callPictureInPicture';
 import { CallMediaSession } from '$lib/state/callMediaSession';
 import { beginCallAudioSession } from '$lib/state/callAudioSession';
+import { CallAudioDiagnostics } from '$lib/state/callAudioDiagnostics';
 import { toastError } from '$lib/utils/errorMessage';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
@@ -224,6 +225,7 @@ export class VoiceCallState implements CallConnection {
 
   /** Release this call's browser audio intent after its media stops. */
   private releaseAudioSession: (() => void) | null = null;
+  private audioDiagnostics: CallAudioDiagnostics | null = null;
 
   // Audio state
   isMuted = $state(false);
@@ -1319,8 +1321,9 @@ export class VoiceCallState implements CallConnection {
 
   private setupRoomEventListeners(): void {
     if (!this.room) return;
-    const { RoomEvent, Track } = getLoadedLiveKit();
+    const { RoomEvent, Track, version } = getLoadedLiveKit();
     const room = this.room;
+    this.audioDiagnostics = new CallAudioDiagnostics(room, version);
     this.room.on(RoomEvent.ActiveDeviceChanged, (kind: MediaDeviceKind, deviceId: string) => {
       if (this.room !== room) return;
       if (kind === 'audioinput') this.selectedDeviceId = deviceId;
@@ -1734,6 +1737,8 @@ export class VoiceCallState implements CallConnection {
 
   private cleanup(): void {
     if (callCoordinator.active === this) callCoordinator.active = null;
+    this.audioDiagnostics?.dispose();
+    this.audioDiagnostics = null;
     this.mediaSession?.dispose();
     this.mediaSession = null;
     for (const participant of this.participants) {

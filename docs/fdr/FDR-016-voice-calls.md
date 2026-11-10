@@ -237,6 +237,26 @@ Rooms support real-time voice conversations with optional camera video and scree
 **Why:** LiveKit delivers audio data over WebRTC, but the browser doesn't autoplay it without an attached element. Without explicit attach, the UI looks like everything works — participant rings even animate — but nobody hears anything. The pattern lives in `apps/frontend/src/lib/state/voiceCall.svelte.ts`; any refactor that touches LiveKit subscription handling needs to keep the `track.attach()` / `track.detach()` calls intact.
 **Tradeoff:** A subtle requirement that's easy to miss when refactoring; the skill warns explicitly.
 
+The frontend writes remote audio diagnostics at Debug level with the
+`[call-audio]` prefix. It records participant and subscription events, playback
+status, and classified subscription and encryption failures. Every ten seconds,
+it records audio publication state, receiver and media-element state, and a
+limited set of receive counters. Compare successive counters to distinguish
+missing delivery from a decoding or playback problem. Missing statistics do
+not by themselves prove a failure.
+
+The first entry records the LiveKit client version. Call, participant, session,
+publication, receiver, and RTP stream numbers are temporary
+aliases. These entries exclude names, account IDs, raw SDK IDs, error messages,
+device IDs, addresses, tokens, SDP, and audio content. Collection stops when the
+call is cleaned up, and late statistics are discarded. Repeated errors are
+limited to one entry per category and alias every ten seconds. The diagnostics
+do not change subscriptions or playback and do not send data to another service.
+For a call report, enable Debug or Verbose messages in the browser console,
+preserve the log before leaving, filter for `[call-audio]`, and copy those
+entries. Other browser and SDK logs can contain
+private data and are outside this filter's privacy guarantees.
+
 ### 5. Voice activity fills the identity row
 
 **Decision:** Soft, flowing accent-coloured fog illuminates each speaking

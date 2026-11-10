@@ -230,6 +230,10 @@ vi.mock('livekit-client', () => {
       roomEventHandlers.set(event, handler);
       return this;
     });
+    off = vi.fn((event: string, handler: () => void) => {
+      if (roomEventHandlers.get(event) === handler) roomEventHandlers.delete(event);
+      return this;
+    });
     switchActiveDevice = vi.fn(async (kind: MediaDeviceKind, deviceId: string) => {
       calls.push(`switchActiveDevice:${kind}:${deviceId}`);
       if (switchActiveDeviceFailure) {
@@ -459,6 +463,31 @@ describe('VoiceCallState', () => {
     gate.resolve();
     await resume;
     expect(state.audioPlaybackBlocked).toBe(false);
+  });
+
+  it('disposes audio diagnostics on leave and failed connection', async () => {
+    const log = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const state = createPermittedCallState(createVoiceCallClient());
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(roomEventHandlers.has('encryptionError')).toBe(true);
+      await state.leave();
+      expect(roomEventHandlers.has('encryptionError')).toBe(false);
+
+      connectFailure = new Error('connect failed');
+      await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
+        'connect failed'
+      );
+      expect(roomEventHandlers.has('encryptionError')).toBe(false);
+      const diagnostics = log.mock.calls
+        .filter(([prefix]) => prefix === '[call-audio]')
+        .map(([, value]) => JSON.parse(value as string) as { event: string });
+      expect(diagnostics.filter(({ event }) => event === 'started')).toHaveLength(2);
+      expect(diagnostics.filter(({ event }) => event === 'stopped')).toHaveLength(2);
+    } finally {
+      await state.leave();
+      log.mockRestore();
+    }
   });
 
   it('reconciles the mute control when SDK recovery mutes or removes the microphone', async () => {
