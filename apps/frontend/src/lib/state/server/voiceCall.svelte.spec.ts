@@ -2033,6 +2033,36 @@ describe('VoiceCallState', () => {
     expect(state.isScreenShareEnabled).toBe(false);
   });
 
+  it('waits for a starting native publisher to stop before joining another server', async () => {
+    const startGate = deferredVoid();
+    const stopGate = deferredVoid();
+    const session = {
+      stop: vi.fn(() => stopGate.promise),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockImplementation(async () => {
+      await startGate.promise;
+      return session;
+    });
+    const first = createPermittedCallState(createVoiceCallClient());
+    const nextAPI = createVoiceCallClient();
+    const next = createPermittedCallState(nextAPI);
+    await first.join('wss://livekit.example.test', 'R1');
+    const starting = first.startNativeScreenShare('window:42', 'Test window');
+    await vi.waitFor(() => expect(gameCaptureMocks.start).toHaveBeenCalled());
+    const joining = next.join('wss://other.example.test', 'R2');
+    startGate.resolve();
+    await starting;
+    await vi.waitFor(() => expect(session.stop).toHaveBeenCalled());
+    try {
+      expect(nextAPI.joinCall).not.toHaveBeenCalled();
+    } finally {
+      stopGate.resolve();
+      await joining;
+    }
+    expect(next.isInCall('R2')).toBe(true);
+  });
+
   it('replaces an existing browser screen share when native capture starts', async () => {
     const session = {
       stop: vi.fn(async () => undefined),

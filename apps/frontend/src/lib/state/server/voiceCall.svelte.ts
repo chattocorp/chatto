@@ -793,6 +793,8 @@ export class VoiceCallState implements CallConnection {
 
     try {
       // The native publisher is a separate connection and must stop too.
+      // A pending start must finish before stopNativeScreenShare can stop its session.
+      await this.nativeScreenShareToggleInFlight;
       if (this.room === room) await this.stopNativeScreenShare();
     } finally {
       await room?.disconnect();
