@@ -29,6 +29,7 @@ media. HTML consent is never stored in history or carried to another selection.
   let item = $state.raw<MessageAttachmentView>(untrack(() => modal.items[index]));
   let previewUrl = $state<string | null>(null);
   let markdownHtml = $state<string | null>(null);
+  let textContent = $state<string | null>(null);
   let error = $state<string | null>(null);
   let busy = $state(false);
   let generation = $state(0);
@@ -40,9 +41,11 @@ media. HTML consent is never stored in history or carried to another selection.
   const html = $derived(isHtmlAttachment(item.contentType));
   const markdown = $derived(isMarkdownAttachment(item.contentType, item.filename));
   const type = $derived(item.contentType.split(';', 1)[0].trim().toLowerCase());
+  const text = $derived(type.startsWith('text/') && !html && !markdown);
   const previewable = $derived(
     html ||
       markdown ||
+      text ||
       /^(image|audio|video)\//.test(type) ||
       (type === 'application/pdf' && pdfViewerEnabled)
   );
@@ -88,6 +91,7 @@ media. HTML consent is never stored in history or carried to another selection.
     previewRequest?.abort();
     previewRequest = null;
     markdownHtml = null;
+    textContent = null;
     previewUrl = null;
   }
   function navigate(direction: -1 | 1) {
@@ -142,6 +146,7 @@ media. HTML consent is never stored in history or carried to another selection.
     busy = true;
     error = null;
     markdownHtml = null;
+    textContent = null;
     try {
       // Refresh transformed image URLs at viewer resolution. Original HTML
       // bytes remain untouched until the consent button calls this method.
@@ -159,23 +164,27 @@ media. HTML consent is never stored in history or carried to another selection.
         if (!(await refresh(target, selected))) return;
       }
       if (!current(target, selected)) return;
-      if (markdown) {
+      if (markdown || text) {
         const controller = new AbortController();
         previewRequest = controller;
         let body: string;
         try {
-          body = await readMarkdown(controller.signal, force);
+          body = await readDocument(controller.signal, force);
         } catch {
           // A signed URL can expire between selection and the byte request.
           // Recover once, then leave further retries to the viewer control.
           if (!current(target, selected) || controller.signal.aborted) return;
           if (!(await refresh(target, selected))) return;
-          body = await readMarkdown(controller.signal, true);
+          body = await readDocument(controller.signal, true);
         }
         if (!current(target, selected)) return;
-        const { renderMarkdown } = await import('$lib/markdown');
-        const rendered = await renderMarkdown(body, { mentions: false });
-        if (current(target, selected)) markdownHtml = rendered;
+        if (markdown) {
+          const { renderMarkdown } = await import('$lib/markdown');
+          const rendered = await renderMarkdown(body, { mentions: false });
+          if (current(target, selected)) markdownHtml = rendered;
+        } else {
+          textContent = body;
+        }
       } else {
         const source =
           type.startsWith('image/') && !item.videoProcessing
@@ -199,7 +208,7 @@ media. HTML consent is never stored in history or carried to another selection.
   }
 
   /** Fetch only the original asset; document links do not load during rendering. */
-  async function readMarkdown(signal: AbortSignal, retry = false): Promise<string> {
+  async function readDocument(signal: AbortSignal, retry = false): Promise<string> {
     const source = assetUrlForServer(modal.serverId, item.assetUrl?.url);
     if (!source) throw new Error('Attachment URL unavailable');
     const response = await fetch(retry ? withAssetUrlRetryParam(source, ++retryAttempt) : source, {
@@ -280,6 +289,7 @@ media. HTML consent is never stored in history or carried to another selection.
       serverId={modal.serverId}
       url={previewUrl}
       {markdownHtml}
+      {textContent}
       {busy}
       {zoomable}
       {pdfViewerEnabled}

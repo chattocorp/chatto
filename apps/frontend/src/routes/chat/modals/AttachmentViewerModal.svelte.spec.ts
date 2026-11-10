@@ -362,13 +362,13 @@ describe('Native PDF previews', () => {
 });
 
 /** Viewer tests use controlled byte responses, including responses that ignore abort. */
-describe('Markdown attachment previews', () => {
+describe.each(['Markdown', 'text'])('%s attachment previews', (format) => {
   const fetchDocument = vi.fn<typeof fetch>();
 
   function documentModal(expired = false) {
     const modal = modalState(expired);
-    modal.items[0].filename = 'report.md';
-    modal.items[0].contentType = 'text/markdown';
+    modal.items[0].filename = format === 'Markdown' ? 'report.md' : 'console.txt';
+    modal.items[0].contentType = format === 'Markdown' ? 'text/markdown' : 'text/plain';
     return modal;
   }
 
@@ -382,69 +382,125 @@ describe('Markdown attachment previews', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('automatically renders Markdown and preserves metadata and the original download', async () => {
-    fetchDocument.mockResolvedValue(
-      new Response(
-        '# Report\n\n**Summary**\n\n- First item\n- Second item\n\n' +
-          '| Item | Status |\n| --- | --- |\n| Preview | Ready |\n\n' +
-          '[Reference](https://example.com)\n\n```text\nexample code\n```\n\n@alice'
-      )
-    );
-    const modal = documentModal();
-    modal.items[0].description = 'Notes from the author.';
-    const view = mount(modal);
-    await expect.element(view.getByRole('heading', { name: 'Report', exact: true })).toBeVisible();
-    expect(view.container.querySelector('strong')?.textContent).toBe('Summary');
-    expect(view.container.querySelectorAll('li')).toHaveLength(2);
-    expect(view.container.querySelector('table')).not.toBeNull();
-    expect(view.container.querySelector('pre code')?.textContent).toContain('example code');
-    expect(view.container.querySelector('[data-mention-handle]')).toBeNull();
-    await expect
-      .element(view.getByRole('link', { name: 'Reference' }))
-      .toHaveAttribute('rel', 'noopener noreferrer');
-    await expect.element(view.getByText('Notes from the author.')).toBeVisible();
-    await expect.element(view.getByText('1.5 KiB', { exact: true })).toBeVisible();
-    await expect
-      .element(view.getByRole('link', { name: 'Download', exact: true }))
-      .toHaveAttribute('href', 'https://remote.example/assets/files/html?access=ticket&download=1');
-    expect(view.container.querySelector('iframe')).toBeNull();
-    expect(fetchDocument).toHaveBeenCalledExactlyOnceWith(
-      'https://remote.example/assets/files/html?access=ticket',
-      { signal: expect.any(AbortSignal), credentials: 'omit', referrerPolicy: 'no-referrer' }
-    );
-    expect(mocks.refreshUrls).not.toHaveBeenCalled();
-  });
-
-  it.each(['text/plain', 'application/octet-stream', ''])(
-    'automatically previews a Markdown filename with type %s',
-    async (contentType) => {
+  if (format === 'Markdown') {
+    it('automatically renders Markdown and preserves metadata and the original download', async () => {
+      fetchDocument.mockResolvedValue(
+        new Response(
+          '# Report\n\n**Summary**\n\n- First item\n- Second item\n\n' +
+            '| Item | Status |\n| --- | --- |\n| Preview | Ready |\n\n' +
+            '[Reference](https://example.com)\n\n```text\nexample code\n```\n\n@alice'
+        )
+      );
       const modal = documentModal();
-      modal.items[0].contentType = contentType;
+      modal.items[0].description = 'Notes from the author.';
       const view = mount(modal);
       await expect
         .element(view.getByRole('heading', { name: 'Report', exact: true }))
         .toBeVisible();
-    }
-  );
+      expect(view.container.querySelector('strong')?.textContent).toBe('Summary');
+      expect(view.container.querySelectorAll('li')).toHaveLength(2);
+      expect(view.container.querySelector('table')).not.toBeNull();
+      expect(view.container.querySelector('pre code')?.textContent).toContain('example code');
+      expect(view.container.querySelector('[data-mention-handle]')).toBeNull();
+      await expect
+        .element(view.getByRole('link', { name: 'Reference' }))
+        .toHaveAttribute('rel', 'noopener noreferrer');
+      await expect.element(view.getByText('Notes from the author.')).toBeVisible();
+      await expect.element(view.getByText('1.5 KiB', { exact: true })).toBeVisible();
+      await expect
+        .element(view.getByRole('link', { name: 'Download', exact: true }))
+        .toHaveAttribute(
+          'href',
+          'https://remote.example/assets/files/html?access=ticket&download=1'
+        );
+      expect(view.container.querySelector('iframe')).toBeNull();
+      expect(fetchDocument).toHaveBeenCalledExactlyOnceWith(
+        'https://remote.example/assets/files/html?access=ticket',
+        { signal: expect.any(AbortSignal), credentials: 'omit', referrerPolicy: 'no-referrer' }
+      );
+      expect(mocks.refreshUrls).not.toHaveBeenCalled();
+    });
 
-  it('keeps raw HTML and embedded images inert', async () => {
-    fetchDocument.mockResolvedValue(
-      new Response(
-        '# Safe\n\n<script>alert(1)</script>\n\n<img src="https://example.com/tracker">\n\n' +
-          '![Tracker](https://example.com/image.png)\n\n[Unsafe](javascript:alert(1))'
-      )
+    it.each(['text/plain', 'application/octet-stream', ''])(
+      'automatically previews a Markdown filename with type %s',
+      async (contentType) => {
+        const modal = documentModal();
+        modal.items[0].contentType = contentType;
+        const view = mount(modal);
+        await expect
+          .element(view.getByRole('heading', { name: 'Report', exact: true }))
+          .toBeVisible();
+      }
     );
-    const view = mount(documentModal());
-    await expect.element(view.getByRole('heading', { name: 'Safe' })).toBeVisible();
-    expect(view.container.querySelector('script, img, iframe')).toBeNull();
-    expect(view.container.querySelector('a[href^="javascript:"]')).toBeNull();
+
+    it('keeps raw HTML and embedded images inert', async () => {
+      fetchDocument.mockResolvedValue(
+        new Response(
+          '# Safe\n\n<script>alert(1)</script>\n\n<img src="https://example.com/tracker">\n\n' +
+            '![Tracker](https://example.com/image.png)\n\n[Unsafe](javascript:alert(1))'
+        )
+      );
+      const view = mount(documentModal());
+      await expect.element(view.getByRole('heading', { name: 'Safe' })).toBeVisible();
+      expect(view.container.querySelector('script, img, iframe')).toBeNull();
+      expect(view.container.querySelector('a[href^="javascript:"]')).toBeNull();
+      expect(fetchDocument).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  if (format === 'text') {
+    it.each(['text/plain', 'Text/Plain; charset=utf-8', 'text/csv', 'text/javascript'])(
+      'renders %s as literal text without interpreting markup or loading resources',
+      async (contentType) => {
+        const body =
+          '# Console\n\n  indented\tvalue\n<script>alert(1)</script>\n<img src="https://example.com/tracker">\n[link](https://example.com)\n日本語';
+        fetchDocument.mockResolvedValue(new Response(body));
+        const modal = documentModal();
+        modal.items[0].contentType = contentType;
+        const view = mount(modal);
+        await expect.poll(() => view.container.querySelector('pre')?.textContent).toBe(body);
+        await expect
+          .element(view.getByRole('region', { name: 'Preview of console.txt' }))
+          .toBeVisible();
+        expect(view.container.querySelector('script, img, iframe, h1')).toBeNull();
+        expect(view.container.querySelector('a[href="https://example.com"]')).toBeNull();
+        expect(fetchDocument).toHaveBeenCalledExactlyOnceWith(
+          'https://remote.example/assets/files/html?access=ticket',
+          { signal: expect.any(AbortSignal), credentials: 'omit', referrerPolicy: 'no-referrer' }
+        );
+        await expect
+          .element(view.getByRole('link', { name: 'Download', exact: true }))
+          .toBeVisible();
+      }
+    );
+  }
+
+  it('clears rendered content when navigating to HTML and still requires consent', async () => {
+    const modal = documentModal();
+    modal.items.push({ ...modalState().items[0], id: 'next-html' });
+    const view = mount(modal);
+    await expect
+      .poll(
+        () =>
+          view.container.querySelector(format === 'Markdown' ? '.markdown-html' : 'pre') !== null
+      )
+      .toBe(true);
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByRole('button', { name: 'Show preview' })).toBeVisible();
+    expect(view.container.querySelector('pre, .markdown-html, iframe')).toBeNull();
     expect(fetchDocument).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshUrls).not.toHaveBeenCalled();
   });
 
   it('shows an empty file as a valid preview', async () => {
     fetchDocument.mockResolvedValue(new Response(''));
     const view = mount(documentModal());
-    await expect.poll(() => view.container.querySelector('.markdown-html') !== null).toBe(true);
+    await expect
+      .poll(
+        () =>
+          view.container.querySelector(format === 'Markdown' ? '.markdown-html' : 'pre') !== null
+      )
+      .toBe(true);
     expect(view.container.textContent).not.toContain('No preview is available');
   });
 
@@ -466,7 +522,11 @@ describe('Markdown attachment previews', () => {
     expect(view.container.querySelector('.markdown-html')).toBeNull();
     resolve('# Loaded document');
     await expect
-      .element(view.getByRole('heading', { name: 'Loaded document', exact: true }))
+      .element(
+        format === 'Markdown'
+          ? view.getByRole('heading', { name: 'Loaded document', exact: true })
+          : view.getByText('# Loaded document', { exact: true })
+      )
       .toBeVisible();
     await expect
       .element(view.getByRole('link', { name: 'Download', exact: true }))
@@ -475,7 +535,13 @@ describe('Markdown attachment previews', () => {
 
   it('refreshes an expired URL before requesting document bytes', async () => {
     const view = mount(documentModal(true));
-    await expect.element(view.getByRole('heading', { name: 'Report', exact: true })).toBeVisible();
+    await expect
+      .element(
+        format === 'Markdown'
+          ? view.getByRole('heading', { name: 'Report', exact: true })
+          : view.getByText('# Report\n\nDocument body.', { exact: true })
+      )
+      .toBeVisible();
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
     expect(fetchDocument.mock.calls[0][0]).toBe('about:blank');
   });
@@ -483,7 +549,13 @@ describe('Markdown attachment previews', () => {
   it('refreshes and retries once after a failed byte request', async () => {
     fetchDocument.mockResolvedValueOnce(new Response('', { status: 403 }));
     const view = mount(documentModal());
-    await expect.element(view.getByRole('heading', { name: 'Report', exact: true })).toBeVisible();
+    await expect
+      .element(
+        format === 'Markdown'
+          ? view.getByRole('heading', { name: 'Report', exact: true })
+          : view.getByText('# Report\n\nDocument body.', { exact: true })
+      )
+      .toBeVisible();
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
     expect(fetchDocument).toHaveBeenCalledTimes(2);
   });
@@ -496,7 +568,13 @@ describe('Markdown attachment previews', () => {
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
     fetchDocument.mockResolvedValue(new Response('# Recovered'));
     await view.getByRole('button', { name: 'Try Again', exact: true }).click();
-    await expect.element(view.getByRole('heading', { name: 'Recovered' })).toBeVisible();
+    await expect
+      .element(
+        format === 'Markdown'
+          ? view.getByRole('heading', { name: 'Recovered' })
+          : view.getByText('# Recovered', { exact: true })
+      )
+      .toBeVisible();
     expect(fetchDocument).toHaveBeenCalledTimes(3);
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(2);
   });
@@ -512,14 +590,22 @@ describe('Markdown attachment previews', () => {
           })
       );
       const modal = documentModal();
-      modal.items.push({ ...modal.items[0], id: 'next', filename: 'next.md' });
+      modal.items.push({
+        ...modal.items[0],
+        id: 'next',
+        filename: format === 'Markdown' ? 'next.md' : 'next.txt'
+      });
       const view = mount(modal);
       await expect.poll(() => fetchDocument.mock.calls.length).toBe(1);
       const signal = (fetchDocument.mock.calls[0][1] as RequestInit).signal!;
       if (action === 'navigate') {
         await view.getByRole('button', { name: 'Next image' }).click();
         await expect
-          .element(view.getByRole('heading', { name: 'Report', exact: true }))
+          .element(
+            format === 'Markdown'
+              ? view.getByRole('heading', { name: 'Report', exact: true })
+              : view.getByText('# Report\n\nDocument body.', { exact: true })
+          )
           .toBeVisible();
       } else if (action === 'close') {
         await view.getByRole('button', { name: 'Close', exact: true }).click();
@@ -705,7 +791,7 @@ describe('shared attachment previews', () => {
     await expect.poll(() => mocks.refreshUrls.mock.calls.length).toBe(3);
   });
 
-  it.each(['application/pdf', 'application/zip', 'text/plain'])(
+  it.each(['application/pdf', 'application/zip'])(
     'does not request unsupported %s document bytes',
     async (contentType) => {
       const modal = modalState();
