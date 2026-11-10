@@ -1,4 +1,9 @@
-/** Supply trusted identities and behavior rules without changing batching or tool access. */
+/** Supply trusted identities and per-turn authority from operator configuration. */
+
+/** Mixed, empty, and anonymous batches never grant privileged tool access. */
+export function adminOnlyBatch(authors: readonly string[], admins: readonly string[]): boolean {
+  return authors.length > 0 && authors.every((id) => Boolean(id) && admins.includes(id));
+}
 
 /** Keep configured authority in the system prompt; message authors come from the input. */
 export function authorizationPrompt(adminIds: readonly string[], memory = true): string {

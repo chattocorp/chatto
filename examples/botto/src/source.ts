@@ -61,12 +61,7 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
         const key = JSON.stringify(
           conversationIdentity(settings.serverUrl, viewerId, replyDestination(first))
         );
-        await runTurn(
-          source,
-          key,
-          (ctx, children) => turn(ctx, messages, children),
-          settings.maxThreads
-        );
+        await runTurn(source, key, (ctx) => turn(ctx, messages), settings.maxThreads);
         delivery.complete(messages);
       },
       () => {
