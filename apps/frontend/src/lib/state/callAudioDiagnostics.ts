@@ -246,7 +246,7 @@ export class CallAudioDiagnostics {
   private write(event: string, fields: Record<string, unknown>): void {
     if (this.disposed) return;
     // Serialize now so developer tools cannot later expand a changed SDK object.
-    console.info(
+    console.debug(
       '[call-audio]',
       JSON.stringify({
         call: this.call,

@@ -65,10 +65,10 @@ function fixture() {
   return { room, diagnostics, participant, publication, track, element, stats };
 }
 
-let output: MockInstance<typeof console.info>;
+let output: MockInstance<typeof console.debug>;
 beforeEach(() => {
   vi.useFakeTimers();
-  output = vi.spyOn(console, 'info').mockImplementation(() => {});
+  output = vi.spyOn(console, 'debug').mockImplementation(() => {});
 });
 afterEach(() => {
   vi.clearAllTimers();

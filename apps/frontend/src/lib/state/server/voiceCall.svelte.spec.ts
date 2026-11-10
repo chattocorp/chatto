@@ -466,7 +466,7 @@ describe('VoiceCallState', () => {
   });
 
   it('disposes audio diagnostics on leave and failed connection', async () => {
-    const log = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const state = createPermittedCallState(createVoiceCallClient());
     try {
       await state.join('wss://livekit.example.test', 'R1');
