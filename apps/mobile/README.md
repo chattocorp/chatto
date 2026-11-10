@@ -94,8 +94,14 @@ upload, start a new manual run instead, so its build number increases. Check the
 latest uploaded build before the first automated run or a later manual upload;
 manual build numbers must not overtake the automation's range.
 
-An accepted upload still needs Apple processing and any required compliance
-information. Configure automatic distribution for the internal TestFlight group
+The app declares `ITSAppUsesNonExemptEncryption=false` in `Info.plist` to record
+the no-non-exempt-encryption answer for each build. The current iOS shell uses
+system networking and WebKit cryptography, including Web Crypto for LiveKit's
+encrypted calls. Review this declaration when adding or changing cryptographic
+implementations or native dependencies. See
+[Apple's declaration reference](https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption).
+
+An accepted upload still needs Apple processing. Configure automatic distribution for the internal TestFlight group
 in App Store Connect if testers should receive each processed build. External
 testing still requires Apple's review. This workflow does not publish to the
 public App Store or wait for processing and tester distribution. GitHub sends
