@@ -223,13 +223,11 @@ describe('release highlights', () => {
     };
     // Public discovery owns its HTTP transport. Stub its HTTP response, keeping
     // the generated Connect client, locale/version query, and JSON decoding real.
-    const fetch = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(new ListFeaturesResponse({ features: [feature] }).toJsonString(), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      );
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(new ListFeaturesResponse({ features: [feature] }).toJsonString(), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
     try {
       createTestServerScope({
         viewer: { settings: { timeFormat: TimeFormat.TIME_FORMAT_AUTO, releaseHighlights: saved } },
