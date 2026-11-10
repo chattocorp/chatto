@@ -93,16 +93,26 @@
   const threadMessage = $derived(
     store.threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event
   );
-  const rootMessage = $derived(
-    store.threadEvents.find((entry) => entry.id === threadRootEventId)?.event
+  const rootEntry = $derived(store.threadEvents.find((entry) => entry.id === threadRootEventId));
+  const rootMessage = $derived(rootEntry?.event);
+  const replyAuthors = $derived(
+    isMessagePostedEvent(rootMessage) ? rootMessage.threadParticipants : []
+  );
+  const rootAuthor = $derived(rootEntry?.actor?.deleted ? undefined : rootEntry?.actor);
+  // The server puts the root author first in the reply preview if they replied.
+  // Thus absence from this bounded preview means they are not in its count.
+  const addRootAuthor = $derived(
+    !!rootAuthor && !replyAuthors.some((user) => user.id === rootAuthor.id)
   );
   const participants = $derived(
-    isMessagePostedEvent(rootMessage) ? (rootMessage.threadParticipants ?? []) : []
+    rootAuthor
+      ? [rootAuthor, ...replyAuthors.filter((user) => user.id !== rootAuthor.id)]
+      : replyAuthors
   );
-  // The summary includes replies outside the loaded message window.
   const participantCount = $derived(
     isMessagePostedEvent(rootMessage)
-      ? Math.max(rootMessage.threadParticipantCount ?? 0, participants.length)
+      ? Math.max(rootMessage.threadParticipantCount ?? 0, replyAuthors.length) +
+          Number(addRootAuthor)
       : 0
   );
   let paneWidth = $state(0);

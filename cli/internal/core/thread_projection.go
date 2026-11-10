@@ -707,9 +707,9 @@ func (p *ThreadProjection) ReplyCount(rootEventID string) int {
 	return summary.replyCount
 }
 
-// ThreadMetadata combines the cached reply summary with the root author from
-// Room Timeline. Pass an empty rootAuthorID when the root author is unavailable.
-// Root identity is not duplicated in this projection's state.
+// ThreadMetadata reads the cached reply summary. If the root author has replied,
+// put that author first so bounded previews can identify their contribution.
+// Pass an empty rootAuthorID when the root author is unavailable.
 func (p *ThreadProjection) ThreadMetadata(rootEventID, rootAuthorID string) *ThreadMetadata {
 	p.RLock()
 	defer p.RUnlock()
@@ -722,7 +722,7 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID, rootAuthorID string) *Thr
 		ReplyCount:         summary.replyCount,
 		LatestReplyEventID: p.eventIDs.Resolve(summary.latestReply),
 	}
-	metadata.ParticipantIDs, metadata.ParticipantCount = p.participantsIncludingRootLocked(summary, rootAuthorID, maxThreadParticipants)
+	metadata.ParticipantIDs, metadata.ParticipantCount = p.replyParticipantsLocked(summary, rootAuthorID, maxThreadParticipants)
 	if summary.lastReplyAt != 0 {
 		at := projectionTime(summary.lastReplyAt)
 		metadata.LastReplyAt = &at
@@ -852,7 +852,7 @@ func (p *ThreadProjection) Stats() (threads int, entries int, replies int) {
 	return threads, entries, replies
 }
 
-// ParticipantIDs returns the root author and current reply authors once each,
+// ParticipantIDs returns current reply authors once each,
 // independent of the bounded display preview. Erased authors are excluded.
 // Pass an empty rootAuthorID when Room Timeline cannot resolve the root author.
 func (p *ThreadProjection) ParticipantIDs(rootEventID, rootAuthorID string) []string {
@@ -862,35 +862,27 @@ func (p *ThreadProjection) ParticipantIDs(rootEventID, rootAuthorID string) []st
 	if summary == nil {
 		return nil
 	}
-	ids, _ := p.participantsIncludingRootLocked(summary, rootAuthorID, len(summary.participants)+1)
+	ids, _ := p.replyParticipantsLocked(summary, rootAuthorID, len(summary.participants))
 	return ids
 }
 
-// participantsIncludingRootLocked puts the root author first and counts each
-// author once, even when the root author replied beyond the preview limit.
-// The caller holds p.RLock. Erased root authors must never reappear in reads.
-func (p *ThreadProjection) participantsIncludingRootLocked(summary *threadSummary, rootAuthorID string, limit int) ([]string, int) {
-	if _, erased := p.shreddedUsers[rootAuthorID]; erased {
-		rootAuthorID = ""
-	}
+// replyParticipantsLocked returns distinct current reply authors. Put the root
+// author first only if they replied, so a caller can add the root author to a
+// bounded preview without counting them twice. The caller holds p.RLock.
+func (p *ThreadProjection) replyParticipantsLocked(summary *threadSummary, rootAuthorID string, limit int) ([]string, int) {
 	count := len(summary.participants)
-	rootActor, _ := p.principalIDs.Lookup(rootAuthorID)
-	if rootAuthorID != "" {
-		_, replied := summary.participantIndex[rootActor]
-		if summary.participantIndex == nil {
-			replied = slices.ContainsFunc(summary.participants, func(participant threadParticipant) bool {
-				return participant.actor == rootActor
-			})
-		}
-		if !replied {
-			count++
-		}
-	}
 	if count == 0 {
 		return nil, 0
 	}
+	rootActor, _ := p.principalIDs.Lookup(rootAuthorID)
+	_, rootReplied := summary.participantIndex[rootActor]
+	if summary.participantIndex == nil {
+		rootReplied = slices.ContainsFunc(summary.participants, func(participant threadParticipant) bool {
+			return participant.actor == rootActor
+		})
+	}
 	ids := make([]string, 0, min(count, limit))
-	if rootAuthorID != "" {
+	if rootReplied {
 		ids = append(ids, rootAuthorID)
 	}
 	for _, participant := range summary.participants {
@@ -898,7 +890,7 @@ func (p *ThreadProjection) participantsIncludingRootLocked(summary *threadSummar
 			break
 		}
 		id := p.principalIDs.Resolve(participant.actor)
-		if id != rootAuthorID {
+		if !rootReplied || id != rootAuthorID {
 			ids = append(ids, id)
 		}
 	}

@@ -134,7 +134,7 @@ service ThreadService {
   // Missing and inaccessible resources are omitted; duplicates use first-seen order.
   rpc BatchGetThreadReadStates(BatchGetThreadReadStatesRequest) returns (BatchGetThreadReadStatesResponse);
 
-  // Lists the root author and distinct authors of non-retracted replies,
+  // Lists distinct authors of non-retracted replies,
   // excluding erased users. Each author appears once. Requires the same
   // membership and message-read access as GetThreadEvents.
   rpc ListThreadParticipants(ListThreadParticipantsRequest) returns (ListThreadParticipantsResponse);
@@ -186,8 +186,7 @@ message ListThreadParticipantsRequest {
   PageRequest page = 3;
 }
 
-// A page of distinct thread authors. A thread without replies includes its
-// root author unless that user has been erased.
+// A page of distinct reply authors. A thread without replies has no participants.
 message ListThreadParticipantsResponse {
   // User IDs in this page. Use UserService.BatchGetUsers for profiles.
   repeated string user_ids = 1;

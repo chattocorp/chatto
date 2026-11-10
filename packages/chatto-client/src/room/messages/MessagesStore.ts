@@ -1731,17 +1731,7 @@ export class MessagesStore {
     if (!rootEvent || !isMessagePostedPayload(rootEvent.event)) return;
 
     const actorId = getActorId(spaceEvent.actor);
-    let existingParticipants = rootEvent.event.threadParticipants;
-    // The first reply can create a thread on a root that has no summary yet.
-    // Include its resolved author immediately, without restoring erased users.
-    if (
-      rootEvent.event.replyCount === 0 &&
-      rootEvent.actor?.id &&
-      !rootEvent.actor.deleted &&
-      !existingParticipants.some((participant) => participant.id === rootEvent.actor?.id)
-    ) {
-      existingParticipants = [rootEvent.actor, ...existingParticipants];
-    }
+    const existingParticipants = rootEvent.event.threadParticipants;
     const isNewParticipant =
       !!actorId && !existingParticipants.some((p) => getActorId(p) === actorId);
 
@@ -1763,7 +1753,9 @@ export class MessagesStore {
         viewerIsFollowingThread,
         threadParticipants:
           isNewParticipant && spaceEvent.actor
-            ? [...existingParticipants, spaceEvent.actor]
+            ? actorId === rootEvent.actorId
+              ? [spaceEvent.actor, ...existingParticipants]
+              : [...existingParticipants, spaceEvent.actor]
             : existingParticipants
       }
     });

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
+func TestRoomModelThreadParticipantsOnlyIncludeReplyAuthors(t *testing.T) {
 	for _, replyCount := range []int{0, 2, 60} {
 		t.Run(fmt.Sprintf("replies-%d", replyCount), func(t *testing.T) {
 			timeline := NewRoomTimelineProjection()
@@ -34,14 +34,22 @@ func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
 				require.Equal(t, wantReplies, metadata.ReplyCount)
 				require.Equal(t, wantCount, metadata.ParticipantCount)
 				require.Len(t, metadata.ParticipantIDs, min(wantCount, maxThreadParticipants))
-				require.Equal(t, "AUTHOR", metadata.ParticipantIDs[0])
+				if wantReplies > replyCount {
+					require.Equal(t, "AUTHOR", metadata.ParticipantIDs[0])
+				} else {
+					require.NotContains(t, metadata.ParticipantIDs, "AUTHOR")
+				}
 				ids := threads.ParticipantIDs("ROOT", model.threadRootAuthorID("ROOT"))
 				require.Len(t, ids, wantCount)
-				require.Equal(t, "AUTHOR", ids[0])
+				if wantReplies > replyCount {
+					require.Equal(t, "AUTHOR", ids[0])
+				} else {
+					require.NotContains(t, ids, "AUTHOR")
+				}
 			}
-			check(replyCount+1, replyCount)
-			// A late root-author reply must not increase the participant count,
-			// including when that author falls outside the reply preview.
+			check(replyCount, replyCount)
+			// A late root-author reply adds the author once,
+			// including when other authors fill the reply preview.
 			seq := uint64(len(facts) + 1)
 			reply := postedEvent(postedOpts{envelopeID: "AUTHOR-REPLY", eventID: "AUTHOR-REPLY", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 100})
 			require.NoError(t, threads.Apply(reply, seq))
@@ -56,7 +64,7 @@ func TestRoomModelThreadParticipantsIncludeRoot(t *testing.T) {
 			}
 			check(replyCount+1, replyCount+1)
 			require.NoError(t, threads.Apply(retractedEvent("RETRACT", "AUTHOR-REPLY", "R1", "AUTHOR", "removed", 101), seq+1))
-			check(replyCount+1, replyCount)
+			check(replyCount, replyCount)
 			shred := userKeyShreddedSnapshotTestEvent("SHRED", "AUTHOR")
 			require.NoError(t, timeline.Apply(shred, seq+2))
 			require.NoError(t, threads.Apply(shred, seq+2))

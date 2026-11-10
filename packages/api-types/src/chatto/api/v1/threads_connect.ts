@@ -42,7 +42,7 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists the root author and distinct authors of non-retracted replies,
+     * Lists distinct authors of non-retracted replies,
      * excluding erased users. Each author appears once. Requires the same
      * membership and message-read access as GetThreadEvents.
      *

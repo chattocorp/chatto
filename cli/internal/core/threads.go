@@ -17,7 +17,7 @@ type ThreadMetadata struct {
 	LastReplyAt        *time.Time
 	LatestReplyEventID string
 	ParticipantIDs     []string
-	// ParticipantCount counts the root author and current reply authors once each,
+	// ParticipantCount counts distinct current reply authors,
 	// excluding erased users, beyond the preview limit.
 	ParticipantCount int
 }
@@ -34,7 +34,7 @@ type FollowedThread struct {
 	// RootCreatedAt is the root message creation time, independent of replies.
 	RootCreatedAt  *time.Time
 	ParticipantIDs []string
-	// ParticipantCount counts the root author and current reply authors once each,
+	// ParticipantCount counts distinct current reply authors,
 	// excluding erased users, beyond the preview limit.
 	ParticipantCount   int
 	LatestReplyEventID string
