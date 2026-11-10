@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "On this page",
+    "design": {
+      "welcome": "Find your way around Chatto.",
+      "explore": "More to explore",
+      "reference": "Formatting at a glance",
+      "reference_hint": "Select an example to try it in the editor.",
+      "question": "Who is joining the next call?"
+    },
+    "overview": "Overview",
+    "intro": "Short guides for everyday chat and server administration.",
+    "users": "For users",
+    "admins": "For administrators",
+    "example": "Try it here",
+    "example_hint": "This example stays on this page. It does not send a message.",
+    "input": "Message text",
+    "preview": "Preview",
+    "sample": "Hello **everyone**!",
+    "conversations": {
+      "title": "Using Chatto",
+      "description": "Threads, unread activity, notifications, and connection problems."
+    },
+    "formatting": {
+      "title": "Write with Markdown",
+      "description": "Format messages, share code, and make longer updates easy to read."
+    },
+    "bots": {
+      "title": "Set up and configure bots",
+      "description": "Connect an external tool, control its access, and get your first bot working."
+    },
+    "phone": {
+      "title": "Install Chatto on your phone",
+      "description": "Add Chatto to your Home Screen and enable notifications."
+    }
+  }
+}

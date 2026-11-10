@@ -127,6 +127,15 @@
       <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
     </a>
 
+    <a
+      href={resolve('/help')}
+      class="app-header-icon"
+      aria-label={m('ui.help')}
+      title={m('ui.help')}
+    >
+      <span class="iconify icon-[uil--question-circle] text-lg" aria-hidden="true"></span>
+    </a>
+
     <!-- Connection lost indicator: only show when an authenticated server has lost connection.
          Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
     {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}

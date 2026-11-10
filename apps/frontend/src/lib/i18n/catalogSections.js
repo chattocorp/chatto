@@ -7,6 +7,7 @@ export const catalogSections = /** @type {const} */ ([
   'composer',
   'emoji',
   'error_page',
+  'help',
   'media',
   'message_preview',
   'permissions',
@@ -56,14 +57,16 @@ export function isManagementCatalogSection(section) {
 
 /** Public and chat catalogs needed outside management. */
 export const chatCatalogSections = catalogSections.filter(
-  (section) => !isManagementCatalogSection(section)
+  (section) => !isManagementCatalogSection(section) && section !== 'help'
 );
 
 /** @param {(typeof catalogSections)[number]} section */
 export function catalogBoundary(section) {
-  return isManagementCatalogSection(section)
-    ? 'management'
-    : isPublicCatalogSection(section)
-      ? 'public'
-      : 'chat';
+  return section === 'help'
+    ? 'help'
+    : isManagementCatalogSection(section)
+      ? 'management'
+      : isPublicCatalogSection(section)
+        ? 'public'
+        : 'chat';
 }

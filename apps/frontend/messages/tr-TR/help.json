@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Bu sayfada",
+    "design": {
+      "welcome": "Chatto'yu tanıyın.",
+      "explore": "Daha fazlasını keşfedin",
+      "reference": "Bir bakışta biçimlendirme",
+      "reference_hint": "Düzenleyicide denemek için bir örnek seçin.",
+      "question": "Bir sonraki aramaya kim katılıyor?"
+    },
+    "overview": "Genel bakış",
+    "intro": "Sohbet ve sunucu yönetimi için kısa kılavuzlar.",
+    "users": "Üyeler için",
+    "admins": "Yöneticiler için",
+    "example": "Burada deneyin",
+    "example_hint": "Bu örnek bu sayfada kalır. Mesaj göndermez.",
+    "input": "Mesaj metni",
+    "preview": "Önizleme",
+    "sample": "**Herkese** merhaba!",
+    "conversations": {
+      "title": "Chatto kullanımı",
+      "description": "Konular, okunmamış etkinlikler, bildirimler ve bağlantı sorunları."
+    },
+    "formatting": {
+      "title": "Mesajı biçimlendirme",
+      "description": "Vurgu ve satır içi kod ekleyin."
+    },
+    "bots": {
+      "title": "Botlar",
+      "description": "API hesapları oluşturun ve tam olarak ne yapabileceklerini kontrol edin"
+    },
+    "phone": {
+      "title": "Chatto’yu telefonunuza yükleyin",
+      "description": "Chatto’yu ana ekranınıza ekleyin ve bildirimleri etkinleştirin."
+    }
+  }
+}

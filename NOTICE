@@ -112,6 +112,7 @@ Server and CLI Go Components:
 Frontend, Examples, and Documentation Components:
 
 - DOMPurify (https://github.com/cure53/DOMPurify) - Apache License 2.0
+- MDsveX (https://github.com/pngwn/MDsveX) - MIT License (build-time help compiler)
 
 - xterm.js headless terminal (https://github.com/xtermjs/xterm.js) - MIT License
 - Pele Mermaid renderer (https://github.com/obsidianmd/pele) - MIT License

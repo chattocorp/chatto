@@ -452,6 +452,6 @@ test.describe('App and User Preferences', () => {
       routes.settingsAppearance
     );
     await expect(page.getByRole('link', { name: 'Time & region' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Bots\b/ })).toBeVisible();
   });
 });

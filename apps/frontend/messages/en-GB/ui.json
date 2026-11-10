@@ -1,5 +1,6 @@
 {
   "ui": {
+    "help": "Help",
     "toggle_sidebar": "Toggle sidebar",
     "notifications": "Notifications",
     "open_quick_switcher": "Open quick switcher",

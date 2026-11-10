@@ -1,5 +1,6 @@
 {
   "ui": {
+    "help": "Aiuto",
     "toggle_sidebar": "Attiva/disattiva la barra laterale",
     "notifications": "Notifiche",
     "open_quick_switcher": "Apri il cambio rapido",

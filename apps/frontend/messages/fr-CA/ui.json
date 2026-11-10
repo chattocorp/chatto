@@ -1,5 +1,6 @@
 {
   "ui": {
+    "help": "Aide",
     "toggle_sidebar": "Basculer la barre latérale",
     "notifications": "Notifications",
     "open_quick_switcher": "Ouvrir le sélecteur rapide",

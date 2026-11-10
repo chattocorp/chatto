@@ -85,7 +85,9 @@ export async function preloadPublicLocaleMessages(): Promise<void> {
 /** Load the route's sections, with management catalogs only on management routes. */
 export async function preloadChatLocaleMessages(management = false): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    const sections = management ? catalogSections : chatCatalogSections;
+    const sections = management
+      ? catalogSections.filter((section) => section !== 'help')
+      : chatCatalogSections;
     const active = translatto.snapshot.activeSections;
     if (
       active.length === sections.length &&
@@ -110,5 +112,26 @@ export async function deactivateManagementLocaleMessages(): Promise<void> {
       (section) => !isManagementCatalogSection(section as CatalogSection)
     );
     if (sections.length !== active.length) await translatto.setActiveSections(sections);
+  });
+}
+
+/** Load help only on entry, including its English fallback. */
+export async function preloadHelpLocaleMessages(): Promise<void> {
+  await scheduleCatalogTransition(async () => {
+    await translatto.setActiveSections([
+      ...publicCatalogSections,
+      'help',
+      'composer',
+      'permissions'
+    ]);
+    bumpI18nRevision();
+  });
+}
+
+/** Stop downloading help translations after a completed exit from help. */
+export async function deactivateHelpLocaleMessages(): Promise<void> {
+  await scheduleCatalogTransition(async () => {
+    const sections = translatto.snapshot.activeSections.filter((section) => section !== 'help');
+    await translatto.setActiveSections(sections);
   });
 }

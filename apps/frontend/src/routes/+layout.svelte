@@ -1,7 +1,10 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/dom/initialPageReveal';
   import { watchMotionPreference } from '$lib/dom/motionPreference';
-  import { deactivateManagementLocaleMessages } from '$lib/i18n/messages';
+  import {
+    deactivateManagementLocaleMessages,
+    deactivateHelpLocaleMessages
+  } from '$lib/i18n/messages';
   import { afterNavigate, beforeNavigate, goto, onNavigate } from '$app/navigation';
   import { stopViewTransition } from '$lib/dom/viewTransitions';
   import { fadePageContent } from '$lib/dom/pageFade';
@@ -142,6 +145,9 @@
     const management = '/chat/[serverId]/manage';
     if (from?.route.id?.startsWith(management) && !to?.route.id?.startsWith(management)) {
       await deactivateManagementLocaleMessages();
+    }
+    if (from?.route.id?.startsWith('/help') && !to?.route.id?.startsWith('/help')) {
+      await deactivateHelpLocaleMessages();
     }
   });
 </script>
