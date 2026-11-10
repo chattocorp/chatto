@@ -49,7 +49,9 @@
       "video_disabled": "رفع مقاطع الفيديو معطّل على هذا الخادم.",
       "prepare_failed": "فشل تجهيز المرفق",
       "too_many": "يمكنك إرفاق ما يصل إلى {max} ملفات لكل رسالة. لم تتم إضافة الملفات الزائدة.",
-      "too_large": "{filename} كبير جدًا ({size}). الحد الأقصى هو {limit}."
+      "too_large": "{filename} كبير جدًا ({size}). الحد الأقصى هو {limit}.",
+      "compress_failed": "تعذر ضغط الفيديو بما يكفي. جرّب صيغة أخرى أو فيديو أقصر.",
+      "compressing": "جارٍ ضغط الفيديو… {percentage}٪"
     },
     "format": {
       "underline": "تسطير",

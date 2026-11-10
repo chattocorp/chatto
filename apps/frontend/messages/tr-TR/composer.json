@@ -49,7 +49,9 @@
       "video_disabled": "Bu sunucuda video yüklemeleri devre dışı.",
       "prepare_failed": "Ek hazırlanamadı",
       "too_many": "Her mesaja en fazla {max} dosya ekleyebilirsiniz. Fazladan dosyalar eklenmedi.",
-      "too_large": "{filename} çok büyük ({size}). En fazla {limit} olabilir."
+      "too_large": "{filename} çok büyük ({size}). En fazla {limit} olabilir.",
+      "compress_failed": "Video yeterince sıkıştırılamadı. Başka bir biçim veya daha kısa bir video deneyin.",
+      "compressing": "Video sıkıştırılıyor… %{percentage}"
     },
     "format": {
       "underline": "Altı çizili",

@@ -49,7 +49,9 @@
       "video_disabled": "Video uploads are disabled on this server.",
       "prepare_failed": "Failed to prepare attachment",
       "too_many": "You can attach up to {max} files per message. Extra files were not added.",
-      "too_large": "{filename} is too large ({size}). Maximum is {limit}."
+      "too_large": "{filename} is too large ({size}). Maximum is {limit}.",
+      "compress_failed": "Could not compress this video to fit. Try another format or a shorter video.",
+      "compressing": "Compressing video… {percentage}%"
     },
     "format": {
       "underline": "Underline",

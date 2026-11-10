@@ -3,6 +3,8 @@ import { AttachmentsState, type AttachmentLimits } from './attachments.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
 
 const prepareFilesMock = vi.hoisted(() => vi.fn());
+const compressVideoMock = vi.hoisted(() => vi.fn());
+vi.mock('$lib/attachments/compressVideo', () => ({ compressVideo: compressVideoMock }));
 
 vi.mock('$lib/attachments/prepareFiles', () => ({
   prepareFiles: prepareFilesMock
@@ -31,6 +33,7 @@ describe('AttachmentsState', () => {
     };
     state = new AttachmentsState(() => limits);
     toast.clear();
+    compressVideoMock.mockReset();
     prepareFilesMock.mockReset();
     prepareFilesMock.mockImplementation(async (files: File[]) => files);
     Object.defineProperty(URL, 'createObjectURL', {
@@ -179,19 +182,113 @@ describe('AttachmentsState', () => {
     expect(prepareFilesMock).not.toHaveBeenCalled();
   });
 
-  it('uses the general upload limit for videos', async () => {
+  it('starts compression automatically and replaces the file in the same tile', async () => {
     limits.videoProcessingEnabled = true;
     limits.maxUploadSize = 1;
+    const original = videoFile('too-large.mp4', 2);
+    const deferred = Promise.withResolvers<File>();
+    compressVideoMock.mockReturnValue(deferred.promise);
+    const work = state.stageFiles([original]);
+    const tile = state.filesWithUrls[0];
+    state.setDescription(0, 'My video');
+    expect(tile.file).toBe(original);
+    expect(state.pendingCount).toBe(1);
+    expect(state.selectedFiles).toEqual([]);
+    await vi.waitFor(() => expect(compressVideoMock).toHaveBeenCalledTimes(1));
+    compressVideoMock.mock.calls[0][1].onProgress(0.5);
+    expect(tile.preparation?.progress).toBe(0.5);
+    const compressed = videoFile('compressed.mp4', 1);
+    deferred.resolve(compressed);
+    await work;
+    expect(state.filesWithUrls[0]).toBe(tile);
+    expect(tile.url).toBe('blob:too-large.mp4');
+    expect(state.descriptions).toEqual([{ file: compressed, description: 'My video' }]);
+    expect(state.selectedFiles).toEqual([compressed]);
+    expect(state.pendingCount).toBe(0);
+  });
 
-    await state.stageFiles([videoFile('too-large.mp4', 2)]);
+  it.each(['clear', 'restore', 'remove'] as const)(
+    'cancels processing on %s and ignores a late result',
+    async (operation) => {
+      limits.videoProcessingEnabled = true;
+      limits.maxUploadSize = 1;
+      const deferred = Promise.withResolvers<File>();
+      compressVideoMock.mockReturnValue(deferred.promise);
+      const work = state.stageFiles([videoFile('old.mp4', 2)]);
+      const signal = state.filesWithUrls[0].preparation!.controller.signal;
+      await vi.waitFor(() => expect(compressVideoMock).toHaveBeenCalledTimes(1));
+      if (operation === 'remove') state.removeFile(0);
+      else if (operation === 'restore') state.restore([]);
+      else state.clear();
+      expect(signal.aborted).toBe(true);
+      deferred.resolve(videoFile('compressed.mp4', 1));
+      await work;
+      expect(state.selectedFiles).toEqual([]);
+      expect(state.pendingCount).toBe(0);
+    }
+  );
 
-    expect(
-      getToasts()
-        .map((t) => t.message)
-        .join('\n')
-    ).toContain('too-large.mp4 is too large');
-    expect(state.filesWithUrls).toEqual([]);
-    expect(prepareFilesMock).not.toHaveBeenCalled();
+  it('keeps a failed tile and blocks sending until it is removed', async () => {
+    limits.videoProcessingEnabled = true;
+    limits.maxUploadSize = 1;
+    compressVideoMock.mockRejectedValueOnce(new Error('unsupported codec'));
+    await state.stageFiles([videoFile('source.mp4', 2)]);
+    expect(state.filesWithUrls[0].preparation?.phase).toBe('failed');
+    expect(state.selectedFiles).toEqual([]);
+    expect(state.pendingCount).toBe(1);
+    expect(getToasts().at(-1)?.message).toContain('Could not compress');
+    state.removeFile(0);
+    expect(state.pendingCount).toBe(0);
+  });
+
+  it('rechecks policy after compression and serializes work', async () => {
+    limits.videoProcessingEnabled = true;
+    limits.maxUploadSize = 1;
+    const deferred = Promise.withResolvers<File>();
+    compressVideoMock.mockReturnValue(deferred.promise);
+    const work = state.stageFiles([videoFile('first.mp4', 3), videoFile('second.mp4', 3)]);
+    await vi.waitFor(() => expect(compressVideoMock).toHaveBeenCalledTimes(1));
+    expect(state.filesWithUrls[1].preparation?.phase).toBe('queued');
+    limits.videoProcessingEnabled = false;
+    deferred.resolve(videoFile('compressed.mp4', 1));
+    await work;
+    expect(compressVideoMock).toHaveBeenCalledTimes(1);
+    expect(state.selectedFiles).toEqual([]);
+    expect(getToasts().at(-1)?.message).toContain('Video uploads are disabled');
+  });
+
+  it('counts queued video tiles once against the attachment cap', async () => {
+    limits.videoProcessingEnabled = true;
+    limits.maxUploadSize = 1;
+    const deferred = Promise.withResolvers<File>();
+    compressVideoMock.mockReturnValue(deferred.promise);
+    const work = state.stageFiles(Array.from({ length: 11 }, (_, i) => videoFile(`${i}.mp4`, 2)));
+    expect(state.pendingCount).toBe(10);
+    expect(state.filesWithUrls).toHaveLength(10);
+    state.removeFile(9);
+    await state.stageFiles([imageFile('last.png', 1)]);
+    expect(state.filesWithUrls).toHaveLength(10);
+    expect(state.filesWithUrls.at(-1)?.file.name).toBe('last.png');
+    state.clear();
+    deferred.resolve(videoFile('compressed.mp4', 1));
+    await work;
+    expect(state.pendingCount).toBe(0);
+  });
+
+  it('marks cancelled stashed tiles as failed instead of uploading the original', async () => {
+    limits.videoProcessingEnabled = true;
+    limits.maxUploadSize = 1;
+    const deferred = Promise.withResolvers<File>();
+    compressVideoMock.mockReturnValue(deferred.promise);
+    const work = state.stageFiles([videoFile('stashed.mp4', 2)]);
+    const saved = state.filesWithUrls;
+    state.restore([]);
+    deferred.resolve(videoFile('compressed.mp4', 1));
+    await work;
+    state.restore(saved);
+    expect(state.filesWithUrls[0].preparation?.phase).toBe('failed');
+    expect(state.selectedFiles).toEqual([]);
+    expect(state.pendingCount).toBe(1);
   });
 
   it('accepts GIFs and videos at the same limit and rejects both above it', () => {

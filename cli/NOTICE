@@ -133,6 +133,9 @@ Frontend, Examples, and Documentation Components:
 - Unicode Emoji 15.0 data (https://www.unicode.org/Public/emoji/15.0/)
   - Unicode Data Files and Software License (Unicode-DFS-2016)
   - Copyright © 2022 Unicode, Inc. Used to generate skin-tone emoji mappings.
+- Mediabunny (https://github.com/Vanilagy/mediabunny) - Mozilla Public License 2.0;
+  Copyright 2026-present, Vanilagy and contributors. Source for the bundled
+  version: https://registry.npmjs.org/mediabunny/-/mediabunny-1.65.2.tgz
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License
 - highlight.js (https://highlightjs.org/) - BSD 3-Clause License
 - hls.js (https://github.com/video-dev/hls.js) - Apache License 2.0

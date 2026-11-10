@@ -49,7 +49,9 @@
       "video_disabled": "このサーバーでは動画のアップロードが無効になっています。",
       "prepare_failed": "添付ファイルの準備に失敗しました",
       "too_many": "1件のメッセージに添付できるファイルは{max}個までです。超過分のファイルは追加されませんでした。",
-      "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。"
+      "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。",
+      "compress_failed": "動画を制限内に圧縮できませんでした。別の形式または短い動画をお試しください。",
+      "compressing": "動画を圧縮中… {percentage}%"
     },
     "format": {
       "underline": "下線",

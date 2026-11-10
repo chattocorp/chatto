@@ -27,9 +27,25 @@
 
 {#if attachments.filesWithUrls.length > 0}
   <div class="flex flex-wrap gap-2">
-    {#each attachments.filesWithUrls as { file, url, description }, index (url)}
+    {#each attachments.filesWithUrls as { file, url, description, preparation }, index (url)}
       {@const submissionStatus = getSubmissionStatus(file)}
-      {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
+      {@const percentage =
+        preparation?.phase === 'compressing'
+          ? Math.round(preparation.progress * 100)
+          : submissionStatus
+            ? uploadPercentage(submissionStatus)
+            : null}
+      {@const failed = preparation?.phase === 'failed' || submissionStatus?.phase === 'failed'}
+      {@const statusLabel = preparation
+        ? preparation.phase === 'failed'
+          ? m('composer.upload.prepare_failed')
+          : preparation.phase === 'queued'
+            ? m('composer.upload.preparing')
+            : m('composer.upload.compressing', { percentage: percentage ?? 0 })
+        : submissionStatus
+          ? uploadStatusLabel(submissionStatus)
+          : null}
+      {@const hasProgress = preparation !== undefined || submissionStatus !== null}
       {@const descriptionActionLabel = description
         ? m('room.attachment.edit_description')
         : m('room.attachment.add_description')}
@@ -95,34 +111,26 @@
                 </button>
               </div>
             </div>
-            <div
-              class={[
-                'mt-0.5 truncate text-xs',
-                submissionStatus?.phase === 'failed' ? 'text-danger' : 'text-muted'
-              ]}
-            >
-              {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
+            <div class={['mt-0.5 truncate text-xs', failed ? 'text-danger' : 'text-muted']}>
+              {statusLabel ?? formatFileSize(file.size)}
             </div>
             <div
               data-testid="attachment-upload-progress"
               class={[
                 'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-emphasized',
-                !submissionStatus && 'invisible'
+                !hasProgress && 'invisible'
               ]}
-              role={submissionStatus ? 'progressbar' : undefined}
-              aria-hidden={submissionStatus ? undefined : 'true'}
-              aria-label={submissionStatus ? file.name : undefined}
-              aria-valuemin={submissionStatus ? 0 : undefined}
-              aria-valuemax={submissionStatus ? 100 : undefined}
+              role={hasProgress ? 'progressbar' : undefined}
+              aria-hidden={hasProgress ? undefined : 'true'}
+              aria-label={hasProgress ? file.name : undefined}
+              aria-valuemin={hasProgress ? 0 : undefined}
+              aria-valuemax={hasProgress ? 100 : undefined}
               aria-valuenow={percentage ?? undefined}
-              aria-valuetext={submissionStatus ? uploadStatusLabel(submissionStatus) : undefined}
+              aria-valuetext={statusLabel ?? undefined}
             >
               {#if percentage !== null}
                 <div
-                  class={[
-                    'h-full rounded-full',
-                    submissionStatus?.phase === 'failed' ? 'bg-danger' : 'bg-action'
-                  ]}
+                  class={['h-full rounded-full', failed ? 'bg-danger' : 'bg-action']}
                   style:width={`${percentage}%`}
                 ></div>
               {/if}

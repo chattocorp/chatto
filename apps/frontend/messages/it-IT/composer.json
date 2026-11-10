@@ -49,7 +49,9 @@
       "video_disabled": "Il caricamento di video è disattivato su questo server.",
       "prepare_failed": "Impossibile preparare l'allegato",
       "too_many": "Puoi allegare fino a {max} file per messaggio. I file aggiuntivi non sono stati aggiunti.",
-      "too_large": "{filename} è troppo grande ({size}). Il massimo è {limit}."
+      "too_large": "{filename} è troppo grande ({size}). Il massimo è {limit}.",
+      "compress_failed": "Impossibile comprimere abbastanza il video. Prova un altro formato o un video più breve.",
+      "compressing": "Compressione video… {percentage}%"
     },
     "format": {
       "underline": "Sottolineato",

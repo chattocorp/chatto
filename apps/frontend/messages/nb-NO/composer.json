@@ -49,7 +49,9 @@
       "video_disabled": "Videoopplasting er deaktivert på denne serveren.",
       "prepare_failed": "Kunne ikke klargjøre vedlegget",
       "too_many": "Du kan legge ved opptil {max} filer per melding. Ekstra filer ble ikke lagt til.",
-      "too_large": "{filename} er for stor ({size}). Maksimum er {limit}."
+      "too_large": "{filename} er for stor ({size}). Maksimum er {limit}.",
+      "compress_failed": "Kunne ikke komprimere videoen nok. Prøv et annet format eller en kortere video.",
+      "compressing": "Komprimerer video… {percentage} %"
     },
     "format": {
       "underline": "Understreking",

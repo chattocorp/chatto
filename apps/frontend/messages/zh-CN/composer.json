@@ -49,7 +49,9 @@
       "video_disabled": "此服务器已禁用视频上传。",
       "prepare_failed": "准备附件失败",
       "too_many": "每条消息最多可附加 {max} 个文件。超出的文件未添加。",
-      "too_large": "{filename} 太大（{size}）。上限为 {limit}。"
+      "too_large": "{filename} 太大（{size}）。上限为 {limit}。",
+      "compress_failed": "无法将视频压缩至大小限制内。请尝试其他格式或更短的视频。",
+      "compressing": "正在压缩视频… {percentage}%"
     },
     "format": {
       "underline": "下划线",

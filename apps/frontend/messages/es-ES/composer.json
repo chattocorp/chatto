@@ -49,7 +49,9 @@
       "video_disabled": "La subida de vídeos está desactivada en este servidor.",
       "prepare_failed": "No se pudo preparar el archivo adjunto",
       "too_many": "Puedes adjuntar hasta {max} archivos por mensaje. Los archivos adicionales no se añadieron.",
-      "too_large": "{filename} es demasiado grande ({size}). El máximo es {limit}."
+      "too_large": "{filename} es demasiado grande ({size}). El máximo es {limit}.",
+      "compress_failed": "No se pudo comprimir lo suficiente. Prueba otro formato o un vídeo más corto.",
+      "compressing": "Comprimiendo vídeo… {percentage} %"
     },
     "format": {
       "underline": "Subrayado",

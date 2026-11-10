@@ -175,6 +175,7 @@ export class MessageComposerState {
     onDestroy(() => {
       dependencies.context.focus = undefined;
       this.#cancelPreviewDetection?.();
+      this.attachments.cancelVideoPreparation();
       this.draft.stashFiles(this.attachments.filesWithUrls);
     });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
@@ -496,7 +497,10 @@ export class MessageComposerState {
 
   #synchronizeAttachmentPermission(): void {
     $effect(() => {
-      if (!this.#dependencies.getCanAttach() && this.attachments.filesWithUrls.length > 0) {
+      if (
+        !this.#dependencies.getCanAttach() &&
+        (this.attachments.filesWithUrls.length > 0 || this.attachments.pendingCount > 0)
+      ) {
         this.attachments.clear();
       }
     });

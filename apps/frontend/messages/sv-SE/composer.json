@@ -49,7 +49,9 @@
       "video_disabled": "Videouppladdningar är inaktiverade på den här servern.",
       "prepare_failed": "Det gick inte att förbereda bilagan",
       "too_many": "Du kan bifoga upp till {max} filer per meddelande. Extra filer lades inte till.",
-      "too_large": "{filename} är för stor ({size}). Maxstorleken är {limit}."
+      "too_large": "{filename} är för stor ({size}). Maxstorleken är {limit}.",
+      "compress_failed": "Det gick inte att komprimera videon till rätt storlek. Prova ett annat format eller en kortare video.",
+      "compressing": "Komprimerar video… {percentage}%"
     },
     "format": {
       "underline": "Understruken",
