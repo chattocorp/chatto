@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { extractURLs, isYouTubeURL, parseYouTubeVideoID } from './linkPreview';
 
 describe('extractURLs', () => {
+  it.each(['https://example.com/', 'http://example.com:8080/path', 'www.example.com/'])(
+    'excludes trailing colons from preview URLs: %s',
+    (url) => {
+      const expected = url.startsWith('www.') ? `https://${url}` : url;
+      expect(extractURLs(`${url}: next`)).toEqual([expected]);
+    }
+  );
+
   describe('protocol URLs', () => {
     it('extracts https URLs', () => {
       expect(extractURLs('Check https://example.com')).toEqual(['https://example.com']);
