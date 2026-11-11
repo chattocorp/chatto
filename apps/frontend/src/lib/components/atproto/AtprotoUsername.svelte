@@ -1,7 +1,7 @@
 <!--
 @component
 A username as `@login`. When the user's verified AT Protocol handle equals the
-login, the `@` and a check mark show in the accent colour, and the `@` names
+login, the `@` shows in the accent colour with a green check mark, and the `@` names
 the verification for assistive technology (FDR-056). Verification contacts external systems, so
 mount this only where a profile is open; elsewhere pass no `did`.
 -->
@@ -37,7 +37,7 @@ mount this only where a profile is open; elsewhere pass no `did`.
         data-testid="verified-atproto-username">@</span
       >{login}<span
         aria-hidden="true"
-        class="iconify ms-0.5 icon-[uil--check-circle] inline-block align-[-0.125em] text-action"
+        class="iconify ms-0.5 icon-[uil--check-circle] inline-block align-[-0.125em] text-success"
       ></span>
     {:else}
       @{login}
