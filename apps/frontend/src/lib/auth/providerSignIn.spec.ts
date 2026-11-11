@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { openProviderSignIn, providerLoginUrl, verifyProviderSignIn } from './providerSignIn';
+import {
+  confirmProviderAccount,
+  openProviderSignIn,
+  ProviderSignInError,
+  providerLoginUrl,
+  verifyProviderSignIn
+} from './providerSignIn';
 
 const mocks = vi.hoisted(() => ({
   open: vi.fn(),
-  getCurrentUser: vi.fn()
+  getCurrentUser: vi.fn(),
+  goto: vi.fn(),
+  saveReturnUrl: vi.fn()
 }));
+vi.mock('$app/navigation', () => ({ goto: mocks.goto }));
+vi.mock('./returnNavigation', () => ({ saveReturnUrl: mocks.saveReturnUrl }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$lib/oauth/pkce', () => ({ generateState: () => 'transaction-state' }));
 vi.mock('$lib/oauth/popup', () => ({ openOAuthPopup: mocks.open }));
@@ -53,7 +63,7 @@ describe('origin provider sign-in', () => {
           completed: true
         })
       };
-      if (user) await expect(verifyProviderSignIn(popup)).resolves.toBeUndefined();
+      if (user) await expect(verifyProviderSignIn(popup)).resolves.toEqual({ kind: 'signed-in' });
       else await expect(verifyProviderSignIn(popup)).rejects.toThrow();
       expect(mocks.getCurrentUser).toHaveBeenCalledWith({
         baseUrl: '/api/connect',
@@ -61,6 +71,33 @@ describe('origin provider sign-in', () => {
       });
     }
   );
+
+  it('hands a new-account confirmation to the opening window', async () => {
+    const response = Promise.resolve({
+      type: 'chatto:oauth-popup-response' as const,
+      state: 'state',
+      externalIdentityToken: 'tok'
+    });
+    await expect(
+      verifyProviderSignIn({ navigate: vi.fn(), close: vi.fn(), response })
+    ).resolves.toEqual({ kind: 'confirm-account', token: 'tok' });
+    expect(mocks.getCurrentUser).not.toHaveBeenCalled();
+
+    await confirmProviderAccount('tok', '/chat/room');
+    expect(mocks.saveReturnUrl).toHaveBeenCalledWith('/chat/room');
+    expect(mocks.goto).toHaveBeenCalledWith('/sso/confirm?token=tok');
+  });
+
+  it('reports the server error code of a provider popup', async () => {
+    const response = Promise.resolve({
+      type: 'chatto:oauth-popup-response' as const,
+      state: 'state',
+      error: 'external_identity_unlinked'
+    });
+    const result = verifyProviderSignIn({ navigate: vi.fn(), close: vi.fn(), response });
+    await expect(result).rejects.toBeInstanceOf(ProviderSignInError);
+    await expect(result).rejects.toMatchObject({ code: 'external_identity_unlinked' });
+  });
 
   it('does not treat an OAuth code as cookie sign-in completion', async () => {
     await expect(

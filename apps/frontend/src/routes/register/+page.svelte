@@ -5,6 +5,7 @@
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
   import {
+    confirmProviderAccount,
     openProviderSignIn,
     providerLoginUrl,
     verifyProviderSignIn
@@ -141,8 +142,12 @@
     }
     try {
       providerPopup = openProviderSignIn(providerLoginHref(provider, loginHint));
-      await verifyProviderSignIn(providerPopup);
+      const result = await verifyProviderSignIn(providerPopup);
       if (!active) return;
+      if (result.kind === 'confirm-account') {
+        await confirmProviderAccount(result.token, data.redirectUrl);
+        return;
+      }
       if (!(await completeOriginAuthentication()))
         await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {

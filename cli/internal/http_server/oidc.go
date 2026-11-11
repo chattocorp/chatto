@@ -1010,6 +1010,19 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, client *http.Client, a
 
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, invitationID string) {
 	ctx := c.Request.Context()
+	returnPath := providerReturnPath(session, "/")
+	// A sign-in popup hands the confirmation to the window that opened it. That
+	// window shows the confirmation and keeps its own return navigation.
+	popup := isProviderPopupCallback(returnPath)
+	if !providerConfig.AutoProvisionOrDefault() {
+		if popup {
+			c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", "external_identity_unlinked"))
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
+		return
+	}
+
 	flow := core.PendingExternalIdentityFlow{
 		ProviderID:       providerConfig.ID,
 		ProviderType:     providerConfig.Type,
@@ -1023,18 +1036,25 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		DisplayNameHint:  identity.displayNameHint,
 		Groups:           mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
 		GroupsKnown:      identity.groups.Known,
-		RedirectPath:     providerReturnPath(session, "/"),
+		RedirectPath:     returnPath,
+		InvitationID:     invitationID,
 	}
-
-	if !providerConfig.AutoProvisionOrDefault() {
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
-		return
+	if popup {
+		// The opening window owns the destination after account creation.
+		flow.RedirectPath = "/"
 	}
-	flow.InvitationID = invitationID
 	token, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	if err != nil {
 		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
+		if popup {
+			c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", "provider_failed"))
+			return
+		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
+	}
+	if popup {
+		c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "external_identity", token))
 		return
 	}
 	if s.core.InvitationRequired() && invitationID == "" {
@@ -1042,6 +1062,29 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
+}
+
+// isProviderPopupCallback reports whether returnPath is the frontend callback
+// of a provider sign-in popup (`/servers/callback?mode=provider&state=...`).
+func isProviderPopupCallback(returnPath string) bool {
+	u, err := url.Parse(returnPath)
+	if err != nil || u.IsAbs() || u.Host != "" {
+		return false
+	}
+	q := u.Query()
+	return u.Path == "/servers/callback" && q.Get("mode") == "provider" && q.Get("state") != ""
+}
+
+// withQueryParam returns path with one query parameter set.
+func withQueryParam(path, name, value string) string {
+	u, err := url.Parse(path)
+	if err != nil {
+		return path
+	}
+	q := u.Query()
+	q.Set(name, value)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func providerReturnPath(session sessions.Session, fallback string) string {

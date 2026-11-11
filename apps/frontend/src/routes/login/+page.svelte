@@ -3,7 +3,9 @@
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
   import {
+    confirmProviderAccount,
     openProviderSignIn,
+    ProviderSignInError,
     providerLoginUrl,
     verifyProviderSignIn
   } from '$lib/auth/providerSignIn';
@@ -94,13 +96,20 @@
     }
     try {
       providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
-      await verifyProviderSignIn(providerPopup);
+      const result = await verifyProviderSignIn(providerPopup);
       if (!active) return;
+      if (result.kind === 'confirm-account') {
+        await confirmProviderAccount(result.token, data.redirectUrl);
+        return;
+      }
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
       const resumed = await completeOriginAuthentication();
       if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
-      if (active) error = popupErrorMessage(err, m('auth.login.failed'));
+      if (!active) return;
+      error =
+        (err instanceof ProviderSignInError && loginErrorMessage(err.code)) ||
+        popupErrorMessage(err, m('auth.login.failed'));
     } finally {
       providerPopup = null;
       selectedProviderId = null;

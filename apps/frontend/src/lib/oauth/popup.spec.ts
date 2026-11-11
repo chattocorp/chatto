@@ -25,6 +25,20 @@ describe('OAuth popup response', () => {
     });
   });
 
+  it('passes a new-account token from a provider popup to the opener', () => {
+    expect(
+      oauthPopupResponseFromURL(
+        new URL(
+          'https://app.example/servers/callback?mode=provider&state=state-123&external_identity=tok'
+        )
+      )
+    ).toEqual({
+      type: OAUTH_POPUP_RESPONSE_TYPE,
+      state: 'state-123',
+      externalIdentityToken: 'tok'
+    });
+  });
+
   it('maps an authorization error without requiring a code', () => {
     expect(
       oauthPopupResponseFromURL(
