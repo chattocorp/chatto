@@ -36,7 +36,8 @@ trust the server.
 - The DID of the linked AT Protocol sign-in identity is the user's published
   DID. Linking it publishes it; disconnecting it removes it. There is no
   separate setting.
-- Profile cards and profile views mark a verified identity only after the
+- Profile cards, profile views, and the current-user card mark a verified
+  identity only after the
   viewer's client verified the link. When the verified handle equals the
   username, the `@` before the username shows in the accent colour. Otherwise
   a separate line shows the handle with a check mark, linked to the profile on

@@ -13,6 +13,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { m } from '$lib/i18n/messages';
   import { deleteCustomStatus } from '@chatto/client/api/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import AtprotoUsername from '$lib/components/atproto/AtprotoUsername.svelte';
   import { getLiveCustomStatus, getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import type { CustomUserStatus } from '@chatto/client/api/userSummary';
   import { setPresenceStatus } from '$lib/state/server/presenceTracking';
@@ -223,7 +224,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
         variant="card"
         name={displayName}
         identity={activeServerUser}
-        username={login}
         testId="current-user-identity-card"
         textTestId="current-user-identity-text"
         secondaryTestId="current-user-login"
@@ -238,6 +238,13 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           >
             <UserAvatar user={activeServerUser} presence={currentPresence} size="sm" showPresence />
           </button>
+        {/snippet}
+        {#snippet secondary()}
+          <AtprotoUsername
+            {login}
+            did={activeStore.currentUser.user?.atprotoDid ?? null}
+            account={{ serverOrigin: serverScope.connection.origin, userId: activeServerUser.id }}
+          />
         {/snippet}
         {#snippet badges()}
           <UserCustomStatusBadge status={customStatus} class="text-xs" />
