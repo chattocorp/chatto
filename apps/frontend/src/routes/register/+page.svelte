@@ -7,7 +7,7 @@
   import {
     confirmProviderAccount,
     openProviderSignIn,
-    signInWithAtprotoOnOrigin,
+    providerLoginUrl,
     verifyProviderSignIn
   } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
@@ -90,8 +90,8 @@
       !confirmError
   );
 
-  function providerLoginHref(provider: PublicAuthProvider): string {
-    const url = new URL(provider.loginUrl, window.location.origin);
+  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
+    const url = new URL(providerLoginUrl(provider.loginUrl, loginHint), window.location.origin);
     url.searchParams.set('redirect', data.redirectUrl);
     if (admissionId) url.searchParams.set('admission', admissionId);
     return url.href;
@@ -135,27 +135,13 @@
     event.preventDefault();
     providerError = '';
     selectedProviderId = provider.id;
-    if (provider.type === 'atproto') {
-      try {
-        await signInWithAtprotoOnOrigin(
-          loginHint ?? '',
-          data.redirectUrl,
-          admissionId || undefined
-        );
-      } catch {
-        if (active) providerError = m('auth.register.failed');
-      } finally {
-        selectedProviderId = null;
-      }
-      return;
-    }
     // Keep the server's OAuth session in this window throughout provider signup.
     if (compact) {
-      window.location.href = providerLoginHref(provider);
+      window.location.href = providerLoginHref(provider, loginHint);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(providerLoginHref(provider));
+      providerPopup = openProviderSignIn(providerLoginHref(provider, loginHint));
       const result = await verifyProviderSignIn(providerPopup);
       if (!active) return;
       if (result.kind === 'confirm-account') {

@@ -204,18 +204,16 @@ describe('createExternalIdentityAPI', () => {
 
   it('starts provider linking', async () => {
     account.startExternalIdentityLink.mockReturnValue({
-      startUrl: 'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok',
-      linkToken: 'tok'
+      startUrl: 'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
     });
 
     const api = createExternalIdentityAPI(config());
 
     await expect(
       api.startLink({ providerId: 'github-main', redirectPath: '/chat/-/settings/account' })
-    ).resolves.toEqual({
-      startUrl: 'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok',
-      linkToken: 'tok'
-    });
+    ).resolves.toBe(
+      'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
+    );
     expect(receivedRequest(account.startExternalIdentityLink)).toMatchObject({
       providerId: 'github-main',
       redirectPath: '/chat/-/settings/account'

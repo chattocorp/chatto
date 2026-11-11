@@ -30,8 +30,7 @@ const { mocks } = vi.hoisted(() => ({
     hardRedirectAfterSignOut: vi.fn(),
     notifyLogout: vi.fn(),
     clearServerAuthentication: vi.fn(),
-    ensureAtprotoSession: vi.fn(),
-    linkAtprotoIdentity: vi.fn()
+    ensureAtprotoSession: vi.fn()
   }
 }));
 
@@ -106,12 +105,6 @@ vi.mock('$lib/atproto/session.svelte', () => ({
 }));
 
 vi.mock('$lib/atproto/signIn', () => ({
-  AtprotoSignInError: class AtprotoSignInError extends Error {
-    constructor(readonly code: string) {
-      super(code);
-    }
-  },
-  linkAtprotoIdentity: mocks.linkAtprotoIdentity,
   removeAtprotoLinkRecord: vi.fn(),
   ensureAtprotoLinkRecord: vi.fn()
 }));
@@ -820,63 +813,5 @@ describe('identity link popup and continuation', () => {
     expect(mocks.startLink).toHaveBeenLastCalledWith(
       expect.objectContaining({ currentPassword: 'test-password' })
     );
-  });
-});
-
-describe('AT Protocol identity links', () => {
-  const atprotoList = () => ({
-    providers: [
-      {
-        id: 'atproto',
-        type: 'atproto',
-        label: 'Internet Handle',
-        loginUrl: '/auth/providers/atproto',
-        linkUrl: '/auth/providers/atproto?intent=link',
-        linked: false,
-        linkedIdentitySubjectHash: ''
-      }
-    ],
-    linkedIdentities: []
-  });
-
-  beforeEach(() => {
-    queryClient.clear();
-    vi.clearAllMocks();
-    mocks.url = new URL('http://localhost/chat/-/settings/account');
-    mocks.scopeCurrent = true;
-    mocks.list.mockResolvedValue(atprotoList());
-    mocks.ensureAtprotoSession.mockResolvedValue({ did: 'did:plc:alice' });
-    mocks.startLink.mockResolvedValue({ startUrl: 'https://unused.example/', linkToken: 'tok' });
-    mocks.linkAtprotoIdentity.mockResolvedValue(undefined);
-  });
-
-  it('links in this window with the device session and the link token', async () => {
-    const open = vi.spyOn(window, 'open');
-    renderSettings();
-    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
-    await vi.waitFor(() => expect(mocks.linkAtprotoIdentity).toHaveBeenCalledOnce());
-    expect(mocks.linkAtprotoIdentity).toHaveBeenCalledWith(
-      { did: 'did:plc:alice' },
-      'https://remote.example.test',
-      'tok'
-    );
-    // The PDS sign-in comes first, so its popup opens from the click.
-    expect(mocks.ensureAtprotoSession.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.startLink.mock.invocationCallOrder[0]
-    );
-    expect(open).not.toHaveBeenCalled();
-    open.mockRestore();
-  });
-
-  it('shows a conflict when the identity belongs to another account', async () => {
-    const { AtprotoSignInError } = await import('$lib/atproto/signIn');
-    mocks.linkAtprotoIdentity.mockRejectedValue(
-      new AtprotoSignInError('external_identity_conflict')
-    );
-    renderSettings();
-    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
-    await expect
-      .element(browserPage.getByText('already linked to a different account', { exact: false }))
-      .toBeVisible();
   });
 });

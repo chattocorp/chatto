@@ -85,41 +85,6 @@ export async function accountLinkRecordKey(account: ChattoAccountRef): Promise<s
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-/** Lexicon method that Chatto sign-in service tokens name. */
-export const ATPROTO_SIGN_IN_METHOD = 'run.chatto.signIn';
-
-/**
- * Audience of service tokens for the Chatto server at `serverOrigin`: its
- * did:web identity with the `#chatto` service. Returns `null` when the server
- * cannot accept AT Protocol sign-in, such as an HTTPS origin with a port.
- *
- * Derive the audience from the origin that the client connects to, never
- * from data that the server supplies. A server that could choose the audience
- * could request a token for another server and use it there. The server
- * derives the same value from its configured public URL.
- */
-export function atprotoServiceAudience(serverOrigin: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(serverOrigin);
-  } catch {
-    return null;
-  }
-  const host = url.hostname.toLowerCase();
-  if (url.protocol === 'https:') {
-    return url.port ? null : `did:web:${host}#chatto`;
-  }
-  if (url.protocol !== 'http:' || !isLocalDevelopmentHost(host)) return null;
-  // AT Protocol allows a port in did:web only for localhost.
-  return url.port ? `did:web:localhost%3A${url.port}#chatto` : 'did:web:localhost#chatto';
-}
-
-function isLocalDevelopmentHost(host: string): boolean {
-  return (
-    host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '[::1]'
-  );
-}
-
 /** Write the link record for `account` into the session's repository. */
 export async function writeAccountLinkRecord(
   session: AtprotoRepoSession,

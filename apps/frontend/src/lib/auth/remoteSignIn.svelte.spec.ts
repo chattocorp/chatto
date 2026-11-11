@@ -7,12 +7,7 @@ const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
   active: ''
 }));
-vi.mock('$app/navigation', () => ({
-  goto: mocks.goto,
-  pushState: vi.fn(),
-  replaceState: vi.fn(),
-  invalidateAll: vi.fn()
-}));
+vi.mock('$app/navigation', () => ({ goto: mocks.goto, pushState: vi.fn(), replaceState: vi.fn() }));
 vi.mock('$app/paths', () => ({
   resolve: (_: string, params: { serverId: string }) => `/chat/${params.serverId}`
 }));

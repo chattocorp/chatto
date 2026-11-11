@@ -2,10 +2,10 @@
  * The device's AT Protocol session (FDR-056).
  *
  * The frontend signs in to the user's PDS itself, with its own OAuth client.
- * It asks for the identity, for write access to Chatto account link records,
- * and for `run.chatto.signIn` service tokens. Chatto servers never receive the
- * OAuth tokens; they accept short-lived service tokens instead (ADR-123). One
- * session per device signs the user in to every Chatto server.
+ * It asks only for the identity and for write access to Chatto account link
+ * records, and uses the session only to write and delete those records.
+ * Chatto servers never receive these tokens and sign users in with their own
+ * OAuth flow (ADR-123). The session's handle is the suggestion for sign-in.
  *
  * The OAuth library loads only when the user connects an identity or a
  * session was stored before, so other users do not download it.
@@ -13,16 +13,13 @@
 
 import type { BrowserOAuthClient, OAuthSession } from '@atproto/oauth-client-browser';
 import {
-  ATPROTO_SIGN_IN_METHOD,
   createAtprotoLinkVerifier,
   resolveAtprotoHandle,
   resolveAtprotoIdentity
 } from '@chatto/client/atproto/accountLink';
 
 /** Scope of the frontend client. It must match the published client metadata. */
-const ATPROTO_FRONTEND_SCOPE = 'atproto repo:run.chatto.accountLink rpc:run.chatto.signIn?aud=*';
-/** Lifetime of sign-in service tokens; servers reject longer ones. */
-const SERVICE_TOKEN_LIFETIME_SECONDS = 60;
+const ATPROTO_FRONTEND_SCOPE = 'atproto repo:run.chatto.accountLink';
 const CLIENT_METADATA_PATH = '/oauth/atproto-client-metadata.json';
 export const ATPROTO_CALLBACK_PATH = '/atproto/callback';
 /** Authorization server for users who start without a handle. */
@@ -108,10 +105,8 @@ export function restoreAtprotoAccount(): Promise<AtprotoAccount | null> {
     try {
       const client = await atprotoOAuthClient();
       const restored = await client.initRestore();
-      // A sign-in that finished meanwhile wins over the stored session. A
-      // session from an older client version can lack a permission; the next
-      // sign-in replaces it.
-      if (!session && restored && (await hasFrontendScope(restored.session))) {
+      // A sign-in that finished meanwhile wins over the stored session.
+      if (!session && restored) {
         session = restored.session;
         account = await accountFor(restored.session);
       }
@@ -136,11 +131,6 @@ export async function connectAtprotoAccount(identifier: string): Promise<Atproto
   return account;
 }
 
-async function hasFrontendScope(oauthSession: OAuthSession): Promise<boolean> {
-  const granted = new Set((await oauthSession.getTokenInfo(false)).scope.split(' '));
-  return ATPROTO_FRONTEND_SCOPE.split(' ').every((scope) => granted.has(scope));
-}
-
 /**
  * The device session for `identifier`, a handle or DID. An empty identifier
  * accepts the current session. Without a matching session, this signs in
@@ -153,30 +143,6 @@ export async function ensureAtprotoSession(identifier: string): Promise<OAuthSes
   await connectAtprotoAccount(wanted);
   if (!session) throw new Error('The AT Protocol session is not available.');
   return session;
-}
-
-/**
- * Ask the PDS for a short-lived token that signs the user in to the Chatto
- * server with service DID reference `audience`.
- */
-export async function atprotoServiceToken(
-  oauthSession: OAuthSession,
-  audience: string
-): Promise<string> {
-  const exp = Math.floor(Date.now() / 1000) + SERVICE_TOKEN_LIFETIME_SECONDS;
-  const query = `aud=${encodeURIComponent(audience)}&lxm=${ATPROTO_SIGN_IN_METHOD}&exp=${exp}`;
-  const response = await oauthSession.fetchHandler(
-    `/xrpc/com.atproto.server.getServiceAuth?${query}`,
-    { method: 'GET' }
-  );
-  const body: unknown = await response.json().catch(() => null);
-  const token =
-    body && typeof body === 'object' && 'token' in body && typeof body.token === 'string'
-      ? body.token
-      : null;
-  if (!response.ok || !token)
-    throw new Error(`The PDS issued no sign-in token (HTTP ${response.status}).`);
-  return token;
 }
 
 /** Sign out of the PDS and revoke the session's tokens. */

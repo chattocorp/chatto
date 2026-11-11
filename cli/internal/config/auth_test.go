@@ -418,20 +418,6 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		}
 	})
 
-	t.Run("atproto needs a webserver URL that AT Protocol can name and one provider", func(t *testing.T) {
-		cfg := baseConfig()
-		cfg.Webserver.URL = "https://chat.example.com:8443"
-		cfg.Auth.Providers = []AuthProviderConfig{{ID: "bsky", Type: AuthProviderTypeATProto}}
-		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "HTTPS webserver.url without a port") {
-			t.Fatalf("Validate() = %v, want webserver URL error", err)
-		}
-		cfg = baseConfig()
-		cfg.Auth.Providers = []AuthProviderConfig{{ID: "a", Type: AuthProviderTypeATProto}, {ID: "b", Type: AuthProviderTypeATProto}}
-		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "only one atproto provider") {
-			t.Fatalf("Validate() = %v, want single-provider error", err)
-		}
-	})
-
 	t.Run("still requires secret for oauth-only provider", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.Auth.Providers = []AuthProviderConfig{{ID: "github", Type: AuthProviderTypeGitHub, ClientID: "id"}}

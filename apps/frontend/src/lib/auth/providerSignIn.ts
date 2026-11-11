@@ -1,10 +1,20 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { navigateAfterAuthentication, saveReturnUrl } from './returnNavigation';
-import { isProviderContinuation } from './providerContinuation';
+import { saveReturnUrl } from './returnNavigation';
 import { generateState } from '$lib/oauth/pkce';
 import { openOAuthPopup, type OAuthPopup } from '$lib/oauth/popup';
 import { m } from '$lib/i18n/messages';
+
+/**
+ * The provider's sign-in URL. `loginHint` is the identity to use, such as an
+ * AT Protocol handle; providers without hints ignore it (FDR-056).
+ */
+export function providerLoginUrl(loginUrl: string, loginHint?: string): string {
+  if (!loginHint) return loginUrl;
+  const url = new URL(loginUrl, window.location.origin);
+  url.searchParams.set('login_hint', loginHint);
+  return url.origin === window.location.origin ? url.pathname + url.search : url.href;
+}
 
 /**
  * Open provider sign-in during the user's click. The callback reports only
@@ -60,28 +70,4 @@ export async function confirmProviderAccount(token: string, returnPath: string):
   // the chat landing route wait for a return navigation that never arrives.
   if (returnPath !== '/' && returnPath !== '/chat') saveReturnUrl(returnPath);
   await goto(resolve(`/sso/confirm?token=${encodeURIComponent(token)}`));
-}
-
-/**
- * Sign in to this server with an AT Protocol identity and continue to
- * `redirectPath` like a password sign-in. Call this from the user's action:
- * a sign-in to the PDS opens a popup window. A new identity continues with the
- * account confirmation in this window.
- */
-export async function signInWithAtprotoOnOrigin(
-  identifier: string,
-  redirectPath: string,
-  admission?: string
-): Promise<void> {
-  const { signInToOriginWithAtproto } = await import('$lib/atproto/signIn');
-  const result = await signInToOriginWithAtproto(identifier, { admission });
-  if (result.kind === 'confirm-account') {
-    await confirmProviderAccount(result.token, redirectPath);
-    return;
-  }
-  const { completeOriginAuthentication } = await import('./originAuthentication');
-  const resumed = await completeOriginAuthentication({
-    resumeReturnNavigation: !isProviderContinuation(redirectPath)
-  });
-  if (!resumed) await navigateAfterAuthentication(redirectPath);
 }

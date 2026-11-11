@@ -21,11 +21,10 @@ const frontendATProtoClientMetadataPath = "/oauth/atproto-client-metadata.json"
 // Protocol sign-in.
 const frontendATProtoCallbackPath = "/atproto/callback"
 
-// frontendATProtoScope lets the frontend prove its user's identity, change
-// only Chatto account link records, and request run.chatto.signIn service
-// tokens for any Chatto server (ADR-123). It must not grant write access to
-// other collections.
-const frontendATProtoScope = "atproto repo:run.chatto.accountLink rpc:run.chatto.signIn?aud=*"
+// frontendATProtoScope lets the frontend prove its user's identity and
+// change only Chatto account link records (ADR-123). It must not grant write
+// access to other collections.
+const frontendATProtoScope = "atproto repo:run.chatto.accountLink"
 
 type cimdDocument struct {
 	ClientID                string   `json:"client_id"`

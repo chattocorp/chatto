@@ -10,11 +10,7 @@ that this device is signed in to (FDR-056).
   import { Button, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
-  import {
-    atprotoAccount,
-    atprotoOAuthClient,
-    restoreAtprotoAccount
-  } from '$lib/atproto/session.svelte';
+  import { atprotoAccount, restoreAtprotoAccount } from '$lib/atproto/session.svelte';
 
   let {
     providers,
@@ -28,8 +24,8 @@ that this device is signed in to (FDR-056).
     selectedProviderId?: string | null;
     disabled?: boolean;
     compact?: boolean;
-    /** Link target of a redirect-based provider. */
-    href?: (provider: PublicAuthProvider) => string;
+    /** Link target for a provider; `loginHint` is set for AT Protocol providers. */
+    href?: (provider: PublicAuthProvider, loginHint?: string) => string;
     onclick: (event: Event, provider: PublicAuthProvider, loginHint?: string) => void;
   } = $props();
 
@@ -38,11 +34,8 @@ that this device is signed in to (FDR-056).
   let typedHandles = $state<Record<string, string>>({});
 
   onMount(() => {
-    if (!hasAtproto) return;
-    // Load the OAuth library now, so a PDS sign-in popup opens directly from
-    // the click. Restore a stored session for the handle suggestion.
-    void atprotoOAuthClient().catch(() => {});
-    void restoreAtprotoAccount();
+    // Loads the OAuth library only when this device stored a session before.
+    if (hasAtproto) void restoreAtprotoAccount();
   });
 
   function handleFor(provider: PublicAuthProvider): string {

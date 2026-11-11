@@ -399,11 +399,7 @@ func (x *StartExternalIdentityLinkRequest) GetCurrentPassword() string {
 type StartExternalIdentityLinkResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Browser URL that starts provider authorization on the target server origin.
-	StartUrl string `protobuf:"bytes,1,opt,name=start_url,json=startUrl,proto3" json:"start_url,omitempty"`
-	// Single-use token that binds the link to the authenticated account. AT
-	// Protocol providers have no browser redirect: the client sends this token
-	// with an AT Protocol service token to POST /auth/atproto.
-	LinkToken     string `protobuf:"bytes,2,opt,name=link_token,json=linkToken,proto3" json:"link_token,omitempty"`
+	StartUrl      string `protobuf:"bytes,1,opt,name=start_url,json=startUrl,proto3" json:"start_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -441,13 +437,6 @@ func (*StartExternalIdentityLinkResponse) Descriptor() ([]byte, []int) {
 func (x *StartExternalIdentityLinkResponse) GetStartUrl() string {
 	if x != nil {
 		return x.StartUrl
-	}
-	return ""
-}
-
-func (x *StartExternalIdentityLinkResponse) GetLinkToken() string {
-	if x != nil {
-		return x.LinkToken
 	}
 	return ""
 }
@@ -570,11 +559,9 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\vprovider_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"providerId\x12#\n" +
 	"\rredirect_path\x18\x02 \x01(\tR\fredirectPath\x12)\n" +
-	"\x10current_password\x18\x03 \x01(\tR\x0fcurrentPassword\"_\n" +
+	"\x10current_password\x18\x03 \x01(\tR\x0fcurrentPassword\"@\n" +
 	"!StartExternalIdentityLinkResponse\x12\x1b\n" +
-	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\x12\x1d\n" +
-	"\n" +
-	"link_token\x18\x02 \x01(\tR\tlinkToken\"z\n" +
+	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\"z\n" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"8\n" +

@@ -130,12 +130,9 @@ export function createExternalIdentityAPI(config: ConnectAPIConfig) {
       providerId: string;
       redirectPath: string;
       currentPassword?: string;
-    }): Promise<{ startUrl: string; linkToken: string }> {
+    }): Promise<string> {
       const response = await client.startExternalIdentityLink(input);
-      return {
-        startUrl: externalIdentityStartURL(response.startUrl),
-        linkToken: response.linkToken
-      };
+      return externalIdentityStartURL(response.startUrl);
     },
 
     async disconnect(subjectHash: string, currentPassword?: string): Promise<void> {

@@ -122,7 +122,7 @@
       if (data.existingAccount) {
         // A create token cannot authorize a link. Start a fresh provider flow
         // bound by the server to the account that just authenticated.
-        const { startUrl, linkToken } = await createExternalIdentityAPI({
+        const startUrl = await createExternalIdentityAPI({
           baseUrl: '/api/connect',
           bearerToken: null
         }).startLink({
@@ -133,17 +133,6 @@
           await flowAPI.cancel(data.token);
         } catch {
           // The accepted link-start is independent; the old create token expires.
-        }
-        if (pending.providerType === 'atproto') {
-          // The device links its own AT Protocol session; no redirect (FDR-056).
-          const [{ ensureAtprotoSession }, { linkAtprotoIdentity }] = await Promise.all([
-            import('$lib/atproto/session.svelte'),
-            import('$lib/atproto/signIn')
-          ]);
-          const session = await ensureAtprotoSession('');
-          await linkAtprotoIdentity(session, window.location.origin, linkToken);
-          goto(resolve(redirectPath as '/'), { replaceState: true });
-          return;
         }
         window.location.href = startUrl;
         return;

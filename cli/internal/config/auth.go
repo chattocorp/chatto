@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -254,46 +252,4 @@ func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
 		})
 	}
 	return providers
-}
-
-// AtprotoServiceDID returns the did:web identity of a Chatto server whose
-// public URL is webserverURL, or "" when AT Protocol sign-in is not available.
-//
-// AT Protocol accepts did:web names without a port, except for localhost. A
-// plain-HTTP development server on a local host name uses
-// did:web:localhost%3A<port>. HTTPS servers with a port are not supported.
-// Clients derive the same value from the origin that they connect to; they
-// must never take it from the server.
-func AtprotoServiceDID(webserverURL string) string {
-	u, err := url.Parse(webserverURL)
-	if err != nil || u.Host == "" {
-		return ""
-	}
-	host := strings.ToLower(u.Hostname())
-	switch u.Scheme {
-	case "https":
-		if u.Port() != "" && u.Port() != "443" {
-			return ""
-		}
-		return "did:web:" + host
-	case "http":
-		if !isLocalDevelopmentHost(host) {
-			return ""
-		}
-		if port := u.Port(); port != "" && port != "80" {
-			return "did:web:localhost%3A" + port
-		}
-		return "did:web:localhost"
-	default:
-		return ""
-	}
-}
-
-// isLocalDevelopmentHost reports whether host names this device.
-func isLocalDevelopmentHost(host string) bool {
-	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }

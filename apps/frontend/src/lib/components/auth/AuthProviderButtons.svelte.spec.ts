@@ -7,7 +7,6 @@ import AuthProviderButtons from './AuthProviderButtons.svelte';
 const mocks = vi.hoisted(() => ({ atprotoAccount: vi.fn() }));
 vi.mock('$lib/atproto/session.svelte', () => ({
   atprotoAccount: mocks.atprotoAccount,
-  atprotoOAuthClient: () => Promise.resolve({}),
   restoreAtprotoAccount: () => Promise.resolve(null)
 }));
 
