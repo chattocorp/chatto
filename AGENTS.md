@@ -248,6 +248,12 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Issues, Commits, And PRs
 
+- When you mention a GitHub issue or PR in a chat reply, write a Markdown
+  link, for example `[#123](https://github.com/chattocorp/chatto/issues/123)`.
+  Use `/pull/` for PRs. The terminal does not make a bare `#123` into a link.
+  In issue and PR bodies, a bare `#123` is sufficient. Milestone descriptions
+  do not make `#123` into a link, so use full links there too.
+
 - Releasable packages use Sweet Release. Add a note with
   `mise x -- sweet change <package-path>` for user-visible changes in each
   affected release unit. Chatto, its client, frontend, and desktop share the
