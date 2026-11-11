@@ -87,6 +87,11 @@ describe('origin provider sign-in', () => {
     await confirmProviderAccount('tok', '/chat/room');
     expect(mocks.saveReturnUrl).toHaveBeenCalledWith('/chat/room');
     expect(mocks.goto).toHaveBeenCalledWith('/sso/confirm?token=tok');
+
+    mocks.saveReturnUrl.mockClear();
+    await confirmProviderAccount('tok', '/');
+    await confirmProviderAccount('tok', '/chat');
+    expect(mocks.saveReturnUrl).not.toHaveBeenCalled();
   });
 
   it('reports the server error code of a provider popup', async () => {

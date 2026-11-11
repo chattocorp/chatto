@@ -66,6 +66,8 @@ export async function verifyProviderSignIn(
  * origin authentication continues to `returnPath`.
  */
 export async function confirmProviderAccount(token: string, returnPath: string): Promise<void> {
-  saveReturnUrl(returnPath);
+  // The default destinations need no queued return. A queued `/` would make
+  // the chat landing route wait for a return navigation that never arrives.
+  if (returnPath !== '/' && returnPath !== '/chat') saveReturnUrl(returnPath);
   await goto(resolve(`/sso/confirm?token=${encodeURIComponent(token)}`));
 }
