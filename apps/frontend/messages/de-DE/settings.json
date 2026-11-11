@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky-Identität",
-      "description": "Zeige dein Bluesky-Handle in deinem Profil. Die Apps anderer Mitglieder prüfen, ob das Handle dir gehört.",
-      "handle_label": "Bluesky-Handle",
+      "title": "Internet-Handle",
+      "description": "Zeige dein Internet-Handle in deinem Profil. Die Apps anderer Mitglieder prüfen, ob das Handle dir gehört.",
+      "handle_label": "Internet-Handle",
       "handle_description": "Lass das Feld leer, um dein Handle bei Bluesky einzugeben.",
-      "privacy_notice": "Chatto legt in deinem Bluesky-Konto einen Verknüpfungseintrag an. Der Eintrag zeigt den Namen dieses Servers nicht.",
+      "privacy_notice": "Chatto legt in deinem AT-Protocol-Konto, zum Beispiel bei Bluesky, einen Verknüpfungseintrag an. Der Eintrag zeigt den Namen dieses Servers nicht.",
       "link_button": "Verbinden",
-      "link_failed": "Die Bluesky-Identität konnte nicht verbunden werden.",
-      "verifying": "Deine Bluesky-Identität wird geprüft …",
+      "link_failed": "Das Internet-Handle konnte nicht verbunden werden.",
+      "verifying": "Dein Internet-Handle wird geprüft …",
       "verified": "Dein Profil zeigt @{handle} als verifiziert.",
-      "unverified_no_link": "Andere Mitglieder können deine Bluesky-Identität nicht verifizieren. Verbinde sie erneut.",
-      "unverified_handle": "Dein Bluesky-Handle konnte nicht bestätigt werden. Andere Mitglieder sehen es nicht.",
-      "unverified_unavailable": "Deine Bluesky-Identität kann gerade nicht geprüft werden. Versuche es später erneut.",
-      "unlink_description": "Beim Entfernen wird auch der Verknüpfungseintrag aus deinem Bluesky-Konto gelöscht.",
+      "unverified_no_link": "Andere Mitglieder können dein Internet-Handle nicht verifizieren. Verbinde es erneut.",
+      "unverified_handle": "Dein Internet-Handle konnte nicht bestätigt werden. Andere Mitglieder sehen es nicht.",
+      "unverified_unavailable": "Dein Internet-Handle kann gerade nicht geprüft werden. Versuche es später erneut.",
+      "unlink_description": "Beim Entfernen des Handles wird auch der Verknüpfungseintrag aus deinem AT-Protocol-Konto gelöscht.",
       "unlink_button": "Entfernen",
-      "unlink_failed": "Die Bluesky-Identität konnte nicht entfernt werden.",
-      "wrong_account": "Du hast dich mit einem anderen Bluesky-Konto angemeldet. Melde dich mit dem verbundenen Konto an."
+      "unlink_failed": "Das Internet-Handle konnte nicht entfernt werden.",
+      "wrong_account": "Du hast dich mit einem anderen AT-Protocol-Konto angemeldet. Melde dich mit dem verbundenen Konto an."
     }
   }
 }

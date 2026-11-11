@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky 身分",
-      "description": "在你的個人檔案中顯示 Bluesky 使用者名稱。其他成員的應用程式會驗證該名稱屬於你。",
-      "handle_label": "Bluesky 使用者名稱",
+      "title": "網際網路使用者名稱",
+      "description": "在你的個人檔案中顯示網際網路使用者名稱。其他成員的應用程式會驗證該名稱屬於你。",
+      "handle_label": "網際網路使用者名稱",
       "handle_description": "留空即可在 Bluesky 上輸入使用者名稱。",
-      "privacy_notice": "Chatto 會在你的 Bluesky 帳號中新增一筆連結記錄。該記錄不會顯示此伺服器的名稱。",
+      "privacy_notice": "Chatto 會在你的 AT Protocol 帳號（例如 Bluesky）中新增一筆連結記錄。該記錄不會顯示此伺服器的名稱。",
       "link_button": "連接",
-      "link_failed": "無法連接 Bluesky 身分。",
-      "verifying": "正在檢查你的 Bluesky 身分…",
+      "link_failed": "無法連接網際網路使用者名稱。",
+      "verifying": "正在檢查你的網際網路使用者名稱…",
       "verified": "你的個人檔案將 @{handle} 顯示為已驗證。",
-      "unverified_no_link": "其他成員無法驗證你的 Bluesky 身分。請重新連接。",
-      "unverified_handle": "無法確認你的 Bluesky 使用者名稱。其他成員看不到它。",
-      "unverified_unavailable": "目前無法檢查你的 Bluesky 身分。請稍後再試。",
-      "unlink_description": "移除身分也會從你的 Bluesky 帳號中刪除連結記錄。",
+      "unverified_no_link": "其他成員無法驗證你的網際網路使用者名稱。請重新連接。",
+      "unverified_handle": "無法確認你的網際網路使用者名稱。其他成員看不到它。",
+      "unverified_unavailable": "目前無法檢查你的網際網路使用者名稱。請稍後再試。",
+      "unlink_description": "移除使用者名稱也會從你的 AT Protocol 帳號中刪除連結記錄。",
       "unlink_button": "移除",
-      "unlink_failed": "無法移除 Bluesky 身分。",
-      "wrong_account": "你使用了另一個 Bluesky 帳號登入。請使用已連接的帳號登入。"
+      "unlink_failed": "無法移除網際網路使用者名稱。",
+      "wrong_account": "你使用了另一個 AT Protocol 帳號登入。請使用已連接的帳號登入。"
     }
   }
 }

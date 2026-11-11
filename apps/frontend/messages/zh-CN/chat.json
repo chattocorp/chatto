@@ -172,7 +172,7 @@
       },
       "owned_by": "所有者",
       "open_card": "打开 {name} 的个人资料卡",
-      "atproto_verified": "已验证的 Bluesky 身份"
+      "atproto_verified": "已验证的互联网用户名"
     },
     "management_nav": {
       "general": "常规",

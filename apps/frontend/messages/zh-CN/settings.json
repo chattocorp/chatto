@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky 身份",
-      "description": "在你的个人资料中显示 Bluesky 用户名。其他成员的应用会验证该用户名属于你。",
-      "handle_label": "Bluesky 用户名",
+      "title": "互联网用户名",
+      "description": "在你的个人资料中显示互联网用户名。其他成员的应用会验证该用户名属于你。",
+      "handle_label": "互联网用户名",
       "handle_description": "留空即可在 Bluesky 上输入用户名。",
-      "privacy_notice": "Chatto 会在你的 Bluesky 账号中添加一条关联记录。该记录不会显示此服务器的名称。",
+      "privacy_notice": "Chatto 会在你的 AT Protocol 账号（例如 Bluesky）中添加一条关联记录。该记录不会显示此服务器的名称。",
       "link_button": "连接",
-      "link_failed": "无法连接 Bluesky 身份。",
-      "verifying": "正在检查你的 Bluesky 身份…",
+      "link_failed": "无法连接互联网用户名。",
+      "verifying": "正在检查你的互联网用户名…",
       "verified": "你的个人资料将 @{handle} 显示为已验证。",
-      "unverified_no_link": "其他成员无法验证你的 Bluesky 身份。请重新连接。",
-      "unverified_handle": "无法确认你的 Bluesky 用户名。其他成员看不到它。",
-      "unverified_unavailable": "目前无法检查你的 Bluesky 身份。请稍后再试。",
-      "unlink_description": "移除身份也会从你的 Bluesky 账号中删除关联记录。",
+      "unverified_no_link": "其他成员无法验证你的互联网用户名。请重新连接。",
+      "unverified_handle": "无法确认你的互联网用户名。其他成员看不到它。",
+      "unverified_unavailable": "目前无法检查你的互联网用户名。请稍后再试。",
+      "unlink_description": "移除用户名也会从你的 AT Protocol 账号中删除关联记录。",
       "unlink_button": "移除",
-      "unlink_failed": "无法移除 Bluesky 身份。",
-      "wrong_account": "你使用了另一个 Bluesky 账号登录。请使用已连接的账号登录。"
+      "unlink_failed": "无法移除互联网用户名。",
+      "wrong_account": "你使用了另一个 AT Protocol 账号登录。请使用已连接的账号登录。"
     }
   }
 }

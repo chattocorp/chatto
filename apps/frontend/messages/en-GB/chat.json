@@ -172,7 +172,7 @@
       },
       "owned_by": "Owned by",
       "open_card": "Open profile card of {name}",
-      "atproto_verified": "Verified Bluesky identity"
+      "atproto_verified": "Verified internet handle"
     },
     "management_nav": {
       "general": "General",

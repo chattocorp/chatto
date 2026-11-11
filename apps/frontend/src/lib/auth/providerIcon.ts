@@ -10,7 +10,7 @@ export function providerIcon(type: string): string {
     case 'discord':
       return 'icon-[mdi--discord]';
     case 'atproto':
-      return 'icon-[ri--bluesky-fill]';
+      return 'icon-[mdi--at]';
     default:
       return 'icon-[mdi--shield-account]';
   }

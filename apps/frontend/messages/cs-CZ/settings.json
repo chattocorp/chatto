@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Identita Bluesky",
-      "description": "Zobrazte svůj identifikátor Bluesky v profilu. Aplikace ostatních členů ověří, že patří vám.",
-      "handle_label": "Identifikátor Bluesky",
+      "title": "Internetový identifikátor",
+      "description": "Zobrazte svůj internetový identifikátor v profilu. Aplikace ostatních členů ověří, že patří vám.",
+      "handle_label": "Internetový identifikátor",
       "handle_description": "Ponechte prázdné a zadejte identifikátor na Bluesky.",
-      "privacy_notice": "Chatto přidá do vašeho účtu Bluesky záznam o propojení. Záznam nezobrazuje název tohoto serveru.",
+      "privacy_notice": "Chatto přidá do vašeho účtu AT Protocol, například na Bluesky, záznam o propojení. Záznam nezobrazuje název tohoto serveru.",
       "link_button": "Propojit",
-      "link_failed": "Identitu Bluesky se nepodařilo propojit.",
-      "verifying": "Ověřování vaší identity Bluesky…",
+      "link_failed": "Internetový identifikátor se nepodařilo propojit.",
+      "verifying": "Ověřování vašeho internetového identifikátoru…",
       "verified": "Váš profil zobrazuje @{handle} jako ověřený.",
-      "unverified_no_link": "Ostatní členové nemohou ověřit vaši identitu Bluesky. Propojte ji znovu.",
-      "unverified_handle": "Váš identifikátor Bluesky se nepodařilo potvrdit. Ostatní členové jej nevidí.",
-      "unverified_unavailable": "Vaši identitu Bluesky nyní nelze ověřit. Zkuste to později.",
-      "unlink_description": "Odebráním identity se z vašeho účtu Bluesky smaže i záznam o propojení.",
+      "unverified_no_link": "Ostatní členové nemohou ověřit váš internetový identifikátor. Propojte jej znovu.",
+      "unverified_handle": "Váš internetový identifikátor se nepodařilo potvrdit. Ostatní členové jej nevidí.",
+      "unverified_unavailable": "Váš internetový identifikátor nyní nelze ověřit. Zkuste to později.",
+      "unlink_description": "Odebráním identifikátoru se z vašeho účtu AT Protocol smaže i záznam o propojení.",
       "unlink_button": "Odebrat",
-      "unlink_failed": "Identitu Bluesky se nepodařilo odebrat.",
-      "wrong_account": "Přihlásili jste se jiným účtem Bluesky. Přihlaste se propojeným účtem."
+      "unlink_failed": "Internetový identifikátor se nepodařilo odebrat.",
+      "wrong_account": "Přihlásili jste se jiným účtem AT Protocol. Přihlaste se propojeným účtem."
     }
   }
 }

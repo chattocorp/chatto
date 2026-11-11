@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "זהות Bluesky",
-      "description": "הצג את כינוי ה-Bluesky שלך בפרופיל. האפליקציות של חברים אחרים בודקות שהכינוי שייך לך.",
-      "handle_label": "כינוי ב-Bluesky",
+      "title": "כינוי אינטרנט",
+      "description": "הצג את כינוי האינטרנט שלך בפרופיל. האפליקציות של חברים אחרים בודקות שהכינוי שייך לך.",
+      "handle_label": "כינוי אינטרנט",
       "handle_description": "השאר ריק כדי להזין את הכינוי ב-Bluesky.",
-      "privacy_notice": "Chatto מוסיף רשומת קישור לחשבון ה-Bluesky שלך. הרשומה לא מציגה את שם השרת הזה.",
+      "privacy_notice": "Chatto מוסיף רשומת קישור לחשבון ה-AT Protocol שלך, למשל ב-Bluesky. הרשומה לא מציגה את שם השרת הזה.",
       "link_button": "חבר",
-      "link_failed": "לא ניתן לחבר את זהות ה-Bluesky.",
-      "verifying": "בודק את זהות ה-Bluesky שלך…",
+      "link_failed": "לא ניתן לחבר את כינוי האינטרנט.",
+      "verifying": "בודק את כינוי האינטרנט שלך…",
       "verified": "הפרופיל שלך מציג את @{handle} כמאומת.",
-      "unverified_no_link": "חברים אחרים לא יכולים לאמת את זהות ה-Bluesky שלך. חבר אותה שוב.",
-      "unverified_handle": "לא ניתן לאשר את כינוי ה-Bluesky שלך. חברים אחרים לא רואים אותו.",
-      "unverified_unavailable": "לא ניתן לבדוק את זהות ה-Bluesky שלך כעת. נסה שוב מאוחר יותר.",
-      "unlink_description": "הסרת הזהות מוחקת גם את רשומת הקישור מחשבון ה-Bluesky שלך.",
+      "unverified_no_link": "חברים אחרים לא יכולים לאמת את כינוי האינטרנט שלך. חבר אותו שוב.",
+      "unverified_handle": "לא ניתן לאשר את כינוי האינטרנט שלך. חברים אחרים לא רואים אותו.",
+      "unverified_unavailable": "לא ניתן לבדוק את כינוי האינטרנט שלך כעת. נסה שוב מאוחר יותר.",
+      "unlink_description": "הסרת הכינוי מוחקת גם את רשומת הקישור מחשבון ה-AT Protocol שלך.",
       "unlink_button": "הסר",
-      "unlink_failed": "לא ניתן להסיר את זהות ה-Bluesky.",
-      "wrong_account": "התחברת עם חשבון Bluesky אחר. התחבר עם החשבון המחובר."
+      "unlink_failed": "לא ניתן להסיר את כינוי האינטרנט.",
+      "wrong_account": "התחברת עם חשבון AT Protocol אחר. התחבר עם החשבון המחובר."
     }
   }
 }

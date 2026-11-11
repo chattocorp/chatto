@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Identité Bluesky",
-      "description": "Affichez votre identifiant Bluesky sur votre profil. Les applications des autres membres vérifient qu’il vous appartient.",
-      "handle_label": "Identifiant Bluesky",
+      "title": "Identifiant Internet",
+      "description": "Affichez votre identifiant Internet sur votre profil. Les applications des autres membres vérifient qu’il vous appartient.",
+      "handle_label": "Identifiant Internet",
       "handle_description": "Laissez ce champ vide pour saisir votre identifiant sur Bluesky.",
-      "privacy_notice": "Chatto ajoute un enregistrement de liaison à votre compte Bluesky. Cet enregistrement n’indique pas le nom de ce serveur.",
+      "privacy_notice": "Chatto ajoute un enregistrement de liaison à votre compte AT Protocol, par exemple sur Bluesky. Cet enregistrement n’indique pas le nom de ce serveur.",
       "link_button": "Connecter",
-      "link_failed": "Impossible de connecter l’identité Bluesky.",
-      "verifying": "Vérification de votre identité Bluesky…",
+      "link_failed": "Impossible de connecter l’identifiant Internet.",
+      "verifying": "Vérification de votre identifiant Internet…",
       "verified": "Votre profil affiche @{handle} comme vérifié.",
-      "unverified_no_link": "Les autres membres ne peuvent pas vérifier votre identité Bluesky. Connectez-la à nouveau.",
-      "unverified_handle": "Votre identifiant Bluesky n’a pas pu être confirmé. Les autres membres ne le voient pas.",
-      "unverified_unavailable": "Votre identité Bluesky ne peut pas être vérifiée pour le moment. Réessayez plus tard.",
-      "unlink_description": "La suppression de l’identité supprime aussi l’enregistrement de liaison de votre compte Bluesky.",
+      "unverified_no_link": "Les autres membres ne peuvent pas vérifier votre identifiant Internet. Connectez-le à nouveau.",
+      "unverified_handle": "Votre identifiant Internet n’a pas pu être confirmé. Les autres membres ne le voient pas.",
+      "unverified_unavailable": "Votre identifiant Internet ne peut pas être vérifié pour le moment. Réessayez plus tard.",
+      "unlink_description": "La suppression de l’identifiant supprime aussi l’enregistrement de liaison de votre compte AT Protocol.",
       "unlink_button": "Supprimer",
-      "unlink_failed": "Impossible de supprimer l’identité Bluesky.",
-      "wrong_account": "Vous vous êtes connecté avec un autre compte Bluesky. Connectez-vous avec le compte associé."
+      "unlink_failed": "Impossible de supprimer l’identifiant Internet.",
+      "wrong_account": "Vous vous êtes connecté avec un autre compte AT Protocol. Connectez-vous avec le compte associé."
     }
   }
 }

@@ -184,7 +184,7 @@
       },
       "owned_by": "يملكه",
       "open_card": "فتح بطاقة الملف الشخصي لـ {name}",
-      "atproto_verified": "هوية Bluesky موثّقة"
+      "atproto_verified": "معرّف إنترنت موثّق"
     },
     "management_nav": {
       "general": "عام",

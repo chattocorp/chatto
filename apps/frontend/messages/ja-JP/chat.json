@@ -172,7 +172,7 @@
       },
       "owned_by": "所有者",
       "open_card": "{name} のプロフィールカードを開く",
-      "atproto_verified": "確認済みの Bluesky ID"
+      "atproto_verified": "確認済みのインターネットハンドル"
     },
     "management_nav": {
       "general": "一般",

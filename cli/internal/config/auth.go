@@ -27,7 +27,7 @@ var authProviderDefaultLabels = map[string]string{
 	AuthProviderTypeGitLab:        "GitLab",
 	AuthProviderTypeGoogle:        "Google",
 	AuthProviderTypeDiscord:       "Discord",
-	AuthProviderTypeATProto:       "Bluesky",
+	AuthProviderTypeATProto:       "Internet Handle",
 }
 
 // AuthProviderConfig contains one configured external login provider. The ID is

@@ -172,7 +172,7 @@
       },
       "owned_by": "Eigenaar",
       "open_card": "Profielkaart van {name} openen",
-      "atproto_verified": "Geverifieerde Bluesky-identiteit"
+      "atproto_verified": "Geverifieerde internethandle"
     },
     "management_nav": {
       "general": "Algemeen",

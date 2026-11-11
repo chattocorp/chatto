@@ -178,7 +178,7 @@
       },
       "owned_by": "Właściciel",
       "open_card": "Otwórz kartę profilu użytkownika {name}",
-      "atproto_verified": "Zweryfikowana tożsamość Bluesky"
+      "atproto_verified": "Zweryfikowany identyfikator internetowy"
     },
     "management_nav": {
       "general": "Ogólne",

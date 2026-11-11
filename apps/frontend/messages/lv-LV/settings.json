@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky identitāte",
-      "description": "Rādiet savu Bluesky identifikatoru profilā. Citu dalībnieku lietotnes pārbauda, vai tas pieder jums.",
-      "handle_label": "Bluesky identifikators",
+      "title": "Interneta identifikators",
+      "description": "Rādiet savu interneta identifikatoru profilā. Citu dalībnieku lietotnes pārbauda, vai tas pieder jums.",
+      "handle_label": "Interneta identifikators",
       "handle_description": "Atstājiet tukšu, lai ievadītu identifikatoru Bluesky vietnē.",
-      "privacy_notice": "Chatto pievieno jūsu Bluesky kontam saites ierakstu. Ieraksts nerāda šī servera nosaukumu.",
+      "privacy_notice": "Chatto pievieno saites ierakstu jūsu AT Protocol kontam, piemēram, Bluesky. Ieraksts nerāda šī servera nosaukumu.",
       "link_button": "Savienot",
-      "link_failed": "Neizdevās savienot Bluesky identitāti.",
-      "verifying": "Notiek jūsu Bluesky identitātes pārbaude…",
+      "link_failed": "Neizdevās savienot interneta identifikatoru.",
+      "verifying": "Notiek jūsu interneta identifikatora pārbaude…",
       "verified": "Jūsu profils rāda @{handle} kā verificētu.",
-      "unverified_no_link": "Citi dalībnieki nevar verificēt jūsu Bluesky identitāti. Savienojiet to vēlreiz.",
-      "unverified_handle": "Neizdevās apstiprināt jūsu Bluesky identifikatoru. Citi dalībnieki to neredz.",
-      "unverified_unavailable": "Jūsu Bluesky identitāti pašlaik nevar pārbaudīt. Mēģiniet vēlāk.",
-      "unlink_description": "Noņemot identitāti, no jūsu Bluesky konta tiek dzēsts arī saites ieraksts.",
+      "unverified_no_link": "Citi dalībnieki nevar verificēt jūsu interneta identifikatoru. Savienojiet to vēlreiz.",
+      "unverified_handle": "Neizdevās apstiprināt jūsu interneta identifikatoru. Citi dalībnieki to neredz.",
+      "unverified_unavailable": "Jūsu interneta identifikatoru pašlaik nevar pārbaudīt. Mēģiniet vēlāk.",
+      "unlink_description": "Noņemot identifikatoru, no jūsu AT Protocol konta tiek dzēsts arī saites ieraksts.",
       "unlink_button": "Noņemt",
-      "unlink_failed": "Neizdevās noņemt Bluesky identitāti.",
-      "wrong_account": "Jūs pierakstījāties ar citu Bluesky kontu. Pierakstieties ar savienoto kontu."
+      "unlink_failed": "Neizdevās noņemt interneta identifikatoru.",
+      "wrong_account": "Jūs pierakstījāties ar citu AT Protocol kontu. Pierakstieties ar savienoto kontu."
     }
   }
 }

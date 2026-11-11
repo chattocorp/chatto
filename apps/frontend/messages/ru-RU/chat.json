@@ -178,7 +178,7 @@
       },
       "owned_by": "Владелец",
       "open_card": "Открыть карточку профиля {name}",
-      "atproto_verified": "Подтверждённая личность Bluesky"
+      "atproto_verified": "Подтверждённое интернет-имя"
     },
     "management_nav": {
       "general": "Общий",

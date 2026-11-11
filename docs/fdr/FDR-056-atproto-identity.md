@@ -25,7 +25,7 @@ The feature has three parts:
 
 - An operator enables the provider with the `atproto` provider type. No client
   registration or client secret is necessary. The default button label is
-  "Bluesky".
+  "Internet Handle", because AT Protocol handles are not limited to Bluesky.
 - The login page shows a handle field with the provider button. The server
   resolves the handle and sends the user to the authorization page of the
   user's PDS. After approval, Chatto signs the user in or links the identity,
@@ -47,7 +47,9 @@ The feature has three parts:
 - The settings panel shows whether other clients can verify the link.
 - Profile cards and profile views show the handle with a check mark only
   after the viewer's client verified the link. An unverified claim shows
-  nothing. The handle links to the Bluesky profile.
+  nothing. The handle links to the profile on Bluesky.
+- The interface calls the feature "internet handle" and the account an
+  "AT Protocol account". It mentions Bluesky only as an example.
 - **Remove** deletes the DID from the profile and the record from the
   repository. The device must have, or sign in to, a session for the
   published DID. A sign-in with a different AT Protocol account is rejected.

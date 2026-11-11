@@ -110,7 +110,7 @@ window; an optional native host capability enables inline password submission.
           loading={busy && selectedProviderId === atprotoProvider.id}
           onclick={() => void signInOnServer(atprotoProvider.id, false, knownAtprotoHandle)}
         >
-          <span aria-hidden="true" class="iconify icon-[ri--bluesky-fill]"></span>
+          <span aria-hidden="true" class="iconify icon-[mdi--at]"></span>
           {m('auth.remote.continue_as_atproto', { handle: knownAtprotoHandle })}
         </Button>
         <Divider label={m('common.or')} />

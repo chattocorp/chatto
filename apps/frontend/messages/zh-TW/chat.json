@@ -172,7 +172,7 @@
       },
       "owned_by": "擁有者",
       "open_card": "開啟 {name} 的個人資料卡",
-      "atproto_verified": "已驗證的 Bluesky 身分"
+      "atproto_verified": "已驗證的網際網路使用者名稱"
     },
     "management_nav": {
       "general": "一般",

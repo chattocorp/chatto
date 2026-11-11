@@ -172,7 +172,7 @@
       },
       "owned_by": "Vlastník",
       "open_card": "Otevřít profilovou kartu uživatele {name}",
-      "atproto_verified": "Ověřená identita Bluesky"
+      "atproto_verified": "Ověřený internetový identifikátor"
     },
     "management_nav": {
       "general": "Generál",

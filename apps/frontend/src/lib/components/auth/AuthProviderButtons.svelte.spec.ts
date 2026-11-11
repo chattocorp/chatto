@@ -19,7 +19,7 @@ const github = {
 const bluesky = {
   id: 'bsky',
   type: 'atproto',
-  label: 'Bluesky',
+  label: 'Internet Handle',
   loginUrl: '/auth/providers/bsky'
 } as PublicAuthProvider;
 
@@ -29,8 +29,8 @@ describe('AuthProviderButtons', () => {
   it('passes the typed handle for AT Protocol providers', async () => {
     const onclick = vi.fn((event: Event) => event.preventDefault());
     const screen = render(AuthProviderButtons, { providers: [github, bluesky], onclick });
-    await userEvent.fill(screen.getByLabelText('Bluesky handle'), '@alice.example');
-    await screen.getByRole('button', { name: 'Continue with Bluesky' }).click();
+    await userEvent.fill(screen.getByLabelText('Internet handle'), '@alice.example');
+    await screen.getByRole('button', { name: 'Continue with Internet Handle' }).click();
     expect(onclick).toHaveBeenCalledWith(expect.anything(), bluesky, 'alice.example');
 
     await screen.getByRole('button', { name: 'Continue with GitHub' }).click();
@@ -41,10 +41,10 @@ describe('AuthProviderButtons', () => {
     mocks.atprotoAccount.mockReturnValue({ did: 'did:plc:alice', handle: 'alice.example' });
     const onclick = vi.fn((event: Event) => event.preventDefault());
     const screen = render(AuthProviderButtons, { providers: [bluesky], onclick });
-    await expect.element(screen.getByLabelText('Bluesky handle')).toHaveValue('alice.example');
+    await expect.element(screen.getByLabelText('Internet handle')).toHaveValue('alice.example');
 
-    await userEvent.clear(screen.getByLabelText('Bluesky handle'));
-    await screen.getByRole('button', { name: 'Continue with Bluesky' }).click();
+    await userEvent.clear(screen.getByLabelText('Internet handle'));
+    await screen.getByRole('button', { name: 'Continue with Internet Handle' }).click();
     expect(onclick).toHaveBeenCalledWith(expect.anything(), bluesky, undefined);
   });
 });

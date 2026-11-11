@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky-identitet",
-      "description": "Visa ditt Bluesky-handtag i din profil. Andra medlemmars appar kontrollerar att handtaget tillhör dig.",
-      "handle_label": "Bluesky-handtag",
+      "title": "Internethandtag",
+      "description": "Visa ditt internethandtag i din profil. Andra medlemmars appar kontrollerar att handtaget tillhör dig.",
+      "handle_label": "Internethandtag",
       "handle_description": "Lämna tomt för att ange ditt handtag på Bluesky.",
-      "privacy_notice": "Chatto lägger till en länkpost i ditt Bluesky-konto. Posten visar inte namnet på den här servern.",
+      "privacy_notice": "Chatto lägger till en länkpost i ditt AT Protocol-konto, till exempel på Bluesky. Posten visar inte namnet på den här servern.",
       "link_button": "Anslut",
-      "link_failed": "Bluesky-identiteten kunde inte anslutas.",
-      "verifying": "Kontrollerar din Bluesky-identitet…",
+      "link_failed": "Internethandtaget kunde inte anslutas.",
+      "verifying": "Kontrollerar ditt internethandtag…",
       "verified": "Din profil visar @{handle} som verifierad.",
-      "unverified_no_link": "Andra medlemmar kan inte verifiera din Bluesky-identitet. Anslut den igen.",
-      "unverified_handle": "Ditt Bluesky-handtag kunde inte bekräftas. Andra medlemmar ser det inte.",
-      "unverified_unavailable": "Din Bluesky-identitet kan inte kontrolleras just nu. Försök igen senare.",
-      "unlink_description": "När du tar bort identiteten raderas även länkposten från ditt Bluesky-konto.",
+      "unverified_no_link": "Andra medlemmar kan inte verifiera ditt internethandtag. Anslut det igen.",
+      "unverified_handle": "Ditt internethandtag kunde inte bekräftas. Andra medlemmar ser det inte.",
+      "unverified_unavailable": "Ditt internethandtag kan inte kontrolleras just nu. Försök igen senare.",
+      "unlink_description": "När du tar bort handtaget raderas även länkposten från ditt AT Protocol-konto.",
       "unlink_button": "Ta bort",
-      "unlink_failed": "Bluesky-identiteten kunde inte tas bort.",
-      "wrong_account": "Du loggade in med ett annat Bluesky-konto. Logga in med det anslutna kontot."
+      "unlink_failed": "Internethandtaget kunde inte tas bort.",
+      "wrong_account": "Du loggade in med ett annat AT Protocol-konto. Logga in med det anslutna kontot."
     }
   }
 }

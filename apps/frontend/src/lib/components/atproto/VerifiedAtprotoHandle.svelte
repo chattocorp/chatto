@@ -25,7 +25,7 @@ so mount this only where a profile is open.
       title={m('chat.profile.atproto_verified')}
       data-testid="verified-atproto-handle"
     >
-      <span aria-hidden="true" class="iconify icon-[ri--bluesky-fill] shrink-0"></span>
+      <span aria-hidden="true" class="iconify icon-[mdi--at] shrink-0"></span>
       <span class="truncate" dir="ltr">@{result.handle}</span>
       <span
         role="img"

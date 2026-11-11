@@ -172,7 +172,7 @@
       },
       "owned_by": "Ανήκει σε",
       "open_card": "Άνοιγμα κάρτας προφίλ του χρήστη {name}",
-      "atproto_verified": "Επαληθευμένη ταυτότητα Bluesky"
+      "atproto_verified": "Επαληθευμένο διαδικτυακό όνομα χρήστη"
     },
     "management_nav": {
       "general": "Γενικά",

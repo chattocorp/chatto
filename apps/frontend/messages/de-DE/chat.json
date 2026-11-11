@@ -172,7 +172,7 @@
       },
       "owned_by": "Gehört",
       "open_card": "Profilkarte von {name} öffnen",
-      "atproto_verified": "Verifizierte Bluesky-Identität"
+      "atproto_verified": "Verifiziertes Internet-Handle"
     },
     "management_nav": {
       "general": "Allgemein",

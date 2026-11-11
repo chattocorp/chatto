@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Identidade do Bluesky",
-      "description": "Mostre o identificador do Bluesky no perfil. As aplicações dos outros membros verificam que lhe pertence.",
-      "handle_label": "Identificador do Bluesky",
+      "title": "Identificador de internet",
+      "description": "Mostre o identificador de internet no perfil. As aplicações dos outros membros verificam que lhe pertence.",
+      "handle_label": "Identificador de internet",
       "handle_description": "Deixe vazio para introduzir o identificador no Bluesky.",
-      "privacy_notice": "O Chatto adiciona um registo de ligação à conta do Bluesky. O registo não mostra o nome deste servidor.",
+      "privacy_notice": "O Chatto adiciona um registo de ligação à conta do AT Protocol, por exemplo no Bluesky. O registo não mostra o nome deste servidor.",
       "link_button": "Ligar",
-      "link_failed": "Não foi possível ligar a identidade do Bluesky.",
-      "verifying": "A verificar a identidade do Bluesky…",
+      "link_failed": "Não foi possível ligar o identificador de internet.",
+      "verifying": "A verificar o identificador de internet…",
       "verified": "O perfil mostra @{handle} como verificado.",
-      "unverified_no_link": "Os outros membros não conseguem verificar a identidade do Bluesky. Ligue-a novamente.",
-      "unverified_handle": "Não foi possível confirmar o identificador do Bluesky. Os outros membros não o veem.",
-      "unverified_unavailable": "Não é possível verificar a identidade do Bluesky agora. Tente novamente mais tarde.",
-      "unlink_description": "Ao remover a identidade, o registo de ligação também é eliminado da conta do Bluesky.",
+      "unverified_no_link": "Os outros membros não conseguem verificar o identificador de internet. Ligue-o novamente.",
+      "unverified_handle": "Não foi possível confirmar o identificador de internet. Os outros membros não o veem.",
+      "unverified_unavailable": "Não é possível verificar o identificador de internet agora. Tente novamente mais tarde.",
+      "unlink_description": "Ao remover o identificador, o registo de ligação também é eliminado da conta do AT Protocol.",
       "unlink_button": "Remover",
-      "unlink_failed": "Não foi possível remover a identidade do Bluesky.",
-      "wrong_account": "Iniciou sessão com outra conta do Bluesky. Inicie sessão com a conta ligada."
+      "unlink_failed": "Não foi possível remover o identificador de internet.",
+      "wrong_account": "Iniciou sessão com outra conta do AT Protocol. Inicie sessão com a conta ligada."
     }
   }
 }

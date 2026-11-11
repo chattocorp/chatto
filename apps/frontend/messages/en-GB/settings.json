@@ -688,22 +688,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky identity",
-      "description": "Show your Bluesky handle on your profile. The apps of other members check that the handle belongs to you.",
-      "handle_label": "Bluesky handle",
+      "title": "Internet handle",
+      "description": "Show your internet handle on your profile. The apps of other members check that the handle belongs to you.",
+      "handle_label": "Internet handle",
       "handle_description": "Leave this empty to enter your handle on Bluesky.",
-      "privacy_notice": "Chatto adds a link record to your Bluesky account. The record does not show the name of this server.",
+      "privacy_notice": "Chatto adds a link record to your AT Protocol account, for example on Bluesky. The record does not show the name of this server.",
       "link_button": "Connect",
-      "link_failed": "The Bluesky identity could not be connected.",
-      "verifying": "Checking your Bluesky identity…",
+      "link_failed": "The internet handle could not be connected.",
+      "verifying": "Checking your internet handle…",
       "verified": "Your profile shows @{handle} as verified.",
-      "unverified_no_link": "Other members cannot verify your Bluesky identity. Connect it again.",
-      "unverified_handle": "Your Bluesky handle could not be confirmed. Other members do not see it.",
-      "unverified_unavailable": "Your Bluesky identity cannot be checked now. Try again later.",
-      "unlink_description": "Removing the identity also deletes the link record from your Bluesky account.",
+      "unverified_no_link": "Other members cannot verify your internet handle. Connect it again.",
+      "unverified_handle": "Your internet handle could not be confirmed. Other members do not see it.",
+      "unverified_unavailable": "Your internet handle cannot be checked now. Try again later.",
+      "unlink_description": "Removing the handle also deletes the link record from your AT Protocol account.",
       "unlink_button": "Remove",
-      "unlink_failed": "The Bluesky identity could not be removed.",
-      "wrong_account": "You signed in with a different Bluesky account. Sign in with the connected account."
+      "unlink_failed": "The internet handle could not be removed.",
+      "wrong_account": "You signed in with a different AT Protocol account. Sign in with the connected account."
     }
   }
 }

@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "هوية Bluesky",
-      "description": "اعرض معرّف Bluesky في ملفك الشخصي. تتحقق تطبيقات الأعضاء الآخرين من أن المعرّف يخصك.",
-      "handle_label": "معرّف Bluesky",
+      "title": "معرّف الإنترنت",
+      "description": "اعرض معرّف الإنترنت في ملفك الشخصي. تتحقق تطبيقات الأعضاء الآخرين من أن المعرّف يخصك.",
+      "handle_label": "معرّف الإنترنت",
       "handle_description": "اتركه فارغًا لإدخال معرّفك في Bluesky.",
-      "privacy_notice": "يضيف Chatto سجل ربط إلى حسابك في Bluesky. لا يعرض السجل اسم هذا الخادم.",
+      "privacy_notice": "يضيف Chatto سجل ربط إلى حسابك في AT Protocol، مثل Bluesky. لا يعرض السجل اسم هذا الخادم.",
       "link_button": "ربط",
-      "link_failed": "تعذّر ربط هوية Bluesky.",
-      "verifying": "جارٍ التحقق من هوية Bluesky…",
+      "link_failed": "تعذّر ربط معرّف الإنترنت.",
+      "verifying": "جارٍ التحقق من معرّف الإنترنت…",
       "verified": "يعرض ملفك الشخصي @{handle} على أنه موثّق.",
-      "unverified_no_link": "لا يستطيع الأعضاء الآخرون توثيق هوية Bluesky الخاصة بك. اربطها مرة أخرى.",
-      "unverified_handle": "تعذّر تأكيد معرّف Bluesky. لا يراه الأعضاء الآخرون.",
-      "unverified_unavailable": "لا يمكن التحقق من هوية Bluesky الآن. حاول مرة أخرى لاحقًا.",
-      "unlink_description": "تؤدي إزالة الهوية أيضًا إلى حذف سجل الربط من حسابك في Bluesky.",
+      "unverified_no_link": "لا يستطيع الأعضاء الآخرون توثيق معرّف الإنترنت الخاص بك. اربطه مرة أخرى.",
+      "unverified_handle": "تعذّر تأكيد معرّف الإنترنت. لا يراه الأعضاء الآخرون.",
+      "unverified_unavailable": "لا يمكن التحقق من معرّف الإنترنت الآن. حاول مرة أخرى لاحقًا.",
+      "unlink_description": "تؤدي إزالة المعرّف أيضًا إلى حذف سجل الربط من حسابك في AT Protocol.",
       "unlink_button": "إزالة",
-      "unlink_failed": "تعذّرت إزالة هوية Bluesky.",
-      "wrong_account": "سجّلت الدخول بحساب Bluesky آخر. سجّل الدخول بالحساب المربوط."
+      "unlink_failed": "تعذّرت إزالة معرّف الإنترنت.",
+      "wrong_account": "سجّلت الدخول بحساب AT Protocol آخر. سجّل الدخول بالحساب المربوط."
     }
   }
 }

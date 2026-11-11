@@ -149,7 +149,7 @@ publishes the DID on the profile. The server never receives PDS tokens.
   }
 </script>
 
-<Panel title={m('settings.atproto.title')} icon="iconify icon-[ri--bluesky-fill]">
+<Panel title={m('settings.atproto.title')} icon="iconify icon-[mdi--at]">
   <div class="flex max-w-md flex-col gap-4">
     <p class="text-sm text-muted">{m('settings.atproto.description')}</p>
     {#if error}

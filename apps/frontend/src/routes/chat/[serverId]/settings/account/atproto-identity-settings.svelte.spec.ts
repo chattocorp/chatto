@@ -67,7 +67,7 @@ describe('AtprotoIdentitySettings', () => {
 
   it('writes the link record before it publishes the DID', async () => {
     const screen = renderSettings(null);
-    await userEvent.fill(screen.getByLabelText('Bluesky handle'), 'alice.example');
+    await userEvent.fill(screen.getByLabelText('Internet handle'), 'alice.example');
     await screen.getByRole('button', { name: 'Connect' }).click();
 
     await expect.poll(() => mocks.setAtprotoIdentity).toHaveBeenCalledWith(DID);
@@ -87,7 +87,7 @@ describe('AtprotoIdentitySettings', () => {
     await screen.getByRole('button', { name: 'Connect' }).click();
 
     await expect
-      .element(screen.getByText('The Bluesky identity could not be connected.'))
+      .element(screen.getByText('The internet handle could not be connected.'))
       .toBeVisible();
     expect(mocks.setAtprotoIdentity).not.toHaveBeenCalled();
   });
@@ -98,7 +98,7 @@ describe('AtprotoIdentitySettings', () => {
     await screen.getByRole('button', { name: 'Connect' }).click();
 
     await expect
-      .element(screen.getByText('The Bluesky identity could not be connected.'))
+      .element(screen.getByText('The internet handle could not be connected.'))
       .toBeVisible();
     expect(mocks.deleteAccountLinkRecord).toHaveBeenCalledWith(mocks.session, account);
   });
@@ -108,7 +108,7 @@ describe('AtprotoIdentitySettings', () => {
     const screen = renderSettings(DID);
     await expect
       .element(
-        screen.getByText('Other members cannot verify your Bluesky identity. Connect it again.')
+        screen.getByText('Other members cannot verify your internet handle. Connect it again.')
       )
       .toBeVisible();
     expect(mocks.verify).toHaveBeenCalledWith(DID, account);
@@ -135,7 +135,7 @@ describe('AtprotoIdentitySettings', () => {
     await expect
       .element(
         screen.getByText(
-          'You signed in with a different Bluesky account. Sign in with the connected account.'
+          'You signed in with a different AT Protocol account. Sign in with the connected account.'
         )
       )
       .toBeVisible();

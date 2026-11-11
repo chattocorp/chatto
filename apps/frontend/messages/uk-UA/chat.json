@@ -178,7 +178,7 @@
       },
       "owned_by": "Власник",
       "open_card": "Відкрити картку профілю {name}",
-      "atproto_verified": "Підтверджена особа Bluesky"
+      "atproto_verified": "Підтверджене інтернет-ім’я"
     },
     "management_nav": {
       "general": "Загальне",

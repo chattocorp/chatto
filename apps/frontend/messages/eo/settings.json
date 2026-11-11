@@ -691,22 +691,22 @@
       }
     },
     "atproto": {
-      "title": "Bluesky-identeco",
-      "description": "Montru vian Bluesky-identigilon en via profilo. La aplikaĵoj de aliaj membroj kontrolas, ke ĝi apartenas al vi.",
-      "handle_label": "Bluesky-identigilo",
+      "title": "Interreta identigilo",
+      "description": "Montru vian interretan identigilon en via profilo. La aplikaĵoj de aliaj membroj kontrolas, ke ĝi apartenas al vi.",
+      "handle_label": "Interreta identigilo",
       "handle_description": "Lasu malplena por enigi vian identigilon ĉe Bluesky.",
-      "privacy_notice": "Chatto aldonas ligan registron al via Bluesky-konto. La registro ne montras la nomon de ĉi tiu servilo.",
+      "privacy_notice": "Chatto aldonas ligan registron al via AT Protocol-konto, ekzemple ĉe Bluesky. La registro ne montras la nomon de ĉi tiu servilo.",
       "link_button": "Konekti",
-      "link_failed": "Ne eblis konekti la Bluesky-identecon.",
-      "verifying": "Kontrolante vian Bluesky-identecon…",
+      "link_failed": "Ne eblis konekti la interretan identigilon.",
+      "verifying": "Kontrolante vian interretan identigilon…",
       "verified": "Via profilo montras @{handle} kiel kontrolitan.",
-      "unverified_no_link": "Aliaj membroj ne povas kontroli vian Bluesky-identecon. Konektu ĝin denove.",
-      "unverified_handle": "Ne eblis konfirmi vian Bluesky-identigilon. Aliaj membroj ne vidas ĝin.",
-      "unverified_unavailable": "Via Bluesky-identeco ne kontroleblas nun. Reprovu poste.",
-      "unlink_description": "Forigo de la identeco ankaŭ forigas la ligan registron el via Bluesky-konto.",
+      "unverified_no_link": "Aliaj membroj ne povas kontroli vian interretan identigilon. Konektu ĝin denove.",
+      "unverified_handle": "Ne eblis konfirmi vian interretan identigilon. Aliaj membroj ne vidas ĝin.",
+      "unverified_unavailable": "Via interreta identigilo ne kontroleblas nun. Reprovu poste.",
+      "unlink_description": "Forigo de la identigilo ankaŭ forigas la ligan registron el via AT Protocol-konto.",
       "unlink_button": "Forigi",
-      "unlink_failed": "Ne eblis forigi la Bluesky-identecon.",
-      "wrong_account": "Vi ensalutis per alia Bluesky-konto. Ensalutu per la konektita konto."
+      "unlink_failed": "Ne eblis forigi la interretan identigilon.",
+      "wrong_account": "Vi ensalutis per alia AT Protocol-konto. Ensalutu per la konektita konto."
     }
   }
 }

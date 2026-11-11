@@ -172,7 +172,7 @@
       },
       "owned_by": "Proprietario",
       "open_card": "Apri la scheda profilo di {name}",
-      "atproto_verified": "Identità Bluesky verificata"
+      "atproto_verified": "Handle Internet verificato"
     },
     "management_nav": {
       "general": "Generale",
