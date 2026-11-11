@@ -1692,6 +1692,48 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('searches room members again after an ended session reconnects with a retained view', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = new RoomWithViewerState({
+      room: { id: 'room' },
+      viewerState: { isMember: true }
+    });
+    store.projection.rooms.set('room', room);
+    const profile = new User({ id: 'alice', login: 'alice', displayName: 'Alice' });
+    store.realtimeProjectionHandler(usersResource([profile], false));
+    apiMocks.listRoomMembers.mockClear();
+    apiMocks.listRoomMembers.mockResolvedValue({
+      members: [],
+      memberIds: ['alice'],
+      totalCount: 1,
+      hasMore: false
+    });
+    const members = store.rooms.members('room');
+    expect((await members.searchMembers('ali')).map((member) => member.id)).toEqual(['alice']);
+
+    // Authentication is required: the registry ends the session, which clears
+    // the shared profiles. After reauthentication, recovery keeps the view.
+    store.endSession();
+    store.realtimeSync.markCaughtUp('live');
+    store.realtimeSync.acceptProjectionEvent(undefined, true);
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, retainView: true })
+    );
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room])] : []
+    );
+    await store.completeRealtimeCatchUp('recovery-cursor');
+    await flushPromises();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(1);
+
+    apiMocks.listRoomMembers.mockImplementationOnce(async () => {
+      store.realtimeProjectionHandler(usersResource([profile], false));
+      return { members: [], memberIds: ['alice'], totalCount: 1, hasMore: false };
+    });
+    expect((await members.searchMembers('ali')).map((member) => member.id)).toEqual(['alice']);
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(2);
+    store.dispose();
+  });
   it('keeps resolved mentions during warm recovery and rechecks them at the recovery cursor', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const room = new RoomWithViewerState({
