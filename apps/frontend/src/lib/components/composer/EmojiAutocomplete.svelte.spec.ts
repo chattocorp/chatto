@@ -101,11 +101,11 @@ describe('EmojiAutocomplete', () => {
     flushSync();
     expect(container.querySelector('.menu-item-active')?.textContent).toContain('👋🏾');
     expect(onSelect).not.toHaveBeenCalled();
-    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
     flushSync();
     expect(onSelect).not.toHaveBeenCalled();
-    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
-    expect(onSelect).toHaveBeenCalledWith('👋🏿', 'wave::skin-tone-6', 'Enter');
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+    expect(onSelect).toHaveBeenCalledWith('👋🏿', 'wave::skin-tone-6', 'Tab');
   });
   it('Escape returns to the selected emoji without inserting or changing the saved tone', () => {
     const onSelect = vi.fn();
@@ -168,14 +168,13 @@ describe('EmojiAutocomplete', () => {
       expect(name).toBe('fire');
     });
 
-    it('Tab cycles fuzzy matches without inserting', () => {
+    it('Tab inserts the highlighted fuzzy match', () => {
       const onSelect = vi.fn();
       const { container, component } = renderAutocomplete({ query: 'fire', onSelect });
       const next = shortcodes(container)[1];
+      component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
       component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
-      flushSync();
-      expect(onSelect).not.toHaveBeenCalled();
-      expect(container.querySelector('.menu-item-active')?.textContent).toContain(`:${next}:`);
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(expect.any(String), next, 'Tab');
     });
 
     it('Tab inserts a sole fuzzy match using the saved tone', () => {

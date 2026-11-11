@@ -47,7 +47,7 @@ Shows matching emojis when typing :shortcode in chat input.
   }
 
   function handleSelect(result: EmojiResult, key: string) {
-    // A sole match confirmed with Tab uses the saved tone and inserts at once.
+    // A match confirmed with Tab uses the saved tone and inserts at once.
     if (emojiToneBase(result.name) && key !== 'Tab') {
       previousKey = result.name;
       qualifying = result;

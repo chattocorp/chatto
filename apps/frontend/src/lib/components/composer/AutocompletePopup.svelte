@@ -4,8 +4,7 @@
 Generic autocomplete popup with keyboard navigation.
 Renders a menu above the composer input with keyboard navigation
 and customizable item rendering via snippets.
-Tab cycles through multiple matches and confirms a sole match. Shift+Tab cycles
-backwards. Enter confirms the highlighted match.
+Tab, Shift+Tab, and Enter confirm the highlighted match. Arrow keys move the selection.
 
 Place it inside the positioned composer surface. An invisible marker covers
 that surface, and `FloatingPopover` anchors the menu to the marker in the top
@@ -103,13 +102,6 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
         onClose();
         return true;
       case 'Tab':
-        event.preventDefault();
-        if (items.length === 1) {
-          onSelect(items[0], event.key);
-        } else {
-          selectedIndex = (selectedIndex + (event.shiftKey ? -1 : 1) + items.length) % items.length;
-        }
-        return true;
       case 'Enter':
         event.preventDefault();
         onSelect(items[selectedIndex], event.key);

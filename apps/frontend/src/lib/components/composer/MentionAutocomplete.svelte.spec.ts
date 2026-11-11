@@ -188,15 +188,16 @@ describe('MentionAutocomplete', () => {
       expect(component.handleKeyDown(ev)).toBe(false);
     });
 
-    it('Tab forwards the selection key', () => {
+    it('Tab confirms the highlighted member among multiple matches', () => {
       const onSelect = vi.fn();
       const { component } = renderAutocomplete({
-        query: 'alice',
-        members: [member('alice')],
+        query: '',
+        members: [member('alice'), member('bob')],
         onSelect
       });
+      component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
       component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
-      expect(onSelect).toHaveBeenCalledWith('alice', 'Tab');
+      expect(onSelect).toHaveBeenCalledWith('bob', 'Tab');
     });
 
     it('Enter forwards the selection key', () => {

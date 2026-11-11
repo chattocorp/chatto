@@ -103,9 +103,10 @@ describe('RoomAutocomplete', () => {
       onSelect,
       onClose: () => {}
     });
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
     flushSync();
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('https://rooms.test/chat/-/', 'Tab');
     expect(container.querySelector('.menu-item-active')?.textContent).toContain('Workspace');
     container.querySelectorAll('button')[2].click();
     expect(onSelect).toHaveBeenCalledWith('https://rooms.test/chat/-/1', 'click');
