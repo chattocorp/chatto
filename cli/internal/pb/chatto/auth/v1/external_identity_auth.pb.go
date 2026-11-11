@@ -454,8 +454,12 @@ type CreateExternalIdentityAccountResponse struct {
 	// Remaining lifetime of the current renewable-session window in seconds.
 	// A successful refresh can advance this window for an active session.
 	RefreshTokenExpiresIn int64 `protobuf:"varint,6,opt,name=refresh_token_expires_in,json=refreshTokenExpiresIn,proto3" json:"refresh_token_expires_in,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// DID of the AT Protocol identity that the new account linked, when the
+	// provider is an AT Protocol provider. The client writes the account link
+	// record for this DID only (FDR-056).
+	AtprotoDid    *string `protobuf:"bytes,7,opt,name=atproto_did,json=atprotoDid,proto3,oneof" json:"atproto_did,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateExternalIdentityAccountResponse) Reset() {
@@ -528,6 +532,13 @@ func (x *CreateExternalIdentityAccountResponse) GetRefreshTokenExpiresIn() int64
 		return x.RefreshTokenExpiresIn
 	}
 	return 0
+}
+
+func (x *CreateExternalIdentityAccountResponse) GetAtprotoDid() string {
+	if x != nil && x.AtprotoDid != nil {
+		return *x.AtprotoDid
+	}
+	return ""
 }
 
 // Request to cancel a pending external identity flow.
@@ -734,7 +745,7 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12*\n" +
 	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\x121\n" +
-	"\x0finvitation_code\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0einvitationCode\"\xe9\x01\n" +
+	"\x0finvitation_code\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0einvitationCode\"\x9f\x02\n" +
 	"%CreateExternalIdentityAccountResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +
@@ -742,7 +753,10 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x05 \x01(\x03R\texpiresIn\x127\n" +
-	"\x18refresh_token_expires_in\x18\x06 \x01(\x03R\x15refreshTokenExpiresIn\"B\n" +
+	"\x18refresh_token_expires_in\x18\x06 \x01(\x03R\x15refreshTokenExpiresIn\x12$\n" +
+	"\vatproto_did\x18\a \x01(\tH\x00R\n" +
+	"atprotoDid\x88\x01\x01B\x0e\n" +
+	"\f_atproto_did\"B\n" +
 	"!CancelExternalIdentityFlowRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"5\n" +
 	"\"CancelExternalIdentityFlowResponseJ\x04\b\x01\x10\x02R\tcancelled\"C\n" +
@@ -819,6 +833,7 @@ func file_chatto_auth_v1_external_identity_auth_proto_init() {
 		return
 	}
 	file_chatto_auth_v1_external_identity_auth_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_auth_v1_external_identity_auth_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

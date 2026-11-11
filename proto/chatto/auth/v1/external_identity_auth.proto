@@ -98,6 +98,10 @@ message CreateExternalIdentityAccountResponse {
   // Remaining lifetime of the current renewable-session window in seconds.
   // A successful refresh can advance this window for an active session.
   int64 refresh_token_expires_in = 6;
+  // DID of the AT Protocol identity that the new account linked, when the
+  // provider is an AT Protocol provider. The client writes the account link
+  // record for this DID only (FDR-056).
+  optional string atproto_did = 7;
 }
 
 // Request to cancel a pending external identity flow.

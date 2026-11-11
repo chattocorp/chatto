@@ -149,14 +149,18 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, err
 	}
-	response := connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
+	msg := &authv1.CreateExternalIdentityAccountResponse{
 		UserId:                user.GetId(),
 		Login:                 user.GetLogin(),
 		Token:                 credentials.AccessToken,
 		RefreshToken:          credentials.RefreshToken,
 		ExpiresIn:             remainingLifetimeSeconds(credentials.AccessTokenExpiresAt),
 		RefreshTokenExpiresIn: remainingLifetimeSeconds(credentials.SessionExpiresAt),
-	})
+	}
+	if flow.ProviderType == config.AuthProviderTypeATProto && strings.HasPrefix(flow.Subject, "did:") {
+		msg.AtprotoDid = new(flow.Subject)
+	}
+	response := connect.NewResponse(msg)
 	response.Header().Set("Cache-Control", "no-store")
 	response.Header().Set("Pragma", "no-cache")
 	return response, nil

@@ -60,6 +60,8 @@ export type ExternalIdentityList = {
 export type CreatedExternalIdentityAccount = {
   userId: string;
   login: string;
+  /** DID of the AT Protocol identity that the new account linked (FDR-056). */
+  atprotoDid?: string;
 };
 
 function externalIdentityStartURL(value: string): string {
@@ -97,7 +99,8 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
       });
       return {
         userId: response.userId,
-        login: response.login
+        login: response.login,
+        atprotoDid: response.atprotoDid
       };
     },
 

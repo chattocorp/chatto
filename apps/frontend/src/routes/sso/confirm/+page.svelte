@@ -68,16 +68,12 @@
   );
 
   /**
-   * Write the account link record for a new account of this device's AT
-   * Protocol identity, so other members can verify the handle (FDR-056).
+   * Write the account link record for the DID that the new account linked,
+   * so other members can verify the handle (FDR-056). This does nothing when
+   * the device has no AT Protocol session for that DID.
    */
-  async function publishAtprotoLink(userId: string) {
-    const [{ atprotoAccount }, { ensureAtprotoLinkRecord }] = await Promise.all([
-      import('$lib/atproto/session.svelte'),
-      import('$lib/atproto/signIn')
-    ]);
-    const did = atprotoAccount()?.did;
-    if (!did) return;
+  async function publishAtprotoLink(userId: string, did: string) {
+    const { ensureAtprotoLinkRecord } = await import('$lib/atproto/signIn');
     await ensureAtprotoLinkRecord({ serverOrigin: window.location.origin, userId }, did).catch(
       () => {}
     );
@@ -94,7 +90,7 @@
     actionError = '';
     try {
       const created = await flowAPI.createAccount({ token: data.token, login, displayName });
-      if (pending.providerType === 'atproto') void publishAtprotoLink(created.userId);
+      if (created.atprotoDid) void publishAtprotoLink(created.userId, created.atprotoDid);
       const returnURL = new URL(redirectPath, window.location.origin);
       if (isProviderCallback(returnURL)) {
         // The opening tab owns its saved return navigation. Complete this

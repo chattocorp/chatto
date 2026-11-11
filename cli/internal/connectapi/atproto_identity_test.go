@@ -3,8 +3,10 @@ package connectapi
 import (
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,4 +36,28 @@ func TestUserSummaryPublishesLinkedATProtoDID(t *testing.T) {
 
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, env.viewer.Id, env.viewer.Id, identity.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true, Issuers: []string{"github", "atproto"}}))
 	require.Nil(t, summaryDID())
+}
+
+// The client writes the account link record only for the DID that the new
+// account linked, so account creation returns it (FDR-056).
+func TestExternalIdentityAccountCreationReturnsATProtoDID(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	for _, tc := range []struct {
+		providerType string
+		subject      string
+		want         *string
+	}{
+		{providerType: config.AuthProviderTypeATProto, subject: "did:plc:z72i7hdynmk6r22z27h6tvur", want: new("did:plc:z72i7hdynmk6r22z27h6tvur")},
+		{providerType: config.AuthProviderTypeOpenIDConnect, subject: "oidc-subject"},
+	} {
+		token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+			ProviderID: tc.providerType, ProviderType: tc.providerType, Issuer: tc.providerType, Subject: tc.subject,
+		})
+		require.NoError(t, err)
+		resp, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+			Token: token, Login: "new-" + tc.providerType, DisplayName: "New",
+		}))
+		require.NoError(t, err)
+		require.Equal(t, tc.want, resp.Msg.AtprotoDid, tc.providerType)
+	}
 }
