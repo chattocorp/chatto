@@ -10,7 +10,16 @@ so mount this only where a profile is open.
   import { atprotoLinkVerifier } from '$lib/atproto/session.svelte';
   import { m } from '$lib/i18n/messages';
 
-  let { did, account }: { did: string; account: ChattoAccountRef } = $props();
+  let {
+    did,
+    account,
+    icon = true
+  }: {
+    did: string;
+    account: ChattoAccountRef;
+    /** Show the `@` mark before the handle. Hide it where a row has its own icon. */
+    icon?: boolean;
+  } = $props();
 
   const verification = $derived(atprotoLinkVerifier.verify(did, account));
 </script>
@@ -25,7 +34,7 @@ so mount this only where a profile is open.
       title={m('chat.profile.atproto_verified')}
       data-testid="verified-atproto-handle"
     >
-      <span aria-hidden="true" class="iconify icon-[mdi--at] shrink-0"></span>
+      {#if icon}<span aria-hidden="true" class="iconify icon-[mdi--at] shrink-0"></span>{/if}
       <span class="truncate" dir="ltr">@{result.handle}</span>
       <span
         role="img"

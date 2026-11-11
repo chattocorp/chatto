@@ -523,7 +523,6 @@
                   <div class="truncate text-sm font-medium">{provider.label}</div>
                   <div class="text-xs text-muted">
                     {#if provider.linked}
-                      {m('settings.account.sso.linked')}
                       {#if provider.type === 'atproto' && currentUser.user?.atprotoDid && accountId}
                         <AtprotoLinkStatus
                           did={currentUser.user.atprotoDid}
@@ -532,6 +531,8 @@
                             userId: accountId
                           }}
                         />
+                      {:else}
+                        {m('settings.account.sso.linked')}
                       {/if}
                       {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
                         <p>
