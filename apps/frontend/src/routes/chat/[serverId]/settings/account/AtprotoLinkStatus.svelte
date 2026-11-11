@@ -6,7 +6,12 @@ signs in to the PDS and writes the account link record.
 -->
 <script lang="ts">
   import type { ChattoAccountRef } from '@chatto/client/atproto/accountLink';
-  import { atprotoLinkVerifier, ensureAtprotoSession } from '$lib/atproto/session.svelte';
+  import {
+    atprotoLinkVerifier,
+    atprotoOAuthClient,
+    ensureAtprotoSession,
+    restoreAtprotoAccount
+  } from '$lib/atproto/session.svelte';
   import { ensureAtprotoLinkRecord } from '$lib/atproto/signIn';
   import VerifiedAtprotoHandle from '$lib/components/atproto/VerifiedAtprotoHandle.svelte';
   import { m } from '$lib/i18n/messages';
@@ -21,6 +26,15 @@ signs in to the PDS and writes the account link record.
     void attempt;
     return atprotoLinkVerifier.verify(did, account);
   });
+
+  /**
+   * Load the OAuth library and stored session before the click: browsers
+   * block the sign-in window when the click handler waits for them first.
+   */
+  function prepareSignIn() {
+    void restoreAtprotoAccount();
+    atprotoOAuthClient().catch(() => {});
+  }
 
   async function verify() {
     busy = true;
@@ -54,6 +68,7 @@ signs in to the PDS and writes the account link record.
         class="cursor-pointer link"
         disabled={busy}
         aria-busy={busy}
+        {@attach prepareSignIn}
         onclick={() => void verify()}>{m('settings.atproto.verify_button')}</button
       >
     </p>

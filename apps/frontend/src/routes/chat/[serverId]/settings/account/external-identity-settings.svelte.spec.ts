@@ -101,6 +101,8 @@ vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout })
 
 vi.mock('$lib/atproto/session.svelte', () => ({
   ensureAtprotoSession: mocks.ensureAtprotoSession,
+  atprotoOAuthClient: vi.fn(async () => ({})),
+  restoreAtprotoAccount: vi.fn(async () => null),
   atprotoLinkVerifier: { verify: () => new Promise(() => {}), forget: vi.fn() }
 }));
 

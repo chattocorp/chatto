@@ -5,11 +5,15 @@ import AtprotoLinkStatus from './AtprotoLinkStatus.svelte';
 const mocks = vi.hoisted(() => ({
   verify: vi.fn(),
   ensureAtprotoSession: vi.fn(),
-  ensureAtprotoLinkRecord: vi.fn()
+  ensureAtprotoLinkRecord: vi.fn(),
+  atprotoOAuthClient: vi.fn(),
+  restoreAtprotoAccount: vi.fn()
 }));
 vi.mock('$lib/atproto/session.svelte', () => ({
   atprotoLinkVerifier: { verify: mocks.verify, forget: vi.fn() },
-  ensureAtprotoSession: mocks.ensureAtprotoSession
+  ensureAtprotoSession: mocks.ensureAtprotoSession,
+  atprotoOAuthClient: mocks.atprotoOAuthClient,
+  restoreAtprotoAccount: mocks.restoreAtprotoAccount
 }));
 vi.mock('$lib/atproto/signIn', () => ({ ensureAtprotoLinkRecord: mocks.ensureAtprotoLinkRecord }));
 
@@ -21,6 +25,16 @@ describe('AtprotoLinkStatus', () => {
     vi.clearAllMocks();
     mocks.ensureAtprotoSession.mockResolvedValue({ did });
     mocks.ensureAtprotoLinkRecord.mockResolvedValue(undefined);
+    mocks.atprotoOAuthClient.mockResolvedValue({});
+    mocks.restoreAtprotoAccount.mockResolvedValue(null);
+  });
+
+  it('loads the OAuth client before the Verify click', async () => {
+    mocks.verify.mockResolvedValue({ status: 'unverified', did, reason: 'no_link' });
+    const screen = render(AtprotoLinkStatus, { did, account });
+    await expect.element(screen.getByRole('button', { name: 'Verify' })).toBeVisible();
+    expect(mocks.atprotoOAuthClient).toHaveBeenCalled();
+    expect(mocks.ensureAtprotoSession).not.toHaveBeenCalled();
   });
 
   it('shows the verified handle instead of the linked state', async () => {
