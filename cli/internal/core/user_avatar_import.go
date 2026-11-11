@@ -37,8 +37,7 @@ func (c *ChattoCore) ImportUserAvatarFromURL(ctx context.Context, userID, avatar
 	if err != nil {
 		// A *url.Error names the full URL, which can identify the account, for
 		// example an AT Protocol DID. Callers log this error.
-		var urlErr *url.Error
-		if errors.As(err, &urlErr) {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
 			return fmt.Errorf("fetch provider avatar: %w", urlErr.Err)
 		}
 		return err
