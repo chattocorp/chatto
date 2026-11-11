@@ -55,7 +55,10 @@ message MediaJob {
 
 // Reference to one retained source message of a durable effect. The handler
 // loads the message again on every attempt; the job never copies its data.
+// The digest binds the reference to that exact message, so a recreated stream
+// that reuses the sequence cannot satisfy it.
 message EventEffectJob {
   string subject = 1;
   uint64 sequence = 2;
+  bytes data_sha256 = 3;
 }

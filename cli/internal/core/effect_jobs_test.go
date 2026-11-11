@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"testing"
 
@@ -53,12 +54,20 @@ func TestEffectJobPerformClassifiesSourceAndHandlerOutcomes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("append source fact: %v", err)
 	}
-	record := func(subject string, seq uint64) *statev1.JobRecord {
-		payload, err := proto.Marshal(&statev1.EventEffectJob{Subject: subject, Sequence: seq})
+	source, err := core.storage.serverEvtStream.GetMsg(ctx, seq)
+	if err != nil {
+		t.Fatalf("read source fact: %v", err)
+	}
+	digest := sha256.Sum256(source.Data)
+	recordWithDigest := func(subject string, seq uint64, digest []byte) *statev1.JobRecord {
+		payload, err := proto.Marshal(&statev1.EventEffectJob{Subject: subject, Sequence: seq, DataSha256: digest})
 		if err != nil {
 			t.Fatalf("marshal payload: %v", err)
 		}
 		return &statev1.JobRecord{Payload: payload, Attempts: 2}
+	}
+	record := func(subject string, seq uint64) *statev1.JobRecord {
+		return recordWithDigest(subject, seq, digest[:])
 	}
 	var seen events.DurableDelivery
 	tests := []struct {
@@ -73,6 +82,7 @@ func TestEffectJobPerformClassifiesSourceAndHandlerOutcomes(t *testing.T) {
 		{name: "terminated", job: record(subject, seq), handle: events.TerminateDelivery("bad", nil), category: "invalid_source"},
 		{name: "invalid payload", job: &statev1.JobRecord{Payload: []byte{0xff}}, category: "invalid_payload"},
 		{name: "subject mismatch", job: record("evt.room.other.call_ended", seq), category: "source_mismatch"},
+		{name: "replaced source", job: recordWithDigest(subject, seq, make([]byte, sha256.Size)), category: "source_mismatch"},
 		{name: "missing source", job: record(subject, seq+1000), category: "source_missing"},
 		{name: "expired source", job: record(subject, seq+1000), mayExp: true},
 	}

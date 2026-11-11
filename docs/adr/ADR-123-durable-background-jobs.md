@@ -28,7 +28,7 @@ times.
 
 Existing durable EVT consumers persist deterministic jobs before acknowledging
 their source. Effect consumers on EVT and NOTIFICATIONS keep their persisted
-names and filters. Their jobs store only the source subject and sequence. Each
+names and filters. Their jobs store only the source subject, sequence, and message digest. Each
 attempt reads the source message again and runs the unchanged effect handler.
 A handler termination fails the job permanently. A missing source fails the
 job, except for notification alerts, where expiry reconciliation owns the

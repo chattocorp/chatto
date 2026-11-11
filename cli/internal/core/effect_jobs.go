@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"time"
@@ -81,12 +83,16 @@ func (j *effectJob) Run(ctx context.Context) error {
 }
 
 func (j *effectJob) enqueue(ctx context.Context, d events.DurableDelivery) error {
-	payload, err := proto.Marshal(&statev1.EventEffectJob{Subject: d.Subject, Sequence: d.StreamSequence})
+	digest := sha256.Sum256(d.Data)
+	payload, err := proto.Marshal(&statev1.EventEffectJob{Subject: d.Subject, Sequence: d.StreamSequence, DataSha256: digest[:]})
 	if err != nil {
 		return err
 	}
+	// The digest keeps identities distinct when a recreated stream reuses
+	// sequence numbers. Redelivery of the same message keeps the same identity.
+	source := fmt.Sprintf("%s:%d:%x", j.stream.CachedInfo().Config.Name, d.StreamSequence, digest)
 	return j.core.jobs.Enqueue(ctx, &statev1.JobRecord{
-		Id:               jobqueue.ID(j.kind, fmt.Sprintf("%s:%d", j.stream.CachedInfo().Config.Name, d.StreamSequence)),
+		Id:               jobqueue.ID(j.kind, source),
 		Type:             j.kind,
 		Payload:          payload,
 		MaxAttempts:      j.options.MaxAttempts,
@@ -111,7 +117,7 @@ func (j *effectJob) perform(ctx context.Context, job *statev1.JobRecord) error {
 	if err != nil {
 		return err
 	}
-	if msg.Subject != ref.Subject {
+	if digest := sha256.Sum256(msg.Data); msg.Subject != ref.Subject || !bytes.Equal(digest[:], ref.DataSha256) {
 		return &jobqueue.Failure{Category: "source_mismatch", Permanent: true}
 	}
 	err = j.handle(ctx, events.DurableDelivery{

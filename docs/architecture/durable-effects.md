@@ -160,7 +160,7 @@ Manual retries use a new dispatch generation and preserve the original deadline.
 Effect jobs move existing EVT and NOTIFICATIONS effect consumers onto the
 queue without changing their domain rules. Each source consumer keeps its
 persisted name and filter, and acknowledges after durable job acceptance. The
-job records only the source subject and sequence. Each attempt reads that
+job records only the source subject, sequence, and message digest. Each attempt reads that
 message again and runs the unchanged handler, with its projection barriers and
 idempotency checks. A handler termination fails the job permanently.
 

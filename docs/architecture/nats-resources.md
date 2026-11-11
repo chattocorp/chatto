@@ -136,8 +136,10 @@ and confirmed dispatch. The media source and the effect sources in the
 durable-consumer table use the same handoff rule. Source redelivery cannot
 reset an existing job.
 
-An effect job stores only the source subject and stream sequence. Its job ID
-derives from the job type, stream name, and sequence. Each attempt reads the
+An effect job stores only the source subject, stream sequence, and message
+digest. Its job ID derives from the job type, stream name, sequence, and
+digest, so a recreated stream that reuses a sequence gets a new job. An attempt
+whose source message no longer matches the digest fails permanently. Each attempt reads the
 source message again. A missing notification signal completes its job, because
 expiry reconciliation owns that outcome. A missing EVT source fails the job.
 

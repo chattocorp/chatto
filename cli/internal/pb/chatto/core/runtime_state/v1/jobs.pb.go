@@ -386,10 +386,13 @@ func (x *MediaJob) GetMessageEventId() string {
 
 // Reference to one retained source message of a durable effect. The handler
 // loads the message again on every attempt; the job never copies its data.
+// The digest binds the reference to that exact message, so a recreated stream
+// that reuses the sequence cannot satisfy it.
 type EventEffectJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Subject       string                 `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
 	Sequence      uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	DataSha256    []byte                 `protobuf:"bytes,3,opt,name=data_sha256,json=dataSha256,proto3" json:"data_sha256,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -438,6 +441,13 @@ func (x *EventEffectJob) GetSequence() uint64 {
 	return 0
 }
 
+func (x *EventEffectJob) GetDataSha256() []byte {
+	if x != nil {
+		return x.DataSha256
+	}
+	return nil
+}
+
 var File_chatto_core_runtime_state_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
@@ -479,10 +489,12 @@ const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
 	"occurredAt\"O\n" +
 	"\bMediaJob\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"F\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"g\n" +
 	"\x0eEventEffectJob\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\x04R\bsequence*\xc2\x01\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +
+	"\vdata_sha256\x18\x03 \x01(\fR\n" +
+	"dataSha256*\xc2\x01\n" +
 	"\x12JobExecutionStatus\x12$\n" +
 	" JOB_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bJOB_EXECUTION_STATUS_QUEUED\x10\x01\x12 \n" +
