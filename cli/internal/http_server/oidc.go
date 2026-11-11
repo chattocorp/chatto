@@ -314,9 +314,13 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		var atprotoState string
 		authURL, atprotoState, err = providerRuntime.atproto.authURL(c.Request.Context(), session, providerRuntime.config.ID, strings.TrimSpace(c.Query("login_hint")))
 		if err != nil {
-			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID)
+			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", errors.Is(err, errATProtoIdentityNotFound))
+			code := "provider_failed"
+			if errors.Is(err, errATProtoIdentityNotFound) {
+				code = "atproto_identity_not_found"
+			}
 			_ = session.Save()
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "atproto_identity_not_found"))
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", code))
 			return
 		}
 		session.Set(providerSessionKey(providerRuntime.config.ID, "state"), atprotoState)

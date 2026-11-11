@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/auth/oauth"
+	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -76,17 +77,21 @@ func newATProtoProvider(callbackURL string) (*atprotoProvider, error) {
 // identifier starts at the default authorization server. It returns the URL
 // of the authorization page and the state that the callback must return.
 func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session, providerID, identifier string) (string, string, error) {
+	identifier = strings.TrimPrefix(identifier, "@")
 	if identifier == "" {
 		identifier = atprotoDefaultAuthServer
-	} else if strings.HasPrefix(identifier, "https://") || strings.HasPrefix(identifier, "http://") {
-		// Only Chatto chooses authorization server URLs.
-		return "", "", errors.New("invalid atproto identifier")
+	} else if _, err := syntax.ParseAtIdentifier(identifier); err != nil {
+		// This also rejects URLs: only Chatto chooses authorization servers.
+		return "", "", fmt.Errorf("%w: %w", errATProtoIdentityNotFound, err)
 	}
 	store := &atprotoFlowStore{session: session, key: providerSessionKey(providerID, "atproto_request")}
 	app := *p.app
 	app.Store = store
-	redirect, err := app.StartAuthFlow(ctx, strings.TrimPrefix(identifier, "@"))
+	redirect, err := app.StartAuthFlow(ctx, identifier)
 	if err != nil {
+		if isATProtoIdentityNotFound(err) {
+			return "", "", fmt.Errorf("%w: %w", errATProtoIdentityNotFound, err)
+		}
 		return "", "", err
 	}
 	if store.state == "" {
@@ -95,8 +100,27 @@ func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session,
 	return redirect, store.state, nil
 }
 
-// callback completes a sign-in and returns the verified account DID and its
-// handle. The handle is empty when it does not resolve to the DID.
+// errATProtoIdentityNotFound marks an identifier that does not name an AT
+// Protocol identity. Other start errors are failures of the identity's
+// systems.
+var errATProtoIdentityNotFound = errors.New("atproto identity not found")
+
+func isATProtoIdentityNotFound(err error) bool {
+	for _, target := range []error{
+		identity.ErrHandleNotFound,
+		identity.ErrHandleMismatch,
+		identity.ErrHandleNotDeclared,
+		identity.ErrHandleReservedTLD,
+		identity.ErrDIDNotFound,
+		identity.ErrInvalidHandle,
+	} {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
+}
+
 // atprotoAccount is the verified result of an AT Protocol sign-in.
 type atprotoAccount struct {
 	DID syntax.DID
@@ -111,6 +135,8 @@ type atprotoAccount struct {
 // atprotoProfileRecordLimit bounds the profile record that sign-in reads.
 const atprotoProfileRecordLimit = 64 << 10
 
+// callback completes a sign-in and returns the verified account. The token
+// subject is the DID; the handle is kept only when it resolves back to it.
 func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session, providerID string, params url.Values) (atprotoAccount, error) {
 	app := *p.app
 	app.Store = &atprotoFlowStore{session: session, key: providerSessionKey(providerID, "atproto_request")}

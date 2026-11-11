@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -243,6 +244,40 @@ func TestATProtoStartRejectsAuthServerURLs(t *testing.T) {
 	for _, hint := range []string{"https://evil.example", "http://127.0.0.1"} {
 		status, _ := getJSON(t, client, server.URL+"/start?"+url.Values{"login_hint": {hint}}.Encode())
 		require.Equal(t, http.StatusBadRequest, status, hint)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestATProtoStartClassifiesIdentityErrors(t *testing.T) {
+	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
+	require.NoError(t, err)
+	dir := identity.NewMockDirectory()
+	dir.Insert(identity.Identity{
+		DID:      syntax.DID(testATProtoDID),
+		Handle:   syntax.Handle("alice.test"),
+		Services: map[string]identity.ServiceEndpoint{"atproto_pds": {Type: "AtprotoPersonalDataServer", URL: "https://pds.test"}},
+	})
+	provider.app.Dir = dir
+	// The PDS of alice.test does not answer.
+	provider.app.Resolver.Client = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("unreachable")
+	})}
+
+	for _, tc := range []struct {
+		identifier string
+		notFound   bool
+	}{
+		{identifier: "nobody.test", notFound: true},
+		{identifier: "not a handle", notFound: true},
+		{identifier: "https://evil.example", notFound: true},
+		{identifier: "@alice.test", notFound: false},
+	} {
+		_, _, err := provider.authURL(t.Context(), nil, "bsky", tc.identifier)
+		require.Error(t, err, tc.identifier)
+		require.Equal(t, tc.notFound, errors.Is(err, errATProtoIdentityNotFound), tc.identifier)
 	}
 }
 

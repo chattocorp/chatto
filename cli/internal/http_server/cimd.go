@@ -2,8 +2,8 @@ package http_server
 
 import (
 	"net/http"
-	"strings"
 	"net/url"
+	"strings"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/gin-gonic/gin"
