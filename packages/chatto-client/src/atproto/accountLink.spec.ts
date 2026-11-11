@@ -166,6 +166,18 @@ describe('createAtprotoLinkVerifier', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['a timeout', () => Promise.reject(new DOMException('timed out', 'TimeoutError')), DID],
+    ['a response that is not JSON', async () => new Response('<html>'), DID],
+    ['a malformed did:web', async () => json({}), 'did:web:%zz']
+  ])('reports %s as unavailable', async (_name, respond, did) => {
+    const fetchImpl = vi.fn<FetchLike>(respond);
+    await expect(createAtprotoLinkVerifier(fetchImpl).verify(did, account)).resolves.toMatchObject({
+      status: 'unverified',
+      reason: 'unavailable'
+    });
+  });
+
   it('caches results but retries unavailable lookups', async () => {
     const network: Network = {};
     const { fetchImpl } = fakeNetwork(network);

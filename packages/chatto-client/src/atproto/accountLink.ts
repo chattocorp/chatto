@@ -127,7 +127,8 @@ export async function deleteAccountLinkRecord(
 export type AtprotoLinkVerifier = {
   /**
    * Verify that `did` controls the Chatto `account`. Results are cached for
-   * ten minutes; results with reason `unavailable` are not cached.
+   * ten minutes; results with reason `unavailable` are not cached. The
+   * promise never rejects: every failure gives reason `unavailable`.
    */
   verify(did: string, account: ChattoAccountRef): Promise<AtprotoVerification>;
   /** Drop a cached result, for example after the user changed the link. */
@@ -151,8 +152,6 @@ export function createAtprotoLinkVerifier(
         return result;
       });
       cache.set(key, pending);
-      // A rejected promise must not stay cached.
-      pending.catch(() => cache.delete(key));
       return pending;
     },
     forget(did, account) {
@@ -177,11 +176,10 @@ async function verifyUncached(
       return { status: 'unverified', did, reason: 'no_link' };
     }
     return { status: 'verified', did, handle: identity.handle };
-  } catch (error) {
-    if (error instanceof UnavailableError || error instanceof TypeError) {
-      return { status: 'unverified', did, reason: 'unavailable' };
-    }
-    throw error;
+  } catch {
+    // Network errors, timeouts, and malformed responses or DIDs all mean that
+    // the claim cannot be verified now. Verification never rejects.
+    return { status: 'unverified', did, reason: 'unavailable' };
   }
 }
 
