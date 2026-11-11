@@ -655,9 +655,7 @@ func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 		info, err := c.botWebhooks.sourceConsumer.Info(ctx)
 		return err == nil && info.NumPending == 0 && info.NumAckPending == 0 && calls.Load() == botWebhookConcurrency
 	}, 3*time.Second, 10*time.Millisecond)
-	jobs, _, err := c.jobs.List(ctx, "", 100)
-	require.NoError(t, err)
-	require.Len(t, jobs, botWebhookConcurrency+1)
+	require.Len(t, jobsOfType(t, ctx, c, "webhook"), botWebhookConcurrency+1)
 	cancel()
 	select {
 	case <-done:

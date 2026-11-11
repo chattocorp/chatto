@@ -610,6 +610,11 @@
       "retry_failed": "לא ניתן לנסות שוב משימה זו.",
       "webhook": "מסירת Webhook",
       "media": "עיבוד מדיה",
+      "asset_cleanup": "ניקוי קבצים",
+      "call_key_cleanup": "מחיקת מפתחות שיחה",
+      "push_subscription_cleanup": "ניקוי מינויי Push",
+      "user_key_shredding": "מחיקת מפתחות חשבון",
+      "notification_alert": "התראת עדכון",
       "queued": "בתור",
       "running": "פועלת",
       "succeeded": "הצליחה",
@@ -619,7 +624,11 @@
       "updated": "עודכנה",
       "next_attempt": "הניסיון הבא",
       "expired": "תוקף המשימה פג ולא ניתן לנסות אותה שוב.",
-      "load_more": "טען עוד"
+      "job": "משימה",
+      "created": "נוצרה",
+      "details": "פרטים",
+      "detail_subtitle": "המצב, הניסיונות וסיבת הכשל האחרונה של משימה זו.",
+      "not_found": "משימה זו כבר לא קיימת."
     }
   }
 }

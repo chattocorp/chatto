@@ -386,8 +386,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`UserKeyShreddingModel`**
   ([`user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go)):
   Request-before-destruction crypto-shredding, privacy-projection barriers,
-  synchronous idempotent completion, and shared durable recovery across
-  replicas.
+  synchronous idempotent completion, and durable recovery through
+  `user_key_shredding` jobs.
 - **`RBACModel`** ([`rbac_model.go`](../../cli/internal/core/rbac_model.go)):
   Sole core owner of RBAC projection reads and readiness for role, assignment,
   and permission authorization and writes.
@@ -419,7 +419,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   core owner of asset-projection reads and readiness; detached
   generation-consistent asset state; uploader-bound exclusive message
   attachments with asset-aggregate OCC; exact-owner deletion; processing
-  transitions, tombstones, and shared durable physical deletion.
+  transitions, tombstones, and physical deletion through `asset_cleanup` jobs.
 - **`AssetUploadModel`**
   ([`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)): Eagerly
   wired chunked attachment upload sessions, temporary object assembly,
@@ -486,6 +486,11 @@ through one filtered watcher. The core starts one shared pool with
 `core.job_concurrency` capacity (default eight). Embedded media also observes
 `asset_processing.max_concurrent_jobs`. Standalone media uses a filtered
 consumer and its own capacity.
+
+[`effectJob`](../../cli/internal/core/effect_jobs.go) moves the asset cleanup,
+call-key cleanup, push-subscription cleanup, user-key shredding, and
+notification alert consumers onto the same pool. Each owning model keeps its
+handler; the source consumer only accepts jobs.
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
 selection and one HTTP attempt. The durable EVT source persists each endpoint's

@@ -384,6 +384,60 @@ func (x *MediaJob) GetMessageEventId() string {
 	return ""
 }
 
+// Reference to one retained source message of a durable effect. The handler
+// loads the message again on every attempt; the job never copies its data.
+type EventEffectJob struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Subject       string                 `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
+	Sequence      uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventEffectJob) Reset() {
+	*x = EventEffectJob{}
+	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventEffectJob) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventEffectJob) ProtoMessage() {}
+
+func (x *EventEffectJob) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventEffectJob.ProtoReflect.Descriptor instead.
+func (*EventEffectJob) Descriptor() ([]byte, []int) {
+	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EventEffectJob) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *EventEffectJob) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
 var File_chatto_core_runtime_state_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
@@ -425,7 +479,10 @@ const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
 	"occurredAt\"O\n" +
 	"\bMediaJob\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId*\xc2\x01\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"F\n" +
+	"\x0eEventEffectJob\x12\x18\n" +
+	"\asubject\x18\x01 \x01(\tR\asubject\x12\x1a\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence*\xc2\x01\n" +
 	"\x12JobExecutionStatus\x12$\n" +
 	" JOB_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bJOB_EXECUTION_STATUS_QUEUED\x10\x01\x12 \n" +
@@ -447,22 +504,23 @@ func file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_runtime_state_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_runtime_state_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_core_runtime_state_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_core_runtime_state_v1_jobs_proto_goTypes = []any{
 	(JobExecutionStatus)(0),       // 0: chatto.core.runtime_state.v1.JobExecutionStatus
 	(*JobRecord)(nil),             // 1: chatto.core.runtime_state.v1.JobRecord
 	(*WebhookJob)(nil),            // 2: chatto.core.runtime_state.v1.WebhookJob
 	(*MediaJob)(nil),              // 3: chatto.core.runtime_state.v1.MediaJob
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*EventEffectJob)(nil),        // 4: chatto.core.runtime_state.v1.EventEffectJob
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_chatto_core_runtime_state_v1_jobs_proto_depIdxs = []int32{
 	0, // 0: chatto.core.runtime_state.v1.JobRecord.status:type_name -> chatto.core.runtime_state.v1.JobExecutionStatus
-	4, // 1: chatto.core.runtime_state.v1.JobRecord.created_at:type_name -> google.protobuf.Timestamp
-	4, // 2: chatto.core.runtime_state.v1.JobRecord.updated_at:type_name -> google.protobuf.Timestamp
-	4, // 3: chatto.core.runtime_state.v1.JobRecord.next_attempt_at:type_name -> google.protobuf.Timestamp
-	4, // 4: chatto.core.runtime_state.v1.JobRecord.lease_until:type_name -> google.protobuf.Timestamp
-	4, // 5: chatto.core.runtime_state.v1.JobRecord.expires_at:type_name -> google.protobuf.Timestamp
-	4, // 6: chatto.core.runtime_state.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
+	5, // 1: chatto.core.runtime_state.v1.JobRecord.created_at:type_name -> google.protobuf.Timestamp
+	5, // 2: chatto.core.runtime_state.v1.JobRecord.updated_at:type_name -> google.protobuf.Timestamp
+	5, // 3: chatto.core.runtime_state.v1.JobRecord.next_attempt_at:type_name -> google.protobuf.Timestamp
+	5, // 4: chatto.core.runtime_state.v1.JobRecord.lease_until:type_name -> google.protobuf.Timestamp
+	5, // 5: chatto.core.runtime_state.v1.JobRecord.expires_at:type_name -> google.protobuf.Timestamp
+	5, // 6: chatto.core.runtime_state.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
@@ -481,7 +539,7 @@ func file_chatto_core_runtime_state_v1_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc), len(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

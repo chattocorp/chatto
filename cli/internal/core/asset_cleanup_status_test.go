@@ -34,7 +34,7 @@ func TestAssetCleanupAdminStatusUsesSharedDurableConsumer(t *testing.T) {
 
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
-	go func() { done <- workerCore.assetModel.Run(workerCtx) }()
+	go func() { done <- runWithEffectJobs(workerCtx, workerCore, workerCore.assetModel.Run) }()
 	// Start the worker before its projection. The deletion must remain pending
 	// until the projection has replayed through the delivery's stream sequence.
 	startAssetProjectionForCleanupTest(t, workerCore.assetModel)

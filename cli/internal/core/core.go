@@ -32,6 +32,7 @@ type ChattoCore struct {
 	jobsConsumer        jetstream.Consumer
 	mediaSourceConsumer jetstream.Consumer
 	mediaJobHandler     func(context.Context, string, string) error
+	effectJobs          map[string]*effectJob // Registered during construction; read-only after Run starts.
 
 	botWebhooks               *botWebhookModel
 	nc                        *nats.Conn

@@ -22,12 +22,10 @@ import (
 )
 
 const (
-	pushSubscriptionCleanupConsumerName       = "chatto-user-push-subscription-cleanup-v1"
-	pushSubscriptionCleanupConsumerAckWait    = 2 * time.Minute
-	pushSubscriptionCleanupDeliveryHeartbeat  = 30 * time.Second
-	pushSubscriptionCleanupRetryDelay         = 30 * time.Second
-	pushSubscriptionCleanupAcknowledgeTimeout = 5 * time.Second
-	pushSubscriptionCleanupMaxPending         = 16
+	pushSubscriptionCleanupConsumerName    = "chatto-user-push-subscription-cleanup-v1"
+	pushSubscriptionCleanupConsumerAckWait = 2 * time.Minute
+	pushSubscriptionCleanupRetryDelay      = 30 * time.Second
+	pushSubscriptionCleanupMaxPending      = 16
 
 	pushSubscriptionReconcileEvery     = 15 * time.Second
 	pushSubscriptionReconcileLeaseTTL  = time.Minute
@@ -42,7 +40,7 @@ const (
 // records without replaying a global scan for every deleted account.
 type pushSubscriptionCleanupModel struct {
 	core           *ChattoCore
-	worker         *events.DurableWorker
+	worker         *effectJob
 	reconcileLease *lease.Lease
 	logger         *log.Logger
 	deleteAllFn    func(context.Context, string) (int, error)
@@ -71,13 +69,7 @@ func newPushSubscriptionCleanupModel(
 		logger:         logger,
 		deleteAllFn:    core.DeleteAllUserPushSubscriptions,
 	}
-	model.worker, err = evtstream.NewEffectWorker(consumer, model.processDelivery, evtstream.EffectWorkerOptions{
-		MaxConcurrent:     pushSubscriptionCleanupMaxPending,
-		RetryDelay:        pushSubscriptionCleanupRetryDelay,
-		AckTimeout:        pushSubscriptionCleanupAcknowledgeTimeout,
-		HeartbeatInterval: pushSubscriptionCleanupDeliveryHeartbeat,
-		Logger:            logger,
-	})
+	model.worker, err = core.newEffectJob(jobTypePushSubscriptionCleanup, core.storage.serverEvtStream, consumer, model.processDelivery, effectJobOptions{MaxAttempts: 20, RetryDelay: pushSubscriptionCleanupRetryDelay})
 	if err != nil {
 		return nil, fmt.Errorf("configure user push-subscription cleanup worker: %w", err)
 	}

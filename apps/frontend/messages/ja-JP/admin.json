@@ -588,6 +588,11 @@
       "retry_failed": "このジョブを再試行できませんでした。",
       "webhook": "Webhook 配信",
       "media": "メディア処理",
+      "asset_cleanup": "ファイルのクリーンアップ",
+      "call_key_cleanup": "通話キーの削除",
+      "push_subscription_cleanup": "プッシュ購読のクリーンアップ",
+      "user_key_shredding": "アカウントキーの削除",
+      "notification_alert": "通知アラート",
       "queued": "待機中",
       "running": "実行中",
       "succeeded": "成功",
@@ -597,7 +602,11 @@
       "updated": "更新日時",
       "next_attempt": "次の試行",
       "expired": "このジョブは期限切れのため再試行できません。",
-      "load_more": "さらに読み込む"
+      "job": "ジョブ",
+      "created": "作成日時",
+      "details": "詳細",
+      "detail_subtitle": "このジョブの状態、試行回数、最後の失敗理由です。",
+      "not_found": "このジョブはもう存在しません。"
     }
   }
 }

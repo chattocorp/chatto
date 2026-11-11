@@ -28,8 +28,6 @@ const (
 	assetCleanupMaxPending   = 16
 	assetCleanupAckWait      = 2 * time.Minute
 	assetCleanupRetryDelay   = 30 * time.Second
-	assetCleanupHeartbeat    = 30 * time.Second
-	assetCleanupAckTimeout   = 5 * time.Second
 	assetCommitCheckTimeout  = 5 * time.Second
 	maxAssetMutationAttempts = 5
 )
@@ -49,7 +47,7 @@ type AssetModel struct {
 	*ChattoCore
 	assets                events.ProjectionHandle[*AssetProjection]
 	cleanupConsumer       jetstream.Consumer
-	cleanupWorker         *events.DurableWorker
+	cleanupWorker         *effectJob
 	waitForAssetsOverride func(context.Context, events.StreamPosition) error
 }
 

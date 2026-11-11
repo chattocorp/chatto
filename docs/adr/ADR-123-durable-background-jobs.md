@@ -4,10 +4,11 @@
 
 ## Context
 
-Media processing and outbound webhooks need common execution and recovery
-controls. Webhook handoff previously acknowledged source events before HTTP
-completion and retained pending deliveries only in memory. Media processing had
-its own worker pool. Operators could not inspect or retry individual work items.
+Media processing, outbound webhooks, and the existing durable effect workers
+need common execution and recovery controls. Webhook handoff previously acknowledged source events before HTTP
+completion and retained pending deliveries only in memory. Media processing, asset cleanup, call-key cleanup, push-subscription cleanup,
+user-key shredding, and notification alerts each had their own worker pool.
+Operators could not inspect or retry individual work items.
 
 ## Decision
 
@@ -23,7 +24,12 @@ next, and dispatches last. Recovery must tolerate snapshots taken at different
 times.
 
 Existing durable EVT consumers persist deterministic jobs before acknowledging
-their source. A filtered runtime-state watcher repairs missing dispatches at
+their source. Effect consumers on EVT and NOTIFICATIONS keep their persisted
+names and filters. Their jobs store only the source subject and sequence. Each
+attempt reads the source message again and runs the unchanged effect handler.
+A handler termination fails the job permanently. A missing source fails the
+job, except for notification alerts, where expiry reconciliation owns the
+outcome. A filtered runtime-state watcher repairs missing dispatches at
 startup and during operation. It retains only unfinished jobs in its index.
 Record creation uses create-if-absent; source redelivery cannot reset a job.
 
@@ -61,5 +67,9 @@ dead-letter stream. Jobs share capacity and can delay each other. Completed and
 failed records and their dispatches have no automatic expiry. This retains
 permanent source deduplication but causes storage to grow with accepted work.
 Listing sorts job keys before hydrating a bounded page; large deployments may
-need a dedicated index and a retention contract later. Email and deletion
-workers are not migrated by this decision.
+need a dedicated index and a retention contract later. Privacy cleanup shares
+capacity with webhooks and media; an exhausted cleanup job remains failed
+until an operator retries it. Effect source consumer diagnostics show handoff
+progress, not job completion. Notification occurrence projection, link-preview
+work, and periodic reconciliation passes remain outside the queue. The current
+server has no separate email worker: account emails send on the request path.

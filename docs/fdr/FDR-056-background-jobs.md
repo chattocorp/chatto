@@ -6,8 +6,9 @@
 ## Overview
 
 The Jobs page in server settings lets authorised users inspect background work
-and retry failed jobs. The first version covers outbound webhooks and media
-processing.
+and retry failed jobs. It covers outbound webhooks, media processing, file
+cleanup, call-key deletion, push-subscription cleanup, account-key deletion,
+and notification alerts.
 
 ## Behavior
 
@@ -24,16 +25,22 @@ processing.
 - A media job succeeds when processing reaches a terminal asset outcome. A
   failed conversion is shown on the attachment; retrying a worker failure does
   not restart an already completed conversion.
-- The page has explicit refresh, paginated results, and expandable details.
-  It has no cancellation, payload editing, or bulk controls.
+- A failed cleanup or key-deletion job is unresolved work. It is not complete
+  or abandoned. A retry repeats the idempotent deletion.
+- A notification alert job also succeeds when the alert expired or is no longer
+  eligible. Retry does not extend the alert delivery window.
+- The list refreshes every three seconds while it is visible, and loads more
+  results as it scrolls. A job detail page refreshes until the job succeeds or
+  fails. The list also has a manual refresh. The pages have no cancellation,
+  payload editing, or bulk controls.
 - V1 retains job records without automatic expiry.
 
 ## Design Decisions
 
 ### 1. Use one execution model
 
-**Decision:** Media and webhook work use one managed queue. Other asynchronous
-work remains outside this first version.
+**Decision:** All durable asynchronous effects use one managed queue.
+Periodic reconciliation passes remain separate.
 **Why:** Common execution and recovery controls reduce separate worker rules.
 See ADR-123.
 **Tradeoff:** Slow work can delay other job types.
@@ -45,6 +52,15 @@ lifecycle permits it.
 **Why:** Operators can recover work after fixing a tool or external service.
 **Tradeoff:** Manual retry can repeat an external effect. Operators must check
 its recipient when a duplicate matters.
+
+### 3. Poll instead of realtime events
+
+**Decision:** Visible job pages poll the job API. Job state has no realtime
+event.
+**Why:** Only authorised operators view jobs, and only while the page is open.
+Polling needs no new realtime contract or delivery filter.
+**Tradeoff:** Changes appear up to three seconds late, and each open page reads
+the job list repeatedly.
 
 ## Gates
 
@@ -62,3 +78,4 @@ its recipient when a duplicate matters.
 
 - Add a retention and indexing contract when job volume requires it.
 - Add email and delayed deletion when those features need durable jobs.
+- Give privacy cleanup its own capacity if other work delays it.

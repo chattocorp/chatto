@@ -599,6 +599,11 @@
       "retry_failed": "Kunne ikke prøve denne jobben på nytt.",
       "webhook": "Webhook-levering",
       "media": "Mediebehandling",
+      "asset_cleanup": "Filopprydding",
+      "call_key_cleanup": "Sletting av samtalenøkler",
+      "push_subscription_cleanup": "Opprydding av push-abonnementer",
+      "user_key_shredding": "Sletting av kontonøkler",
+      "notification_alert": "Varselvarsling",
       "queued": "I kø",
       "running": "Kjører",
       "succeeded": "Fullført",
@@ -608,7 +613,11 @@
       "updated": "Oppdatert",
       "next_attempt": "Neste forsøk",
       "expired": "Denne jobben har utløpt og kan ikke prøves på nytt.",
-      "load_more": "Last inn flere"
+      "job": "Jobb",
+      "created": "Opprettet",
+      "details": "Detaljer",
+      "detail_subtitle": "Status, forsøk og siste feilårsak for denne jobben.",
+      "not_found": "Denne jobben finnes ikke lenger."
     }
   }
 }

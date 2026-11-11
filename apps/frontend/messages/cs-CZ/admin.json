@@ -621,6 +621,11 @@
       "retry_failed": "Tuto úlohu se nepodařilo zopakovat.",
       "webhook": "Doručení webhooku",
       "media": "Zpracování médií",
+      "asset_cleanup": "Čištění souborů",
+      "call_key_cleanup": "Mazání klíčů hovorů",
+      "push_subscription_cleanup": "Čištění odběrů push",
+      "user_key_shredding": "Mazání klíčů účtu",
+      "notification_alert": "Upozornění na oznámení",
       "queued": "Ve frontě",
       "running": "Probíhá",
       "succeeded": "Úspěšná",
@@ -630,7 +635,11 @@
       "updated": "Aktualizováno",
       "next_attempt": "Další pokus",
       "expired": "Platnost této úlohy vypršela a nelze ji zopakovat.",
-      "load_more": "Načíst další"
+      "job": "Úloha",
+      "created": "Vytvořeno",
+      "details": "Podrobnosti",
+      "detail_subtitle": "Stav, pokusy a poslední důvod selhání této úlohy.",
+      "not_found": "Tato úloha již neexistuje."
     }
   }
 }

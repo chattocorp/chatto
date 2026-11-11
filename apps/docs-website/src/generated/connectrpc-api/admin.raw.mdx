@@ -2645,7 +2645,7 @@ are never returned. Requires server.jobs.manage, including privileged mode.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable opaque job ID, preserved across manual retries. |
-| `type` | `string` | Registered work type: webhook or media. Clients can encounter future types. |
+| `type` | `string` | Registered work type: webhook, media, asset_cleanup, call_key_cleanup, push_subscription_cleanup, user_key_shredding, or notification_alert. Clients can encounter future types. |
 | `status` | [`JobStatus`](#chatto-admin-v1-JobStatus) | Current execution state. |
 | `attempts` | `uint32` | Attempts in the current manual retry generation, including interrupted attempts. |
 | `max_attempts` | `uint32` | Maximum automatic attempts in each generation. |

@@ -599,6 +599,11 @@
       "retry_failed": "Impossibile riprovare questa attività.",
       "webhook": "Invio webhook",
       "media": "Elaborazione multimediale",
+      "asset_cleanup": "Pulizia dei file",
+      "call_key_cleanup": "Eliminazione delle chiavi di chiamata",
+      "push_subscription_cleanup": "Pulizia delle iscrizioni push",
+      "user_key_shredding": "Eliminazione delle chiavi dell’account",
+      "notification_alert": "Avviso di notifica",
       "queued": "In coda",
       "running": "In corso",
       "succeeded": "Riuscita",
@@ -608,7 +613,11 @@
       "updated": "Aggiornata",
       "next_attempt": "Prossimo tentativo",
       "expired": "Questa attività è scaduta e non può essere riprovata.",
-      "load_more": "Carica altro"
+      "job": "Attività",
+      "created": "Creata",
+      "details": "Dettagli",
+      "detail_subtitle": "Stato, tentativi e ultimo motivo di errore di questa attività.",
+      "not_found": "Questa attività non esiste più."
     }
   }
 }

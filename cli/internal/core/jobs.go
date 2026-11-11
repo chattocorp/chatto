@@ -22,7 +22,7 @@ var ErrJobNotRetryable = errors.New("job cannot be retried")
 func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 	c.jobs = jobqueue.New(c.js, c.storage.runtimeStateKV, c.logger.WithPrefix("Jobs"))
 	var err error
-	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, jobqueue.ConsumerConfig(jobqueue.ConsumerName, []string{"webhook", "media"}))
+	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, jobqueue.ConsumerConfig(jobqueue.ConsumerName, append([]string{"webhook", "media"}, effectJobTypes()...)))
 	if err != nil {
 		return err
 	}
@@ -66,6 +66,9 @@ func (c *ChattoCore) runJobs(ctx context.Context) error {
 		}
 	}
 	handlers := map[string]jobqueue.Handler{"webhook": c.botWebhooks.performJob}
+	for kind, job := range c.effectJobs {
+		handlers[kind] = job.perform
+	}
 	if c.mediaJobHandler != nil {
 		handlers["media"] = func(ctx context.Context, job *statev1.JobRecord) error {
 			request := new(statev1.MediaJob)

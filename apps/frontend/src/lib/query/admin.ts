@@ -89,6 +89,9 @@ export const adminQueryKeys = {
   jobs(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'jobs'] as const;
   },
+  job(serverId: string, connection: AdminQueryConnection, id: string) {
+    return [...adminRoot(serverId, connection), 'job', id] as const;
+  },
   systemInfo(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'system-info'] as const;
   },

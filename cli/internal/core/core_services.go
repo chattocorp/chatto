@@ -6,10 +6,12 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 	"github.com/chattocorp/chatto/cli/internal/lease"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // assembleCore installs already-constructed infrastructure, projections, and
@@ -104,7 +106,10 @@ func initializeCoreServices(
 		infra.storage.memoryCacheKV,
 		logger.WithPrefix("core.CallModel"),
 	)
-	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream); err != nil {
+	registerCallKeyCleanup := func(consumer jetstream.Consumer, handle events.DurableDeliveryHandler) (*effectJob, error) {
+		return core.newEffectJob(jobTypeCallKeyCleanup, infra.storage.serverEvtStream, consumer, handle, effectJobOptions{MaxAttempts: 20, RetryDelay: callKeyCleanupRetryDelay})
+	}
+	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream, registerCallKeyCleanup); err != nil {
 		return fmt.Errorf("failed to initialize call-key cleanup: %w", err)
 	}
 	core.assetModel = NewAssetModel(core, projections.assets)

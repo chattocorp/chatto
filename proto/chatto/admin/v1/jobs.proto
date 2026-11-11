@@ -35,7 +35,9 @@ enum RetryJobState {
 message Job {
   // Stable opaque job ID, preserved across manual retries.
   string id = 1;
-  // Registered work type: webhook or media. Clients can encounter future types.
+  // Registered work type: webhook, media, asset_cleanup, call_key_cleanup,
+  // push_subscription_cleanup, user_key_shredding, or notification_alert.
+  // Clients can encounter future types.
   string type = 2;
   // Current execution state.
   JobStatus status = 3;

@@ -52,3 +52,10 @@ message MediaJob {
   string asset_id = 1;
   string message_event_id = 2;
 }
+
+// Reference to one retained source message of a durable effect. The handler
+// loads the message again on every attempt; the job never copies its data.
+message EventEffectJob {
+  string subject = 1;
+  uint64 sequence = 2;
+}

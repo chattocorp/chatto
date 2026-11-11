@@ -599,6 +599,11 @@
       "retry_failed": "Ne eblis reprovi ĉi tiun taskon.",
       "webhook": "Rethoka livero",
       "media": "Prilaborado de aŭdvidaĵoj",
+      "asset_cleanup": "Purigado de dosieroj",
+      "call_key_cleanup": "Forigo de vokŝlosiloj",
+      "push_subscription_cleanup": "Purigado de puŝabonoj",
+      "user_key_shredding": "Forigo de kontŝlosiloj",
+      "notification_alert": "Sciiga averto",
       "queued": "En atendovico",
       "running": "Ruliĝanta",
       "succeeded": "Sukcesinta",
@@ -608,7 +613,11 @@
       "updated": "Ĝisdatigita",
       "next_attempt": "Sekva provo",
       "expired": "Ĉi tiu tasko eksvalidiĝis kaj ne povas esti reprovata.",
-      "load_more": "Ŝargi pli"
+      "job": "Tasko",
+      "created": "Kreita",
+      "details": "Detaloj",
+      "detail_subtitle": "Stato, provoj kaj lasta kialo de malsukceso de ĉi tiu tasko.",
+      "not_found": "Ĉi tiu tasko ne plu ekzistas."
     }
   }
 }

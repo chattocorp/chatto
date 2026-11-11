@@ -41,8 +41,6 @@ const (
 	callKeyCleanupMaxPending          = 16
 	callKeyCleanupAckWait             = 2 * time.Minute
 	callKeyCleanupRetryDelay          = 30 * time.Second
-	callKeyCleanupHeartbeat           = 30 * time.Second
-	callKeyCleanupAckTimeout          = 5 * time.Second
 )
 
 type liveKitParticipantSnapshot struct {
@@ -78,7 +76,7 @@ type CallModel struct {
 	// effectLogger receives the call-key cleanup worker's diagnostics.
 	effectLogger       *log.Logger
 	keyCleanupConsumer jetstream.Consumer
-	keyCleanupWorker   *events.DurableWorker
+	keyCleanupWorker   interface{ Run(context.Context) error }
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -150,7 +148,9 @@ func NewCallModel(
 	return model
 }
 
-func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream) error {
+// configureKeyCleanup creates the source consumer of call-key cleanup jobs.
+// register binds the consumer and handler to the shared job queue.
+func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream, register func(jetstream.Consumer, events.DurableDeliveryHandler) (*effectJob, error)) error {
 	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
 		Name:           callKeyCleanupConsumerName,
 		Description:    "Shared durable queue for ended Chatto call-key deletion",
@@ -162,13 +162,7 @@ func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.St
 	if err != nil {
 		return fmt.Errorf("create call-key cleanup consumer: %w", err)
 	}
-	worker, err := evtstream.NewEffectWorker(consumer, s.processKeyCleanupDelivery, evtstream.EffectWorkerOptions{
-		MaxConcurrent:     callKeyCleanupMaxPending,
-		RetryDelay:        callKeyCleanupRetryDelay,
-		AckTimeout:        callKeyCleanupAckTimeout,
-		HeartbeatInterval: callKeyCleanupHeartbeat,
-		Logger:            s.effectLogger,
-	})
+	worker, err := register(consumer, s.processKeyCleanupDelivery)
 	if err != nil {
 		return fmt.Errorf("configure call-key cleanup worker: %w", err)
 	}

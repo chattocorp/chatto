@@ -599,6 +599,11 @@
       "retry_failed": "Could not retry this job.",
       "webhook": "Webhook delivery",
       "media": "Media processing",
+      "asset_cleanup": "File cleanup",
+      "call_key_cleanup": "Call key deletion",
+      "push_subscription_cleanup": "Push subscription cleanup",
+      "user_key_shredding": "Account key deletion",
+      "notification_alert": "Notification alert",
       "queued": "Queued",
       "running": "Running",
       "succeeded": "Succeeded",
@@ -608,7 +613,11 @@
       "updated": "Updated",
       "next_attempt": "Next attempt",
       "expired": "This job has expired and cannot be retried.",
-      "load_more": "Load more"
+      "job": "Job",
+      "created": "Created",
+      "details": "Details",
+      "detail_subtitle": "Status, attempts, and the last failure reason of this job.",
+      "not_found": "This job no longer exists."
     }
   }
 }

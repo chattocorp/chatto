@@ -588,6 +588,11 @@
       "retry_failed": "无法重试此任务。",
       "webhook": "Webhook 投递",
       "media": "媒体处理",
+      "asset_cleanup": "文件清理",
+      "call_key_cleanup": "删除通话密钥",
+      "push_subscription_cleanup": "清理推送订阅",
+      "user_key_shredding": "删除账户密钥",
+      "notification_alert": "通知提醒",
       "queued": "排队中",
       "running": "运行中",
       "succeeded": "成功",
@@ -597,7 +602,11 @@
       "updated": "更新时间",
       "next_attempt": "下次尝试",
       "expired": "此任务已过期，无法重试。",
-      "load_more": "加载更多"
+      "job": "作业",
+      "created": "创建时间",
+      "details": "详情",
+      "detail_subtitle": "此作业的状态、尝试次数和最近一次失败原因。",
+      "not_found": "此作业已不存在。"
     }
   }
 }

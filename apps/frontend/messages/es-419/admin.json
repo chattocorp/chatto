@@ -599,6 +599,11 @@
       "retry_failed": "No se pudo reintentar esta tarea.",
       "webhook": "Envío de webhook",
       "media": "Procesamiento multimedia",
+      "asset_cleanup": "Limpieza de archivos",
+      "call_key_cleanup": "Eliminación de claves de llamada",
+      "push_subscription_cleanup": "Limpieza de suscripciones push",
+      "user_key_shredding": "Eliminación de claves de cuenta",
+      "notification_alert": "Alerta de notificación",
       "queued": "En cola",
       "running": "En curso",
       "succeeded": "Completada",
@@ -608,7 +613,11 @@
       "updated": "Actualizada",
       "next_attempt": "Próximo intento",
       "expired": "Esta tarea ha caducado y no se puede reintentar.",
-      "load_more": "Cargar más"
+      "job": "Trabajo",
+      "created": "Creado",
+      "details": "Detalles",
+      "detail_subtitle": "Estado, intentos y último motivo de error de este trabajo.",
+      "not_found": "Este trabajo ya no existe."
     }
   }
 }

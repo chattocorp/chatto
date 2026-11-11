@@ -599,6 +599,11 @@
       "retry_failed": "Deze taak kon niet opnieuw worden geprobeerd.",
       "webhook": "Webhookbezorging",
       "media": "Mediaverwerking",
+      "asset_cleanup": "Bestanden opruimen",
+      "call_key_cleanup": "Gesprekssleutels verwijderen",
+      "push_subscription_cleanup": "Pushabonnementen opruimen",
+      "user_key_shredding": "Accountsleutels verwijderen",
+      "notification_alert": "Meldingswaarschuwing",
       "queued": "In wachtrij",
       "running": "Actief",
       "succeeded": "Geslaagd",
@@ -608,7 +613,11 @@
       "updated": "Bijgewerkt",
       "next_attempt": "Volgende poging",
       "expired": "Deze taak is verlopen en kan niet opnieuw worden geprobeerd.",
-      "load_more": "Meer laden"
+      "job": "Taak",
+      "created": "Aangemaakt",
+      "details": "Details",
+      "detail_subtitle": "Status, pogingen en laatste foutreden van deze taak.",
+      "not_found": "Deze taak bestaat niet meer."
     }
   }
 }

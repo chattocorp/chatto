@@ -599,6 +599,11 @@
       "retry_failed": "Seda tööd ei saanud uuesti proovida.",
       "webhook": "Veebikonksu edastamine",
       "media": "Meedia töötlemine",
+      "asset_cleanup": "Failide puhastamine",
+      "call_key_cleanup": "Kõnevõtmete kustutamine",
+      "push_subscription_cleanup": "Push-tellimuste puhastamine",
+      "user_key_shredding": "Kontovõtmete kustutamine",
+      "notification_alert": "Teavituse hoiatus",
       "queued": "Järjekorras",
       "running": "Töös",
       "succeeded": "Õnnestus",
@@ -608,7 +613,11 @@
       "updated": "Uuendatud",
       "next_attempt": "Järgmine katse",
       "expired": "See töö on aegunud ja seda ei saa uuesti proovida.",
-      "load_more": "Laadi rohkem"
+      "job": "Töö",
+      "created": "Loodud",
+      "details": "Üksikasjad",
+      "detail_subtitle": "Selle töö olek, katsed ja viimane tõrke põhjus.",
+      "not_found": "Seda tööd enam ei ole."
     }
   }
 }

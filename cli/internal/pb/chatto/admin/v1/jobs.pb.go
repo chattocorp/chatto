@@ -147,7 +147,9 @@ type Job struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable opaque job ID, preserved across manual retries.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Registered work type: webhook or media. Clients can encounter future types.
+	// Registered work type: webhook, media, asset_cleanup, call_key_cleanup,
+	// push_subscription_cleanup, user_key_shredding, or notification_alert.
+	// Clients can encounter future types.
 	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	// Current execution state.
 	Status JobStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.admin.v1.JobStatus" json:"status,omitempty"`

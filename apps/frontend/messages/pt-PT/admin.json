@@ -599,6 +599,11 @@
       "retry_failed": "Não foi possível repetir esta tarefa.",
       "webhook": "Envio de webhook",
       "media": "Processamento de multimédia",
+      "asset_cleanup": "Limpeza de ficheiros",
+      "call_key_cleanup": "Eliminação de chaves de chamada",
+      "push_subscription_cleanup": "Limpeza de subscrições push",
+      "user_key_shredding": "Eliminação de chaves da conta",
+      "notification_alert": "Alerta de notificação",
       "queued": "Em fila",
       "running": "Em execução",
       "succeeded": "Concluída",
@@ -608,7 +613,11 @@
       "updated": "Atualizada",
       "next_attempt": "Próxima tentativa",
       "expired": "Esta tarefa expirou e não pode ser repetida.",
-      "load_more": "Carregar mais"
+      "job": "Tarefa",
+      "created": "Criada",
+      "details": "Detalhes",
+      "detail_subtitle": "Estado, tentativas e último motivo de falha desta tarefa.",
+      "not_found": "Esta tarefa já não existe."
     }
   }
 }
