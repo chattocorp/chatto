@@ -156,6 +156,7 @@ vi.mock('$lib/state/server/presenceTracking', () => ({
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
+  getLiveAtprotoDid: () => null,
   getLiveTimezone: () => null,
   scheduleCustomStatusExpiry: vi.fn()
 }));

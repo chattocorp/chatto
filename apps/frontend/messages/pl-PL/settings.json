@@ -689,6 +689,24 @@
         "integrations": "Integracje",
         "permissions": "Uprawnienia"
       }
+    },
+    "atproto": {
+      "title": "Tożsamość Bluesky",
+      "description": "Pokaż swoją nazwę z Bluesky w profilu. Aplikacje innych członków sprawdzają, czy należy do ciebie.",
+      "handle_label": "Nazwa w Bluesky",
+      "handle_description": "Zostaw puste, aby wpisać nazwę w Bluesky.",
+      "privacy_notice": "Chatto dodaje rekord powiązania do twojego konta Bluesky. Rekord nie pokazuje nazwy tego serwera.",
+      "link_button": "Połącz",
+      "link_failed": "Nie udało się połączyć tożsamości Bluesky.",
+      "verifying": "Sprawdzanie tożsamości Bluesky…",
+      "verified": "Twój profil pokazuje @{handle} jako zweryfikowaną.",
+      "unverified_no_link": "Inni członkowie nie mogą zweryfikować twojej tożsamości Bluesky. Połącz ją ponownie.",
+      "unverified_handle": "Nie udało się potwierdzić twojej nazwy w Bluesky. Inni członkowie jej nie widzą.",
+      "unverified_unavailable": "Nie można teraz sprawdzić twojej tożsamości Bluesky. Spróbuj później.",
+      "unlink_description": "Usunięcie tożsamości usuwa też rekord powiązania z twojego konta Bluesky.",
+      "unlink_button": "Usuń",
+      "unlink_failed": "Nie udało się usunąć tożsamości Bluesky.",
+      "wrong_account": "Zalogowano się na inne konto Bluesky. Zaloguj się na połączone konto."
     }
   }
 }

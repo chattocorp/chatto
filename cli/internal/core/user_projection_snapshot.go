@@ -32,6 +32,7 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			LoginHash:                   u.loginHash,
 			DisplayName:                 snapshotProjectedUserPII(u.displayName),
 			Bio:                         snapshotProjectedUserPII(u.bio),
+			AtprotoDid:                  snapshotProjectedUserPII(u.atprotoDID),
 			Deleted:                     u.deleted,
 			Shredded:                    u.shredded,
 			PrimaryVerifiedEmailEventId: u.primaryVerifiedEmailEventID,
@@ -154,6 +155,10 @@ func (p *UserProjection) Restore(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("user profile snapshot bio for %q: %w", userID, err)
 		}
+		atprotoDID, err := restoreProjectedUserPII(entry.GetAtprotoDid())
+		if err != nil {
+			return fmt.Errorf("user profile snapshot AT Protocol DID for %q: %w", userID, err)
+		}
 		if (login == nil) != (entry.GetLoginHash() == "") {
 			return fmt.Errorf("user profile snapshot has inconsistent login for %q", userID)
 		}
@@ -161,16 +166,16 @@ func (p *UserProjection) Restore(data []byte) error {
 		if active && (entry.GetUser() == nil || login == nil || displayName == nil) {
 			return fmt.Errorf("user profile snapshot has incomplete active user %q", userID)
 		}
-		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPrimaryVerifiedEmailEventId() != "" || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
+		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || atprotoDID != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPrimaryVerifiedEmailEventId() != "" || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
 			return fmt.Errorf("user profile snapshot has profile state on inactive user %q", userID)
 		}
-		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName, "bio": bio} {
+		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName, "bio": bio, "AT Protocol DID": atprotoDID} {
 			if pii != nil && !restored.hasUserPIIKeyLocked(userID, pii.encrypted.GetContentKeyEpoch()) {
 				return fmt.Errorf("user profile snapshot %s for %q has no matching DEK", name, userID)
 			}
 		}
 		u := &projectedUser{
-			login: login, loginHash: entry.GetLoginHash(), displayName: displayName, bio: bio,
+			login: login, loginHash: entry.GetLoginHash(), displayName: displayName, bio: bio, atprotoDID: atprotoDID,
 			deleted: entry.GetDeleted(), shredded: entry.GetShredded(), verifiedEmail: make(map[string]projectedVerifiedEmail),
 			primaryVerifiedEmailEventID: entry.GetPrimaryVerifiedEmailEventId(),
 		}

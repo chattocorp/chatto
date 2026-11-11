@@ -41,7 +41,7 @@ export function isRemoteSignInPending(serverId: string): boolean {
  */
 export async function startRemoteSignIn(
   server: RegisteredServer,
-  options: { useOAuth?: boolean; providerId?: string; signup?: boolean } = {}
+  options: { useOAuth?: boolean; providerId?: string; loginHint?: string; signup?: boolean } = {}
 ): Promise<void> {
   if (hasPasswordLogin() && !options.useOAuth && !options.providerId && !options.signup) {
     inlineServerIds.add(server.id);
@@ -59,6 +59,8 @@ export async function startRemoteSignIn(
   pendingServerIds.add(server.id);
   try {
     if (options.signup) await startRemoteReauthentication(server, undefined, 'signup');
+    else if (options.providerId && options.loginHint)
+      await startRemoteReauthentication(server, options.providerId, undefined, options.loginHint);
     else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
     else await startRemoteReauthentication(server);
     closeInlineSignIn(server.id);

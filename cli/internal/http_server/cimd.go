@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"net/http"
+	"strings"
 	"net/url"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -11,6 +12,19 @@ import (
 const cimdPath = "/oauth/client-metadata.json"
 const frontendCIMDPath = "/oauth/frontend-client-metadata.json"
 const popupCallbackPath = "/servers/callback?mode=popup"
+
+// frontendATProtoClientMetadataPath publishes the bundled frontend's AT
+// Protocol OAuth client metadata. Its URL is the frontend's client ID.
+const frontendATProtoClientMetadataPath = "/oauth/atproto-client-metadata.json"
+
+// frontendATProtoCallbackPath is the frontend route that completes an AT
+// Protocol sign-in.
+const frontendATProtoCallbackPath = "/atproto/callback"
+
+// frontendATProtoScope lets the frontend prove its user's identity and
+// change only Chatto account link records (ADR-123). It must not grant write
+// access to other collections.
+const frontendATProtoScope = "atproto repo:run.chatto.accountLink"
 
 type cimdDocument struct {
 	ClientID                string   `json:"client_id"`
@@ -62,6 +76,47 @@ func (s *HTTPServer) setupCIMDRoutes() {
 			TokenEndpointAuthMethod: "none",
 			GrantTypes:              []string{"authorization_code", "refresh_token"},
 			ResponseTypes:           []string{"code"},
+		})
+	})
+}
+
+// atprotoClientMetadataDocument is the AT Protocol form of client metadata.
+// It extends the OAuth fields with scope and DPoP binding.
+type atprotoClientMetadataDocument struct {
+	ClientID                string   `json:"client_id"`
+	ClientName              string   `json:"client_name"`
+	ClientURI               string   `json:"client_uri"`
+	ApplicationType         string   `json:"application_type"`
+	RedirectURIs            []string `json:"redirect_uris"`
+	Scope                   string   `json:"scope"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	GrantTypes              []string `json:"grant_types"`
+	ResponseTypes           []string `json:"response_types"`
+	DPoPBoundAccessTokens   bool     `json:"dpop_bound_access_tokens"`
+}
+
+// setupFrontendATProtoRoutes publishes the frontend's AT Protocol client
+// metadata for each configured HTTPS origin. Plain HTTP origins use AT
+// Protocol's built-in loopback client instead.
+func (s *HTTPServer) setupFrontendATProtoRoutes() {
+	s.router.GET(frontendATProtoClientMetadataPath, func(c *gin.Context) {
+		origin, ok := s.configuredOriginForHost(c.Request.Host)
+		if !ok || !strings.HasPrefix(origin, "https://") {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Header("Cache-Control", "public, max-age=300")
+		c.JSON(http.StatusOK, atprotoClientMetadataDocument{
+			ClientID:                origin + frontendATProtoClientMetadataPath,
+			ClientName:              "Chatto Web",
+			ClientURI:               origin,
+			ApplicationType:         "web",
+			RedirectURIs:            []string{origin + frontendATProtoCallbackPath},
+			Scope:                   frontendATProtoScope,
+			TokenEndpointAuthMethod: "none",
+			GrantTypes:              []string{"authorization_code", "refresh_token"},
+			ResponseTypes:           []string{"code"},
+			DPoPBoundAccessTokens:   true,
 		})
 	})
 }

@@ -10,6 +10,7 @@ export function userProfileFixture(user: UserSummary & Partial<UserPresenceView>
       avatarUrl: user.avatarUrl ?? '',
       bio: user.bio ?? '',
       timezone: user.timezone ?? '',
+      atprotoDid: user.atprotoDid ?? undefined,
       bot: user.bot ?? (user.isBot ? { ownerUserId: '' } : undefined),
       customStatus: user.customStatus
         ? {

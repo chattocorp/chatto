@@ -171,7 +171,8 @@
         "manage_messages": "Manage messages"
       },
       "owned_by": "Owned by",
-      "open_card": "Open profile card of {name}"
+      "open_card": "Open profile card of {name}",
+      "atproto_verified": "Verified Bluesky identity"
     },
     "management_nav": {
       "general": "General",

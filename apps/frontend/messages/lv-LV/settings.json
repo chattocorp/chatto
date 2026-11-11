@@ -689,6 +689,24 @@
         "integrations": "Integrācijas",
         "permissions": "Atļaujas"
       }
+    },
+    "atproto": {
+      "title": "Bluesky identitāte",
+      "description": "Rādiet savu Bluesky identifikatoru profilā. Citu dalībnieku lietotnes pārbauda, vai tas pieder jums.",
+      "handle_label": "Bluesky identifikators",
+      "handle_description": "Atstājiet tukšu, lai ievadītu identifikatoru Bluesky vietnē.",
+      "privacy_notice": "Chatto pievieno jūsu Bluesky kontam saites ierakstu. Ieraksts nerāda šī servera nosaukumu.",
+      "link_button": "Savienot",
+      "link_failed": "Neizdevās savienot Bluesky identitāti.",
+      "verifying": "Notiek jūsu Bluesky identitātes pārbaude…",
+      "verified": "Jūsu profils rāda @{handle} kā verificētu.",
+      "unverified_no_link": "Citi dalībnieki nevar verificēt jūsu Bluesky identitāti. Savienojiet to vēlreiz.",
+      "unverified_handle": "Neizdevās apstiprināt jūsu Bluesky identifikatoru. Citi dalībnieki to neredz.",
+      "unverified_unavailable": "Jūsu Bluesky identitāti pašlaik nevar pārbaudīt. Mēģiniet vēlāk.",
+      "unlink_description": "Noņemot identitāti, no jūsu Bluesky konta tiek dzēsts arī saites ieraksts.",
+      "unlink_button": "Noņemt",
+      "unlink_failed": "Neizdevās noņemt Bluesky identitāti.",
+      "wrong_account": "Jūs pierakstījāties ar citu Bluesky kontu. Pierakstieties ar savienoto kontu."
     }
   }
 }

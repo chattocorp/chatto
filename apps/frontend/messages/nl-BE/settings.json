@@ -689,6 +689,24 @@
         "integrations": "Integraties",
         "permissions": "Rechten"
       }
+    },
+    "atproto": {
+      "title": "Bluesky-identiteit",
+      "description": "Toon je Bluesky-handle op je profiel. De apps van andere leden controleren of de handle van jou is.",
+      "handle_label": "Bluesky-handle",
+      "handle_description": "Laat dit leeg om je handle bij Bluesky in te voeren.",
+      "privacy_notice": "Chatto voegt een koppelingsrecord toe aan je Bluesky-account. Het record toont de naam van deze server niet.",
+      "link_button": "Koppelen",
+      "link_failed": "De Bluesky-identiteit kon niet worden gekoppeld.",
+      "verifying": "Je Bluesky-identiteit wordt gecontroleerd…",
+      "verified": "Je profiel toont @{handle} als geverifieerd.",
+      "unverified_no_link": "Andere leden kunnen je Bluesky-identiteit niet verifiëren. Koppel hem opnieuw.",
+      "unverified_handle": "Je Bluesky-handle kon niet worden bevestigd. Andere leden zien hem niet.",
+      "unverified_unavailable": "Je Bluesky-identiteit kan nu niet worden gecontroleerd. Probeer het later opnieuw.",
+      "unlink_description": "Als je de identiteit verwijdert, wordt ook het koppelingsrecord uit je Bluesky-account verwijderd.",
+      "unlink_button": "Verwijderen",
+      "unlink_failed": "De Bluesky-identiteit kon niet worden verwijderd.",
+      "wrong_account": "Je bent aangemeld met een ander Bluesky-account. Meld je aan met het gekoppelde account."
     }
   }
 }

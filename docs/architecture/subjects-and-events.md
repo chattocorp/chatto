@@ -370,6 +370,7 @@ reaction projection and read behavior.
 | `evt.user.{userId}.login_changed` | `UserLoginChangedEvent` |
 | `evt.user.{userId}.display_name_changed` | `UserDisplayNameChangedEvent` |
 | `evt.user.{userId}.bio_changed` | `UserBioChangedEvent`; encrypted PII bio text (empty payload clears the bio) |
+| `evt.user.{userId}.atproto_did_changed` | `UserAtprotoDidChangedEvent`; encrypted published AT Protocol DID claim (empty payload removes it; FDR-056) |
 | `evt.user.{userId}.avatar_set` | `UserAvatarSetEvent` |
 | `evt.user.{userId}.avatar_cleared` | `UserAvatarClearedEvent` |
 | `evt.user.{userId}.custom_status_set` | `UserCustomStatusSetEvent` |

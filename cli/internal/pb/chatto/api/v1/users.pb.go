@@ -94,7 +94,12 @@ type User struct {
 	// Present for a bot identity; absent for humans and deleted-account references.
 	Bot *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
 	// True while the account cannot use this server. Data is retained and access can be restored.
-	Deactivated   bool `protobuf:"varint,12,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	Deactivated bool `protobuf:"varint,12,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	// AT Protocol DID that the user published on their profile, when set. This
+	// is an unverified claim. Clients show the related handle as verified only
+	// after they find a matching run.chatto.accountLink record in the
+	// repository of this DID. See FDR-056.
+	AtprotoDid    *string `protobuf:"bytes,13,opt,name=atproto_did,json=atprotoDid,proto3,oneof" json:"atproto_did,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -206,13 +211,20 @@ func (x *User) GetDeactivated() bool {
 	return false
 }
 
+func (x *User) GetAtprotoDid() string {
+	if x != nil && x.AtprotoDid != nil {
+		return *x.AtprotoDid
+	}
+	return ""
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
 	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
 	"\aBotInfo\x12\"\n" +
-	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xd1\x03\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\x87\x04\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -226,10 +238,13 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\btimezone\x18\n" +
 	" \x01(\tH\x02R\btimezone\x88\x01\x01\x12(\n" +
 	"\x03bot\x18\v \x01(\v2\x16.chatto.api.v1.BotInfoR\x03bot\x12 \n" +
-	"\vdeactivated\x18\f \x01(\bR\vdeactivatedB\r\n" +
+	"\vdeactivated\x18\f \x01(\bR\vdeactivated\x12$\n" +
+	"\vatproto_did\x18\r \x01(\tH\x03R\n" +
+	"atprotoDid\x88\x01\x01B\r\n" +
 	"\v_avatar_urlB\x06\n" +
 	"\x04_bioB\v\n" +
-	"\t_timezoneJ\x04\b\b\x10\tR\x06is_botB\xb7\x01\n" +
+	"\t_timezoneB\x0e\n" +
+	"\f_atproto_didJ\x04\b\b\x10\tR\x06is_botB\xb7\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"UsersProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 

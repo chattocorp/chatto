@@ -31,6 +31,8 @@ export type CurrentUser = {
   deleted?: boolean;
   avatarUrl?: string | null;
   bio?: string | null;
+  /** AT Protocol DID published on the profile; an unverified claim (FDR-056). */
+  atprotoDid?: string | null;
   /** Time zone currently exposed on this user's public profile. */
   publicTimezone?: string | null;
   customStatus?: CustomUserStatus | null;
@@ -181,6 +183,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       deleted: user.deleted ?? false,
       avatarUrl: user.avatarUrl ?? null,
       bio: user.bio ?? null,
+      atprotoDid: user.atprotoDid ?? null,
       publicTimezone: user.timezone ?? null,
       customStatus: user.customStatus
         ? {

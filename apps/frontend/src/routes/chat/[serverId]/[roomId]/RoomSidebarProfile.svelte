@@ -8,6 +8,7 @@ component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
+  import VerifiedAtprotoHandle from '$lib/components/atproto/VerifiedAtprotoHandle.svelte';
   import { createUserAPI } from '@chatto/client/api/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
@@ -25,6 +26,7 @@ fields as realtime changes arrive.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary, mapUserPresenceView } from '@chatto/client/api/userSummary';
   import {
+    getLiveAtprotoDid,
     getLiveBio,
     getLiveCustomStatus,
     getLiveDisplayName,
@@ -78,6 +80,9 @@ fields as realtime changes arrive.
     baseUser ? getLiveTimezone(baseUser.id, baseUser.timezone ?? null) : null
   );
   const customStatus = $derived(baseUser ? getLiveCustomStatus(baseUser.id, null) : null);
+  const atprotoDid = $derived(
+    baseUser ? getLiveAtprotoDid(baseUser.id, baseUser.atprotoDid ?? null) : null
+  );
   // Observed presence wins; without it, use the profile's own snapshot value.
   const presence = $derived(
     serverScope.store.presence.get(userId) ?? mapUserPresenceView(projectionUser).presenceStatus
@@ -129,6 +134,16 @@ fields as realtime changes arrive.
       </UserCard>
     </div>
     <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
+    {#if atprotoDid}
+      {#key atprotoDid}
+        <div class="mt-2 flex text-sm">
+          <VerifiedAtprotoHandle
+            did={atprotoDid}
+            account={{ serverOrigin: serverScope.connection.origin, userId: baseUser.id }}
+          />
+        </div>
+      {/key}
+    {/if}
 
     <UserMenu
       state={profileMenu}

@@ -686,6 +686,24 @@
         "integrations": "Integrations",
         "permissions": "Permissions"
       }
+    },
+    "atproto": {
+      "title": "Bluesky identity",
+      "description": "Show your Bluesky handle on your profile. The apps of other members check that the handle belongs to you.",
+      "handle_label": "Bluesky handle",
+      "handle_description": "Leave this empty to enter your handle on Bluesky.",
+      "privacy_notice": "Chatto adds a link record to your Bluesky account. The record does not show the name of this server.",
+      "link_button": "Connect",
+      "link_failed": "The Bluesky identity could not be connected.",
+      "verifying": "Checking your Bluesky identity…",
+      "verified": "Your profile shows @{handle} as verified.",
+      "unverified_no_link": "Other members cannot verify your Bluesky identity. Connect it again.",
+      "unverified_handle": "Your Bluesky handle could not be confirmed. Other members do not see it.",
+      "unverified_unavailable": "Your Bluesky identity cannot be checked now. Try again later.",
+      "unlink_description": "Removing the identity also deletes the link record from your Bluesky account.",
+      "unlink_button": "Remove",
+      "unlink_failed": "The Bluesky identity could not be removed.",
+      "wrong_account": "You signed in with a different Bluesky account. Sign in with the connected account."
     }
   }
 }

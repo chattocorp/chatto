@@ -83,6 +83,7 @@ describe('getCurrentUserViaConnect', () => {
       deleted: false,
       avatarUrl: 'https://cdn/avatar.webp',
       bio: null,
+      atprotoDid: null,
       publicTimezone: 'Europe/Berlin',
       customStatus: {
         emoji: ':wave:',

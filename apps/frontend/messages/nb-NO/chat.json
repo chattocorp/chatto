@@ -171,7 +171,8 @@
         "manage_messages": "Administrere meldinger"
       },
       "owned_by": "Eies av",
-      "open_card": "Åpne profilkortet til {name}"
+      "open_card": "Åpne profilkortet til {name}",
+      "atproto_verified": "Bekreftet Bluesky-identitet"
     },
     "management_nav": {
       "general": "Generelt",

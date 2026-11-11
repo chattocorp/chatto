@@ -92,6 +92,29 @@ message SetPrimaryEmailResponse {
   repeated VerifiedEmail verified_emails = 1;
 }
 
+// Request to publish an AT Protocol DID on the authenticated user's profile.
+message SetAtprotoIdentityRequest {
+  // DID to publish, for example did:plc:abc123 or did:web:example.com. The
+  // server checks only the syntax. Clients verify the claim themselves.
+  string did = 1 [(buf.validate.field).string = {
+    min_len: 8
+    max_len: 2048
+    pattern: "^did:(plc|web):[A-Za-z0-9._:%-]*[A-Za-z0-9._-]$"
+  }];
+}
+
+// Result of publishing an AT Protocol DID.
+message SetAtprotoIdentityResponse {
+  // Published DID.
+  string did = 1;
+}
+
+// Request to remove the AT Protocol DID from the authenticated user's profile.
+message ClearAtprotoIdentityRequest {}
+
+// Result of removing the AT Protocol DID.
+message ClearAtprotoIdentityResponse {}
+
 // Request the authenticated user's display preferences. Human and bot accounts
 // use the same operation; no target account ID is accepted.
 message GetSettingsRequest {}
@@ -212,6 +235,15 @@ service MyAccountService {
   // Deletes the current user's custom status. The call is idempotent and returns
   // the resulting empty status state.
   rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Publishes an AT Protocol DID on the authenticated user's profile. The DID
+  // is visible to everyone who can see the profile. Setting the same DID again
+  // has no effect.
+  rpc SetAtprotoIdentity(SetAtprotoIdentityRequest) returns (SetAtprotoIdentityResponse);
+  // Removes the AT Protocol DID from the authenticated user's profile. The
+  // call is idempotent.
+  rpc ClearAtprotoIdentity(ClearAtprotoIdentityRequest) returns (ClearAtprotoIdentityResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Issues a short-lived token used to confirm self-deletion. Requires

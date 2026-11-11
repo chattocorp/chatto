@@ -689,6 +689,24 @@
         "integrations": "Entegrasyonlar",
         "permissions": "İzinler"
       }
+    },
+    "atproto": {
+      "title": "Bluesky kimliği",
+      "description": "Bluesky kullanıcı adınızı profilinizde gösterin. Diğer üyelerin uygulamaları bu adın size ait olduğunu doğrular.",
+      "handle_label": "Bluesky kullanıcı adı",
+      "handle_description": "Kullanıcı adınızı Bluesky’de girmek için boş bırakın.",
+      "privacy_notice": "Chatto, Bluesky hesabınıza bir bağlantı kaydı ekler. Kayıt bu sunucunun adını göstermez.",
+      "link_button": "Bağla",
+      "link_failed": "Bluesky kimliği bağlanamadı.",
+      "verifying": "Bluesky kimliğiniz kontrol ediliyor…",
+      "verified": "Profiliniz @{handle} adını doğrulanmış olarak gösteriyor.",
+      "unverified_no_link": "Diğer üyeler Bluesky kimliğinizi doğrulayamıyor. Yeniden bağlayın.",
+      "unverified_handle": "Bluesky kullanıcı adınız onaylanamadı. Diğer üyeler onu görmüyor.",
+      "unverified_unavailable": "Bluesky kimliğiniz şu anda kontrol edilemiyor. Daha sonra tekrar deneyin.",
+      "unlink_description": "Kimliği kaldırmak, bağlantı kaydını da Bluesky hesabınızdan siler.",
+      "unlink_button": "Kaldır",
+      "unlink_failed": "Bluesky kimliği kaldırılamadı.",
+      "wrong_account": "Başka bir Bluesky hesabıyla oturum açtınız. Bağlı hesapla oturum açın."
     }
   }
 }

@@ -67,6 +67,7 @@ vi.mock('$lib/components/rbac', async () => ({
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
+  getLiveAtprotoDid: () => null,
   getLiveTimezone: () => null,
   getLiveLogin: (_userId: string, login: string) => login,
   getLiveAvatarUrl: (_userId: string, avatarUrl: string | null) => avatarUrl,

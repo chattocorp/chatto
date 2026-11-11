@@ -132,6 +132,7 @@ export class ServerConnection {
   #onlineHandler: (() => void) | null = null;
   #suspendDetectorInterval: ReturnType<typeof setInterval> | null = null;
   #host: string;
+  #origin: string;
   #connectBaseUrl: string;
   #realtimeUrl: string;
   #token: string | null;
@@ -178,6 +179,14 @@ export class ServerConnection {
 
   get connectBaseUrl(): string {
     return this.#connectBaseUrl;
+  }
+
+  /**
+   * Origin through which this connection reaches its server, for example
+   * `https://chat.example.com`. AT Protocol account links refer to it.
+   */
+  get origin(): string {
+    return this.#origin;
   }
 
   get realtimeUrl(): string {
@@ -470,6 +479,7 @@ export class ServerConnection {
     const { serverUrl, token, accessTokenExpiresAt, serverId, renewable = true } = config;
     this.#registry = config.registry ?? detachedRegistry;
     this.#host = hostFromServerUrl(serverUrl);
+    this.#origin = originFromServerUrl(serverUrl);
     this.#connectBaseUrl = connectBaseUrlFromServerUrl(serverUrl);
     this.#realtimeUrl = realtimeUrlFromServerUrl(serverUrl);
     this.#token = token;

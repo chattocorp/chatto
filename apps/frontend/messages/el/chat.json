@@ -171,7 +171,8 @@
         "manage_messages": "Διαχείριση μηνυμάτων"
       },
       "owned_by": "Ανήκει σε",
-      "open_card": "Άνοιγμα κάρτας προφίλ του χρήστη {name}"
+      "open_card": "Άνοιγμα κάρτας προφίλ του χρήστη {name}",
+      "atproto_verified": "Επαληθευμένη ταυτότητα Bluesky"
     },
     "management_nav": {
       "general": "Γενικά",

@@ -506,6 +506,155 @@ export class SetPrimaryEmailResponse extends Message<SetPrimaryEmailResponse> {
 }
 
 /**
+ * Request to publish an AT Protocol DID on the authenticated user's profile.
+ *
+ * @generated from message chatto.api.v1.SetAtprotoIdentityRequest
+ */
+export class SetAtprotoIdentityRequest extends Message<SetAtprotoIdentityRequest> {
+  /**
+   * DID to publish, for example did:plc:abc123 or did:web:example.com. The
+   * server checks only the syntax. Clients verify the claim themselves.
+   *
+   * @generated from field: string did = 1;
+   */
+  did = "";
+
+  constructor(data?: PartialMessage<SetAtprotoIdentityRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetAtprotoIdentityRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "did", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetAtprotoIdentityRequest {
+    return new SetAtprotoIdentityRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetAtprotoIdentityRequest {
+    return new SetAtprotoIdentityRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetAtprotoIdentityRequest {
+    return new SetAtprotoIdentityRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetAtprotoIdentityRequest | PlainMessage<SetAtprotoIdentityRequest> | undefined, b: SetAtprotoIdentityRequest | PlainMessage<SetAtprotoIdentityRequest> | undefined): boolean {
+    return proto3.util.equals(SetAtprotoIdentityRequest, a, b);
+  }
+}
+
+/**
+ * Result of publishing an AT Protocol DID.
+ *
+ * @generated from message chatto.api.v1.SetAtprotoIdentityResponse
+ */
+export class SetAtprotoIdentityResponse extends Message<SetAtprotoIdentityResponse> {
+  /**
+   * Published DID.
+   *
+   * @generated from field: string did = 1;
+   */
+  did = "";
+
+  constructor(data?: PartialMessage<SetAtprotoIdentityResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetAtprotoIdentityResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "did", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetAtprotoIdentityResponse {
+    return new SetAtprotoIdentityResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetAtprotoIdentityResponse {
+    return new SetAtprotoIdentityResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetAtprotoIdentityResponse {
+    return new SetAtprotoIdentityResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetAtprotoIdentityResponse | PlainMessage<SetAtprotoIdentityResponse> | undefined, b: SetAtprotoIdentityResponse | PlainMessage<SetAtprotoIdentityResponse> | undefined): boolean {
+    return proto3.util.equals(SetAtprotoIdentityResponse, a, b);
+  }
+}
+
+/**
+ * Request to remove the AT Protocol DID from the authenticated user's profile.
+ *
+ * @generated from message chatto.api.v1.ClearAtprotoIdentityRequest
+ */
+export class ClearAtprotoIdentityRequest extends Message<ClearAtprotoIdentityRequest> {
+  constructor(data?: PartialMessage<ClearAtprotoIdentityRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ClearAtprotoIdentityRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearAtprotoIdentityRequest {
+    return new ClearAtprotoIdentityRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClearAtprotoIdentityRequest {
+    return new ClearAtprotoIdentityRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClearAtprotoIdentityRequest {
+    return new ClearAtprotoIdentityRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClearAtprotoIdentityRequest | PlainMessage<ClearAtprotoIdentityRequest> | undefined, b: ClearAtprotoIdentityRequest | PlainMessage<ClearAtprotoIdentityRequest> | undefined): boolean {
+    return proto3.util.equals(ClearAtprotoIdentityRequest, a, b);
+  }
+}
+
+/**
+ * Result of removing the AT Protocol DID.
+ *
+ * @generated from message chatto.api.v1.ClearAtprotoIdentityResponse
+ */
+export class ClearAtprotoIdentityResponse extends Message<ClearAtprotoIdentityResponse> {
+  constructor(data?: PartialMessage<ClearAtprotoIdentityResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ClearAtprotoIdentityResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearAtprotoIdentityResponse {
+    return new ClearAtprotoIdentityResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClearAtprotoIdentityResponse {
+    return new ClearAtprotoIdentityResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClearAtprotoIdentityResponse {
+    return new ClearAtprotoIdentityResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClearAtprotoIdentityResponse | PlainMessage<ClearAtprotoIdentityResponse> | undefined, b: ClearAtprotoIdentityResponse | PlainMessage<ClearAtprotoIdentityResponse> | undefined): boolean {
+    return proto3.util.equals(ClearAtprotoIdentityResponse, a, b);
+  }
+}
+
+/**
  * Request the authenticated user's display preferences. Human and bot accounts
  * use the same operation; no target account ID is accepted.
  *

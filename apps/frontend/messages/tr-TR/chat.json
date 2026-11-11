@@ -171,7 +171,8 @@
         "manage_messages": "Mesajları yönet"
       },
       "owned_by": "Sahibi",
-      "open_card": "{name} profil kartını aç"
+      "open_card": "{name} profil kartını aç",
+      "atproto_verified": "Doğrulanmış Bluesky kimliği"
     },
     "management_nav": {
       "general": "Genel",

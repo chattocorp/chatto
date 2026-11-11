@@ -689,6 +689,24 @@
         "integrations": "連携",
         "permissions": "権限"
       }
+    },
+    "atproto": {
+      "title": "Bluesky ID",
+      "description": "プロフィールに Bluesky ハンドルを表示します。ほかのメンバーのアプリが、そのハンドルがあなたのものであることを確認します。",
+      "handle_label": "Bluesky ハンドル",
+      "handle_description": "空欄のままにすると、Bluesky でハンドルを入力します。",
+      "privacy_notice": "Chatto はあなたの Bluesky アカウントにリンクレコードを追加します。このレコードにはこのサーバーの名前は表示されません。",
+      "link_button": "接続",
+      "link_failed": "Bluesky ID を接続できませんでした。",
+      "verifying": "Bluesky ID を確認しています…",
+      "verified": "プロフィールに @{handle} が確認済みとして表示されています。",
+      "unverified_no_link": "ほかのメンバーはあなたの Bluesky ID を確認できません。もう一度接続してください。",
+      "unverified_handle": "Bluesky ハンドルを確認できませんでした。ほかのメンバーには表示されません。",
+      "unverified_unavailable": "現在 Bluesky ID を確認できません。しばらくしてからお試しください。",
+      "unlink_description": "ID を削除すると、Bluesky アカウントのリンクレコードも削除されます。",
+      "unlink_button": "削除",
+      "unlink_failed": "Bluesky ID を削除できませんでした。",
+      "wrong_account": "別の Bluesky アカウントでサインインしました。接続済みのアカウントでサインインしてください。"
     }
   }
 }

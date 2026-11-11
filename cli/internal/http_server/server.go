@@ -285,6 +285,7 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupConnectAPI()
 	s.setupRealtimeAPI()
 	s.setupCIMDRoutes()
+	s.setupFrontendATProtoRoutes()
 	s.setupOAuthMetadataRoutes()
 	s.setupPasswordManagementRoutes()
 	if err := s.setupMCPRoutes(); err != nil {

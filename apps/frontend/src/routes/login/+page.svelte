@@ -2,7 +2,11 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import {
+    openProviderSignIn,
+    providerLoginUrl,
+    verifyProviderSignIn
+  } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
@@ -47,8 +51,9 @@
   );
   const displayedError = $derived(error || pageError);
 
-  function providerLoginHref(provider: PublicAuthProvider): string {
-    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
+  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
+    const url = providerLoginUrl(provider.loginUrl, loginHint);
+    return `${url}${url.includes('?') ? '&' : '?'}redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   function loginErrorMessage(code: string): string {
@@ -69,12 +74,14 @@
         return m('auth.login.error.external_identity_conflict');
       case 'invalid_invitation':
         return m('auth.login.error.invalid_invitation');
+      case 'atproto_identity_not_found':
+        return m('auth.login.error.atproto_identity_not_found');
       default:
         return '';
     }
   }
 
-  async function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
+  async function handleProviderClick(e: Event, provider: PublicAuthProvider, loginHint?: string) {
     e.preventDefault();
     error = '';
     pageErrorDismissed = true;
@@ -82,11 +89,11 @@
     // Remote authorization and existing-account linking already own this window.
     // Keep their continuation here instead of opening another provider popup.
     if (compact || isProviderContinuation(data.redirectUrl)) {
-      window.location.href = providerLoginHref(provider);
+      window.location.href = providerLoginHref(provider, loginHint);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(provider.loginUrl);
+      providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
       await verifyProviderSignIn(providerPopup);
       if (!active) return;
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');

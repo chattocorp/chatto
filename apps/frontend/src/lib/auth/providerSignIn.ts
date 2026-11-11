@@ -4,6 +4,17 @@ import { openOAuthPopup, type OAuthPopup } from '$lib/oauth/popup';
 import { m } from '$lib/i18n/messages';
 
 /**
+ * The provider's sign-in URL. `loginHint` is the identity to use, such as an
+ * AT Protocol handle; providers without hints ignore it (FDR-056).
+ */
+export function providerLoginUrl(loginUrl: string, loginHint?: string): string {
+  if (!loginHint) return loginUrl;
+  const url = new URL(loginUrl, window.location.origin);
+  url.searchParams.set('login_hint', loginHint);
+  return url.origin === window.location.origin ? url.pathname + url.search : url.href;
+}
+
+/**
  * Open provider sign-in during the user's click. The callback reports only
  * completion; the opening client must verify the server's cookie session.
  */

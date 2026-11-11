@@ -228,6 +228,16 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		s.handleProviderStart(c, providerRuntime)
 	})
 
+	auth.GET("providers/:providerID"+atprotoClientMetadataPath, func(c *gin.Context) {
+		providerRuntime := configured[c.Param("providerID")]
+		if providerRuntime == nil || providerRuntime.atproto == nil || providerRuntime.atproto.loopback {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Header("Cache-Control", "public, max-age=300")
+		c.JSON(http.StatusOK, providerRuntime.atproto.clientMetadata("Chatto", configuredWebserverOrigin(s.config.Webserver.URL)))
+	})
+
 	auth.GET("providers/:providerID/callback", func(c *gin.Context) {
 		providerRuntime := configured[c.Param("providerID")]
 		if providerRuntime == nil {
@@ -298,7 +308,19 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	session.Set(providerSessionKey(providerRuntime.config.ID, "state"), state)
 
 	var authURL string
-	if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
+	if providerRuntime.atproto != nil {
+		// AT Protocol's pushed request chooses the state. The optional hint is
+		// the handle or DID that the user typed.
+		var atprotoState string
+		authURL, atprotoState, err = providerRuntime.atproto.authURL(c.Request.Context(), session, providerRuntime.config.ID, strings.TrimSpace(c.Query("login_hint")))
+		if err != nil {
+			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID)
+			_ = session.Save()
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "atproto_identity_not_found"))
+			return
+		}
+		session.Set(providerSessionKey(providerRuntime.config.ID, "state"), atprotoState)
+	} else if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
 		if !providerRuntime.ensureOIDC(c) {
 			return
 		}
@@ -348,6 +370,9 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 }
 
 func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *authProviderRuntime) {
+	if s.forwardATProtoLoopbackCallback(c, providerRuntime) {
+		return
+	}
 	session := sessions.Default(c)
 	ctx := c.Request.Context()
 
@@ -503,6 +528,8 @@ type authProviderRuntime struct {
 	httpClient *http.Client
 	oidc       *oidcProvider
 	goth       goth.Provider
+	// atproto is set for AT Protocol providers (FDR-056).
+	atproto *atprotoProvider
 	// discordOAuth2 exchanges Discord codes. Goth's Discord session ignores
 	// the provider client and would use http.DefaultClient without a timeout.
 	discordOAuth2 *oauth2.Config
@@ -550,6 +577,12 @@ func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackUR
 			RedirectURL:  callbackURL,
 			Endpoint:     endpoints.Discord,
 		}
+	case config.AuthProviderTypeATProto:
+		provider, err := newATProtoProvider(callbackURL)
+		if err != nil {
+			return nil, err
+		}
+		runtime.atproto = provider
 	default:
 		return nil, fmt.Errorf("unsupported auth provider type %q", providerConfig.Type)
 	}
@@ -612,6 +645,7 @@ func deleteProviderExchangeState(session sessions.Session, providerID string) {
 	session.Delete(providerSessionKey(providerID, "code_verifier"))
 	session.Delete(providerSessionKey(providerID, "nonce"))
 	session.Delete(providerSessionKey(providerID, "session"))
+	session.Delete(providerSessionKey(providerID, "atproto_request"))
 }
 
 func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
@@ -629,6 +663,9 @@ func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
 func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
 	if r.config.Type == config.AuthProviderTypeOpenIDConnect {
 		return r.resolveOIDCIdentity(c, session)
+	}
+	if r.atproto != nil {
+		return r.resolveATProtoIdentity(c, session)
 	}
 	return r.resolveGothIdentity(c, session)
 }

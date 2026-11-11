@@ -16,6 +16,9 @@ const (
 	AuthProviderTypeGitLab        = "gitlab"
 	AuthProviderTypeGoogle        = "google"
 	AuthProviderTypeDiscord       = "discord"
+	// AuthProviderTypeATProto signs users in with their AT Protocol identity,
+	// for example a Bluesky account. It needs no client registration (FDR-056).
+	AuthProviderTypeATProto = "atproto"
 )
 
 var authProviderDefaultLabels = map[string]string{
@@ -24,6 +27,7 @@ var authProviderDefaultLabels = map[string]string{
 	AuthProviderTypeGitLab:        "GitLab",
 	AuthProviderTypeGoogle:        "Google",
 	AuthProviderTypeDiscord:       "Discord",
+	AuthProviderTypeATProto:       "Bluesky",
 }
 
 // AuthProviderConfig contains one configured external login provider. The ID is
@@ -33,9 +37,9 @@ type AuthProviderConfig struct {
 	// TokenEndpointAuthMethod overrides OIDC discovery for the token exchange.
 	TokenEndpointAuthMethod string   `toml:"token_endpoint_auth_method,commented" comment:"OIDC token authentication: client_secret_basic, client_secret_post, or none. Omit to select from discovery."`
 	ID                      string   `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type                    string   `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
+	Type                    string   `toml:"type" comment:"Provider type: oidc, github, gitlab, google, discord, or atproto."`
 	Label                   string   `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
-	ClientID                string   `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientID                string   `toml:"client_id" comment:"OAuth/OIDC client ID. Omit for atproto."`
 	ClientSecret            string   `toml:"client_secret,commented" comment:"OAuth/OIDC client secret. NEVER SHARE THIS! Optional only for public OIDC clients."`
 	IssuerURL               string   `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
 	Scopes                  []string `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`

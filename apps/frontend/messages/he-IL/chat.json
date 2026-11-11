@@ -174,7 +174,8 @@
         "manage_messages": "לנהל הודעות"
       },
       "owned_by": "בבעלות",
-      "open_card": "פתיחת כרטיס הפרופיל של {name}"
+      "open_card": "פתיחת כרטיס הפרופיל של {name}",
+      "atproto_verified": "זהות Bluesky מאומתת"
     },
     "management_nav": {
       "general": "כללי",

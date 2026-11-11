@@ -689,6 +689,24 @@
         "integrations": "Intégrations",
         "permissions": "Autorisations"
       }
+    },
+    "atproto": {
+      "title": "Identité Bluesky",
+      "description": "Affichez votre identifiant Bluesky sur votre profil. Les applications des autres membres vérifient qu’il vous appartient.",
+      "handle_label": "Identifiant Bluesky",
+      "handle_description": "Laissez ce champ vide pour entrer votre identifiant sur Bluesky.",
+      "privacy_notice": "Chatto ajoute un enregistrement de liaison à votre compte Bluesky. Cet enregistrement n’indique pas le nom de ce serveur.",
+      "link_button": "Connecter",
+      "link_failed": "Impossible de connecter l’identité Bluesky.",
+      "verifying": "Vérification de votre identité Bluesky…",
+      "verified": "Votre profil affiche @{handle} comme vérifié.",
+      "unverified_no_link": "Les autres membres ne peuvent pas vérifier votre identité Bluesky. Connectez-la de nouveau.",
+      "unverified_handle": "Votre identifiant Bluesky n’a pas pu être confirmé. Les autres membres ne le voient pas.",
+      "unverified_unavailable": "Votre identité Bluesky ne peut pas être vérifiée pour l’instant. Réessayez plus tard.",
+      "unlink_description": "La suppression de l’identité supprime aussi l’enregistrement de liaison de votre compte Bluesky.",
+      "unlink_button": "Supprimer",
+      "unlink_failed": "Impossible de supprimer l’identité Bluesky.",
+      "wrong_account": "Vous vous êtes connecté avec un autre compte Bluesky. Connectez-vous avec le compte associé."
     }
   }
 }

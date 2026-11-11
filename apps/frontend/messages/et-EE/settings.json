@@ -689,6 +689,24 @@
         "integrations": "Integratsioonid",
         "permissions": "Load"
       }
+    },
+    "atproto": {
+      "title": "Bluesky identiteet",
+      "description": "Näidake oma Bluesky kasutajanime profiilis. Teiste liikmete rakendused kontrollivad, et see kuulub teile.",
+      "handle_label": "Bluesky kasutajanimi",
+      "handle_description": "Jätke tühjaks, et sisestada kasutajanimi Bluesky lehel.",
+      "privacy_notice": "Chatto lisab teie Bluesky kontole lingikirje. Kirje ei näita selle serveri nime.",
+      "link_button": "Ühenda",
+      "link_failed": "Bluesky identiteeti ei õnnestunud ühendada.",
+      "verifying": "Teie Bluesky identiteedi kontrollimine…",
+      "verified": "Teie profiil näitab @{handle} kinnitatuna.",
+      "unverified_no_link": "Teised liikmed ei saa teie Bluesky identiteeti kinnitada. Ühendage see uuesti.",
+      "unverified_handle": "Teie Bluesky kasutajanime ei õnnestunud kinnitada. Teised liikmed seda ei näe.",
+      "unverified_unavailable": "Teie Bluesky identiteeti ei saa praegu kontrollida. Proovige hiljem uuesti.",
+      "unlink_description": "Identiteedi eemaldamisel kustutatakse ka lingikirje teie Bluesky kontolt.",
+      "unlink_button": "Eemalda",
+      "unlink_failed": "Bluesky identiteeti ei õnnestunud eemaldada.",
+      "wrong_account": "Logisite sisse teise Bluesky kontoga. Logige sisse ühendatud kontoga."
     }
   }
 }

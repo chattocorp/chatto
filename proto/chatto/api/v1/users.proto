@@ -40,4 +40,9 @@ message User {
   BotInfo bot = 11;
   // True while the account cannot use this server. Data is retained and access can be restored.
   bool deactivated = 12;
+  // AT Protocol DID that the user published on their profile, when set. This
+  // is an unverified claim. Clients show the related handle as verified only
+  // after they find a matching run.chatto.accountLink record in the
+  // repository of this DID. See FDR-056.
+  optional string atproto_did = 13;
 }

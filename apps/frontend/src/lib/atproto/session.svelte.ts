@@ -1,0 +1,156 @@
+/**
+ * The device's AT Protocol session (FDR-056).
+ *
+ * The frontend signs in to the user's PDS itself, with its own OAuth client.
+ * It asks only for the identity and for write access to Chatto account link
+ * records. Chatto servers never receive these tokens (ADR-123). One session
+ * per device lets the frontend offer the known identity for sign-in to other
+ * servers.
+ *
+ * The OAuth library loads only when the user connects an identity or a
+ * session was stored before, so other users do not download it.
+ */
+
+import type { BrowserOAuthClient, OAuthSession } from '@atproto/oauth-client-browser';
+import {
+  createAtprotoLinkVerifier,
+  resolveAtprotoHandle,
+  resolveAtprotoIdentity
+} from '@chatto/client/atproto/accountLink';
+
+/** Scope of the frontend client. It must match the published client metadata. */
+const ATPROTO_FRONTEND_SCOPE = 'atproto repo:run.chatto.accountLink';
+const CLIENT_METADATA_PATH = '/oauth/atproto-client-metadata.json';
+export const ATPROTO_CALLBACK_PATH = '/atproto/callback';
+/** Authorization server for users who start without a handle. */
+const DEFAULT_AUTH_SERVER = 'https://bsky.social';
+/** Key that the OAuth library sets while a session exists. */
+const LIBRARY_SESSION_KEY = '@@atproto/oauth-client-browser(sub)';
+
+/** The signed-in AT Protocol identity of this device. */
+export type AtprotoAccount = {
+  did: string;
+  /** Handle from the DID document; `null` when it cannot be resolved. */
+  handle: string | null;
+};
+
+/** Verifies other users' published DIDs for every server of this device. */
+export const atprotoLinkVerifier = createAtprotoLinkVerifier();
+
+let account = $state<AtprotoAccount | null>(null);
+let clientPromise: Promise<BrowserOAuthClient> | null = null;
+let session: OAuthSession | null = null;
+/** The first restore. Later calls share it; sign-in and sign-out update `account`. */
+let restorePromise: Promise<AtprotoAccount | null> | null = null;
+
+/** The current AT Protocol account, or `null` when this device has none. */
+export function atprotoAccount(): AtprotoAccount | null {
+  return account;
+}
+
+/** Load the OAuth client for this origin. */
+export function atprotoOAuthClient(): Promise<BrowserOAuthClient> {
+  clientPromise ??= (async () => {
+    const { BrowserOAuthClient } = await import('@atproto/oauth-client-browser');
+    // Resolve handles like the verifier, without a fixed third-party resolver.
+    const handleResolver = {
+      resolve: async (handle: string) =>
+        (await resolveAtprotoHandle(handle)) as `did:plc:${string}` | `did:web:${string}` | null
+    };
+    if (window.location.protocol === 'https:') {
+      return BrowserOAuthClient.load({
+        clientId: `${window.location.origin}${CLIENT_METADATA_PATH}`,
+        handleResolver
+      });
+    }
+    // Development servers use AT Protocol's loopback client. It returns to
+    // 127.0.0.1, so open the frontend on 127.0.0.1 to keep the same origin.
+    const redirectUri = `http://127.0.0.1:${window.location.port}${ATPROTO_CALLBACK_PATH}`;
+    const params = `scope=${encodeURIComponent(ATPROTO_FRONTEND_SCOPE)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    return BrowserOAuthClient.load({ clientId: `http://localhost?${params}`, handleResolver });
+  })();
+  clientPromise.catch(() => (clientPromise = null));
+  return clientPromise;
+}
+
+async function accountFor(oauthSession: OAuthSession): Promise<AtprotoAccount> {
+  const identity = await resolveAtprotoIdentity(oauthSession.did).catch(() => null);
+  const handle =
+    identity?.handle && (await resolveAtprotoHandle(identity.handle)) === oauthSession.did
+      ? identity.handle
+      : null;
+  return { did: oauthSession.did, handle };
+}
+
+/**
+ * Restore a stored session once per page. Without a stored session, this
+ * returns `null` without loading the OAuth library.
+ */
+export function restoreAtprotoAccount(): Promise<AtprotoAccount | null> {
+  if (typeof window === 'undefined' || !window.localStorage?.getItem(LIBRARY_SESSION_KEY)) {
+    return Promise.resolve(account);
+  }
+  restorePromise ??= (async () => {
+    try {
+      const client = await atprotoOAuthClient();
+      const restored = await client.initRestore();
+      // A sign-in that finished meanwhile wins over the stored session.
+      if (!session && restored) {
+        session = restored.session;
+        account = await accountFor(restored.session);
+      }
+    } catch {
+      // An unusable stored session counts as no session.
+    }
+    return account;
+  })();
+  return restorePromise.then(() => account);
+}
+
+/**
+ * Sign in to the user's PDS in a popup window. Call this from the user's
+ * action. `identifier` is a handle or DID; without it, the user enters the
+ * handle on the default authorization server.
+ */
+export async function connectAtprotoAccount(identifier: string): Promise<AtprotoAccount> {
+  const client = await atprotoOAuthClient();
+  const input = identifier.trim().replace(/^@/, '') || DEFAULT_AUTH_SERVER;
+  session = await client.signInPopup(input, { scope: ATPROTO_FRONTEND_SCOPE });
+  account = await accountFor(session);
+  return account;
+}
+
+/** Sign out of the PDS and revoke the session's tokens. */
+export async function disconnectAtprotoAccount(): Promise<void> {
+  const current = session;
+  session = null;
+  account = null;
+  if (current) await current.signOut().catch(() => {});
+}
+
+/**
+ * The repository session for `did`. Returns `null` when this device has no
+ * session for that DID; the caller then asks the user to connect it.
+ */
+export async function atprotoRepoSession(did: string): Promise<OAuthSession | null> {
+  if (!session) await restoreAtprotoAccount();
+  return session?.did === did ? session : null;
+}
+
+/**
+ * Complete a sign-in on the callback route. The result goes to the opening
+ * window, and the popup tries to close itself. Rejects when the sign-in failed
+ * and no opening window received the result.
+ */
+export async function completeAtprotoCallback(): Promise<void> {
+  const [client, { LoginContinuedInParentWindowError }] = await Promise.all([
+    atprotoOAuthClient(),
+    import('@atproto/oauth-client-browser')
+  ]);
+  try {
+    await client.initCallback();
+  } catch (error) {
+    if (error instanceof LoginContinuedInParentWindowError) return;
+    throw error;
+  }
+}

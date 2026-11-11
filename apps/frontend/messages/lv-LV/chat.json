@@ -174,7 +174,8 @@
         "manage_messages": "Pārvaldīt ziņojumus"
       },
       "owned_by": "Īpašnieks",
-      "open_card": "Atvērt lietotāja {name} profila karti"
+      "open_card": "Atvērt lietotāja {name} profila karti",
+      "atproto_verified": "Verificēta Bluesky identitāte"
     },
     "management_nav": {
       "general": "Ģenerālis",

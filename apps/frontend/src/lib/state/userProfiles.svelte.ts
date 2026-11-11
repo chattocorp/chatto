@@ -13,6 +13,7 @@ type ProfileView = {
   customStatus?: CustomUserStatus | null;
   bio?: string | null;
   timezone?: string | null;
+  atprotoDid?: string | null;
 };
 
 const [getUsers, setUsers] = createContext<() => UserStore | undefined>();
@@ -32,7 +33,8 @@ function readProfile(userId: string): ProfileView | undefined {
       avatarUrl: null,
       customStatus: null,
       bio: null,
-      timezone: null
+      timezone: null,
+      atprotoDid: null
     };
   const user = store?.get(userId)?.user;
   return user ? { ...mapUserSummary(user), ...mapUserPresenceView(user) } : undefined;
@@ -80,6 +82,15 @@ export function getLiveCustomStatus(
   const update = readProfile(userId);
   const status = update && 'customStatus' in update ? update.customStatus : fallback;
   return isCustomStatusActive(status) ? status : null;
+}
+
+/**
+ * Get the live published AT Protocol DID if available, otherwise return
+ * fallback. The DID is an unverified claim; see `VerifiedAtprotoHandle`.
+ */
+export function getLiveAtprotoDid(userId: string, fallback: string | null): string | null {
+  const update = readProfile(userId);
+  return update && 'atprotoDid' in update ? (update.atprotoDid ?? null) : fallback;
 }
 
 /**

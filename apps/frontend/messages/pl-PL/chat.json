@@ -177,7 +177,8 @@
         "manage_messages": "Zarządzać wiadomościami"
       },
       "owned_by": "Właściciel",
-      "open_card": "Otwórz kartę profilu użytkownika {name}"
+      "open_card": "Otwórz kartę profilu użytkownika {name}",
+      "atproto_verified": "Zweryfikowana tożsamość Bluesky"
     },
     "management_nav": {
       "general": "Ogólne",

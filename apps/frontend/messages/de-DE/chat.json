@@ -171,7 +171,8 @@
         "manage_messages": "Nachrichten verwalten"
       },
       "owned_by": "Gehört",
-      "open_card": "Profilkarte von {name} öffnen"
+      "open_card": "Profilkarte von {name} öffnen",
+      "atproto_verified": "Verifizierte Bluesky-Identität"
     },
     "management_nav": {
       "general": "Allgemein",

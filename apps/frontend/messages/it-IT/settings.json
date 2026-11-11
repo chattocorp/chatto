@@ -689,6 +689,24 @@
         "integrations": "Integrazioni",
         "permissions": "Autorizzazioni"
       }
+    },
+    "atproto": {
+      "title": "Identità Bluesky",
+      "description": "Mostra il tuo handle Bluesky nel profilo. Le app degli altri membri verificano che ti appartenga.",
+      "handle_label": "Handle Bluesky",
+      "handle_description": "Lascia vuoto per inserire l’handle su Bluesky.",
+      "privacy_notice": "Chatto aggiunge un record di collegamento al tuo account Bluesky. Il record non mostra il nome di questo server.",
+      "link_button": "Collega",
+      "link_failed": "Impossibile collegare l’identità Bluesky.",
+      "verifying": "Verifica della tua identità Bluesky…",
+      "verified": "Il tuo profilo mostra @{handle} come verificato.",
+      "unverified_no_link": "Gli altri membri non possono verificare la tua identità Bluesky. Collegala di nuovo.",
+      "unverified_handle": "Impossibile confermare il tuo handle Bluesky. Gli altri membri non lo vedono.",
+      "unverified_unavailable": "Al momento non è possibile verificare la tua identità Bluesky. Riprova più tardi.",
+      "unlink_description": "Rimuovendo l’identità elimini anche il record di collegamento dal tuo account Bluesky.",
+      "unlink_button": "Rimuovi",
+      "unlink_failed": "Impossibile rimuovere l’identità Bluesky.",
+      "wrong_account": "Hai effettuato l’accesso con un altro account Bluesky. Accedi con l’account collegato."
     }
   }
 }

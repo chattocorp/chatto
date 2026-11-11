@@ -171,7 +171,8 @@
         "manage_messages": "Administri mesaĝojn"
       },
       "owned_by": "Posedanto",
-      "open_card": "Malfermi la profilkarton de {name}"
+      "open_card": "Malfermi la profilkarton de {name}",
+      "atproto_verified": "Kontrolita Bluesky-identeco"
     },
     "management_nav": {
       "general": "Generalo",

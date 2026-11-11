@@ -47,6 +47,17 @@ describe('createAccountAPI', () => {
     });
   });
 
+  it('publishes and clears the AT Protocol identity', async () => {
+    mocks.setAtprotoIdentity.mockReturnValue({ did: 'did:plc:abc' });
+    mocks.clearAtprotoIdentity.mockReturnValue({});
+    const api = accountAPI();
+
+    await expect(api.setAtprotoIdentity('did:plc:abc')).resolves.toBe('did:plc:abc');
+    expect(receivedRequest(mocks.setAtprotoIdentity)).toMatchObject({ did: 'did:plc:abc' });
+    await expect(api.clearAtprotoIdentity()).resolves.toBeUndefined();
+    expect(mocks.clearAtprotoIdentity).toHaveBeenCalledOnce();
+  });
+
   it('sets a password', async () => {
     mocks.changePassword.mockReturnValue({});
 

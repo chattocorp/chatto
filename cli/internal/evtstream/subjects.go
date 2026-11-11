@@ -172,6 +172,7 @@ const (
 	EventUserLoginChanged               = "login_changed"
 	EventUserDisplayNameChanged         = "display_name_changed"
 	EventUserBioChanged                 = "bio_changed"
+	EventUserAtprotoDIDChanged          = "atproto_did_changed"
 	EventUserAvatarSet                  = "avatar_set"
 	EventUserAvatarCleared              = "avatar_cleared"
 	EventUserVerifiedEmailAdded         = "verified_email_added"
@@ -453,6 +454,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserDisplayNameChanged
 	case *evtv1.Event_UserBioChanged:
 		return EventUserBioChanged
+	case *evtv1.Event_UserAtprotoDidChanged:
+		return EventUserAtprotoDIDChanged
 	case *evtv1.Event_UserAvatarSet:
 		return EventUserAvatarSet
 	case *evtv1.Event_UserAvatarCleared:

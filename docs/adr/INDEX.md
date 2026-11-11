@@ -137,3 +137,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                     | Accepted             | 2026-10-27 |
 | [ADR-121](ADR-121-github-desktop-updates.md)                             | Publish Complete GitHub Releases for Desktop Updates             | Accepted             | 2026-10-29 |
 | [ADR-122](ADR-122-changeset-driven-releases.md)                          | Changeset-Driven Releases                                        | Accepted             | 2026-11-09 |
+| [ADR-123](ADR-123-client-verified-atproto-identity.md)                   | Client-Verified AT Protocol Identity                             | Accepted             | 2026-11-11 |

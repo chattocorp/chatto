@@ -177,7 +177,8 @@
         "manage_messages": "Керувати повідомленнями"
       },
       "owned_by": "Власник",
-      "open_card": "Відкрити картку профілю {name}"
+      "open_card": "Відкрити картку профілю {name}",
+      "atproto_verified": "Підтверджена особа Bluesky"
     },
     "management_nav": {
       "general": "Загальне",

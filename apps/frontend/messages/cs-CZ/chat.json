@@ -171,7 +171,8 @@
         "manage_messages": "Spravovat zprávy"
       },
       "owned_by": "Vlastník",
-      "open_card": "Otevřít profilovou kartu uživatele {name}"
+      "open_card": "Otevřít profilovou kartu uživatele {name}",
+      "atproto_verified": "Ověřená identita Bluesky"
     },
     "management_nav": {
       "general": "Generál",

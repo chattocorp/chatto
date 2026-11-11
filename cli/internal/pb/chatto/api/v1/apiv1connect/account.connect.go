@@ -81,6 +81,12 @@ const (
 	// MyAccountServiceDeleteCustomStatusProcedure is the fully-qualified name of the MyAccountService's
 	// DeleteCustomStatus RPC.
 	MyAccountServiceDeleteCustomStatusProcedure = "/chatto.api.v1.MyAccountService/DeleteCustomStatus"
+	// MyAccountServiceSetAtprotoIdentityProcedure is the fully-qualified name of the MyAccountService's
+	// SetAtprotoIdentity RPC.
+	MyAccountServiceSetAtprotoIdentityProcedure = "/chatto.api.v1.MyAccountService/SetAtprotoIdentity"
+	// MyAccountServiceClearAtprotoIdentityProcedure is the fully-qualified name of the
+	// MyAccountService's ClearAtprotoIdentity RPC.
+	MyAccountServiceClearAtprotoIdentityProcedure = "/chatto.api.v1.MyAccountService/ClearAtprotoIdentity"
 	// MyAccountServiceRequestAccountDeletionProcedure is the fully-qualified name of the
 	// MyAccountService's RequestAccountDeletion RPC.
 	MyAccountServiceRequestAccountDeletionProcedure = "/chatto.api.v1.MyAccountService/RequestAccountDeletion"
@@ -150,6 +156,13 @@ type MyAccountServiceClient interface {
 	// Deletes the current user's custom status. The call is idempotent and returns
 	// the resulting empty status state.
 	DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error)
+	// Publishes an AT Protocol DID on the authenticated user's profile. The DID
+	// is visible to everyone who can see the profile. Setting the same DID again
+	// has no effect.
+	SetAtprotoIdentity(context.Context, *connect.Request[v1.SetAtprotoIdentityRequest]) (*connect.Response[v1.SetAtprotoIdentityResponse], error)
+	// Removes the AT Protocol DID from the authenticated user's profile. The
+	// call is idempotent.
+	ClearAtprotoIdentity(context.Context, *connect.Request[v1.ClearAtprotoIdentityRequest]) (*connect.Response[v1.ClearAtprotoIdentityResponse], error)
 	// Issues a short-lived token used to confirm self-deletion. Requires
 	// user.delete-self.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
@@ -267,6 +280,19 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		setAtprotoIdentity: connect.NewClient[v1.SetAtprotoIdentityRequest, v1.SetAtprotoIdentityResponse](
+			httpClient,
+			baseURL+MyAccountServiceSetAtprotoIdentityProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("SetAtprotoIdentity")),
+			connect.WithClientOptions(opts...),
+		),
+		clearAtprotoIdentity: connect.NewClient[v1.ClearAtprotoIdentityRequest, v1.ClearAtprotoIdentityResponse](
+			httpClient,
+			baseURL+MyAccountServiceClearAtprotoIdentityProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("ClearAtprotoIdentity")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		requestAccountDeletion: connect.NewClient[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse](
 			httpClient,
 			baseURL+MyAccountServiceRequestAccountDeletionProcedure,
@@ -300,6 +326,8 @@ type myAccountServiceClient struct {
 	refreshPresence            *connect.Client[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse]
 	setCustomStatus            *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
 	deleteCustomStatus         *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
+	setAtprotoIdentity         *connect.Client[v1.SetAtprotoIdentityRequest, v1.SetAtprotoIdentityResponse]
+	clearAtprotoIdentity       *connect.Client[v1.ClearAtprotoIdentityRequest, v1.ClearAtprotoIdentityResponse]
 	requestAccountDeletion     *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
 	deleteMyAccount            *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
 }
@@ -384,6 +412,16 @@ func (c *myAccountServiceClient) DeleteCustomStatus(ctx context.Context, req *co
 	return c.deleteCustomStatus.CallUnary(ctx, req)
 }
 
+// SetAtprotoIdentity calls chatto.api.v1.MyAccountService.SetAtprotoIdentity.
+func (c *myAccountServiceClient) SetAtprotoIdentity(ctx context.Context, req *connect.Request[v1.SetAtprotoIdentityRequest]) (*connect.Response[v1.SetAtprotoIdentityResponse], error) {
+	return c.setAtprotoIdentity.CallUnary(ctx, req)
+}
+
+// ClearAtprotoIdentity calls chatto.api.v1.MyAccountService.ClearAtprotoIdentity.
+func (c *myAccountServiceClient) ClearAtprotoIdentity(ctx context.Context, req *connect.Request[v1.ClearAtprotoIdentityRequest]) (*connect.Response[v1.ClearAtprotoIdentityResponse], error) {
+	return c.clearAtprotoIdentity.CallUnary(ctx, req)
+}
+
 // RequestAccountDeletion calls chatto.api.v1.MyAccountService.RequestAccountDeletion.
 func (c *myAccountServiceClient) RequestAccountDeletion(ctx context.Context, req *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {
 	return c.requestAccountDeletion.CallUnary(ctx, req)
@@ -455,6 +493,13 @@ type MyAccountServiceHandler interface {
 	// Deletes the current user's custom status. The call is idempotent and returns
 	// the resulting empty status state.
 	DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error)
+	// Publishes an AT Protocol DID on the authenticated user's profile. The DID
+	// is visible to everyone who can see the profile. Setting the same DID again
+	// has no effect.
+	SetAtprotoIdentity(context.Context, *connect.Request[v1.SetAtprotoIdentityRequest]) (*connect.Response[v1.SetAtprotoIdentityResponse], error)
+	// Removes the AT Protocol DID from the authenticated user's profile. The
+	// call is idempotent.
+	ClearAtprotoIdentity(context.Context, *connect.Request[v1.ClearAtprotoIdentityRequest]) (*connect.Response[v1.ClearAtprotoIdentityResponse], error)
 	// Issues a short-lived token used to confirm self-deletion. Requires
 	// user.delete-self.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
@@ -568,6 +613,19 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	myAccountServiceSetAtprotoIdentityHandler := connect.NewUnaryHandler(
+		MyAccountServiceSetAtprotoIdentityProcedure,
+		svc.SetAtprotoIdentity,
+		connect.WithSchema(myAccountServiceMethods.ByName("SetAtprotoIdentity")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceClearAtprotoIdentityHandler := connect.NewUnaryHandler(
+		MyAccountServiceClearAtprotoIdentityProcedure,
+		svc.ClearAtprotoIdentity,
+		connect.WithSchema(myAccountServiceMethods.ByName("ClearAtprotoIdentity")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	myAccountServiceRequestAccountDeletionHandler := connect.NewUnaryHandler(
 		MyAccountServiceRequestAccountDeletionProcedure,
 		svc.RequestAccountDeletion,
@@ -614,6 +672,10 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceSetCustomStatusHandler.ServeHTTP(w, r)
 		case MyAccountServiceDeleteCustomStatusProcedure:
 			myAccountServiceDeleteCustomStatusHandler.ServeHTTP(w, r)
+		case MyAccountServiceSetAtprotoIdentityProcedure:
+			myAccountServiceSetAtprotoIdentityHandler.ServeHTTP(w, r)
+		case MyAccountServiceClearAtprotoIdentityProcedure:
+			myAccountServiceClearAtprotoIdentityHandler.ServeHTTP(w, r)
 		case MyAccountServiceRequestAccountDeletionProcedure:
 			myAccountServiceRequestAccountDeletionHandler.ServeHTTP(w, r)
 		case MyAccountServiceDeleteMyAccountProcedure:
@@ -689,6 +751,14 @@ func (UnimplementedMyAccountServiceHandler) SetCustomStatus(context.Context, *co
 
 func (UnimplementedMyAccountServiceHandler) DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.DeleteCustomStatus is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) SetAtprotoIdentity(context.Context, *connect.Request[v1.SetAtprotoIdentityRequest]) (*connect.Response[v1.SetAtprotoIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.SetAtprotoIdentity is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) ClearAtprotoIdentity(context.Context, *connect.Request[v1.ClearAtprotoIdentityRequest]) (*connect.Response[v1.ClearAtprotoIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ClearAtprotoIdentity is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {

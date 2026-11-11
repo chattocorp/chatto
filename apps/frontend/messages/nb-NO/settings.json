@@ -689,6 +689,24 @@
         "integrations": "Integrasjoner",
         "permissions": "Tillatelser"
       }
+    },
+    "atproto": {
+      "title": "Bluesky-identitet",
+      "description": "Vis Bluesky-håndtaket ditt i profilen. Appene til andre medlemmer sjekker at håndtaket tilhører deg.",
+      "handle_label": "Bluesky-håndtak",
+      "handle_description": "La feltet stå tomt for å skrive inn håndtaket på Bluesky.",
+      "privacy_notice": "Chatto legger til en koblingspost i Bluesky-kontoen din. Posten viser ikke navnet på denne serveren.",
+      "link_button": "Koble til",
+      "link_failed": "Kunne ikke koble til Bluesky-identiteten.",
+      "verifying": "Sjekker Bluesky-identiteten din…",
+      "verified": "Profilen din viser @{handle} som bekreftet.",
+      "unverified_no_link": "Andre medlemmer kan ikke bekrefte Bluesky-identiteten din. Koble den til på nytt.",
+      "unverified_handle": "Kunne ikke bekrefte Bluesky-håndtaket ditt. Andre medlemmer ser det ikke.",
+      "unverified_unavailable": "Bluesky-identiteten din kan ikke sjekkes nå. Prøv igjen senere.",
+      "unlink_description": "Når du fjerner identiteten, slettes også koblingsposten fra Bluesky-kontoen din.",
+      "unlink_button": "Fjern",
+      "unlink_failed": "Kunne ikke fjerne Bluesky-identiteten.",
+      "wrong_account": "Du logget inn med en annen Bluesky-konto. Logg inn med den tilkoblede kontoen."
     }
   }
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, ClearAtprotoIdentityRequest, ClearAtprotoIdentityResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetAtprotoIdentityRequest, SetAtprotoIdentityResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { GetPresencePreferenceRequest, GetPresencePreferenceResponse, RefreshPresenceRequest, RefreshPresenceResponse, SetPresencePreferenceRequest, SetPresencePreferenceResponse, SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
@@ -221,6 +221,32 @@ export const MyAccountService = {
       name: "DeleteCustomStatus",
       I: DeleteCustomStatusRequest,
       O: DeleteCustomStatusResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Publishes an AT Protocol DID on the authenticated user's profile. The DID
+     * is visible to everyone who can see the profile. Setting the same DID again
+     * has no effect.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.SetAtprotoIdentity
+     */
+    setAtprotoIdentity: {
+      name: "SetAtprotoIdentity",
+      I: SetAtprotoIdentityRequest,
+      O: SetAtprotoIdentityResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes the AT Protocol DID from the authenticated user's profile. The
+     * call is idempotent.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.ClearAtprotoIdentity
+     */
+    clearAtprotoIdentity: {
+      name: "ClearAtprotoIdentity",
+      I: ClearAtprotoIdentityRequest,
+      O: ClearAtprotoIdentityResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },
