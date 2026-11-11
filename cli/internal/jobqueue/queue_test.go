@@ -30,7 +30,7 @@ func testQueue(t *testing.T) (*Queue, jetstream.Consumer) {
 	ctx := t.Context()
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, Storage: jetstream.MemoryStorage, MaxMsgsPerSubject: 1})
 	require.NoError(t, err)
-	kv, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE"})
+	kv, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", LimitMarkerTTL: time.Hour})
 	require.NoError(t, err)
 	bound, err := jetstreamutil.NewKeyValue(js, kv)
 	require.NoError(t, err)
@@ -350,4 +350,30 @@ func TestQueueRejectsStaleRetryAfterNewBudgetAlreadyFailed(t *testing.T) {
 	require.Equal(t, uint64(2), current.Generation)
 	_, err = q.Retry(ctx, job.Id, RetryVersion(current))
 	require.NoError(t, err)
+}
+
+func TestQueueExpiresOnlySucceededRecords(t *testing.T) {
+	q, c := testQueue(t)
+	ctx := t.Context()
+	ok, failed := testJob("expires-ok"), testJob("keeps-failed")
+	failed.MaxAttempts = 1
+	require.NoError(t, q.Enqueue(ctx, ok))
+	require.NoError(t, q.Enqueue(ctx, failed))
+	runQueue(t, q, c, map[string]Handler{"webhook": func(_ context.Context, job *statev1.JobRecord) error {
+		if job.Id == failed.Id {
+			return &Failure{Category: "broken", Permanent: true}
+		}
+		return nil
+	}}, 2)
+	awaitStatus(t, q, ok.Id, Succeeded)
+	awaitStatus(t, q, failed.Id, Failed)
+	stream, err := q.js.Stream(ctx, "KV_RUNTIME_STATE")
+	require.NoError(t, err)
+	ttl := func(id string) string {
+		msg, err := stream.GetLastMsgForSubject(ctx, "$KV.RUNTIME_STATE."+jobKey(id))
+		require.NoError(t, err)
+		return msg.Header.Get(jetstream.MsgTTLHeader)
+	}
+	require.NotEmpty(t, ttl(ok.Id), "succeeded record must expire")
+	require.Empty(t, ttl(failed.Id), "failed record must stay for inspection")
 }

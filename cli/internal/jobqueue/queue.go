@@ -33,6 +33,9 @@ const (
 	leaseDuration     = time.Minute
 	heartbeatInterval = 15 * time.Second
 	keyPrefix         = "job."
+	// SucceededRetention bounds storage for high-volume work. A succeeded
+	// record expires after this period. Failed records stay for inspection.
+	SucceededRetention = 7 * 24 * time.Hour
 )
 
 const (
@@ -158,7 +161,18 @@ func (q *Queue) save(ctx context.Context, job *statev1.JobRecord, revision uint6
 	if err != nil {
 		return 0, err
 	}
-	return q.kv.Update(ctx, jobKey(job.Id), data, revision)
+	if job.Status != Succeeded {
+		return q.kv.Update(ctx, jobKey(job.Id), data, revision)
+	}
+	// KeyValue.Update cannot set a per-key TTL. This publish is the same
+	// revision-checked write with the bucket's per-message TTL. Source
+	// consumers have acknowledged the work, so expiry cannot re-enqueue it.
+	ack, err := q.js.Publish(ctx, "$KV."+q.kv.Bucket()+"."+jobKey(job.Id), data,
+		jetstream.WithExpectLastSequencePerSubject(revision), jetstream.WithMsgTTL(SucceededRetention))
+	if err != nil {
+		return 0, err
+	}
+	return ack.Sequence, nil
 }
 
 // RetryVersion identifies an application attempt budget without exposing broker

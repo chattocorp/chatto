@@ -18,7 +18,10 @@ source selection rules still apply.
 
 Keep current job records as protobufs under `job.{id}` in `RUNTIME_STATE`.
 Keep dispatch references in a file-backed `JOBS` stream on
-`jobs.{type}.{id}`. Retain the latest dispatch per subject. Include both
+`jobs.{type}.{id}`. Retain the latest dispatch per subject for seven days;
+the repair pass publishes again for unfinished jobs. A succeeded record
+expires seven days after completion through a per-key TTL. Failed records stay
+until an operator retries them. Include both
 resources and consumer positions in backups. Capture EVT first, runtime state
 next, and dispatches last. Recovery must tolerate snapshots taken at different
 times.
@@ -63,11 +66,13 @@ work survives restart. Media can run inside the shared pool or in standalone
 processes without changing its domain facts.
 
 V1 has no cancellation, priorities, scheduling, bulk actions, or separate
-dead-letter stream. Jobs share capacity and can delay each other. Completed and
-failed records and their dispatches have no automatic expiry. This retains
-permanent source deduplication but causes storage to grow with accepted work.
-Listing sorts job keys before hydrating a bounded page; large deployments may
-need a dedicated index and a retention contract later. Privacy cleanup shares
+dead-letter stream. Jobs share capacity and can delay each other. Succeeded
+records expire after seven days, so storage follows recent work. Source
+consumers acknowledge before expiry, so expiry does not re-enqueue work. A
+restore that rewinds a source consumer past an expired record can repeat an
+idempotent effect. Failed records have no automatic expiry. Listing sorts job
+keys before hydrating a bounded page; large deployments may need a dedicated
+index later. Privacy cleanup shares
 capacity with webhooks and media; an exhausted cleanup job remains failed
 until an operator retries it. Effect source consumer diagnostics show handoff
 progress, not job completion. Notification occurrence projection, link-preview

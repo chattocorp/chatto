@@ -33,7 +33,8 @@ and notification alerts.
   results as it scrolls. A job detail page refreshes until the job succeeds or
   fails. The list also has a manual refresh. The pages have no cancellation,
   payload editing, or bulk controls.
-- V1 retains job records without automatic expiry.
+- Succeeded jobs leave the list seven days after completion. Failed jobs stay
+  until they are retried.
 
 ## Design Decisions
 
@@ -76,6 +77,6 @@ the job list repeatedly.
 
 ## Open Questions
 
-- Add a retention and indexing contract when job volume requires it.
+- Add a dedicated listing index when job volume requires it.
 - Add email and delayed deletion when those features need durable jobs.
 - Give privacy cleanup its own capacity if other work delays it.

@@ -121,7 +121,14 @@ func (j *effectJob) perform(ctx context.Context, job *statev1.JobRecord) error {
 		PublishedAt:    msg.Time,
 		NumDelivered:   uint64(job.Attempts),
 	})
-	if _, terminated := events.TerminationReason(err); terminated {
+	if err == nil || ctx.Err() != nil {
+		return err
+	}
+	// Effect handler errors follow the DurableDeliveryHandler contract: they
+	// contain no secrets or PII. The queue stores only a fixed category.
+	reason, terminated := events.TerminationReason(err)
+	j.core.logger.Warn("Effect job attempt failed", "job_type", j.kind, "job_id", job.Id, "attempt", job.Attempts, "terminated", terminated, "reason", reason, "error", err)
+	if terminated {
 		return &jobqueue.Failure{Category: "invalid_source", Permanent: true}
 	}
 	return err

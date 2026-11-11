@@ -145,8 +145,9 @@ durable EVT records serving as security audit facts rather than an email queue.
 backoff, revision claims, graceful handoff, and dispatch repair. Current records
 are protobuf `JobRecord` values in `RUNTIME_STATE` under `job.{id}`. Dispatches
 are protobuf `JobDispatch` values in `JOBS` on `jobs.{type}.{id}`. A filtered
-watcher retains only unfinished work and repairs missing dispatches. Terminal
-records and the latest dispatch per job have no automatic expiry in v1.
+watcher retains only unfinished work and repairs missing dispatches. Succeeded
+records and dispatches expire after seven days. Failed records stay until a
+manual retry.
 
 The core's shared pool handles webhook and registered media attempts. Standalone
 media processes use a filtered consumer of the same dispatches. Record revision

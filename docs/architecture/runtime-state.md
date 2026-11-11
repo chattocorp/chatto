@@ -356,8 +356,9 @@ state, attempt budget, source deadline, retry time, and generation. Revision OCC
 claims work and renews a one-minute execution lease. A filtered watcher repairs
 queued and interrupted dispatches without treating its index as authority.
 Manual retry increments the generation; old dispatches cannot execute it.
-Terminal records prevent source replay from recreating completed work. Records
-have no automatic expiry in v1. They contain no content or credentials.
+Terminal records prevent source replay from recreating completed work. Succeeded
+records expire seven days after completion through a per-key TTL; failed and
+unfinished records do not expire. They contain no content or credentials.
 See ADR-123 and the durable-effect inventory.
 
 ## LiveKit webhook diagnostics
