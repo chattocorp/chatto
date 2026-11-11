@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"crypto/subtle"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -705,6 +707,30 @@ func (p *UserAuthProjection) ExternalIdentities(userID string) []ExternalIdentit
 		return identities[i].SubjectHash < identities[j].SubjectHash
 	})
 	return identities
+}
+
+// AtprotoDID returns the DID of the AT Protocol identity that userID linked
+// for sign-in, or "" without one. With several such identities, the one of
+// the lowest provider ID wins, so the result is stable. It does not allocate,
+// because user summaries call it for each user.
+func (p *UserAuthProjection) AtprotoDID(userID string) string {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted {
+		return ""
+	}
+	var best ExternalIdentity
+	for _, identity := range u.externalIdentities {
+		if identity.ProviderType != config.AuthProviderTypeATProto || !strings.HasPrefix(identity.Subject, "did:") {
+			continue
+		}
+		if best.Subject == "" || identity.ProviderID < best.ProviderID ||
+			(identity.ProviderID == best.ProviderID && identity.SubjectHash < best.SubjectHash) {
+			best = identity
+		}
+	}
+	return best.Subject
 }
 
 func (p *UserAuthProjection) PasswordHash(userID string) ([]byte, bool) {

@@ -28,6 +28,18 @@ func requiredUserSummary(ctx context.Context, api *API, user *readmodel.User) (*
 	return userSummary(ctx, api, user, nil)
 }
 
+// publishedAtprotoDID returns the AT Protocol DID that the public user
+// resource publishes for user, or nil (FDR-056).
+func (api *API) publishedAtprotoDID(user *readmodel.User) *string {
+	if user.GetDeleted() {
+		return nil
+	}
+	if did := api.core.AtprotoDIDForUser(user.GetId()); did != "" {
+		return new(did)
+	}
+	return nil
+}
+
 func userSummaryWithPresence(ctx context.Context, api *API, user *readmodel.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
 	summary := &apiv1.User{
 		Id:             user.GetId(),
@@ -45,9 +57,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *readmodel.User
 		bio := user.GetBio()
 		summary.Bio = &bio
 	}
-	if did := api.core.AtprotoDIDForUser(user.GetId()); did != "" && !user.GetDeleted() {
-		summary.AtprotoDid = new(did)
-	}
+	summary.AtprotoDid = api.publishedAtprotoDID(user)
 	timezone := ""
 	if settings, err := api.core.GetUserSettings(ctx, user.GetId()); err == nil && settings != nil && settings.GetShareTimezone() {
 		timezone = settings.GetTimezone()
