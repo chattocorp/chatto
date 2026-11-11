@@ -13,19 +13,29 @@ so mount this only where a profile is open.
   let {
     did,
     account,
-    icon = true
+    icon = true,
+    unlessHandle
   }: {
     did: string;
     account: ChattoAccountRef;
     /** Show the `@` mark before the handle. Hide it where a row has its own icon. */
     icon?: boolean;
+    /**
+     * Show nothing when the verified handle equals this value, for example the
+     * username that `AtprotoUsername` already marks as verified.
+     */
+    unlessHandle?: string;
   } = $props();
 
   const verification = $derived(atprotoLinkVerifier.verify(did, account));
+
+  function sameHandle(handle: string, other: string | undefined): boolean {
+    return other !== undefined && handle.toLowerCase() === other.toLowerCase();
+  }
 </script>
 
 {#await verification then result}
-  {#if result.status === 'verified'}
+  {#if result.status === 'verified' && !sameHandle(result.handle, unlessHandle)}
     <a
       class="inline-flex min-w-0 items-center gap-1 link"
       href={`https://bsky.app/profile/${encodeURIComponent(result.handle)}`}

@@ -29,7 +29,7 @@ describe('AtprotoLinkStatus', () => {
     const handle = screen.getByTestId('verified-atproto-handle');
     await expect.element(handle).toHaveTextContent('@alice.example');
     // The row has its own provider icon; the handle adds no second one.
-    expect(handle.element().querySelector('.icon-\\[mdi--at\\]')).toBeNull();
+    expect(handle.element().querySelector('[aria-hidden="true"]')).toBeNull();
     await expect.element(screen.getByText('Linked', { exact: true })).not.toBeInTheDocument();
   });
 

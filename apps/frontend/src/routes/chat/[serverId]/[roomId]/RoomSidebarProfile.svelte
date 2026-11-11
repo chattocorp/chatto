@@ -9,6 +9,7 @@ fields as realtime changes arrive.
 -->
 <script lang="ts">
   import VerifiedAtprotoHandle from '$lib/components/atproto/VerifiedAtprotoHandle.svelte';
+  import AtprotoUsername from '$lib/components/atproto/AtprotoUsername.svelte';
   import { createUserAPI } from '@chatto/client/api/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
@@ -80,6 +81,7 @@ fields as realtime changes arrive.
     baseUser ? getLiveTimezone(baseUser.id, baseUser.timezone ?? null) : null
   );
   const customStatus = $derived(baseUser ? getLiveCustomStatus(baseUser.id, null) : null);
+  const atprotoAccount = $derived({ serverOrigin: serverScope.connection.origin, userId });
   const atprotoDid = $derived(
     baseUser ? getLiveAtprotoDid(baseUser.id, baseUser.atprotoDid ?? null) : null
   );
@@ -119,7 +121,6 @@ fields as realtime changes arrive.
         variant="card"
         name={displayName}
         identity={baseUser}
-        username={login}
         testId="profile-user-card"
         menu={{
           label: m('chat.profile.open_card', { name: formatAccountName(displayName, baseUser) }),
@@ -131,16 +132,16 @@ fields as realtime changes arrive.
         {#snippet avatar()}
           <UserAvatar user={menuUser} {presence} size="sm" showPresence />
         {/snippet}
+        {#snippet secondary()}
+          <AtprotoUsername {login} did={atprotoDid} account={atprotoAccount} />
+        {/snippet}
       </UserCard>
     </div>
     <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
     {#if atprotoDid}
       {#key atprotoDid}
         <div class="mt-2 flex text-sm">
-          <VerifiedAtprotoHandle
-            did={atprotoDid}
-            account={{ serverOrigin: serverScope.connection.origin, userId: baseUser.id }}
-          />
+          <VerifiedAtprotoHandle did={atprotoDid} account={atprotoAccount} unlessHandle={login} />
         </div>
       {/key}
     {/if}

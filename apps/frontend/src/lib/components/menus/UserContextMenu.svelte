@@ -27,6 +27,7 @@ profile settings.
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import VerifiedAtprotoHandle from '$lib/components/atproto/VerifiedAtprotoHandle.svelte';
+  import AtprotoUsername from '$lib/components/atproto/AtprotoUsername.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
@@ -212,7 +213,13 @@ profile settings.
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
       <AccountName name={displayName} identity={user} class="font-semibold" />
-      <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
+      <div class="truncate text-xs text-muted">
+        <AtprotoUsername
+          login={getLiveLogin(user.id, user.login)}
+          did={atprotoDid}
+          account={{ serverOrigin: serverScope.connection.origin, userId: user.id }}
+        />
+      </div>
       <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       {#if atprotoDid}
         {#key atprotoDid}
@@ -220,6 +227,7 @@ profile settings.
             <VerifiedAtprotoHandle
               did={atprotoDid}
               account={{ serverOrigin: serverScope.connection.origin, userId: user.id }}
+              unlessHandle={getLiveLogin(user.id, user.login)}
             />
           </div>
         {/key}
