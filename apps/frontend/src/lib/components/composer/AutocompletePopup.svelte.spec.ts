@@ -111,34 +111,19 @@ describe('AutocompletePopup', () => {
       expect(activeLabel(container)).toBe('a');
     });
 
-    it('Tab cycles every match, wraps, and keeps the draft unchanged', () => {
-      const onSelect = vi.fn();
-      const labels = Array.from({ length: 20 }, (_, index) => `match ${index}`);
-      const { container, component } = renderPopup({ items: items(...labels), onSelect });
-      for (let index = 1; index <= labels.length; index++) {
-        const { ev, handled } = press(component, 'Tab');
-        expect(handled).toBe(true);
-        expect(ev.defaultPrevented).toBe(true);
-        expect(activeLabel(container)).toBe(labels[index % labels.length]);
-      }
-      expect(onSelect).not.toHaveBeenCalled();
-      press(component, 'Tab');
-      press(component, 'Enter');
-      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ label: labels[1] }),
-        'Enter'
-      );
-    });
-
-    it('Shift+Tab cycles backwards without moving focus', () => {
+    it.each([false, true])('Tab confirms the highlighted match (shift=%s)', (shiftKey) => {
       const onSelect = vi.fn();
       const { container, component } = renderPopup({ items: items('a', 'b', 'c'), onSelect });
-      const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true });
+      press(component, 'ArrowDown');
+      const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, cancelable: true });
       expect(component.handleKeyDown(event)).toBe(true);
       flushSync();
       expect(event.defaultPrevented).toBe(true);
-      expect(activeLabel(container)).toBe('c');
-      expect(onSelect).not.toHaveBeenCalled();
+      expect(activeLabel(container)).toBe('b');
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ label: 'b' }),
+        'Tab'
+      );
     });
 
     it('ArrowUp moves to the previous item', () => {
