@@ -176,7 +176,10 @@
       href={providerLoginHref}
       onclick={handleProviderClick}
     />
-    <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+    <AuthPopupNotice
+      pending={!compact && selectedProviderId !== null}
+      oncancel={() => providerPopup?.cancel()}
+    />
     {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
   {/if}
 

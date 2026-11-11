@@ -129,6 +129,11 @@ async function runServerOAuthFlow(
   // The window can close while server data still loads. Observe that early
   // rejection here; the later await still receives it.
   responseWait.promise.catch(() => {});
+  abandonActiveFlows.set(serverUrl, responseWait.abandon);
+  responseWait.promise.then(
+    () => abandonActiveFlows.delete(serverUrl),
+    () => abandonActiveFlows.delete(serverUrl)
+  );
 
   try {
     // A deliberate close must end the attempt even while discovery is pending.
@@ -189,6 +194,17 @@ async function openSignedInServer(serverId: string): Promise<void> {
   await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
 }
 
+/** Cancels the waiting popup flow of each server URL that has one. */
+const abandonActiveFlows = new Map<string, () => void>();
+
+/**
+ * Stop waiting for the sign-in window of `serverUrl`. The user may have
+ * closed it while the window handle could not report this.
+ */
+export function cancelServerOAuthFlow(serverUrl: string): void {
+  abandonActiveFlows.get(serverUrl)?.();
+}
+
 function createResponseChannel(state: string): BroadcastChannel | null {
   if (typeof BroadcastChannel === 'undefined') return null;
   return new BroadcastChannel(oauthPopupChannelName(state));
@@ -198,8 +214,9 @@ function waitForPopupResponse(
   authorizationWindow: AuthorizationWindow,
   state: string,
   channel: BroadcastChannel | null
-): { promise: Promise<OAuthPopupResponse>; cancel: () => void } {
+): { promise: Promise<OAuthPopupResponse>; cancel: () => void; abandon: () => void } {
   let cancel = () => {};
+  let abandon = () => {};
   const promise = new Promise<OAuthPopupResponse>((resolveResponse, reject) => {
     let settled = false;
 
@@ -230,6 +247,7 @@ function waitForPopupResponse(
       settled = true;
       cleanup();
     };
+    abandon = () => fail('The sign-in attempt was cancelled.', 'cancelled');
 
     const handleWindowMessage = (event: MessageEvent) => {
       if (
@@ -254,6 +272,14 @@ function waitForPopupResponse(
       polling = true;
       try {
         if (await authorizationWindow.isClosed()) {
+          if (channel) {
+            // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
+            // Bluesky's, cuts the link to this window. The window handle then reports
+            // `closed` although the user is still signing in. With a channel, keep
+            // waiting for the result; the user can cancel the wait instead.
+            window.clearInterval(closePoll);
+            return;
+          }
           fail('The sign-in window was closed before authorization completed.', 'cancelled');
         }
       } catch {
@@ -267,7 +293,7 @@ function waitForPopupResponse(
       POPUP_TIMEOUT_MS
     );
   });
-  return { promise, cancel };
+  return { promise, cancel, abandon };
 }
 
 async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {

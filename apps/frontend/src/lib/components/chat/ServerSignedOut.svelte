@@ -8,6 +8,7 @@ window; an optional native host capability enables inline password submission.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { hasPasswordLogin, signInWithPassword } from '$lib/desktop/passwordLogin';
   import {
+    cancelRemoteSignIn,
     closeInlineSignIn,
     isRemoteSignInPending,
     startRemoteSignIn
@@ -179,7 +180,10 @@ window; an optional native host capability enables inline password submission.
           </button>
         </div>
       {/if}
-      <AuthPopupNotice pending={isRemoteSignInPending(registration.id)} />
+      <AuthPopupNotice
+        pending={isRemoteSignInPending(registration.id)}
+        oncancel={() => cancelRemoteSignIn(registration)}
+      />
     </div>
     {#if store.realtimeSync.hasDisplayableView}
       <div class="mt-4 text-center">

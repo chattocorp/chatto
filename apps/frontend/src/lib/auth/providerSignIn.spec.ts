@@ -78,9 +78,10 @@ describe('origin provider sign-in', () => {
       state: 'state',
       externalIdentityToken: 'tok'
     });
-    await expect(
-      verifyProviderSignIn({ navigate: vi.fn(), close: vi.fn(), response })
-    ).resolves.toEqual({ kind: 'confirm-account', token: 'tok' });
+    await expect(verifyProviderSignIn({ response })).resolves.toEqual({
+      kind: 'confirm-account',
+      token: 'tok'
+    });
     expect(mocks.getCurrentUser).not.toHaveBeenCalled();
 
     await confirmProviderAccount('tok', '/chat/room');
@@ -94,7 +95,7 @@ describe('origin provider sign-in', () => {
       state: 'state',
       error: 'external_identity_unlinked'
     });
-    const result = verifyProviderSignIn({ navigate: vi.fn(), close: vi.fn(), response });
+    const result = verifyProviderSignIn({ response });
     await expect(result).rejects.toBeInstanceOf(ProviderSignInError);
     await expect(result).rejects.toMatchObject({ code: 'external_identity_unlinked' });
   });
@@ -102,8 +103,6 @@ describe('origin provider sign-in', () => {
   it('does not treat an OAuth code as cookie sign-in completion', async () => {
     await expect(
       verifyProviderSignIn({
-        navigate: vi.fn(),
-        close: vi.fn(),
         response: Promise.resolve({
           type: 'chatto:oauth-popup-response',
           state: 'state',

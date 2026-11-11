@@ -38,7 +38,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/auth/reauth', () => ({
   beginOriginReauthentication: mocks.beginOriginReauthentication,
-  startRemoteReauthentication: mocks.startRemoteReauthentication
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  cancelServerOAuthFlow: vi.fn()
 }));
 
 vi.mock('$lib/ui/toast', () => ({

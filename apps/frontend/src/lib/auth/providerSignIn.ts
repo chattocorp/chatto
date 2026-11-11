@@ -47,7 +47,9 @@ export type ProviderSignInResult =
   { kind: 'signed-in' } | { kind: 'confirm-account'; token: string };
 
 /** Verify provider completion against the origin server before updating the app. */
-export async function verifyProviderSignIn(popup: OAuthPopup): Promise<ProviderSignInResult> {
+export async function verifyProviderSignIn(
+  popup: Pick<OAuthPopup, 'response'>
+): Promise<ProviderSignInResult> {
   const result = await popup.response;
   if (result.error) throw new ProviderSignInError(result.error);
   if (result.externalIdentityToken) {

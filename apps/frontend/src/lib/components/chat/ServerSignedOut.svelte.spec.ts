@@ -24,7 +24,8 @@ vi.mock(
 );
 
 vi.mock('$lib/auth/reauth', () => ({
-  startRemoteReauthentication: mocks.startRemoteReauthentication
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  cancelServerOAuthFlow: vi.fn()
 }));
 
 import { toast } from '$lib/ui/toast';

@@ -1,7 +1,7 @@
 import { popupErrorMessage } from '$lib/oauth/popupError';
 import { SvelteSet } from 'svelte/reactivity';
 import type { RegisteredServer } from '@chatto/client/server/registry';
-import { startRemoteReauthentication } from '$lib/auth/reauth';
+import { cancelServerOAuthFlow, startRemoteReauthentication } from '$lib/auth/reauth';
 import { m } from '$lib/i18n/messages';
 import { toast } from '$lib/ui/toast';
 import { goto } from '$app/navigation';
@@ -29,6 +29,11 @@ const pendingServerIds = new SvelteSet<string>();
 /** Whether sign-in to the server runs. Reactive in Svelte templates. */
 export function isRemoteSignInPending(serverId: string): boolean {
   return pendingServerIds.has(serverId);
+}
+
+/** Stop waiting for the pending sign-in window of `server`. */
+export function cancelRemoteSignIn(server: RegisteredServer): void {
+  cancelServerOAuthFlow(server.url);
 }
 
 /**

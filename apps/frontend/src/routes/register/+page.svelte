@@ -347,7 +347,10 @@
         href={providerLoginHref}
         onclick={handleProviderClick}
       />
-      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+      <AuthPopupNotice
+        pending={!compact && selectedProviderId !== null}
+        oncancel={() => providerPopup?.cancel()}
+      />
       <FormError error={providerError} />
     {/if}
   {:else if step === 'code'}

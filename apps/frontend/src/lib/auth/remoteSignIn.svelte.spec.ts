@@ -20,7 +20,8 @@ vi.mock('$lib/desktop/passwordLogin', () => ({ hasPasswordLogin: () => mocks.des
 vi.mock('$lib/ui/toast', () => ({ toast: { error: vi.fn() } }));
 
 vi.mock('$lib/auth/reauth', () => ({
-  startRemoteReauthentication: mocks.startRemoteReauthentication
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  cancelServerOAuthFlow: vi.fn()
 }));
 
 import { toast } from '$lib/ui/toast';
