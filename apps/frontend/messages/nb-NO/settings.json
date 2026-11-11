@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "Internetthåndtak",
-      "description": "Vis internetthåndtaket ditt i profilen. Appene til andre medlemmer sjekker at håndtaket tilhører deg.",
-      "handle_label": "Internetthåndtak",
-      "handle_description": "La feltet stå tomt for å skrive inn håndtaket på Bluesky.",
-      "privacy_notice": "Chatto legger til en koblingspost i AT Protocol-kontoen din, for eksempel på Bluesky. Posten viser ikke navnet på denne serveren.",
-      "link_button": "Koble til",
       "link_failed": "Kunne ikke koble til internetthåndtaket.",
-      "verifying": "Sjekker internetthåndtaket ditt…",
-      "verified": "Profilen din viser @{handle} som bekreftet.",
-      "unverified_no_link": "Andre medlemmer kan ikke bekrefte internetthåndtaket ditt. Koble det til på nytt.",
-      "unverified_handle": "Kunne ikke bekrefte internetthåndtaket ditt. Andre medlemmer ser det ikke.",
-      "unverified_unavailable": "Internetthåndtaket ditt kan ikke sjekkes nå. Prøv igjen senere.",
-      "unlink_description": "Når du fjerner håndtaket, slettes også koblingsposten fra AT Protocol-kontoen din.",
-      "unlink_button": "Fjern",
-      "unlink_failed": "Kunne ikke fjerne internetthåndtaket.",
-      "wrong_account": "Du logget inn med en annen AT Protocol-konto. Logg inn med den tilkoblede kontoen."
+      "unverified_no_link": "Andre medlemmer kan ikke bekrefte internetthåndtaket ditt ennå.",
+      "verify_button": "Bekreft"
     }
   }
 }

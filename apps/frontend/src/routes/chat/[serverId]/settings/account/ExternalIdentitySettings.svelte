@@ -26,6 +26,13 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Button, TextInput } from '$lib/ui/form';
+  import { ensureAtprotoSession } from '$lib/atproto/session.svelte';
+  import {
+    AtprotoSignInError,
+    linkAtprotoIdentity,
+    removeAtprotoLinkRecord
+  } from '$lib/atproto/signIn';
+  import AtprotoLinkStatus from './AtprotoLinkStatus.svelte';
 
   let {
     currentUser,
@@ -139,7 +146,32 @@
     }
   }
 
+  function isAtprotoIdentity(subjectHash: string): boolean {
+    return linkedIdentities.some(
+      (identity) => identity.subjectHash === subjectHash && identity.providerType === 'atproto'
+    );
+  }
+
+  /** Link an AT Protocol identity in this window. The PDS sign-in is a popup. */
+  async function startAtprotoLink(provider: ExternalIdentityProviderInfo) {
+    actionError = '';
+    linkingProviderId = provider.id;
+    try {
+      // Sign in to the PDS first, so its popup opens directly from the click.
+      await ensureAtprotoSession('');
+    } catch {
+      actionError = m('settings.account.sso.link_failed');
+      linkingProviderId = '';
+      return;
+    }
+    await startProviderLink(provider);
+  }
+
   function openProviderLink(provider: ExternalIdentityProviderInfo) {
+    if (provider.type === 'atproto') {
+      void startAtprotoLink(provider);
+      return;
+    }
     actionError = '';
     const userId = accountId;
     if (!userId) return;
@@ -277,12 +309,25 @@
     actionError = '';
     linkingProviderId = provider.id;
     try {
-      const startUrl = await variables.connection.getAPI(createExternalIdentityAPI).startLink({
-        providerId: provider.id,
-        redirectPath: variables.redirectPath,
-        currentPassword
-      });
+      const { startUrl, linkToken } = await variables.connection
+        .getAPI(createExternalIdentityAPI)
+        .startLink({
+          providerId: provider.id,
+          redirectPath: variables.redirectPath,
+          currentPassword
+        });
       if (!session.isCurrent(variables)) return;
+      if (provider.type === 'atproto') {
+        // The device links its own AT Protocol session; no redirect (FDR-056).
+        const atprotoSession = await ensureAtprotoSession('');
+        await linkAtprotoIdentity(atprotoSession, variables.connection.origin, linkToken);
+        if (!session.isCurrent(variables)) return;
+        linkFreshAuthProvider = null;
+        linkCurrentPassword = '';
+        await identitiesQuery.refetch();
+        await currentUser.load();
+        return;
+      }
       window.location.href = startUrl;
     } catch (err) {
       if (!session.isCurrent(variables)) return;
@@ -303,6 +348,13 @@
         actionError = directLoginEnabled
           ? m('settings.account.sso.fresh_auth_required')
           : m('settings.account.sso.sso_fresh_auth_required');
+      } else if (err instanceof AtprotoSignInError || !(err instanceof ConnectError)) {
+        // AT Protocol and PDS errors carry library text; show localized messages.
+        linkFreshAuthProvider = null;
+        actionError =
+          err instanceof AtprotoSignInError && err.code === 'external_identity_conflict'
+            ? m('auth.login.error.external_identity_conflict')
+            : m('settings.account.sso.link_failed');
       } else if (currentPassword !== undefined) {
         linkFreshAuthError = errorMessage(err, m('settings.account.sso.link_failed'));
       } else {
@@ -387,12 +439,23 @@
     };
     actionError = '';
     disconnectingSubjectHash = subjectHash;
+    const atprotoDid = isAtprotoIdentity(subjectHash)
+      ? (currentUser.user?.atprotoDid ?? null)
+      : null;
     try {
       await variables.connection
         .getAPI(createExternalIdentityAPI)
         .disconnect(subjectHash, currentPassword);
       if (!session.isCurrent(variables)) {
         return;
+      }
+      if (atprotoDid && accountId) {
+        // Best effort: the DID is no longer published, so the record proves
+        // nothing. A device without that session leaves it in place.
+        void removeAtprotoLinkRecord(
+          { serverOrigin: variables.connection.origin, userId: accountId },
+          atprotoDid
+        ).catch(() => {});
       }
       disconnectTarget = null;
       disconnectFreshAuthTarget = null;
@@ -505,6 +568,15 @@
                   <div class="text-xs text-muted">
                     {#if provider.linked}
                       {m('settings.account.sso.linked')}
+                      {#if provider.type === 'atproto' && currentUser.user?.atprotoDid && accountId}
+                        <AtprotoLinkStatus
+                          did={currentUser.user.atprotoDid}
+                          account={{
+                            serverOrigin: serverScope.connection.origin,
+                            userId: accountId
+                          }}
+                        />
+                      {/if}
                       {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
                         <p>
                           {identityDisconnectUnavailableMessage(

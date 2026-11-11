@@ -13,7 +13,6 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import DeleteAccountSection from './DeleteAccountSection.svelte';
-  import AtprotoIdentitySettings from './AtprotoIdentitySettings.svelte';
   import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
   import PasswordSettings from './PasswordSettings.svelte';
   import VerifiedEmailSettings from './VerifiedEmailSettings.svelte';
@@ -74,7 +73,6 @@
         <VerifiedEmailSettings />
       {/key}
       <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
-      <AtprotoIdentitySettings {currentUser} />
       <DeleteAccountSection
         canDeleteAccount={accountDeletionAvailabilityWithFallback(
           currentUser.user?.actions?.deleteAccount,

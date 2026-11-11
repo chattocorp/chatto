@@ -90,7 +90,7 @@ describe('Account settings page', () => {
     const { container, getByText } = render(AccountPage);
     await settle();
 
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(5);
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
     await expect.element(getByText('User ID')).toBeVisible();
     await expect.element(getByText('U123abcetc.')).toBeVisible();
   });

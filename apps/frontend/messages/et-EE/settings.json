@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "Internetikasutajanimi",
-      "description": "Näidake oma internetikasutajanime profiilis. Teiste liikmete rakendused kontrollivad, et see kuulub teile.",
-      "handle_label": "Internetikasutajanimi",
-      "handle_description": "Jätke tühjaks, et sisestada kasutajanimi Bluesky lehel.",
-      "privacy_notice": "Chatto lisab teie AT Protocoli kontole, näiteks Bluesky kontole, lingikirje. Kirje ei näita selle serveri nime.",
-      "link_button": "Ühenda",
       "link_failed": "Internetikasutajanime ei õnnestunud ühendada.",
-      "verifying": "Teie internetikasutajanime kontrollimine…",
-      "verified": "Teie profiil näitab @{handle} kinnitatuna.",
-      "unverified_no_link": "Teised liikmed ei saa teie internetikasutajanime kinnitada. Ühendage see uuesti.",
-      "unverified_handle": "Teie internetikasutajanime ei õnnestunud kinnitada. Teised liikmed seda ei näe.",
-      "unverified_unavailable": "Teie internetikasutajanime ei saa praegu kontrollida. Proovige hiljem uuesti.",
-      "unlink_description": "Kasutajanime eemaldamisel kustutatakse ka lingikirje teie AT Protocoli kontolt.",
-      "unlink_button": "Eemalda",
-      "unlink_failed": "Internetikasutajanime ei õnnestunud eemaldada.",
-      "wrong_account": "Logisite sisse teise AT Protocoli kontoga. Logige sisse ühendatud kontoga."
+      "unverified_no_link": "Teised liikmed ei saa teie internetikasutajanime veel kinnitada.",
+      "verify_button": "Kinnita"
     }
   }
 }

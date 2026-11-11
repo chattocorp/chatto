@@ -35,21 +35,6 @@ export function createAccountAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
 
   return {
-    /**
-     * Publish an AT Protocol DID on the signed-in user's profile. The server
-     * checks only the syntax. Write the account link record first, so other
-     * clients can verify the claim (FDR-056).
-     */
-    async setAtprotoIdentity(did: string): Promise<string> {
-      const response = await client.setAtprotoIdentity({ did });
-      return response.did;
-    },
-
-    /** Remove the AT Protocol DID from the signed-in user's profile. Idempotent. */
-    async clearAtprotoIdentity(): Promise<void> {
-      await client.clearAtprotoIdentity({});
-    },
-
     async changePassword(input: ChangePasswordInput): Promise<void> {
       await client.changePassword({
         password: input.password,

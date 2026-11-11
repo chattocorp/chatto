@@ -76,6 +76,10 @@ message StartExternalIdentityLinkRequest {
 message StartExternalIdentityLinkResponse {
   // Browser URL that starts provider authorization on the target server origin.
   string start_url = 1;
+  // Single-use token that binds the link to the authenticated account. AT
+  // Protocol providers have no browser redirect: the client sends this token
+  // with an AT Protocol service token to POST /auth/atproto.
+  string link_token = 2;
 }
 
 // Request to disconnect a linked provider identity from the authenticated user.

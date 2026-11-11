@@ -60,8 +60,7 @@ async function runServerOAuthFlow(
   serverUrl: string,
   serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
   providerId?: string,
-  screenHint?: 'signup',
-  loginHint?: string
+  screenHint?: 'signup'
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
@@ -76,7 +75,6 @@ async function runServerOAuthFlow(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       ...(providerId ? { provider_id: providerId } : {}),
-      ...(providerId && loginHint ? { login_hint: loginHint } : {}),
       ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
@@ -159,7 +157,6 @@ async function runServerOAuthFlow(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       ...(providerId ? { provider_id: providerId } : {}),
-      ...(providerId && loginHint ? { login_hint: loginHint } : {}),
       ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
@@ -414,16 +411,10 @@ export function oauthClientIdForLocation(
  * one of the server's configured providers; the server validates the hint.
  * The signup screen hint opens registration on servers that support it.
  */
-/**
- * Sign in to `server` in its OAuth window. `providerId` starts that provider
- * directly; `loginHint` is the identity to use there, such as a known AT
- * Protocol handle (FDR-056).
- */
 export function startRemoteReauthentication(
   server: RegisteredServer,
   providerId?: string,
-  screenHint?: 'signup',
-  loginHint?: string
+  screenHint?: 'signup'
 ): Promise<void> {
   const serverInfo = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
@@ -432,7 +423,7 @@ export function startRemoteReauthentication(
       iconUrl: info.iconUrl ?? server.iconUrl
     })
   );
-  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint, loginHint);
+  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {

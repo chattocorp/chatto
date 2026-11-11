@@ -235,7 +235,7 @@ func (x *RoomMembership) GetRoomId() string {
 	return ""
 }
 
-// User is a hydrated user read model. Login, DisplayName, Bio, and AtprotoDID must not enter snapshot storage.
+// User is a hydrated user read model. Login, DisplayName, and Bio must not enter snapshot storage.
 type User struct {
 	Id           string
 	Login        string // Unique login identifier
@@ -251,9 +251,6 @@ type User struct {
 	// Current public bio, hydrated at read boundaries from encrypted projected
 	// state. Never persisted in plaintext here.
 	Bio string
-	// Published AT Protocol DID claim, hydrated like Bio. Empty means unset.
-	// Clients verify the claim themselves (FDR-056).
-	AtprotoDID string
 	// Deactivated accounts retain their data but cannot authenticate.
 	Deactivated bool
 }
@@ -331,14 +328,6 @@ func (x *User) GetBotOwnerUserId() string {
 func (x *User) GetBio() string {
 	if x != nil {
 		return x.Bio
-	}
-	return ""
-}
-
-// GetAtprotoDID returns the field value, or its zero value for a nil receiver.
-func (x *User) GetAtprotoDID() string {
-	if x != nil {
-		return x.AtprotoDID
 	}
 	return ""
 }

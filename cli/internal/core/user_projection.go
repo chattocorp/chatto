@@ -45,8 +45,6 @@ type projectedUser struct {
 	loginHash     string
 	displayName   *projectedUserPII
 	bio           *projectedUserPII
-	// atprotoDID is the published AT Protocol DID claim (FDR-056).
-	atprotoDID *projectedUserPII
 	deleted       bool
 	shredded      bool
 	avatar        *evtv1.AssetRecord
@@ -137,8 +135,6 @@ func (p *UserProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyDisplayNameChanged(event.GetId(), e.UserDisplayNameChanged)
 	case *evtv1.Event_UserBioChanged:
 		p.applyBioChanged(event.GetId(), e.UserBioChanged)
-	case *evtv1.Event_UserAtprotoDidChanged:
-		p.applyAtprotoDIDChanged(event.GetId(), e.UserAtprotoDidChanged)
 	case *evtv1.Event_UserAvatarSet:
 		p.applyAvatarSet(e.UserAvatarSet)
 	case *evtv1.Event_UserAvatarCleared:
@@ -250,8 +246,6 @@ func (p *UserProjection) applyPreparedContentEvent(event *evtv1.Event, seq uint6
 		p.applyDisplayNameChanged(event.GetId(), value.UserDisplayNameChanged)
 	case *evtv1.Event_UserBioChanged:
 		p.applyBioChanged(event.GetId(), value.UserBioChanged)
-	case *evtv1.Event_UserAtprotoDidChanged:
-		p.applyAtprotoDIDChanged(event.GetId(), value.UserAtprotoDidChanged)
 	case *evtv1.Event_UserAvatarSet:
 		p.applyAvatarSet(value.UserAvatarSet)
 	case *evtv1.Event_UserAvatarCleared:
@@ -431,16 +425,6 @@ func (p *UserProjection) applyBioChanged(eventID string, e *evtv1.UserBioChanged
 	u.bio = newProjectedUserPII(eventID, evtstream.EventUserBioChanged, "bio", e.GetEncryptedBio())
 }
 
-// applyAtprotoDIDChanged stores the encrypted DID claim. An event without an
-// encrypted payload removes the claim.
-func (p *UserProjection) applyAtprotoDIDChanged(eventID string, e *evtv1.UserAtprotoDidChangedEvent) {
-	if e == nil || e.GetUserId() == "" {
-		return
-	}
-	u := p.ensureUserLocked(e.GetUserId())
-	u.atprotoDID = newProjectedUserPII(eventID, evtstream.EventUserAtprotoDIDChanged, "atproto_did", e.GetEncryptedDid())
-}
-
 func (p *UserProjection) applyAvatarSet(e *evtv1.UserAvatarSetEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
@@ -615,7 +599,6 @@ func (p *UserProjection) applyAccountDeleted(e *evtv1.UserAccountDeletedEvent) {
 	u.loginHash = ""
 	u.displayName = nil
 	u.bio = nil
-	u.atprotoDID = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.primaryVerifiedEmailEventID = ""
 	u.loginChanged = time.Time{}
@@ -643,7 +626,6 @@ func (p *UserProjection) applyKeyShredded(userID string) {
 	u.loginHash = ""
 	u.displayName = nil
 	u.bio = nil
-	u.atprotoDID = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.primaryVerifiedEmailEventID = ""
@@ -772,7 +754,6 @@ type projectedUserSnapshot struct {
 	login       *projectedPIISnapshot
 	displayName *projectedPIISnapshot
 	bio         *projectedPIISnapshot
-	atprotoDID  *projectedPIISnapshot
 	avatar      *evtv1.AssetRecord
 	preferences *evtv1.ServerUserPreferences
 	deleted     bool
@@ -826,7 +807,6 @@ func (p *UserProjection) userSnapshotLocked(userID string, u *projectedUser) *pr
 		login:       p.piiSnapshotLocked(userID, u.login),
 		displayName: p.piiSnapshotLocked(userID, u.displayName),
 		bio:         p.piiSnapshotLocked(userID, u.bio),
-		atprotoDID:  p.piiSnapshotLocked(userID, u.atprotoDID),
 		avatar:      avatar,
 		preferences: preferences,
 		deleted:     u.deleted,
@@ -868,7 +848,6 @@ func cloneProjectedUserSnapshot(source *projectedUserSnapshot) *projectedUserSna
 		login:       clonePII(source.login),
 		displayName: clonePII(source.displayName),
 		bio:         clonePII(source.bio),
-		atprotoDID:  clonePII(source.atprotoDID),
 		deleted:     source.deleted,
 		shredded:    source.shredded,
 	}
@@ -933,11 +912,6 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 		return nil, false, err
 	} else if ok {
 		snapshot.user.Bio = bio
-	}
-	if did, ok, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.atprotoDID); err != nil {
-		return nil, false, err
-	} else if ok {
-		snapshot.user.AtprotoDID = did
 	}
 	if statusExpired(snapshot.user.GetCustomStatus(), now) {
 		snapshot.user.CustomStatus = nil

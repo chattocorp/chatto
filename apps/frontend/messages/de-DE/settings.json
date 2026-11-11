@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "Internet-Handle",
-      "description": "Zeige dein Internet-Handle in deinem Profil. Die Apps anderer Mitglieder prüfen, ob das Handle dir gehört.",
-      "handle_label": "Internet-Handle",
-      "handle_description": "Lass das Feld leer, um dein Handle bei Bluesky einzugeben.",
-      "privacy_notice": "Chatto legt in deinem AT-Protocol-Konto, zum Beispiel bei Bluesky, einen Verknüpfungseintrag an. Der Eintrag zeigt den Namen dieses Servers nicht.",
-      "link_button": "Verbinden",
       "link_failed": "Das Internet-Handle konnte nicht verbunden werden.",
-      "verifying": "Dein Internet-Handle wird geprüft …",
-      "verified": "Dein Profil zeigt @{handle} als verifiziert.",
-      "unverified_no_link": "Andere Mitglieder können dein Internet-Handle nicht verifizieren. Verbinde es erneut.",
-      "unverified_handle": "Dein Internet-Handle konnte nicht bestätigt werden. Andere Mitglieder sehen es nicht.",
-      "unverified_unavailable": "Dein Internet-Handle kann gerade nicht geprüft werden. Versuche es später erneut.",
-      "unlink_description": "Beim Entfernen des Handles wird auch der Verknüpfungseintrag aus deinem AT-Protocol-Konto gelöscht.",
-      "unlink_button": "Entfernen",
-      "unlink_failed": "Das Internet-Handle konnte nicht entfernt werden.",
-      "wrong_account": "Du hast dich mit einem anderen AT-Protocol-Konto angemeldet. Melde dich mit dem verbundenen Konto an."
+      "unverified_no_link": "Andere Mitglieder können dein Internet-Handle noch nicht verifizieren.",
+      "verify_button": "Verifizieren"
     }
   }
 }

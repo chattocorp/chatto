@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "インターネットハンドル",
-      "description": "プロフィールにインターネットハンドルを表示します。ほかのメンバーのアプリが、そのハンドルがあなたのものであることを確認します。",
-      "handle_label": "インターネットハンドル",
-      "handle_description": "空欄のままにすると、Bluesky でハンドルを入力します。",
-      "privacy_notice": "Chatto はあなたの AT Protocol アカウント（Bluesky など）にリンクレコードを追加します。このレコードにはこのサーバーの名前は表示されません。",
-      "link_button": "接続",
       "link_failed": "インターネットハンドルを接続できませんでした。",
-      "verifying": "インターネットハンドルを確認しています…",
-      "verified": "プロフィールに @{handle} が確認済みとして表示されています。",
-      "unverified_no_link": "ほかのメンバーはあなたのインターネットハンドルを確認できません。もう一度接続してください。",
-      "unverified_handle": "インターネットハンドルを確認できませんでした。ほかのメンバーには表示されません。",
-      "unverified_unavailable": "現在インターネットハンドルを確認できません。しばらくしてからお試しください。",
-      "unlink_description": "ハンドルを削除すると、AT Protocol アカウントのリンクレコードも削除されます。",
-      "unlink_button": "削除",
-      "unlink_failed": "インターネットハンドルを削除できませんでした。",
-      "wrong_account": "別の AT Protocol アカウントでサインインしました。接続済みのアカウントでサインインしてください。"
+      "unverified_no_link": "ほかのメンバーはまだあなたのインターネットハンドルを確認できません。",
+      "verify_button": "確認する"
     }
   }
 }

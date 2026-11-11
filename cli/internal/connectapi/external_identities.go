@@ -252,7 +252,8 @@ func (s *accountService) StartExternalIdentityLink(ctx context.Context, req *con
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.StartExternalIdentityLinkResponse{
-		StartUrl: s.api.externalIdentityLinkStartURL(ctx, provider.ID, token),
+		StartUrl:  s.api.externalIdentityLinkStartURL(ctx, provider.ID, token),
+		LinkToken: token,
 	}), nil
 }
 

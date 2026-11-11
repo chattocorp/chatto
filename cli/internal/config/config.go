@@ -304,6 +304,7 @@ func (c *ChattoConfig) Validate() error {
 	// A role can be mapped by one provider only, so one provider owns its
 	// automatic assignments.
 	mappedRoleProviders := make(map[string]string)
+	atprotoProviders := 0
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)
 		if c.Webserver.URL == "" {
@@ -322,6 +323,13 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord, atproto")
 		}
 		if provider.Type == AuthProviderTypeATProto {
+			atprotoProviders++
+			if atprotoProviders > 1 {
+				errs = append(errs, prefix+": only one atproto provider is supported")
+			}
+			if c.Webserver.URL != "" && AtprotoServiceDID(c.Webserver.URL) == "" {
+				errs = append(errs, prefix+": atproto providers need an HTTPS webserver.url without a port, or a local http:// development URL")
+			}
 			// The server publishes its own client metadata and requests only
 			// identity, so operators configure no client or scopes.
 			if provider.ClientID != "" || provider.ClientSecret != "" {

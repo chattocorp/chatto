@@ -141,8 +141,10 @@ func userIDOfUserEvent(event *evtv1.Event) string {
 		return payload.UserCustomStatusCleared.GetUserId()
 	case *evtv1.Event_UserBioChanged:
 		return payload.UserBioChanged.GetUserId()
-	case *evtv1.Event_UserAtprotoDidChanged:
-		return payload.UserAtprotoDidChanged.GetUserId()
+	case *evtv1.Event_UserExternalIdentityLinked:
+		return payload.UserExternalIdentityLinked.GetUserId()
+	case *evtv1.Event_UserExternalIdentityUnlinked:
+		return payload.UserExternalIdentityUnlinked.GetUserId()
 	case *evtv1.Event_UserServerPreferencesChanged:
 		return payload.UserServerPreferencesChanged.GetUserId()
 	case *evtv1.Event_AssetCreated:
@@ -174,8 +176,11 @@ func UserIDOfPublicProfileEvent(event *evtv1.Event) string {
 		return payload.UserCustomStatusCleared.GetUserId()
 	case *evtv1.Event_UserBioChanged:
 		return payload.UserBioChanged.GetUserId()
-	case *evtv1.Event_UserAtprotoDidChanged:
-		return payload.UserAtprotoDidChanged.GetUserId()
+	case *evtv1.Event_UserExternalIdentityLinked:
+		// The public atproto_did follows an AT Protocol sign-in link.
+		return payload.UserExternalIdentityLinked.GetUserId()
+	case *evtv1.Event_UserExternalIdentityUnlinked:
+		return payload.UserExternalIdentityUnlinked.GetUserId()
 	case *evtv1.Event_AssetCreated:
 		return payload.AssetCreated.GetUserId()
 	default:
@@ -517,7 +522,8 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserLoginChanged,
 		evtstream.EventUserDisplayNameChanged,
 		evtstream.EventUserBioChanged,
-		evtstream.EventUserAtprotoDIDChanged,
+		evtstream.EventUserExternalIdentityLinked,
+		evtstream.EventUserExternalIdentityUnlinked,
 		evtstream.EventUserAvatarSet,
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventAssetCreated,

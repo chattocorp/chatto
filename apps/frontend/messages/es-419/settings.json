@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "Identificador de internet",
-      "description": "Muestra tu identificador de internet en tu perfil. Las aplicaciones de otros miembros comprueban que te pertenece.",
-      "handle_label": "Identificador de internet",
-      "handle_description": "Déjalo vacío para ingresar tu identificador en Bluesky.",
-      "privacy_notice": "Chatto agrega un registro de vínculo a tu cuenta de AT Protocol, por ejemplo en Bluesky. El registro no muestra el nombre de este servidor.",
-      "link_button": "Conectar",
       "link_failed": "No se pudo conectar el identificador de internet.",
-      "verifying": "Comprobando tu identificador de internet…",
-      "verified": "Tu perfil muestra @{handle} como verificado.",
-      "unverified_no_link": "Otros miembros no pueden verificar tu identificador de internet. Vuelve a conectarlo.",
-      "unverified_handle": "No se pudo confirmar tu identificador de internet. Otros miembros no lo ven.",
-      "unverified_unavailable": "Ahora no se puede comprobar tu identificador de internet. Inténtalo más tarde.",
-      "unlink_description": "Al quitar el identificador también se elimina el registro de vínculo de tu cuenta de AT Protocol.",
-      "unlink_button": "Quitar",
-      "unlink_failed": "No se pudo quitar el identificador de internet.",
-      "wrong_account": "Iniciaste sesión con otra cuenta de AT Protocol. Inicia sesión con la cuenta conectada."
+      "unverified_no_link": "Otros miembros todavía no pueden verificar tu identificador de internet.",
+      "verify_button": "Verificar"
     }
   }
 }

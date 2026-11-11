@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "Identifiant Internet",
-      "description": "Affichez votre identifiant Internet sur votre profil. Les applications des autres membres vérifient qu’il vous appartient.",
-      "handle_label": "Identifiant Internet",
-      "handle_description": "Laissez ce champ vide pour entrer votre identifiant sur Bluesky.",
-      "privacy_notice": "Chatto ajoute un enregistrement de liaison à votre compte AT Protocol, par exemple sur Bluesky. Cet enregistrement n’indique pas le nom de ce serveur.",
-      "link_button": "Connecter",
       "link_failed": "Impossible de connecter l’identifiant Internet.",
-      "verifying": "Vérification de votre identifiant Internet…",
-      "verified": "Votre profil affiche @{handle} comme vérifié.",
-      "unverified_no_link": "Les autres membres ne peuvent pas vérifier votre identifiant Internet. Connectez-le de nouveau.",
-      "unverified_handle": "Votre identifiant Internet n’a pas pu être confirmé. Les autres membres ne le voient pas.",
-      "unverified_unavailable": "Votre identifiant Internet ne peut pas être vérifié pour l’instant. Réessayez plus tard.",
-      "unlink_description": "La suppression de l’identifiant supprime aussi l’enregistrement de liaison de votre compte AT Protocol.",
-      "unlink_button": "Supprimer",
-      "unlink_failed": "Impossible de supprimer l’identifiant Internet.",
-      "wrong_account": "Vous vous êtes connecté avec un autre compte AT Protocol. Connectez-vous avec le compte associé."
+      "unverified_no_link": "Les autres membres ne peuvent pas encore vérifier votre identifiant Internet.",
+      "verify_button": "Vérifier"
     }
   }
 }

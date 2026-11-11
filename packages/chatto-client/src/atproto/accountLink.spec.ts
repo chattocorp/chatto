@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ATPROTO_ACCOUNT_LINK_COLLECTION,
   accountLinkRecordKey,
+  atprotoServiceAudience,
   createAtprotoLinkVerifier,
   deleteAccountLinkRecord,
   isAtprotoDid,
@@ -89,6 +90,21 @@ describe('accountLinkRecordKey', () => {
     await expect(
       accountLinkRecordKey({ serverOrigin: 'https://chat.example', userId: 'U2' })
     ).resolves.not.toBe(key);
+  });
+});
+
+describe('atprotoServiceAudience', () => {
+  it.each([
+    ['https://chat.example.com', 'did:web:chat.example.com#chatto'],
+    ['https://Chat.Example.com:443', 'did:web:chat.example.com#chatto'],
+    ['https://chat.example.com:8443', null],
+    ['http://localhost:4000', 'did:web:localhost%3A4000#chatto'],
+    ['http://chatto.ws1.localhost:55280', 'did:web:localhost%3A55280#chatto'],
+    ['http://127.0.0.1', 'did:web:localhost#chatto'],
+    ['http://chat.example.com', null],
+    ['not a url', null]
+  ])('%s → %s', (origin, audience) => {
+    expect(atprotoServiceAudience(origin)).toBe(audience);
   });
 });
 

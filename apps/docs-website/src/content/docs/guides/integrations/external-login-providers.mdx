@@ -126,8 +126,7 @@ use them together with counted variables.
 ## Bluesky (AT Protocol)
 
 The `atproto` type lets people sign in with a Bluesky account or another AT
-Protocol account. You do not register a client. Chatto publishes its own client
-metadata, and the user's server reads it during sign-in.
+Protocol account. You do not register a client and configure no secret.
 
 ```toml
 [webserver]
@@ -141,22 +140,23 @@ auto_provision = true
 manage_usernames = true
 ```
 
-- Use an HTTPS `webserver.url` in production. With a local `http://` URL,
-  Chatto uses the AT Protocol development client, which returns through
-  `127.0.0.1`.
-- Do not set `client_id`, `client_secret`, `scopes`, `request_email`, or the
-  group settings. Chatto rejects them for this type.
+- `webserver.url` must use HTTPS without a port. AT Protocol identifies the
+  server as `did:web:chat.example.com`, and AT Protocol does not allow ports
+  in these names. Chatto serves `/.well-known/did.json` for this name. A local
+  `http://` development URL also works.
+- Configure one `atproto` provider. Do not set `client_id`, `client_secret`,
+  `scopes`, `request_email`, or the group settings; Chatto rejects them for
+  this type.
 - The default button label is "Internet Handle". Set `label` to change it.
-- The login page asks for the handle, for example `alice.bsky.social`. Without
-  a handle, the user enters it on `bsky.social`.
-- Chatto requests only the `atproto` scope. It proves the account and gives
-  Chatto no access to the user's posts or other data.
+- People sign in through the Chatto app. The app signs in to their AT Protocol
+  server and sends Chatto a short-lived, signed sign-in token. Chatto gets no
+  access to their posts or other data.
 - The account link uses the account's DID. A changed handle does not change
-  the link.
+  the link. A linked identity is shown on the person's profile, and other
+  members' apps verify it.
 
-During sign-in, the Chatto server contacts the handle's domain, the PLC
-directory (`plc.directory`) for most accounts, and the user's AT Protocol
-server.
+To check sign-in tokens, the Chatto server contacts the PLC directory
+(`plc.directory`) for most accounts, or the account's own domain.
 
 ### Token endpoint authentication
 

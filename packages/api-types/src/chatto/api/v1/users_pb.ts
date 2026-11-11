@@ -136,10 +136,10 @@ export class User extends Message<User> {
   deactivated = false;
 
   /**
-   * AT Protocol DID that the user published on their profile, when set. This
-   * is an unverified claim. Clients show the related handle as verified only
-   * after they find a matching run.chatto.accountLink record in the
-   * repository of this DID. See FDR-056.
+   * DID of the AT Protocol identity that the user linked for sign-in, when
+   * set. This is an unverified claim. Clients show the related handle as
+   * verified only after they find a matching run.chatto.accountLink record in
+   * the repository of this DID. See FDR-056.
    *
    * @generated from field: optional string atproto_did = 13;
    */

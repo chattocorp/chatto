@@ -9,6 +9,10 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import { hasPasswordLogin } from '$lib/desktop/passwordLogin';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { invalidateAll } from '$app/navigation';
+import { persistedBearerSession } from '@chatto/client/auth/bearerSession';
+import { serverRegistry } from '$lib/client';
+import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 
 /** Explicit reauthentication requests can replace a retained chat view with the login form. */
 const inlineServerIds = new SvelteSet<string>();
@@ -46,7 +50,7 @@ export function cancelRemoteSignIn(server: RegisteredServer): void {
  */
 export async function startRemoteSignIn(
   server: RegisteredServer,
-  options: { useOAuth?: boolean; providerId?: string; loginHint?: string; signup?: boolean } = {}
+  options: { useOAuth?: boolean; providerId?: string; signup?: boolean } = {}
 ): Promise<void> {
   if (hasPasswordLogin() && !options.useOAuth && !options.providerId && !options.signup) {
     inlineServerIds.add(server.id);
@@ -64,8 +68,6 @@ export async function startRemoteSignIn(
   pendingServerIds.add(server.id);
   try {
     if (options.signup) await startRemoteReauthentication(server, undefined, 'signup');
-    else if (options.providerId && options.loginHint)
-      await startRemoteReauthentication(server, options.providerId, undefined, options.loginHint);
     else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
     else await startRemoteReauthentication(server);
     closeInlineSignIn(server.id);
@@ -75,4 +77,48 @@ export async function startRemoteSignIn(
   } finally {
     pendingServerIds.delete(server.id);
   }
+}
+
+/**
+ * Sign in to `server` with the device's AT Protocol identity (FDR-056).
+ * `identifier` selects the identity; empty uses the device session. Without
+ * an account for that identity, this opens the server's own sign-in window
+ * for provider `providerId`, where the user can create one.
+ */
+export async function signInRemoteWithAtproto(
+  server: RegisteredServer,
+  providerId: string,
+  identifier = ''
+): Promise<void> {
+  if (pendingServerIds.has(server.id)) return;
+  pendingServerIds.add(server.id);
+  let fallBack = false;
+  try {
+    const { signInToRemoteWithAtproto } = await import('$lib/atproto/signIn');
+    const store = serverRegistry.tryGetStore(server.id);
+    const credentials = await signInToRemoteWithAtproto(server.url, identifier);
+    if (!credentials) {
+      fallBack = true;
+      return;
+    }
+    if (serverRegistry.tryGetStore(server.id) !== store || !serverRegistry.getServer(server.id)) {
+      return;
+    }
+    serverRegistry.replaceServerAuthentication(server.id, {
+      ...persistedBearerSession(credentials),
+      userId: null,
+      userLogin: null,
+      userDisplayName: null,
+      userAvatarUrl: null,
+      reauthRequiredAt: null
+    });
+    resumePushRegistrationAfterAuthentication(server.id);
+    closeInlineSignIn(server.id);
+    await invalidateAll();
+  } catch {
+    toast.error(m('add_server.start_failed'));
+  } finally {
+    pendingServerIds.delete(server.id);
+  }
+  if (fallBack) await startRemoteSignIn(server, { useOAuth: true, providerId });
 }

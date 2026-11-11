@@ -95,10 +95,10 @@ type User struct {
 	Bot *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
 	// True while the account cannot use this server. Data is retained and access can be restored.
 	Deactivated bool `protobuf:"varint,12,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
-	// AT Protocol DID that the user published on their profile, when set. This
-	// is an unverified claim. Clients show the related handle as verified only
-	// after they find a matching run.chatto.accountLink record in the
-	// repository of this DID. See FDR-056.
+	// DID of the AT Protocol identity that the user linked for sign-in, when
+	// set. This is an unverified claim. Clients show the related handle as
+	// verified only after they find a matching run.chatto.accountLink record in
+	// the repository of this DID. See FDR-056.
 	AtprotoDid    *string `protobuf:"bytes,13,opt,name=atproto_did,json=atprotoDid,proto3,oneof" json:"atproto_did,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

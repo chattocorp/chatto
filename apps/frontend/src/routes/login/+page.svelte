@@ -6,13 +6,14 @@
     confirmProviderAccount,
     openProviderSignIn,
     ProviderSignInError,
-    providerLoginUrl,
+    signInWithAtprotoOnOrigin,
     verifyProviderSignIn
   } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
+  import { AtprotoSignInError } from '$lib/atproto/signIn';
   import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
   import { popupErrorMessage } from '$lib/oauth/popupError';
   import { isProviderContinuation } from '$lib/auth/providerContinuation';
@@ -53,9 +54,8 @@
   );
   const displayedError = $derived(error || pageError);
 
-  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
-    const url = providerLoginUrl(provider.loginUrl, loginHint);
-    return `${url}${url.includes('?') ? '&' : '?'}redirect=${encodeURIComponent(data.redirectUrl)}`;
+  function providerLoginHref(provider: PublicAuthProvider): string {
+    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   function loginErrorMessage(code: string): string {
@@ -88,14 +88,28 @@
     error = '';
     pageErrorDismissed = true;
     selectedProviderId = provider.id;
+    if (provider.type === 'atproto') {
+      try {
+        await signInWithAtprotoOnOrigin(loginHint ?? '', data.redirectUrl);
+      } catch (err) {
+        if (active) {
+          error =
+            (err instanceof AtprotoSignInError && loginErrorMessage(err.code)) ||
+            m('auth.login.failed');
+        }
+      } finally {
+        selectedProviderId = null;
+      }
+      return;
+    }
     // Remote authorization and existing-account linking already own this window.
     // Keep their continuation here instead of opening another provider popup.
     if (compact || isProviderContinuation(data.redirectUrl)) {
-      window.location.href = providerLoginHref(provider, loginHint);
+      window.location.href = providerLoginHref(provider);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
+      providerPopup = openProviderSignIn(provider.loginUrl);
       const result = await verifyProviderSignIn(providerPopup);
       if (!active) return;
       if (result.kind === 'confirm-account') {

@@ -22,32 +22,31 @@ account. The proof is valid only if the verified party cannot write it.
 
 ## Decision
 
-1. **The server gets identity only.** A Chatto server that signs a user in
-   with AT Protocol OAuth requests only the `atproto` scope. The server
-   verifies the DID and discards the tokens. It never gets write access to a
-   user's repository.
-2. **The client writes the proof.** The user's Chatto client has its own AT
-   Protocol OAuth session. It requests write access to the Chatto link
-   collection only. It writes one **account link record** for each linked
-   Chatto account in the `run.chatto.accountLink` collection.
-3. **The record key identifies the account.** The record key is a hash of the
-   server origin and the Chatto user ID. The server origin is the origin
-   through which the client reaches the server, normally the configured public
-   URL. The client does not accept an origin that the server reports. The
-   record contains no
-   server name or user ID. Anyone who knows both values can find the record.
-   Other readers of the public repository cannot learn which servers the user
-   uses.
-4. **The viewer's client verifies.** The server reports only the DID. The
-   viewer's client resolves the DID, examines the handle in both directions,
-   and reads the record from the PDS. It shows the handle as verified only if
-   all examinations succeed. The server never supplies a verification result.
-5. **Service authentication can give one-click sign-in later.** A client with an AT
-   Protocol session can get a short-lived service token from the user's PDS.
-   The PDS signs the token with the account's signing key. A Chatto server
-   that has a `did:web` identity accepts this token as proof of the DID. The
-   server verifies the signature against the DID document. It records each
-   token ID across the cluster to prevent replay.
+1. **The server never gets PDS access.** A Chatto server runs no AT Protocol
+   OAuth flow. The user's device signs in to the PDS with its own OAuth
+   client. To sign in to a Chatto server, the device asks the PDS for a
+   short-lived service token for the method `run.chatto.signIn`, addressed to
+   the server's `did:web` identity with the `#chatto` service. The server
+   verifies the signature against the DID document and accepts each token ID
+   once across the cluster.
+2. **The client chooses the audience.** The device derives the audience from
+   the origin that it connects to, never from data that the server supplies.
+   A server that could choose the audience could request a token for another
+   server and use it there.
+3. **The client writes the proof.** The device's OAuth session may write only
+   the `run.chatto.accountLink` collection. After a sign-in or a link, it
+   writes one **account link record** for the Chatto account.
+4. **The record key identifies the account.** The record key is a hash of the
+   server origin that the client uses and the Chatto user ID. The record
+   contains no server name or user ID. Anyone who knows both values can find
+   the record. Other readers of the public repository cannot learn which
+   servers the user uses.
+5. **The server publishes the sign-in DID.** The public profile reports the
+   DID of the user's linked AT Protocol sign-in identity. The server never
+   supplies a verification result.
+6. **The viewer's client verifies.** The viewer's client resolves the DID,
+   examines the handle in both directions, and reads the record from the PDS.
+   It shows the handle as verified only if all examinations succeed.
 
 ## Consequences
 
@@ -57,9 +56,12 @@ account. The proof is valid only if the verified party cannot write it.
   bundle of the server that they verify, that server controls the verifier.
   The guarantee applies to Chatto Desktop, and to a frontend that a different,
   trusted server serves (see ADR-025 and ADR-074).
-- Publishing a verified handle needs the device's own AT Protocol session, in
-  addition to any server sign-in. Viewing and verifying a handle needs no
-  session.
+- One device session signs the user in to every Chatto server and keeps the
+  link records current. Viewing and verifying a handle needs no session.
+- Clients without their own PDS session, such as bots, cannot sign in with an
+  AT Protocol identity.
+- AT Protocol allows ports in `did:web` only for `localhost`. HTTPS servers
+  with a port cannot accept AT Protocol sign-in.
 - The user's PDS is the trust root. A malicious PDS can write false records.
   This is the same trust that the AT Protocol network has in the PDS.
 - Verification sends requests from the viewer's device to the PLC directory,
@@ -68,6 +70,5 @@ account. The proof is valid only if the verified party cannot write it.
   client must limit when it verifies and cache the results.
 - Account link records stay in the repository until the user deletes them.
   When a user removes a link, the client must delete the record.
-- The server needs no long-term AT Protocol keys or stored tokens for
-  sign-in. Service-token sign-in adds a `did:web` document and replay state in
-  NATS.
+- The server needs no AT Protocol keys or stored OAuth tokens. It needs a
+  `did:web` document and short-lived replay records in runtime state.

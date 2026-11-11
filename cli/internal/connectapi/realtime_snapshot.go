@@ -264,8 +264,8 @@ func (a *API) realtimeSnapshotUser(ctx context.Context, content *core.HydratedUs
 		bio := user.GetBio()
 		summary.Bio = &bio
 	}
-	if user.GetAtprotoDID() != "" {
-		summary.AtprotoDid = new(user.GetAtprotoDID())
+	if did := a.core.AtprotoDIDForUser(user.GetId()); did != "" && !user.GetDeleted() {
+		summary.AtprotoDid = new(did)
 	}
 	if preferences := content.Preferences; preferences != nil && preferences.GetShareTimezone() && preferences.GetTimezone() != "" {
 		timezone := preferences.GetTimezone()

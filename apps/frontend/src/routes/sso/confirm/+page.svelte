@@ -67,6 +67,22 @@
         isLink)
   );
 
+  /**
+   * Write the account link record for a new account of this device's AT
+   * Protocol identity, so other members can verify the handle (FDR-056).
+   */
+  async function publishAtprotoLink(userId: string) {
+    const [{ atprotoAccount }, { ensureAtprotoLinkRecord }] = await Promise.all([
+      import('$lib/atproto/session.svelte'),
+      import('$lib/atproto/signIn')
+    ]);
+    const did = atprotoAccount()?.did;
+    if (!did) return;
+    await ensureAtprotoLinkRecord({ serverOrigin: window.location.origin, userId }, did).catch(
+      () => {}
+    );
+  }
+
   async function handleCreate(e: Event) {
     e.preventDefault();
     if (!pending || !data.token || loginError || displayNameError) {
@@ -77,7 +93,8 @@
     submitting = true;
     actionError = '';
     try {
-      await flowAPI.createAccount({ token: data.token, login, displayName });
+      const created = await flowAPI.createAccount({ token: data.token, login, displayName });
+      if (pending.providerType === 'atproto') void publishAtprotoLink(created.userId);
       const returnURL = new URL(redirectPath, window.location.origin);
       if (isProviderCallback(returnURL)) {
         // The opening tab owns its saved return navigation. Complete this
@@ -105,7 +122,7 @@
       if (data.existingAccount) {
         // A create token cannot authorize a link. Start a fresh provider flow
         // bound by the server to the account that just authenticated.
-        const startUrl = await createExternalIdentityAPI({
+        const { startUrl, linkToken } = await createExternalIdentityAPI({
           baseUrl: '/api/connect',
           bearerToken: null
         }).startLink({
@@ -116,6 +133,17 @@
           await flowAPI.cancel(data.token);
         } catch {
           // The accepted link-start is independent; the old create token expires.
+        }
+        if (pending.providerType === 'atproto') {
+          // The device links its own AT Protocol session; no redirect (FDR-056).
+          const [{ ensureAtprotoSession }, { linkAtprotoIdentity }] = await Promise.all([
+            import('$lib/atproto/session.svelte'),
+            import('$lib/atproto/signIn')
+          ]);
+          const session = await ensureAtprotoSession('');
+          await linkAtprotoIdentity(session, window.location.origin, linkToken);
+          goto(resolve(redirectPath as '/'), { replaceState: true });
+          return;
         }
         window.location.href = startUrl;
         return;

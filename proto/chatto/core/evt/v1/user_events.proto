@@ -133,16 +133,6 @@ message UserBioChangedEvent {
   EncryptedUserString encrypted_bio = 10;
 }
 
-// UserAtprotoDidChangedEvent records the AT Protocol DID that a user publishes
-// on their profile. The DID is a claim: clients verify it against an account
-// link record in the user's AT Protocol repository (ADR-123). An empty
-// encrypted value removes the DID. The DID identifies the person, so it stays
-// encrypted at rest like other profile PII.
-message UserAtprotoDidChangedEvent {
-  string user_id = 1;
-  EncryptedUserString encrypted_did = 10;
-}
-
 message UserAvatarSetEvent {
   // Deprecated: legacy avatar storage pointer retained for decoding old
   // user events. New avatar writes append AssetCreatedEvent with

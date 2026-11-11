@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/bluesky-social/indigo/atproto/identity"
 	"net"
 	"net/http"
 	"net/url"
@@ -67,6 +68,10 @@ type HTTPServer struct {
 
 	// Optional test hook for deterministic OAuth client metadata resolution.
 	oauthClientResolveHook func(context.Context, string) (OAuthClient, bool, error)
+
+	// Optional test hook that replaces AT Protocol identity resolution. Nil
+	// uses the public PLC directory and did:web resolution.
+	atprotoDirectory identity.Directory
 
 	// Optional test hook for deterministic cookie-session renewal timing.
 	cookieSessionRenewalNow func() time.Time
@@ -286,6 +291,7 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupRealtimeAPI()
 	s.setupCIMDRoutes()
 	s.setupFrontendATProtoRoutes()
+	s.setupATProtoRoutes()
 	s.setupOAuthMetadataRoutes()
 	s.setupPasswordManagementRoutes()
 	if err := s.setupMCPRoutes(); err != nil {

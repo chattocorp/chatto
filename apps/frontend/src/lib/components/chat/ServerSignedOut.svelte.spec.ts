@@ -16,7 +16,11 @@ vi.mock('$lib/desktop/passwordLogin', () => ({
   signInWithPassword: mocks.passwordLogin
 }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({
+  pushState: mocks.pushState,
+  goto: vi.fn(),
+  invalidateAll: vi.fn()
+}));
 
 vi.mock(
   '$lib/state/server/scope.svelte',

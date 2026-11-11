@@ -344,6 +344,15 @@ export class StartExternalIdentityLinkResponse extends Message<StartExternalIden
    */
   startUrl = "";
 
+  /**
+   * Single-use token that binds the link to the authenticated account. AT
+   * Protocol providers have no browser redirect: the client sends this token
+   * with an AT Protocol service token to POST /auth/atproto.
+   *
+   * @generated from field: string link_token = 2;
+   */
+  linkToken = "";
+
   constructor(data?: PartialMessage<StartExternalIdentityLinkResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -353,6 +362,7 @@ export class StartExternalIdentityLinkResponse extends Message<StartExternalIden
   static readonly typeName = "chatto.api.v1.StartExternalIdentityLinkResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "start_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "link_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartExternalIdentityLinkResponse {

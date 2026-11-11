@@ -330,6 +330,7 @@ Result of preparing an external identity link flow.
 | Field | Type | Description |
 | --- | --- | --- |
 | `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
+| `link_token` | `string` | Single-use token that binds the link to the authenticated account. AT Protocol providers have no browser redirect: the client sends this token with an AT Protocol service token to POST /auth/atproto. |
 
 
 <a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>
@@ -553,65 +554,6 @@ Result of deleting the current user's custom status.
 | Field | Type | Description |
 | --- | --- | --- |
 | `status` | [`CustomUserStatus`](/reference/connectrpc-api/types/#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
-
-
-<a id="chatto-api-v1-MyAccountService-SetAtprotoIdentity"></a>
-
-### SetAtprotoIdentity
-
-Publishes an AT Protocol DID on the authenticated user's profile. The DID
-is visible to everyone who can see the profile. Setting the same DID again
-has no effect.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/SetAtprotoIdentity
-```
-
-<a id="chatto-api-v1-SetAtprotoIdentityRequest"></a>
-
-#### Input: SetAtprotoIdentityRequest
-
-Request to publish an AT Protocol DID on the authenticated user's profile.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `did` | `string` | DID to publish, for example did:plc:abc123 or did:web:example.com. The server checks only the syntax. Clients verify the claim themselves. |
-
-
-<a id="chatto-api-v1-SetAtprotoIdentityResponse"></a>
-
-#### Result: SetAtprotoIdentityResponse
-
-Result of publishing an AT Protocol DID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `did` | `string` | Published DID. |
-
-
-<a id="chatto-api-v1-MyAccountService-ClearAtprotoIdentity"></a>
-
-### ClearAtprotoIdentity
-
-Removes the AT Protocol DID from the authenticated user's profile. The
-call is idempotent.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/ClearAtprotoIdentity
-```
-
-<a id="chatto-api-v1-ClearAtprotoIdentityRequest"></a>
-
-#### Input: ClearAtprotoIdentityRequest
-
-Request to remove the AT Protocol DID from the authenticated user's profile.
-
-
-<a id="chatto-api-v1-ClearAtprotoIdentityResponse"></a>
-
-#### Result: ClearAtprotoIdentityResponse
-
-Result of removing the AT Protocol DID.
 
 
 <a id="chatto-api-v1-MyAccountService-RequestAccountDeletion"></a>

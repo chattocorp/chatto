@@ -261,7 +261,7 @@ Room, notice, membership, user, role, and room-layout read results use
 Snapshot codecs map projection state to dedicated `projection/v1` records;
 transport adapters map read results to public API records. The
 [`snapshot adapters`](../../cli/internal/core/read_model_snapshots.go) exclude
-hydrated login, display name, bio, and AT Protocol DID structurally. Room snapshots retain raw
+hydrated login, display name, and bio structurally. Room snapshots retain raw
 threading enum values before read-time normalization and the room-owned membership
 activity display setting. Creation facts initialize that setting to true, including
 historical creation facts. Legacy group and link
@@ -544,9 +544,6 @@ The projection also retains the event ID of the primary verified email. The
 first verified-email event supplies the default. A later primary-email event
 changes the selection by referencing an existing verified-email event, without
 copying the email address.
-The projection keeps a published AT Protocol DID as encrypted profile PII, like
-the bio. Its snapshot holds only the ciphertext. Clients verify the claim
-themselves (FDR-056).
 `UserAuthProjection` is independently locked, registered, and replay-guarded.
 `UserModel` reads profile state from `UserProjection` and credential,
 external-identity, consent, and auth-generation state from

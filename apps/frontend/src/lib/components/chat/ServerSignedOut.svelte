@@ -11,6 +11,7 @@ window; an optional native host capability enables inline password submission.
     cancelRemoteSignIn,
     closeInlineSignIn,
     isRemoteSignInPending,
+    signInRemoteWithAtproto,
     startRemoteSignIn
   } from '$lib/auth/remoteSignIn.svelte';
   import { m } from '$lib/i18n/messages';
@@ -41,7 +42,7 @@ window; an optional native host capability enables inline password submission.
   const busy = $derived(submitting || isRemoteSignInPending(registration.id));
   const providers = $derived(store.serverInfo.authProviders ?? []);
   // One-click sign-in with the AT Protocol identity that this device knows
-  // (FDR-056). The server still verifies it through its own provider.
+  // (FDR-056): the PDS signs a token for this server; no window opens.
   const atprotoProvider = $derived(providers.find((provider) => provider.type === 'atproto'));
   const knownAtprotoHandle = $derived(atprotoProvider ? atprotoAccount()?.handle : null);
   // The provider list arrives with server discovery, after mount. The restore
@@ -64,14 +65,14 @@ window; an optional native host capability enables inline password submission.
     welcomeMessage: store.serverInfo.welcomeMessage
   });
 
-  async function signInOnServer(providerId?: string, signup = false, loginHint?: string) {
+  async function signInOnServer(providerId?: string, signup = false) {
     if (busy) return;
     password = '';
     failed = false;
     selectedProviderId = providerId ?? null;
     signingUp = signup;
     try {
-      await startRemoteSignIn(registration, { useOAuth: true, providerId, loginHint, signup });
+      await startRemoteSignIn(registration, { useOAuth: true, providerId, signup });
     } finally {
       selectedProviderId = null;
       signingUp = false;
@@ -109,7 +110,7 @@ window; an optional native host capability enables inline password submission.
           size="lg"
           disabled={busy}
           loading={busy && selectedProviderId === atprotoProvider.id}
-          onclick={() => void signInOnServer(atprotoProvider.id, false, knownAtprotoHandle)}
+          onclick={() => void signInRemoteWithAtproto(registration, atprotoProvider.id)}
         >
           <span aria-hidden="true" class="iconify icon-[mdi--at]"></span>
           {m('auth.remote.continue_as_atproto', { handle: knownAtprotoHandle })}
@@ -137,7 +138,9 @@ window; an optional native host capability enables inline password submission.
           {selectedProviderId}
           disabled={busy}
           onclick={(_event, provider, loginHint) =>
-            void signInOnServer(provider.id, false, loginHint)}
+            provider.type === 'atproto'
+              ? void signInRemoteWithAtproto(registration, provider.id, loginHint)
+              : void signInOnServer(provider.id)}
         />
         {#if showPassword}<Divider label={m('common.or')} />{/if}
       {/if}

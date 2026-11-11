@@ -691,22 +691,9 @@
       }
     },
     "atproto": {
-      "title": "Handle Internet",
-      "description": "Mostra il tuo handle Internet nel profilo. Le app degli altri membri verificano che ti appartenga.",
-      "handle_label": "Handle Internet",
-      "handle_description": "Lascia vuoto per inserire l’handle su Bluesky.",
-      "privacy_notice": "Chatto aggiunge un record di collegamento al tuo account AT Protocol, ad esempio su Bluesky. Il record non mostra il nome di questo server.",
-      "link_button": "Collega",
       "link_failed": "Impossibile collegare l’handle Internet.",
-      "verifying": "Verifica del tuo handle Internet…",
-      "verified": "Il tuo profilo mostra @{handle} come verificato.",
-      "unverified_no_link": "Gli altri membri non possono verificare il tuo handle Internet. Collegalo di nuovo.",
-      "unverified_handle": "Impossibile confermare il tuo handle Internet. Gli altri membri non lo vedono.",
-      "unverified_unavailable": "Al momento non è possibile verificare il tuo handle Internet. Riprova più tardi.",
-      "unlink_description": "Rimuovendo l’handle elimini anche il record di collegamento dal tuo account AT Protocol.",
-      "unlink_button": "Rimuovi",
-      "unlink_failed": "Impossibile rimuovere l’handle Internet.",
-      "wrong_account": "Hai effettuato l’accesso con un altro account AT Protocol. Accedi con l’account collegato."
+      "unverified_no_link": "Gli altri membri non possono ancora verificare il tuo handle Internet.",
+      "verify_button": "Verifica"
     }
   }
 }
