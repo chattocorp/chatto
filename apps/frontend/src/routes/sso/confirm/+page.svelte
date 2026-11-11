@@ -90,7 +90,9 @@
     actionError = '';
     try {
       const created = await flowAPI.createAccount({ token: data.token, login, displayName });
-      if (created.atprotoDid) void publishAtprotoLink(created.userId, created.atprotoDid);
+      if (pending.providerType === 'atproto' && created.atprotoDid) {
+        void publishAtprotoLink(created.userId, created.atprotoDid);
+      }
       const returnURL = new URL(redirectPath, window.location.origin);
       if (isProviderCallback(returnURL)) {
         // The opening tab owns its saved return navigation. Complete this

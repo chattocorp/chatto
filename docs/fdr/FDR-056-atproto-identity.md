@@ -120,7 +120,7 @@ frontend that a different server serves. Message lists show no verified state.
 
 **Decision:** The server uses the `atproto/auth/oauth` package of Bluesky's
 `indigo` Go module. The frontend uses `@atproto/oauth-client-browser` and
-loads it only when the user verifies a link or a session exists.
+loads it only when it shows the **Verify** action or a session exists.
 **Why:** Both implement PAR, PKCE, DPoP, identity resolution, and issuer
 verification.
 **Tradeoff:** `indigo` is not stable (v0).
