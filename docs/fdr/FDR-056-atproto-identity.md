@@ -26,6 +26,10 @@ trust the server.
   `bsky.social`.
 - The linked external identity is the DID. A handle change does not change the
   link. With `manage_usernames`, a new account gets the handle as its username.
+- A new account gets the display name and avatar of the user's public Bluesky
+  profile (`app.bsky.actor.profile`) as suggestions, when the repository has
+  one. Without it, the handle is the display name suggestion. A signed-in
+  account without an avatar gets the profile avatar.
 - A handle that cannot be resolved shows an explanation on the login page.
 - On another server that has an `atproto` provider, the sign-in screen offers
   **Continue as @handle** for the handle of the device's AT Protocol session.
@@ -134,7 +138,8 @@ verification.
 ## Privacy
 
 - **Sign-in:** the server contacts the handle domain, the PLC directory for
-  `did:plc` identities, the user's PDS, and its authorization server. Without a
+  `did:plc` identities, the user's PDS, and its authorization server. From the
+  PDS, it also reads the public profile record and the avatar image. Without a
   handle, it contacts `bsky.social`.
 - **Verify:** the device contacts the same systems for the user's own identity.
 - **Verification:** the viewer's device contacts the PLC directory or the

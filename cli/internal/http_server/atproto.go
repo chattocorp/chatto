@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -96,18 +97,77 @@ func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session,
 
 // callback completes a sign-in and returns the verified account DID and its
 // handle. The handle is empty when it does not resolve to the DID.
-func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session, providerID string, params url.Values) (syntax.DID, string, error) {
+// atprotoAccount is the verified result of an AT Protocol sign-in.
+type atprotoAccount struct {
+	DID syntax.DID
+	// Handle is empty when it does not resolve back to the DID.
+	Handle string
+	// DisplayName and AvatarURL come from the public Bluesky profile record,
+	// when the repository has one. They are hints for a new account only.
+	DisplayName string
+	AvatarURL   string
+}
+
+// atprotoProfileRecordLimit bounds the profile record that sign-in reads.
+const atprotoProfileRecordLimit = 64 << 10
+
+func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session, providerID string, params url.Values) (atprotoAccount, error) {
 	app := *p.app
 	app.Store = &atprotoFlowStore{session: session, key: providerSessionKey(providerID, "atproto_request")}
 	data, err := app.ProcessCallback(ctx, params)
 	if err != nil {
-		return "", "", err
+		return atprotoAccount{}, err
 	}
-	handle := ""
-	if ident, err := app.Dir.LookupDID(ctx, data.AccountDID); err == nil && !ident.Handle.IsInvalidHandle() {
-		handle = ident.Handle.String()
+	account := atprotoAccount{DID: data.AccountDID}
+	if ident, err := app.Dir.LookupDID(ctx, data.AccountDID); err == nil {
+		if !ident.Handle.IsInvalidHandle() {
+			account.Handle = ident.Handle.String()
+		}
+		account.DisplayName, account.AvatarURL = p.profile(ctx, ident.PDSEndpoint(), data.AccountDID)
 	}
-	return data.AccountDID, handle, nil
+	return account, nil
+}
+
+// profile reads the public app.bsky.actor.profile record of did from its PDS.
+// The record is optional: AT Protocol accounts outside Bluesky can lack it,
+// and any failure returns empty values.
+func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DID) (displayName, avatarURL string) {
+	if !strings.HasPrefix(pds, "https://") {
+		return "", ""
+	}
+	base := strings.TrimRight(pds, "/")
+	query := url.Values{"repo": {did.String()}, "collection": {"app.bsky.actor.profile"}, "rkey": {"self"}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/xrpc/com.atproto.repo.getRecord?"+query.Encode(), nil)
+	if err != nil {
+		return "", ""
+	}
+	resp, err := p.app.Client.Do(req)
+	if err != nil {
+		return "", ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", ""
+	}
+	var record struct {
+		Value struct {
+			DisplayName string `json:"displayName"`
+			Avatar      *struct {
+				Ref struct {
+					Link string `json:"$link"`
+				} `json:"ref"`
+			} `json:"avatar"`
+		} `json:"value"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, atprotoProfileRecordLimit)).Decode(&record); err != nil {
+		return "", ""
+	}
+	displayName = strings.TrimSpace(record.Value.DisplayName)
+	if avatar := record.Value.Avatar; avatar != nil && avatar.Ref.Link != "" {
+		blob := url.Values{"did": {did.String()}, "cid": {avatar.Ref.Link}}
+		avatarURL = base + "/xrpc/com.atproto.sync.getBlob?" + blob.Encode()
+	}
+	return displayName, avatarURL
 }
 
 // clientMetadata returns the client metadata document. Loopback clients have
@@ -185,18 +245,19 @@ func (s *HTTPServer) forwardATProtoLoopbackCallback(c *gin.Context, runtime *aut
 // resolveATProtoIdentity completes an AT Protocol sign-in. The DID is the
 // stable subject; the handle is only a hint for new accounts and usernames.
 func (r *authProviderRuntime) resolveATProtoIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
-	did, handle, err := r.atproto.callback(c.Request.Context(), session, r.config.ID, c.Request.URL.Query())
+	account, err := r.atproto.callback(c.Request.Context(), session, r.config.ID, c.Request.URL.Query())
 	if err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("complete atproto sign-in: %w", err)
 	}
 	identity := resolvedProviderIdentity{
 		issuer:          r.config.ID,
-		subject:         did.String(),
-		loginHint:       loginHintFromParts(handle),
-		displayNameHint: displayNameHintFromParts(handle),
+		subject:         account.DID.String(),
+		avatarURL:       account.AvatarURL,
+		loginHint:       loginHintFromParts(account.Handle),
+		displayNameHint: displayNameHintFromParts(account.DisplayName, account.Handle),
 	}
 	if r.config.ManageUsernames {
-		identity.providerUsername = handle
+		identity.providerUsername = account.Handle
 	}
 	return identity, nil
 }

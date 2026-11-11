@@ -76,6 +76,20 @@ func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]any{"request_uri": "urn:request:1", "expires_in": 60})
 	})
+	mux.HandleFunc("GET /xrpc/com.atproto.repo.getRecord", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("collection") != "app.bsky.actor.profile" || r.URL.Query().Get("rkey") != "self" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"uri": "at://" + fake.subject + "/app.bsky.actor.profile/self",
+			"value": map[string]any{
+				"$type":       "app.bsky.actor.profile",
+				"displayName": "  Alice Example  ",
+				"avatar":      map[string]any{"$type": "blob", "ref": map[string]any{"$link": "bafkreiavatar"}, "mimeType": "image/jpeg"},
+			},
+		})
+	})
 	mux.HandleFunc("POST /token", func(w http.ResponseWriter, r *http.Request) {
 		require.NotEmpty(t, r.Header.Get("DPoP"))
 		require.NoError(t, r.ParseForm())
@@ -153,7 +167,7 @@ func newATProtoFlowRouter(t *testing.T, runtime *authProviderRuntime) (*httptest
 			c.String(http.StatusBadRequest, "callback failed")
 			return
 		}
-		c.JSON(http.StatusOK, map[string]string{"subject": identity.subject, "username": identity.providerUsername, "hint": identity.loginHint})
+		c.JSON(http.StatusOK, map[string]string{"subject": identity.subject, "username": identity.providerUsername, "hint": identity.loginHint, "display": identity.displayNameHint, "avatar": identity.avatarURL})
 	})
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
@@ -202,6 +216,9 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	require.Equal(t, testATProtoDID, result["subject"])
 	require.Equal(t, "alice.test", result["username"])
 	require.Equal(t, "alice.test", result["hint"])
+	// The public Bluesky profile supplies the new account's hints.
+	require.Equal(t, "Alice Example", result["display"])
+	require.Equal(t, "https://pds.test/xrpc/com.atproto.sync.getBlob?cid=bafkreiavatar&did="+url.QueryEscape(testATProtoDID), result["avatar"])
 }
 
 func TestATProtoSignInRejectsSubjectMismatch(t *testing.T) {
