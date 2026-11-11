@@ -558,8 +558,19 @@ func (s *MyEventsModel) waitForLiveMessageAuthorization(ctx context.Context, eve
 	return nil
 }
 
-func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {
-	return s.core.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq))
+// waitForLiveEVTUserEvent waits until the projections that clients read after
+// event are current. External identity links also change the published
+// AT Protocol DID, which the user auth projection owns (FDR-056).
+func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64, event *evtv1.Event) error {
+	position := events.SubjectPosition(subject, seq)
+	if err := s.core.userModel.waitForUsers(ctx, position); err != nil {
+		return err
+	}
+	switch event.GetEvent().(type) {
+	case *evtv1.Event_UserExternalIdentityLinked, *evtv1.Event_UserExternalIdentityUnlinked:
+		return s.core.userModel.waitForUserAuth(ctx, position)
+	}
+	return nil
 }
 
 func pubSubSubjectPayloadScope(subject string, event *pubsubv1.PubSubEvent) (RoomKind, string, string, bool) {

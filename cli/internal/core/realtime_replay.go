@@ -281,7 +281,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				return plan, nil
 			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-			err = c.myEventsModel.waitForLiveEVTUserEvent(waitCtx, msg.Subject, seq)
+			err = c.myEventsModel.waitForLiveEVTUserEvent(waitCtx, msg.Subject, seq, &event)
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
