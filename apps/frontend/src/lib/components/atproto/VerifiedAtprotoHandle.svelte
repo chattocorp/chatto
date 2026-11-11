@@ -46,11 +46,7 @@ so mount this only where a profile is open.
     >
       {#if icon}<span aria-hidden="true" class="iconify icon-[mdi--at] shrink-0"></span>{/if}
       <span class="truncate" dir="ltr">@{result.handle}</span>
-      <span
-        role="img"
-        aria-label={m('chat.profile.atproto_verified')}
-        class="iconify icon-[uil--check-circle] shrink-0 text-success"
-      ></span>
+      <span class="sr-only">{m('chat.profile.atproto_verified')}</span>
     </a>
   {/if}
 {/await}

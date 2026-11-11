@@ -1,8 +1,7 @@
 <!--
 @component
 A username as `@login`. When the user's verified AT Protocol handle equals the
-login, the `@` shows in the accent colour with a green check mark, and the `@` names
-the verification for assistive technology (FDR-056). Verification contacts external systems, so
+login, the `@` shows in the accent colour and names the verification for assistive technology (FDR-056). Verification contacts external systems, so
 mount this only where a profile is open; elsewhere pass no `did`.
 -->
 <script lang="ts">
@@ -35,10 +34,7 @@ mount this only where a profile is open; elsewhere pass no `did`.
         title={m('chat.profile.atproto_verified')}
         class="text-action"
         data-testid="verified-atproto-username">@</span
-      >{login}<span
-        aria-hidden="true"
-        class="iconify ms-0.5 icon-[uil--check-circle] inline-block align-[-0.125em] text-success"
-      ></span>
+      >{login}
     {:else}
       @{login}
     {/if}

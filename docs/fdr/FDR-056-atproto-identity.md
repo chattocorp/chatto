@@ -44,7 +44,7 @@ trust the server.
   identity only after the
   viewer's client verified the link. When the verified handle equals the
   username, the `@` before the username shows in the accent colour. Otherwise
-  a separate line shows the handle with a check mark, linked to the profile on
+  a separate line shows the handle, linked to the profile on
   Bluesky. An unverified claim shows nothing.
 - In account settings, the linked identity shows its verification state. When
   other clients cannot verify it, **Verify** signs the device in to the PDS and
