@@ -99,6 +99,11 @@ type atprotoClientMetadataDocument struct {
 // metadata for each configured HTTPS origin. Plain HTTP origins use AT
 // Protocol's built-in loopback client instead.
 func (s *HTTPServer) setupFrontendATProtoRoutes() {
+	// The loopback client returns to 127.0.0.1. On a development URL with
+	// another host name, forward that callback to the configured origin, where
+	// the browser keeps the sign-in state. The middleware also covers the SPA
+	// fallback that renders the callback route.
+	s.router.Use(s.forwardFrontendATProtoLoopbackCallback)
 	s.router.GET(frontendATProtoClientMetadataPath, func(c *gin.Context) {
 		origin, ok := s.configuredOriginForHost(c.Request.Host)
 		if !ok || !strings.HasPrefix(origin, "https://") {
@@ -119,6 +124,29 @@ func (s *HTTPServer) setupFrontendATProtoRoutes() {
 			DPoPBoundAccessTokens:   true,
 		})
 	})
+}
+
+// forwardFrontendATProtoLoopbackCallback redirects a frontend AT Protocol
+// callback from 127.0.0.1 to the configured plain-HTTP origin. The target is
+// fixed, so this is not an open redirect. HTTPS deployments never use the
+// loopback client and pass through unchanged.
+func (s *HTTPServer) forwardFrontendATProtoLoopbackCallback(c *gin.Context) {
+	if c.Request.Method != http.MethodGet || c.Request.URL.Path != frontendATProtoCallbackPath {
+		return
+	}
+	configured := configuredWebserverOrigin(s.config.Webserver.URL)
+	if !strings.HasPrefix(configured, "http://") {
+		return
+	}
+	if _, ok := s.configuredOriginForHost(c.Request.Host); ok {
+		return
+	}
+	target := configured + frontendATProtoCallbackPath
+	if c.Request.URL.RawQuery != "" {
+		target += "?" + c.Request.URL.RawQuery
+	}
+	c.Redirect(http.StatusTemporaryRedirect, target)
+	c.Abort()
 }
 
 func (s *HTTPServer) publishCIMD(path string, document cimdDocument) {

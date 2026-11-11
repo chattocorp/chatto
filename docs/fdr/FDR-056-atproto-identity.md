@@ -167,8 +167,10 @@ library adds a large lazy chunk.
 - **User consent:** a user approves the device's write access on the PDS
   authorization page before the device can publish a link.
 - **HTTPS:** the frontend publishes its AT Protocol client metadata only on
-  HTTPS origins. On `http://` development origins, it uses the AT Protocol
-  loopback client, which works only when the frontend is open on `127.0.0.1`.
+  HTTPS origins. On `http://` development origins, the server and the
+  frontend use the AT Protocol loopback client. Its callbacks return to
+  `127.0.0.1`, and the server forwards them to the configured origin. The
+  repository's development configuration enables an `atproto` provider.
 
 ## Privacy
 

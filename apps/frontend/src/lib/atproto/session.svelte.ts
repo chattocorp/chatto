@@ -48,6 +48,11 @@ export function atprotoAccount(): AtprotoAccount | null {
   return account;
 }
 
+/** Redirect URI of the loopback client that plain-HTTP development origins use. */
+function loopbackRedirectUri(): `http://127.0.0.1:${string}` {
+  return `http://127.0.0.1:${window.location.port}${ATPROTO_CALLBACK_PATH}`;
+}
+
 /** Load the OAuth client for this origin. */
 export function atprotoOAuthClient(): Promise<BrowserOAuthClient> {
   clientPromise ??= (async () => {
@@ -64,10 +69,16 @@ export function atprotoOAuthClient(): Promise<BrowserOAuthClient> {
       });
     }
     // Development servers use AT Protocol's loopback client. It returns to
-    // 127.0.0.1, so open the frontend on 127.0.0.1 to keep the same origin.
-    const redirectUri = `http://127.0.0.1:${window.location.port}${ATPROTO_CALLBACK_PATH}`;
+    // 127.0.0.1; the Chatto server forwards that callback to its configured
+    // origin, where this window keeps the sign-in state. The query response
+    // mode makes the callback parameters visible to the server.
+    const redirectUri = loopbackRedirectUri();
     const params = `scope=${encodeURIComponent(ATPROTO_FRONTEND_SCOPE)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    return BrowserOAuthClient.load({ clientId: `http://localhost?${params}`, handleResolver });
+    return BrowserOAuthClient.load({
+      clientId: `http://localhost?${params}`,
+      handleResolver,
+      responseMode: 'query'
+    });
   })();
   clientPromise.catch(() => (clientPromise = null));
   return clientPromise;
@@ -148,7 +159,12 @@ export async function completeAtprotoCallback(): Promise<void> {
     import('@atproto/oauth-client-browser')
   ]);
   try {
-    await client.initCallback();
+    // A forwarded loopback callback arrives on another origin than its
+    // redirect URI, so name the URI that the authorization server used.
+    await client.initCallback(
+      client.readCallbackParams(),
+      window.location.protocol === 'https:' ? client.findRedirectUrl() : loopbackRedirectUri()
+    );
   } catch (error) {
     if (error instanceof LoginContinuedInParentWindowError) return;
     throw error;
