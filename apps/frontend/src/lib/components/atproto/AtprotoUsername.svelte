@@ -1,8 +1,10 @@
 <!--
 @component
 A username as `@login`. When the user's verified AT Protocol handle equals the
-login, the `@` shows in the accent colour and names the verification for assistive technology (FDR-056). Verification contacts external systems, so
-mount this only where a profile is open; elsewhere pass no `did`.
+login, the `@` shows in the accent colour and names the verification for
+assistive technology (FDR-056). Verification contacts external systems, so
+pass `did` only where a profile is open or for the current user; elsewhere
+pass no `did`.
 -->
 <script lang="ts">
   import type { ChattoAccountRef } from '@chatto/client/atproto/accountLink';

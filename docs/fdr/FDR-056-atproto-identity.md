@@ -107,11 +107,12 @@ were written for the public URL.
 
 **Decision:** The viewer's client resolves the DID, examines the handle in both
 directions, and reads the record directly from the user's PDS. It verifies
-when it shows a profile card or profile view and caches results for ten
-minutes.
+when it shows a profile card, a profile view, or the current-user card, and
+caches results for ten minutes.
 **Why:** The server can be modified; only the viewer's own client can be
 trusted. The profile owner chooses the PDS and can see viewers' IP addresses,
-so verification stays rare.
+so verification stays rare. The current-user card verifies on each app load,
+but only the user's own identity.
 **Tradeoff:** The guarantee requires a trusted client: Chatto Desktop, or a
 frontend that a different server serves. Message lists show no verified state.
 

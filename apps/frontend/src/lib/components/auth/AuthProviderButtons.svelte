@@ -5,7 +5,6 @@ An AT Protocol provider also asks for the handle and suggests the identity
 that this device is signed in to (FDR-056).
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Button, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
@@ -33,8 +32,9 @@ that this device is signed in to (FDR-056).
   const knownHandle = $derived(atprotoAccount()?.handle ?? '');
   let typedHandles = $state<Record<string, string>>({});
 
-  onMount(() => {
-    // Loads the OAuth library only when this device stored a session before.
+  // Providers can arrive after mount. The restore is idempotent and loads the
+  // OAuth library only when this device stored a session before.
+  $effect(() => {
     if (hasAtproto) void restoreAtprotoAccount();
   });
 

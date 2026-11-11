@@ -139,11 +139,9 @@ fields as realtime changes arrive.
     </div>
     <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
     {#if atprotoDid}
-      {#key atprotoDid}
-        <div class="mt-2 flex text-sm">
-          <VerifiedAtprotoHandle did={atprotoDid} account={atprotoAccount} unlessHandle={login} />
-        </div>
-      {/key}
+      <div class="mt-2 flex text-sm">
+        <VerifiedAtprotoHandle did={atprotoDid} account={atprotoAccount} unlessHandle={login} />
+      </div>
     {/if}
 
     <UserMenu

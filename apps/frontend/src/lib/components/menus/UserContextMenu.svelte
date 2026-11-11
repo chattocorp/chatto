@@ -222,15 +222,13 @@ profile settings.
       </div>
       <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       {#if atprotoDid}
-        {#key atprotoDid}
-          <div class="mt-1 flex text-xs">
-            <VerifiedAtprotoHandle
-              did={atprotoDid}
-              account={{ serverOrigin: serverScope.connection.origin, userId: user.id }}
-              unlessHandle={getLiveLogin(user.id, user.login)}
-            />
-          </div>
-        {/key}
+        <div class="mt-1 flex text-xs">
+          <VerifiedAtprotoHandle
+            did={atprotoDid}
+            account={{ serverOrigin: serverScope.connection.origin, userId: user.id }}
+            unlessHandle={getLiveLogin(user.id, user.login)}
+          />
+        </div>
       {/if}
     </div>
   </div>
