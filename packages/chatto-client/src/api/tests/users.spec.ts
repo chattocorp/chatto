@@ -154,8 +154,7 @@ describe('createUserAPI', () => {
         bot: { ownerUserId: 'owner' },
         avatarUrl: 'https://cdn/avatar.webp',
         bio: null,
-        timezone: null,
-        atprotoDid: null
+        timezone: null
       }
     ]);
 
@@ -192,8 +191,7 @@ describe('createUserAPI', () => {
       isBot: false,
       avatarUrl: null,
       bio: null,
-      timezone: null,
-      atprotoDid: null
+      timezone: null
     });
   });
 

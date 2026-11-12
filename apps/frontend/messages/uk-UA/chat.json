@@ -177,8 +177,7 @@
         "manage_messages": "Керувати повідомленнями"
       },
       "owned_by": "Власник",
-      "open_card": "Відкрити картку профілю {name}",
-      "atproto_verified": "Підтверджене інтернет-ім’я"
+      "open_card": "Відкрити картку профілю {name}"
     },
     "management_nav": {
       "general": "Загальне",

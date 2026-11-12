@@ -67,18 +67,6 @@
         isLink)
   );
 
-  /**
-   * Write the account link record for the DID that the new account linked,
-   * so other members can verify the handle (FDR-056). This does nothing when
-   * the device has no AT Protocol session for that DID.
-   */
-  async function publishAtprotoLink(userId: string, did: string) {
-    const { ensureAtprotoLinkRecord } = await import('$lib/atproto/signIn');
-    await ensureAtprotoLinkRecord({ serverOrigin: window.location.origin, userId }, did).catch(
-      () => {}
-    );
-  }
-
   async function handleCreate(e: Event) {
     e.preventDefault();
     if (!pending || !data.token || loginError || displayNameError) {
@@ -89,10 +77,7 @@
     submitting = true;
     actionError = '';
     try {
-      const created = await flowAPI.createAccount({ token: data.token, login, displayName });
-      if (pending.providerType === 'atproto' && created.atprotoDid) {
-        void publishAtprotoLink(created.userId, created.atprotoDid);
-      }
+      await flowAPI.createAccount({ token: data.token, login, displayName });
       const returnURL = new URL(redirectPath, window.location.origin);
       if (isProviderCallback(returnURL)) {
         // The opening tab owns its saved return navigation. Complete this

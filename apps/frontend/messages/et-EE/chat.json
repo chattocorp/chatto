@@ -171,8 +171,7 @@
         "manage_messages": "Hallata sõnumeid"
       },
       "owned_by": "Omanik",
-      "open_card": "Ava kasutaja {name} profiilikaart",
-      "atproto_verified": "Kinnitatud internetikasutajanimi"
+      "open_card": "Ava kasutaja {name} profiilikaart"
     },
     "management_nav": {
       "general": "Kindral",

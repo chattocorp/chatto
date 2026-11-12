@@ -171,8 +171,7 @@
         "manage_messages": "Mesajları yönet"
       },
       "owned_by": "Sahibi",
-      "open_card": "{name} profil kartını aç",
-      "atproto_verified": "Doğrulanmış internet kullanıcı adı"
+      "open_card": "{name} profil kartını aç"
     },
     "management_nav": {
       "general": "Genel",

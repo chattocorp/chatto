@@ -689,12 +689,6 @@
         "integrations": "Integriĝoj",
         "permissions": "Permesoj"
       }
-    },
-    "atproto": {
-      "link_failed": "Ne eblis konekti la interretan identigilon.",
-      "unverified_no_link": "Aliaj membroj ankoraŭ ne povas kontroli vian interretan identigilon.",
-      "verify_button": "Kontroli",
-      "verify_on_server": "Kontroli ĉe {server}"
     }
   }
 }

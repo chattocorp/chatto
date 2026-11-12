@@ -29,12 +29,6 @@ export type UserSummary = {
   bio?: string | null;
   /** Public IANA time zone the user shares; `null` when unset. */
   timezone?: string | null;
-  /**
-   * AT Protocol DID that the user published; `null` when unset. This is an
-   * unverified claim. Verify it with `createAtprotoLinkVerifier` before you show it as
-   * the user's identity (FDR-056).
-   */
-  atprotoDid?: string | null;
 };
 
 /**
@@ -56,8 +50,7 @@ export function mapUserSummary(user: APIUser): UserSummary {
     ...(user.bot ? { bot: { ownerUserId: user.bot.ownerUserId } } : {}),
     avatarUrl: user.avatarUrl || null,
     bio: user.bio || null,
-    timezone: user.timezone || null,
-    atprotoDid: user.atprotoDid || null
+    timezone: user.timezone || null
   };
 }
 

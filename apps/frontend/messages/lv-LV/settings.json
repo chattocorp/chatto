@@ -689,12 +689,6 @@
         "integrations": "Integrācijas",
         "permissions": "Atļaujas"
       }
-    },
-    "atproto": {
-      "link_failed": "Neizdevās savienot interneta identifikatoru.",
-      "unverified_no_link": "Citi dalībnieki vēl nevar verificēt jūsu interneta identifikatoru.",
-      "verify_button": "Verificēt",
-      "verify_on_server": "Verificēt serverī {server}"
     }
   }
 }

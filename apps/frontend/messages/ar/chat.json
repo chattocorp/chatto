@@ -183,8 +183,7 @@
         "manage_messages": "إدارة الرسائل"
       },
       "owned_by": "يملكه",
-      "open_card": "فتح بطاقة الملف الشخصي لـ {name}",
-      "atproto_verified": "معرّف إنترنت موثّق"
+      "open_card": "فتح بطاقة الملف الشخصي لـ {name}"
     },
     "management_nav": {
       "general": "عام",

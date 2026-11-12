@@ -689,12 +689,6 @@
         "integrations": "連携",
         "permissions": "権限"
       }
-    },
-    "atproto": {
-      "link_failed": "インターネットハンドルを接続できませんでした。",
-      "unverified_no_link": "ほかのメンバーはまだあなたのインターネットハンドルを確認できません。",
-      "verify_button": "確認する",
-      "verify_on_server": "{server} で確認する"
     }
   }
 }

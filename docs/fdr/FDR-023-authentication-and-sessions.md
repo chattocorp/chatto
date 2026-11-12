@@ -306,7 +306,7 @@ Authentication itself doesn't have a permission gate (you're either authenticate
   account deletion, and identity disconnection. Commands still enforce all rules.
 
 - **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-046 (typed runtime credentials), ADR-067 (Electron desktop packaging), ADR-071 (CIMD-identified open OAuth clients), ADR-074 (device-local frontend server catalogue), ADR-079 (renewable bearer sessions), ADR-081 (explicit expiry for mutable runtime credentials), ADR-085 (user-scoped MCP integration)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-034 (Chatto Desktop), FDR-036 (Invitation Codes), FDR-043 (Model Context Protocol Integration), FDR-045 (Privileged Mode), FDR-056 (AT Protocol Identity)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-034 (Chatto Desktop), FDR-036 (Invitation Codes), FDR-043 (Model Context Protocol Integration), FDR-045 (Privileged Mode), FDR-056 (AT Protocol Sign-In)
 
 ## Open Questions
 

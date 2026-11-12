@@ -689,12 +689,6 @@
         "integrations": "Entegrasyonlar",
         "permissions": "İzinler"
       }
-    },
-    "atproto": {
-      "link_failed": "İnternet kullanıcı adı bağlanamadı.",
-      "unverified_no_link": "Diğer üyeler internet kullanıcı adınızı henüz doğrulayamıyor.",
-      "verify_button": "Doğrula",
-      "verify_on_server": "{server} üzerinde doğrula"
     }
   }
 }

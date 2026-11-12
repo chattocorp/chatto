@@ -689,12 +689,6 @@
         "integrations": "Integrasjoner",
         "permissions": "Tillatelser"
       }
-    },
-    "atproto": {
-      "link_failed": "Kunne ikke koble til internetthåndtaket.",
-      "unverified_no_link": "Andre medlemmer kan ikke bekrefte internetthåndtaket ditt ennå.",
-      "verify_button": "Bekreft",
-      "verify_on_server": "Bekreft på {server}"
     }
   }
 }

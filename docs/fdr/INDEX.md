@@ -65,4 +65,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-053](FDR-053-history-import-export.md)                 | History Import and Export             | Experimental | 2026-10-26    |
 | [FDR-054](FDR-054-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |
 | [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-28    |
-| [FDR-056](FDR-056-atproto-identity.md)                      | AT Protocol Identity                  | Experimental | 2026-11-11    |
+| [FDR-056](FDR-056-atproto-identity.md)                      | AT Protocol Sign-In                   | Experimental | 2026-11-12    |

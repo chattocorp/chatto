@@ -29,14 +29,12 @@ const { mocks } = vi.hoisted(() => ({
     cancelExplicitSignOutRedirect: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
     notifyLogout: vi.fn(),
-    clearServerAuthentication: vi.fn(),
-    ensureAtprotoSession: vi.fn()
+    clearServerAuthentication: vi.fn()
   }
 }));
 
 const connection = {
   serverId: 'origin',
-  origin: 'https://remote.example.test',
   connectBaseUrl: 'https://remote.example.test/api/connect',
   queryScope: 'external-identities-test',
   getAPI: () => ({
@@ -99,19 +97,6 @@ vi.mock('$lib/auth/signOutRedirect', () => ({
 
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 
-vi.mock('$lib/atproto/session.svelte', () => ({
-  ensureAtprotoSession: mocks.ensureAtprotoSession,
-  atprotoOAuthClient: vi.fn(async () => ({})),
-  restoreAtprotoAccount: vi.fn(async () => null),
-  atprotoLinkVerifier: { verify: () => new Promise(() => {}), forget: vi.fn() }
-}));
-
-vi.mock('$lib/atproto/signIn', () => ({
-  removeAtprotoLinkRecord: vi.fn(),
-  ensureAtprotoLinkRecord: vi.fn(),
-  canWriteAtprotoLinkRecord: () => true
-}));
-
 const currentUser = {
   load: vi.fn().mockResolvedValue(undefined),
   user: { id: 'user-alice', hasPassword: true }
@@ -170,10 +155,7 @@ describe('external identity settings query lifecycle', () => {
     connection.serverId = 'origin';
     connection.queryScope = 'external-identities-test';
     mocks.list.mockResolvedValue(linkedIdentityList());
-    mocks.startLink.mockResolvedValue({
-      startUrl: 'https://chat.example.test/link',
-      linkToken: 'tok'
-    });
+    mocks.startLink.mockResolvedValue('https://chat.example.test/link');
     mocks.disconnect.mockResolvedValue(undefined);
   });
 

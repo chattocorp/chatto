@@ -121,7 +121,6 @@ vi.mock('$lib/client', async () => ({
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_id: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
-  getLiveAtprotoDid: () => null,
   getLiveTimezone: () => null,
   getLiveDisplayName: (id: string, fallback: string) =>
     liveParticipantProfiles.get()[id]?.displayName ?? fallback,

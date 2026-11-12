@@ -19,14 +19,17 @@ import (
 )
 
 // atprotoIdentityScope is the only scope that Chatto's server requests. It
-// proves the account DID and grants no access to the user's repository. A
-// server with write access could write a false account link record
-// (ADR-123).
+// proves the account DID and grants no access to the user's repository
+// (FDR-056).
 const atprotoIdentityScope = "atproto"
 
 // atprotoDefaultAuthServer is used when a sign-in starts without a handle.
 // The user then enters the handle on this authorization server.
 const atprotoDefaultAuthServer = "https://bsky.social"
+
+// atprotoMaxIdentifierLength bounds a handle or DID hint. The AT Protocol
+// specification limits DIDs to 2 KB.
+const atprotoMaxIdentifierLength = 2048
 
 // atprotoClientMetadataPath is the path of a provider's client metadata
 // document below its provider route. Its URL is the provider's client ID.

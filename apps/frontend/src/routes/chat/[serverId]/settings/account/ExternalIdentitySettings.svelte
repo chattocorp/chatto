@@ -26,8 +26,6 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Button, TextInput } from '$lib/ui/form';
-  import { removeAtprotoLinkRecord } from '$lib/atproto/signIn';
-  import AtprotoLinkStatus from './AtprotoLinkStatus.svelte';
 
   let {
     currentUser,
@@ -139,12 +137,6 @@
     } finally {
       checkingWindow = false;
     }
-  }
-
-  function isAtprotoIdentity(subjectHash: string): boolean {
-    return linkedIdentities.some(
-      (identity) => identity.subjectHash === subjectHash && identity.providerType === 'atproto'
-    );
   }
 
   function openProviderLink(provider: ExternalIdentityProviderInfo) {
@@ -395,23 +387,12 @@
     };
     actionError = '';
     disconnectingSubjectHash = subjectHash;
-    const atprotoDid = isAtprotoIdentity(subjectHash)
-      ? (currentUser.user?.atprotoDid ?? null)
-      : null;
     try {
       await variables.connection
         .getAPI(createExternalIdentityAPI)
         .disconnect(subjectHash, currentPassword);
       if (!session.isCurrent(variables)) {
         return;
-      }
-      if (atprotoDid && accountId) {
-        // Best effort: the DID is no longer published, so the record proves
-        // nothing. A device without that session leaves it in place.
-        void removeAtprotoLinkRecord(
-          { serverOrigin: variables.connection.origin, userId: accountId },
-          atprotoDid
-        ).catch(() => {});
       }
       disconnectTarget = null;
       disconnectFreshAuthTarget = null;
@@ -523,17 +504,7 @@
                   <div class="truncate text-sm font-medium">{provider.label}</div>
                   <div class="text-xs text-muted">
                     {#if provider.linked}
-                      {#if provider.type === 'atproto' && currentUser.user?.atprotoDid && accountId}
-                        <AtprotoLinkStatus
-                          did={currentUser.user.atprotoDid}
-                          account={{
-                            serverOrigin: serverScope.connection.origin,
-                            userId: accountId
-                          }}
-                        />
-                      {:else}
-                        {m('settings.account.sso.linked')}
-                      {/if}
+                      {m('settings.account.sso.linked')}
                       {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
                         <p>
                           {identityDisconnectUnavailableMessage(

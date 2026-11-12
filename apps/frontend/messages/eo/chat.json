@@ -171,8 +171,7 @@
         "manage_messages": "Administri mesaĝojn"
       },
       "owned_by": "Posedanto",
-      "open_card": "Malfermi la profilkarton de {name}",
-      "atproto_verified": "Kontrolita interreta identigilo"
+      "open_card": "Malfermi la profilkarton de {name}"
     },
     "management_nav": {
       "general": "Generalo",

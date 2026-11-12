@@ -109,6 +109,31 @@ describe('ServerSignedOut', () => {
     }
   );
 
+  it('offers Continue as the remembered AT Protocol handle', async () => {
+    localStorage.setItem('chatto:atproto-handle', 'alice.example');
+    mocks.startRemoteReauthentication.mockResolvedValue(undefined);
+    createTestServerScope({
+      serverInfo: {
+        name: 'Saved Server',
+        loading: false,
+        authProviders: [{ id: 'bsky', type: 'atproto', label: 'Internet Handle' }]
+      },
+      store: { realtimeSync: { hasDisplayableView: false } }
+    });
+    try {
+      render(ServerSignedOut, { props: { registration } });
+      await page.getByRole('button', { name: 'Continue as @alice.example' }).click();
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
+        registration,
+        'bsky',
+        undefined,
+        'alice.example'
+      );
+    } finally {
+      localStorage.removeItem('chatto:atproto-handle');
+    }
+  });
+
   it('shows the Desktop password form and submits without opening OAuth', async () => {
     mocks.desktop = true;
     createTestServerScope({

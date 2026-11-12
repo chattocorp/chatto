@@ -54,7 +54,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBio: (_userId: string, fallback: string | null) => liveProfileState.bio ?? fallback,
-  getLiveAtprotoDid: (_userId: string, fallback: string | null) => fallback,
   getLiveTimezone: (_userId: string, fallback: string | null) =>
     liveProfileState.timezone ?? fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,

@@ -36,7 +36,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
-  getLiveAtprotoDid: () => null,
   getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback,

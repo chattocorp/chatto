@@ -400,15 +400,6 @@ export class CreateExternalIdentityAccountResponse extends Message<CreateExterna
    */
   refreshTokenExpiresIn = protoInt64.zero;
 
-  /**
-   * DID of the AT Protocol identity that the new account linked, when the
-   * provider is an AT Protocol provider. The client writes the account link
-   * record for this DID only (FDR-056).
-   *
-   * @generated from field: optional string atproto_did = 7;
-   */
-  atprotoDid?: string;
-
   constructor(data?: PartialMessage<CreateExternalIdentityAccountResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -423,7 +414,6 @@ export class CreateExternalIdentityAccountResponse extends Message<CreateExterna
     { no: 4, name: "refresh_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "expires_in", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 6, name: "refresh_token_expires_in", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 7, name: "atproto_did", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateExternalIdentityAccountResponse {

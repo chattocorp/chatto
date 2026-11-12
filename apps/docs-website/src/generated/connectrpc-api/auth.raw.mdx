@@ -94,7 +94,6 @@ Result of creating an account from a pending provider identity.
 | `refresh_token` | `string` | Rotating refresh credential for renewing the bearer session. |
 | `expires_in` | `int64` | Lifetime of the access token in seconds. |
 | `refresh_token_expires_in` | `int64` | Remaining lifetime of the current renewable-session window in seconds. A successful refresh can advance this window for an active session. |
-| `atproto_did` | `optional string` | DID of the AT Protocol identity that the new account linked, when the provider is an AT Protocol provider. The client writes the account link record for this DID only (FDR-056). |
 
 
 <a id="chatto-auth-v1-ExternalIdentityAuthService-ConfirmExternalIdentityLink"></a>

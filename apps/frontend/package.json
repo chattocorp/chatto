@@ -98,7 +98,6 @@
     "zod": "^4.6.7"
   },
   "dependencies": {
-    "@atproto/oauth-client-browser": "^0.5.14",
     "@bufbuild/protobuf": "^1.10.1",
     "@capacitor/core": "8.5.2",
     "@chatto/api-types": "workspace:*",

@@ -177,8 +177,7 @@
         "manage_messages": "Управлять сообщениями"
       },
       "owned_by": "Владелец",
-      "open_card": "Открыть карточку профиля {name}",
-      "atproto_verified": "Подтверждённое интернет-имя"
+      "open_card": "Открыть карточку профиля {name}"
     },
     "management_nav": {
       "general": "Общий",

@@ -689,12 +689,6 @@
         "integrations": "שילובים",
         "permissions": "הרשאות"
       }
-    },
-    "atproto": {
-      "link_failed": "לא ניתן לחבר את כינוי האינטרנט.",
-      "unverified_no_link": "חברים אחרים עדיין לא יכולים לאמת את כינוי האינטרנט שלך.",
-      "verify_button": "אמת",
-      "verify_on_server": "אמת ב־{server}"
     }
   }
 }

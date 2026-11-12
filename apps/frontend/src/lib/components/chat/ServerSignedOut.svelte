@@ -22,7 +22,7 @@ window; an optional native host capability enables inline password submission.
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { serverHost } from '$lib/serverUrl';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import { atprotoAccount, restoreAtprotoAccount } from '$lib/atproto/session.svelte';
+  import { rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
   let { registration }: { registration: RegisteredServer } = $props();
   const { store, serverId } = useServerScope();
@@ -40,16 +40,11 @@ window; an optional native host capability enables inline password submission.
   const inlinePasswordLogin = hasPasswordLogin();
   const busy = $derived(submitting || isRemoteSignInPending(registration.id));
   const providers = $derived(store.serverInfo.authProviders ?? []);
-  // One-click sign-in with the AT Protocol identity that this device knows
-  // (FDR-056). The server still verifies it through its own provider.
+  // One-click sign-in with the handle that this device last used (FDR-056).
+  // The server still verifies it through its own provider.
   const atprotoProvider = $derived(providers.find((provider) => provider.type === 'atproto'));
-  const knownAtprotoHandle = $derived(atprotoProvider ? atprotoAccount()?.handle : null);
-  // The provider list arrives with server discovery, after mount. The restore
-  // is lazy and idempotent: it loads the OAuth library only for a stored
-  // session and runs once per page.
-  $effect(() => {
-    if (atprotoProvider) void restoreAtprotoAccount();
-  });
+  const rememberedHandle = rememberedAtprotoHandle();
+  const knownAtprotoHandle = $derived(atprotoProvider ? rememberedHandle : '');
   const showPassword = $derived(
     inlinePasswordLogin && !store.serverInfo.loading && store.serverInfo.directLoginEnabled
   );

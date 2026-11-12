@@ -177,8 +177,7 @@
         "manage_messages": "Zarządzać wiadomościami"
       },
       "owned_by": "Właściciel",
-      "open_card": "Otwórz kartę profilu użytkownika {name}",
-      "atproto_verified": "Zweryfikowany identyfikator internetowy"
+      "open_card": "Otwórz kartę profilu użytkownika {name}"
     },
     "management_nav": {
       "general": "Ogólne",

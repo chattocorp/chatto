@@ -689,12 +689,6 @@
         "integrations": "Integraties",
         "permissions": "Rechten"
       }
-    },
-    "atproto": {
-      "link_failed": "De internethandle kon niet worden gekoppeld.",
-      "unverified_no_link": "Andere leden kunnen je internethandle nog niet verifiëren.",
-      "verify_button": "Verifiëren",
-      "verify_on_server": "Verifiëren op {server}"
     }
   }
 }

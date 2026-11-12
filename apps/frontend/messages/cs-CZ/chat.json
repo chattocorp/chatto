@@ -171,8 +171,7 @@
         "manage_messages": "Spravovat zprávy"
       },
       "owned_by": "Vlastník",
-      "open_card": "Otevřít profilovou kartu uživatele {name}",
-      "atproto_verified": "Ověřený internetový identifikátor"
+      "open_card": "Otevřít profilovou kartu uživatele {name}"
     },
     "management_nav": {
       "general": "Generál",

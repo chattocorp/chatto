@@ -171,8 +171,7 @@
         "manage_messages": "Manage messages"
       },
       "owned_by": "Owned by",
-      "open_card": "Open profile card of {name}",
-      "atproto_verified": "Verified internet handle"
+      "open_card": "Open profile card of {name}"
     },
     "management_nav": {
       "general": "General",

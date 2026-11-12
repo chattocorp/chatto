@@ -26,8 +26,6 @@ profile settings.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import VerifiedAtprotoHandle from '$lib/components/atproto/VerifiedAtprotoHandle.svelte';
-  import AtprotoUsername from '$lib/components/atproto/AtprotoUsername.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
@@ -42,7 +40,6 @@ profile settings.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ContextMenu, ScrollFader, MenuItem, MenuSection } from '$lib/ui';
   import {
-    getLiveAtprotoDid,
     getLiveBio,
     getLiveCustomStatus,
     getLiveDisplayName,
@@ -88,8 +85,6 @@ profile settings.
       avatarUrl?: string | null;
       bio?: string | null;
       timezone?: string | null;
-      /** Published AT Protocol DID; shown only after verification. */
-      atprotoDid?: string | null;
       presenceStatus: PresenceStatus;
       customStatus?: CustomUserStatus | null;
     };
@@ -125,7 +120,6 @@ profile settings.
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
   const bio = $derived(getLiveBio(user.id, user.bio ?? null));
-  const atprotoDid = $derived(getLiveAtprotoDid(user.id, user.atprotoDid ?? null));
   const timezone = $derived(getLiveTimezone(user.id, user.timezone ?? null));
   const viewerTimeSettings = $derived(timeFormatSettingsFor(viewerSettings));
   // Re-render the local-time line once a minute while the card is open.
@@ -213,23 +207,8 @@ profile settings.
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
       <AccountName name={displayName} identity={user} class="font-semibold" />
-      <div class="truncate text-xs text-muted">
-        <AtprotoUsername
-          login={getLiveLogin(user.id, user.login)}
-          did={atprotoDid}
-          account={{ serverOrigin: serverScope.connection.origin, userId: user.id }}
-        />
-      </div>
+      <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
       <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
-      {#if atprotoDid}
-        <div class="mt-1 flex text-xs">
-          <VerifiedAtprotoHandle
-            did={atprotoDid}
-            account={{ serverOrigin: serverScope.connection.origin, userId: user.id }}
-            unlessHandle={getLiveLogin(user.id, user.login)}
-          />
-        </div>
-      {/if}
     </div>
   </div>
 

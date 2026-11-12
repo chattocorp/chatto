@@ -689,12 +689,6 @@
         "integrations": "Integrações",
         "permissions": "Permissões"
       }
-    },
-    "atproto": {
-      "link_failed": "Não foi possível conectar o identificador de internet.",
-      "unverified_no_link": "Outros membros ainda não conseguem verificar seu identificador de internet.",
-      "verify_button": "Verificar",
-      "verify_on_server": "Verificar em {server}"
     }
   }
 }

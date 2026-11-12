@@ -171,8 +171,7 @@
         "manage_messages": "メッセージを管理"
       },
       "owned_by": "所有者",
-      "open_card": "{name} のプロフィールカードを開く",
-      "atproto_verified": "確認済みのインターネットハンドル"
+      "open_card": "{name} のプロフィールカードを開く"
     },
     "management_nav": {
       "general": "一般",

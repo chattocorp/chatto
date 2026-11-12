@@ -6,11 +6,8 @@ const mocks = vi.hoisted(() => ({
   startLink: vi.fn(),
   cancel: vi.fn(),
   confirmLink: vi.fn(),
-  createAccount: vi.fn(),
-  ensureAtprotoLinkRecord: vi.fn(),
   goto: vi.fn()
 }));
-vi.mock('$lib/atproto/signIn', () => ({ ensureAtprotoLinkRecord: mocks.ensureAtprotoLinkRecord }));
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path, base: '', assets: '' }));
 vi.mock('$app/navigation', () => ({ goto: mocks.goto, pushState: vi.fn() }));
@@ -18,11 +15,7 @@ vi.mock('$lib/client', async () => (await import('$lib/test-utils/clientMock')).
 vi.mock('$lib/auth/originAuthentication', () => ({ completeOriginAuthentication: vi.fn() }));
 vi.mock('$lib/api/externalIdentities', () => ({
   ExternalIdentityFlowKind: { CREATE_ACCOUNT: 1, LINK_ACCOUNT: 2 },
-  createExternalIdentityFlowAPI: () => ({
-    cancel: mocks.cancel,
-    confirmLink: mocks.confirmLink,
-    createAccount: mocks.createAccount
-  }),
+  createExternalIdentityFlowAPI: () => ({ cancel: mocks.cancel, confirmLink: mocks.confirmLink }),
   createExternalIdentityAPI: () => ({ startLink: mocks.startLink })
 }));
 
@@ -76,52 +69,5 @@ describe('existing-account provider confirmation', () => {
       { replaceState: true }
     );
     expect(mocks.startLink).not.toHaveBeenCalled();
-  });
-});
-
-describe('AT Protocol account creation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.ensureAtprotoLinkRecord.mockResolvedValue(undefined);
-  });
-
-  it('writes the account link record for the DID that the server linked', async () => {
-    mocks.createAccount.mockResolvedValue({
-      userId: 'U1',
-      login: 'alice.test',
-      atprotoDid: 'did:plc:alice'
-    });
-    const atprotoData = {
-      ...data,
-      existingAccount: false,
-      user: null,
-      pending: {
-        ...data.pending,
-        providerId: 'atproto',
-        providerType: 'atproto',
-        providerLabel: 'Internet Handle',
-        loginHint: 'alice.test',
-        displayNameHint: 'Alice',
-        redirectPath: '/'
-      }
-    };
-    const { getByRole } = render(ConfirmPage, { props: { data: atprotoData as never } });
-    await getByRole('button', { name: 'Create Account', exact: true }).click();
-    await vi.waitFor(() =>
-      expect(mocks.ensureAtprotoLinkRecord).toHaveBeenCalledWith(
-        { serverOrigin: window.location.origin, userId: 'U1' },
-        'did:plc:alice'
-      )
-    );
-  });
-
-  it('writes no record without a linked DID', async () => {
-    mocks.createAccount.mockResolvedValue({ userId: 'U1', login: 'new-user' });
-    const { getByRole } = render(ConfirmPage, {
-      props: { data: { ...data, existingAccount: false, user: null } as never }
-    });
-    await getByRole('button', { name: 'Create Account', exact: true }).click();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalled());
-    expect(mocks.ensureAtprotoLinkRecord).not.toHaveBeenCalled();
   });
 });

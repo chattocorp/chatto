@@ -689,12 +689,6 @@
         "integrations": "整合",
         "permissions": "權限"
       }
-    },
-    "atproto": {
-      "link_failed": "無法連接網際網路使用者名稱。",
-      "unverified_no_link": "其他成員暫時無法驗證你的網際網路使用者名稱。",
-      "verify_button": "驗證",
-      "verify_on_server": "在 {server} 上驗證"
     }
   }
 }

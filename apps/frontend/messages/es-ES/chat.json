@@ -171,8 +171,7 @@
         "manage_messages": "Gestionar mensajes"
       },
       "owned_by": "Propietario",
-      "open_card": "Abrir la tarjeta de perfil de {name}",
-      "atproto_verified": "Identificador de internet verificado"
+      "open_card": "Abrir la tarjeta de perfil de {name}"
     },
     "management_nav": {
       "general": "Generalidades",

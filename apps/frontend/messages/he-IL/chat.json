@@ -174,8 +174,7 @@
         "manage_messages": "לנהל הודעות"
       },
       "owned_by": "בבעלות",
-      "open_card": "פתיחת כרטיס הפרופיל של {name}",
-      "atproto_verified": "כינוי אינטרנט מאומת"
+      "open_card": "פתיחת כרטיס הפרופיל של {name}"
     },
     "management_nav": {
       "general": "כללי",

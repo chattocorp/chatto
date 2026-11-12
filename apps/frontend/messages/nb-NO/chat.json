@@ -171,8 +171,7 @@
         "manage_messages": "Administrere meldinger"
       },
       "owned_by": "Eies av",
-      "open_card": "Åpne profilkortet til {name}",
-      "atproto_verified": "Bekreftet internetthåndtak"
+      "open_card": "Åpne profilkortet til {name}"
     },
     "management_nav": {
       "general": "Generelt",

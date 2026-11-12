@@ -171,8 +171,7 @@
         "manage_messages": "Hantera meddelanden"
       },
       "owned_by": "Ägs av",
-      "open_card": "Öppna profilkortet för {name}",
-      "atproto_verified": "Verifierat internethandtag"
+      "open_card": "Öppna profilkortet för {name}"
     },
     "management_nav": {
       "general": "Allmänt",

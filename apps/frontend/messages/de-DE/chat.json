@@ -171,8 +171,7 @@
         "manage_messages": "Nachrichten verwalten"
       },
       "owned_by": "Gehört",
-      "open_card": "Profilkarte von {name} öffnen",
-      "atproto_verified": "Verifiziertes Internet-Handle"
+      "open_card": "Profilkarte von {name} öffnen"
     },
     "management_nav": {
       "general": "Allgemein",
