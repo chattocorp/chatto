@@ -17,7 +17,7 @@ export async function writeUpdateManifests(
     throw new Error('Desktop updates require a stable, beta, or RC release version.');
   }
   const artifacts = [
-    [`${channel}-mac.yml`, `chatto-desktop_${version}_macOS_ARM64.zip`],
+    [`${channel}-mac.yml`, `chatto-desktop_${version}_macOS_UNIVERSAL.zip`],
     [`${channel}.yml`, `chatto-desktop_${version}_Windows_X64_Setup.exe`],
     [`${channel}-linux.yml`, `chatto-desktop_${version}_Linux_X64.AppImage`],
     [`${channel}-linux-arm64.yml`, `chatto-desktop_${version}_Linux_ARM64.AppImage`]

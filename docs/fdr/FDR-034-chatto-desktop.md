@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-03
+**Last reviewed:** 2026-11-12
 
 ## Overview
 
@@ -78,9 +78,10 @@ system-browser authentication, and clean-machine media behavior are hardened.
   capability keep the browser's ordinary source chooser.
 - macOS, Windows, and Linux bundles are built in CI. Linux x64 and ARM64
   builds each provide an AppImage and a tarball. AppImage update manifests
-  select the same architecture as the installed app. Release macOS artifacts
-  are Developer ID signed and notarised. Release Windows executables and
-  libraries are signed and timestamped through Microsoft Artifact Signing
+  select the same architecture as the installed app. macOS builds provide
+  Apple Silicon, Intel, and universal DMG and ZIP downloads. Automatic updates install the universal app on both architectures.
+  Release macOS artifacts are Developer ID signed and notarised. Release
+  Windows executables and libraries are signed and timestamped through Microsoft Artifact Signing
   before CI packages them. The main application must report ChattoCorp's stable
   publisher identity; bundled third-party libraries may retain their original
   valid publisher. Local, pull-request, and Linux artifacts are not trusted

@@ -175,9 +175,19 @@ jobs:
           - platform: macos
             os: macos-15
             environment: desktop-signing
+          - platform: macos-intel
+            os: macos-15-intel
+            environment: desktop-signing
+          - platform: macos-universal
+            os: macos-15
+            environment: desktop-signing
           - platform: windows
             os: windows-latest
             environment: desktop-windows-signing
+    env:
+      CHATTO_DESKTOP_ARCH: ${{ matrix.platform == 'macos-universal' && 'universal' || '' }}
+      # pnpm 11 has no standalone Intel macOS binary; use its Node.js package.
+      MISE_BACKENDS_PNPM: ${{ matrix.platform == 'macos-intel' && 'npm:pnpm' || 'aqua:pnpm/pnpm' }}
     runs-on: ${{ matrix.os }}
     permissions:
       actions: read
@@ -514,12 +524,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'MSI upgrade fixture build failed.' }
           ./tools/test-desktop-windows-msi.ps1 -Installer $msi[0].FullName -PreviousInstaller apps/desktop/dist/msi-upgrade-fixture/upgrade-fixture.msi
 
+      - name: Verify macOS binary architectures
+        if: runner.os == 'macOS'
+        run: bash tools/test-desktop-macos-architectures.sh
+
       - name: Package macOS release
         if: runner.os == 'macOS'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          artifact_arch="${CHATTO_DESKTOP_ARCH:-$RUNNER_ARCH}"
+          artifact_arch="$(echo "$artifact_arch" | tr '[:lower:]' '[:upper:]')"
           helper="apps/desktop/dist/Chatto.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
           codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto.app"
@@ -528,7 +544,7 @@ jobs:
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \
             "apps/desktop/dist/Chatto.app" \
-            ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
+            ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${artifact_arch}.zip"
 
       - name: Build and test signed macOS DMG
         if: runner.os == 'macOS'
