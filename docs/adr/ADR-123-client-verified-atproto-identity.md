@@ -59,11 +59,17 @@ account. The proof is valid only if the verified party cannot write it.
 - Writing a record needs the device's own AT Protocol session, one approval per
   server and device. Viewing and verifying a handle needs no session.
 - AT Protocol does not record which app wrote a record. Any app with write
-  access to a collection can write link records in it. Because each server has
-  its own collection, one approval can write links for one server only. An
-  approval in the app of a modified server affects only that server, which can
-  already show false data to its own users. A future AT Protocol scope for one
-  record key, or permissioned spaces, could narrow this further.
+  access to a collection can write link records in it. The honest app of a
+  server asks only for that server's collection, so a stolen session or a
+  defect in that app affects one server only.
+- An app chooses its own scopes. The app of a modified server can ask for the
+  collection of any other server, and the consent screen shows only a hash.
+  After the user approves it, it can write a record that links the user to an
+  account on another server. That record helps only a server that also
+  publishes the user's DID for that account, which an honest server never
+  does. Thus the attack needs two modified servers or one that controls both
+  steps. A future AT Protocol scope for one record key, or permissioned spaces,
+  could prevent this.
 - Anyone can test a known server origin against the collection names in a
   public repository. This shows which public servers a user links. The origins
   of private servers stay hidden, because nobody can guess them.

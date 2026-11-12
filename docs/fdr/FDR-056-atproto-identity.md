@@ -91,8 +91,9 @@ the session only to write and delete link records. It never requests
 `transition:generic`.
 **Why:** Only the DID's owner can write the record, so a modified server
 cannot forge it. The scope cannot change other data. AT Protocol does not
-record which app wrote a record, so a scope for all servers would let one
-approval write links for any server.
+record which app wrote a record. A collection for each server limits a stolen
+session or a defect in an honest app to one server. It does not limit the app
+of a modified server, which can ask for any collection (ADR-123).
 **Tradeoff:** Each device needs one approval for each server before it can
 write records. AT Protocol scopes cannot name a collection prefix.
 Users of a PDS without granular permissions cannot publish verified handles.
