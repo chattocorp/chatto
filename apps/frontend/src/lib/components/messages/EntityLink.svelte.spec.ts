@@ -158,7 +158,7 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(container.querySelectorAll('.entity-link')).toHaveLength(4));
     expect(container.textContent?.match(/: next/g)).toHaveLength(4);
     for (const pill of container.querySelectorAll('.entity-link')) {
-      expect(pill.querySelector('.link-pill-main')?.textContent).not.toContain(':');
+      expect(pill.querySelector('.inline-pill-main')?.textContent).not.toContain(':');
       expect(pill.getAttribute('href')).not.toContain('%3A');
       expect(pill.getAttribute('href')).not.toMatch(/:$/);
     }
@@ -221,7 +221,7 @@ describe('entity links in messages', () => {
         body: `${origin}/chat/-/${roomId} ${origin}/chat/-/user/${userId}`
       });
       await vi.waitFor(() => expect(container.querySelectorAll('.entity-link')).toHaveLength(2));
-      expect(container.querySelectorAll('.link-pill-meta')).toHaveLength(
+      expect(container.querySelectorAll('.inline-pill-meta')).toHaveLength(
         serverId === 'known' ? 0 : 2
       );
     }
