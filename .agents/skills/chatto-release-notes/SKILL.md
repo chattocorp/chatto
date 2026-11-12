@@ -127,6 +127,9 @@ an image beside the feature it shows.
 
 ## Verification
 
+For release readiness checks, use
+[chatto-release-checklist](../chatto-release-checklist/SKILL.md).
+
 Run `mise x -- pnpm --filter docs-website build` after page edits. Check that
 supplied images render. For material layout or style changes, check the page
 at desktop and mobile widths. Report which checks ran.
