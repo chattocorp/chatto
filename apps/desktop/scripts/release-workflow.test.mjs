@@ -1,4 +1,4 @@
-/** Exercise the release workflow's version resolution with isolated package metadata. */
+/** Exercise release workflow shell steps without signing or publishing artifacts. */
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -10,20 +10,21 @@ const workflow = readFileSync(
   new URL('../../../.github/workflows/release.yml', import.meta.url),
   'utf8'
 );
-/** Extract the workflow step from both LF and Windows CRLF checkouts. */
-function extractVersionScript(source) {
-  const versionStep = source
+/** Extract a named shell step from both LF and Windows CRLF checkouts. */
+function workflowScript(name, source = workflow) {
+  const step = source
     .replaceAll('\r\n', '\n')
-    .split('      - name: Resolve desktop version\n')[1]
+    .split(`      - name: ${name}\n`)[1]
     ?.split('\n      - name:')[0];
-  assert.ok(versionStep, 'The desktop release must resolve its version');
-  return versionStep
-    .split('        run: |\n')[1]
+  const script = step?.split('        run: |\n')[1];
+  assert.ok(script, `Missing shell script for workflow step: ${name}`);
+  return script
     .split('\n')
     .map((line) => line.slice(10))
     .join('\n');
 }
-const versionScript = extractVersionScript(workflow);
+const versionScript = workflowScript('Resolve desktop version');
+const macOSPackageScript = workflowScript('Package macOS release');
 const sha = '1234567890abcdef1234567890abcdef12345678';
 
 for (const [name, buildStatus, copyTestStatus] of [
@@ -32,14 +33,7 @@ for (const [name, buildStatus, copyTestStatus] of [
   ['mount or copy failure', 0, 1]
 ]) {
   test(`DMG publication: ${name}`, () => {
-    const script = workflow
-      .replaceAll('\r\n', '\n')
-      .split('      - name: Build and test signed macOS DMG\n')[1]
-      .split('\n      - name:')[0]
-      .split('        run: |\n')[1]
-      .split('\n')
-      .map((line) => line.slice(10))
-      .join('\n');
+    const script = workflowScript('Build and test signed macOS DMG');
     const result = spawnSync(
       'bash',
       [
@@ -72,14 +66,7 @@ for (const [name, signatureStatus, assessmentStatus] of [
   ['Gatekeeper rejection', 0, 1]
 ]) {
   test(`macOS release packaging: ${name}`, () => {
-    const script = workflow
-      .replaceAll('\r\n', '\n')
-      .split('      - name: Package macOS release\n')[1]
-      .split('\n      - name:')[0]
-      .split('        run: |\n')[1]
-      .split('\n')
-      .map((line) => line.slice(10))
-      .join('\n');
+    const script = macOSPackageScript;
     const result = spawnSync(
       'bash',
       [
@@ -111,14 +98,7 @@ for (const [target, runner, expected] of [
   ['universal', 'ARM64', 'UNIVERSAL']
 ]) {
   test(`macOS ZIP uses the ${expected} target name`, () => {
-    const script = workflow
-      .replaceAll('\r\n', '\n')
-      .split('      - name: Package macOS release\n')[1]
-      .split('\n      - name:')[0]
-      .split('        run: |\n')[1]
-      .split('\n')
-      .map((line) => line.slice(10))
-      .join('\n');
+    const script = macOSPackageScript;
     const result = spawnSync(
       'bash',
       [
@@ -147,7 +127,10 @@ for (const [target, runner, expected] of [
 
 test('workflow extraction supports Windows checkout line endings', () => {
   const lf = workflow.replaceAll('\r\n', '\n');
-  assert.equal(extractVersionScript(lf.replaceAll('\n', '\r\n')), extractVersionScript(lf));
+  assert.equal(
+    workflowScript('Resolve desktop version', lf.replaceAll('\n', '\r\n')),
+    versionScript
+  );
 });
 
 /** Run the actual workflow shell step without a checkout, signing, or network access. */

@@ -19,7 +19,7 @@ const probeRoot = path.resolve(scriptsRoot, '../native/macos-capture-probe');
  */
 export async function embedMacOSCaptureHelper(
   appBundle,
-  { shortVersion, bundleVersion, bundleIdentifier, architecture = process.arch }
+  { shortVersion, bundleVersion, bundleIdentifier, architecture }
 ) {
   if (process.platform !== 'darwin') {
     throw new Error('The macOS capture helper can only be built on macOS.');
@@ -35,6 +35,8 @@ export async function embedMacOSCaptureHelper(
     'build',
     '--package-path',
     probeRoot,
+    '--product',
+    macOSCaptureHelperExecutable,
     '--scratch-path',
     path.join(probeRoot, '.build', `desktop-${architecture}`),
     '--arch',
