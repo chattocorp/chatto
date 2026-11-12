@@ -186,6 +186,8 @@ jobs:
             environment: desktop-windows-signing
     env:
       CHATTO_DESKTOP_ARCH: ${{ matrix.platform == 'macos-universal' && 'universal' || '' }}
+      # pnpm 11 has no standalone Intel macOS binary; use its Node.js package.
+      MISE_BACKENDS_PNPM: ${{ matrix.platform == 'macos-intel' && 'npm:pnpm' || 'aqua:pnpm/pnpm' }}
     runs-on: ${{ matrix.os }}
     permissions:
       actions: read
