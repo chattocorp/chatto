@@ -9,7 +9,7 @@ this device last used (FDR-056).
   import { Button, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
-  import { rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
+  import { forgetAtprotoHandle, rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
   let {
     providers,
@@ -28,8 +28,14 @@ this device last used (FDR-056).
     onclick: (event: Event, provider: PublicAuthProvider, loginHint?: string) => void;
   } = $props();
 
-  const knownHandle = rememberedAtprotoHandle();
+  let knownHandle = $state(rememberedAtprotoHandle());
   let typedHandles = $state<Record<string, string>>({});
+
+  function forgetHandle() {
+    forgetAtprotoHandle();
+    knownHandle = '';
+    typedHandles = {};
+  }
 
   function handleFor(provider: PublicAuthProvider): string {
     return (typedHandles[provider.id] ?? knownHandle).trim().replace(/^@/, '');
@@ -57,6 +63,14 @@ this device last used (FDR-056).
             (typedHandles[provider.id] = (event.currentTarget as HTMLInputElement).value)}
           disabled={disabled || selectedProviderId !== null}
         />
+        {#if knownHandle}
+          <button
+            type="button"
+            class="cursor-pointer self-start link"
+            disabled={disabled || selectedProviderId !== null}
+            onclick={forgetHandle}>{m('auth.remote.forget_atproto_handle')}</button
+          >
+        {/if}
         <Button
           type="submit"
           variant="secondary"

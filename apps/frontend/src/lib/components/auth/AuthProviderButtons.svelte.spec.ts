@@ -41,7 +41,9 @@ describe('AuthProviderButtons', () => {
     const screen = render(AuthProviderButtons, { providers: [bluesky], onclick });
     await expect.element(screen.getByLabelText('Internet handle')).toHaveValue('alice.example');
 
-    await userEvent.clear(screen.getByLabelText('Internet handle'));
+    await screen.getByRole('button', { name: 'Use another handle' }).click();
+    await expect.element(screen.getByLabelText('Internet handle')).toHaveValue('');
+    expect(localStorage.getItem(HANDLE_KEY)).toBeNull();
     await screen.getByRole('button', { name: 'Continue with Internet Handle' }).click();
     expect(onclick).toHaveBeenCalledWith(expect.anything(), bluesky, undefined);
   });
