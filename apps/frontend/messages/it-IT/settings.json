@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "Impossibile collegare l’handle Internet.",
       "unverified_no_link": "Gli altri membri non possono ancora verificare il tuo handle Internet.",
-      "verify_button": "Verifica"
+      "verify_button": "Verifica",
+      "verify_on_server": "Verifica su {server}"
     }
   }
 }

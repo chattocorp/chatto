@@ -155,7 +155,7 @@ Public user fields.
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 | `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
-| `atproto_did` | `optional string` | DID of the AT Protocol identity that the user linked for sign-in, when set. This is an unverified claim. Clients show the related handle as verified only after they find a matching run.chatto.accountLink record in the repository of this DID. See FDR-056. |
+| `atproto_did` | `optional string` | DID of the AT Protocol identity that the user linked for sign-in, when set. This is an unverified claim. Clients show the related handle as verified only after they find a matching account link record in the repository of this DID. See FDR-056. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 

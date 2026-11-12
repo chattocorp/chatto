@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "Internethandtaget kunde inte anslutas.",
       "unverified_no_link": "Andra medlemmar kan inte verifiera ditt internethandtag än.",
-      "verify_button": "Verifiera"
+      "verify_button": "Verifiera",
+      "verify_on_server": "Verifiera på {server}"
     }
   }
 }

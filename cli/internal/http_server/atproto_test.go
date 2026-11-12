@@ -339,8 +339,10 @@ func TestFrontendATProtoClientMetadata(t *testing.T) {
 		require.NoError(t, metadata.Validate(clientID))
 		require.Equal(t, clientID, metadata.ClientID)
 		require.Equal(t, []string{"https://chat.example/atproto/callback"}, metadata.RedirectURIs)
-		// The frontend may change only account link records.
-		require.Equal(t, "atproto repo:run.chatto.accountLink", metadata.Scope)
+		// The frontend may change only this server's account link records.
+		// The client package's tests use the same value.
+		require.Equal(t, "atproto repo:run.chatto.link.hsmyxkxmubincsdwk6bp5j5d2tn", metadata.Scope)
+		require.Equal(t, new("Chatto Web on chat.example"), metadata.ClientName)
 	}
 }
 

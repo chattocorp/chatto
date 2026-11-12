@@ -34,13 +34,14 @@ account. The proof is valid only if the verified party cannot write it.
    DID of the user's linked AT Protocol sign-in identity. The server never
    supplies a verification result.
 4. **The client writes the proof.** The user's device has its own AT Protocol
-   OAuth session that may write only the `run.chatto.accountLink` collection.
-   It writes one **account link record** for each linked Chatto account.
-5. **The record key identifies the account.** The record key is a hash of the
-   server origin that the client uses and the Chatto user ID. The record
-   contains no server name or user ID. Anyone who knows both values can find
-   the record. Other readers of the public repository cannot learn which
-   servers the user uses.
+   OAuth session for each server's app. The session may write only that
+   server's collection of account link records. It writes one **account link
+   record** for each linked Chatto account.
+5. **Each server has its own collection.** The collection is
+   `run.chatto.link.h` and 26 base32 characters of a SHA-256 hash of the
+   server origin that the client uses. The record key is a hash of that origin
+   and the Chatto user ID. The record contains no server name or user ID.
+   Anyone who knows both values can find the record.
 6. **The viewer's client verifies.** The viewer's client resolves the DID,
    examines the handle in both directions, and reads the record from the PDS.
    It shows the handle as verified only if all examinations succeed.
@@ -56,7 +57,18 @@ account. The proof is valid only if the verified party cannot write it.
 - A forged record cannot help another account: a server publishes only a DID
   that it verified itself through sign-in.
 - Writing a record needs the device's own AT Protocol session, one approval per
-  device. Viewing and verifying a handle needs no session.
+  server and device. Viewing and verifying a handle needs no session.
+- AT Protocol does not record which app wrote a record. Any app with write
+  access to a collection can write link records in it. Because each server has
+  its own collection, one approval can write links for one server only. An
+  approval in the app of a modified server affects only that server, which can
+  already show false data to its own users. A future AT Protocol scope for one
+  record key, or permissioned spaces, could narrow this further.
+- Anyone can test a known server origin against the collection names in a
+  public repository. This shows which public servers a user links. The origins
+  of private servers stay hidden, because nobody can guess them.
+- The app of one server cannot write records for another server. To verify a
+  link on another server, the user opens that server's app.
 - Each server asks for its own sign-in approval. The PDS remembers it for
   servers with an HTTPS client ID.
 - The user's PDS is the trust root. A malicious PDS can write false records.

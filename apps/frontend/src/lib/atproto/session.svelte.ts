@@ -2,8 +2,9 @@
  * The device's AT Protocol session (FDR-056).
  *
  * The frontend signs in to the user's PDS itself, with its own OAuth client.
- * It asks only for the identity and for write access to Chatto account link
- * records, and uses the session only to write and delete those records.
+ * It asks only for the identity and for write access to this server's Chatto
+ * account link records, and uses the session only to write and delete those
+ * records.
  * Chatto servers never receive these tokens and sign users in with their own
  * OAuth flow (ADR-123). The session's handle is the suggestion for sign-in.
  *
@@ -13,13 +14,23 @@
 
 import type { BrowserOAuthClient, OAuthSession } from '@atproto/oauth-client-browser';
 import {
+  accountLinkScope,
   createAtprotoLinkVerifier,
   resolveAtprotoHandle,
   resolveAtprotoIdentity
 } from '@chatto/client/atproto/accountLink';
 
-/** Scope of the frontend client. It must match the published client metadata. */
-const ATPROTO_FRONTEND_SCOPE = 'atproto repo:run.chatto.accountLink';
+/**
+ * Scope of the frontend client: the identity and this server's account link
+ * collection. It must match the published client metadata.
+ */
+let scopePromise: Promise<string> | null = null;
+function frontendScope(): Promise<string> {
+  // Cached: after the client loaded, the sign-in waits only for a resolved
+  // promise before it opens its window.
+  scopePromise ??= accountLinkScope(window.location.origin);
+  return scopePromise;
+}
 const CLIENT_METADATA_PATH = '/oauth/atproto-client-metadata.json';
 export const ATPROTO_CALLBACK_PATH = '/atproto/callback';
 /** Authorization server for users who start without a handle. */
@@ -56,6 +67,7 @@ function loopbackRedirectUri(): `http://127.0.0.1:${string}` {
 /** Load the OAuth client for this origin. */
 export function atprotoOAuthClient(): Promise<BrowserOAuthClient> {
   clientPromise ??= (async () => {
+    void frontendScope();
     const { BrowserOAuthClient } = await import('@atproto/oauth-client-browser');
     // Resolve handles like the verifier, without a fixed third-party resolver.
     const handleResolver = {
@@ -73,7 +85,7 @@ export function atprotoOAuthClient(): Promise<BrowserOAuthClient> {
     // origin, where this window keeps the sign-in state. The query response
     // mode makes the callback parameters visible to the server.
     const redirectUri = loopbackRedirectUri();
-    const params = `scope=${encodeURIComponent(ATPROTO_FRONTEND_SCOPE)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const params = `scope=${encodeURIComponent(await frontendScope())}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     return BrowserOAuthClient.load({
       clientId: `http://localhost?${params}`,
       handleResolver,
@@ -126,7 +138,7 @@ export function restoreAtprotoAccount(): Promise<AtprotoAccount | null> {
 export async function connectAtprotoAccount(identifier: string): Promise<AtprotoAccount> {
   const client = await atprotoOAuthClient();
   const input = identifier.trim().replace(/^@/, '') || DEFAULT_AUTH_SERVER;
-  session = await client.signInPopup(input, { scope: ATPROTO_FRONTEND_SCOPE });
+  session = await client.signInPopup(input, { scope: await frontendScope() });
   account = await accountFor(session);
   return account;
 }

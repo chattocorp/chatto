@@ -108,7 +108,8 @@ vi.mock('$lib/atproto/session.svelte', () => ({
 
 vi.mock('$lib/atproto/signIn', () => ({
   removeAtprotoLinkRecord: vi.fn(),
-  ensureAtprotoLinkRecord: vi.fn()
+  ensureAtprotoLinkRecord: vi.fn(),
+  canWriteAtprotoLinkRecord: () => true
 }));
 
 const currentUser = {

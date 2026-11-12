@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  ATPROTO_ACCOUNT_LINK_COLLECTION,
+  accountLinkCollection,
   accountLinkRecordKey,
+  accountLinkScope,
   createAtprotoLinkVerifier,
   deleteAccountLinkRecord,
   isAtprotoDid,
@@ -13,6 +14,8 @@ import {
 const DID = 'did:plc:z72i7hdynmk6r22z27h6tvur';
 const PDS = 'https://pds.example';
 const account = { serverOrigin: 'https://chat.example/', userId: 'U1' };
+/** Collection for `https://chat.example`. The Go server tests use the same value. */
+const COLLECTION = 'run.chatto.link.hsmyxkxmubincsdwk6bp5j5d2tn';
 
 type Network = {
   didDocument?: unknown;
@@ -70,11 +73,23 @@ async function linkRecord() {
   return {
     status: 200,
     body: {
-      uri: `at://${DID}/${ATPROTO_ACCOUNT_LINK_COLLECTION}/${rkey}`,
-      value: { $type: ATPROTO_ACCOUNT_LINK_COLLECTION, createdAt: '2026-11-11T00:00:00Z' }
+      uri: `at://${DID}/${COLLECTION}/${rkey}`,
+      value: { $type: COLLECTION, createdAt: '2026-11-11T00:00:00Z' }
     }
   };
 }
+
+describe('accountLinkCollection', () => {
+  it('derives one valid collection NSID for each canonical origin', async () => {
+    await expect(accountLinkCollection('https://CHAT.example/')).resolves.toBe(COLLECTION);
+    await expect(accountLinkCollection('http://localhost:4510')).resolves.toBe(
+      'run.chatto.link.hqujwdhwuec3wllck6wnwr2ar4m'
+    );
+    await expect(accountLinkScope('https://chat.example')).resolves.toBe(
+      `atproto repo:${COLLECTION}`
+    );
+  });
+});
 
 describe('accountLinkRecordKey', () => {
   it('hashes the canonical origin and user ID', async () => {
@@ -210,15 +225,15 @@ describe('account link record writes', () => {
     expect(putPath).toBe('/xrpc/com.atproto.repo.putRecord');
     expect(JSON.parse(putInit.body as string)).toMatchObject({
       repo: DID,
-      collection: ATPROTO_ACCOUNT_LINK_COLLECTION,
+      collection: COLLECTION,
       rkey,
-      record: { $type: ATPROTO_ACCOUNT_LINK_COLLECTION }
+      record: { $type: COLLECTION }
     });
     const [deletePath, deleteInit] = fetchHandler.mock.calls[1] as unknown as [string, RequestInit];
     expect(deletePath).toBe('/xrpc/com.atproto.repo.deleteRecord');
     expect(JSON.parse(deleteInit.body as string)).toEqual({
       repo: DID,
-      collection: ATPROTO_ACCOUNT_LINK_COLLECTION,
+      collection: COLLECTION,
       rkey
     });
   });

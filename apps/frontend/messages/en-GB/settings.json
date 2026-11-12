@@ -690,7 +690,8 @@
     "atproto": {
       "link_failed": "The internet handle could not be connected.",
       "unverified_no_link": "Other members cannot verify your internet handle yet.",
-      "verify_button": "Verify"
+      "verify_button": "Verify",
+      "verify_on_server": "Verify on {server}"
     }
   }
 }

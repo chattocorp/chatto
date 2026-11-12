@@ -48,7 +48,9 @@ trust the server.
   Bluesky. An unverified claim shows nothing.
 - In account settings, the linked identity shows its verification state. When
   other clients cannot verify it, **Verify** signs the device in to the PDS and
-  writes the account link record. Each device needs this approval once.
+  writes the account link record. Each device needs this approval once for
+  each server. For an account on another server, **Verify on server** opens
+  that server's app, because only that app can write its records.
 - After an account creation, a device with a session for the same DID writes
   the record without a prompt.
 - Disconnecting the identity also deletes the record, when the device has a
@@ -83,25 +85,33 @@ publishing it on the server.
 
 ### 3. The device writes the proof, with a narrow scope
 
-**Decision:** The device has its own AT Protocol session with the scopes
-`atproto` and `repo:run.chatto.accountLink`. It uses the session only to write
-and delete link records. It never requests `transition:generic`.
+**Decision:** The device has its own AT Protocol session for each server's
+app, with the scopes `atproto` and `repo:<that server's collection>`. It uses
+the session only to write and delete link records. It never requests
+`transition:generic`.
 **Why:** Only the DID's owner can write the record, so a modified server
-cannot forge it. The scope cannot change other data.
-**Tradeoff:** Each device needs one approval before it can write records.
+cannot forge it. The scope cannot change other data. AT Protocol does not
+record which app wrote a record, so a scope for all servers would let one
+approval write links for any server.
+**Tradeoff:** Each device needs one approval for each server before it can
+write records. AT Protocol scopes cannot name a collection prefix.
 Users of a PDS without granular permissions cannot publish verified handles.
 The reference PDS supports granular permissions.
 
-### 4. The record key hides the server
+### 4. Each server has a hashed collection
 
-**Decision:** The records are in the `run.chatto.accountLink` collection. The
-record key is a SHA-256 hash of the server origin that the client uses and the
-Chatto user ID. The record contains only its type and creation time.
-**Why:** Repository records are public. A plain record tells everyone which
-servers the user uses, including private servers. The client uses its own
-origin, so a server cannot report another server's origin.
-**Tradeoff:** A client that uses a host name alias cannot verify links that
-were written for the public URL.
+**Decision:** The records of one server are in the collection
+`run.chatto.link.h` and 26 base32 characters of a SHA-256 hash of the server
+origin that the client uses. The record key is a SHA-256 hash of that origin
+and the Chatto user ID. The record contains only its type and creation time.
+**Why:** A collection for each server lets the scope of decision 3 cover one
+server. A hash is valid as a collection name for every origin, including ports,
+IP addresses, and `localhost`. Repository records are public, and the hash
+keeps the origins of private servers hidden. The client uses its own origin,
+so a server cannot report another server's origin.
+**Tradeoff:** Anyone can test a known public server origin against a user's
+collection names. A client that uses a host name alias cannot verify links
+that were written for the public URL.
 
 ### 5. The viewer's client verifies, on demand
 
@@ -148,8 +158,9 @@ verification.
   handle domain, and the profile owner's PDS. This reveals the viewer's IP
   address to systems that the profile owner chooses. The requests send no
   cookies or referrer.
-- **Link records:** they are public. They reveal that a link exists, but not
-  the server or the account.
+- **Link records:** they are public. They reveal that a link exists. A reader
+  can test known public server origins against the collection names, but
+  cannot find private servers or the account.
 - **Logs:** handles, DIDs, and tokens identify users. The server does not log
   them.
 
@@ -168,6 +179,9 @@ verification.
 - **Viewer IP exposure:** Chatto has no home server for each user, so a viewer's
   client contacts the external systems directly. On-demand verification and the
   cache limit this exposure but do not remove it.
+- **Narrower write scopes:** AT Protocol scopes name whole collections. A scope
+  for one record key, or permissioned spaces (proposal 0016), could limit a
+  device approval to one account.
 - **Windowless sign-in:** AT Protocol service tokens do not name the app that
   requested them, so they are not safe for sign-in. A future protocol feature
   that binds a token to the server's OAuth client could remove the sign-in

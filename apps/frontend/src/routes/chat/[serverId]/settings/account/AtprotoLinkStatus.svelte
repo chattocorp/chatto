@@ -2,7 +2,8 @@
 @component
 Status line of a linked AT Protocol sign-in identity: the verified handle, or
 "Linked" while other members' apps cannot verify it (FDR-056). **Verify** then
-signs in to the PDS and writes the account link record.
+signs in to the PDS and writes the account link record. Each server's app can
+write only that server's records, so for another server this links to its app.
 -->
 <script lang="ts">
   import type { ChattoAccountRef } from '@chatto/client/atproto/accountLink';
@@ -12,11 +13,14 @@ signs in to the PDS and writes the account link record.
     ensureAtprotoSession,
     restoreAtprotoAccount
   } from '$lib/atproto/session.svelte';
-  import { ensureAtprotoLinkRecord } from '$lib/atproto/signIn';
+  import { canWriteAtprotoLinkRecord, ensureAtprotoLinkRecord } from '$lib/atproto/signIn';
   import VerifiedAtprotoHandle from '$lib/components/atproto/VerifiedAtprotoHandle.svelte';
   import { m } from '$lib/i18n/messages';
 
   let { did, account }: { did: string; account: ChattoAccountRef } = $props();
+
+  const serverOrigin = $derived(new URL(account.serverOrigin).origin);
+  const writableHere = $derived(canWriteAtprotoLinkRecord(account));
 
   /** Increments after a repair, so the verification runs again. */
   let attempt = $state(0);
@@ -63,14 +67,24 @@ signs in to the PDS and writes the account link record.
     <p>
       {m('settings.account.sso.linked')} ·
       {failed ? m('settings.atproto.link_failed') : m('settings.atproto.unverified_no_link')}
-      <button
-        type="button"
-        class="cursor-pointer link"
-        disabled={busy}
-        aria-busy={busy}
-        {@attach prepareSignIn}
-        onclick={() => void verify()}>{m('settings.atproto.verify_button')}</button
-      >
+      {#if writableHere}
+        <button
+          type="button"
+          class="cursor-pointer link"
+          disabled={busy}
+          aria-busy={busy}
+          {@attach prepareSignIn}
+          onclick={() => void verify()}>{m('settings.atproto.verify_button')}</button
+        >
+      {:else}
+        <a
+          class="link"
+          href={`${serverOrigin}/chat/-/settings/account`}
+          target="_blank"
+          rel="external noopener noreferrer"
+          >{m('settings.atproto.verify_on_server', { server: new URL(serverOrigin).host })}</a
+        >
+      {/if}
     </p>
   {/if}
 {/await}

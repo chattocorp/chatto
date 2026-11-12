@@ -271,7 +271,7 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
-**Account link record** — A record in a user's AT Protocol repository that links the AT Protocol identity to one Chatto account. The user's client writes it; the server cannot. Its key is a hash of the server origin that the client uses and the Chatto user ID. See [ADR-123](adr/ADR-123-client-verified-atproto-identity.md) and [FDR-056](fdr/FDR-056-atproto-identity.md).
+**Account link record** — A record in a user's AT Protocol repository that links the AT Protocol identity to one Chatto account. The user's client writes it; the server cannot. Each server has its own collection, named from a hash of the server origin that the client uses. The record key is a hash of that origin and the Chatto user ID. See [ADR-123](adr/ADR-123-client-verified-atproto-identity.md) and [FDR-056](fdr/FDR-056-atproto-identity.md).
 
 **Verified handle** — An AT Protocol handle that the viewer's client verified through the DID, the handle, and an account link record. A server cannot mark a handle as verified. See [FDR-056](fdr/FDR-056-atproto-identity.md).
 

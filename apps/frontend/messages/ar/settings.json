@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "تعذّر ربط معرّف الإنترنت.",
       "unverified_no_link": "لا يستطيع الأعضاء الآخرون توثيق معرّف الإنترنت الخاص بك بعد.",
-      "verify_button": "توثيق"
+      "verify_button": "توثيق",
+      "verify_on_server": "توثيق على {server}"
     }
   }
 }

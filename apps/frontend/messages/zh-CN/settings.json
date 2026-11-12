@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "无法连接互联网用户名。",
       "unverified_no_link": "其他成员暂时无法验证你的互联网用户名。",
-      "verify_button": "验证"
+      "verify_button": "验证",
+      "verify_on_server": "在 {server} 上验证"
     }
   }
 }

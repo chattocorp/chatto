@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "Não foi possível ligar o identificador de internet.",
       "unverified_no_link": "Os outros membros ainda não conseguem verificar o identificador de internet.",
-      "verify_button": "Verificar"
+      "verify_button": "Verificar",
+      "verify_on_server": "Verificar em {server}"
     }
   }
 }

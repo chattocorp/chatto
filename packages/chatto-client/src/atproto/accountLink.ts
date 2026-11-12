@@ -15,9 +15,11 @@
 
 import { LRUCache } from 'lru-cache';
 
-/** Collection of Chatto account link records. */
-export const ATPROTO_ACCOUNT_LINK_COLLECTION = 'run.chatto.accountLink';
+/** Prefix of the account link collections; each server has its own (ADR-123). */
+export const ATPROTO_ACCOUNT_LINK_COLLECTION_PREFIX = 'run.chatto.link.h';
 
+/** Prefix that separates account link collection hashes from other hashes. */
+const COLLECTION_DOMAIN = 'chatto-account-link-collection:v1';
 /** Prefix that separates account link record keys from other hashes. */
 const RECORD_KEY_DOMAIN = 'chatto-account-link:v1';
 
@@ -75,14 +77,51 @@ export type AtprotoIdentity = {
 class UnavailableError extends Error {}
 
 /**
+ * Collection of the account link records for one server: the prefix and 26
+ * base32 characters of a SHA-256 hash of the origin. Each server has its own
+ * collection, so a device approval can write links for that server only. The
+ * Chatto server derives the same name for its OAuth client metadata.
+ */
+export async function accountLinkCollection(serverOrigin: string): Promise<string> {
+  const digest = await sha256(`${COLLECTION_DOMAIN}\n${canonicalOrigin(serverOrigin)}`);
+  return ATPROTO_ACCOUNT_LINK_COLLECTION_PREFIX + base32(digest).slice(0, 26);
+}
+
+/** OAuth scope with which a device writes account link records for one server. */
+export async function accountLinkScope(serverOrigin: string): Promise<string> {
+  return `atproto repo:${await accountLinkCollection(serverOrigin)}`;
+}
+
+/**
  * Record key of the link record for `account`. It is a SHA-256 hash, so the
  * public repository does not show which servers the user is on.
  */
 export async function accountLinkRecordKey(account: ChattoAccountRef): Promise<string> {
   const origin = canonicalOrigin(account.serverOrigin);
-  const input = new TextEncoder().encode(`${RECORD_KEY_DOMAIN}\n${origin}\n${account.userId}`);
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', input));
+  const digest = await sha256(`${RECORD_KEY_DOMAIN}\n${origin}\n${account.userId}`);
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256(value: string): Promise<Uint8Array> {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
+}
+
+/** Lowercase RFC 4648 base32 without padding. */
+function base32(bytes: Uint8Array): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+  let bits = 0;
+  let value = 0;
+  let output = '';
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) output += alphabet[(value << (5 - bits)) & 31];
+  return output;
 }
 
 /** Write the link record for `account` into the session's repository. */
@@ -90,14 +129,15 @@ export async function writeAccountLinkRecord(
   session: AtprotoRepoSession,
   account: ChattoAccountRef
 ): Promise<void> {
+  const collection = await accountLinkCollection(account.serverOrigin);
   const response = await session.fetchHandler('/xrpc/com.atproto.repo.putRecord', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       repo: session.did,
-      collection: ATPROTO_ACCOUNT_LINK_COLLECTION,
+      collection,
       rkey: await accountLinkRecordKey(account),
-      record: { $type: ATPROTO_ACCOUNT_LINK_COLLECTION, createdAt: new Date().toISOString() }
+      record: { $type: collection, createdAt: new Date().toISOString() }
     })
   });
   if (!response.ok)
@@ -114,7 +154,7 @@ export async function deleteAccountLinkRecord(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       repo: session.did,
-      collection: ATPROTO_ACCOUNT_LINK_COLLECTION,
+      collection: await accountLinkCollection(account.serverOrigin),
       rkey: await accountLinkRecordKey(account)
     })
   });
@@ -259,9 +299,10 @@ async function hasAccountLinkRecord(
   account: ChattoAccountRef,
   fetchImpl: FetchLike
 ): Promise<boolean> {
+  const collection = await accountLinkCollection(account.serverOrigin);
   const query = new URLSearchParams({
     repo: did,
-    collection: ATPROTO_ACCOUNT_LINK_COLLECTION,
+    collection,
     rkey: await accountLinkRecordKey(account)
   });
   const response = await fetchWithTimeout(
@@ -274,9 +315,9 @@ async function hasAccountLinkRecord(
   return (
     isRecord(body) &&
     isRecord(body.value) &&
-    body.value.$type === ATPROTO_ACCOUNT_LINK_COLLECTION &&
+    body.value.$type === collection &&
     typeof body.uri === 'string' &&
-    body.uri.startsWith(`at://${did}/`)
+    body.uri === `at://${did}/${collection}/${query.get('rkey')}`
   );
 }
 

@@ -1,6 +1,8 @@
 package http_server
 
 import (
+	"crypto/sha256"
+	"encoding/base32"
 	"net/http"
 	"net/url"
 	"strings"
@@ -21,10 +23,27 @@ const frontendATProtoClientMetadataPath = "/oauth/atproto-client-metadata.json"
 // Protocol sign-in.
 const frontendATProtoCallbackPath = "/atproto/callback"
 
-// frontendATProtoScope lets the frontend prove its user's identity and
-// change only Chatto account link records (ADR-123). It must not grant write
-// access to other collections.
-const frontendATProtoScope = "atproto repo:run.chatto.accountLink"
+// atprotoAccountLinkCollectionDomain separates account link collection
+// hashes from other hashes. The client package uses the same value.
+const atprotoAccountLinkCollectionDomain = "chatto-account-link-collection:v1"
+
+// atprotoAccountLinkCollection returns the collection of account link records
+// for one server origin: `run.chatto.link.h` and 26 base32 characters of a
+// SHA-256 hash of the origin. Each server has its own collection, so a device
+// approval can write links for that server only (ADR-123). The client package
+// derives the same name.
+func atprotoAccountLinkCollection(origin string) string {
+	sum := sha256.Sum256([]byte(atprotoAccountLinkCollectionDomain + "\n" + origin))
+	encoded := strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(sum[:]))
+	return "run.chatto.link.h" + encoded[:26]
+}
+
+// frontendATProtoScope lets the frontend of origin prove its user's identity
+// and change only that server's account link records (ADR-123). It must not
+// grant write access to other collections.
+func frontendATProtoScope(origin string) string {
+	return "atproto repo:" + atprotoAccountLinkCollection(origin)
+}
 
 type cimdDocument struct {
 	ClientID                string   `json:"client_id"`
@@ -113,11 +132,11 @@ func (s *HTTPServer) setupFrontendATProtoRoutes() {
 		c.Header("Cache-Control", "public, max-age=300")
 		c.JSON(http.StatusOK, atprotoClientMetadataDocument{
 			ClientID:                origin + frontendATProtoClientMetadataPath,
-			ClientName:              "Chatto Web",
+			ClientName:              "Chatto Web on " + strings.TrimPrefix(origin, "https://"),
 			ClientURI:               origin,
 			ApplicationType:         "web",
 			RedirectURIs:            []string{origin + frontendATProtoCallbackPath},
-			Scope:                   frontendATProtoScope,
+			Scope:                   frontendATProtoScope(origin),
 			TokenEndpointAuthMethod: "none",
 			GrantTypes:              []string{"authorization_code", "refresh_token"},
 			ResponseTypes:           []string{"code"},

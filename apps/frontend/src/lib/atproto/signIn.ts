@@ -15,14 +15,24 @@ import {
 import { atprotoLinkVerifier, atprotoRepoSession } from './session.svelte';
 
 /**
+ * Whether this app can write link records for `account`. The device session
+ * of each server's app may write only that server's collection (ADR-123).
+ */
+export function canWriteAtprotoLinkRecord(account: ChattoAccountRef): boolean {
+  return new URL(account.serverOrigin).origin === window.location.origin;
+}
+
+/**
  * Write the account link record for `account` when the device session
  * belongs to `did` and other clients cannot verify the link yet. Without a
- * matching device session, this does nothing.
+ * matching device session, or for another server's account, this does
+ * nothing.
  */
 export async function ensureAtprotoLinkRecord(
   account: ChattoAccountRef,
   did: string
 ): Promise<void> {
+  if (!canWriteAtprotoLinkRecord(account)) return;
   const session = await atprotoRepoSession(did);
   if (!session) return;
   atprotoLinkVerifier.forget(did, account);
@@ -32,11 +42,15 @@ export async function ensureAtprotoLinkRecord(
   atprotoLinkVerifier.forget(did, account);
 }
 
-/** Delete the account link record when the device session belongs to `did`. */
+/**
+ * Delete the account link record when the device session belongs to `did`
+ * and `account` is on this app's server.
+ */
 export async function removeAtprotoLinkRecord(
   account: ChattoAccountRef,
   did: string
 ): Promise<void> {
+  if (!canWriteAtprotoLinkRecord(account)) return;
   const session = await atprotoRepoSession(did);
   if (!session) return;
   await deleteAccountLinkRecord(session, account);

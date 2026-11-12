@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "Nie udało się połączyć identyfikatora internetowego.",
       "unverified_no_link": "Inni członkowie nie mogą jeszcze zweryfikować twojego identyfikatora internetowego.",
-      "verify_button": "Zweryfikuj"
+      "verify_button": "Zweryfikuj",
+      "verify_on_server": "Zweryfikuj na {server}"
     }
   }
 }

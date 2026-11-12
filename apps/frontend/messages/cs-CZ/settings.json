@@ -693,7 +693,8 @@
     "atproto": {
       "link_failed": "Internetový identifikátor se nepodařilo propojit.",
       "unverified_no_link": "Ostatní členové zatím nemohou ověřit váš internetový identifikátor.",
-      "verify_button": "Ověřit"
+      "verify_button": "Ověřit",
+      "verify_on_server": "Ověřit na {server}"
     }
   }
 }

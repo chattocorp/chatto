@@ -15,10 +15,14 @@ vi.mock('$lib/atproto/session.svelte', () => ({
   atprotoOAuthClient: mocks.atprotoOAuthClient,
   restoreAtprotoAccount: mocks.restoreAtprotoAccount
 }));
-vi.mock('$lib/atproto/signIn', () => ({ ensureAtprotoLinkRecord: mocks.ensureAtprotoLinkRecord }));
+vi.mock('$lib/atproto/signIn', () => ({
+  ensureAtprotoLinkRecord: mocks.ensureAtprotoLinkRecord,
+  canWriteAtprotoLinkRecord: (account: { serverOrigin: string }) =>
+    new URL(account.serverOrigin).origin === window.location.origin
+}));
 
 const did = 'did:plc:alice';
-const account = { serverOrigin: 'https://chat.example', userId: 'U1' };
+const account = { serverOrigin: window.location.origin, userId: 'U1' };
 
 describe('AtprotoLinkStatus', () => {
   beforeEach(() => {
@@ -27,6 +31,20 @@ describe('AtprotoLinkStatus', () => {
     mocks.ensureAtprotoLinkRecord.mockResolvedValue(undefined);
     mocks.atprotoOAuthClient.mockResolvedValue({});
     mocks.restoreAtprotoAccount.mockResolvedValue(null);
+  });
+
+  it('links to the app of another server, which alone can write its records', async () => {
+    mocks.verify.mockResolvedValue({ status: 'unverified', did, reason: 'no_link' });
+    const screen = render(AtprotoLinkStatus, {
+      did,
+      account: { serverOrigin: 'https://remote.example', userId: 'U1' }
+    });
+    const link = screen.getByRole('link', { name: 'Verify on remote.example' });
+    await expect
+      .element(link)
+      .toHaveAttribute('href', 'https://remote.example/chat/-/settings/account');
+    expect(screen.getByRole('button', { name: 'Verify' }).query()).toBeNull();
+    expect(mocks.atprotoOAuthClient).not.toHaveBeenCalled();
   });
 
   it('loads the OAuth client before the Verify click', async () => {
