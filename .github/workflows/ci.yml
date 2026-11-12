@@ -344,9 +344,17 @@ jobs:
           - platform: macos
             os: macos-15
             artifact-path: apps/desktop/dist/Chatto.app
+          - platform: macos-intel
+            os: macos-15-intel
+            artifact-path: apps/desktop/dist/Chatto.app
+          - platform: macos-universal
+            os: macos-15
+            artifact-path: apps/desktop/dist/Chatto.app
           - platform: windows
             os: windows-latest
             artifact-path: apps/desktop/dist/windows
+    env:
+      CHATTO_DESKTOP_ARCH: ${{ matrix.platform == 'macos-universal' && 'universal' || '' }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -439,6 +447,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Verify macOS binary architectures
+        if: runner.os == 'macOS'
+        run: bash tools/test-desktop-macos-architectures.sh
+
       - name: Verify macOS bundle signature
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto.app"
@@ -462,7 +474,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
-          name: chatto-desktop-macos-dmg-unsigned
+          name: chatto-desktop-${{ matrix.platform }}-dmg-unsigned
           path: apps/desktop/dist/dmg/*.dmg
           if-no-files-found: error
           retention-days: 7

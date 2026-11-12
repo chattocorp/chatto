@@ -105,6 +105,46 @@ ${script}`
   });
 }
 
+for (const [target, runner, expected] of [
+  ['', 'ARM64', 'ARM64'],
+  ['', 'X64', 'X64'],
+  ['universal', 'ARM64', 'UNIVERSAL']
+]) {
+  test(`macOS ZIP uses the ${expected} target name`, () => {
+    const script = workflow
+      .replaceAll('\r\n', '\n')
+      .split('      - name: Package macOS release\n')[1]
+      .split('\n      - name:')[0]
+      .split('        run: |\n')[1]
+      .split('\n')
+      .map((line) => line.slice(10))
+      .join('\n');
+    const result = spawnSync(
+      'bash',
+      [
+        '-e',
+        '-o',
+        'pipefail',
+        '-c',
+        `
+      test() { return 0; }
+      codesign() { return 0; }
+      spctl() { return 0; }
+      mkdir() { return 0; }
+      ditto() { printf '%s\\n' "$@"; }
+      ${script}
+    `
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, CHATTO_DESKTOP_ARCH: target, RUNNER_ARCH: runner, VERSION: '0.5.0' }
+      }
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes(`chatto-desktop_0.5.0_macOS_${expected}.zip`));
+  });
+}
+
 test('workflow extraction supports Windows checkout line endings', () => {
   const lf = workflow.replaceAll('\r\n', '\n');
   assert.equal(extractVersionScript(lf.replaceAll('\n', '\r\n')), extractVersionScript(lf));

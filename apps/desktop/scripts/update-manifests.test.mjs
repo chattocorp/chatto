@@ -22,7 +22,7 @@ for (const version of ['0.5.0', '0.5.0-beta.24', '0.5.0-rc.1']) {
   test(`manifests describe the exact ${version} artifacts and parse with the real updater`, async (t) => {
     const directory = await temporary(t);
     for (const suffix of [
-      'macOS_ARM64.zip',
+      'macOS_UNIVERSAL.zip',
       'Windows_X64_Setup.exe',
       'Linux_X64.AppImage',
       'Linux_ARM64.AppImage'
@@ -32,6 +32,7 @@ for (const version of ['0.5.0', '0.5.0-beta.24', '0.5.0-rc.1']) {
     await writeUpdateManifests(directory, version, '2026-10-29T00:00:00.000Z');
     const require = createRequire(import.meta.url);
     const { Provider, parseUpdateInfo } = require('electron-updater/out/providers/Provider.js');
+    const { MacUpdater } = require('electron-updater/out/MacUpdater.js');
     const channel = version.includes('-') ? 'beta' : 'latest';
     for (const suffix of ['-mac', '', '-linux', '-linux-arm64']) {
       const name = `${channel}${suffix}.yml`;
@@ -45,6 +46,13 @@ for (const version of ['0.5.0', '0.5.0-beta.24', '0.5.0-rc.1']) {
       if (suffix.startsWith('-linux')) {
         const arch = suffix === '-linux' ? 'X64' : 'ARM64';
         assert.equal(file.url, `chatto-desktop_${version}_Linux_${arch}.AppImage`);
+      }
+      if (suffix === '-mac') {
+        assert.equal(file.url, `chatto-desktop_${version}_macOS_UNIVERSAL.zip`);
+        const resolved = [{ url: new URL(file.url, 'https://example.com/'), info: file }];
+        for (const isArm64 of [false, true]) {
+          assert.deepEqual(MacUpdater.filterFilesForArch(resolved, isArm64), resolved);
+        }
       }
       const bytes = await readFile(path.join(directory, file.url));
       assert.equal(file.sha512, createHash('sha512').update(bytes).digest('base64'));
@@ -79,7 +87,7 @@ for (const version of ['0.5.0', '0.5.0-beta.24', '0.5.0-rc.1']) {
 
 test('incomplete platform uploads produce no manifests', async (t) => {
   const directory = await temporary(t);
-  await writeFile(path.join(directory, 'chatto-desktop_0.5.0_macOS_ARM64.zip'), 'mac');
+  await writeFile(path.join(directory, 'chatto-desktop_0.5.0_macOS_UNIVERSAL.zip'), 'mac');
   await assert.rejects(writeUpdateManifests(directory, '0.5.0'));
   assert.equal(
     (await readdir(directory)).some((file) => file.endsWith('.yml')),
@@ -97,7 +105,7 @@ test('unsupported release versions are rejected before reading artifacts', async
 
 test('missing Linux ARM64 upload prevents manifest publication', async (t) => {
   const directory = await temporary(t);
-  for (const suffix of ['macOS_ARM64.zip', 'Windows_X64_Setup.exe', 'Linux_X64.AppImage']) {
+  for (const suffix of ['macOS_UNIVERSAL.zip', 'Windows_X64_Setup.exe', 'Linux_X64.AppImage']) {
     await writeFile(path.join(directory, `chatto-desktop_0.5.0_${suffix}`), suffix);
   }
   await assert.rejects(writeUpdateManifests(directory, '0.5.0'), /Linux_ARM64/);

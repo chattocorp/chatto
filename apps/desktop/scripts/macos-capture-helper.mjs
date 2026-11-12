@@ -14,24 +14,38 @@ const probeRoot = path.resolve(scriptsRoot, '../native/macos-capture-probe');
 
 /**
  * Builds the ScreenCaptureKit probe and embeds it as a nested background app.
+ * The architecture must match the Electron slice (x64 or arm64), not the build host.
  * The surrounding Electron packager signs this bundle with the rest of Chatto.
  */
 export async function embedMacOSCaptureHelper(
   appBundle,
-  { shortVersion, bundleVersion, bundleIdentifier }
+  { shortVersion, bundleVersion, bundleIdentifier, architecture = process.arch }
 ) {
   if (process.platform !== 'darwin') {
     throw new Error('The macOS capture helper can only be built on macOS.');
   }
 
-  execFileSync('xcrun', ['swift', 'build', '--package-path', probeRoot, '-c', 'release'], {
-    stdio: 'inherit'
-  });
-  const swiftBinPath = execFileSync(
-    'xcrun',
-    ['swift', 'build', '--package-path', probeRoot, '-c', 'release', '--show-bin-path'],
-    { encoding: 'utf8' }
-  ).trim();
+  if (!['x64', 'arm64'].includes(architecture)) {
+    throw new Error(`Unsupported capture helper architecture: ${architecture}`);
+  }
+  // Universal packaging invokes this hook for each slice. Separate scratch
+  // directories prevent SwiftPM build products from crossing architectures.
+  const buildArguments = [
+    'swift',
+    'build',
+    '--package-path',
+    probeRoot,
+    '--scratch-path',
+    path.join(probeRoot, '.build', `desktop-${architecture}`),
+    '--arch',
+    architecture === 'x64' ? 'x86_64' : 'arm64',
+    '-c',
+    'release'
+  ];
+  execFileSync('xcrun', buildArguments, { stdio: 'inherit' });
+  const swiftBinPath = execFileSync('xcrun', [...buildArguments, '--show-bin-path'], {
+    encoding: 'utf8'
+  }).trim();
 
   const helperBundle = path.join(appBundle, 'Contents', 'Helpers', macOSCaptureHelperAppName);
   const contents = path.join(helperBundle, 'Contents');
