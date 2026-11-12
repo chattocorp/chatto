@@ -16,7 +16,7 @@
 
 <a
   {...destination}
-  class="entity-link"
+  class="entity-link inline-pill"
   data-entity-kind={user ? 'user' : 'message'}
   data-message-link
   data-content-href={href}
@@ -24,12 +24,8 @@
   onclick={(event) => handleRenderedLinkClick(event, destination.href)}
 >
   <span class="sr-only">{m('message_preview.open_linked_message')}: </span>
-  <span
-    class="link-pill-main"
-    class:link-pill-main-image={!!user}
-    class:link-pill-main-avatar={!!user}
-  >
-    <span class="link-pill-icon" class:link-pill-icon-image={!!user}>
+  <span class="inline-pill-main" class:inline-pill-main-avatar={!!user}>
+    <span class="inline-pill-icon" class:inline-pill-icon-image={!!user}>
       {#if user}
         <span
           class="entity-link-image m-px inline-flex size-[calc(100%-2px)] shrink-0 rounded-full [&>div]:size-full"
@@ -47,6 +43,6 @@
       >{user ? m('message_preview.message_from', { name }) : context}</bdi
     ></span
   >
-  {#if user && context}<span class="link-pill-meta"><bdi class="truncate">{context}</bdi></span
+  {#if user && context}<span class="inline-pill-meta"><bdi class="truncate">{context}</bdi></span
     >{/if}
 </a>

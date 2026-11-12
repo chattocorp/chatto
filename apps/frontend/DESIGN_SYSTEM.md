@@ -601,15 +601,35 @@ line breaks. Load missing hover-card metadata only on hover, focus, or touch
 long-press. Loading indicators and fetched titles belong in the floating card
 or touch sheet. Composer preview requests keep their existing flow.
 
-Known Chatto entities use the borderless `inline-link-pill` utility.
+### Inline pills
+
+Use the `inline-pill` utilities for compact actions inside text, including
+entity links, message links, and timestamp buttons. Use `Pill` for status labels
+and `ToggleChip` for selection controls. Ordinary URLs remain text links.
+
+The utilities work with native links and buttons, including generated Markdown
+DOM. Keep navigation, menus, and timestamp dialogs with their existing owners.
+Do not add a Svelte wrapper solely to apply these styles.
+
+| Utility                   | Contract                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| `inline-pill`             | Shell, baseline alignment, regular text weight, shared radius, theme fill, and hover feedback. |
+| `inline-pill-main`        | Raised label with 1px vertical padding. Required inside the shell.                             |
+| `inline-pill-icon`        | Muted icon beside the label, at 85% of the text size.                                          |
+| `inline-pill-meta`        | Optional secondary segment, limited to 40% of the pill width.                                  |
+| `inline-pill-icon-image`  | Image-sized icon slot. Combine with `inline-pill-icon`.                                        |
+| `inline-pill-main-image`  | Label inset for a server image. Combine with `inline-pill-main`.                               |
+| `inline-pill-main-avatar` | Label inset for a circular avatar. Combine with `inline-pill-main`.                            |
+
+The shell uses a borderless surface.
 It uses a `surface-emphasized` fill, regular `text` foreground, and a brighter
 surface on hover. Do not add decorative borders, rings, or Inset Frame outlines.
 Keep keyboard focus visible. The lighter label has a shadow against the dark
 backing. The main section has 1px of vertical padding and uses the surrounding
 text size. Icons and metadata use 85% of that size.
 
-Entity pills use `link-pill-icon`, `link-pill-main`, and optional
-`link-pill-meta` sections. The icon sits beside the title. Metadata sits on
+Entity pills use `inline-pill-icon`, `inline-pill-main`, and optional
+`inline-pill-meta` sections. The icon sits beside the title. Metadata sits on
 the dark backing and stays within 40% of the pill. Room and user metadata
 identifies the server only when it differs from the rendering server.
 Message metadata identifies the room when known. Do not repeat the title
@@ -618,11 +638,18 @@ as metadata. Pills fit the available width without stretching past their content
 Entity avatars and server icons have a 1px inset without an image border.
 Avatars stay circular; use `UserAvatar` with `mutedPlaceholder`.
 Pill corners and compact server icons use the shared 6px
-`--inline-link-radius`. Use logical layout properties for RTL.
+`--inline-pill-radius`. Use logical layout properties for RTL.
 Use the same treatment in messages and visual-composer previews. Composer
 pill widgets are limited to recognised Chatto entity and message links. Other
 URLs stay directly editable as text.
-See **Messages/Entity links** and **Messages/Web links** in Storybook.
+Keep timestamp labels on one line. Their owner can use `max-w-none` to preserve
+the full date and time. Other labels use `min-w-0 truncate` inside the main
+section. See **UI/Inline pills** for the shared treatment, real consumers,
+metadata, images, narrow widths, and larger text. Use Storybook's theme and
+direction controls to check light, dark, LTR, and RTL variants.
+See **Messages/Entity links** and **Messages/Web links** for feature examples.
+
+### Preview frames
 
 Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
 cards, social embeds, linked messages, composer previews, and hover cards.

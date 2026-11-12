@@ -50,7 +50,7 @@
 
 <a
   href={path}
-  class="entity-link"
+  class="entity-link inline-pill"
   data-entity-kind={target.kind}
   data-entity-server={target.serverId}
   title={href}
@@ -64,11 +64,11 @@
   {@attach trigger}
 >
   <span
-    class="link-pill-main"
-    class:link-pill-main-image={!!user || !room}
-    class:link-pill-main-avatar={!!user}
+    class="inline-pill-main"
+    class:inline-pill-main-image={!user && !room}
+    class:inline-pill-main-avatar={!!user}
   >
-    <span class="link-pill-icon" class:link-pill-icon-image={!!user || !room}>
+    <span class="inline-pill-icon" class:inline-pill-icon-image={!!user || !room}>
       {#if user}
         <span
           class="entity-link-image m-px inline-flex size-[calc(100%-2px)] shrink-0 rounded-full [&>div]:size-full"
@@ -80,7 +80,7 @@
         <span aria-hidden="true" class={['shrink-0 self-center', icon.className]}>{icon.text}</span>
       {:else}
         <span
-          class="entity-link-image inline-flex size-full shrink-0 rounded-[var(--inline-link-radius)]"
+          class="entity-link-image inline-flex size-full shrink-0 rounded-[var(--inline-pill-radius)]"
           aria-hidden="true"
         >
           <ServerLogo server={{ name, logoUrl }} compact />
@@ -89,7 +89,7 @@
     </span>
     <bdi class="min-w-0 truncate">{name}</bdi></span
   >
-  {#if context}<span class="link-pill-meta"><bdi class="truncate">{context}</bdi></span>{/if}
+  {#if context}<span class="inline-pill-meta"><bdi class="truncate">{context}</bdi></span>{/if}
 </a>
 {#if menu && store}
   {#await Promise.all( [import('./EntityLinkMenu.svelte'), import('$lib/state/server/ServerScopeProvider.svelte')] ) then [actions, scope]}
