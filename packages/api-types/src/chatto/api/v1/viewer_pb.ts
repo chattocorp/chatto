@@ -52,11 +52,75 @@ proto3.util.setEnumType(TimeFormat, "chatto.api.v1.TimeFormat", [
 ]);
 
 /**
+ * Private release-highlight acknowledgements. Absence on UserSettings means
+ * this server does not support synchronised dismissal.
+ *
+ * @generated from message chatto.api.v1.ReleaseHighlightState
+ */
+export class ReleaseHighlightState extends Message<ReleaseHighlightState> {
+  /**
+   * Stable, surface-prefixed IDs. Dismissal never removes an article from history.
+   *
+   * @generated from field: repeated string dismissed_ids = 1;
+   */
+  dismissedIds: string[] = [];
+
+  /**
+   * First release shown to this reader on each surface. Later releases stay new
+   * until explicitly dismissed. Older releases remain available in history.
+   *
+   * @generated from field: optional string users_since_version = 2;
+   */
+  usersSinceVersion?: string;
+
+  /**
+   * @generated from field: optional string admins_since_version = 3;
+   */
+  adminsSinceVersion?: string;
+
+  constructor(data?: PartialMessage<ReleaseHighlightState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ReleaseHighlightState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "dismissed_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "users_since_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "admins_since_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReleaseHighlightState {
+    return new ReleaseHighlightState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReleaseHighlightState {
+    return new ReleaseHighlightState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReleaseHighlightState {
+    return new ReleaseHighlightState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReleaseHighlightState | PlainMessage<ReleaseHighlightState> | undefined, b: ReleaseHighlightState | PlainMessage<ReleaseHighlightState> | undefined): boolean {
+    return proto3.util.equals(ReleaseHighlightState, a, b);
+  }
+}
+
+/**
  * Server-level display settings for the authenticated user.
  *
  * @generated from message chatto.api.v1.UserSettings
  */
 export class UserSettings extends Message<UserSettings> {
+  /**
+   * Always present on servers that support release-highlight dismissal.
+   *
+   * @generated from field: chatto.api.v1.ReleaseHighlightState release_highlights = 4;
+   */
+  releaseHighlights?: ReleaseHighlightState;
+
   /**
    * Optional IANA timezone override. Absent means no choice has been recorded.
    * Empty means the user explicitly chose the browser's local timezone.
@@ -90,6 +154,7 @@ export class UserSettings extends Message<UserSettings> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UserSettings";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 4, name: "release_highlights", kind: "message", T: ReleaseHighlightState },
     { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat) },
     { no: 3, name: "share_timezone", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },

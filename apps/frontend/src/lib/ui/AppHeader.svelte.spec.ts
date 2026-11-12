@@ -10,12 +10,21 @@ import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
-    servers: [] as Array<{ id: string }>,
+    servers: [] as Array<{ id: string; url?: string }>,
+    pageUrl: 'https://app.example.com/chat',
     activeServer: '',
     callStore: null as ServerStateStore | null,
     activeStore: undefined as
       | {
-          serverInfo: { motd: string };
+          serverInfo: { motd: string; version?: string };
+          currentUser?: {
+            verifiedUserId: string | null;
+            user?: {
+              settings?: {
+                releaseHighlights?: { dismissedIds: string[]; usersSinceVersion?: string };
+              };
+            };
+          };
           voiceCall: { connected: boolean };
           attention: {
             counts: {
@@ -73,6 +82,16 @@ vi.mock('$lib/client', async () => ({
 vi.mock('$lib/serverCatalogue', () => ({
   firstAuthenticatedServerId: () =>
     mocks.servers.find((server) => mocks.authenticated[server.id])?.id
+}));
+
+vi.mock('$app/state', () => ({
+  page: {
+    get url() {
+      return new URL(mocks.pageUrl);
+    },
+    params: {},
+    route: { id: null }
+  }
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
@@ -134,7 +153,7 @@ describe('AppHeader', () => {
           // With Help beside About, narrow screens use the header's scroll fallback.
           // Preserve navigation spacing and the call controls' minimum target sizes.
           const about = header.querySelector<HTMLButtonElement>('button[title="About Chatto"]')!;
-          const help = header.querySelector<HTMLAnchorElement>('a[href="/help"]')!;
+          const help = header.querySelector<HTMLAnchorElement>('a[aria-label="Help"]')!;
           help.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           expect(about.getBoundingClientRect().left).toBeGreaterThanOrEqual(bounds.left);
           expect(help.getBoundingClientRect().right).toBeLessThanOrEqual(bounds.right);
@@ -212,6 +231,7 @@ describe('AppHeader', () => {
   });
 
   beforeEach(() => {
+    mocks.pageUrl = 'https://app.example.com/chat';
     mocks.servers = [];
     mocks.activeServer = '';
     mocks.activeStore = undefined;
@@ -333,4 +353,85 @@ describe('AppHeader', () => {
       }
     }
   );
+});
+
+describe('release highlight indicator', () => {
+  it('takes the selected account straight to new highlights and restores normal Help after dismissal', async () => {
+    const fixture = createTestServerScope({
+      serverId: 'new-server',
+      viewer: {
+        settings: {
+          timeFormat: 1,
+          releaseHighlights: { dismissedIds: [], usersSinceVersion: '0.5.0' }
+        }
+      },
+      serverInfo: { version: '0.5.0', motd: '' },
+      store: {
+        voiceCall: { connected: false },
+        attention: { counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 } }
+      }
+    });
+    mocks.servers = [{ id: 'new-server' }];
+    mocks.activeServer = 'new-server';
+    mocks.authenticated = { 'new-server': true };
+    mocks.callStore = fixture.scope.store;
+    const screen = render(AppHeader);
+    await expect
+      .element(screen.getByRole('link', { name: "What's new", exact: true }))
+      .toHaveAttribute('href', expect.stringContaining('/help/whats-new?server='));
+    await expect.element(screen.getByTestId('release-highlights-unread-dot')).toBeVisible();
+    fixture.currentUser.update('viewer-1', (user) => ({
+      settings: {
+        ...user.settings!,
+        releaseHighlights: { dismissedIds: ['users:help-guides'], usersSinceVersion: '0.5.0' }
+      }
+    }));
+    await expect
+      .element(screen.getByRole('link', { name: 'Help', exact: true }))
+      .toHaveAttribute('href', '/help?server=new-server.example.com');
+    await expect
+      .element(screen.getByTestId('release-highlights-unread-dot'))
+      .not.toBeInTheDocument();
+  });
+  it('keeps the explicit remote Help account even when the active route falls back to origin', async () => {
+    const fixture = createTestServerScope({
+      serverId: 'remote-help',
+      viewer: {
+        settings: {
+          timeFormat: 1,
+          releaseHighlights: { dismissedIds: [], usersSinceVersion: '0.5.0' }
+        }
+      },
+      serverInfo: { version: '0.5.0', motd: '' },
+      store: {
+        voiceCall: { connected: false },
+        attention: { counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 } }
+      }
+    });
+    mocks.servers = [
+      { id: 'origin', url: 'https://origin.example.com' },
+      { id: 'remote-help', url: 'https://remote-help.example.com' }
+    ];
+    mocks.activeServer = 'origin';
+    mocks.activeStore = undefined;
+    mocks.authenticated = { origin: true, 'remote-help': true };
+    mocks.callStore = fixture.scope.store;
+    mocks.pageUrl = 'https://app.example.com/help/whats-new?server=remote-help.example.com';
+    const screen = render(AppHeader);
+    await expect
+      .element(screen.getByRole('link', { name: "What's new", exact: true }))
+      .toHaveAttribute(
+        'href',
+        '/help/whats-new?server=remote-help.example.com#highlight-help-guides'
+      );
+    fixture.currentUser.update('viewer-1', (user) => ({
+      settings: {
+        ...user.settings!,
+        releaseHighlights: { dismissedIds: ['users:help-guides'], usersSinceVersion: '0.5.0' }
+      }
+    }));
+    await expect
+      .element(screen.getByRole('link', { name: 'Help', exact: true }))
+      .toHaveAttribute('href', '/help?server=remote-help.example.com');
+  });
 });

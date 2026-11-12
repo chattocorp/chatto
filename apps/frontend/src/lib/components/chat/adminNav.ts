@@ -6,6 +6,7 @@ import type { ServerPermissions } from '@chatto/client/server/permissions';
 export type AdminNavPermissions = Pick<
   ServerPermissions,
   | 'loaded'
+  | 'canViewAdmin'
   | 'canManageServer'
   | 'canManageNeighbors'
   | 'canAdminViewUsers'
@@ -29,10 +30,13 @@ export type AdminNavItem = {
 
 export function getAdminNavItems({
   serverSegment,
-  permissions
+  permissions,
+  hasNewHighlights = false
 }: {
   serverSegment: string;
   permissions: AdminNavPermissions;
+  /** New highlights change only the navigation indicator, never access. */
+  hasNewHighlights?: boolean;
 }): AdminNavItem[] {
   if (!permissions.loaded) return [];
 
@@ -156,5 +160,17 @@ export function getAdminNavItems({
     });
   }
 
+  if (permissions.canViewAdmin) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/whats-new', { serverId: serverSegment }),
+      label: hasNewHighlights
+        ? `${m('ui.release_highlights.title')} · ${m('ui.release_highlights.new')}`
+        : m('ui.release_highlights.title'),
+      description: m('ui.release_highlights.admin_title'),
+      icon: hasNewHighlights
+        ? 'iconify icon-[uil--star] text-action'
+        : 'iconify icon-[uil--history]'
+    });
+  }
   return items;
 }

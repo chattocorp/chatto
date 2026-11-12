@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+افتح المساعدة للاطلاع على أدلة مترجمة حول المحادثات والتنسيق وتثبيت Chatto على هاتفك.
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>اقرأ الدليل</a>

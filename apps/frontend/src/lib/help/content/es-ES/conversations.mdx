@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Respuestas e hilos
@@ -66,7 +68,7 @@ Por ejemplo, usa **Punto de contenido no leído** para los mensajes nuevos de la
 cuando te venga bien.
 
 <p>Los avisos push también necesitan permiso del dispositivo. En un teléfono, sigue
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalar Chatto en tu teléfono</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Instalar Chatto en tu teléfono</a>
 para instalar la aplicación y activar las notificaciones. Los ajustes de notificaciones
 del teléfono controlan si los nombres y las vistas previas aparecen en la pantalla de bloqueo.</p>
 

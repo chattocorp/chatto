@@ -104,6 +104,18 @@
       "yesterday": "Igår",
       "this_week": "Den här veckan",
       "this_month": "Den här månaden"
+    },
+    "release_highlights": {
+      "title": "Vad är nytt?",
+      "new": "Nytt",
+      "dismiss": "Avfärda",
+      "dismiss_all": "Avfärda alla",
+      "empty": "Du är uppdaterad.",
+      "unsupported": "Den här servern kan inte spara avfärdade meddelanden mellan enheter.",
+      "newer_app": "Tillgängligt med en nyare app",
+      "user_title": "Hjälp i Chatto",
+      "admin_title": "Hjälp med bottar",
+      "read_guide": "Läs guiden"
     }
   }
 }

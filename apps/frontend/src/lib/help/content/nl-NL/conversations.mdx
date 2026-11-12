@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Antwoorden en threads
@@ -43,7 +45,7 @@ Open de instellingen **Meldingen** van je server om meldingen voor vermeldingen,
 Gebruik bijvoorbeeld **Bolletje voor ongelezen inhoud** voor nieuwe ruimteberichten en **Pushmelding** voor directe vermeldingen als je algemene gesprekken op je eigen moment wilt lezen.
 
 <p>Pushmeldingen hebben ook toestemming van het apparaat nodig. Volg op je telefoon
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto op je telefoon installeren</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Chatto op je telefoon installeren</a>
 om de app te installeren en meldingen in te schakelen. De meldingsinstellingen van je telefoon bepalen of namen en berichtvoorbeelden op het vergrendelscherm verschijnen.</p>
 
 ## Als de verbinding wegvalt

@@ -1,6 +1,8 @@
 <!-- @component A readable guide with a local working example and related destinations. -->
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
   import { m } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { PageTitle, PaneContent, PaneHeader, Panel, LoadingFog, Hint } from '$lib/ui';
@@ -12,10 +14,11 @@
   import { helpGroups } from '$lib/help/navigation';
   import type { PageData } from './$types';
   let { data }: { data: PageData } = $props();
+  const selectedServer = $derived(page.url.searchParams.get('server'));
   const title = $derived(m(`help.${data.topic}.title`));
   const article = $derived(loadHelpArticle(getReactiveLocale(), data.topic));
   const related = $derived(
-    helpGroups()
+    helpGroups(selectedServer)
       .flatMap((group) => group.items)
       .filter((item) => item.topic !== data.topic)
   );
@@ -25,7 +28,9 @@
 <div class="pane-page">
   <PaneHeader
     {title}
-    backHref={sidebarNav.isMobile ? resolve('/help') : undefined}
+    backHref={sidebarNav.isMobile
+      ? resolve(withHelpServer('/help', selectedServer) as '/')
+      : undefined}
     backLabel={m('help.overview')}
   />
   <PaneContent wide>
@@ -47,7 +52,12 @@
               <aside
                 class="hidden min-w-0 @min-[48rem]/help-page:sticky @min-[48rem]/help-page:top-6 @min-[48rem]/help-page:col-start-2 @min-[48rem]/help-page:row-start-1 @min-[48rem]/help-page:block @min-[48rem]/help-page:max-h-[calc(100dvh-10rem)] @min-[48rem]/help-page:overflow-y-auto"
               >
-                <HelpContents headings={metadata.toc} topic={data.topic} {locale} />
+                <HelpContents
+                  headings={metadata.toc}
+                  topic={data.topic}
+                  {locale}
+                  serverSegment={selectedServer}
+                />
               </aside>
             {/if}
             <article

@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+Sohbetler, biçimlendirme ve Chatto’yu telefonunuza yükleme hakkında çevrilmiş kılavuzlar için Yardım’ı açın.
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Kılavuzu okuyun</a>

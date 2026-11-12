@@ -5,8 +5,14 @@
   import { m } from '$lib/i18n/messages';
   import type { HelpHeading } from './articles';
   import type { HelpTopic } from './navigation';
+  import { withHelpServer } from './links';
   import type { Locale } from '$lib/i18n/locales';
-  let { headings, topic, locale }: { headings: HelpHeading[]; topic: HelpTopic; locale: Locale } =
+  let {
+    headings,
+    topic,
+    locale,
+    serverSegment
+  }: { headings: HelpHeading[]; topic: HelpTopic; locale: Locale; serverSegment?: string | null } =
     $props();
 </script>
 
@@ -18,7 +24,7 @@
     {#each headings as heading (heading.id)}
       <li>
         <a
-          href={resolve(`/help/[topic]#${heading.id}`, { topic })}
+          href={resolve(withHelpServer(`/help/${topic}#${heading.id}`, serverSegment) as '/')}
           class={[
             'block rounded-e-md py-2 pe-3 text-sm leading-snug text-muted transition-colors hover:bg-surface hover:text-text-top focus-visible:outline-2 focus-visible:outline-action',
             heading.depth === 3 ? 'ps-7' : 'ps-3 font-medium'

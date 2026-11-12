@@ -1692,3 +1692,42 @@ func TestMyAccountServiceSettingsPatchPresence(t *testing.T) {
 		t.Fatalf("explicit defaults must clear overrides: %+v", got)
 	}
 }
+
+func TestMyAccountServiceReleaseHighlights(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	_, err := env.account.DismissReleaseHighlights(env.ctx, connect.NewRequest(&apiv1.DismissReleaseHighlightsRequest{}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+	_, err = env.account.InitializeReleaseHighlights(env.ctx, connect.NewRequest(&apiv1.InitializeReleaseHighlightsRequest{}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+	_, err = env.account.DismissReleaseHighlights(ctx, connect.NewRequest(&apiv1.DismissReleaseHighlightsRequest{Ids: []string{"bad"}}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+	initial, err := env.account.GetSettings(ctx, connect.NewRequest(&apiv1.GetSettingsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if initial.Msg.GetSettings().GetReleaseHighlights() == nil {
+		t.Fatal("missing explicit feature support")
+	}
+	baseline, err := env.account.InitializeReleaseHighlights(ctx, connect.NewRequest(&apiv1.InitializeReleaseHighlightsRequest{Surface: apiv1.ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_USERS, ReleaseVersion: "0.5.0"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline.Msg.GetSettings().GetReleaseHighlights().GetUsersSinceVersion() != "0.5.0" {
+		t.Fatal("missing baseline")
+	}
+	dismissed, err := env.account.DismissReleaseHighlights(ctx, connect.NewRequest(&apiv1.DismissReleaseHighlightsRequest{Ids: []string{"users:help"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(dismissed.Msg.GetSettings().GetReleaseHighlights().GetDismissedIds(), []string{"users:help"}) {
+		t.Fatal("missing dismissal")
+	}
+	viewer, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(viewer.Msg.GetUser().GetSettings().GetReleaseHighlights(), dismissed.Msg.GetSettings().GetReleaseHighlights()) {
+		t.Fatal("viewer and command disagree")
+	}
+}

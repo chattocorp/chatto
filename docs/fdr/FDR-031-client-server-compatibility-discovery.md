@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-11-10
 
 ## Overview
 
@@ -64,7 +64,7 @@ Chatto's pre-1.0 API remains experimental.
   only features introduced after that Chatto release. It requires
   a full Semantic Version; invalid values return `INVALID_ARGUMENT`. Omit the
   filter for the complete catalog. Third-party clients should omit it.
-  The app loads the catalog only on Server information for remote servers.
+  The app loads the catalog on Server information and on What's new for remote servers.
   It sends its selected language and normalized frontend release. Responses
   are cached in memory by server, server version, language, and version filter.
   A language or server version change selects a new cache entry. The app does
@@ -154,7 +154,7 @@ cannot rely on a server to reject it on the client's behalf.
 The catalog must be maintained when a feature ships. It is not a complete
 API capability list. Each feature needs English fallback text and translations.
 This first version shows frontend upgrade advice
-on Server information only; it does not add a server-gutter warning.
+on Server information and What's new; it does not add a server-gutter warning.
 
 ### 3. Registration data does not cache compatibility conclusions
 

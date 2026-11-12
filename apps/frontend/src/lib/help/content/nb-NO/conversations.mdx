@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Svar og tråder
@@ -43,7 +45,7 @@ Trykk **Ctrl+Shift+K**, eller **Command+Shift+K** på Mac, for å se tilgjengeli
 Bruk for eksempel **Prikk for ulest innhold** for nye rommeldinger og **Push-varsel** for direkte omtaler hvis du vil lese vanlige samtaler når det passer deg.
 
 <p>Push-varsler trenger også tillatelse fra enheten. På telefonen følger du
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installer Chatto på telefonen din</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Installer Chatto på telefonen din</a>
 for å installere appen og aktivere varsler. Telefonens varslingsinnstillinger avgjør om navn og meldingsforhåndsvisninger vises på låseskjermen.</p>
 
 ## Når tilkoblingen brytes

@@ -104,6 +104,18 @@
       "yesterday": "Wczoraj",
       "this_week": "W tym tygodniu",
       "this_month": "W tym miesiącu"
+    },
+    "release_highlights": {
+      "title": "Co nowego?",
+      "new": "Nowość",
+      "dismiss": "Odrzuć",
+      "dismiss_all": "Odrzuć wszystkie",
+      "empty": "Jesteś na bieżąco.",
+      "unsupported": "Ten serwer nie może synchronizować odrzuconych ogłoszeń między urządzeniami.",
+      "newer_app": "Dostępne w nowszej aplikacji",
+      "user_title": "Pomoc w Chatto",
+      "admin_title": "Pomoc z botami",
+      "read_guide": "Przeczytaj poradnik"
     }
   }
 }

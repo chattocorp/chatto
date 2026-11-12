@@ -1025,6 +1025,11 @@ func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID st
 			return userProfile(userID), nil
 		}
 		return nil, nil
+	case *evtv1.Event_UserReleaseHighlightsChanged:
+		if viewerID == payload.UserReleaseHighlightsChanged.GetUserId() {
+			return viewerPreferences(), nil
+		}
+		return nil, nil
 	case *evtv1.Event_UserTimezoneSharingChanged:
 		userID := payload.UserTimezoneSharingChanged.GetUserId()
 		if viewerID == userID {

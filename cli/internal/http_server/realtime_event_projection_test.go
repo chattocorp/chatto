@@ -287,6 +287,16 @@ func TestPublicRealtimeEventProjectsViewerSpecificSemantics(t *testing.T) {
 		t.Fatalf("other preference projection = %+v, %v; want omission", projected, err)
 	}
 
+	highlights := &evtv1.Event{Id: "EH", Event: &evtv1.Event_UserReleaseHighlightsChanged{
+		UserReleaseHighlightsChanged: &evtv1.UserReleaseHighlightsChangedEvent{UserId: owner.GetId(), Ids: []string{"users:help"}},
+	}}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, owner.GetId(), highlights); err != nil || projected.GetViewerPreferencesChanged() == nil {
+		t.Fatalf("owner highlight projection = %v, %v", projected, err)
+	}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, other.GetId(), highlights); err != nil || projected != nil {
+		t.Fatalf("highlight acknowledgements leaked: %v, %v", projected, err)
+	}
+
 	sharing := &evtv1.Event{Id: "E2", Event: &evtv1.Event_UserTimezoneSharingChanged{
 		UserTimezoneSharingChanged: &evtv1.UserTimezoneSharingChangedEvent{UserId: owner.GetId()},
 	}}

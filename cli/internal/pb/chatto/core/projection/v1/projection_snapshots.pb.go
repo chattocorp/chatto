@@ -2659,16 +2659,19 @@ func (x *ServerNeighborSnapshot) GetTestimonial() string {
 }
 
 type UserConfigSnapshot struct {
-	state                      protoimpl.MessageState                `protogen:"open.v1"`
-	UserId                     string                                `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Timezone                   *string                               `protobuf:"bytes,2,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
-	TimeFormat                 *v1.TimeFormat                        `protobuf:"varint,3,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.evt.v1.TimeFormat,oneof" json:"time_format,omitempty"`
-	ServerNotificationModes    *v1.NotificationDeliveryModes         `protobuf:"bytes,4,opt,name=server_notification_modes,json=serverNotificationModes,proto3" json:"server_notification_modes,omitempty"`
-	RoomNotificationModes      []*RoomNotificationModesSnapshot      `protobuf:"bytes,5,rep,name=room_notification_modes,json=roomNotificationModes,proto3" json:"room_notification_modes,omitempty"`
-	RoomGroupNotificationModes []*RoomGroupNotificationModesSnapshot `protobuf:"bytes,6,rep,name=room_group_notification_modes,json=roomGroupNotificationModes,proto3" json:"room_group_notification_modes,omitempty"`
-	ShareTimezone              bool                                  `protobuf:"varint,7,opt,name=share_timezone,json=shareTimezone,proto3" json:"share_timezone,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	state                        protoimpl.MessageState                `protogen:"open.v1"`
+	UserId                       string                                `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Timezone                     *string                               `protobuf:"bytes,2,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
+	TimeFormat                   *v1.TimeFormat                        `protobuf:"varint,3,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.evt.v1.TimeFormat,oneof" json:"time_format,omitempty"`
+	ServerNotificationModes      *v1.NotificationDeliveryModes         `protobuf:"bytes,4,opt,name=server_notification_modes,json=serverNotificationModes,proto3" json:"server_notification_modes,omitempty"`
+	RoomNotificationModes        []*RoomNotificationModesSnapshot      `protobuf:"bytes,5,rep,name=room_notification_modes,json=roomNotificationModes,proto3" json:"room_notification_modes,omitempty"`
+	RoomGroupNotificationModes   []*RoomGroupNotificationModesSnapshot `protobuf:"bytes,6,rep,name=room_group_notification_modes,json=roomGroupNotificationModes,proto3" json:"room_group_notification_modes,omitempty"`
+	ShareTimezone                bool                                  `protobuf:"varint,7,opt,name=share_timezone,json=shareTimezone,proto3" json:"share_timezone,omitempty"`
+	DismissedReleaseHighlights   []string                              `protobuf:"bytes,8,rep,name=dismissed_release_highlights,json=dismissedReleaseHighlights,proto3" json:"dismissed_release_highlights,omitempty"`
+	HighlightsUsersSinceVersion  *string                               `protobuf:"bytes,9,opt,name=highlights_users_since_version,json=highlightsUsersSinceVersion,proto3,oneof" json:"highlights_users_since_version,omitempty"`
+	HighlightsAdminsSinceVersion *string                               `protobuf:"bytes,10,opt,name=highlights_admins_since_version,json=highlightsAdminsSinceVersion,proto3,oneof" json:"highlights_admins_since_version,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *UserConfigSnapshot) Reset() {
@@ -2748,6 +2751,27 @@ func (x *UserConfigSnapshot) GetShareTimezone() bool {
 		return x.ShareTimezone
 	}
 	return false
+}
+
+func (x *UserConfigSnapshot) GetDismissedReleaseHighlights() []string {
+	if x != nil {
+		return x.DismissedReleaseHighlights
+	}
+	return nil
+}
+
+func (x *UserConfigSnapshot) GetHighlightsUsersSinceVersion() string {
+	if x != nil && x.HighlightsUsersSinceVersion != nil {
+		return *x.HighlightsUsersSinceVersion
+	}
+	return ""
+}
+
+func (x *UserConfigSnapshot) GetHighlightsAdminsSinceVersion() string {
+	if x != nil && x.HighlightsAdminsSinceVersion != nil {
+		return *x.HighlightsAdminsSinceVersion
+	}
+	return ""
 }
 
 type RoomNotificationModesSnapshot struct {
@@ -5362,7 +5386,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1a\n" +
 	"\brevision\x18\x03 \x01(\tR\brevision\x12$\n" +
-	"\vtestimonial\x18\x04 \x01(\tB\x02\x18\x01R\vtestimonial\"\xb8\x04\n" +
+	"\vtestimonial\x18\x04 \x01(\tB\x02\x18\x01R\vtestimonial\"\xd7\x06\n" +
 	"\x12UserConfigSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
 	"\btimezone\x18\x02 \x01(\tH\x00R\btimezone\x88\x01\x01\x12D\n" +
@@ -5371,9 +5395,15 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x19server_notification_modes\x18\x04 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\x17serverNotificationModes\x12p\n" +
 	"\x17room_notification_modes\x18\x05 \x03(\v28.chatto.core.projection.v1.RoomNotificationModesSnapshotR\x15roomNotificationModes\x12\x80\x01\n" +
 	"\x1droom_group_notification_modes\x18\x06 \x03(\v2=.chatto.core.projection.v1.RoomGroupNotificationModesSnapshotR\x1aroomGroupNotificationModes\x12%\n" +
-	"\x0eshare_timezone\x18\a \x01(\bR\rshareTimezoneB\v\n" +
+	"\x0eshare_timezone\x18\a \x01(\bR\rshareTimezone\x12@\n" +
+	"\x1cdismissed_release_highlights\x18\b \x03(\tR\x1adismissedReleaseHighlights\x12H\n" +
+	"\x1ehighlights_users_since_version\x18\t \x01(\tH\x02R\x1bhighlightsUsersSinceVersion\x88\x01\x01\x12J\n" +
+	"\x1fhighlights_admins_since_version\x18\n" +
+	" \x01(\tH\x03R\x1chighlightsAdminsSinceVersion\x88\x01\x01B\v\n" +
 	"\t_timezoneB\x0e\n" +
-	"\f_time_format\"}\n" +
+	"\f_time_formatB!\n" +
+	"\x1f_highlights_users_since_versionB\"\n" +
+	" _highlights_admins_since_version\"}\n" +
 	"\x1dRoomNotificationModesSnapshot\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12C\n" +
 	"\x05modes\x18\x02 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\x05modes\"\x8d\x01\n" +

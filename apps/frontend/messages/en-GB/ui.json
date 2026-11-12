@@ -104,6 +104,18 @@
       "yesterday": "Yesterday",
       "this_week": "This week",
       "this_month": "This month"
+    },
+    "release_highlights": {
+      "title": "What's new",
+      "new": "New",
+      "dismiss": "Dismiss",
+      "dismiss_all": "Dismiss all",
+      "empty": "You are up to date.",
+      "unsupported": "This server does not support saving dismissals across devices.",
+      "newer_app": "Available with a newer app",
+      "user_title": "Help is now in Chatto",
+      "admin_title": "Help with bots",
+      "read_guide": "Read the guide"
     }
   }
 }

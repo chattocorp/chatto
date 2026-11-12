@@ -104,6 +104,18 @@
       "yesterday": "Gestern",
       "this_week": "Diese Woche",
       "this_month": "Dieser Monat"
+    },
+    "release_highlights": {
+      "title": "Was ist neu?",
+      "new": "Neu",
+      "dismiss": "Ausblenden",
+      "dismiss_all": "Alle ausblenden",
+      "empty": "Du bist auf dem neuesten Stand.",
+      "unsupported": "Dieser Server kann ausgeblendete Hinweise nicht geräteübergreifend speichern.",
+      "newer_app": "Mit einer neueren App verfügbar",
+      "user_title": "Hilfe direkt in Chatto",
+      "admin_title": "Hilfe zu Bots",
+      "read_guide": "Anleitung lesen"
     }
   }
 }

@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Replies and threads
@@ -65,7 +67,7 @@ For example, use **Unread dot** for new room messages and **Push notification**
 for direct mentions if you want to check general chat in your own time.
 
 <p>Push alerts also need device permission. On a phone, follow
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Install Chatto on your phone</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Install Chatto on your phone</a>
 to install the app and enable notifications. Your phone's notification settings
 control whether names and message previews appear on the lock screen.</p>
 

@@ -104,6 +104,18 @@
       "yesterday": "昨天",
       "this_week": "本週",
       "this_month": "本月"
+    },
+    "release_highlights": {
+      "title": "最新消息",
+      "new": "新增",
+      "dismiss": "關閉",
+      "dismiss_all": "全部關閉",
+      "empty": "你已掌握所有最新消息。",
+      "unsupported": "此伺服器不支援在裝置間同步已關閉的公告。",
+      "newer_app": "更新應用程式後即可使用",
+      "user_title": "Chatto 內的說明",
+      "admin_title": "機器人說明",
+      "read_guide": "閱讀指南"
     }
   }
 }

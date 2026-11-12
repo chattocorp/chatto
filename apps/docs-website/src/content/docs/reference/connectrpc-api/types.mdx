@@ -966,6 +966,19 @@ State of explicit privileged-mode activation for this authenticated session.
 | `active` | `bool` | Whether elevated permissions are effective for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
 
+<a id="chatto-api-v1-ReleaseHighlightState"></a>
+
+### ReleaseHighlightState
+
+Private release-highlight acknowledgements. Absence on UserSettings means
+this server does not support synchronised dismissal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed_ids` | `repeated string` | Stable, surface-prefixed IDs. Dismissal never removes an article from history. |
+| `users_since_version` | `optional string` | First release shown to this reader on each surface. Later releases stay new until explicitly dismissed. Older releases remain available in history. |
+| `admins_since_version` | `optional string` | No field description provided. |
+
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
 ### ServerViewerPermissions
@@ -994,6 +1007,7 @@ Server-level display settings for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `release_highlights` | [`ReleaseHighlightState`](#chatto-api-v1-ReleaseHighlightState) | Always present on servers that support release-highlight dismissal. |
 | `timezone` | `optional string` | Optional IANA timezone override. Absent means no choice has been recorded. Empty means the user explicitly chose the browser's local timezone. Both use browser-local time; only absence permits automatic device reporting. |
 | `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
 | `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
@@ -2284,6 +2298,18 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
+
+<a id="chatto-api-v1-ReleaseHighlightSurface"></a>
+
+### ReleaseHighlightSurface
+
+Separate presentation surfaces for release highlights.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED` | `0` | No surface selected; requests must select one. |
+| `RELEASE_HIGHLIGHT_SURFACE_USERS` | `1` | Everyday user changes shown in Help. |
+| `RELEASE_HIGHLIGHT_SURFACE_ADMINS` | `2` | Administrator and operator changes shown in administration. |
 
 <a id="chatto-api-v1-AssetUploadStatus"></a>
 

@@ -104,6 +104,18 @@
       "yesterday": "Ieri",
       "this_week": "Questa settimana",
       "this_month": "Questo mese"
+    },
+    "release_highlights": {
+      "title": "Novità",
+      "new": "Nuovo",
+      "dismiss": "Ignora",
+      "dismiss_all": "Ignora tutto",
+      "empty": "Sei al passo con le novità.",
+      "unsupported": "Questo server non può sincronizzare gli avvisi ignorati tra dispositivi.",
+      "newer_app": "Disponibile con una versione più recente dell’app",
+      "user_title": "La guida arriva in Chatto",
+      "admin_title": "Guida ai bot",
+      "read_guide": "Leggi la guida"
     }
   }
 }
