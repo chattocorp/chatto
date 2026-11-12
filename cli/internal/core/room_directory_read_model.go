@@ -74,7 +74,8 @@ type RoomDirectoryListOptions struct {
 }
 
 type RoomDirectoryGroupOptions struct {
-	IncludeArchivedRooms bool
+	// ArchiveFilter defaults to active rooms. It never grants metadata access.
+	ArchiveFilter RoomArchiveFilter
 }
 
 type DirectoryRoom struct {
@@ -197,7 +198,7 @@ func (s *RoomDirectoryReadModel) ListRoomsPage(ctx context.Context, actorID stri
 			if !opts.ArchiveFilter.matches(room.GetArchived()) {
 				continue
 			}
-			visible, err := s.canSeeRoom(ctx, actorID, KindChannel, room.Id)
+			visible, err := s.canReadRoomMetadata(ctx, actorID, room)
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +255,7 @@ func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID str
 		return nil, err
 	}
 
-	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.IncludeArchivedRooms)
+	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.ArchiveFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -281,15 +282,11 @@ func (s *RoomDirectoryReadModel) GetRoomGroup(ctx context.Context, actorID, grou
 	if err := s.invitations.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return nil, err
 	}
-	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.IncludeArchivedRooms)
-	if err != nil {
-		return nil, err
-	}
 	group, err := s.rooms.GetRoomGroup(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
-	return s.directoryGroup(ctx, actorID, group, visibleRooms)
+	return s.directoryRoomGroup(ctx, actorID, group, opts.ArchiveFilter)
 }
 
 func (s *RoomDirectoryReadModel) BatchGetRoomGroups(ctx context.Context, actorID string, groupIDs []string, opts RoomDirectoryGroupOptions) ([]*DirectoryRoomGroup, error) {
@@ -299,9 +296,8 @@ func (s *RoomDirectoryReadModel) BatchGetRoomGroups(ctx context.Context, actorID
 	if err := s.invitations.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return nil, err
 	}
-	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.IncludeArchivedRooms)
-	if err != nil {
-		return nil, err
+	if opts.ArchiveFilter < RoomArchiveActive || opts.ArchiveFilter > RoomArchiveAll {
+		return nil, invalidArgument("unknown room archive filter")
 	}
 
 	seen := make(map[string]struct{}, len(groupIDs))
@@ -319,7 +315,7 @@ func (s *RoomDirectoryReadModel) BatchGetRoomGroups(ctx context.Context, actorID
 			}
 			return nil, err
 		}
-		dirGroup, err := s.directoryGroup(ctx, actorID, group, visibleRooms)
+		dirGroup, err := s.directoryRoomGroup(ctx, actorID, group, opts.ArchiveFilter)
 		if err != nil {
 			return nil, err
 		}
@@ -343,8 +339,7 @@ func (s *RoomDirectoryReadModel) getRoom(ctx context.Context, actorID, roomID st
 	if err != nil {
 		return nil, err
 	}
-	kind := KindOfRoom(room)
-	visible, err := s.canSeeRoom(ctx, actorID, kind, room.Id)
+	visible, err := s.canReadRoomMetadata(ctx, actorID, room)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +387,7 @@ func (s *RoomDirectoryReadModel) visibleChannelRooms(ctx context.Context, actorI
 		if !archiveFilter.matches(room.GetArchived()) {
 			continue
 		}
-		visible, err := s.canSeeRoom(ctx, actorID, KindChannel, room.Id)
+		visible, err := s.canReadRoomMetadata(ctx, actorID, room)
 		if err != nil {
 			return nil, err
 		}
@@ -454,17 +449,20 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, includeArchived bool) (map[string]*readmodel.Room, error) {
+func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, archiveFilter RoomArchiveFilter) (map[string]*readmodel.Room, error) {
+	if archiveFilter < RoomArchiveActive || archiveFilter > RoomArchiveAll {
+		return nil, invalidArgument("unknown room archive filter")
+	}
 	rooms, err := s.rooms.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, err
 	}
 	result := make(map[string]*readmodel.Room, len(rooms))
 	for _, room := range rooms {
-		if room.GetArchived() && !includeArchived {
+		if !archiveFilter.matches(room.GetArchived()) {
 			continue
 		}
-		visible, err := s.canSeeRoom(ctx, actorID, KindChannel, room.Id)
+		visible, err := s.canReadRoomMetadata(ctx, actorID, room)
 		if err != nil {
 			return nil, err
 		}
@@ -473,6 +471,35 @@ func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, acto
 		}
 	}
 	return result, nil
+}
+
+// directoryRoomGroup hydrates only the requested group's rooms. Each room is
+// authorized before assembly; missing or concurrently moved rooms are omitted.
+func (s *RoomDirectoryReadModel) directoryRoomGroup(ctx context.Context, actorID string, group *readmodel.RoomGroup, archiveFilter RoomArchiveFilter) (*DirectoryRoomGroup, error) {
+	if archiveFilter < RoomArchiveActive || archiveFilter > RoomArchiveAll {
+		return nil, invalidArgument("unknown room archive filter")
+	}
+	rooms := make(map[string]*readmodel.Room)
+	for _, id := range group.GetRoomIds() {
+		room, err := s.rooms.GetRoom(ctx, KindChannel, id)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if room.GetGroupId() != group.GetId() || !archiveFilter.matches(room.GetArchived()) {
+			continue
+		}
+		visible, err := s.canReadRoomMetadata(ctx, actorID, room)
+		if err != nil {
+			return nil, err
+		}
+		if visible {
+			rooms[id] = room
+		}
+	}
+	return s.directoryGroup(ctx, actorID, group, rooms)
 }
 
 func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID string, group *readmodel.RoomGroup, visibleRooms map[string]*readmodel.Room) (*DirectoryRoomGroup, error) {
@@ -689,6 +716,24 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanBanRoomMembers:      canBanRoomMembers,
 		SlowModeNextPostAt:     slowModeNextPostAt,
 	}, nil
+}
+
+// canReadRoomMetadata adds management access to ordinary directory visibility.
+// It does not change room.list, membership, join authority, or message access.
+func (s *RoomDirectoryReadModel) canReadRoomMetadata(ctx context.Context, actorID string, room *readmodel.Room) (bool, error) {
+	kind := KindOfRoom(room)
+	visible, err := s.canSeeRoom(ctx, actorID, kind, room.Id)
+	if err != nil || visible || kind != KindChannel {
+		return visible, err
+	}
+	managed, err := s.authorization.hasRoomPermission(ctx, kind, room.Id, actorID, PermRoomManage)
+	if err != nil || managed {
+		return managed, err
+	}
+	if room.GetGroupId() == "" {
+		return false, nil
+	}
+	return s.authorization.CanManageRoomGroup(ctx, actorID, room.GetGroupId())
 }
 
 func (s *RoomDirectoryReadModel) canSeeRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (bool, error) {

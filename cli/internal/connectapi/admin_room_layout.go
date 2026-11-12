@@ -90,8 +90,13 @@ func (s *adminRoomLayoutService) CreateRoomGroup(ctx context.Context, req *conne
 	if err != nil {
 		return nil, err
 	}
+	sharedGroup, err := s.assembleRoomGroup(ctx, caller.UserID, group.GetId())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&adminv1.CreateRoomGroupResponse{
-		Group: apiGroup,
+		RoomGroup: sharedGroup,
+		Group:     apiGroup,
 	}), nil
 }
 
@@ -117,8 +122,13 @@ func (s *adminRoomLayoutService) UpdateRoomGroup(ctx context.Context, req *conne
 	if err != nil {
 		return nil, err
 	}
+	sharedGroup, err := s.assembleRoomGroup(ctx, caller.UserID, group.GetId())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&adminv1.UpdateRoomGroupResponse{
-		Group: apiGroup,
+		RoomGroup: sharedGroup,
+		Group:     apiGroup,
 	}), nil
 }
 
@@ -200,8 +210,13 @@ func (s *adminRoomLayoutService) ReorderSidebarItemsInGroup(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	sharedGroup, err := s.assembleRoomGroup(ctx, caller.UserID, group.GetId())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&adminv1.ReorderSidebarItemsInGroupResponse{
-		Group: apiGroup,
+		RoomGroup: sharedGroup,
+		Group:     apiGroup,
 	}), nil
 }
 
@@ -228,8 +243,13 @@ func (s *adminRoomLayoutService) MoveSidebarItem(ctx context.Context, req *conne
 	if err != nil {
 		return nil, err
 	}
+	sharedGroup, err := s.assembleRoomGroup(ctx, caller.UserID, group.GetId())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&adminv1.MoveSidebarItemResponse{
-		Group: apiGroup,
+		RoomGroup: sharedGroup,
+		Group:     apiGroup,
 	}), nil
 }
 

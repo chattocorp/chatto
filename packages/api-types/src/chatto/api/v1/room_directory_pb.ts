@@ -336,7 +336,7 @@ export class RoomGroupItem extends Message<RoomGroupItem> {
    */
   item: {
     /**
-     * Visible room entry.
+     * Room metadata the caller can see or manage. Message access is separate.
      *
      * @generated from field: chatto.api.v1.RoomWithViewerState room = 1;
      */
@@ -423,7 +423,9 @@ export class RoomGroupViewerState extends Message<RoomGroupViewerState> {
 }
 
 /**
- * Ordered group of channel rooms and sidebar links.
+ * Ordered group of channel rooms and sidebar links. Room entries follow the
+ * caller's metadata permissions and the requested archive filter. Management
+ * metadata does not grant room membership or message access.
  *
  * @generated from message chatto.api.v1.RoomGroup
  */
@@ -604,11 +606,18 @@ export class ListRoomsResponse extends Message<ListRoomsResponse> {
 }
 
 /**
- * Request for ordered room groups visible to the current user.
+ * Request ordered room groups with entries the caller can see or manage.
  *
  * @generated from message chatto.api.v1.ListRoomGroupsRequest
  */
 export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
+  /**
+   * Defaults to ACTIVE. This filter does not grant access to room metadata.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 2;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListRoomGroupsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -617,6 +626,7 @@ export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListRoomGroupsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomGroupsRequest {
@@ -690,6 +700,13 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
    */
   groupId = "";
 
+  /**
+   * Defaults to ACTIVE. Use ALL for the complete contents of a managed group.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 3;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<GetRoomGroupRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -699,6 +716,7 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
   static readonly typeName = "chatto.api.v1.GetRoomGroupRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomGroupRequest {
@@ -725,7 +743,7 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
  */
 export class GetRoomGroupResponse extends Message<GetRoomGroupResponse> {
   /**
-   * Resolved room group. Hidden and archived room entries are omitted.
+   * Group with authorized entries that match the requested archive filter.
    *
    * @generated from field: chatto.api.v1.RoomGroup group = 1;
    */
@@ -772,6 +790,13 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
    */
   groupIds: string[] = [];
 
+  /**
+   * Defaults to ACTIVE. This filter does not grant access to room metadata.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 3;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<BatchGetRoomGroupsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -781,6 +806,7 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
   static readonly typeName = "chatto.api.v1.BatchGetRoomGroupsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomGroupsRequest {

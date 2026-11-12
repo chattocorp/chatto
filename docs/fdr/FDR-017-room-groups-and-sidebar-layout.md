@@ -1,13 +1,21 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
 Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely. Groups can also contain sidebar links: operator-managed links rendered in the same ordered sidebar section as rooms.
 
 ## Behavior
+
+- Main API group reads return entries the caller can see or manage. The archive
+  filter selects active, archived, or all rooms and defaults to active. A group
+  manager who selects all rooms receives the complete group layout. Clients
+  choose which authorized entries to show; the chat sidebar uses navigation
+  permissions. Metadata management access does not grant membership or message
+  access. Sidebar links remain in the ordered group items. Published admin
+  calls remain available for compatibility.
 
 - In the mobile drawer layout, swipes that start within 24 CSS pixels of either
   physical viewport edge do not open or close the sidebar. This leaves edge
@@ -31,7 +39,11 @@ Channel rooms are organized into **room groups** — named, ordered containers t
   if the row exists. An already visible row stays in place. A closed sidebar
   stays closed; the mobile drawer is positioned for its next opening, while a
   hidden desktop sidebar waits until it opens.
-- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
+- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes ordered channel rooms
+  and links to integrations. Room metadata requires ordinary visibility or
+  management authority. The default filter returns active rooms; all three group
+  reads also support archived-only and all-room filters. Viewer state reports
+  effective navigation, creation, and management permissions.
 - Unjoined channel rooms are hidden by default in each expanded group. A compact "+ N more" row at the end of the group reveals them in their configured order. Select "Show less" to hide them again. The control appears even when only one unjoined room remains. Joined rooms, sidebar links, and the current room stay visible. The same rule applies to the alphabetical fallback. Expansion is independent for each group and resets when the sidebar is remounted. This control does not contact an external service.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
 - Channel and group-DM sidebar rows expose a conversation menu with **Copy room link** and a final
@@ -127,7 +139,10 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 9. Room directory reads are available over ConnectRPC
 
-**Decision:** `RoomDirectoryService` is the protobuf-first read surface for room navigation: non-archived visible room lists, ordered room groups, mixed sidebar items, per-room viewer capability state, and the group join-all command.
+**Decision:** `RoomDirectoryService` is the shared read surface for room metadata,
+ordered groups, and their sidebar items. Permissions determine available metadata;
+archive filters select room state. Clients use viewer state to choose navigation
+and management presentation. Membership and message access remain independent.
 **Why:** Clients need room/sidebar data around lifecycle commands. Keeping the directory read model in ConnectRPC lets clients render navigation and action affordances through one protobuf API surface.
 **Tradeoff:** The service owns the room/sidebar visibility contract directly, so changes to room visibility must update the ConnectRPC mapping and tests.
 
