@@ -22,7 +22,7 @@ window; an optional native host capability enables inline password submission.
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { serverHost } from '$lib/serverUrl';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import { rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
+  import { forgetAtprotoHandle, rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
   let { registration }: { registration: RegisteredServer } = $props();
   const { store, serverId } = useServerScope();
@@ -43,8 +43,13 @@ window; an optional native host capability enables inline password submission.
   // One-click sign-in with the handle that this device last used (FDR-056).
   // The server still verifies it through its own provider.
   const atprotoProvider = $derived(providers.find((provider) => provider.type === 'atproto'));
-  const rememberedHandle = rememberedAtprotoHandle();
+  let rememberedHandle = $state(rememberedAtprotoHandle());
   const knownAtprotoHandle = $derived(atprotoProvider ? rememberedHandle : '');
+
+  function forgetHandle() {
+    forgetAtprotoHandle();
+    rememberedHandle = '';
+  }
   const showPassword = $derived(
     inlinePasswordLogin && !store.serverInfo.loading && store.serverInfo.directLoginEnabled
   );
@@ -109,6 +114,11 @@ window; an optional native host capability enables inline password submission.
           <span aria-hidden="true" class="iconify icon-[mdi--at]"></span>
           {m('auth.remote.continue_as_atproto', { handle: knownAtprotoHandle })}
         </Button>
+        <p class="mt-2 text-center">
+          <button type="button" class="cursor-pointer link" disabled={busy} onclick={forgetHandle}
+            >{m('auth.remote.forget_atproto_handle')}</button
+          >
+        </p>
         <Divider label={m('common.or')} />
       {/if}
       {#if !inlinePasswordLogin}

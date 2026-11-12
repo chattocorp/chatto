@@ -1,10 +1,10 @@
 /**
- * The AT Protocol handle that this device last used for sign-in (FDR-056).
+ * The AT Protocol handle of this device's last successful sign-in (FDR-056).
  *
  * Sign-in forms suggest it, and the signed-out screen of another server
  * offers **Continue as @handle** with it. It is only a hint: each server
  * still signs the user in through its own provider. The handle stays in this
- * browser's storage until the user signs in with it.
+ * browser's storage until the user chooses another handle there.
  */
 
 import { Codecs, globalSlot } from '@chatto/client/storage/slot';
@@ -16,9 +16,13 @@ export function rememberedAtprotoHandle(): string {
   return slot.get();
 }
 
-/** Remember `handle` for later sign-ins. An empty handle forgets it. */
+/** Remember `handle` after a successful sign-in. */
 export function rememberAtprotoHandle(handle: string): void {
   const normalized = handle.trim().replace(/^@/, '');
   if (normalized) slot.set(normalized);
-  else slot.remove();
+}
+
+/** Forget the remembered handle. */
+export function forgetAtprotoHandle(): void {
+  slot.remove();
 }

@@ -137,8 +137,6 @@ url = "https://chat.example.com"
 id = "bluesky"
 type = "atproto"
 auto_provision = true
-# Optional: new accounts get the AT Protocol handle as their username.
-manage_usernames = true
 ```
 
 - Use an HTTPS `webserver.url` in production. With a local `http://` URL,
@@ -153,6 +151,10 @@ manage_usernames = true
   Chatto no access to the user's posts or other data.
 - The account link uses the account's DID. A changed handle does not change
   the link.
+- With `manage_usernames = true`, new accounts get the handle as their
+  username. Usernames have at most 32 characters, so people with longer
+  handles, for example on a custom domain, cannot create an account. Keep
+  `manage_usernames` disabled unless your users have short handles.
 - New accounts get the display name and avatar of the person's public Bluesky
   profile, when they have one.
 
@@ -252,6 +254,7 @@ checks its format. The source depends on the provider:
 | GitLab | Account username |
 | Discord | Account username, not the global display name |
 | Google | Local part of the verified email address: `alice@example.com` becomes `alice` |
+| AT Protocol | Handle, when it resolves back to the account's DID |
 
 Google has no separate username. With default scopes, set `request_email = true`
 for managed Google usernames. Custom `scopes` replace those defaults and must

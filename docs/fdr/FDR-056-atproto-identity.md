@@ -23,17 +23,18 @@ verified handle needs an independent issuer, which Chatto does not have yet
   `bsky.social`.
 - The linked external identity is the DID. A handle change does not change the
   link. With `manage_usernames`, a new account gets the handle as its username.
+  A handle that is not a valid username, for example one longer than 32
+  characters, then prevents account creation, as for other providers.
 - A new account gets the display name and avatar of the user's public Bluesky
   profile (`app.bsky.actor.profile`) as suggestions, when the repository has
   one. Without it, the handle is the display name suggestion. A signed-in
   account without an avatar gets the profile avatar.
 - A handle that cannot be resolved shows an explanation on the login page.
   Other failures show the general provider error.
-- The device remembers the last handle that the user entered. The handle
+- After a successful sign-in, the device remembers the handle. The handle
   field suggests it. On another server that has an `atproto` provider, the
   sign-in screen offers **Continue as @handle**, which starts that server's
-  sign-in with the handle filled in. An empty handle field removes the
-  remembered handle.
+  sign-in with the handle filled in. **Use another handle** forgets it.
 
 ## Design Decisions
 
@@ -62,12 +63,12 @@ user's identity to a different account (ADR-123).
 
 ### 3. A remembered handle instead of a device session
 
-**Decision:** The frontend remembers the last entered handle in browser
-storage. It has no AT Protocol session of its own.
+**Decision:** The frontend remembers the handle of the last successful
+sign-in in browser storage. It has no AT Protocol session of its own.
 **Why:** **Continue as @handle** needs only a hint. The server's own sign-in
-still proves the identity.
-**Tradeoff:** A mistyped handle stays the suggestion until the user enters
-another one.
+still proves the identity. A failed sign-in does not replace the hint.
+**Tradeoff:** The next person on a shared browser sees the handle until
+someone selects **Use another handle**.
 
 ### 4. Libraries
 

@@ -28,7 +28,8 @@ describe('AuthProviderButtons', () => {
     await userEvent.fill(screen.getByLabelText('Internet handle'), '@alice.example');
     await screen.getByRole('button', { name: 'Continue with Internet Handle' }).click();
     expect(onclick).toHaveBeenCalledWith(expect.anything(), bluesky, 'alice.example');
-    expect(localStorage.getItem(HANDLE_KEY)).toBe('alice.example');
+    // Only a successful sign-in remembers the handle.
+    expect(localStorage.getItem(HANDLE_KEY)).toBeNull();
 
     await screen.getByRole('button', { name: 'Continue with GitHub' }).click();
     expect(onclick).toHaveBeenLastCalledWith(expect.anything(), github);
@@ -43,6 +44,5 @@ describe('AuthProviderButtons', () => {
     await userEvent.clear(screen.getByLabelText('Internet handle'));
     await screen.getByRole('button', { name: 'Continue with Internet Handle' }).click();
     expect(onclick).toHaveBeenCalledWith(expect.anything(), bluesky, undefined);
-    expect(localStorage.getItem(HANDLE_KEY)).toBeNull();
   });
 });

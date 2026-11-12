@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
@@ -97,6 +98,8 @@
     try {
       providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
       const result = await verifyProviderSignIn(providerPopup);
+      // Only AT Protocol providers take a handle hint (FDR-056).
+      if (loginHint) rememberAtprotoHandle(loginHint);
       if (!active) return;
       if (result.kind === 'confirm-account') {
         await confirmProviderAccount(result.token, data.redirectUrl);

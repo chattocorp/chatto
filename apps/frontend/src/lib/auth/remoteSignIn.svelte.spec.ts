@@ -45,6 +45,28 @@ describe('startRemoteSignIn', () => {
     closeInlineSignIn(server.id);
   });
 
+  it('remembers an AT Protocol handle only after a successful sign-in', async () => {
+    try {
+      mocks.startRemoteReauthentication.mockRejectedValueOnce(new Error('Provider failed'));
+      await startRemoteSignIn(server, {
+        useOAuth: true,
+        providerId: 'bsky',
+        loginHint: 'bob.example'
+      });
+      expect(localStorage.getItem('chatto:atproto-handle')).toBeNull();
+
+      mocks.startRemoteReauthentication.mockResolvedValueOnce(undefined);
+      await startRemoteSignIn(server, {
+        useOAuth: true,
+        providerId: 'bsky',
+        loginHint: '@alice.example'
+      });
+      expect(localStorage.getItem('chatto:atproto-handle')).toBe('alice.example');
+    } finally {
+      localStorage.removeItem('chatto:atproto-handle');
+    }
+  });
+
   it('opens the Desktop form without OAuth and retains the active deep link', async () => {
     mocks.desktop = true;
     await startRemoteSignIn(server);

@@ -9,7 +9,7 @@ this device last used (FDR-056).
   import { Button, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
-  import { rememberAtprotoHandle, rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
+  import { rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
   let {
     providers,
@@ -43,9 +43,7 @@ this device last used (FDR-056).
         class="flex flex-col gap-2"
         onsubmit={(event) => {
           event.preventDefault();
-          const handle = handleFor(provider);
-          rememberAtprotoHandle(handle);
-          onclick(event, provider, handle || undefined);
+          onclick(event, provider, handleFor(provider) || undefined);
         }}
       >
         <TextInput

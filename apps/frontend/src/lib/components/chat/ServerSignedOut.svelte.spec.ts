@@ -129,6 +129,12 @@ describe('ServerSignedOut', () => {
         undefined,
         'alice.example'
       );
+
+      await page.getByRole('button', { name: 'Use another handle' }).click();
+      await expect
+        .element(page.getByRole('button', { name: 'Continue as @alice.example' }))
+        .not.toBeInTheDocument();
+      expect(localStorage.getItem('chatto:atproto-handle')).toBeNull();
     } finally {
       localStorage.removeItem('chatto:atproto-handle');
     }

@@ -9,6 +9,7 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import { hasPasswordLogin } from '$lib/desktop/passwordLogin';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
 /** Explicit reauthentication requests can replace a retained chat view with the login form. */
 const inlineServerIds = new SvelteSet<string>();
@@ -64,9 +65,10 @@ export async function startRemoteSignIn(
   pendingServerIds.add(server.id);
   try {
     if (options.signup) await startRemoteReauthentication(server, undefined, 'signup');
-    else if (options.providerId && options.loginHint)
+    else if (options.providerId && options.loginHint) {
       await startRemoteReauthentication(server, options.providerId, undefined, options.loginHint);
-    else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
+      rememberAtprotoHandle(options.loginHint);
+    } else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
     else await startRemoteReauthentication(server);
     closeInlineSignIn(server.id);
   } catch (error) {
