@@ -11,6 +11,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { gutterEnabled } from '$lib/frontendConfig';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverSidebarWidth } from '$lib/state/serverSidebarWidth.svelte';
   import {
@@ -49,10 +50,11 @@ See the "UI" section of `docs/GLOSSARY.md`.
     'server-sidebar sidebar-drawer relative z-50 flex min-w-0 flex-col overflow-hidden border-e border-border bg-background',
     width,
     'md:flex-initial',
-    // Mobile: fixed overlay positioned after the Server Gutter (~68px); touch-pan-y so
-    // vertical scroll inside the panel still works while horizontal pans go to
-    // the sidebar swipe action.
-    'max-md:fixed max-md:start-17 max-md:end-12 max-md:mobile-sidebar-insets max-md:touch-pan-y',
+    // Mobile: fixed overlay positioned after the Server Gutter (~68px), or at the
+    // start edge when the gutter is hidden; touch-pan-y so vertical scroll inside
+    // the panel still works while horizontal pans go to the sidebar swipe action.
+    'max-md:fixed max-md:end-12 max-md:mobile-sidebar-insets max-md:touch-pan-y',
+    gutterEnabled ? 'max-md:start-17' : 'max-md:start-0',
     // Mobile: always rendered so the slide animation is visible.
     // Desktop: hide entirely when closed.
     !sidebarNav.isMobile && !sidebarNav.isOpen && 'hidden',

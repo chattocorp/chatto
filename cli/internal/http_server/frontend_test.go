@@ -580,6 +580,39 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.NotContains(t, w.Body.String(), "OG_META_PLACEHOLDER")
 	})
 
+	t.Run("injects the gutter frontend setting", func(t *testing.T) {
+		mockFS := fstest.MapFS{
+			"200.html": &fstest.MapFile{
+				Data: []byte("<!DOCTYPE html><html><head><!-- FRONTEND_CONFIG_PLACEHOLDER --></head><body>SPA</body></html>"),
+			},
+		}
+		tests := []struct {
+			name    string
+			enabled bool
+			want    string
+		}{
+			{name: "disabled by default", enabled: false, want: `<meta name="chatto-gutter" content="false" />`},
+			{name: "enabled by the operator", enabled: true, want: `<meta name="chatto-gutter" content="true" />`},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				server := newTestServer()
+				server.config.Frontend.Gutter.Enabled = tt.enabled
+				router := gin.New()
+				router.GET("/test", func(c *gin.Context) {
+					server.serveSPAFallback(c, mockFS)
+				})
+
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, httptest.NewRequest("GET", "/test", nil))
+
+				assert.Equal(t, http.StatusOK, w.Code)
+				assert.Contains(t, w.Body.String(), tt.want)
+				assert.NotContains(t, w.Body.String(), "FRONTEND_CONFIG_PLACEHOLDER")
+			})
+		}
+	})
+
 	t.Run("returns 500 when 200.html is missing", func(t *testing.T) {
 		// Empty filesystem - no 200.html
 		mockFS := fstest.MapFS{}

@@ -186,6 +186,8 @@ export async function startServer(
       ...process.env,
       CHATTO_VIDEO_ENABLED: 'false',
       CHATTO_TEST_EMAIL_ENDPOINT: 'true',
+      // Existing tests cover the Server Gutter. Tests of the default pass false.
+      CHATTO_FRONTEND_GUTTER_ENABLED: 'true',
       ...options.env,
       ...(bootstrapBotCredentialFile
         ? {
