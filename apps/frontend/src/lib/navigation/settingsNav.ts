@@ -2,6 +2,7 @@ import { resolve } from '$app/paths';
 import { m } from '$lib/i18n/messages';
 import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 import type { NavGroup, NavItem } from '$lib/components/SidebarNav.svelte';
+import { isSigningOut, signOutOfServer } from '$lib/auth/serverSignOut.svelte';
 import { desktopUpdates } from '$lib/desktop/updates.svelte';
 
 /** Navigation details shared by the sidebar and the descriptive Overview cards. */
@@ -65,6 +66,17 @@ export function getSettingsNavGroups(server?: {
       id: 'your-account',
       label: m('settings.nav.your_account'),
       items: userPreferenceNavItems,
+      // Sign out is also in the server menu. This entry stays reachable when
+      // the Server Gutter is hidden and on settings pages without that menu.
+      actions: [
+        {
+          id: 'sign-out',
+          label: m('chat.server_gutter.sign_out'),
+          icon: 'iconify icon-[uil--sign-out-alt] rtl:-scale-x-100',
+          onclick: () => void signOutOfServer(serverId),
+          disabled: isSigningOut(serverId)
+        }
+      ],
       persistKey: serverStorageKey(serverId, 'collapsible:settings:your-account')
     },
     {
