@@ -190,7 +190,7 @@ identity, body rendering, and row geometry consistent.
             {#if actorInteractive}
               <button
                 type="button"
-                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-tight font-semibold hover:underline"
+                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-tight font-semibold"
                 onclick={onActorClick}
                 ontouchstart={onActorTouchStart}
                 oncontextmenu={onActorContextMenu}
