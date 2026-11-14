@@ -7,11 +7,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
-	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
@@ -64,13 +62,10 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		g, gctx := errgroup.WithContext(workerCtx)
 		g.Go(func() error { return queue.Run(gctx) })
 		g.Go(func() error {
-			return queue.Work(gctx, consumer, map[string]jobqueue.Handler{"media": func(ctx context.Context, job jobqueue.Job) error {
-				request := new(statev1.MediaJob)
-				if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
-					return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
-				}
-				return runtime.Core().ProcessMediaJob(ctx, request.AssetId, request.MessageEventId, processor.ProcessAsset)
-			}}, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
+			process := func(ctx context.Context, assetID, messageID string) error {
+				return runtime.Core().ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
+			}
+			return queue.Work(gctx, consumer, map[string]jobqueue.Handler{"media": core.MediaJobHandler(env.Logger, process)}, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
 		})
 		workerDone <- g.Wait()
 	}()

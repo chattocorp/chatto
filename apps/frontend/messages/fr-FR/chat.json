@@ -74,6 +74,8 @@
       "thread_views_description": "Les fils suivis et ceux que vous avez démarrés peuvent ne pas être affichés séparément sur ce serveur.",
       "independent_slow_mode_title": "Le mode lent indépendant est indisponible",
       "independent_slow_mode_description": "Ce serveur utilise un délai commun pour les messages du canal et les réponses dans les fils.",
+      "background_jobs_title": "Les tâches en arrière-plan sont indisponibles",
+      "background_jobs_description": "Ce serveur ne peut pas afficher ni relancer les tâches en arrière-plan dans les paramètres du serveur.",
       "upgrade": "Pour une prise en charge complète, demandez à l’administrateur du serveur de passer à la version {version} ou ultérieure."
     },
     "server_gutter": {

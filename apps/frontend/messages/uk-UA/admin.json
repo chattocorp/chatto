@@ -621,6 +621,7 @@
       "retry_failed": "Не вдалося повторити це завдання.",
       "webhook": "Доставка вебхука",
       "media": "Обробка медіа",
+      "alerts": "Сповіщення",
       "asset_cleanup": "Очищення файлів",
       "call_key_cleanup": "Видалення ключів дзвінків",
       "push_subscription_cleanup": "Очищення push-підписок",

@@ -74,6 +74,8 @@
       "thread_views_description": "Gefolgte Threads und von dir gestartete Threads werden auf diesem Server möglicherweise nicht getrennt angezeigt.",
       "independent_slow_mode_title": "Unabhängiger langsamer Modus ist nicht verfügbar",
       "independent_slow_mode_description": "Dieser Server verwendet eine gemeinsame Wartezeit für Kanalnachrichten und Thread-Antworten.",
+      "background_jobs_title": "Hintergrundaufträge sind nicht verfügbar",
+      "background_jobs_description": "Dieser Server kann Hintergrundaufträge in den Servereinstellungen weder anzeigen noch wiederholen.",
       "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren."
     },
     "server_gutter": {

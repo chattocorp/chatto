@@ -208,8 +208,10 @@ func TestQueueConcurrentClaimsAndRetry(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- q.process(ctx, dispatch(job), h) }()
 	<-entered
-	// A concurrent dispatch acknowledges without a second attempt.
-	noError(t, q.process(ctx, dispatch(job), h))
+	// A concurrent dispatch waits for a recheck without a second attempt.
+	if err := q.process(ctx, dispatch(job), h); err == nil {
+		t.Fatal("concurrent dispatch was acknowledged while the job was held")
+	}
 	if calls.Load() != 1 {
 		t.Fatalf("calls = %d", calls.Load())
 	}
@@ -606,5 +608,98 @@ func TestQueueUpdatePublishesOnlyTheChangedJob(t *testing.T) {
 	// One publish from Enqueue and at most one from the watcher.
 	if published := publisher.count.Load() - before; published > 2 {
 		t.Fatalf("one enqueue caused %d publishes behind a backlog of 20", published)
+	}
+}
+
+// A handler that finished before shutdown has a real outcome. Releasing it
+// would let another worker repeat finished work, such as a sent webhook.
+func TestQueueShutdownRecordsFinishedAttempt(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		result error
+		want   jobpb.JobStatus
+	}{
+		{name: "success", result: nil, want: jobpb.JobStatus_JOB_STATUS_SUCCEEDED},
+		{name: "permanent failure", result: &Failure{Category: "rejected", Permanent: true}, want: jobpb.JobStatus_JOB_STATUS_FAILED},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			q, _ := testQueue(t)
+			noError(t, q.Enqueue(t.Context(), testSpec("finished")))
+			job := must(q.Get(t.Context(), "finished"))
+			ctx, cancel := context.WithCancel(t.Context())
+			// The handler ignores cancellation and returns its own result.
+			err := q.process(ctx, dispatch(job), handlers(func(context.Context, Job) error { cancel(); return tc.result }))
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("process = %v", err)
+			}
+			record, _, err := q.read(t.Context(), job.ID)
+			noError(t, err)
+			if record.Status != tc.want || record.Attempts != 1 {
+				t.Fatalf("record = %+v, want status %v after one attempt", record, tc.want)
+			}
+		})
+	}
+}
+
+// A job that waits for a retry gets its dispatch from Run when it is due. A
+// repeated handoff must not publish a dispatch that would wait unacknowledged.
+func TestQueueRepeatedEnqueueDoesNotDispatchWaitingRetry(t *testing.T) {
+	q, _ := testQueue(t)
+	spec := testSpec("waiting")
+	noError(t, q.Enqueue(t.Context(), spec))
+	record, revision, err := q.read(t.Context(), spec.ID)
+	noError(t, err)
+	record.Attempts = 1
+	record.NextAttemptAt = timestamppb.New(time.Now().Add(time.Hour))
+	must(q.save(t.Context(), record, revision))
+	publisher := &countingPublisher{JetStream: q.js}
+	q.js = publisher
+	noError(t, q.Enqueue(t.Context(), spec))
+	if published := publisher.count.Load(); published != 0 {
+		t.Fatalf("repeated enqueue published %d dispatches for a waiting retry", published)
+	}
+}
+
+// A dispatch whose record is absent, or whose status this version does not
+// know, is acknowledged without running the handler.
+func TestQueueAcknowledgesDispatchThatCannotRun(t *testing.T) {
+	q, _ := testQueue(t)
+	ran := false
+	h := handlers(func(context.Context, Job) error { ran = true; return nil })
+	noError(t, q.process(t.Context(), dispatch(Job{ID: "missing", Generation: 1}), h))
+
+	noError(t, q.Enqueue(t.Context(), testSpec("future")))
+	record, revision, err := q.read(t.Context(), "future")
+	noError(t, err)
+	record.Status = jobpb.JobStatus(99)
+	must(q.save(t.Context(), record, revision))
+	noError(t, q.process(t.Context(), dispatch(jobFromRecord(record)), h))
+	if ran {
+		t.Fatal("handler ran for a dispatch that cannot run")
+	}
+	current, _, err := q.read(t.Context(), "future")
+	noError(t, err)
+	if current.Status != jobpb.JobStatus(99) || current.Attempts != 0 {
+		t.Fatalf("record = %+v", current)
+	}
+}
+
+// A dispatch for a job that another worker holds is checked again soon, so a
+// graceful handoff does not wait for the lease to expire.
+func TestQueueRechecksDispatchOfHeldJob(t *testing.T) {
+	q, _ := testQueue(t)
+	noError(t, q.Enqueue(t.Context(), testSpec("held")))
+	record, revision, err := q.read(t.Context(), "held")
+	noError(t, err)
+	record.Status = jobpb.JobStatus_JOB_STATUS_RUNNING
+	record.Attempts = 1
+	record.LeaseUntil = timestamppb.New(time.Now().Add(leaseDuration))
+	must(q.save(t.Context(), record, revision))
+	err = q.process(t.Context(), dispatch(jobFromRecord(record)), handlers(func(context.Context, Job) error { return nil }))
+	if err == nil {
+		t.Fatal("dispatch of a held job was acknowledged")
+	}
+	if _, terminated := events.TerminationReason(err); terminated {
+		t.Fatalf("dispatch of a held job was terminated: %v", err)
 	}
 }

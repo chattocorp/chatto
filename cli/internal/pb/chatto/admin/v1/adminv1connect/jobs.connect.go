@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// JobsServiceName is the fully-qualified name of the JobsService service.
-	JobsServiceName = "chatto.admin.v1.JobsService"
+	// AdminJobServiceName is the fully-qualified name of the AdminJobService service.
+	AdminJobServiceName = "chatto.admin.v1.AdminJobService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,16 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// JobsServiceListJobsProcedure is the fully-qualified name of the JobsService's ListJobs RPC.
-	JobsServiceListJobsProcedure = "/chatto.admin.v1.JobsService/ListJobs"
-	// JobsServiceGetJobProcedure is the fully-qualified name of the JobsService's GetJob RPC.
-	JobsServiceGetJobProcedure = "/chatto.admin.v1.JobsService/GetJob"
-	// JobsServiceRetryJobProcedure is the fully-qualified name of the JobsService's RetryJob RPC.
-	JobsServiceRetryJobProcedure = "/chatto.admin.v1.JobsService/RetryJob"
+	// AdminJobServiceListJobsProcedure is the fully-qualified name of the AdminJobService's ListJobs
+	// RPC.
+	AdminJobServiceListJobsProcedure = "/chatto.admin.v1.AdminJobService/ListJobs"
+	// AdminJobServiceGetJobProcedure is the fully-qualified name of the AdminJobService's GetJob RPC.
+	AdminJobServiceGetJobProcedure = "/chatto.admin.v1.AdminJobService/GetJob"
+	// AdminJobServiceRetryJobProcedure is the fully-qualified name of the AdminJobService's RetryJob
+	// RPC.
+	AdminJobServiceRetryJobProcedure = "/chatto.admin.v1.AdminJobService/RetryJob"
 )
 
-// JobsServiceClient is a client for the chatto.admin.v1.JobsService service.
-type JobsServiceClient interface {
+// AdminJobServiceClient is a client for the chatto.admin.v1.AdminJobService service.
+type AdminJobServiceClient interface {
 	// Lists jobs. Requires server.manage, including privileged mode.
 	// This call does not subscribe or poll; callers refresh explicitly.
 	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
@@ -54,62 +56,62 @@ type JobsServiceClient interface {
 	RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error)
 }
 
-// NewJobsServiceClient constructs a client for the chatto.admin.v1.JobsService service. By default,
-// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
-// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
-// or connect.WithGRPCWeb() options.
+// NewAdminJobServiceClient constructs a client for the chatto.admin.v1.AdminJobService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewJobsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) JobsServiceClient {
+func NewAdminJobServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminJobServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	jobsServiceMethods := v1.File_chatto_admin_v1_jobs_proto.Services().ByName("JobsService").Methods()
-	return &jobsServiceClient{
+	adminJobServiceMethods := v1.File_chatto_admin_v1_jobs_proto.Services().ByName("AdminJobService").Methods()
+	return &adminJobServiceClient{
 		listJobs: connect.NewClient[v1.ListJobsRequest, v1.ListJobsResponse](
 			httpClient,
-			baseURL+JobsServiceListJobsProcedure,
-			connect.WithSchema(jobsServiceMethods.ByName("ListJobs")),
+			baseURL+AdminJobServiceListJobsProcedure,
+			connect.WithSchema(adminJobServiceMethods.ByName("ListJobs")),
 			connect.WithClientOptions(opts...),
 		),
 		getJob: connect.NewClient[v1.GetJobRequest, v1.GetJobResponse](
 			httpClient,
-			baseURL+JobsServiceGetJobProcedure,
-			connect.WithSchema(jobsServiceMethods.ByName("GetJob")),
+			baseURL+AdminJobServiceGetJobProcedure,
+			connect.WithSchema(adminJobServiceMethods.ByName("GetJob")),
 			connect.WithClientOptions(opts...),
 		),
 		retryJob: connect.NewClient[v1.RetryJobRequest, v1.RetryJobResponse](
 			httpClient,
-			baseURL+JobsServiceRetryJobProcedure,
-			connect.WithSchema(jobsServiceMethods.ByName("RetryJob")),
+			baseURL+AdminJobServiceRetryJobProcedure,
+			connect.WithSchema(adminJobServiceMethods.ByName("RetryJob")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// jobsServiceClient implements JobsServiceClient.
-type jobsServiceClient struct {
+// adminJobServiceClient implements AdminJobServiceClient.
+type adminJobServiceClient struct {
 	listJobs *connect.Client[v1.ListJobsRequest, v1.ListJobsResponse]
 	getJob   *connect.Client[v1.GetJobRequest, v1.GetJobResponse]
 	retryJob *connect.Client[v1.RetryJobRequest, v1.RetryJobResponse]
 }
 
-// ListJobs calls chatto.admin.v1.JobsService.ListJobs.
-func (c *jobsServiceClient) ListJobs(ctx context.Context, req *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
+// ListJobs calls chatto.admin.v1.AdminJobService.ListJobs.
+func (c *adminJobServiceClient) ListJobs(ctx context.Context, req *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
 	return c.listJobs.CallUnary(ctx, req)
 }
 
-// GetJob calls chatto.admin.v1.JobsService.GetJob.
-func (c *jobsServiceClient) GetJob(ctx context.Context, req *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error) {
+// GetJob calls chatto.admin.v1.AdminJobService.GetJob.
+func (c *adminJobServiceClient) GetJob(ctx context.Context, req *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error) {
 	return c.getJob.CallUnary(ctx, req)
 }
 
-// RetryJob calls chatto.admin.v1.JobsService.RetryJob.
-func (c *jobsServiceClient) RetryJob(ctx context.Context, req *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error) {
+// RetryJob calls chatto.admin.v1.AdminJobService.RetryJob.
+func (c *adminJobServiceClient) RetryJob(ctx context.Context, req *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error) {
 	return c.retryJob.CallUnary(ctx, req)
 }
 
-// JobsServiceHandler is an implementation of the chatto.admin.v1.JobsService service.
-type JobsServiceHandler interface {
+// AdminJobServiceHandler is an implementation of the chatto.admin.v1.AdminJobService service.
+type AdminJobServiceHandler interface {
 	// Lists jobs. Requires server.manage, including privileged mode.
 	// This call does not subscribe or poll; callers refresh explicitly.
 	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
@@ -121,56 +123,56 @@ type JobsServiceHandler interface {
 	RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error)
 }
 
-// NewJobsServiceHandler builds an HTTP handler from the service implementation. It returns the path
-// on which to mount the handler and the handler itself.
+// NewAdminJobServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewJobsServiceHandler(svc JobsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	jobsServiceMethods := v1.File_chatto_admin_v1_jobs_proto.Services().ByName("JobsService").Methods()
-	jobsServiceListJobsHandler := connect.NewUnaryHandler(
-		JobsServiceListJobsProcedure,
+func NewAdminJobServiceHandler(svc AdminJobServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminJobServiceMethods := v1.File_chatto_admin_v1_jobs_proto.Services().ByName("AdminJobService").Methods()
+	adminJobServiceListJobsHandler := connect.NewUnaryHandler(
+		AdminJobServiceListJobsProcedure,
 		svc.ListJobs,
-		connect.WithSchema(jobsServiceMethods.ByName("ListJobs")),
+		connect.WithSchema(adminJobServiceMethods.ByName("ListJobs")),
 		connect.WithHandlerOptions(opts...),
 	)
-	jobsServiceGetJobHandler := connect.NewUnaryHandler(
-		JobsServiceGetJobProcedure,
+	adminJobServiceGetJobHandler := connect.NewUnaryHandler(
+		AdminJobServiceGetJobProcedure,
 		svc.GetJob,
-		connect.WithSchema(jobsServiceMethods.ByName("GetJob")),
+		connect.WithSchema(adminJobServiceMethods.ByName("GetJob")),
 		connect.WithHandlerOptions(opts...),
 	)
-	jobsServiceRetryJobHandler := connect.NewUnaryHandler(
-		JobsServiceRetryJobProcedure,
+	adminJobServiceRetryJobHandler := connect.NewUnaryHandler(
+		AdminJobServiceRetryJobProcedure,
 		svc.RetryJob,
-		connect.WithSchema(jobsServiceMethods.ByName("RetryJob")),
+		connect.WithSchema(adminJobServiceMethods.ByName("RetryJob")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.admin.v1.JobsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.admin.v1.AdminJobService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case JobsServiceListJobsProcedure:
-			jobsServiceListJobsHandler.ServeHTTP(w, r)
-		case JobsServiceGetJobProcedure:
-			jobsServiceGetJobHandler.ServeHTTP(w, r)
-		case JobsServiceRetryJobProcedure:
-			jobsServiceRetryJobHandler.ServeHTTP(w, r)
+		case AdminJobServiceListJobsProcedure:
+			adminJobServiceListJobsHandler.ServeHTTP(w, r)
+		case AdminJobServiceGetJobProcedure:
+			adminJobServiceGetJobHandler.ServeHTTP(w, r)
+		case AdminJobServiceRetryJobProcedure:
+			adminJobServiceRetryJobHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedJobsServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedJobsServiceHandler struct{}
+// UnimplementedAdminJobServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminJobServiceHandler struct{}
 
-func (UnimplementedJobsServiceHandler) ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.JobsService.ListJobs is not implemented"))
+func (UnimplementedAdminJobServiceHandler) ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminJobService.ListJobs is not implemented"))
 }
 
-func (UnimplementedJobsServiceHandler) GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.JobsService.GetJob is not implemented"))
+func (UnimplementedAdminJobServiceHandler) GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminJobService.GetJob is not implemented"))
 }
 
-func (UnimplementedJobsServiceHandler) RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.JobsService.RetryJob is not implemented"))
+func (UnimplementedAdminJobServiceHandler) RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminJobService.RetryJob is not implemented"))
 }

@@ -621,6 +621,7 @@
       "retry_failed": "Nie udało się ponowić tego zadania.",
       "webhook": "Dostarczenie webhooka",
       "media": "Przetwarzanie multimediów",
+      "alerts": "Alerty powiadomień",
       "asset_cleanup": "Czyszczenie plików",
       "call_key_cleanup": "Usuwanie kluczy połączeń",
       "push_subscription_cleanup": "Czyszczenie subskrypcji push",

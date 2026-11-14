@@ -599,6 +599,7 @@
       "retry_failed": "Kunne ikke prøve denne jobben på nytt.",
       "webhook": "Webhook-levering",
       "media": "Mediebehandling",
+      "alerts": "Varselvarsler",
       "asset_cleanup": "Filopprydding",
       "call_key_cleanup": "Sletting av samtalenøkler",
       "push_subscription_cleanup": "Opprydding av push-abonnementer",

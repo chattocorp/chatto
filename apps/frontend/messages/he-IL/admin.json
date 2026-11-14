@@ -610,6 +610,7 @@
       "retry_failed": "לא ניתן לנסות שוב משימה זו.",
       "webhook": "מסירת Webhook",
       "media": "עיבוד מדיה",
+      "alerts": "התראות",
       "asset_cleanup": "ניקוי קבצים",
       "call_key_cleanup": "מחיקת מפתחות שיחה",
       "push_subscription_cleanup": "ניקוי מינויי Push",

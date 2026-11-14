@@ -5,10 +5,10 @@ import {
   createChattoClient,
   type ConnectAPIConfig
 } from '@chatto/client/api/connect';
-import { JobsService } from '@chatto/api-types/admin/v1/jobs_connect';
-import { type Job, JobStatus, RetryJobState } from '@chatto/api-types/admin/v1/jobs_pb';
+import { AdminJobService } from '@chatto/api-types/admin/v1/jobs_connect';
+import { type Job, JobRetryAvailability, JobStatus } from '@chatto/api-types/admin/v1/jobs_pb';
 
-export { JobStatus, RetryJobState };
+export { JobRetryAvailability, JobStatus };
 
 /** A safe job summary, with timestamps normalized at the API boundary. */
 export type AdminJob = {
@@ -16,36 +16,42 @@ export type AdminJob = {
   type: string;
   status: JobStatus;
   attempts: number;
-  maxAttempts: number;
+  /** Automatic attempt limit. Undefined when the job retries without a limit. */
+  maxAttempts: number | undefined;
   createdAt: Date | null;
   updatedAt: Date | null;
   nextAttemptAt: Date | null;
   failure: string;
-  retryState: RetryJobState | undefined;
+  /** Retry availability. Undefined when the server did not report it. */
+  retry: JobRetryAvailability | undefined;
   /** Opaque retry budget version. Echo it unchanged when retrying this snapshot. */
   retryVersion: string;
 };
 
 /** One page of jobs in the server's stable listing order. */
-export type AdminJobsPage = { jobs: AdminJob[]; nextPageToken: string };
+export type AdminJobsPage = {
+  jobs: AdminJob[];
+  /** Opaque cursor of the next page. Empty when no more jobs follow. */
+  nextCursor: string;
+};
 
 /** Creates an API for one authenticated server connection. */
 export function createAdminJobsAPI(config: ConnectAPIConfig) {
-  const client = createChattoClient(JobsService, config);
+  const client = createChattoClient(AdminJobService, config);
   return {
     async listJobs(
-      input: { pageSize?: number; pageToken?: string; status?: JobStatus } = {},
+      input: { pageSize?: number; cursor?: string; status?: JobStatus } = {},
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminJobsPage> {
       const response = await client.listJobs(
         {
           pageSize: input.pageSize ?? 50,
-          pageToken: input.pageToken ?? '',
+          cursor: input.cursor ?? '',
           status: input.status ?? JobStatus.UNSPECIFIED
         },
         { signal: options.signal }
       );
-      return { jobs: response.jobs.map(adminJob), nextPageToken: response.nextPageToken };
+      return { jobs: response.jobs.map(adminJob), nextCursor: response.nextCursor };
     },
     async getJob(id: string, options: { signal?: AbortSignal } = {}): Promise<AdminJob | null> {
       try {
@@ -79,7 +85,7 @@ function adminJob(job: Job): AdminJob {
     updatedAt: job.updatedAt?.toDate() ?? null,
     nextAttemptAt: job.nextAttemptAt?.toDate() ?? null,
     failure: job.failure,
-    retryState: job.retryState,
+    retry: job.retry,
     retryVersion: job.retryVersion
   };
 }

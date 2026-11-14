@@ -56,7 +56,7 @@ type Effect struct {
 
 // NewEffect binds handle to the queue as job type kind. stream must be the
 // stream of consumer; the job identity includes its name. Register Handle with
-// Queue.Run under the same type, and run RunSource until shutdown.
+// Queue.Work under the same type, and run RunSource until shutdown.
 func NewEffect(queue *Queue, kind string, stream jetstream.Stream, consumer jetstream.Consumer, handle events.DurableDeliveryHandler, options EffectOptions) (*Effect, error) {
 	if queue == nil || stream == nil || consumer == nil || handle == nil {
 		panic("jobs: effect requires a queue, a stream, a consumer, and a handler")

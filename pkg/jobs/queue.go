@@ -28,6 +28,11 @@ const (
 	leaseDuration     = time.Minute
 	heartbeatInterval = 15 * time.Second
 	repairInterval    = 30 * time.Second
+	// handoffRecheck is how soon a worker checks again a dispatch whose job
+	// another worker still holds.
+	handoffRecheck = 2 * time.Second
+	// shutdownWriteTimeout bounds the record write after cancellation.
+	shutdownWriteTimeout = 5 * time.Second
 	maxBackoff        = 30 * time.Minute
 	// DefaultSucceededRetention is used when Options.SucceededRetention is zero.
 	DefaultSucceededRetention = 7 * 24 * time.Hour
@@ -169,7 +174,9 @@ func (q *Queue) Enqueue(ctx context.Context, spec Spec) error {
 			return err
 		}
 	}
-	if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED {
+	// A job that waits for a retry gets its dispatch from Run when it is due,
+	// so the dispatch never waits unacknowledged in the consumer.
+	if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED || dueAt(record).After(time.Now()) {
 		return nil
 	}
 	return q.dispatch(ctx, record)
@@ -415,7 +422,7 @@ func (q *Queue) Run(ctx context.Context) error {
 			q.mu.Lock()
 			q.index[record.Id] = summary
 			q.mu.Unlock()
-			if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED && record.Status != jobpb.JobStatus_JOB_STATUS_RUNNING {
+			if !runnable(record) {
 				delete(active, record.Id)
 				continue
 			}
@@ -471,10 +478,18 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers 
 		return events.TerminateDelivery("invalid job dispatch", errors.New("invalid job dispatch"))
 	}
 	record, revision, err := q.read(ctx, dispatch.Id)
+	if errors.Is(err, ErrNotFound) {
+		// Reads go through the leader, so the record is really absent: a
+		// succeeded record expired, or a restore has a dispatch without its
+		// record. Nothing can run it.
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	if dispatch.Generation != record.Generation || record.Status == jobpb.JobStatus_JOB_STATUS_SUCCEEDED || record.Status == jobpb.JobStatus_JOB_STATUS_FAILED {
+	// Only queued and running jobs can run. This also skips statuses that a
+	// later version adds, as Run does.
+	if dispatch.Generation != record.Generation || !runnable(record) {
 		return nil
 	}
 	handler := handlers[record.Type]
@@ -487,8 +502,12 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers 
 	}
 	now := time.Now()
 	if record.Status == jobpb.JobStatus_JOB_STATUS_RUNNING && now.Before(record.LeaseUntil.AsTime()) {
-		// Another worker owns the attempt. Run publishes again if its lease ends.
-		return nil
+		// Another worker owns the attempt. Usually this is a graceful handoff:
+		// the stopping worker returned this dispatch before its handler stopped
+		// and its release was written. Check again soon, so the handoff does not
+		// wait for the lease. A new dispatch cannot replace this one, because
+		// the duplicate window drops its message ID.
+		return events.RetryDeliveryAfter(errors.New("job attempt in progress"), min(handoffRecheck, time.Until(record.LeaseUntil.AsTime())))
 	}
 	if record.Status == jobpb.JobStatus_JOB_STATUS_QUEUED && now.Before(record.NextAttemptAt.AsTime()) {
 		return events.RetryDeliveryAfter(errors.New("job retry pending"), time.Until(record.NextAttemptAt.AsTime()))
@@ -521,9 +540,7 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers 
 		select {
 		case <-ctx.Done():
 			cancel()
-			<-result
-			q.release(ctx, record, revision)
-			return ctx.Err()
+			return q.finish(ctx, record, revision, <-result)
 		case <-ticker.C:
 			record.LeaseUntil = timestamppb.New(time.Now().Add(leaseDuration))
 			if revision, err = q.save(ctx, record, revision); err != nil {
@@ -532,13 +549,35 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers 
 				return err
 			}
 		case err = <-result:
-			if ctx.Err() != nil {
-				q.release(ctx, record, revision)
-				return ctx.Err()
-			}
-			return q.complete(ctx, record, revision, err)
+			return q.finish(ctx, record, revision, err)
 		}
 	}
+}
+
+// runnable reports whether a record is in a state that a worker can run.
+func runnable(r *jobpb.JobRecord) bool {
+	return r.Status == jobpb.JobStatus_JOB_STATUS_QUEUED || r.Status == jobpb.JobStatus_JOB_STATUS_RUNNING
+}
+
+// finish records the result of an attempt whose handler has returned. During
+// shutdown, an attempt that failed retryably may have failed because of the
+// cancellation, so release hands it over without counting it. A success or a
+// permanent failure is a real outcome: it is recorded, so another worker does
+// not repeat finished work, such as a webhook that was already sent.
+func (q *Queue) finish(ctx context.Context, record *jobpb.JobRecord, revision uint64, err error) error {
+	if ctx.Err() == nil {
+		return q.complete(ctx, record, revision, err)
+	}
+	if failure, ok := errors.AsType[*Failure](err); err != nil && (!ok || !failure.Permanent) {
+		q.release(ctx, record, revision)
+		return ctx.Err()
+	}
+	completeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownWriteTimeout)
+	defer cancel()
+	if completeErr := q.complete(completeCtx, record, revision, err); completeErr != nil {
+		q.logger.Warn("Job result awaits lease expiry", "job_id", record.Id)
+	}
+	return ctx.Err()
 }
 
 // complete records one finished attempt. Only safe failure categories enter
@@ -606,7 +645,7 @@ func Backoff(initial time.Duration, attempt uint32) time.Duration {
 // with the same message ID collapses into that one; a different ID could reach
 // this process's closing pull request and wait for the acknowledgement timeout.
 func (q *Queue) release(ctx context.Context, record *jobpb.JobRecord, revision uint64) {
-	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownWriteTimeout)
 	defer cancel()
 	record.Attempts = max(record.Attempts, 1) - 1
 	record.Status = jobpb.JobStatus_JOB_STATUS_QUEUED

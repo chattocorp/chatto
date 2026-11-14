@@ -74,6 +74,8 @@
       "thread_views_description": "Pavedieni, kuriem sekojat, un Jūsu sāktie pavedieni šajā serverī var netikt parādīti atsevišķi.",
       "independent_slow_mode_title": "Neatkarīgs lēnais režīms nav pieejams",
       "independent_slow_mode_description": "Šis serveris izmanto vienu kopīgu gaidīšanas laiku kanāla ziņojumiem un atbildēm pavedienos.",
+      "background_jobs_title": "Fona uzdevumi nav pieejami",
+      "background_jobs_description": "Šis serveris servera iestatījumos nevar parādīt vai atkārtot fona uzdevumus.",
       "upgrade": "Lai iegūtu pilnu atbalstu, lūdziet servera administratoram atjaunināt uz {version} vai jaunāku versiju."
     },
     "server_gutter": {

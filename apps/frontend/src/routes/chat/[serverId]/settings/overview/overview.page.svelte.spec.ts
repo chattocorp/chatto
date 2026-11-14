@@ -61,6 +61,24 @@ describe('settings Overview', () => {
       .not.toBeInTheDocument();
   });
 
+  it('omits the Jobs card on a server version without a job queue', async () => {
+    scope.permissions = { ...scope.permissions, canManageServer: true };
+    const supported = render(Overview);
+    await expect.element(supported.getByRole('link', { name: 'Jobs', exact: true })).toBeVisible();
+    supported.unmount();
+
+    createTestServerScope({
+      serverId: 'remote.example.com',
+      permissions: { canManageServer: true },
+      serverInfo: { limitedFeatures: ['backgroundJobs'] }
+    });
+    const limited = render(Overview);
+    await expect.element(limited.getByRole('link', { name: 'General', exact: true })).toBeVisible();
+    await expect
+      .element(limited.getByRole('link', { name: 'Jobs', exact: true }))
+      .not.toBeInTheDocument();
+  });
+
   it('shows the notice in Server only for available inactive Shield Mode, including state changes', async () => {
     const view = render(Overview);
     const notice = view.getByText(/To use your additional permissions/);

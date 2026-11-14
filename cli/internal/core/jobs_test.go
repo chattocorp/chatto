@@ -86,9 +86,9 @@ func TestMediaJobRequiresTerminalAssetOutcome(t *testing.T) {
 	}))
 }
 
-// Media has its own consumer, so a media backlog or a replica without media
-// processing cannot hold capacity of the shared consumer.
-func TestJobConsumersSeparateMediaFromSharedWork(t *testing.T) {
+// Media and alerts have their own consumers, so a media backlog, a replica
+// without media processing, or slow webhook endpoints cannot hold their capacity.
+func TestJobConsumersSeparateMediaAndAlertsFromSharedWork(t *testing.T) {
 	c, _ := newTestCore(t)
 	ctx := testContext(t)
 	shared, err := c.jobsConsumer.Info(ctx)
@@ -98,6 +98,11 @@ func TestJobConsumersSeparateMediaFromSharedWork(t *testing.T) {
 	for _, kind := range effectJobTypes() {
 		require.Contains(t, shared.Config.FilterSubjects, "jobs."+kind+".*")
 	}
+	require.NotContains(t, shared.Config.FilterSubjects, "jobs."+jobTypeNotificationAlertDelivery+".*")
+	alerts, err := c.alertJobsConsumer.Info(ctx)
+	require.NoError(t, err)
+	require.Equal(t, AlertJobsConsumerName, alerts.Config.Durable)
+	require.Equal(t, []string{"jobs." + jobTypeNotificationAlertDelivery + ".*"}, alerts.Config.FilterSubjects)
 	media, err := c.mediaJobsConsumer.Info(ctx)
 	require.NoError(t, err)
 	require.Equal(t, MediaJobsConsumerName, media.Config.Durable)

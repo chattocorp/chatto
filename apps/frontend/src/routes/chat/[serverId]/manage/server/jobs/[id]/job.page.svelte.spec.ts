@@ -6,7 +6,7 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { adminQueryKeys } from '$lib/query/admin';
-import { JobStatus, RetryJobState, type AdminJob } from '$lib/api/adminJobs';
+import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJobs';
 import JobPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({ getJob: vi.fn(), retryJob: vi.fn(), id: 'job-1' }));
@@ -46,7 +46,7 @@ function job(changes: Partial<AdminJob> = {}): AdminJob {
     attempts: 5,
     maxAttempts: 5,
     failure: 'transport_error',
-    retryState: RetryJobState.ALLOWED,
+    retry: JobRetryAvailability.ALLOWED,
     retryVersion: 'a'.repeat(64),
     createdAt: new Date('2026-11-10T12:00:00Z'),
     updatedAt: new Date('2026-11-10T12:10:00Z'),
@@ -55,7 +55,7 @@ function job(changes: Partial<AdminJob> = {}): AdminJob {
   };
 }
 
-const queued = { status: JobStatus.QUEUED, retryState: RetryJobState.NOT_FAILED };
+const queued = { status: JobStatus.QUEUED, retry: JobRetryAvailability.NOT_FAILED };
 
 describe('job details', () => {
   it('shows safe details and a missing job', async () => {
@@ -72,15 +72,22 @@ describe('job details', () => {
     await expect.element(missing.getByText('This job no longer exists.')).toBeVisible();
   });
 
+  it('shows the attempt count alone when the job has no attempt limit', async () => {
+    mocks.getJob.mockResolvedValue(job({ attempts: 7, maxAttempts: undefined }));
+    const screen = render(JobPage);
+    await expect.element(screen.getByText('7', { exact: true })).toBeVisible();
+    expect(screen.container.textContent).not.toContain('7 /');
+  });
+
   it.each([
     [
       'expired',
-      { retryState: RetryJobState.EXPIRED },
+      { retry: JobRetryAvailability.EXPIRED },
       'This job has expired and cannot be retried.'
     ],
-    ['unknown', { retryState: undefined }, 'This action is currently unavailable.'],
+    ['unknown', { retry: undefined }, 'This action is currently unavailable.'],
     ['versionless', { retryVersion: '' }, 'This action is currently unavailable.']
-  ])('disables retry for a %s retry state', async (_name, changes, hint) => {
+  ])('disables retry for %s retry availability', async (_name, changes, hint) => {
     mocks.getJob.mockResolvedValue(job(changes));
     const screen = render(JobPage);
     await expect.element(screen.getByText(hint)).toBeVisible();

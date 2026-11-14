@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { queryClient } from '$lib/query/client';
-import { JobStatus, RetryJobState, type AdminJob } from '$lib/api/adminJobs';
+import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJobs';
 import JobsPage from './+page.svelte';
 import JobPage from './[id]/+page.svelte';
 
@@ -14,7 +14,20 @@ vi.mock('./jobPresentation', async (importOriginal) => ({
   JOBS_POLL_INTERVAL_MS: 50
 }));
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
-vi.mock('$app/state', () => ({ page: { params: { id: 'job-1' } } }));
+vi.mock('$app/state', () => ({
+  page: {
+    params: { id: 'job-1' },
+    url: new URL('https://chat.example.test/chat/-/manage/server/jobs')
+  }
+}));
+vi.mock('$app/navigation', () => ({
+  goto: vi.fn(),
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+  preloadData: vi.fn(),
+  invalidate: vi.fn(),
+  invalidateAll: vi.fn()
+}));
 vi.mock('$app/paths', () => ({
   base: '',
   assets: '',
@@ -42,7 +55,7 @@ function job(status: JobStatus): AdminJob {
     attempts: 1,
     maxAttempts: 5,
     failure: '',
-    retryState: RetryJobState.NOT_FAILED,
+    retry: JobRetryAvailability.NOT_FAILED,
     retryVersion: 'a'.repeat(64),
     createdAt: new Date('2026-11-10T12:00:00Z'),
     updatedAt: null,
@@ -53,8 +66,8 @@ function job(status: JobStatus): AdminJob {
 describe('job page polling', () => {
   it('refreshes the list without user action', async () => {
     mocks.listJobs
-      .mockResolvedValueOnce({ jobs: [job(JobStatus.QUEUED)], nextPageToken: '' })
-      .mockResolvedValue({ jobs: [job(JobStatus.SUCCEEDED)], nextPageToken: '' });
+      .mockResolvedValueOnce({ jobs: [job(JobStatus.QUEUED)], nextCursor: '' })
+      .mockResolvedValue({ jobs: [job(JobStatus.SUCCEEDED)], nextCursor: '' });
     const screen = render(JobsPage);
     await expect.element(screen.getByText('Succeeded', { exact: true })).toBeVisible();
   });

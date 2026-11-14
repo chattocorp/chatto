@@ -588,6 +588,7 @@
       "retry_failed": "このジョブを再試行できませんでした。",
       "webhook": "Webhook 配信",
       "media": "メディア処理",
+      "alerts": "通知アラート",
       "asset_cleanup": "ファイルのクリーンアップ",
       "call_key_cleanup": "通話キーの削除",
       "push_subscription_cleanup": "プッシュ購読のクリーンアップ",

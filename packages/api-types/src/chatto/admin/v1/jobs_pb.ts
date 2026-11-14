@@ -59,43 +59,44 @@ proto3.util.setEnumType(JobStatus, "chatto.admin.v1.JobStatus", [
 /**
  * Whether the current viewer can retry this job now.
  *
- * @generated from enum chatto.admin.v1.RetryJobState
+ * @generated from enum chatto.admin.v1.JobRetryAvailability
  */
-export enum RetryJobState {
+export enum JobRetryAvailability {
   /**
    * Unknown availability; clients must disable retry.
    *
-   * @generated from enum value: RETRY_JOB_STATE_UNSPECIFIED = 0;
+   * @generated from enum value: JOB_RETRY_AVAILABILITY_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
    * Retry is available. It may repeat an external effect.
    *
-   * @generated from enum value: RETRY_JOB_STATE_ALLOWED = 1;
+   * @generated from enum value: JOB_RETRY_AVAILABILITY_ALLOWED = 1;
    */
   ALLOWED = 1,
 
   /**
    * The job has not failed.
    *
-   * @generated from enum value: RETRY_JOB_STATE_NOT_FAILED = 2;
+   * @generated from enum value: JOB_RETRY_AVAILABILITY_NOT_FAILED = 2;
    */
   NOT_FAILED = 2,
 
   /**
-   * The original delivery deadline has passed and cannot be renewed.
+   * The job failed, and its original delivery deadline has passed and cannot
+   * be renewed.
    *
-   * @generated from enum value: RETRY_JOB_STATE_EXPIRED = 3;
+   * @generated from enum value: JOB_RETRY_AVAILABILITY_EXPIRED = 3;
    */
   EXPIRED = 3,
 }
-// Retrieve enum metadata with: proto3.getEnumType(RetryJobState)
-proto3.util.setEnumType(RetryJobState, "chatto.admin.v1.RetryJobState", [
-  { no: 0, name: "RETRY_JOB_STATE_UNSPECIFIED" },
-  { no: 1, name: "RETRY_JOB_STATE_ALLOWED" },
-  { no: 2, name: "RETRY_JOB_STATE_NOT_FAILED" },
-  { no: 3, name: "RETRY_JOB_STATE_EXPIRED" },
+// Retrieve enum metadata with: proto3.getEnumType(JobRetryAvailability)
+proto3.util.setEnumType(JobRetryAvailability, "chatto.admin.v1.JobRetryAvailability", [
+  { no: 0, name: "JOB_RETRY_AVAILABILITY_UNSPECIFIED" },
+  { no: 1, name: "JOB_RETRY_AVAILABILITY_ALLOWED" },
+  { no: 2, name: "JOB_RETRY_AVAILABILITY_NOT_FAILED" },
+  { no: 3, name: "JOB_RETRY_AVAILABILITY_EXPIRED" },
 ]);
 
 /**
@@ -136,11 +137,12 @@ export class Job extends Message<Job> {
   attempts = 0;
 
   /**
-   * Maximum automatic attempts in each generation.
+   * Maximum automatic attempts in each generation. Absent when the job
+   * retries until it succeeds or fails permanently.
    *
-   * @generated from field: uint32 max_attempts = 5;
+   * @generated from field: optional uint32 max_attempts = 5;
    */
-  maxAttempts = 0;
+  maxAttempts?: number;
 
   /**
    * Initial durable acceptance time.
@@ -173,9 +175,9 @@ export class Job extends Message<Job> {
   /**
    * Current retry availability. Absence means the server did not report it.
    *
-   * @generated from field: optional chatto.admin.v1.RetryJobState retry_state = 10;
+   * @generated from field: optional chatto.admin.v1.JobRetryAvailability retry = 10;
    */
-  retryState?: RetryJobState;
+  retry?: JobRetryAvailability;
 
   /**
    * Opaque version of this attempt budget. Send unchanged when retrying.
@@ -197,12 +199,12 @@ export class Job extends Message<Job> {
     { no: 2, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "status", kind: "enum", T: proto3.getEnumType(JobStatus) },
     { no: 4, name: "attempts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "max_attempts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "max_attempts", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 6, name: "created_at", kind: "message", T: Timestamp },
     { no: 7, name: "updated_at", kind: "message", T: Timestamp },
     { no: 8, name: "next_attempt_at", kind: "message", T: Timestamp },
     { no: 9, name: "failure", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "retry_state", kind: "enum", T: proto3.getEnumType(RetryJobState), opt: true },
+    { no: 10, name: "retry", kind: "enum", T: proto3.getEnumType(JobRetryAvailability), opt: true },
     { no: 11, name: "retry_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -232,17 +234,17 @@ export class ListJobsRequest extends Message<ListJobsRequest> {
   /**
    * Page size: zero selects 50; the maximum is 200.
    *
-   * @generated from field: int32 page_size = 1;
+   * @generated from field: uint32 page_size = 1;
    */
   pageSize = 0;
 
   /**
-   * Opaque token returned by the previous page, bound to this viewer and
-   * status filter.
+   * Opaque cursor returned by the previous page, bound to this viewer and
+   * status filter. Empty starts at the newest job.
    *
-   * @generated from field: string page_token = 2;
+   * @generated from field: string cursor = 2;
    */
-  pageToken = "";
+  cursor = "";
 
   /**
    * Returns only jobs in this state. Unspecified returns every job.
@@ -259,8 +261,8 @@ export class ListJobsRequest extends Message<ListJobsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ListJobsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "page_size", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 2, name: "page_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "page_size", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "status", kind: "enum", T: proto3.getEnumType(JobStatus) },
   ]);
 
@@ -295,11 +297,12 @@ export class ListJobsResponse extends Message<ListJobsResponse> {
   jobs: Job[] = [];
 
   /**
-   * Empty when there are no more jobs in this traversal.
+   * Cursor for the next page. Empty when there are no more jobs in this
+   * traversal.
    *
-   * @generated from field: string next_page_token = 2;
+   * @generated from field: string next_cursor = 2;
    */
-  nextPageToken = "";
+  nextCursor = "";
 
   constructor(data?: PartialMessage<ListJobsResponse>) {
     super();
@@ -310,7 +313,7 @@ export class ListJobsResponse extends Message<ListJobsResponse> {
   static readonly typeName = "chatto.admin.v1.ListJobsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "jobs", kind: "message", T: Job, repeated: true },
-    { no: 2, name: "next_page_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "next_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListJobsResponse {

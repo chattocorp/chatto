@@ -599,6 +599,7 @@
       "retry_failed": "Δεν ήταν δυνατή η επανάληψη αυτής της εργασίας.",
       "webhook": "Παράδοση webhook",
       "media": "Επεξεργασία πολυμέσων",
+      "alerts": "Ειδοποιήσεις",
       "asset_cleanup": "Εκκαθάριση αρχείων",
       "call_key_cleanup": "Διαγραφή κλειδιών κλήσεων",
       "push_subscription_cleanup": "Εκκαθάριση συνδρομών push",

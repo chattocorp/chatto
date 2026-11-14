@@ -74,6 +74,8 @@
       "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
       "independent_slow_mode_title": "独立慢速模式不可用",
       "independent_slow_mode_description": "此服务器对频道消息和话题回复使用共用的冷却时间。",
+      "background_jobs_title": "后台任务不可用",
+      "background_jobs_description": "此服务器无法在服务器设置中显示或重试后台任务。",
       "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
     },
     "server_gutter": {

@@ -599,6 +599,7 @@
       "retry_failed": "Could not retry this job.",
       "webhook": "Webhook delivery",
       "media": "Media processing",
+      "alerts": "Notification alerts",
       "asset_cleanup": "File cleanup",
       "call_key_cleanup": "Call key deletion",
       "push_subscription_cleanup": "Push subscription cleanup",

@@ -82,7 +82,9 @@ processing uses the shared job system. It can run inside the server process or
 in a standalone media process. A terminal attachment outcome completes its job,
 including a failed conversion or deletion. See ADR-123 and FDR-056.
 **Why:** Common queue controls let operators inspect and recover worker failures.
-**Tradeoff:** Media shares server worker capacity with other jobs. Interrupted
+**Tradeoff:** Media retries without a limit until it reaches a terminal
+outcome, so a missing tool or storage outage delays processing instead of
+failing it. Media has its own worker capacity. Interrupted
 attempts can repeat processing, so the existing terminal asset rules still
 control the published result.
 

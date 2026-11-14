@@ -74,6 +74,8 @@
       "thread_views_description": "Le discussioni che segui e quelle che hai avviato potrebbero non essere elencate separatamente su questo server.",
       "independent_slow_mode_title": "La modalità lenta indipendente non è disponibile",
       "independent_slow_mode_description": "Questo server usa un unico intervallo di attesa per i messaggi del canale e le risposte nei thread.",
+      "background_jobs_title": "Le attività in background non sono disponibili",
+      "background_jobs_description": "Questo server non può mostrare né riprovare le attività in background nelle impostazioni del server.",
       "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva."
     },
     "server_gutter": {

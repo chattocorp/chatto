@@ -63,7 +63,7 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 		shredWrappingKeyFn: core.encryption.keyWrapper.ShredKey,
 	}
 	m.appendOnceFn = m.appendOnce
-	m.worker, err = core.newEffectJob(jobTypeUserKeyShredding, core.storage.serverEvtStream, consumer, m.processDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: userKeyShreddingRetryDelay})
+	m.worker, err = core.newEffectJob(jobTypeUserKeyShredding, core.storage.serverEvtStream, consumer, m.processDelivery, jobqueue.EffectOptions{MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: userKeyShreddingRetryDelay})
 	if err != nil {
 		return nil, fmt.Errorf("configure user-key shredding worker: %w", err)
 	}

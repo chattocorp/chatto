@@ -30,6 +30,7 @@ import (
 type ChattoCore struct {
 	jobs                *jobqueue.Queue
 	jobsConsumer        jetstream.Consumer
+	alertJobsConsumer   jetstream.Consumer
 	mediaSourceConsumer jetstream.Consumer
 	mediaJobsConsumer   jetstream.Consumer
 	mediaJobHandler     func(context.Context, string, string) error

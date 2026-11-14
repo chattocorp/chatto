@@ -74,6 +74,8 @@
       "thread_views_description": "このサーバーでは、フォロー中のスレッドと自分が開始したスレッドが別々に表示されない場合があります。",
       "independent_slow_mode_title": "独立した低速モードは利用できません",
       "independent_slow_mode_description": "このサーバーでは、チャンネルのメッセージとスレッドの返信に共通の待機時間が適用されます。",
+      "background_jobs_title": "バックグラウンドジョブは利用できません",
+      "background_jobs_description": "このサーバーでは、サーバー設定でバックグラウンドジョブを表示または再試行できません。",
       "upgrade": "完全なサポートを得るには、サーバー管理者に {version} 以降へのアップグレードを依頼してください。"
     },
     "server_gutter": {

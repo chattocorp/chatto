@@ -133,7 +133,7 @@ func (a *API) Handlers() []Handler {
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
 	assetUploadHandler = newUploadChunkLimiter(assetUploadHandler, assetUploadOptions...)
-	jobsPath, jobsHandler := adminv1connect.NewJobsServiceHandler(&jobsService{api: a}, options...)
+	jobsPath, jobsHandler := adminv1connect.NewAdminJobServiceHandler(&adminJobService{api: a}, options...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	invitationCodePath, invitationCodeHandler := adminv1connect.NewAdminInvitationCodeServiceHandler(&adminInvitationCodeService{api: a}, options...)

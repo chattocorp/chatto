@@ -149,10 +149,12 @@ watcher retains only unfinished work and repairs missing dispatches. Succeeded
 records and dispatches expire after seven days. Failed records stay until a
 manual retry.
 
-The core's shared pool handles webhook and registered media attempts. Standalone
-media processes use a filtered consumer of the same dispatches. Record revision
+The core's shared pool handles webhook, cleanup, and key-deletion attempts.
+Notification alerts and media have their own consumers and pools. Standalone
+media processes share the media consumer. Record revision
 claims coordinate consumers and replicas; one-minute leases renew every fifteen
-seconds. A lost renewal cancels the handler. Shutdown releases claims; hard-crash
+seconds. A lost renewal cancels the handler. Shutdown releases the claims of
+interrupted attempts and records attempts that already finished; hard-crash
 recovery waits for expiry. Failed attempts release worker capacity during
 backoff. Exhausted or permanent failures stay available for manual retry.
 Manual retries use a new dispatch generation and preserve the original deadline.

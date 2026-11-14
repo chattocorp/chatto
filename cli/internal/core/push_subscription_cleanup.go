@@ -70,7 +70,7 @@ func newPushSubscriptionCleanupModel(
 		logger:         logger,
 		deleteAllFn:    core.DeleteAllUserPushSubscriptions,
 	}
-	model.worker, err = core.newEffectJob(jobTypePushSubscriptionCleanup, core.storage.serverEvtStream, consumer, model.processDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: pushSubscriptionCleanupRetryDelay})
+	model.worker, err = core.newEffectJob(jobTypePushSubscriptionCleanup, core.storage.serverEvtStream, consumer, model.processDelivery, jobqueue.EffectOptions{MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: pushSubscriptionCleanupRetryDelay})
 	if err != nil {
 		return nil, fmt.Errorf("configure user push-subscription cleanup worker: %w", err)
 	}

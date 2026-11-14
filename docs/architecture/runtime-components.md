@@ -132,7 +132,7 @@ operations do not duplicate these outcomes.
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
   Generated derivatives bypass this user upload limit.
   Standalone media job worker started explicitly as `chatto asset-processing`.
-  Embedded processing registers a handler in the core job pool when
+  Embedded processing registers a handler in the core media job pool when
   `[asset_processing].enabled` is true. `[asset_processing]` owns ffmpeg paths,
   temporary directory, and media concurrency;
   runs a private AssetProjection without starting `ChattoCore` or main-app boot
@@ -142,7 +142,7 @@ operations do not duplicate these outcomes.
   video/animated-GIF processing attempts: source-rendition inspection and
   reuse preflight, fallback encoding with web-compatible stereo audio
   normalization, aligned HLS segment packaging and upload, animated-GIF MP4 upload,
-  and terminal asset processing events. The shared job pool owns embedded
+  and terminal asset processing events. The core media job pool owns embedded
   execution, and `video.Unit` owns standalone execution.
 
 ## Event-sourcing framework and adapters
@@ -482,14 +482,16 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 
 [`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module runs bounded attempts
 from `JOBS`, owns runtime-state revision claims, and repairs missing dispatches
-through one filtered watcher. The core starts one shared pool with
-`core.job_concurrency` capacity (default eight). Embedded media also observes
-`asset_processing.max_concurrent_jobs`. Standalone media uses a filtered
-consumer and its own capacity.
+through one filtered watcher. The core starts three pools, each on its own
+consumer: a shared pool with `core.job_concurrency` capacity (default eight)
+for webhook, cleanup, and key-deletion jobs; a notification alert pool with
+capacity sixteen; and, with embedded media processing, a media pool with
+`asset_processing.max_concurrent_jobs` capacity. Standalone media processes use
+the media consumer with their own capacity.
 
 [`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,
 call-key cleanup, push-subscription cleanup, user-key shredding, and
-notification alert consumers onto the same pool. Each owning model keeps its
+notification alert consumers onto the queue. Each owning model keeps its
 handler; the source consumer only accepts jobs.
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source

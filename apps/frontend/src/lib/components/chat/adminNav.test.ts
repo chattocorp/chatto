@@ -35,6 +35,16 @@ describe('getAdminNavItems', () => {
     );
   });
 
+  it('hides Jobs when the server version has no job queue', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageServer: true }),
+      limitedFeatures: ['backgroundJobs']
+    });
+    expect(items.some((item) => item.label === 'Jobs')).toBe(false);
+    expect(items.some((item) => item.label === 'General')).toBe(true);
+  });
+
   it('lists nothing until the viewer permissions load', () => {
     expect(
       getAdminNavItems({ serverSegment: 'local', permissions: NO_SERVER_PERMISSIONS })

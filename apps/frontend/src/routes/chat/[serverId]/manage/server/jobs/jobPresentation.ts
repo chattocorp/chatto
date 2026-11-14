@@ -4,6 +4,18 @@ import { m } from '$lib/i18n/messages';
 /** Refresh interval of visible job pages. Job state has no realtime events. */
 export const JOBS_POLL_INTERVAL_MS = 3000;
 
+/**
+ * Returns the attempt count, followed by the automatic attempt limit when the
+ * job has one. A job without a limit retries until it succeeds or fails
+ * permanently, so only its count is shown.
+ */
+export function jobAttemptsLabel(job: AdminJob, locale: string): string {
+  const attempts = job.attempts.toLocaleString(locale);
+  return job.maxAttempts === undefined
+    ? attempts
+    : `${attempts} / ${job.maxAttempts.toLocaleString(locale)}`;
+}
+
 /** Pill tones that job statuses use. */
 export type JobStatusTone = 'neutral' | 'action' | 'success' | 'danger';
 

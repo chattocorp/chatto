@@ -74,6 +74,8 @@
       "thread_views_description": "Os tópicos seguidos e os que você iniciou podem não ser listados separadamente neste servidor.",
       "independent_slow_mode_title": "O modo lento independente não está disponível",
       "independent_slow_mode_description": "Este servidor usa um único intervalo de espera para mensagens do canal e respostas nas conversas.",
+      "background_jobs_title": "As tarefas em segundo plano não estão disponíveis",
+      "background_jobs_description": "Este servidor não pode mostrar nem tentar novamente tarefas em segundo plano nas configurações do servidor.",
       "upgrade": "Para obter suporte completo, peça ao administrador do servidor para atualizar para {version} ou posterior."
     },
     "server_gutter": {

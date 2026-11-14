@@ -1,7 +1,7 @@
 /** Manual job retry that the job list rows and the job detail page share. */
 import {
   createAdminJobsAPI,
-  RetryJobState,
+  JobRetryAvailability,
   type AdminJob,
   type AdminJobsPage
 } from '$lib/api/adminJobs';
@@ -16,7 +16,7 @@ type RetryVariables = SessionSnapshot & { id: string; retryVersion: string };
 
 /** Tells whether the server offers a retry for this rendered job snapshot. */
 export function canRetryJob(job: AdminJob): boolean {
-  return job.retryState === RetryJobState.ALLOWED && job.retryVersion !== '';
+  return job.retry === JobRetryAvailability.ALLOWED && job.retryVersion !== '';
 }
 
 /**

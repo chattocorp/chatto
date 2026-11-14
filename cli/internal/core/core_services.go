@@ -112,7 +112,7 @@ func initializeCoreServices(
 		logger.WithPrefix("core.CallModel"),
 	)
 	registerCallKeyCleanup := func(consumer jetstream.Consumer, handle events.DurableDeliveryHandler) (*jobqueue.Effect, error) {
-		return core.newEffectJob(jobTypeCallKeyCleanup, infra.storage.serverEvtStream, consumer, handle, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: callKeyCleanupRetryDelay})
+		return core.newEffectJob(jobTypeCallKeyCleanup, infra.storage.serverEvtStream, consumer, handle, jobqueue.EffectOptions{MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: callKeyCleanupRetryDelay})
 	}
 	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream, registerCallKeyCleanup); err != nil {
 		return fmt.Errorf("failed to initialize call-key cleanup: %w", err)

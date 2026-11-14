@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
@@ -24,6 +25,12 @@ const (
 	Failed
 )
 
+// UnlimitedAttempts is an attempt budget without a practical limit. A job with
+// it retries with capped backoff until it succeeds, fails permanently, or
+// expires. Use it for work that must finish, such as erasure, when no operator
+// is expected to retry it.
+const UnlimitedAttempts uint32 = math.MaxUint32
+
 // Spec describes a new job.
 type Spec struct {
 	// ID is a stable identity, usually from ID. Repeated handoffs with the same
@@ -35,6 +42,7 @@ type Spec struct {
 	// credentials, or other data that a job listing must not reveal.
 	Payload []byte
 	// MaxAttempts is the automatic attempt budget. It must be positive.
+	// UnlimitedAttempts retries until success, permanent failure, or expiry.
 	MaxAttempts uint32
 	// RetryDelay is the first backoff delay, at least one millisecond.
 	RetryDelay time.Duration

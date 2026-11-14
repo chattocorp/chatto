@@ -20,7 +20,7 @@ import (
 
 func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	service := &jobsService{api: env.api}
+	service := &adminJobService{api: env.api}
 	_, err := service.ListJobs(env.ctx, connect.NewRequest(&adminv1.ListJobsRequest{}))
 	require.Equal(t, connect.CodeUnauthenticated, errorCode(err))
 	_, err = service.GetJob(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.GetJobRequest{Id: "missing"}))
@@ -40,7 +40,7 @@ func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
 }
 func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	service := &jobsService{api: env.api}
+	service := &adminJobService{api: env.api}
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerManage))
 	ctx := withArmedBearerCredential(env.ctx, env.viewer, "armed")
 	js, err := jetstream.New(env.nc)
@@ -75,11 +75,11 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	var first *connect.Response[adminv1.ListJobsResponse]
 	require.Eventually(t, func() bool {
 		first, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, Status: adminv1.JobStatus_JOB_STATUS_FAILED}))
-		if err != nil || len(first.Msg.Jobs) != 2 || first.Msg.NextPageToken == "" {
+		if err != nil || len(first.Msg.Jobs) != 2 || first.Msg.NextCursor == "" {
 			return false
 		}
-		next, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, Status: adminv1.JobStatus_JOB_STATUS_FAILED, PageToken: first.Msg.NextPageToken}))
-		if err != nil || len(next.Msg.Jobs) != 1 || next.Msg.NextPageToken != "" {
+		next, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, Status: adminv1.JobStatus_JOB_STATUS_FAILED, Cursor: first.Msg.NextCursor}))
+		if err != nil || len(next.Msg.Jobs) != 1 || next.Msg.NextCursor != "" {
 			return false
 		}
 		for _, job := range append(first.Msg.Jobs, next.Msg.Jobs...) {
@@ -94,15 +94,15 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.NotContains(t, string(encoded), "SECRET")
 	require.NotContains(t, string(encoded), "payload")
 	require.NotContains(t, string(encoded), "generation")
-	require.Equal(t, adminv1.RetryJobState_RETRY_JOB_STATE_EXPIRED, byID["c"].GetRetryState())
-	require.Equal(t, adminv1.RetryJobState_RETRY_JOB_STATE_ALLOWED, byID["a"].GetRetryState())
+	require.Equal(t, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_EXPIRED, byID["c"].GetRetry())
+	require.Equal(t, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_ALLOWED, byID["a"].GetRetry())
 	// A cursor is bound to its status filter.
-	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, PageToken: first.Msg.NextPageToken}))
+	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, Cursor: first.Msg.NextCursor}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	queued, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Status: adminv1.JobStatus_JOB_STATUS_QUEUED}))
 	require.NoError(t, err)
 	require.Empty(t, queued.Msg.Jobs)
-	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageToken: "tampered"}))
+	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Cursor: "tampered"}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	retried, err := service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: byID["a"].RetryVersion}))
 	require.NoError(t, err)
@@ -112,4 +112,29 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
 	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "c", RetryVersion: byID["c"].RetryVersion}))
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
+}
+
+// Expiry blocks only the retry of a failed job. An unlimited budget has no
+// maximum in the summary.
+func TestJobSummaryRetryAvailabilityAndAttemptLimit(t *testing.T) {
+	past := time.Now().Add(-time.Hour)
+	for _, test := range []struct {
+		name string
+		job  jobqueue.Job
+		want adminv1.JobRetryAvailability
+	}{
+		{"failed", jobqueue.Job{Status: jobqueue.Failed}, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_ALLOWED},
+		{"failed and expired", jobqueue.Job{Status: jobqueue.Failed, ExpiresAt: past}, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_EXPIRED},
+		{"succeeded after deadline", jobqueue.Job{Status: jobqueue.Succeeded, ExpiresAt: past}, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_NOT_FAILED},
+		{"queued after deadline", jobqueue.Job{Status: jobqueue.Queued, ExpiresAt: past}, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_NOT_FAILED},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			test.job.ID, test.job.MaxAttempts = "job", 3
+			summary := jobSummary(test.job)
+			require.Equal(t, test.want, summary.GetRetry())
+			require.Equal(t, uint32(3), summary.GetMaxAttempts())
+		})
+	}
+	unlimited := jobSummary(jobqueue.Job{ID: "job", Status: jobqueue.Queued, MaxAttempts: jobqueue.UnlimitedAttempts})
+	require.Nil(t, unlimited.MaxAttempts)
 }

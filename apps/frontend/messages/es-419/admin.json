@@ -599,6 +599,7 @@
       "retry_failed": "No se pudo reintentar esta tarea.",
       "webhook": "Envío de webhook",
       "media": "Procesamiento multimedia",
+      "alerts": "Alertas de notificación",
       "asset_cleanup": "Limpieza de archivos",
       "call_key_cleanup": "Eliminación de claves de llamada",
       "push_subscription_cleanup": "Limpieza de suscripciones push",

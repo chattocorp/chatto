@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"time"
 
 	"github.com/chattocorp/chatto/authling/internal/evtstream"
@@ -173,7 +172,7 @@ func (s *Service) ConfigureWorker(ctx context.Context, stream jetstream.Stream, 
 	s.effect, err = jobs.NewEffect(queue, JobType, stream, consumer, s.process, jobs.EffectOptions{
 		// Erasure must never be abandoned, and Authling has no manual retry.
 		// The capped backoff then keeps retrying, as the previous worker did.
-		MaxAttempts:       math.MaxUint32,
+		MaxAttempts:       jobs.UnlimitedAttempts,
 		RetryDelay:        time.Second,
 		Accept:            isErasureRequest,
 		SourceConcurrency: 1,

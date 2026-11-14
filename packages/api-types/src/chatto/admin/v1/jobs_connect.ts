@@ -9,16 +9,16 @@ import { MethodKind } from "@bufbuild/protobuf";
 /**
  * Administrative background-job inspection and recovery.
  *
- * @generated from service chatto.admin.v1.JobsService
+ * @generated from service chatto.admin.v1.AdminJobService
  */
-export const JobsService = {
-  typeName: "chatto.admin.v1.JobsService",
+export const AdminJobService = {
+  typeName: "chatto.admin.v1.AdminJobService",
   methods: {
     /**
      * Lists jobs. Requires server.manage, including privileged mode.
      * This call does not subscribe or poll; callers refresh explicitly.
      *
-     * @generated from rpc chatto.admin.v1.JobsService.ListJobs
+     * @generated from rpc chatto.admin.v1.AdminJobService.ListJobs
      */
     listJobs: {
       name: "ListJobs",
@@ -29,7 +29,7 @@ export const JobsService = {
     /**
      * Gets a job. Requires server.manage, including privileged mode.
      *
-     * @generated from rpc chatto.admin.v1.JobsService.GetJob
+     * @generated from rpc chatto.admin.v1.AdminJobService.GetJob
      */
     getJob: {
       name: "GetJob",
@@ -42,7 +42,7 @@ export const JobsService = {
      * Returns FAILED_PRECONDITION for active, successful, or expired jobs.
      * A lost response does not cancel an accepted retry. Read the job before retrying.
      *
-     * @generated from rpc chatto.admin.v1.JobsService.RetryJob
+     * @generated from rpc chatto.admin.v1.AdminJobService.RetryJob
      */
     retryJob: {
       name: "RetryJob",

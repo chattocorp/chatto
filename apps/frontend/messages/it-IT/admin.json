@@ -599,6 +599,7 @@
       "retry_failed": "Impossibile riprovare questa attività.",
       "webhook": "Invio webhook",
       "media": "Elaborazione multimediale",
+      "alerts": "Avvisi di notifica",
       "asset_cleanup": "Pulizia dei file",
       "call_key_cleanup": "Eliminazione delle chiavi di chiamata",
       "push_subscription_cleanup": "Pulizia delle iscrizioni push",

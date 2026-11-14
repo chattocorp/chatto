@@ -599,6 +599,7 @@
       "retry_failed": "Det gick inte att försöka med jobbet igen.",
       "webhook": "Webhook-leverans",
       "media": "Mediebearbetning",
+      "alerts": "Aviseringar",
       "asset_cleanup": "Filrensning",
       "call_key_cleanup": "Radering av samtalsnycklar",
       "push_subscription_cleanup": "Rensning av push-prenumerationer",

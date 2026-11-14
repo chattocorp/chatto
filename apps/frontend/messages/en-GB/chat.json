@@ -74,6 +74,8 @@
       "thread_views_description": "Followed threads and threads you started may not be listed separately on this server.",
       "independent_slow_mode_title": "Independent slow mode is unavailable",
       "independent_slow_mode_description": "This server uses one shared cooldown for channel messages and thread replies.",
+      "background_jobs_title": "Background jobs are unavailable",
+      "background_jobs_description": "This server cannot show or retry background jobs in server settings.",
       "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer."
     },
     "server_gutter": {

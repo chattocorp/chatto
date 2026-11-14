@@ -599,6 +599,7 @@
       "retry_failed": "Bu iş yeniden denenemedi.",
       "webhook": "Webhook teslimi",
       "media": "Medya işleme",
+      "alerts": "Bildirim uyarıları",
       "asset_cleanup": "Dosya temizliği",
       "call_key_cleanup": "Arama anahtarı silme",
       "push_subscription_cleanup": "Anlık bildirim aboneliği temizliği",

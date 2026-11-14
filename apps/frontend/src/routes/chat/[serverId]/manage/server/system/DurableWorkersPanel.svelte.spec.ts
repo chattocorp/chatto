@@ -34,7 +34,7 @@ describe('DurableWorkersPanel', () => {
   it('names the job pools and keeps their broker keys available for support', () => {
     const { container } = render(DurableWorkersPanel, {
       props: {
-        workers: ['jobs', 'media_jobs'].map((key) => ({
+        workers: ['jobs', 'media_jobs', 'alert_jobs'].map((key) => ({
           key,
           health: 'healthy' as const,
           pendingCount: '0',
@@ -50,6 +50,8 @@ describe('DurableWorkersPanel', () => {
     expect(container.textContent).toContain('Media processing');
     expect(container.textContent).toContain('jobs');
     expect(container.textContent).toContain('media_jobs');
+    expect(container.textContent).toContain('Notification alerts');
+    expect(container.textContent).toContain('alert_jobs');
   });
 
   it('explains when an older server reports no worker diagnostics', () => {

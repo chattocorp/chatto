@@ -52,11 +52,12 @@ describe('bundled frontend feature guidance', () => {
 
 describe('server compatibility evaluation', () => {
   it.each([
-    ['0.5.0-beta.11', 'limited', ['threadViews', 'independentSlowMode']],
-    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'independentSlowMode']],
-    ['0.5.0-beta.16', 'supported', ['independentSlowMode']],
-    ['0.5.0-beta.16-custom+build.2', 'supported', ['independentSlowMode']],
-    ['0.5.0', 'supported', []],
+    ['0.5.0-beta.11', 'limited', ['threadViews', 'independentSlowMode', 'backgroundJobs']],
+    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'independentSlowMode', 'backgroundJobs']],
+    ['0.5.0-beta.16', 'supported', ['independentSlowMode', 'backgroundJobs']],
+    ['0.5.0-beta.16-custom+build.2', 'supported', ['independentSlowMode', 'backgroundJobs']],
+    ['0.5.0', 'supported', ['backgroundJobs']],
+    ['0.6.0', 'supported', []],
     ['dev', 'unknown', []],
     ['', 'unknown', []]
   ] as const)('reports feature support for %s', (version, support, limited) => {
@@ -77,10 +78,23 @@ describe('server compatibility evaluation', () => {
     expect(serverFeatureSupport('0.5.0-beta.17', 'independentSlowMode')).toBe('limited');
     expect(serverFeatureSupport('0.5.0-beta.18', 'independentSlowMode')).toBe('supported');
     expect(serverFeatureSupport('dev', 'independentSlowMode')).toBe('unknown');
-    expect(limitedServerFeatures('0.5.0-beta.18')).toEqual([]);
+    expect(limitedServerFeatures('0.5.0-beta.18')).toEqual(['backgroundJobs']);
     expect(isConnectableServerVersion('0.5.0-beta.17')).toBe(true);
+  });
+
+  it('reports background jobs without blocking older compatible servers', () => {
+    expect(serverFeatureSupport('0.5.0', 'backgroundJobs')).toBe('limited');
+    expect(serverFeatureSupport('0.6.0-beta.1', 'backgroundJobs')).toBe('limited');
+    expect(serverFeatureSupport('0.6.0', 'backgroundJobs')).toBe('supported');
+    expect(serverFeatureSupport('0.6.0-dev', 'backgroundJobs')).toBe('supported');
+    expect(serverFeatureSupport('dev', 'backgroundJobs')).toBe('unknown');
+    expect(isConnectableServerVersion('0.5.0')).toBe(true);
+    expect(evaluateServerCompatibility({ serverVersion: '0.5.0' })).toEqual({
+      status: 'limited',
+      reason: 'server-too-old'
+    });
     expect(MINIMUM_CONNECTABLE_SERVER_VERSION).toBe('0.5.0-beta.9');
-    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.5.0-beta.18');
+    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.6.0');
   });
 
   it.each([
@@ -127,28 +141,28 @@ describe('server compatibility evaluation', () => {
     expect(compareReleaseVersions('unknown', '0.5.0')).toBeNull();
   });
 
-  it('accepts servers at or above the 0.5 compatibility baseline', () => {
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0'
-      })
-    ).toEqual({
-      status: 'supported',
-      reason: 'version-confirmed'
-    });
-
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0-dev'
-      })
-    ).toEqual({
-      status: 'supported',
-      reason: 'version-confirmed'
-    });
-
+  it('accepts servers at or above the full-support baseline', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.6.0'
+      })
+    ).toEqual({
+      status: 'supported',
+      reason: 'version-confirmed'
+    });
+
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.6.0-dev'
+      })
+    ).toEqual({
+      status: 'supported',
+      reason: 'version-confirmed'
+    });
+
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.7.0'
       })
     ).toEqual({
       status: 'supported',
@@ -188,11 +202,12 @@ describe('server compatibility evaluation', () => {
   });
 
   it('reports supported versions only for parseable releases at or above the minimum', () => {
-    expect(isSupportedServerVersion('0.5.0-beta.18')).toBe(true);
-    expect(isSupportedServerVersion('0.5.0-beta.17')).toBe(false);
+    expect(isSupportedServerVersion('0.6.0')).toBe(true);
+    expect(isSupportedServerVersion('0.6.0-dev')).toBe(true);
+    expect(isSupportedServerVersion('0.6.0-beta.1')).toBe(false);
+    expect(isSupportedServerVersion('0.5.0')).toBe(false);
+    expect(isSupportedServerVersion('0.5.0-beta.18')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-beta.15')).toBe(false);
-    expect(isSupportedServerVersion('0.5.0-dev')).toBe(true);
-    expect(isSupportedServerVersion('0.5.0')).toBe(true);
     expect(isSupportedServerVersion('0.5.0-beta.8')).toBe(false);
     expect(isSupportedServerVersion('0.4.19')).toBe(false);
     expect(isSupportedServerVersion('custom-build')).toBe(false);

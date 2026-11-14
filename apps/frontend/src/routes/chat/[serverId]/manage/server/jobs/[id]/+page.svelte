@@ -2,7 +2,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { createAdminJobsAPI, JobStatus, RetryJobState } from '$lib/api/adminJobs';
+  import { createAdminJobsAPI, JobRetryAvailability, JobStatus } from '$lib/api/adminJobs';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { serverIdToSegment } from '$lib/navigation';
@@ -13,7 +13,7 @@
   import { Button } from '$lib/ui/form';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { JOBS_POLL_INTERVAL_MS, jobTypeLabel } from '../jobPresentation';
+  import { JOBS_POLL_INTERVAL_MS, jobAttemptsLabel, jobTypeLabel } from '../jobPresentation';
   import JobStatusPill from '../JobStatusPill.svelte';
   import { canRetryJob, createJobRetry } from '../jobRetry.svelte';
 
@@ -86,7 +86,7 @@
             {/if}
           {/snippet}
           <div class="flex flex-col gap-4">
-            {#if job.status === JobStatus.FAILED && job.retryState === RetryJobState.EXPIRED}
+            {#if job.status === JobStatus.FAILED && job.retry === JobRetryAvailability.EXPIRED}
               <Hint tone="warning">{m('admin.jobs.expired')}</Hint>
             {:else if job.status === JobStatus.FAILED && !canRetryJob(job)}
               <Hint tone="warning">{m('common.action_unavailable')}</Hint>
@@ -99,9 +99,7 @@
               <dd class="font-mono text-sm break-all">{job.id}</dd>
 
               <dt class="text-sm text-muted">{m('admin.jobs.attempts')}</dt>
-              <dd class="text-sm tabular-nums">
-                {job.attempts.toLocaleString(locale)} / {job.maxAttempts.toLocaleString(locale)}
-              </dd>
+              <dd class="text-sm tabular-nums">{jobAttemptsLabel(job, locale)}</dd>
 
               <dt class="text-sm text-muted">{m('admin.jobs.created')}</dt>
               <dd class="text-sm">{timestamp(job.createdAt)}</dd>

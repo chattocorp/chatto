@@ -12,6 +12,8 @@
         return m('admin.jobs.title');
       case 'media_jobs':
         return m('admin.jobs.media');
+      case 'alert_jobs':
+        return m('admin.jobs.alerts');
       default:
         return null;
     }

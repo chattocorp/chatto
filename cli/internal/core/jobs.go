@@ -24,8 +24,12 @@ import (
 const (
 	// JobsConsumerName is the shared JOBS consumer of server replicas.
 	JobsConsumerName = "chatto-jobs-v1"
-	// MediaJobsConsumerName is the JOBS consumer of standalone media processes.
+	// MediaJobsConsumerName is the JOBS consumer of media jobs, shared by server
+	// replicas with media processing and standalone media processes.
 	MediaJobsConsumerName = "chatto-jobs-media-v1"
+	// AlertJobsConsumerName is the JOBS consumer of notification alert jobs.
+	// Alerts have a short deadline, so slow webhook endpoints must not delay them.
+	AlertJobsConsumerName = "chatto-jobs-alerts-v1"
 	jobKeyPrefix          = "job."
 	jobSubjectPrefix      = "jobs"
 	// JobSucceededRetention is how long succeeded job records stay.
@@ -59,8 +63,13 @@ func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 	}
 	// Media has its own consumer, shared with standalone media processes. A
 	// media backlog, or a replica without media processing, then holds no
-	// capacity of the shared consumer.
+	// capacity of the shared consumer. Alerts have their own consumer and pool,
+	// so they meet their delivery deadline when webhook endpoints are slow.
 	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, JobsConsumerName, append([]string{"webhook"}, effectJobTypes()...)...))
+	if err != nil {
+		return err
+	}
+	c.alertJobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, AlertJobsConsumerName, jobTypeNotificationAlertDelivery))
 	if err != nil {
 		return err
 	}
@@ -104,9 +113,10 @@ func (c *ChattoCore) runJobs(ctx context.Context) error {
 		return err
 	}
 	handlers := map[string]jobqueue.Handler{"webhook": c.botWebhooks.performJob}
-	for kind, job := range c.effectJobs {
-		handlers[kind] = job.Handle
+	for _, kind := range effectJobTypes() {
+		handlers[kind] = c.effectJobs[kind].Handle
 	}
+	alerts := map[string]jobqueue.Handler{jobTypeNotificationAlertDelivery: c.effectJobs[jobTypeNotificationAlertDelivery].Handle}
 	concurrency := c.config.JobConcurrency
 	if concurrency <= 0 {
 		concurrency = 8
@@ -114,15 +124,10 @@ func (c *ChattoCore) runJobs(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return c.jobs.Run(ctx) })
 	g.Go(func() error { return c.jobs.Work(ctx, c.jobsConsumer, handlers, concurrency) })
+	g.Go(func() error { return c.jobs.Work(ctx, c.alertJobsConsumer, alerts, notificationAlertMaxPending) })
 	if c.mediaJobHandler != nil {
 		c.RecoverUnmanifestedVideoAttachments(ctx)
-		media := map[string]jobqueue.Handler{"media": func(ctx context.Context, job jobqueue.Job) error {
-			request := new(statev1.MediaJob)
-			if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
-				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
-			}
-			return c.mediaJobHandler(ctx, request.AssetId, request.MessageEventId)
-		}}
+		media := map[string]jobqueue.Handler{"media": MediaJobHandler(c.logger.WithPrefix("MediaJobs"), c.mediaJobHandler)}
 		g.Go(func() error { return c.jobs.Work(ctx, c.mediaJobsConsumer, media, c.mediaJobConcurrency) })
 	}
 	return g.Wait()
@@ -144,12 +149,32 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: jobqueue.ID("media", event.GetId()), Type: "media", Payload: payload, MaxAttempts: 5, RetryDelay: 30 * time.Second})
+		// Media retries until it has a terminal outcome, as the earlier media
+		// worker did: missing tools or an object-store outage must not fail
+		// attachments permanently. Unprocessable media records a terminal failure.
+		return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: jobqueue.ID("media", event.GetId()), Type: "media", Payload: payload, MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: 30 * time.Second})
 	}, evtstream.EffectWorkerOptions{MaxConcurrent: 8, RetryDelay: 5 * time.Second, Logger: c.logger.WithPrefix("MediaJobSource")})
 	if err != nil {
 		return err
 	}
 	return worker.Run(ctx)
+}
+
+// MediaJobHandler decodes a media job and runs process for its asset. Server
+// replicas and standalone media processes share it. The queue stores only a
+// failure category, so the handler logs the cause of each failed attempt.
+func MediaJobHandler(logger *log.Logger, process func(ctx context.Context, assetID, messageID string) error) jobqueue.Handler {
+	return func(ctx context.Context, job jobqueue.Job) error {
+		request := new(statev1.MediaJob)
+		if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
+			return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
+		}
+		err := process(ctx, request.AssetId, request.MessageEventId)
+		if err != nil && ctx.Err() == nil {
+			logger.Warn("Media processing attempt failed; the job retries", "job_id", job.ID, "asset_id", request.AssetId, "attempt", job.Attempts, "error", err)
+		}
+		return err
+	}
 }
 
 // ListJobs returns safe-to-map private job records after the operation's gate.

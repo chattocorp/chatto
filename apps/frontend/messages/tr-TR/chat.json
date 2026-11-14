@@ -74,6 +74,8 @@
       "thread_views_description": "Takip ettiğiniz ve başlattığınız konular bu sunucuda ayrı ayrı listelenmeyebilir.",
       "independent_slow_mode_title": "Bağımsız yavaş mod kullanılamıyor",
       "independent_slow_mode_description": "Bu sunucu, kanal mesajları ve konu yanıtları için ortak bir bekleme süresi kullanır.",
+      "background_jobs_title": "Arka plan işleri kullanılamıyor",
+      "background_jobs_description": "Bu sunucu, sunucu ayarlarında arka plan işlerini gösteremez veya yeniden deneyemez.",
       "upgrade": "Tam destek için sunucu yöneticisinden {version} veya daha yeni bir sürüme yükseltmesini isteyin."
     },
     "server_gutter": {

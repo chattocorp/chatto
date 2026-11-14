@@ -85,59 +85,60 @@ func (JobStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // Whether the current viewer can retry this job now.
-type RetryJobState int32
+type JobRetryAvailability int32
 
 const (
 	// Unknown availability; clients must disable retry.
-	RetryJobState_RETRY_JOB_STATE_UNSPECIFIED RetryJobState = 0
+	JobRetryAvailability_JOB_RETRY_AVAILABILITY_UNSPECIFIED JobRetryAvailability = 0
 	// Retry is available. It may repeat an external effect.
-	RetryJobState_RETRY_JOB_STATE_ALLOWED RetryJobState = 1
+	JobRetryAvailability_JOB_RETRY_AVAILABILITY_ALLOWED JobRetryAvailability = 1
 	// The job has not failed.
-	RetryJobState_RETRY_JOB_STATE_NOT_FAILED RetryJobState = 2
-	// The original delivery deadline has passed and cannot be renewed.
-	RetryJobState_RETRY_JOB_STATE_EXPIRED RetryJobState = 3
+	JobRetryAvailability_JOB_RETRY_AVAILABILITY_NOT_FAILED JobRetryAvailability = 2
+	// The job failed, and its original delivery deadline has passed and cannot
+	// be renewed.
+	JobRetryAvailability_JOB_RETRY_AVAILABILITY_EXPIRED JobRetryAvailability = 3
 )
 
-// Enum value maps for RetryJobState.
+// Enum value maps for JobRetryAvailability.
 var (
-	RetryJobState_name = map[int32]string{
-		0: "RETRY_JOB_STATE_UNSPECIFIED",
-		1: "RETRY_JOB_STATE_ALLOWED",
-		2: "RETRY_JOB_STATE_NOT_FAILED",
-		3: "RETRY_JOB_STATE_EXPIRED",
+	JobRetryAvailability_name = map[int32]string{
+		0: "JOB_RETRY_AVAILABILITY_UNSPECIFIED",
+		1: "JOB_RETRY_AVAILABILITY_ALLOWED",
+		2: "JOB_RETRY_AVAILABILITY_NOT_FAILED",
+		3: "JOB_RETRY_AVAILABILITY_EXPIRED",
 	}
-	RetryJobState_value = map[string]int32{
-		"RETRY_JOB_STATE_UNSPECIFIED": 0,
-		"RETRY_JOB_STATE_ALLOWED":     1,
-		"RETRY_JOB_STATE_NOT_FAILED":  2,
-		"RETRY_JOB_STATE_EXPIRED":     3,
+	JobRetryAvailability_value = map[string]int32{
+		"JOB_RETRY_AVAILABILITY_UNSPECIFIED": 0,
+		"JOB_RETRY_AVAILABILITY_ALLOWED":     1,
+		"JOB_RETRY_AVAILABILITY_NOT_FAILED":  2,
+		"JOB_RETRY_AVAILABILITY_EXPIRED":     3,
 	}
 )
 
-func (x RetryJobState) Enum() *RetryJobState {
-	p := new(RetryJobState)
+func (x JobRetryAvailability) Enum() *JobRetryAvailability {
+	p := new(JobRetryAvailability)
 	*p = x
 	return p
 }
 
-func (x RetryJobState) String() string {
+func (x JobRetryAvailability) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (RetryJobState) Descriptor() protoreflect.EnumDescriptor {
+func (JobRetryAvailability) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_admin_v1_jobs_proto_enumTypes[1].Descriptor()
 }
 
-func (RetryJobState) Type() protoreflect.EnumType {
+func (JobRetryAvailability) Type() protoreflect.EnumType {
 	return &file_chatto_admin_v1_jobs_proto_enumTypes[1]
 }
 
-func (x RetryJobState) Number() protoreflect.EnumNumber {
+func (x JobRetryAvailability) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use RetryJobState.Descriptor instead.
-func (RetryJobState) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use JobRetryAvailability.Descriptor instead.
+func (JobRetryAvailability) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_jobs_proto_rawDescGZIP(), []int{1}
 }
 
@@ -155,8 +156,9 @@ type Job struct {
 	Status JobStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.admin.v1.JobStatus" json:"status,omitempty"`
 	// Attempts in the current manual retry generation, including interrupted attempts.
 	Attempts uint32 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
-	// Maximum automatic attempts in each generation.
-	MaxAttempts uint32 `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	// Maximum automatic attempts in each generation. Absent when the job
+	// retries until it succeeds or fails permanently.
+	MaxAttempts *uint32 `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3,oneof" json:"max_attempts,omitempty"`
 	// Initial durable acceptance time.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Most recent state change or progress heartbeat.
@@ -166,7 +168,7 @@ type Job struct {
 	// Safe failure category, without exception text or external response content.
 	Failure string `protobuf:"bytes,9,opt,name=failure,proto3" json:"failure,omitempty"`
 	// Current retry availability. Absence means the server did not report it.
-	RetryState *RetryJobState `protobuf:"varint,10,opt,name=retry_state,json=retryState,proto3,enum=chatto.admin.v1.RetryJobState,oneof" json:"retry_state,omitempty"`
+	Retry *JobRetryAvailability `protobuf:"varint,10,opt,name=retry,proto3,enum=chatto.admin.v1.JobRetryAvailability,oneof" json:"retry,omitempty"`
 	// Opaque version of this attempt budget. Send unchanged when retrying.
 	// A manual retry changes the version; automatic attempts do not.
 	RetryVersion  string `protobuf:"bytes,11,opt,name=retry_version,json=retryVersion,proto3" json:"retry_version,omitempty"`
@@ -233,8 +235,8 @@ func (x *Job) GetAttempts() uint32 {
 }
 
 func (x *Job) GetMaxAttempts() uint32 {
-	if x != nil {
-		return x.MaxAttempts
+	if x != nil && x.MaxAttempts != nil {
+		return *x.MaxAttempts
 	}
 	return 0
 }
@@ -267,11 +269,11 @@ func (x *Job) GetFailure() string {
 	return ""
 }
 
-func (x *Job) GetRetryState() RetryJobState {
-	if x != nil && x.RetryState != nil {
-		return *x.RetryState
+func (x *Job) GetRetry() JobRetryAvailability {
+	if x != nil && x.Retry != nil {
+		return *x.Retry
 	}
-	return RetryJobState_RETRY_JOB_STATE_UNSPECIFIED
+	return JobRetryAvailability_JOB_RETRY_AVAILABILITY_UNSPECIFIED
 }
 
 func (x *Job) GetRetryVersion() string {
@@ -285,10 +287,10 @@ func (x *Job) GetRetryVersion() string {
 type ListJobsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page size: zero selects 50; the maximum is 200.
-	PageSize int32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// Opaque token returned by the previous page, bound to this viewer and
-	// status filter.
-	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize uint32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// Opaque cursor returned by the previous page, bound to this viewer and
+	// status filter. Empty starts at the newest job.
+	Cursor string `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	// Returns only jobs in this state. Unspecified returns every job.
 	Status        JobStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.admin.v1.JobStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -325,16 +327,16 @@ func (*ListJobsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_jobs_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListJobsRequest) GetPageSize() int32 {
+func (x *ListJobsRequest) GetPageSize() uint32 {
 	if x != nil {
 		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListJobsRequest) GetPageToken() string {
+func (x *ListJobsRequest) GetCursor() string {
 	if x != nil {
-		return x.PageToken
+		return x.Cursor
 	}
 	return ""
 }
@@ -351,8 +353,9 @@ type ListJobsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current summaries.
 	Jobs []*Job `protobuf:"bytes,1,rep,name=jobs,proto3" json:"jobs,omitempty"`
-	// Empty when there are no more jobs in this traversal.
-	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// Cursor for the next page. Empty when there are no more jobs in this
+	// traversal.
+	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -394,9 +397,9 @@ func (x *ListJobsResponse) GetJobs() []*Job {
 	return nil
 }
 
-func (x *ListJobsResponse) GetNextPageToken() string {
+func (x *ListJobsResponse) GetNextCursor() string {
 	if x != nil {
-		return x.NextPageToken
+		return x.NextCursor
 	}
 	return ""
 }
@@ -599,33 +602,32 @@ var File_chatto_admin_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/admin/v1/jobs.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xeb\x03\n" +
+	"\x1achatto/admin/v1/jobs.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf7\x03\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x122\n" +
 	"\x06status\x18\x03 \x01(\x0e2\x1a.chatto.admin.v1.JobStatusR\x06status\x12\x1a\n" +
-	"\battempts\x18\x04 \x01(\rR\battempts\x12!\n" +
-	"\fmax_attempts\x18\x05 \x01(\rR\vmaxAttempts\x129\n" +
+	"\battempts\x18\x04 \x01(\rR\battempts\x12&\n" +
+	"\fmax_attempts\x18\x05 \x01(\rH\x00R\vmaxAttempts\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12B\n" +
 	"\x0fnext_attempt_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\x12\x18\n" +
-	"\afailure\x18\t \x01(\tR\afailure\x12D\n" +
-	"\vretry_state\x18\n" +
-	" \x01(\x0e2\x1e.chatto.admin.v1.RetryJobStateH\x00R\n" +
-	"retryState\x88\x01\x01\x12#\n" +
-	"\rretry_version\x18\v \x01(\tR\fretryVersionB\x0e\n" +
-	"\f_retry_state\"\x8d\x01\n" +
-	"\x0fListJobsRequest\x12'\n" +
-	"\tpage_size\x18\x01 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
-	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\x122\n" +
-	"\x06status\x18\x03 \x01(\x0e2\x1a.chatto.admin.v1.JobStatusR\x06status\"d\n" +
+	"\afailure\x18\t \x01(\tR\afailure\x12@\n" +
+	"\x05retry\x18\n" +
+	" \x01(\x0e2%.chatto.admin.v1.JobRetryAvailabilityH\x01R\x05retry\x88\x01\x01\x12#\n" +
+	"\rretry_version\x18\v \x01(\tR\fretryVersionB\x0f\n" +
+	"\r_max_attemptsB\b\n" +
+	"\x06_retry\"\x98\x01\n" +
+	"\x0fListJobsRequest\x12%\n" +
+	"\tpage_size\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\bpageSize\x12 \n" +
+	"\x06cursor\x18\x02 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x06cursor\x12<\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x1a.chatto.admin.v1.JobStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06status\"]\n" +
 	"\x10ListJobsResponse\x12(\n" +
-	"\x04jobs\x18\x01 \x03(\v2\x14.chatto.admin.v1.JobR\x04jobs\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"+\n" +
+	"\x04jobs\x18\x01 \x03(\v2\x14.chatto.admin.v1.JobR\x04jobs\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"+\n" +
 	"\rGetJobRequest\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\"8\n" +
@@ -642,13 +644,13 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\x11JOB_STATUS_QUEUED\x10\x01\x12\x16\n" +
 	"\x12JOB_STATUS_RUNNING\x10\x02\x12\x18\n" +
 	"\x14JOB_STATUS_SUCCEEDED\x10\x03\x12\x15\n" +
-	"\x11JOB_STATUS_FAILED\x10\x04*\x8a\x01\n" +
-	"\rRetryJobState\x12\x1f\n" +
-	"\x1bRETRY_JOB_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17RETRY_JOB_STATE_ALLOWED\x10\x01\x12\x1e\n" +
-	"\x1aRETRY_JOB_STATE_NOT_FAILED\x10\x02\x12\x1b\n" +
-	"\x17RETRY_JOB_STATE_EXPIRED\x10\x032\xfa\x01\n" +
-	"\vJobsService\x12O\n" +
+	"\x11JOB_STATUS_FAILED\x10\x04*\xad\x01\n" +
+	"\x14JobRetryAvailability\x12&\n" +
+	"\"JOB_RETRY_AVAILABILITY_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eJOB_RETRY_AVAILABILITY_ALLOWED\x10\x01\x12%\n" +
+	"!JOB_RETRY_AVAILABILITY_NOT_FAILED\x10\x02\x12\"\n" +
+	"\x1eJOB_RETRY_AVAILABILITY_EXPIRED\x10\x032\xfe\x01\n" +
+	"\x0fAdminJobService\x12O\n" +
 	"\bListJobs\x12 .chatto.admin.v1.ListJobsRequest\x1a!.chatto.admin.v1.ListJobsResponse\x12I\n" +
 	"\x06GetJob\x12\x1e.chatto.admin.v1.GetJobRequest\x1a\x1f.chatto.admin.v1.GetJobResponse\x12O\n" +
 	"\bRetryJob\x12 .chatto.admin.v1.RetryJobRequest\x1a!.chatto.admin.v1.RetryJobResponseB\xc4\x01\n" +
@@ -670,7 +672,7 @@ var file_chatto_admin_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chatto_admin_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_admin_v1_jobs_proto_goTypes = []any{
 	(JobStatus)(0),                // 0: chatto.admin.v1.JobStatus
-	(RetryJobState)(0),            // 1: chatto.admin.v1.RetryJobState
+	(JobRetryAvailability)(0),     // 1: chatto.admin.v1.JobRetryAvailability
 	(*Job)(nil),                   // 2: chatto.admin.v1.Job
 	(*ListJobsRequest)(nil),       // 3: chatto.admin.v1.ListJobsRequest
 	(*ListJobsResponse)(nil),      // 4: chatto.admin.v1.ListJobsResponse
@@ -685,17 +687,17 @@ var file_chatto_admin_v1_jobs_proto_depIdxs = []int32{
 	9,  // 1: chatto.admin.v1.Job.created_at:type_name -> google.protobuf.Timestamp
 	9,  // 2: chatto.admin.v1.Job.updated_at:type_name -> google.protobuf.Timestamp
 	9,  // 3: chatto.admin.v1.Job.next_attempt_at:type_name -> google.protobuf.Timestamp
-	1,  // 4: chatto.admin.v1.Job.retry_state:type_name -> chatto.admin.v1.RetryJobState
+	1,  // 4: chatto.admin.v1.Job.retry:type_name -> chatto.admin.v1.JobRetryAvailability
 	0,  // 5: chatto.admin.v1.ListJobsRequest.status:type_name -> chatto.admin.v1.JobStatus
 	2,  // 6: chatto.admin.v1.ListJobsResponse.jobs:type_name -> chatto.admin.v1.Job
 	2,  // 7: chatto.admin.v1.GetJobResponse.job:type_name -> chatto.admin.v1.Job
 	2,  // 8: chatto.admin.v1.RetryJobResponse.job:type_name -> chatto.admin.v1.Job
-	3,  // 9: chatto.admin.v1.JobsService.ListJobs:input_type -> chatto.admin.v1.ListJobsRequest
-	5,  // 10: chatto.admin.v1.JobsService.GetJob:input_type -> chatto.admin.v1.GetJobRequest
-	7,  // 11: chatto.admin.v1.JobsService.RetryJob:input_type -> chatto.admin.v1.RetryJobRequest
-	4,  // 12: chatto.admin.v1.JobsService.ListJobs:output_type -> chatto.admin.v1.ListJobsResponse
-	6,  // 13: chatto.admin.v1.JobsService.GetJob:output_type -> chatto.admin.v1.GetJobResponse
-	8,  // 14: chatto.admin.v1.JobsService.RetryJob:output_type -> chatto.admin.v1.RetryJobResponse
+	3,  // 9: chatto.admin.v1.AdminJobService.ListJobs:input_type -> chatto.admin.v1.ListJobsRequest
+	5,  // 10: chatto.admin.v1.AdminJobService.GetJob:input_type -> chatto.admin.v1.GetJobRequest
+	7,  // 11: chatto.admin.v1.AdminJobService.RetryJob:input_type -> chatto.admin.v1.RetryJobRequest
+	4,  // 12: chatto.admin.v1.AdminJobService.ListJobs:output_type -> chatto.admin.v1.ListJobsResponse
+	6,  // 13: chatto.admin.v1.AdminJobService.GetJob:output_type -> chatto.admin.v1.GetJobResponse
+	8,  // 14: chatto.admin.v1.AdminJobService.RetryJob:output_type -> chatto.admin.v1.RetryJobResponse
 	12, // [12:15] is the sub-list for method output_type
 	9,  // [9:12] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name

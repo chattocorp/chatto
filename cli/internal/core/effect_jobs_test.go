@@ -41,13 +41,13 @@ func jobsOfType(t testing.TB, ctx context.Context, c *ChattoCore, kind string) [
 
 func TestEffectJobsCoverEveryRegisteredType(t *testing.T) {
 	core, _ := newTestCore(t)
-	for _, kind := range effectJobTypes() {
+	for _, kind := range append(effectJobTypes(), jobTypeNotificationAlertDelivery) {
 		effect := core.effectJobs[kind]
 		if effect == nil || effect.Type() != kind {
 			t.Errorf("effect job %q is not registered", kind)
 		}
 	}
-	if len(core.effectJobs) != len(effectJobTypes()) {
-		t.Errorf("registered %d effect jobs, consumer filters %d types", len(core.effectJobs), len(effectJobTypes()))
+	if len(core.effectJobs) != len(effectJobTypes())+1 {
+		t.Errorf("registered %d effect jobs, consumers filter %d types", len(core.effectJobs), len(effectJobTypes())+1)
 	}
 }

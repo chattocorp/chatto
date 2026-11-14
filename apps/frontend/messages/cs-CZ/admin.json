@@ -621,6 +621,7 @@
       "retry_failed": "Tuto úlohu se nepodařilo zopakovat.",
       "webhook": "Doručení webhooku",
       "media": "Zpracování médií",
+      "alerts": "Upozornění na oznámení",
       "asset_cleanup": "Čištění souborů",
       "call_key_cleanup": "Mazání klíčů hovorů",
       "push_subscription_cleanup": "Čištění odběrů push",

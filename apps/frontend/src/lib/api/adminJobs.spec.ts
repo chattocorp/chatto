@@ -1,18 +1,18 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { JobsService } from '@chatto/api-types/admin/v1/jobs_connect';
-import { JobStatus, RetryJobState } from '@chatto/api-types/admin/v1/jobs_pb';
+import { AdminJobService } from '@chatto/api-types/admin/v1/jobs_connect';
+import { JobRetryAvailability, JobStatus } from '@chatto/api-types/admin/v1/jobs_pb';
 import { fakeServer, mockService, receivedRequest } from '@chatto/client/testing/fakeServer';
 import { createAdminJobsAPI } from './adminJobs';
 
-const mocks = mockService(JobsService);
-const config = () => fakeServer((router) => router.service(JobsService, mocks));
+const mocks = mockService(AdminJobService);
+const config = () => fakeServer((router) => router.service(AdminJobService, mocks));
 
 beforeEach(() => vi.resetAllMocks());
 
 describe('administrative jobs API', () => {
-  it('preserves opaque page tokens, retry states, and safe job metadata', async () => {
+  it('preserves opaque cursors, retry availability, and safe job metadata', async () => {
     mocks.listJobs.mockReturnValue({
       jobs: [
         {
@@ -23,43 +23,52 @@ describe('administrative jobs API', () => {
           maxAttempts: 4,
           failure: 'transport_error',
           createdAt: Timestamp.fromDate(new Date('2026-11-10T12:00:00Z')),
-          retryState: RetryJobState.EXPIRED,
+          retry: JobRetryAvailability.EXPIRED,
           retryVersion: 'a'.repeat(64)
         }
       ],
-      nextPageToken: 'opaque-next'
+      nextCursor: 'opaque-next'
     });
     const page = await createAdminJobsAPI(config()).listJobs({
       pageSize: 20,
-      pageToken: 'opaque-before'
+      cursor: 'opaque-before'
     });
     expect(receivedRequest(mocks.listJobs)).toMatchObject({
       pageSize: 20,
-      pageToken: 'opaque-before'
+      cursor: 'opaque-before'
     });
-    expect(page.nextPageToken).toBe('opaque-next');
+    expect(page.nextCursor).toBe('opaque-next');
     expect(page.jobs[0]).toMatchObject({
       id: 'opaque-id',
       status: JobStatus.FAILED,
+      maxAttempts: 4,
       failure: 'transport_error',
       createdAt: new Date('2026-11-10T12:00:00Z'),
       updatedAt: null,
       nextAttemptAt: null,
-      retryState: RetryJobState.EXPIRED,
+      retry: JobRetryAvailability.EXPIRED,
       retryVersion: 'a'.repeat(64)
     });
   });
 
-  it('keeps an absent or unknown retry state disabled rather than inferring permission', async () => {
+  it('keeps absent or unknown retry availability rather than inferring permission', async () => {
     mocks.listJobs.mockReturnValue({
       jobs: [
         { id: 'old', status: JobStatus.FAILED },
-        { id: 'new', status: JobStatus.FAILED, retryState: 987 as RetryJobState }
+        { id: 'new', status: JobStatus.FAILED, retry: 987 as JobRetryAvailability }
       ]
     });
     const page = await createAdminJobsAPI(config()).listJobs();
-    expect(page.jobs[0].retryState).toBeUndefined();
-    expect(page.jobs[1].retryState).toBe(987);
+    expect(page.jobs[0].retry).toBeUndefined();
+    expect(page.jobs[1].retry).toBe(987);
+  });
+
+  it('reports an absent attempt limit as unlimited', async () => {
+    mocks.listJobs.mockReturnValue({
+      jobs: [{ id: 'unlimited', status: JobStatus.QUEUED, attempts: 7 }]
+    });
+    const page = await createAdminJobsAPI(config()).listJobs();
+    expect(page.jobs[0]).toMatchObject({ attempts: 7, maxAttempts: undefined });
   });
 
   it('reports missing jobs as null but keeps authorization failures', async () => {

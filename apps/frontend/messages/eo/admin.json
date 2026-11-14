@@ -599,6 +599,7 @@
       "retry_failed": "Ne eblis reprovi ĉi tiun taskon.",
       "webhook": "Rethoka livero",
       "media": "Prilaborado de aŭdvidaĵoj",
+      "alerts": "Sciigaj avertoj",
       "asset_cleanup": "Purigado de dosieroj",
       "call_key_cleanup": "Forigo de vokŝlosiloj",
       "push_subscription_cleanup": "Purigado de puŝabonoj",

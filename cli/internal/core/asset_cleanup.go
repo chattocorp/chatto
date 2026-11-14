@@ -24,7 +24,7 @@ func (s *AssetModel) configureCleanup(ctx context.Context, stream jetstream.Stre
 	if err != nil {
 		return fmt.Errorf("create asset cleanup consumer: %w", err)
 	}
-	worker, err := s.newEffectJob(jobTypeAssetCleanup, stream, consumer, s.processCleanupDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: assetCleanupRetryDelay})
+	worker, err := s.newEffectJob(jobTypeAssetCleanup, stream, consumer, s.processCleanupDelivery, jobqueue.EffectOptions{MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: assetCleanupRetryDelay})
 	if err != nil {
 		return fmt.Errorf("configure asset cleanup worker: %w", err)
 	}

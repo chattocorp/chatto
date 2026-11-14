@@ -19,15 +19,16 @@ enum JobStatus {
 }
 
 // Whether the current viewer can retry this job now.
-enum RetryJobState {
+enum JobRetryAvailability {
   // Unknown availability; clients must disable retry.
-  RETRY_JOB_STATE_UNSPECIFIED = 0;
+  JOB_RETRY_AVAILABILITY_UNSPECIFIED = 0;
   // Retry is available. It may repeat an external effect.
-  RETRY_JOB_STATE_ALLOWED = 1;
+  JOB_RETRY_AVAILABILITY_ALLOWED = 1;
   // The job has not failed.
-  RETRY_JOB_STATE_NOT_FAILED = 2;
-  // The original delivery deadline has passed and cannot be renewed.
-  RETRY_JOB_STATE_EXPIRED = 3;
+  JOB_RETRY_AVAILABILITY_NOT_FAILED = 2;
+  // The job failed, and its original delivery deadline has passed and cannot
+  // be renewed.
+  JOB_RETRY_AVAILABILITY_EXPIRED = 3;
 }
 
 // Safe administrative job summary. Content, credentials, and internal payloads
@@ -43,8 +44,9 @@ message Job {
   JobStatus status = 3;
   // Attempts in the current manual retry generation, including interrupted attempts.
   uint32 attempts = 4;
-  // Maximum automatic attempts in each generation.
-  uint32 max_attempts = 5;
+  // Maximum automatic attempts in each generation. Absent when the job
+  // retries until it succeeds or fails permanently.
+  optional uint32 max_attempts = 5;
   // Initial durable acceptance time.
   google.protobuf.Timestamp created_at = 6;
   // Most recent state change or progress heartbeat.
@@ -54,7 +56,7 @@ message Job {
   // Safe failure category, without exception text or external response content.
   string failure = 9;
   // Current retry availability. Absence means the server did not report it.
-  optional RetryJobState retry_state = 10;
+  optional JobRetryAvailability retry = 10;
   // Opaque version of this attempt budget. Send unchanged when retrying.
   // A manual retry changes the version; automatic attempts do not.
   string retry_version = 11;
@@ -63,19 +65,20 @@ message Job {
 // Request for a bounded page. Jobs are ordered by last update, newest first.
 message ListJobsRequest {
   // Page size: zero selects 50; the maximum is 200.
-  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
-  // Opaque token returned by the previous page, bound to this viewer and
-  // status filter.
-  string page_token = 2;
+  uint32 page_size = 1 [(buf.validate.field).uint32.lte = 200];
+  // Opaque cursor returned by the previous page, bound to this viewer and
+  // status filter. Empty starts at the newest job.
+  string cursor = 2 [(buf.validate.field).string.max_bytes = 4096];
   // Returns only jobs in this state. Unspecified returns every job.
-  JobStatus status = 3;
+  JobStatus status = 3 [(buf.validate.field).enum.defined_only = true];
 }
 // A live page, not an atomic snapshot. Refresh to see state changes and new work.
 message ListJobsResponse {
   // Current summaries.
   repeated Job jobs = 1;
-  // Empty when there are no more jobs in this traversal.
-  string next_page_token = 2;
+  // Cursor for the next page. Empty when there are no more jobs in this
+  // traversal.
+  string next_cursor = 2;
 }
 // Request for one job.
 message GetJobRequest {
@@ -101,7 +104,7 @@ message RetryJobResponse {
   Job job = 1;
 }
 // Administrative background-job inspection and recovery.
-service JobsService {
+service AdminJobService {
   // Lists jobs. Requires server.manage, including privileged mode.
   // This call does not subscribe or poll; callers refresh explicitly.
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);

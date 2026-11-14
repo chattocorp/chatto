@@ -57,6 +57,7 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
 		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
 		{key: "jobs", streamName: natsresources.Jobs, consumerName: JobsConsumerName, required: true},
+		{key: "alert_jobs", streamName: natsresources.Jobs, consumerName: AlertJobsConsumerName, required: true},
 		{key: "media_jobs", streamName: natsresources.Jobs, consumerName: MediaJobsConsumerName, required: videoUploadsEnabled},
 	}
 }

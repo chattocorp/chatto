@@ -9,9 +9,9 @@ import (
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
-type jobsService struct{ api *API }
+type adminJobService struct{ api *API }
 
-func (s *jobsService) ListJobs(ctx context.Context, req *connect.Request[adminv1.ListJobsRequest]) (*connect.Response[adminv1.ListJobsResponse], error) {
+func (s *adminJobService) ListJobs(ctx context.Context, req *connect.Request[adminv1.ListJobsRequest]) (*connect.Response[adminv1.ListJobsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (s *jobsService) ListJobs(ctx context.Context, req *connect.Request[adminv1
 	case adminv1.JobStatus_JOB_STATUS_FAILED:
 		status = jobqueue.Failed
 	}
-	jobs, next, err := s.api.core.ListJobs(ctx, caller.UserID, int(req.Msg.PageSize), req.Msg.PageToken, status)
+	jobs, next, err := s.api.core.ListJobs(ctx, caller.UserID, int(req.Msg.PageSize), req.Msg.Cursor, status)
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +35,9 @@ func (s *jobsService) ListJobs(ctx context.Context, req *connect.Request[adminv1
 	for _, job := range jobs {
 		out = append(out, jobSummary(job))
 	}
-	return connect.NewResponse(&adminv1.ListJobsResponse{Jobs: out, NextPageToken: next}), nil
+	return connect.NewResponse(&adminv1.ListJobsResponse{Jobs: out, NextCursor: next}), nil
 }
-func (s *jobsService) GetJob(ctx context.Context, req *connect.Request[adminv1.GetJobRequest]) (*connect.Response[adminv1.GetJobResponse], error) {
+func (s *adminJobService) GetJob(ctx context.Context, req *connect.Request[adminv1.GetJobRequest]) (*connect.Response[adminv1.GetJobResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (s *jobsService) GetJob(ctx context.Context, req *connect.Request[adminv1.G
 	}
 	return connect.NewResponse(&adminv1.GetJobResponse{Job: jobSummary(job)}), nil
 }
-func (s *jobsService) RetryJob(ctx context.Context, req *connect.Request[adminv1.RetryJobRequest]) (*connect.Response[adminv1.RetryJobResponse], error) {
+func (s *adminJobService) RetryJob(ctx context.Context, req *connect.Request[adminv1.RetryJobRequest]) (*connect.Response[adminv1.RetryJobResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -74,11 +74,18 @@ func jobSummary(job jobqueue.Job) *adminv1.Job {
 	case jobqueue.Failed:
 		status = adminv1.JobStatus_JOB_STATUS_FAILED
 	}
-	retry := adminv1.RetryJobState_RETRY_JOB_STATE_NOT_FAILED
-	if job.Expired(time.Now()) {
-		retry = adminv1.RetryJobState_RETRY_JOB_STATE_EXPIRED
-	} else if job.Status == jobqueue.Failed {
-		retry = adminv1.RetryJobState_RETRY_JOB_STATE_ALLOWED
+	// Expiry blocks only the retry of a failed job; other states are not failed.
+	retry := adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_NOT_FAILED
+	if job.Status == jobqueue.Failed {
+		retry = adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_ALLOWED
+		if job.Expired(time.Now()) {
+			retry = adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_EXPIRED
+		}
 	}
-	return &adminv1.Job{Id: job.ID, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: job.MaxAttempts, CreatedAt: optionalTimestamp(job.CreatedAt), UpdatedAt: optionalTimestamp(job.UpdatedAt), NextAttemptAt: optionalTimestamp(job.NextAttemptAt), Failure: job.Failure, RetryState: &retry, RetryVersion: jobqueue.RetryVersion(job)}
+	// An unlimited budget has no maximum to show.
+	var maxAttempts *uint32
+	if job.MaxAttempts != jobqueue.UnlimitedAttempts {
+		maxAttempts = &job.MaxAttempts
+	}
+	return &adminv1.Job{Id: job.ID, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: maxAttempts, CreatedAt: optionalTimestamp(job.CreatedAt), UpdatedAt: optionalTimestamp(job.UpdatedAt), NextAttemptAt: optionalTimestamp(job.NextAttemptAt), Failure: job.Failure, Retry: &retry, RetryVersion: jobqueue.RetryVersion(job)}
 }

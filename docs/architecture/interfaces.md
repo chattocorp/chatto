@@ -176,7 +176,7 @@ also expose a disconnect hint; it is not mutation authorization. See
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
 | `chatto.discovery.v1` | `ServerDiscoveryService`                                                                                                                                                                                                                                                                                                                                         | Public discovery                                                                                           |
 | `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
-| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                                     | Authenticated user; methods enforce administrative permissions                                             |
+| `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminJobService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                  | Authenticated user; methods enforce administrative permissions                                             |
 
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
 change the caller's private availability across devices. `RefreshPresence`
@@ -690,12 +690,12 @@ recipient can read an invitation. Only the recipient can respond.
 
 ## Background job administration
 
-`chatto.admin.v1.JobsService` provides bounded `ListJobs`, `GetJob`, and
+`chatto.admin.v1.AdminJobService` provides bounded `ListJobs`, `GetJob`, and
 `RetryJob` operations. Core operations require `server.manage`, including
 privileged mode for human credential sessions. The API exposes state, safe
 failure categories, attempt counts, timestamps, and typed retry availability.
 It never exposes private payloads, lease owners, or dispatch generations.
-Page tokens are sealed and viewer-bound. Retry preserves source deadlines and
+Page cursors are sealed and viewer-bound. Retry preserves source deadlines and
 checks the viewed attempt-budget version and uses revision OCC to accept one
 new generation. Retry versions are opaque application tokens, not broker
 coordinates. See FDR-056 and ADR-123.

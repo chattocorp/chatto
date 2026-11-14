@@ -1,5 +1,5 @@
 ---
-title: JobsService
+title: AdminJobService
 description: Background job inspection and retry RPCs.
 editUrl: false
 ---
@@ -14,13 +14,13 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 
 
-<a id="chatto-admin-v1-JobsService"></a>
+<a id="chatto-admin-v1-AdminJobService"></a>
 
-## JobsService
+## AdminJobService
 
 Administrative background-job inspection and recovery.
 
-<a id="chatto-admin-v1-JobsService-ListJobs"></a>
+<a id="chatto-admin-v1-AdminJobService-ListJobs"></a>
 
 ### ListJobs
 
@@ -28,7 +28,7 @@ Lists jobs. Requires server.manage, including privileged mode.
 This call does not subscribe or poll; callers refresh explicitly.
 
 ```http
-POST /api/connect/chatto.admin.v1.JobsService/ListJobs
+POST /api/connect/chatto.admin.v1.AdminJobService/ListJobs
 ```
 
 <a id="chatto-admin-v1-ListJobsRequest"></a>
@@ -39,8 +39,8 @@ Request for a bounded page. Jobs are ordered by last update, newest first.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page_size` | `int32` | Page size: zero selects 50; the maximum is 200. |
-| `page_token` | `string` | Opaque token returned by the previous page, bound to this viewer and status filter. |
+| `page_size` | `uint32` | Page size: zero selects 50; the maximum is 200. |
+| `cursor` | `string` | Opaque cursor returned by the previous page, bound to this viewer and status filter. Empty starts at the newest job. |
 | `status` | [`JobStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-JobStatus) | Returns only jobs in this state. Unspecified returns every job. |
 
 
@@ -53,17 +53,17 @@ A live page, not an atomic snapshot. Refresh to see state changes and new work.
 | Field | Type | Description |
 | --- | --- | --- |
 | `jobs` | repeated [`Job`](/reference/connectrpc-api/types/#chatto-admin-v1-Job) | Current summaries. |
-| `next_page_token` | `string` | Empty when there are no more jobs in this traversal. |
+| `next_cursor` | `string` | Cursor for the next page. Empty when there are no more jobs in this traversal. |
 
 
-<a id="chatto-admin-v1-JobsService-GetJob"></a>
+<a id="chatto-admin-v1-AdminJobService-GetJob"></a>
 
 ### GetJob
 
 Gets a job. Requires server.manage, including privileged mode.
 
 ```http
-POST /api/connect/chatto.admin.v1.JobsService/GetJob
+POST /api/connect/chatto.admin.v1.AdminJobService/GetJob
 ```
 
 <a id="chatto-admin-v1-GetJobRequest"></a>
@@ -88,7 +88,7 @@ Current job summary.
 | `job` | [`Job`](/reference/connectrpc-api/types/#chatto-admin-v1-Job) | Requested job. |
 
 
-<a id="chatto-admin-v1-JobsService-RetryJob"></a>
+<a id="chatto-admin-v1-AdminJobService-RetryJob"></a>
 
 ### RetryJob
 
@@ -97,7 +97,7 @@ Returns FAILED_PRECONDITION for active, successful, or expired jobs.
 A lost response does not cancel an accepted retry. Read the job before retrying.
 
 ```http
-POST /api/connect/chatto.admin.v1.JobsService/RetryJob
+POST /api/connect/chatto.admin.v1.AdminJobService/RetryJob
 ```
 
 <a id="chatto-admin-v1-RetryJobRequest"></a>

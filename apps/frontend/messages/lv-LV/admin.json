@@ -610,6 +610,7 @@
       "retry_failed": "Neizdevās atkārtot šo uzdevumu.",
       "webhook": "Tīmekļa aizķeres piegāde",
       "media": "Multivides apstrāde",
+      "alerts": "Paziņojumu brīdinājumi",
       "asset_cleanup": "Failu tīrīšana",
       "call_key_cleanup": "Zvanu atslēgu dzēšana",
       "push_subscription_cleanup": "Push abonementu tīrīšana",

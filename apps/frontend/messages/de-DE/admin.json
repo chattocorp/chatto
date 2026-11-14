@@ -599,6 +599,7 @@
       "retry_failed": "Dieser Auftrag konnte nicht wiederholt werden.",
       "webhook": "Webhook-Zustellung",
       "media": "Medienverarbeitung",
+      "alerts": "Benachrichtigungen",
       "asset_cleanup": "Dateibereinigung",
       "call_key_cleanup": "Löschung von Anrufschlüsseln",
       "push_subscription_cleanup": "Bereinigung von Push-Abonnements",
