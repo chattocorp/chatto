@@ -544,13 +544,15 @@ and its live encrypted token record before reading current account claims.
 
 `oidc.refresh-family.*` keys use the existing deployment-keyed digest helper.
 One encrypted JSON record stores the bound authorization, current generation,
-absolute and idle deadlines, and revocation flag. The JSON representation is a
+last rotation time, absolute and idle deadlines, and revocation flag. The JSON representation is a
 persisted runtime contract, consistent with other OIDC workflow records.
 Credentials contain an opaque random family ID, generation, and domain-separated
 HMAC. Raw credentials are not stored. The record lives until absolute expiry;
 rotation and reuse revocation use revision-checked TTL writes through the bound
-leader-reading store. Definite OCC conflicts trigger family revocation; unknown
-write outcomes fail closed. No new bucket, stream, event variant, or worker is
+leader-reading store. A repeat of the previous credential within the reuse
+grace period returns the current credential without a write. After a definite
+OCC conflict, rotation reads the family once again; a second conflict triggers
+family revocation. Unknown write outcomes fail closed. No new bucket, stream, event variant, or worker is
 introduced.
 
 The grant service synchronizes to the account tail before returning a current

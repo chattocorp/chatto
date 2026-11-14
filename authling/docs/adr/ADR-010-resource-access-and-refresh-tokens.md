@@ -38,10 +38,12 @@ It is available to configured confidential clients and public clients, including
 CIMD clients whose metadata declares `refresh_token`. Configured clients can
 disable renewal with `allow_refresh_tokens = false`. Public clients retain mandatory S256 PKCE. A refresh family lasts
 30 days at most and expires after seven days without successful use. Both
-limits are configurable. Refreshes rotate credentials with one OCC write. An
-authenticated reuse of a previous credential revokes the whole family. There
-is no retry grace period. Clients must serialize refreshes and store the new
-token before the next use.
+limits are configurable. Refreshes rotate credentials with one OCC write.
+For a 10-second reuse grace period after a rotation, the previous credential
+can repeat that rotation. The repeat returns a new access token and the current
+refresh credential again, without a write. Any other authenticated use of an
+older credential is reuse and revokes the whole family. Clients must store the
+new token before the next use.
 
 Store each family in one encrypted runtime record. A domain-separated keyed
 authenticator over a random family identifier and generation proves that a
@@ -73,10 +75,15 @@ opaque access tokens until their existing five-minute expiry; new exchanges
 issue only JWTs. Local API verification cannot observe account deletion, email
 changes, grant revocation, or family reuse before token expiry.
 
-An uncertain storage write or a lost successful refresh response can require
-new browser authorization. Concurrent refreshes have at most one winner and
-revoke the family when reuse is detected. No access token is returned after a
-failed rotation. A revocation concurrent with issuance can overlap an in-flight
+An uncertain storage write can require new browser authorization. So can a
+lost successful refresh response that the client does not retry within the
+grace period. Concurrent refreshes of one credential converge on
+one replacement: after an OCC conflict, the loser reads the family again and
+gets the winner's credential as a repeat. A second conflict revokes the family.
+The grace period lets an attacker with a stolen previous credential get the
+current credential within 10 seconds of a rotation. This exposure is accepted:
+without it, a lost response or two tabs that refresh together end the session.
+No access token is returned after a failed rotation. A revocation concurrent with issuance can overlap an in-flight
 response; every later refresh checks the durable grant again.
 
 Revocation and introspection endpoints, RP-initiated logout, and first-party

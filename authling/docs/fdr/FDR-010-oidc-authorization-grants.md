@@ -144,12 +144,22 @@ latter, consume the family without a replacement and permanently end renewal
 for that family. Refreshes use current account claims and retain the original
 authentication time.
 
-A refresh token is single-use. Concurrent use has at most one winner. Reuse of
-an authentic older token invalidates the whole family, including its latest
-token. Invalid credentials or another client cannot revoke a family. Clients
-must serialize renewal and must not retry an old token after a lost response.
+A refresh token rotates once. For a reuse grace period of 10 seconds after a
+rotation, the previous token can repeat that rotation. A repeat returns a new
+access token and the current refresh token again. It does not write state or
+change the family. Concurrent use of one token therefore converges on one
+replacement. After an OCC conflict, Authling reads the family once again; a
+second conflict revokes the family. Use of the previous token after the grace
+period, or of an older token at any time, is reuse. Reuse invalidates the whole
+family, including its latest token. Invalid credentials or another client
+cannot revoke a family. A revoked or expired family has no grace period.
 A failed or uncertain rotation returns no credentials and can require new
-browser authorization. Family state survives restart and expires automatically.
+browser authorization.
+
+The grace period trades a small exposure for reliability. An attacker who has
+a stolen previous token and uses it within 10 seconds of the rotation gets the
+current token. Without the grace period, a lost response or two browser tabs
+that refresh at the same time end the session. Family state survives restart and expires automatically.
 
 Revoking an app invalidates all families in that grant generation. Reauthorizing
 the app creates a new generation and cannot restore old refresh tokens.

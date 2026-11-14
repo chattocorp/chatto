@@ -117,13 +117,19 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 	if next.RefreshToken == tokens.RefreshToken {
 		t.Fatal("refresh did not rotate")
 	}
-	if refresh(tokens.RefreshToken, "test-client").Code == http.StatusOK {
-		t.Fatal("reused token accepted")
+	// A repeat inside the grace window returns the current credential again.
+	if repeat := decode(refresh(tokens.RefreshToken, "test-client")); repeat.RefreshToken != next.RefreshToken || repeat.AccessToken == next.AccessToken {
+		t.Fatal("grace repeat did not return the current credential with a new access token")
 	}
-	if refresh(next.RefreshToken, "test-client").Code == http.StatusOK {
+	third := decode(refresh(next.RefreshToken, "test-client"))
+	// A credential two generations old is reuse, also inside the grace window.
+	if refresh(tokens.RefreshToken, "test-client").Code == http.StatusOK {
+		t.Fatal("old generation accepted")
+	}
+	if refresh(third.RefreshToken, "test-client").Code == http.StatusOK {
 		t.Fatal("reuse did not revoke family")
 	}
-	// Concurrent use has at most one winner, and the resulting family is revoked.
+	// Concurrent use of one credential converges on one replacement and keeps the family.
 	concurrent := issue(resource)
 	responses := make([]*httptest.ResponseRecorder, 2)
 	var wg sync.WaitGroup
@@ -132,18 +138,12 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 		go func() { defer wg.Done(); responses[i] = refresh(concurrent.RefreshToken, "test-client") }()
 	}
 	wg.Wait()
-	winners := 0
-	for _, response := range responses {
-		if response.Code == http.StatusOK {
-			winners++
-			winner := decode(response)
-			if refresh(winner.RefreshToken, "test-client").Code == http.StatusOK {
-				t.Fatal("concurrent reuse left family active")
-			}
-		}
+	first, second := decode(responses[0]), decode(responses[1])
+	if first.RefreshToken != second.RefreshToken {
+		t.Fatal("concurrent refreshes produced different replacements")
 	}
-	if winners > 1 {
-		t.Fatal("multiple refresh winners")
+	if refresh(first.RefreshToken, "test-client").Code != http.StatusOK {
+		t.Fatal("concurrent refresh revoked family")
 	}
 	// Revocation ends refresh authority, but does not revoke signed access tokens.
 	revoked := issue(resource)

@@ -518,9 +518,12 @@ and `refresh_token`; confidential clients must authenticate with their secret.
 An optional scope subset limits this response; the replacement refresh token
 retains the original scope. A response includes an ID token only with `openid`
 and a replacement refresh token only with `offline_access`. Omitting
-`offline_access` consumes the family without a replacement. Serialize refreshes and store the new
-token before the next use. Reusing an old token revokes the whole family;
-there is no retry grace period after a lost response.
+`offline_access` consumes the family without a replacement. Store the new
+token before the next use. For 10 seconds after a rotation, the previous token
+can repeat that refresh: Authling returns a new access token and the same
+current refresh token again. This covers a lost response and concurrent
+refreshes. After this period, or for an older token, reuse revokes the whole
+family.
 
 Defaults are 30 days total and seven days without use. Configure them under
 `[oidc]` with `refresh_token_lifetime_days` and `refresh_token_idle_days`, or

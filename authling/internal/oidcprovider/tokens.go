@@ -307,7 +307,46 @@ type refreshFamily struct {
 	Generation  uint64           `json:"generation"`
 	Expires     time.Time        `json:"expires"`
 	IdleExpires time.Time        `json:"idle_expires"`
-	Revoked     bool             `json:"revoked"`
+	// RotatedAt is the time of the last successful rotation. It starts the
+	// reuse grace window of the previous generation. It is zero for generation 0.
+	RotatedAt time.Time `json:"rotated_at,omitzero"`
+	Revoked   bool      `json:"revoked"`
+}
+
+// refreshReuseGrace is the time after a rotation in which the previous
+// credential can repeat that rotation. It covers a lost token response and
+// concurrent refreshes by one client. A repeat does not rotate the family: it
+// returns the current credential again, so all callers converge on one token.
+// After the window, use of the previous credential is reuse and revokes the family.
+const refreshReuseGrace = 10 * time.Second
+
+// refreshUse classifies a submitted generation against the stored family.
+type refreshUse int
+
+const (
+	// refreshInvalid rejects the credential without a change to the family.
+	refreshInvalid refreshUse = iota
+	// refreshCurrent permits a rotation to the next generation.
+	refreshCurrent
+	// refreshRepeat returns the current generation again without a write.
+	refreshRepeat
+	// refreshReuse rejects the credential and revokes the family.
+	refreshReuse
+)
+
+func (f refreshFamily) use(generation uint64, now time.Time) refreshUse {
+	switch {
+	case f.Revoked || !f.Expires.After(now) || !f.IdleExpires.After(now):
+		return refreshInvalid
+	case generation == f.Generation:
+		return refreshCurrent
+	case generation+1 == f.Generation && now.Before(f.RotatedAt.Add(refreshReuseGrace)):
+		return refreshRepeat
+	case generation < f.Generation:
+		return refreshReuse
+	default:
+		return refreshInvalid
+	}
 }
 
 func (s *Storage) refreshToken(id string, generation uint64) string {
@@ -371,65 +410,86 @@ func (s *Storage) refreshRequest(ctx context.Context, token, clientID string) (*
 	if family.Request.ClientID != clientID {
 		return nil, errOIDCStateNotFound
 	}
-	if generation < family.Generation {
+	switch family.use(generation, s.now()) {
+	case refreshCurrent, refreshRepeat:
+		return &family.Request, nil
+	case refreshReuse:
 		_ = s.revokeRefreshFamily(ctx, id)
-		return nil, errOIDCStateNotFound
 	}
-	if generation != family.Generation || family.Revoked || !family.Expires.After(s.now()) || !family.IdleExpires.After(s.now()) {
-		return nil, errOIDCStateNotFound
-	}
-	return &family.Request, nil
+	return nil, errOIDCStateNotFound
 }
 
+// rotateRefresh advances the family by one generation with one OCC write. A
+// repeat inside the reuse grace window returns the current credential without
+// a write. After an OCC conflict, it reads the family again once, so a
+// concurrent caller that lost to a rotation of the same credential gets the
+// winner's credential. A second conflict revokes the family.
 func (s *Storage) rotateRefresh(ctx context.Context, token string, request *authRequestState) (string, error) {
 	id, generation, err := s.parseRefresh(token)
 	if err != nil {
 		return "", err
 	}
 	key := s.derivedKey("refresh-family", id)
-	entry, err := s.kv.Get(ctx, key)
-	if err != nil {
-		return "", errOIDCStateNotFound
+	offline := slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess)
+	for attempt := 0; ; attempt++ {
+		entry, err := s.kv.Get(ctx, key)
+		if err != nil {
+			return "", errOIDCStateNotFound
+		}
+		var family refreshFamily
+		if s.open(key, entry.Value(), &family) != nil || family.Request.ClientID != request.ClientID {
+			return "", errOIDCStateNotFound
+		}
+		now := s.now()
+		switch family.use(generation, now) {
+		case refreshCurrent:
+		case refreshRepeat:
+			if err := s.checkGrant(ctx, &family.Request); err != nil {
+				return "", err
+			}
+			// A repeat never changes the family, also when it narrows the scope.
+			if !offline {
+				return "", nil
+			}
+			return s.refreshToken(id, family.Generation), nil
+		case refreshReuse:
+			_ = s.revokeRefreshFamily(ctx, id)
+			return "", errOIDCStateNotFound
+		default:
+			return "", errOIDCStateNotFound
+		}
+		if err := s.checkGrant(ctx, &family.Request); err != nil {
+			return "", err
+		}
+		family.Generation++
+		family.RotatedAt = now
+		// A replacement refresh token retains the original authorization scope.
+		// A response without offline_access consumes the family without a replacement.
+		family.Revoked = !offline
+		family.IdleExpires = now.Add(s.cfg.RefreshIdleLifetime())
+		if family.IdleExpires.After(family.Expires) {
+			family.IdleExpires = family.Expires
+		}
+		data, err := s.seal(key, family)
+		if err != nil {
+			return "", err
+		}
+		_, err = s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), family.Expires.Sub(now))
+		if jetstreamutil.IsSequenceConflict(err) {
+			if attempt == 0 {
+				continue
+			}
+			_ = s.revokeRefreshFamily(ctx, id)
+			return "", errOIDCStateNotFound
+		}
+		if err != nil {
+			return "", err
+		}
+		if family.Revoked {
+			return "", nil
+		}
+		return s.refreshToken(id, family.Generation), nil
 	}
-	var family refreshFamily
-	if s.open(key, entry.Value(), &family) != nil || family.Request.ClientID != request.ClientID {
-		return "", errOIDCStateNotFound
-	}
-	if generation < family.Generation {
-		_ = s.revokeRefreshFamily(ctx, id)
-		return "", errOIDCStateNotFound
-	}
-	now := s.now()
-	if generation != family.Generation || family.Revoked || !family.Expires.After(now) || !family.IdleExpires.After(now) {
-		return "", errOIDCStateNotFound
-	}
-	if err := s.checkGrant(ctx, &family.Request); err != nil {
-		return "", err
-	}
-	family.Generation++
-	// A replacement refresh token retains the original authorization scope.
-	// A response without offline_access consumes the family without a replacement.
-	family.Revoked = !slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess)
-	family.IdleExpires = now.Add(s.cfg.RefreshIdleLifetime())
-	if family.IdleExpires.After(family.Expires) {
-		family.IdleExpires = family.Expires
-	}
-	data, err := s.seal(key, family)
-	if err != nil {
-		return "", err
-	}
-	_, err = s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), family.Expires.Sub(now))
-	if jetstreamutil.IsSequenceConflict(err) {
-		_ = s.revokeRefreshFamily(ctx, id)
-		return "", errOIDCStateNotFound
-	}
-	if err != nil {
-		return "", err
-	}
-	if family.Revoked {
-		return "", nil
-	}
-	return s.refreshToken(id, family.Generation), nil
 }
 
 // revokeRefreshFamily retries only definite OCC conflicts. An unavailable store
