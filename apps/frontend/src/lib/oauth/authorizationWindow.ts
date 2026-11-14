@@ -1,5 +1,5 @@
 import { resolve } from '$app/paths';
-import { generateState } from './pkce';
+import { randomOAuthValue } from '@chatto/client/auth/oauth';
 
 export interface AuthorizationWindow {
   readonly messageSource: Window | null;
@@ -47,7 +47,7 @@ export function openAuthorizationWindow(
   target: string,
   features: string
 ): AuthorizationWindow | null {
-  const launchId = generateState();
+  const launchId = randomOAuthValue(32);
   const launchUrl = `${window.location.origin}${resolve(AUTHORIZATION_LAUNCH_PATH)}#${launchId}`;
   const popup = window.open(launchUrl, target, features);
   if (!popup) return null;

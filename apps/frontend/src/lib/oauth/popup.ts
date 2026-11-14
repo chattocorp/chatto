@@ -60,16 +60,28 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
 export { OAuthPopupError } from './popupError';
 
 export type OAuthPopup = {
+  /**
+   * The callback response of this transaction. Rejects with `OAuthPopupError`
+   * when the person closes the window (`cancelled`) or the attempt times out.
+   */
   response: Promise<OAuthPopupResponse>;
-  navigate(url: string): void;
+  /** Send the window to the authorization URL. */
+  navigate(url: string): Promise<void>;
+  /** Close the window. A pending `response` then rejects as `cancelled`. */
   close(): void;
 };
 
-/** Open an OAuth popup while a user gesture is active. */
-export function openOAuthPopup(state: string): OAuthPopup {
+/**
+ * Open an OAuth popup while a user gesture is active, and wait for the
+ * callback response of the transaction `state`. Call it before any `await`,
+ * or the browser can block the window. `features` sets the window size.
+ *
+ * @throws OAuthPopupError with reason `blocked` when the browser blocks the window.
+ */
+export function openOAuthPopup(state: string, features = popupFeatures(window)): OAuthPopup {
   const authorizationWindow = openAuthorizationWindow(
     `chatto-oauth-${state.slice(0, 12)}`,
-    popupFeatures(window)
+    features
   );
   if (!authorizationWindow)
     throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
@@ -78,15 +90,15 @@ export function openOAuthPopup(state: string): OAuthPopup {
     typeof BroadcastChannel === 'undefined'
       ? null
       : new BroadcastChannel(oauthPopupChannelName(state));
+  // The callback returns through BroadcastChannel, so the untrusted remote
+  // page does not need a reference capable of navigating the main client.
   if (channel) authorizationWindow.detachOpener();
 
   return {
     response: waitForPopupResponse(authorizationWindow, state, channel),
-    navigate: (url) => {
-      void authorizationWindow.navigate(url);
-    },
+    navigate: (url) => authorizationWindow.navigate(url),
     close: () => {
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
     }
   };
 }
@@ -116,7 +128,7 @@ function waitForPopupResponse(
       if (settled || response.state !== state) return;
       settled = true;
       cleanup();
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
       resolve(response);
     };
 
@@ -124,13 +136,14 @@ function waitForPopupResponse(
       if (settled) return;
       settled = true;
       cleanup();
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
       reject(new OAuthPopupError(message, reason));
     };
 
     const handleWindowMessage = (event: MessageEvent) => {
       if (
         event.origin !== window.location.origin ||
+        !authorizationWindow.messageSource ||
         event.source !== authorizationWindow.messageSource
       )
         return;
@@ -144,9 +157,18 @@ function waitForPopupResponse(
       };
     }
 
+    let polling = false;
     const closePoll = window.setInterval(async () => {
-      if (await authorizationWindow.isClosed()) {
-        fail('The sign-in window was closed before authorization completed.', 'cancelled');
+      if (polling || settled) return;
+      polling = true;
+      try {
+        if (await authorizationWindow.isClosed()) {
+          fail('The sign-in window was closed before authorization completed.', 'cancelled');
+        }
+      } catch {
+        fail('The sign-in window could not be inspected.');
+      } finally {
+        polling = false;
       }
     }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
@@ -154,4 +176,12 @@ function waitForPopupResponse(
       POPUP_TIMEOUT_MS
     );
   });
+}
+
+async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
+  try {
+    await authorizationWindow.close();
+  } catch {
+    // Closing is best-effort after the flow has already completed or failed.
+  }
 }

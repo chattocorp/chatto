@@ -2,9 +2,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createOAuthFlow,
+  exchangeAuthorizationCode,
   exchangeOAuthCode,
   isExpectedOAuthIssuer,
-  isOAuthCallback
+  isOAuthCallback,
+  pkceCodeChallenge,
+  randomOAuthValue
 } from './oauth.js';
 
 const config = {
@@ -132,6 +135,36 @@ describe('native browser OAuth', () => {
       redirect_uri: config.redirectUri,
       client_id: config.clientId
     });
+  });
+  it('makes URL-safe PKCE values and the RFC 7636 example challenge', async () => {
+    expect(randomOAuthValue(64)).toMatch(/^[A-Za-z0-9_-]{86}$/);
+    expect(randomOAuthValue(32)).not.toBe(randomOAuthValue(32));
+    expect(await pkceCodeChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')).toBe(
+      'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+    );
+  });
+  it.each([
+    {
+      user: { id: 'U1', login: 'ada', displayName: 'Ada', avatarUrl: '/a.png' },
+      expected: { id: 'U1', login: 'ada', displayName: 'Ada', avatarUrl: '/a.png' }
+    },
+    {
+      user: { id: 7, login: null },
+      expected: { id: null, login: null, displayName: null, avatarUrl: null }
+    },
+    { user: 'invalid', expected: { id: null, login: null, displayName: null, avatarUrl: null } },
+    { user: undefined, expected: { id: null, login: null, displayName: null, avatarUrl: null } }
+  ])('returns the account summary of the token response %#', async ({ user, expected }) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ...credentials, user })));
+    await expect(
+      exchangeAuthorizationCode({
+        origin: 'https://chat.example',
+        code: 'fixture-code',
+        verifier: 'fixture-verifier',
+        redirectUri: 'https://app.example/servers/callback?mode=popup',
+        clientId: 'https://app.example/oauth/frontend-client-metadata.json'
+      })
+    ).resolves.toMatchObject({ credentials: { token: 'fixture-access' }, user: expected });
   });
   it.each([
     () => Response.json({ error_description: 'private-provider-data' }, { status: 400 }),

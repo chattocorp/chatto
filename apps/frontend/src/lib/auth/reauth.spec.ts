@@ -162,7 +162,6 @@ describe('remote server OAuth popup', () => {
     vi.resetModules();
     FakeBroadcastChannel.instances = [];
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
-    vi.stubGlobal('sessionStorage', memoryStorage());
     vi.stubGlobal('localStorage', memoryStorage());
     registered.servers = [remote];
     activeServer.id = 'origin';
@@ -373,15 +372,17 @@ describe('remote server OAuth popup', () => {
 
       await completion;
 
-      expect(fetch).toHaveBeenCalledWith(
-        'https://remote.example/oauth/token',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining(
-            '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
-          )
-        })
-      );
+      const [tokenUrl, tokenRequest] = vi.mocked(fetch).mock.calls[0]!;
+      expect(String(tokenUrl)).toBe('https://remote.example/oauth/token');
+      // The exchange sends no cookies and follows no redirect.
+      expect(tokenRequest).toMatchObject({
+        method: 'POST',
+        credentials: 'omit',
+        redirect: 'error',
+        body: expect.stringContaining(
+          '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
+        )
+      });
       expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toMatchObject({
         client_id: 'https://app.example/oauth/frontend-client-metadata.json'
       });
@@ -506,7 +507,6 @@ describe('remote server OAuth popup', () => {
     await expect(startRemoteReauthentication(remote)).rejects.toThrow('discovery failed');
 
     expect(popup.close).toHaveBeenCalledOnce();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
   it('fails without navigating the main window when the popup is blocked', async () => {
@@ -517,7 +517,6 @@ describe('remote server OAuth popup', () => {
     await expect(startRemoteReauthentication(remote)).rejects.toMatchObject({ reason: 'blocked' });
 
     expect(gotoMock).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
   it('handles a sign-in window that closes while server data still loads', async () => {
@@ -572,7 +571,6 @@ describe('remote server OAuth popup', () => {
     (popup as unknown as { closed: boolean }).closed = true;
     await rejected;
     expect(gotoMock).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 });
 
