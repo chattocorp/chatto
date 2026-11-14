@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createOAuthFlow, exchangeOAuthCode, isOAuthCallback } from './oauth.js';
+import {
+  createOAuthFlow,
+  exchangeOAuthCode,
+  isExpectedOAuthIssuer,
+  isOAuthCallback
+} from './oauth.js';
 
 const config = {
   origin: 'https://chat.example',
@@ -77,6 +82,17 @@ describe('native browser OAuth', () => {
     await expect(
       exchangeOAuthCode(flow, callback(flow.state, 'error=access_denied'))
     ).rejects.toThrow('declined');
+  });
+  it('accepts only the issuer of the server that started the flow', () => {
+    expect(isExpectedOAuthIssuer('https://chat.example', 'https://chat.example/')).toBe(true);
+    expect(isExpectedOAuthIssuer('https://CHAT.example:443', 'https://chat.example')).toBe(true);
+    // A server without a configured public URL sends no issuer.
+    for (const missing of [undefined, null, '']) {
+      expect(isExpectedOAuthIssuer(missing, 'https://chat.example')).toBe(true);
+    }
+    for (const other of ['https://other.example', 'http://chat.example', 'not a URL']) {
+      expect(isExpectedOAuthIssuer(other, 'https://chat.example')).toBe(false);
+    }
   });
   it('rejects callback substitution and duplicate parameters', async () => {
     const flow = await createOAuthFlow(config);

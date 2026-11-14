@@ -398,6 +398,56 @@ describe('remote server OAuth popup', () => {
     }
   );
 
+  it('does not exchange a native code that a different server issued', async () => {
+    native.available = true;
+    native.authorize.mockImplementation(async (_raw: string, state: string) => ({
+      state,
+      code: 'native-code',
+      iss: 'https://other.example'
+    }));
+    const exchange = vi.fn();
+    vi.stubGlobal('fetch', exchange);
+    const { startRemoteReauthentication } = await import('./reauth');
+
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow('different server');
+
+    expect(exchange).not.toHaveBeenCalled();
+    expect(replaceServerAuthenticationMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { iss: 'https://other.example', accepted: false },
+    { iss: 'not a URL', accepted: false },
+    { iss: 'https://remote.example', accepted: true },
+    // A server without a configured public URL sends an empty issuer.
+    { iss: '', accepted: true },
+    { iss: undefined, accepted: true }
+  ])('exchanges a popup code from issuer $iss: $accepted', async ({ iss, accepted }) => {
+    const popup = fakePopup();
+    const { owner, open } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const exchange = vi.fn(async () => tokenResponse());
+    vi.stubGlobal('fetch', exchange);
+    const { startRemoteReauthentication } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
+    completion.catch(() => {});
+
+    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
+    const state = new URL(authorizationLaunchTarget(open)!).searchParams.get('state');
+    FakeBroadcastChannel.instances
+      .find((channel) => channel.name === `chatto:oauth-popup:${state}`)
+      ?.emit({ type: 'chatto:oauth-popup-response', state, code: 'cht_ACcode', iss });
+
+    if (accepted) {
+      await completion;
+      expect(replaceServerAuthenticationMock).toHaveBeenCalledOnce();
+    } else {
+      await expect(completion).rejects.toThrow('different server');
+      expect(exchange).not.toHaveBeenCalled();
+      expect(replaceServerAuthenticationMock).not.toHaveBeenCalled();
+    }
+  });
+
   it('opens before server discovery completes', async () => {
     const popup = fakePopup();
     const { owner, open } = browserHarness(popup);

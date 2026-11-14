@@ -75,6 +75,30 @@ export async function createOAuthFlow(input: {
   };
 }
 
+/**
+ * Whether an authorization response comes from the server that the flow
+ * started with (RFC 9207). A client that signs in to more than one server must
+ * make this check before it sends a code to a token endpoint. Without it, a
+ * malicious server can pass the flow to a different server and receive that
+ * server's code together with the PKCE verifier.
+ *
+ * `issuer` is the `iss` parameter of the response. A missing or empty value
+ * passes: a server without a configured public URL sends no issuer. This does
+ * not weaken the check, because the honest server sends its response directly
+ * to the client and a different server cannot remove the parameter.
+ */
+export function isExpectedOAuthIssuer(
+  issuer: string | null | undefined,
+  serverOrigin: string
+): boolean {
+  if (!issuer) return true;
+  try {
+    return new URL(issuer).origin === new URL(serverOrigin).origin;
+  } catch {
+    return false;
+  }
+}
+
 /** Validate the exact callback route, transaction state and optional issuer before accepting a code. */
 export function isOAuthCallback(flow: OAuthFlow, value: string): boolean {
   try {
@@ -93,7 +117,7 @@ export function isOAuthCallback(flow: OAuthFlow, value: string): boolean {
       url.searchParams.getAll('code').length > 1 ||
       url.searchParams.getAll('error').length > 1 ||
       url.searchParams.getAll('iss').length > 1 ||
-      (url.searchParams.has('iss') && url.searchParams.get('iss') !== flow.origin)
+      !isExpectedOAuthIssuer(url.searchParams.get('iss'), flow.origin)
     )
       return false;
     for (const [key, val] of expected.searchParams)

@@ -29,6 +29,7 @@ import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { saveReturnUrl } from './returnNavigation';
 import { oauthBearerSession, persistedBearerSession } from '@chatto/client/auth/bearerSession';
+import { isExpectedOAuthIssuer } from '@chatto/client/auth/oauth';
 import {
   authorizeNatively,
   hasNativeAuthorization,
@@ -79,6 +80,7 @@ async function runServerOAuthFlow(
       state
     });
     const response = await authorizeNatively(`${serverUrl}${info.authorizeUrl}?${params}`, state);
+    requireResponseFromServer(response, serverUrl);
     if (response.error || !response.code) {
       throw new OAuthPopupError(
         response.errorDescription || response.error || 'Missing authorization code.'
@@ -159,6 +161,7 @@ async function runServerOAuthFlow(
     await authorizationWindow.navigate(`${serverUrl}${info.authorizeUrl}?${params}`);
 
     const response = await responseWait.promise;
+    requireResponseFromServer(response, serverUrl);
     if (response.error) {
       throw new OAuthPopupError(response.errorDescription || response.error);
     }
@@ -174,6 +177,17 @@ async function runServerOAuthFlow(
     loadAndClearFlowState();
     await closeAuthorizationWindow(authorizationWindow);
     throw err;
+  }
+}
+
+/**
+ * Stop the sign-in when a different server sent the authorization response.
+ * The code then never reaches the token endpoint of `serverUrl`. See
+ * `isExpectedOAuthIssuer`.
+ */
+function requireResponseFromServer(response: OAuthPopupResponse, serverUrl: string): void {
+  if (!isExpectedOAuthIssuer(response.iss, serverUrl)) {
+    throw new OAuthPopupError('A different server sent the sign-in response.');
   }
 }
 

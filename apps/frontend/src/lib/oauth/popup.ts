@@ -17,6 +17,8 @@ export type OAuthPopupResponse = {
   code?: string;
   error?: string;
   errorDescription?: string;
+  /** The `iss` parameter of the callback: the server that sent the response. */
+  iss?: string;
 };
 
 /** Return the same-origin channel used by one popup authorization transaction. */
@@ -34,7 +36,8 @@ export function isOAuthPopupResponse(value: unknown): value is OAuthPopupRespons
 /** Build the response envelope from an OAuth callback URL. */
 export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   const state = url.searchParams.get('state');
-  if (!state) return null;
+  // More than one issuer makes the source of the response ambiguous.
+  if (!state || url.searchParams.getAll('iss').length > 1) return null;
 
   if (url.searchParams.get('mode') === 'provider' && !url.searchParams.has('error')) {
     return { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
@@ -49,7 +52,8 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
     state,
     code,
     error,
-    errorDescription: url.searchParams.get('error_description') ?? undefined
+    errorDescription: url.searchParams.get('error_description') ?? undefined,
+    iss: url.searchParams.get('iss') ?? undefined
   };
 }
 
