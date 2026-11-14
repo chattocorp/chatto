@@ -121,6 +121,8 @@ func TestRefreshReuseGrace(t *testing.T) {
 		{"previous at grace end", rotated, 1, now.Add(refreshReuseGrace), refreshReuse},
 		{"two generations old inside grace", rotated, 0, now, refreshReuse},
 		{"future generation", rotated, 3, now, refreshInvalid},
+		{"second repeat inside grace", refreshFamily{Generation: 2, RotatedAt: now, Repeated: true, Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}, 1, now, refreshReuse},
+		{"current after repeat", refreshFamily{Generation: 2, RotatedAt: now, Repeated: true, Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}, 2, now, refreshCurrent},
 		{"revoked previous inside grace", refreshFamily{Generation: 2, RotatedAt: now, Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour), Revoked: true}, 1, now, refreshInvalid},
 		{"expired current", rotated, 2, now.Add(time.Hour), refreshInvalid},
 		{"generation zero has no previous", refreshFamily{Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}, 0, now, refreshCurrent},

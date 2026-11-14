@@ -92,7 +92,7 @@ or the relying party's own sessions.
 **Refresh family** — The sequence of single-use refresh credentials issued from
 one explicit offline authorization. It has a fixed total lifetime and an idle
 limit. Reuse ends the family; revoking its grant ends every related family.
-The previous credential can repeat a rotation within the reuse grace period.
+The previous credential can repeat a rotation once within the reuse grace period.
 See [FDR-010](fdr/FDR-010-oidc-authorization-grants.md).
 
 **Resource** — An exact API audience selected during authorization and approved

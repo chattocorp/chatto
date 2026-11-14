@@ -121,9 +121,18 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 	if repeat := decode(refresh(tokens.RefreshToken, "test-client")); repeat.RefreshToken != next.RefreshToken || repeat.AccessToken == next.AccessToken {
 		t.Fatal("grace repeat did not return the current credential with a new access token")
 	}
-	third := decode(refresh(next.RefreshToken, "test-client"))
-	// A credential two generations old is reuse, also inside the grace window.
+	// Each rotation permits one repeat. A second repeat is reuse and revokes the family.
 	if refresh(tokens.RefreshToken, "test-client").Code == http.StatusOK {
+		t.Fatal("second repeat accepted")
+	}
+	if refresh(next.RefreshToken, "test-client").Code == http.StatusOK {
+		t.Fatal("second repeat did not revoke family")
+	}
+	// A credential two generations old is reuse, also inside the grace window.
+	aged := issue(resource)
+	second := decode(refresh(aged.RefreshToken, "test-client"))
+	third := decode(refresh(second.RefreshToken, "test-client"))
+	if refresh(aged.RefreshToken, "test-client").Code == http.StatusOK {
 		t.Fatal("old generation accepted")
 	}
 	if refresh(third.RefreshToken, "test-client").Code == http.StatusOK {

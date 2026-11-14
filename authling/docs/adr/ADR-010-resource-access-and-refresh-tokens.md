@@ -40,9 +40,10 @@ disable renewal with `allow_refresh_tokens = false`. Public clients retain manda
 30 days at most and expires after seven days without successful use. Both
 limits are configurable. Refreshes rotate credentials with one OCC write.
 For a 10-second reuse grace period after a rotation, the previous credential
-can repeat that rotation. The repeat returns a new access token and the current
-refresh credential again, without a write. Any other authenticated use of an
-older credential is reuse and revokes the whole family. Clients must store the
+can repeat that rotation once. The repeat returns a new access token and the
+current refresh credential again; an OCC write records that the repeat is used.
+Any other authenticated use of an older credential is reuse and revokes the
+whole family. Clients must store the
 new token before the next use.
 
 Store each family in one encrypted runtime record. A domain-separated keyed
@@ -79,10 +80,12 @@ An uncertain storage write can require new browser authorization. So can a
 lost successful refresh response that the client does not retry within the
 grace period. Concurrent refreshes of one credential converge on
 one replacement: after an OCC conflict, the loser reads the family again and
-gets the winner's credential as a repeat. A second conflict revokes the family.
+gets the winner's credential as a repeat. A third conflict revokes the family.
 The grace period lets an attacker with a stolen previous credential get the
-current credential within 10 seconds of a rotation. This exposure is accepted:
-without it, a lost response or two tabs that refresh together end the session.
+current credential within 10 seconds of a rotation, but only once. The client's
+own retry, or the attacker's attempt after the client's, is then a second
+repeat and revokes the family. This exposure is accepted: without it, a lost
+response or two tabs that refresh together end the session.
 No access token is returned after a failed rotation. A revocation concurrent with issuance can overlap an in-flight
 response; every later refresh checks the durable grant again.
 

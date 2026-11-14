@@ -310,14 +310,20 @@ type refreshFamily struct {
 	// RotatedAt is the time of the last successful rotation. It starts the
 	// reuse grace window of the previous generation. It is zero for generation 0.
 	RotatedAt time.Time `json:"rotated_at,omitzero"`
-	Revoked   bool      `json:"revoked"`
+	// Repeated records that the previous generation used its one repeat.
+	// Each rotation resets it.
+	Repeated bool `json:"repeated,omitempty"`
+	Revoked  bool `json:"revoked"`
 }
 
 // refreshReuseGrace is the time after a rotation in which the previous
 // credential can repeat that rotation. It covers a lost token response and
 // concurrent refreshes by one client. A repeat does not rotate the family: it
-// returns the current credential again, so all callers converge on one token.
-// After the window, use of the previous credential is reuse and revokes the family.
+// returns the current credential again, so both callers converge on one token.
+// Each rotation permits one repeat. A second repeat, or use of the previous
+// credential after the window, is reuse and revokes the family. This limits a
+// stolen previous credential to one attempt, and that attempt or the client's
+// own retry then exposes the theft.
 const refreshReuseGrace = 10 * time.Second
 
 // refreshUse classifies a submitted generation against the stored family.
@@ -328,7 +334,7 @@ const (
 	refreshInvalid refreshUse = iota
 	// refreshCurrent permits a rotation to the next generation.
 	refreshCurrent
-	// refreshRepeat returns the current generation again without a write.
+	// refreshRepeat returns the current generation again and marks the repeat as used.
 	refreshRepeat
 	// refreshReuse rejects the credential and revokes the family.
 	refreshReuse
@@ -340,7 +346,7 @@ func (f refreshFamily) use(generation uint64, now time.Time) refreshUse {
 		return refreshInvalid
 	case generation == f.Generation:
 		return refreshCurrent
-	case generation+1 == f.Generation && now.Before(f.RotatedAt.Add(refreshReuseGrace)):
+	case generation+1 == f.Generation && !f.Repeated && now.Before(f.RotatedAt.Add(refreshReuseGrace)):
 		return refreshRepeat
 	case generation < f.Generation:
 		return refreshReuse
@@ -420,10 +426,10 @@ func (s *Storage) refreshRequest(ctx context.Context, token, clientID string) (*
 }
 
 // rotateRefresh advances the family by one generation with one OCC write. A
-// repeat inside the reuse grace window returns the current credential without
-// a write. After an OCC conflict, it reads the family again once, so a
-// concurrent caller that lost to a rotation of the same credential gets the
-// winner's credential. A second conflict revokes the family.
+// repeat inside the reuse grace window records the repeat with one OCC write
+// and returns the current credential. After an OCC conflict, it reads the
+// family again, so a concurrent caller that lost to a rotation of the same
+// credential gets the winner's credential. A third conflict revokes the family.
 func (s *Storage) rotateRefresh(ctx context.Context, token string, request *authRequestState) (string, error) {
 	id, generation, err := s.parseRefresh(token)
 	if err != nil {
@@ -447,7 +453,23 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 			if err := s.checkGrant(ctx, &family.Request); err != nil {
 				return "", err
 			}
-			// A repeat never changes the family, also when it narrows the scope.
+			// A repeat only consumes the grace, also when it narrows the scope.
+			family.Repeated = true
+			data, err := s.seal(key, family)
+			if err != nil {
+				return "", err
+			}
+			_, err = s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), family.Expires.Sub(now))
+			if jetstreamutil.IsSequenceConflict(err) {
+				if attempt < 2 {
+					continue
+				}
+				_ = s.revokeRefreshFamily(ctx, id)
+				return "", errOIDCStateNotFound
+			}
+			if err != nil {
+				return "", err
+			}
 			if !offline {
 				return "", nil
 			}
@@ -462,7 +484,7 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 			return "", err
 		}
 		family.Generation++
-		family.RotatedAt = now
+		family.RotatedAt, family.Repeated = now, false
 		// A replacement refresh token retains the original authorization scope.
 		// A response without offline_access consumes the family without a replacement.
 		family.Revoked = !offline
@@ -476,7 +498,7 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 		}
 		_, err = s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), family.Expires.Sub(now))
 		if jetstreamutil.IsSequenceConflict(err) {
-			if attempt == 0 {
+			if attempt < 2 {
 				continue
 			}
 			_ = s.revokeRefreshFamily(ctx, id)

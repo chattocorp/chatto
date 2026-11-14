@@ -145,21 +145,25 @@ for that family. Refreshes use current account claims and retain the original
 authentication time.
 
 A refresh token rotates once. For a reuse grace period of 10 seconds after a
-rotation, the previous token can repeat that rotation. A repeat returns a new
-access token and the current refresh token again. It does not write state or
-change the family. Concurrent use of one token therefore converges on one
-replacement. After an OCC conflict, Authling reads the family once again; a
-second conflict revokes the family. Use of the previous token after the grace
-period, or of an older token at any time, is reuse. Reuse invalidates the whole
+rotation, the previous token can repeat that rotation one time. A repeat
+returns a new access token and the current refresh token again. It does not
+rotate the family; an OCC write records that the repeat is used. Two concurrent
+uses of one token therefore converge on one replacement. After an OCC
+conflict, Authling reads the family again; a third conflict revokes the
+family. A second repeat, use of the previous token after the grace period, or
+use of an older token at any time is reuse. Reuse invalidates the whole
 family, including its latest token. Invalid credentials or another client
 cannot revoke a family. A revoked or expired family has no grace period.
 A failed or uncertain rotation returns no credentials and can require new
 browser authorization.
 
 The grace period trades a small exposure for reliability. An attacker who has
-a stolen previous token and uses it within 10 seconds of the rotation gets the
-current token. Without the grace period, a lost response or two browser tabs
-that refresh at the same time end the session. Family state survives restart and expires automatically.
+a stolen previous token and uses the one repeat within 10 seconds of the
+rotation gets the current token. If the client already used the repeat, the
+attacker's attempt revokes the family. If the attacker was first, the client's
+own retry revokes it. Without the grace period, a lost response or two browser
+tabs that refresh at the same time end the session. Three or more simultaneous
+uses of one token revoke the family. Family state survives restart and expires automatically.
 
 Revoking an app invalidates all families in that grant generation. Reauthorizing
 the app creates a new generation and cannot restore old refresh tokens.
