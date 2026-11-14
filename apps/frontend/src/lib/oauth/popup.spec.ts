@@ -21,7 +21,8 @@ describe('OAuth popup response', () => {
       state: 'state-123',
       code: 'cht_AC123',
       error: undefined,
-      errorDescription: undefined
+      errorDescription: undefined,
+      iss: undefined
     });
   });
 
@@ -37,8 +38,17 @@ describe('OAuth popup response', () => {
       state: 'state-123',
       code: undefined,
       error: 'access_denied',
-      errorDescription: 'Nope'
+      errorDescription: 'Nope',
+      iss: undefined
     });
+  });
+
+  it('carries the issuer and rejects a callback with more than one', () => {
+    const callback = 'https://app.example/servers/callback?mode=popup&code=c&state=s';
+    expect(
+      oauthPopupResponseFromURL(new URL(`${callback}&iss=https%3A%2F%2Fchat.example`))
+    ).toMatchObject({ code: 'c', iss: 'https://chat.example' });
+    expect(oauthPopupResponseFromURL(new URL(`${callback}&iss=a&iss=b`))).toBeNull();
   });
 
   it('rejects callbacks and messages without a transaction state', () => {
