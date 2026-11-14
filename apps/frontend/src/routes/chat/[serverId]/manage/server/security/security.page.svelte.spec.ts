@@ -138,7 +138,7 @@ describe('server security query lifecycle', () => {
 
   it('saves changed values and replaces the exact cached snapshot', async () => {
     const connection = server.scope.connection;
-    const queryKey = adminQueryKeys.securityConfig('origin', connection);
+    const queryKey = adminQueryKeys.securityConfig({ serverId: 'origin', connection });
     const { container } = render(SecurityPage);
     await settle();
 
@@ -174,7 +174,7 @@ describe('server security query lifecycle', () => {
     const saveResult = deferred<{ blockedUsernames: string }>();
     mocks.updateBlockedUsernames.mockReturnValue(saveResult.promise);
     const connection = server.scope.connection;
-    const queryKey = adminQueryKeys.securityConfig('origin', connection);
+    const queryKey = adminQueryKeys.securityConfig({ serverId: 'origin', connection });
     const view = render(SecurityPage);
     await settle();
 

@@ -48,17 +48,23 @@ describe('followed thread query helpers', () => {
     const keys = [ThreadRootAuthorFilter.VIEWER, ThreadRootAuthorFilter.UNSPECIFIED].flatMap(
       (rootAuthorFilter) =>
         (['activity', 'created'] as const).flatMap((order) => [
-          threadQueryKeys.followed('origin', connection, { rootAuthorFilter, order }),
-          threadQueryKeys.followed('origin', connection, {
-            rootAuthorFilter,
-            order,
-            unreadOnly: true
-          }),
-          threadQueryKeys.followed('origin', connection, {
-            rootAuthorFilter,
-            order,
-            query: 'needle'
-          })
+          threadQueryKeys.followed({ serverId: 'origin', connection }, { rootAuthorFilter, order }),
+          threadQueryKeys.followed(
+            { serverId: 'origin', connection },
+            {
+              rootAuthorFilter,
+              order,
+              unreadOnly: true
+            }
+          ),
+          threadQueryKeys.followed(
+            { serverId: 'origin', connection },
+            {
+              rootAuthorFilter,
+              order,
+              query: 'needle'
+            }
+          )
         ])
     );
     expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(12);
@@ -164,15 +170,18 @@ describe('followed thread query helpers', () => {
   it('keeps complete, unread, and search feeds in separate cache entries', () => {
     const connection = { queryScope: 'session-1' };
     const keys = [
-      threadQueryKeys.followed('origin', connection),
-      threadQueryKeys.followed('origin', connection, { unreadOnly: true }),
-      threadQueryKeys.followed('origin', connection, { query: 'unread' })
+      threadQueryKeys.followed({ serverId: 'origin', connection }),
+      threadQueryKeys.followed({ serverId: 'origin', connection }, { unreadOnly: true }),
+      threadQueryKeys.followed({ serverId: 'origin', connection }, { query: 'unread' })
     ].map((key) => JSON.stringify(key));
     expect(new Set(keys).size).toBe(3);
   });
 
   it('drops the feed when a retracted message is shown in a cached thread', () => {
-    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const queryKey = threadQueryKeys.followed({
+      serverId: 'origin',
+      connection: { queryScope: 'session-1' }
+    });
     const latestReply = { id: 'reply-2' } as FollowedThread['latestReply'];
     queryClient.setQueryData(
       queryKey,
@@ -189,7 +198,10 @@ describe('followed thread query helpers', () => {
   });
 
   it('keeps loaded pages for a retraction that no cached thread shows', () => {
-    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const queryKey = threadQueryKeys.followed({
+      serverId: 'origin',
+      connection: { queryScope: 'session-1' }
+    });
     queryClient.setQueryData(
       queryKey,
       data({ threads: [thread('root-1'), thread('root-2')], totalCount: 2, hasMore: false })
@@ -202,7 +214,10 @@ describe('followed thread query helpers', () => {
   });
 
   it('drops the feed for any retraction while a feed read is pending', async () => {
-    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const queryKey = threadQueryKeys.followed({
+      serverId: 'origin',
+      connection: { queryScope: 'session-1' }
+    });
     queryClient.setQueryData(
       queryKey,
       data({ threads: [thread('root-1')], totalCount: 1, hasMore: false })
@@ -224,7 +239,10 @@ describe('followed thread query helpers', () => {
   });
 
   it('scrubs room and reset privacy boundaries from retained caches', () => {
-    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const queryKey = threadQueryKeys.followed({
+      serverId: 'origin',
+      connection: { queryScope: 'session-1' }
+    });
     queryClient.setQueryData(
       queryKey,
       data({
@@ -242,7 +260,10 @@ describe('followed thread query helpers', () => {
   });
 
   it('immediately clears mounted data and refetches after a user privacy boundary', async () => {
-    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const queryKey = threadQueryKeys.followed({
+      serverId: 'origin',
+      connection: { queryScope: 'session-1' }
+    });
     const queryFn = vi.fn().mockResolvedValue({
       threads: [thread('replacement')],
       totalCount: 1,

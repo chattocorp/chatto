@@ -63,8 +63,7 @@
         onPasswordSet={() =>
           queryClient.invalidateQueries({
             queryKey: settingsQueryKeys.externalIdentities(
-              serverScope.serverId,
-              serverScope.connection,
+              serverScope,
               serverScope.store.accountId ?? ''
             )
           })}

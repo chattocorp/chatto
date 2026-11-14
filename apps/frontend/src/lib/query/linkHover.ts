@@ -13,7 +13,7 @@ export function observeLinkHover(
   update: (preview: LinkPreviewView | null | undefined, pending: boolean) => void
 ): () => void {
   const observer = new QueryObserver(queryClient, {
-    queryKey: [...serverSessionQueryRoot(scope.serverId, scope.connection), 'link-hover', href],
+    queryKey: [...serverSessionQueryRoot(scope), 'link-hover', href],
     queryFn: () => scope.connection.getAPI(createLinkPreviewAPI).fetchLinkMetadata(href),
     staleTime: 5 * 60_000,
     gcTime: 5 * 60_000,

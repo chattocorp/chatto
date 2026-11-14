@@ -30,10 +30,9 @@
   };
 
   const roleCatalogQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.roleCatalog(serverId, connection),
+      queryKey: adminQueryKeys.roleCatalog(serverScope),
       queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
     };
   });
@@ -44,7 +43,7 @@
         () => variables.api.createRole(variables.input),
         variables.canComplete,
         () => {
-          invalidatePermissionTiers(variables.serverId, variables.connection);
+          invalidatePermissionTiers(variables);
           void goto(
             resolve('/chat/[serverId]/manage/server/roles/[name]', {
               serverId: serverIdToSegment(variables.serverId),

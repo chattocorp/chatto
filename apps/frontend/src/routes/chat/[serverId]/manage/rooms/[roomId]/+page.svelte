@@ -66,11 +66,11 @@ change the settings goes to the Members section instead.
       if (detail.canApplyRoomSnapshot(variables)) {
         const { patch } = variables;
         queryClient.setQueryData<AdminManagedRoom | null>(
-          adminQueryKeys.room(variables.serverId, variables.connection, variables.roomId),
+          adminQueryKeys.room(variables, variables.roomId),
           (current) => (current ? applyRoomSettingsResponse(current, updated, patch) : current)
         );
       }
-      invalidateAdminRoomLayoutQueries(variables.serverId, variables.connection, variables.roomId);
+      invalidateAdminRoomLayoutQueries(variables, variables.roomId);
       void serverUi(serverScope.store).adminRoomLayout.refresh();
       toast.success(m('admin.rooms_admin.room_updated'));
     },

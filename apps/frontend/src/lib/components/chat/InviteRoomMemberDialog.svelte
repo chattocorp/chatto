@@ -34,8 +34,7 @@
     return {
       queryKey: [
         ...directoryQueryKeys.eligibleRoomMembers(
-          scope.serverId,
-          scope.connection,
+          scope,
           targetRoomId,
           querySearch,
           ELIGIBLE_ROOM_MEMBER_LIMIT

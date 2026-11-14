@@ -70,7 +70,7 @@ describe('role creation query invalidation', () => {
 
   it('invalidates the cached permission tier before navigating to the new role', async () => {
     const connection = server.scope.connection;
-    const tierKey = adminQueryKeys.permissionTiers('origin', connection);
+    const tierKey = adminQueryKeys.permissionTiers({ serverId: 'origin', connection });
     queryClient.setQueryData(tierKey, { roles: [] });
     const { container } = render(RoleCreatePage);
     await vi.waitFor(() =>
@@ -86,7 +86,7 @@ describe('role creation query invalidation', () => {
 
   it('reuses the cached role catalog capability snapshot', async () => {
     const connection = server.scope.connection;
-    queryClient.setQueryData(adminQueryKeys.roleCatalog('origin', connection), {
+    queryClient.setQueryData(adminQueryKeys.roleCatalog({ serverId: 'origin', connection }), {
       roles: [],
       viewerCanManageRoles: true,
       viewerCanAssignRoles: false

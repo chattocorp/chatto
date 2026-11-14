@@ -41,15 +41,10 @@ owner reassignment and deletion actions.
   const canReassignOwner = $derived(serverScope.store.permissions.canManageBots);
 
   const ownerQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const ownerUserId = bot?.ownerUserId ?? '';
     return {
-      queryKey: [
-        ...settingsQueryKeys.bot(serverId, connection, detail.botId),
-        'owner',
-        ownerUserId
-      ],
+      queryKey: [...settingsQueryKeys.bot(serverScope, detail.botId), 'owner', ownerUserId],
       queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
       enabled: !!ownerUserId
     };
@@ -127,11 +122,7 @@ owner reassignment and deletion actions.
       if (!detail.isCurrentTarget(mutationTarget)) return;
       detail.cacheBot(reassigned);
       void queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.userPermissions(
-          serverScope.serverId,
-          serverScope.connection,
-          bot.id
-        ),
+        queryKey: adminQueryKeys.userPermissions(serverScope, bot.id),
         exact: true
       });
       reassignVisible = false;
@@ -152,7 +143,7 @@ owner reassignment and deletion actions.
       await botAPI().deleteBot(bot.id);
       if (!detail.isCurrentTarget(mutationTarget)) return;
       queryClient.removeQueries({
-        queryKey: settingsQueryKeys.bot(serverScope.serverId, serverScope.connection, bot.id),
+        queryKey: settingsQueryKeys.bot(serverScope, bot.id),
         exact: true
       });
       detail.refreshBot();

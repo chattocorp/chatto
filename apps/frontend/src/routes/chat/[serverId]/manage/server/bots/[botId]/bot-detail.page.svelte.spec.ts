@@ -270,7 +270,7 @@ describe('Bot detail page', () => {
     );
     await vi.waitFor(() => {
       const cached = queryClient.getQueryData<{ displayName: string; bio: string | null }>(
-        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+        settingsQueryKeys.bot(server.scope, 'bot-user-id')
       );
       expect(cached?.displayName).toBe('Renamed Bot');
       expect(cached?.bio).toBe('Initial bot bio');
@@ -301,10 +301,10 @@ describe('Bot detail page', () => {
       'renamed_bot'
     );
     // A realtime refresh delivers another manager's display-name change.
-    queryClient.setQueryData(
-      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id'),
-      { ...mocks.bot, displayName: 'Renamed Elsewhere' }
-    );
+    queryClient.setQueryData(settingsQueryKeys.bot(server.scope, 'bot-user-id'), {
+      ...mocks.bot,
+      displayName: 'Renamed Elsewhere'
+    });
     flushSync();
     await vi.waitFor(() => expect(container.textContent).toContain('Renamed Elsewhere'));
     buttonByText(container, 'Save changes').click();
@@ -388,7 +388,7 @@ describe('Bot detail page', () => {
 
     await vi.waitFor(() => {
       const cached = queryClient.getQueryData<{ lastLoginChange: Date | null }>(
-        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+        settingsQueryKeys.bot(server.scope, 'bot-user-id')
       );
       expect(cached?.lastLoginChange).toBeInstanceOf(Date);
     });
@@ -403,10 +403,10 @@ describe('Bot detail page', () => {
       'late_rename'
     );
     // Another manager's rename arrives while this form is open.
-    queryClient.setQueryData(
-      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id'),
-      { ...mocks.bot, lastLoginChange: new Date() }
-    );
+    queryClient.setQueryData(settingsQueryKeys.bot(server.scope, 'bot-user-id'), {
+      ...mocks.bot,
+      lastLoginChange: new Date()
+    });
     flushSync();
     await vi.waitFor(() =>
       expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).not.toBeNull()
@@ -482,7 +482,7 @@ describe('Bot detail page', () => {
     await vi.waitFor(() => expect(api.uploadAvatar).toHaveBeenCalledWith('bot-user-id', file));
     await vi.waitFor(() => {
       const cached = queryClient.getQueryData<{ avatarUrl: string | null }>(
-        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+        settingsQueryKeys.bot(server.scope, 'bot-user-id')
       );
       expect(cached?.avatarUrl).toBe('/bot-avatar.webp');
     });
@@ -524,7 +524,7 @@ describe('Bot detail page', () => {
     flushSync();
     expect(container.querySelector('dialog[open]')).not.toBeNull();
 
-    queryClient.setQueryData(settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-b'), {
+    queryClient.setQueryData(settingsQueryKeys.bot(server.scope, 'bot-b'), {
       ...mocks.bot,
       id: 'bot-b'
     });
@@ -584,7 +584,7 @@ describe('Bot detail page', () => {
     await vi.waitFor(() => expect(api.getBot).toHaveBeenCalledTimes(2));
 
     const cached = queryClient.getQueryData<typeof hydrated>(
-      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+      settingsQueryKeys.bot(server.scope, 'bot-user-id')
     );
     expect(cached?.incomingWebhooks[0]).toMatchObject({
       id: 'existing-webhook',

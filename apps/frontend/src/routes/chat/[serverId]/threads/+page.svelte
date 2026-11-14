@@ -117,7 +117,6 @@
   }
 
   const threadsQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const query = searchQuery;
     const authorFilter = rootAuthorFilter;
@@ -125,7 +124,7 @@
     // Search results are filtered locally below.
     const unreadOnly = !query && filter === 'unread';
     return {
-      queryKey: threadQueryKeys.followed(serverId, connection, {
+      queryKey: threadQueryKeys.followed(serverScope, {
         query,
         unreadOnly,
         rootAuthorFilter: authorFilter,
@@ -239,7 +238,7 @@
         threadRootEventId: thread.threadRootEventId,
         upToEventId
       });
-      const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
+      const queryKey = threadQueryKeys.followed(serverScope);
       queryClient.setQueriesData<FollowedThreadsData>({ queryKey }, (current) =>
         updateFollowedThreadSummary(current, {
           roomId: thread.roomId,
@@ -265,7 +264,7 @@
         threadRootEventId: thread.threadRootEventId
       });
       await queryClient.invalidateQueries({
-        queryKey: threadQueryKeys.followed(serverScope.serverId, serverScope.connection),
+        queryKey: threadQueryKeys.followed(serverScope),
         exact: false
       });
     } catch {

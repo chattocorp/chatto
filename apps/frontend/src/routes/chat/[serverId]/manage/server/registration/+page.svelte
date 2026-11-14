@@ -10,7 +10,7 @@
 
   const scope = useServerScope();
   const settings = createQuery(() => ({
-    queryKey: adminQueryKeys.registrationSettings(scope.serverId, scope.connection),
+    queryKey: adminQueryKeys.registrationSettings(scope),
     queryFn: ({ signal }) => scope.connection.getAPI(createRegistrationSettingsAPI).get({ signal })
   }));
 </script>

@@ -324,7 +324,10 @@ describe('external identity settings query lifecycle', () => {
   });
 
   it('purges the private snapshot with the server session', async () => {
-    const queryKey = settingsQueryKeys.externalIdentities('origin', connection, 'user-alice');
+    const queryKey = settingsQueryKeys.externalIdentities(
+      { serverId: 'origin', connection },
+      'user-alice'
+    );
     const view = renderSettings();
     await settle();
     view.unmount();

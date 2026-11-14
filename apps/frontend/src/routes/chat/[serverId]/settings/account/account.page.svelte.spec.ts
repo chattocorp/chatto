@@ -251,10 +251,10 @@ describe('Account settings page', () => {
       'alice.secondary@example.com'
     );
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.membersRoot('origin', server.scope.connection)
+      queryKey: adminQueryKeys.membersRoot(server.scope)
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.member('origin', server.scope.connection, 'U123abcetc.'),
+      queryKey: adminQueryKeys.member(server.scope, 'U123abcetc.'),
       exact: true
     });
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
@@ -285,12 +285,10 @@ describe('Account settings page', () => {
     await settle();
 
     expect(
-      queryClient.getQueryData(
-        settingsQueryKeys.verifiedEmails('origin', server.scope.connection, 'U123abcetc.')
-      )
+      queryClient.getQueryData(settingsQueryKeys.verifiedEmails(server.scope, 'U123abcetc.'))
     ).toEqual(changed);
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.membersRoot('origin', server.scope.connection)
+      queryKey: adminQueryKeys.membersRoot(server.scope)
     });
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });

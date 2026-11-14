@@ -59,7 +59,7 @@ media. HTML consent is never stored in history or carried to another selection.
     const assetId = item.id;
     return {
       queryKey: [
-        ...serverSessionQueryRoot(serverId, connection),
+        ...serverSessionQueryRoot({ serverId, connection }),
         'attachment-metadata',
         roomId,
         assetId

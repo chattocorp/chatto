@@ -1,15 +1,14 @@
 import type { InfiniteData, QueryKey } from '@tanstack/svelte-query';
+import { flattenUniquePages } from './pagination';
 import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
 } from '@chatto/client/api/memberDirectory';
-import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { queryCaches } from './cacheRegistry';
 import { queryClient } from './queryClient';
 import { directoryQueryKeys } from './directory';
-
-type RoomMemberQueryConnection = Pick<ServerConnection, 'queryScope'>;
+import type { QueryKeyScope } from './keys';
 
 export const ROOM_MEMBER_MANAGEMENT_PAGE_SIZE = 20;
 export const ELIGIBLE_ROOM_MEMBER_LIMIT = 20;
@@ -37,13 +36,10 @@ export function nextRoomMembersPageParam(
 
 /** Flatten offset pages without rendering rows repeated across a page boundary. */
 export function flattenRoomMembers(data: RoomMembersData | undefined): DirectoryMember[] {
-  const seen = new Set<string>();
-  return (data?.pages ?? []).flatMap((page) =>
-    page.members.filter((member) => {
-      if (seen.has(member.id)) return false;
-      seen.add(member.id);
-      return true;
-    })
+  return flattenUniquePages(
+    data,
+    (page) => page.members,
+    (member) => member.id
   );
 }
 
@@ -107,24 +103,19 @@ export function listEligibleRoomMembers(
   );
 }
 
-export function invalidateRoomMemberQueries(
-  serverId: string,
-  connection: RoomMemberQueryConnection,
-  roomId: string
-): Promise<void> {
+export function invalidateRoomMemberQueries(scope: QueryKeyScope, roomId: string): Promise<void> {
   return queryClient.invalidateQueries({
-    queryKey: directoryQueryKeys.roomMembers(serverId, connection, roomId),
+    queryKey: directoryQueryKeys.roomMembers(scope, roomId),
     exact: true
   });
 }
 
 export function invalidateEligibleRoomMemberQueries(
-  serverId: string,
-  connection: RoomMemberQueryConnection,
+  scope: QueryKeyScope,
   roomId: string
 ): Promise<void> {
   return queryClient.invalidateQueries({
-    queryKey: directoryQueryKeys.room(serverId, connection, roomId),
+    queryKey: directoryQueryKeys.room(scope, roomId),
     predicate: (query) => query.queryKey[7] === 'eligible-members'
   });
 }
@@ -184,12 +175,8 @@ function purgeMatchingRoomMemberQueries(predicate: (queryKey: QueryKey) => boole
  * Cancellation uses `revert: false` so an older in-flight response cannot
  * restore the pre-event snapshot.
  */
-export function purgeRoomMemberQueries(
-  serverId: string,
-  connection: RoomMemberQueryConnection,
-  roomId: string
-): void {
-  const queryKey = directoryQueryKeys.room(serverId, connection, roomId);
+export function purgeRoomMemberQueries(scope: QueryKeyScope, roomId: string): void {
+  const queryKey = directoryQueryKeys.room(scope, roomId);
   purgeMatchingRoomMemberQueries((candidate) =>
     queryKey.every((part, index) => candidate[index] === part)
   );
