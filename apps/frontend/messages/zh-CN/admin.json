@@ -605,11 +605,11 @@
       "updated": "更新时间",
       "next_attempt": "下次尝试",
       "expired": "此任务已过期，无法重试。",
-      "job": "作业",
+      "job": "任务",
       "created": "创建时间",
       "details": "详情",
-      "detail_subtitle": "此作业的状态、尝试次数和最近一次失败原因。",
-      "not_found": "此作业已不存在。",
+      "detail_subtitle": "此任务的状态、尝试次数和最近一次失败原因。",
+      "not_found": "此任务已不存在。",
       "all": "全部"
     }
   }

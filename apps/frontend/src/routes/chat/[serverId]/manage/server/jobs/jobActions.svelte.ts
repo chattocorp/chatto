@@ -11,10 +11,25 @@ import { adminQueryKeys } from '$lib/query/admin';
 import { createMutation, queryClient } from '$lib/query/client';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
 import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+import { Code, ConnectError } from '@chatto/client/api/connect';
+import { toast } from '$lib/ui/toast';
 import { toastError } from '$lib/utils/errorMessage';
 
 /** The job state that the operator saw when starting the action. */
 type JobVariables = SessionSnapshot & { id: string; version: string };
+
+/**
+ * Shows why an action failed. The server rejects an action on a job that
+ * changed after the operator read it with FAILED_PRECONDITION and a diagnostic
+ * English text. Show the localized message for it; the page reloads the job.
+ */
+function toastActionError(error: unknown, fallback: string) {
+  if (error instanceof ConnectError && error.code === Code.FailedPrecondition) {
+    toast.error(fallback);
+  } else {
+    toastError(error, fallback);
+  }
+}
 
 /** Tells whether the server offers a retry for this rendered job snapshot. */
 export function canRetryJob(job: AdminJob): boolean {
@@ -80,7 +95,7 @@ export function createJobActions(
     },
     onError: (error, variables) => {
       if (!session.isCurrent(variables)) return;
-      toastError(error, m('admin.jobs.retry_failed'));
+      toastActionError(error, m('admin.jobs.retry_failed'));
       reload(variables.id);
     }
   }));
@@ -97,7 +112,7 @@ export function createJobActions(
     },
     onError: (error, variables) => {
       if (!session.isCurrent(variables)) return;
-      toastError(error, m('admin.jobs.delete_failed'));
+      toastActionError(error, m('admin.jobs.delete_failed'));
       reload(variables.id);
     }
   }));

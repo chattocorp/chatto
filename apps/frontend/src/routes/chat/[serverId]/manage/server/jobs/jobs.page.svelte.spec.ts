@@ -93,6 +93,8 @@ describe('job queue list', () => {
     mocks.listJobs.mockRejectedValueOnce(new ConnectError('denied', Code.PermissionDenied));
     const screen = render(JobsPage);
     await expect.element(screen.getByText('You do not have permission to do that.')).toBeVisible();
+    // A failed load is not an empty queue.
+    expect(screen.container.textContent).not.toContain('No jobs yet');
     expect(screen.getByRole('button', { name: 'Refresh' }).query()).toBeNull();
     screen.unmount();
 

@@ -126,7 +126,8 @@
       {#if unavailable}
         <FeatureCompatibilityNotice features={['backgroundJobs']} {serverSegment} />
       {:else}
-        {#if loadError}
+        <!-- With no jobs loaded, the table shows the error in place of "no jobs". -->
+        {#if loadError && jobs.length > 0}
           <Hint tone="danger">{loadError}</Hint>
         {/if}
 
@@ -143,7 +144,7 @@
             items={jobs}
             columns={6}
             loading={jobsQuery.isPending}
-            emptyMessage={m('admin.jobs.empty')}
+            emptyMessage={loadError ?? m('admin.jobs.empty')}
             getKey={(job) => job.id}
             hasMore={jobsQuery.hasNextPage && !loadError}
             loadingMore={jobsQuery.isFetchingNextPage}

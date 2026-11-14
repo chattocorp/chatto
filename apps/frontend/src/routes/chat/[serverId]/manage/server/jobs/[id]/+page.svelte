@@ -52,7 +52,8 @@
   // A deleted job has no details, so return to the list, unless the page shows another job now.
   const jobActions = createJobActions(scope, {
     onDeleted: (deletedId) => {
-      if (deletedId === id) void goto(backHref);
+      // Replace the entry, so Back does not return to the deleted job.
+      if (deletedId === id) void goto(backHref, { replaceState: true });
     }
   });
   let confirmingDelete = $state(false);
@@ -79,12 +80,16 @@
     <div class="flex min-h-0 flex-col gap-6">
       {#if jobQuery.isPending}
         <LoadingFog class="h-40 w-full" label={m('common.loading')} />
-      {:else if jobQuery.error}
+      {:else if jobQuery.error && jobQuery.data === undefined}
         <Hint tone="danger">{errorMessage(jobQuery.error, m('admin.jobs.load_failed'))}</Hint>
       {:else if !jobQuery.data}
         <Hint tone="warning">{m('admin.jobs.not_found')}</Hint>
       {:else}
         {@const job = jobQuery.data}
+        <!-- A failed refresh keeps the last loaded job and its actions. -->
+        {#if jobQuery.error}
+          <Hint tone="danger">{errorMessage(jobQuery.error, m('admin.jobs.load_failed'))}</Hint>
+        {/if}
         <Panel title={m('admin.jobs.details')}>
           {#snippet actions()}
             {#if job.status === JobStatus.FAILED}

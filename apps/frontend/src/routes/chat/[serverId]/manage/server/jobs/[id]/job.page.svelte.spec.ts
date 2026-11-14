@@ -7,6 +7,7 @@ import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { adminQueryKeys } from '$lib/query/admin';
 import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJobs';
+import { toast } from '$lib/ui/toast';
 import JobPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   id: 'job-1'
 }));
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+vi.mock('$lib/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('$app/state', () => ({
   page: {
     get params() {
@@ -126,11 +128,15 @@ describe('job details', () => {
       .mockResolvedValueOnce(job({ version: 'b'.repeat(64), failure: 'new_failure' }))
       .mockResolvedValue(job({ ...queued, version: 'b'.repeat(64) }));
     mocks.retryJob
-      .mockRejectedValueOnce(new ConnectError('changed', Code.Aborted))
+      // The server rejects an action on a changed job with this code and an
+      // English diagnostic text.
+      .mockRejectedValueOnce(new ConnectError('job cannot be retried', Code.FailedPrecondition))
       .mockResolvedValue(job(queued));
     const screen = render(JobPage);
     await screen.getByRole('button', { name: 'Try Again' }).click();
     await expect.element(screen.getByText('new_failure')).toBeVisible();
+    // The toast is the localized message, not the server text.
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith('Could not retry this job.');
     await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
     await screen.getByRole('button', { name: 'Try Again' }).click();
     await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
@@ -148,7 +154,9 @@ describe('job details', () => {
     const dialog = screen.getByRole('dialog');
     await expect.element(dialog.getByText('Delete this job?')).toBeVisible();
     await dialog.getByRole('button', { name: 'Delete' }).click();
-    await expect.poll(() => mocks.goto.mock.calls).toEqual([['/chat/-/manage/server/jobs']]);
+    await expect
+      .poll(() => mocks.goto.mock.calls)
+      .toEqual([['/chat/-/manage/server/jobs', { replaceState: true }]]);
     expect(mocks.deleteJob).toHaveBeenCalledExactlyOnceWith('job-1', 'a'.repeat(64));
   });
 
