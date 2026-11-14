@@ -15,7 +15,7 @@ import (
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
-func TestMediaSourceHandsCurrentAndLegacyEventsToSharedPool(t *testing.T) {
+func TestMediaSourceEnqueuesCurrentAndLegacyEvents(t *testing.T) {
 	c, _ := newTestCore(t)
 	ctx := testContext(t)
 	processed := make(chan string, 4)

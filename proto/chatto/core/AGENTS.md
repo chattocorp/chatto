@@ -18,6 +18,8 @@ become public only because it exists in an `Event`.
 - `notification/v1` owns the bounded `NOTIFICATIONS` envelope and lifecycle
   facts.
 - `runtime_state/v1` owns durable latest-value records in `RUNTIME_STATE`.
+- `job/v1` owns the payloads of background jobs in `JOBS`. The shared
+  `pkg/jobs` module owns the job facts that carry them.
 - `key_material/v1` owns KMS records in `ENCRYPTION_KEYS`.
 - `cache_state/v1` owns volatile shared records in `MEMORY_CACHE`.
 - `projection/v1` owns rebuildable projection snapshot payloads.

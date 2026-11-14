@@ -11,7 +11,7 @@ import (
 )
 
 // Job types of durable effects that start from one retained stream message.
-// The names are persisted in job records and JOBS subjects.
+// The names are persisted in job facts and JOBS subjects.
 const (
 	jobTypeAssetCleanup              = "asset_cleanup"
 	jobTypeCallKeyCleanup            = "call_key_cleanup"

@@ -11,31 +11,31 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	jobv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
-func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
+func TestStandaloneMediaWorkerRunsOnlyMediaJobs(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := t.Context()
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
-	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, MaxAge: time.Hour, AllowMsgTTL: true})
+	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, AllowMsgTTL: true})
 	require.NoError(t, err)
 	queue, consumer, err := openJobs(ctx, runtimeunit.Env{NC: nc, JS: js, Logger: log.New(io.Discard)})
 	require.NoError(t, err)
-	payload, err := proto.Marshal(&statev1.MediaJob{AssetId: "asset", MessageEventId: "message"})
+	payload, err := proto.Marshal(&jobv1.MediaJob{AssetId: "asset", MessageEventId: "message"})
 	require.NoError(t, err)
 	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "media-job", Type: "media", Payload: payload, MaxAttempts: 5, RetryDelay: time.Second}))
 	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "webhook-job", Type: "webhook", MaxAttempts: 3, RetryDelay: time.Second}))
-	processed := make(chan *statev1.MediaJob, 1)
+	processed := make(chan *jobv1.MediaJob, 1)
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
 		done <- queue.Work(runCtx, consumer, func(_ context.Context, job jobqueue.Job) error {
-			request := new(statev1.MediaJob)
+			request := new(jobv1.MediaJob)
 			err := proto.Unmarshal(job.Payload, request)
 			processed <- request
 			return err

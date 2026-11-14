@@ -190,19 +190,22 @@ func runServer(configPath string) {
 	}
 	chattoCore.VideoUploadsEnabled = cfg.Video.Enabled
 	if cfg.AssetProcessing.Enabled {
-		processor, processingErr := video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
+		newProcessor := func() (*video.Service, error) {
+			return video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
+		}
+		startupProcessor, processingErr := newProcessor()
 		if processingErr != nil {
 			log.Warn("Media processing tools unavailable; jobs will remain retryable")
 		}
 		chattoCore.SetMediaJobHandler(func(ctx context.Context, assetID, messageID string) error {
+			processor := startupProcessor
 			if processor == nil {
-				// Tool lookup is retried on each attempt; startup remains available when
-				// an optional processing tool is temporarily absent.
-				retryProcessor, err := video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
-				if err != nil {
+				// Startup stays available when a processing tool is absent. Each
+				// attempt then looks the tools up again.
+				var err error
+				if processor, err = newProcessor(); err != nil {
 					return errors.New("media processing tools unavailable")
 				}
-				return chattoCore.ProcessMediaJob(ctx, assetID, messageID, retryProcessor.ProcessAsset)
 			}
 			return chattoCore.ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
 		}, cfg.AssetProcessing.MaxConcurrentJobsOrDefault())

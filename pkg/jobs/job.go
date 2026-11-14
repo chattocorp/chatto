@@ -14,7 +14,8 @@ const (
 	Unknown Status = iota
 	// Queued jobs wait for their next attempt.
 	Queued
-	// Running jobs have a claimed attempt with a renewed lease.
+	// Running jobs have an attempt in progress, or wait for redelivery after
+	// an interrupted attempt.
 	Running
 	// Succeeded jobs are complete. They stay for the succeeded retention.
 	Succeeded
@@ -35,7 +36,7 @@ type Spec struct {
 	// ID accept the job once. It must be unique across job types. It uses
 	// letters, digits, '_' and '-', up to 128.
 	ID string
-	// Type selects the handler and the dispatch subject. Same syntax as ID.
+	// Type selects the consumer and the fact subjects. Same syntax as ID.
 	Type string
 	// Payload is an opaque application reference. It must not hold content,
 	// credentials, or other data that a job listing must not reveal.

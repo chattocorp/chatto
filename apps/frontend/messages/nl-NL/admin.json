@@ -602,7 +602,6 @@
       "delete_message": "Het werk van deze taak wordt opgegeven. Je kunt de taak later niet opnieuw proberen.",
       "webhook": "Webhookbezorging",
       "media": "Mediaverwerking",
-      "alerts": "Meldingswaarschuwingen",
       "asset_cleanup": "Bestanden opruimen",
       "call_key_cleanup": "Gesprekssleutels verwijderen",
       "push_subscription_cleanup": "Pushabonnementen opruimen",

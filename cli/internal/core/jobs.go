@@ -15,7 +15,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	"github.com/chattocorp/chatto/cli/internal/logbridge"
-	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	jobv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
@@ -95,7 +95,7 @@ func (c *ChattoCore) recordWebhookJobFailure(ctx context.Context, job jobqueue.J
 	if job.Type != jobTypeWebhook || c.botWebhooks == nil {
 		return
 	}
-	payload := new(statev1.WebhookJob)
+	payload := new(jobv1.WebhookJob)
 	if proto.Unmarshal(job.Payload, payload) != nil {
 		return
 	}
@@ -153,7 +153,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 		if event.GetId() == "" || request == nil || request.GetAssetId() == "" || request.GetMessageEventId() == "" {
 			return events.TerminateDelivery("invalid media request", errors.New("invalid media request"))
 		}
-		payload, err := proto.Marshal(&statev1.MediaJob{AssetId: request.GetAssetId(), MessageEventId: request.GetMessageEventId()})
+		payload, err := proto.Marshal(&jobv1.MediaJob{AssetId: request.GetAssetId(), MessageEventId: request.GetMessageEventId()})
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 // failure category, so the handler logs the cause of each failed attempt.
 func MediaJobHandler(logger *log.Logger, process func(ctx context.Context, assetID, messageID string) error) jobqueue.Handler {
 	return func(ctx context.Context, job jobqueue.Job) error {
-		request := new(statev1.MediaJob)
+		request := new(jobv1.MediaJob)
 		if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
 			return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
 		}
@@ -270,7 +270,7 @@ func (c *ChattoCore) DeleteJob(ctx context.Context, actorID, id, expectedVersion
 
 // enqueueWebhookJob stores only references, never content or credentials.
 func (c *ChattoCore) enqueueWebhookJob(ctx context.Context, r *botWebhookDelivery) error {
-	payload, err := proto.Marshal(&statev1.WebhookJob{BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID, RoomId: r.RoomID, ConfigurationSequence: r.ConfigurationSequence, Triggers: r.Triggers, OccurredAt: timestamppb.New(r.OccurredAt)})
+	payload, err := proto.Marshal(&jobv1.WebhookJob{BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID, RoomId: r.RoomID, ConfigurationSequence: r.ConfigurationSequence, Triggers: r.Triggers, OccurredAt: timestamppb.New(r.OccurredAt)})
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (c *ChattoCore) enqueueWebhookJob(ctx context.Context, r *botWebhookDeliver
 }
 
 func (m *botWebhookModel) performJob(ctx context.Context, job jobqueue.Job) error {
-	payload := new(statev1.WebhookJob)
+	payload := new(jobv1.WebhookJob)
 	if err := proto.Unmarshal(job.Payload, payload); err != nil {
 		return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
 	}

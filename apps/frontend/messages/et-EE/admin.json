@@ -602,7 +602,6 @@
       "delete_message": "Selle töö tegevus jäetakse pooleli. Te ei saa seda hiljem uuesti proovida.",
       "webhook": "Veebikonksu edastamine",
       "media": "Meedia töötlemine",
-      "alerts": "Teavituste hoiatused",
       "asset_cleanup": "Failide puhastamine",
       "call_key_cleanup": "Kõnevõtmete kustutamine",
       "push_subscription_cleanup": "Push-tellimuste puhastamine",

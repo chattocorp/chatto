@@ -64,15 +64,7 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 }
 
 // jobWorkerKey is the diagnostic key of the JOBS consumer of one job type.
-func jobWorkerKey(kind string) string {
-	switch kind {
-	case jobTypeMedia:
-		return "media_jobs"
-	case jobTypeNotificationAlertDelivery:
-		return "alert_jobs"
-	}
-	return kind + "_jobs"
-}
+func jobWorkerKey(kind string) string { return kind + "_jobs" }
 
 func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool) []DurableWorkerAdminStatus {
 	specs := durableWorkerDiagnosticSpecs(videoUploadsEnabled)

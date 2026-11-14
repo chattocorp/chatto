@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-
 	"sync"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

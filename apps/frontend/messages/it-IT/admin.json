@@ -602,7 +602,6 @@
       "delete_message": "Il lavoro di questa attività viene abbandonato. Non potrai riprovarla in seguito.",
       "webhook": "Invio webhook",
       "media": "Elaborazione multimediale",
-      "alerts": "Avvisi di notifica",
       "asset_cleanup": "Pulizia dei file",
       "call_key_cleanup": "Eliminazione delle chiavi di chiamata",
       "push_subscription_cleanup": "Pulizia delle iscrizioni push",

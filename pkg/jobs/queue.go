@@ -90,23 +90,20 @@ type Options struct {
 // retried facts. Run keeps an in-memory view of all jobs for Get, List, Retry,
 // and Delete.
 type Queue struct {
-	js        jetstream.JetStream
 	stream    jetstream.Stream
 	log       *events.EncodedEventLog
 	opts      Options
 	logger    *slog.Logger
 	view      *view
 	projector *events.Projector
-	// maxAge is the maximum age of the job stream. Zero means no limit.
-	maxAge time.Duration
-	now    func() time.Time
+	now       func() time.Time
 }
 
 // New binds an already provisioned job stream. The stream must allow
-// per-message TTLs. It should not set a maximum age: an unfinished job must
-// stay until it finishes, and succeeded and failed jobs have their own
-// retention. New panics when js or stream is nil and returns an error for
-// invalid options.
+// per-message TTLs and must not set a maximum age: an unfinished job stays
+// until it finishes, and succeeded and failed jobs have their own retention.
+// New panics when js or stream is nil and returns an error for invalid options
+// or an unsuitable stream.
 func New(js jetstream.JetStream, stream jetstream.Stream, opts Options) (*Queue, error) {
 	if js == nil || stream == nil {
 		panic("jobs: queue requires a JetStream context and a job stream")
@@ -127,13 +124,16 @@ func New(js jetstream.JetStream, stream jetstream.Stream, opts Options) (*Queue,
 	if !config.AllowMsgTTL {
 		return nil, errors.New("jobs: job stream must allow per-message TTLs")
 	}
+	if config.MaxAge != 0 {
+		return nil, errors.New("jobs: job stream must not set a maximum age")
+	}
 	logger := opts.Logger
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
 	q := &Queue{
-		js: js, stream: stream, log: events.NewEncodedEventLog(js, stream, logger),
-		opts: opts, logger: logger, maxAge: config.MaxAge, now: time.Now,
+		stream: stream, log: events.NewEncodedEventLog(js, stream, logger),
+		opts: opts, logger: logger, now: time.Now,
 		view: &view{subjects: []string{opts.SubjectPrefix + ".>"}, jobs: map[string]*entry{}},
 	}
 	var err error
@@ -421,12 +421,11 @@ func (q *Queue) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-// sweep drops jobs whose facts the stream no longer holds. The stream removes
-// facts by age without an event, so the view follows the same limits by clock.
+// sweep drops jobs whose fact the stream no longer holds. The stream removes
+// an expired fact without an event, so the view follows the same retention by
+// clock.
 func (q *Queue) sweep() {
-	for _, job := range q.view.sweep(q.now(), q.maxAge, q.opts.SucceededRetention, q.opts.FailedRetention) {
-		q.logger.Warn("Job passed the maximum age of the job stream before it finished", "job_id", job.ID, "job_type", job.Type, "attempts", job.Attempts)
-	}
+	q.view.sweep(q.now(), q.opts.SucceededRetention, q.opts.FailedRetention)
 }
 
 // Work runs jobs from consumer with handler until cancellation. The

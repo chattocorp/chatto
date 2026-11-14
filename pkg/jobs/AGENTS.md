@@ -31,7 +31,7 @@ module. Also follow
   personal data.
 - Production imports are limited to the Go standard library,
   `github.com/nats-io/nats.go`, `google.golang.org/protobuf`,
-  `golang.org/x/sync/errgroup`, `pkg/events`, and `pkg/jetstreamutil`. Tests
+  `golang.org/x/sync/errgroup`, and `pkg/events`. Tests
   may also use `github.com/nats-io/nats-server/v2`.
 - Do not import Chatto or Authling packages.
 - Constructors panic when a required argument is missing. They return an error

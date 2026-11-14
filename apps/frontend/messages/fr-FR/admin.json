@@ -602,7 +602,6 @@
       "delete_message": "Le travail de cette tâche est abandonné. Vous ne pourrez pas la relancer plus tard.",
       "webhook": "Envoi de webhook",
       "media": "Traitement multimédia",
-      "alerts": "Alertes de notification",
       "asset_cleanup": "Nettoyage des fichiers",
       "call_key_cleanup": "Suppression des clés d’appel",
       "push_subscription_cleanup": "Nettoyage des abonnements push",

@@ -591,7 +591,6 @@
       "delete_message": "このジョブの処理は破棄されます。後で再試行することはできません。",
       "webhook": "Webhook 配信",
       "media": "メディア処理",
-      "alerts": "通知アラート",
       "asset_cleanup": "ファイルのクリーンアップ",
       "call_key_cleanup": "通話キーの削除",
       "push_subscription_cleanup": "プッシュ購読のクリーンアップ",

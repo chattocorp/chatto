@@ -58,14 +58,19 @@ func noError(t *testing.T, err error) {
 }
 
 func testStreamConfig() jetstream.StreamConfig {
-	return jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, Storage: jetstream.MemoryStorage, MaxAge: time.Hour, AllowMsgTTL: true}
+	return jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, Storage: jetstream.MemoryStorage, AllowMsgTTL: true}
 }
+
+// testJS is the JetStream context of the server that the current test started.
+// Tests in a package run one at a time.
+var testJS jetstream.JetStream
 
 // testQueue returns a queue on a new job stream and a worker consumer for the
 // job type "work".
 func testQueue(t *testing.T, opts Options) (*Queue, jetstream.Consumer) {
 	t.Helper()
 	js := startTestNATS(t)
+	testJS = js
 	ctx := t.Context()
 	stream := must(js.CreateStream(ctx, testStreamConfig()))
 	opts.SubjectPrefix = "jobs"
@@ -389,7 +394,7 @@ func TestQueueViewRebuildsFromRetainedFacts(t *testing.T) {
 	noError(t, q.Enqueue(ctx, testSpec("waiting")))
 
 	// A second process sees the same jobs, also the one with only its success.
-	other := must(New(q.js, q.stream, Options{SubjectPrefix: "jobs"}))
+	other := must(New(testJS, q.stream, Options{SubjectPrefix: "jobs"}))
 	runView(t, other)
 	rebuiltGood := awaitStatus(t, other, "good", Succeeded)
 	if rebuiltGood.Attempts != 1 || rebuiltGood.MaxAttempts != 3 || !rebuiltGood.CreatedAt.Equal(good.CreatedAt) {
@@ -401,7 +406,7 @@ func TestQueueViewRebuildsFromRetainedFacts(t *testing.T) {
 	awaitStatus(t, other, "waiting", Queued)
 }
 
-func TestQueueViewDropsJobsThatTheStreamNoLongerRetains(t *testing.T) {
+func TestQueueViewDropsOnlySucceededJobsByDefault(t *testing.T) {
 	q, consumer := testQueue(t, Options{SucceededRetention: time.Minute})
 	ctx := t.Context()
 	runView(t, q)
@@ -428,17 +433,12 @@ func TestQueueViewDropsJobsThatTheStreamNoLongerRetains(t *testing.T) {
 	if listed() != 3 {
 		t.Fatalf("jobs = %d, want all three before any limit", listed())
 	}
-	// After the succeeded retention, only the success goes.
-	q.now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+	// After the succeeded retention, only the success goes. Without a failed
+	// retention, the failed job stays, and an unfinished job always stays.
+	q.now = func() time.Time { return time.Now().Add(365 * 24 * time.Hour) }
 	q.sweep()
 	if _, err := q.Get(ctx, "good"); !errors.Is(err, ErrNotFound) || listed() != 2 {
 		t.Fatalf("after retention: get = %v, jobs = %d", err, listed())
-	}
-	// After the maximum age of the stream, the other jobs go too. Only the
-	// unfinished one is reported.
-	unfinished := q.view.sweep(time.Now().Add(2*time.Hour), q.maxAge, time.Minute, 0)
-	if len(unfinished) != 1 || unfinished[0].ID != "waiting" || listed() != 0 {
-		t.Fatalf("unfinished = %+v, jobs = %d", unfinished, listed())
 	}
 }
 
@@ -489,7 +489,7 @@ func TestQueueFailedJobIsOneFactUntilItIsDeleted(t *testing.T) {
 	if msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.dead.deleted")); msg.Header.Get(jetstream.MsgTTLHeader) == "" {
 		t.Fatal("deleted fact must expire")
 	}
-	other := must(New(q.js, q.stream, Options{SubjectPrefix: "jobs"}))
+	other := must(New(testJS, q.stream, Options{SubjectPrefix: "jobs"}))
 	runView(t, other)
 	awaitStatus(t, other, "kept", Failed)
 	if _, err := other.Get(ctx, "dead"); !errors.Is(err, ErrNotFound) {
@@ -649,6 +649,10 @@ func TestNewRejectsInvalidOptions(t *testing.T) {
 	plain := must(js.CreateStream(ctx, jetstream.StreamConfig{Name: "PLAIN", Subjects: []string{"plain.>"}, Storage: jetstream.MemoryStorage}))
 	if _, err := New(js, plain, Options{SubjectPrefix: "plain"}); err == nil {
 		t.Error("New accepted a stream without per-message TTLs")
+	}
+	aged := must(js.CreateStream(ctx, jetstream.StreamConfig{Name: "AGED", Subjects: []string{"aged.>"}, Storage: jetstream.MemoryStorage, MaxAge: time.Hour, AllowMsgTTL: true}))
+	if _, err := New(js, aged, Options{SubjectPrefix: "aged"}); err == nil {
+		t.Error("New accepted a stream that removes unfinished jobs by age")
 	}
 	q := must(New(js, stream, Options{SubjectPrefix: "jobs"}))
 	for name, spec := range map[string]Spec{

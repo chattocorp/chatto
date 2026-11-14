@@ -20,7 +20,7 @@ func testEffect(t *testing.T, handle events.DurableDeliveryHandler, options Effe
 	t.Helper()
 	q, jobsConsumer := testQueue(t, Options{})
 	ctx := t.Context()
-	source := must(q.js.CreateStream(ctx, jetstream.StreamConfig{Name: "SOURCE", Subjects: []string{"source.>"}, Storage: jetstream.MemoryStorage}))
+	source := must(testJS.CreateStream(ctx, jetstream.StreamConfig{Name: "SOURCE", Subjects: []string{"source.>"}, Storage: jetstream.MemoryStorage}))
 	sourceConsumer := must(source.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{Durable: "effect", AckPolicy: jetstream.AckExplicitPolicy, MaxDeliver: -1}))
 	effect := must(NewEffect(q, "work", source, sourceConsumer, handle, options))
 	return effect, jobsConsumer, source
@@ -37,8 +37,8 @@ func TestEffectRunsHandlerOnceForAcceptedSourceMessages(t *testing.T) {
 		return d.Subject == "source.wanted", nil
 	}})
 	ctx := t.Context()
-	must(effect.queue.js.Publish(ctx, "source.ignored", []byte("a")))
-	must(effect.queue.js.Publish(ctx, "source.wanted", []byte("b")))
+	must(testJS.Publish(ctx, "source.ignored", []byte("a")))
+	must(testJS.Publish(ctx, "source.wanted", []byte("b")))
 	sourceCtx, stopSource := context.WithCancel(ctx)
 	sourceDone := make(chan error, 1)
 	go func() { sourceDone <- effect.RunSource(sourceCtx) }()
@@ -76,7 +76,7 @@ func TestEffectHandleClassifiesSourceAndHandlerOutcomes(t *testing.T) {
 		return result
 	}, EffectOptions{MaxAttempts: 3, RetryDelay: time.Millisecond})
 	ctx := t.Context()
-	ack := must(effect.queue.js.Publish(ctx, "source.one", []byte("payload")))
+	ack := must(testJS.Publish(ctx, "source.one", []byte("payload")))
 	digest := sha256.Sum256([]byte("payload"))
 	job := func(subject string, sequence uint64, digest []byte) Job {
 		payload := must(proto.Marshal(&jobpb.EffectSource{Subject: subject, Sequence: sequence, DataSha256: digest}))

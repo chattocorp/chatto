@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/chattocorp/chatto/pkg/events v0.0.0
-	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
 	github.com/nats-io/nats-server/v2 v2.14.7
 	github.com/nats-io/nats.go v1.54.0
 	golang.org/x/sync v0.23.0
@@ -27,5 +26,4 @@ require (
 
 replace (
 	github.com/chattocorp/chatto/pkg/events => ../events
-	github.com/chattocorp/chatto/pkg/jetstreamutil => ../jetstreamutil
 )

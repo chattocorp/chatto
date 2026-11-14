@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: chatto/core/runtime_state/v1/jobs.proto
+// source: chatto/core/job/v1/jobs.proto
 
-package runtimestatev1
+package jobv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -22,7 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Webhook delivery references and immutable source-time policy. Credentials and
+// Payload of a webhook job in JOBS: delivery references and immutable
+// source-time policy. Credentials and
 // message content are loaded through current authorization on every attempt.
 type WebhookJob struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
@@ -39,7 +40,7 @@ type WebhookJob struct {
 
 func (x *WebhookJob) Reset() {
 	*x = WebhookJob{}
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[0]
+	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +52,7 @@ func (x *WebhookJob) String() string {
 func (*WebhookJob) ProtoMessage() {}
 
 func (x *WebhookJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[0]
+	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +65,7 @@ func (x *WebhookJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebhookJob.ProtoReflect.Descriptor instead.
 func (*WebhookJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{0}
+	return file_chatto_core_job_v1_jobs_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WebhookJob) GetBotUserId() string {
@@ -116,7 +117,8 @@ func (x *WebhookJob) GetOccurredAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Media processing references. The asset projection owns the terminal outcome.
+// Payload of a media job in JOBS: processing references. The asset projection
+// owns the terminal outcome.
 type MediaJob struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -127,7 +129,7 @@ type MediaJob struct {
 
 func (x *MediaJob) Reset() {
 	*x = MediaJob{}
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[1]
+	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -139,7 +141,7 @@ func (x *MediaJob) String() string {
 func (*MediaJob) ProtoMessage() {}
 
 func (x *MediaJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[1]
+	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -152,7 +154,7 @@ func (x *MediaJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaJob.ProtoReflect.Descriptor instead.
 func (*MediaJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{1}
+	return file_chatto_core_job_v1_jobs_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *MediaJob) GetAssetId() string {
@@ -169,11 +171,11 @@ func (x *MediaJob) GetMessageEventId() string {
 	return ""
 }
 
-var File_chatto_core_runtime_state_v1_jobs_proto protoreflect.FileDescriptor
+var File_chatto_core_job_v1_jobs_proto protoreflect.FileDescriptor
 
-const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
+const file_chatto_core_job_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/runtime_state/v1/jobs.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x02\n" +
+	"\x1dchatto/core/job/v1/jobs.proto\x12\x12chatto.core.job.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x02\n" +
 	"\n" +
 	"WebhookJob\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
@@ -187,29 +189,29 @@ const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
 	"occurredAt\"O\n" +
 	"\bMediaJob\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventIdB\x96\x02\n" +
-	" com.chatto.core.runtime_state.v1B\tJobsProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventIdB\xd5\x01\n" +
+	"\x16com.chatto.core.job.v1B\tJobsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1;jobv1\xa2\x02\x03CCJ\xaa\x02\x12Chatto.Core.Job.V1\xca\x02\x12Chatto\\Core\\Job\\V1\xe2\x02\x1eChatto\\Core\\Job\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Job::V1b\x06proto3"
 
 var (
-	file_chatto_core_runtime_state_v1_jobs_proto_rawDescOnce sync.Once
-	file_chatto_core_runtime_state_v1_jobs_proto_rawDescData []byte
+	file_chatto_core_job_v1_jobs_proto_rawDescOnce sync.Once
+	file_chatto_core_job_v1_jobs_proto_rawDescData []byte
 )
 
-func file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP() []byte {
-	file_chatto_core_runtime_state_v1_jobs_proto_rawDescOnce.Do(func() {
-		file_chatto_core_runtime_state_v1_jobs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc), len(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc)))
+func file_chatto_core_job_v1_jobs_proto_rawDescGZIP() []byte {
+	file_chatto_core_job_v1_jobs_proto_rawDescOnce.Do(func() {
+		file_chatto_core_job_v1_jobs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_job_v1_jobs_proto_rawDesc), len(file_chatto_core_job_v1_jobs_proto_rawDesc)))
 	})
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescData
+	return file_chatto_core_job_v1_jobs_proto_rawDescData
 }
 
-var file_chatto_core_runtime_state_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_chatto_core_runtime_state_v1_jobs_proto_goTypes = []any{
-	(*WebhookJob)(nil),            // 0: chatto.core.runtime_state.v1.WebhookJob
-	(*MediaJob)(nil),              // 1: chatto.core.runtime_state.v1.MediaJob
+var file_chatto_core_job_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_core_job_v1_jobs_proto_goTypes = []any{
+	(*WebhookJob)(nil),            // 0: chatto.core.job.v1.WebhookJob
+	(*MediaJob)(nil),              // 1: chatto.core.job.v1.MediaJob
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
-var file_chatto_core_runtime_state_v1_jobs_proto_depIdxs = []int32{
-	2, // 0: chatto.core.runtime_state.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
+var file_chatto_core_job_v1_jobs_proto_depIdxs = []int32{
+	2, // 0: chatto.core.job.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -217,26 +219,26 @@ var file_chatto_core_runtime_state_v1_jobs_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_chatto_core_runtime_state_v1_jobs_proto_init() }
-func file_chatto_core_runtime_state_v1_jobs_proto_init() {
-	if File_chatto_core_runtime_state_v1_jobs_proto != nil {
+func init() { file_chatto_core_job_v1_jobs_proto_init() }
+func file_chatto_core_job_v1_jobs_proto_init() {
+	if File_chatto_core_job_v1_jobs_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc), len(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_job_v1_jobs_proto_rawDesc), len(file_chatto_core_job_v1_jobs_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_chatto_core_runtime_state_v1_jobs_proto_goTypes,
-		DependencyIndexes: file_chatto_core_runtime_state_v1_jobs_proto_depIdxs,
-		MessageInfos:      file_chatto_core_runtime_state_v1_jobs_proto_msgTypes,
+		GoTypes:           file_chatto_core_job_v1_jobs_proto_goTypes,
+		DependencyIndexes: file_chatto_core_job_v1_jobs_proto_depIdxs,
+		MessageInfos:      file_chatto_core_job_v1_jobs_proto_msgTypes,
 	}.Build()
-	File_chatto_core_runtime_state_v1_jobs_proto = out.File
-	file_chatto_core_runtime_state_v1_jobs_proto_goTypes = nil
-	file_chatto_core_runtime_state_v1_jobs_proto_depIdxs = nil
+	File_chatto_core_job_v1_jobs_proto = out.File
+	file_chatto_core_job_v1_jobs_proto_goTypes = nil
+	file_chatto_core_job_v1_jobs_proto_depIdxs = nil
 }

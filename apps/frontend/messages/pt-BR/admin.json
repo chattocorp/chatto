@@ -602,7 +602,6 @@
       "delete_message": "O trabalho desta tarefa é abandonado. Você não poderá tentá-la novamente mais tarde.",
       "webhook": "Envio de webhook",
       "media": "Processamento de mídia",
-      "alerts": "Alertas de notificação",
       "asset_cleanup": "Limpeza de arquivos",
       "call_key_cleanup": "Exclusão de chaves de chamada",
       "push_subscription_cleanup": "Limpeza de assinaturas push",

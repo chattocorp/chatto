@@ -11,7 +11,7 @@ import (
 )
 
 // Production code depends only on the standard library, nats.go, protobuf,
-// errgroup, and the shared events and jetstreamutil modules. Tests can also
+// errgroup, and the shared events module. Tests can also
 // use nats-server.
 func TestPackageDependenciesAreApplicationNeutral(t *testing.T) {
 	directory, err := os.Getwd()
@@ -27,7 +27,6 @@ func TestPackageDependenciesAreApplicationNeutral(t *testing.T) {
 		"google.golang.org/protobuf/",
 		"golang.org/x/sync/errgroup",
 		"github.com/chattocorp/chatto/pkg/events",
-		"github.com/chattocorp/chatto/pkg/jetstreamutil",
 		"github.com/chattocorp/chatto/pkg/jobs/",
 	}
 	for _, pkg := range packages {

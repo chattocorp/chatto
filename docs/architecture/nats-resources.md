@@ -164,8 +164,7 @@ renews it. The delivery count is the attempt number. A failed attempt returns
 its delivery with a delay, so a job that waits for a retry holds an
 unacknowledged delivery. The worker pool of each type bounds running jobs.
 The worker acknowledges only after it writes `succeeded` or `failed`. Each job
-consumer appears in worker diagnostics: `media_jobs`, `alert_jobs`, and
-`{type}_jobs` for the other types.
+consumer appears in worker diagnostics as `{type}_jobs`.
 
 Backups capture EVT before runtime state, then notifications and jobs. The
 `JOBS` backup includes the job facts and the consumer positions. A restore

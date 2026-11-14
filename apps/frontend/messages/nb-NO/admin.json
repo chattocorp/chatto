@@ -602,7 +602,6 @@
       "delete_message": "Arbeidet i denne jobben blir forkastet. Du kan ikke prøve den på nytt senere.",
       "webhook": "Webhook-levering",
       "media": "Mediebehandling",
-      "alerts": "Varselvarsler",
       "asset_cleanup": "Filopprydding",
       "call_key_cleanup": "Sletting av samtalenøkler",
       "push_subscription_cleanup": "Opprydding av push-abonnementer",

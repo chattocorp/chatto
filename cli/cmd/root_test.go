@@ -70,11 +70,11 @@ func TestRootRegistersAssetProcessingCommand(t *testing.T) {
 	}
 }
 
-// Embedded media runs in the shared job pool; the standalone command remains.
+// Embedded media runs as jobs of the server; the standalone command remains.
 func TestMediaDoesNotStartASecondEmbeddedPool(t *testing.T) {
 	for _, registration := range runtimeUnitRegistrations() {
 		if registration.Unit.Name() == "asset-processing" {
-			t.Fatal("embedded media must use the shared job pool")
+			t.Fatal("embedded media must run as server jobs, not as a runtime unit")
 		}
 	}
 }

@@ -602,7 +602,6 @@
       "delete_message": "Jobbets arbete överges. Du kan inte försöka igen senare.",
       "webhook": "Webhook-leverans",
       "media": "Mediebearbetning",
-      "alerts": "Aviseringar",
       "asset_cleanup": "Filrensning",
       "call_key_cleanup": "Radering av samtalsnycklar",
       "push_subscription_cleanup": "Rensning av push-prenumerationer",

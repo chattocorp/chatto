@@ -16,9 +16,6 @@ type entry struct {
 	// specification: queued, retried, or failed. Zero means that the view
 	// never saw one.
 	specSeq uint64
-	// specAt is when that fact occurred. A stream with a maximum age removes
-	// it at specAt plus that age; the job then can neither run nor be retried.
-	specAt time.Time
 }
 
 // view is the in-memory projection of the job stream: one payload-free summary
@@ -58,7 +55,7 @@ func (v *view) Apply(fact *jobpb.JobFact, seq uint64) error {
 	e.job.Revision = seq
 	finished := e.job.Status == Succeeded || e.job.Status == Failed
 	if spec := specOf(fact); spec != nil && (fact.GetFailed() == nil || e.job.Status != Succeeded) {
-		e.specSeq, e.specAt = seq, at
+		e.specSeq = seq
 		e.job.MaxAttempts = spec.GetMaxAttempts()
 		e.job.RetryDelay = time.Duration(spec.GetRetryDelayMillis()) * time.Millisecond
 		e.job.ExpiresAt = time.Time{}
@@ -120,31 +117,22 @@ func (v *view) list(status Status) []Job {
 	return jobs
 }
 
-// sweep drops the jobs that the stream no longer retains: a succeeded job
-// after succeededRetention, a failed job after failedRetention, and any job
-// that is not succeeded when its specification passes maxAge. Zero
-// failedRetention and zero maxAge set no limit. It returns the dropped jobs
-// that had not finished.
-func (v *view) sweep(now time.Time, maxAge, succeededRetention, failedRetention time.Duration) []Job {
+// sweep drops the finished jobs whose fact the stream no longer retains: a
+// succeeded job after succeededRetention, and a failed job after
+// failedRetention. Zero failedRetention keeps failed jobs.
+func (v *view) sweep(now time.Time, succeededRetention, failedRetention time.Duration) {
 	v.Lock()
 	defer v.Unlock()
-	var unfinished []Job
 	for id, e := range v.jobs {
-		expired := func(from time.Time, limit time.Duration) bool {
-			return limit > 0 && !now.Before(from.Add(limit))
+		retention := time.Duration(0)
+		switch e.job.Status {
+		case Succeeded:
+			retention = succeededRetention
+		case Failed:
+			retention = failedRetention
 		}
-		switch {
-		case e.job.Status == Succeeded:
-			if !expired(e.job.UpdatedAt, succeededRetention) {
-				continue
-			}
-		case e.job.Status == Failed && expired(e.job.UpdatedAt, failedRetention):
-		case !expired(e.specAt, maxAge):
-			continue
-		case e.job.Status != Failed:
-			unfinished = append(unfinished, e.job)
+		if retention > 0 && !now.Before(e.job.UpdatedAt.Add(retention)) {
+			delete(v.jobs, id)
 		}
-		delete(v.jobs, id)
 	}
-	return unfinished
 }

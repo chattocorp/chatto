@@ -19,9 +19,9 @@ export function jobAttemptsLabel(job: AdminJob, locale: string): string {
 /** Pill tones that job statuses use. */
 export type JobStatusTone = 'neutral' | 'action' | 'success' | 'danger';
 
-/** Returns the label of a registered job type. Future types show as unknown. */
-export function jobTypeLabel(job: AdminJob): string {
-  switch (job.type) {
+/** Returns the label of a registered job type, or null for a future type. */
+export function knownJobTypeLabel(type: string): string | null {
+  switch (type) {
     case 'webhook':
       return m('admin.jobs.webhook');
     case 'media':
@@ -37,8 +37,13 @@ export function jobTypeLabel(job: AdminJob): string {
     case 'notification_alert':
       return m('admin.jobs.notification_alert');
     default:
-      return m('common.unknown');
+      return null;
   }
+}
+
+/** Returns the label of the type of a job. Future types show as unknown. */
+export function jobTypeLabel(job: AdminJob): string {
+  return knownJobTypeLabel(job.type) ?? m('common.unknown');
 }
 
 /** Returns the label of a job execution status. */

@@ -92,7 +92,7 @@ func requireNoWebhookOutcomes(t *testing.T, c *ChattoCore) {
 		return
 	}
 	for _, key := range keys {
-		require.NotContains(t, key, "bot_webhook", "webhooks use generic job records, not a separate KV schema")
+		require.NotContains(t, key, "bot_webhook", "webhooks use job facts in JOBS, not runtime state")
 	}
 }
 func TestBotOutboundWebhookSourceSyncSharesOnlyCapturedPrefix(t *testing.T) {
