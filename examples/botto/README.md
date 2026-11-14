@@ -329,6 +329,10 @@ the posting tool only for additional messages required by the task.
 
 ## Additional MCP servers
 
+For GitHub issue and PR reads with owner-authorized issue changes, use the
+[GitHub App setup](GITHUB.md) and the GitHub block in `botto.example.toml`. The setup uses the existing
+MCP tool controls and keeps App credentials in local ignored files.
+
 Add named servers to `botto.toml` and restart Botto:
 
 ```toml

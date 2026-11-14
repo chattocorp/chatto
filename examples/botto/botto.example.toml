@@ -47,12 +47,26 @@ enabled = false
 # exa_api_key = "${EXA_API_KEY}"
 
 # Additional MCP tools for the main agent. Restart after changing connections.
+# GitHub App setup: see GITHUB.md and .env.github.example.
 # [mcp.servers.github]
-# url = "https://example.com/mcp"
-# tools = ["search_issues", "list_issues", "issue_read"]
+# command = "${BOTTO_GITHUB_MCP_COMMAND}"
+# args = ["stdio"]
+# tools = [
+#   "get_file_contents",
+#   "search_code",
+#   "list_issues",
+#   "search_issues",
+#   "issue_read",
+#   "list_pull_requests",
+#   "search_pull_requests",
+#   "pull_request_read",
+# ]
 # admin_tools = ["issue_write", "add_issue_comment"]
-# [mcp.servers.github.headers]
-# Authorization = "Bearer ${GITHUB_TOKEN}"
+#
+# [mcp.servers.github.env]
+# GITHUB_APP_ID = "${BOTTO_GITHUB_APP_ID}"
+# GITHUB_APP_INSTALLATION_ID = "${BOTTO_GITHUB_APP_INSTALLATION_ID}"
+# GITHUB_APP_PRIVATE_KEY_PATH = "${BOTTO_GITHUB_APP_PRIVATE_KEY_PATH}"
 # [mcp.servers.custom]
 # command = "my-mcp-server"
 # args = ["--stdio"]

@@ -3,3 +3,6 @@
 .env
 botto.toml
 *.pem
+
+# Publish placeholders, never the local credentials.
+!.env.github.example
