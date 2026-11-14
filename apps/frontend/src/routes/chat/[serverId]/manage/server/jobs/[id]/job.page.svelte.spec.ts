@@ -9,7 +9,13 @@ import { adminQueryKeys } from '$lib/query/admin';
 import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJobs';
 import JobPage from './+page.svelte';
 
-const mocks = vi.hoisted(() => ({ getJob: vi.fn(), retryJob: vi.fn(), id: 'job-1' }));
+const mocks = vi.hoisted(() => ({
+  getJob: vi.fn(),
+  retryJob: vi.fn(),
+  deleteJob: vi.fn(),
+  goto: vi.fn(),
+  id: 'job-1'
+}));
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 vi.mock('$app/state', () => ({
   page: {
@@ -17,6 +23,14 @@ vi.mock('$app/state', () => ({
       return { id: mocks.id };
     }
   }
+}));
+vi.mock('$app/navigation', () => ({
+  goto: mocks.goto,
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+  preloadData: vi.fn(),
+  invalidate: vi.fn(),
+  invalidateAll: vi.fn()
 }));
 vi.mock('$app/paths', () => ({
   base: '',
@@ -47,7 +61,7 @@ function job(changes: Partial<AdminJob> = {}): AdminJob {
     maxAttempts: 5,
     failure: 'transport_error',
     retry: JobRetryAvailability.ALLOWED,
-    retryVersion: 'a'.repeat(64),
+    version: 'a'.repeat(64),
     createdAt: new Date('2026-11-10T12:00:00Z'),
     updatedAt: new Date('2026-11-10T12:10:00Z'),
     nextAttemptAt: null,
@@ -86,7 +100,7 @@ describe('job details', () => {
       'This job has expired and cannot be retried.'
     ],
     ['unknown', { retry: undefined }, 'This action is currently unavailable.'],
-    ['versionless', { retryVersion: '' }, 'This action is currently unavailable.']
+    ['versionless', { version: '' }, 'This action is currently unavailable.']
   ])('disables retry for %s retry availability', async (_name, changes, hint) => {
     mocks.getJob.mockResolvedValue(job(changes));
     const screen = render(JobPage);
@@ -109,8 +123,8 @@ describe('job details', () => {
   it('reloads the job after a stale retry and echoes the new version', async () => {
     mocks.getJob
       .mockResolvedValueOnce(job())
-      .mockResolvedValueOnce(job({ retryVersion: 'b'.repeat(64), failure: 'new_failure' }))
-      .mockResolvedValue(job({ ...queued, retryVersion: 'b'.repeat(64) }));
+      .mockResolvedValueOnce(job({ version: 'b'.repeat(64), failure: 'new_failure' }))
+      .mockResolvedValue(job({ ...queued, version: 'b'.repeat(64) }));
     mocks.retryJob
       .mockRejectedValueOnce(new ConnectError('changed', Code.Aborted))
       .mockResolvedValue(job(queued));
@@ -122,6 +136,48 @@ describe('job details', () => {
     await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
     expect(mocks.retryJob).toHaveBeenNthCalledWith(1, 'job-1', 'a'.repeat(64));
     expect(mocks.retryJob).toHaveBeenNthCalledWith(2, 'job-1', 'b'.repeat(64));
+  });
+
+  it('deletes a failed job after confirmation and returns to the job list', async () => {
+    mocks.getJob.mockResolvedValue(job({ retry: JobRetryAvailability.EXPIRED }));
+    mocks.deleteJob.mockResolvedValue(undefined);
+    const screen = render(JobPage);
+    // An expired job cannot be retried, but it can be deleted.
+    await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeDisabled();
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    const dialog = screen.getByRole('dialog');
+    await expect.element(dialog.getByText('Delete this job?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
+    await expect.poll(() => mocks.goto.mock.calls).toEqual([['/chat/-/manage/server/jobs']]);
+    expect(mocks.deleteJob).toHaveBeenCalledExactlyOnceWith('job-1', 'a'.repeat(64));
+  });
+
+  it('keeps the job when the deletion is cancelled', async () => {
+    mocks.getJob.mockResolvedValue(job());
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    await screen.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    expect(mocks.deleteJob).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect.element(screen.getByText('transport_error')).toBeVisible();
+  });
+
+  it('stays on the reloaded job after a rejected delete', async () => {
+    mocks.getJob.mockResolvedValueOnce(job()).mockResolvedValue(job(queued));
+    mocks.deleteJob.mockRejectedValue(new ConnectError('changed', Code.FailedPrecondition));
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    await screen.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('offers no delete for a job that is not failed', async () => {
+    mocks.getJob.mockResolvedValue(job(queued));
+    const screen = render(JobPage);
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Delete' }).query()).toBeNull();
   });
 
   it('does not restore job data when a retry finishes after an authority reset', async () => {

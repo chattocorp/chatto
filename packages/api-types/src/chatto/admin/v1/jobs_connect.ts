@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetJobRequest, GetJobResponse, ListJobsRequest, ListJobsResponse, RetryJobRequest, RetryJobResponse } from "./jobs_pb.js";
+import { DeleteJobRequest, DeleteJobResponse, GetJobRequest, GetJobResponse, ListJobsRequest, ListJobsResponse, RetryJobRequest, RetryJobResponse } from "./jobs_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -48,6 +48,20 @@ export const AdminJobService = {
       name: "RetryJob",
       I: RetryJobRequest,
       O: RetryJobResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes a failed job. Requires server.manage, including privileged mode.
+     * The work of the job is abandoned and cannot be retried later. Returns
+     * FAILED_PRECONDITION when the job is not failed or changed after the caller
+     * read it, and NOT_FOUND when it is already deleted.
+     *
+     * @generated from rpc chatto.admin.v1.AdminJobService.DeleteJob
+     */
+    deleteJob: {
+      name: "DeleteJob",
+      I: DeleteJobRequest,
+      O: DeleteJobResponse,
       kind: MethodKind.Unary,
     },
   }

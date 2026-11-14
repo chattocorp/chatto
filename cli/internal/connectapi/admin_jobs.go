@@ -53,15 +53,26 @@ func (s *adminJobService) RetryJob(ctx context.Context, req *connect.Request[adm
 	if err != nil {
 		return nil, err
 	}
-	job, err := s.api.core.RetryJob(ctx, caller.UserID, req.Msg.Id, req.Msg.RetryVersion)
+	job, err := s.api.core.RetryJob(ctx, caller.UserID, req.Msg.Id, req.Msg.Version)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.RetryJobResponse{Job: jobSummary(job)}), nil
 }
 
-// jobSummary is the explicit privacy boundary: internal payload, claim owner,
-// dispatch generation, credentials and message references never enter the API.
+func (s *adminJobService) DeleteJob(ctx context.Context, req *connect.Request[adminv1.DeleteJobRequest]) (*connect.Response[adminv1.DeleteJobResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = s.api.core.DeleteJob(ctx, caller.UserID, req.Msg.Id, req.Msg.Version); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.DeleteJobResponse{}), nil
+}
+
+// jobSummary is the explicit privacy boundary: internal payloads, broker
+// positions, credentials, and message references never enter the API.
 func jobSummary(job jobqueue.Job) *adminv1.Job {
 	status := adminv1.JobStatus_JOB_STATUS_UNSPECIFIED
 	switch job.Status {
@@ -87,5 +98,5 @@ func jobSummary(job jobqueue.Job) *adminv1.Job {
 	if job.MaxAttempts != jobqueue.UnlimitedAttempts {
 		maxAttempts = &job.MaxAttempts
 	}
-	return &adminv1.Job{Id: job.ID, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: maxAttempts, CreatedAt: optionalTimestamp(job.CreatedAt), UpdatedAt: optionalTimestamp(job.UpdatedAt), NextAttemptAt: optionalTimestamp(job.NextAttemptAt), Failure: job.Failure, Retry: &retry, RetryVersion: jobqueue.RetryVersion(job)}
+	return &adminv1.Job{Id: job.ID, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: maxAttempts, CreatedAt: optionalTimestamp(job.CreatedAt), UpdatedAt: optionalTimestamp(job.UpdatedAt), NextAttemptAt: optionalTimestamp(job.NextAttemptAt), Failure: job.Failure, Retry: &retry, Version: jobqueue.Version(job)}
 }

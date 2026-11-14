@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Tareas",
-      "subtitle": "Consulta las tareas en segundo plano y reintenta las fallidas.",
+      "subtitle": "Consulta las tareas en segundo plano y reintenta o elimina las fallidas.",
       "load_failed": "No se pudieron cargar las tareas.",
       "retry_failed": "No se pudo reintentar esta tarea.",
+      "delete_failed": "No se pudo eliminar esta tarea.",
+      "delete_title": "¿Eliminar esta tarea?",
+      "delete_message": "El trabajo de esta tarea se abandona. No podrás reintentarla más tarde.",
       "webhook": "Envío de webhook",
       "media": "Procesamiento multimedia",
       "alerts": "Alertas de notificación",

@@ -26,15 +26,18 @@ const (
 	jobSubjectPrefix = "jobs"
 	jobTypeWebhook   = "webhook"
 	jobTypeMedia     = "media"
-	// JobRetention is the maximum age of the JOBS stream. Unfinished and failed
-	// jobs stay this long at most.
-	JobRetention = 30 * 24 * time.Hour
 	// JobSucceededRetention is how long succeeded jobs stay.
 	JobSucceededRetention = 3 * 24 * time.Hour
 )
 
-// ErrJobNotRetryable means this job is active, successful, or expired.
-var ErrJobNotRetryable = errors.New("job cannot be retried")
+var (
+	// ErrJobNotRetryable means this job is active, successful, or expired, or
+	// changed after the caller read it.
+	ErrJobNotRetryable = errors.New("job cannot be retried")
+	// ErrJobNotDeletable means this job is not failed, or changed after the
+	// caller read it.
+	ErrJobNotDeletable = errors.New("job cannot be deleted")
+)
 
 // JobsConsumerName returns the durable JOBS consumer of one job type. Each
 // type has its own consumer and worker pool, so one type cannot delay another.
@@ -47,11 +50,13 @@ func jobTypes() []string {
 	return append([]string{jobTypeWebhook, jobTypeMedia, jobTypeNotificationAlertDelivery}, effectJobTypes()...)
 }
 
-// NewJobQueue binds Chatto's job queue contract to the JOBS stream. onFailed
-// may be nil.
-func NewJobQueue(js jetstream.JetStream, stream jetstream.Stream, logger *log.Logger, onFailed func(context.Context, jobqueue.Job)) (*jobqueue.Queue, error) {
+// NewJobQueue binds Chatto's job queue contract to the JOBS stream.
+// failedRetention is core.job_failed_retention: zero keeps failed jobs until an
+// operator retries or deletes them. Every process that runs jobs must use the
+// same value. onFailed may be nil.
+func NewJobQueue(js jetstream.JetStream, stream jetstream.Stream, failedRetention time.Duration, logger *log.Logger, onFailed func(context.Context, jobqueue.Job)) (*jobqueue.Queue, error) {
 	return jobqueue.New(js, stream, jobqueue.Options{
-		SubjectPrefix: jobSubjectPrefix, SucceededRetention: JobSucceededRetention,
+		SubjectPrefix: jobSubjectPrefix, SucceededRetention: JobSucceededRetention, FailedRetention: failedRetention,
 		Logger: logbridge.Slog(logger), OnFailed: onFailed,
 	})
 }
@@ -67,7 +72,7 @@ func JobsConsumerConfig(q *jobqueue.Queue, kind string) jetstream.ConsumerConfig
 
 func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 	var err error
-	c.jobs, err = NewJobQueue(c.js, c.storage.jobsStream, c.logger.WithPrefix("Jobs"), c.recordWebhookJobFailure)
+	c.jobs, err = NewJobQueue(c.js, c.storage.jobsStream, c.config.JobFailedRetention.Duration(), c.logger.WithPrefix("Jobs"), c.recordWebhookJobFailure)
 	if err != nil {
 		return err
 	}
@@ -242,6 +247,25 @@ func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id, expectedVersion 
 		return jobqueue.Job{}, fmt.Errorf("retry job: %w", err)
 	}
 	return job, nil
+}
+
+// DeleteJob removes a failed job. Its work is abandoned. OCC on the facts of
+// the job makes a concurrent retry and a delete exclusive.
+func (c *ChattoCore) DeleteJob(ctx context.Context, actorID, id, expectedVersion string) error {
+	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
+		return err
+	}
+	err := c.jobs.Delete(ctx, id, expectedVersion)
+	if errors.Is(err, jobqueue.ErrNotFound) {
+		return ErrNotFound
+	}
+	if errors.Is(err, jobqueue.ErrNotDeletable) {
+		return ErrJobNotDeletable
+	}
+	if err != nil {
+		return fmt.Errorf("delete job: %w", err)
+	}
+	return nil
 }
 
 // enqueueWebhookJob stores only references, never content or credentials.

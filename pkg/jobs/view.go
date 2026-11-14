@@ -12,11 +12,12 @@ type entry struct {
 	// job has no payload. Its Revision is the sequence of the latest fact of
 	// the job, also of a fact that changed nothing else.
 	job Job
-	// specSeq is the sequence of the queued or retried fact that workers
-	// consume. Zero means that the view never saw it.
+	// specSeq is the sequence of the latest fact that carries the
+	// specification: queued, retried, or failed. Zero means that the view
+	// never saw one.
 	specSeq uint64
-	// specAt is when that fact occurred. The stream removes it at specAt plus
-	// its maximum age; the job then can neither run nor be retried.
+	// specAt is when that fact occurred. A stream with a maximum age removes
+	// it at specAt plus that age; the job then can neither run nor be retried.
 	specAt time.Time
 }
 
@@ -40,11 +41,14 @@ func (v *view) Apply(fact *jobpb.JobFact, seq uint64) error {
 	at := fact.GetOccurredAt().AsTime()
 	v.Lock()
 	defer v.Unlock()
+	if fact.GetDeleted() != nil {
+		delete(v.jobs, fact.Id)
+		return nil
+	}
 	e := v.jobs[fact.Id]
 	if e == nil {
-		// Only a specification or a success describes a job by itself. Other
-		// facts without their job are leftovers of a job whose specification
-		// passed the maximum age.
+		// Only a fact with the specification or a success describes a job by
+		// itself. Other facts without their job are leftovers.
 		if specOf(fact) == nil && fact.GetSucceeded() == nil {
 			return nil
 		}
@@ -53,17 +57,18 @@ func (v *view) Apply(fact *jobpb.JobFact, seq uint64) error {
 	}
 	e.job.Revision = seq
 	finished := e.job.Status == Succeeded || e.job.Status == Failed
-	switch f := fact.Fact.(type) {
-	case *jobpb.JobFact_Queued, *jobpb.JobFact_Retried:
-		spec := specOf(fact)
+	if spec := specOf(fact); spec != nil && (fact.GetFailed() == nil || e.job.Status != Succeeded) {
 		e.specSeq, e.specAt = seq, at
-		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Queued, 0, "", time.Time{}
 		e.job.MaxAttempts = spec.GetMaxAttempts()
 		e.job.RetryDelay = time.Duration(spec.GetRetryDelayMillis()) * time.Millisecond
 		e.job.ExpiresAt = time.Time{}
 		if spec.GetExpiresAt() != nil {
 			e.job.ExpiresAt = spec.ExpiresAt.AsTime()
 		}
+	}
+	switch f := fact.Fact.(type) {
+	case *jobpb.JobFact_Queued, *jobpb.JobFact_Retried:
+		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Queued, 0, "", time.Time{}
 	case *jobpb.JobFact_Succeeded:
 		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Succeeded, f.Succeeded.Attempts, "", time.Time{}
 		e.job.MaxAttempts = f.Succeeded.MaxAttempts
@@ -116,20 +121,25 @@ func (v *view) list(status Status) []Job {
 }
 
 // sweep drops the jobs that the stream no longer retains: a succeeded job
-// after succeededRetention, any other job when its specification passes
-// maxAge. Zero maxAge keeps those jobs. It returns the dropped jobs that had
-// not finished.
-func (v *view) sweep(now time.Time, maxAge, succeededRetention time.Duration) []Job {
+// after succeededRetention, a failed job after failedRetention, and any job
+// that is not succeeded when its specification passes maxAge. Zero
+// failedRetention and zero maxAge set no limit. It returns the dropped jobs
+// that had not finished.
+func (v *view) sweep(now time.Time, maxAge, succeededRetention, failedRetention time.Duration) []Job {
 	v.Lock()
 	defer v.Unlock()
 	var unfinished []Job
 	for id, e := range v.jobs {
+		expired := func(from time.Time, limit time.Duration) bool {
+			return limit > 0 && !now.Before(from.Add(limit))
+		}
 		switch {
 		case e.job.Status == Succeeded:
-			if now.Before(e.job.UpdatedAt.Add(succeededRetention)) {
+			if !expired(e.job.UpdatedAt, succeededRetention) {
 				continue
 			}
-		case maxAge <= 0 || now.Before(e.specAt.Add(maxAge)):
+		case e.job.Status == Failed && expired(e.job.UpdatedAt, failedRetention):
+		case !expired(e.specAt, maxAge):
 			continue
 		case e.job.Status != Failed:
 			unfinished = append(unfinished, e.job)

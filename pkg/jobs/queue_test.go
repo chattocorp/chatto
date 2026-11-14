@@ -236,7 +236,7 @@ func TestQueueKeepsFailureAndRetriesOnce(t *testing.T) {
 
 	// Concurrent operator actions on the same view start one budget.
 	succeed.Store(true)
-	version := RetryVersion(job)
+	version := Version(job)
 	var accepted atomic.Int32
 	var wg sync.WaitGroup
 	for range 6 {
@@ -282,7 +282,7 @@ func TestQueueStopsOnPermanentFailureAndDeadline(t *testing.T) {
 		t.Fatalf("expired = %+v, calls = %d", job, calls.Load())
 	}
 	// A manual retry never extends the deadline.
-	if _, err := q.Retry(ctx, "expired", RetryVersion(job)); !errors.Is(err, ErrNotRetryable) {
+	if _, err := q.Retry(ctx, "expired", Version(job)); !errors.Is(err, ErrNotRetryable) {
 		t.Fatalf("retry expired = %v", err)
 	}
 }
@@ -301,7 +301,7 @@ func TestQueueRetryKeepsSpecificationAndRejectsStaleVersion(t *testing.T) {
 	}, 1)
 	noError(t, q.Enqueue(ctx, testSpec("again")))
 	first := awaitStatus(t, q, "again", Failed)
-	retried, err := q.Retry(ctx, "again", RetryVersion(first))
+	retried, err := q.Retry(ctx, "again", Version(first))
 	noError(t, err)
 	if retried.Status == Failed || retried.MaxAttempts != 3 || !retried.CreatedAt.Equal(first.CreatedAt) {
 		t.Fatalf("retried = %+v", retried)
@@ -311,7 +311,7 @@ func TestQueueRetryKeepsSpecificationAndRejectsStaleVersion(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	// The first view is stale: its budget already ran and failed again.
-	if _, err = q.Retry(ctx, "again", RetryVersion(first)); !errors.Is(err, ErrNotRetryable) {
+	if _, err = q.Retry(ctx, "again", Version(first)); !errors.Is(err, ErrNotRetryable) {
 		t.Fatalf("stale retry = %v", err)
 	}
 	mu.Lock()
@@ -395,7 +395,7 @@ func TestQueueViewRebuildsFromRetainedFacts(t *testing.T) {
 	if rebuiltGood.Attempts != 1 || rebuiltGood.MaxAttempts != 3 || !rebuiltGood.CreatedAt.Equal(good.CreatedAt) {
 		t.Fatalf("rebuilt success = %+v, want %+v", rebuiltGood, good)
 	}
-	if rebuilt := awaitStatus(t, other, "bad", Failed); RetryVersion(rebuilt) != RetryVersion(bad) || rebuilt.Failure != "boom" {
+	if rebuilt := awaitStatus(t, other, "bad", Failed); Version(rebuilt) != Version(bad) || rebuilt.Failure != "boom" {
 		t.Fatalf("rebuilt failure = %+v, want %+v", rebuilt, bad)
 	}
 	awaitStatus(t, other, "waiting", Queued)
@@ -436,9 +436,102 @@ func TestQueueViewDropsJobsThatTheStreamNoLongerRetains(t *testing.T) {
 	}
 	// After the maximum age of the stream, the other jobs go too. Only the
 	// unfinished one is reported.
-	unfinished := q.view.sweep(time.Now().Add(2*time.Hour), q.maxAge, time.Minute)
+	unfinished := q.view.sweep(time.Now().Add(2*time.Hour), q.maxAge, time.Minute, 0)
 	if len(unfinished) != 1 || unfinished[0].ID != "waiting" || listed() != 0 {
 		t.Fatalf("unfinished = %+v, jobs = %d", unfinished, listed())
+	}
+}
+
+func TestQueueFailedJobIsOneFactUntilItIsDeleted(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
+	ctx := t.Context()
+	var calls atomic.Int32
+	runView(t, q)
+	runWorker(t, q, consumer, func(context.Context, Job) error {
+		calls.Add(1)
+		return &Failure{Category: "boom", Permanent: true}
+	}, 1)
+	for _, id := range []string{"dead", "kept"} {
+		noError(t, q.Enqueue(ctx, testSpec(id)))
+	}
+	dead := awaitStatus(t, q, "dead", Failed)
+	kept := awaitStatus(t, q, "kept", Failed)
+	// The failed fact carries the specification; the earlier facts are gone.
+	// Without a failed retention, it has no TTL.
+	subjects := factNames(t, q)
+	if len(subjects) != 2 || subjects["jobs.work.dead.failed"] != 1 || subjects["jobs.work.kept.failed"] != 1 {
+		t.Fatalf("retained facts = %v, want one failed fact per job", subjects)
+	}
+	if msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.dead.failed")); msg.Header.Get(jetstream.MsgTTLHeader) != "" {
+		t.Fatal("failed fact must not expire by default")
+	}
+	// A handoff of the same source finds the failed job and accepts nothing.
+	noError(t, q.Enqueue(ctx, testSpec("dead")))
+
+	if err := q.Delete(ctx, "dead", "stale"); !errors.Is(err, ErrNotDeletable) {
+		t.Fatalf("delete with wrong version = %v", err)
+	}
+	if err := q.Delete(ctx, "missing", "x"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("delete missing = %v", err)
+	}
+	noError(t, q.Delete(ctx, "dead", Version(dead)))
+	if _, err := q.Get(ctx, "dead"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted job = %v", err)
+	}
+	if _, err := q.Retry(ctx, "dead", Version(dead)); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("retry deleted = %v", err)
+	}
+	// Only the short-lived deleted fact stays; a new view does not see the job.
+	subjects = factNames(t, q)
+	if len(subjects) != 2 || subjects["jobs.work.dead.deleted"] != 1 {
+		t.Fatalf("retained facts after delete = %v", subjects)
+	}
+	if msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.dead.deleted")); msg.Header.Get(jetstream.MsgTTLHeader) == "" {
+		t.Fatal("deleted fact must expire")
+	}
+	other := must(New(q.js, q.stream, Options{SubjectPrefix: "jobs"}))
+	runView(t, other)
+	awaitStatus(t, other, "kept", Failed)
+	if _, err := other.Get(ctx, "dead"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted job in a new view = %v", err)
+	}
+
+	// A retry and a delete of the same failure cannot both take effect.
+	if _, err := q.Retry(ctx, "kept", Version(kept)); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Delete(ctx, "kept", Version(kept)); !errors.Is(err, ErrNotDeletable) {
+		t.Fatalf("delete after retry = %v", err)
+	}
+	// Only failed jobs can be deleted.
+	noError(t, q.Enqueue(ctx, testSpec("fresh")))
+	queued := testSpec("queued")
+	queued.Type = "other"
+	noError(t, q.Enqueue(ctx, queued))
+	waiting := awaitStatus(t, q, "queued", Queued)
+	if err := q.Delete(ctx, "queued", Version(waiting)); !errors.Is(err, ErrNotDeletable) {
+		t.Fatalf("delete unfinished = %v", err)
+	}
+}
+
+func TestQueueFailedRetentionExpiresFailedJobs(t *testing.T) {
+	q, consumer := testQueue(t, Options{FailedRetention: time.Minute})
+	ctx := t.Context()
+	runView(t, q)
+	runWorker(t, q, consumer, func(context.Context, Job) error { return &Failure{Category: "boom", Permanent: true} }, 1)
+	noError(t, q.Enqueue(ctx, testSpec("bad")))
+	awaitStatus(t, q, "bad", Failed)
+	if msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.bad.failed")); msg.Header.Get(jetstream.MsgTTLHeader) == "" {
+		t.Fatal("failed fact must expire with a failed retention")
+	}
+	q.sweep()
+	if _, err := q.Get(ctx, "bad"); err != nil {
+		t.Fatalf("failed job before its retention = %v", err)
+	}
+	q.now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+	q.sweep()
+	if _, err := q.Get(ctx, "bad"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("failed job after its retention = %v", err)
 	}
 }
 
@@ -547,6 +640,7 @@ func TestNewRejectsInvalidOptions(t *testing.T) {
 		"wildcard prefix": {SubjectPrefix: "jobs.>"},
 		"trailing dot":    {SubjectPrefix: "jobs."},
 		"short retention": {SubjectPrefix: "jobs", SucceededRetention: time.Millisecond},
+		"short failed":    {SubjectPrefix: "jobs", FailedRetention: time.Millisecond},
 	} {
 		if _, err := New(js, stream, opts); err == nil {
 			t.Errorf("%s: New accepted invalid options", name)

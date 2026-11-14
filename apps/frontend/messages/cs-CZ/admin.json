@@ -616,9 +616,12 @@
     },
     "jobs": {
       "title": "Úlohy",
-      "subtitle": "Prohlížejte úlohy na pozadí a opakujte neúspěšné úlohy.",
+      "subtitle": "Prohlížejte úlohy na pozadí a opakujte nebo mažte neúspěšné úlohy.",
       "load_failed": "Úlohy se nepodařilo načíst.",
       "retry_failed": "Tuto úlohu se nepodařilo zopakovat.",
+      "delete_failed": "Tuto úlohu se nepodařilo smazat.",
+      "delete_title": "Smazat tuto úlohu?",
+      "delete_message": "Práce této úlohy bude zahozena. Později ji nemůžete zopakovat.",
       "webhook": "Doručení webhooku",
       "media": "Zpracování médií",
       "alerts": "Upozornění na oznámení",

@@ -19,7 +19,7 @@ const (
 	// Succeeded jobs are complete. They stay for the succeeded retention.
 	Succeeded
 	// Failed jobs exhausted their budget, expired, or failed permanently.
-	// They stay until a manual retry or the maximum age of the job stream.
+	// They stay until a manual retry, a delete, or the failed retention.
 	Failed
 )
 
@@ -68,7 +68,7 @@ type Job struct {
 	RetryDelay time.Duration
 	ExpiresAt  time.Time
 	// Revision is the stream sequence of the latest fact of the job. It is a
-	// broker position: applications must not expose it. RetryVersion derives a
+	// broker position: applications must not expose it. Version derives a
 	// safe token from it.
 	Revision uint64
 }

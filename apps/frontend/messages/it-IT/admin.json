@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Attività",
-      "subtitle": "Visualizza le attività in background e riprova quelle non riuscite.",
+      "subtitle": "Visualizza le attività in background e riprova o elimina quelle non riuscite.",
       "load_failed": "Impossibile caricare le attività.",
       "retry_failed": "Impossibile riprovare questa attività.",
+      "delete_failed": "Impossibile eliminare questa attività.",
+      "delete_title": "Eliminare questa attività?",
+      "delete_message": "Il lavoro di questa attività viene abbandonato. Non potrai riprovarla in seguito.",
       "webhook": "Invio webhook",
       "media": "Elaborazione multimediale",
       "alerts": "Avvisi di notifica",

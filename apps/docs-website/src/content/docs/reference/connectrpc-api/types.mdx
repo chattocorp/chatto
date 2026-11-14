@@ -1758,7 +1758,7 @@ are never returned. Requires server.manage, including privileged mode.
 | `next_attempt_at` | `google.protobuf.Timestamp` | Earliest next automatic attempt, when queued. |
 | `failure` | `string` | Safe failure category, without exception text or external response content. |
 | `retry` | optional [`JobRetryAvailability`](#chatto-admin-v1-JobRetryAvailability) | Current retry availability. Absence means the server did not report it. |
-| `retry_version` | `string` | Opaque version of this attempt budget. Send unchanged when retrying. A manual retry changes the version; automatic attempts do not. |
+| `version` | `string` | Opaque version of this job state. Send it unchanged when you retry or delete the job. Each state change gives a new version; a failed job keeps its version until it is retried or deleted. |
 
 <a id="chatto-admin-v1-AdminRole"></a>
 
@@ -2534,7 +2534,7 @@ Execution state of a background job. External effects can occur more than once.
 | `JOB_STATUS_QUEUED` | `1` | Waiting for a worker or a scheduled retry. |
 | `JOB_STATUS_RUNNING` | `2` | An attempt is in progress, or awaits recovery after an interrupted worker. |
 | `JOB_STATUS_SUCCEEDED` | `3` | The handler completed its work or found that no work remained necessary. |
-| `JOB_STATUS_FAILED` | `4` | Automatic attempts stopped. The failure remains available for inspection. |
+| `JOB_STATUS_FAILED` | `4` | Automatic attempts stopped. The job stays until it is retried or deleted, or until the retention for failed jobs that the server operator set. |
 
 <a id="chatto-admin-v1-OauthClientPolicy"></a>
 

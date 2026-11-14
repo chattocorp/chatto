@@ -25,6 +25,7 @@ message JobFact {
     JobSucceeded succeeded = 13;
     JobFailed failed = 14;
     JobRetried retried = 15;
+    JobDeleted deleted = 16;
   }
 }
 
@@ -72,11 +73,19 @@ message JobSucceeded {
 }
 
 // The job failed permanently, used its attempt budget, or passed its deadline.
+// The fact repeats the specification, so a failed job is one fact: the worker
+// removes the earlier facts of the job after it writes this one. A manual
+// retry reads the specification from here.
 message JobFailed {
   uint32 attempts = 1;
   // Safe failure category, never handler error text.
   string failure = 2;
+  JobSpec spec = 3;
 }
+
+// An operator deleted a failed job. The fact tells every job view to drop the
+// job. It expires after a short time.
+message JobDeleted {}
 
 // Reference to one retained source message of an effect job. Each attempt
 // loads the message again; the job never copies its data. The digest binds the

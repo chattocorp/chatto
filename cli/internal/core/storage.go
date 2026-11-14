@@ -369,9 +369,10 @@ func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.Str
 	return handle.CachedInfo(), nil
 }
 
-// jobsStreamConfig is the event log of background jobs. Facts stay for
-// JobRetention; a succeeded fact has a shorter per-message TTL, and the worker
-// removes the earlier facts of a succeeded job.
+// jobsStreamConfig is the event log of background jobs. The stream has no
+// maximum age: an unfinished job stays until it finishes. Succeeded facts, and
+// failed facts when core.job_failed_retention is set, have a per-message TTL.
+// The worker removes the earlier facts of a finished job.
 func jobsStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
-	return jetstream.StreamConfig{Name: natsresources.Jobs, Description: "Durable background job facts", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas, Retention: jetstream.LimitsPolicy, MaxAge: JobRetention, AllowMsgTTL: true}
+	return jetstream.StreamConfig{Name: natsresources.Jobs, Description: "Durable background job facts", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas, Retention: jetstream.LimitsPolicy, AllowMsgTTL: true}
 }

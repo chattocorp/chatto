@@ -24,7 +24,7 @@ describe('administrative jobs API', () => {
           failure: 'transport_error',
           createdAt: Timestamp.fromDate(new Date('2026-11-10T12:00:00Z')),
           retry: JobRetryAvailability.EXPIRED,
-          retryVersion: 'a'.repeat(64)
+          version: 'a'.repeat(64)
         }
       ],
       nextCursor: 'opaque-next'
@@ -47,7 +47,7 @@ describe('administrative jobs API', () => {
       updatedAt: null,
       nextAttemptAt: null,
       retry: JobRetryAvailability.EXPIRED,
-      retryVersion: 'a'.repeat(64)
+      version: 'a'.repeat(64)
     });
   });
 
@@ -92,11 +92,24 @@ describe('administrative jobs API', () => {
     });
     expect(receivedRequest(mocks.retryJob)).toMatchObject({
       id: 'job',
-      retryVersion: 'b'.repeat(64)
+      version: 'b'.repeat(64)
     });
     mocks.retryJob.mockReturnValue({});
     await expect(api.retryJob('job', 'b'.repeat(64))).rejects.toMatchObject({
       code: Code.Internal
+    });
+  });
+
+  it('deletes the job state that the caller read and keeps a rejected delete', async () => {
+    mocks.deleteJob.mockReturnValue({});
+    const api = createAdminJobsAPI(config());
+    await expect(api.deleteJob('job', 'c'.repeat(64))).resolves.toBeUndefined();
+    expect(receivedRequest(mocks.deleteJob)).toMatchObject({ id: 'job', version: 'c'.repeat(64) });
+    mocks.deleteJob.mockImplementation(() => {
+      throw new ConnectError('changed', Code.FailedPrecondition);
+    });
+    await expect(api.deleteJob('job', 'c'.repeat(64))).rejects.toMatchObject({
+      code: Code.FailedPrecondition
     });
   });
 });

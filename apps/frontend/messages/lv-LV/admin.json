@@ -605,9 +605,12 @@
     },
     "jobs": {
       "title": "Uzdevumi",
-      "subtitle": "Skatiet fona uzdevumus un atkārtojiet neizdevušos uzdevumus.",
+      "subtitle": "Skatiet fona uzdevumus un atkārtojiet vai dzēsiet neizdevušos uzdevumus.",
       "load_failed": "Neizdevās ielādēt uzdevumus.",
       "retry_failed": "Neizdevās atkārtot šo uzdevumu.",
+      "delete_failed": "Neizdevās dzēst šo uzdevumu.",
+      "delete_title": "Vai dzēst šo uzdevumu?",
+      "delete_message": "Šī uzdevuma darbs tiek atmests. Vēlāk jūs to nevarēsiet atkārtot.",
       "webhook": "Tīmekļa aizķeres piegāde",
       "media": "Multivides apstrāde",
       "alerts": "Paziņojumu brīdinājumi",

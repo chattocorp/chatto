@@ -5,8 +5,8 @@
 
 ## Overview
 
-The Jobs page in server settings lets authorised users inspect background work
-and retry failed jobs. It covers outbound webhooks, media processing, file
+The Jobs page in server settings lets authorised users inspect background work,
+retry failed jobs, and delete failed jobs. It covers outbound webhooks, media processing, file
 cleanup, call-key deletion, push-subscription cleanup, account-key deletion,
 and notification alerts.
 
@@ -40,13 +40,18 @@ and notification alerts.
   after the operator opens a job and goes back. The list refreshes every three
   seconds while it is visible, and loads more results as it scrolls. A job
   detail page refreshes until the job succeeds or fails. The pages have no
-  cancellation, payload editing, or bulk controls.
+  cancellation of unfinished jobs, payload editing, or bulk controls.
 - Servers older than 0.6.0 have no job API. The settings navigation then omits
   Jobs, and the Jobs page shows a compatibility notice
   ([FDR-031](FDR-031-client-server-compatibility-discovery.md)).
-- Succeeded jobs leave the list three days after completion. Failed jobs stay
-  for thirty days after they were accepted or last retried. An unfinished job
-  also leaves the list at that age; the server then logs a warning.
+- A failed job can be deleted, also when it cannot be retried. The page asks
+  for confirmation. Delete abandons the work of the job; it cannot be retried
+  later. A delete applies only to the failure that the operator viewed, so it
+  cannot remove a job that another operator retried.
+- Succeeded jobs leave the list three days after completion. Unfinished jobs
+  stay until they finish. Failed jobs stay until someone retries or deletes
+  them. A server operator can set `core.job_failed_retention` to remove failed
+  jobs automatically after that time.
 
 ## Design Decisions
 
@@ -61,13 +66,24 @@ own worker pool, so slow work of one type does not delay another type.
 
 ### 2. Keep failed work available
 
-**Decision:** Failed jobs stay in the list for thirty days and can be retried
-where their lifecycle permits it.
-**Why:** Operators can recover work after fixing a tool or external service.
+**Decision:** Failed jobs stay in the list and can be retried where their
+lifecycle permits it. They do not expire by default.
+**Why:** Operators can recover work after fixing a tool or external service. A
+failed cleanup or key-deletion job is unresolved work and must not disappear.
 **Tradeoff:** Manual retry can repeat an external effect. Operators must check
-its recipient when a duplicate matters.
+its recipient when a duplicate matters. Failed jobs accumulate until someone
+handles them.
 
-### 3. Poll instead of realtime events
+### 3. Let operators delete failed jobs
+
+**Decision:** An operator can delete a failed job after confirmation. Automatic
+removal is an optional server setting, off by default.
+**Why:** Some failures can never succeed, such as a delivery to an endpoint
+that no longer exists. Without delete, these jobs would stay forever.
+**Tradeoff:** Delete works on one job at a time. An operator with many dead
+jobs must set the retention or delete them one by one.
+
+### 4. Poll instead of realtime events
 
 **Decision:** Visible job pages poll the job API. Job state has no realtime
 event.
@@ -78,7 +94,8 @@ the job list repeatedly.
 
 ## Gates
 
-- `server.manage`: view job summaries and retry eligible failed jobs.
+- `server.manage`: view job summaries, retry eligible failed jobs, and delete
+  failed jobs.
   Human credential sessions must enable privileged mode.
 - `asset_processing.enabled`: process media in the server process. Standalone
   media processes remain available when embedded media processing is disabled.
@@ -91,5 +108,4 @@ the job list repeatedly.
 ## Open Questions
 
 - Add email and delayed deletion when those features need durable jobs.
-- Decide how operators learn about a cleanup or key-deletion job that reaches
-  the thirty-day limit unfinished. Today it is only a log warning.
+- Add a bulk delete for failed jobs when operators need it.

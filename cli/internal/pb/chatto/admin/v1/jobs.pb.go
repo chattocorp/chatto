@@ -35,7 +35,8 @@ const (
 	JobStatus_JOB_STATUS_RUNNING JobStatus = 2
 	// The handler completed its work or found that no work remained necessary.
 	JobStatus_JOB_STATUS_SUCCEEDED JobStatus = 3
-	// Automatic attempts stopped. The failure remains available for inspection.
+	// Automatic attempts stopped. The job stays until it is retried or deleted,
+	// or until the retention for failed jobs that the server operator set.
 	JobStatus_JOB_STATUS_FAILED JobStatus = 4
 )
 
@@ -169,9 +170,10 @@ type Job struct {
 	Failure string `protobuf:"bytes,9,opt,name=failure,proto3" json:"failure,omitempty"`
 	// Current retry availability. Absence means the server did not report it.
 	Retry *JobRetryAvailability `protobuf:"varint,10,opt,name=retry,proto3,enum=chatto.admin.v1.JobRetryAvailability,oneof" json:"retry,omitempty"`
-	// Opaque version of this attempt budget. Send unchanged when retrying.
-	// A manual retry changes the version; automatic attempts do not.
-	RetryVersion  string `protobuf:"bytes,11,opt,name=retry_version,json=retryVersion,proto3" json:"retry_version,omitempty"`
+	// Opaque version of this job state. Send it unchanged when you retry or
+	// delete the job. Each state change gives a new version; a failed job keeps
+	// its version until it is retried or deleted.
+	Version       string `protobuf:"bytes,11,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -276,9 +278,9 @@ func (x *Job) GetRetry() JobRetryAvailability {
 	return JobRetryAvailability_JOB_RETRY_AVAILABILITY_UNSPECIFIED
 }
 
-func (x *Job) GetRetryVersion() string {
+func (x *Job) GetVersion() string {
 	if x != nil {
-		return x.RetryVersion
+		return x.Version
 	}
 	return ""
 }
@@ -503,7 +505,7 @@ type RetryJobRequest struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Version from the failed Job. Rejects stale actions even if a newer budget
 	// has already failed. It is not a request ID or a storage coordinate.
-	RetryVersion  string `protobuf:"bytes,2,opt,name=retry_version,json=retryVersion,proto3" json:"retry_version,omitempty"`
+	Version       string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -545,9 +547,9 @@ func (x *RetryJobRequest) GetId() string {
 	return ""
 }
 
-func (x *RetryJobRequest) GetRetryVersion() string {
+func (x *RetryJobRequest) GetVersion() string {
 	if x != nil {
-		return x.RetryVersion
+		return x.Version
 	}
 	return ""
 }
@@ -598,11 +600,104 @@ func (x *RetryJobResponse) GetJob() *Job {
 	return nil
 }
 
+// Request to delete a failed job, for example one that can never succeed.
+type DeleteJobRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required stable job ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Version from the failed Job. Rejects the request when the job changed
+	// after the caller read it, for example through a retry.
+	Version       string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteJobRequest) Reset() {
+	*x = DeleteJobRequest{}
+	mi := &file_chatto_admin_v1_jobs_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteJobRequest) ProtoMessage() {}
+
+func (x *DeleteJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_jobs_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteJobRequest.ProtoReflect.Descriptor instead.
+func (*DeleteJobRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_jobs_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteJobRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DeleteJobRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+// The job is deleted.
+type DeleteJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteJobResponse) Reset() {
+	*x = DeleteJobResponse{}
+	mi := &file_chatto_admin_v1_jobs_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteJobResponse) ProtoMessage() {}
+
+func (x *DeleteJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_jobs_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteJobResponse.ProtoReflect.Descriptor instead.
+func (*DeleteJobResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_jobs_proto_rawDescGZIP(), []int{8}
+}
+
 var File_chatto_admin_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/admin/v1/jobs.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf7\x03\n" +
+	"\x1achatto/admin/v1/jobs.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xec\x03\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x122\n" +
@@ -616,8 +711,8 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\x0fnext_attempt_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\x12\x18\n" +
 	"\afailure\x18\t \x01(\tR\afailure\x12@\n" +
 	"\x05retry\x18\n" +
-	" \x01(\x0e2%.chatto.admin.v1.JobRetryAvailabilityH\x01R\x05retry\x88\x01\x01\x12#\n" +
-	"\rretry_version\x18\v \x01(\tR\fretryVersionB\x0f\n" +
+	" \x01(\x0e2%.chatto.admin.v1.JobRetryAvailabilityH\x01R\x05retry\x88\x01\x01\x12\x18\n" +
+	"\aversion\x18\v \x01(\tR\aversionB\x0f\n" +
 	"\r_max_attemptsB\b\n" +
 	"\x06_retry\"\x98\x01\n" +
 	"\x0fListJobsRequest\x12%\n" +
@@ -632,13 +727,18 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\"8\n" +
 	"\x0eGetJobResponse\x12&\n" +
-	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job\"\\\n" +
+	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job\"Q\n" +
 	"\x0fRetryJobRequest\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\x12-\n" +
-	"\rretry_version\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x98\x01@R\fretryVersion\":\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\x12\"\n" +
+	"\aversion\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x98\x01@R\aversion\":\n" +
 	"\x10RetryJobResponse\x12&\n" +
-	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job*\x87\x01\n" +
+	"\x03job\x18\x01 \x01(\v2\x14.chatto.admin.v1.JobR\x03job\"R\n" +
+	"\x10DeleteJobRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x02id\x12\"\n" +
+	"\aversion\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x98\x01@R\aversion\"\x13\n" +
+	"\x11DeleteJobResponse*\x87\x01\n" +
 	"\tJobStatus\x12\x1a\n" +
 	"\x16JOB_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11JOB_STATUS_QUEUED\x10\x01\x12\x16\n" +
@@ -649,11 +749,12 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	"\"JOB_RETRY_AVAILABILITY_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eJOB_RETRY_AVAILABILITY_ALLOWED\x10\x01\x12%\n" +
 	"!JOB_RETRY_AVAILABILITY_NOT_FAILED\x10\x02\x12\"\n" +
-	"\x1eJOB_RETRY_AVAILABILITY_EXPIRED\x10\x032\xfe\x01\n" +
+	"\x1eJOB_RETRY_AVAILABILITY_EXPIRED\x10\x032\xd2\x02\n" +
 	"\x0fAdminJobService\x12O\n" +
 	"\bListJobs\x12 .chatto.admin.v1.ListJobsRequest\x1a!.chatto.admin.v1.ListJobsResponse\x12I\n" +
 	"\x06GetJob\x12\x1e.chatto.admin.v1.GetJobRequest\x1a\x1f.chatto.admin.v1.GetJobResponse\x12O\n" +
-	"\bRetryJob\x12 .chatto.admin.v1.RetryJobRequest\x1a!.chatto.admin.v1.RetryJobResponseB\xc4\x01\n" +
+	"\bRetryJob\x12 .chatto.admin.v1.RetryJobRequest\x1a!.chatto.admin.v1.RetryJobResponse\x12R\n" +
+	"\tDeleteJob\x12!.chatto.admin.v1.DeleteJobRequest\x1a\".chatto.admin.v1.DeleteJobResponseB\xc4\x01\n" +
 	"\x13com.chatto.admin.v1B\tJobsProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
@@ -669,7 +770,7 @@ func file_chatto_admin_v1_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_admin_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_admin_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_admin_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_admin_v1_jobs_proto_goTypes = []any{
 	(JobStatus)(0),                // 0: chatto.admin.v1.JobStatus
 	(JobRetryAvailability)(0),     // 1: chatto.admin.v1.JobRetryAvailability
@@ -680,13 +781,15 @@ var file_chatto_admin_v1_jobs_proto_goTypes = []any{
 	(*GetJobResponse)(nil),        // 6: chatto.admin.v1.GetJobResponse
 	(*RetryJobRequest)(nil),       // 7: chatto.admin.v1.RetryJobRequest
 	(*RetryJobResponse)(nil),      // 8: chatto.admin.v1.RetryJobResponse
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*DeleteJobRequest)(nil),      // 9: chatto.admin.v1.DeleteJobRequest
+	(*DeleteJobResponse)(nil),     // 10: chatto.admin.v1.DeleteJobResponse
+	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
 }
 var file_chatto_admin_v1_jobs_proto_depIdxs = []int32{
 	0,  // 0: chatto.admin.v1.Job.status:type_name -> chatto.admin.v1.JobStatus
-	9,  // 1: chatto.admin.v1.Job.created_at:type_name -> google.protobuf.Timestamp
-	9,  // 2: chatto.admin.v1.Job.updated_at:type_name -> google.protobuf.Timestamp
-	9,  // 3: chatto.admin.v1.Job.next_attempt_at:type_name -> google.protobuf.Timestamp
+	11, // 1: chatto.admin.v1.Job.created_at:type_name -> google.protobuf.Timestamp
+	11, // 2: chatto.admin.v1.Job.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 3: chatto.admin.v1.Job.next_attempt_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: chatto.admin.v1.Job.retry:type_name -> chatto.admin.v1.JobRetryAvailability
 	0,  // 5: chatto.admin.v1.ListJobsRequest.status:type_name -> chatto.admin.v1.JobStatus
 	2,  // 6: chatto.admin.v1.ListJobsResponse.jobs:type_name -> chatto.admin.v1.Job
@@ -695,11 +798,13 @@ var file_chatto_admin_v1_jobs_proto_depIdxs = []int32{
 	3,  // 9: chatto.admin.v1.AdminJobService.ListJobs:input_type -> chatto.admin.v1.ListJobsRequest
 	5,  // 10: chatto.admin.v1.AdminJobService.GetJob:input_type -> chatto.admin.v1.GetJobRequest
 	7,  // 11: chatto.admin.v1.AdminJobService.RetryJob:input_type -> chatto.admin.v1.RetryJobRequest
-	4,  // 12: chatto.admin.v1.AdminJobService.ListJobs:output_type -> chatto.admin.v1.ListJobsResponse
-	6,  // 13: chatto.admin.v1.AdminJobService.GetJob:output_type -> chatto.admin.v1.GetJobResponse
-	8,  // 14: chatto.admin.v1.AdminJobService.RetryJob:output_type -> chatto.admin.v1.RetryJobResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
+	9,  // 12: chatto.admin.v1.AdminJobService.DeleteJob:input_type -> chatto.admin.v1.DeleteJobRequest
+	4,  // 13: chatto.admin.v1.AdminJobService.ListJobs:output_type -> chatto.admin.v1.ListJobsResponse
+	6,  // 14: chatto.admin.v1.AdminJobService.GetJob:output_type -> chatto.admin.v1.GetJobResponse
+	8,  // 15: chatto.admin.v1.AdminJobService.RetryJob:output_type -> chatto.admin.v1.RetryJobResponse
+	10, // 16: chatto.admin.v1.AdminJobService.DeleteJob:output_type -> chatto.admin.v1.DeleteJobResponse
+	13, // [13:17] is the sub-list for method output_type
+	9,  // [9:13] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -717,7 +822,7 @@ func file_chatto_admin_v1_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_jobs_proto_rawDesc), len(file_chatto_admin_v1_jobs_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

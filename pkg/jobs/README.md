@@ -14,9 +14,9 @@ view.
 
 - **Facts.** One job stream holds the facts of each job on
   `{SubjectPrefix}.{type}.{id}.{fact}`: `queued`, `started`, `attempt_failed`,
-  `succeeded`, `failed`, and `retried`. Facts are protobufs that this module
+  `succeeded`, `failed`, `retried`, and `deleted`. Facts are protobufs that this module
   owns. The state of a job is the fold of its facts. The stream must allow
-  per-message TTLs and should set a maximum age.
+  per-message TTLs and should not set a maximum age.
 - **Enqueue.** `Queue.Enqueue` appends `queued` only when the job has no
   facts, so a repeated handoff accepts the job once.
 - **Execution.** `Queue.Work` takes an application-owned durable consumer and
@@ -29,21 +29,23 @@ view.
   capped at thirty minutes. The waiting job holds an unacknowledged delivery,
   so the consumer should not limit pending acknowledgements. A `*jobs.Failure`
   sets a safe category and can stop retries. `Queue.Retry` starts one new
-  attempt budget for a failed job; `RetryVersion` fences stale operator
-  actions.
+  attempt budget for a failed job; `Version` fences stale operator actions.
 - **Shutdown and crashes.** On shutdown, the worker returns the delivery, and
   another process takes the job over. After a crash, the acknowledgement wait
   ends first. The interrupted delivery counts as an attempt.
 - **View.** `Queue.Run` keeps an in-memory projection of the stream: one
-  summary per job, without the payload. `Queue.Get`, `Queue.List`, and
-  `Queue.Retry` need it. `Queue.List` returns jobs newest update first, with an
+  summary per job, without the payload. `Queue.Get`, `Queue.List`,
+  `Queue.Retry`, and `Queue.Delete` need it. `Queue.List` returns jobs newest update first, with an
   optional status filter and an opaque cursor. It reads no storage. Processes
   that only enqueue or work do not need `Queue.Run`.
-- **Retention.** When a job succeeds, the worker writes `succeeded` with a TTL
-  of `SucceededRetention` (default three days) and purges the earlier facts of
-  the job. Other facts stay until the maximum age of the stream. A failed or
-  unfinished job leaves the stream when its `queued` or last `retried` fact
-  reaches that age; the view logs a warning for an unfinished job.
+- **Retention.** Unfinished jobs stay until they finish. When a job succeeds,
+  the worker writes `succeeded` with a TTL of `SucceededRetention` (default
+  three days) and purges the earlier facts of the job. When a job fails, the
+  worker writes `failed` with a copy of the specification and purges the
+  earlier facts; the fact has a TTL only when `FailedRetention` is set.
+- **Delete.** `Queue.Delete` removes a failed job, for example one that can
+  never succeed. `Version` fences it like a retry, so a retry and a delete of
+  the same failure cannot both take effect.
 
 ## Effects
 

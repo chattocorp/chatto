@@ -11,6 +11,7 @@ const JOBS_URL = 'https://chat.example.test/chat/-/manage/server/jobs';
 const mocks = vi.hoisted(() => ({
   listJobs: vi.fn(),
   retryJob: vi.fn(),
+  deleteJob: vi.fn(),
   goto: vi.fn(),
   url: new URL('https://chat.example.test/')
 }));
@@ -79,7 +80,7 @@ function job(id: string, changes: Partial<AdminJob> = {}): AdminJob {
     maxAttempts: 5,
     failure: 'http_error',
     retry: JobRetryAvailability.ALLOWED,
-    retryVersion: 'a'.repeat(64),
+    version: 'a'.repeat(64),
     createdAt: new Date('2026-11-10T12:00:00Z'),
     updatedAt: null,
     nextAttemptAt: null,
@@ -169,7 +170,76 @@ describe('job queue list', () => {
     expect(mocks.retryJob).toHaveBeenCalledExactlyOnceWith('failed', 'a'.repeat(64));
     await expect.element(screen.getByText('Running', { exact: true })).toBeVisible();
     expect(screen.container.querySelectorAll('[data-activity-indicator]')).toHaveLength(1);
-    expect(screen.container.querySelectorAll('button')).toHaveLength(1);
+    expect(screen.container.querySelectorAll('button')).toHaveLength(2);
+  });
+
+  it('deletes a failed job from its row after confirmation', async () => {
+    mocks.listJobs
+      .mockResolvedValueOnce({
+        jobs: [
+          job('doomed', { failure: 'doomed_failure', version: 'd'.repeat(64) }),
+          job('expired', { retry: JobRetryAvailability.EXPIRED })
+        ],
+        nextCursor: ''
+      })
+      .mockResolvedValue({
+        jobs: [job('expired', { retry: JobRetryAvailability.EXPIRED })],
+        nextCursor: ''
+      });
+    mocks.deleteJob.mockResolvedValue(undefined);
+    const screen = render(JobsPage);
+    const deletes = screen.getByRole('button', { name: 'Delete' });
+    // An expired job cannot be retried, but it can be deleted.
+    await expect.element(deletes.nth(1)).toBeEnabled();
+    await deletes.nth(0).click();
+    const dialog = screen.getByRole('dialog');
+    await expect.element(dialog.getByText('Delete this job?')).toBeVisible();
+    await expect
+      .element(dialog.getByText('The work of this job is abandoned. You cannot retry it later.'))
+      .toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
+    expect(mocks.deleteJob).toHaveBeenCalledExactlyOnceWith('doomed', 'd'.repeat(64));
+    await expect.element(screen.getByText('doomed_failure')).not.toBeInTheDocument();
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.container.querySelectorAll('a.data-table-row-link')).toHaveLength(1);
+  });
+
+  it('keeps the job when the deletion is cancelled', async () => {
+    mocks.listJobs.mockResolvedValue({ jobs: [job('kept')], nextCursor: '' });
+    const screen = render(JobsPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    const dialog = screen.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    expect(mocks.deleteJob).not.toHaveBeenCalled();
+    await expect.element(screen.getByRole('link', { name: 'Webhook delivery' })).toBeVisible();
+  });
+
+  it('reloads the list when another operator changed the job before the delete', async () => {
+    mocks.listJobs
+      .mockResolvedValueOnce({ jobs: [job('changed')], nextCursor: '' })
+      .mockResolvedValue({
+        jobs: [
+          job('changed', { status: JobStatus.QUEUED, retry: JobRetryAvailability.NOT_FAILED })
+        ],
+        nextCursor: ''
+      });
+    mocks.deleteJob.mockRejectedValue(new ConnectError('changed', Code.FailedPrecondition));
+    const screen = render(JobsPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    await screen.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await expect.element(screen.getByRole('cell', { name: 'Queued' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Delete' }).query()).toBeNull();
+  });
+
+  it('offers no delete for a job that is not failed', async () => {
+    mocks.listJobs.mockResolvedValue({
+      jobs: [job('queued', { status: JobStatus.QUEUED, retry: JobRetryAvailability.NOT_FAILED })],
+      nextCursor: ''
+    });
+    const screen = render(JobsPage);
+    await expect.element(screen.getByRole('link', { name: 'Webhook delivery' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Delete' }).query()).toBeNull();
   });
 
   it('keeps the selected status filter in the URL', async () => {

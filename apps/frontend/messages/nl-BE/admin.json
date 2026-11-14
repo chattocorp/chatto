@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Taken",
-      "subtitle": "Bekijk achtergrondtaken en probeer mislukte taken opnieuw.",
+      "subtitle": "Bekijk achtergrondtaken en probeer mislukte taken opnieuw of verwijder ze.",
       "load_failed": "Taken konden niet worden geladen.",
       "retry_failed": "Deze taak kon niet opnieuw worden geprobeerd.",
+      "delete_failed": "Deze taak kon niet worden verwijderd.",
+      "delete_title": "Deze taak verwijderen?",
+      "delete_message": "Het werk van deze taak wordt opgegeven. Je kunt de taak later niet opnieuw proberen.",
       "webhook": "Webhookbezorging",
       "media": "Mediaverwerking",
       "alerts": "Meldingswaarschuwingen",

@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Jobs",
-      "subtitle": "View background jobs and retry failed jobs.",
+      "subtitle": "View background jobs, and retry or delete failed jobs.",
       "load_failed": "Could not load jobs.",
       "retry_failed": "Could not retry this job.",
+      "delete_failed": "Could not delete this job.",
+      "delete_title": "Delete this job?",
+      "delete_message": "The work of this job is abandoned. You cannot retry it later.",
       "webhook": "Webhook delivery",
       "media": "Media processing",
       "alerts": "Notification alerts",

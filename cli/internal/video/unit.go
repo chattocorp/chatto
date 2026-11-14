@@ -98,7 +98,7 @@ func openJobs(ctx context.Context, env runtimeunit.Env) (*jobqueue.Queue, jetstr
 	if err != nil {
 		return nil, nil, err
 	}
-	queue, err := core.NewJobQueue(env.JS, stream, env.Logger, nil)
+	queue, err := core.NewJobQueue(env.JS, stream, env.Config.Core.JobFailedRetention.Duration(), env.Logger, nil)
 	if err != nil {
 		return nil, nil, err
 	}

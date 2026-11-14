@@ -1,4 +1,4 @@
-<!-- @component Server job queue. Each row links to its job details and retry action. The status filter is in the `status` search parameter. -->
+<!-- @component Server job queue. Each row links to its job details. Failed rows have retry and delete actions. The status filter is in the `status` search parameter. -->
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -13,6 +13,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery } from '$lib/query/client';
   import {
+    ConfirmDialog,
     DataTable,
     Hint,
     PageTitle,
@@ -25,7 +26,7 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { JOBS_POLL_INTERVAL_MS, jobAttemptsLabel, jobTypeLabel } from './jobPresentation';
-  import { canRetryJob, createJobRetry } from './jobRetry.svelte';
+  import { canDeleteJob, canRetryJob, createJobActions } from './jobActions.svelte';
   import JobStatusPill from './JobStatusPill.svelte';
 
   const scope = useServerScope();
@@ -33,7 +34,9 @@
   const api = connection.getAPI(createAdminJobsAPI);
   const timeSettings = $derived(timeFormatSettingsFor(scope.store.currentUser.user?.settings));
   const locale = $derived(getLocale());
-  const retry = createJobRetry(scope);
+  const jobActions = createJobActions(scope);
+  /** The failed job that waits for the operator to confirm its deletion. */
+  let jobToDelete = $state<AdminJob | null>(null);
   let scrollContainer = $state<HTMLDivElement>();
 
   const serverSegment = serverIdToSegment(scope.serverId);
@@ -101,6 +104,11 @@
       serverId: serverSegment,
       id: job.id
     });
+  }
+
+  function confirmDelete() {
+    if (jobToDelete) jobActions.delete(jobToDelete);
+    jobToDelete = null;
   }
 
   function timestamp(value: Date | null): string {
@@ -174,13 +182,26 @@
                       tone="neutral"
                       square
                       title={canRetryJob(job) ? m('common.retry') : m('common.action_unavailable')}
-                      disabled={retry.pending || !canRetryJob(job)}
-                      onclick={() => retry.retry(job)}
+                      disabled={jobActions.pending || !canRetryJob(job)}
+                      onclick={() => jobActions.retry(job)}
                     >
                       <span
                         class="iconify icon-[uil--redo] text-base rtl:-scale-x-100"
                         role="img"
                         aria-label={m('common.retry')}
+                      ></span>
+                    </ToggleChip>
+                    <ToggleChip
+                      tone="neutral"
+                      square
+                      title={m('common.delete')}
+                      disabled={jobActions.pending || !canDeleteJob(job)}
+                      onclick={() => (jobToDelete = job)}
+                    >
+                      <span
+                        class="iconify icon-[uil--trash-alt] text-base"
+                        role="img"
+                        aria-label={m('common.delete')}
                       ></span>
                     </ToggleChip>
                   </div>
@@ -193,3 +214,15 @@
     </div>
   </PaneContent>
 </div>
+
+{#if jobToDelete}
+  <ConfirmDialog
+    title={m('admin.jobs.delete_title')}
+    actionLabel={m('common.delete')}
+    actionIcon="iconify icon-[uil--trash-alt]"
+    onconfirm={confirmDelete}
+    onclose={() => (jobToDelete = null)}
+  >
+    {m('admin.jobs.delete_message')}
+  </ConfirmDialog>
+{/if}

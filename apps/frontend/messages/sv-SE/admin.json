@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Jobb",
-      "subtitle": "Visa bakgrundsjobb och försök igen med misslyckade jobb.",
+      "subtitle": "Visa bakgrundsjobb och försök igen med eller ta bort misslyckade jobb.",
       "load_failed": "Det gick inte att läsa in jobb.",
       "retry_failed": "Det gick inte att försöka med jobbet igen.",
+      "delete_failed": "Det gick inte att ta bort jobbet.",
+      "delete_title": "Ta bort det här jobbet?",
+      "delete_message": "Jobbets arbete överges. Du kan inte försöka igen senare.",
       "webhook": "Webhook-leverans",
       "media": "Mediebearbetning",
       "alerts": "Aviseringar",

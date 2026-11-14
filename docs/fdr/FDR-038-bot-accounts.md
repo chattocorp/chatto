@@ -458,7 +458,7 @@ webhooks, with toast feedback for completed actions.
 Chatto retries failed requests within an operator-configured lifetime and
 attempt limit. Pending work and retries are durable jobs and survive restart. The webhook job
 pool limits concurrent attempts to `core.job_concurrency` on each replica. Exhausted or expired jobs remain failed in
-server settings for thirty days. A failed, unexpired job can be retried manually with the
+server settings until someone retries or deletes them. A failed, unexpired job can be retried manually with the
 required permission. Requests
 have a stable delivery ID. A receiver must tolerate duplicates. The bot page shows recent failures for each endpoint. Failures expire after
 the operator-configured retention period, seven days by default. Later success

@@ -42,6 +42,7 @@ type JobFact struct {
 	//	*JobFact_Succeeded
 	//	*JobFact_Failed
 	//	*JobFact_Retried
+	//	*JobFact_Deleted
 	Fact          isJobFact_Fact `protobuf_oneof:"fact"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -166,6 +167,15 @@ func (x *JobFact) GetRetried() *JobRetried {
 	return nil
 }
 
+func (x *JobFact) GetDeleted() *JobDeleted {
+	if x != nil {
+		if x, ok := x.Fact.(*JobFact_Deleted); ok {
+			return x.Deleted
+		}
+	}
+	return nil
+}
+
 type isJobFact_Fact interface {
 	isJobFact_Fact()
 }
@@ -194,6 +204,10 @@ type JobFact_Retried struct {
 	Retried *JobRetried `protobuf:"bytes,15,opt,name=retried,proto3,oneof"`
 }
 
+type JobFact_Deleted struct {
+	Deleted *JobDeleted `protobuf:"bytes,16,opt,name=deleted,proto3,oneof"`
+}
+
 func (*JobFact_Queued) isJobFact_Fact() {}
 
 func (*JobFact_Started) isJobFact_Fact() {}
@@ -205,6 +219,8 @@ func (*JobFact_Succeeded) isJobFact_Fact() {}
 func (*JobFact_Failed) isJobFact_Fact() {}
 
 func (*JobFact_Retried) isJobFact_Fact() {}
+
+func (*JobFact_Deleted) isJobFact_Fact() {}
 
 // What to run and the policy for it. The payload is an application reference,
 // never content or credentials.
@@ -532,11 +548,15 @@ func (x *JobSucceeded) GetMaxAttempts() uint32 {
 }
 
 // The job failed permanently, used its attempt budget, or passed its deadline.
+// The fact repeats the specification, so a failed job is one fact: the worker
+// removes the earlier facts of the job after it writes this one. A manual
+// retry reads the specification from here.
 type JobFailed struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Attempts uint32                 `protobuf:"varint,1,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	// Safe failure category, never handler error text.
-	Failure       string `protobuf:"bytes,2,opt,name=failure,proto3" json:"failure,omitempty"`
+	Failure       string   `protobuf:"bytes,2,opt,name=failure,proto3" json:"failure,omitempty"`
+	Spec          *JobSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -585,6 +605,51 @@ func (x *JobFailed) GetFailure() string {
 	return ""
 }
 
+func (x *JobFailed) GetSpec() *JobSpec {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+// An operator deleted a failed job. The fact tells every job view to drop the
+// job. It expires after a short time.
+type JobDeleted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobDeleted) Reset() {
+	*x = JobDeleted{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobDeleted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobDeleted) ProtoMessage() {}
+
+func (x *JobDeleted) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobDeleted.ProtoReflect.Descriptor instead.
+func (*JobDeleted) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{8}
+}
+
 // Reference to one retained source message of an effect job. Each attempt
 // loads the message again; the job never copies its data. The digest binds the
 // reference to that exact message, so a recreated stream that reuses the
@@ -600,7 +665,7 @@ type EffectSource struct {
 
 func (x *EffectSource) Reset() {
 	*x = EffectSource{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[8]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +677,7 @@ func (x *EffectSource) String() string {
 func (*EffectSource) ProtoMessage() {}
 
 func (x *EffectSource) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[8]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +690,7 @@ func (x *EffectSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectSource.ProtoReflect.Descriptor instead.
 func (*EffectSource) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{8}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *EffectSource) GetSubject() string {
@@ -653,7 +718,7 @@ var File_jobs_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x03\n" +
+	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x97\x04\n" +
 	"\aJobFact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12;\n" +
@@ -667,7 +732,8 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x0eattempt_failed\x18\f \x01(\v2\x19.jobs.v1.JobAttemptFailedH\x00R\rattemptFailed\x125\n" +
 	"\tsucceeded\x18\r \x01(\v2\x15.jobs.v1.JobSucceededH\x00R\tsucceeded\x12,\n" +
 	"\x06failed\x18\x0e \x01(\v2\x12.jobs.v1.JobFailedH\x00R\x06failed\x12/\n" +
-	"\aretried\x18\x0f \x01(\v2\x13.jobs.v1.JobRetriedH\x00R\aretriedB\x06\n" +
+	"\aretried\x18\x0f \x01(\v2\x13.jobs.v1.JobRetriedH\x00R\aretried\x12/\n" +
+	"\adeleted\x18\x10 \x01(\v2\x13.jobs.v1.JobDeletedH\x00R\adeletedB\x06\n" +
 	"\x04fact\"\xaf\x01\n" +
 	"\aJobSpec\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\x12!\n" +
@@ -689,10 +755,13 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x0fnext_attempt_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\"M\n" +
 	"\fJobSucceeded\x12\x1a\n" +
 	"\battempts\x18\x01 \x01(\rR\battempts\x12!\n" +
-	"\fmax_attempts\x18\x02 \x01(\rR\vmaxAttempts\"A\n" +
+	"\fmax_attempts\x18\x02 \x01(\rR\vmaxAttempts\"g\n" +
 	"\tJobFailed\x12\x1a\n" +
 	"\battempts\x18\x01 \x01(\rR\battempts\x12\x18\n" +
-	"\afailure\x18\x02 \x01(\tR\afailure\"e\n" +
+	"\afailure\x18\x02 \x01(\tR\afailure\x12$\n" +
+	"\x04spec\x18\x03 \x01(\v2\x10.jobs.v1.JobSpecR\x04spec\"\f\n" +
+	"\n" +
+	"JobDeleted\"e\n" +
 	"\fEffectSource\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +
@@ -711,7 +780,7 @@ func file_jobs_v1_jobs_proto_rawDescGZIP() []byte {
 	return file_jobs_v1_jobs_proto_rawDescData
 }
 
-var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_jobs_v1_jobs_proto_goTypes = []any{
 	(*JobFact)(nil),               // 0: jobs.v1.JobFact
 	(*JobSpec)(nil),               // 1: jobs.v1.JobSpec
@@ -721,27 +790,30 @@ var file_jobs_v1_jobs_proto_goTypes = []any{
 	(*JobAttemptFailed)(nil),      // 5: jobs.v1.JobAttemptFailed
 	(*JobSucceeded)(nil),          // 6: jobs.v1.JobSucceeded
 	(*JobFailed)(nil),             // 7: jobs.v1.JobFailed
-	(*EffectSource)(nil),          // 8: jobs.v1.EffectSource
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*JobDeleted)(nil),            // 8: jobs.v1.JobDeleted
+	(*EffectSource)(nil),          // 9: jobs.v1.EffectSource
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_jobs_v1_jobs_proto_depIdxs = []int32{
-	9,  // 0: jobs.v1.JobFact.occurred_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: jobs.v1.JobFact.created_at:type_name -> google.protobuf.Timestamp
+	10, // 0: jobs.v1.JobFact.occurred_at:type_name -> google.protobuf.Timestamp
+	10, // 1: jobs.v1.JobFact.created_at:type_name -> google.protobuf.Timestamp
 	2,  // 2: jobs.v1.JobFact.queued:type_name -> jobs.v1.JobQueued
 	4,  // 3: jobs.v1.JobFact.started:type_name -> jobs.v1.JobStarted
 	5,  // 4: jobs.v1.JobFact.attempt_failed:type_name -> jobs.v1.JobAttemptFailed
 	6,  // 5: jobs.v1.JobFact.succeeded:type_name -> jobs.v1.JobSucceeded
 	7,  // 6: jobs.v1.JobFact.failed:type_name -> jobs.v1.JobFailed
 	3,  // 7: jobs.v1.JobFact.retried:type_name -> jobs.v1.JobRetried
-	9,  // 8: jobs.v1.JobSpec.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: jobs.v1.JobQueued.spec:type_name -> jobs.v1.JobSpec
-	1,  // 10: jobs.v1.JobRetried.spec:type_name -> jobs.v1.JobSpec
-	9,  // 11: jobs.v1.JobAttemptFailed.next_attempt_at:type_name -> google.protobuf.Timestamp
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	8,  // 8: jobs.v1.JobFact.deleted:type_name -> jobs.v1.JobDeleted
+	10, // 9: jobs.v1.JobSpec.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 10: jobs.v1.JobQueued.spec:type_name -> jobs.v1.JobSpec
+	1,  // 11: jobs.v1.JobRetried.spec:type_name -> jobs.v1.JobSpec
+	10, // 12: jobs.v1.JobAttemptFailed.next_attempt_at:type_name -> google.protobuf.Timestamp
+	1,  // 13: jobs.v1.JobFailed.spec:type_name -> jobs.v1.JobSpec
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_jobs_v1_jobs_proto_init() }
@@ -756,6 +828,7 @@ func file_jobs_v1_jobs_proto_init() {
 		(*JobFact_Succeeded)(nil),
 		(*JobFact_Failed)(nil),
 		(*JobFact_Retried)(nil),
+		(*JobFact_Deleted)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -763,7 +836,7 @@ func file_jobs_v1_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobs_v1_jobs_proto_rawDesc), len(file_jobs_v1_jobs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

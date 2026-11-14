@@ -41,7 +41,8 @@ export enum JobStatus {
   SUCCEEDED = 3,
 
   /**
-   * Automatic attempts stopped. The failure remains available for inspection.
+   * Automatic attempts stopped. The job stays until it is retried or deleted,
+   * or until the retention for failed jobs that the server operator set.
    *
    * @generated from enum value: JOB_STATUS_FAILED = 4;
    */
@@ -180,12 +181,13 @@ export class Job extends Message<Job> {
   retry?: JobRetryAvailability;
 
   /**
-   * Opaque version of this attempt budget. Send unchanged when retrying.
-   * A manual retry changes the version; automatic attempts do not.
+   * Opaque version of this job state. Send it unchanged when you retry or
+   * delete the job. Each state change gives a new version; a failed job keeps
+   * its version until it is retried or deleted.
    *
-   * @generated from field: string retry_version = 11;
+   * @generated from field: string version = 11;
    */
-  retryVersion = "";
+  version = "";
 
   constructor(data?: PartialMessage<Job>) {
     super();
@@ -205,7 +207,7 @@ export class Job extends Message<Job> {
     { no: 8, name: "next_attempt_at", kind: "message", T: Timestamp },
     { no: 9, name: "failure", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "retry", kind: "enum", T: proto3.getEnumType(JobRetryAvailability), opt: true },
-    { no: 11, name: "retry_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Job {
@@ -432,9 +434,9 @@ export class RetryJobRequest extends Message<RetryJobRequest> {
    * Version from the failed Job. Rejects stale actions even if a newer budget
    * has already failed. It is not a request ID or a storage coordinate.
    *
-   * @generated from field: string retry_version = 2;
+   * @generated from field: string version = 2;
    */
-  retryVersion = "";
+  version = "";
 
   constructor(data?: PartialMessage<RetryJobRequest>) {
     super();
@@ -445,7 +447,7 @@ export class RetryJobRequest extends Message<RetryJobRequest> {
   static readonly typeName = "chatto.admin.v1.RetryJobRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "retry_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetryJobRequest {
@@ -503,5 +505,88 @@ export class RetryJobResponse extends Message<RetryJobResponse> {
 
   static equals(a: RetryJobResponse | PlainMessage<RetryJobResponse> | undefined, b: RetryJobResponse | PlainMessage<RetryJobResponse> | undefined): boolean {
     return proto3.util.equals(RetryJobResponse, a, b);
+  }
+}
+
+/**
+ * Request to delete a failed job, for example one that can never succeed.
+ *
+ * @generated from message chatto.admin.v1.DeleteJobRequest
+ */
+export class DeleteJobRequest extends Message<DeleteJobRequest> {
+  /**
+   * Required stable job ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Version from the failed Job. Rejects the request when the job changed
+   * after the caller read it, for example through a retry.
+   *
+   * @generated from field: string version = 2;
+   */
+  version = "";
+
+  constructor(data?: PartialMessage<DeleteJobRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.DeleteJobRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteJobRequest {
+    return new DeleteJobRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteJobRequest {
+    return new DeleteJobRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteJobRequest {
+    return new DeleteJobRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteJobRequest | PlainMessage<DeleteJobRequest> | undefined, b: DeleteJobRequest | PlainMessage<DeleteJobRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteJobRequest, a, b);
+  }
+}
+
+/**
+ * The job is deleted.
+ *
+ * @generated from message chatto.admin.v1.DeleteJobResponse
+ */
+export class DeleteJobResponse extends Message<DeleteJobResponse> {
+  constructor(data?: PartialMessage<DeleteJobResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.DeleteJobResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteJobResponse {
+    return new DeleteJobResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteJobResponse {
+    return new DeleteJobResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteJobResponse {
+    return new DeleteJobResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteJobResponse | PlainMessage<DeleteJobResponse> | undefined, b: DeleteJobResponse | PlainMessage<DeleteJobResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteJobResponse, a, b);
   }
 }

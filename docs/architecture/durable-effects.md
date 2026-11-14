@@ -148,8 +148,11 @@ stream is a small event log. Facts are protobuf `jobs.v1.JobFact` values on
 `succeeded`, `failed`, or `retried`. The state of a job is the fold of its
 facts. There is no job record in `RUNTIME_STATE`. Enqueue appends `queued`
 only when the job has no facts. On success, the worker writes `succeeded` with
-a three-day per-message TTL and purges the earlier facts of the job. All other
-facts stay until the thirty-day maximum age of the stream.
+a three-day per-message TTL and purges the earlier facts of the job. On a final
+failure, the worker writes `failed` with a copy of the payload and policy and
+purges the earlier facts. The stream has no maximum age: unfinished jobs stay
+until they finish, and a failed job stays until an operator retries or deletes
+it, or until `core.job_failed_retention` when it is set.
 
 Each job type has its own durable consumer and worker pool, so one type cannot
 delay another. Standalone media processes share the media consumer. The
@@ -161,10 +164,10 @@ holds an unacknowledged delivery, but no worker slot. On shutdown, the worker
 returns the delivery immediately and records an attempt that already
 succeeded. After a crash, JetStream delivers the fact again when the
 acknowledgement wait ends. An interrupted attempt counts against the attempt
-budget. Exhausted or permanent failures stay available for manual retry for
-thirty days. A manual retry appends `retried` only when the viewed `failed`
-fact is still the latest fact of the job. It starts a new attempt budget and
-preserves the original deadline.
+budget. A manual retry appends `retried` only when the viewed `failed` fact is
+still the latest fact of the job. It starts a new attempt budget and preserves
+the original deadline. A delete appends a short-lived `deleted` fact under the
+same condition and purges the earlier facts.
 
 Each server replica keeps the job view, an in-memory projection of `JOBS`
 with one payload-free summary for each job. List, detail, and retry requests

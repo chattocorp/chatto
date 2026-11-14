@@ -26,6 +26,8 @@ func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	_, err = service.RetryJob(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.RetryJobRequest{Id: "missing"}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
+	_, err = service.DeleteJob(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.DeleteJobRequest{Id: "missing"}))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerManage))
 	// Authority alone is insufficient for a human bearer session.
 	_, err = service.ListJobs(withBearerCredential(env.ctx, env.viewer, "unarmed"), connect.NewRequest(&adminv1.ListJobsRequest{}))
@@ -48,7 +50,7 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.NoError(t, err)
 	// A separate queue handle with Chatto's contract makes three real failed
 	// jobs of a type that the server does not handle. Job c is already expired.
-	queue, err := core.NewJobQueue(js, stream, log.New(io.Discard), nil)
+	queue, err := core.NewJobQueue(js, stream, 0, log.New(io.Discard), nil)
 	require.NoError(t, err)
 	for _, id := range []string{"a", "b", "c"} {
 		deadline := time.Now().Add(time.Hour)
@@ -99,15 +101,32 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.Empty(t, queued.Msg.Jobs)
 	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Cursor: "tampered"}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
-	retried, err := service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: byID["a"].RetryVersion}))
+	retried, err := service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", Version: byID["a"].Version}))
 	require.NoError(t, err)
 	require.Equal(t, adminv1.JobStatus_JOB_STATUS_QUEUED, retried.Msg.Job.Status)
 	require.Zero(t, retried.Msg.Job.Attempts)
-	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: byID["a"].RetryVersion}))
+	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", Version: byID["a"].Version}))
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
-	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "c", RetryVersion: byID["c"].RetryVersion}))
+	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "c", Version: byID["c"].Version}))
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
+	// An expired failed job cannot be retried, but it can be deleted.
+	_, err = service.DeleteJob(ctx, connect.NewRequest(&adminv1.DeleteJobRequest{Id: "b", Version: byID["a"].Version}))
+	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
+	// Job a was retried; the version that the operator saw is stale.
+	_, err = service.DeleteJob(ctx, connect.NewRequest(&adminv1.DeleteJobRequest{Id: "a", Version: byID["a"].Version}))
+	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
+	_, err = service.DeleteJob(ctx, connect.NewRequest(&adminv1.DeleteJobRequest{Id: "c", Version: byID["c"].Version}))
+	require.NoError(t, err)
+	_, err = service.GetJob(ctx, connect.NewRequest(&adminv1.GetJobRequest{Id: "c"}))
+	require.Equal(t, connect.CodeNotFound, errorCode(err))
+	_, err = service.DeleteJob(ctx, connect.NewRequest(&adminv1.DeleteJobRequest{Id: "c", Version: byID["c"].Version}))
+	require.Equal(t, connect.CodeNotFound, errorCode(err))
+	failed, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Status: adminv1.JobStatus_JOB_STATUS_FAILED}))
+	require.NoError(t, err)
+	require.Len(t, failed.Msg.Jobs, 1)
+	require.Equal(t, "b", failed.Msg.Jobs[0].Id)
 }
+
 
 // Expiry blocks only the retry of a failed job. An unlimited budget has no
 // maximum in the summary.

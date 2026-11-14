@@ -690,13 +690,14 @@ recipient can read an invitation. Only the recipient can respond.
 
 ## Background job administration
 
-`chatto.admin.v1.AdminJobService` provides bounded `ListJobs`, `GetJob`, and
-`RetryJob` operations. Core operations require `server.manage`, including
+`chatto.admin.v1.AdminJobService` provides bounded `ListJobs`, `GetJob`,
+`RetryJob`, and `DeleteJob` operations. Core operations require `server.manage`, including
 privileged mode for human credential sessions. The API exposes state, safe
 failure categories, attempt counts, timestamps, and typed retry availability.
 It never exposes private payloads or broker positions. The operations read
 the in-memory job view of the serving replica. Page cursors are sealed and
-viewer-bound. Retry preserves source deadlines and checks the viewed retry
-version. OCC on the facts of the job accepts one new attempt budget. Retry
+viewer-bound. Retry preserves source deadlines. Retry and delete check the
+viewed job version. OCC on the facts of the job accepts one new attempt budget
+or one delete. Delete removes a failed job and abandons its work. Retry
 versions are opaque application tokens, not broker coordinates. See FDR-056
 and ADR-123.

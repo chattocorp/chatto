@@ -1,5 +1,6 @@
-<!-- @component Safe details of one background job, with retry for an eligible failed job. -->
+<!-- @component Safe details of one background job, with retry and delete for a failed job. -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { createAdminJobsAPI, JobRetryAvailability, JobStatus } from '$lib/api/adminJobs';
@@ -9,13 +10,21 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery } from '$lib/query/client';
-  import { Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
+  import {
+    ConfirmDialog,
+    Hint,
+    LoadingFog,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    Panel
+  } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { JOBS_POLL_INTERVAL_MS, jobAttemptsLabel, jobTypeLabel } from '../jobPresentation';
   import JobStatusPill from '../JobStatusPill.svelte';
-  import { canRetryJob, createJobRetry } from '../jobRetry.svelte';
+  import { canDeleteJob, canRetryJob, createJobActions } from '../jobActions.svelte';
 
   const scope = useServerScope();
   const connection = scope.connection;
@@ -40,7 +49,13 @@
     resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverIdToSegment(scope.serverId) })
   );
 
-  const retry = createJobRetry(scope);
+  // A deleted job has no details, so return to the list, unless the page shows another job now.
+  const jobActions = createJobActions(scope, {
+    onDeleted: (deletedId) => {
+      if (deletedId === id) void goto(backHref);
+    }
+  });
+  let confirmingDelete = $state(false);
 
   function timestamp(value: Date | null): string {
     return value ? formatDateTime(value.toISOString(), timeSettings, locale) : '—';
@@ -76,12 +91,22 @@
               <Button
                 size="sm"
                 variant="secondary"
-                onclick={() => retry.retry(job)}
-                disabled={retry.pending || !canRetryJob(job)}
-                loading={retry.retrying(job)}
+                onclick={() => jobActions.retry(job)}
+                disabled={jobActions.pending || !canRetryJob(job)}
+                loading={jobActions.retrying(job)}
               >
                 <span aria-hidden="true" class="iconify icon-[uil--redo] rtl:-scale-x-100"></span>
                 {m('common.retry')}
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onclick={() => (confirmingDelete = true)}
+                disabled={jobActions.pending || !canDeleteJob(job)}
+                loading={jobActions.deleting(job)}
+              >
+                <span aria-hidden="true" class="iconify icon-[uil--trash-alt]"></span>
+                {m('common.delete')}
               </Button>
             {/if}
           {/snippet}
@@ -117,6 +142,21 @@
             </dl>
           </div>
         </Panel>
+
+        {#if confirmingDelete}
+          <ConfirmDialog
+            title={m('admin.jobs.delete_title')}
+            actionLabel={m('common.delete')}
+            actionIcon="iconify icon-[uil--trash-alt]"
+            onconfirm={() => {
+              confirmingDelete = false;
+              jobActions.delete(job);
+            }}
+            onclose={() => (confirmingDelete = false)}
+          >
+            {m('admin.jobs.delete_message')}
+          </ConfirmDialog>
+        {/if}
       {/if}
     </div>
   </PaneContent>

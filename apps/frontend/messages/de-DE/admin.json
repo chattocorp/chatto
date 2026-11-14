@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Aufträge",
-      "subtitle": "Sieh dir Hintergrundaufträge an und wiederhole fehlgeschlagene Aufträge.",
+      "subtitle": "Sieh dir Hintergrundaufträge an und wiederhole oder lösche fehlgeschlagene Aufträge.",
       "load_failed": "Aufträge konnten nicht geladen werden.",
       "retry_failed": "Dieser Auftrag konnte nicht wiederholt werden.",
+      "delete_failed": "Dieser Auftrag konnte nicht gelöscht werden.",
+      "delete_title": "Diesen Auftrag löschen?",
+      "delete_message": "Die Arbeit dieses Auftrags wird verworfen. Du kannst ihn später nicht wiederholen.",
       "webhook": "Webhook-Zustellung",
       "media": "Medienverarbeitung",
       "alerts": "Benachrichtigungen",

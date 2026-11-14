@@ -37,14 +37,15 @@ the fold of its facts in stream order. The facts are:
 | `succeeded`      | Worker     | The job is complete.                                     |
 | `failed`         | Worker     | The job failed permanently, used its budget, or expired. |
 | `retried`        | Retry      | An operator started a new attempt budget.                |
+| `deleted`        | Delete     | An operator deleted a failed job.                        |
 
 The job stream is a second log beside EVT, not a part of it. Job facts are
 operational facts, not domain facts. EVT keeps the full history; the job stream
-forgets facts by age and by purge. There is no job record in a key-value
+forgets facts by TTL and by purge. There is no job record in a key-value
 bucket.
 
-Chatto uses the file-backed `JOBS` stream on `jobs.>` with a thirty-day
-maximum age and per-message TTLs. Include the stream and its consumer positions
+Chatto uses the file-backed `JOBS` stream on `jobs.>` with per-message TTLs and
+no maximum age. Include the stream and its consumer positions
 in backups.
 
 ### Enqueue and retry use OCC
@@ -56,8 +57,12 @@ after enqueue returns.
 A manual retry appends `retried` only when the `failed` fact that the operator
 viewed is still the latest fact of the job. Concurrent or stale actions start
 one new budget. `retried` carries a copy of the payload and policy. It never
-extends an original deadline. The public API exposes a retry version that is a
-digest of the job ID and that sequence, never the broker position.
+extends an original deadline.
+
+A delete appends `deleted` under the same condition, so a retry and a delete of
+the same failure cannot both take effect. The public API exposes a job version
+that is a digest of the job ID and the sequence of the latest fact, never the
+broker position.
 
 ### A durable consumer runs the jobs
 
@@ -89,15 +94,27 @@ cancellation can be its cause; the next delivery runs the job again.
 
 ### Retention
 
-When a job succeeds, the worker writes `succeeded` with a per-message TTL and
-then purges the earlier facts of that job. A succeeded job leaves one small
-fact, which expires after three days. If the purge fails, the earlier facts
-stay until the maximum age.
+The stream has no maximum age. Each job state has its own rule:
 
-All other facts stay until the maximum age of the stream. A failed job then
-leaves the stream thirty days after its last `queued` or `retried` fact. An
-unfinished job also leaves the stream at that age; the view logs a warning for
-it. The stream size therefore follows recent work.
+- **Unfinished:** The facts stay until the job finishes. Work that must
+  finish, such as key deletion, never leaves the stream by age.
+- **Succeeded:** The worker writes `succeeded` with a per-message TTL of three
+  days and then purges the earlier facts of that job. A succeeded job leaves
+  one small fact for three days.
+- **Failed:** The worker writes `failed` with a copy of the payload and policy
+  and then purges the earlier facts of that job. A failed job is one fact. By
+  default it has no TTL: it stays until an operator retries or deletes it.
+  `core.job_failed_retention` sets a TTL for operators who prefer automatic
+  removal.
+- **Deleted:** Delete writes `deleted` with a TTL of one hour and purges the
+  earlier facts. The fact tells the view of each replica to drop the job.
+
+If a purge fails, the earlier facts stay until the next outcome of the job
+removes them. Nothing reads them.
+
+Failed jobs are the only state that can accumulate. Operators delete failed
+jobs that can never succeed, such as deliveries to an endpoint that no longer
+exists.
 
 ### The job view is a projection
 
@@ -149,14 +166,15 @@ work survives restart. Media can run inside server replicas or in standalone
 processes without changing its domain facts. The queue has no claims, leases,
 or repair pass of its own; JetStream consumer semantics do this work.
 
-V1 has no cancellation, priorities, scheduling, bulk actions, or separate
-dead-letter stream. Job state has no realtime event; the Jobs page polls.
+V1 has no cancellation of unfinished jobs, priorities, scheduling, bulk
+actions, or separate dead-letter stream. Job state has no realtime event; the Jobs page polls.
 
-- An unlimited-retry job that still fails after thirty days leaves the stream
-  unfinished. The server logs a warning, and an operator must then start the
-  work again. A cleanup or key-deletion job in this state fails every thirty
-  minutes for the whole period, and the Jobs page shows it.
-- A failed job can be retried for thirty days. After that, it is gone.
+- Failed jobs accumulate until an operator retries or deletes them, or until
+  `core.job_failed_retention` when it is set. There is no bulk delete.
+- A deleted job is gone. Its work is abandoned, and a later handoff of the same
+  source can accept it again as a new job.
+- A replica whose view misses the `deleted` fact for more than one hour shows
+  the deleted job until it restarts.
 - A deploy or a crash during an attempt uses one attempt of a limited budget.
 - Each process that runs the view holds a summary of every retained job in
   memory, and replays the retained facts on start.
@@ -171,9 +189,8 @@ dead-letter stream. Job state has no realtime event; the Jobs page polls.
   reconciliation passes remain outside the queue. The current server has no
   separate email worker: account emails send on the request path.
 
-Authling keeps job facts in a dedicated `AUTHLING_JOBS` stream without a
-maximum age, because an erasure job must stay until it finishes. Succeeded
-facts still expire after three days, so only unfinished and failed jobs stay.
+Authling keeps job facts in a dedicated `AUTHLING_JOBS` stream with the same
+retention rules. Only unfinished and failed erasure jobs stay.
 Its erasure source acknowledges unrelated account events without a job through
 the effect `Accept` filter. Erasure jobs use the unlimited attempt budget,
 because Authling has no manual retry. Authling shows no jobs and does not run

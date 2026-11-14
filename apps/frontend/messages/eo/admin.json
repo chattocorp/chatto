@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Taskoj",
-      "subtitle": "Vidu fonajn taskojn kaj reprovu malsukcesajn taskojn.",
+      "subtitle": "Vidu fonajn taskojn, kaj reprovu aŭ forigu malsukcesajn taskojn.",
       "load_failed": "Ne eblis ŝargi taskojn.",
       "retry_failed": "Ne eblis reprovi ĉi tiun taskon.",
+      "delete_failed": "Ne eblis forigi ĉi tiun taskon.",
+      "delete_title": "Ĉu forigi ĉi tiun taskon?",
+      "delete_message": "La laboro de ĉi tiu tasko estas forlasita. Vi ne povos reprovi ĝin poste.",
       "webhook": "Rethoka livero",
       "media": "Prilaborado de aŭdvidaĵoj",
       "alerts": "Sciigaj avertoj",

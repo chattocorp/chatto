@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "Tarefas",
-      "subtitle": "Consulte as tarefas em segundo plano e repita as que falharam.",
+      "subtitle": "Consulte as tarefas em segundo plano e repita ou apague as que falharam.",
       "load_failed": "Não foi possível carregar as tarefas.",
       "retry_failed": "Não foi possível repetir esta tarefa.",
+      "delete_failed": "Não foi possível apagar esta tarefa.",
+      "delete_title": "Apagar esta tarefa?",
+      "delete_message": "O trabalho desta tarefa é abandonado. Não é possível repeti-la mais tarde.",
       "webhook": "Envio de webhook",
       "media": "Processamento de multimédia",
       "alerts": "Alertas de notificação",

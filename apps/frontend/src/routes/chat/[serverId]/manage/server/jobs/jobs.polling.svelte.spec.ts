@@ -56,7 +56,7 @@ function job(status: JobStatus): AdminJob {
     maxAttempts: 5,
     failure: '',
     retry: JobRetryAvailability.NOT_FAILED,
-    retryVersion: 'a'.repeat(64),
+    version: 'a'.repeat(64),
     createdAt: new Date('2026-11-10T12:00:00Z'),
     updatedAt: null,
     nextAttemptAt: null

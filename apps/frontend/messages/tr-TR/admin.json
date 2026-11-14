@@ -594,9 +594,12 @@
     },
     "jobs": {
       "title": "İşler",
-      "subtitle": "Arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin.",
+      "subtitle": "Arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin veya silin.",
       "load_failed": "İşler yüklenemedi.",
       "retry_failed": "Bu iş yeniden denenemedi.",
+      "delete_failed": "Bu iş silinemedi.",
+      "delete_title": "Bu iş silinsin mi?",
+      "delete_message": "Bu işin çalışması bırakılır. Daha sonra yeniden deneyemezsiniz.",
       "webhook": "Webhook teslimi",
       "media": "Medya işleme",
       "alerts": "Bildirim uyarıları",

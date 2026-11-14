@@ -1,4 +1,4 @@
-/** Administrative job reads and retry commands. Payloads stay on the server. */
+/** Administrative job reads, and retry and delete commands. Payloads stay on the server. */
 import {
   Code,
   ConnectError,
@@ -24,8 +24,11 @@ export type AdminJob = {
   failure: string;
   /** Retry availability. Undefined when the server did not report it. */
   retry: JobRetryAvailability | undefined;
-  /** Opaque retry budget version. Echo it unchanged when retrying this snapshot. */
-  retryVersion: string;
+  /**
+   * Opaque version of this job state. Echo it unchanged when retrying or
+   * deleting this snapshot; the server rejects the command if the job changed.
+   */
+  version: string;
 };
 
 /** One page of jobs in the server's stable listing order. */
@@ -64,12 +67,24 @@ export function createAdminJobsAPI(config: ConnectAPIConfig) {
     },
     async retryJob(
       id: string,
-      retryVersion: string,
+      version: string,
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminJob> {
-      const response = await client.retryJob({ id, retryVersion }, { signal: options.signal });
+      const response = await client.retryJob({ id, version }, { signal: options.signal });
       if (!response.job) throw new ConnectError('Missing job response', Code.Internal);
       return adminJob(response.job);
+    },
+    /**
+     * Deletes a failed job. Its work is abandoned and cannot be retried later.
+     * The server rejects the command when the job is not failed or changed
+     * after `version` was read, and reports an already deleted job as not found.
+     */
+    async deleteJob(
+      id: string,
+      version: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<void> {
+      await client.deleteJob({ id, version }, { signal: options.signal });
     }
   };
 }
@@ -86,6 +101,6 @@ function adminJob(job: Job): AdminJob {
     nextAttemptAt: job.nextAttemptAt?.toDate() ?? null,
     failure: job.failure,
     retry: job.retry,
-    retryVersion: job.retryVersion
+    version: job.version
   };
 }

@@ -109,7 +109,7 @@ Request to start a new attempt budget for a failed, unexpired job.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Required stable job ID. Concurrent requests cannot queue two generations. |
-| `retry_version` | `string` | Version from the failed Job. Rejects stale actions even if a newer budget has already failed. It is not a request ID or a storage coordinate. |
+| `version` | `string` | Version from the failed Job. Rejects stale actions even if a newer budget has already failed. It is not a request ID or a storage coordinate. |
 
 
 <a id="chatto-admin-v1-RetryJobResponse"></a>
@@ -121,3 +121,35 @@ Accepted retry. The worker can have started before this response arrives.
 | Field | Type | Description |
 | --- | --- | --- |
 | `job` | [`Job`](/reference/connectrpc-api/types/#chatto-admin-v1-Job) | Job after durable retry acceptance. |
+
+
+<a id="chatto-admin-v1-AdminJobService-DeleteJob"></a>
+
+### DeleteJob
+
+Deletes a failed job. Requires server.manage, including privileged mode.
+The work of the job is abandoned and cannot be retried later. Returns
+FAILED_PRECONDITION when the job is not failed or changed after the caller
+read it, and NOT_FOUND when it is already deleted.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminJobService/DeleteJob
+```
+
+<a id="chatto-admin-v1-DeleteJobRequest"></a>
+
+#### Input: DeleteJobRequest
+
+Request to delete a failed job, for example one that can never succeed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Required stable job ID. |
+| `version` | `string` | Version from the failed Job. Rejects the request when the job changed after the caller read it, for example through a retry. |
+
+
+<a id="chatto-admin-v1-DeleteJobResponse"></a>
+
+#### Result: DeleteJobResponse
+
+The job is deleted.

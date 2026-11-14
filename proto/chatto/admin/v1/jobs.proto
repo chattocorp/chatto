@@ -14,7 +14,8 @@ enum JobStatus {
   JOB_STATUS_RUNNING = 2;
   // The handler completed its work or found that no work remained necessary.
   JOB_STATUS_SUCCEEDED = 3;
-  // Automatic attempts stopped. The failure remains available for inspection.
+  // Automatic attempts stopped. The job stays until it is retried or deleted,
+  // or until the retention for failed jobs that the server operator set.
   JOB_STATUS_FAILED = 4;
 }
 
@@ -57,9 +58,10 @@ message Job {
   string failure = 9;
   // Current retry availability. Absence means the server did not report it.
   optional JobRetryAvailability retry = 10;
-  // Opaque version of this attempt budget. Send unchanged when retrying.
-  // A manual retry changes the version; automatic attempts do not.
-  string retry_version = 11;
+  // Opaque version of this job state. Send it unchanged when you retry or
+  // delete the job. Each state change gives a new version; a failed job keeps
+  // its version until it is retried or deleted.
+  string version = 11;
 }
 
 // Request for a bounded page. Jobs are ordered by last update, newest first.
@@ -96,13 +98,23 @@ message RetryJobRequest {
   string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
   // Version from the failed Job. Rejects stale actions even if a newer budget
   // has already failed. It is not a request ID or a storage coordinate.
-  string retry_version = 2 [(buf.validate.field).string.len = 64];
+  string version = 2 [(buf.validate.field).string.len = 64];
 }
 // Accepted retry. The worker can have started before this response arrives.
 message RetryJobResponse {
   // Job after durable retry acceptance.
   Job job = 1;
 }
+// Request to delete a failed job, for example one that can never succeed.
+message DeleteJobRequest {
+  // Required stable job ID.
+  string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  // Version from the failed Job. Rejects the request when the job changed
+  // after the caller read it, for example through a retry.
+  string version = 2 [(buf.validate.field).string.len = 64];
+}
+// The job is deleted.
+message DeleteJobResponse {}
 // Administrative background-job inspection and recovery.
 service AdminJobService {
   // Lists jobs. Requires server.manage, including privileged mode.
@@ -114,4 +126,9 @@ service AdminJobService {
   // Returns FAILED_PRECONDITION for active, successful, or expired jobs.
   // A lost response does not cancel an accepted retry. Read the job before retrying.
   rpc RetryJob(RetryJobRequest) returns (RetryJobResponse);
+  // Deletes a failed job. Requires server.manage, including privileged mode.
+  // The work of the job is abandoned and cannot be retried later. Returns
+  // FAILED_PRECONDITION when the job is not failed or changed after the caller
+  // read it, and NOT_FOUND when it is already deleted.
+  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse);
 }
