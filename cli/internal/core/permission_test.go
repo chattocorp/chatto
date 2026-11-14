@@ -86,7 +86,6 @@ func TestPermissionMetadata_PrivilegedModeClassification(t *testing.T) {
 	elevated := map[Permission]bool{
 		PermServerManage:          true,
 		PermServerManageNeighbors: true,
-		PermServerJobsManage:      true,
 		PermRoomCreate:            true,
 		PermRoomManage:            true,
 		PermRoomMemberRemove:      true,
@@ -491,7 +490,6 @@ func TestPermissionConsistency(t *testing.T) {
 	t.Run("admin defaults grant room administration and message management", func(t *testing.T) {
 		want := []Permission{
 			PermServerManage,
-			PermServerJobsManage,
 			PermUserInvite,
 			PermUserManageInvites,
 			PermRoomCreate,

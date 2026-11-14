@@ -182,8 +182,7 @@
       "call_voice": "Bir hesabın aramalarda mikrofon sesi göndermesine izin verir. Bu izin olmadan hesap yine de dinleyebilir.",
       "call_camera": "Bir hesabın aramalarda kamera görüntüsü göndermesine izin verir.",
       "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir.",
-      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin.",
-      "server_jobs_manage": "Güvenli iş ayrıntılarını görüntüleyin ve bu sunucudaki başarısız arka plan işlerini yeniden deneyin."
+      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin."
     }
   }
 }

@@ -15,7 +15,7 @@ export const JobsService = {
   typeName: "chatto.admin.v1.JobsService",
   methods: {
     /**
-     * Lists jobs. Requires server.jobs.manage, including privileged mode.
+     * Lists jobs. Requires server.manage, including privileged mode.
      * This call does not subscribe or poll; callers refresh explicitly.
      *
      * @generated from rpc chatto.admin.v1.JobsService.ListJobs
@@ -27,7 +27,7 @@ export const JobsService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets a job. Requires server.jobs.manage, including privileged mode.
+     * Gets a job. Requires server.manage, including privileged mode.
      *
      * @generated from rpc chatto.admin.v1.JobsService.GetJob
      */
@@ -38,7 +38,7 @@ export const JobsService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Retries a failed job. Requires server.jobs.manage, including privileged mode.
+     * Retries a failed job. Requires server.manage, including privileged mode.
      * Returns FAILED_PRECONDITION for active, successful, or expired jobs.
      * A lost response does not cancel an accepted retry. Read the job before retrying.
      *

@@ -142,7 +142,7 @@ func (RetryJobState) EnumDescriptor() ([]byte, []int) {
 }
 
 // Safe administrative job summary. Content, credentials, and internal payloads
-// are never returned. Requires server.jobs.manage, including privileged mode.
+// are never returned. Requires server.manage, including privileged mode.
 type Job struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable opaque job ID, preserved across manual retries.
@@ -281,7 +281,7 @@ func (x *Job) GetRetryVersion() string {
 	return ""
 }
 
-// Request for a bounded page. Jobs are ordered by stable opaque ID.
+// Request for a bounded page. Jobs are ordered by last update, newest first.
 type ListJobsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page size: zero selects 50; the maximum is 200.
@@ -289,8 +289,7 @@ type ListJobsRequest struct {
 	// Opaque token returned by the previous page, bound to this viewer and
 	// status filter.
 	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	// Returns only jobs in this state. Unspecified returns every job. Jobs are
-	// ordered by last update, newest first.
+	// Returns only jobs in this state. Unspecified returns every job.
 	Status        JobStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.admin.v1.JobStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -3,7 +3,7 @@
 
 A small animated braille spinner for work that is in progress, such as a
 running background job. It is decorative: put it next to text that names the
-state. When the user requests less motion, it shows one still frame.
+state. When Chatto's motion setting is reduced, it shows one still frame.
 
 ```svelte
 <span class="inline-flex items-center gap-1.5"><ActivityIndicator /> Running</span>

@@ -27,7 +27,7 @@ func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	_, err = service.RetryJob(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.RetryJobRequest{Id: "missing"}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
-	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerJobsManage))
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerManage))
 	// Authority alone is insufficient for a human bearer session.
 	_, err = service.ListJobs(withBearerCredential(env.ctx, env.viewer, "unarmed"), connect.NewRequest(&adminv1.ListJobsRequest{}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
@@ -41,7 +41,7 @@ func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
 func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	service := &jobsService{api: env.api}
-	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerJobsManage))
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerManage))
 	ctx := withArmedBearerCredential(env.ctx, env.viewer, "armed")
 	js, err := jetstream.New(env.nc)
 	require.NoError(t, err)

@@ -347,7 +347,7 @@ func (m *botWebhookModel) fail(ctx context.Context, r *botWebhookDelivery, attem
 		Id: r.DeliveryID, RecordedAt: timestamppb.New(m.now()), Severity: logv1.Severity_SEVERITY_ERROR,
 		Payload: &logv1.Entry_BotWebhookDeliveryFailed{BotWebhookDeliveryFailed: &logv1.BotWebhookDeliveryFailed{
 			BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID,
-			Attempts: attempts, HttpStatus: uint32(httpStatus), Reason: reason,
+			Attempts: attempts, HttpStatus: uint32(httpStatus), Reason: botWebhookLogReason(reason),
 		}},
 	})
 }

@@ -37,8 +37,7 @@
       "call_voice": "在通话中使用麦克风",
       "call_camera": "在通话中使用摄像头",
       "call_screenshare": "共享屏幕或应用程序，包括捕获的音频",
-      "room_invite": "邀请服务器成员加入你已加入的聊天室",
-      "server_jobs_manage": "查看任务并重试失败的任务"
+      "room_invite": "邀请服务器成员加入你已加入的聊天室"
     }
   }
 }

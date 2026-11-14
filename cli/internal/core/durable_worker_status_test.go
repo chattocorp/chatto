@@ -17,7 +17,8 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		{Stream: "EVT", Name: notificationWorkerConsumerName, Waiting: 1, DeliveredStreamSeq: 52, AckFloorStreamSeq: 51},
 		{Stream: "EVT", Name: botWebhookSourceConsumer, Waiting: 1},
 		{Stream: "EVT", Name: AssetProcessingConsumerName, Waiting: 0, Pending: 4},
-	}})
+		{Stream: "JOBS", Name: MediaJobsConsumerName, Waiting: 0, Pending: 3},
+	}}, false)
 
 	byKey := make(map[string]DurableWorkerAdminStatus, len(statuses))
 	for _, status := range statuses {
@@ -44,6 +45,18 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 	if got := byKey["asset_processing"]; got.Health != DurableWorkerHealthStalled {
 		t.Fatalf("asset processing status = %+v, want stalled", got)
 	}
+	// Without video uploads, no process needs to consume media jobs.
+	if got := byKey["media_jobs"]; got.Health != DurableWorkerHealthInactive || got.PendingCount != 3 {
+		t.Fatalf("media jobs status = %+v, want inactive with its pending count", got)
+	}
+	enabled := durableWorkerAdminStatuses(&JetStreamStats{Consumers: []ConsumerStats{
+		{Stream: "JOBS", Name: MediaJobsConsumerName, Waiting: 0, Pending: 3},
+	}}, true)
+	for _, status := range enabled {
+		if status.Key == "media_jobs" && status.Health != DurableWorkerHealthStalled {
+			t.Fatalf("media jobs with video uploads = %+v, want stalled", status)
+		}
+	}
 }
 
 // TestDurableWorkerAdminStatusesCoverEveryCoreConsumer fails when core creates
@@ -54,7 +67,7 @@ func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
 
 	type coordinate struct{ stream, name string }
 	reported := make(map[coordinate]bool)
-	for _, spec := range durableWorkerDiagnosticSpecs() {
+	for _, spec := range durableWorkerDiagnosticSpecs(true) {
 		reported[coordinate{spec.streamName, spec.consumerName}] = true
 	}
 	var created []coordinate
@@ -86,24 +99,18 @@ func TestDurableWorkerAdminStatusesCoverEveryCoreConsumer(t *testing.T) {
 func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(&JetStreamStats{Consumers: []ConsumerStats{
 		{Stream: "EVT", Name: assetCleanupConsumerName, AckPending: 1},
-	}})
+	}}, true)
 	if got := statuses[0]; got.Health != DurableWorkerHealthUnconfirmed || got.AckPendingCount != 1 {
 		t.Fatalf("asset cleanup status = %+v, want unconfirmed", got)
 	}
 }
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
-	statuses := durableWorkerAdminStatuses(nil)
+	statuses := durableWorkerAdminStatuses(nil, true)
 	if len(statuses) != 11 {
 		t.Fatalf("statuses len = %d, want 11", len(statuses))
 	}
 	for _, status := range statuses {
-		if status.Key == "media_jobs" {
-			if status.Health != DurableWorkerHealthInactive {
-				t.Fatal("optional standalone consumer should be inactive when absent")
-			}
-			continue
-		}
 		if status.Health != DurableWorkerHealthUnavailable {
 			t.Fatalf("%s health = %v, want unavailable", status.Key, status.Health)
 		}

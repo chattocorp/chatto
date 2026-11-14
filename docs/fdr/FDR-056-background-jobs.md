@@ -66,7 +66,7 @@ the job list repeatedly.
 
 ## Gates
 
-- `server.jobs.manage`: view job summaries and retry eligible failed jobs.
+- `server.manage`: view job summaries and retry eligible failed jobs.
   Human credential sessions must enable privileged mode.
 - `asset_processing.enabled`: process media in the server process. Standalone
   media processes remain available when embedded media processing is disabled.

@@ -182,8 +182,7 @@
       "call_voice": "Låter ett konto skicka mikrofonljud i samtal. Utan den kan kontot ändå lyssna.",
       "call_camera": "Låter ett konto skicka kameravideo i samtal.",
       "call_screenshare": "Låter ett konto dela en skärm, ett fönster, en flik eller ett program i samtal, med dess ljud. Den tillåter inte mikrofonljud; det kräver call.voice.",
-      "room_invite": "Bjud in servermedlemmar till rum som du har gått med i.",
-      "server_jobs_manage": "Visa säkra jobbuppgifter och försök igen med misslyckade bakgrundsjobb på servern."
+      "room_invite": "Bjud in servermedlemmar till rum som du har gått med i."
     }
   }
 }

@@ -20,14 +20,14 @@ describe('getAdminNavItems', () => {
     );
   });
 
-  it('shows Jobs only for the job-management permission', () => {
+  it('shows Jobs only with server.manage', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
-      permissions: permissions({ canManageServer: true })
+      permissions: permissions({ canManageRooms: true })
     });
     const visible = getAdminNavItems({
       serverSegment: 'local',
-      permissions: permissions({ canManageJobs: true })
+      permissions: permissions({ canManageServer: true })
     });
     expect(hidden.some((item) => item.label === 'Jobs')).toBe(false);
     expect(visible.find((item) => item.label === 'Jobs')?.href).toBe(

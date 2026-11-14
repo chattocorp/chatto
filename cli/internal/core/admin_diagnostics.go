@@ -69,7 +69,7 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 		Projections:          projections,
 		ProjectionsAvailable: projectionsAvailable,
 		AssetCleanup:         assetCleanup,
-		DurableWorkers:       durableWorkerAdminStatuses(jetStreamStats),
+		DurableWorkers:       durableWorkerAdminStatuses(jetStreamStats, c.VideoUploadsEnabled),
 		LiveKit:              <-liveKitStatus,
 	}, nil
 }

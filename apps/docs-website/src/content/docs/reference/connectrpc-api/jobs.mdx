@@ -24,7 +24,7 @@ Administrative background-job inspection and recovery.
 
 ### ListJobs
 
-Lists jobs. Requires server.jobs.manage, including privileged mode.
+Lists jobs. Requires server.manage, including privileged mode.
 This call does not subscribe or poll; callers refresh explicitly.
 
 ```http
@@ -35,13 +35,13 @@ POST /api/connect/chatto.admin.v1.JobsService/ListJobs
 
 #### Input: ListJobsRequest
 
-Request for a bounded page. Jobs are ordered by stable opaque ID.
+Request for a bounded page. Jobs are ordered by last update, newest first.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `page_size` | `int32` | Page size: zero selects 50; the maximum is 200. |
 | `page_token` | `string` | Opaque token returned by the previous page, bound to this viewer and status filter. |
-| `status` | [`JobStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-JobStatus) | Returns only jobs in this state. Unspecified returns every job. Jobs are ordered by last update, newest first. |
+| `status` | [`JobStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-JobStatus) | Returns only jobs in this state. Unspecified returns every job. |
 
 
 <a id="chatto-admin-v1-ListJobsResponse"></a>
@@ -60,7 +60,7 @@ A live page, not an atomic snapshot. Refresh to see state changes and new work.
 
 ### GetJob
 
-Gets a job. Requires server.jobs.manage, including privileged mode.
+Gets a job. Requires server.manage, including privileged mode.
 
 ```http
 POST /api/connect/chatto.admin.v1.JobsService/GetJob
@@ -92,7 +92,7 @@ Current job summary.
 
 ### RetryJob
 
-Retries a failed job. Requires server.jobs.manage, including privileged mode.
+Retries a failed job. Requires server.manage, including privileged mode.
 Returns FAILED_PRECONDITION for active, successful, or expired jobs.
 A lost response does not cancel an accepted retry. Read the job before retrying.
 

@@ -65,7 +65,7 @@ Each request has a 10-second timeout. To change these values, see
 
 Pending deliveries and retries survive server restarts. Requests can arrive
 more than once or out of order, so use the delivery ID to prevent repeated work.
-Users with `server.jobs.manage` can inspect jobs in **Server Settings → Jobs**
+Users with `server.manage` can inspect jobs in **Server Settings → Jobs**
 and retry failed deliveries before their original deadline. Manual retry starts
 a new attempt budget but does not extend the deadline. Enable privileged mode
 to use these controls.

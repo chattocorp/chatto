@@ -57,8 +57,8 @@ replicas with media processing and standalone media processes share. A media
 backlog, or a replica without media processing, then cannot delay other jobs. Job record
 revision claims prevent normal concurrent execution across these consumers.
 Claims have a one-minute lease, renewed every fifteen seconds. A failed renewal
-cancels the attempt. Graceful shutdown releases the claim; crash recovery waits
-for lease expiry. External effects remain at least once: a lost HTTP response or
+cancels the attempt. Graceful shutdown releases the claim, and the interrupted attempt
+does not count against the budget; crash recovery waits for lease expiry. External effects remain at least once: a lost HTTP response or
 a failed completion write can cause a duplicate.
 
 Automatic retries use capped exponential backoff, up to thirty minutes, and

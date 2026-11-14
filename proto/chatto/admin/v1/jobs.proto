@@ -31,7 +31,7 @@ enum RetryJobState {
 }
 
 // Safe administrative job summary. Content, credentials, and internal payloads
-// are never returned. Requires server.jobs.manage, including privileged mode.
+// are never returned. Requires server.manage, including privileged mode.
 message Job {
   // Stable opaque job ID, preserved across manual retries.
   string id = 1;
@@ -60,15 +60,14 @@ message Job {
   string retry_version = 11;
 }
 
-// Request for a bounded page. Jobs are ordered by stable opaque ID.
+// Request for a bounded page. Jobs are ordered by last update, newest first.
 message ListJobsRequest {
   // Page size: zero selects 50; the maximum is 200.
   int32 page_size = 1 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
   // Opaque token returned by the previous page, bound to this viewer and
   // status filter.
   string page_token = 2;
-  // Returns only jobs in this state. Unspecified returns every job. Jobs are
-  // ordered by last update, newest first.
+  // Returns only jobs in this state. Unspecified returns every job.
   JobStatus status = 3;
 }
 // A live page, not an atomic snapshot. Refresh to see state changes and new work.
@@ -103,12 +102,12 @@ message RetryJobResponse {
 }
 // Administrative background-job inspection and recovery.
 service JobsService {
-  // Lists jobs. Requires server.jobs.manage, including privileged mode.
+  // Lists jobs. Requires server.manage, including privileged mode.
   // This call does not subscribe or poll; callers refresh explicitly.
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
-  // Gets a job. Requires server.jobs.manage, including privileged mode.
+  // Gets a job. Requires server.manage, including privileged mode.
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
-  // Retries a failed job. Requires server.jobs.manage, including privileged mode.
+  // Retries a failed job. Requires server.manage, including privileged mode.
   // Returns FAILED_PRECONDITION for active, successful, or expired jobs.
   // A lost response does not cancel an accepted retry. Read the job before retrying.
   rpc RetryJob(RetryJobRequest) returns (RetryJobResponse);

@@ -29,6 +29,17 @@ func botWebhookLogFilter(botID, webhookID string) string {
 	return "log.bot_webhook." + botID + "." + webhookID + ".delivery_failed.*"
 }
 
+// botWebhookLogReason maps a failure category to one that the webhook failure
+// log accepts. Queue categories such as "attempts_exhausted" or
+// "invalid_payload" become "internal_error", so the failure is still recorded.
+func botWebhookLogReason(reason string) string {
+	switch reason {
+	case "internal_error", "expired", "invalid_request", "http_error", "transport_error":
+		return reason
+	}
+	return "internal_error"
+}
+
 // operationalLogSubject defines the persisted routing contract for each payload.
 // New producers add a typed branch here instead of supplying arbitrary subjects.
 func operationalLogSubject(entry *logv1.Entry) (string, error) {
@@ -36,9 +47,7 @@ func operationalLogSubject(entry *logv1.Entry) (string, error) {
 	if failure == nil || !logToken(entry.GetId()) || !logToken(failure.GetBotUserId()) || !logToken(failure.GetWebhookId()) {
 		return "", invalidArgument("invalid operational log entry")
 	}
-	switch failure.GetReason() {
-	case "internal_error", "expired", "invalid_request", "http_error", "transport_error":
-	default:
+	if botWebhookLogReason(failure.GetReason()) != failure.GetReason() {
 		return "", invalidArgument("invalid webhook failure category")
 	}
 	return strings.TrimSuffix(botWebhookLogFilter(failure.GetBotUserId(), failure.GetWebhookId()), "*") + entry.GetId(), nil

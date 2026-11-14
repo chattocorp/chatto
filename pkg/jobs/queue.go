@@ -356,19 +356,31 @@ func (q *Queue) Run(ctx context.Context) error {
 	active := map[string]*jobpb.JobRecord{}
 	timer := time.NewTimer(repairInterval)
 	defer timer.Stop()
+	wake := time.Now().Add(repairInterval)
+	schedule := func(at time.Time) {
+		if at.Before(wake) {
+			wake = at
+			timer.Reset(time.Until(at))
+		}
+	}
+	publish := func(record *jobpb.JobRecord) {
+		if err := q.dispatch(ctx, record); err != nil && ctx.Err() == nil {
+			q.logger.Warn("Job dispatch awaits repair", "job_id", record.Id)
+		}
+	}
+	// publishDue scans every unfinished job. It runs after the initial sync and
+	// on the timer, which also covers dispatches lost after a publish.
 	publishDue := func() {
 		now := time.Now()
-		next := now.Add(repairInterval)
+		wake = now.Add(repairInterval)
+		timer.Reset(repairInterval)
 		for _, record := range active {
 			if due := dueAt(record); due.After(now) {
-				next = minTime(next, due)
+				schedule(due)
 				continue
 			}
-			if err := q.dispatch(ctx, record); err != nil && ctx.Err() == nil {
-				q.logger.Warn("Job dispatch awaits repair", "job_id", record.Id)
-			}
+			publish(record)
 		}
-		timer.Reset(time.Until(next))
 	}
 	for {
 		select {
@@ -403,14 +415,20 @@ func (q *Queue) Run(ctx context.Context) error {
 			q.mu.Lock()
 			q.index[record.Id] = summary
 			q.mu.Unlock()
-			if record.Status == jobpb.JobStatus_JOB_STATUS_QUEUED || record.Status == jobpb.JobStatus_JOB_STATUS_RUNNING {
-				active[record.Id] = record
-			} else {
+			if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED && record.Status != jobpb.JobStatus_JOB_STATUS_RUNNING {
 				delete(active, record.Id)
+				continue
 			}
+			active[record.Id] = record
 			select {
 			case <-q.ready:
-				publishDue()
+				// Only the changed record. A backlog of due jobs must not be
+				// published again on every enqueue, claim, or heartbeat.
+				if due := dueAt(record); due.After(time.Now()) {
+					schedule(due)
+				} else {
+					publish(record)
+				}
 			default:
 			}
 		case <-timer.C:
@@ -429,13 +447,6 @@ func dueAt(r *jobpb.JobRecord) time.Time {
 		return time.Time{}
 	}
 	return r.NextAttemptAt.AsTime()
-}
-
-func minTime(a, b time.Time) time.Time {
-	if b.Before(a) {
-		return b
-	}
-	return a
 }
 
 // Work processes dispatches from consumer until cancellation. The application
@@ -589,10 +600,15 @@ func Backoff(initial time.Duration, attempt uint32) time.Duration {
 
 // release makes a graceful shutdown hand over promptly. After a crash, another
 // consumer waits for the lease to expire. Revision fencing keeps release from
-// replacing a newer owner.
+// replacing a newer owner. The interrupted attempt did not finish, so it does
+// not count. The job then has the attempt count of its in-flight dispatch,
+// whose negative acknowledgement hands it to another consumer. A new dispatch
+// with the same message ID collapses into that one; a different ID could reach
+// this process's closing pull request and wait for the acknowledgement timeout.
 func (q *Queue) release(ctx context.Context, record *jobpb.JobRecord, revision uint64) {
 	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
+	record.Attempts = max(record.Attempts, 1) - 1
 	record.Status = jobpb.JobStatus_JOB_STATUS_QUEUED
 	record.Owner = ""
 	record.LeaseUntil = nil

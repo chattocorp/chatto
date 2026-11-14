@@ -37,8 +37,7 @@
       "call_voice": "De microfoon gebruiken in oproepen",
       "call_camera": "De camera gebruiken in oproepen",
       "call_screenshare": "Een scherm of toepassing delen, inclusief opgenomen audio",
-      "room_invite": "Serverleden uitnodigen voor ruimtes waarvan je lid bent",
-      "server_jobs_manage": "Taken bekijken en mislukte taken opnieuw proberen"
+      "room_invite": "Serverleden uitnodigen voor ruimtes waarvan je lid bent"
     }
   }
 }

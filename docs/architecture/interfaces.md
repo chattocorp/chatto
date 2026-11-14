@@ -691,7 +691,7 @@ recipient can read an invitation. Only the recipient can respond.
 ## Background job administration
 
 `chatto.admin.v1.JobsService` provides bounded `ListJobs`, `GetJob`, and
-`RetryJob` operations. Core operations require `server.jobs.manage`, including
+`RetryJob` operations. Core operations require `server.manage`, including
 privileged mode for human credential sessions. The API exposes state, safe
 failure categories, attempt counts, timestamps, and typed retry availability.
 It never exposes private payloads, lease owners, or dispatch generations.

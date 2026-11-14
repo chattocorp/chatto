@@ -37,8 +37,7 @@
       "call_voice": "Aramalarda mikrofonu kullanma",
       "call_camera": "Aramalarda kamerayı kullanma",
       "call_screenshare": "Yakalanan ses dahil ekran veya uygulama paylaşma",
-      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin",
-      "server_jobs_manage": "İşleri görüntüleme ve başarısız işleri yeniden deneme"
+      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin"
     }
   }
 }

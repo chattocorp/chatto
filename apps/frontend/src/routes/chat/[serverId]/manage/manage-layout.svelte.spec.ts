@@ -46,16 +46,15 @@ beforeEach(() => {
 });
 
 describe('management route admission', () => {
-  it('admits Jobs only with the job-management permission and removes it after revocation', async () => {
+  it('admits Jobs only with server.manage and removes it after revocation', async () => {
     page.url = new URL('https://example.test/chat/origin/manage/server/jobs');
-    server.permissions.canManageJobs = true;
+    server.permissions.canManageServer = true;
     const { container } = render(Layout, {
       props: { children: testSnippet('<p>Job controls</p>') }
     });
     await tick();
     expect(container.textContent).toContain('Job controls');
-    server.permissions.canManageJobs = false;
-    server.permissions.canManageServer = true;
+    server.permissions.canManageServer = false;
     await tick();
     expect(container.textContent).not.toContain('Job controls');
     expect(container.textContent).toContain('Access Denied');

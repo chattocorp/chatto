@@ -17,7 +17,6 @@ export type AdminNavPermissions = Pick<
   | 'canAssignRoles'
   | 'canAdminViewAudit'
   | 'canAdminViewSystem'
-  | 'canManageJobs'
 >;
 
 export type AdminNavItem = {
@@ -148,7 +147,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (permissions.canManageJobs) {
+  if (permissions.canManageServer) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverSegment }),
       label: m('chat.management_nav.jobs'),

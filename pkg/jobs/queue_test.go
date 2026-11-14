@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -436,7 +437,8 @@ func TestQueueGracefulShutdownReleasesClaim(t *testing.T) {
 	}
 	record, _, err := q.read(t.Context(), job.ID)
 	noError(t, err)
-	if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED || record.LeaseUntil != nil {
+	// The interrupted attempt does not count against the budget.
+	if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED || record.LeaseUntil != nil || record.Attempts != 0 {
 		t.Fatalf("released = %+v", record)
 	}
 	noError(t, q.process(t.Context(), dispatch(jobFromRecord(record)), handlers(func(context.Context, Job) error { return nil })))
@@ -554,5 +556,55 @@ func TestNewRejectsInvalidOptions(t *testing.T) {
 		if _, err := New(js, kv, opts); err == nil {
 			t.Errorf("New(%+v) succeeded", opts)
 		}
+	}
+}
+
+type countingPublisher struct {
+	jetstream.JetStream
+	count atomic.Int32
+}
+
+func (p *countingPublisher) Publish(ctx context.Context, subject string, data []byte, opts ...jetstream.PublishOpt) (*jetstream.PubAck, error) {
+	p.count.Add(1)
+	return p.JetStream.Publish(ctx, subject, data, opts...)
+}
+
+// A record update publishes only that record. A backlog of due jobs waiting for
+// a worker must not be published again on every change.
+func TestQueueUpdatePublishesOnlyTheChangedJob(t *testing.T) {
+	q, _ := testQueue(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	publisher := &countingPublisher{JetStream: q.js}
+	q.js = publisher
+	done := make(chan error, 1)
+	go func() { done <- q.Run(ctx) }()
+	t.Cleanup(func() { cancel(); <-done })
+	for i := range 20 {
+		noError(t, q.Enqueue(t.Context(), testSpec(fmt.Sprintf("backlog-%02d", i))))
+	}
+	waitForListed := func(n int) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			jobs, _, err := q.List(t.Context(), ListOptions{Limit: 100})
+			noError(t, err)
+			if len(jobs) == n {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("listed %d jobs, want %d", len(jobs), n)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	waitForListed(20)
+	time.Sleep(100 * time.Millisecond)
+	before := publisher.count.Load()
+	noError(t, q.Enqueue(t.Context(), testSpec("backlog-new")))
+	waitForListed(21)
+	time.Sleep(100 * time.Millisecond)
+	// One publish from Enqueue and at most one from the watcher.
+	if published := publisher.count.Load() - before; published > 2 {
+		t.Fatalf("one enqueue caused %d publishes behind a backlog of 20", published)
 	}
 }

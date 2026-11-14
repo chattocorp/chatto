@@ -45,8 +45,6 @@ const (
 
 	// PermServerManageNeighbors allows maintaining the public Neighbor directory.
 	PermServerManageNeighbors Permission = "server.manage-neighbors"
-	// PermServerJobsManage allows inspection and retry of background jobs.
-	PermServerJobsManage Permission = "server.jobs.manage"
 
 	// ===== Room Permissions =====
 
@@ -217,7 +215,6 @@ type PermissionMetadata struct {
 var allPermissions = []PermissionMetadata{
 	// Server
 	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, Includes: []Permission{PermServerManageNeighbors}, RequiresPrivilegedMode: true},
-	{Permission: PermServerJobsManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermServerManageNeighbors, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
 	// Room
@@ -454,7 +451,6 @@ func DefaultModeratorPermissions() []Permission {
 func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
-		PermServerJobsManage,
 		PermUserInvite,
 		PermUserManageInvites,
 		PermRoomCreate,

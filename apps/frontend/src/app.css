@@ -2441,8 +2441,9 @@
 /* Braille activity spinner. The frame column moves up one frame per step. */
 @utility braille-spinner {
   animation: braille-spinner 800ms steps(10) infinite;
-
-  @media (prefers-reduced-motion: reduce) {
+  /* Follow Chatto's motion setting, which already resolves the system default.
+     The global reduced rule would end on an empty frame, so show the first. */
+  :where([data-motion='reduced']) & {
     animation: none;
   }
 }

@@ -37,8 +37,7 @@
       "call_voice": "Usare il microfono nelle chiamate",
       "call_camera": "Usare la videocamera nelle chiamate",
       "call_screenshare": "Condividere uno schermo o un’applicazione, incluso l’audio acquisito",
-      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito",
-      "server_jobs_manage": "Visualizzare le attività e riprovare quelle non riuscite"
+      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito"
     }
   }
 }

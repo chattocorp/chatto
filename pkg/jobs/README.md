@@ -21,7 +21,9 @@ surface with no API stability promise.
   end of an abandoned lease.
 - **Execution.** `Queue.Work` takes an application-owned consumer and a handler
   per job type. A worker claims a job with a revision-checked write and renews
-  a one-minute lease every fifteen seconds. Workers acknowledge a dispatch when
+  a one-minute lease every fifteen seconds. A graceful shutdown releases the
+  claim, and the interrupted attempt does not count against the budget; after a
+  crash, the lease expires first. Workers acknowledge a dispatch when
   an attempt ends, so waiting jobs hold no consumer capacity. Several processes
   can share one consumer; give slow job types their own consumer so they cannot
   delay others.

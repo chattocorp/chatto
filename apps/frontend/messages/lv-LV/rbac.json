@@ -182,8 +182,7 @@
       "call_voice": "Ļauj kontam zvanos sūtīt mikrofona audio. Bez tās konts joprojām var klausīties.",
       "call_camera": "Ļauj kontam zvanos sūtīt kameras video.",
       "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice.",
-      "room_invite": "Uzaicināt servera dalībniekus uz istabām, kurām esat pievienojies.",
-      "server_jobs_manage": "Skatiet drošu uzdevumu informāciju un atkārtojiet šī servera neizdevušos fona uzdevumus."
+      "room_invite": "Uzaicināt servera dalībniekus uz istabām, kurām esat pievienojies."
     }
   }
 }

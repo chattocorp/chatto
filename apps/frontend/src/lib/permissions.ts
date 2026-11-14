@@ -49,10 +49,6 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('permissions.descriptions.server_manage'),
     help: () => m('rbac.permission_help.server_manage')
   },
-  'server.jobs.manage': {
-    description: () => m('permissions.descriptions.server_jobs_manage'),
-    help: () => m('rbac.permission_help.server_jobs_manage')
-  },
   'server.manage-neighbors': {
     description: () => m('permissions.descriptions.server_manage_neighbors'),
     help: () => m('rbac.permission_help.server_manage_neighbors')

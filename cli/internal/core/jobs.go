@@ -155,7 +155,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 // ListJobs returns safe-to-map private job records after the operation's gate.
 // The page token is sealed and bound to the viewer; no broker position is public.
 func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, token string, status jobqueue.Status) ([]jobqueue.Job, string, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
 		return nil, "", err
 	}
 	if limit < 0 || limit > 200 {
@@ -186,7 +186,7 @@ func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, to
 
 // GetJob requires the same management permission as list and retry.
 func (c *ChattoCore) GetJob(ctx context.Context, actorID, id string) (jobqueue.Job, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
 		return jobqueue.Job{}, err
 	}
 	job, err := c.jobs.Get(ctx, id)
@@ -199,7 +199,7 @@ func (c *ChattoCore) GetJob(ctx context.Context, actorID, id string) (jobqueue.J
 // RetryJob accepts one new attempt generation without changing its source-time
 // deadline or payload. Revision OCC serializes concurrent operator requests.
 func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id, expectedVersion string) (jobqueue.Job, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
 		return jobqueue.Job{}, err
 	}
 	job, err := c.jobs.Retry(ctx, id, expectedVersion)

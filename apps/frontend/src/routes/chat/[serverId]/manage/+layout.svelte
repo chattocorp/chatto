@@ -99,7 +99,7 @@
     }
 
     if (pathname.startsWith(jobsBase)) {
-      return () => permissions.canManageJobs;
+      return () => permissions.canManageServer;
     }
 
     // System info (NATS/JetStream stats) — owner-only for now.

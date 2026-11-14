@@ -182,8 +182,7 @@
       "call_voice": "Consente a un account di inviare l’audio del microfono nelle chiamate. Senza di essa, l’account può comunque ascoltare.",
       "call_camera": "Consente a un account di inviare il video della fotocamera nelle chiamate.",
       "call_screenshare": "Consente a un account di condividere uno schermo, una finestra, una scheda o un’applicazione nelle chiamate, con il relativo audio. Non consente l’audio del microfono; per quello serve call.voice.",
-      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito.",
-      "server_jobs_manage": "Visualizza i dettagli senza dati sensibili e riprova le attività in background non riuscite su questo server."
+      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito."
     }
   }
 }

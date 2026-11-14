@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -971,4 +972,23 @@ func TestBotOutboundWebhookConcurrentEditsMergeAcrossReplicas(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, authorization, creds.Authorization)
 	require.Equal(t, secret, creds.SigningSecret)
+}
+
+// Queue categories that the webhook log does not know must still produce a
+// diagnostic entry, recorded as internal_error.
+func TestBotOutboundWebhookFailureMapsQueueCategories(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	for i, reason := range []string{"attempt_failed", "attempts_exhausted", "invalid_payload", "transport_error"} {
+		delivery := &botWebhookDelivery{DeliveryID: fmt.Sprintf("mapped-%d", i), BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source"}
+		require.NoError(t, c.botWebhooks.fail(ctx, delivery, 1, reason, 0))
+		entry, err := c.latestOperationalLog(ctx, strings.TrimSuffix(botWebhookLogFilter("bot", "endpoint"), "*")+delivery.DeliveryID)
+		require.NoError(t, err)
+		require.NotNil(t, entry)
+		want := "internal_error"
+		if reason == "transport_error" {
+			want = reason
+		}
+		require.Equal(t, want, entry.GetBotWebhookDeliveryFailed().GetReason())
+	}
 }

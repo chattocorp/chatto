@@ -100,7 +100,7 @@ proto3.util.setEnumType(RetryJobState, "chatto.admin.v1.RetryJobState", [
 
 /**
  * Safe administrative job summary. Content, credentials, and internal payloads
- * are never returned. Requires server.jobs.manage, including privileged mode.
+ * are never returned. Requires server.manage, including privileged mode.
  *
  * @generated from message chatto.admin.v1.Job
  */
@@ -224,7 +224,7 @@ export class Job extends Message<Job> {
 }
 
 /**
- * Request for a bounded page. Jobs are ordered by stable opaque ID.
+ * Request for a bounded page. Jobs are ordered by last update, newest first.
  *
  * @generated from message chatto.admin.v1.ListJobsRequest
  */
@@ -245,8 +245,7 @@ export class ListJobsRequest extends Message<ListJobsRequest> {
   pageToken = "";
 
   /**
-   * Returns only jobs in this state. Unspecified returns every job. Jobs are
-   * ordered by last update, newest first.
+   * Returns only jobs in this state. Unspecified returns every job.
    *
    * @generated from field: chatto.admin.v1.JobStatus status = 3;
    */

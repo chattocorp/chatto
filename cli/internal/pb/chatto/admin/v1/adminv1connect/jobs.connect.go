@@ -43,12 +43,12 @@ const (
 
 // JobsServiceClient is a client for the chatto.admin.v1.JobsService service.
 type JobsServiceClient interface {
-	// Lists jobs. Requires server.jobs.manage, including privileged mode.
+	// Lists jobs. Requires server.manage, including privileged mode.
 	// This call does not subscribe or poll; callers refresh explicitly.
 	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
-	// Gets a job. Requires server.jobs.manage, including privileged mode.
+	// Gets a job. Requires server.manage, including privileged mode.
 	GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error)
-	// Retries a failed job. Requires server.jobs.manage, including privileged mode.
+	// Retries a failed job. Requires server.manage, including privileged mode.
 	// Returns FAILED_PRECONDITION for active, successful, or expired jobs.
 	// A lost response does not cancel an accepted retry. Read the job before retrying.
 	RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error)
@@ -110,12 +110,12 @@ func (c *jobsServiceClient) RetryJob(ctx context.Context, req *connect.Request[v
 
 // JobsServiceHandler is an implementation of the chatto.admin.v1.JobsService service.
 type JobsServiceHandler interface {
-	// Lists jobs. Requires server.jobs.manage, including privileged mode.
+	// Lists jobs. Requires server.manage, including privileged mode.
 	// This call does not subscribe or poll; callers refresh explicitly.
 	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
-	// Gets a job. Requires server.jobs.manage, including privileged mode.
+	// Gets a job. Requires server.manage, including privileged mode.
 	GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error)
-	// Retries a failed job. Requires server.jobs.manage, including privileged mode.
+	// Retries a failed job. Requires server.manage, including privileged mode.
 	// Returns FAILED_PRECONDITION for active, successful, or expired jobs.
 	// A lost response does not cancel an accepted retry. Read the job before retrying.
 	RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error)

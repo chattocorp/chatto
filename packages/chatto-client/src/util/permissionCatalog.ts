@@ -49,11 +49,6 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     privileged: true,
     includes: ['server.manage-neighbors']
   },
-  'server.jobs.manage': {
-    category: 'server',
-    scopes: ['server'],
-    privileged: true
-  },
   'server.manage-neighbors': {
     category: 'server',
     scopes: ['server'],
