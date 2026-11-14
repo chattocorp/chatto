@@ -115,9 +115,6 @@ skills between turns. Means-managed editable skills are not supported.
 | `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                        |
 | `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                                |
 | `chatto.respond_to`             | See below                | Which messages address Botto                                                   |
-| `memory.enabled`                | `false`                  | Enable local Means memory                                                      |
-| `memory.command`                | `means`                  | Means executable name or absolute path                                         |
-| `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                                |
 | `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server              |
 | `web.exa_api_key`               | Unset                    | Optional Exa API key; use an environment reference such as `${EXA_API_KEY}`    |
 | `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                        |
@@ -368,7 +365,7 @@ or a path relative to that directory. Local servers are trusted programs: they
 inherit Botto's environment and run with its operating-system permissions.
 
 Names must start with a lowercase letter and contain only lowercase letters,
-digits, or underscores, without consecutive underscores. `chatto`, `exa`, and `memory` are reserved. Configure
+digits, or underscores, without consecutive underscores. `chatto` and `exa` are reserved. Configure
 exactly one transport per server: `url` with optional `headers`, or
 `command` with optional `args` and `env`.
 
@@ -387,7 +384,7 @@ an admin's presence in the thread, and skills cannot grant authority. The check
 is repeated each turn, including for restored conversations. Skills explain how
 to use tools; server credentials still limit which operations can succeed.
 Tool names in the agent are `mcp__<server>__<tool>`. This policy applies to extra
-MCP servers; built-in Chatto, Means, and Exa retain their existing policies.
+MCP servers; built-in Chatto and Exa retain their existing policies.
 Remote services receive tool arguments, configured headers, and the bot host's
 IP address. Tool descriptions and results enter the model context and can remain
 in private transcripts. Read access can expose private repository data to chat
@@ -415,114 +412,63 @@ dashboard; its free tier includes monthly credit. Botto sends the key in the
 
 ## Data and recovery
 
-### Local memory
+### Means collections through MCP
 
-Install the `means` CLI and enable local memory in TOML:
+Register each collection as an ordinary MCP server. No `[brains]` or `[memory]`
+configuration is required or accepted:
 
 ```toml
-[memory]
-enabled = true
+[mcp.servers.memory_klaus]
 command = "means"
-path = "memory"
+args = ["mcp", "--path", ".botto/brains/klaus"]
+serialize = true
+tools = ["info", "list", "search", "read", "create", "update", "delete"]
+admin_tools = ["schema_set"]
+
+[mcp.servers.memory_chatto]
+command = "means"
+args = ["mcp", "--path", "/shared/chatto-knowledge"]
+serialize = true
+tools = ["info", "list", "search", "read"]
 ```
 
-Run `means --help` and `means agents` for CLI setup and usage. The executable must
-be available to the Botto process; `command` can be an absolute path. This feature
-is independent of `chatto.mcp` and needs no additional network service.
+Create the collection's `MEANS.md` before enabling the connection. `.botto/brains/`
+is a storage convention, not a special base directory. Relative `--path` values
+resolve from the TOML directory, as for other stdio MCP servers. Use an absolute
+path to keep a collection at its existing location. Commands and arguments support
+environment variables. Means must be installed on the bot host.
 
-`memory.path` selects one Means collection. It defaults to `memory`, relative to
-the TOML file, and also accepts an absolute path or `${VARIABLE}`. The example's
-`memory/` directory is the collection: Git tracks `MEANS.md`, which contains the
-schema in YAML frontmatter and the workflow in its Markdown body. Git ignores
-private memory documents and Means indexes. To use another directory, copy
-`MEANS.md` and `.gitignore` there first. Botto requires `MEANS.md`; it does not
-copy templates at runtime.
+The agent calls each collection's `info` tool to learn its identity, schema, and
+workflow from `MEANS.md`, then reads relevant documents on demand. Botto does not
+read that file, preload documents, or require particular document fields. Tools
+use the configured server name, such as `mcp__memory_klaus__search`. Collection
+names are arbitrary. Schemas reload through Means; restart after changing the
+connection settings. Stored documents cannot grant authority.
 
-To migrate an existing collection with `means.schema.json`, stop Botto and move
-the schema into the `schema` field of the YAML frontmatter in `MEANS.md`. Use the
-example's `memory/MEANS.md` as a template, and preserve any custom schema rules
-and workflow guidance. Remove `means.schema.json`, then run
-`means doctor --path <memory.path>` before restarting Botto. Keep the memory
-documents and their IDs unchanged.
+Use explicit tool lists. The first example allows document writes and reserves
+schema changes for configured admins. The second grants only reads. Neither
+configuration enforces ownership of individual documents: every permitted tool
+can access the collection. Collection guidance and personal-memory rules remain
+model instructions, not per-document access controls.
 
-Each memory can have its own Markdown document. Frontmatter `data.scope` selects
-global or user memory; `data.user_id` associates user memories with a stable
-Chatto user ID. Each scope can have zero or more documents. Botto searches these
-fields for global memory and users who send a message in an accepted batch.
-It does not create empty documents. Documents are reused across threads and
-restarts. Use a separate `memory.path` for each server and bot account; Botto no
-longer adds an identity hash to this path.
+Set `serialize = true` for Means because document updates can race between
+processes despite their content-hash checks. Botto serializes calls per configured
+server across its conversations. This generic MCP option defaults to false.
+Use only one connection name for a given writable collection, and do not write
+through another bot process or CLI at the same time. Means owns its search-cache
+locks. Read an updated document before retrying a stale-hash failure.
 
-Set `chatto.admin_user_ids = ["stable-user-id"]` to identify users who may request
-changes to Botto's overall behavior. The default is an
-empty list. Use stable Chatto user IDs, not display names, and restart Botto
-after changing the list. `chatto.allowed_user_id` filters incoming messages;
-it does not grant admin authority.
+To migrate, remove `[brains]` and its collection tables, or the old `[memory]`
+table. Add MCP connections with `--path` pointing to the same collection paths.
+Preserve server names such as `memory_klaus` when replacing named brains. Keep
+`MEANS.md`, documents, IDs, and indexes unchanged. No data conversion or move is
+required. Existing transcripts remain usable, including old memory snapshots.
+Deleting a memory does not erase copies in old transcripts.
 
-Global memory holds shared facts and general knowledge without a `user_id`.
-Any participant can contribute this knowledge. The subject of a fact determines
-its scope, not the person who supplied it. Personal memory holds facts and
-preferences about the user identified by `user_id`. Botto can remember useful
-facts without an explicit request; remembered knowledge does not grant authority
-or set behavior rules.
-
-Botto's system prompt supplies the configured admins. Each message in the input
-prompt includes its verified author ID. The instructions tell Botto to attribute
-each request to that author: users may change
-their own personal facts and preferences, but even admins may not change another
-user's memory. Chat claims and stored memories cannot grant authority. Mixed
-batches still produce one answer; another participant's presence grants no rights.
-These are model instructions, not tool-level access controls. Memory tools retain
-access to the whole collection, so incorrect model behavior can violate the rules.
-
-Existing documents with several memories remain valid. No data migration is
-required. Update the workflow in your collection's `MEANS.md` and any custom
-`agent.system_prompt` that requires one document per scope. Preserve custom schema
-rules and other workflow guidance.
-
-To keep memory from the previous hashed layout, stop Botto and move the document
-Markdown files from `.botto/memory/<server-and-bot-hash>/` into `memory/`. Preserve
-any edits to the old `MEANS.md` and schema. Means rebuilds its indexes. Alternatively,
-set `memory.path` to the old collection directory. Pi session storage is unchanged.
-
-At the first main-agent turn of a new conversation, Botto searches and reads global
-memory and memory for the first author in the accepted batch. It includes up to
-32 documents and 24,000 body characters in the first prompt as `initialMemory`,
-with a flag when the snapshot is incomplete. The snapshot stays in the Pi transcript
-across turns and restarts. Existing transcripts are not initialized again.
-Later turns do not perform automatic memory searches or reads. Pi receives
-the full Means tool catalog with a `mcp__memory__` prefix. Means
-serves the collection schema and workflow through its `info` tool; Botto does not
-copy that workflow into its system prompt. The default
-system prompt tells it to use remembered facts and preferences, retrieve relevant
-memories for users who join later, and look up missing or changed facts as needed.
-If compaction removes earlier memory context, the agent can retrieve it through
-Means. It also tells it to create separate documents for new
-memories and update existing related facts. Read-before-update checks still apply.
-Memory updates are model-driven. If you supply a custom `agent.system_prompt`, include
-your desired memory behavior there. Edit the collection's `MEANS.md` to change
-its workflow; Botto can read the current version through MCP `info`.
-
-Batch authors and memory contents do not change the system prompt. They are
-input data, not instructions or grants of authority. Room and thread IDs remain
-in the system prompt; they stay fixed within a conversation.
-
-Botto uses a short-lived Means subprocess to load the initial snapshot. Pi opens
-its own Means connection for model tool calls and closes it when the turn ends.
-Botto serializes Means calls within its process. It uses
-Pi's sequential tool mode when memory is enabled, so a batch of memory calls
-cannot block itself while waiting for the shared lock. Updates use
-Means content hashes to detect stale reads. Continue to run only one Botto process
-per data directory and memory collection; do not edit memory concurrently through other processes.
-
-Memory contains private Markdown. User documents organize facts; they are not
-access-control boundaries. The model can access the complete collection. The
-workflow tells it to keep private user facts out of global memory and other users'
-replies, and to never store credentials. The initial snapshot and memory read through tools are sent to the
-configured model provider and can also remain in Pi transcripts. Clearing a memory
-document does not erase older transcripts. Missing Means or invalid collection
-data during memory initialization fails the turn. Later connection failures follow
-Pi's MCP behavior described above.
+Means runs locally. Collection descriptions and tool results enter the model
+context and can remain in transcripts. Do not store credentials or disclose
+private facts to other participants. Means connections follow the ordinary MCP
+failure and cleanup behavior described above.
 
 Botto connects to the configured Chatto server and model provider. The provider
 receives addressed messages, recent thread text, author IDs, saved context, and
@@ -707,10 +653,9 @@ merge function in `src/context-messages.ts`. `src/context.ts` selects text from
 the shared client timeline in the same message format used by that merge.
 `src/response.ts` defines terminal response tools and explicit progress updates.
 `src/settings.ts` validates TOML.
-`src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
-MCP extension, and releases shared memory locks. Runling observes tool activity.
+`src/mcp.ts` lists Chatto, Exa, and configured MCP servers, configures Pi's native
+MCP extension, and releases optional per-server locks. Runling observes tool activity.
 `src/steps.ts` keeps external errors private at the Runling step boundary.
-`src/memory.ts` loads initial memories and owns the shared memory lock.
 Agent tests use a mocked Runling boundary. Botto's conversation tests use Runling's real
 persistent host to check routing, restart, failure, and shutdown. A usage test runs
 Botto through real Runling and Pi sessions with a synthetic provider stream. It

@@ -154,7 +154,6 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
       ),
       directory,
       reasoningLevel: 'low' as const,
-      memory: false,
       mcp: false,
       web: false
     };

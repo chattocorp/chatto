@@ -34,11 +34,14 @@ You are a helpful assistant. Be friendly, clear, and concise.
 # model = "provider/small-model"
 reasoning_level = "off"
 
-[memory]
-# Requires the means executable. Relative paths use this TOML file's directory.
-enabled = false
-command = "means"
-path = "memory"
+# Means collections are ordinary MCP servers; see README.md.
+# Create MEANS.md before enabling a collection. Paths are relative to this TOML file.
+# [mcp.servers.memory_klaus]
+# command = "means"
+# args = ["mcp", "--path", ".botto/brains/klaus"]
+# serialize = true
+# tools = ["info", "list", "search", "read", "create", "update", "delete"]
+# admin_tools = ["schema_set"]
 
 [web]
 # Search the web and fetch pages through Exa's hosted MCP server. Exa receives

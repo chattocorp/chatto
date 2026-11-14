@@ -36,11 +36,6 @@ export interface Settings extends InboxSettings {
   mcp: boolean;
   /** Operator-installed MCP tools for the main agent only. */
   extraMcpServers: ReturnType<typeof parseMcpServers>;
-  /** Local Means memory is independent of Chatto MCP. */
-  memory: boolean;
-  /** One Means collection, resolved relative to the TOML file. */
-  memoryPath: string;
-  meansCommand: string;
   /** Expose web search and page fetching from Exa's hosted MCP server. */
   web: boolean;
   /** Optional Exa API key; without it, Exa applies its keyless rate limits. */
@@ -95,11 +90,11 @@ export function parseSettings(
     throw new Error(
       'Remove [participation] and [subagents.*] from botto.toml; conversation classification and delegation have been removed.'
     );
-  knownKeys(
-    root,
-    ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles', 'mcp'],
-    'the root table'
-  );
+  if (root.memory !== undefined || root.brains !== undefined)
+    throw new Error(
+      'Replace [memory] or [brains] with [mcp.servers.<name>] using means mcp --path and the existing collection path; keep MEANS.md and all documents unchanged.'
+    );
+  knownKeys(root, ['chatto', 'agent', 'runtime', 'web', 'titles', 'mcp'], 'the root table');
   const table = (value: unknown, name: string): Record<string, unknown> => {
     if (
       typeof value !== 'object' ||
@@ -145,9 +140,6 @@ export function parseSettings(
     );
   const agent = section('agent', ['name', 'model', 'system_prompt', 'reasoning_level']);
   const titles = section('titles', ['model', 'reasoning_level']);
-  const memory = section('memory', ['enabled', 'command', 'path']);
-  if (memory.enabled !== undefined && typeof memory.enabled !== 'boolean')
-    throw new Error('memory.enabled must be a boolean');
   const web = section('web', ['enabled', 'exa_api_key']);
   if (web.enabled !== undefined && typeof web.enabled !== 'boolean')
     throw new Error('web.enabled must be a boolean');
@@ -213,6 +205,7 @@ export function parseSettings(
     throw new Error(
       'titles.reasoning_level must be off, minimal, low, medium, high, xhigh, or max'
     );
+  const extraMcpServers = parseMcpServers(root.mcp, configPath, env);
   const apiKey = string(chatto, 'api_key', 'chatto.api_key');
   return {
     serverUrl,
@@ -227,15 +220,9 @@ export function parseSettings(
       )
     ],
     mcp: chatto.mcp === true,
-    extraMcpServers: parseMcpServers(root.mcp, configPath, env),
+    extraMcpServers,
     reportPresence: chatto.report_presence !== false,
     respondTo: [...new Set(respondTo as AddressingReason[])],
-    memory: memory.enabled === true,
-    memoryPath: resolve(
-      dirname(resolve(configPath)),
-      string(memory, 'path', 'memory.path', 'memory')
-    ),
-    meansCommand: string(memory, 'command', 'memory.command', 'means'),
     web: web.enabled === true,
     exaApiKey:
       web.exa_api_key === undefined ? undefined : string(web, 'exa_api_key', 'web.exa_api_key'),
