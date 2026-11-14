@@ -90,8 +90,7 @@
     <bdi class="min-w-0 truncate">{name}</bdi></span
   >
   {#if context}<span class="inline-pill-meta"><bdi class="truncate">{context}</bdi></span>{/if}
-</a>
-{#if menu && store}
+</a>{#if menu && store}
   {#await Promise.all( [import('./EntityLinkMenu.svelte'), import('$lib/state/server/ServerScopeProvider.svelte')] ) then [actions, scope]}
     <scope.default serverId={target.serverId} {store} connection={store.connection}>
       <actions.default

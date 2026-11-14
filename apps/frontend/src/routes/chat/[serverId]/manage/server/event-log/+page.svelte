@@ -43,11 +43,10 @@
   const activeFilter = $derived(filterFromUrl(page.url));
   const activeFilterKey = $derived(filterKey(activeFilter));
   const eventLogQuery = createInfiniteQuery(() => {
-    const serverId = activeServerId;
     const activeConnection = serverScope.connection;
     const filter = activeFilter;
     return {
-      queryKey: adminQueryKeys.eventLog(serverId, activeConnection, filter),
+      queryKey: adminQueryKeys.eventLog(serverScope, filter),
       queryFn: ({ pageParam, signal }) =>
         activeConnection
           .getAPI(createAdminEventLogAPI)
@@ -60,10 +59,9 @@
     };
   });
   const eventTypesQuery = createQuery(() => {
-    const serverId = activeServerId;
     const activeConnection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.eventTypes(serverId, activeConnection),
+      queryKey: adminQueryKeys.eventTypes(serverScope),
       queryFn: ({ signal }) =>
         activeConnection.getAPI(createAdminEventLogAPI).listEventTypes({ signal })
     };

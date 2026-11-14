@@ -55,11 +55,10 @@
   };
 
   const groupQuery = createQuery(() => {
-    const serverId = activeServerId;
     const connection = serverScope.connection;
     const targetGroupId = groupId;
     return {
-      queryKey: adminQueryKeys.roomGroup(serverId, connection, targetGroupId),
+      queryKey: adminQueryKeys.roomGroup(serverScope, targetGroupId),
       queryFn: ({ signal }) =>
         connection.getAPI(createAdminRoomLayoutAPI).getRoomGroup(targetGroupId, { signal }),
       refetchOnMount: 'always' as const
@@ -103,12 +102,7 @@
         );
         formRevision += 1;
       }
-      invalidateAdminRoomLayoutQueries(
-        variables.serverId,
-        variables.connection,
-        undefined,
-        variables.groupId
-      );
+      invalidateAdminRoomLayoutQueries(variables, undefined, variables.groupId);
       void serverUi(serverScope.store).adminRoomLayout.refresh();
       toast.success(m('admin.rooms_admin.group_renamed'));
     },
@@ -128,7 +122,7 @@
     updateGroupMutation.mutate({
       ...snapshot,
       groupId,
-      queryKey: adminQueryKeys.roomGroup(snapshot.serverId, snapshot.connection, groupId),
+      queryKey: adminQueryKeys.roomGroup(snapshot, groupId),
       api: snapshot.connection.getAPI(createAdminRoomLayoutAPI),
       snapshotGeneration,
       input
@@ -139,15 +133,10 @@
     if (event.resource?.case === 'roomGroups') {
       snapshotGeneration += 1;
       if (event.resource.value.groups.some((candidate) => candidate.id === groupId)) {
-        invalidateAdminRoomLayoutQueries(
-          activeServerId,
-          serverScope.connection,
-          undefined,
-          groupId
-        );
+        invalidateAdminRoomLayoutQueries(serverScope, undefined, groupId);
       } else {
         session.invalidate();
-        purgeAdminRoomGroupQuery(activeServerId, serverScope.connection, groupId);
+        purgeAdminRoomGroupQuery(serverScope, groupId);
       }
     }
   });

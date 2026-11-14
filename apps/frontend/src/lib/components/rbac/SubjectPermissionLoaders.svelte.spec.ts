@@ -135,8 +135,7 @@ describe('subject permission loaders', () => {
     cellButton(container, 'message.post').click();
     await settle();
     const key = adminQueryKeys.userPermissions(
-      'origin',
-      { queryScope: 'permission-loader-test' },
+      { serverId: 'origin', connection: { queryScope: 'permission-loader-test' } },
       'user-a'
     );
     await refreshRegisteredServerQueries('origin');
@@ -410,7 +409,10 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
     expect(
       queryClient.getQueryState(
-        adminQueryKeys.userPermissions('origin', { queryScope: 'permission-loader-test' }, 'user-a')
+        adminQueryKeys.userPermissions(
+          { serverId: 'origin', connection: { queryScope: 'permission-loader-test' } },
+          'user-a'
+        )
       )?.isInvalidated
     ).toBe(true);
   });
@@ -537,7 +539,10 @@ describe('subject permission loaders', () => {
 
   it('invalidates cached user matrices after a role permission changes', async () => {
     const connection = { queryScope: 'permission-loader-test' };
-    const userPermissionKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
+    const userPermissionKey = adminQueryKeys.userPermissions(
+      { serverId: 'origin', connection },
+      'user-a'
+    );
     queryClient.setQueryData(userPermissionKey, matrix({ userId: 'user-a' }));
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
@@ -824,8 +829,7 @@ describe('account membership mutations', () => {
     ]);
     refreshRegisteredAdminQueries('origin');
     const key = adminQueryKeys.userPermissions(
-      'origin',
-      { queryScope: 'permission-loader-test' },
+      { serverId: 'origin', connection: { queryScope: 'permission-loader-test' } },
       'membership-bot'
     );
     await expect

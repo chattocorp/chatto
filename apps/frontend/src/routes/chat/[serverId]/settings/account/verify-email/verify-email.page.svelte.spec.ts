@@ -129,14 +129,14 @@ describe('Verify email page', () => {
     await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalled());
     expect(
       queryClient.getQueryData(
-        settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
+        settingsQueryKeys.verifiedEmails({ serverId: 'origin', connection }, 'U123abcetc.')
       )
     ).toEqual(emails);
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.membersRoot('origin', connection)
+      queryKey: adminQueryKeys.membersRoot({ serverId: 'origin', connection })
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
+      queryKey: adminQueryKeys.member({ serverId: 'origin', connection }, 'U123abcetc.'),
       exact: true
     });
   });
@@ -166,14 +166,14 @@ describe('Verify email page', () => {
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
     expect(
       queryClient.getQueryData(
-        settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
+        settingsQueryKeys.verifiedEmails({ serverId: 'origin', connection }, 'U123abcetc.')
       )
     ).toEqual([{ email: 'alice.new@example.com', primary: true }]);
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.membersRoot('origin', connection)
+      queryKey: adminQueryKeys.membersRoot({ serverId: 'origin', connection })
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
+      queryKey: adminQueryKeys.member({ serverId: 'origin', connection }, 'U123abcetc.'),
       exact: true
     });
     expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe('');

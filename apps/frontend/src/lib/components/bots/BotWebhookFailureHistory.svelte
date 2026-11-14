@@ -12,11 +12,7 @@
   let { botId, webhookId }: { botId: string; webhookId: string } = $props();
   const scope = useServerScope();
   const query = createInfiniteQuery(() => ({
-    queryKey: [
-      ...settingsQueryKeys.bot(scope.serverId, scope.connection, botId),
-      'failures',
-      webhookId
-    ],
+    queryKey: [...settingsQueryKeys.bot(scope, botId), 'failures', webhookId],
     initialPageParam: '',
     refetchInterval: 30000,
     queryFn: ({ pageParam, signal }) =>

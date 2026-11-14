@@ -83,11 +83,7 @@ describe('NotificationPolicySettings', () => {
 
   function seedPolicies(): void {
     queryClient.setQueryData(
-      settingsQueryKeys.notificationPolicies(
-        'test-server',
-        server.scope.connection,
-        scopes.map(notificationPolicyScopeKey)
-      ),
+      settingsQueryKeys.notificationPolicies(server.scope, scopes.map(notificationPolicyScopeKey)),
       Object.fromEntries(scopes.map((scope) => [notificationPolicyScopeKey(scope), policy(scope)]))
     );
   }
@@ -332,8 +328,7 @@ describe('NotificationPolicySettings', () => {
       expect(
         queryClient.getQueryCache().find({
           queryKey: settingsQueryKeys.notificationPolicies(
-            'test-server',
-            server.scope.connection,
+            server.scope,
             scopes.map(notificationPolicyScopeKey)
           ),
           exact: true
@@ -363,8 +358,7 @@ describe('NotificationPolicySettings', () => {
       expect(
         queryClient.getQueryData<Record<string, ScopedNotificationPolicy>>(
           settingsQueryKeys.notificationPolicies(
-            'test-server',
-            server.scope.connection,
+            server.scope,
             scopes.map(notificationPolicyScopeKey)
           )
         )?.['room:room-1']?.effective.directMentions
@@ -465,7 +459,7 @@ describe('NotificationPolicySettings', () => {
     await save.promise;
     expect(
       queryClient.getQueriesData({
-        queryKey: settingsQueryKeys.notificationPoliciesRoot('test-server', server.scope.connection)
+        queryKey: settingsQueryKeys.notificationPoliciesRoot(server.scope)
       })
     ).toEqual([]);
   });

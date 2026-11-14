@@ -29,7 +29,7 @@ Commented values are examples; they do not override runtime defaults.
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
-  Public URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
+  Required public HTTP or HTTPS URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Chatto does not start if this value is missing or blank. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port">

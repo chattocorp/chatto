@@ -952,7 +952,7 @@ jobs:
           PUSH_LATEST: ${{ needs.build-server-release.outputs.make_latest }}
         run: |
           set -euo pipefail
-          for repository in chatto chatto-client; do
+          for repository in chatto-client chatto; do
             image="ghcr.io/chattocorp/${repository}"
             docker push "${image}:${VERSION}-amd64"
             docker push "${image}:${VERSION}-arm64"

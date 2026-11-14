@@ -1,76 +1,58 @@
-import type { ServerConnection } from '@chatto/client/server/serverConnection';
-import { serverSessionQueryRoot } from './keys';
+import { serverSessionQueryRoot, type QueryKeyScope } from './keys';
 
-type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
-
-function adminRoot(serverId: string, connection: AdminQueryConnection) {
-  return [...serverSessionQueryRoot(serverId, connection), 'admin'] as const;
-}
-
-function permissionTiersRoot(serverId: string, connection: AdminQueryConnection) {
-  return [...adminRoot(serverId, connection), 'permission-tier'] as const;
-}
-
-function userPermissionsRoot(serverId: string, connection: AdminQueryConnection) {
-  return [...adminRoot(serverId, connection), 'user-permissions'] as const;
+function adminRoot(scope: QueryKeyScope) {
+  return [...serverSessionQueryRoot(scope), 'admin'] as const;
 }
 
 export const adminQueryKeys = {
   root: adminRoot,
-  registrationSettings(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'registration-settings'] as const;
+  registrationSettings(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'registration-settings'] as const;
   },
-  membersRoot(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'members'] as const;
+  membersRoot(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'members'] as const;
   },
-  invitations(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'invitations'] as const;
+  invitations(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'invitations'] as const;
   },
-  neighbors(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'neighbors'] as const;
+  neighbors(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'neighbors'] as const;
   },
-  members(serverId: string, connection: AdminQueryConnection, search: string) {
-    return [...adminQueryKeys.membersRoot(serverId, connection), { search }] as const;
+  members(scope: QueryKeyScope, search: string) {
+    return [...adminQueryKeys.membersRoot(scope), { search }] as const;
   },
-  suspensionsRoot(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'suspensions'] as const;
+  suspensions(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'suspensions'] as const;
   },
-  suspensions(serverId: string, connection: AdminQueryConnection) {
-    return adminQueryKeys.suspensionsRoot(serverId, connection);
+  member(scope: QueryKeyScope, userId: string) {
+    return [...adminRoot(scope), 'member', userId] as const;
   },
-  member(serverId: string, connection: AdminQueryConnection, userId: string) {
-    return [...adminRoot(serverId, connection), 'member', userId] as const;
+  permissionTiers(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'permission-tier'] as const;
   },
-  permissionTiers(serverId: string, connection: AdminQueryConnection) {
-    return permissionTiersRoot(serverId, connection);
+  permissionTier(scope: QueryKeyScope, roomId: string | null, groupId: string | null) {
+    return [...adminQueryKeys.permissionTiers(scope), { roomId, groupId }] as const;
   },
-  permissionTier(
-    serverId: string,
-    connection: AdminQueryConnection,
-    roomId: string | null,
-    groupId: string | null
-  ) {
-    return [...permissionTiersRoot(serverId, connection), { roomId, groupId }] as const;
+  rolePermissions(scope: QueryKeyScope, roleName: string) {
+    return [...adminRoot(scope), 'role-permissions', roleName] as const;
   },
-  rolePermissions(serverId: string, connection: AdminQueryConnection, roleName: string) {
-    return [...adminRoot(serverId, connection), 'role-permissions', roleName] as const;
+  userPermissionsRoot(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'user-permissions'] as const;
   },
-  userPermissionsRoot,
-  userPermissions(serverId: string, connection: AdminQueryConnection, userId: string) {
-    return [...userPermissionsRoot(serverId, connection), userId] as const;
+  userPermissions(scope: QueryKeyScope, userId: string) {
+    return [...adminQueryKeys.userPermissionsRoot(scope), userId] as const;
   },
-  roleMembers(serverId: string, connection: AdminQueryConnection, roleName: string) {
-    return [...adminRoot(serverId, connection), 'role-members', roleName] as const;
+  roleMembers(scope: QueryKeyScope, roleName: string) {
+    return [...adminRoot(scope), 'role-members', roleName] as const;
   },
-  roleCatalog(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'roles'] as const;
+  roleCatalog(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'roles'] as const;
   },
-  role(serverId: string, connection: AdminQueryConnection, roleName: string) {
-    return [...adminRoot(serverId, connection), 'role', roleName] as const;
+  role(scope: QueryKeyScope, roleName: string) {
+    return [...adminRoot(scope), 'role', roleName] as const;
   },
   eventLog(
-    serverId: string,
-    connection: AdminQueryConnection,
+    scope: QueryKeyScope,
     filter: {
       eventType: string;
       actorId: string;
@@ -78,30 +60,30 @@ export const adminQueryKeys = {
       createdAtTo: string;
     }
   ) {
-    return [...adminRoot(serverId, connection), 'event-log', filter] as const;
+    return [...adminRoot(scope), 'event-log', filter] as const;
   },
-  eventTypes(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'event-types'] as const;
+  eventTypes(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'event-types'] as const;
   },
-  event(serverId: string, connection: AdminQueryConnection, sequence: string) {
-    return [...adminRoot(serverId, connection), 'event', sequence] as const;
+  event(scope: QueryKeyScope, sequence: string) {
+    return [...adminRoot(scope), 'event', sequence] as const;
   },
-  systemInfo(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'system-info'] as const;
+  systemInfo(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'system-info'] as const;
   },
-  securityConfig(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'security-config'] as const;
+  securityConfig(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'security-config'] as const;
   },
-  oauthClients(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'oauth-clients'] as const;
+  oauthClients(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'oauth-clients'] as const;
   },
-  serverSettings(serverId: string, connection: AdminQueryConnection) {
-    return [...adminRoot(serverId, connection), 'server-settings'] as const;
+  serverSettings(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'server-settings'] as const;
   },
-  room(serverId: string, connection: AdminQueryConnection, roomId: string) {
-    return [...adminRoot(serverId, connection), 'room', roomId] as const;
+  room(scope: QueryKeyScope, roomId: string) {
+    return [...adminRoot(scope), 'room', roomId] as const;
   },
-  roomGroup(serverId: string, connection: AdminQueryConnection, groupId: string) {
-    return [...adminRoot(serverId, connection), 'room-group', groupId] as const;
+  roomGroup(scope: QueryKeyScope, groupId: string) {
+    return [...adminRoot(scope), 'room-group', groupId] as const;
   }
 };

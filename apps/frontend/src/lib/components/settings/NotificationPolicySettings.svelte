@@ -122,13 +122,11 @@ Rows are notification causes. Columns follow the current navigation layout.
     )
   );
   const policiesQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const scopes = columns.map((column) => column.scope);
     return {
       queryKey: settingsQueryKeys.notificationPolicies(
-        serverId,
-        connection,
+        serverScope,
         scopes.map(notificationPolicyScopeKey)
       ),
       queryFn: async ({ signal }) => {
@@ -162,10 +160,9 @@ Rows are notification causes. Columns follow the current navigation layout.
   ): Promise<void> {
     const key = cellKey(scope, field);
     if (pendingCells.has(key)) return;
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const generation = privacyGeneration;
-    const queryRoot = settingsQueryKeys.notificationPoliciesRoot(serverId, connection);
+    const queryRoot = settingsQueryKeys.notificationPoliciesRoot(serverScope);
     const isCurrent = () => generation === privacyGeneration && serverScope.isCurrent();
 
     pendingCells.add(key);

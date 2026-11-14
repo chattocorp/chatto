@@ -1157,6 +1157,8 @@ tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
 trap 'rm -rf "$tmp"' EXIT
 
 docker/nats-wrapper_test.sh
+sh docker/frontend-entrypoint_test.sh
+shellcheck --severity=warning docker/frontend-entrypoint.sh docker/frontend-entrypoint_test.sh
 shellcheck --severity=warning examples/dockercompose/init-env.sh
 compose_example="$tmp/dockercompose"
 cp -R examples/dockercompose "$compose_example"

@@ -8,7 +8,11 @@ export type AdminMemberBatch = { users: AdminMember[]; roles: AdminRoleSummary[]
 type RowSnapshot = { member: AdminMember | null; roles: AdminRoleSummary[] };
 
 export function adminMemberRowKey(serverId: string, scope: string, userId: string) {
-  return [...adminQueryKeys.membersRoot(serverId, { queryScope: scope }), 'row', userId] as const;
+  return [
+    ...adminQueryKeys.membersRoot({ serverId, connection: { queryScope: scope } }),
+    'row',
+    userId
+  ] as const;
 }
 
 /** Coalesce cache misses across admin pages. TanStack owns session-scoped
