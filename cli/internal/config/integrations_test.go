@@ -18,6 +18,7 @@ func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
@@ -97,7 +98,7 @@ func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing
 				c.SMTP.Port = 587
 				c.SMTP.From = "noreply@example.com"
 			},
-			wantError: "webserver.url is required when SMTP is enabled",
+			wantError: "webserver.url is required",
 		},
 		{
 			name: "auth provider",
@@ -110,7 +111,7 @@ func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing
 					ClientSecret: "secret",
 				}}
 			},
-			wantError: "webserver.url is required when auth providers are configured",
+			wantError: "webserver.url is required",
 		},
 		{
 			name: "push",
@@ -120,7 +121,7 @@ func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing
 				c.Push.VAPIDPrivateKey = "private-key"
 				c.Push.VAPIDSubject = "mailto:admin@example.com"
 			},
-			wantError: "webserver.url is required when push is enabled",
+			wantError: "webserver.url is required",
 		},
 		{
 			name: "LiveKit",
@@ -130,7 +131,7 @@ func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing
 				c.LiveKit.APIKey = "key"
 				c.LiveKit.APISecret = "secret"
 			},
-			wantError: "webserver.url is required when LiveKit is enabled",
+			wantError: "webserver.url is required",
 		},
 	}
 
@@ -138,6 +139,7 @@ func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := validTestConfig()
 			tt.modify(&cfg)
+			cfg.Webserver.URL = ""
 			err := cfg.Validate()
 			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
 				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
@@ -150,6 +152,7 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
+				URL:                 "http://localhost:4000",
 				Port:                4000,
 				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
@@ -372,6 +375,7 @@ func TestChattoConfig_Validate_Push(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
+				URL:                 "http://localhost:4000",
 				Port:                4000,
 				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
