@@ -92,6 +92,13 @@ budget, because it was a delivery. A handler that finished before shutdown
 keeps its success. A failure during shutdown is not recorded, because the
 cancellation can be its cause; the next delivery runs the job again.
 
+A delivery can repeat. Before an attempt, the worker reads the latest fact of
+the job. When the job already has an outcome, or an operator retried it after
+the delivered fact, the worker only finishes the purge and acknowledges. When
+earlier deliveries ended without a stored outcome, their result is unknown:
+the job runs again, also beyond the attempt budget. When the purge after an
+outcome fails, the delivery returns, and the next delivery finishes the purge.
+
 ### Retention
 
 The stream has no maximum age. Each job state has its own rule:
@@ -142,13 +149,26 @@ reconciliation owns the outcome.
 | Job type                                                                       | Attempts                    | Initial delay | Pool size per replica                  |
 | ------------------------------------------------------------------------------ | --------------------------- | ------------- | -------------------------------------- |
 | Webhook                                                                        | Configured (`bot_webhooks`) | Configured    | `core.job_concurrency` (default 8)     |
-| Notification alert                                                             | 5                           | 30 seconds    | 16                                     |
+| Notification alert                                                             | 5                           | 15 seconds    | 16                                     |
 | Media                                                                          | Unlimited                   | 30 seconds    | `asset_processing.max_concurrent_jobs` |
 | Asset cleanup, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
 
 Media, cleanup, and key deletion keep the unlimited retries of the workers that
 they replace. A long tool, KMS, or object-store outage must not leave
-attachments unprocessed or keys undeleted. Unprocessable media records a
+attachments unprocessed or keys undeleted. Their timing changes: the workers
+that they replace retried every thirty seconds, and each cleanup and
+key-deletion worker ran sixteen attempts at a time. The jobs now retry with
+delays that double from thirty seconds to thirty minutes, and each type runs
+`core.job_concurrency` attempts at a time. After a long outage ends, a waiting
+job can therefore start up to thirty minutes later. An operator cannot start a
+waiting job early.
+
+A notification alert expires two minutes after its source. Its attempts start
+0, 15, 45, and 105 seconds after the first one, so four attempts fit into that
+time; the alert worker before ran four attempts at a fixed thirty seconds. The
+alert consumer has a one-minute acknowledgement wait, so an alert that a
+crashed replica held can still be delivered. The other job consumers wait two
+minutes. Unprocessable media records a
 terminal asset failure instead. The admin API omits the maximum for an
 unlimited budget. Server replicas with media processing and standalone media
 processes share the media consumer.
@@ -171,8 +191,9 @@ actions, or separate dead-letter stream. Job state has no realtime event; the Jo
 
 - Failed jobs accumulate until an operator retries or deletes them, or until
   `core.job_failed_retention` when it is set. There is no bulk delete.
-- A deleted job is gone. Its work is abandoned, and a later handoff of the same
-  source can accept it again as a new job.
+- A deleted job is gone. Its work is abandoned. One hour later, when the
+  `deleted` fact has expired, a handoff of the same source can accept it again
+  as a new job.
 - A replica whose view misses the `deleted` fact for more than one hour shows
   the deleted job until it restarts.
 - A deploy or a crash during an attempt uses one attempt of a limited budget.

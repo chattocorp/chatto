@@ -633,11 +633,12 @@ facts identify both participants. They do not appear in room timelines.
 
 `jobs.{type}.{jobId}.{fact}` carries protobuf `jobs.v1.JobFact` values in
 `JOBS`. The fact is `queued`, `started`, `attempt_failed`, `succeeded`,
-`failed`, or `retried`. The job types are `webhook`, `media`,
+`failed`, `retried`, or `deleted`. The job types are `webhook`, `media`,
 `notification_alert`, `asset_cleanup`, `call_key_cleanup`,
 `push_subscription_cleanup`, and `user_key_shredding`. The state of a job is
-the fold of its facts in stream order. The `queued` and `retried` facts carry
-the private work payload and policy. Job facts are operational facts, not
+the fold of its facts in stream order. The `queued`, `retried`, and `failed`
+facts carry the private work payload and policy. Job facts are operational facts, not
 domain events. Source events remain in EVT. Enqueue appends `queued` only when
-the job has no facts. A manual retry appends `retried` only when the viewed
-`failed` fact is still the latest fact of the job. See ADR-123.
+the job has no facts. A manual retry appends `retried`, and a delete appends
+`deleted`, only when the viewed `failed` fact is still the latest fact of the
+job. See ADR-123.

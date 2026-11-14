@@ -493,7 +493,7 @@ capacity.
 
 The core also runs the job view ([`view.go`](../../pkg/jobs/view.go)), an
 in-memory projection of `JOBS` with one payload-free summary for each job.
-`ListJobs`, `GetJob`, and `RetryJob` read it. The view is built again from the
+`ListJobs`, `GetJob`, `RetryJob`, and `DeleteJob` read it. The view is built again from the
 retained facts on each start. Standalone media processes do not run it.
 
 [`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,

@@ -620,6 +620,6 @@ of the `JOBS` stream. It cold-replays the retained job facts on `jobs.>` and
 keeps one summary for each job, without the payload. It has no snapshot. It is
 not a registered projector: `jobs.Queue` owns its ordered consumer, and it does
 not participate in startup readiness or projection diagnostics. Job list,
-detail, and retry requests wait for its replay. After a retry, the queue waits
-until the view has applied the new fact. A periodic sweep drops jobs that the
+detail, retry, and delete requests wait for its replay. After a retry or a
+delete, the queue waits until the view has applied the new fact. A periodic sweep drops jobs that the
 stream no longer retains. Standalone media processes do not run the view.
