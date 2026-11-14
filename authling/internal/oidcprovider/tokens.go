@@ -156,14 +156,14 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 	// leaves the old credential retryable; orphan records expire without a bearer.
 	access, tokenID, expires, err := s.storage.signAccessToken(ctx, issuerState.Issuer, request)
 	if err != nil {
-		tokenError(w, issuanceError(err, refresh != ""))
+		tokenError(w, issuanceError(err))
 		return
 	}
 	var idToken string
 	if slices.Contains(request.Scopes, liboidc.ScopeOpenID) {
 		idToken, err = op.CreateIDToken(ctx, issuerState.Issuer, request, client.IDTokenLifetime(), access, code, s.storage, client)
 		if err != nil {
-			tokenError(w, issuanceError(err, refresh != ""))
+			tokenError(w, issuanceError(err))
 			return
 		}
 	}
@@ -467,8 +467,8 @@ func (s *Storage) revokeRefreshFamily(ctx context.Context, id string) error {
 }
 
 // issuanceError distinguishes a lost identity from a temporary account-store failure.
-func issuanceError(err error, refreshing bool) string {
-	if refreshing && errors.Is(err, accounts.ErrInvalidCredentials) {
+func issuanceError(err error) string {
+	if errors.Is(err, accounts.ErrInvalidCredentials) {
 		return "invalid_grant"
 	}
 	return "temporarily_unavailable"

@@ -32,7 +32,8 @@ that also call an API. APIs must check their own audience and must not accept a
 UserInfo-only token. Identity scopes release identity information; they do not
 assign application roles or permissions.
 
-`offline_access` requires an explicit consent decision before granting offline access. Covering grants permit silent reuse.
+`offline_access` is consented once per grant. A `prompt=none` request is
+auto-approved when the grant already covers its scopes for that resource.
 It is available to configured confidential clients and public clients, including
 CIMD clients whose metadata declares `refresh_token`. Configured clients can
 disable renewal with `allow_refresh_tokens = false`. Public clients retain mandatory S256 PKCE. A refresh family lasts
@@ -94,8 +95,10 @@ audience. Configuration rejects equality with the issuer or configured clients.
 Create the access-token record before consuming the code or refresh credential.
 A failed write leaves the credential retryable; an orphan record has no bearer
 and expires normally. Scope narrowing affects only the response. Replacement
-refresh tokens retain their original scope. UserInfo permits 60 seconds of
-future `iat` or `nbf` skew but does not extend expiry.
+refresh tokens retain their original scope. A refresh that narrows away
+`offline_access` consumes the family and permanently ends renewal for it.
+UserInfo permits 60 seconds of future `iat` or `nbf` skew but does not extend
+expiry.
 
 All users must consent once after this upgrade. Rollback is unsupported after
 the first version-3 grant is recorded.

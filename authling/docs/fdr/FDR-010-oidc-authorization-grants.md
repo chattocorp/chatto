@@ -121,11 +121,12 @@ resolution failures from hiding revocation controls.
 
 ### Refresh tokens
 
-Refresh tokens require `offline_access` and explicit consent in the code flow.
+Refresh tokens require `offline_access`, consented once per grant.
 They are available to configured confidential and public clients and to CIMD
-public clients. Public clients must use S256 PKCE. An existing covering grant permits silent authorization after that explicit
-consent. CIMD metadata must declare the `refresh_token` grant. Configured clients
-can disable renewal with `allow_refresh_tokens = false`.
+public clients. Public clients must use S256 PKCE. A `prompt=none` request is
+auto-approved when the grant already covers its scopes for that resource.
+CIMD metadata must declare the `refresh_token` grant. Configured clients can
+disable renewal with `allow_refresh_tokens = false`.
 
 Each encrypted refresh family is bound to the account, exact client, grant
 generation, scopes, and resource. Each use checks current client admission,
@@ -139,7 +140,8 @@ exceed the total limit. Rotation never extends the total limit. An explicit
 scope subset limits only the response. A replacement refresh token retains
 the original scope. Issue an ID token only with effective `openid`, and a
 replacement refresh token only with effective `offline_access`. Without the
-latter, consume the family without a replacement. Refreshes use current account claims and retain the original
+latter, consume the family without a replacement and permanently end renewal
+for that family. Refreshes use current account claims and retain the original
 authentication time.
 
 A refresh token is single-use. Concurrent use has at most one winner. Reuse of

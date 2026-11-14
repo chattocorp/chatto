@@ -147,12 +147,15 @@ templ accountPage(data accountPageData) {
 										Other browser
 									}
 								</th>
-								<td>@sessionTimestamp(browserSession.CreatedAt)
-</td>
-								<td>@sessionTimestamp(browserSession.LastSeenAt)
-</td>
-								<td>@sessionTimestamp(browserSession.ExpiresAt)
-</td>
+								<td>
+									@sessionTimestamp(browserSession.CreatedAt)
+								</td>
+								<td>
+									@sessionTimestamp(browserSession.LastSeenAt)
+								</td>
+								<td>
+									@sessionTimestamp(browserSession.ExpiresAt)
+								</td>
 								<td class="text-right">
 									if !browserSession.Current {
 										<form method="post" action="/account/sessions/revoke">

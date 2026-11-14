@@ -136,7 +136,12 @@ func TestOIDCReviewGrantAndRetryBoundaries(t *testing.T) {
 	if current.IDToken == "" {
 		t.Fatal("openid ID token missing")
 	}
+	// Code exchange must classify an unavailable identity as an invalid grant too.
+	code = completeAuthorizationForScopes(t, handler, verifier, cookie, "openid", apiA)
 	inactive = true
+	if response := redeemCode(t, handler, code, verifier); !strings.Contains(response.Body.String(), "invalid_grant") {
+		t.Fatal("inactive code exchange did not return invalid_grant")
+	}
 	if response := renew(current.RefreshToken, ""); !strings.Contains(response.Body.String(), "invalid_grant") {
 		t.Fatal("inactive refresh did not return invalid_grant")
 	}
