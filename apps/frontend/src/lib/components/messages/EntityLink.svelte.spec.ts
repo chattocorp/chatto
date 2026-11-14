@@ -145,6 +145,33 @@ it.each(['ltr', 'rtl'])('wraps long URLs within a narrow %s message', (dir) => {
 });
 
 describe('entity links in messages', () => {
+  it.each(['message', 'composer'])(
+    'preserves one space on each side of a room pill in the %s',
+    async (surface) => {
+      const body = `**in** ${origin}/chat/-/${roomId} **and**`;
+      let api: ComposerEditorApi | undefined;
+      const { container } =
+        surface === 'message'
+          ? render(MessageContent, { body })
+          : render(TipTapEditor, { onReady: (ready) => (api = ready) });
+      if (surface === 'composer') {
+        await vi.waitFor(() => expect(api).toBeDefined());
+        api!.setContent(body);
+      }
+      const pill = await vi.waitFor(() => {
+        const link = container.querySelector<HTMLElement>('.entity-link');
+        expect(link).not.toBeNull();
+        return link!;
+      });
+      const [before, after] = container.querySelectorAll('strong');
+      const bounds = pill.getBoundingClientRect();
+      const leading = bounds.left - before.getBoundingClientRect().right;
+      const trailing = after.getBoundingClientRect().left - bounds.right;
+      expect(leading).toBeGreaterThan(0);
+      expect(trailing).toBeCloseTo(leading, 1);
+    }
+  );
+
   it('renders server, room, user, and message pills before a colon', async () => {
     const urls = [
       `${origin}/`,
