@@ -104,7 +104,8 @@ Chatto's pre-1.0 API remains experimental.
   gutter menu. The origin server cannot be removed.
 - The Server Directory allows users to add limited and unknown versions when
   sign-in is available. Versions below the connection threshold still link to
-  their own client.
+  their own client. Chatto 0.4 servers are the exception. They do not accept
+  the GET discovery request, so the directory reports a connection failure.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown
