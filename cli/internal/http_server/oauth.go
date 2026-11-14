@@ -405,7 +405,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		redirectURL, err := oauthErrorRedirectURL(params.RedirectURI, params.State, s.oauthIssuer(c.Request), "access_denied", "The user denied the authorization request")
+		redirectURL, err := oauthErrorRedirectURL(params.RedirectURI, params.State, configuredWebserverOrigin(s.config.Webserver.URL), "access_denied", "The user denied the authorization request")
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
@@ -721,7 +721,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 	// Build redirect URL with code and state
 	q := u.Query()
 	q.Set("code", code)
-	q.Set("iss", s.oauthIssuer(c.Request))
+	q.Set("iss", configuredWebserverOrigin(s.config.Webserver.URL))
 	if params.State != "" {
 		q.Set("state", params.State)
 	}
@@ -832,21 +832,6 @@ func isLiteralLoopbackOAuthRedirectHost(host string) bool {
 func isLoopbackOAuthRedirectURI(raw string) bool {
 	redirect, err := url.Parse(raw)
 	return err == nil && redirect.Host != "" && isLoopbackOAuthRedirectHost(redirect.Hostname())
-}
-
-// oauthIssuer returns the issuer that authorization responses carry in the
-// `iss` parameter (RFC 9207): the configured webserver.url origin, or the
-// origin of the request when no public URL is configured.
-//
-// A client that signs in to more than one server compares this value with the
-// server that it selected, and refuses a response without it. The value must
-// therefore never be empty for a request that a client can address. It is
-// empty only for a malformed Host value.
-func (s *HTTPServer) oauthIssuer(r *http.Request) string {
-	if issuer := configuredWebserverOrigin(s.config.Webserver.URL); issuer != "" {
-		return issuer
-	}
-	return directRequestOrigin(r)
 }
 
 func oauthErrorRedirectURL(redirectURI, state, issuer, code, description string) (string, error) {

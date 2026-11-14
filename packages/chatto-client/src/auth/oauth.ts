@@ -85,8 +85,8 @@ export async function createOAuthFlow(input: {
  * `issuer` is the `iss` parameter of the response. A missing or empty value
  * fails. A response without an issuer can come from a different server, so
  * accepting it would leave accounts on servers that send no issuer open to
- * this attack. A current Chatto server always sends its issuer. An older
- * server sends it only when it has a configured public URL.
+ * this attack. A Chatto server sends the origin of its public URL. An older
+ * server without a public URL sends an empty issuer.
  */
 export function isExpectedOAuthIssuer(
   issuer: string | null | undefined,

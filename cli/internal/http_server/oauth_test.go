@@ -1155,24 +1155,6 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	requireOAuthIssuer(t, secondW.Header().Get("Location"), "https://chatto.example")
 }
 
-// A server without a configured public URL must still name an issuer,
-// because multi-server clients refuse a response without one.
-func TestOAuthIssuerUsesRequestOriginWithoutPublicURL(t *testing.T) {
-	s := setupOAuthServer(t)
-	request := httptest.NewRequest(http.MethodGet, "http://Chat.Example:80/oauth/authorize", nil)
-	if got := s.oauthIssuer(request); got != "https://chatto.example" {
-		t.Fatalf("issuer with public URL = %q", got)
-	}
-	s.config.Webserver.URL = ""
-	if got := s.oauthIssuer(request); got != "http://chat.example" {
-		t.Fatalf("issuer without public URL = %q", got)
-	}
-	request.Host = "chat.example:4000"
-	if got := s.oauthIssuer(request); got != "http://chat.example:4000" {
-		t.Fatalf("issuer with port = %q", got)
-	}
-}
-
 // requireOAuthIssuer fails the test unless the authorization response URL
 // carries exactly the expected `iss` parameter.
 func requireOAuthIssuer(t *testing.T, responseURL, want string) {

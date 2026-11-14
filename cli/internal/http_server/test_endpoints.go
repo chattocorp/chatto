@@ -444,7 +444,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		q := u.Query()
 		q.Set("code", code)
 		// Match the real authorization response: clients refuse one without an issuer.
-		q.Set("iss", s.oauthIssuer(c.Request))
+		q.Set("iss", configuredWebserverOrigin(s.config.Webserver.URL))
 		if req.State != "" {
 			q.Set("state", req.State)
 		}
