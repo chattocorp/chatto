@@ -24,10 +24,10 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     token_endpoint: `${stack.baseURL}/oauth/token`,
     userinfo_endpoint: `${stack.baseURL}/oauth/userinfo`,
     jwks_uri: `${stack.baseURL}/oauth/jwks`,
-    scopes_supported: ['openid', 'profile', 'email'],
+    scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
     code_challenge_methods_supported: ['S256'],
     response_types_supported: ['code'],
-    grant_types_supported: ['authorization_code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
     client_id_metadata_document_supported: false
   });
   expect(discovery.claims_supported).toEqual([

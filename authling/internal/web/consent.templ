@@ -45,6 +45,21 @@ templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID str
 						<p class="mt-0.5 text-muted">{ signedInAs }</p>
 					</li>
 				}
+				if request.Resource != "" {
+					<li class="py-2">
+						<p class="font-medium">API this app can use for you</p>
+						<p class="break-all text-muted">{ request.Resource }</p>
+						if slices.Contains(request.ResourceClaims, "profile") {
+							<p class="mt-1 text-muted">This API also receives your username and full name.</p>
+						}
+						if slices.Contains(request.ResourceClaims, "email") {
+							<p class="mt-1 text-muted">This API also receives your verified email address.</p>
+						}
+					</li>
+				}
+				if slices.Contains(request.Scopes, "offline_access") {
+					<li class="py-2"><p class="font-medium">Access while you are signed out</p><p class="text-muted">This app can renew access until its authorization expires or you revoke it.</p></li>
+				}
 			</ul>
 		</section>
 		<div class="mt-4 space-y-1 text-muted">

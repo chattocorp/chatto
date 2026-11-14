@@ -13,6 +13,9 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/chattocorp/chatto/authling/internal/config"
+	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 )
 
 func cimdTestResponse(request *http.Request, cacheControl string) *http.Response {
@@ -336,5 +339,57 @@ func TestCIMDBodyEOFDoesNotHideCancellation(t *testing.T) {
 	}
 	if len(resolver.slots) != 0 || len(resolver.cache) != 0 {
 		t.Fatal("canceled body retained resources")
+	}
+}
+
+func TestResolveForRefreshAvoidsCIMDFetch(t *testing.T) {
+	fetches := 0
+	cimd := newCIMDTestResolver(t, func(request *http.Request) (*http.Response, error) {
+		fetches++
+		return cimdTestResponse(request, "max-age=60"), nil
+	})
+	cfg := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Resources: []config.OIDCResourceConfig{{URI: "https://api.example"}}, Clients: []config.OIDCClientConfig{{ID: "configured", RedirectURIs: []string{"https://app.example/callback"}}}}}
+	resolver := NewResolver(cfg, cimd)
+	client, err := resolver.ResolveForRefresh(t.Context(), "https://client.example/uncached")
+	if err != nil || fetches != 0 || client.Source != ClientSourceCIMD || client.AuthMethod() != liboidc.AuthMethodNone || !client.RefreshAllowed {
+		t.Fatal("uncached CIMD refresh client")
+	}
+	if _, err := cimd.Resolve(t.Context(), "https://client.example/cached"); err != nil || fetches != 1 {
+		t.Fatal("cache fill")
+	}
+	// The cached document did not declare refresh_token, so current policy denies refresh.
+	if client, err := resolver.ResolveForRefresh(t.Context(), "https://client.example/cached"); err != nil || fetches != 1 || client.RefreshAllowed {
+		t.Fatal("cached CIMD refresh client")
+	}
+	if client, err := resolver.ResolveForRefresh(t.Context(), "configured"); err != nil || client.Source != ClientSourceConfigured {
+		t.Fatal("configured refresh client")
+	}
+	for _, id := range []string{"https://api.example", "unknown", "https://user@client.example/"} {
+		if _, err := resolver.ResolveForRefresh(t.Context(), id); err == nil {
+			t.Fatalf("%s resolved", id)
+		}
+	}
+	cfg.OIDC.AllowUnregisteredClients = false
+	if _, err := NewResolver(cfg, cimd).ResolveForRefresh(t.Context(), "https://client.example/uncached"); err == nil {
+		t.Fatal("CIMD refresh after CIMD was disabled")
+	}
+	if fetches != 1 {
+		t.Fatal("refresh resolution fetched CIMD")
+	}
+}
+
+func TestCheckGrantCapacity(t *testing.T) {
+	long := func(n int) string { return "https://api.example/" + strings.Repeat("a", n) }
+	fits := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Resources: []config.OIDCResourceConfig{{URI: long(1000), AllowCIMD: true}}, Clients: []config.OIDCClientConfig{{ID: "a", Name: "App", Resources: []string{long(1000), long(1001)}}}}}
+	if err := CheckGrantCapacity(fits); err != nil {
+		t.Fatal(err)
+	}
+	for name, cfg := range map[string]config.Config{
+		"configured": {OIDC: config.OIDCConfig{Clients: []config.OIDCClientConfig{{ID: "a", Name: "App", Resources: []string{long(2000), long(2001)}}}}},
+		"cimd":       {OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Resources: []config.OIDCResourceConfig{{URI: long(1600), AllowCIMD: true}, {URI: long(1601), AllowCIMD: true}}}},
+	} {
+		if CheckGrantCapacity(cfg) == nil {
+			t.Fatalf("%s: oversized grant metadata accepted", name)
+		}
 	}
 }

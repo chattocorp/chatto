@@ -30,9 +30,8 @@ current runtime in `docs/architecture/`.
 - [ ] Define authenticated relying-party grouping and exact-client grant migration across one or more OIDC clients
 - [ ] Track CIMD Internet-Draft evolution and define compatibility policy before upgrading from draft-02
 - [ ] Add authenticated emergency signing-key rotation and compromise-response controls
-- [ ] Add rotating refresh tokens bound to durable authorization-grant generations
 - [ ] Add token-revocation and RP-initiated logout behavior
-- [ ] Define release policies before adding scopes beyond `openid`, `profile`, and `email`
+- [ ] Define release policies before adding scopes beyond `openid`, `profile`, `email`, and `offline_access`
 - [ ] Assess conformance warnings for extra ID Token claims, requested claims, and token revocation after code reuse
 - [ ] Extend automated official-suite coverage to the remaining Basic OP modules and screenshot-review flows
 - [ ] Add version-skew fixtures for CIMD-aware Chatto consumers

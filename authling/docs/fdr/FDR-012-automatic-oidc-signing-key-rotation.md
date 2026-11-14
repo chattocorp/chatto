@@ -1,12 +1,12 @@
 # FDR-012: Automatic OIDC Signing-Key Rotation
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
 Authling automatically rolls over the RS256 key used to sign OpenID Connect ID
-tokens. Relying parties discover prepared, active, and recently decommissioned
+and JWT access tokens. Relying parties discover prepared, active, and recently decommissioned
 public keys through the existing JWKS endpoint. Rotation requires no Authling
 account interaction and does not change the issuer or account `sub`.
 
@@ -16,11 +16,11 @@ account interaction and does not change the issuer or account `sub`.
   `oidc.signing_key_rotation_interval_days` configures an interval from one to
   3,650 days. Omitting it preserves the 90-day default.
 - A replacement public key appears in JWKS for ten minutes before Authling
-  signs an ID token with it. JWKS responses advertise a five-minute shared
+  signs a token with it. JWKS responses advertise a five-minute shared
   cache lifetime.
-- Activation makes the replacement the sole signing key for new ID tokens.
+- Activation makes the replacement the sole signing key for new ID and access tokens.
   The preceding public key remains in JWKS for 15 minutes: five minutes for
-  the maximum ID-token lifetime, five minutes for verifier clock skew, and
+  the maximum ID- and access-token lifetime, five minutes for verifier clock skew, and
   five minutes for reconciliation and operational margin.
 - After retirement, the preceding key disappears from JWKS and its private
   material is purged. Repeating interrupted preparation or destruction work is
@@ -96,6 +96,8 @@ After that event exists, do not roll back to a binary that predates FDR-012.
   party or force relying-party sessions to end.
 
 ## Related
+
+- [ADR-010: Resource access and refresh tokens](../adr/ADR-010-resource-access-and-refresh-tokens.md)
 
 - **Architecture:** [ADR-008](../adr/ADR-008-automatic-oidc-signing-key-rotation.md)
 - **OIDC provider:** [FDR-004](FDR-004-openid-connect-provider.md)
