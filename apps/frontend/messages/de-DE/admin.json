@@ -591,6 +591,34 @@
         "revoked": "Widerrufen",
         "used": "Verwendet"
       }
+    },
+    "jobs": {
+      "title": "Aufträge",
+      "subtitle": "Sieh dir Hintergrundaufträge an und wiederhole fehlgeschlagene Aufträge.",
+      "load_failed": "Aufträge konnten nicht geladen werden.",
+      "retry_failed": "Dieser Auftrag konnte nicht wiederholt werden.",
+      "webhook": "Webhook-Zustellung",
+      "media": "Medienverarbeitung",
+      "asset_cleanup": "Dateibereinigung",
+      "call_key_cleanup": "Löschung von Anrufschlüsseln",
+      "push_subscription_cleanup": "Bereinigung von Push-Abonnements",
+      "user_key_shredding": "Löschung von Kontoschlüsseln",
+      "notification_alert": "Benachrichtigung",
+      "queued": "In Warteschlange",
+      "running": "Wird ausgeführt",
+      "succeeded": "Erfolgreich",
+      "failed": "Fehlgeschlagen",
+      "empty": "Noch keine Aufträge",
+      "attempts": "Versuche",
+      "updated": "Aktualisiert",
+      "next_attempt": "Nächster Versuch",
+      "expired": "Dieser Auftrag ist abgelaufen und kann nicht wiederholt werden.",
+      "job": "Auftrag",
+      "created": "Erstellt",
+      "details": "Details",
+      "detail_subtitle": "Status, Versuche und letzter Fehlergrund dieses Auftrags.",
+      "not_found": "Dieser Auftrag existiert nicht mehr.",
+      "all": "Alle"
     }
   }
 }

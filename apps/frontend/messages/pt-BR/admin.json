@@ -591,6 +591,34 @@
         "revoked": "Revogado",
         "used": "Usado"
       }
+    },
+    "jobs": {
+      "title": "Tarefas",
+      "subtitle": "Veja as tarefas em segundo plano e tente novamente as que falharam.",
+      "load_failed": "Não foi possível carregar as tarefas.",
+      "retry_failed": "Não foi possível tentar esta tarefa novamente.",
+      "webhook": "Envio de webhook",
+      "media": "Processamento de mídia",
+      "asset_cleanup": "Limpeza de arquivos",
+      "call_key_cleanup": "Exclusão de chaves de chamada",
+      "push_subscription_cleanup": "Limpeza de assinaturas push",
+      "user_key_shredding": "Exclusão de chaves da conta",
+      "notification_alert": "Alerta de notificação",
+      "queued": "Na fila",
+      "running": "Em execução",
+      "succeeded": "Concluída",
+      "failed": "Falhou",
+      "empty": "Ainda não há tarefas",
+      "attempts": "Tentativas",
+      "updated": "Atualizada",
+      "next_attempt": "Próxima tentativa",
+      "expired": "Esta tarefa expirou e não pode ser tentada novamente.",
+      "job": "Tarefa",
+      "created": "Criada",
+      "details": "Detalhes",
+      "detail_subtitle": "Status, tentativas e último motivo de falha desta tarefa.",
+      "not_found": "Esta tarefa não existe mais.",
+      "all": "Todas"
     }
   }
 }

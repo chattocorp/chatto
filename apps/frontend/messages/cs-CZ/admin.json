@@ -613,6 +613,34 @@
         "revoked": "Odvolán",
         "used": "Použitý"
       }
+    },
+    "jobs": {
+      "title": "Úlohy",
+      "subtitle": "Prohlížejte úlohy na pozadí a opakujte neúspěšné úlohy.",
+      "load_failed": "Úlohy se nepodařilo načíst.",
+      "retry_failed": "Tuto úlohu se nepodařilo zopakovat.",
+      "webhook": "Doručení webhooku",
+      "media": "Zpracování médií",
+      "asset_cleanup": "Čištění souborů",
+      "call_key_cleanup": "Mazání klíčů hovorů",
+      "push_subscription_cleanup": "Čištění odběrů push",
+      "user_key_shredding": "Mazání klíčů účtu",
+      "notification_alert": "Upozornění na oznámení",
+      "queued": "Ve frontě",
+      "running": "Probíhá",
+      "succeeded": "Úspěšná",
+      "failed": "Neúspěšná",
+      "empty": "Zatím žádné úlohy",
+      "attempts": "Pokusy",
+      "updated": "Aktualizováno",
+      "next_attempt": "Další pokus",
+      "expired": "Platnost této úlohy vypršela a nelze ji zopakovat.",
+      "job": "Úloha",
+      "created": "Vytvořeno",
+      "details": "Podrobnosti",
+      "detail_subtitle": "Stav, pokusy a poslední důvod selhání této úlohy.",
+      "not_found": "Tato úloha již neexistuje.",
+      "all": "Vše"
     }
   }
 }

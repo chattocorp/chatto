@@ -591,6 +591,34 @@
         "revoked": "İptal edildi",
         "used": "Kullanıldı"
       }
+    },
+    "jobs": {
+      "title": "İşler",
+      "subtitle": "Arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin.",
+      "load_failed": "İşler yüklenemedi.",
+      "retry_failed": "Bu iş yeniden denenemedi.",
+      "webhook": "Webhook teslimi",
+      "media": "Medya işleme",
+      "asset_cleanup": "Dosya temizliği",
+      "call_key_cleanup": "Arama anahtarı silme",
+      "push_subscription_cleanup": "Anlık bildirim aboneliği temizliği",
+      "user_key_shredding": "Hesap anahtarı silme",
+      "notification_alert": "Bildirim uyarısı",
+      "queued": "Sırada",
+      "running": "Çalışıyor",
+      "succeeded": "Başarılı",
+      "failed": "Başarısız",
+      "empty": "Henüz iş yok",
+      "attempts": "Denemeler",
+      "updated": "Güncellendi",
+      "next_attempt": "Sonraki deneme",
+      "expired": "Bu işin süresi doldu ve yeniden denenemez.",
+      "job": "İş",
+      "created": "Oluşturuldu",
+      "details": "Ayrıntılar",
+      "detail_subtitle": "Bu işin durumu, denemeleri ve son hata nedeni.",
+      "not_found": "Bu iş artık mevcut değil.",
+      "all": "Tümü"
     }
   }
 }

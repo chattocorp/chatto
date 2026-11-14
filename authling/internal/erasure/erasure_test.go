@@ -16,6 +16,7 @@ import (
 	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
 	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -188,8 +189,20 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 	if _, err := pub.AppendAccountErasure(ctx, requested("acc_test", user, data), released("acc_test", "evt_request"), tail, 0); err != nil {
 		t.Fatal(err)
 	}
+	jobStream, jobState, err := storage.OpenJobs(ctx, js, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queue, err := jobs.New(js, jobState, jobs.Options{KeyPrefix: storage.JobKeyPrefix, SubjectPrefix: storage.JobSubjectPrefix, Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobsConsumer, err := jobStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{Durable: storage.JobsConsumerName, FilterSubjects: queue.FilterSubjects(JobType), AckPolicy: jetstream.AckExplicitPolicy, MaxDeliver: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
 	service := New(pub, handle, vault)
-	if err := service.ConfigureWorker(ctx, stream, logger, func(context.Context, State) error { return nil }); err != nil {
+	if err := service.ConfigureWorker(ctx, stream, queue, logger, func(context.Context, State) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if err := service.Complete(ctx, "acc_test"); err == nil {
@@ -203,13 +216,17 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 	}
 	// A fresh service shares the durable consumer and processes the unacked request.
 	replacement := New(pub, handle, keyvault.New(stores.Keys))
-	if err := replacement.ConfigureWorker(ctx, stream, logger, func(context.Context, State) error { return nil }); err != nil {
+	if err := replacement.ConfigureWorker(ctx, stream, queue, logger, func(context.Context, State) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	workerCtx, stopWorker := context.WithCancel(ctx)
-	workerErr := make(chan error, 1)
+	workerErr := make(chan error, 3)
 	go func() { workerErr <- replacement.Run(workerCtx) }()
-	defer func() { stopWorker(); <-workerErr }()
+	go func() {
+		workerErr <- queue.Work(workerCtx, jobsConsumer, map[string]jobs.Handler{JobType: replacement.Effect().Handle}, 1)
+	}()
+	go func() { workerErr <- queue.Run(workerCtx) }()
+	defer func() { stopWorker(); <-workerErr; <-workerErr; <-workerErr }()
 	for {
 		state, _ := projection.Get("acc_test")
 		if state.Complete {

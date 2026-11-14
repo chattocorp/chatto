@@ -6,7 +6,7 @@ import (
 )
 
 // AssetProcessingConsumerName is the durable EVT consumer of the
-// asset-processing runtime unit. The name is a persisted resource contract
+// media job source. The name is a persisted resource contract
 // (ADR-069).
 const AssetProcessingConsumerName = "chatto-asset-processing-v1"
 
@@ -43,6 +43,8 @@ type durableWorkerDiagnosticSpec struct {
 
 // durableWorkerDiagnosticSpecs lists every durable consumer that Chatto
 // creates. Add each new durable consumer here so operators can see its health.
+// Media jobs need a worker only while video uploads are enabled; the worker
+// can run in this server or in a standalone media process.
 func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagnosticSpec {
 	return []durableWorkerDiagnosticSpec{
 		{key: "asset_cleanup", streamName: natsresources.EVT, consumerName: assetCleanupConsumerName, required: true},
@@ -53,7 +55,9 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "notification_invitations", streamName: natsresources.EVT, consumerName: invitationNotificationConsumerName, required: true},
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
-		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: videoUploadsEnabled},
+		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
+		{key: "jobs", streamName: natsresources.Jobs, consumerName: JobsConsumerName, required: true},
+		{key: "media_jobs", streamName: natsresources.Jobs, consumerName: MediaJobsConsumerName, required: videoUploadsEnabled},
 	}
 }
 
@@ -84,6 +88,7 @@ func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool)
 		health := DurableWorkerHealthInactive
 		switch {
 		case !spec.required:
+			// An optional consumer without a worker is expected, not stalled.
 		case consumer.Waiting > 0 && hasUnacknowledgedWork:
 			health = DurableWorkerHealthWorking
 		case consumer.Waiting > 0:

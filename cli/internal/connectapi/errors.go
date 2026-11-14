@@ -27,7 +27,7 @@ var connectErrorCodes = []struct {
 	code connect.Code
 	errs []error
 }{
-	{connect.CodeFailedPrecondition, []error{core.ErrSetupUnavailable, core.ErrSetupRequired}},
+	{connect.CodeFailedPrecondition, []error{core.ErrSetupUnavailable, core.ErrSetupRequired, core.ErrJobNotRetryable}},
 	{connect.CodeCanceled, []error{context.Canceled}},
 	{connect.CodeDeadlineExceeded, []error{context.DeadlineExceeded}},
 	{connect.CodeAborted, []error{events.ErrConflict, core.ErrNeighborRevisionChanged}},

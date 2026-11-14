@@ -762,6 +762,7 @@ jobs:
           mise lint-datacrypto
           mise lint-events
           mise lint-jetstreamutil
+          mise lint-jobs
           mise lint-natsruntime
 
       - name: Run application configuration tests
@@ -775,6 +776,9 @@ jobs:
 
       - name: Run JetStream utility tests
         run: mise test-jetstreamutil
+
+      - name: Run shared job queue tests
+        run: mise test-jobs
 
       - name: Run embedded NATS runtime tests
         run: mise test-natsruntime

@@ -163,6 +163,8 @@ private-listener, storage-path, logging, and deployment policy.
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
+| `AUTHLING_JOBS` | Stream | File, one message per subject, seven-day maximum age | `authling.jobs.>` | Background job dispatch references for the shared `pkg/jobs` queue |
+| `AUTHLING_JOB_STATE` | KV bucket | File, history 1, per-key TTL | `job.{id}` | Current job records. Succeeded records expire after seven days; failed and unfinished records stay |
 
 `AUTHLING_EVT` enables JetStream atomic publication for multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
@@ -564,13 +566,20 @@ a fatal replay error. No active email index entry is built from erased history.
 
 The named durable consumer `authling-account-erasure` filters
 `authling.evt.account.*`, uses explicit acknowledgements, a one-minute ack wait,
-and one pending message. The worker retries failures after one second. It waits
-for account and grant projections to validate the decision, purges the user key
-then its wrapped data key from `AUTHLING_KEYS`, and appends `AccountErasedEvent`
-with account OCC. Repeated purges and repeated completion attempts are safe.
-The request remains the retry authority if a reply is lost or the process stops.
-Workers on multiple replicas may share the consumer; the consumer cursor is not
-the correctness boundary. Worker errors do not include protected data.
+and one pending message. It acknowledges other account events without work.
+For each `AccountErasureRequestedEvent` it stores an `account_erasure` job in the
+shared [`pkg/jobs`](../../../pkg/jobs/README.md) queue before acknowledgement.
+The job holds only the source subject, sequence, and message digest. The
+`authling-jobs` consumer of `AUTHLING_JOBS` runs one job at a time. The first
+retry waits one second; delays double up to thirty minutes. The attempt budget
+is effectively unlimited, because Authling has no manual retry. Each attempt
+reads the request again, waits for account and grant projections to validate
+the decision, purges the user key then its wrapped data key from
+`AUTHLING_KEYS`, and appends `AccountErasedEvent` with account OCC. Repeated
+purges and repeated completion attempts are safe. The request remains the retry
+authority if a reply is lost or the process stops. Processes on multiple
+replicas share both consumers; job record revisions, not consumer cursors,
+coordinate execution. Errors do not include protected data.
 
 The account key vault does not cache unwrapped keys. Historical ciphertext and
 PII-free structure remain in the event stream. Workflow-key-encrypted email

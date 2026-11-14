@@ -15,6 +15,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 // ErrNotificationAlertSuppressed tells the durable worker that a last-moment
@@ -30,8 +31,6 @@ const (
 	notificationAlertMaxPending   = 16
 	notificationAlertAckWait      = time.Minute
 	notificationAlertRetryDelay   = 30 * time.Second
-	notificationAlertAckTimeout   = 5 * time.Second
-	notificationAlertHeartbeat    = 15 * time.Second
 	notificationAlertDeliveryTTL  = 2 * time.Minute
 )
 
@@ -41,6 +40,7 @@ const (
 type notificationAlertDelivery struct {
 	core                       *ChattoCore
 	consumer                   jetstream.Consumer
+	job                        *jobqueue.Effect
 	waitForMaterializerCurrent func(context.Context) error
 }
 
@@ -70,25 +70,23 @@ func (d *notificationAlertDelivery) initialize(ctx context.Context) error {
 		return fmt.Errorf("create notification alert consumer: %w", err)
 	}
 	d.consumer = consumer
-	return nil
+	// Stream limits can remove a signal before its job runs. reconcileExpired
+	// then closes the pending alert state, so a missing source needs no work.
+	d.job, err = d.core.newEffectJob(jobTypeNotificationAlertDelivery, d.core.storage.notificationStream, consumer, func(ctx context.Context, delivery events.DurableDelivery) error {
+		if err := d.core.notificationOccurrences.WaitReady(ctx); err != nil {
+			return err
+		}
+		return d.processDelivery(ctx, delivery)
+	}, jobqueue.EffectOptions{MaxAttempts: 5, RetryDelay: notificationAlertRetryDelay, SourceMayExpire: true})
+	return err
 }
 
 func (d *notificationAlertDelivery) run(ctx context.Context) error {
 	if err := d.core.notificationOccurrences.WaitReady(ctx); err != nil {
 		return fmt.Errorf("wait for notification projection before alert delivery: %w", err)
 	}
-	worker, err := evtstream.NewEffectWorker(d.consumer, d.processDelivery, evtstream.EffectWorkerOptions{
-		MaxConcurrent:     notificationAlertMaxPending,
-		RetryDelay:        notificationAlertRetryDelay,
-		AckTimeout:        notificationAlertAckTimeout,
-		HeartbeatInterval: notificationAlertHeartbeat,
-		Logger:            d.core.logger.WithPrefix("NotificationAlertWorker"),
-	})
-	if err != nil {
-		return fmt.Errorf("configure notification alert worker: %w", err)
-	}
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return worker.Run(gctx) })
+	g.Go(func() error { return d.job.RunSource(gctx) })
 	g.Go(func() error { return d.reconcileExpired(gctx) })
 	return g.Wait()
 }

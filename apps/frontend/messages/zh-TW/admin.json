@@ -580,6 +580,34 @@
         "revoked": "已撤銷",
         "used": "已使用"
       }
+    },
+    "jobs": {
+      "title": "工作",
+      "subtitle": "檢視背景工作並重試失敗的工作。",
+      "load_failed": "無法載入工作。",
+      "retry_failed": "無法重試此工作。",
+      "webhook": "Webhook 傳送",
+      "media": "媒體處理",
+      "asset_cleanup": "檔案清理",
+      "call_key_cleanup": "刪除通話金鑰",
+      "push_subscription_cleanup": "清理推播訂閱",
+      "user_key_shredding": "刪除帳號金鑰",
+      "notification_alert": "通知提醒",
+      "queued": "排隊中",
+      "running": "執行中",
+      "succeeded": "成功",
+      "failed": "失敗",
+      "empty": "尚無工作",
+      "attempts": "嘗試次數",
+      "updated": "更新時間",
+      "next_attempt": "下次嘗試",
+      "expired": "此工作已過期，無法重試。",
+      "job": "工作",
+      "created": "建立時間",
+      "details": "詳細資料",
+      "detail_subtitle": "此工作的狀態、嘗試次數與最近一次失敗原因。",
+      "not_found": "此工作已不存在。",
+      "all": "全部"
     }
   }
 }

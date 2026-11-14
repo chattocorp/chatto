@@ -602,6 +602,34 @@
         "revoked": "Atsaukta",
         "used": "Izmantots"
       }
+    },
+    "jobs": {
+      "title": "Uzdevumi",
+      "subtitle": "Skatiet fona uzdevumus un atkārtojiet neizdevušos uzdevumus.",
+      "load_failed": "Neizdevās ielādēt uzdevumus.",
+      "retry_failed": "Neizdevās atkārtot šo uzdevumu.",
+      "webhook": "Tīmekļa aizķeres piegāde",
+      "media": "Multivides apstrāde",
+      "asset_cleanup": "Failu tīrīšana",
+      "call_key_cleanup": "Zvanu atslēgu dzēšana",
+      "push_subscription_cleanup": "Push abonementu tīrīšana",
+      "user_key_shredding": "Konta atslēgu dzēšana",
+      "notification_alert": "Paziņojuma brīdinājums",
+      "queued": "Rindā",
+      "running": "Darbojas",
+      "succeeded": "Pabeigts",
+      "failed": "Neizdevās",
+      "empty": "Uzdevumu vēl nav",
+      "attempts": "Mēģinājumi",
+      "updated": "Atjaunināts",
+      "next_attempt": "Nākamais mēģinājums",
+      "expired": "Šī uzdevuma termiņš ir beidzies, un to nevar atkārtot.",
+      "job": "Uzdevums",
+      "created": "Izveidots",
+      "details": "Informācija",
+      "detail_subtitle": "Šī uzdevuma statuss, mēģinājumi un pēdējais kļūmes iemesls.",
+      "not_found": "Šis uzdevums vairs nepastāv.",
+      "all": "Visi"
     }
   }
 }

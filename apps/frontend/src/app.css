@@ -2425,6 +2425,22 @@
   }
 }
 
+/* Braille activity spinner. The frame column moves up one frame per step. */
+@utility braille-spinner {
+  animation: braille-spinner 800ms steps(10) infinite;
+  /* Follow Chatto's motion setting, which already resolves the system default.
+     The global reduced rule would end on an empty frame, so show the first. */
+  :where([data-motion='reduced']) & {
+    animation: none;
+  }
+}
+
+@keyframes braille-spinner {
+  to {
+    transform: translateY(-100%);
+  }
+}
+
 /* Timeline loading indicator. The reveal waits briefly, so fast loads do not
    flash the dots. */
 @utility loading-dots {

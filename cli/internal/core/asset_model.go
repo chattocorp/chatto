@@ -13,6 +13,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -28,8 +29,6 @@ const (
 	assetCleanupMaxPending   = 16
 	assetCleanupAckWait      = 2 * time.Minute
 	assetCleanupRetryDelay   = 30 * time.Second
-	assetCleanupHeartbeat    = 30 * time.Second
-	assetCleanupAckTimeout   = 5 * time.Second
 	assetCommitCheckTimeout  = 5 * time.Second
 	maxAssetMutationAttempts = 5
 )
@@ -49,7 +48,7 @@ type AssetModel struct {
 	*ChattoCore
 	assets                events.ProjectionHandle[*AssetProjection]
 	cleanupConsumer       jetstream.Consumer
-	cleanupWorker         *events.DurableWorker
+	cleanupWorker         *jobqueue.Effect
 	waitForAssetsOverride func(context.Context, events.StreamPosition) error
 }
 

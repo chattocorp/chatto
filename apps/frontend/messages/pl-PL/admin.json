@@ -613,6 +613,34 @@
         "revoked": "Unieważniony",
         "used": "Użyty"
       }
+    },
+    "jobs": {
+      "title": "Zadania",
+      "subtitle": "Przeglądaj zadania w tle i ponawiaj nieudane zadania.",
+      "load_failed": "Nie udało się wczytać zadań.",
+      "retry_failed": "Nie udało się ponowić tego zadania.",
+      "webhook": "Dostarczenie webhooka",
+      "media": "Przetwarzanie multimediów",
+      "asset_cleanup": "Czyszczenie plików",
+      "call_key_cleanup": "Usuwanie kluczy połączeń",
+      "push_subscription_cleanup": "Czyszczenie subskrypcji push",
+      "user_key_shredding": "Usuwanie kluczy konta",
+      "notification_alert": "Alert powiadomienia",
+      "queued": "W kolejce",
+      "running": "W toku",
+      "succeeded": "Ukończone",
+      "failed": "Nieudane",
+      "empty": "Nie ma jeszcze zadań",
+      "attempts": "Próby",
+      "updated": "Zaktualizowano",
+      "next_attempt": "Następna próba",
+      "expired": "To zadanie wygasło i nie można go ponowić.",
+      "job": "Zadanie",
+      "created": "Utworzono",
+      "details": "Szczegóły",
+      "detail_subtitle": "Stan, próby i ostatnia przyczyna błędu tego zadania.",
+      "not_found": "To zadanie już nie istnieje.",
+      "all": "Wszystkie"
     }
   }
 }

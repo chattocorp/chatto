@@ -591,6 +591,34 @@
         "revoked": "Trukket tilbake",
         "used": "Brukt"
       }
+    },
+    "jobs": {
+      "title": "Jobber",
+      "subtitle": "Se bakgrunnsjobber og prøv mislykkede jobber på nytt.",
+      "load_failed": "Kunne ikke laste inn jobber.",
+      "retry_failed": "Kunne ikke prøve denne jobben på nytt.",
+      "webhook": "Webhook-levering",
+      "media": "Mediebehandling",
+      "asset_cleanup": "Filopprydding",
+      "call_key_cleanup": "Sletting av samtalenøkler",
+      "push_subscription_cleanup": "Opprydding av push-abonnementer",
+      "user_key_shredding": "Sletting av kontonøkler",
+      "notification_alert": "Varselvarsling",
+      "queued": "I kø",
+      "running": "Kjører",
+      "succeeded": "Fullført",
+      "failed": "Mislykket",
+      "empty": "Ingen jobber ennå",
+      "attempts": "Forsøk",
+      "updated": "Oppdatert",
+      "next_attempt": "Neste forsøk",
+      "expired": "Denne jobben har utløpt og kan ikke prøves på nytt.",
+      "job": "Jobb",
+      "created": "Opprettet",
+      "details": "Detaljer",
+      "detail_subtitle": "Status, forsøk og siste feilårsak for denne jobben.",
+      "not_found": "Denne jobben finnes ikke lenger.",
+      "all": "Alle"
     }
   }
 }

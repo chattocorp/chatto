@@ -17,6 +17,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 // ============================================================================
@@ -27,6 +28,14 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
+	jobs                *jobqueue.Queue
+	jobsConsumer        jetstream.Consumer
+	mediaSourceConsumer jetstream.Consumer
+	mediaJobsConsumer   jetstream.Consumer
+	mediaJobHandler     func(context.Context, string, string) error
+	mediaJobConcurrency int
+	effectJobs          map[string]*jobqueue.Effect // Registered during construction; read-only after Run starts.
+
 	botWebhooks               *botWebhookModel
 	nc                        *nats.Conn
 	js                        jetstream.JetStream
@@ -222,6 +231,8 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
 	g.Go(func() error { return c.notificationAlertDelivery.run(gctx) })
 	g.Go(func() error { return c.botWebhooks.run(gctx) })
+	g.Go(func() error { return c.runJobs(gctx) })
+	g.Go(func() error { return c.runMediaJobSource(gctx) })
 	g.Go(func() error { return c.pushSubscriptionCleanup.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })

@@ -50,7 +50,8 @@
         "composer": "Izvēlieties ziņojumu redaktoru un ziņojumu sūtīšanas veidu.",
         "voice": "Iestatiet mikrofonu, skaļruņus un zvanu preferences.",
         "system": "Pārbaudiet servera stāvokli, krātuvi un fona uzdevumus.",
-        "event_log": "Pārlūkojiet servera notikumus un izpētiet izmaiņas."
+        "event_log": "Pārlūkojiet servera notikumus un izpētiet izmaiņas.",
+        "jobs": "Skatiet fona uzdevumus un atkārtojiet neizdevušos uzdevumus."
       },
       "title": "Pārskats",
       "shield_notice": "Lai izmantotu papildu atļaujas šajā serverī, aktivizējiet privileģēto režīmu ar vairoga pogu blakus savam vārdam."

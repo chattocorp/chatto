@@ -1,0 +1,114 @@
+syntax = "proto3";
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// Execution state of a background job. External effects can occur more than once.
+enum JobStatus {
+  // Unknown state; clients must not enable actions.
+  JOB_STATUS_UNSPECIFIED = 0;
+  // Waiting for a worker or a scheduled retry.
+  JOB_STATUS_QUEUED = 1;
+  // An attempt is in progress, or awaits recovery after an interrupted worker.
+  JOB_STATUS_RUNNING = 2;
+  // The handler completed its work or found that no work remained necessary.
+  JOB_STATUS_SUCCEEDED = 3;
+  // Automatic attempts stopped. The failure remains available for inspection.
+  JOB_STATUS_FAILED = 4;
+}
+
+// Whether the current viewer can retry this job now.
+enum RetryJobState {
+  // Unknown availability; clients must disable retry.
+  RETRY_JOB_STATE_UNSPECIFIED = 0;
+  // Retry is available. It may repeat an external effect.
+  RETRY_JOB_STATE_ALLOWED = 1;
+  // The job has not failed.
+  RETRY_JOB_STATE_NOT_FAILED = 2;
+  // The original delivery deadline has passed and cannot be renewed.
+  RETRY_JOB_STATE_EXPIRED = 3;
+}
+
+// Safe administrative job summary. Content, credentials, and internal payloads
+// are never returned. Requires server.manage, including privileged mode.
+message Job {
+  // Stable opaque job ID, preserved across manual retries.
+  string id = 1;
+  // Registered work type: webhook, media, asset_cleanup, call_key_cleanup,
+  // push_subscription_cleanup, user_key_shredding, or notification_alert.
+  // Clients can encounter future types.
+  string type = 2;
+  // Current execution state.
+  JobStatus status = 3;
+  // Attempts in the current manual retry generation, including interrupted attempts.
+  uint32 attempts = 4;
+  // Maximum automatic attempts in each generation.
+  uint32 max_attempts = 5;
+  // Initial durable acceptance time.
+  google.protobuf.Timestamp created_at = 6;
+  // Most recent state change or progress heartbeat.
+  google.protobuf.Timestamp updated_at = 7;
+  // Earliest next automatic attempt, when queued.
+  google.protobuf.Timestamp next_attempt_at = 8;
+  // Safe failure category, without exception text or external response content.
+  string failure = 9;
+  // Current retry availability. Absence means the server did not report it.
+  optional RetryJobState retry_state = 10;
+  // Opaque version of this attempt budget. Send unchanged when retrying.
+  // A manual retry changes the version; automatic attempts do not.
+  string retry_version = 11;
+}
+
+// Request for a bounded page. Jobs are ordered by last update, newest first.
+message ListJobsRequest {
+  // Page size: zero selects 50; the maximum is 200.
+  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
+  // Opaque token returned by the previous page, bound to this viewer and
+  // status filter.
+  string page_token = 2;
+  // Returns only jobs in this state. Unspecified returns every job.
+  JobStatus status = 3;
+}
+// A live page, not an atomic snapshot. Refresh to see state changes and new work.
+message ListJobsResponse {
+  // Current summaries.
+  repeated Job jobs = 1;
+  // Empty when there are no more jobs in this traversal.
+  string next_page_token = 2;
+}
+// Request for one job.
+message GetJobRequest {
+  // Required stable job ID.
+  string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+}
+// Current job summary.
+message GetJobResponse {
+  // Requested job.
+  Job job = 1;
+}
+// Request to start a new attempt budget for a failed, unexpired job.
+message RetryJobRequest {
+  // Required stable job ID. Concurrent requests cannot queue two generations.
+  string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  // Version from the failed Job. Rejects stale actions even if a newer budget
+  // has already failed. It is not a request ID or a storage coordinate.
+  string retry_version = 2 [(buf.validate.field).string.len = 64];
+}
+// Accepted retry. The worker can have started before this response arrives.
+message RetryJobResponse {
+  // Job after durable retry acceptance.
+  Job job = 1;
+}
+// Administrative background-job inspection and recovery.
+service JobsService {
+  // Lists jobs. Requires server.manage, including privileged mode.
+  // This call does not subscribe or poll; callers refresh explicitly.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+  // Gets a job. Requires server.manage, including privileged mode.
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+  // Retries a failed job. Requires server.manage, including privileged mode.
+  // Returns FAILED_PRECONDITION for active, successful, or expired jobs.
+  // A lost response does not cancel an accepted retry. Read the job before retrying.
+  rpc RetryJob(RetryJobRequest) returns (RetryJobResponse);
+}

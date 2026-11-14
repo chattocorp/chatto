@@ -591,6 +591,34 @@
         "revoked": "Tühistatud",
         "used": "Kasutatud"
       }
+    },
+    "jobs": {
+      "title": "Tööd",
+      "subtitle": "Vaadake taustatöid ja proovige ebaõnnestunud töid uuesti.",
+      "load_failed": "Töid ei saanud laadida.",
+      "retry_failed": "Seda tööd ei saanud uuesti proovida.",
+      "webhook": "Veebikonksu edastamine",
+      "media": "Meedia töötlemine",
+      "asset_cleanup": "Failide puhastamine",
+      "call_key_cleanup": "Kõnevõtmete kustutamine",
+      "push_subscription_cleanup": "Push-tellimuste puhastamine",
+      "user_key_shredding": "Kontovõtmete kustutamine",
+      "notification_alert": "Teavituse hoiatus",
+      "queued": "Järjekorras",
+      "running": "Töös",
+      "succeeded": "Õnnestus",
+      "failed": "Ebaõnnestus",
+      "empty": "Töid veel pole",
+      "attempts": "Katsed",
+      "updated": "Uuendatud",
+      "next_attempt": "Järgmine katse",
+      "expired": "See töö on aegunud ja seda ei saa uuesti proovida.",
+      "job": "Töö",
+      "created": "Loodud",
+      "details": "Üksikasjad",
+      "detail_subtitle": "Selle töö olek, katsed ja viimane tõrke põhjus.",
+      "not_found": "Seda tööd enam ei ole.",
+      "all": "Kõik"
     }
   }
 }

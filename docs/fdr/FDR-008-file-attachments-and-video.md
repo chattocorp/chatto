@@ -35,7 +35,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - The attachment viewer opens and closes with a short zoom and fade. Reduced
   motion disables the effect.
 - Right-clicking an image attachment in a message opens the message menu with **Copy Image**. It copies the displayed image as PNG. Other message menu actions remain available. The image URL is not offered as a copy action because it contains a temporary access ticket.
-- When enabled, videos and animated GIFs are processed by durable `asset-processing` runtime-unit workers. The processing marker commits atomically with the owning message, so a rejected message cannot create work and an accepted message remains queued while workers are offline. Workers may run inside `chatto run` or as separate `chatto asset-processing` processes.
+- When enabled, videos and animated GIFs are processed as durable background jobs. The processing marker commits atomically with the owning message, so a rejected message cannot create work and an accepted message remains queued while workers are offline. Workers may run inside `chatto run` or as separate `chatto asset-processing` processes.
 - Processing status: durable STARTED / COMPLETED / FAILED outcomes are stored as asset aggregate events (`evt.asset.{assetId}.*`) and delivered through the normal live EVT subscription path after room-membership authorization and the applicable message-read check for the owning thread. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos keep the original message visible and show a processing-failed state, while the retained original remains available through the attachment's original/download action.
 - Processed video dimensions are display dimensions used for layout, not necessarily raw encoded storage pixels. Non-square-pixel and rotated sources should render in their intended orientation and aspect ratio. The room timeline displays every posted video uncropped at its measured aspect ratio, including unusual near-square dimensions and converted animated GIF loops. The player canvas is bounded to the available timeline width and a maximum height; for ratios beyond 9:16 or 16:9, it uses letterboxing so playback controls remain usable without cropping the video. Video previews include a picture-in-picture control when the browser supports it. Preview actions sit in a visible row below the content, inside the frame rim. Google Cast, PiP, and fullscreen stay inside the video player. Video previews have no separate viewer opener. Permitted description and delete actions stay visible in the footer on all devices. Readers without these permissions see no footer. Viewing, description, and delete commands stay directly accessible as icons. In footers with viewing actions, those actions sit on the left; permitted description and delete actions sit on the right. RTL layouts mirror these groups. Narrow action rows can wrap.
 - A thumbnail is generated from an early video frame using the same display dimensions, so non-square-pixel sources do not persist squished or pillarboxed poster images.
@@ -75,11 +75,16 @@ Each chunk request has a 60-second client deadline. After a timeout, the client 
 **Why:** Self-hosters running a single binary shouldn't have to spin up S3 just to send a screenshot. Larger operators need durable, replicated object storage. Supporting both lets us serve both ends of the spectrum. See ADR-021.
 **Tradeoff:** Migration between backends or S3 prefixes is operator-managed. Stored asset keys remain prefix-free so moving objects between S3 base paths does not require rewriting Chatto metadata. Ordinary NATS-backed files still use complete non-seekable responses, but processed videos use bounded HLS segments and are seekable on either backend.
 
-### 3. Video processing uses an EVT-backed durable worker queue
+### 3. Video processing uses durable background jobs
 
-**Decision:** `AssetProcessingStartedEvent` is both the user-visible PENDING fact and the durable work item. It is appended atomically with the owning message and consumed by one shared JetStream pull consumer across all `asset-processing` runtime-unit replicas. A worker acknowledges only after projecting a terminal succeeded, failed, or deleted state. See ADR-066.
-**Why:** Processing is an asynchronous obligation rather than a synchronous service request. Keeping the request in EVT avoids an outbox gap, while a durable consumer supplies distribution, redelivery, backpressure, and offline-worker tolerance without making message posting depend on worker availability.
-**Tradeoff:** Delivery is at least once, so workers can repeat external ffmpeg/storage work after an interruption. Terminal-event OCC prevents manifest replacement, but interrupted or losing attempts can still leave unused derivative objects until durable failed-generation cleanup is added. Pre-queue histories receive a bounded startup backfill for messages with no processing marker.
+**Decision:** Accepted message work survives restart and worker outages. Media
+processing uses the shared job system. It can run inside the server process or
+in a standalone media process. A terminal attachment outcome completes its job,
+including a failed conversion or deletion. See ADR-123 and FDR-056.
+**Why:** Common queue controls let operators inspect and recover worker failures.
+**Tradeoff:** Media shares server worker capacity with other jobs. Interrupted
+attempts can repeat processing, so the existing terminal asset rules still
+control the published result.
 
 ### 4. Animated GIFs go through the video pipeline
 
@@ -206,5 +211,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration)
+- **ADRs:** ADR-123, ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-034 (Chatto Desktop), FDR-039 (Message Access & Interactions)

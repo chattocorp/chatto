@@ -1,0 +1,24 @@
+syntax = "proto3";
+package chatto.core.runtime_state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// Webhook delivery references and immutable source-time policy. Credentials and
+// message content are loaded through current authorization on every attempt.
+message WebhookJob {
+  string bot_user_id = 1;
+  string webhook_id = 2;
+  string source_event_id = 3;
+  string room_id = 4;
+  uint64 configuration_sequence = 5;
+  repeated string triggers = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+}
+
+// Media processing references. The asset projection owns the terminal outcome.
+message MediaJob {
+  string asset_id = 1;
+  string message_event_id = 2;
+}

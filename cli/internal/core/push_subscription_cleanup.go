@@ -19,15 +19,14 @@ import (
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const (
-	pushSubscriptionCleanupConsumerName       = "chatto-user-push-subscription-cleanup-v1"
-	pushSubscriptionCleanupConsumerAckWait    = 2 * time.Minute
-	pushSubscriptionCleanupDeliveryHeartbeat  = 30 * time.Second
-	pushSubscriptionCleanupRetryDelay         = 30 * time.Second
-	pushSubscriptionCleanupAcknowledgeTimeout = 5 * time.Second
-	pushSubscriptionCleanupMaxPending         = 16
+	pushSubscriptionCleanupConsumerName    = "chatto-user-push-subscription-cleanup-v1"
+	pushSubscriptionCleanupConsumerAckWait = 2 * time.Minute
+	pushSubscriptionCleanupRetryDelay      = 30 * time.Second
+	pushSubscriptionCleanupMaxPending      = 16
 
 	pushSubscriptionReconcileEvery     = 15 * time.Second
 	pushSubscriptionReconcileLeaseTTL  = time.Minute
@@ -42,7 +41,7 @@ const (
 // records without replaying a global scan for every deleted account.
 type pushSubscriptionCleanupModel struct {
 	core           *ChattoCore
-	worker         *events.DurableWorker
+	worker         *jobqueue.Effect
 	reconcileLease *lease.Lease
 	logger         *log.Logger
 	deleteAllFn    func(context.Context, string) (int, error)
@@ -71,13 +70,7 @@ func newPushSubscriptionCleanupModel(
 		logger:         logger,
 		deleteAllFn:    core.DeleteAllUserPushSubscriptions,
 	}
-	model.worker, err = evtstream.NewEffectWorker(consumer, model.processDelivery, evtstream.EffectWorkerOptions{
-		MaxConcurrent:     pushSubscriptionCleanupMaxPending,
-		RetryDelay:        pushSubscriptionCleanupRetryDelay,
-		AckTimeout:        pushSubscriptionCleanupAcknowledgeTimeout,
-		HeartbeatInterval: pushSubscriptionCleanupDeliveryHeartbeat,
-		Logger:            logger,
-	})
+	model.worker, err = core.newEffectJob(jobTypePushSubscriptionCleanup, core.storage.serverEvtStream, consumer, model.processDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: pushSubscriptionCleanupRetryDelay})
 	if err != nil {
 		return nil, fmt.Errorf("configure user push-subscription cleanup worker: %w", err)
 	}
@@ -86,7 +79,7 @@ func newPushSubscriptionCleanupModel(
 
 func (m *pushSubscriptionCleanupModel) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return m.worker.Run(gctx) })
+	g.Go(func() error { return m.worker.RunSource(gctx) })
 	g.Go(func() error {
 		m.runReconciler(gctx)
 		return nil

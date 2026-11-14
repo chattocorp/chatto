@@ -2,225 +2,65 @@ package video
 
 import (
 	"context"
-	"errors"
 	"io"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/chattocorp/chatto/cli/internal/core"
-	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
-	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
-type fakeProcessingRuntime struct {
-	mu    sync.Mutex
-	state core.AssetState
-	waits int
-}
-
-func (r *fakeProcessingRuntime) WaitForEvent(context.Context, string, uint64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.waits++
-	return nil
-}
-
-func (r *fakeProcessingRuntime) AssetState(string) core.AssetState {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.state
-}
-
-func (r *fakeProcessingRuntime) setTerminal() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.state.VideoManifest = &core.VideoAttachmentManifest{Failed: &evtv1.AssetProcessingFailedEvent{AssetId: "A-video"}}
-}
-
-type fakeAssetProcessor struct {
-	process func(context.Context, string, string) error
-	calls   int
-}
-
-func (p *fakeAssetProcessor) ProcessAsset(ctx context.Context, assetID, messageID string) error {
-	p.calls++
-	return p.process(ctx, assetID, messageID)
-}
-
-func processingDelivery(t *testing.T) events.DurableDelivery {
-	t.Helper()
-	event := &evtv1.Event{
-		Id: "E-request",
-		Event: &evtv1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
-				AssetId:        "A-video",
-				MessageEventId: "E-message",
-			},
-		},
-	}
-	data, err := proto.Marshal(event)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return events.DurableDelivery{
-		Subject:        "evt.asset.A-video.asset_processing_started",
-		Data:           data,
-		StreamSequence: 42,
-	}
-}
-
-func TestProcessDeliveryAcknowledgesOnlyAfterTerminalState(t *testing.T) {
-	runtime := &fakeProcessingRuntime{}
-	processor := &fakeAssetProcessor{process: func(context.Context, string, string) error {
-		runtime.setTerminal()
-		return errors.New("terminal failure already recorded")
-	}}
-	msg := processingDelivery(t)
-
-	err := processDelivery(context.Background(), msg, runtime, processor, log.New(io.Discard))
-
-	if processor.calls != 1 || runtime.waits != 1 {
-		t.Fatalf("processor calls = %d, projection waits = %d; want 1, 1", processor.calls, runtime.waits)
-	}
-	if err != nil {
-		t.Fatalf("processDelivery = %v, want successful terminal result", err)
-	}
-}
-
-func TestProcessDeliveryNaksRetryableWork(t *testing.T) {
-	runtime := &fakeProcessingRuntime{}
-	processor := &fakeAssetProcessor{process: func(context.Context, string, string) error {
-		return errors.New("temporary failure")
-	}}
-	msg := processingDelivery(t)
-
-	err := processDelivery(context.Background(), msg, runtime, processor, log.New(io.Discard))
-
-	if err == nil || err.Error() != "temporary failure" {
-		t.Fatalf("processDelivery = %v, want temporary failure", err)
-	}
-}
-
-func TestAssetProcessingConsumerHandsOffUnackedWork(t *testing.T) {
+func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
+	ctx := t.Context()
 	js, err := jetstream.New(nc)
-	if err != nil {
-		t.Fatal(err)
+	require.NoError(t, err)
+	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, MaxMsgsPerSubject: 1})
+	require.NoError(t, err)
+	_, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", LimitMarkerTTL: time.Hour})
+	require.NoError(t, err)
+	queue, consumer, err := openJobs(ctx, runtimeunit.Env{NC: nc, JS: js, Logger: log.New(io.Discard)})
+	require.NoError(t, err)
+	payload, err := proto.Marshal(&statev1.MediaJob{AssetId: "asset", MessageEventId: "message"})
+	require.NoError(t, err)
+	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "media-job", Type: "media", Payload: payload, MaxAttempts: 5, RetryDelay: time.Second}))
+	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "webhook-job", Type: "webhook", MaxAttempts: 3, RetryDelay: time.Second}))
+	processed := make(chan *statev1.MediaJob, 1)
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() {
+		done <- queue.Work(runCtx, consumer, map[string]jobqueue.Handler{"media": func(_ context.Context, job jobqueue.Job) error {
+			request := new(statev1.MediaJob)
+			err := proto.Unmarshal(job.Payload, request)
+			processed <- request
+			return err
+		}}, 1)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			require.NoError(t, err)
+		case <-time.After(3 * time.Second):
+			t.Error("standalone worker did not stop")
+		}
+	})
+	select {
+	case request := <-processed:
+		require.Equal(t, "asset", request.AssetId)
+		require.Equal(t, "message", request.MessageEventId)
+	case <-time.After(3 * time.Second):
+		t.Fatal("media not processed")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	t.Cleanup(cancel)
-	if _, err := js.CreateStream(ctx, jetstream.StreamConfig{
-		Name:     "EVT",
-		Subjects: []string{"evt.>"},
-		Storage:  jetstream.MemoryStorage,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	firstWorker, err := createConsumer(ctx, js)
-	if err != nil {
-		t.Fatal(err)
-	}
-	secondWorker, err := createConsumer(ctx, js)
-	if err != nil {
-		t.Fatal(err)
-	}
-	event := &evtv1.Event{
-		Id: "E-request",
-		Event: &evtv1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
-				AssetId:        "A-video",
-				MessageEventId: "E-message",
-			},
-		},
-	}
-	data, err := proto.Marshal(event)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := js.Publish(ctx, evtstream.AssetAggregate("A-video").SubjectFor(event), data); err != nil {
-		t.Fatal(err)
-	}
-
-	first := fetchOne(t, firstWorker)
-	if err := first.Nak(); err != nil {
-		t.Fatal(err)
-	}
-	second := fetchOne(t, secondWorker)
-	if string(second.Data()) != string(data) {
-		t.Fatal("second worker did not receive the negatively acknowledged work item")
-	}
-	if err := second.DoubleAck(ctx); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestAssetProcessingConsumerConsumesLegacyRoomMarker(t *testing.T) {
-	_, nc := testutil.StartNATS(t)
-	js, err := jetstream.New(nc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	t.Cleanup(cancel)
-	if _, err := js.CreateStream(ctx, jetstream.StreamConfig{
-		Name:     "EVT",
-		Subjects: []string{"evt.>"},
-		Storage:  jetstream.MemoryStorage,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	consumer, err := createConsumer(ctx, js)
-	if err != nil {
-		t.Fatal(err)
-	}
-	event := &evtv1.Event{
-		Id: "E-legacy-request",
-		Event: &evtv1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
-				AssetId:        "A-legacy-video",
-				MessageEventId: "E-legacy-message",
-			},
-		},
-	}
-	data, err := proto.Marshal(event)
-	if err != nil {
-		t.Fatal(err)
-	}
-	legacySubject := evtstream.RoomAggregate("R-legacy").SubjectFor(event)
-	if _, err := js.Publish(ctx, legacySubject, data); err != nil {
-		t.Fatal(err)
-	}
-
-	delivery := fetchOne(t, consumer)
-	if delivery.Subject() != legacySubject {
-		t.Fatalf("delivery subject = %q, want %q", delivery.Subject(), legacySubject)
-	}
-	if err := delivery.DoubleAck(ctx); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func fetchOne(t *testing.T, consumer jetstream.Consumer) jetstream.Msg {
-	t.Helper()
-	batch, err := consumer.Fetch(1, jetstream.FetchMaxWait(5*time.Second))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for msg := range batch.Messages() {
-		return msg
-	}
-	if err := batch.Error(); err != nil {
-		t.Fatal(err)
-	}
-	t.Fatal("consumer returned no work")
-	return nil
+	job, err := queue.Get(ctx, "webhook-job")
+	require.NoError(t, err)
+	require.Equal(t, jobqueue.Queued, job.Status)
+	require.Zero(t, job.Attempts)
 }

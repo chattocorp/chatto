@@ -591,6 +591,34 @@
         "revoked": "Återkallad",
         "used": "Använd"
       }
+    },
+    "jobs": {
+      "title": "Jobb",
+      "subtitle": "Visa bakgrundsjobb och försök igen med misslyckade jobb.",
+      "load_failed": "Det gick inte att läsa in jobb.",
+      "retry_failed": "Det gick inte att försöka med jobbet igen.",
+      "webhook": "Webhook-leverans",
+      "media": "Mediebearbetning",
+      "asset_cleanup": "Filrensning",
+      "call_key_cleanup": "Radering av samtalsnycklar",
+      "push_subscription_cleanup": "Rensning av push-prenumerationer",
+      "user_key_shredding": "Radering av kontonycklar",
+      "notification_alert": "Aviseringsvarning",
+      "queued": "Köat",
+      "running": "Körs",
+      "succeeded": "Slutfört",
+      "failed": "Misslyckat",
+      "empty": "Inga jobb ännu",
+      "attempts": "Försök",
+      "updated": "Uppdaterat",
+      "next_attempt": "Nästa försök",
+      "expired": "Jobbet har gått ut och kan inte köras igen.",
+      "job": "Jobb",
+      "created": "Skapat",
+      "details": "Detaljer",
+      "detail_subtitle": "Status, försök och senaste felorsak för det här jobbet.",
+      "not_found": "Det här jobbet finns inte längre.",
+      "all": "Alla"
     }
   }
 }

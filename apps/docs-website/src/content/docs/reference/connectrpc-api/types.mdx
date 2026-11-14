@@ -1739,6 +1739,27 @@ the code can use it; it is not bound to an email address or recipient.
 | `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
 | `note` | `string` | Optional creation-time note for the creator and invitation managers. Empty means no note. This does not restrict who can redeem the code. |
 
+<a id="chatto-admin-v1-Job"></a>
+
+### Job
+
+Safe administrative job summary. Content, credentials, and internal payloads
+are never returned. Requires server.manage, including privileged mode.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable opaque job ID, preserved across manual retries. |
+| `type` | `string` | Registered work type: webhook, media, asset_cleanup, call_key_cleanup, push_subscription_cleanup, user_key_shredding, or notification_alert. Clients can encounter future types. |
+| `status` | [`JobStatus`](#chatto-admin-v1-JobStatus) | Current execution state. |
+| `attempts` | `uint32` | Attempts in the current manual retry generation, including interrupted attempts. |
+| `max_attempts` | `uint32` | Maximum automatic attempts in each generation. |
+| `created_at` | `google.protobuf.Timestamp` | Initial durable acceptance time. |
+| `updated_at` | `google.protobuf.Timestamp` | Most recent state change or progress heartbeat. |
+| `next_attempt_at` | `google.protobuf.Timestamp` | Earliest next automatic attempt, when queued. |
+| `failure` | `string` | Safe failure category, without exception text or external response content. |
+| `retry_state` | optional [`RetryJobState`](#chatto-admin-v1-RetryJobState) | Current retry availability. Absence means the server did not report it. |
+| `retry_version` | `string` | Opaque version of this attempt budget. Send unchanged when retrying. A manual retry changes the version; automatic attempts do not. |
+
 <a id="chatto-admin-v1-AdminRole"></a>
 
 ### AdminRole
@@ -2487,6 +2508,33 @@ Current state of a single-use registration code.
 | `INVITATION_CODE_STATUS_EXPIRED` | `2` | No value description provided. |
 | `INVITATION_CODE_STATUS_USED` | `3` | No value description provided. |
 | `INVITATION_CODE_STATUS_REVOKED` | `4` | No value description provided. |
+
+<a id="chatto-admin-v1-JobStatus"></a>
+
+### JobStatus
+
+Execution state of a background job. External effects can occur more than once.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `JOB_STATUS_UNSPECIFIED` | `0` | Unknown state; clients must not enable actions. |
+| `JOB_STATUS_QUEUED` | `1` | Waiting for a worker or a scheduled retry. |
+| `JOB_STATUS_RUNNING` | `2` | An attempt is in progress, or awaits recovery after an interrupted worker. |
+| `JOB_STATUS_SUCCEEDED` | `3` | The handler completed its work or found that no work remained necessary. |
+| `JOB_STATUS_FAILED` | `4` | Automatic attempts stopped. The failure remains available for inspection. |
+
+<a id="chatto-admin-v1-RetryJobState"></a>
+
+### RetryJobState
+
+Whether the current viewer can retry this job now.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `RETRY_JOB_STATE_UNSPECIFIED` | `0` | Unknown availability; clients must disable retry. |
+| `RETRY_JOB_STATE_ALLOWED` | `1` | Retry is available. It may repeat an external effect. |
+| `RETRY_JOB_STATE_NOT_FAILED` | `2` | The job has not failed. |
+| `RETRY_JOB_STATE_EXPIRED` | `3` | The original delivery deadline has passed and cannot be renewed. |
 
 <a id="chatto-admin-v1-OauthClientPolicy"></a>
 

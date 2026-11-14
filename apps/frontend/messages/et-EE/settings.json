@@ -50,7 +50,8 @@
         "composer": "Valige sõnumiredaktor ja sõnumite saatmise viis.",
         "voice": "Seadistage mikrofon, kõlarid ja kõneeelistused.",
         "system": "Kontrollige serveri seisundit, salvestusruumi ja taustaülesandeid.",
-        "event_log": "Sirvige serverisündmusi ja uurige muudatusi."
+        "event_log": "Sirvige serverisündmusi ja uurige muudatusi.",
+        "jobs": "Vaadake taustatöid ja proovige ebaõnnestunud töid uuesti."
       },
       "title": "Ülevaade",
       "shield_notice": "Selles serveris oma lisaõiguste kasutamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga."

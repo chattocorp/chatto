@@ -147,6 +147,15 @@ export function getAdminNavItems({
     });
   }
 
+  if (permissions.canManageServer) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverSegment }),
+      label: m('chat.management_nav.jobs'),
+      description: m('settings.overview.descriptions.jobs'),
+      icon: 'iconify icon-[uil--process]'
+    });
+  }
+
   if (permissions.canAdminViewSystem) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/system', { serverId: serverSegment }),

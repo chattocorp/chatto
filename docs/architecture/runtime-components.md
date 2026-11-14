@@ -131,18 +131,19 @@ operations do not duplicate these outcomes.
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
   Generated derivatives bypass this user upload limit.
-  Durable asset-processing worker started by `[asset_processing].enabled` under
-  `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]`
-  also owns its ffmpeg paths, temporary directory, and per-process concurrency;
+  Standalone media job worker started explicitly as `chatto asset-processing`.
+  Embedded processing registers a handler in the core job pool when
+  `[asset_processing].enabled` is true. `[asset_processing]` owns ffmpeg paths,
+  temporary directory, and media concurrency;
   runs a private AssetProjection without starting `ChattoCore` or main-app boot
   mutations.
 - **`video.Service`** ([`service.go`](../../cli/internal/video/service.go),
   [`processor.go`](../../cli/internal/video/processor.go)): Synchronous
   video/animated-GIF processing attempts: source-rendition inspection and
   reuse preflight, fallback encoding with web-compatible stereo audio
-  normalization, aligned HLS segment packaging and upload, animated-GIF MP4 upload, and
-  terminal asset processing events; queue and concurrency remain owned by
-  `video.Unit`.
+  normalization, aligned HLS segment packaging and upload, animated-GIF MP4 upload,
+  and terminal asset processing events. The shared job pool owns embedded
+  execution, and `video.Unit` owns standalone execution.
 
 ## Event-sourcing framework and adapters
 
@@ -385,8 +386,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`UserKeyShreddingModel`**
   ([`user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go)):
   Request-before-destruction crypto-shredding, privacy-projection barriers,
-  synchronous idempotent completion, and shared durable recovery across
-  replicas.
+  synchronous idempotent completion, and durable recovery through
+  `user_key_shredding` jobs.
 - **`RBACModel`** ([`rbac_model.go`](../../cli/internal/core/rbac_model.go)):
   Sole core owner of RBAC projection reads and readiness for role, assignment,
   and permission authorization and writes.
@@ -418,7 +419,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   core owner of asset-projection reads and readiness; detached
   generation-consistent asset state; uploader-bound exclusive message
   attachments with asset-aggregate OCC; exact-owner deletion; processing
-  transitions, tombstones, and shared durable physical deletion.
+  transitions, tombstones, and physical deletion through `asset_cleanup` jobs.
 - **`AssetUploadModel`**
   ([`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)): Eagerly
   wired chunked attachment upload sessions, temporary object assembly,
@@ -477,19 +478,24 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   revoked, and telemetry failure does not affect credential authentication or
   the requested action.
 
-## Outbound bot webhooks
+## Background jobs and outbound bot webhooks
+
+[`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module runs bounded attempts
+from `JOBS`, owns runtime-state revision claims, and repairs missing dispatches
+through one filtered watcher. The core starts one shared pool with
+`core.job_concurrency` capacity (default eight). Embedded media also observes
+`asset_processing.max_concurrent_jobs`. Standalone media uses a filtered
+consumer and its own capacity.
+
+[`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,
+call-key cleanup, push-subscription cleanup, user-key shredding, and
+notification alert consumers onto the same pool. Each owning model keeps its
+handler; the source consumer only accepts jobs.
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
-selection and best-effort HTTP delivery. Core creates one shared durable EVT
-consumer before startup and runs it after boot. The source handler puts each
-destination into a process-local channel with 64 slots. Eight workers per
-process send requests and wait between retries. A full channel blocks source
-handoff. Shutdown cancels active requests and discards pending work.
-The [`management operations`](../../cli/internal/core/bot_webhooks.go) own
-bot-manager authorization, encrypted endpoint collections, and read-your-writes.
-User-aggregate OCC limits each bot to 20 endpoints. Each endpoint has fixed
-credentials and independent enabled state. Pause/resume advances its activation
-cutoff, so a resumed endpoint cannot send work from a previous enabled period.
+selection and one HTTP attempt. The durable EVT source persists each endpoint's
+job before acknowledgement. Retries and pending work survive restart. Current
+endpoint state and authorization remain per-attempt checks. See ADR-123.
 
 ## Operational log
 

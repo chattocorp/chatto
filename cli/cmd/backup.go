@@ -326,7 +326,7 @@ func orderBackupStreams(names []string) {
 			return 0
 		case natsresources.KeyValueStream(natsresources.RuntimeState):
 			return 1
-		case natsresources.Notifications:
+		case natsresources.Notifications, natsresources.Jobs:
 			return 2
 		default:
 			return 1

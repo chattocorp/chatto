@@ -50,7 +50,8 @@
         "composer": "Välj meddelanderedigerare och hur du skickar meddelanden.",
         "voice": "Ställ in mikrofon, högtalare och samtalsinställningar.",
         "system": "Kontrollera serverstatus, lagring och bakgrundsuppgifter.",
-        "event_log": "Utforska serverhändelser och undersök ändringar."
+        "event_log": "Utforska serverhändelser och undersök ändringar.",
+        "jobs": "Visa bakgrundsjobb och försök igen med misslyckade jobb."
       },
       "title": "Översikt",
       "shield_notice": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att använda dina extra behörigheter på den här servern."

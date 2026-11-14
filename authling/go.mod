@@ -20,6 +20,7 @@ require (
 	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
 	github.com/chattocorp/chatto/pkg/events v0.0.0
 	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/chattocorp/chatto/pkg/jobs v0.0.0
 	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 )
 
@@ -69,6 +70,8 @@ require (
 replace github.com/chattocorp/chatto/pkg/events => ../pkg/events
 
 replace github.com/chattocorp/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
+
+replace github.com/chattocorp/chatto/pkg/jobs => ../pkg/jobs
 
 replace github.com/chattocorp/chatto/pkg/appconfig => ../pkg/appconfig
 

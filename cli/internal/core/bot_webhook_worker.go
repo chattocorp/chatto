@@ -11,9 +11,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
+
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
@@ -21,7 +20,7 @@ import (
 	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	"golang.org/x/sync/errgroup"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -29,11 +28,10 @@ const (
 	botWebhookSourceConsumer = "chatto-bot-webhook-source-v1"
 	botWebhookRequestTimeout = 10 * time.Second
 	botWebhookConcurrency    = 8
-	botWebhookBuffer         = 64
 )
 
-// botWebhookDelivery is process-local work. It contains references and policy,
-// never message plaintext or endpoint credentials. Restart abandons this work.
+// botWebhookDelivery contains references and immutable policy, never message
+// plaintext or endpoint credentials. JOBS persists its protobuf equivalent.
 type botWebhookDelivery struct {
 	DeliveryID, BotUserID, WebhookID, SourceEventID, RoomID string
 	ConfigurationSequence                                   uint64 // Reject retries from a previous enabled period.
@@ -54,8 +52,6 @@ func (e *botWebhookAttemptFailure) Error() string { return e.reason }
 type botWebhookModel struct {
 	core           *ChattoCore
 	projection     events.ProjectionHandle[*botWebhookProjection]
-	deliveries     chan *botWebhookDelivery
-	pending        atomic.Int64 // Accepted or blocked handoffs and active deliveries; process-local only.
 	sourceConsumer jetstream.Consumer
 	client         *http.Client
 	now            func() time.Time
@@ -67,12 +63,12 @@ func newBotWebhookModel(c *ChattoCore, p events.ProjectionHandle[*botWebhookProj
 	client := linkpreview.NewSSRFSafeClientWithLocalhost(botWebhookRequestTimeout)
 	// Never forward credentials or a message body through an endpoint redirect.
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &botWebhookModel{core: c, projection: p, client: client, now: time.Now, deliveries: make(chan *botWebhookDelivery, botWebhookBuffer)}
+	return &botWebhookModel{core: c, projection: p, client: client, now: time.Now}
 }
 func (m *botWebhookModel) initialize(ctx context.Context) error {
 	var err error
 	m.sourceConsumer, err = evtstream.CreateEffectConsumer(ctx, m.core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
-		Name: botWebhookSourceConsumer, Description: "Best-effort outbound webhook handoff",
+		Name: botWebhookSourceConsumer, Description: "Durable outbound webhook job handoff",
 		FilterSubjects: []string{evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted)},
 		AckWait:        time.Minute, MaxAckPending: botWebhookConcurrency, DeliverPolicy: jetstream.DeliverAllPolicy,
 	})
@@ -91,68 +87,14 @@ func (m *botWebhookModel) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return worker.Run(ctx) })
-	for range botWebhookConcurrency {
-		g.Go(func() error {
-			for {
-				select {
-				case <-ctx.Done():
-					return nil
-				case delivery := <-m.deliveries:
-					m.runDelivery(ctx, delivery)
-					m.pending.Add(-1)
-				}
-			}
-		})
-	}
-	return g.Wait()
+	return worker.Run(ctx)
 }
 
-// enqueue applies backpressure without spawning goroutines. Once this handoff
-// succeeds, the EVT source may be acknowledged even though HTTP has not started.
+// enqueue confirms durable acceptance before the EVT source is acknowledged.
 func (m *botWebhookModel) enqueue(ctx context.Context, delivery *botWebhookDelivery) error {
-	m.pending.Add(1)
-	select {
-	case <-ctx.Done():
-		m.pending.Add(-1)
-		return ctx.Err()
-	case m.deliveries <- delivery:
-		return nil
-	}
+	return m.core.enqueueWebhookJob(ctx, delivery)
 }
 
-// runDelivery owns bounded retries and cancellable waits within one worker slot.
-// Shutdown discards unfinished work. Failure recording is also best effort.
-func (m *botWebhookModel) runDelivery(ctx context.Context, delivery *botWebhookDelivery) {
-	for attempt := uint64(1); ctx.Err() == nil; attempt++ {
-		err := m.deliver(ctx, delivery)
-		if err == nil || ctx.Err() != nil {
-			return
-		}
-		reason, status := "internal_error", 0
-		if failure, ok := errors.AsType[*botWebhookAttemptFailure](err); ok {
-			reason, status = failure.reason, failure.status
-		}
-		expired := !m.now().Before(delivery.ExpiresAt)
-		if expired {
-			reason = "expired"
-		}
-		if expired || attempt >= uint64(delivery.MaxAttempts) || reason == "invalid_request" {
-			if err := m.fail(ctx, delivery, uint32(attempt), reason, status); err != nil && ctx.Err() == nil {
-				m.core.logger.Warn("Could not record outbound webhook failure", "delivery_id", delivery.DeliveryID)
-			}
-			return
-		}
-		timer := time.NewTimer(max(0, min(webhookRetryDelay(delivery, attempt), delivery.ExpiresAt.Sub(m.now()))))
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return
-		case <-timer.C:
-		}
-	}
-}
 func botWebhookDeliveryID(botID, webhookID, eventID string) string {
 	sum := sha256.Sum256([]byte(botID + "\x00" + webhookID + "\x00" + eventID))
 	return hex.EncodeToString(sum[:])
@@ -181,9 +123,8 @@ func (m *botWebhookModel) syncSourceEndpoints(ctx context.Context, sourceSeq uin
 	return nil
 }
 
-// materialize hands destinations to the bounded process-local pool before
-// acknowledging EVT. Partial handoff or lost source acknowledgement can repeat
-// requests; stable delivery IDs let receivers detect duplicates.
+// materialize persists each destination before acknowledging EVT. Stable job
+// identities make partial fanout and lost source acknowledgement recoverable.
 func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDelivery) error {
 	e, err := decodeDurableCoreDelivery(d)
 	if err != nil {
@@ -204,7 +145,7 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 	if len(candidates) == 0 {
 		return nil
 	}
-	if err = m.core.WaitForProjectionsCurrent(ctx); err != nil {
+	if err := m.core.WaitForProjectionsCurrent(ctx); err != nil {
 		return err
 	}
 	kind, err := m.core.FindRoomKind(ctx, message.GetRoomId())
@@ -281,19 +222,13 @@ type botWebhookMessage struct {
 }
 
 func (m *botWebhookModel) deliver(ctx context.Context, r *botWebhookDelivery) error {
-	// A diagnostic read failure must not disable otherwise valid delivery.
-	logCtx, cancelLog := context.WithTimeout(ctx, 2*time.Second)
-	terminal, err := m.core.latestOperationalLog(logCtx, strings.TrimSuffix(botWebhookLogFilter(r.BotUserID, r.WebhookID), "*")+r.DeliveryID)
-	cancelLog()
-	if err == nil && terminal != nil {
-		return nil
-	}
 	if !m.now().Before(r.ExpiresAt) {
 		return &botWebhookAttemptFailure{reason: "expired"}
 	}
-	if err = m.core.WaitForProjectionsCurrent(ctx); err != nil {
+	if err := m.core.WaitForProjectionsCurrent(ctx); err != nil {
 		return err
 	}
+	var err error
 	endpoint := m.projection.Projection().get(r.BotUserID, r.WebhookID)
 	if endpoint == nil || !endpoint.Enabled || endpoint.Sequence != r.ConfigurationSequence {
 		return nil
@@ -402,13 +337,6 @@ func minTime(a, b time.Time) time.Time {
 	}
 	return b
 }
-func webhookRetryDelay(r *botWebhookDelivery, attempt uint64) time.Duration {
-	delay := r.RetryDelay
-	for i := uint64(1); i < attempt && delay < 30*time.Minute; i++ {
-		delay *= 2
-	}
-	return min(delay, 30*time.Minute)
-}
 
 // fail records a diagnostic outcome with a bounded storage attempt. Failure to
 // record it must never cause another HTTP attempt or an unbounded retry loop.
@@ -419,7 +347,7 @@ func (m *botWebhookModel) fail(ctx context.Context, r *botWebhookDelivery, attem
 		Id: r.DeliveryID, RecordedAt: timestamppb.New(m.now()), Severity: logv1.Severity_SEVERITY_ERROR,
 		Payload: &logv1.Entry_BotWebhookDeliveryFailed{BotWebhookDeliveryFailed: &logv1.BotWebhookDeliveryFailed{
 			BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID,
-			Attempts: attempts, HttpStatus: uint32(httpStatus), Reason: reason,
+			Attempts: attempts, HttpStatus: uint32(httpStatus), Reason: botWebhookLogReason(reason),
 		}},
 	})
 }

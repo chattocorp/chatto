@@ -81,7 +81,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-063](ADR-063-deno-desktop-cef-client.md)                            | Package Chatto Desktop with Deno Desktop and CEF                 | Superseded           | 2026-08-02 |
 | [ADR-064](ADR-064-separate-server-catalog-and-sessions.md)               | Separate the Frontend Server Catalogue from Device Sessions      | Superseded           | 2026-08-02 |
 | [ADR-065](ADR-065-runtime-json-client-internationalization.md)           | Runtime JSON Client Internationalization                         | Accepted             | 2026-08-05 |
-| [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md)              | Durable Asset Processing as a Runtime Unit                       | Accepted             | 2026-08-08 |
+| [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md)              | Durable Asset Processing as a Runtime Unit                       | Partially superseded | 2026-08-08 |
 | [ADR-067](ADR-067-electron-desktop-client.md)                            | Package Chatto Desktop with Electron                             | Partially superseded | 2026-08-08 |
 | [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md)   | Select Event Mutation Consistency Boundaries Explicitly          | Partially superseded | 2026-08-10 |
 | [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md)                | Manage Durable Consumer Lifecycles Explicitly                    | Accepted             | 2026-08-11 |
@@ -111,7 +111,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md)        | Separate Durable and Pubsub Event Envelopes                      | Accepted             | 2026-09-03 |
 | [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md)        | Direct-Message Permission Scope and Threads                      | Accepted             | 2026-09-04 |
 | [ADR-096](ADR-096-session-scoped-privileged-mode.md)                     | Require Session-Scoped Privileged Mode                           | Accepted             | 2026-09-03 |
-| [ADR-097](ADR-097-durable-outbound-bot-webhooks.md)                      | Deliver Best-Effort Outbound Bot Webhooks from EVT               | Accepted             | 2026-09-05 |
+| [ADR-097](ADR-097-durable-outbound-bot-webhooks.md)                      | Deliver Best-Effort Outbound Bot Webhooks from EVT               | Partially superseded | 2026-09-05 |
 | [ADR-098](ADR-098-retained-operational-log.md)                           | Retain Operational Diagnostics in LOG                            | Accepted             | 2026-09-08 |
 | [ADR-099](ADR-099-capacitor-mobile-client.md)                            | Package Chatto Mobile with Capacitor                             | Accepted             | 2026-09-19 |
 | [ADR-100](ADR-100-shared-chatto-integration-client.md)                   | Share Chatto Integration Client Helpers                          | Superseded           | 2026-09-21 |
@@ -137,3 +137,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                     | Accepted             | 2026-10-27 |
 | [ADR-121](ADR-121-github-desktop-updates.md)                             | Publish Complete GitHub Releases for Desktop Updates             | Accepted             | 2026-10-29 |
 | [ADR-122](ADR-122-changeset-driven-releases.md)                          | Changeset-Driven Releases                                        | Accepted             | 2026-11-09 |
+| [ADR-123](ADR-123-durable-background-jobs.md)                            | Durable Background Jobs                                          | Accepted             | 2026-11-10 |

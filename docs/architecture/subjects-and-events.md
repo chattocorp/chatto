@@ -579,9 +579,10 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 ## Outbound bot webhooks
 
 Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
-user-aggregate OCC and encrypted credentials. Process-local delivery work uses
-a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worker.go);
-it has no persisted protobuf or NATS subject.
+user-aggregate OCC and encrypted credentials. Durable delivery jobs store a
+`WebhookJob` payload inside the runtime-state `JobRecord`; dispatch references
+use `jobs.webhook.{jobId}` in `JOBS`. Neither schema stores message content or
+endpoint credentials.
 The delivery ID hashes the bot, endpoint, and source event IDs.
 
 Terminal failures append
@@ -627,3 +628,11 @@ room-OCC batch.
 `room_invitation_declined` use the room aggregate. The event envelope records
 the actor and time. Created facts store the recipient and expiry; response
 facts identify both participants. They do not appear in room timelines.
+
+## Background job dispatch
+
+`jobs.webhook.{jobId}` and `jobs.media.{jobId}` carry protobuf
+`chatto.core.job.v1.JobDispatch` references in `JOBS`. The current job generation
+and private work payload live in the runtime-state record, not in a domain event.
+Source events remain in EVT. Generation checks reject stale dispatches after a
+manual retry. See ADR-123.

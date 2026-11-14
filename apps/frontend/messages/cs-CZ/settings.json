@@ -50,7 +50,8 @@
         "composer": "Vyberte editor zpráv a způsob jejich odesílání.",
         "voice": "Nastavte mikrofon, reproduktory a předvolby hovorů.",
         "system": "Zkontrolujte stav serveru, úložiště a úlohy na pozadí.",
-        "event_log": "Procházejte události serveru a zkoumejte změny."
+        "event_log": "Procházejte události serveru a zkoumejte změny.",
+        "jobs": "Prohlížejte úlohy na pozadí a opakujte neúspěšné úlohy."
       },
       "title": "Přehled",
       "shield_notice": "Chcete-li na tomto serveru používat další oprávnění, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména."

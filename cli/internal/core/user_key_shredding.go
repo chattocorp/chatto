@@ -18,15 +18,14 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/kms"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const (
-	userKeyShreddingConsumerName       = "chatto-user-key-shredding-v1"
-	userKeyShreddingConsumerAckWait    = 2 * time.Minute
-	userKeyShreddingDeliveryHeartbeat  = 30 * time.Second
-	userKeyShreddingRetryDelay         = 30 * time.Second
-	userKeyShreddingAcknowledgeTimeout = 5 * time.Second
-	userKeyShreddingMaxPending         = 16
+	userKeyShreddingConsumerName    = "chatto-user-key-shredding-v1"
+	userKeyShreddingConsumerAckWait = 2 * time.Minute
+	userKeyShreddingRetryDelay      = 30 * time.Second
+	userKeyShreddingMaxPending      = 16
 )
 
 var errUserKeyShreddingFactExists = errors.New("user key shredding fact already exists")
@@ -36,7 +35,7 @@ var errUserKeyShreddingFactExists = errors.New("user key shredding fact already 
 // recovers requests after crashes and safely redelivers partial attempts.
 type UserKeyShreddingModel struct {
 	core               *ChattoCore
-	worker             *events.DurableWorker
+	worker             *jobqueue.Effect
 	appendRequestAtFn  func(context.Context, string, *evtv1.Event, string, uint64) (uint64, error)
 	appendOnceFn       func(context.Context, string, *evtv1.Event, string) (uint64, error)
 	shredContentKeyFn  func(context.Context, string) error
@@ -64,13 +63,7 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 		shredWrappingKeyFn: core.encryption.keyWrapper.ShredKey,
 	}
 	m.appendOnceFn = m.appendOnce
-	m.worker, err = evtstream.NewEffectWorker(consumer, m.processDelivery, evtstream.EffectWorkerOptions{
-		MaxConcurrent:     userKeyShreddingMaxPending,
-		RetryDelay:        userKeyShreddingRetryDelay,
-		AckTimeout:        userKeyShreddingAcknowledgeTimeout,
-		HeartbeatInterval: userKeyShreddingDeliveryHeartbeat,
-		Logger:            logger,
-	})
+	m.worker, err = core.newEffectJob(jobTypeUserKeyShredding, core.storage.serverEvtStream, consumer, m.processDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: userKeyShreddingRetryDelay})
 	if err != nil {
 		return nil, fmt.Errorf("configure user-key shredding worker: %w", err)
 	}
@@ -78,7 +71,7 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 }
 
 func (m *UserKeyShreddingModel) Run(ctx context.Context) error {
-	return m.worker.Run(ctx)
+	return m.worker.RunSource(ctx)
 }
 
 func (m *UserKeyShreddingModel) Request(ctx context.Context, actorID, userID string) error {

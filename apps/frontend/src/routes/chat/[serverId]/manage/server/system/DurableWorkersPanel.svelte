@@ -5,6 +5,18 @@
 
   let { workers }: { workers: AdminDurableWorkerStatus[] } = $props();
 
+  // Keep the broker key visible for support while naming the new job pools.
+  function workerLabel(key: string): string | null {
+    switch (key) {
+      case 'jobs':
+        return m('admin.jobs.title');
+      case 'media_jobs':
+        return m('admin.jobs.media');
+      default:
+        return null;
+    }
+  }
+
   function healthLabel(health: AdminDurableWorkerStatus['health']): string {
     switch (health) {
       case 'healthy':
@@ -59,7 +71,9 @@
       <th class="table-header-cell">{m('admin.system.acked_through')}</th>
     {/snippet}
     {#snippet row(worker)}
+      {@const label = workerLabel(worker.key)}
       <td class="px-4 py-3">
+        {#if label}<div class="font-medium">{label}</div>{/if}
         <div class="font-mono text-sm">{worker.key}</div>
       </td>
       <td class="px-4 py-3">

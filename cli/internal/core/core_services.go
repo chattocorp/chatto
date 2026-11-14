@@ -6,10 +6,13 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 	"github.com/chattocorp/chatto/cli/internal/lease"
+	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 // assembleCore installs already-constructed infrastructure, projections, and
@@ -94,6 +97,10 @@ func initializeCoreServices(
 	initializeProjectionSnapshotWorker(core, infra, projections, cfg, logger)
 	initializeNeighborhoodDiscovery(core, infra, cfg, logger)
 
+	// Effect jobs register with the queue during construction.
+	if err := core.initializeJobs(ctx); err != nil {
+		return fmt.Errorf("initialize jobs: %w", err)
+	}
 	core.mediaModel = NewMediaModel(core)
 	core.callModel = NewCallModel(
 		infra.eventPublisher,
@@ -104,7 +111,10 @@ func initializeCoreServices(
 		infra.storage.memoryCacheKV,
 		logger.WithPrefix("core.CallModel"),
 	)
-	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream); err != nil {
+	registerCallKeyCleanup := func(consumer jetstream.Consumer, handle events.DurableDeliveryHandler) (*jobqueue.Effect, error) {
+		return core.newEffectJob(jobTypeCallKeyCleanup, infra.storage.serverEvtStream, consumer, handle, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: callKeyCleanupRetryDelay})
+	}
+	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream, registerCallKeyCleanup); err != nil {
 		return fmt.Errorf("failed to initialize call-key cleanup: %w", err)
 	}
 	core.assetModel = NewAssetModel(core, projections.assets)

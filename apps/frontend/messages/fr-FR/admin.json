@@ -591,6 +591,34 @@
         "revoked": "Révoqué",
         "used": "Utilisé"
       }
+    },
+    "jobs": {
+      "title": "Tâches",
+      "subtitle": "Consultez les tâches en arrière-plan et relancez celles qui ont échoué.",
+      "load_failed": "Impossible de charger les tâches.",
+      "retry_failed": "Impossible de relancer cette tâche.",
+      "webhook": "Envoi de webhook",
+      "media": "Traitement multimédia",
+      "asset_cleanup": "Nettoyage des fichiers",
+      "call_key_cleanup": "Suppression des clés d’appel",
+      "push_subscription_cleanup": "Nettoyage des abonnements push",
+      "user_key_shredding": "Suppression des clés de compte",
+      "notification_alert": "Alerte de notification",
+      "queued": "En attente",
+      "running": "En cours",
+      "succeeded": "Réussie",
+      "failed": "Échouée",
+      "empty": "Aucune tâche pour le moment",
+      "attempts": "Tentatives",
+      "updated": "Mise à jour",
+      "next_attempt": "Prochaine tentative",
+      "expired": "Cette tâche a expiré et ne peut plus être relancée.",
+      "job": "Tâche",
+      "created": "Créée",
+      "details": "Détails",
+      "detail_subtitle": "État, tentatives et dernière cause d’échec de cette tâche.",
+      "not_found": "Cette tâche n’existe plus.",
+      "all": "Toutes"
     }
   }
 }

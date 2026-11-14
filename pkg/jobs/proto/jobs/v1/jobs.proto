@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package jobs.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chattocorp/chatto/pkg/jobs/internal/jobpb;jobpb";
+
+// Latest durable execution state of one job. The payload is an application
+// reference, never content or credentials. Terminal records also prevent source
+// redelivery from enqueueing the same work again. Generation fences dispatches
+// from previous manual retries.
+message JobRecord {
+  string id = 1;
+  string type = 2;
+  JobStatus status = 3;
+  uint32 attempts = 4;
+  uint32 max_attempts = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  google.protobuf.Timestamp next_attempt_at = 8;
+  string failure = 9;
+  bytes payload = 10;
+  uint64 generation = 11;
+  string owner = 12;
+  google.protobuf.Timestamp lease_until = 13;
+  int64 retry_delay_millis = 14;
+  google.protobuf.Timestamp expires_at = 15;
+}
+
+// Persisted execution states.
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_QUEUED = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_SUCCEEDED = 3;
+  JOB_STATUS_FAILED = 4;
+}
+
+// Replayable reference to one job generation. It carries no job state.
+message JobDispatch {
+  string id = 1;
+  uint64 generation = 2;
+}
+
+// Reference to one retained source message of an effect job. Each attempt
+// loads the message again; the job never copies its data. The digest binds the
+// reference to that exact message, so a recreated stream that reuses the
+// sequence cannot satisfy it.
+message EffectSource {
+  string subject = 1;
+  uint64 sequence = 2;
+  bytes data_sha256 = 3;
+}
