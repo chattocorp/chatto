@@ -143,13 +143,12 @@ A family expires after 30 days or seven days without successful use. Operators
 can configure both limits from one through 365 days; the idle limit must not
 exceed the total limit. Rotation never extends the total limit. An explicit
 scope subset limits only the response. A replacement refresh token retains
-the original scope. Issue an ID token only with effective `openid`, and a
-replacement refresh token only with effective `offline_access`. Without the
-latter, consume the family without a replacement and permanently end renewal
-for that family. Refreshes use current account claims and retain the original
+the original scope, also when the subset omits `offline_access` (RFC 6749
+section 6, RFC 8707 section 2.2). Issue an ID token only with effective
+`openid`. Refreshes use current account claims and retain the original
 authentication time.
 
-A refresh token rotates once. For a reuse grace period of 10 seconds after a
+A refresh token rotates once. For a reuse grace period after a
 rotation, the previous token can repeat that rotation one time. A repeat
 returns a new access token and the current refresh token again. It does not
 rotate the family; an OCC write records that the repeat is used. Two concurrent
@@ -159,11 +158,14 @@ family. A second repeat, use of the previous token after the grace period, or
 use of an older token at any time is reuse. Reuse invalidates the whole
 family, including its latest token. Invalid credentials or another client
 cannot revoke a family. A revoked or expired family has no grace period.
+The grace period defaults to 10 seconds. Operators can set it from 0 to 60
+seconds; 0 disables repeats. Okta (30 seconds by default), Auth0 and Ory Hydra
+(both disabled by default) use comparable settings.
 A failed or uncertain rotation returns no credentials and can require new
 browser authorization.
 
 The grace period trades a small exposure for reliability. An attacker who has
-a stolen previous token and uses the one repeat within 10 seconds of the
+a stolen previous token and uses the one repeat within the grace period of the
 rotation gets the current token. If the client already used the repeat, the
 attacker's attempt revokes the family. If the attacker was first, the client's
 own retry revokes it. Without the grace period, a lost response or two browser

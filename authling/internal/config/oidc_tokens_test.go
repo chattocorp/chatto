@@ -43,6 +43,9 @@ func TestInvalidResourceAndRefreshConfiguration(t *testing.T) {
 		{"excessive lifetime", OIDCConfig{RefreshTokenLifetimeDays: 366}},
 		{"negative idle", OIDCConfig{RefreshTokenIdleDays: -1}},
 		{"idle exceeds total", OIDCConfig{RefreshTokenLifetimeDays: 3}},
+		{"invalid reuse grace", OIDCConfig{RefreshTokenReuseGrace: "soon"}},
+		{"negative reuse grace", OIDCConfig{RefreshTokenReuseGrace: "-1s"}},
+		{"excessive reuse grace", OIDCConfig{RefreshTokenReuseGrace: "61s"}},
 		{"duplicate resource", OIDCConfig{Resources: []OIDCResourceConfig{{URI: "https://api.example"}, {URI: "https://api.example"}}}},
 		{"invalid resource", OIDCConfig{Resources: []OIDCResourceConfig{{URI: "https://api.example#fragment"}}}},
 	} {
@@ -52,5 +55,13 @@ func TestInvalidResourceAndRefreshConfiguration(t *testing.T) {
 				t.Fatal("invalid configuration accepted")
 			}
 		})
+	}
+}
+
+func TestOIDCRefreshReuseGrace(t *testing.T) {
+	for value, want := range map[string]time.Duration{"": 10 * time.Second, "0s": 0, "30s": 30 * time.Second, "1m": time.Minute} {
+		if got := (OIDCConfig{RefreshTokenReuseGrace: value}).RefreshReuseGrace(); got != want {
+			t.Fatalf("%q: got %s, want %s", value, got, want)
+		}
 	}
 }

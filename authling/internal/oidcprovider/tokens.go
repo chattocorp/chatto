@@ -349,15 +349,15 @@ type refreshFamily struct {
 	Revoked  bool `json:"revoked"`
 }
 
-// refreshReuseGrace is the time after a rotation in which the previous
-// credential can repeat that rotation. It covers a lost token response and
+// The reuse grace period (config.OIDCConfig.RefreshReuseGrace) is the time
+// after a rotation in which the previous credential can repeat that rotation.
+// It covers a lost token response and
 // concurrent refreshes by one client. A repeat does not rotate the family: it
 // returns the current credential again, so both callers converge on one token.
 // Each rotation permits one repeat. A second repeat, or use of the previous
 // credential after the window, is reuse and revokes the family. This limits a
 // stolen previous credential to one attempt, and that attempt or the client's
-// own retry then exposes the theft.
-const refreshReuseGrace = 10 * time.Second
+// own retry then exposes the theft. A zero grace period disables repeats.
 
 // refreshUse classifies a submitted generation against the stored family.
 type refreshUse int
@@ -373,13 +373,13 @@ const (
 	refreshReuse
 )
 
-func (f refreshFamily) use(generation uint64, now time.Time) refreshUse {
+func (f refreshFamily) use(generation uint64, now time.Time, grace time.Duration) refreshUse {
 	switch {
 	case f.Revoked || !f.Expires.After(now) || !f.IdleExpires.After(now):
 		return refreshInvalid
 	case generation == f.Generation:
 		return refreshCurrent
-	case generation+1 == f.Generation && !f.Repeated && now.Before(f.RotatedAt.Add(refreshReuseGrace)):
+	case generation+1 == f.Generation && !f.Repeated && now.Before(f.RotatedAt.Add(grace)):
 		return refreshRepeat
 	case generation < f.Generation:
 		return refreshReuse
@@ -449,7 +449,7 @@ func (s *Storage) refreshRequest(ctx context.Context, token, clientID string) (*
 	if family.Request.ClientID != clientID {
 		return nil, errOIDCStateNotFound
 	}
-	switch family.use(generation, s.now()) {
+	switch family.use(generation, s.now(), s.cfg.RefreshReuseGrace()) {
 	case refreshCurrent, refreshRepeat:
 		return &family.Request, nil
 	case refreshReuse:
@@ -469,7 +469,6 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 		return "", err
 	}
 	key := s.derivedKey("refresh-family", id)
-	offline := slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess)
 	for attempt := 0; ; attempt++ {
 		entry, err := s.kv.Get(ctx, key)
 		if err != nil {
@@ -480,13 +479,12 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 			return "", errOIDCStateNotFound
 		}
 		now := s.now()
-		switch family.use(generation, now) {
+		switch family.use(generation, now, s.cfg.RefreshReuseGrace()) {
 		case refreshCurrent:
 		case refreshRepeat:
 			if err := s.checkGrant(ctx, &family.Request); err != nil {
 				return "", err
 			}
-			// A repeat only consumes the grace, also when it narrows the scope.
 			family.Repeated = true
 			data, err := s.seal(key, family)
 			if err != nil {
@@ -503,9 +501,6 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 			if err != nil {
 				return "", err
 			}
-			if !offline {
-				return "", nil
-			}
 			return s.refreshToken(id, family.Generation), nil
 		case refreshReuse:
 			_ = s.revokeRefreshFamily(ctx, id)
@@ -518,9 +513,8 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 		}
 		family.Generation++
 		family.RotatedAt, family.Repeated = now, false
-		// A replacement refresh token retains the original authorization scope.
-		// A response without offline_access consumes the family without a replacement.
-		family.Revoked = !offline
+		// The replacement retains the original scope. A narrowed scope affects
+		// only this response (RFC 6749 section 6, RFC 8707 section 2.2).
 		family.IdleExpires = now.Add(s.cfg.RefreshIdleLifetime())
 		if family.IdleExpires.After(family.Expires) {
 			family.IdleExpires = family.Expires
@@ -539,9 +533,6 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 		}
 		if err != nil {
 			return "", err
-		}
-		if family.Revoked {
-			return "", nil
 		}
 		return s.refreshToken(id, family.Generation), nil
 	}

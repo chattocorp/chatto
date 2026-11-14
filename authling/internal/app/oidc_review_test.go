@@ -146,13 +146,14 @@ func TestOIDCReviewGrantAndRetryBoundaries(t *testing.T) {
 		t.Fatal("inactive refresh did not return invalid_grant")
 	}
 	inactive = false
-	// Failing account reads did not consume this token. Omitting offline_access ends renewal.
-	ended := decode(renew(current.RefreshToken, "openid"))
-	if ended.IDToken == "" || ended.RefreshToken != "" {
-		t.Fatal("offline_access omission returned replacement")
+	// Failing account reads did not consume this token. Omitting offline_access
+	// narrows only this response; the replacement keeps the original scope.
+	narrowed := decode(renew(current.RefreshToken, "openid"))
+	if narrowed.IDToken == "" || narrowed.RefreshToken == "" {
+		t.Fatal("offline_access omission ended renewal")
 	}
-	if response := renew(current.RefreshToken, ""); response.Code == http.StatusOK {
-		t.Fatal("consumed refresh accepted")
+	if response := renew(narrowed.RefreshToken, ""); response.Code != http.StatusOK {
+		t.Fatal("narrowed replacement rejected")
 	}
 	grants, err := runtime.Authorizations.List(t.Context(), account.ID)
 	if err != nil || len(grants) != 1 {

@@ -39,7 +39,7 @@ CIMD clients whose metadata declares `refresh_token`. Configured clients can
 disable renewal with `allow_refresh_tokens = false`. Public clients retain mandatory S256 PKCE. A refresh family lasts
 30 days at most and expires after seven days without successful use. Both
 limits are configurable. Refreshes rotate credentials with one OCC write.
-For a 10-second reuse grace period after a rotation, the previous credential
+For a reuse grace period after a rotation (10 seconds by default, configurable from 0 to 60 seconds), the previous credential
 can repeat that rotation once. The repeat returns a new access token and the
 current refresh credential again; an OCC write records that the repeat is used.
 Any other authenticated use of an older credential is reuse and revokes the
@@ -85,7 +85,7 @@ grace period. Concurrent refreshes of one credential converge on
 one replacement: after an OCC conflict, the loser reads the family again and
 gets the winner's credential as a repeat. A third conflict revokes the family.
 The grace period lets an attacker with a stolen previous credential get the
-current credential within 10 seconds of a rotation, but only once. The client's
+current credential within the grace period of a rotation, but only once. The client's
 own retry, or the attacker's attempt after the client's, is then a second
 repeat and revokes the family. This exposure is accepted: without it, a lost
 response or two tabs that refresh together end the session.
@@ -108,8 +108,8 @@ audience. Configuration rejects equality with the issuer or configured clients.
 Create the access-token record before consuming the code or refresh credential.
 A failed write leaves the credential retryable; an orphan record has no bearer
 and expires normally. Scope narrowing affects only the response. Replacement
-refresh tokens retain their original scope. A refresh that narrows away
-`offline_access` consumes the family and permanently ends renewal for it.
+refresh tokens retain their original scope, also when the narrowed scope omits
+`offline_access`, as RFC 6749 section 6 and RFC 8707 section 2.2 require.
 UserInfo permits 60 seconds of future `iat` or `nbf` skew but does not extend
 expiry.
 

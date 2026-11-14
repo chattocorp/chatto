@@ -255,6 +255,16 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 	}
 	form.Set("refresh_token", narrowed.RefreshToken)
 	form.Set("scope", "openid email offline_access")
+	restored := decode(requestHandler(t, handler, http.MethodPost, "/oauth/token", form.Encode(), nil))
+	// Narrowing away offline_access still returns a replacement with the original scope.
+	form.Set("refresh_token", restored.RefreshToken)
+	form.Set("scope", "openid")
+	withoutOffline := decode(requestHandler(t, handler, http.MethodPost, "/oauth/token", form.Encode(), nil))
+	if withoutOffline.Scope != "openid" {
+		t.Fatalf("narrowed response scope %q", withoutOffline.Scope)
+	}
+	form.Set("refresh_token", withoutOffline.RefreshToken)
+	form.Set("scope", "openid email offline_access")
 	if requestHandler(t, handler, http.MethodPost, "/oauth/token", form.Encode(), nil).Code != http.StatusOK {
 		t.Fatal("original refresh scope was not preserved")
 	}

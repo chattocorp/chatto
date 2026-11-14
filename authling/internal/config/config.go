@@ -96,6 +96,9 @@ type OIDCConfig struct {
 	// Refresh lifetimes use days; zero selects the documented default.
 	RefreshTokenLifetimeDays int `toml:"refresh_token_lifetime_days" env:"AUTHLING_OIDC_REFRESH_TOKEN_LIFETIME_DAYS"`
 	RefreshTokenIdleDays     int `toml:"refresh_token_idle_days" env:"AUTHLING_OIDC_REFRESH_TOKEN_IDLE_DAYS"`
+	// RefreshTokenReuseGrace is a Go duration from "0s" (disabled) to "60s".
+	// An empty value selects the documented default of 10 seconds.
+	RefreshTokenReuseGrace string `toml:"refresh_token_reuse_grace" env:"AUTHLING_OIDC_REFRESH_TOKEN_REUSE_GRACE"`
 	// AllowUnregisteredClients permits clients not declared in operator configuration.
 	// It defaults to false. Currently, admission uses HTTPS CIMD discovery.
 	AllowUnregisteredClients       bool               `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
@@ -366,6 +369,9 @@ func (c Config) Validate() error {
 	if c.OIDC.RefreshTokenLifetimeDays < 0 || c.OIDC.RefreshTokenLifetimeDays > 365 || c.OIDC.RefreshTokenIdleDays < 0 || c.OIDC.RefreshTokenIdleDays > 365 || c.OIDC.RefreshIdleLifetime() > c.OIDC.RefreshLifetime() {
 		problems = append(problems, "oidc refresh lifetimes must be 1 to 365 days with idle lifetime no greater than total lifetime")
 	}
+	if _, err := c.OIDC.parseRefreshReuseGrace(); err != nil {
+		problems = append(problems, "oidc.refresh_token_reuse_grace must be a duration from 0s to 60s")
+	}
 	resourceCollides := func(resource string) bool {
 		if strings.TrimSuffix(resource, "/") == strings.TrimSuffix(c.HTTP.PublicURLOrDefault(), "/") {
 			return true
@@ -588,6 +594,28 @@ func (c OIDCConfig) RefreshIdleLifetime() time.Duration {
 		days = 7
 	}
 	return time.Duration(days) * 24 * time.Hour
+}
+
+// RefreshReuseGrace is the time after a rotation in which the previous refresh
+// token can repeat that rotation once. Zero disables the grace period.
+// Validation rejects invalid values; an invalid value here selects zero.
+func (c OIDCConfig) RefreshReuseGrace() time.Duration {
+	grace, err := c.parseRefreshReuseGrace()
+	if err != nil {
+		return 0
+	}
+	return grace
+}
+
+func (c OIDCConfig) parseRefreshReuseGrace() (time.Duration, error) {
+	if strings.TrimSpace(c.RefreshTokenReuseGrace) == "" {
+		return 10 * time.Second, nil
+	}
+	grace, err := time.ParseDuration(strings.TrimSpace(c.RefreshTokenReuseGrace))
+	if err != nil || grace < 0 || grace > time.Minute {
+		return 0, fmt.Errorf("invalid refresh reuse grace")
+	}
+	return grace, nil
 }
 
 // ValidResource permits absolute HTTPS identifiers and loopback development HTTP.

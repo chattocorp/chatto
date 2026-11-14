@@ -522,14 +522,16 @@ silent authorization. Public and CIMD clients must use S256 PKCE. Exchange a
 refresh token at `/oauth/token` with `grant_type=refresh_token`, `client_id`,
 and `refresh_token`; confidential clients must authenticate with their secret.
 An optional scope subset limits this response; the replacement refresh token
-retains the original scope. A response includes an ID token only with `openid`
-and a replacement refresh token only with `offline_access`. Omitting
-`offline_access` consumes the family without a replacement. Store the new
-token before the next use. For 10 seconds after a rotation, the previous token
-can repeat that refresh once: Authling returns a new access token and the
+retains the original scope, also when the subset omits `offline_access`. A
+response includes an ID token only with `openid`. Store the new token before
+the next use. For a reuse grace period after a rotation (default 10 seconds),
+the previous token can repeat that refresh once: Authling returns a new access token and the
 same current refresh token again. This covers a lost response and two
 concurrent refreshes. A second repeat, use after this period, or use of an
-older token is reuse and revokes the whole family.
+older token is reuse and revokes the whole family. Configure the grace period
+with `refresh_token_reuse_grace` under `[oidc]` or
+`AUTHLING_OIDC_REFRESH_TOKEN_REUSE_GRACE`, as a duration from `0s` to `60s`.
+`0s` disables repeats.
 
 Defaults are 30 days total and seven days without use. Configure them under
 `[oidc]` with `refresh_token_lifetime_days` and `refresh_token_idle_days`, or

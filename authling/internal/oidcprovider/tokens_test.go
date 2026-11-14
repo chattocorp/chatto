@@ -107,6 +107,7 @@ func TestRefreshFamilyExpiryTamperingAndEncryptedStorage(t *testing.T) {
 }
 
 func TestRefreshReuseGrace(t *testing.T) {
+	const grace = 10 * time.Second
 	now := time.Now().UTC()
 	rotated := refreshFamily{Generation: 2, RotatedAt: now, Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}
 	for _, test := range []struct {
@@ -117,8 +118,8 @@ func TestRefreshReuseGrace(t *testing.T) {
 		want       refreshUse
 	}{
 		{"current", rotated, 2, now, refreshCurrent},
-		{"previous inside grace", rotated, 1, now.Add(refreshReuseGrace - time.Nanosecond), refreshRepeat},
-		{"previous at grace end", rotated, 1, now.Add(refreshReuseGrace), refreshReuse},
+		{"previous inside grace", rotated, 1, now.Add(grace - time.Nanosecond), refreshRepeat},
+		{"previous at grace end", rotated, 1, now.Add(grace), refreshReuse},
 		{"two generations old inside grace", rotated, 0, now, refreshReuse},
 		{"future generation", rotated, 3, now, refreshInvalid},
 		{"second repeat inside grace", refreshFamily{Generation: 2, RotatedAt: now, Repeated: true, Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}, 1, now, refreshReuse},
@@ -128,10 +129,18 @@ func TestRefreshReuseGrace(t *testing.T) {
 		{"generation zero has no previous", refreshFamily{Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}, 0, now, refreshCurrent},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if got := test.family.use(test.generation, test.at); got != test.want {
+			if got := test.family.use(test.generation, test.at, grace); got != test.want {
 				t.Fatalf("use = %d, want %d", got, test.want)
 			}
 		})
+	}
+}
+
+func TestRefreshReuseGraceDisabled(t *testing.T) {
+	now := time.Now().UTC()
+	family := refreshFamily{Generation: 1, RotatedAt: now, Expires: now.Add(time.Hour), IdleExpires: now.Add(time.Hour)}
+	if family.use(0, now, 0) != refreshReuse {
+		t.Fatal("previous credential repeated with grace disabled")
 	}
 }
 
@@ -190,7 +199,7 @@ func TestRefreshRequestRevokesPreviousGenerationAfterGrace(t *testing.T) {
 	if _, err := s.refreshRequest(t.Context(), current, request.ClientID); err != nil {
 		t.Fatal("grace repeat revoked family")
 	}
-	now = now.Add(refreshReuseGrace)
+	now = now.Add(s.cfg.RefreshReuseGrace())
 	if _, err := s.refreshRequest(t.Context(), previous, request.ClientID); err == nil {
 		t.Fatal("previous credential accepted after grace")
 	}

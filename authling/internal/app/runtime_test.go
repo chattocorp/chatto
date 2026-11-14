@@ -861,6 +861,7 @@ type oidcTokens struct {
 	RefreshToken string `json:"refresh_token"`
 	AccessToken  string `json:"access_token"`
 	IDToken      string `json:"id_token"`
+	Scope        string `json:"scope"`
 }
 
 func issueOIDCTokens(t *testing.T, handler http.Handler, code, verifier string) oidcTokens {
