@@ -5,6 +5,7 @@ import { parse } from 'smol-toml';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import type { ThinkingLevel } from 'runling';
 import { expandEnvironment } from './environment.ts';
+import { parseAnnouncements } from './announcement-settings.ts';
 import { parseMcpServers } from './mcp-settings.ts';
 import {
   ADDRESSING_REASONS,
@@ -32,9 +33,11 @@ export const DEFAULT_INBOX: InboxSettings = {
 export interface Settings extends InboxSettings {
   serverUrl: string;
   apiKey: string;
-  /** Expose all tools from this server's MCP endpoint to Pi. */
+  /** Expose read tools from this server's MCP endpoint to Pi. */
   mcp: boolean;
-  /** Operator-installed MCP tools for the main agent only. */
+  /** Optional operator-authorized GitHub push announcements. */
+  announcements: ReturnType<typeof parseAnnouncements>;
+  /** Operator-installed MCP tools; announcements can opt in to selected connections. */
   extraMcpServers: ReturnType<typeof parseMcpServers>;
   /** Expose web search and page fetching from Exa's hosted MCP server. */
   web: boolean;
@@ -94,7 +97,11 @@ export function parseSettings(
     throw new Error(
       'Replace [memory] or [brains] with [mcp.servers.<name>] using means mcp --path and the existing collection path; keep MEANS.md and all documents unchanged.'
     );
-  knownKeys(root, ['chatto', 'agent', 'runtime', 'web', 'titles', 'mcp'], 'the root table');
+  knownKeys(
+    root,
+    ['chatto', 'agent', 'runtime', 'web', 'titles', 'mcp', 'announcements'],
+    'the root table'
+  );
   const table = (value: unknown, name: string): Record<string, unknown> => {
     if (
       typeof value !== 'object' ||
@@ -206,10 +213,18 @@ export function parseSettings(
       'titles.reasoning_level must be off, minimal, low, medium, high, xhigh, or max'
     );
   const extraMcpServers = parseMcpServers(root.mcp, configPath, env);
+  const announcements = parseAnnouncements(root.announcements, env, dirname(configPath));
+  if (
+    announcements?.mcpServers?.some(
+      (name) => !extraMcpServers.some((server) => server.name === name)
+    )
+  )
+    throw new Error('announcements.github.mcp_servers must name configured MCP servers.');
   const apiKey = string(chatto, 'api_key', 'chatto.api_key');
   return {
     serverUrl,
     apiKey,
+    announcements,
     adminUserIds: [
       ...new Set(
         adminUserIds.map((id: string) => {

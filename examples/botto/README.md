@@ -117,7 +117,7 @@ skills between turns. Means-managed editable skills are not supported.
 | ------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
 | `chatto.url`                    | Required                 | Chatto server URL                                                              |
 | `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`        |
-| `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                        |
+| `chatto.mcp`                    | `false`                  | Give Pi the permitted read tools from the Chatto MCP endpoint                        |
 | `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                                |
 | `chatto.respond_to`             | See below                | Which messages address Botto                                                   |
 | `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server              |
@@ -311,12 +311,14 @@ directory, not ambient Pi extensions, prompt templates, or project instructions.
 
 ## Optional Chatto MCP tools
 
-Set `mcp = true` in the `[chatto]` table to give Pi every tool advertised by
+Set `mcp = true` in the `[chatto]` table to give Pi read access through
 the configured Chatto server's `/mcp` endpoint. The server must have MCP enabled.
-Botto uses `chatto.api_key` for authentication. There is no tool allowlist;
-this includes write tools such as posting messages and joining or leaving rooms,
-subject to the bot account's permissions. `chatto.allowed_user_id` limits who
-can trigger a turn; it does not limit which rooms the tools can access.
+Botto uses `chatto.api_key` for authentication. The permitted tools are
+`get_server_info`, `get_current_user`, `list_rooms`, `list_room_messages`,
+`search_messages`, `get_message`, and `get_user`. Other Chatto tools are hidden
+and blocked, including tools restored from an older conversation.
+`chatto.allowed_user_id` limits who can trigger a turn; it does not limit which
+rooms the read tools can access.
 
 Pi's native MCP extension connects the configured servers, discovers their tools,
 and exposes them directly as `mcp__chatto__<tool>`. Built-in file and shell tools
@@ -326,8 +328,9 @@ Pi waits up to 10 seconds for tools before the first model request. If a server
 fails or is still connecting, Pi can continue with the available tools; its
 request context includes server status. Botto does not retry tool calls.
 Normal thread context and assistant messages still use `@chatto/client`.
-The model is told that its text messages are posted automatically, so it should use
-the posting tool only for additional messages required by the task.
+The host posts conversation replies and progress messages in the current thread.
+Conversation agents cannot post separate room messages or direct messages.
+For configured root messages, see [GitHub announcements](ANNOUNCEMENTS.md).
 
 ## Additional MCP servers
 

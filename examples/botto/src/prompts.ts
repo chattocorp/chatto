@@ -46,7 +46,7 @@ export function systemPrompt(settings: Settings, agent: PromptContext): string {
   );
   if (settings.mcp)
     sections.push(
-      'Never use mcp__chatto__post_message to answer the current conversation; your replies are posted to its thread automatically. Use this tool only when explicitly asked to send a separate message elsewhere. It posts a room-root message, not a thread reply. Never retry a write with an uncertain outcome.'
+      'Chatto MCP tools are read-only. The host delivers replies and progress updates to the current thread. Separate room posts and DMs are unavailable in conversation turns.'
     );
   if (settings.extraMcpServers.length)
     sections.push(

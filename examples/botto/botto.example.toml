@@ -4,7 +4,7 @@
 [chatto]
 api_key = "${BOTTO_CHATTO_API_KEY}"
 url = "https://chat.example.com"
-# Enable every tool advertised by this server's /mcp endpoint, including writes.
+# Enable the permitted read tools from this server's /mcp endpoint.
 mcp = false
 # Show the bot account as online while Botto runs.
 report_presence = true
@@ -55,6 +55,8 @@ enabled = false
 # command = "${BOTTO_GITHUB_MCP_COMMAND}"
 # args = ["stdio"]
 # tools = [
+#   "get_commit",
+#   "list_commits",
 #   "get_file_contents",
 #   "search_code",
 #   "list_issues",

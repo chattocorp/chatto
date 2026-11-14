@@ -43,7 +43,9 @@ Restart Botto after the credentials and configuration are complete.
 
 ## Access and verification
 
-The template exposes issue, PR, and source reads to ordinary conversations.
+The template exposes commit patches, commit history, issue, PR, and source reads to ordinary conversations.
+Announcement sessions can opt in to this connection through `mcp_servers`; see
+[GitHub announcements](ANNOUNCEMENTS.md).
 Only batches authored entirely by configured admins receive `issue_write` and
 `add_issue_comment`. Mixed batches receive read tools only. Botto checks tool
 access before execution, including in restored conversations. Issue write access

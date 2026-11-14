@@ -17,13 +17,15 @@ test(
     try {
       await writeFile(
         path,
-        '[chatto]\nurl="http://127.0.0.1:1"\napi_key="synthetic"\n[agent]\nmodel="test/model"\n[runtime]\ndata_directory="private"\n'
+        '[chatto]\nurl="http://127.0.0.1:1"\napi_key="synthetic"\n[agent]\nmodel="test/model"\n[runtime]\ndata_directory="private"\n[announcements.github]\nenabled=true\nrepository="chattocorp/chatto"\nroom_id="room"\nwebhook_secret="synthetic-secret-with-at-least-32-chars"\n'
       );
       vi.stubEnv('BOTTO_CONFIG', path);
       vi.stubEnv('RUNLING_DATA_DIRECTORY', undefined);
       const config = await loader.load();
       expect(config.workflows?.bottoConversation?.name).toBe('Botto conversation');
       expect(config.sources?.chatto).toBeTypeOf('function');
+      expect(config.sources?.githubAnnouncements).toBeTypeOf('function');
+      expect(config.workflows?.githubAnnouncement?.name).toBe('GitHub commit announcement');
       expect(config.webhooks).toEqual({});
       expect(process.env.RUNLING_DATA_DIRECTORY).toBe(join(directory, 'private/runling'));
       expect(process.umask()).toBe(0o077);

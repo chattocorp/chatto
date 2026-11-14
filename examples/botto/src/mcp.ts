@@ -12,6 +12,17 @@ import type { Settings } from './settings.ts';
 /** Exa's hosted MCP endpoint, pinned to the search and fetch tools. */
 export const EXA_MCP_URL = 'https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa';
 
+/** Conversation agents may inspect Chatto. All message effects belong to host delivery. */
+export const CHATTO_READ_TOOLS = [
+  'get_server_info',
+  'get_current_user',
+  'list_rooms',
+  'list_room_messages',
+  'search_messages',
+  'get_message',
+  'get_user'
+];
+
 /** List Botto's explicit servers. Ambient project or global MCP configuration is never used. */
 export function mcpServers(settings: Settings, adminOnly = false): McpServerEntry[] {
   const servers: McpServerEntry[] = [];
@@ -23,7 +34,8 @@ export function mcpServers(settings: Settings, adminOnly = false): McpServerEntr
       config: {
         url: new URL('/mcp', settings.serverUrl).href,
         headers: { Authorization: `Bearer ${settings.apiKey}` },
-        exposure: 'direct'
+        exposure: 'hidden',
+        toolExposure: Object.fromEntries(CHATTO_READ_TOOLS.map((name) => [name, 'direct' as const]))
       }
     });
   if (settings.web)
@@ -76,6 +88,15 @@ export function mcpExtension(
       )
     );
     pi.on('tool_call', (event) => {
+      if (
+        event.toolName.startsWith('mcp__chatto__') &&
+        !CHATTO_READ_TOOLS.some((name) => event.toolName === `mcp__chatto__${name}`)
+      )
+        return {
+          block: true,
+          reason:
+            'Chatto writes are unavailable to conversation agents. The host delivers replies and authorized announcements.'
+        };
       if (
         settings.extraMcpServers.some((server) =>
           event.toolName.startsWith(`mcp__${server.name}__`)

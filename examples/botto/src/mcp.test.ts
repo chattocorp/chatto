@@ -173,11 +173,14 @@ test.each([false, true])(
     );
     const transports: Array<ReturnType<typeof mcpFixture>> = [];
     const createTransport = vi.fn((entry) => {
-      expect(entry.config.exposure).toBe(entry.name === 'chatto' ? 'direct' : 'hidden');
+      expect(entry.config.exposure).toBe('hidden');
       if (entry.name === 'chatto')
         expect(entry.config.headers).toEqual({ Authorization: 'Bearer private-key' });
       const transport = mcpFixture(
-        ['read', 'post_message'].map((name) => ({
+        (entry.name === 'chatto'
+          ? ['get_message', 'post_message', 'send_direct_message']
+          : ['read', 'post_message']
+        ).map((name) => ({
           name,
           inputSchema: { type: 'object' as const }
         })),
@@ -241,12 +244,21 @@ test.each([false, true])(
         }
         await vi.waitFor(() =>
           expect(session.getActiveToolNames().sort()).toEqual([
-            'mcp__chatto__post_message',
-            'mcp__chatto__read',
+            'mcp__chatto__get_message',
             'mcp__memory_test__post_message',
             'mcp__memory_test__read'
           ])
         );
+        for (const name of ['post_message', 'send_direct_message', 'update_message', 'new_write']) {
+          const blocked = await session.extensionRunner.emitToolCall({
+            type: 'tool_call',
+            toolCallId: name,
+            toolName: `mcp__chatto__${name}`,
+            input: { body: 'placeholder' }
+          });
+          expect(blocked?.block).toBe(true);
+          expect(call).not.toHaveBeenCalled();
+        }
         const execute = async (id: string, fail = false) => {
           const toolName = 'mcp__memory_test__read';
           const input = { fail, secret: 'private-argument' };
