@@ -1,0 +1,6 @@
+version: v2
+plugins:
+  - local: bin/proto/protoc-gen-go
+    out: .
+    opt:
+      - module=github.com/chattocorp/chatto/pkg/jobs

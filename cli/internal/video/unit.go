@@ -9,11 +9,11 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const runtimeUnitName = "asset-processing"
@@ -60,7 +60,7 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
 	go func() {
-		workerDone <- queue.Run(workerCtx, consumer, map[string]jobqueue.Handler{"media": func(ctx context.Context, job *statev1.JobRecord) error {
+		workerDone <- queue.Run(workerCtx, consumer, map[string]jobqueue.Handler{"media": func(ctx context.Context, job jobqueue.Job) error {
 			request := new(statev1.MediaJob)
 			if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
 				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
@@ -112,9 +112,13 @@ func openJobs(ctx context.Context, env runtimeunit.Env) (*jobqueue.Queue, jetstr
 	if err != nil {
 		return nil, nil, err
 	}
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, jobqueue.ConsumerConfig(jobqueue.MediaConsumerName, []string{"media"}))
+	queue, err := core.NewJobQueue(env.JS, bound, env.Logger, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	return jobqueue.New(env.JS, bound, env.Logger), consumer, nil
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, core.MediaJobsConsumerName, "media"))
+	if err != nil {
+		return nil, nil, err
+	}
+	return queue, consumer, nil
 }

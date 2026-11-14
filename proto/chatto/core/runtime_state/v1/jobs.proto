@@ -5,36 +5,6 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
 
-// Latest durable execution state. Payloads contain opaque references, not content
-// or credentials. Terminal records also prevent source redelivery from enqueueing
-// the same work again. Generation fences dispatches from previous manual retries.
-message JobRecord {
-  string id = 1;
-  string type = 2;
-  JobExecutionStatus status = 3;
-  uint32 attempts = 4;
-  uint32 max_attempts = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
-  google.protobuf.Timestamp next_attempt_at = 8;
-  string failure = 9;
-  bytes payload = 10;
-  uint64 generation = 11;
-  string owner = 12;
-  google.protobuf.Timestamp lease_until = 13;
-  int64 retry_delay_millis = 14;
-  google.protobuf.Timestamp expires_at = 15;
-}
-
-// Stable persisted execution states.
-enum JobExecutionStatus {
-  JOB_EXECUTION_STATUS_UNSPECIFIED = 0;
-  JOB_EXECUTION_STATUS_QUEUED = 1;
-  JOB_EXECUTION_STATUS_RUNNING = 2;
-  JOB_EXECUTION_STATUS_SUCCEEDED = 3;
-  JOB_EXECUTION_STATUS_FAILED = 4;
-}
-
 // Webhook delivery references and immutable source-time policy. Credentials and
 // message content are loaded through current authorization on every attempt.
 message WebhookJob {
@@ -51,14 +21,4 @@ message WebhookJob {
 message MediaJob {
   string asset_id = 1;
   string message_event_id = 2;
-}
-
-// Reference to one retained source message of a durable effect. The handler
-// loads the message again on every attempt; the job never copies its data.
-// The digest binds the reference to that exact message, so a recreated stream
-// that reuses the sequence cannot satisfy it.
-message EventEffectJob {
-  string subject = 1;
-  uint64 sequence = 2;
-  bytes data_sha256 = 3;
 }

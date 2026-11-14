@@ -11,9 +11,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
-	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 )
 
 func TestMediaSourceHandsCurrentAndLegacyEventsToSharedPool(t *testing.T) {
@@ -38,7 +37,7 @@ func TestMediaSourceHandsCurrentAndLegacyEventsToSharedPool(t *testing.T) {
 		case <-time.After(3 * time.Second):
 			t.Fatal("media work was not dispatched")
 		}
-		var job *statev1.JobRecord
+		var job jobqueue.Job
 		require.Eventually(t, func() bool {
 			job, err = c.jobs.Get(ctx, jobqueue.ID("media", id))
 			return err == nil && job.Status == jobqueue.Succeeded

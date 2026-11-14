@@ -26,8 +26,8 @@ can be established before outside contributions make a later change harder.
 
 ## Decision
 
-License the complete `pkg/events`, `pkg/jetstreamutil`, `pkg/natsruntime`,
-`pkg/datacrypto`, and `pkg/appconfig` modules under the Apache License 2.0. This includes their
+License the complete `pkg/events`, `pkg/jetstreamutil`, `pkg/jobs`,
+`pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` modules under the Apache License 2.0. This includes their
 source, tests, documentation, module metadata, and standalone license files.
 
 The modules remain independently versioned, pre-1.0 incubation surfaces with

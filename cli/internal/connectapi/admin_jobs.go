@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
-	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 type jobsService struct{ api *API }
@@ -52,7 +51,7 @@ func (s *jobsService) RetryJob(ctx context.Context, req *connect.Request[adminv1
 
 // jobSummary is the explicit privacy boundary: internal payload, claim owner,
 // dispatch generation, credentials and message references never enter the API.
-func jobSummary(job *statev1.JobRecord) *adminv1.Job {
+func jobSummary(job jobqueue.Job) *adminv1.Job {
 	status := adminv1.JobStatus_JOB_STATUS_UNSPECIFIED
 	switch job.Status {
 	case jobqueue.Queued:
@@ -65,10 +64,10 @@ func jobSummary(job *statev1.JobRecord) *adminv1.Job {
 		status = adminv1.JobStatus_JOB_STATUS_FAILED
 	}
 	retry := adminv1.RetryJobState_RETRY_JOB_STATE_NOT_FAILED
-	if jobqueue.Expired(job, time.Now()) {
+	if job.Expired(time.Now()) {
 		retry = adminv1.RetryJobState_RETRY_JOB_STATE_EXPIRED
 	} else if job.Status == jobqueue.Failed {
 		retry = adminv1.RetryJobState_RETRY_JOB_STATE_ALLOWED
 	}
-	return &adminv1.Job{Id: job.Id, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: job.MaxAttempts, CreatedAt: job.CreatedAt, UpdatedAt: job.UpdatedAt, NextAttemptAt: job.NextAttemptAt, Failure: job.Failure, RetryState: &retry, RetryVersion: jobqueue.RetryVersion(job)}
+	return &adminv1.Job{Id: job.ID, Type: job.Type, Status: status, Attempts: job.Attempts, MaxAttempts: job.MaxAttempts, CreatedAt: optionalTimestamp(job.CreatedAt), UpdatedAt: optionalTimestamp(job.UpdatedAt), NextAttemptAt: optionalTimestamp(job.NextAttemptAt), Failure: job.Failure, RetryState: &retry, RetryVersion: jobqueue.RetryVersion(job)}
 }

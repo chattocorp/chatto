@@ -8,6 +8,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -23,7 +24,7 @@ func (s *AssetModel) configureCleanup(ctx context.Context, stream jetstream.Stre
 	if err != nil {
 		return fmt.Errorf("create asset cleanup consumer: %w", err)
 	}
-	worker, err := s.newEffectJob(jobTypeAssetCleanup, stream, consumer, s.processCleanupDelivery, effectJobOptions{MaxAttempts: 20, RetryDelay: assetCleanupRetryDelay})
+	worker, err := s.newEffectJob(jobTypeAssetCleanup, stream, consumer, s.processCleanupDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: assetCleanupRetryDelay})
 	if err != nil {
 		return fmt.Errorf("configure asset cleanup worker: %w", err)
 	}
@@ -38,7 +39,7 @@ func (s *AssetModel) Run(ctx context.Context) error {
 	if s == nil || s.cleanupWorker == nil {
 		return fmt.Errorf("asset cleanup worker is not configured")
 	}
-	return s.cleanupWorker.Run(ctx)
+	return s.cleanupWorker.RunSource(ctx)
 }
 
 func (s *AssetModel) processCleanupDelivery(ctx context.Context, delivery events.DurableDelivery) error {

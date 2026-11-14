@@ -141,7 +141,7 @@ durable EVT records serving as security audit facts rather than an email queue.
 
 ## Durable background jobs
 
-[`jobqueue`](../../cli/internal/jobqueue/queue.go) owns execution, capped
+The shared [`pkg/jobs`](../../pkg/jobs/README.md) module owns execution, capped
 backoff, revision claims, graceful handoff, and dispatch repair. Current records
 are protobuf `JobRecord` values in `RUNTIME_STATE` under `job.{id}`. Dispatches
 are protobuf `JobDispatch` values in `JOBS` on `jobs.{type}.{id}`. A filtered

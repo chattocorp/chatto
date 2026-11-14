@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -24,19 +24,19 @@ func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
 	require.NoError(t, err)
 	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, MaxMsgsPerSubject: 1})
 	require.NoError(t, err)
-	_, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE"})
+	_, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", LimitMarkerTTL: time.Hour})
 	require.NoError(t, err)
 	queue, consumer, err := openJobs(ctx, runtimeunit.Env{NC: nc, JS: js, Logger: log.New(io.Discard)})
 	require.NoError(t, err)
 	payload, err := proto.Marshal(&statev1.MediaJob{AssetId: "asset", MessageEventId: "message"})
 	require.NoError(t, err)
-	require.NoError(t, queue.Enqueue(ctx, &statev1.JobRecord{Id: "media-job", Type: "media", Payload: payload, MaxAttempts: 5, RetryDelayMillis: 1000}))
-	require.NoError(t, queue.Enqueue(ctx, &statev1.JobRecord{Id: "webhook-job", Type: "webhook", MaxAttempts: 3, RetryDelayMillis: 1000}))
+	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "media-job", Type: "media", Payload: payload, MaxAttempts: 5, RetryDelay: time.Second}))
+	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "webhook-job", Type: "webhook", MaxAttempts: 3, RetryDelay: time.Second}))
 	processed := make(chan *statev1.MediaJob, 1)
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
-		done <- queue.Run(runCtx, consumer, map[string]jobqueue.Handler{"media": func(_ context.Context, job *statev1.JobRecord) error {
+		done <- queue.Run(runCtx, consumer, map[string]jobqueue.Handler{"media": func(_ context.Context, job jobqueue.Job) error {
 			request := new(statev1.MediaJob)
 			err := proto.Unmarshal(job.Payload, request)
 			processed <- request

@@ -11,7 +11,6 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
@@ -373,5 +372,5 @@ func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.Str
 // jobsStreamConfig retains the latest dispatch per job. Acknowledgement does not
 // delete it: state plus dispatch snapshots can be recovered independently.
 func jobsStreamConfig(cfg config.CoreConfig) jetstream.StreamConfig {
-	return jetstream.StreamConfig{Name: natsresources.Jobs, Description: "Durable background job dispatch", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas, Retention: jetstream.LimitsPolicy, MaxMsgsPerSubject: 1, MaxAge: jobqueue.SucceededRetention}
+	return jetstream.StreamConfig{Name: natsresources.Jobs, Description: "Durable background job dispatch", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas, Retention: jetstream.LimitsPolicy, MaxMsgsPerSubject: 1, MaxAge: JobSucceededRetention}
 }

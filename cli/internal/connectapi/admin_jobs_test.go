@@ -1,19 +1,21 @@
 package connectapi
 
 import (
+	"context"
+	"io"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
-	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
@@ -43,19 +45,46 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	ctx := withArmedBearerCredential(env.ctx, env.viewer, "armed")
 	js, err := jetstream.New(env.nc)
 	require.NoError(t, err)
-	kv, err := js.KeyValue(ctx, "RUNTIME_STATE")
+	bucket, err := js.KeyValue(ctx, "RUNTIME_STATE")
+	require.NoError(t, err)
+	kv, err := jetstreamutil.NewKeyValue(js, bucket)
+	require.NoError(t, err)
+	stream, err := js.Stream(ctx, "JOBS")
+	require.NoError(t, err)
+	// A separate queue handle with Chatto's contract makes three real failed
+	// jobs of a type that the server does not handle. Job c is already expired.
+	queue, err := core.NewJobQueue(js, kv, log.New(io.Discard), nil)
 	require.NoError(t, err)
 	for _, id := range []string{"a", "b", "c"} {
 		deadline := time.Now().Add(time.Hour)
 		if id == "c" {
 			deadline = time.Now().Add(-time.Hour)
 		}
-		job := &statev1.JobRecord{Id: id, Type: "unregistered-test", Status: statev1.JobExecutionStatus_JOB_EXECUTION_STATUS_FAILED, MaxAttempts: 3, Attempts: 3, Generation: 1, RetryDelayMillis: 1000, Payload: []byte("SECRET-PAYLOAD"), Owner: "SECRET-CLAIM", CreatedAt: timestamppb.Now(), UpdatedAt: timestamppb.Now(), ExpiresAt: timestamppb.New(deadline), Failure: "http_error"}
-		data, err := proto.Marshal(job)
-		require.NoError(t, err)
-		_, err = kv.Put(ctx, "job."+id, data)
-		require.NoError(t, err)
+		require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: id, Type: "unregistered-test", MaxAttempts: 3, RetryDelay: time.Second, Payload: []byte("SECRET-PAYLOAD"), ExpiresAt: deadline}))
 	}
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, "test-unregistered", "unregistered-test"))
+	require.NoError(t, err)
+	runCtx, stop := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() {
+		done <- queue.Run(runCtx, consumer, map[string]jobqueue.Handler{"unregistered-test": func(context.Context, jobqueue.Job) error {
+			return &jobqueue.Failure{Category: "http_error", Permanent: true}
+		}}, 3)
+	}()
+	require.Eventually(t, func() bool {
+		jobs, _, err := queue.List(ctx, "", 10)
+		if err != nil || len(jobs) != 3 {
+			return false
+		}
+		for _, job := range jobs {
+			if job.Status != jobqueue.Failed {
+				return false
+			}
+		}
+		return true
+	}, 5*time.Second, 10*time.Millisecond)
+	stop()
+	require.NoError(t, <-done)
 	first, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2}))
 	require.NoError(t, err)
 	require.Len(t, first.Msg.Jobs, 2)

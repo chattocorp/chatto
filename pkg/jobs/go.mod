@@ -1,0 +1,31 @@
+module github.com/chattocorp/chatto/pkg/jobs
+
+go 1.26.0
+
+require (
+	github.com/chattocorp/chatto/pkg/events v0.0.0
+	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/nats-io/nats-server/v2 v2.14.7
+	github.com/nats-io/nats.go v1.54.0
+	golang.org/x/sync v0.23.0
+	google.golang.org/protobuf v1.36.12
+)
+
+require (
+	github.com/antithesishq/antithesis-sdk-go v0.8.0-default-no-op // indirect
+	github.com/google/go-tpm v0.9.8 // indirect
+	github.com/jellydator/ttlcache/v3 v3.4.1 // indirect
+	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/minio/highwayhash v1.0.4 // indirect
+	github.com/nats-io/jwt/v2 v2.8.2 // indirect
+	github.com/nats-io/nkeys v0.4.16 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/time v0.16.0 // indirect
+)
+
+replace (
+	github.com/chattocorp/chatto/pkg/events => ../events
+	github.com/chattocorp/chatto/pkg/jetstreamutil => ../jetstreamutil
+)

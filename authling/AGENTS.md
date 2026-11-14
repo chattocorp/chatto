@@ -59,6 +59,7 @@ shared boundary is stable for normal versioned use.
   module owns generic event-sourcing mechanics,
   `github.com/chattocorp/chatto/pkg/jetstreamutil` owns JetStream client helpers
   such as key-value reads through the stream leader,
+  `github.com/chattocorp/chatto/pkg/jobs` owns durable background job execution,
   `github.com/chattocorp/chatto/pkg/natsruntime` owns embedded NATS lifecycle
   mechanics, and `github.com/chattocorp/chatto/pkg/datacrypto` owns raw
   XChaCha20-Poly1305 and 256-bit key wrapping primitives.

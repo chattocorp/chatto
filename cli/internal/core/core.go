@@ -17,7 +17,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 // ============================================================================
@@ -32,7 +32,7 @@ type ChattoCore struct {
 	jobsConsumer        jetstream.Consumer
 	mediaSourceConsumer jetstream.Consumer
 	mediaJobHandler     func(context.Context, string, string) error
-	effectJobs          map[string]*effectJob // Registered during construction; read-only after Run starts.
+	effectJobs          map[string]*jobqueue.Effect // Registered during construction; read-only after Run starts.
 
 	botWebhooks               *botWebhookModel
 	nc                        *nats.Conn

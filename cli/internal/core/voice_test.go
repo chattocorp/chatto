@@ -14,7 +14,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/chattocorp/chatto/cli/internal/kms"
 	"github.com/chattocorp/chatto/cli/internal/lease"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"

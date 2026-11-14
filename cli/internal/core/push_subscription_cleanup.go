@@ -19,6 +19,7 @@ import (
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const (
@@ -40,7 +41,7 @@ const (
 // records without replaying a global scan for every deleted account.
 type pushSubscriptionCleanupModel struct {
 	core           *ChattoCore
-	worker         *effectJob
+	worker         *jobqueue.Effect
 	reconcileLease *lease.Lease
 	logger         *log.Logger
 	deleteAllFn    func(context.Context, string) (int, error)
@@ -69,7 +70,7 @@ func newPushSubscriptionCleanupModel(
 		logger:         logger,
 		deleteAllFn:    core.DeleteAllUserPushSubscriptions,
 	}
-	model.worker, err = core.newEffectJob(jobTypePushSubscriptionCleanup, core.storage.serverEvtStream, consumer, model.processDelivery, effectJobOptions{MaxAttempts: 20, RetryDelay: pushSubscriptionCleanupRetryDelay})
+	model.worker, err = core.newEffectJob(jobTypePushSubscriptionCleanup, core.storage.serverEvtStream, consumer, model.processDelivery, jobqueue.EffectOptions{MaxAttempts: 20, RetryDelay: pushSubscriptionCleanupRetryDelay})
 	if err != nil {
 		return nil, fmt.Errorf("configure user push-subscription cleanup worker: %w", err)
 	}
@@ -78,7 +79,7 @@ func newPushSubscriptionCleanupModel(
 
 func (m *pushSubscriptionCleanupModel) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return m.worker.Run(gctx) })
+	g.Go(func() error { return m.worker.RunSource(gctx) })
 	g.Go(func() error {
 		m.runReconciler(gctx)
 		return nil

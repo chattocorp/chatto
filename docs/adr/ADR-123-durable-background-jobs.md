@@ -12,11 +12,18 @@ Operators could not inspect or retry individual work items.
 
 ## Decision
 
-Use one Chatto-owned job queue. This decision replaces the execution and queue
-choices in ADR-066 and ADR-097. Their media lifecycle, endpoint security, and
-source selection rules still apply.
+Use one durable job queue in each application. The application-neutral
+mechanics live in the shared, Apache-2.0 `pkg/jobs` module: records,
+dispatches, claims, backoff, manual retry, repair, retention, and the effect
+adapter. Chatto and Authling use it; Authling's account erasure is the second
+consumer that validates the shared boundary. Each application owns its
+resource names, consumers, job types, policies, handlers, and user interfaces.
+The module owns its protobuf record format. This decision applies to the
+repository. For Chatto, it replaces the execution and queue choices in ADR-066
+and ADR-097. Their media lifecycle, endpoint security, and source selection
+rules still apply.
 
-Keep current job records as protobufs under `job.{id}` in `RUNTIME_STATE`.
+Chatto keeps current job records under `job.{id}` in `RUNTIME_STATE`.
 Keep dispatch references in a file-backed `JOBS` stream on
 `jobs.{type}.{id}`. Retain the latest dispatch per subject for seven days;
 the repair pass publishes again for unfinished jobs. A succeeded record
@@ -78,3 +85,9 @@ until an operator retries it. Effect source consumer diagnostics show handoff
 progress, not job completion. Notification occurrence projection, link-preview
 work, and periodic reconciliation passes remain outside the queue. The current
 server has no separate email worker: account emails send on the request path.
+
+Authling keeps job records in a dedicated `AUTHLING_JOB_STATE` bucket, because
+its runtime-state bucket holds only expiring state, and dispatches in
+`AUTHLING_JOBS`. Its erasure source acknowledges unrelated account events
+without a job through the effect `Accept` filter. Erasure jobs have an
+effectively unlimited attempt budget, because Authling has no manual retry.

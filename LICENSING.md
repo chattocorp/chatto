@@ -11,7 +11,7 @@ declared.
 
 Apache-2.0 exceptions are used where permissive reuse is intentional. These
 include the independently versioned `pkg/events`, `pkg/jetstreamutil`,
-`pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` shared framework
+`pkg/jobs`, `pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` shared framework
 modules, the
 framework-neutral `packages/translatto` internationalisation runtime, the
 standalone frontend source and image, public protocol/API definitions,

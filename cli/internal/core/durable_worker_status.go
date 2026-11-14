@@ -1,7 +1,6 @@
 package core
 
 import (
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 )
@@ -55,8 +54,8 @@ func durableWorkerDiagnosticSpecs() []durableWorkerDiagnosticSpec {
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
 		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
-		{key: "jobs", streamName: natsresources.Jobs, consumerName: jobqueue.ConsumerName, required: true},
-		{key: "media_jobs", streamName: natsresources.Jobs, consumerName: jobqueue.MediaConsumerName, required: false},
+		{key: "jobs", streamName: natsresources.Jobs, consumerName: JobsConsumerName, required: true},
+		{key: "media_jobs", streamName: natsresources.Jobs, consumerName: MediaJobsConsumerName, required: false},
 	}
 }
 

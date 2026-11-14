@@ -22,221 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Stable persisted execution states.
-type JobExecutionStatus int32
-
-const (
-	JobExecutionStatus_JOB_EXECUTION_STATUS_UNSPECIFIED JobExecutionStatus = 0
-	JobExecutionStatus_JOB_EXECUTION_STATUS_QUEUED      JobExecutionStatus = 1
-	JobExecutionStatus_JOB_EXECUTION_STATUS_RUNNING     JobExecutionStatus = 2
-	JobExecutionStatus_JOB_EXECUTION_STATUS_SUCCEEDED   JobExecutionStatus = 3
-	JobExecutionStatus_JOB_EXECUTION_STATUS_FAILED      JobExecutionStatus = 4
-)
-
-// Enum value maps for JobExecutionStatus.
-var (
-	JobExecutionStatus_name = map[int32]string{
-		0: "JOB_EXECUTION_STATUS_UNSPECIFIED",
-		1: "JOB_EXECUTION_STATUS_QUEUED",
-		2: "JOB_EXECUTION_STATUS_RUNNING",
-		3: "JOB_EXECUTION_STATUS_SUCCEEDED",
-		4: "JOB_EXECUTION_STATUS_FAILED",
-	}
-	JobExecutionStatus_value = map[string]int32{
-		"JOB_EXECUTION_STATUS_UNSPECIFIED": 0,
-		"JOB_EXECUTION_STATUS_QUEUED":      1,
-		"JOB_EXECUTION_STATUS_RUNNING":     2,
-		"JOB_EXECUTION_STATUS_SUCCEEDED":   3,
-		"JOB_EXECUTION_STATUS_FAILED":      4,
-	}
-)
-
-func (x JobExecutionStatus) Enum() *JobExecutionStatus {
-	p := new(JobExecutionStatus)
-	*p = x
-	return p
-}
-
-func (x JobExecutionStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (JobExecutionStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_core_runtime_state_v1_jobs_proto_enumTypes[0].Descriptor()
-}
-
-func (JobExecutionStatus) Type() protoreflect.EnumType {
-	return &file_chatto_core_runtime_state_v1_jobs_proto_enumTypes[0]
-}
-
-func (x JobExecutionStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use JobExecutionStatus.Descriptor instead.
-func (JobExecutionStatus) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{0}
-}
-
-// Latest durable execution state. Payloads contain opaque references, not content
-// or credentials. Terminal records also prevent source redelivery from enqueueing
-// the same work again. Generation fences dispatches from previous manual retries.
-type JobRecord struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type             string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Status           JobExecutionStatus     `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.core.runtime_state.v1.JobExecutionStatus" json:"status,omitempty"`
-	Attempts         uint32                 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
-	MaxAttempts      uint32                 `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	NextAttemptAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`
-	Failure          string                 `protobuf:"bytes,9,opt,name=failure,proto3" json:"failure,omitempty"`
-	Payload          []byte                 `protobuf:"bytes,10,opt,name=payload,proto3" json:"payload,omitempty"`
-	Generation       uint64                 `protobuf:"varint,11,opt,name=generation,proto3" json:"generation,omitempty"`
-	Owner            string                 `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`
-	LeaseUntil       *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=lease_until,json=leaseUntil,proto3" json:"lease_until,omitempty"`
-	RetryDelayMillis int64                  `protobuf:"varint,14,opt,name=retry_delay_millis,json=retryDelayMillis,proto3" json:"retry_delay_millis,omitempty"`
-	ExpiresAt        *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *JobRecord) Reset() {
-	*x = JobRecord{}
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *JobRecord) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*JobRecord) ProtoMessage() {}
-
-func (x *JobRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use JobRecord.ProtoReflect.Descriptor instead.
-func (*JobRecord) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *JobRecord) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *JobRecord) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *JobRecord) GetStatus() JobExecutionStatus {
-	if x != nil {
-		return x.Status
-	}
-	return JobExecutionStatus_JOB_EXECUTION_STATUS_UNSPECIFIED
-}
-
-func (x *JobRecord) GetAttempts() uint32 {
-	if x != nil {
-		return x.Attempts
-	}
-	return 0
-}
-
-func (x *JobRecord) GetMaxAttempts() uint32 {
-	if x != nil {
-		return x.MaxAttempts
-	}
-	return 0
-}
-
-func (x *JobRecord) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
-func (x *JobRecord) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-func (x *JobRecord) GetNextAttemptAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.NextAttemptAt
-	}
-	return nil
-}
-
-func (x *JobRecord) GetFailure() string {
-	if x != nil {
-		return x.Failure
-	}
-	return ""
-}
-
-func (x *JobRecord) GetPayload() []byte {
-	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-func (x *JobRecord) GetGeneration() uint64 {
-	if x != nil {
-		return x.Generation
-	}
-	return 0
-}
-
-func (x *JobRecord) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *JobRecord) GetLeaseUntil() *timestamppb.Timestamp {
-	if x != nil {
-		return x.LeaseUntil
-	}
-	return nil
-}
-
-func (x *JobRecord) GetRetryDelayMillis() int64 {
-	if x != nil {
-		return x.RetryDelayMillis
-	}
-	return 0
-}
-
-func (x *JobRecord) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
 // Webhook delivery references and immutable source-time policy. Credentials and
 // message content are loaded through current authorization on every attempt.
 type WebhookJob struct {
@@ -254,7 +39,7 @@ type WebhookJob struct {
 
 func (x *WebhookJob) Reset() {
 	*x = WebhookJob{}
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[1]
+	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -266,7 +51,7 @@ func (x *WebhookJob) String() string {
 func (*WebhookJob) ProtoMessage() {}
 
 func (x *WebhookJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[1]
+	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -279,7 +64,7 @@ func (x *WebhookJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebhookJob.ProtoReflect.Descriptor instead.
 func (*WebhookJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{1}
+	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WebhookJob) GetBotUserId() string {
@@ -342,7 +127,7 @@ type MediaJob struct {
 
 func (x *MediaJob) Reset() {
 	*x = MediaJob{}
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[2]
+	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +139,7 @@ func (x *MediaJob) String() string {
 func (*MediaJob) ProtoMessage() {}
 
 func (x *MediaJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[2]
+	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -367,7 +152,7 @@ func (x *MediaJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaJob.ProtoReflect.Descriptor instead.
 func (*MediaJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{2}
+	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *MediaJob) GetAssetId() string {
@@ -384,98 +169,11 @@ func (x *MediaJob) GetMessageEventId() string {
 	return ""
 }
 
-// Reference to one retained source message of a durable effect. The handler
-// loads the message again on every attempt; the job never copies its data.
-// The digest binds the reference to that exact message, so a recreated stream
-// that reuses the sequence cannot satisfy it.
-type EventEffectJob struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Subject       string                 `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	DataSha256    []byte                 `protobuf:"bytes,3,opt,name=data_sha256,json=dataSha256,proto3" json:"data_sha256,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EventEffectJob) Reset() {
-	*x = EventEffectJob{}
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EventEffectJob) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EventEffectJob) ProtoMessage() {}
-
-func (x *EventEffectJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_jobs_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EventEffectJob.ProtoReflect.Descriptor instead.
-func (*EventEffectJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *EventEffectJob) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
-}
-
-func (x *EventEffectJob) GetSequence() uint64 {
-	if x != nil {
-		return x.Sequence
-	}
-	return 0
-}
-
-func (x *EventEffectJob) GetDataSha256() []byte {
-	if x != nil {
-		return x.DataSha256
-	}
-	return nil
-}
-
 var File_chatto_core_runtime_state_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/runtime_state/v1/jobs.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x05\n" +
-	"\tJobRecord\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x12H\n" +
-	"\x06status\x18\x03 \x01(\x0e20.chatto.core.runtime_state.v1.JobExecutionStatusR\x06status\x12\x1a\n" +
-	"\battempts\x18\x04 \x01(\rR\battempts\x12!\n" +
-	"\fmax_attempts\x18\x05 \x01(\rR\vmaxAttempts\x129\n" +
-	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12B\n" +
-	"\x0fnext_attempt_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\x12\x18\n" +
-	"\afailure\x18\t \x01(\tR\afailure\x12\x18\n" +
-	"\apayload\x18\n" +
-	" \x01(\fR\apayload\x12\x1e\n" +
-	"\n" +
-	"generation\x18\v \x01(\x04R\n" +
-	"generation\x12\x14\n" +
-	"\x05owner\x18\f \x01(\tR\x05owner\x12;\n" +
-	"\vlease_until\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"leaseUntil\x12,\n" +
-	"\x12retry_delay_millis\x18\x0e \x01(\x03R\x10retryDelayMillis\x129\n" +
-	"\n" +
-	"expires_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x9c\x02\n" +
+	"'chatto/core/runtime_state/v1/jobs.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x02\n" +
 	"\n" +
 	"WebhookJob\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
@@ -489,18 +187,7 @@ const file_chatto_core_runtime_state_v1_jobs_proto_rawDesc = "" +
 	"occurredAt\"O\n" +
 	"\bMediaJob\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"g\n" +
-	"\x0eEventEffectJob\x12\x18\n" +
-	"\asubject\x18\x01 \x01(\tR\asubject\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +
-	"\vdata_sha256\x18\x03 \x01(\fR\n" +
-	"dataSha256*\xc2\x01\n" +
-	"\x12JobExecutionStatus\x12$\n" +
-	" JOB_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bJOB_EXECUTION_STATUS_QUEUED\x10\x01\x12 \n" +
-	"\x1cJOB_EXECUTION_STATUS_RUNNING\x10\x02\x12\"\n" +
-	"\x1eJOB_EXECUTION_STATUS_SUCCEEDED\x10\x03\x12\x1f\n" +
-	"\x1bJOB_EXECUTION_STATUS_FAILED\x10\x04B\x96\x02\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventIdB\x96\x02\n" +
 	" com.chatto.core.runtime_state.v1B\tJobsProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
@@ -515,29 +202,19 @@ func file_chatto_core_runtime_state_v1_jobs_proto_rawDescGZIP() []byte {
 	return file_chatto_core_runtime_state_v1_jobs_proto_rawDescData
 }
 
-var file_chatto_core_runtime_state_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_runtime_state_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_core_runtime_state_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_core_runtime_state_v1_jobs_proto_goTypes = []any{
-	(JobExecutionStatus)(0),       // 0: chatto.core.runtime_state.v1.JobExecutionStatus
-	(*JobRecord)(nil),             // 1: chatto.core.runtime_state.v1.JobRecord
-	(*WebhookJob)(nil),            // 2: chatto.core.runtime_state.v1.WebhookJob
-	(*MediaJob)(nil),              // 3: chatto.core.runtime_state.v1.MediaJob
-	(*EventEffectJob)(nil),        // 4: chatto.core.runtime_state.v1.EventEffectJob
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*WebhookJob)(nil),            // 0: chatto.core.runtime_state.v1.WebhookJob
+	(*MediaJob)(nil),              // 1: chatto.core.runtime_state.v1.MediaJob
+	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
 var file_chatto_core_runtime_state_v1_jobs_proto_depIdxs = []int32{
-	0, // 0: chatto.core.runtime_state.v1.JobRecord.status:type_name -> chatto.core.runtime_state.v1.JobExecutionStatus
-	5, // 1: chatto.core.runtime_state.v1.JobRecord.created_at:type_name -> google.protobuf.Timestamp
-	5, // 2: chatto.core.runtime_state.v1.JobRecord.updated_at:type_name -> google.protobuf.Timestamp
-	5, // 3: chatto.core.runtime_state.v1.JobRecord.next_attempt_at:type_name -> google.protobuf.Timestamp
-	5, // 4: chatto.core.runtime_state.v1.JobRecord.lease_until:type_name -> google.protobuf.Timestamp
-	5, // 5: chatto.core.runtime_state.v1.JobRecord.expires_at:type_name -> google.protobuf.Timestamp
-	5, // 6: chatto.core.runtime_state.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	2, // 0: chatto.core.runtime_state.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_runtime_state_v1_jobs_proto_init() }
@@ -550,14 +227,13 @@ func file_chatto_core_runtime_state_v1_jobs_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc), len(file_chatto_core_runtime_state_v1_jobs_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   4,
+			NumEnums:      0,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_core_runtime_state_v1_jobs_proto_goTypes,
 		DependencyIndexes: file_chatto_core_runtime_state_v1_jobs_proto_depIdxs,
-		EnumInfos:         file_chatto_core_runtime_state_v1_jobs_proto_enumTypes,
 		MessageInfos:      file_chatto_core_runtime_state_v1_jobs_proto_msgTypes,
 	}.Build()
 	File_chatto_core_runtime_state_v1_jobs_proto = out.File

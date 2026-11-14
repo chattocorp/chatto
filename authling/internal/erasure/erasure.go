@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/chattocorp/chatto/authling/internal/evtstream"
@@ -14,6 +15,7 @@ import (
 	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/events/intern"
+	"github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -127,7 +129,7 @@ type Service struct {
 	publisher *evtstream.Publisher
 	handle    events.ProjectionHandle[*Projection]
 	vault     *keyvault.Vault
-	worker    *events.DurableWorker
+	effect    *jobs.Effect
 	// waitAccount ensures account and grant projections validate the decision.
 	waitAccount func(context.Context, State) error
 }
@@ -154,9 +156,12 @@ func (s *Service) IsRequested(ctx context.Context, id string) (bool, error) {
 	return state.RequestID != "", nil
 }
 
-// ConfigureWorker creates one shared durable consumer. Replicas may share it;
-// key purges are idempotent and completion uses account OCC.
-func (s *Service) ConfigureWorker(ctx context.Context, stream jetstream.Stream, logger *slog.Logger, wait func(context.Context, State) error) error {
+// ConfigureWorker moves the shared durable erasure consumer onto queue. The
+// consumer keeps its persisted name; it accepts one job per erasure request
+// and ignores other account events. Replicas may share it; key purges are
+// idempotent and completion uses account OCC. Register Effect().Handle with
+// the queue's worker pool.
+func (s *Service) ConfigureWorker(ctx context.Context, stream jetstream.Stream, queue *jobs.Queue, logger *slog.Logger, wait func(context.Context, State) error) error {
 	if wait == nil {
 		return fmt.Errorf("erasure validation barrier is required")
 	}
@@ -165,18 +170,42 @@ func (s *Service) ConfigureWorker(ctx context.Context, stream jetstream.Stream, 
 	if err != nil {
 		return err
 	}
-	s.worker, err = events.NewDurableWorker(consumer, s.process, events.DurableWorkerOptions{MaxConcurrent: 1, RetryDelay: time.Second, Logger: logger})
+	s.effect, err = jobs.NewEffect(queue, JobType, stream, consumer, s.process, jobs.EffectOptions{
+		// Erasure must never be abandoned, and Authling has no manual retry.
+		// The capped backoff then keeps retrying, as the previous worker did.
+		MaxAttempts:       math.MaxUint32,
+		RetryDelay:        time.Second,
+		Accept:            isErasureRequest,
+		SourceConcurrency: 1,
+		Logger:            logger,
+	})
 	return err
 }
 
-// Run processes durable erasure work until cancellation. ConfigureWorker must
-// finish before Run starts, and the required projectors must run concurrently.
+// JobType is the persisted job type of account erasure.
+const JobType = "account_erasure"
+
+// Effect returns the erasure job effect. ConfigureWorker must finish first.
+func (s *Service) Effect() *jobs.Effect { return s.effect }
+
+func isErasureRequest(d events.DurableDelivery) (bool, error) {
+	decoded, err := evtstream.Decode(d.Data)
+	if err != nil {
+		return false, err
+	}
+	return decoded.Event.GetAccountErasureRequested() != nil, nil
+}
+
+// Run hands erasure requests to the job queue until cancellation.
+// ConfigureWorker must finish before Run starts. The queue's worker pool and
+// the required projectors must run concurrently.
 func (s *Service) Run(ctx context.Context) error {
-	if s.worker == nil {
+	if s.effect == nil {
 		return fmt.Errorf("erasure worker is not configured")
 	}
-	return s.worker.Run(ctx)
+	return s.effect.RunSource(ctx)
 }
+
 func (s *Service) process(ctx context.Context, d events.DurableDelivery) error {
 	decoded, err := evtstream.Decode(d.Data)
 	if err != nil {

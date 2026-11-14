@@ -89,6 +89,7 @@ run = [
     { task = "setup-datacrypto" },
     { task = "setup-events" },
     { task = "setup-jetstreamutil" },
+    { task = "setup-jobs" },
     { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "setup-livekit" },
@@ -120,6 +121,12 @@ sources = ["go.mod", "go.sum"]
 [tasks.deps-jetstreamutil]
 description = "Install JetStream utilities dependencies"
 dir = "pkg/jetstreamutil"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-jobs]
+description = "Install shared job queue dependencies"
+dir = "pkg/jobs"
 run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
@@ -167,6 +174,10 @@ depends = ["deps-datacrypto"]
 [tasks.setup-jetstreamutil]
 description = "Set up the JetStream utilities module"
 depends = ["deps-jetstreamutil"]
+
+[tasks.setup-jobs]
+description = "Set up the shared job queue module"
+depends = ["deps-jobs"]
 
 [tasks.setup-events]
 description = "Set up the event framework module"
@@ -247,6 +258,15 @@ run = [
     "node ../tools/split-connectrpc-docs.mjs",
     "node ../tools/trim-proto-codegen-output.mjs",
     "node ../packages/chatto-client/scripts/generate-types.mjs",
+]
+
+[tasks.codegen-jobs-proto]
+description = "Generate the shared job queue protobuf code"
+depends = ["setup-jobs"]
+dir = "pkg/jobs"
+run = [
+    "GOWORK=off go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go",
+    "GOWORK=off buf generate",
 ]
 
 [tasks.codegen-emoji]
@@ -912,6 +932,16 @@ run = [
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
+[tasks.test-jobs]
+description = "Run shared job queue tests standalone and in the repository workspace"
+depends = ["setup-jobs"]
+dir = "pkg/jobs"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
 [tasks.test-natsruntime]
 description = "Run embedded NATS runtime tests standalone and in the repository workspace"
 depends = ["setup-natsruntime"]
@@ -991,6 +1021,13 @@ run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-chec
 description = "Vet JetStream utilities standalone and in the workspace"
 depends = ["setup-jetstreamutil"]
 dir = "pkg/jetstreamutil"
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
+
+[tasks.lint-jobs]
+description = "Vet the shared job queue standalone and in the workspace"
+depends = ["setup-jobs"]
+dir = "pkg/jobs"
 tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
@@ -1097,6 +1134,7 @@ run = [
     { task = "test-datacrypto" },
     { task = "test-events" },
     { task = "test-jetstreamutil" },
+    { task = "test-jobs" },
     { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-desktop" },

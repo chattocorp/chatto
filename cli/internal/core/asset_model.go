@@ -13,6 +13,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -47,7 +48,7 @@ type AssetModel struct {
 	*ChattoCore
 	assets                events.ProjectionHandle[*AssetProjection]
 	cleanupConsumer       jetstream.Consumer
-	cleanupWorker         *effectJob
+	cleanupWorker         *jobqueue.Effect
 	waitForAssetsOverride func(context.Context, events.StreamPosition) error
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 // ErrNotificationAlertSuppressed tells the durable worker that a last-moment
@@ -39,7 +40,7 @@ const (
 type notificationAlertDelivery struct {
 	core                       *ChattoCore
 	consumer                   jetstream.Consumer
-	job                        *effectJob
+	job                        *jobqueue.Effect
 	waitForMaterializerCurrent func(context.Context) error
 }
 
@@ -76,7 +77,7 @@ func (d *notificationAlertDelivery) initialize(ctx context.Context) error {
 			return err
 		}
 		return d.processDelivery(ctx, delivery)
-	}, effectJobOptions{MaxAttempts: 5, RetryDelay: notificationAlertRetryDelay, SourceMayExpire: true})
+	}, jobqueue.EffectOptions{MaxAttempts: 5, RetryDelay: notificationAlertRetryDelay, SourceMayExpire: true})
 	return err
 }
 
@@ -85,7 +86,7 @@ func (d *notificationAlertDelivery) run(ctx context.Context) error {
 		return fmt.Errorf("wait for notification projection before alert delivery: %w", err)
 	}
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return d.job.Run(gctx) })
+	g.Go(func() error { return d.job.RunSource(gctx) })
 	g.Go(func() error { return d.reconcileExpired(gctx) })
 	return g.Wait()
 }

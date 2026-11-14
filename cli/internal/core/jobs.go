@@ -6,23 +6,57 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/jobqueue"
+	"github.com/chattocorp/chatto/cli/internal/logbridge"
 	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
+)
+
+// Persisted job queue resource contract (ADR-114). Records live in
+// RUNTIME_STATE under job.{id}; dispatches use jobs.{type}.{id} in JOBS.
+const (
+	// JobsConsumerName is the shared JOBS consumer of server replicas.
+	JobsConsumerName = "chatto-jobs-v1"
+	// MediaJobsConsumerName is the JOBS consumer of standalone media processes.
+	MediaJobsConsumerName = "chatto-jobs-media-v1"
+	jobKeyPrefix          = "job."
+	jobSubjectPrefix      = "jobs"
+	// JobSucceededRetention is how long succeeded job records stay.
+	JobSucceededRetention = 7 * 24 * time.Hour
 )
 
 // ErrJobNotRetryable means this job is active, successful, or expired.
 var ErrJobNotRetryable = errors.New("job cannot be retried")
 
+// NewJobQueue binds Chatto's job queue contract to provisioned resources. kv
+// must be the leader-bound RUNTIME_STATE bucket. onFailed may be nil.
+func NewJobQueue(js jetstream.JetStream, kv jobqueue.KeyValue, logger *log.Logger, onFailed func(context.Context, jobqueue.Job)) (*jobqueue.Queue, error) {
+	return jobqueue.New(js, kv, jobqueue.Options{
+		KeyPrefix: jobKeyPrefix, SubjectPrefix: jobSubjectPrefix, SucceededRetention: JobSucceededRetention,
+		Logger: logbridge.Slog(logger), OnFailed: onFailed,
+	})
+}
+
+// JobsConsumerConfig is the application-owned configuration of a JOBS consumer.
+// A standalone media consumer overlaps the shared consumer safely through
+// record revision claims.
+func JobsConsumerConfig(q *jobqueue.Queue, name string, types ...string) jetstream.ConsumerConfig {
+	return jetstream.ConsumerConfig{Name: name, Durable: name, Description: "Durable background job dispatch", FilterSubjects: q.FilterSubjects(types...), AckPolicy: jetstream.AckExplicitPolicy, AckWait: 2 * time.Minute, MaxAckPending: 64, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy}
+}
+
 func (c *ChattoCore) initializeJobs(ctx context.Context) error {
-	c.jobs = jobqueue.New(c.js, c.storage.runtimeStateKV, c.logger.WithPrefix("Jobs"))
 	var err error
-	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, jobqueue.ConsumerConfig(jobqueue.ConsumerName, append([]string{"webhook", "media"}, effectJobTypes()...)))
+	c.jobs, err = NewJobQueue(c.js, c.storage.runtimeStateKV, c.logger.WithPrefix("Jobs"), c.recordWebhookJobFailure)
+	if err != nil {
+		return err
+	}
+	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, JobsConsumerName, append([]string{"webhook", "media"}, effectJobTypes()...)...))
 	if err != nil {
 		return err
 	}
@@ -30,6 +64,22 @@ func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 	// process its deliveries during an upgrade; both paths use asset terminal facts.
 	c.mediaSourceConsumer, err = evtstream.CreateEffectConsumer(ctx, c.storage.serverEvtStream, evtstream.EffectConsumerConfig{Name: AssetProcessingConsumerName, Description: "Durable media job handoff", FilterSubjects: []string{evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted), evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted)}, AckWait: 2 * time.Minute, MaxAckPending: 64, DeliverPolicy: jetstream.DeliverAllPolicy})
 	return err
+}
+
+// recordWebhookJobFailure keeps the existing endpoint diagnostics in LOG. The
+// job record stays authoritative; a LOG failure is only logged.
+func (c *ChattoCore) recordWebhookJobFailure(ctx context.Context, job jobqueue.Job) {
+	if job.Type != "webhook" || c.botWebhooks == nil {
+		return
+	}
+	payload := new(statev1.WebhookJob)
+	if proto.Unmarshal(job.Payload, payload) != nil {
+		return
+	}
+	request := &botWebhookDelivery{DeliveryID: job.ID, BotUserID: payload.BotUserId, WebhookID: payload.WebhookId, SourceEventID: payload.SourceEventId}
+	if err := c.botWebhooks.fail(ctx, request, job.Attempts, job.Failure, 0); err != nil {
+		c.logger.Warn("Could not record webhook queue failure", "delivery_id", job.ID)
+	}
 }
 
 // SetMediaJobHandler registers media processing before Run starts. The handler
@@ -52,25 +102,12 @@ func (c *ChattoCore) runJobs(ctx context.Context) error {
 	if err := c.WaitForBoot(ctx); err != nil {
 		return err
 	}
-	c.jobs.OnFailed = func(ctx context.Context, job *statev1.JobRecord) {
-		if job.Type != "webhook" {
-			return
-		}
-		payload := new(statev1.WebhookJob)
-		if proto.Unmarshal(job.Payload, payload) != nil {
-			return
-		}
-		request := &botWebhookDelivery{DeliveryID: job.Id, BotUserID: payload.BotUserId, WebhookID: payload.WebhookId, SourceEventID: payload.SourceEventId}
-		if err := c.botWebhooks.fail(ctx, request, job.Attempts, job.Failure, 0); err != nil {
-			c.logger.Warn("Could not record webhook queue failure", "delivery_id", job.Id)
-		}
-	}
 	handlers := map[string]jobqueue.Handler{"webhook": c.botWebhooks.performJob}
 	for kind, job := range c.effectJobs {
-		handlers[kind] = job.perform
+		handlers[kind] = job.Handle
 	}
 	if c.mediaJobHandler != nil {
-		handlers["media"] = func(ctx context.Context, job *statev1.JobRecord) error {
+		handlers["media"] = func(ctx context.Context, job jobqueue.Job) error {
 			request := new(statev1.MediaJob)
 			if err := proto.Unmarshal(job.Payload, request); err != nil {
 				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
@@ -105,7 +142,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return c.jobs.Enqueue(ctx, &statev1.JobRecord{Id: jobqueue.ID("media", event.GetId()), Type: "media", Payload: payload, MaxAttempts: 5, RetryDelayMillis: 30000})
+		return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: jobqueue.ID("media", event.GetId()), Type: "media", Payload: payload, MaxAttempts: 5, RetryDelay: 30 * time.Second})
 	}, evtstream.EffectWorkerOptions{MaxConcurrent: 8, RetryDelay: 5 * time.Second, Logger: c.logger.WithPrefix("MediaJobSource")})
 	if err != nil {
 		return err
@@ -115,7 +152,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 
 // ListJobs returns safe-to-map private job records after the operation's gate.
 // The page token is sealed and bound to the viewer; no broker position is public.
-func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, token string) ([]*statev1.JobRecord, string, error) {
+func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, token string) ([]jobqueue.Job, string, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
 		return nil, "", err
 	}
@@ -139,38 +176,38 @@ func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, to
 	}
 	next := ""
 	if more && len(jobs) > 0 {
-		next, err = c.SealPublicCursor("jobs-page-v1", actorID, []byte(jobs[len(jobs)-1].Id))
+		next, err = c.SealPublicCursor("jobs-page-v1", actorID, []byte(jobs[len(jobs)-1].ID))
 	}
 	return jobs, next, err
 }
 
 // GetJob requires the same management permission as list and retry.
-func (c *ChattoCore) GetJob(ctx context.Context, actorID, id string) (*statev1.JobRecord, error) {
+func (c *ChattoCore) GetJob(ctx context.Context, actorID, id string) (jobqueue.Job, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
-		return nil, err
+		return jobqueue.Job{}, err
 	}
 	job, err := c.jobs.Get(ctx, id)
 	if errors.Is(err, jobqueue.ErrNotFound) {
-		return nil, ErrNotFound
+		return jobqueue.Job{}, ErrNotFound
 	}
 	return job, err
 }
 
 // RetryJob accepts one new attempt generation without changing its source-time
 // deadline or payload. Revision OCC serializes concurrent operator requests.
-func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id, expectedVersion string) (*statev1.JobRecord, error) {
+func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id, expectedVersion string) (jobqueue.Job, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
-		return nil, err
+		return jobqueue.Job{}, err
 	}
 	job, err := c.jobs.Retry(ctx, id, expectedVersion)
 	if errors.Is(err, jobqueue.ErrNotFound) {
-		return nil, ErrNotFound
+		return jobqueue.Job{}, ErrNotFound
 	}
 	if errors.Is(err, jobqueue.ErrNotRetryable) {
-		return nil, ErrJobNotRetryable
+		return jobqueue.Job{}, ErrJobNotRetryable
 	}
 	if err != nil {
-		return nil, fmt.Errorf("retry job: %w", err)
+		return jobqueue.Job{}, fmt.Errorf("retry job: %w", err)
 	}
 	return job, nil
 }
@@ -181,15 +218,15 @@ func (c *ChattoCore) enqueueWebhookJob(ctx context.Context, r *botWebhookDeliver
 	if err != nil {
 		return err
 	}
-	return c.jobs.Enqueue(ctx, &statev1.JobRecord{Id: r.DeliveryID, Type: "webhook", Payload: payload, MaxAttempts: r.MaxAttempts, RetryDelayMillis: r.RetryDelay.Milliseconds(), ExpiresAt: timestamppb.New(r.ExpiresAt)})
+	return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: r.DeliveryID, Type: "webhook", Payload: payload, MaxAttempts: r.MaxAttempts, RetryDelay: r.RetryDelay, ExpiresAt: r.ExpiresAt})
 }
 
-func (m *botWebhookModel) performJob(ctx context.Context, job *statev1.JobRecord) error {
+func (m *botWebhookModel) performJob(ctx context.Context, job jobqueue.Job) error {
 	payload := new(statev1.WebhookJob)
 	if err := proto.Unmarshal(job.Payload, payload); err != nil {
 		return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
 	}
-	r := &botWebhookDelivery{DeliveryID: job.Id, BotUserID: payload.BotUserId, WebhookID: payload.WebhookId, SourceEventID: payload.SourceEventId, RoomID: payload.RoomId, ConfigurationSequence: payload.ConfigurationSequence, Triggers: payload.Triggers, OccurredAt: payload.OccurredAt.AsTime(), ExpiresAt: job.ExpiresAt.AsTime(), MaxAttempts: job.MaxAttempts, RetryDelay: time.Duration(job.RetryDelayMillis) * time.Millisecond}
+	r := &botWebhookDelivery{DeliveryID: job.ID, BotUserID: payload.BotUserId, WebhookID: payload.WebhookId, SourceEventID: payload.SourceEventId, RoomID: payload.RoomId, ConfigurationSequence: payload.ConfigurationSequence, Triggers: payload.Triggers, OccurredAt: payload.OccurredAt.AsTime(), ExpiresAt: job.ExpiresAt, MaxAttempts: job.MaxAttempts, RetryDelay: job.RetryDelay}
 	err := m.deliver(ctx, r)
 	if err == nil {
 		return nil
@@ -208,7 +245,7 @@ func (m *botWebhookModel) performJob(ctx context.Context, job *statev1.JobRecord
 	if permanent || job.Attempts >= job.MaxAttempts {
 		// LOG is diagnostic only. The queue record is the durable failure outcome.
 		if logErr := m.fail(ctx, r, job.Attempts, reason, status); logErr != nil {
-			m.core.logger.Warn("Could not record outbound webhook failure", "delivery_id", job.Id)
+			m.core.logger.Warn("Could not record outbound webhook failure", "delivery_id", job.ID)
 		}
 	}
 	return &jobqueue.Failure{Category: reason, Permanent: permanent}

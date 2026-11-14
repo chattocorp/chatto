@@ -480,14 +480,14 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 
 ## Background jobs and outbound bot webhooks
 
-[`jobqueue.Queue`](../../cli/internal/jobqueue/queue.go) runs bounded attempts
+[`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module runs bounded attempts
 from `JOBS`, owns runtime-state revision claims, and repairs missing dispatches
 through one filtered watcher. The core starts one shared pool with
 `core.job_concurrency` capacity (default eight). Embedded media also observes
 `asset_processing.max_concurrent_jobs`. Standalone media uses a filtered
 consumer and its own capacity.
 
-[`effectJob`](../../cli/internal/core/effect_jobs.go) moves the asset cleanup,
+[`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,
 call-key cleanup, push-subscription cleanup, user-key shredding, and
 notification alert consumers onto the same pool. Each owning model keeps its
 handler; the source consumer only accepts jobs.
