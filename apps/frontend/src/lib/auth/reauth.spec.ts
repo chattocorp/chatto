@@ -197,7 +197,7 @@ describe('remote server OAuth popup', () => {
           providerId === 'signup' ? null : (providerId ?? null)
         );
         expect(url.searchParams.get('screen_hint')).toBe(providerId === 'signup' ? 'signup' : null);
-        return { state, code: 'native-code' };
+        return { state, code: 'native-code', iss: 'https://remote.example' };
       });
       const open = vi.fn();
       vi.stubGlobal('window', { open });
@@ -230,7 +230,8 @@ describe('remote server OAuth popup', () => {
     native.available = true;
     native.authorize.mockImplementation(async (_raw: string, state: string) => ({
       state,
-      code: 'native-code'
+      code: 'native-code',
+      iss: 'https://remote.example'
     }));
     vi.stubGlobal('window', { open: vi.fn() });
     vi.stubGlobal(
@@ -366,7 +367,8 @@ describe('remote server OAuth popup', () => {
       responseChannel!.emit({
         type: 'chatto:oauth-popup-response',
         state,
-        code: 'cht_ACcode'
+        code: 'cht_ACcode',
+        iss: 'https://remote.example'
       });
 
       await completion;
@@ -419,9 +421,9 @@ describe('remote server OAuth popup', () => {
     { iss: 'https://other.example', accepted: false },
     { iss: 'not a URL', accepted: false },
     { iss: 'https://remote.example', accepted: true },
-    // A server without a configured public URL sends an empty issuer.
-    { iss: '', accepted: true },
-    { iss: undefined, accepted: true }
+    // A response without an issuer can come from a different server.
+    { iss: '', accepted: false },
+    { iss: undefined, accepted: false }
   ])('exchanges a popup code from issuer $iss: $accepted', async ({ iss, accepted }) => {
     const popup = fakePopup();
     const { owner, open } = browserHarness(popup);
@@ -480,7 +482,12 @@ describe('remote server OAuth popup', () => {
     const state = new URL(authorizationLaunchTarget(open)!).searchParams.get('state');
     FakeBroadcastChannel.instances
       .find((channel) => channel.name === `chatto:oauth-popup:${state}`)
-      ?.emit({ type: 'chatto:oauth-popup-response', state, code: 'cht_ACcode' });
+      ?.emit({
+        type: 'chatto:oauth-popup-response',
+        state,
+        code: 'cht_ACcode',
+        iss: 'https://remote.example'
+      });
 
     await completion;
     expect(updateRegistrationMock).toHaveBeenCalledWith(

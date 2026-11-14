@@ -83,20 +83,16 @@ export async function createOAuthFlow(input: {
  * server's code together with the PKCE verifier.
  *
  * `issuer` is the `iss` parameter of the response. A missing or empty value
- * passes, so that sign-in to a server that sends no issuer continues to work.
- * A server without a configured public URL sends an empty value, and a server
- * older than the `iss` parameter sends none.
- *
- * The check thus protects only accounts on servers that send an issuer. Such
- * a server sends its response directly to the client, and a different server
- * cannot remove the parameter. An account on a server that sends no issuer
- * stays open to this attack.
+ * fails. A response without an issuer can come from a different server, so
+ * accepting it would leave accounts on servers that send no issuer open to
+ * this attack. A current Chatto server always sends its issuer. An older
+ * server sends it only when it has a configured public URL.
  */
 export function isExpectedOAuthIssuer(
   issuer: string | null | undefined,
   serverOrigin: string
 ): boolean {
-  if (!issuer) return true;
+  if (!issuer) return false;
   try {
     return new URL(issuer).origin === new URL(serverOrigin).origin;
   } catch {
@@ -104,7 +100,7 @@ export function isExpectedOAuthIssuer(
   }
 }
 
-/** Validate the exact callback route, transaction state and optional issuer before accepting a code. */
+/** Validate the exact callback route, transaction state and issuer before accepting a code. */
 export function isOAuthCallback(flow: OAuthFlow, value: string): boolean {
   try {
     const url = new URL(value);

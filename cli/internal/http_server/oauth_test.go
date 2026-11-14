@@ -1131,6 +1131,7 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	if redirectURL := approveResp["redirectUrl"]; !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "code=") || !strings.Contains(redirectURL, "state=state123") {
 		t.Fatalf("unexpected approve redirectUrl %q", redirectURL)
 	}
+	requireOAuthIssuer(t, approveResp["redirectUrl"], "https://chatto.example")
 	cookies = mergeCookies(cookies, approveW.Result().Cookies())
 
 	consented, err := s.core.HasOAuthClientConsent(context.Background(), user.Id, testOAuthClientID, "https://client.example")
@@ -1150,6 +1151,38 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	}
 	if location := secondW.Header().Get("Location"); !strings.HasPrefix(location, "https://client.example/servers/callback?") || !strings.Contains(location, "code=") {
 		t.Fatalf("second authorize did not mint code directly, Location=%q", location)
+	}
+	requireOAuthIssuer(t, secondW.Header().Get("Location"), "https://chatto.example")
+}
+
+// A server without a configured public URL must still name an issuer,
+// because multi-server clients refuse a response without one.
+func TestOAuthIssuerUsesRequestOriginWithoutPublicURL(t *testing.T) {
+	s := setupOAuthServer(t)
+	request := httptest.NewRequest(http.MethodGet, "http://Chat.Example:80/oauth/authorize", nil)
+	if got := s.oauthIssuer(request); got != "https://chatto.example" {
+		t.Fatalf("issuer with public URL = %q", got)
+	}
+	s.config.Webserver.URL = ""
+	if got := s.oauthIssuer(request); got != "http://chat.example" {
+		t.Fatalf("issuer without public URL = %q", got)
+	}
+	request.Host = "chat.example:4000"
+	if got := s.oauthIssuer(request); got != "http://chat.example:4000" {
+		t.Fatalf("issuer with port = %q", got)
+	}
+}
+
+// requireOAuthIssuer fails the test unless the authorization response URL
+// carries exactly the expected `iss` parameter.
+func requireOAuthIssuer(t *testing.T, responseURL, want string) {
+	t.Helper()
+	parsed, err := url.Parse(responseURL)
+	if err != nil {
+		t.Fatalf("parse authorization response: %v", err)
+	}
+	if got := parsed.Query()["iss"]; len(got) != 1 || got[0] != want {
+		t.Fatalf("authorization response iss = %q, want %q", got, want)
 	}
 }
 
@@ -1673,6 +1706,7 @@ func TestOAuthConsentDenyRedirectsAccessDenied(t *testing.T) {
 	if !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "error=access_denied") || !strings.Contains(redirectURL, "state=deny-state") || strings.Contains(redirectURL, "code=") {
 		t.Fatalf("unexpected deny redirectUrl %q", redirectURL)
 	}
+	requireOAuthIssuer(t, redirectURL, "https://chatto.example")
 	consented, err := s.core.HasOAuthClientConsent(context.Background(), user.Id, testOAuthClientID, "https://client.example")
 	if err != nil {
 		t.Fatalf("HasOAuthClientConsent: %v", err)

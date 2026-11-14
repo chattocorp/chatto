@@ -19,8 +19,8 @@ const credentials = {
   expires_in: 300,
   refresh_token_expires_in: 3600
 };
-function callback(state: string, query = 'code=fixture-code') {
-  return `${config.redirectUri}&state=${state}&${query}`;
+function callback(state: string, query = 'code=fixture-code', issuer = config.origin) {
+  return `${config.redirectUri}&state=${state}&${query}&iss=${encodeURIComponent(issuer)}`;
 }
 afterEach(() => vi.unstubAllGlobals());
 
@@ -43,7 +43,7 @@ describe('native browser OAuth', () => {
       clientId: 'chatto://desktop',
       redirectUri: 'chatto://desktop/servers/callback?mode=popup'
     });
-    const callback = `${flow.redirectUri}&state=${flow.state}&code=fixture-code`;
+    const callback = `${flow.redirectUri}&state=${flow.state}&code=fixture-code&iss=${encodeURIComponent(flow.origin)}`;
     expect(isOAuthCallback(flow, callback)).toBe(true);
     expect(isOAuthCallback(flow, callback.replace('chatto://desktop', 'chatto://other'))).toBe(
       false
@@ -72,12 +72,6 @@ describe('native browser OAuth', () => {
   it('accepts exact callbacks, a bound issuer, and a declined flow', async () => {
     const flow = await createOAuthFlow(config);
     expect(isOAuthCallback(flow, callback(flow.state))).toBe(true);
-    expect(
-      isOAuthCallback(
-        flow,
-        callback(flow.state, `code=fixture&iss=${encodeURIComponent(flow.origin)}`)
-      )
-    ).toBe(true);
     expect(isOAuthCallback(flow, callback(flow.state, 'error=access_denied'))).toBe(true);
     await expect(
       exchangeOAuthCode(flow, callback(flow.state, 'error=access_denied'))
@@ -86,9 +80,9 @@ describe('native browser OAuth', () => {
   it('accepts only the issuer of the server that started the flow', () => {
     expect(isExpectedOAuthIssuer('https://chat.example', 'https://chat.example/')).toBe(true);
     expect(isExpectedOAuthIssuer('https://CHAT.example:443', 'https://chat.example')).toBe(true);
-    // A server without a configured public URL sends no issuer.
+    // A response without an issuer can come from a different server.
     for (const missing of [undefined, null, '']) {
-      expect(isExpectedOAuthIssuer(missing, 'https://chat.example')).toBe(true);
+      expect(isExpectedOAuthIssuer(missing, 'https://chat.example')).toBe(false);
     }
     for (const other of ['https://other.example', 'http://chat.example', 'not a URL']) {
       expect(isExpectedOAuthIssuer(other, 'https://chat.example')).toBe(false);
@@ -107,7 +101,9 @@ describe('native browser OAuth', () => {
       callback(flow.state) + '&code=other',
       callback(flow.state) + '&error=',
       callback(flow.state) + '&error=denied',
-      callback(flow.state) + '&iss=https://other.example',
+      callback(flow.state, 'code=fixture-code', 'https://other.example'),
+      callback(flow.state, 'code=fixture-code', ''),
+      `${config.redirectUri}&state=${flow.state}&code=fixture-code`,
       callback(flow.state) + '&iss=a&iss=b',
       callback(flow.state) + '#fragment',
       callback(flow.state).replace('127.0.0.1', 'user@127.0.0.1'),
