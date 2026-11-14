@@ -100,18 +100,28 @@ export function createJobActions(
     }
   }));
 
+  function removeDeleted(id: string) {
+    // A deleted job reads as null, the same as a job that the server does not find.
+    queryClient.setQueryData(jobKey(id), null);
+    updateListedJobs((jobs) => jobs.filter((entry) => entry.id !== id));
+    reloadList();
+    options.onDeleted?.(id);
+  }
+
   const deleteMutation = createMutation(() => ({
     mutationFn: ({ id, version }: JobVariables) => api.deleteJob(id, version),
     onSuccess: (_response, variables) => {
       if (!session.isCurrent(variables)) return;
-      // A deleted job reads as null, the same as a job that the server does not find.
-      queryClient.setQueryData(jobKey(variables.id), null);
-      updateListedJobs((jobs) => jobs.filter((entry) => entry.id !== variables.id));
-      reloadList();
-      options.onDeleted?.(variables.id);
+      removeDeleted(variables.id);
     },
     onError: (error, variables) => {
       if (!session.isCurrent(variables)) return;
+      // The job is already gone, for example because another operator deleted
+      // it. That is the result that the operator asked for.
+      if (error instanceof ConnectError && error.code === Code.NotFound) {
+        removeDeleted(variables.id);
+        return;
+      }
       toastActionError(error, m('admin.jobs.delete_failed'));
       reload(variables.id);
     }

@@ -38,8 +38,10 @@
     queryKey,
     queryFn: ({ signal }) => api.getJob(id, { signal }),
     refetchOnMount: 'always' as const,
-    // Poll only while the job can still change on its own.
+    // Poll while the job can still change on its own, and after a failed
+    // read, so that the page recovers without a reload.
     refetchInterval: (query) =>
+      query.state.status === 'error' ||
       query.state.data?.status === JobStatus.QUEUED ||
       query.state.data?.status === JobStatus.RUNNING
         ? JOBS_POLL_INTERVAL_MS

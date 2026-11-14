@@ -34,16 +34,18 @@ describe('DurableWorkersPanel', () => {
   it('names the job pools and keeps their broker keys available for support', () => {
     const { container } = render(DurableWorkersPanel, {
       props: {
-        workers: ['webhook_jobs', 'media_jobs', 'notification_alert_jobs', 'future_type_jobs'].map((key) => ({
-          key,
-          health: 'healthy' as const,
-          pendingCount: '0',
-          ackPendingCount: '0',
-          waitingCount: '1',
-          redeliveredCount: '0',
-          lastDeliveredSequence: '0',
-          ackFloorSequence: '0'
-        }))
+        workers: ['webhook_jobs', 'media_jobs', 'notification_alert_jobs', 'future_type_jobs'].map(
+          (key) => ({
+            key,
+            health: 'healthy' as const,
+            pendingCount: '0',
+            ackPendingCount: '0',
+            waitingCount: '1',
+            redeliveredCount: '0',
+            lastDeliveredSequence: '0',
+            ackFloorSequence: '0'
+          })
+        )
       }
     });
     expect(container.textContent).toContain('Webhook delivery');

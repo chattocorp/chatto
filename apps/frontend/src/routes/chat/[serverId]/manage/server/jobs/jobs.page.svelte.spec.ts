@@ -5,6 +5,7 @@ import { loadLocaleMessages } from '$lib/i18n/messages';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { queryClient } from '$lib/query/client';
 import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJobs';
+import { toast } from '$lib/ui/toast';
 import JobsPage from './+page.svelte';
 
 const JOBS_URL = 'https://chat.example.test/chat/-/manage/server/jobs';
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   url: new URL('https://chat.example.test/')
 }));
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+vi.mock('$lib/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('$app/state', () => ({
   page: {
     get url() {
@@ -232,6 +234,19 @@ describe('job queue list', () => {
     await screen.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
     await expect.element(screen.getByRole('cell', { name: 'Queued' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Delete' }).query()).toBeNull();
+  });
+
+  it('treats a job that is already gone as deleted', async () => {
+    mocks.listJobs
+      .mockResolvedValueOnce({ jobs: [job('gone')], nextCursor: '' })
+      .mockResolvedValue({ jobs: [], nextCursor: '' });
+    mocks.deleteJob.mockRejectedValue(new ConnectError('missing', Code.NotFound));
+    const screen = render(JobsPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    await screen.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await expect.element(screen.getByText('No jobs yet')).toBeVisible();
+    // Another operator deleted it first. That is not an error for this one.
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('offers no delete for a job that is not failed', async () => {
