@@ -83,9 +83,14 @@ export async function createOAuthFlow(input: {
  * server's code together with the PKCE verifier.
  *
  * `issuer` is the `iss` parameter of the response. A missing or empty value
- * passes: a server without a configured public URL sends no issuer. This does
- * not weaken the check, because the honest server sends its response directly
- * to the client and a different server cannot remove the parameter.
+ * passes, so that sign-in to a server that sends no issuer continues to work.
+ * A server without a configured public URL sends an empty value, and a server
+ * older than the `iss` parameter sends none.
+ *
+ * The check thus protects only accounts on servers that send an issuer. Such
+ * a server sends its response directly to the client, and a different server
+ * cannot remove the parameter. An account on a server that sends no issuer
+ * stays open to this attack.
  */
 export function isExpectedOAuthIssuer(
   issuer: string | null | undefined,
