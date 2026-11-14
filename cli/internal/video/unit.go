@@ -102,7 +102,7 @@ func openJobs(ctx context.Context, env runtimeunit.Env) (*jobqueue.Queue, jetstr
 	if err != nil {
 		return nil, nil, err
 	}
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, "media"))
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, core.JobTypeMedia))
 	if err != nil {
 		return nil, nil, err
 	}

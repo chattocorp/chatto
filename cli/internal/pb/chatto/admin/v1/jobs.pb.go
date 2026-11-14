@@ -155,14 +155,15 @@ type Job struct {
 	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	// Current execution state.
 	Status JobStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.admin.v1.JobStatus" json:"status,omitempty"`
-	// Attempts in the current manual retry generation, including interrupted attempts.
+	// Attempts since the job was accepted or last retried, including interrupted
+	// attempts. It can exceed max_attempts after interrupted attempts.
 	Attempts uint32 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	// Maximum automatic attempts in each generation. Absent when the job
 	// retries until it succeeds or fails permanently.
 	MaxAttempts *uint32 `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3,oneof" json:"max_attempts,omitempty"`
 	// Initial durable acceptance time.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Most recent state change or progress heartbeat.
+	// Most recent state change.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Earliest next automatic attempt, when queued.
 	NextAttemptAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`

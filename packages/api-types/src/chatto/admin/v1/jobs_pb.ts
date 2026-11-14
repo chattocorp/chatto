@@ -131,7 +131,8 @@ export class Job extends Message<Job> {
   status = JobStatus.UNSPECIFIED;
 
   /**
-   * Attempts in the current manual retry generation, including interrupted attempts.
+   * Attempts since the job was accepted or last retried, including interrupted
+   * attempts. It can exceed max_attempts after interrupted attempts.
    *
    * @generated from field: uint32 attempts = 4;
    */
@@ -153,7 +154,7 @@ export class Job extends Message<Job> {
   createdAt?: Timestamp;
 
   /**
-   * Most recent state change or progress heartbeat.
+   * Most recent state change.
    *
    * @generated from field: google.protobuf.Timestamp updated_at = 7;
    */

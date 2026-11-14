@@ -43,14 +43,15 @@ message Job {
   string type = 2;
   // Current execution state.
   JobStatus status = 3;
-  // Attempts in the current manual retry generation, including interrupted attempts.
+  // Attempts since the job was accepted or last retried, including interrupted
+  // attempts. It can exceed max_attempts after interrupted attempts.
   uint32 attempts = 4;
   // Maximum automatic attempts in each generation. Absent when the job
   // retries until it succeeds or fails permanently.
   optional uint32 max_attempts = 5;
   // Initial durable acceptance time.
   google.protobuf.Timestamp created_at = 6;
-  // Most recent state change or progress heartbeat.
+  // Most recent state change.
   google.protobuf.Timestamp updated_at = 7;
   // Earliest next automatic attempt, when queued.
   google.protobuf.Timestamp next_attempt_at = 8;

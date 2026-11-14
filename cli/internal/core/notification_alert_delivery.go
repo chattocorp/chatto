@@ -30,7 +30,10 @@ const (
 	notificationAlertConsumerName = "chatto-notification-alert-delivery-v1"
 	notificationAlertMaxPending   = 16
 	notificationAlertAckWait      = time.Minute
-	notificationAlertRetryDelay   = 30 * time.Second
+	// notificationAlertRetryDelay is the first delay of the job backoff. With
+	// doubling delays, attempts run 0, 15, 45, and 105 seconds after the
+	// first one, so four attempts fit into the delivery window.
+	notificationAlertRetryDelay   = 15 * time.Second
 	notificationAlertDeliveryTTL  = 2 * time.Minute
 )
 

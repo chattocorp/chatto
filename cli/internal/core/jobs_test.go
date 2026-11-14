@@ -102,6 +102,13 @@ func TestEachJobTypeHasItsOwnConsumer(t *testing.T) {
 		// other jobs of its type.
 		require.Equal(t, -1, info.Config.MaxAckPending)
 		require.Equal(t, -1, info.Config.MaxDeliver)
+		// An alert expires two minutes after its source. Its job must return
+		// from a crashed worker before that.
+		wantAckWait := 2 * time.Minute
+		if kind == jobTypeNotificationAlertDelivery {
+			wantAckWait = time.Minute
+		}
+		require.Equal(t, wantAckWait, info.Config.AckWait)
 		names[info.Config.Durable] = true
 	}
 	require.Len(t, names, len(jobTypes()))

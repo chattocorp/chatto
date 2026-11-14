@@ -96,11 +96,6 @@ func (r *AssetProcessingRuntime) WaitForStartup(ctx context.Context) error {
 	return r.assets.Projector().WaitForStartup(ctx)
 }
 
-// WaitForEvent waits until the asset projection has observed a queue delivery.
-func (r *AssetProcessingRuntime) WaitForEvent(ctx context.Context, subject string, seq uint64) error {
-	return r.assets.Projector().WaitFor(ctx, events.SubjectPosition(subject, seq))
-}
-
 // AssetState returns the worker's projected lifecycle view.
 func (r *AssetProcessingRuntime) AssetState(assetID string) AssetState {
 	return r.core.GetAssetState(assetID)

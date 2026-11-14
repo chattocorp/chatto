@@ -35,8 +35,18 @@ func TestAssetCleanupAdminStatusUsesSharedDurableConsumer(t *testing.T) {
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() { done <- runWithEffectJobs(workerCtx, workerCore, workerCore.assetModel.Run) }()
-	// Start the worker before its projection. The deletion must remain pending
-	// until the projection has replayed through the delivery's stream sequence.
+	// Start the worker before its projection. The source consumer hands the
+	// deletion to the job queue, but the cleanup job cannot finish until the
+	// projection has replayed through the deletion. The status must count the
+	// unfinished job, not only the source handoff.
+	waitForRecoveryTest(t, 5*time.Second, func() bool {
+		info, err := workerCore.assetModel.cleanupConsumer.Info(ctx)
+		return err == nil && info.NumPending == 0 && info.NumAckPending == 0
+	}, "asset cleanup source handoff")
+	status, err = readerCore.assetModel.AdminCleanupStatus(ctx)
+	if err != nil || status.Health != AssetCleanupHealthRetrying || status.PendingCount != 1 {
+		t.Fatalf("status after handoff = %+v, %v; want one pending cleanup job", status, err)
+	}
 	startAssetProjectionForCleanupTest(t, workerCore.assetModel)
 	waitForRecoveryTest(t, 5*time.Second, func() bool {
 		status, err = readerCore.assetModel.AdminCleanupStatus(ctx)

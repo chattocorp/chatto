@@ -2680,10 +2680,10 @@ are never returned. Requires server.manage, including privileged mode.
 | `id` | `string` | Stable opaque job ID, preserved across manual retries. |
 | `type` | `string` | Registered work type: webhook, media, asset_cleanup, call_key_cleanup, push_subscription_cleanup, user_key_shredding, or notification_alert. Clients can encounter future types. |
 | `status` | [`JobStatus`](#chatto-admin-v1-JobStatus) | Current execution state. |
-| `attempts` | `uint32` | Attempts in the current manual retry generation, including interrupted attempts. |
+| `attempts` | `uint32` | Attempts since the job was accepted or last retried, including interrupted attempts. It can exceed max_attempts after interrupted attempts. |
 | `max_attempts` | `optional uint32` | Maximum automatic attempts in each generation. Absent when the job retries until it succeeds or fails permanently. |
 | `created_at` | `google.protobuf.Timestamp` | Initial durable acceptance time. |
-| `updated_at` | `google.protobuf.Timestamp` | Most recent state change or progress heartbeat. |
+| `updated_at` | `google.protobuf.Timestamp` | Most recent state change. |
 | `next_attempt_at` | `google.protobuf.Timestamp` | Earliest next automatic attempt, when queued. |
 | `failure` | `string` | Safe failure category, without exception text or external response content. |
 | `retry` | optional [`JobRetryAvailability`](#chatto-admin-v1-JobRetryAvailability) | Current retry availability. Absence means the server did not report it. |

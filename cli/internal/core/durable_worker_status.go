@@ -58,7 +58,7 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
 	}
 	for _, kind := range jobTypes() {
-		specs = append(specs, durableWorkerDiagnosticSpec{key: jobWorkerKey(kind), streamName: natsresources.Jobs, consumerName: JobsConsumerName(kind), required: kind != jobTypeMedia || videoUploadsEnabled})
+		specs = append(specs, durableWorkerDiagnosticSpec{key: jobWorkerKey(kind), streamName: natsresources.Jobs, consumerName: JobsConsumerName(kind), required: kind != JobTypeMedia || videoUploadsEnabled})
 	}
 	return specs
 }
