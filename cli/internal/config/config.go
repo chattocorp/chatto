@@ -21,6 +21,7 @@ type ChattoConfig struct {
 	General         GeneralConfig         `toml:"general"`
 	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver       WebserverConfig       `toml:"webserver"`
+	Frontend        FrontendConfig        `toml:"frontend,commented" comment:"Bundled frontend settings. The standalone frontend and the desktop app ignore them."`
 	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter        ExporterConfig        `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	MCP             MCPConfig             `toml:"mcp,commented" comment:"Experimental MCP integration on the public HTTP server. Disabled by default."`
