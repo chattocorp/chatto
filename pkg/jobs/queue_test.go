@@ -536,6 +536,28 @@ func TestQueueFailedRetentionExpiresFailedJobs(t *testing.T) {
 	}
 }
 
+func TestQueueAcceptsJobAgainAfterItsFactsAreGone(t *testing.T) {
+	q, _ := testQueue(t, Options{FailedRetention: time.Second})
+	ctx := t.Context()
+	noError(t, q.Enqueue(ctx, testSpec("again")))
+	noError(t, q.process(ctx, queuedDelivery(t, q, "again", 1), func(context.Context, Job) error {
+		return &Failure{Category: "boom", Permanent: true}
+	}))
+	// The failed fact expires. The handoff then repeats inside the duplicate
+	// window of the stream; the job must be stored, not only acknowledged.
+	deadline := time.Now().Add(10 * time.Second)
+	for len(factNames(t, q)) > 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("failed fact did not expire: %v", factNames(t, q))
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	noError(t, q.Enqueue(ctx, testSpec("again")))
+	if subjects := factNames(t, q); subjects["jobs.work.again.queued"] != 1 {
+		t.Fatalf("facts after the second handoff = %v", subjects)
+	}
+}
+
 func TestQueueShutdownRepeatsInterruptedAttemptAndKeepsFinishedOne(t *testing.T) {
 	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()

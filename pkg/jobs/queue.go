@@ -212,7 +212,10 @@ func (q *Queue) Enqueue(ctx context.Context, spec Spec) error {
 	}
 	fact := &jobpb.JobFact{Id: spec.ID, Type: spec.Type, OccurredAt: now, CreatedAt: now, Fact: &jobpb.JobFact_Queued{Queued: &jobpb.JobQueued{Spec: stored}}}
 	expect := events.ExpectFilterSeq(q.jobFilter(spec.Type, spec.ID), 0)
-	_, err := q.append(ctx, fact, factQueued, factQueued, 0, &expect)
+	// The guard makes a repeated handoff safe. The message ID must not: the
+	// stream would acknowledge a repeated ID in its duplicate window without
+	// storing a fact, also when the facts of the job are gone.
+	_, err := q.append(ctx, fact, factQueued, fmt.Sprintf("%s.%d", factQueued, now.AsTime().UnixNano()), 0, &expect)
 	if !errors.Is(err, events.ErrConflict) {
 		return err
 	}
@@ -336,7 +339,7 @@ func (q *Queue) Delete(ctx context.Context, id, expectedVersion string) error {
 // already have finished the job and removed that fact; the wait then cannot
 // confirm the position, and the caller reads the view as it is.
 func (q *Queue) awaitView(ctx context.Context, filter string, seq uint64) error {
-	if err := q.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil && ctx.Err() != nil {
+	if err := q.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil && !errors.Is(err, jetstream.ErrMsgNotFound) {
 		return err
 	}
 	return nil

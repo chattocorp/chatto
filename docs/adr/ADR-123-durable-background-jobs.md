@@ -88,7 +88,8 @@ stop or repeat the attempt. External effects remain at least once: a lost HTTP
 response or a failed outcome write can cause a duplicate.
 
 An attempt that a shutdown or a crash interrupted counts against the attempt
-budget, because it was a delivery. A handler that finished before shutdown
+budget, because it was a delivery. A delivery that returns before the handler
+runs, because the worker cannot read the job stream, also counts. A handler that finished before shutdown
 keeps its success. A failure during shutdown is not recorded, because the
 cancellation can be its cause; the next delivery runs the job again.
 
@@ -116,8 +117,8 @@ The stream has no maximum age. Each job state has its own rule:
 - **Deleted:** Delete writes `deleted` with a TTL of one hour and purges the
   earlier facts. The fact tells the view of each replica to drop the job.
 
-If a purge fails, the earlier facts stay until the next outcome of the job
-removes them. Nothing reads them.
+If the purge after an outcome fails, the delivery returns and the next delivery
+finishes the purge.
 
 Failed jobs are the only state that can accumulate. Operators delete failed
 jobs that can never succeed, such as deliveries to an endpoint that no longer
