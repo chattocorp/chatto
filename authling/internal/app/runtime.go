@@ -120,18 +120,20 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	if err != nil {
 		return closeOnError(err)
 	}
-	jobStream, jobState, err := storage.OpenJobs(ctx, js, cfg.NATS.ReplicasOrDefault())
+	jobStream, err := storage.OpenJobs(ctx, js, cfg.NATS.ReplicasOrDefault())
 	if err != nil {
 		return closeOnError(err)
 	}
-	jobQueue, err := jobs.New(js, jobState, jobs.Options{KeyPrefix: storage.JobKeyPrefix, SubjectPrefix: storage.JobSubjectPrefix, SucceededRetention: storage.JobRetention, Logger: logger})
+	jobQueue, err := jobs.New(js, jobStream, jobs.Options{SubjectPrefix: storage.JobSubjectPrefix, SucceededRetention: storage.JobSucceededRetention, Logger: logger})
 	if err != nil {
 		return closeOnError(fmt.Errorf("open job queue: %w", err))
 	}
 	jobsConsumer, err := jobStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
 		Name: storage.JobsConsumerName, Durable: storage.JobsConsumerName, Description: "Authling background jobs",
 		FilterSubjects: jobQueue.FilterSubjects(erasure.JobType), AckPolicy: jetstream.AckExplicitPolicy,
-		AckWait: 2 * time.Minute, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy,
+		// A job that waits for a retry holds a delivery, so pending
+		// acknowledgements have no limit.
+		AckWait: 2 * time.Minute, MaxAckPending: -1, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return closeOnError(fmt.Errorf("ensure job consumer: %w", err))
@@ -245,10 +247,10 @@ func (r *Runtime) Run(ctx context.Context) error {
 	group, groupContext := errgroup.WithContext(ctx)
 	group.Go(func() error { return r.erasureProjector.Run(groupContext) })
 	group.Go(func() error { return r.Erasure.Run(groupContext) })
-	group.Go(func() error { return r.jobs.Run(groupContext) })
 	group.Go(func() error {
 		// Erasure jobs ran one at a time before the queue existed; keep that.
-		return r.jobs.Work(groupContext, r.jobsConsumer, map[string]jobs.Handler{erasure.JobType: r.Erasure.Effect().Handle}, 1)
+		// Authling shows no jobs, so it does not run the job view.
+		return r.jobs.Work(groupContext, r.jobsConsumer, r.Erasure.Effect().Handle, 1)
 	})
 	for _, projector := range r.projectors {
 		projector := projector

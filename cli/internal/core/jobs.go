@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -19,63 +20,63 @@ import (
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
-// Persisted job queue resource contract (ADR-114). Records live in
-// RUNTIME_STATE under job.{id}; dispatches use jobs.{type}.{id} in JOBS.
+// Persisted job queue resource contract (ADR-123). The JOBS stream holds the
+// facts of each job on jobs.{type}.{id}.{fact}.
 const (
-	// JobsConsumerName is the shared JOBS consumer of server replicas.
-	JobsConsumerName = "chatto-jobs-v1"
-	// MediaJobsConsumerName is the JOBS consumer of media jobs, shared by server
-	// replicas with media processing and standalone media processes.
-	MediaJobsConsumerName = "chatto-jobs-media-v1"
-	// AlertJobsConsumerName is the JOBS consumer of notification alert jobs.
-	// Alerts have a short deadline, so slow webhook endpoints must not delay them.
-	AlertJobsConsumerName = "chatto-jobs-alerts-v1"
-	jobKeyPrefix          = "job."
-	jobSubjectPrefix      = "jobs"
-	// JobSucceededRetention is how long succeeded job records stay.
-	JobSucceededRetention = 7 * 24 * time.Hour
+	jobSubjectPrefix = "jobs"
+	jobTypeWebhook   = "webhook"
+	jobTypeMedia     = "media"
+	// JobRetention is the maximum age of the JOBS stream. Unfinished and failed
+	// jobs stay this long at most.
+	JobRetention = 30 * 24 * time.Hour
+	// JobSucceededRetention is how long succeeded jobs stay.
+	JobSucceededRetention = 3 * 24 * time.Hour
 )
 
 // ErrJobNotRetryable means this job is active, successful, or expired.
 var ErrJobNotRetryable = errors.New("job cannot be retried")
 
-// NewJobQueue binds Chatto's job queue contract to provisioned resources. kv
-// must be the leader-bound RUNTIME_STATE bucket. onFailed may be nil.
-func NewJobQueue(js jetstream.JetStream, kv jobqueue.KeyValue, logger *log.Logger, onFailed func(context.Context, jobqueue.Job)) (*jobqueue.Queue, error) {
-	return jobqueue.New(js, kv, jobqueue.Options{
-		KeyPrefix: jobKeyPrefix, SubjectPrefix: jobSubjectPrefix, SucceededRetention: JobSucceededRetention,
+// JobsConsumerName returns the durable JOBS consumer of one job type. Each
+// type has its own consumer and worker pool, so one type cannot delay another.
+func JobsConsumerName(kind string) string {
+	return "chatto-jobs-" + strings.ReplaceAll(kind, "_", "-") + "-v1"
+}
+
+// jobTypes lists every job type. Each has a JOBS consumer.
+func jobTypes() []string {
+	return append([]string{jobTypeWebhook, jobTypeMedia, jobTypeNotificationAlertDelivery}, effectJobTypes()...)
+}
+
+// NewJobQueue binds Chatto's job queue contract to the JOBS stream. onFailed
+// may be nil.
+func NewJobQueue(js jetstream.JetStream, stream jetstream.Stream, logger *log.Logger, onFailed func(context.Context, jobqueue.Job)) (*jobqueue.Queue, error) {
+	return jobqueue.New(js, stream, jobqueue.Options{
+		SubjectPrefix: jobSubjectPrefix, SucceededRetention: JobSucceededRetention,
 		Logger: logbridge.Slog(logger), OnFailed: onFailed,
 	})
 }
 
-// JobsConsumerConfig is the application-owned configuration of a JOBS consumer.
-// A standalone media consumer overlaps the shared consumer safely through
-// record revision claims.
-func JobsConsumerConfig(q *jobqueue.Queue, name string, types ...string) jetstream.ConsumerConfig {
-	return jetstream.ConsumerConfig{Name: name, Durable: name, Description: "Durable background job dispatch", FilterSubjects: q.FilterSubjects(types...), AckPolicy: jetstream.AckExplicitPolicy, AckWait: 2 * time.Minute, MaxAckPending: 64, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy}
+// JobsConsumerConfig is the application-owned configuration of the JOBS
+// consumer of one job type. A job that waits for a retry holds an
+// unacknowledged delivery, so pending acknowledgements have no limit; the
+// worker pool bounds running jobs.
+func JobsConsumerConfig(q *jobqueue.Queue, kind string) jetstream.ConsumerConfig {
+	name := JobsConsumerName(kind)
+	return jetstream.ConsumerConfig{Name: name, Durable: name, Description: "Durable background jobs", FilterSubjects: q.FilterSubjects(kind), AckPolicy: jetstream.AckExplicitPolicy, AckWait: 2 * time.Minute, MaxAckPending: -1, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy}
 }
 
 func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 	var err error
-	c.jobs, err = NewJobQueue(c.js, c.storage.runtimeStateKV, c.logger.WithPrefix("Jobs"), c.recordWebhookJobFailure)
+	c.jobs, err = NewJobQueue(c.js, c.storage.jobsStream, c.logger.WithPrefix("Jobs"), c.recordWebhookJobFailure)
 	if err != nil {
 		return err
 	}
-	// Media has its own consumer, shared with standalone media processes. A
-	// media backlog, or a replica without media processing, then holds no
-	// capacity of the shared consumer. Alerts have their own consumer and pool,
-	// so they meet their delivery deadline when webhook endpoints are slow.
-	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, JobsConsumerName, append([]string{"webhook"}, effectJobTypes()...)...))
-	if err != nil {
-		return err
-	}
-	c.alertJobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, AlertJobsConsumerName, jobTypeNotificationAlertDelivery))
-	if err != nil {
-		return err
-	}
-	c.mediaJobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, MediaJobsConsumerName, "media"))
-	if err != nil {
-		return err
+	c.jobConsumers = map[string]jetstream.Consumer{}
+	for _, kind := range jobTypes() {
+		c.jobConsumers[kind], err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, kind))
+		if err != nil {
+			return fmt.Errorf("create %s job consumer: %w", kind, err)
+		}
 	}
 	// Keep the persisted source consumer identity. Older media units can still
 	// process its deliveries during an upgrade; both paths use asset terminal facts.
@@ -84,9 +85,9 @@ func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 }
 
 // recordWebhookJobFailure keeps the existing endpoint diagnostics in LOG. The
-// job record stays authoritative; a LOG failure is only logged.
+// failed job fact stays authoritative; a LOG failure is only logged.
 func (c *ChattoCore) recordWebhookJobFailure(ctx context.Context, job jobqueue.Job) {
-	if job.Type != "webhook" || c.botWebhooks == nil {
+	if job.Type != jobTypeWebhook || c.botWebhooks == nil {
 		return
 	}
 	payload := new(statev1.WebhookJob)
@@ -100,9 +101,8 @@ func (c *ChattoCore) recordWebhookJobFailure(ctx context.Context, job jobqueue.J
 }
 
 // SetMediaJobHandler registers media processing before Run starts. The handler
-// owns asset projection barriers and terminal outcomes. Media jobs use their
-// own consumer and worker pool with this concurrency, so a video backlog cannot
-// delay other jobs.
+// owns asset projection barriers and terminal outcomes. concurrency is the size
+// of the media worker pool of this process.
 func (c *ChattoCore) SetMediaJobHandler(handler func(context.Context, string, string) error, concurrency int) {
 	c.mediaJobHandler = handler
 	c.mediaJobConcurrency = max(1, concurrency)
@@ -112,26 +112,29 @@ func (c *ChattoCore) runJobs(ctx context.Context) error {
 	if err := c.WaitForBoot(ctx); err != nil {
 		return err
 	}
-	handlers := map[string]jobqueue.Handler{"webhook": c.botWebhooks.performJob}
-	for _, kind := range effectJobTypes() {
-		handlers[kind] = c.effectJobs[kind].Handle
-	}
-	alerts := map[string]jobqueue.Handler{jobTypeNotificationAlertDelivery: c.effectJobs[jobTypeNotificationAlertDelivery].Handle}
 	concurrency := c.config.JobConcurrency
 	if concurrency <= 0 {
 		concurrency = 8
 	}
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return c.jobs.Run(ctx) })
-	g.Go(func() error { return c.jobs.Work(ctx, c.jobsConsumer, handlers, concurrency) })
-	g.Go(func() error { return c.jobs.Work(ctx, c.alertJobsConsumer, alerts, notificationAlertMaxPending) })
+	work := func(kind string, handler jobqueue.Handler, concurrency int) {
+		g.Go(func() error { return c.jobs.Work(ctx, c.jobConsumers[kind], handler, concurrency) })
+	}
+	work(jobTypeWebhook, c.botWebhooks.performJob, concurrency)
+	for _, kind := range effectJobTypes() {
+		work(kind, c.effectJobs[kind].Handle, concurrency)
+	}
+	// Alerts keep the pool size of the worker that they replace, so they meet
+	// their delivery deadline.
+	work(jobTypeNotificationAlertDelivery, c.effectJobs[jobTypeNotificationAlertDelivery].Handle, notificationAlertMaxPending)
 	if c.mediaJobHandler != nil {
 		c.RecoverUnmanifestedVideoAttachments(ctx)
-		media := map[string]jobqueue.Handler{"media": MediaJobHandler(c.logger.WithPrefix("MediaJobs"), c.mediaJobHandler)}
-		g.Go(func() error { return c.jobs.Work(ctx, c.mediaJobsConsumer, media, c.mediaJobConcurrency) })
+		work(jobTypeMedia, MediaJobHandler(c.logger.WithPrefix("MediaJobs"), c.mediaJobHandler), c.mediaJobConcurrency)
 	}
 	return g.Wait()
 }
+
 func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 	if err := c.WaitForBoot(ctx); err != nil {
 		return err
@@ -152,7 +155,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 		// Media retries until it has a terminal outcome, as the earlier media
 		// worker did: missing tools or an object-store outage must not fail
 		// attachments permanently. Unprocessable media records a terminal failure.
-		return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: jobqueue.ID("media", event.GetId()), Type: "media", Payload: payload, MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: 30 * time.Second})
+		return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: jobqueue.ID(jobTypeMedia, event.GetId()), Type: jobTypeMedia, Payload: payload, MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: 30 * time.Second})
 	}, evtstream.EffectWorkerOptions{MaxConcurrent: 8, RetryDelay: 5 * time.Second, Logger: c.logger.WithPrefix("MediaJobSource")})
 	if err != nil {
 		return err
@@ -177,7 +180,7 @@ func MediaJobHandler(logger *log.Logger, process func(ctx context.Context, asset
 	}
 }
 
-// ListJobs returns safe-to-map private job records after the operation's gate.
+// ListJobs returns payload-free jobs after the operation's gate.
 // The page token is sealed and bound to the viewer; no broker position is public.
 func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, token string, status jobqueue.Status) ([]jobqueue.Job, string, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
@@ -221,8 +224,9 @@ func (c *ChattoCore) GetJob(ctx context.Context, actorID, id string) (jobqueue.J
 	return job, err
 }
 
-// RetryJob accepts one new attempt generation without changing its source-time
-// deadline or payload. Revision OCC serializes concurrent operator requests.
+// RetryJob starts one new attempt budget without changing the deadline or
+// payload of the job. OCC on the facts of the job serializes concurrent
+// operator requests.
 func (c *ChattoCore) RetryJob(ctx context.Context, actorID, id, expectedVersion string) (jobqueue.Job, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
 		return jobqueue.Job{}, err
@@ -246,7 +250,7 @@ func (c *ChattoCore) enqueueWebhookJob(ctx context.Context, r *botWebhookDeliver
 	if err != nil {
 		return err
 	}
-	return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: r.DeliveryID, Type: "webhook", Payload: payload, MaxAttempts: r.MaxAttempts, RetryDelay: r.RetryDelay, ExpiresAt: r.ExpiresAt})
+	return c.jobs.Enqueue(ctx, jobqueue.Spec{ID: r.DeliveryID, Type: jobTypeWebhook, Payload: payload, MaxAttempts: r.MaxAttempts, RetryDelay: r.RetryDelay, ExpiresAt: r.ExpiresAt})
 }
 
 func (m *botWebhookModel) performJob(ctx context.Context, job jobqueue.Job) error {
@@ -271,7 +275,7 @@ func (m *botWebhookModel) performJob(ctx context.Context, job jobqueue.Job) erro
 	}
 	permanent := reason == "expired" || reason == "invalid_request"
 	if permanent || job.Attempts >= job.MaxAttempts {
-		// LOG is diagnostic only. The queue record is the durable failure outcome.
+		// LOG is diagnostic only. The failed job fact is the durable outcome.
 		if logErr := m.fail(ctx, r, job.Attempts, reason, status); logErr != nil {
 			m.core.logger.Warn("Could not record outbound webhook failure", "delivery_id", job.ID)
 		}

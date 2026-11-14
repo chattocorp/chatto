@@ -349,18 +349,6 @@ durable message-body references.
 S3 public delivery probes only `instance/{assetId}`. This route never probes
 private current or historical attachment prefixes. Disallowed classes return 404.
 
-## Background job state
-
-`job.{id}` stores a protobuf `JobRecord` with type, opaque payload references,
-state, attempt budget, source deadline, retry time, and generation. Revision OCC
-claims work and renews a one-minute execution lease. A filtered watcher repairs
-queued and interrupted dispatches without treating its index as authority.
-Manual retry increments the generation; old dispatches cannot execute it.
-Terminal records prevent source replay from recreating completed work. Succeeded
-records expire seven days after completion through a per-key TTL; failed and
-unfinished records do not expire. They contain no content or credentials.
-See ADR-123 and the durable-effect inventory.
-
 ## LiveKit webhook diagnostics
 
 Each server process keeps the times of the last accepted and the last rejected

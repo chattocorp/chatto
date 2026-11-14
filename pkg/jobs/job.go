@@ -4,8 +4,6 @@ import (
 	"context"
 	"math"
 	"time"
-
-	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 // Status is the execution state of a job.
@@ -18,10 +16,10 @@ const (
 	Queued
 	// Running jobs have a claimed attempt with a renewed lease.
 	Running
-	// Succeeded jobs are complete. Their records expire after the retention.
+	// Succeeded jobs are complete. They stay for the succeeded retention.
 	Succeeded
 	// Failed jobs exhausted their budget, expired, or failed permanently.
-	// They stay until a manual retry.
+	// They stay until a manual retry or the maximum age of the job stream.
 	Failed
 )
 
@@ -34,7 +32,8 @@ const UnlimitedAttempts uint32 = math.MaxUint32
 // Spec describes a new job.
 type Spec struct {
 	// ID is a stable identity, usually from ID. Repeated handoffs with the same
-	// ID accept the job once. It uses letters, digits, '_' and '-', up to 128.
+	// ID accept the job once. It must be unique across job types. It uses
+	// letters, digits, '_' and '-', up to 128.
 	ID string
 	// Type selects the handler and the dispatch subject. Same syntax as ID.
 	Type string
@@ -50,10 +49,13 @@ type Spec struct {
 	ExpiresAt time.Time
 }
 
-// Job is a detached snapshot of a job record. Zero times mean "not set".
+// Job is a detached snapshot of a job. Zero times mean "not set". Handlers get
+// the job with its payload; jobs from Queue.Get and Queue.List have none.
 type Job struct {
-	ID, Type    string
-	Status      Status
+	ID, Type string
+	Status   Status
+	// Attempts is the number of the current or last attempt. It counts
+	// deliveries, so an attempt that a shutdown interrupted also counts.
 	Attempts    uint32
 	MaxAttempts uint32
 	CreatedAt   time.Time
@@ -65,8 +67,10 @@ type Job struct {
 	Payload    []byte
 	RetryDelay time.Duration
 	ExpiresAt  time.Time
-	// Generation counts attempt budgets. A manual retry starts a new one.
-	Generation uint64
+	// Revision is the stream sequence of the latest fact of the job. It is a
+	// broker position: applications must not expose it. RetryVersion derives a
+	// safe token from it.
+	Revision uint64
 }
 
 // Expired reports whether the job's deadline has passed.
@@ -87,34 +91,3 @@ type Failure struct {
 }
 
 func (e *Failure) Error() string { return e.Category }
-
-func jobFromRecord(r *jobpb.JobRecord) Job {
-	job := Job{
-		ID: r.Id, Type: r.Type, Attempts: r.Attempts, MaxAttempts: r.MaxAttempts,
-		Failure: r.Failure, Payload: append([]byte(nil), r.Payload...),
-		RetryDelay: time.Duration(r.RetryDelayMillis) * time.Millisecond, Generation: r.Generation,
-	}
-	switch r.Status {
-	case jobpb.JobStatus_JOB_STATUS_QUEUED:
-		job.Status = Queued
-	case jobpb.JobStatus_JOB_STATUS_RUNNING:
-		job.Status = Running
-	case jobpb.JobStatus_JOB_STATUS_SUCCEEDED:
-		job.Status = Succeeded
-	case jobpb.JobStatus_JOB_STATUS_FAILED:
-		job.Status = Failed
-	}
-	if r.CreatedAt != nil {
-		job.CreatedAt = r.CreatedAt.AsTime()
-	}
-	if r.UpdatedAt != nil {
-		job.UpdatedAt = r.UpdatedAt.AsTime()
-	}
-	if r.NextAttemptAt != nil {
-		job.NextAttemptAt = r.NextAttemptAt.AsTime()
-	}
-	if r.ExpiresAt != nil {
-		job.ExpiresAt = r.ExpiresAt.AsTime()
-	}
-	return job
-}

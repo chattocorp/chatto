@@ -62,7 +62,7 @@ func TestStorageConfigsArePinned(t *testing.T) {
 	}
 
 	streams := map[string][2]jetstream.StreamConfig{
-		"JOBS": {jobsStreamConfig(cfg), {Name: "JOBS", Description: "Durable background job dispatch", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: 3, Retention: jetstream.LimitsPolicy, MaxMsgsPerSubject: 1, MaxAge: 7 * day}},
+		"JOBS": {jobsStreamConfig(cfg), {Name: "JOBS", Description: "Durable background job facts", Subjects: []string{"jobs.>"}, Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: 3, Retention: jetstream.LimitsPolicy, MaxAge: 30 * day, AllowMsgTTL: true}},
 		"EVT": {evtStreamConfig(cfg), {
 			Name: "EVT", Description: "Event-sourcing log (ADR-033)", Subjects: []string{"evt.>"},
 			Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: 3,

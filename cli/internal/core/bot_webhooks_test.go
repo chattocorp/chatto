@@ -606,10 +606,10 @@ func TestBotOutboundWebhookDurableHandoff(t *testing.T) {
 	request := &botWebhookDelivery{DeliveryID: "stable-job", BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source", MaxAttempts: 3, RetryDelay: time.Second, ExpiresAt: time.Now().Add(time.Hour)}
 	require.NoError(t, c.botWebhooks.enqueue(ctx, request))
 	require.NoError(t, c.botWebhooks.enqueue(ctx, request))
-	job, err := c.jobs.Get(ctx, "stable-job")
+	// The job has one queued fact; the repeated handoff changed nothing.
+	info, err := c.storage.jobsStream.Info(ctx, jetstream.WithSubjectFilter("jobs.webhook.stable-job.>"))
 	require.NoError(t, err)
-	require.Equal(t, jobqueue.Queued, job.Status)
-	require.Equal(t, uint64(1), job.Generation)
+	require.Equal(t, map[string]uint64{"jobs.webhook.stable-job.queued": 1}, info.State.Subjects)
 }
 
 func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {

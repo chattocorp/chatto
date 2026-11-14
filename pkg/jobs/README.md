@@ -8,40 +8,48 @@ surface with no API stability promise.
 
 ## Model
 
-- **Records.** A key-value bucket holds the current record of each job under an
-  application-chosen key prefix. Records are protobufs that this module owns.
-  The bucket must allow per-message TTLs. Bind it with
-  `jetstreamutil.NewKeyValue`, so reads go through the stream leader.
-- **Dispatches.** A stream holds one reference per job on
-  `{SubjectPrefix}.{type}.{id}`. Keep one message per subject and set a maximum
-  age; `Queue.Run` publishes again for unfinished jobs.
-- **Maintenance.** Run `Queue.Run` once per process. Its record watcher keeps a
-  payload-free summary index for `Queue.List` and publishes a dispatch whenever
-  an unfinished job is due: after a lost publish, at its retry time, or at the
-  end of an abandoned lease.
-- **Execution.** `Queue.Work` takes an application-owned consumer and a handler
-  per job type. A worker claims a job with a revision-checked write and renews
-  a one-minute lease every fifteen seconds. A graceful shutdown releases the
-  claim, and the interrupted attempt does not count against the budget; after a
-  crash, the lease expires first. Workers acknowledge a dispatch when
-  an attempt ends, so waiting jobs hold no consumer capacity. Several processes
-  can share one consumer; give slow job types their own consumer so they cannot
-  delay others.
-- **Listing.** `Queue.List` returns jobs from memory, newest update first, with
-  an optional status filter and an opaque cursor. It reads no storage.
-- **Retries.** A failed attempt waits with exponential backoff, capped at thirty
-  minutes, without holding a worker or a dispatch. A `*jobs.Failure` sets a safe category and
-  can stop retries. Exhausted and permanently failed jobs stay for inspection.
-  `Queue.Retry` starts one new attempt budget; `RetryVersion` fences stale
-  operator actions.
-- **Retention.** Succeeded records expire after `SucceededRetention` (default
-  seven days). Failed and unfinished records do not expire.
+The queue follows the Loom architecture on a small scale: commands append
+facts, a durable worker produces the outcomes, and a projection gives the
+view.
+
+- **Facts.** One job stream holds the facts of each job on
+  `{SubjectPrefix}.{type}.{id}.{fact}`: `queued`, `started`, `attempt_failed`,
+  `succeeded`, `failed`, and `retried`. Facts are protobufs that this module
+  owns. The state of a job is the fold of its facts. The stream must allow
+  per-message TTLs and should set a maximum age.
+- **Enqueue.** `Queue.Enqueue` appends `queued` only when the job has no
+  facts, so a repeated handoff accepts the job once.
+- **Execution.** `Queue.Work` takes an application-owned durable consumer and
+  one handler. The consumer filters to `Queue.FilterSubjects` of its job
+  types, which are their `queued` and `retried` facts. The acknowledgement
+  wait is the claim, renewed by a progress heartbeat. The delivery count is
+  the attempt number. Several processes can share one consumer. Give each job
+  type its own consumer, so one type cannot delay another.
+- **Retries.** A failed attempt returns its delivery with exponential backoff,
+  capped at thirty minutes. The waiting job holds an unacknowledged delivery,
+  so the consumer should not limit pending acknowledgements. A `*jobs.Failure`
+  sets a safe category and can stop retries. `Queue.Retry` starts one new
+  attempt budget for a failed job; `RetryVersion` fences stale operator
+  actions.
+- **Shutdown and crashes.** On shutdown, the worker returns the delivery, and
+  another process takes the job over. After a crash, the acknowledgement wait
+  ends first. The interrupted delivery counts as an attempt.
+- **View.** `Queue.Run` keeps an in-memory projection of the stream: one
+  summary per job, without the payload. `Queue.Get`, `Queue.List`, and
+  `Queue.Retry` need it. `Queue.List` returns jobs newest update first, with an
+  optional status filter and an opaque cursor. It reads no storage. Processes
+  that only enqueue or work do not need `Queue.Run`.
+- **Retention.** When a job succeeds, the worker writes `succeeded` with a TTL
+  of `SucceededRetention` (default three days) and purges the earlier facts of
+  the job. Other facts stay until the maximum age of the stream. A failed or
+  unfinished job leaves the stream when its `queued` or last `retried` fact
+  reaches that age; the view logs a warning for an unfinished job.
 
 ## Effects
 
 `NewEffect` moves an existing durable consumer onto the queue. The consumer
 keeps its persisted name and filter. For each accepted message, the effect
-stores a job with the source subject, sequence, and a SHA-256 digest of the
+enqueues a job with the source subject, sequence, and a SHA-256 digest of the
 message, then acknowledges the message. Each attempt reads the message again and
 runs the unchanged `events.DurableDeliveryHandler`. A handler error from
 `events.TerminateDelivery` fails the job permanently. `Accept` skips messages
@@ -54,4 +62,6 @@ Applications own stream, bucket, and consumer names and configurations, job
 types, attempt budgets, handlers, payload contents, and every user interface or
 API over the queue. Payloads must not contain content, credentials, or other
 data that a job listing must not reveal. Handlers must tolerate repeated
-execution: a lost acknowledgement or an expired lease can run an attempt again.
+execution: a lost acknowledgement, an expired acknowledgement wait, or a failed
+outcome write can run an attempt again. Job IDs must be unique across job
+types.

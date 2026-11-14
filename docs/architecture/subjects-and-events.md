@@ -580,9 +580,9 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 
 Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
 user-aggregate OCC and encrypted credentials. Durable delivery jobs store a
-`WebhookJob` payload inside the runtime-state `JobRecord`; dispatch references
-use `jobs.webhook.{jobId}` in `JOBS`. Neither schema stores message content or
-endpoint credentials.
+`WebhookJob` payload inside the `queued` job fact on
+`jobs.webhook.{jobId}.queued` in `JOBS`. The payload does not store message
+content or endpoint credentials.
 The delivery ID hashes the bot, endpoint, and source event IDs.
 
 Terminal failures append
@@ -629,10 +629,15 @@ room-OCC batch.
 the actor and time. Created facts store the recipient and expiry; response
 facts identify both participants. They do not appear in room timelines.
 
-## Background job dispatch
+## Background job facts
 
-`jobs.webhook.{jobId}` and `jobs.media.{jobId}` carry protobuf
-`chatto.core.job.v1.JobDispatch` references in `JOBS`. The current job generation
-and private work payload live in the runtime-state record, not in a domain event.
-Source events remain in EVT. Generation checks reject stale dispatches after a
-manual retry. See ADR-123.
+`jobs.{type}.{jobId}.{fact}` carries protobuf `jobs.v1.JobFact` values in
+`JOBS`. The fact is `queued`, `started`, `attempt_failed`, `succeeded`,
+`failed`, or `retried`. The job types are `webhook`, `media`,
+`notification_alert`, `asset_cleanup`, `call_key_cleanup`,
+`push_subscription_cleanup`, and `user_key_shredding`. The state of a job is
+the fold of its facts in stream order. The `queued` and `retried` facts carry
+the private work payload and policy. Job facts are operational facts, not
+domain events. Source events remain in EVT. Enqueue appends `queued` only when
+the job has no facts. A manual retry appends `retried` only when the viewed
+`failed` fact is still the latest fact of the job. See ADR-123.

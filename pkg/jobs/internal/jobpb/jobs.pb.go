@@ -22,101 +22,45 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Persisted execution states.
-type JobStatus int32
-
-const (
-	JobStatus_JOB_STATUS_UNSPECIFIED JobStatus = 0
-	JobStatus_JOB_STATUS_QUEUED      JobStatus = 1
-	JobStatus_JOB_STATUS_RUNNING     JobStatus = 2
-	JobStatus_JOB_STATUS_SUCCEEDED   JobStatus = 3
-	JobStatus_JOB_STATUS_FAILED      JobStatus = 4
-)
-
-// Enum value maps for JobStatus.
-var (
-	JobStatus_name = map[int32]string{
-		0: "JOB_STATUS_UNSPECIFIED",
-		1: "JOB_STATUS_QUEUED",
-		2: "JOB_STATUS_RUNNING",
-		3: "JOB_STATUS_SUCCEEDED",
-		4: "JOB_STATUS_FAILED",
-	}
-	JobStatus_value = map[string]int32{
-		"JOB_STATUS_UNSPECIFIED": 0,
-		"JOB_STATUS_QUEUED":      1,
-		"JOB_STATUS_RUNNING":     2,
-		"JOB_STATUS_SUCCEEDED":   3,
-		"JOB_STATUS_FAILED":      4,
-	}
-)
-
-func (x JobStatus) Enum() *JobStatus {
-	p := new(JobStatus)
-	*p = x
-	return p
+// One fact in the history of a job. The job stream holds these facts on
+// {prefix}.{type}.{id}.{fact}. A job's state is the fold of its facts in
+// stream order.
+type JobFact struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type  string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	// When this fact occurred.
+	OccurredAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	// When the job was first accepted. Every fact repeats it, so a fact stays
+	// readable after earlier facts are gone.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Types that are valid to be assigned to Fact:
+	//
+	//	*JobFact_Queued
+	//	*JobFact_Started
+	//	*JobFact_AttemptFailed
+	//	*JobFact_Succeeded
+	//	*JobFact_Failed
+	//	*JobFact_Retried
+	Fact          isJobFact_Fact `protobuf_oneof:"fact"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x JobStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (JobStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_jobs_v1_jobs_proto_enumTypes[0].Descriptor()
-}
-
-func (JobStatus) Type() protoreflect.EnumType {
-	return &file_jobs_v1_jobs_proto_enumTypes[0]
-}
-
-func (x JobStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use JobStatus.Descriptor instead.
-func (JobStatus) EnumDescriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{0}
-}
-
-// Latest durable execution state of one job. The payload is an application
-// reference, never content or credentials. Terminal records also prevent source
-// redelivery from enqueueing the same work again. Generation fences dispatches
-// from previous manual retries.
-type JobRecord struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type             string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Status           JobStatus              `protobuf:"varint,3,opt,name=status,proto3,enum=jobs.v1.JobStatus" json:"status,omitempty"`
-	Attempts         uint32                 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
-	MaxAttempts      uint32                 `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	NextAttemptAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`
-	Failure          string                 `protobuf:"bytes,9,opt,name=failure,proto3" json:"failure,omitempty"`
-	Payload          []byte                 `protobuf:"bytes,10,opt,name=payload,proto3" json:"payload,omitempty"`
-	Generation       uint64                 `protobuf:"varint,11,opt,name=generation,proto3" json:"generation,omitempty"`
-	Owner            string                 `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`
-	LeaseUntil       *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=lease_until,json=leaseUntil,proto3" json:"lease_until,omitempty"`
-	RetryDelayMillis int64                  `protobuf:"varint,14,opt,name=retry_delay_millis,json=retryDelayMillis,proto3" json:"retry_delay_millis,omitempty"`
-	ExpiresAt        *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *JobRecord) Reset() {
-	*x = JobRecord{}
+func (x *JobFact) Reset() {
+	*x = JobFact{}
 	mi := &file_jobs_v1_jobs_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *JobRecord) String() string {
+func (x *JobFact) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*JobRecord) ProtoMessage() {}
+func (*JobFact) ProtoMessage() {}
 
-func (x *JobRecord) ProtoReflect() protoreflect.Message {
+func (x *JobFact) ProtoReflect() protoreflect.Message {
 	mi := &file_jobs_v1_jobs_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -128,139 +72,168 @@ func (x *JobRecord) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use JobRecord.ProtoReflect.Descriptor instead.
-func (*JobRecord) Descriptor() ([]byte, []int) {
+// Deprecated: Use JobFact.ProtoReflect.Descriptor instead.
+func (*JobFact) Descriptor() ([]byte, []int) {
 	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *JobRecord) GetId() string {
+func (x *JobFact) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *JobRecord) GetType() string {
+func (x *JobFact) GetType() string {
 	if x != nil {
 		return x.Type
 	}
 	return ""
 }
 
-func (x *JobRecord) GetStatus() JobStatus {
+func (x *JobFact) GetOccurredAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Status
+		return x.OccurredAt
 	}
-	return JobStatus_JOB_STATUS_UNSPECIFIED
+	return nil
 }
 
-func (x *JobRecord) GetAttempts() uint32 {
-	if x != nil {
-		return x.Attempts
-	}
-	return 0
-}
-
-func (x *JobRecord) GetMaxAttempts() uint32 {
-	if x != nil {
-		return x.MaxAttempts
-	}
-	return 0
-}
-
-func (x *JobRecord) GetCreatedAt() *timestamppb.Timestamp {
+func (x *JobFact) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *JobRecord) GetUpdatedAt() *timestamppb.Timestamp {
+func (x *JobFact) GetFact() isJobFact_Fact {
 	if x != nil {
-		return x.UpdatedAt
+		return x.Fact
 	}
 	return nil
 }
 
-func (x *JobRecord) GetNextAttemptAt() *timestamppb.Timestamp {
+func (x *JobFact) GetQueued() *JobQueued {
 	if x != nil {
-		return x.NextAttemptAt
+		if x, ok := x.Fact.(*JobFact_Queued); ok {
+			return x.Queued
+		}
 	}
 	return nil
 }
 
-func (x *JobRecord) GetFailure() string {
+func (x *JobFact) GetStarted() *JobStarted {
 	if x != nil {
-		return x.Failure
-	}
-	return ""
-}
-
-func (x *JobRecord) GetPayload() []byte {
-	if x != nil {
-		return x.Payload
+		if x, ok := x.Fact.(*JobFact_Started); ok {
+			return x.Started
+		}
 	}
 	return nil
 }
 
-func (x *JobRecord) GetGeneration() uint64 {
+func (x *JobFact) GetAttemptFailed() *JobAttemptFailed {
 	if x != nil {
-		return x.Generation
-	}
-	return 0
-}
-
-func (x *JobRecord) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *JobRecord) GetLeaseUntil() *timestamppb.Timestamp {
-	if x != nil {
-		return x.LeaseUntil
+		if x, ok := x.Fact.(*JobFact_AttemptFailed); ok {
+			return x.AttemptFailed
+		}
 	}
 	return nil
 }
 
-func (x *JobRecord) GetRetryDelayMillis() int64 {
+func (x *JobFact) GetSucceeded() *JobSucceeded {
 	if x != nil {
-		return x.RetryDelayMillis
-	}
-	return 0
-}
-
-func (x *JobRecord) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
+		if x, ok := x.Fact.(*JobFact_Succeeded); ok {
+			return x.Succeeded
+		}
 	}
 	return nil
 }
 
-// Replayable reference to one job generation. It carries no job state.
-type JobDispatch struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Generation    uint64                 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+func (x *JobFact) GetFailed() *JobFailed {
+	if x != nil {
+		if x, ok := x.Fact.(*JobFact_Failed); ok {
+			return x.Failed
+		}
+	}
+	return nil
+}
+
+func (x *JobFact) GetRetried() *JobRetried {
+	if x != nil {
+		if x, ok := x.Fact.(*JobFact_Retried); ok {
+			return x.Retried
+		}
+	}
+	return nil
+}
+
+type isJobFact_Fact interface {
+	isJobFact_Fact()
+}
+
+type JobFact_Queued struct {
+	Queued *JobQueued `protobuf:"bytes,10,opt,name=queued,proto3,oneof"`
+}
+
+type JobFact_Started struct {
+	Started *JobStarted `protobuf:"bytes,11,opt,name=started,proto3,oneof"`
+}
+
+type JobFact_AttemptFailed struct {
+	AttemptFailed *JobAttemptFailed `protobuf:"bytes,12,opt,name=attempt_failed,json=attemptFailed,proto3,oneof"`
+}
+
+type JobFact_Succeeded struct {
+	Succeeded *JobSucceeded `protobuf:"bytes,13,opt,name=succeeded,proto3,oneof"`
+}
+
+type JobFact_Failed struct {
+	Failed *JobFailed `protobuf:"bytes,14,opt,name=failed,proto3,oneof"`
+}
+
+type JobFact_Retried struct {
+	Retried *JobRetried `protobuf:"bytes,15,opt,name=retried,proto3,oneof"`
+}
+
+func (*JobFact_Queued) isJobFact_Fact() {}
+
+func (*JobFact_Started) isJobFact_Fact() {}
+
+func (*JobFact_AttemptFailed) isJobFact_Fact() {}
+
+func (*JobFact_Succeeded) isJobFact_Fact() {}
+
+func (*JobFact_Failed) isJobFact_Fact() {}
+
+func (*JobFact_Retried) isJobFact_Fact() {}
+
+// What to run and the policy for it. The payload is an application reference,
+// never content or credentials.
+type JobSpec struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Payload []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	// Automatic attempt budget. The maximum uint32 value means no limit.
+	MaxAttempts      uint32 `protobuf:"varint,2,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	RetryDelayMillis int64  `protobuf:"varint,3,opt,name=retry_delay_millis,json=retryDelayMillis,proto3" json:"retry_delay_millis,omitempty"`
+	// Optional deadline. A manual retry never extends it.
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *JobDispatch) Reset() {
-	*x = JobDispatch{}
+func (x *JobSpec) Reset() {
+	*x = JobSpec{}
 	mi := &file_jobs_v1_jobs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *JobDispatch) String() string {
+func (x *JobSpec) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*JobDispatch) ProtoMessage() {}
+func (*JobSpec) ProtoMessage() {}
 
-func (x *JobDispatch) ProtoReflect() protoreflect.Message {
+func (x *JobSpec) ProtoReflect() protoreflect.Message {
 	mi := &file_jobs_v1_jobs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -272,23 +245,344 @@ func (x *JobDispatch) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use JobDispatch.ProtoReflect.Descriptor instead.
-func (*JobDispatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use JobSpec.ProtoReflect.Descriptor instead.
+func (*JobSpec) Descriptor() ([]byte, []int) {
 	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *JobDispatch) GetId() string {
+func (x *JobSpec) GetPayload() []byte {
 	if x != nil {
-		return x.Id
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *JobSpec) GetMaxAttempts() uint32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *JobSpec) GetRetryDelayMillis() int64 {
+	if x != nil {
+		return x.RetryDelayMillis
+	}
+	return 0
+}
+
+func (x *JobSpec) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// The job was accepted. Workers consume this fact; its delivery count is the
+// attempt number.
+type JobQueued struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Spec          *JobSpec               `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobQueued) Reset() {
+	*x = JobQueued{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobQueued) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobQueued) ProtoMessage() {}
+
+func (x *JobQueued) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobQueued.ProtoReflect.Descriptor instead.
+func (*JobQueued) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *JobQueued) GetSpec() *JobSpec {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+// An operator started a new attempt budget for a failed job. Workers consume
+// this fact like JobQueued.
+type JobRetried struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Spec          *JobSpec               `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobRetried) Reset() {
+	*x = JobRetried{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobRetried) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobRetried) ProtoMessage() {}
+
+func (x *JobRetried) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobRetried.ProtoReflect.Descriptor instead.
+func (*JobRetried) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *JobRetried) GetSpec() *JobSpec {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+// A worker started an attempt.
+type JobStarted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attempt       uint32                 `protobuf:"varint,1,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobStarted) Reset() {
+	*x = JobStarted{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobStarted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobStarted) ProtoMessage() {}
+
+func (x *JobStarted) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobStarted.ProtoReflect.Descriptor instead.
+func (*JobStarted) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *JobStarted) GetAttempt() uint32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+// An attempt failed and the job waits for its next attempt.
+type JobAttemptFailed struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Attempt uint32                 `protobuf:"varint,1,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	// Safe failure category, never handler error text.
+	Failure       string                 `protobuf:"bytes,2,opt,name=failure,proto3" json:"failure,omitempty"`
+	NextAttemptAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobAttemptFailed) Reset() {
+	*x = JobAttemptFailed{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobAttemptFailed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobAttemptFailed) ProtoMessage() {}
+
+func (x *JobAttemptFailed) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobAttemptFailed.ProtoReflect.Descriptor instead.
+func (*JobAttemptFailed) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *JobAttemptFailed) GetAttempt() uint32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *JobAttemptFailed) GetFailure() string {
+	if x != nil {
+		return x.Failure
 	}
 	return ""
 }
 
-func (x *JobDispatch) GetGeneration() uint64 {
+func (x *JobAttemptFailed) GetNextAttemptAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Generation
+		return x.NextAttemptAt
+	}
+	return nil
+}
+
+// The job is complete. This fact expires after the succeeded retention; the
+// worker removes the earlier facts of the job after it writes this one.
+type JobSucceeded struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attempts      uint32                 `protobuf:"varint,1,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	MaxAttempts   uint32                 `protobuf:"varint,2,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobSucceeded) Reset() {
+	*x = JobSucceeded{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobSucceeded) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobSucceeded) ProtoMessage() {}
+
+func (x *JobSucceeded) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobSucceeded.ProtoReflect.Descriptor instead.
+func (*JobSucceeded) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *JobSucceeded) GetAttempts() uint32 {
+	if x != nil {
+		return x.Attempts
 	}
 	return 0
+}
+
+func (x *JobSucceeded) GetMaxAttempts() uint32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+// The job failed permanently, used its attempt budget, or passed its deadline.
+type JobFailed struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Attempts uint32                 `protobuf:"varint,1,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	// Safe failure category, never handler error text.
+	Failure       string `protobuf:"bytes,2,opt,name=failure,proto3" json:"failure,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobFailed) Reset() {
+	*x = JobFailed{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobFailed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobFailed) ProtoMessage() {}
+
+func (x *JobFailed) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobFailed.ProtoReflect.Descriptor instead.
+func (*JobFailed) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *JobFailed) GetAttempts() uint32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *JobFailed) GetFailure() string {
+	if x != nil {
+		return x.Failure
+	}
+	return ""
 }
 
 // Reference to one retained source message of an effect job. Each attempt
@@ -306,7 +600,7 @@ type EffectSource struct {
 
 func (x *EffectSource) Reset() {
 	*x = EffectSource{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[2]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -318,7 +612,7 @@ func (x *EffectSource) String() string {
 func (*EffectSource) ProtoMessage() {}
 
 func (x *EffectSource) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[2]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,7 +625,7 @@ func (x *EffectSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectSource.ProtoReflect.Descriptor instead.
 func (*EffectSource) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{2}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *EffectSource) GetSubject() string {
@@ -359,46 +653,51 @@ var File_jobs_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe4\x04\n" +
-	"\tJobRecord\x12\x0e\n" +
+	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x03\n" +
+	"\aJobFact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x12*\n" +
-	"\x06status\x18\x03 \x01(\x0e2\x12.jobs.v1.JobStatusR\x06status\x12\x1a\n" +
-	"\battempts\x18\x04 \x01(\rR\battempts\x12!\n" +
-	"\fmax_attempts\x18\x05 \x01(\rR\vmaxAttempts\x129\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12;\n" +
+	"\voccurred_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12,\n" +
+	"\x06queued\x18\n" +
+	" \x01(\v2\x12.jobs.v1.JobQueuedH\x00R\x06queued\x12/\n" +
+	"\astarted\x18\v \x01(\v2\x13.jobs.v1.JobStartedH\x00R\astarted\x12B\n" +
+	"\x0eattempt_failed\x18\f \x01(\v2\x19.jobs.v1.JobAttemptFailedH\x00R\rattemptFailed\x125\n" +
+	"\tsucceeded\x18\r \x01(\v2\x15.jobs.v1.JobSucceededH\x00R\tsucceeded\x12,\n" +
+	"\x06failed\x18\x0e \x01(\v2\x12.jobs.v1.JobFailedH\x00R\x06failed\x12/\n" +
+	"\aretried\x18\x0f \x01(\v2\x13.jobs.v1.JobRetriedH\x00R\aretriedB\x06\n" +
+	"\x04fact\"\xaf\x01\n" +
+	"\aJobSpec\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\x12!\n" +
+	"\fmax_attempts\x18\x02 \x01(\rR\vmaxAttempts\x12,\n" +
+	"\x12retry_delay_millis\x18\x03 \x01(\x03R\x10retryDelayMillis\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12B\n" +
-	"\x0fnext_attempt_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\x12\x18\n" +
-	"\afailure\x18\t \x01(\tR\afailure\x12\x18\n" +
-	"\apayload\x18\n" +
-	" \x01(\fR\apayload\x12\x1e\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"1\n" +
+	"\tJobQueued\x12$\n" +
+	"\x04spec\x18\x01 \x01(\v2\x10.jobs.v1.JobSpecR\x04spec\"2\n" +
 	"\n" +
-	"generation\x18\v \x01(\x04R\n" +
-	"generation\x12\x14\n" +
-	"\x05owner\x18\f \x01(\tR\x05owner\x12;\n" +
-	"\vlease_until\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"leaseUntil\x12,\n" +
-	"\x12retry_delay_millis\x18\x0e \x01(\x03R\x10retryDelayMillis\x129\n" +
+	"JobRetried\x12$\n" +
+	"\x04spec\x18\x01 \x01(\v2\x10.jobs.v1.JobSpecR\x04spec\"&\n" +
 	"\n" +
-	"expires_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"=\n" +
-	"\vJobDispatch\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
-	"\n" +
-	"generation\x18\x02 \x01(\x04R\n" +
-	"generation\"e\n" +
+	"JobStarted\x12\x18\n" +
+	"\aattempt\x18\x01 \x01(\rR\aattempt\"\x8a\x01\n" +
+	"\x10JobAttemptFailed\x12\x18\n" +
+	"\aattempt\x18\x01 \x01(\rR\aattempt\x12\x18\n" +
+	"\afailure\x18\x02 \x01(\tR\afailure\x12B\n" +
+	"\x0fnext_attempt_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\"M\n" +
+	"\fJobSucceeded\x12\x1a\n" +
+	"\battempts\x18\x01 \x01(\rR\battempts\x12!\n" +
+	"\fmax_attempts\x18\x02 \x01(\rR\vmaxAttempts\"A\n" +
+	"\tJobFailed\x12\x1a\n" +
+	"\battempts\x18\x01 \x01(\rR\battempts\x12\x18\n" +
+	"\afailure\x18\x02 \x01(\tR\afailure\"e\n" +
 	"\fEffectSource\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x1f\n" +
 	"\vdata_sha256\x18\x03 \x01(\fR\n" +
-	"dataSha256*\x87\x01\n" +
-	"\tJobStatus\x12\x1a\n" +
-	"\x16JOB_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11JOB_STATUS_QUEUED\x10\x01\x12\x16\n" +
-	"\x12JOB_STATUS_RUNNING\x10\x02\x12\x18\n" +
-	"\x14JOB_STATUS_SUCCEEDED\x10\x03\x12\x15\n" +
-	"\x11JOB_STATUS_FAILED\x10\x04B<Z:github.com/chattocorp/chatto/pkg/jobs/internal/jobpb;jobpbb\x06proto3"
+	"dataSha256B<Z:github.com/chattocorp/chatto/pkg/jobs/internal/jobpb;jobpbb\x06proto3"
 
 var (
 	file_jobs_v1_jobs_proto_rawDescOnce sync.Once
@@ -412,27 +711,37 @@ func file_jobs_v1_jobs_proto_rawDescGZIP() []byte {
 	return file_jobs_v1_jobs_proto_rawDescData
 }
 
-var file_jobs_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_jobs_v1_jobs_proto_goTypes = []any{
-	(JobStatus)(0),                // 0: jobs.v1.JobStatus
-	(*JobRecord)(nil),             // 1: jobs.v1.JobRecord
-	(*JobDispatch)(nil),           // 2: jobs.v1.JobDispatch
-	(*EffectSource)(nil),          // 3: jobs.v1.EffectSource
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*JobFact)(nil),               // 0: jobs.v1.JobFact
+	(*JobSpec)(nil),               // 1: jobs.v1.JobSpec
+	(*JobQueued)(nil),             // 2: jobs.v1.JobQueued
+	(*JobRetried)(nil),            // 3: jobs.v1.JobRetried
+	(*JobStarted)(nil),            // 4: jobs.v1.JobStarted
+	(*JobAttemptFailed)(nil),      // 5: jobs.v1.JobAttemptFailed
+	(*JobSucceeded)(nil),          // 6: jobs.v1.JobSucceeded
+	(*JobFailed)(nil),             // 7: jobs.v1.JobFailed
+	(*EffectSource)(nil),          // 8: jobs.v1.EffectSource
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
 }
 var file_jobs_v1_jobs_proto_depIdxs = []int32{
-	0, // 0: jobs.v1.JobRecord.status:type_name -> jobs.v1.JobStatus
-	4, // 1: jobs.v1.JobRecord.created_at:type_name -> google.protobuf.Timestamp
-	4, // 2: jobs.v1.JobRecord.updated_at:type_name -> google.protobuf.Timestamp
-	4, // 3: jobs.v1.JobRecord.next_attempt_at:type_name -> google.protobuf.Timestamp
-	4, // 4: jobs.v1.JobRecord.lease_until:type_name -> google.protobuf.Timestamp
-	4, // 5: jobs.v1.JobRecord.expires_at:type_name -> google.protobuf.Timestamp
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	9,  // 0: jobs.v1.JobFact.occurred_at:type_name -> google.protobuf.Timestamp
+	9,  // 1: jobs.v1.JobFact.created_at:type_name -> google.protobuf.Timestamp
+	2,  // 2: jobs.v1.JobFact.queued:type_name -> jobs.v1.JobQueued
+	4,  // 3: jobs.v1.JobFact.started:type_name -> jobs.v1.JobStarted
+	5,  // 4: jobs.v1.JobFact.attempt_failed:type_name -> jobs.v1.JobAttemptFailed
+	6,  // 5: jobs.v1.JobFact.succeeded:type_name -> jobs.v1.JobSucceeded
+	7,  // 6: jobs.v1.JobFact.failed:type_name -> jobs.v1.JobFailed
+	3,  // 7: jobs.v1.JobFact.retried:type_name -> jobs.v1.JobRetried
+	9,  // 8: jobs.v1.JobSpec.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 9: jobs.v1.JobQueued.spec:type_name -> jobs.v1.JobSpec
+	1,  // 10: jobs.v1.JobRetried.spec:type_name -> jobs.v1.JobSpec
+	9,  // 11: jobs.v1.JobAttemptFailed.next_attempt_at:type_name -> google.protobuf.Timestamp
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_jobs_v1_jobs_proto_init() }
@@ -440,19 +749,26 @@ func file_jobs_v1_jobs_proto_init() {
 	if File_jobs_v1_jobs_proto != nil {
 		return
 	}
+	file_jobs_v1_jobs_proto_msgTypes[0].OneofWrappers = []any{
+		(*JobFact_Queued)(nil),
+		(*JobFact_Started)(nil),
+		(*JobFact_AttemptFailed)(nil),
+		(*JobFact_Succeeded)(nil),
+		(*JobFact_Failed)(nil),
+		(*JobFact_Retried)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobs_v1_jobs_proto_rawDesc), len(file_jobs_v1_jobs_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   3,
+			NumEnums:      0,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_jobs_v1_jobs_proto_goTypes,
 		DependencyIndexes: file_jobs_v1_jobs_proto_depIdxs,
-		EnumInfos:         file_jobs_v1_jobs_proto_enumTypes,
 		MessageInfos:      file_jobs_v1_jobs_proto_msgTypes,
 	}.Build()
 	File_jobs_v1_jobs_proto = out.File

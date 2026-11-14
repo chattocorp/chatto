@@ -17,7 +17,7 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		{Stream: "EVT", Name: notificationWorkerConsumerName, Waiting: 1, DeliveredStreamSeq: 52, AckFloorStreamSeq: 51},
 		{Stream: "EVT", Name: botWebhookSourceConsumer, Waiting: 1},
 		{Stream: "EVT", Name: AssetProcessingConsumerName, Waiting: 0, Pending: 4},
-		{Stream: "JOBS", Name: MediaJobsConsumerName, Waiting: 0, Pending: 3},
+		{Stream: "JOBS", Name: JobsConsumerName(jobTypeMedia), Waiting: 0, Pending: 3},
 	}}, false)
 
 	byKey := make(map[string]DurableWorkerAdminStatus, len(statuses))
@@ -50,7 +50,7 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		t.Fatalf("media jobs status = %+v, want inactive with its pending count", got)
 	}
 	enabled := durableWorkerAdminStatuses(&JetStreamStats{Consumers: []ConsumerStats{
-		{Stream: "JOBS", Name: MediaJobsConsumerName, Waiting: 0, Pending: 3},
+		{Stream: "JOBS", Name: JobsConsumerName(jobTypeMedia), Waiting: 0, Pending: 3},
 	}}, true)
 	for _, status := range enabled {
 		if status.Key == "media_jobs" && status.Health != DurableWorkerHealthStalled {
@@ -107,8 +107,9 @@ func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *te
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(nil, true)
-	if len(statuses) != 12 {
-		t.Fatalf("statuses len = %d, want 12", len(statuses))
+	// Nine source and materializer consumers, plus one JOBS consumer per job type.
+	if want := 9 + len(jobTypes()); len(statuses) != want {
+		t.Fatalf("statuses len = %d, want %d", len(statuses), want)
 	}
 	for _, status := range statuses {
 		if status.Health != DurableWorkerHealthUnavailable {

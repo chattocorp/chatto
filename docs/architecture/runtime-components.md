@@ -480,14 +480,21 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 
 ## Background jobs and outbound bot webhooks
 
-[`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module runs bounded attempts
-from `JOBS`, owns runtime-state revision claims, and repairs missing dispatches
-through one filtered watcher. The core starts three pools, each on its own
-consumer: a shared pool with `core.job_concurrency` capacity (default eight)
-for webhook, cleanup, and key-deletion jobs; a notification alert pool with
-capacity sixteen; and, with embedded media processing, a media pool with
-`asset_processing.max_concurrent_jobs` capacity. Standalone media processes use
-the media consumer with their own capacity.
+[`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module
+appends job facts to `JOBS` and runs attempts from the durable consumers of
+that stream. It has no claims, leases, or repair pass of its own; JetStream
+consumer semantics do this work. The core starts one worker pool for each job
+type, each on its own consumer. The webhook pool and the pool of each cleanup
+and key-deletion type have `core.job_concurrency` capacity (default eight).
+The notification alert pool has capacity sixteen. With embedded media
+processing, the media pool has `asset_processing.max_concurrent_jobs`
+capacity. Standalone media processes use the media consumer with their own
+capacity.
+
+The core also runs the job view ([`view.go`](../../pkg/jobs/view.go)), an
+in-memory projection of `JOBS` with one payload-free summary for each job.
+`ListJobs`, `GetJob`, and `RetryJob` read it. The view is built again from the
+retained facts on each start. Standalone media processes do not run it.
 
 [`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,
 call-key cleanup, push-subscription cleanup, user-key shredding, and

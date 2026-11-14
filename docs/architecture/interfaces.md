@@ -694,8 +694,9 @@ recipient can read an invitation. Only the recipient can respond.
 `RetryJob` operations. Core operations require `server.manage`, including
 privileged mode for human credential sessions. The API exposes state, safe
 failure categories, attempt counts, timestamps, and typed retry availability.
-It never exposes private payloads, lease owners, or dispatch generations.
-Page cursors are sealed and viewer-bound. Retry preserves source deadlines and
-checks the viewed attempt-budget version and uses revision OCC to accept one
-new generation. Retry versions are opaque application tokens, not broker
-coordinates. See FDR-056 and ADR-123.
+It never exposes private payloads or broker positions. The operations read
+the in-memory job view of the serving replica. Page cursors are sealed and
+viewer-bound. Retry preserves source deadlines and checks the viewed retry
+version. OCC on the facts of the job accepts one new attempt budget. Retry
+versions are opaque application tokens, not broker coordinates. See FDR-056
+and ADR-123.

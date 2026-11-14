@@ -108,7 +108,8 @@ frontends use it. See ADR-111.
   JetStream client helpers: key-value leader reads, retried provisioning, and
   conflict classification.
 - [pkg/jobs/AGENTS.md](pkg/jobs/AGENTS.md) — shared durable job queue and
-  effect adapter: claims, retries, repair, retention, and module boundary.
+  effect adapter: job facts, worker, retries, job view, retention, and module
+  boundary.
 - [pkg/natsruntime/AGENTS.md](pkg/natsruntime/AGENTS.md) — shared embedded-NATS
   lifecycle module boundary and verification rules.
 - [pkg/datacrypto/AGENTS.md](pkg/datacrypto/AGENTS.md) — shared authenticated

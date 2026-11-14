@@ -130,10 +130,10 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	// JobConcurrency bounds the shared job pool on each Chatto replica. It
-	// runs webhook, cleanup, and key-deletion jobs; alerts and media have
-	// their own pools.
-	JobConcurrency int `toml:"job_concurrency,commented" env:"CHATTO_CORE_JOB_CONCURRENCY" comment:"Maximum simultaneous webhook, cleanup, and key-deletion jobs per replica. Default: 8. Media processing uses asset_processing.max_concurrent_jobs."`
+	// JobConcurrency bounds the worker pool of each webhook, cleanup, and
+	// key-deletion job type on each Chatto replica. Each type has its own
+	// pool; alerts and media have their own pool sizes.
+	JobConcurrency int `toml:"job_concurrency,commented" env:"CHATTO_CORE_JOB_CONCURRENCY" comment:"Maximum simultaneous jobs of each webhook, cleanup, and key-deletion job type per replica. Default: 8. Media processing uses asset_processing.max_concurrent_jobs."`
 
 	// SkipSetupWizard suppresses first-run setup without changing its durable state.
 	SkipSetupWizard             bool                 `toml:"skip_setup_wizard,commented" env:"CHATTO_CORE_SKIP_SETUP_WIZARD" comment:"Disable the first-run web setup wizard. Does not reset server initialization. Default: false."`

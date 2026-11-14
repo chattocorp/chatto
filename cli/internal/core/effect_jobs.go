@@ -20,14 +20,14 @@ const (
 	jobTypeNotificationAlertDelivery = "notification_alert"
 )
 
-// effectJobTypes lists every effect type that the shared consumer must receive.
-// Notification alerts use their own consumer (AlertJobsConsumerName).
+// effectJobTypes lists the effect types that use the configured job
+// concurrency. Notification alerts have their own pool size.
 func effectJobTypes() []string {
 	return []string{jobTypeAssetCleanup, jobTypeCallKeyCleanup, jobTypePushSubscriptionCleanup, jobTypeUserKeyShredding}
 }
 
-// newEffectJob moves one existing durable effect consumer onto the shared
-// queue and registers its handler. Privacy and cleanup effects use
+// newEffectJob moves one existing durable effect consumer onto the job queue
+// and registers its handler. Privacy and cleanup effects use
 // jobqueue.UnlimitedAttempts: like the durable workers that they replace, they
 // keep retrying with capped backoff through a long KMS or object-store outage. Call it during core construction, after
 // initializeJobs and before ChattoCore.Run starts the job pool.

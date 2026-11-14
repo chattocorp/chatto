@@ -46,7 +46,7 @@ type durableWorkerDiagnosticSpec struct {
 // Media jobs need a worker only while video uploads are enabled; the worker
 // can run in this server or in a standalone media process.
 func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagnosticSpec {
-	return []durableWorkerDiagnosticSpec{
+	specs := []durableWorkerDiagnosticSpec{
 		{key: "asset_cleanup", streamName: natsresources.EVT, consumerName: assetCleanupConsumerName, required: true},
 		{key: "call_key_cleanup", streamName: natsresources.EVT, consumerName: callKeyCleanupConsumerName, required: true},
 		{key: "user_key_shredding", streamName: natsresources.EVT, consumerName: userKeyShreddingConsumerName, required: true},
@@ -56,10 +56,22 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
 		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
-		{key: "jobs", streamName: natsresources.Jobs, consumerName: JobsConsumerName, required: true},
-		{key: "alert_jobs", streamName: natsresources.Jobs, consumerName: AlertJobsConsumerName, required: true},
-		{key: "media_jobs", streamName: natsresources.Jobs, consumerName: MediaJobsConsumerName, required: videoUploadsEnabled},
 	}
+	for _, kind := range jobTypes() {
+		specs = append(specs, durableWorkerDiagnosticSpec{key: jobWorkerKey(kind), streamName: natsresources.Jobs, consumerName: JobsConsumerName(kind), required: kind != jobTypeMedia || videoUploadsEnabled})
+	}
+	return specs
+}
+
+// jobWorkerKey is the diagnostic key of the JOBS consumer of one job type.
+func jobWorkerKey(kind string) string {
+	switch kind {
+	case jobTypeMedia:
+		return "media_jobs"
+	case jobTypeNotificationAlertDelivery:
+		return "alert_jobs"
+	}
+	return kind + "_jobs"
 }
 
 func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool) []DurableWorkerAdminStatus {

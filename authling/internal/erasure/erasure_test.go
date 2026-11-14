@@ -189,11 +189,11 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 	if _, err := pub.AppendAccountErasure(ctx, requested("acc_test", user, data), released("acc_test", "evt_request"), tail, 0); err != nil {
 		t.Fatal(err)
 	}
-	jobStream, jobState, err := storage.OpenJobs(ctx, js, 1)
+	jobStream, err := storage.OpenJobs(ctx, js, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	queue, err := jobs.New(js, jobState, jobs.Options{KeyPrefix: storage.JobKeyPrefix, SubjectPrefix: storage.JobSubjectPrefix, Logger: logger})
+	queue, err := jobs.New(js, jobStream, jobs.Options{SubjectPrefix: storage.JobSubjectPrefix, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,13 +220,10 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 		t.Fatal(err)
 	}
 	workerCtx, stopWorker := context.WithCancel(ctx)
-	workerErr := make(chan error, 3)
+	workerErr := make(chan error, 2)
 	go func() { workerErr <- replacement.Run(workerCtx) }()
-	go func() {
-		workerErr <- queue.Work(workerCtx, jobsConsumer, map[string]jobs.Handler{JobType: replacement.Effect().Handle}, 1)
-	}()
-	go func() { workerErr <- queue.Run(workerCtx) }()
-	defer func() { stopWorker(); <-workerErr; <-workerErr; <-workerErr }()
+	go func() { workerErr <- queue.Work(workerCtx, jobsConsumer, replacement.Effect().Handle, 1) }()
+	defer func() { stopWorker(); <-workerErr; <-workerErr }()
 	for {
 		state, _ := projection.Get("acc_test")
 		if state.Complete {

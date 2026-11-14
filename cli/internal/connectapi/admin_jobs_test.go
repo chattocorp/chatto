@@ -14,7 +14,6 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
-	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
@@ -45,15 +44,11 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	ctx := withArmedBearerCredential(env.ctx, env.viewer, "armed")
 	js, err := jetstream.New(env.nc)
 	require.NoError(t, err)
-	bucket, err := js.KeyValue(ctx, "RUNTIME_STATE")
-	require.NoError(t, err)
-	kv, err := jetstreamutil.NewKeyValue(js, bucket)
-	require.NoError(t, err)
 	stream, err := js.Stream(ctx, "JOBS")
 	require.NoError(t, err)
 	// A separate queue handle with Chatto's contract makes three real failed
 	// jobs of a type that the server does not handle. Job c is already expired.
-	queue, err := core.NewJobQueue(js, kv, log.New(io.Discard), nil)
+	queue, err := core.NewJobQueue(js, stream, log.New(io.Discard), nil)
 	require.NoError(t, err)
 	for _, id := range []string{"a", "b", "c"} {
 		deadline := time.Now().Add(time.Hour)
@@ -62,14 +57,14 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 		}
 		require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: id, Type: "unregistered-test", MaxAttempts: 3, RetryDelay: time.Second, Payload: []byte("SECRET-PAYLOAD"), ExpiresAt: deadline}))
 	}
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, "test-unregistered", "unregistered-test"))
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, "unregistered-test"))
 	require.NoError(t, err)
 	runCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
-		done <- queue.Work(runCtx, consumer, map[string]jobqueue.Handler{"unregistered-test": func(context.Context, jobqueue.Job) error {
+		done <- queue.Work(runCtx, consumer, func(context.Context, jobqueue.Job) error {
 			return &jobqueue.Failure{Category: "http_error", Permanent: true}
-		}}, 3)
+		}, 3)
 	}()
 	byID := map[string]*adminv1.Job{}
 	var first *connect.Response[adminv1.ListJobsResponse]
@@ -93,7 +88,7 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), "SECRET")
 	require.NotContains(t, string(encoded), "payload")
-	require.NotContains(t, string(encoded), "generation")
+	require.NotContains(t, string(encoded), "revision")
 	require.Equal(t, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_EXPIRED, byID["c"].GetRetry())
 	require.Equal(t, adminv1.JobRetryAvailability_JOB_RETRY_AVAILABILITY_ALLOWED, byID["a"].GetRetry())
 	// A cursor is bound to its status filter.

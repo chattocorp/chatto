@@ -7,118 +7,128 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 const (
-	leaseDuration     = time.Minute
 	heartbeatInterval = 15 * time.Second
-	repairInterval    = 30 * time.Second
-	// handoffRecheck is how soon a worker checks again a dispatch whose job
-	// another worker still holds.
-	handoffRecheck = 2 * time.Second
-	// shutdownWriteTimeout bounds the record write after cancellation.
+	// infrastructureRetry is the redelivery delay after a failed fact write.
+	infrastructureRetry = 5 * time.Second
+	// shutdownWriteTimeout bounds the success write after cancellation.
 	shutdownWriteTimeout = 5 * time.Second
-	maxBackoff        = 30 * time.Minute
+	sweepInterval        = time.Minute
+	maxBackoff           = 30 * time.Minute
 	// DefaultSucceededRetention is used when Options.SucceededRetention is zero.
-	DefaultSucceededRetention = 7 * 24 * time.Hour
+	DefaultSucceededRetention = 3 * 24 * time.Hour
+)
+
+// The fact names are the last subject token of each fact.
+const (
+	factQueued        = "queued"
+	factRetried       = "retried"
+	factStarted       = "started"
+	factAttemptFailed = "attempt_failed"
+	factSucceeded     = "succeeded"
+	factFailed        = "failed"
 )
 
 var (
-	// ErrNotFound reports a job ID without a current record.
+	// ErrNotFound reports a job ID that the view does not hold.
 	ErrNotFound = errors.New("job not found")
-	// ErrNotRetryable reports a job that is not failed, has expired, or whose
-	// attempt budget changed after the caller read it.
+	// ErrNotRetryable reports a job that is not failed, has expired, or changed
+	// after the caller read it.
 	ErrNotRetryable = errors.New("job cannot be retried")
 
 	safeToken = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
 )
 
-// KeyValue is the record store. jetstreamutil.KeyValue satisfies it: Get must
-// read through the stream leader, and UpdateWithTTL lets succeeded records
-// expire. The bucket must allow per-message TTLs.
-type KeyValue interface {
-	jetstream.KeyValue
-	UpdateWithTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error)
-}
-
-var _ KeyValue = (*jetstreamutil.KeyValue)(nil)
-
 // Options configures a Queue. The application owns every resource name.
 type Options struct {
-	// KeyPrefix prefixes record keys, for example "job.". It must end with a
-	// dot, and no other record family in the bucket may use it.
-	KeyPrefix string
-	// SubjectPrefix prefixes dispatch subjects, for example "jobs". A dispatch
-	// uses {SubjectPrefix}.{type}.{id}. The dispatch stream must capture these
-	// subjects, keep at most one message per subject, and should set a maximum
-	// age; the repair pass publishes again for unfinished jobs.
+	// SubjectPrefix prefixes fact subjects, for example "jobs". A fact uses
+	// {SubjectPrefix}.{type}.{id}.{fact}. The job stream must capture these
+	// subjects and nothing else.
 	SubjectPrefix string
-	// SucceededRetention is how long a succeeded record stays. Zero selects
-	// DefaultSucceededRetention. Failed and unfinished records do not expire.
+	// SucceededRetention is how long a succeeded job stays, at least one
+	// second. Zero selects DefaultSucceededRetention. Other jobs stay for the
+	// maximum age of the job stream.
 	SucceededRetention time.Duration
 	// Logger receives queue diagnostics. Nil discards them.
 	Logger *slog.Logger
 	// OnFailed observes each transition to failed, for application
-	// diagnostics. It must honor cancellation. The record stays authoritative.
+	// diagnostics. It gets the job with its payload and must honor
+	// cancellation. The failed fact stays authoritative.
 	OnFailed func(context.Context, Job)
 }
 
-// Queue runs durable background jobs. A key-value bucket owns current job
-// state; a stream carries replayable dispatch references. A repair pass closes
-// the gap between a stored record and its dispatch, including after a manual
-// retry or a restore.
+// Queue runs durable background jobs on one job stream. The stream is a small
+// event log: each job is a sequence of facts, and the state of a job is the
+// fold of its facts. Enqueue and Retry append facts under optimistic
+// concurrency control. Work runs jobs from a durable consumer on the queued and
+// retried facts. Run keeps an in-memory view of all jobs for Get, List, and
+// Retry.
 type Queue struct {
-	js     jetstream.JetStream
-	kv     KeyValue
-	opts   Options
-	logger *slog.Logger
-
-	// index holds payload-free summaries of every current record. Run's
-	// watcher maintains it; ready closes after the initial sync.
-	mu        sync.RWMutex
-	index     map[string]Job
-	ready     chan struct{}
-	readyOnce sync.Once
+	js        jetstream.JetStream
+	stream    jetstream.Stream
+	log       *events.EncodedEventLog
+	opts      Options
+	logger    *slog.Logger
+	view      *view
+	projector *events.Projector
+	// maxAge is the maximum age of the job stream. Zero means no limit.
+	maxAge time.Duration
+	now    func() time.Time
 }
 
-// New binds already provisioned resources. It panics when js or kv is nil and
+// New binds an already provisioned job stream. The stream must allow
+// per-message TTLs and should set a maximum age, which bounds how long
+// unfinished and failed jobs stay. New panics when js or stream is nil and
 // returns an error for invalid options.
-func New(js jetstream.JetStream, kv KeyValue, opts Options) (*Queue, error) {
-	if js == nil || kv == nil {
-		panic("jobs: queue requires a JetStream context and a key-value bucket")
-	}
-	if !strings.HasSuffix(opts.KeyPrefix, ".") || len(opts.KeyPrefix) < 2 {
-		return nil, errors.New("jobs: key prefix must end with a dot")
+func New(js jetstream.JetStream, stream jetstream.Stream, opts Options) (*Queue, error) {
+	if js == nil || stream == nil {
+		panic("jobs: queue requires a JetStream context and a job stream")
 	}
 	if opts.SubjectPrefix == "" || strings.ContainsAny(opts.SubjectPrefix, "*> ") || strings.HasSuffix(opts.SubjectPrefix, ".") {
 		return nil, errors.New("jobs: invalid subject prefix")
 	}
-	if opts.SucceededRetention < 0 {
-		return nil, errors.New("jobs: succeeded retention must not be negative")
-	}
 	if opts.SucceededRetention == 0 {
 		opts.SucceededRetention = DefaultSucceededRetention
+	}
+	if opts.SucceededRetention < time.Second {
+		return nil, errors.New("jobs: succeeded retention must be at least one second")
+	}
+	config := stream.CachedInfo().Config
+	if !config.AllowMsgTTL {
+		return nil, errors.New("jobs: job stream must allow per-message TTLs")
 	}
 	logger := opts.Logger
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Queue{js: js, kv: kv, opts: opts, logger: logger, index: map[string]Job{}, ready: make(chan struct{})}, nil
+	q := &Queue{
+		js: js, stream: stream, log: events.NewEncodedEventLog(js, stream, logger),
+		opts: opts, logger: logger, maxAge: config.MaxAge, now: time.Now,
+		view: &view{subjects: []string{opts.SubjectPrefix + ".>"}, jobs: map[string]*entry{}},
+	}
+	var err error
+	q.projector, err = events.NewDecodedProjector(js, stream, q.view, q.decodeForView, events.ProjectorOptions{Logger: logger})
+	if err != nil {
+		return nil, fmt.Errorf("jobs: configure job view: %w", err)
+	}
+	return q, nil
 }
 
 // ID derives a stable job ID from a job type and an application source
@@ -128,150 +138,140 @@ func ID(kind, source string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// FilterSubjects returns the dispatch subjects of the given job types, for an
-// application-owned consumer configuration.
+// FilterSubjects returns the subjects that a worker consumer of the given job
+// types must receive: their queued and retried facts.
 func (q *Queue) FilterSubjects(types ...string) []string {
-	filters := make([]string, 0, len(types))
+	filters := make([]string, 0, 2*len(types))
 	for _, kind := range types {
-		filters = append(filters, q.opts.SubjectPrefix+"."+kind+".*")
+		filters = append(filters, q.subject(kind, "*", factQueued), q.subject(kind, "*", factRetried))
 	}
 	return filters
 }
 
-func (q *Queue) key(id string) string { return q.opts.KeyPrefix + id }
-func (q *Queue) subject(r *jobpb.JobRecord) string {
-	return q.opts.SubjectPrefix + "." + r.Type + "." + r.Id
+func (q *Queue) subject(kind, id, fact string) string {
+	return q.opts.SubjectPrefix + "." + kind + "." + id + "." + fact
 }
 
-// Enqueue accepts a job once. A repeated handoff never replaces its payload or
-// resets its attempts. When the dispatch publish fails after the record is
-// stored, the repair pass publishes it later.
+// jobFilter matches every fact of one job.
+func (q *Queue) jobFilter(kind, id string) string {
+	return q.opts.SubjectPrefix + "." + kind + "." + id + ".>"
+}
+
+func (q *Queue) decodeForView(data []byte) (events.DecodedEvent[*jobpb.JobFact], error) {
+	fact := new(jobpb.JobFact)
+	if err := proto.Unmarshal(data, fact); err != nil {
+		// One unreadable fact must not stop the view of all other jobs. The
+		// view ignores a fact without an ID.
+		q.logger.Warn("Job view ignored an unreadable fact")
+		return events.DecodedEvent[*jobpb.JobFact]{Event: new(jobpb.JobFact)}, nil
+	}
+	return events.DecodedEvent[*jobpb.JobFact]{Event: fact, ID: fact.Id}, nil
+}
+
+// append stores one fact of a job. messageID must be stable across retries of
+// the same write. A zero expectation appends without a guard.
+func (q *Queue) append(ctx context.Context, fact *jobpb.JobFact, name, messageID string, ttl time.Duration, expect *events.Expectation) (uint64, error) {
+	data, err := proto.Marshal(fact)
+	if err != nil {
+		return 0, err
+	}
+	record := events.EncodedRecord{ID: fact.Type + "." + fact.Id + "." + messageID, Data: data, TTL: ttl}
+	if expect != nil {
+		return q.log.AppendAt(ctx, q.subject(fact.Type, fact.Id, name), record, *expect)
+	}
+	return q.log.AppendEventually(ctx, q.subject(fact.Type, fact.Id, name), record)
+}
+
+// Enqueue accepts a job once: it appends the queued fact only when the job has
+// no facts. A repeated handoff changes nothing. A job that succeeded and
+// passed its retention is unknown again, so sources must acknowledge their
+// messages after Enqueue returns.
 func (q *Queue) Enqueue(ctx context.Context, spec Spec) error {
 	if !safeToken.MatchString(spec.ID) || !safeToken.MatchString(spec.Type) || spec.MaxAttempts == 0 || spec.RetryDelay < time.Millisecond {
 		return errors.New("jobs: invalid job specification")
 	}
-	now := timestamppb.Now()
-	record := &jobpb.JobRecord{
-		Id: spec.ID, Type: spec.Type, Payload: spec.Payload,
-		MaxAttempts: spec.MaxAttempts, RetryDelayMillis: spec.RetryDelay.Milliseconds(),
-		Status: jobpb.JobStatus_JOB_STATUS_QUEUED, Generation: 1,
-		CreatedAt: now, UpdatedAt: now, NextAttemptAt: now,
-	}
+	now := timestamppb.New(q.now())
+	stored := &jobpb.JobSpec{Payload: spec.Payload, MaxAttempts: spec.MaxAttempts, RetryDelayMillis: spec.RetryDelay.Milliseconds()}
 	if !spec.ExpiresAt.IsZero() {
-		record.ExpiresAt = timestamppb.New(spec.ExpiresAt)
+		stored.ExpiresAt = timestamppb.New(spec.ExpiresAt)
 	}
-	data, err := proto.Marshal(record)
-	if err != nil {
+	fact := &jobpb.JobFact{Id: spec.ID, Type: spec.Type, OccurredAt: now, CreatedAt: now, Fact: &jobpb.JobFact_Queued{Queued: &jobpb.JobQueued{Spec: stored}}}
+	expect := events.ExpectFilterSeq(q.jobFilter(spec.Type, spec.ID), 0)
+	if _, err := q.append(ctx, fact, factQueued, factQueued, 0, &expect); err != nil && !errors.Is(err, events.ErrConflict) {
 		return err
 	}
-	if _, err = q.kv.Create(ctx, q.key(spec.ID), data); err != nil {
-		if !jetstreamutil.IsSequenceConflict(err) {
-			return err
-		}
-		// A create conflict can be a write in progress. Read through the leader;
-		// absence is an error, so the caller keeps its source and retries.
-		if record, _, err = q.read(ctx, spec.ID); err != nil {
-			return err
-		}
-	}
-	// A job that waits for a retry gets its dispatch from Run when it is due,
-	// so the dispatch never waits unacknowledged in the consumer.
-	if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED || dueAt(record).After(time.Now()) {
-		return nil
-	}
-	return q.dispatch(ctx, record)
+	return nil
 }
 
-func (q *Queue) dispatch(ctx context.Context, r *jobpb.JobRecord) error {
-	data, err := proto.Marshal(&jobpb.JobDispatch{Id: r.Id, Generation: r.Generation})
-	if err != nil {
-		return err
-	}
-	// Each attempt budget and attempt count gets its own message ID. Repeated
-	// publications for the same due attempt collapse in the duplicate window.
-	_, err = q.js.Publish(ctx, q.subject(r), data, jetstream.WithMsgID(fmt.Sprintf("%s:%d:%d", r.Id, r.Generation, r.Attempts)))
-	return err
-}
-
-func (q *Queue) read(ctx context.Context, id string) (*jobpb.JobRecord, uint64, error) {
-	if !safeToken.MatchString(id) {
-		return nil, 0, ErrNotFound
-	}
-	entry, err := q.kv.Get(ctx, q.key(id))
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return nil, 0, ErrNotFound
-	}
-	if err != nil {
-		return nil, 0, err
-	}
-	record := new(jobpb.JobRecord)
-	if err = proto.Unmarshal(entry.Value(), record); err != nil {
-		return nil, 0, err
-	}
-	return record, entry.Revision(), nil
-}
-
-// Get returns current state, including the private payload. Applications must
-// map it to a safe summary before they show it.
+// Get returns the current state of a job from the view, without its payload.
+// It waits until Run has replayed the stream.
 func (q *Queue) Get(ctx context.Context, id string) (Job, error) {
-	record, _, err := q.read(ctx, id)
-	if err != nil {
+	if err := q.projector.WaitForStartup(ctx); err != nil {
 		return Job{}, err
 	}
-	return jobFromRecord(record), nil
+	e, ok := q.view.get(id)
+	if !ok {
+		return Job{}, ErrNotFound
+	}
+	return e.job, nil
 }
 
-// save writes a revision-checked update. A succeeded record gets the retention
-// TTL; source consumers have acknowledged its work, so expiry cannot enqueue it
-// again.
-func (q *Queue) save(ctx context.Context, r *jobpb.JobRecord, revision uint64) (uint64, error) {
-	r.UpdatedAt = timestamppb.Now()
-	data, err := proto.Marshal(r)
-	if err != nil {
-		return 0, err
-	}
-	if r.Status == jobpb.JobStatus_JOB_STATUS_SUCCEEDED {
-		return q.kv.UpdateWithTTL(ctx, q.key(r.Id), data, revision, q.opts.SucceededRetention)
-	}
-	return q.kv.Update(ctx, q.key(r.Id), data, revision)
-}
-
-// RetryVersion identifies the attempt budget that a caller read, without
-// exposing revisions or generations. A stale operator action cannot start a
-// new budget after another retry has already run and failed again.
+// RetryVersion identifies the state of a job that a caller read, without
+// exposing a broker position. A stale operator action cannot start a new
+// attempt budget after another retry has already run and failed again.
 func RetryVersion(job Job) string {
-	return ID("retry-version", fmt.Sprintf("%s:%d", job.ID, job.Generation))
+	return ID("retry-version", fmt.Sprintf("%s:%d", job.ID, job.Revision))
 }
 
-// Retry starts one new attempt budget for a failed, unexpired job whose budget
-// matches expectedVersion. The job keeps its ID, payload, and deadline. When
-// the dispatch publish fails, the repair pass publishes it later.
+// Retry starts one new attempt budget for a failed, unexpired job whose state
+// matches expectedVersion. The job keeps its ID, payload, policy, and deadline.
+// The retried fact is appended only when the failed fact is still the latest
+// fact of the job, so concurrent retries start one budget. Retry needs Run.
 func (q *Queue) Retry(ctx context.Context, id, expectedVersion string) (Job, error) {
-	record, revision, err := q.read(ctx, id)
-	if err != nil {
+	if err := q.projector.WaitForStartup(ctx); err != nil {
 		return Job{}, err
 	}
-	job := jobFromRecord(record)
-	if job.Status != Failed || job.Expired(time.Now()) || RetryVersion(job) != expectedVersion {
+	e, ok := q.view.get(id)
+	if !ok {
+		return Job{}, ErrNotFound
+	}
+	now := q.now()
+	if e.job.Status != Failed || e.job.Expired(now) || RetryVersion(e.job) != expectedVersion {
 		return Job{}, ErrNotRetryable
 	}
-	record.Generation++
-	record.Attempts = 0
-	record.Status = jobpb.JobStatus_JOB_STATUS_QUEUED
-	record.Failure = ""
-	record.Owner = ""
-	record.LeaseUntil = nil
-	record.NextAttemptAt = timestamppb.Now()
-	if _, err = q.save(ctx, record, revision); err != nil {
-		if jetstreamutil.IsSequenceConflict(err) {
-			return Job{}, ErrNotRetryable
-		}
+	// The view holds no payloads. Read the specification from the fact that
+	// the workers consumed.
+	msg, err := q.stream.GetMsg(ctx, e.specSeq)
+	if errors.Is(err, jetstream.ErrMsgNotFound) {
+		return Job{}, ErrNotRetryable
+	}
+	if err != nil {
 		return Job{}, err
 	}
-	if err = q.dispatch(ctx, record); err != nil {
-		q.logger.Warn("Job retry dispatch awaits repair", "job_id", record.Id)
+	source := new(jobpb.JobFact)
+	if err = proto.Unmarshal(msg.Data, source); err != nil || specOf(source) == nil || source.Id != id {
+		return Job{}, ErrNotRetryable
 	}
-	return jobFromRecord(record), nil
+	fact := &jobpb.JobFact{
+		Id: id, Type: e.job.Type, OccurredAt: timestamppb.New(now), CreatedAt: timestamppb.New(e.job.CreatedAt),
+		Fact: &jobpb.JobFact_Retried{Retried: &jobpb.JobRetried{Spec: specOf(source)}},
+	}
+	filter := q.jobFilter(e.job.Type, id)
+	expect := events.ExpectFilterSeq(filter, e.job.Revision)
+	seq, err := q.append(ctx, fact, factRetried, fmt.Sprintf("%s.%d", factRetried, e.job.Revision), 0, &expect)
+	if errors.Is(err, events.ErrConflict) {
+		return Job{}, ErrNotRetryable
+	}
+	if err != nil {
+		return Job{}, err
+	}
+	if err = q.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
+		return Job{}, err
+	}
+	if e, ok = q.view.get(id); !ok {
+		return Job{}, ErrNotFound
+	}
+	return e.job, nil
 }
 
 // ListOptions selects a page of jobs.
@@ -285,11 +285,10 @@ type ListOptions struct {
 	Cursor string
 }
 
-// List returns jobs ordered by last update, newest first, from the in-memory
-// index. It reads no storage, so polling is cheap. Payloads are omitted. The
-// index is current once Run has synchronized it; List waits until then. Jobs
-// that change while a caller pages can move between pages, so callers should
-// remove duplicate IDs.
+// List returns jobs ordered by last update, newest first, from the view. It
+// reads no storage, so polling is cheap. Payloads are omitted. List waits until
+// Run has replayed the stream. Jobs that change while a caller pages can move
+// between pages, so callers should remove duplicate IDs.
 func (q *Queue) List(ctx context.Context, opts ListOptions) ([]Job, string, error) {
 	if opts.Limit <= 0 {
 		return nil, "", errors.New("jobs: list limit must be positive")
@@ -298,19 +297,10 @@ func (q *Queue) List(ctx context.Context, opts ListOptions) ([]Job, string, erro
 	if err != nil {
 		return nil, "", err
 	}
-	select {
-	case <-q.ready:
-	case <-ctx.Done():
-		return nil, "", ctx.Err()
+	if err = q.projector.WaitForStartup(ctx); err != nil {
+		return nil, "", err
 	}
-	q.mu.RLock()
-	jobs := make([]Job, 0, len(q.index))
-	for _, job := range q.index {
-		if opts.Status == Unknown || job.Status == opts.Status {
-			jobs = append(jobs, job)
-		}
-	}
-	q.mu.RUnlock()
+	jobs := q.view.list(opts.Status)
 	slices.SortFunc(jobs, func(a, b Job) int {
 		if c := b.UpdatedAt.Compare(a.UpdatedAt); c != 0 {
 			return c
@@ -348,250 +338,130 @@ func parseCursor(cursor string) (time.Time, string, error) {
 	return time.Unix(0, value), id, nil
 }
 
-// Run maintains the queue in this process until cancellation: one filtered
-// watcher keeps the List index and publishes dispatches for due jobs, including
-// after a lost publish, a retry delay, an expired lease, or a restore. Run it
-// once per process that enqueues, works, or lists jobs.
+// Run keeps the job view current until cancellation. It replays the job
+// stream, follows new facts, and drops jobs that passed their retention. Run it
+// once in each process that calls Get, List, or Retry. Enqueue and Work do not
+// need it.
 func (q *Queue) Run(ctx context.Context) error {
-	watcher, err := q.kv.Watch(ctx, q.opts.KeyPrefix+">")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = watcher.Stop() }()
-	// active holds unfinished records; the index is a hint and consumers still
-	// claim authoritative revisions.
-	active := map[string]*jobpb.JobRecord{}
-	timer := time.NewTimer(repairInterval)
-	defer timer.Stop()
-	wake := time.Now().Add(repairInterval)
-	schedule := func(at time.Time) {
-		if at.Before(wake) {
-			wake = at
-			timer.Reset(time.Until(at))
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		if err := q.projector.Run(ctx); err != nil && ctx.Err() == nil {
+			return fmt.Errorf("jobs: job view stopped: %w", err)
 		}
-	}
-	publish := func(record *jobpb.JobRecord) {
-		if err := q.dispatch(ctx, record); err != nil && ctx.Err() == nil {
-			q.logger.Warn("Job dispatch awaits repair", "job_id", record.Id)
-		}
-	}
-	// publishDue scans every unfinished job. It runs after the initial sync and
-	// on the timer, which also covers dispatches lost after a publish.
-	publishDue := func() {
-		now := time.Now()
-		wake = now.Add(repairInterval)
-		timer.Reset(repairInterval)
-		for _, record := range active {
-			if due := dueAt(record); due.After(now) {
-				schedule(due)
-				continue
-			}
-			publish(record)
-		}
-	}
-	for {
-		select {
-		case <-ctx.Done():
+		return nil
+	})
+	g.Go(func() error {
+		if err := q.projector.WaitForStartup(ctx); err != nil {
 			return nil
-		case entry, ok := <-watcher.Updates():
-			if !ok {
-				if ctx.Err() != nil {
-					return nil
-				}
-				return errors.New("jobs: watcher closed")
-			}
-			if entry == nil {
-				q.readyOnce.Do(func() { close(q.ready) })
-				publishDue()
-				continue
-			}
-			id := strings.TrimPrefix(entry.Key(), q.opts.KeyPrefix)
-			if entry.Operation() != jetstream.KeyValuePut {
-				delete(active, id)
-				q.mu.Lock()
-				delete(q.index, id)
-				q.mu.Unlock()
-				continue
-			}
-			record := new(jobpb.JobRecord)
-			if err := proto.Unmarshal(entry.Value(), record); err != nil {
-				return errors.New("jobs: invalid job record")
-			}
-			summary := jobFromRecord(record)
-			summary.Payload = nil
-			q.mu.Lock()
-			q.index[record.Id] = summary
-			q.mu.Unlock()
-			if !runnable(record) {
-				delete(active, record.Id)
-				continue
-			}
-			active[record.Id] = record
-			select {
-			case <-q.ready:
-				// Only the changed record. A backlog of due jobs must not be
-				// published again on every enqueue, claim, or heartbeat.
-				if due := dueAt(record); due.After(time.Now()) {
-					schedule(due)
-				} else {
-					publish(record)
-				}
-			default:
-			}
-		case <-timer.C:
-			publishDue()
 		}
+		ticker := time.NewTicker(sweepInterval)
+		defer ticker.Stop()
+		for {
+			q.sweep()
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-ticker.C:
+			}
+		}
+	})
+	return g.Wait()
+}
+
+// sweep drops jobs whose facts the stream no longer holds. The stream removes
+// facts by age without an event, so the view follows the same limits by clock.
+func (q *Queue) sweep() {
+	for _, job := range q.view.sweep(q.now(), q.maxAge, q.opts.SucceededRetention) {
+		q.logger.Warn("Job passed the maximum age of the job stream before it finished", "job_id", job.ID, "job_type", job.Type, "attempts", job.Attempts)
 	}
 }
 
-// dueAt is when an unfinished job needs a dispatch: its next attempt, or the
-// end of an abandoned claim.
-func dueAt(r *jobpb.JobRecord) time.Time {
-	if r.Status == jobpb.JobStatus_JOB_STATUS_RUNNING {
-		return r.LeaseUntil.AsTime()
+// Work runs jobs from consumer with handler until cancellation. The
+// application owns the consumer: it must filter to FilterSubjects of the job
+// types that handler performs, use explicit acknowledgement, allow unlimited
+// deliveries, and set an acknowledgement wait of at least one minute. A job
+// that waits for a retry holds an unacknowledged delivery, so the consumer
+// should not limit pending acknowledgements; concurrency bounds running jobs.
+func (q *Queue) Work(ctx context.Context, consumer jetstream.Consumer, handler Handler, concurrency int) error {
+	if handler == nil {
+		panic("jobs: work requires a handler")
 	}
-	if r.NextAttemptAt == nil {
-		return time.Time{}
-	}
-	return r.NextAttemptAt.AsTime()
-}
-
-// Work processes dispatches from consumer until cancellation. The application
-// owns the consumer: it must filter to FilterSubjects of the handled types,
-// use explicit acknowledgement, and allow unlimited deliveries. Run must run in
-// the same deployment. A dispatch is acknowledged when an attempt ends,
-// including a failed attempt, so jobs that wait for a retry hold no consumer
-// capacity; Run publishes them again when they are due.
-func (q *Queue) Work(ctx context.Context, consumer jetstream.Consumer, handlers map[string]Handler, concurrency int) error {
 	worker, err := events.NewDurableWorker(consumer, func(ctx context.Context, d events.DurableDelivery) error {
-		return q.process(ctx, d, handlers)
-	}, events.DurableWorkerOptions{MaxConcurrent: concurrency, RetryDelay: 5 * time.Second, AckTimeout: 5 * time.Second, HeartbeatInterval: heartbeatInterval, Logger: q.logger})
+		return q.process(ctx, d, handler)
+	}, events.DurableWorkerOptions{MaxConcurrent: concurrency, RetryDelay: infrastructureRetry, AckTimeout: 5 * time.Second, HeartbeatInterval: heartbeatInterval, Logger: q.logger})
 	if err != nil {
 		return err
 	}
 	return worker.Run(ctx)
 }
 
-func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers map[string]Handler) error {
-	dispatch := new(jobpb.JobDispatch)
-	if err := proto.Unmarshal(d.Data, dispatch); err != nil || !safeToken.MatchString(dispatch.Id) || dispatch.Generation == 0 {
-		return events.TerminateDelivery("invalid job dispatch", errors.New("invalid job dispatch"))
+// specOf returns the specification of a queued or retried fact, or nil.
+func specOf(fact *jobpb.JobFact) *jobpb.JobSpec {
+	switch f := fact.GetFact().(type) {
+	case *jobpb.JobFact_Queued:
+		return f.Queued.GetSpec()
+	case *jobpb.JobFact_Retried:
+		return f.Retried.GetSpec()
 	}
-	record, revision, err := q.read(ctx, dispatch.Id)
-	if errors.Is(err, ErrNotFound) {
-		// Reads go through the leader, so the record is really absent: a
-		// succeeded record expired, or a restore has a dispatch without its
-		// record. Nothing can run it.
-		return nil
+	return nil
+}
+
+// process performs one attempt. The delivery is a queued or retried fact; its
+// delivery count is the attempt number. The consumer's acknowledgement wait is
+// the claim, and the durable worker's progress heartbeat renews it.
+func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler Handler) error {
+	fact := new(jobpb.JobFact)
+	spec := (*jobpb.JobSpec)(nil)
+	if err := proto.Unmarshal(d.Data, fact); err == nil {
+		spec = specOf(fact)
 	}
-	if err != nil {
-		return err
+	if spec == nil || !safeToken.MatchString(fact.Id) || !safeToken.MatchString(fact.Type) || spec.MaxAttempts == 0 {
+		return events.TerminateDelivery("invalid job fact", errors.New("invalid job fact"))
 	}
-	// Only queued and running jobs can run. This also skips statuses that a
-	// later version adds, as Run does.
-	if dispatch.Generation != record.Generation || !runnable(record) {
-		return nil
+	job := Job{
+		ID: fact.Id, Type: fact.Type, Status: Running, MaxAttempts: spec.MaxAttempts,
+		Attempts:   uint32(min(d.NumDelivered, math.MaxUint32)),
+		CreatedAt:  fact.GetCreatedAt().AsTime(),
+		Payload:    spec.Payload,
+		RetryDelay: time.Duration(spec.RetryDelayMillis) * time.Millisecond,
+		Revision:   d.StreamSequence,
 	}
-	handler := handlers[record.Type]
-	if handler == nil {
-		// A consumer that this process cannot serve, for example during a
-		// rolling upgrade. Holding the dispatch would block other jobs; Run on a
-		// capable process publishes it again.
-		q.logger.Warn("Job type has no handler in this process", "job_type", record.Type)
-		return nil
+	if spec.ExpiresAt != nil {
+		job.ExpiresAt = spec.ExpiresAt.AsTime()
 	}
-	now := time.Now()
-	if record.Status == jobpb.JobStatus_JOB_STATUS_RUNNING && now.Before(record.LeaseUntil.AsTime()) {
-		// Another worker owns the attempt. Usually this is a graceful handoff:
-		// the stopping worker returned this dispatch before its handler stopped
-		// and its release was written. Check again soon, so the handoff does not
-		// wait for the lease. A new dispatch cannot replace this one, because
-		// the duplicate window drops its message ID.
-		return events.RetryDeliveryAfter(errors.New("job attempt in progress"), min(handoffRecheck, time.Until(record.LeaseUntil.AsTime())))
+	if job.Expired(q.now()) {
+		job.Attempts--
+		return q.fail(ctx, job, d, "expired")
 	}
-	if record.Status == jobpb.JobStatus_JOB_STATUS_QUEUED && now.Before(record.NextAttemptAt.AsTime()) {
-		return events.RetryDeliveryAfter(errors.New("job retry pending"), time.Until(record.NextAttemptAt.AsTime()))
+	if job.Attempts > job.MaxAttempts {
+		// Deliveries that ended without an outcome used the budget, for example
+		// a lost acknowledgement of the last failure.
+		job.Attempts = job.MaxAttempts
+		return q.fail(ctx, job, d, "attempts_exhausted")
 	}
-	if jobFromRecord(record).Expired(now) || record.Attempts >= record.MaxAttempts {
-		if jobFromRecord(record).Expired(now) {
-			record.Failure = "expired"
-		} else if record.Failure == "" {
-			record.Failure = "attempts_exhausted"
-		}
-		return q.fail(ctx, record, revision)
-	}
-	record.Status = jobpb.JobStatus_JOB_STATUS_RUNNING
-	record.Attempts++
-	record.Owner = fmt.Sprintf("%d", now.UnixNano())
-	record.NextAttemptAt = nil
-	record.LeaseUntil = timestamppb.New(now.Add(leaseDuration))
-	if revision, err = q.save(ctx, record, revision); err != nil {
-		return err
-	}
-	attemptCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	result := make(chan error, 1)
-	// The handler gets a detached copy; the heartbeat loop keeps the record.
-	attempt := jobFromRecord(record)
-	go func() { result <- handler(attemptCtx, attempt) }()
-	ticker := time.NewTicker(heartbeatInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			cancel()
-			return q.finish(ctx, record, revision, <-result)
-		case <-ticker.C:
-			record.LeaseUntil = timestamppb.New(time.Now().Add(leaseDuration))
-			if revision, err = q.save(ctx, record, revision); err != nil {
-				cancel()
-				<-result
-				return err
+	// The started and attempt-failed facts only feed the view. A failed write
+	// must not stop or repeat the attempt.
+	q.note(ctx, job, d, factStarted, &jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: job.Attempts}}})
+
+	err := handler(ctx, job)
+	if ctx.Err() != nil {
+		// Shutdown. A finished attempt keeps its result, so another worker does
+		// not repeat it. A failure can be an effect of the cancellation: it is
+		// not recorded, and the next delivery runs the job again.
+		if err == nil {
+			writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownWriteTimeout)
+			defer cancel()
+			if q.succeed(writeCtx, job, d) != nil {
+				q.logger.Warn("Job result was not recorded before shutdown; the job runs again", "job_id", job.ID)
 			}
-		case err = <-result:
-			return q.finish(ctx, record, revision, err)
 		}
-	}
-}
-
-// runnable reports whether a record is in a state that a worker can run.
-func runnable(r *jobpb.JobRecord) bool {
-	return r.Status == jobpb.JobStatus_JOB_STATUS_QUEUED || r.Status == jobpb.JobStatus_JOB_STATUS_RUNNING
-}
-
-// finish records the result of an attempt whose handler has returned. During
-// shutdown, an attempt that failed retryably may have failed because of the
-// cancellation, so release hands it over without counting it. A success or a
-// permanent failure is a real outcome: it is recorded, so another worker does
-// not repeat finished work, such as a webhook that was already sent.
-func (q *Queue) finish(ctx context.Context, record *jobpb.JobRecord, revision uint64, err error) error {
-	if ctx.Err() == nil {
-		return q.complete(ctx, record, revision, err)
-	}
-	if failure, ok := errors.AsType[*Failure](err); err != nil && (!ok || !failure.Permanent) {
-		q.release(ctx, record, revision)
 		return ctx.Err()
 	}
-	completeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownWriteTimeout)
-	defer cancel()
-	if completeErr := q.complete(completeCtx, record, revision, err); completeErr != nil {
-		q.logger.Warn("Job result awaits lease expiry", "job_id", record.Id)
-	}
-	return ctx.Err()
-}
-
-// complete records one finished attempt. Only safe failure categories enter
-// job state; handler error text never does.
-func (q *Queue) complete(ctx context.Context, record *jobpb.JobRecord, revision uint64, err error) error {
-	record.Owner = ""
-	record.LeaseUntil = nil
-	record.NextAttemptAt = nil
 	if err == nil {
-		record.Status = jobpb.JobStatus_JOB_STATUS_SUCCEEDED
-		record.Failure = ""
-		_, err = q.save(ctx, record, revision)
-		return err
+		return q.succeed(ctx, job, d)
 	}
+	// Only safe failure categories enter job state and logs; handler error
+	// text never does.
 	category, permanent := "attempt_failed", false
 	if failure, ok := errors.AsType[*Failure](err); ok {
 		if safeToken.MatchString(failure.Category) {
@@ -599,31 +469,62 @@ func (q *Queue) complete(ctx context.Context, record *jobpb.JobRecord, revision 
 		}
 		permanent = failure.Permanent
 	}
-	record.Failure = category
-	if permanent || record.Attempts >= record.MaxAttempts || jobFromRecord(record).Expired(time.Now()) {
-		return q.fail(ctx, record, revision)
+	now := q.now()
+	if permanent || job.Attempts >= job.MaxAttempts || job.Expired(now) {
+		return q.fail(ctx, job, d, category)
 	}
-	record.Status = jobpb.JobStatus_JOB_STATUS_QUEUED
-	next := time.Now().Add(Backoff(time.Duration(record.RetryDelayMillis)*time.Millisecond, record.Attempts))
-	if record.ExpiresAt != nil && next.After(record.ExpiresAt.AsTime()) {
-		next = record.ExpiresAt.AsTime()
+	delay := Backoff(job.RetryDelay, job.Attempts)
+	if !job.ExpiresAt.IsZero() {
+		delay = min(delay, job.ExpiresAt.Sub(now))
 	}
-	record.NextAttemptAt = timestamppb.New(next)
-	// Acknowledge the dispatch; Run publishes the next attempt when it is due.
-	_, err = q.save(ctx, record, revision)
-	return err
+	q.note(ctx, job, d, factAttemptFailed, &jobpb.JobFact{Fact: &jobpb.JobFact_AttemptFailed{AttemptFailed: &jobpb.JobAttemptFailed{
+		Attempt: job.Attempts, Failure: category, NextAttemptAt: timestamppb.New(now.Add(delay)),
+	}}})
+	return events.RetryDeliveryAfter(errors.New(category), delay)
 }
 
-func (q *Queue) fail(ctx context.Context, record *jobpb.JobRecord, revision uint64) error {
-	record.Status = jobpb.JobStatus_JOB_STATUS_FAILED
-	record.Owner = ""
-	record.LeaseUntil = nil
-	record.NextAttemptAt = nil
-	if _, err := q.save(ctx, record, revision); err != nil {
+// fill completes a fact of the job that delivery d runs.
+func (q *Queue) fill(fact *jobpb.JobFact, job Job) *jobpb.JobFact {
+	fact.Id, fact.Type = job.ID, job.Type
+	fact.OccurredAt = timestamppb.New(q.now())
+	fact.CreatedAt = timestamppb.New(job.CreatedAt)
+	return fact
+}
+
+// note appends a fact that only the view needs.
+func (q *Queue) note(ctx context.Context, job Job, d events.DurableDelivery, name string, fact *jobpb.JobFact) {
+	messageID := fmt.Sprintf("%s.%d.%d", name, d.StreamSequence, job.Attempts)
+	if _, err := q.append(ctx, q.fill(fact, job), name, messageID, 0, nil); err != nil && ctx.Err() == nil {
+		q.logger.Warn("Job progress was not recorded", "job_id", job.ID, "fact", name)
+	}
+}
+
+// succeed records success and then removes the earlier facts of the job. The
+// succeeded fact expires after the retention, so a succeeded job leaves one
+// small fact for a short time. A failed purge leaves the earlier facts until
+// the maximum age of the stream.
+func (q *Queue) succeed(ctx context.Context, job Job, d events.DurableDelivery) error {
+	fact := q.fill(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: job.Attempts, MaxAttempts: job.MaxAttempts}}}, job)
+	seq, err := q.append(ctx, fact, factSucceeded, fmt.Sprintf("%s.%d", factSucceeded, d.StreamSequence), q.opts.SucceededRetention, nil)
+	if err != nil {
+		return err
+	}
+	if err = q.stream.Purge(ctx, jetstream.WithPurgeSubject(q.jobFilter(job.Type, job.ID)), jetstream.WithPurgeSequence(seq)); err != nil {
+		q.logger.Warn("Facts of a succeeded job were not removed", "job_id", job.ID)
+	}
+	return nil
+}
+
+// fail records the final failure before the delivery is acknowledged. When the
+// write fails, the delivery returns and reaches this outcome again.
+func (q *Queue) fail(ctx context.Context, job Job, d events.DurableDelivery, category string) error {
+	job.Status, job.Failure = Failed, category
+	fact := q.fill(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: job.Attempts, Failure: category}}}, job)
+	if _, err := q.append(ctx, fact, factFailed, fmt.Sprintf("%s.%d", factFailed, d.StreamSequence), 0, nil); err != nil {
 		return err
 	}
 	if q.opts.OnFailed != nil {
-		q.opts.OnFailed(ctx, jobFromRecord(record))
+		q.opts.OnFailed(ctx, job)
 	}
 	return nil
 }
@@ -635,24 +536,4 @@ func Backoff(initial time.Duration, attempt uint32) time.Duration {
 		delay = min(delay*2, maxBackoff)
 	}
 	return delay
-}
-
-// release makes a graceful shutdown hand over promptly. After a crash, another
-// consumer waits for the lease to expire. Revision fencing keeps release from
-// replacing a newer owner. The interrupted attempt did not finish, so it does
-// not count. The job then has the attempt count of its in-flight dispatch,
-// whose negative acknowledgement hands it to another consumer. A new dispatch
-// with the same message ID collapses into that one; a different ID could reach
-// this process's closing pull request and wait for the acknowledgement timeout.
-func (q *Queue) release(ctx context.Context, record *jobpb.JobRecord, revision uint64) {
-	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownWriteTimeout)
-	defer cancel()
-	record.Attempts = max(record.Attempts, 1) - 1
-	record.Status = jobpb.JobStatus_JOB_STATUS_QUEUED
-	record.Owner = ""
-	record.LeaseUntil = nil
-	record.NextAttemptAt = timestamppb.Now()
-	if _, err := q.save(releaseCtx, record, revision); err != nil {
-		q.logger.Warn("Job shutdown handoff awaits lease expiry", "job_id", record.Id)
-	}
 }

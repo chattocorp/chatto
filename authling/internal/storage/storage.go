@@ -20,19 +20,14 @@ const (
 	RuntimeStateBucket = "AUTHLING_RUNTIME_STATE"
 	// KeyStoreBucket contains separately protected user and wrapped data keys.
 	KeyStoreBucket = "AUTHLING_KEYS"
-	// JobStreamName holds background job dispatch references.
+	// JobStreamName holds the facts of background jobs.
 	JobStreamName = "AUTHLING_JOBS"
-	// JobSubjectPrefix prefixes job dispatch subjects.
+	// JobSubjectPrefix prefixes job fact subjects.
 	JobSubjectPrefix = "authling.jobs"
-	// JobStateBucket holds current job records. Failed records do not expire,
-	// so they stay out of the expiring runtime-state bucket.
-	JobStateBucket = "AUTHLING_JOB_STATE"
-	// JobKeyPrefix prefixes job records in JobStateBucket.
-	JobKeyPrefix = "job."
 	// JobsConsumerName is the shared job consumer of all Authling processes.
 	JobsConsumerName = "authling-jobs"
-	// JobRetention is how long succeeded jobs and dispatches stay.
-	JobRetention = 7 * 24 * time.Hour
+	// JobSucceededRetention is how long the fact of a succeeded job stays.
+	JobSucceededRetention = 3 * 24 * time.Hour
 )
 
 // Stores contains Authling's non-event JetStream stores. Both buckets allow
@@ -128,32 +123,24 @@ func openBucket(ctx context.Context, js jetstream.JetStream, config jetstream.Ke
 	return kv, nil
 }
 
-// OpenJobs ensures the background job dispatch stream and record bucket exist.
-// The repair pass of the job queue publishes again for unfinished jobs, so
-// dispatches can age out with succeeded records. The bucket is bound to reads
-// through the stream leader and allows per-key TTLs.
-func OpenJobs(ctx context.Context, js jetstream.JetStream, replicas int) (jetstream.Stream, *jetstreamutil.KeyValue, error) {
+// OpenJobs ensures that the background job stream exists. The stream has no
+// maximum age: an erasure job must stay until it finishes. The fact of a
+// succeeded job expires through its per-message TTL, and the worker removes the
+// earlier facts of that job, so only unfinished and failed jobs stay.
+func OpenJobs(ctx context.Context, js jetstream.JetStream, replicas int) (jetstream.Stream, error) {
 	stream, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, provisioningRetry, func(ctx context.Context) (jetstream.Stream, error) {
 		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-			Name:              JobStreamName,
-			Description:       "Authling background job dispatch",
-			Subjects:          []string{JobSubjectPrefix + ".>"},
-			Retention:         jetstream.LimitsPolicy,
-			Storage:           jetstream.FileStorage,
-			Replicas:          replicas,
-			MaxMsgsPerSubject: 1,
-			MaxAge:            JobRetention,
+			Name:        JobStreamName,
+			Description: "Authling background job facts",
+			Subjects:    []string{JobSubjectPrefix + ".>"},
+			Retention:   jetstream.LimitsPolicy,
+			Storage:     jetstream.FileStorage,
+			Replicas:    replicas,
+			AllowMsgTTL: true,
 		})
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("ensure %s stream: %w", JobStreamName, err)
+		return nil, fmt.Errorf("ensure %s stream: %w", JobStreamName, err)
 	}
-	state, err := openBucket(ctx, js, jetstream.KeyValueConfig{
-		Bucket: JobStateBucket, Description: "Authling background job records",
-		Storage: jetstream.FileStorage, Replicas: replicas, History: 1, LimitMarkerTTL: time.Hour,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	return stream, state, nil
+	return stream, nil
 }

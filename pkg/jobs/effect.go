@@ -81,7 +81,6 @@ func NewEffect(queue *Queue, kind string, stream jetstream.Stream, consumer jets
 	return e, nil
 }
 
-
 // Type returns the job type of this effect.
 func (e *Effect) Type() string { return e.kind }
 

@@ -86,25 +86,24 @@ func TestMediaJobRequiresTerminalAssetOutcome(t *testing.T) {
 	}))
 }
 
-// Media and alerts have their own consumers, so a media backlog, a replica
-// without media processing, or slow webhook endpoints cannot hold their capacity.
-func TestJobConsumersSeparateMediaAndAlertsFromSharedWork(t *testing.T) {
+// Each job type has its own consumer, so a backlog or slow work of one type
+// cannot hold the capacity of another.
+func TestEachJobTypeHasItsOwnConsumer(t *testing.T) {
 	c, _ := newTestCore(t)
 	ctx := testContext(t)
-	shared, err := c.jobsConsumer.Info(ctx)
-	require.NoError(t, err)
-	require.NotContains(t, shared.Config.FilterSubjects, "jobs.media.*")
-	require.Contains(t, shared.Config.FilterSubjects, "jobs.webhook.*")
-	for _, kind := range effectJobTypes() {
-		require.Contains(t, shared.Config.FilterSubjects, "jobs."+kind+".*")
+	require.Len(t, c.jobConsumers, len(jobTypes()))
+	names := map[string]bool{}
+	for _, kind := range jobTypes() {
+		info, err := c.jobConsumers[kind].Info(ctx)
+		require.NoError(t, err)
+		require.Equal(t, JobsConsumerName(kind), info.Config.Durable)
+		require.Equal(t, []string{"jobs." + kind + ".*.queued", "jobs." + kind + ".*.retried"}, info.Config.FilterSubjects)
+		// A job that waits for a retry holds a delivery; that must not block
+		// other jobs of its type.
+		require.Equal(t, -1, info.Config.MaxAckPending)
+		require.Equal(t, -1, info.Config.MaxDeliver)
+		names[info.Config.Durable] = true
 	}
-	require.NotContains(t, shared.Config.FilterSubjects, "jobs."+jobTypeNotificationAlertDelivery+".*")
-	alerts, err := c.alertJobsConsumer.Info(ctx)
-	require.NoError(t, err)
-	require.Equal(t, AlertJobsConsumerName, alerts.Config.Durable)
-	require.Equal(t, []string{"jobs." + jobTypeNotificationAlertDelivery + ".*"}, alerts.Config.FilterSubjects)
-	media, err := c.mediaJobsConsumer.Info(ctx)
-	require.NoError(t, err)
-	require.Equal(t, MediaJobsConsumerName, media.Config.Durable)
-	require.Equal(t, []string{"jobs.media.*"}, media.Config.FilterSubjects)
+	require.Len(t, names, len(jobTypes()))
+	require.Equal(t, "chatto-jobs-user-key-shredding-v1", JobsConsumerName(jobTypeUserKeyShredding))
 }

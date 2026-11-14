@@ -11,15 +11,17 @@ module. Also follow
 ## Boundary
 
 - Keep production code independent of applications.
-- This module owns durable job execution: records, dispatches, claims and
-  leases, backoff, manual retry, repair, retention, and the effect adapter.
+- This module owns durable job execution: job facts, the worker, backoff,
+  manual retry, the job view, retention, and the effect adapter. Use the
+  consumer semantics of JetStream for claims, heartbeats, attempt counts, and
+  redelivery. Do not add claims, leases, or repair passes of our own.
   Event-sourcing mechanics belong in `pkg/events`; JetStream client helpers
   belong in `pkg/jetstreamutil`.
 - Applications own resource names and configurations, consumers, job types and
   policies, handlers, payloads, and user interfaces. Do not create, delete, or
   retire application consumers here.
 - Base exported API changes on actual Chatto or Authling use.
-- The protobuf records in `proto/` are a persisted contract of every
+- The protobuf facts in `proto/` are a persisted contract of every
   application that uses this module. Follow the protobuf compatibility rules in
   [`proto/AGENTS.md`](../../proto/AGENTS.md). Run `mise codegen-jobs-proto`
   after a schema change.

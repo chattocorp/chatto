@@ -5,11 +5,11 @@
 
   let { workers }: { workers: AdminDurableWorkerStatus[] } = $props();
 
-  // Keep the broker key visible for support while naming the new job pools.
+  // Keep the broker key visible for support while naming the job pools that
+  // have a translated name. Each job type has its own pool, with a key that
+  // ends in "_jobs".
   function workerLabel(key: string): string | null {
     switch (key) {
-      case 'jobs':
-        return m('admin.jobs.title');
       case 'media_jobs':
         return m('admin.jobs.media');
       case 'alert_jobs':

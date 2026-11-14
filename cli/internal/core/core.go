@@ -29,10 +29,8 @@ import (
 // managing current JetStream resources internally.
 type ChattoCore struct {
 	jobs                *jobqueue.Queue
-	jobsConsumer        jetstream.Consumer
-	alertJobsConsumer   jetstream.Consumer
+	jobConsumers        map[string]jetstream.Consumer // JOBS consumer of each job type.
 	mediaSourceConsumer jetstream.Consumer
-	mediaJobsConsumer   jetstream.Consumer
 	mediaJobHandler     func(context.Context, string, string) error
 	mediaJobConcurrency int
 	effectJobs          map[string]*jobqueue.Effect // Registered during construction; read-only after Run starts.

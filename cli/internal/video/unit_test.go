@@ -22,9 +22,7 @@ func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
 	ctx := t.Context()
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
-	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, MaxMsgsPerSubject: 1})
-	require.NoError(t, err)
-	_, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", LimitMarkerTTL: time.Hour})
+	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, MaxAge: time.Hour, AllowMsgTTL: true})
 	require.NoError(t, err)
 	queue, consumer, err := openJobs(ctx, runtimeunit.Env{NC: nc, JS: js, Logger: log.New(io.Discard)})
 	require.NoError(t, err)
@@ -36,12 +34,12 @@ func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
-		done <- queue.Work(runCtx, consumer, map[string]jobqueue.Handler{"media": func(_ context.Context, job jobqueue.Job) error {
+		done <- queue.Work(runCtx, consumer, func(_ context.Context, job jobqueue.Job) error {
 			request := new(statev1.MediaJob)
 			err := proto.Unmarshal(job.Payload, request)
 			processed <- request
 			return err
-		}}, 1)
+		}, 1)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -59,8 +57,10 @@ func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("media not processed")
 	}
-	job, err := queue.Get(ctx, "webhook-job")
+	// The media consumer never receives the job of another type.
+	stream, err := js.Stream(ctx, "JOBS")
 	require.NoError(t, err)
-	require.Equal(t, jobqueue.Queued, job.Status)
-	require.Zero(t, job.Attempts)
+	info, err := stream.Info(ctx, jetstream.WithSubjectFilter("jobs.webhook.>"))
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint64{"jobs.webhook.webhook-job.queued": 1}, info.State.Subjects)
 }

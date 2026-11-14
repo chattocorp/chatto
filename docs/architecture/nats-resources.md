@@ -50,7 +50,7 @@ allows ten minutes for storage recovery and replay before it restarts the pod.
 | Stream       | `EVT`                  | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`                                                                                                                                                                                                                         |
 | Stream       | `LOG`                  | File    | No     | Retained operational protobuf records from `chatto.core.log.v1`; seven-day default age, configurable with `core.log.retention`; no byte/count limit                                                                                                                                   |
 | Stream       | `NOTIFICATIONS`        | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace                                                                                                  |
-| Stream       | `JOBS`                 | File    | Yes    | Latest protobuf dispatch per `jobs.{type}.{id}` subject; limits retention with a seven-day maximum age; repair publishes again for unfinished jobs. Current execution state is in `RUNTIME_STATE`                                                                                     |
+| Stream       | `JOBS`                 | File    | Yes    | Event log of protobuf `jobs.v1.JobFact` job facts on `jobs.{type}.{id}.{fact}`; limits retention with a thirty-day maximum age and per-message TTLs; no per-subject limit. Job state is the fold of the facts                                                                         |
 | KV bucket    | `RUNTIME_STATE`        | File    | Yes    | Persisted latest-value records: `chatto.core.runtime_state.v1` protobuf, plus JSON credential and workflow records and raw binary read markers (ADR-114). Includes private presence choices, credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`         | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats                                                                                                                                                |
 | KV bucket    | `ENCRYPTION_KEYS`      | File    | No     | KMS records from `chatto.core.key_material.v1`; excluded from backups                                                                                                                                                                                                                 |
@@ -131,8 +131,8 @@ support more than one application-owned event log without mixing coordinates.
 ## Job consumers and webhook source
 
 `chatto-bot-webhook-source-v1` consumes `evt.room.*.message_posted` from EVT.
-It acknowledges only after every selected endpoint has a durable job record
-and confirmed dispatch. The media source and the effect sources in the
+It acknowledges only after every selected endpoint has a `queued` job fact in
+`JOBS`. The media source and the effect sources in the
 durable-consumer table use the same handoff rule. Source redelivery cannot
 reset an existing job.
 
@@ -143,21 +143,31 @@ whose source message no longer matches the digest fails permanently. Each attemp
 source message again. A missing notification signal completes its job, because
 expiry reconciliation owns that outcome. A missing EVT source fails the job.
 
-`chatto-jobs-v1` consumes `jobs.{type}.*` from `JOBS` for `webhook`,
-`asset_cleanup`, `call_key_cleanup`, `push_subscription_cleanup`, and
-`user_key_shredding`. Server replicas share this durable consumer.
-`chatto-jobs-alerts-v1` consumes only `jobs.notification_alert.*`, so slow
-webhook endpoints cannot delay alerts; server replicas share it.
-`chatto-jobs-media-v1` consumes only `jobs.media.*`; server replicas with media
-processing and standalone media processes share it. All three use explicit acknowledgement, two-minute acknowledgement wait, unlimited
-delivery, and at most 64 unacknowledged dispatches per consumer. Workers
-acknowledge a dispatch when an attempt ends, so a job that waits for a retry
-holds no unacknowledged dispatch; the record watcher publishes it again when it
-is due. Current job revision
-claims coordinate the overlapping consumers. Acknowledgement does not delete
-retained dispatches. Both consumers appear in worker diagnostics.
+Each job type has one durable consumer on `JOBS`. The name is
+`chatto-jobs-{type}-v1`, with each underscore of the job type replaced by a
+hyphen. The filter is `jobs.{type}.*.queued` and `jobs.{type}.*.retried`.
+
+| Job type                    | Consumer                                   | Shared by                                                         |
+| --------------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `webhook`                   | `chatto-jobs-webhook-v1`                   | Server replicas                                                   |
+| `media`                     | `chatto-jobs-media-v1`                     | Server replicas with media processing, standalone media processes |
+| `notification_alert`        | `chatto-jobs-notification-alert-v1`        | Server replicas                                                   |
+| `asset_cleanup`             | `chatto-jobs-asset-cleanup-v1`             | Server replicas                                                   |
+| `call_key_cleanup`          | `chatto-jobs-call-key-cleanup-v1`          | Server replicas                                                   |
+| `push_subscription_cleanup` | `chatto-jobs-push-subscription-cleanup-v1` | Server replicas                                                   |
+| `user_key_shredding`        | `chatto-jobs-user-key-shredding-v1`        | Server replicas                                                   |
+
+All job consumers use explicit acknowledgement, a two-minute acknowledgement
+wait, unlimited deliveries, and no limit on pending acknowledgements. The
+acknowledgement wait is the claim; a progress heartbeat every fifteen seconds
+renews it. The delivery count is the attempt number. A failed attempt returns
+its delivery with a delay, so a job that waits for a retry holds an
+unacknowledged delivery. The worker pool of each type bounds running jobs.
+The worker acknowledges only after it writes `succeeded` or `failed`. Each job
+consumer appears in worker diagnostics: `media_jobs`, `alert_jobs`, and
+`{type}_jobs` for the other types.
 
 Backups capture EVT before runtime state, then notifications and jobs. The
-unfinished-job watcher repairs dispatches after restore, including a job whose
-state was captured before its dispatch or whose consumer position advanced
-between snapshots. See ADR-123.
+`JOBS` backup includes the job facts and the consumer positions. A restore
+that rewinds a source consumer past an expired `succeeded` fact can repeat an
+idempotent effect. See ADR-123.

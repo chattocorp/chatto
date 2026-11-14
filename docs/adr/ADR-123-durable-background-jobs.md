@@ -1,6 +1,6 @@
 # ADR-123: Durable Background Jobs
 
-**Date:** 2026-11-10
+**Date:** 2026-11-14
 
 ## Context
 
@@ -14,84 +14,127 @@ Operators could not inspect or retry individual work items.
 ## Decision
 
 Use one durable job queue in each application. The application-neutral
-mechanics live in the shared, Apache-2.0 `pkg/jobs` module: records,
-dispatches, claims, backoff, manual retry, repair, retention, and the effect
-adapter. Chatto and Authling use it; Authling's account erasure is the second
-consumer that validates the shared boundary. Each application owns its
-resource names, consumers, job types, policies, handlers, and user interfaces.
-The module owns its protobuf record format. This decision applies to the
-repository. For Chatto, it replaces the execution and queue choices in ADR-066
-and ADR-097. Their media lifecycle, endpoint security, and source selection
-rules still apply.
+mechanics live in the shared, Apache-2.0 `pkg/jobs` module: job facts, the
+worker, backoff, manual retry, the job view, retention, and the effect adapter.
+Chatto and Authling use it; Authling's account erasure is the second consumer
+that validates the shared boundary. Each application owns its resource names,
+consumers, job types, policies, handlers, and user interfaces. The module owns
+its protobuf fact format. This decision applies to the repository. For Chatto,
+it replaces the execution and queue choices in ADR-066 and ADR-097. Their media
+lifecycle, endpoint security, and source selection rules still apply.
 
-Chatto keeps current job records under `job.{id}` in `RUNTIME_STATE`.
-Keep dispatch references in a file-backed `JOBS` stream on
-`jobs.{type}.{id}`. Retain the latest dispatch per subject for seven days;
-the repair pass publishes again for unfinished jobs. A succeeded record
-expires seven days after completion through a per-key TTL. Failed records stay
-until an operator retries them. Include both
-resources and consumer positions in backups. Capture EVT first, runtime state
-next, and dispatches last. Recovery must tolerate snapshots taken at different
-times.
+### The job stream is an event log
 
-Existing durable EVT consumers persist deterministic jobs before acknowledging
-their source. Effect consumers on EVT and NOTIFICATIONS keep their persisted
-names and filters. Their jobs store only the source subject, sequence, and message digest. Each
-attempt reads the source message again and runs the unchanged effect handler.
-A handler termination fails the job permanently. A missing source fails the
-job, except for notification alerts, where expiry reconciliation owns the
-outcome. Record creation uses create-if-absent; source redelivery cannot reset
-a job.
+The queue follows the Loom architecture on a small scale. One job stream holds
+the facts of each job on `{prefix}.{type}.{id}.{fact}`. The state of a job is
+the fold of its facts in stream order. The facts are:
 
-Each process runs one filtered record watcher. It keeps a payload-free summary
-of every current record for listing, and it publishes a dispatch whenever an
-unfinished job is due: after a lost publish, at its retry time, at the end of
-an abandoned lease, and after a restore. Every replica does this; dispatch
-message IDs include the attempt count, so concurrent publications collapse.
+| Fact             | Written by | Meaning                                                  |
+| ---------------- | ---------- | -------------------------------------------------------- |
+| `queued`         | Enqueue    | The job was accepted. It carries the payload and policy. |
+| `started`        | Worker     | An attempt started.                                      |
+| `attempt_failed` | Worker     | An attempt failed; the job waits for its next attempt.   |
+| `succeeded`      | Worker     | The job is complete.                                     |
+| `failed`         | Worker     | The job failed permanently, used its budget, or expired. |
+| `retried`        | Retry      | An operator started a new attempt budget.                |
 
-A worker acknowledges a dispatch when an attempt ends, also after a failed
-attempt, a type without a local handler, a missing record, or a status that the
-worker does not know. Jobs that wait for a retry therefore hold no consumer
-capacity; the watcher publishes them again when they are due. A repeated
-handoff does not dispatch a job that waits for a retry. A dispatch of a job
-that another worker holds returns to the consumer and is checked again after
-two seconds. Each server replica runs one bounded worker pool on the shared
-consumer for webhook, cleanup, and key-deletion jobs. Notification alerts have
-their own consumer and a pool of sixteen per replica, so slow webhook endpoints
-cannot delay alerts past their two-minute delivery window. Media has its own
-consumer, which server replicas with media processing and standalone media
-processes share. A media backlog, or a replica without media processing, then
-cannot delay other jobs. Job record revision claims prevent normal concurrent
-execution across these consumers. Claims have a one-minute lease, renewed
-every fifteen seconds. A failed renewal cancels the attempt. Graceful shutdown
-releases the claim of an interrupted attempt, and that attempt does not count
-against the budget. Another worker can claim it about two seconds later. An
-attempt that finished before shutdown keeps its result. Crash recovery waits
-for lease expiry. External effects remain at least once: a lost HTTP response
-or a failed completion write can cause a duplicate.
+The job stream is a second log beside EVT, not a part of it. Job facts are
+operational facts, not domain facts. EVT keeps the full history; the job stream
+forgets facts by age and by purge. There is no job record in a key-value
+bucket.
 
-Automatic retries use capped exponential backoff, up to thirty minutes, and
-hold neither a worker nor an unacknowledged dispatch while waiting. Each type supplies an attempt budget
-and initial delay. Permanent failures and exhausted budgets remain failed.
-Chatto's budgets are:
+Chatto uses the file-backed `JOBS` stream on `jobs.>` with a thirty-day
+maximum age and per-message TTLs. Include the stream and its consumer positions
+in backups.
 
-| Job type                                                                       | Attempts                    | Initial delay |
-| ------------------------------------------------------------------------------ | --------------------------- | ------------- |
-| Webhook                                                                        | Configured (`bot_webhooks`) | Configured    |
-| Notification alert                                                             | 5                           | 30 seconds    |
-| Media                                                                          | Unlimited                   | 30 seconds    |
-| Asset cleanup, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    |
+### Enqueue and retry use OCC
+
+Enqueue appends `queued` only when the job has no facts. A redelivered source
+message then changes nothing. Source consumers acknowledge their message only
+after enqueue returns.
+
+A manual retry appends `retried` only when the `failed` fact that the operator
+viewed is still the latest fact of the job. Concurrent or stale actions start
+one new budget. `retried` carries a copy of the payload and policy. It never
+extends an original deadline. The public API exposes a retry version that is a
+digest of the job ID and that sequence, never the broker position.
+
+### A durable consumer runs the jobs
+
+Each job type has one durable consumer, filtered to the `queued` and `retried`
+facts of that type, with its own worker pool. A slow or blocked type cannot
+delay another type. The consumer gives the queue its execution rules:
+
+- The acknowledgement wait is the claim. The worker renews it with a progress
+  heartbeat every fifteen seconds while the handler runs.
+- The delivery count is the attempt number.
+- A failed attempt returns the delivery with a delay. The delay doubles from
+  the initial delay of the type, up to thirty minutes.
+- After a crash, the acknowledgement wait ends and JetStream delivers the fact
+  to another replica. On shutdown, the worker returns the delivery immediately.
+
+A job that waits for a retry holds an unacknowledged delivery. The consumers
+therefore do not limit pending acknowledgements; the worker pool bounds
+running jobs.
+
+The worker writes `succeeded` or `failed` before it acknowledges. `started` and
+`attempt_failed` only feed the view; a failed write of these facts does not
+stop or repeat the attempt. External effects remain at least once: a lost HTTP
+response or a failed outcome write can cause a duplicate.
+
+An attempt that a shutdown or a crash interrupted counts against the attempt
+budget, because it was a delivery. A handler that finished before shutdown
+keeps its success. A failure during shutdown is not recorded, because the
+cancellation can be its cause; the next delivery runs the job again.
+
+### Retention
+
+When a job succeeds, the worker writes `succeeded` with a per-message TTL and
+then purges the earlier facts of that job. A succeeded job leaves one small
+fact, which expires after three days. If the purge fails, the earlier facts
+stay until the maximum age.
+
+All other facts stay until the maximum age of the stream. A failed job then
+leaves the stream thirty days after its last `queued` or `retried` fact. An
+unfinished job also leaves the stream at that age; the view logs a warning for
+it. The stream size therefore follows recent work.
+
+### The job view is a projection
+
+Each server replica runs an in-memory projection of the job stream: one
+summary per job, without the payload. Listing and detail requests read the
+view, never storage. After a retry, the queue waits until the view has applied
+the new fact. The view drops a job when the stream no longer retains it. It is
+derived state and is built again from the retained facts on each start.
+
+Processes that only run jobs, such as a standalone media process, do not run
+the view.
+
+### Effects
+
+Existing durable EVT and NOTIFICATIONS consumers keep their persisted names and
+filters. They enqueue one job per relevant source message before they
+acknowledge it. The job stores only the source subject, sequence, and message
+digest. Each attempt reads the source message again and runs the unchanged
+effect handler. A handler termination fails the job permanently. A missing
+source fails the job, except for notification alerts, where expiry
+reconciliation owns the outcome.
+
+### Chatto policies
+
+| Job type                                                                       | Attempts                    | Initial delay | Pool size per replica                  |
+| ------------------------------------------------------------------------------ | --------------------------- | ------------- | -------------------------------------- |
+| Webhook                                                                        | Configured (`bot_webhooks`) | Configured    | `core.job_concurrency` (default 8)     |
+| Notification alert                                                             | 5                           | 30 seconds    | 16                                     |
+| Media                                                                          | Unlimited                   | 30 seconds    | `asset_processing.max_concurrent_jobs` |
+| Asset cleanup, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
 
 Media, cleanup, and key deletion keep the unlimited retries of the workers that
 they replace. A long tool, KMS, or object-store outage must not leave
 attachments unprocessed or keys undeleted. Unprocessable media records a
 terminal asset failure instead. The admin API omits the maximum for an
-unlimited budget.
-Manual retry checks the viewed attempt-budget version and uses revision OCC to
-start one new generation with the same job ID
-and payload. It never extends an original deadline. Old dispatch generations
-cannot execute a new generation. A repair pass recovers a retry accepted before
-dispatch publication.
+unlimited budget. Server replicas with media processing and standalone media
+processes share the media consumer.
 
 Keep domain completion rules in handlers. Media handlers confirm a terminal
 asset outcome, including a failed conversion or deletion. Webhook handlers check
@@ -103,26 +146,35 @@ The public API exposes an explicit safe summary and action availability.
 
 Operators can inspect and retry failed work through one settings page. Webhook
 work survives restart. Media can run inside server replicas or in standalone
-processes without changing its domain facts.
+processes without changing its domain facts. The queue has no claims, leases,
+or repair pass of its own; JetStream consumer semantics do this work.
 
 V1 has no cancellation, priorities, scheduling, bulk actions, or separate
-dead-letter stream. Webhook, cleanup, and key-deletion jobs share one worker
-pool and can delay each other while they run. Succeeded
-records expire after seven days, so storage follows recent work. Source
-consumers acknowledge before expiry, so expiry does not re-enqueue work. A
-restore that rewinds a source consumer past an expired record can repeat an
-idempotent effect. Failed records have no automatic expiry. Listing reads the
-in-memory summary index, newest update first, with an optional status filter.
-Each process holds a summary of every retained record in memory. Privacy
-cleanup shares capacity with webhooks. A failing cleanup job stays queued and
-retries every thirty minutes at most; the Jobs page shows its attempts and
-failure category. Effect source consumer diagnostics show handoff
-progress, not job completion. Notification occurrence projection, link-preview
-work, and periodic reconciliation passes remain outside the queue. The current
-server has no separate email worker: account emails send on the request path.
+dead-letter stream. Job state has no realtime event; the Jobs page polls.
 
-Authling keeps job records in a dedicated `AUTHLING_JOB_STATE` bucket, because
-its runtime-state bucket holds only expiring state, and dispatches in
-`AUTHLING_JOBS`. Its erasure source acknowledges unrelated account events
-without a job through the effect `Accept` filter. Erasure jobs use the
-unlimited attempt budget, because Authling has no manual retry.
+- An unlimited-retry job that still fails after thirty days leaves the stream
+  unfinished. The server logs a warning, and an operator must then start the
+  work again. A cleanup or key-deletion job in this state fails every thirty
+  minutes for the whole period, and the Jobs page shows it.
+- A failed job can be retried for thirty days. After that, it is gone.
+- A deploy or a crash during an attempt uses one attempt of a limited budget.
+- Each process that runs the view holds a summary of every retained job in
+  memory, and replays the retained facts on start.
+- A restore that rewinds a source consumer past an expired succeeded fact can
+  repeat an idempotent effect.
+- Effect source consumer diagnostics show handoff progress, not job
+  completion. Each job type consumer appears in worker diagnostics.
+- Rolling back to a server version without the queue leaves accepted,
+  unfinished jobs in the stream; their sources are already acknowledged. Roll
+  forward again to run them.
+- Notification occurrence projection, link-preview work, and periodic
+  reconciliation passes remain outside the queue. The current server has no
+  separate email worker: account emails send on the request path.
+
+Authling keeps job facts in a dedicated `AUTHLING_JOBS` stream without a
+maximum age, because an erasure job must stay until it finishes. Succeeded
+facts still expire after three days, so only unfinished and failed jobs stay.
+Its erasure source acknowledges unrelated account events without a job through
+the effect `Accept` filter. Erasure jobs use the unlimited attempt budget,
+because Authling has no manual retry. Authling shows no jobs and does not run
+the job view.

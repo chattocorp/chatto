@@ -6,41 +6,76 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/chattocorp/chatto/pkg/jobs/internal/jobpb;jobpb";
 
-// Latest durable execution state of one job. The payload is an application
-// reference, never content or credentials. Terminal records also prevent source
-// redelivery from enqueueing the same work again. Generation fences dispatches
-// from previous manual retries.
-message JobRecord {
+// One fact in the history of a job. The job stream holds these facts on
+// {prefix}.{type}.{id}.{fact}. A job's state is the fold of its facts in
+// stream order.
+message JobFact {
   string id = 1;
   string type = 2;
-  JobStatus status = 3;
-  uint32 attempts = 4;
-  uint32 max_attempts = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
-  google.protobuf.Timestamp next_attempt_at = 8;
-  string failure = 9;
-  bytes payload = 10;
-  uint64 generation = 11;
-  string owner = 12;
-  google.protobuf.Timestamp lease_until = 13;
-  int64 retry_delay_millis = 14;
-  google.protobuf.Timestamp expires_at = 15;
+  // When this fact occurred.
+  google.protobuf.Timestamp occurred_at = 3;
+  // When the job was first accepted. Every fact repeats it, so a fact stays
+  // readable after earlier facts are gone.
+  google.protobuf.Timestamp created_at = 4;
+
+  oneof fact {
+    JobQueued queued = 10;
+    JobStarted started = 11;
+    JobAttemptFailed attempt_failed = 12;
+    JobSucceeded succeeded = 13;
+    JobFailed failed = 14;
+    JobRetried retried = 15;
+  }
 }
 
-// Persisted execution states.
-enum JobStatus {
-  JOB_STATUS_UNSPECIFIED = 0;
-  JOB_STATUS_QUEUED = 1;
-  JOB_STATUS_RUNNING = 2;
-  JOB_STATUS_SUCCEEDED = 3;
-  JOB_STATUS_FAILED = 4;
+// What to run and the policy for it. The payload is an application reference,
+// never content or credentials.
+message JobSpec {
+  bytes payload = 1;
+  // Automatic attempt budget. The maximum uint32 value means no limit.
+  uint32 max_attempts = 2;
+  int64 retry_delay_millis = 3;
+  // Optional deadline. A manual retry never extends it.
+  google.protobuf.Timestamp expires_at = 4;
 }
 
-// Replayable reference to one job generation. It carries no job state.
-message JobDispatch {
-  string id = 1;
-  uint64 generation = 2;
+// The job was accepted. Workers consume this fact; its delivery count is the
+// attempt number.
+message JobQueued {
+  JobSpec spec = 1;
+}
+
+// An operator started a new attempt budget for a failed job. Workers consume
+// this fact like JobQueued.
+message JobRetried {
+  JobSpec spec = 1;
+}
+
+// A worker started an attempt.
+message JobStarted {
+  uint32 attempt = 1;
+}
+
+// An attempt failed and the job waits for its next attempt.
+message JobAttemptFailed {
+  uint32 attempt = 1;
+  // Safe failure category, never handler error text.
+  string failure = 2;
+  google.protobuf.Timestamp next_attempt_at = 3;
+}
+
+// The job is complete. This fact expires after the succeeded retention; the
+// worker removes the earlier facts of the job after it writes this one.
+message JobSucceeded {
+  uint32 attempts = 1;
+  uint32 max_attempts = 2;
+}
+
+// The job failed permanently, used its attempt budget, or passed its deadline.
+message JobFailed {
+  uint32 attempts = 1;
+  // Safe failure category, never handler error text.
+  string failure = 2;
 }
 
 // Reference to one retained source message of an effect job. Each attempt

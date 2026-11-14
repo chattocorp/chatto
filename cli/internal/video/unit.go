@@ -6,19 +6,17 @@ import (
 	"fmt"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
-	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const runtimeUnitName = "asset-processing"
 
 // Unit runs durable video derivative workers either inside chatto run or as a
-// standalone process. It consumes media dispatches from JOBS; the main server
+// standalone process. It runs media jobs from JOBS; the main server
 // performs the durable EVT-to-JOBS handoff.
 type Unit struct{}
 
@@ -59,15 +57,10 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
 	go func() {
-		g, gctx := errgroup.WithContext(workerCtx)
-		g.Go(func() error { return queue.Run(gctx) })
-		g.Go(func() error {
-			process := func(ctx context.Context, assetID, messageID string) error {
-				return runtime.Core().ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
-			}
-			return queue.Work(gctx, consumer, map[string]jobqueue.Handler{"media": core.MediaJobHandler(env.Logger, process)}, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
-		})
-		workerDone <- g.Wait()
+		process := func(ctx context.Context, assetID, messageID string) error {
+			return runtime.Core().ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
+		}
+		workerDone <- queue.Work(workerCtx, consumer, core.MediaJobHandler(env.Logger, process), env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
 	}()
 
 	var workerErr, projectionErr error
@@ -98,26 +91,18 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 
 var _ runtimeunit.Unit = Unit{}
 
-// openJobs binds application-owned resources; a standalone unit runs only media
-// handlers. Revision claims prevent concurrent effects with the shared pool.
+// openJobs binds the application-owned job stream and the media consumer. A
+// standalone unit runs only media jobs.
 func openJobs(ctx context.Context, env runtimeunit.Env) (*jobqueue.Queue, jetstream.Consumer, error) {
 	stream, err := env.JS.Stream(ctx, natsresources.Jobs)
 	if err != nil {
 		return nil, nil, err
 	}
-	kv, err := env.JS.KeyValue(ctx, natsresources.RuntimeState)
+	queue, err := core.NewJobQueue(env.JS, stream, env.Logger, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	bound, err := jetstreamutil.NewKeyValue(env.JS, kv)
-	if err != nil {
-		return nil, nil, err
-	}
-	queue, err := core.NewJobQueue(env.JS, bound, env.Logger, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, core.MediaJobsConsumerName, "media"))
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, core.JobsConsumerConfig(queue, "media"))
 	if err != nil {
 		return nil, nil, err
 	}

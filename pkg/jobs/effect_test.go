@@ -18,7 +18,7 @@ import (
 // effect consumer that captures every source subject.
 func testEffect(t *testing.T, handle events.DurableDeliveryHandler, options EffectOptions) (*Effect, jetstream.Consumer, jetstream.Stream) {
 	t.Helper()
-	q, jobsConsumer := testQueue(t)
+	q, jobsConsumer := testQueue(t, Options{})
 	ctx := t.Context()
 	source := must(q.js.CreateStream(ctx, jetstream.StreamConfig{Name: "SOURCE", Subjects: []string{"source.>"}, Storage: jetstream.MemoryStorage}))
 	sourceConsumer := must(source.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{Durable: "effect", AckPolicy: jetstream.AckExplicitPolicy, MaxDeliver: -1}))
@@ -43,15 +43,19 @@ func TestEffectRunsHandlerOnceForAcceptedSourceMessages(t *testing.T) {
 	sourceDone := make(chan error, 1)
 	go func() { sourceDone <- effect.RunSource(sourceCtx) }()
 	t.Cleanup(func() { stopSource(); <-sourceDone })
-	runQueue(t, effect.queue, jobsConsumer, map[string]Handler{effect.Type(): effect.Handle}, 1)
+	runView(t, effect.queue)
+	runWorker(t, effect.queue, jobsConsumer, effect.Handle, 1)
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("effect did not run")
 	}
-	jobs, _, err := effect.queue.List(ctx, ListOptions{Limit: 10})
-	noError(t, err)
-	if len(jobs) != 1 {
+	// The view follows the stream; wait until it holds the job.
+	var jobs []Job
+	for deadline := time.Now().Add(5 * time.Second); len(jobs) == 0 && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		jobs, _, _ = effect.queue.List(ctx, ListOptions{Limit: 10})
+	}
+	if len(jobs) != 1 || jobs[0].Type != effect.Type() {
 		t.Fatalf("jobs = %+v, want one job for the accepted message", jobs)
 	}
 	awaitStatus(t, effect.queue, jobs[0].ID, Succeeded)
@@ -118,4 +122,9 @@ func TestEffectHandleClassifiesSourceAndHandlerOutcomes(t *testing.T) {
 	if seen.Subject != "source.one" || seen.StreamSequence != ack.Sequence || seen.NumDelivered != 2 || string(seen.Data) != "payload" {
 		t.Fatalf("handler delivery = %+v", seen)
 	}
+}
+
+// eventsDelivery returns the delivery of a stored fact with a delivery count.
+func eventsDelivery(msg *jetstream.RawStreamMsg, delivered uint64) events.DurableDelivery {
+	return events.DurableDelivery{Subject: msg.Subject, Data: msg.Data, StreamSequence: msg.Sequence, PublishedAt: msg.Time, NumDelivered: delivered}
 }

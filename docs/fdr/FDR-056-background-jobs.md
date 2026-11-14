@@ -1,7 +1,7 @@
 # FDR-056: Background Jobs
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-10
+**Last reviewed:** 2026-11-14
 
 ## Overview
 
@@ -17,12 +17,14 @@ and notification alerts.
   and a safe failure category. Content and credentials are not shown.
 - Temporary failures retry automatically with increasing delays. Delays are
   capped at thirty minutes. Exhausted or permanent failures remain visible.
+- An attempt that a server restart interrupts counts as an attempt.
 - Webhook and notification alert jobs have an attempt limit. Media, cleanup,
   and key-deletion jobs retry without a limit until they finish; the page then
   shows only their attempt count.
 - A failed, unexpired job can be retried manually. Retry keeps its identity and
-  payload and starts a new attempt budget. A retry applies only to the attempt budget the operator viewed. Concurrent
-  or stale actions cannot retry a later budget that has already failed again.
+  payload and starts a new attempt budget. A retry applies only to the failure
+  that the operator viewed. Concurrent or stale actions cannot retry a later
+  budget that has already failed again.
 - An expired webhook job cannot be retried. Retry never extends its original
   delivery deadline. Current access and endpoint state still control delivery.
 - A media job succeeds when processing reaches a terminal asset outcome. A
@@ -42,8 +44,9 @@ and notification alerts.
 - Servers older than 0.6.0 have no job API. The settings navigation then omits
   Jobs, and the Jobs page shows a compatibility notice
   ([FDR-031](FDR-031-client-server-compatibility-discovery.md)).
-- Succeeded jobs leave the list seven days after completion. Failed jobs stay
-  until they are retried.
+- Succeeded jobs leave the list three days after completion. Failed jobs stay
+  for thirty days after they were accepted or last retried. An unfinished job
+  also leaves the list at that age; the server then logs a warning.
 
 ## Design Decisions
 
@@ -53,13 +56,13 @@ and notification alerts.
 Periodic reconciliation passes remain separate.
 **Why:** Common execution and recovery controls reduce separate worker rules.
 See ADR-123.
-**Tradeoff:** Slow work can delay other job types in the same pool. Media and
-notification alerts have their own pools.
+**Tradeoff:** Operators have one more stream to back up. Each job type has its
+own worker pool, so slow work of one type does not delay another type.
 
 ### 2. Keep failed work available
 
-**Decision:** Failed jobs stay in the list and can be retried where their
-lifecycle permits it.
+**Decision:** Failed jobs stay in the list for thirty days and can be retried
+where their lifecycle permits it.
 **Why:** Operators can recover work after fixing a tool or external service.
 **Tradeoff:** Manual retry can repeat an external effect. Operators must check
 its recipient when a duplicate matters.
@@ -87,6 +90,6 @@ the job list repeatedly.
 
 ## Open Questions
 
-- Add a dedicated listing index when job volume requires it.
 - Add email and delayed deletion when those features need durable jobs.
-- Give privacy cleanup its own capacity if webhooks delay it.
+- Decide how operators learn about a cleanup or key-deletion job that reaches
+  the thirty-day limit unfinished. Today it is only a log warning.

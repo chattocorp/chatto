@@ -18,7 +18,7 @@ const (
 	EVT = "EVT"
 	// Notifications is the bounded notification lifecycle event log.
 	Notifications = "NOTIFICATIONS"
-	// Jobs carries durable background-job dispatch references.
+	// Jobs is the event log of durable background jobs.
 	Jobs = "JOBS"
 	// Log is the retained operational diagnostics stream (ADR-098).
 	Log = "LOG"

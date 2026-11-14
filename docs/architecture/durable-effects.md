@@ -141,28 +141,39 @@ durable EVT records serving as security audit facts rather than an email queue.
 
 ## Durable background jobs
 
-The shared [`pkg/jobs`](../../pkg/jobs/README.md) module owns execution, capped
-backoff, revision claims, graceful handoff, and dispatch repair. Current records
-are protobuf `JobRecord` values in `RUNTIME_STATE` under `job.{id}`. Dispatches
-are protobuf `JobDispatch` values in `JOBS` on `jobs.{type}.{id}`. A filtered
-watcher retains only unfinished work and repairs missing dispatches. Succeeded
-records and dispatches expire after seven days. Failed records stay until a
-manual retry.
+The shared [`pkg/jobs`](../../pkg/jobs/README.md) module owns job facts, the
+worker, capped backoff, manual retry, the job view, and retention. The `JOBS`
+stream is a small event log. Facts are protobuf `jobs.v1.JobFact` values on
+`jobs.{type}.{id}.{fact}`. The fact is `queued`, `started`, `attempt_failed`,
+`succeeded`, `failed`, or `retried`. The state of a job is the fold of its
+facts. There is no job record in `RUNTIME_STATE`. Enqueue appends `queued`
+only when the job has no facts. On success, the worker writes `succeeded` with
+a three-day per-message TTL and purges the earlier facts of the job. All other
+facts stay until the thirty-day maximum age of the stream.
 
-The core's shared pool handles webhook, cleanup, and key-deletion attempts.
-Notification alerts and media have their own consumers and pools. Standalone
-media processes share the media consumer. Record revision
-claims coordinate consumers and replicas; one-minute leases renew every fifteen
-seconds. A lost renewal cancels the handler. Shutdown releases the claims of
-interrupted attempts and records attempts that already finished; hard-crash
-recovery waits for expiry. Failed attempts release worker capacity during
-backoff. Exhausted or permanent failures stay available for manual retry.
-Manual retries use a new dispatch generation and preserve the original deadline.
+Each job type has its own durable consumer and worker pool, so one type cannot
+delay another. Standalone media processes share the media consumer. The
+acknowledgement wait of the consumer is the claim. The worker renews it with a
+progress heartbeat every fifteen seconds while the handler runs. The delivery
+count is the attempt number. A failed attempt returns its delivery with a
+delay; the delay doubles up to thirty minutes. A job that waits for a retry
+holds an unacknowledged delivery, but no worker slot. On shutdown, the worker
+returns the delivery immediately and records an attempt that already
+succeeded. After a crash, JetStream delivers the fact again when the
+acknowledgement wait ends. An interrupted attempt counts against the attempt
+budget. Exhausted or permanent failures stay available for manual retry for
+thirty days. A manual retry appends `retried` only when the viewed `failed`
+fact is still the latest fact of the job. It starts a new attempt budget and
+preserves the original deadline.
+
+Each server replica keeps the job view, an in-memory projection of `JOBS`
+with one payload-free summary for each job. List, detail, and retry requests
+read it. Standalone media processes do not run it.
 
 Effect jobs move existing EVT and NOTIFICATIONS effect consumers onto the
 queue without changing their domain rules. Each source consumer keeps its
 persisted name and filter, and acknowledges after durable job acceptance. The
-job records only the source subject, sequence, and message digest. Each attempt reads that
+job stores only the source subject, sequence, and message digest. Each attempt reads that
 message again and runs the unchanged handler, with its projection barriers and
 idempotency checks. A handler termination fails the job permanently.
 

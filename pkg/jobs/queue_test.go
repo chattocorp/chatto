@@ -3,7 +3,6 @@ package jobs
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -12,12 +11,8 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
@@ -62,644 +57,520 @@ func noError(t *testing.T, err error) {
 	}
 }
 
-func testQueue(t *testing.T) (*Queue, jetstream.Consumer) {
+func testStreamConfig() jetstream.StreamConfig {
+	return jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, Storage: jetstream.MemoryStorage, MaxAge: time.Hour, AllowMsgTTL: true}
+}
+
+// testQueue returns a queue on a new job stream and a worker consumer for the
+// job type "work".
+func testQueue(t *testing.T, opts Options) (*Queue, jetstream.Consumer) {
 	t.Helper()
 	js := startTestNATS(t)
 	ctx := t.Context()
-	stream := must(js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, Storage: jetstream.MemoryStorage, MaxMsgsPerSubject: 1}))
-	bucket := must(js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "STATE", LimitMarkerTTL: time.Hour}))
-	kv := must(jetstreamutil.NewKeyValue(js, bucket))
-	q := must(New(js, kv, Options{KeyPrefix: "job.", SubjectPrefix: "jobs"}))
+	stream := must(js.CreateStream(ctx, testStreamConfig()))
+	opts.SubjectPrefix = "jobs"
+	q := must(New(js, stream, opts))
 	consumer := must(stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Durable: "jobs", FilterSubjects: q.FilterSubjects("work"), AckPolicy: jetstream.AckExplicitPolicy,
-		AckWait: 2 * time.Minute, MaxDeliver: -1,
+		Durable: "jobs-work", FilterSubjects: q.FilterSubjects("work"), AckPolicy: jetstream.AckExplicitPolicy,
+		AckWait: 2 * time.Minute, MaxDeliver: -1, MaxAckPending: -1,
 	}))
 	return q, consumer
 }
 
 func testSpec(id string) Spec {
-	return Spec{ID: id, Type: "work", MaxAttempts: 3, RetryDelay: time.Millisecond, Payload: []byte("opaque-reference")}
+	return Spec{ID: id, Type: "work", Payload: []byte("ref-" + id), MaxAttempts: 3, RetryDelay: time.Millisecond}
 }
 
-func dispatch(job Job) events.DurableDelivery {
-	data, _ := proto.Marshal(&jobpb.JobDispatch{Id: job.ID, Generation: job.Generation})
-	return events.DurableDelivery{Data: data}
-}
-
-func handlers(h Handler) map[string]Handler { return map[string]Handler{"work": h} }
-
-func runQueue(t *testing.T, q *Queue, c jetstream.Consumer, h map[string]Handler, concurrency int) {
+// start runs fn until the returned stop function or the end of the test.
+func start(t *testing.T, fn func(context.Context) error) (stop func()) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
-	go func() {
-		g, ctx := errgroup.WithContext(ctx)
-		g.Go(func() error { return q.Run(ctx) })
-		g.Go(func() error { return q.Work(ctx, c, h, concurrency) })
-		done <- g.Wait()
-	}()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Errorf("queue run: %v", err)
+	go func() { done <- fn(ctx) }()
+	var once sync.Once
+	stop = func() {
+		once.Do(func() {
+			cancel()
+			if err := <-done; err != nil {
+				t.Errorf("run: %v", err)
 			}
-		case <-time.After(5 * time.Second):
-			t.Error("queue did not stop")
-		}
-	})
+		})
+	}
+	t.Cleanup(stop)
+	return stop
+}
+
+func runView(t *testing.T, q *Queue) { start(t, q.Run) }
+
+func runWorker(t *testing.T, q *Queue, c jetstream.Consumer, h Handler, concurrency int) (stop func()) {
+	return start(t, func(ctx context.Context) error { return q.Work(ctx, c, h, concurrency) })
 }
 
 func awaitStatus(t *testing.T, q *Queue, id string, status Status) Job {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		job, err := q.Get(t.Context(), id)
 		if err == nil && job.Status == status {
 			return job
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("job %s = %+v, %v; want status %d", id, job, err, status)
+			t.Fatalf("job %s = %+v (%v), want status %d", id, job, err, status)
 		}
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
-func TestQueueRetriesWithoutOccupyingOnlyWorker(t *testing.T) {
-	q, c := testQueue(t)
+// factNames returns the retained fact subjects of the test stream.
+func factNames(t *testing.T, q *Queue) map[string]uint64 {
+	t.Helper()
+	return must(q.stream.Info(t.Context(), jetstream.WithSubjectFilter("jobs.>"))).State.Subjects
+}
+
+func TestQueueRunsJobOnceAndKeepsOnlyItsSuccess(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()
 	var calls atomic.Int32
-	slow := testSpec("a-slow")
-	slow.RetryDelay = time.Second
-	noError(t, q.Enqueue(ctx, slow))
-	noError(t, q.Enqueue(ctx, testSpec("b-fast")))
-	runQueue(t, q, c, handlers(func(_ context.Context, job Job) error {
-		if job.ID == slow.ID && calls.Add(1) == 1 {
-			return errors.New("external secret must not persist")
+	var seen Job
+	runView(t, q)
+	runWorker(t, q, consumer, func(_ context.Context, job Job) error {
+		seen = job
+		calls.Add(1)
+		return nil
+	}, 2)
+	noError(t, q.Enqueue(ctx, testSpec("one")))
+	noError(t, q.Enqueue(ctx, testSpec("one")))
+	job := awaitStatus(t, q, "one", Succeeded)
+	if job.Attempts != 1 || job.MaxAttempts != 3 || job.Payload != nil || job.CreatedAt.IsZero() {
+		t.Fatalf("job = %+v", job)
+	}
+	if string(seen.Payload) != "ref-one" || seen.Attempts != 1 || seen.RetryDelay != time.Millisecond {
+		t.Fatalf("handler job = %+v", seen)
+	}
+	// A handoff after success still finds the job and accepts nothing.
+	noError(t, q.Enqueue(ctx, testSpec("one")))
+	time.Sleep(200 * time.Millisecond)
+	if calls.Load() != 1 {
+		t.Fatalf("handler calls = %d", calls.Load())
+	}
+	subjects := factNames(t, q)
+	if len(subjects) != 1 || subjects["jobs.work.one.succeeded"] != 1 {
+		t.Fatalf("retained facts = %v, want only the success", subjects)
+	}
+	msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.one.succeeded"))
+	if msg.Header.Get(jetstream.MsgTTLHeader) == "" {
+		t.Fatal("succeeded fact must expire")
+	}
+}
+
+func TestQueueRetriesWithBackoffWithoutOccupyingTheWorker(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
+	ctx := t.Context()
+	var slowCalls atomic.Int32
+	runView(t, q)
+	runWorker(t, q, consumer, func(_ context.Context, job Job) error {
+		if job.ID == "slow" && slowCalls.Add(1) == 1 {
+			return &Failure{Category: "not_yet"}
 		}
 		return nil
-	}), 1)
-	awaitStatus(t, q, "b-fast", Succeeded)
-	if first := awaitStatus(t, q, slow.ID, Queued); first.Failure != "attempt_failed" {
-		t.Fatalf("failure = %q, want attempt_failed", first.Failure)
+	}, 1)
+	slow := testSpec("slow")
+	slow.RetryDelay = 2 * time.Second
+	noError(t, q.Enqueue(ctx, slow))
+	waiting := awaitStatus(t, q, "slow", Queued)
+	for waiting.Failure == "" {
+		time.Sleep(10 * time.Millisecond)
+		waiting = awaitStatus(t, q, "slow", Queued)
 	}
-	if terminal := awaitStatus(t, q, slow.ID, Succeeded); terminal.Attempts != 2 {
-		t.Fatalf("attempts = %d, want 2", terminal.Attempts)
+	if waiting.Failure != "not_yet" || waiting.Attempts != 1 || !waiting.NextAttemptAt.After(time.Now()) {
+		t.Fatalf("waiting job = %+v", waiting)
 	}
-	// Source replay cannot reset work or alter its original payload.
-	duplicate := testSpec(slow.ID)
-	duplicate.Payload = []byte("changed")
-	noError(t, q.Enqueue(ctx, duplicate))
-	stored := must(q.Get(ctx, slow.ID))
-	if string(stored.Payload) != "opaque-reference" || stored.Status != Succeeded {
-		t.Fatalf("stored = %+v, want unchanged succeeded job", stored)
+	// The only worker is free while the first job waits.
+	noError(t, q.Enqueue(ctx, testSpec("fast")))
+	awaitStatus(t, q, "fast", Succeeded)
+	if job := must(q.Get(ctx, "slow")); job.Status != Queued {
+		t.Fatalf("slow job = %+v, want it still waiting", job)
 	}
-}
-
-func TestQueueRetainsFailureAndManualRetryGeneration(t *testing.T) {
-	q, _ := testQueue(t)
-	ctx := t.Context()
-	spec := testSpec("failure")
-	spec.MaxAttempts = 1
-	noError(t, q.Enqueue(ctx, spec))
-	job := must(q.Get(ctx, spec.ID))
-	noError(t, q.process(ctx, dispatch(job), handlers(func(context.Context, Job) error { return &Failure{Category: "http_error"} })))
-	failed := must(q.Get(ctx, job.ID))
-	if failed.Status != Failed || failed.Failure != "http_error" {
-		t.Fatalf("failed = %+v", failed)
-	}
-	retried := must(q.Retry(ctx, job.ID, RetryVersion(job)))
-	if retried.Generation != 2 || retried.Attempts != 0 {
-		t.Fatalf("retried = %+v", retried)
-	}
-	// An old, unconfirmed dispatch cannot execute a fresh generation.
-	var calls int
-	h := handlers(func(context.Context, Job) error { calls++; return nil })
-	noError(t, q.process(ctx, dispatch(failed), h))
-	if calls != 0 {
-		t.Fatal("old generation ran")
-	}
-	noError(t, q.process(ctx, dispatch(retried), h))
-	noError(t, q.process(ctx, dispatch(retried), h))
-	if calls != 1 {
-		t.Fatalf("calls = %d; a lost acknowledgement must not repeat a completed handler", calls)
-	}
-	if _, err := q.Retry(ctx, job.ID, RetryVersion(job)); !errors.Is(err, ErrNotRetryable) {
-		t.Fatalf("retry succeeded job = %v", err)
+	if job := awaitStatus(t, q, "slow", Succeeded); job.Attempts != 2 {
+		t.Fatalf("slow job = %+v", job)
 	}
 }
 
-func TestQueueConcurrentClaimsAndRetry(t *testing.T) {
-	q, _ := testQueue(t)
+func TestQueueKeepsFailureAndRetriesOnce(t *testing.T) {
+	var failed []Job
+	var mu sync.Mutex
+	q, consumer := testQueue(t, Options{OnFailed: func(_ context.Context, job Job) {
+		mu.Lock()
+		defer mu.Unlock()
+		failed = append(failed, job)
+	}})
 	ctx := t.Context()
-	spec := testSpec("concurrent")
-	spec.MaxAttempts = 1
-	noError(t, q.Enqueue(ctx, spec))
-	job := must(q.Get(ctx, spec.ID))
-	entered, release := make(chan struct{}), make(chan struct{})
 	var calls atomic.Int32
-	h := handlers(func(context.Context, Job) error {
+	var succeed atomic.Bool
+	runView(t, q)
+	runWorker(t, q, consumer, func(context.Context, Job) error {
 		calls.Add(1)
-		close(entered)
-		<-release
-		return &Failure{Category: "unavailable"}
-	})
-	done := make(chan error, 1)
-	go func() { done <- q.process(ctx, dispatch(job), h) }()
-	<-entered
-	// A concurrent dispatch waits for a recheck without a second attempt.
-	if err := q.process(ctx, dispatch(job), h); err == nil {
-		t.Fatal("concurrent dispatch was acknowledged while the job was held")
+		if succeed.Load() {
+			return nil
+		}
+		return errors.New("secret detail")
+	}, 2)
+	spec := testSpec("bad")
+	spec.MaxAttempts = 2
+	noError(t, q.Enqueue(ctx, spec))
+	job := awaitStatus(t, q, "bad", Failed)
+	if job.Attempts != 2 || job.Failure != "attempt_failed" || calls.Load() != 2 {
+		t.Fatalf("failed job = %+v, calls = %d", job, calls.Load())
 	}
-	if calls.Load() != 1 {
-		t.Fatalf("calls = %d", calls.Load())
+	mu.Lock()
+	if len(failed) != 1 || string(failed[0].Payload) != "ref-bad" || failed[0].Failure != "attempt_failed" || failed[0].Attempts != 2 {
+		t.Fatalf("OnFailed = %+v", failed)
 	}
-	close(release)
-	noError(t, <-done)
+	mu.Unlock()
+	if _, err := q.Retry(ctx, "bad", "stale"); !errors.Is(err, ErrNotRetryable) {
+		t.Fatalf("retry with wrong version = %v", err)
+	}
+	if _, err := q.Retry(ctx, "missing", "x"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("retry missing = %v", err)
+	}
+
+	// Concurrent operator actions on the same view start one budget.
+	succeed.Store(true)
+	version := RetryVersion(job)
 	var accepted atomic.Int32
 	var wg sync.WaitGroup
-	for range 8 {
+	for range 6 {
 		wg.Go(func() {
-			if _, err := q.Retry(ctx, job.ID, RetryVersion(job)); err == nil {
+			if _, err := q.Retry(ctx, "bad", version); err == nil {
 				accepted.Add(1)
 			} else if !errors.Is(err, ErrNotRetryable) {
-				t.Errorf("retry error = %v", err)
+				t.Errorf("retry = %v", err)
 			}
 		})
 	}
 	wg.Wait()
 	if accepted.Load() != 1 {
-		t.Fatalf("accepted retries = %d, want 1", accepted.Load())
+		t.Fatalf("accepted retries = %d", accepted.Load())
+	}
+	done := awaitStatus(t, q, "bad", Succeeded)
+	if done.Attempts != 1 || calls.Load() != 3 {
+		t.Fatalf("retried job = %+v, calls = %d", done, calls.Load())
+	}
+	if _, err := q.Retry(ctx, "bad", version); !errors.Is(err, ErrNotRetryable) {
+		t.Fatalf("stale retry = %v", err)
 	}
 }
 
-func TestQueueRepairsRecordWithoutDispatch(t *testing.T) {
-	q, c := testQueue(t)
+func TestQueueStopsOnPermanentFailureAndDeadline(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()
-	now := timestamppb.Now()
-	data := must(proto.Marshal(&jobpb.JobRecord{
-		Id: "outbox", Type: "work", Status: jobpb.JobStatus_JOB_STATUS_QUEUED, Generation: 1,
-		MaxAttempts: 3, RetryDelayMillis: 1, CreatedAt: now, NextAttemptAt: now,
-	}))
-	must(q.kv.Create(ctx, q.key("outbox"), data))
-	runQueue(t, q, c, handlers(func(context.Context, Job) error { return nil }), 1)
-	awaitStatus(t, q, "outbox", Succeeded)
-}
-
-func TestQueueRecoversExpiredClaimAndPreservesDeadline(t *testing.T) {
-	q, _ := testQueue(t)
-	ctx := t.Context()
-	noError(t, q.Enqueue(ctx, testSpec("interrupted")))
-	record, revision, err := q.read(ctx, "interrupted")
-	noError(t, err)
-	record.Status = jobpb.JobStatus_JOB_STATUS_RUNNING
-	record.Attempts = 1
-	record.LeaseUntil = timestamppb.New(time.Now().Add(-time.Second))
-	must(q.save(ctx, record, revision))
-	calls := 0
-	h := handlers(func(context.Context, Job) error { calls++; return nil })
-	noError(t, q.process(ctx, dispatch(jobFromRecord(record)), h))
-	if calls != 1 {
-		t.Fatalf("calls = %d", calls)
+	var calls atomic.Int32
+	runView(t, q)
+	runWorker(t, q, consumer, func(context.Context, Job) error {
+		calls.Add(1)
+		return &Failure{Category: "invalid_request", Permanent: true}
+	}, 2)
+	noError(t, q.Enqueue(ctx, testSpec("permanent")))
+	if job := awaitStatus(t, q, "permanent", Failed); job.Attempts != 1 || job.Failure != "invalid_request" {
+		t.Fatalf("permanent = %+v", job)
 	}
-	expiredSpec := testSpec("expired")
-	expiredSpec.ExpiresAt = time.Now().Add(-time.Minute)
-	noError(t, q.Enqueue(ctx, expiredSpec))
-	noError(t, q.process(ctx, dispatch(must(q.Get(ctx, "expired"))), h))
-	expired := must(q.Get(ctx, "expired"))
-	if calls != 1 || expired.Status != Failed || expired.Failure != "expired" {
-		t.Fatalf("expired = %+v, calls = %d", expired, calls)
+	expired := testSpec("expired")
+	expired.ExpiresAt = time.Now().Add(-time.Minute)
+	noError(t, q.Enqueue(ctx, expired))
+	job := awaitStatus(t, q, "expired", Failed)
+	if job.Attempts != 0 || job.Failure != "expired" || calls.Load() != 1 {
+		t.Fatalf("expired = %+v, calls = %d", job, calls.Load())
 	}
-	if _, err := q.Retry(ctx, expired.ID, RetryVersion(expired)); !errors.Is(err, ErrNotRetryable) {
+	// A manual retry never extends the deadline.
+	if _, err := q.Retry(ctx, "expired", RetryVersion(job)); !errors.Is(err, ErrNotRetryable) {
 		t.Fatalf("retry expired = %v", err)
 	}
 }
 
-func TestQueueListOrdersByUpdateAndFiltersStatus(t *testing.T) {
-	q, c := testQueue(t)
+func TestQueueRetryKeepsSpecificationAndRejectsStaleVersion(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()
-	must(q.kv.Put(ctx, "other", []byte("private")))
-	for _, id := range []string{"z-first", "a-second", "m-failed"} {
-		spec := testSpec(id)
-		spec.MaxAttempts = 1
-		noError(t, q.Enqueue(ctx, spec))
-		time.Sleep(2 * time.Millisecond)
-	}
-	runQueue(t, q, c, handlers(func(_ context.Context, job Job) error {
-		if job.ID == "m-failed" {
-			return &Failure{Category: "broken", Permanent: true}
-		}
-		return nil
-	}), 1)
-	awaitStatus(t, q, "m-failed", Failed)
-	awaitStatus(t, q, "a-second", Succeeded)
-	awaitStatus(t, q, "z-first", Succeeded)
-	var all []Job
-	cursor := ""
-	for {
-		page, next, err := q.List(ctx, ListOptions{Limit: 2, Cursor: cursor})
-		noError(t, err)
-		all = append(all, page...)
-		if next == "" {
-			break
-		}
-		cursor = next
-	}
-	if len(all) != 3 {
-		t.Fatalf("listed %d jobs, want 3 without other keys", len(all))
-	}
-	for i := 1; i < len(all); i++ {
-		if all[i].UpdatedAt.After(all[i-1].UpdatedAt) {
-			t.Fatalf("jobs not newest first: %+v", all)
-		}
-	}
-	for _, job := range all {
-		if job.Payload != nil {
-			t.Fatal("list exposed a payload")
-		}
-	}
-	failed, next, err := q.List(ctx, ListOptions{Status: Failed, Limit: 10})
+	var payloads []string
+	var mu sync.Mutex
+	runView(t, q)
+	runWorker(t, q, consumer, func(_ context.Context, job Job) error {
+		mu.Lock()
+		defer mu.Unlock()
+		payloads = append(payloads, string(job.Payload))
+		return &Failure{Category: "boom", Permanent: true}
+	}, 1)
+	noError(t, q.Enqueue(ctx, testSpec("again")))
+	first := awaitStatus(t, q, "again", Failed)
+	retried, err := q.Retry(ctx, "again", RetryVersion(first))
 	noError(t, err)
-	if next != "" || len(failed) != 1 || failed[0].ID != "m-failed" {
-		t.Fatalf("failed filter = %+v, %q", failed, next)
+	if retried.Status == Failed || retried.MaxAttempts != 3 || !retried.CreatedAt.Equal(first.CreatedAt) {
+		t.Fatalf("retried = %+v", retried)
 	}
-	if _, _, err := q.List(ctx, ListOptions{Limit: 1, Cursor: "garbage"}); err == nil {
-		t.Fatal("invalid cursor accepted")
+	var second Job
+	for second = awaitStatus(t, q, "again", Failed); second.Revision == first.Revision; second = awaitStatus(t, q, "again", Failed) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The first view is stale: its budget already ran and failed again.
+	if _, err = q.Retry(ctx, "again", RetryVersion(first)); !errors.Is(err, ErrNotRetryable) {
+		t.Fatalf("stale retry = %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(payloads) != 2 || payloads[0] != "ref-again" || payloads[1] != "ref-again" {
+		t.Fatalf("payloads = %v", payloads)
 	}
 }
 
-// A job that waits for a retry must not hold consumer capacity. With one
-// pending dispatch allowed, a later job still runs while the first one waits.
-func TestQueueRetryWaitHoldsNoConsumerCapacity(t *testing.T) {
-	q, _ := testQueue(t)
+func TestQueueListOrdersByUpdateFiltersAndPages(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()
-	stream := must(q.js.Stream(ctx, "JOBS"))
-	consumer := must(stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Durable: "narrow", FilterSubjects: q.FilterSubjects("work"), AckPolicy: jetstream.AckExplicitPolicy,
-		AckWait: 2 * time.Minute, MaxDeliver: -1, MaxAckPending: 1,
-	}))
-	waiting := testSpec("a-waiting")
-	waiting.RetryDelay = time.Hour
-	noError(t, q.Enqueue(ctx, waiting))
-	runQueue(t, q, consumer, handlers(func(_ context.Context, job Job) error {
-		if job.ID == waiting.ID {
-			return &Failure{Category: "unavailable"}
+	runView(t, q)
+	runWorker(t, q, consumer, func(_ context.Context, job Job) error {
+		if job.ID == "b" {
+			return &Failure{Category: "boom", Permanent: true}
 		}
 		return nil
-	}), 1)
-	deadline := time.Now().Add(5 * time.Second)
-	for job := must(q.Get(ctx, waiting.ID)); job.Attempts != 1; job = must(q.Get(ctx, waiting.ID)) {
-		if time.Now().After(deadline) {
-			t.Fatalf("first attempt did not run: %+v", job)
+	}, 1)
+	for _, id := range []string{"a", "b", "c"} {
+		noError(t, q.Enqueue(ctx, testSpec(id)))
+		if id == "b" {
+			awaitStatus(t, q, id, Failed)
+		} else {
+			awaitStatus(t, q, id, Succeeded)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	noError(t, q.Enqueue(ctx, testSpec("b-later")))
-	awaitStatus(t, q, "b-later", Succeeded)
+	ids := func(jobs []Job) (out string) {
+		for _, job := range jobs {
+			out += job.ID
+		}
+		return out
+	}
+	all, next, err := q.List(ctx, ListOptions{Limit: 10})
+	noError(t, err)
+	if ids(all) != "cba" || next != "" {
+		t.Fatalf("all = %s, next = %q", ids(all), next)
+	}
+	failed, _, err := q.List(ctx, ListOptions{Limit: 10, Status: Failed})
+	noError(t, err)
+	if ids(failed) != "b" {
+		t.Fatalf("failed = %s", ids(failed))
+	}
+	first, next, err := q.List(ctx, ListOptions{Limit: 2})
+	noError(t, err)
+	second, last, err := q.List(ctx, ListOptions{Limit: 2, Cursor: next})
+	noError(t, err)
+	if ids(first) != "cb" || ids(second) != "a" || next == "" || last != "" {
+		t.Fatalf("pages = %s, %s; cursors = %q, %q", ids(first), ids(second), next, last)
+	}
+	if _, _, err = q.List(ctx, ListOptions{Limit: 2, Cursor: "bad"}); err == nil {
+		t.Fatal("invalid cursor accepted")
+	}
+	if _, _, err = q.List(ctx, ListOptions{}); err == nil {
+		t.Fatal("zero limit accepted")
+	}
 }
 
-func TestQueueIndexDropsExpiredRecords(t *testing.T) {
-	js := startTestNATS(t)
+func TestQueueViewRebuildsFromRetainedFacts(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()
-	stream := must(js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, Storage: jetstream.MemoryStorage, MaxMsgsPerSubject: 1}))
-	bucket := must(js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "STATE", LimitMarkerTTL: time.Hour}))
-	kv := must(jetstreamutil.NewKeyValue(js, bucket))
-	q := must(New(js, kv, Options{KeyPrefix: "job.", SubjectPrefix: "jobs", SucceededRetention: time.Second}))
-	consumer := must(stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{Durable: "jobs", FilterSubjects: q.FilterSubjects("work"), AckPolicy: jetstream.AckExplicitPolicy, MaxDeliver: -1}))
-	noError(t, q.Enqueue(ctx, testSpec("short-lived")))
-	runQueue(t, q, consumer, handlers(func(context.Context, Job) error { return nil }), 1)
-	awaitStatus(t, q, "short-lived", Succeeded)
-	deadline := time.Now().Add(10 * time.Second)
-	for {
+	runView(t, q)
+	stop := runWorker(t, q, consumer, func(_ context.Context, job Job) error {
+		if job.ID == "bad" {
+			return &Failure{Category: "boom", Permanent: true}
+		}
+		return nil
+	}, 1)
+	noError(t, q.Enqueue(ctx, testSpec("good")))
+	noError(t, q.Enqueue(ctx, testSpec("bad")))
+	good := awaitStatus(t, q, "good", Succeeded)
+	bad := awaitStatus(t, q, "bad", Failed)
+	stop()
+	noError(t, q.Enqueue(ctx, testSpec("waiting")))
+
+	// A second process sees the same jobs, also the one with only its success.
+	other := must(New(q.js, q.stream, Options{SubjectPrefix: "jobs"}))
+	runView(t, other)
+	rebuiltGood := awaitStatus(t, other, "good", Succeeded)
+	if rebuiltGood.Attempts != 1 || rebuiltGood.MaxAttempts != 3 || !rebuiltGood.CreatedAt.Equal(good.CreatedAt) {
+		t.Fatalf("rebuilt success = %+v, want %+v", rebuiltGood, good)
+	}
+	if rebuilt := awaitStatus(t, other, "bad", Failed); RetryVersion(rebuilt) != RetryVersion(bad) || rebuilt.Failure != "boom" {
+		t.Fatalf("rebuilt failure = %+v, want %+v", rebuilt, bad)
+	}
+	awaitStatus(t, other, "waiting", Queued)
+}
+
+func TestQueueViewDropsJobsThatTheStreamNoLongerRetains(t *testing.T) {
+	q, consumer := testQueue(t, Options{SucceededRetention: time.Minute})
+	ctx := t.Context()
+	runView(t, q)
+	stop := runWorker(t, q, consumer, func(_ context.Context, job Job) error {
+		if job.ID == "bad" {
+			return &Failure{Category: "boom", Permanent: true}
+		}
+		return nil
+	}, 1)
+	noError(t, q.Enqueue(ctx, testSpec("good")))
+	noError(t, q.Enqueue(ctx, testSpec("bad")))
+	awaitStatus(t, q, "good", Succeeded)
+	awaitStatus(t, q, "bad", Failed)
+	stop()
+	noError(t, q.Enqueue(ctx, testSpec("waiting")))
+	awaitStatus(t, q, "waiting", Queued)
+
+	listed := func() int {
 		jobs, _, err := q.List(ctx, ListOptions{Limit: 10})
 		noError(t, err)
-		if len(jobs) == 0 {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("expired job still listed: %+v", jobs)
-		}
-		time.Sleep(50 * time.Millisecond)
+		return len(jobs)
+	}
+	q.sweep()
+	if listed() != 3 {
+		t.Fatalf("jobs = %d, want all three before any limit", listed())
+	}
+	// After the succeeded retention, only the success goes.
+	q.now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+	q.sweep()
+	if _, err := q.Get(ctx, "good"); !errors.Is(err, ErrNotFound) || listed() != 2 {
+		t.Fatalf("after retention: get = %v, jobs = %d", err, listed())
+	}
+	// After the maximum age of the stream, the other jobs go too. Only the
+	// unfinished one is reported.
+	unfinished := q.view.sweep(time.Now().Add(2*time.Hour), q.maxAge, time.Minute)
+	if len(unfinished) != 1 || unfinished[0].ID != "waiting" || listed() != 0 {
+		t.Fatalf("unfinished = %+v, jobs = %d", unfinished, listed())
 	}
 }
 
-// A retry may be accepted even when dispatch publication fails. Recovery must
-// use the accepted generation instead of rejecting or resetting that retry.
-func TestQueueRepairsAcceptedRetryAfterPublishFailure(t *testing.T) {
-	q, consumer := testQueue(t)
+func TestQueueShutdownRepeatsInterruptedAttemptAndKeepsFinishedOne(t *testing.T) {
+	q, consumer := testQueue(t, Options{})
 	ctx := t.Context()
-	noError(t, q.Enqueue(ctx, testSpec("retry-outbox")))
-	record, revision, err := q.read(ctx, "retry-outbox")
-	noError(t, err)
-	record.Status = jobpb.JobStatus_JOB_STATUS_FAILED
-	must(q.save(ctx, record, revision))
-	publisher := &failNextPublish{JetStream: q.js}
-	publisher.fail.Store(true)
-	q.js = publisher
-	accepted := must(q.Retry(ctx, "retry-outbox", RetryVersion(jobFromRecord(record))))
-	if accepted.Generation != 2 {
-		t.Fatalf("generation = %d", accepted.Generation)
-	}
-	runQueue(t, q, consumer, handlers(func(_ context.Context, attempt Job) error {
-		if attempt.Generation != 2 {
-			t.Errorf("attempt generation = %d", attempt.Generation)
+	runView(t, q)
+	started := make(chan string, 4)
+	var calls atomic.Int32
+	handler := func(ctx context.Context, job Job) error {
+		calls.Add(1)
+		started <- job.ID
+		<-ctx.Done()
+		if job.ID == "finished" {
+			// The effect completed just before the cancellation.
+			return nil
 		}
+		return ctx.Err()
+	}
+	stop := runWorker(t, q, consumer, handler, 2)
+	noError(t, q.Enqueue(ctx, testSpec("interrupted")))
+	noError(t, q.Enqueue(ctx, testSpec("finished")))
+	<-started
+	<-started
+	stop()
+	if job := awaitStatus(t, q, "finished", Succeeded); job.Attempts != 1 {
+		t.Fatalf("finished = %+v", job)
+	}
+	if job := must(q.Get(ctx, "interrupted")); job.Status != Running {
+		t.Fatalf("interrupted = %+v, want no recorded outcome", job)
+	}
+	// Another worker takes the interrupted job over. The interrupted delivery
+	// counts as an attempt.
+	runWorker(t, q, consumer, func(context.Context, Job) error { return nil }, 1)
+	if job := awaitStatus(t, q, "interrupted", Succeeded); job.Attempts != 2 || calls.Load() != 2 {
+		t.Fatalf("interrupted = %+v, calls = %d", job, calls.Load())
+	}
+}
+
+func TestQueueFailsDeliveryBeyondTheAttemptBudget(t *testing.T) {
+	q, _ := testQueue(t, Options{})
+	ctx := t.Context()
+	runView(t, q)
+	noError(t, q.Enqueue(ctx, testSpec("lost")))
+	msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.lost.queued"))
+	// A delivery past the budget: earlier deliveries ended without an outcome.
+	err := q.process(ctx, eventsDelivery(msg, 4), func(context.Context, Job) error {
+		t.Error("handler must not run")
 		return nil
-	}), 1)
-	awaitStatus(t, q, "retry-outbox", Succeeded)
-}
-
-type failNextPublish struct {
-	jetstream.JetStream
-	fail atomic.Bool
-}
-
-func (p *failNextPublish) Publish(ctx context.Context, subject string, data []byte, opts ...jetstream.PublishOpt) (*jetstream.PubAck, error) {
-	if p.fail.Swap(false) {
-		return nil, errors.New("simulated dispatch outage")
-	}
-	return p.JetStream.Publish(ctx, subject, data, opts...)
-}
-
-func TestQueueGracefulShutdownReleasesClaim(t *testing.T) {
-	q, _ := testQueue(t)
-	noError(t, q.Enqueue(t.Context(), testSpec("shutdown")))
-	job := must(q.Get(t.Context(), "shutdown"))
-	entered := make(chan struct{})
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan error, 1)
-	go func() {
-		done <- q.process(ctx, dispatch(job), handlers(func(ctx context.Context, _ Job) error { close(entered); <-ctx.Done(); return ctx.Err() }))
-	}()
-	<-entered
-	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("process = %v", err)
-	}
-	record, _, err := q.read(t.Context(), job.ID)
+	})
 	noError(t, err)
-	// The interrupted attempt does not count against the budget.
-	if record.Status != jobpb.JobStatus_JOB_STATUS_QUEUED || record.LeaseUntil != nil || record.Attempts != 0 {
-		t.Fatalf("released = %+v", record)
-	}
-	noError(t, q.process(t.Context(), dispatch(jobFromRecord(record)), handlers(func(context.Context, Job) error { return nil })))
-	awaitStatus(t, q, job.ID, Succeeded)
-}
-
-func TestQueueLostOwnershipCannotPersistCompletion(t *testing.T) {
-	q, _ := testQueue(t)
-	noError(t, q.Enqueue(t.Context(), testSpec("fenced")))
-	job := must(q.Get(t.Context(), "fenced"))
-	entered, release := make(chan struct{}), make(chan struct{})
-	done := make(chan error, 1)
-	go func() {
-		done <- q.process(t.Context(), dispatch(job), handlers(func(context.Context, Job) error { close(entered); <-release; return nil }))
-	}()
-	<-entered
-	claimed, revision, err := q.read(t.Context(), job.ID)
-	noError(t, err)
-	claimed.Owner = "replacement-owner"
-	must(q.save(t.Context(), claimed, revision))
-	close(release)
-	if err := <-done; err == nil {
-		t.Fatal("stale owner persisted completion")
-	}
-	current, _, err := q.read(t.Context(), job.ID)
-	noError(t, err)
-	if current.Status != jobpb.JobStatus_JOB_STATUS_RUNNING || current.Owner != "replacement-owner" {
-		t.Fatalf("current = %+v", current)
+	if job := awaitStatus(t, q, "lost", Failed); job.Attempts != 3 || job.Failure != "attempts_exhausted" {
+		t.Fatalf("job = %+v", job)
 	}
 }
 
-func TestQueueRetryWaitDoesNotOutliveOriginalDeadline(t *testing.T) {
-	q, _ := testQueue(t)
-	ctx := t.Context()
-	spec := testSpec("deadline-wait")
-	spec.ExpiresAt = time.Now().Add(time.Minute).Truncate(time.Microsecond)
-	spec.RetryDelay = 30 * time.Minute
-	noError(t, q.Enqueue(ctx, spec))
-	job := must(q.Get(ctx, spec.ID))
-	// A failed attempt acknowledges its dispatch; Run publishes the next one.
-	noError(t, q.process(ctx, dispatch(job), handlers(func(context.Context, Job) error { return &Failure{Category: "unavailable"} })))
-	pending := must(q.Get(ctx, job.ID))
-	if pending.Status != Queued || !pending.NextAttemptAt.Equal(job.ExpiresAt) {
-		t.Fatalf("pending = %+v, want next attempt at deadline %v", pending, job.ExpiresAt)
+func TestViewAppliesFactsInOrder(t *testing.T) {
+	v := &view{jobs: map[string]*entry{}}
+	at := time.Now().Truncate(time.Second)
+	fact := func(f *jobpb.JobFact, offset time.Duration) *jobpb.JobFact {
+		f.Id, f.Type = "j", "work"
+		f.OccurredAt, f.CreatedAt = timestamppb.New(at.Add(offset)), timestamppb.New(at)
+		return f
 	}
-}
-
-// Interleaving: two operators view failed budget 1, the first retries it, and
-// budget 2 fails before the second request arrives. An ID-only retry would
-// start budget 3. The original version must reject that stale action.
-func TestQueueRejectsStaleRetryAfterNewBudgetAlreadyFailed(t *testing.T) {
-	q, _ := testQueue(t)
-	ctx := t.Context()
-	spec := testSpec("stale-retry")
-	spec.MaxAttempts = 1
-	noError(t, q.Enqueue(ctx, spec))
-	job := must(q.Get(ctx, spec.ID))
-	fail := handlers(func(context.Context, Job) error { return &Failure{Category: "http_error"} })
-	noError(t, q.process(ctx, dispatch(job), fail))
-	version := RetryVersion(job)
-	accepted := must(q.Retry(ctx, job.ID, version))
-	noError(t, q.process(ctx, dispatch(accepted), fail))
-	newer := must(q.Get(ctx, job.ID))
-	if newer.Status != Failed || RetryVersion(newer) == version {
-		t.Fatalf("newer = %+v", newer)
+	// Leftover facts of a job without its specification describe no job.
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: 1}}}, 0), 1))
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 1}}}, 0), 2))
+	if _, ok := v.get("j"); ok {
+		t.Fatal("leftover facts created a job")
 	}
-	if _, err := q.Retry(ctx, job.ID, version); !errors.Is(err, ErrNotRetryable) {
-		t.Fatalf("stale retry = %v", err)
+	spec := &jobpb.JobSpec{MaxAttempts: 2, RetryDelayMillis: 5}
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Queued{Queued: &jobpb.JobQueued{Spec: spec}}}, 0), 3))
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: 1}}}, time.Second), 4))
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 1, Failure: "boom"}}}, 2*time.Second), 5))
+	// A late progress fact of a repeated delivery changes only the revision.
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: 2}}}, 3*time.Second), 6))
+	e, _ := v.get("j")
+	if e.job.Status != Failed || e.job.Attempts != 1 || e.job.Failure != "boom" || e.job.Revision != 6 || e.specSeq != 3 || !e.job.UpdatedAt.Equal(at.Add(2*time.Second)) {
+		t.Fatalf("after failure = %+v", e)
 	}
-	current := must(q.Get(ctx, job.ID))
-	if current.Generation != 2 {
-		t.Fatalf("generation = %d", current.Generation)
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Retried{Retried: &jobpb.JobRetried{Spec: spec}}}, 4*time.Second), 7))
+	e, _ = v.get("j")
+	if e.job.Status != Queued || e.job.Attempts != 0 || e.job.Failure != "" || e.specSeq != 7 || !e.job.CreatedAt.Equal(at) {
+		t.Fatalf("after retry = %+v", e)
 	}
-	must(q.Retry(ctx, job.ID, RetryVersion(current)))
-}
-
-func TestQueueExpiresOnlySucceededRecords(t *testing.T) {
-	q, c := testQueue(t)
-	ctx := t.Context()
-	ok, failed := testSpec("expires-ok"), testSpec("keeps-failed")
-	failed.MaxAttempts = 1
-	noError(t, q.Enqueue(ctx, ok))
-	noError(t, q.Enqueue(ctx, failed))
-	runQueue(t, q, c, handlers(func(_ context.Context, job Job) error {
-		if job.ID == failed.ID {
-			return &Failure{Category: "broken", Permanent: true}
-		}
-		return nil
-	}), 2)
-	awaitStatus(t, q, ok.ID, Succeeded)
-	awaitStatus(t, q, failed.ID, Failed)
-	stream := must(q.js.Stream(ctx, "KV_STATE"))
-	ttl := func(id string) string {
-		msg := must(stream.GetLastMsgForSubject(ctx, "$KV.STATE."+q.key(id)))
-		return msg.Header.Get(jetstream.MsgTTLHeader)
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_AttemptFailed{AttemptFailed: &jobpb.JobAttemptFailed{Attempt: 1, Failure: "slow", NextAttemptAt: timestamppb.New(at.Add(time.Minute))}}}, 5*time.Second), 8))
+	e, _ = v.get("j")
+	if e.job.Status != Queued || e.job.Failure != "slow" || !e.job.NextAttemptAt.Equal(at.Add(time.Minute)) {
+		t.Fatalf("after failed attempt = %+v", e)
 	}
-	if ttl(ok.ID) == "" {
-		t.Fatal("succeeded record must expire")
-	}
-	if ttl(failed.ID) != "" {
-		t.Fatal("failed record must stay for inspection")
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: 2, MaxAttempts: 2}}}, 6*time.Second), 9))
+	// A failure after the success is a leftover of a repeated delivery.
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 3}}}, 7*time.Second), 10))
+	e, _ = v.get("j")
+	if e.job.Status != Succeeded || e.job.Attempts != 2 || e.job.Failure != "" || !e.job.NextAttemptAt.IsZero() {
+		t.Fatalf("after success = %+v", e)
 	}
 }
 
 func TestNewRejectsInvalidOptions(t *testing.T) {
 	js := startTestNATS(t)
-	bucket := must(js.CreateKeyValue(t.Context(), jetstream.KeyValueConfig{Bucket: "STATE"}))
-	kv := must(jetstreamutil.NewKeyValue(js, bucket))
-	for _, opts := range []Options{
-		{KeyPrefix: "job", SubjectPrefix: "jobs"},
-		{KeyPrefix: "job.", SubjectPrefix: "jobs."},
-		{KeyPrefix: "job.", SubjectPrefix: "jobs.>"},
-		{KeyPrefix: "job.", SubjectPrefix: "jobs", SucceededRetention: -time.Second},
+	ctx := t.Context()
+	stream := must(js.CreateStream(ctx, testStreamConfig()))
+	for name, opts := range map[string]Options{
+		"empty prefix":    {},
+		"wildcard prefix": {SubjectPrefix: "jobs.>"},
+		"trailing dot":    {SubjectPrefix: "jobs."},
+		"short retention": {SubjectPrefix: "jobs", SucceededRetention: time.Millisecond},
 	} {
-		if _, err := New(js, kv, opts); err == nil {
-			t.Errorf("New(%+v) succeeded", opts)
+		if _, err := New(js, stream, opts); err == nil {
+			t.Errorf("%s: New accepted invalid options", name)
 		}
 	}
-}
-
-type countingPublisher struct {
-	jetstream.JetStream
-	count atomic.Int32
-}
-
-func (p *countingPublisher) Publish(ctx context.Context, subject string, data []byte, opts ...jetstream.PublishOpt) (*jetstream.PubAck, error) {
-	p.count.Add(1)
-	return p.JetStream.Publish(ctx, subject, data, opts...)
-}
-
-// A record update publishes only that record. A backlog of due jobs waiting for
-// a worker must not be published again on every change.
-func TestQueueUpdatePublishesOnlyTheChangedJob(t *testing.T) {
-	q, _ := testQueue(t)
-	ctx, cancel := context.WithCancel(t.Context())
-	publisher := &countingPublisher{JetStream: q.js}
-	q.js = publisher
-	done := make(chan error, 1)
-	go func() { done <- q.Run(ctx) }()
-	t.Cleanup(func() { cancel(); <-done })
-	for i := range 20 {
-		noError(t, q.Enqueue(t.Context(), testSpec(fmt.Sprintf("backlog-%02d", i))))
+	plain := must(js.CreateStream(ctx, jetstream.StreamConfig{Name: "PLAIN", Subjects: []string{"plain.>"}, Storage: jetstream.MemoryStorage}))
+	if _, err := New(js, plain, Options{SubjectPrefix: "plain"}); err == nil {
+		t.Error("New accepted a stream without per-message TTLs")
 	}
-	waitForListed := func(n int) {
-		t.Helper()
-		deadline := time.Now().Add(5 * time.Second)
-		for {
-			jobs, _, err := q.List(t.Context(), ListOptions{Limit: 100})
-			noError(t, err)
-			if len(jobs) == n {
-				return
-			}
-			if time.Now().After(deadline) {
-				t.Fatalf("listed %d jobs, want %d", len(jobs), n)
-			}
-			time.Sleep(5 * time.Millisecond)
+	q := must(New(js, stream, Options{SubjectPrefix: "jobs"}))
+	for name, spec := range map[string]Spec{
+		"bad id":      {ID: "a.b", Type: "work", MaxAttempts: 1, RetryDelay: time.Second},
+		"bad type":    {ID: "a", Type: "wo rk", MaxAttempts: 1, RetryDelay: time.Second},
+		"no attempts": {ID: "a", Type: "work", RetryDelay: time.Second},
+		"no delay":    {ID: "a", Type: "work", MaxAttempts: 1},
+	} {
+		if err := q.Enqueue(ctx, spec); err == nil {
+			t.Errorf("%s: Enqueue accepted an invalid specification", name)
 		}
 	}
-	waitForListed(20)
-	time.Sleep(100 * time.Millisecond)
-	before := publisher.count.Load()
-	noError(t, q.Enqueue(t.Context(), testSpec("backlog-new")))
-	waitForListed(21)
-	time.Sleep(100 * time.Millisecond)
-	// One publish from Enqueue and at most one from the watcher.
-	if published := publisher.count.Load() - before; published > 2 {
-		t.Fatalf("one enqueue caused %d publishes behind a backlog of 20", published)
+	if got := q.FilterSubjects("a", "b"); len(got) != 4 || got[0] != "jobs.a.*.queued" || got[3] != "jobs.b.*.retried" {
+		t.Fatalf("FilterSubjects = %v", got)
 	}
-}
-
-// A handler that finished before shutdown has a real outcome. Releasing it
-// would let another worker repeat finished work, such as a sent webhook.
-func TestQueueShutdownRecordsFinishedAttempt(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		result error
-		want   jobpb.JobStatus
-	}{
-		{name: "success", result: nil, want: jobpb.JobStatus_JOB_STATUS_SUCCEEDED},
-		{name: "permanent failure", result: &Failure{Category: "rejected", Permanent: true}, want: jobpb.JobStatus_JOB_STATUS_FAILED},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			q, _ := testQueue(t)
-			noError(t, q.Enqueue(t.Context(), testSpec("finished")))
-			job := must(q.Get(t.Context(), "finished"))
-			ctx, cancel := context.WithCancel(t.Context())
-			// The handler ignores cancellation and returns its own result.
-			err := q.process(ctx, dispatch(job), handlers(func(context.Context, Job) error { cancel(); return tc.result }))
-			if !errors.Is(err, context.Canceled) {
-				t.Fatalf("process = %v", err)
-			}
-			record, _, err := q.read(t.Context(), job.ID)
-			noError(t, err)
-			if record.Status != tc.want || record.Attempts != 1 {
-				t.Fatalf("record = %+v, want status %v after one attempt", record, tc.want)
-			}
-		})
-	}
-}
-
-// A job that waits for a retry gets its dispatch from Run when it is due. A
-// repeated handoff must not publish a dispatch that would wait unacknowledged.
-func TestQueueRepeatedEnqueueDoesNotDispatchWaitingRetry(t *testing.T) {
-	q, _ := testQueue(t)
-	spec := testSpec("waiting")
-	noError(t, q.Enqueue(t.Context(), spec))
-	record, revision, err := q.read(t.Context(), spec.ID)
-	noError(t, err)
-	record.Attempts = 1
-	record.NextAttemptAt = timestamppb.New(time.Now().Add(time.Hour))
-	must(q.save(t.Context(), record, revision))
-	publisher := &countingPublisher{JetStream: q.js}
-	q.js = publisher
-	noError(t, q.Enqueue(t.Context(), spec))
-	if published := publisher.count.Load(); published != 0 {
-		t.Fatalf("repeated enqueue published %d dispatches for a waiting retry", published)
-	}
-}
-
-// A dispatch whose record is absent, or whose status this version does not
-// know, is acknowledged without running the handler.
-func TestQueueAcknowledgesDispatchThatCannotRun(t *testing.T) {
-	q, _ := testQueue(t)
-	ran := false
-	h := handlers(func(context.Context, Job) error { ran = true; return nil })
-	noError(t, q.process(t.Context(), dispatch(Job{ID: "missing", Generation: 1}), h))
-
-	noError(t, q.Enqueue(t.Context(), testSpec("future")))
-	record, revision, err := q.read(t.Context(), "future")
-	noError(t, err)
-	record.Status = jobpb.JobStatus(99)
-	must(q.save(t.Context(), record, revision))
-	noError(t, q.process(t.Context(), dispatch(jobFromRecord(record)), h))
-	if ran {
-		t.Fatal("handler ran for a dispatch that cannot run")
-	}
-	current, _, err := q.read(t.Context(), "future")
-	noError(t, err)
-	if current.Status != jobpb.JobStatus(99) || current.Attempts != 0 {
-		t.Fatalf("record = %+v", current)
-	}
-}
-
-// A dispatch for a job that another worker holds is checked again soon, so a
-// graceful handoff does not wait for the lease to expire.
-func TestQueueRechecksDispatchOfHeldJob(t *testing.T) {
-	q, _ := testQueue(t)
-	noError(t, q.Enqueue(t.Context(), testSpec("held")))
-	record, revision, err := q.read(t.Context(), "held")
-	noError(t, err)
-	record.Status = jobpb.JobStatus_JOB_STATUS_RUNNING
-	record.Attempts = 1
-	record.LeaseUntil = timestamppb.New(time.Now().Add(leaseDuration))
-	must(q.save(t.Context(), record, revision))
-	err = q.process(t.Context(), dispatch(jobFromRecord(record)), handlers(func(context.Context, Job) error { return nil }))
-	if err == nil {
-		t.Fatal("dispatch of a held job was acknowledged")
-	}
-	if _, terminated := events.TerminationReason(err); terminated {
-		t.Fatalf("dispatch of a held job was terminated: %v", err)
+	if Backoff(time.Second, 1) != time.Second || Backoff(time.Second, 3) != 4*time.Second || Backoff(time.Minute, 30) != 30*time.Minute {
+		t.Fatal("Backoff must double from the initial delay to the cap")
 	}
 }

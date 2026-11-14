@@ -163,8 +163,7 @@ private-listener, storage-path, logging, and deployment policy.
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
-| `AUTHLING_JOBS` | Stream | File, one message per subject, seven-day maximum age | `authling.jobs.>` | Background job dispatch references for the shared `pkg/jobs` queue |
-| `AUTHLING_JOB_STATE` | KV bucket | File, history 1, per-key TTL | `job.{id}` | Current job records. Succeeded records expire after seven days; failed and unfinished records stay |
+| `AUTHLING_JOBS` | Stream | File, no maximum age, per-message TTLs | `authling.jobs.>` | Background job facts for the shared `pkg/jobs` queue. Succeeded facts expire after three days; facts of failed and unfinished jobs stay |
 
 `AUTHLING_EVT` enables JetStream atomic publication for multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
@@ -578,8 +577,10 @@ the decision, purges the user key then its wrapped data key from
 `AUTHLING_KEYS`, and appends `AccountErasedEvent` with account OCC. Repeated
 purges and repeated completion attempts are safe. The request remains the retry
 authority if a reply is lost or the process stops. Processes on multiple
-replicas share both consumers; job record revisions, not consumer cursors,
-coordinate execution. Errors do not include protected data.
+replicas share both consumers. The two-minute acknowledgement wait of the
+`authling-jobs` consumer is the claim on a job, and a progress heartbeat
+renews it. Authling does not run the job view. Errors do not include protected
+data.
 
 The account key vault does not cache unwrapped keys. Historical ciphertext and
 PII-free structure remain in the event stream. Workflow-key-encrypted email
