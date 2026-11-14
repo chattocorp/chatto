@@ -54,12 +54,11 @@ rendering to `SubjectPermissionsMatrix`.
   const serverScope = useServerScope();
 
   const matrixQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = userId;
     const isBot = ownerCapped;
     return {
-      queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
+      queryKey: adminQueryKeys.userPermissions(serverScope, activeUserId),
       queryFn: async ({ signal }) => {
         // Cache refreshes can run before reactive query options update.
         const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
@@ -160,11 +159,10 @@ rendering to `SubjectPermissionsMatrix`.
     if (!data || visibleUpdatingKey || scope.kind !== 'ROOM' || !scope.membership) return;
     if (joined ? !scope.membership.canJoin : !scope.membership.canLeave) return;
     const generation = ++mutationGeneration;
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = data.userId;
     const context = activeUserId;
-    const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
+    const queryKey = adminQueryKeys.userPermissions(serverScope, activeUserId);
     updatingKey = `${scope.id}::$membership`;
     mutationContext = context;
     mutationError = null;
@@ -195,11 +193,10 @@ rendering to `SubjectPermissionsMatrix`.
     if (!data || visibleUpdatingKey) return;
     const refreshMembership = data.scopes.some((scope) => scope.membership);
     const generation = ++mutationGeneration;
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = data.userId;
     const context = activeUserId;
-    const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
+    const queryKey = adminQueryKeys.userPermissions(serverScope, activeUserId);
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
     mutationContext = context;

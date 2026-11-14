@@ -92,18 +92,15 @@
         .confirmEmailVerification(scope.userId, address, submittedCode);
       clearPendingEmailVerification(scope.serverId, scope.userId, address);
       if (!isCurrentEmailScope(scope)) return;
-      queryClient.setQueryData(
-        settingsQueryKeys.verifiedEmails(scope.serverId, scope.connection, scope.userId),
-        emails
-      );
+      queryClient.setQueryData(settingsQueryKeys.verifiedEmails(scope, scope.userId), emails);
       const memberLists = {
-        queryKey: adminQueryKeys.membersRoot(scope.serverId, scope.connection)
+        queryKey: adminQueryKeys.membersRoot(scope)
       };
       void queryClient
         .cancelQueries(memberLists)
         .then(() => queryClient.invalidateQueries(memberLists));
       void queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
+        queryKey: adminQueryKeys.member(scope, scope.userId),
         exact: true
       });
       if (isCurrentEmailContext(scope)) pendingEmail = '';

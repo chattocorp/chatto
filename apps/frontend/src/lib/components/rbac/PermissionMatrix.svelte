@@ -147,17 +147,11 @@ focusing a cell highlights its permission row and role column.
   const serverScope = useServerScope();
 
   const matrixQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeRoomId = roomId ?? null;
     const activeGroupId = groupId ?? null;
     return {
-      queryKey: adminQueryKeys.permissionTier(
-        serverId,
-        activeConnection,
-        activeRoomId,
-        activeGroupId
-      ),
+      queryKey: adminQueryKeys.permissionTier(serverScope, activeRoomId, activeGroupId),
       queryFn: ({ signal }) =>
         activeConnection
           .getAPI(createPermissionAPI)
@@ -296,14 +290,8 @@ focusing a cell highlights its permission row and role column.
   async function cycle(role: TierRole, permission: string, next: State) {
     const generation = privacyGeneration;
     if (!data) return;
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
-    const queryKey = adminQueryKeys.permissionTier(
-      serverId,
-      activeConnection,
-      roomId ?? null,
-      groupId ?? null
-    );
+    const queryKey = adminQueryKeys.permissionTier(serverScope, roomId ?? null, groupId ?? null);
     const mutationScope = scopeFor(role);
     const cellKey = `${role.roleName}::${permission}`;
     const context = mutationContext(spaceId ?? null, roomId ?? null, groupId ?? null);
@@ -345,9 +333,9 @@ focusing a cell highlights its permission row and role column.
       };
     });
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, role.roleName)
+      queryKey: adminQueryKeys.rolePermissions(serverScope, role.roleName)
     });
-    invalidateRolePermissionDependents(serverId, activeConnection, role.roleName);
+    invalidateRolePermissionDependents(serverScope, role.roleName);
     updating = updating.filter((key) => key !== pendingKey);
   }
 </script>

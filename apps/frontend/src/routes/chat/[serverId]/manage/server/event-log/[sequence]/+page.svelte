@@ -23,11 +23,10 @@
   const sequence = $derived(page.params.sequence!);
   const activeServerId = serverScope.serverId;
   const entryQuery = createQuery(() => {
-    const serverId = activeServerId;
     const activeConnection = serverScope.connection;
     const eventSequence = sequence;
     return {
-      queryKey: adminQueryKeys.event(serverId, activeConnection, eventSequence),
+      queryKey: adminQueryKeys.event(serverScope, eventSequence),
       queryFn: ({ signal }) =>
         activeConnection.getAPI(createAdminEventLogAPI).getEvent(eventSequence, { signal })
     };

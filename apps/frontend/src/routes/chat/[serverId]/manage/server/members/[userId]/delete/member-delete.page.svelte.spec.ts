@@ -191,7 +191,7 @@ describe('server member delete modal', () => {
     await vi.waitFor(() => expect(api.getMember).toHaveBeenCalledWith('bob', expect.anything()));
     await settle();
 
-    const bobKey = adminQueryKeys.member('server-1', server.scope.connection, 'bob');
+    const bobKey = adminQueryKeys.member(server.scope, 'bob');
     expect(queryClient.getQueryData(bobKey)).toEqual(details(member('bob')));
 
     deletion.resolve();
@@ -252,7 +252,7 @@ describe('server member delete modal', () => {
     const rendered = await renderPage();
     await settle();
 
-    const membersKey = adminQueryKeys.member('server-1', server.scope.connection, 'alice');
+    const membersKey = adminQueryKeys.member(server.scope, 'alice');
     queryClient.setQueryData(membersKey, details(member('alice')));
 
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;

@@ -23,7 +23,7 @@
   const rolesQuery = createQuery(() => {
     const connection = scope.connection;
     return {
-      queryKey: adminQueryKeys.roleCatalog(scope.serverId, connection),
+      queryKey: adminQueryKeys.roleCatalog(scope),
       queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
     };
   });

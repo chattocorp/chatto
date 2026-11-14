@@ -1,16 +1,14 @@
 import type { InfiniteData } from '@tanstack/svelte-query';
+import { flattenUniquePages } from './pagination';
 import type { QueryKey } from '@tanstack/svelte-query';
 import type {
   FollowedThread,
   FollowedThreadsPage,
   ThreadRootAuthorFilter
 } from '@chatto/client/api/threads';
-import type { ServerConnection } from '@chatto/client/server/serverConnection';
-import { serverSessionQueryRoot } from './keys';
+import { serverSessionQueryRoot, type QueryKeyScope } from './keys';
 import { queryClient } from './queryClient';
 import { queryCaches } from './cacheRegistry';
-
-type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
 
 export type FollowedThreadsQueryPage = FollowedThreadsPage & {
   /** Next list offset, preserved across reconciliation; search uses nextCursor. */
@@ -27,8 +25,8 @@ export type ThreadSummaryUpdate = {
   hasUnreadReplies?: boolean;
 };
 
-function threadRoot(serverId: string, connection: ThreadQueryConnection) {
-  return [...serverSessionQueryRoot(serverId, connection), 'threads'] as const;
+function threadRoot(scope: QueryKeyScope) {
+  return [...serverSessionQueryRoot(scope), 'threads'] as const;
 }
 
 export const threadQueryKeys = {
@@ -38,8 +36,7 @@ export const threadQueryKeys = {
    * describe the complete follow projection.
    */
   followed(
-    serverId: string,
-    connection: ThreadQueryConnection,
+    scope: QueryKeyScope,
     filter: {
       query?: string;
       unreadOnly?: boolean;
@@ -47,7 +44,7 @@ export const threadQueryKeys = {
       order?: 'activity' | 'created';
     } = {}
   ) {
-    const root = [...threadRoot(serverId, connection), 'followed'] as const;
+    const root = [...threadRoot(scope), 'followed'] as const;
     const authorBase = filter.rootAuthorFilter
       ? ([...root, 'root-author', filter.rootAuthorFilter] as const)
       : root;
@@ -65,14 +62,10 @@ export function followedThreadKey(roomId: string, threadRootEventId: string): st
 
 /** Flatten live pages without rendering a duplicate returned across page boundaries. */
 export function flattenFollowedThreads(data: FollowedThreadsData | undefined): FollowedThread[] {
-  const seen = new Set<string>();
-  return (data?.pages ?? []).flatMap((page) =>
-    page.threads.filter((thread) => {
-      const key = followedThreadKey(thread.roomId, thread.threadRootEventId);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
+  return flattenUniquePages(
+    data,
+    (page) => page.threads,
+    (thread) => followedThreadKey(thread.roomId, thread.threadRootEventId)
   );
 }
 

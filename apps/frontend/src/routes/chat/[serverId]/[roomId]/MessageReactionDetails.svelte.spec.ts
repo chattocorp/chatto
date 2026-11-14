@@ -124,7 +124,7 @@ describe('message reaction details', () => {
     await expect.element(q(container, '[role="tabpanel"]')).toHaveTextContent('Alice');
 
     const rosterRoot = [
-      ...serverSessionQueryRoot('server-1', { queryScope: 'session-1' }),
+      ...serverSessionQueryRoot({ serverId: 'server-1', connection: { queryScope: 'session-1' } }),
       'message-reaction-users'
     ];
     expect(queryClient.getQueryCache().findAll({ queryKey: rosterRoot })).toHaveLength(1);

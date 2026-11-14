@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
+  import { nextOffset } from '$lib/query/pagination';
   import { type InfiniteData } from '@tanstack/svelte-query';
   import { SvelteSet } from 'svelte/reactivity';
   import {
@@ -52,26 +53,22 @@
   }
 
   const securityQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.securityConfig(serverId, connection),
+      queryKey: adminQueryKeys.securityConfig(serverScope),
       queryFn: ({ signal }) => getServerSecurityConfig(connection.apiConfig, { signal })
     };
   });
 
   const oauthClientsQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.oauthClients(serverId, connection),
+      queryKey: adminQueryKeys.oauthClients(serverScope),
       queryFn: ({ pageParam, signal }) =>
         connection.getAPI(createOAuthClientAPI).list(pageParam, PAGE_SIZE, { signal }),
       initialPageParam: 0,
-      getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.oauthClients.length > 0
-          ? lastPageParam + lastPage.oauthClients.length
-          : undefined
+      getNextPageParam: (lastPage, _pages, offset) =>
+        nextOffset(lastPage.hasMore, lastPage.oauthClients.length, offset)
     };
   });
 
@@ -94,7 +91,7 @@
       connection.getAPI(createOAuthClientAPI).updatePolicy(clientId, policy),
     onSuccess: (client, variables) => {
       if (!session.isCurrent(variables)) return;
-      const queryKey = adminQueryKeys.oauthClients(variables.serverId, variables.connection);
+      const queryKey = adminQueryKeys.oauthClients(variables);
       queryClient.setQueryData<InfiniteData<OAuthClientPage, number>>(queryKey, (current) =>
         current
           ? {
@@ -152,7 +149,7 @@
     const snapshot = session.snapshot();
     securityMutation.mutate({
       ...snapshot,
-      queryKey: adminQueryKeys.securityConfig(snapshot.serverId, snapshot.connection),
+      queryKey: adminQueryKeys.securityConfig(snapshot),
       blockedUsernames
     });
   }

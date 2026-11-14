@@ -35,11 +35,10 @@ Permissions pages through `botDetailContext`.
   const backHref = resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment });
 
   const botQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const targetBotId = botId;
     return {
-      queryKey: settingsQueryKeys.bot(serverId, connection, targetBotId),
+      queryKey: settingsQueryKeys.bot(serverScope, targetBotId),
       queryFn: ({ signal }) => connection.getAPI(createBotAPI).getBot(targetBotId, { signal }),
       enabled: !!targetBotId
     };
@@ -56,7 +55,7 @@ Permissions pages through `botDetailContext`.
 
   function invalidateBots() {
     void queryClient.invalidateQueries({
-      queryKey: settingsQueryKeys.botsRoot(serverScope.serverId, serverScope.connection)
+      queryKey: settingsQueryKeys.botsRoot(serverScope)
     });
   }
 
@@ -80,10 +79,7 @@ Permissions pages through `botDetailContext`.
       return layoutActive && serverScope.isCurrent() && mutationTarget === botId;
     },
     cacheBot(updated: Bot) {
-      queryClient.setQueryData(
-        settingsQueryKeys.bot(serverScope.serverId, serverScope.connection, updated.id),
-        updated
-      );
+      queryClient.setQueryData(settingsQueryKeys.bot(serverScope, updated.id), updated);
       invalidateBots();
     },
     refreshBot: invalidateBots

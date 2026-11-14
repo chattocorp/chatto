@@ -134,8 +134,7 @@ describe('PermissionMatrix', () => {
       .click();
     await settle();
     const key = adminQueryKeys.permissionTier(
-      'server-test',
-      { queryScope: 'permission-matrix-test' },
+      { serverId: 'server-test', connection: { queryScope: 'permission-matrix-test' } },
       null,
       null
     );
@@ -566,7 +565,10 @@ describe('PermissionMatrix', () => {
 
   it('invalidates cached user matrices after a role permission changes', async () => {
     const connection = { queryScope: 'permission-matrix-test' };
-    const userPermissionKey = adminQueryKeys.userPermissions('server-test', connection, 'member-1');
+    const userPermissionKey = adminQueryKeys.userPermissions(
+      { serverId: 'server-test', connection },
+      'member-1'
+    );
     queryClient.setQueryData(userPermissionKey, { effective: 'stale' });
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();

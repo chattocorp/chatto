@@ -1,5 +1,6 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { nextOffset } from '$lib/query/pagination';
   import { page } from '$app/state';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInvitationCodeAPI, type InvitationCode } from '$lib/api/invitations';
@@ -62,11 +63,10 @@
   }
 
   const invitationsQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
       queryKey: [
-        ...adminQueryKeys.invitations(serverId, connection),
+        ...adminQueryKeys.invitations(serverScope),
         { all: serverScope.store.permissions.canManageInvites }
       ],
       queryFn: async ({ pageParam, signal }) => {
@@ -80,10 +80,8 @@
         return result;
       },
       initialPageParam: 0,
-      getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.invitationCodes.length > 0
-          ? lastPageParam + lastPage.invitationCodes.length
-          : undefined
+      getNextPageParam: (lastPage, _pages, offset) =>
+        nextOffset(lastPage.hasMore, lastPage.invitationCodes.length, offset)
     };
   });
 
@@ -102,7 +100,7 @@
     onSuccess: async () => {
       closeCreateDialog();
       await queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
+        queryKey: adminQueryKeys.invitations(serverScope)
       });
       toast.success(m('admin.invitations.created'));
     },
@@ -115,7 +113,7 @@
     onSuccess: async () => {
       revokeTarget = null;
       await queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
+        queryKey: adminQueryKeys.invitations(serverScope)
       });
       toast.success(m('admin.invitations.revoked'));
     },

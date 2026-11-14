@@ -45,7 +45,7 @@ export function messagePreviewQueryKey(
   messageId: string
 ) {
   return [
-    ...serverSessionQueryRoot(serverId, connection),
+    ...serverSessionQueryRoot({ serverId, connection }),
     'message-preview',
     roomId,
     messageId

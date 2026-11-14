@@ -6,7 +6,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { SvelteSet } from 'svelte/reactivity';
+  import { flattenUniquePages } from '$lib/query/pagination';
   import { Code, ConnectError } from '@chatto/client/api/connect';
   import { createReactionAPI } from '@chatto/client/api/reactions';
   import { createUserAPI, type UserSummary } from '@chatto/client/api/users';
@@ -70,7 +70,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
     const emoji = activeEmoji;
     return {
       queryKey: [
-        ...serverSessionQueryRoot(serverScope.serverId, connection),
+        ...serverSessionQueryRoot(serverScope),
         'message-reaction-users',
         roomId,
         messageEventId,
@@ -103,18 +103,13 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
     };
   });
 
-  const rows = $derived.by(() => {
-    const seen = new SvelteSet<string>();
-    return (usersQuery.data?.pages ?? []).flatMap((page) =>
-      page.emoji === activeEmoji
-        ? page.rows.filter((row) => {
-            if (seen.has(row.id)) return false;
-            seen.add(row.id);
-            return true;
-          })
-        : []
-    );
-  });
+  const rows = $derived(
+    flattenUniquePages(
+      usersQuery.data,
+      (page) => (page.emoji === activeEmoji ? page.rows : []),
+      (row) => row.id
+    )
+  );
   const accessLost = $derived(
     usersQuery.error instanceof ConnectError &&
       [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(usersQuery.error.code)

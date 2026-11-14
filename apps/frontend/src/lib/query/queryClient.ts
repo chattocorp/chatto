@@ -8,7 +8,13 @@
  */
 
 import { Code, ConnectError } from '@connectrpc/connect';
-import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
+import {
+  QueryCache,
+  QueryClient,
+  type InfiniteData,
+  type QueryFilters,
+  type QueryKey
+} from '@tanstack/svelte-query';
 import type { RoomSuspensionList } from '@chatto/client/api/rooms';
 import { queryCaches } from './cacheRegistry';
 import { serverQueryRoot } from './keys';
@@ -66,6 +72,23 @@ export const queryClient = new QueryClient({
     }
   }
 });
+
+/** Match every admin query of one server, in any session. */
+function isAdminQueryForServer(key: QueryKey, serverId: string): boolean {
+  return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';
+}
+
+/**
+ * Remove private data that the viewer can no longer read.
+ *
+ * Cancel the reads first, so a late response cannot restore the data. Set the
+ * data to `null` for mounted observers, then remove the cache entries.
+ */
+export function purgeQueries(filters: QueryFilters): void {
+  void queryClient.cancelQueries(filters);
+  queryClient.setQueriesData(filters, null);
+  queryClient.removeQueries(filters);
+}
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
@@ -136,20 +159,14 @@ export function refreshRoleQueries(serverId: string): void {
 
 export function removeAdminQueries(serverId: string): void {
   void queryClient.resetQueries({
-    predicate: (query) => {
-      const key = query.queryKey;
-      return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';
-    }
+    predicate: (query) => isAdminQueryForServer(query.queryKey, serverId)
   });
 }
 
 /** Refresh active admin snapshots after effective privilege state changes. */
 export function refreshAdminQueries(serverId: string): void {
   const filters = {
-    predicate: (query: { queryKey: QueryKey }) => {
-      const key = query.queryKey;
-      return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';
-    }
+    predicate: (query: { queryKey: QueryKey }) => isAdminQueryForServer(query.queryKey, serverId)
   };
   // Cancel first loads too: invalidation alone can reuse a pending response
   // from before the privilege change.
@@ -160,9 +177,7 @@ export function refreshAdminQueries(serverId: string): void {
 
 export function removeAdminUserQueries(serverId: string, userId: string): void {
   const isAdminUserQuery = (key: QueryKey): boolean =>
-    key[0] === 'server' &&
-    key[1] === serverId &&
-    key[4] === 'admin' &&
+    isAdminQueryForServer(key, serverId) &&
     (key[5] === 'members' ||
       key[5] === 'role-members' ||
       (key[5] === 'member' && key[6] === userId) ||
@@ -178,15 +193,8 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
 
   queryClient.setQueriesData<InfiniteData<RoomSuspensionList, number>>(
     {
-      predicate: (query) => {
-        const key = query.queryKey;
-        return (
-          key[0] === 'server' &&
-          key[1] === serverId &&
-          key[4] === 'admin' &&
-          key[5] === 'suspensions'
-        );
-      }
+      predicate: (query) =>
+        isAdminQueryForServer(query.queryKey, serverId) && query.queryKey[5] === 'suspensions'
     },
     (data) =>
       data
@@ -210,41 +218,24 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
   queryClient.setQueriesData<{
     pages: Array<{ users: Array<{ id: string }> }>;
     pageParams: unknown[];
-  }>(
-    {
-      predicate: (query) => {
-        return isMemberListQuery(query.queryKey);
-      }
-    },
-    (data) =>
-      data
-        ? {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              users: page.users.filter((user) => user.id !== userId)
-            }))
-          }
-        : data
+  }>({ predicate: (query) => isMemberListQuery(query.queryKey) }, (data) =>
+    data
+      ? {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            users: page.users.filter((user) => user.id !== userId)
+          }))
+        }
+      : data
   );
-  queryClient.setQueriesData(
-    {
-      predicate: (query) => {
-        return isDeletedUserSnapshot(query.queryKey);
-      }
-    },
-    null
-  );
+  queryClient.setQueriesData({ predicate: (query) => isDeletedUserSnapshot(query.queryKey) }, null);
   queryClient.removeQueries({
     predicate: (query) => isDeletedUserSnapshot(query.queryKey)
   });
   void queryClient.invalidateQueries({
     predicate: (query) => isMemberListQuery(query.queryKey)
   });
-}
-
-function isAdminQueryForServer(key: QueryKey, serverId: string): boolean {
-  return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';
 }
 
 function permissionTierScope(key: QueryKey): { roomId?: unknown; groupId?: unknown } | null {
@@ -274,10 +265,8 @@ export function reconcileAdminRoomGroupQueries(
     return typeof groupId === 'string' && !visible.has(groupId);
   };
   const groupQueries = queryClient.getQueryCache().findAll({
-    predicate: (query) => {
-      const key = query.queryKey;
-      return isAdminQueryForServer(key, serverId) && key[5] === 'room-group';
-    }
+    predicate: (query) =>
+      isAdminQueryForServer(query.queryKey, serverId) && query.queryKey[5] === 'room-group'
   });
 
   for (const query of groupQueries) {
@@ -294,16 +283,7 @@ export function reconcileAdminRoomGroupQueries(
   }
 
   // Permission matrices can outlive their detail query, so scrub them independently.
-  void queryClient.cancelQueries({
-    predicate: (query) => isRemovedGroupPermissions(query.queryKey)
-  });
-  queryClient.setQueriesData(
-    { predicate: (query) => isRemovedGroupPermissions(query.queryKey) },
-    null
-  );
-  queryClient.removeQueries({
-    predicate: (query) => isRemovedGroupPermissions(query.queryKey)
-  });
+  purgeQueries({ predicate: (query) => isRemovedGroupPermissions(query.queryKey) });
 }
 
 queryCaches.server = {

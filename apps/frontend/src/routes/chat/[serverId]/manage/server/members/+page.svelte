@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { flattenUniquePages, nextOffset } from '$lib/query/pagination';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { accountManagementHref } from '$lib/navigation/accountManagementHref';
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api/adminUsers';
@@ -11,7 +12,6 @@
   import { formatDate as formatDateUtil, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { SvelteSet } from 'svelte/reactivity';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
@@ -29,33 +29,27 @@
   let scrollContainer = $state<HTMLDivElement>();
 
   const membersQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const search = activeSearch;
     return {
-      queryKey: adminQueryKeys.members(serverId, activeConnection, search),
+      queryKey: adminQueryKeys.members(serverScope, search),
       queryFn: ({ pageParam, signal }) =>
         activeConnection
           .getAPI(createAdminUserManagementAPI)
           .listMembers({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
       initialPageParam: 0,
-      getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.consumedCount > 0
-          ? lastPageParam + lastPage.consumedCount
-          : undefined
+      getNextPageParam: (lastPage, _pages, offset) =>
+        nextOffset(lastPage.hasMore, lastPage.consumedCount, offset)
     };
   });
 
-  const users = $derived.by(() => {
-    const seen = new SvelteSet<string>();
-    return (membersQuery.data?.pages ?? []).flatMap((page) =>
-      page.users.filter((user) => {
-        if (seen.has(user.id)) return false;
-        seen.add(user.id);
-        return true;
-      })
-    );
-  });
+  const users = $derived(
+    flattenUniquePages(
+      membersQuery.data,
+      (page) => page.users,
+      (user) => user.id
+    )
+  );
   // An empty ID page needs no batch read, so retain the last hydrated labels.
   const roles = $derived<AdminRoleSummary[]>(
     membersQuery.data?.pages.findLast((page) => page.roles.length > 0)?.roles ?? []

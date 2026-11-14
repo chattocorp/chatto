@@ -1,45 +1,34 @@
-import type { ServerConnection } from '@chatto/client/server/serverConnection';
-import { serverSessionQueryRoot } from './keys';
+import { serverSessionQueryRoot, type QueryKeyScope } from './keys';
 
-type SettingsQueryConnection = Pick<ServerConnection, 'queryScope'>;
-
-function settingsRoot(serverId: string, connection: SettingsQueryConnection) {
-  return [...serverSessionQueryRoot(serverId, connection), 'settings'] as const;
+function settingsRoot(scope: QueryKeyScope) {
+  return [...serverSessionQueryRoot(scope), 'settings'] as const;
 }
 
-function accountSettingsRoot(
-  serverId: string,
-  connection: SettingsQueryConnection,
-  userId: string
-) {
-  return [...settingsRoot(serverId, connection), 'account', userId] as const;
+function accountSettingsRoot(scope: QueryKeyScope, userId: string) {
+  return [...settingsRoot(scope), 'account', userId] as const;
 }
 
 export const settingsQueryKeys = {
   root: settingsRoot,
-  notificationPoliciesRoot(serverId: string, connection: SettingsQueryConnection) {
-    return [...settingsRoot(serverId, connection), 'notification-policies'] as const;
+  notificationPoliciesRoot(scope: QueryKeyScope) {
+    return [...settingsRoot(scope), 'notification-policies'] as const;
   },
-  notificationPolicies(
-    serverId: string,
-    connection: SettingsQueryConnection,
-    scopes: readonly string[]
-  ) {
-    return [...settingsQueryKeys.notificationPoliciesRoot(serverId, connection), scopes] as const;
+  notificationPolicies(scope: QueryKeyScope, scopes: readonly string[]) {
+    return [...settingsQueryKeys.notificationPoliciesRoot(scope), scopes] as const;
   },
-  externalIdentities(serverId: string, connection: SettingsQueryConnection, userId: string) {
-    return [...accountSettingsRoot(serverId, connection, userId), 'external-identities'] as const;
+  externalIdentities(scope: QueryKeyScope, userId: string) {
+    return [...accountSettingsRoot(scope, userId), 'external-identities'] as const;
   },
-  verifiedEmails(serverId: string, connection: SettingsQueryConnection, userId: string) {
-    return [...accountSettingsRoot(serverId, connection, userId), 'verified-emails'] as const;
+  verifiedEmails(scope: QueryKeyScope, userId: string) {
+    return [...accountSettingsRoot(scope, userId), 'verified-emails'] as const;
   },
-  botsRoot(serverId: string, connection: SettingsQueryConnection) {
-    return [...settingsRoot(serverId, connection), 'bots'] as const;
+  botsRoot(scope: QueryKeyScope) {
+    return [...settingsRoot(scope), 'bots'] as const;
   },
-  bots(serverId: string, connection: SettingsQueryConnection, search: string) {
-    return [...settingsRoot(serverId, connection), 'bots', 'list', search] as const;
+  bots(scope: QueryKeyScope, search: string) {
+    return [...settingsQueryKeys.botsRoot(scope), 'list', search] as const;
   },
-  bot(serverId: string, connection: SettingsQueryConnection, botUserId: string) {
-    return [...settingsRoot(serverId, connection), 'bots', 'detail', botUserId] as const;
+  bot(scope: QueryKeyScope, botUserId: string) {
+    return [...settingsQueryKeys.botsRoot(scope), 'detail', botUserId] as const;
   }
 };

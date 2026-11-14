@@ -698,7 +698,7 @@ describe('room management page identity and realtime authority', () => {
     });
     await settle();
 
-    const queryKey = adminQueryKeys.room('server-a', server.scope.connection, 'shared-room');
+    const queryKey = adminQueryKeys.room(server.scope, 'shared-room');
     expect(queryClient.getQueryData<AdminManagedRoom>(queryKey)?.name).not.toBe('private-name');
     expect(mocks.success).not.toHaveBeenCalled();
   });
@@ -811,7 +811,7 @@ describe('room management page identity and realtime authority', () => {
     await vi.waitFor(() => expect(mocks.success).toHaveBeenCalledTimes(2));
 
     const cached = queryClient.getQueryData<AdminManagedRoom>(
-      adminQueryKeys.room('server-a', server.scope.connection, 'shared-room')
+      adminQueryKeys.room(server.scope, 'shared-room')
     );
     expect(cached?.isUniversal).toBe(true);
     expect(cached?.slowModeSeconds).toBe(10);

@@ -11,6 +11,17 @@ export function serverQueryRoot(serverId: string) {
 }
 
 /**
+ * The server and session that a query key belongs to.
+ *
+ * A `ServerScope` and a `SessionSnapshot` have this shape, so components pass
+ * them directly. Code without a scope passes `{ serverId, connection }`.
+ */
+export type QueryKeyScope = {
+  readonly serverId: string;
+  readonly connection: Pick<ServerConnection, 'queryScope'>;
+};
+
+/**
  * Root for a server read made with one session's credentials.
  *
  * Key every authenticated server read under this root. The session segment
@@ -18,9 +29,6 @@ export function serverQueryRoot(serverId: string) {
  * fixed layout lets cache predicates match `key[2] === 'session'` and the
  * feature segment at `key[4]`.
  */
-export function serverSessionQueryRoot(
-  serverId: string,
-  connection: Pick<ServerConnection, 'queryScope'>
-) {
-  return [...serverQueryRoot(serverId), 'session', connection.queryScope] as const;
+export function serverSessionQueryRoot(scope: QueryKeyScope) {
+  return [...serverQueryRoot(scope.serverId), 'session', scope.connection.queryScope] as const;
 }
