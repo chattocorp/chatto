@@ -151,7 +151,9 @@ test('all release units preserve migration tags and bump independently configure
     'authling/v0.1.1',
     'runling/v0.7.1',
     'translatto/v0.2.1',
-    ...['appconfig', 'datacrypto', 'jetstreamutil', 'jobs', 'natsruntime'].map((p) => `pkg/${p}/v0.0.1`),
+    ...['appconfig', 'datacrypto', 'jetstreamutil', 'jobs', 'natsruntime'].map(
+      (p) => `pkg/${p}/v0.0.1`
+    ),
     'pkg/events/v0.1.1'
   ]) {
     assert.equal(f.git('rev-parse', `${tag}^{}`), released);

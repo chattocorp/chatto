@@ -57,9 +57,14 @@ func waitWebhookOutcome(t *testing.T, c *ChattoCore, owner, bot, status string) 
 func waitWebhookDeliveriesDrained(t *testing.T, c *ChattoCore, replicas ...*ChattoCore) {
 	t.Helper()
 	ctx := testContext(t)
+	// The server updates pending counts asynchronously after a publish, so an
+	// empty consumer alone does not prove handoff. Wait for the acknowledgement
+	// floor to reach the latest posted message.
+	target, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted))
+	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		source, err := c.botWebhooks.sourceConsumer.Info(ctx)
-		if err != nil || source.NumPending != 0 || source.NumAckPending != 0 {
+		if err != nil || source.AckFloor.Stream < target || source.NumPending != 0 || source.NumAckPending != 0 {
 			return false
 		}
 		jobs, _, err := c.jobs.List(ctx, "", 200)
