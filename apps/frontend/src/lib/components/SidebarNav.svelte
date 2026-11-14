@@ -6,9 +6,19 @@
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
 
   export type NavItem = { href: string; label: string; icon: string };
+  /** A command in a navigation group, such as Sign out. It is not a page. */
+  export type NavAction = {
+    id: string;
+    label: string;
+    icon: string;
+    onclick: () => void;
+    disabled?: boolean;
+  };
   export type NavGroup = {
     label: string;
     items: NavItem[];
+    /** Commands after the group's links. */
+    actions?: NavAction[];
     persistKey: string;
   };
   type GroupNavItem = NavItem & { id: string };
@@ -94,7 +104,26 @@
           item={groupedNavItem}
           persistKey={group.persistKey}
           separated={index > 0 || items.length > 0}
-        />
+        >
+          {#snippet footer()}
+            {#if group.actions?.length}
+              <div class="mt-0.5 flex flex-col gap-0.5">
+                {#each group.actions as action (action.id)}
+                  <button
+                    type="button"
+                    class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={action.disabled}
+                    data-testid="sidebar-nav-action-{action.id}"
+                    onclick={action.onclick}
+                  >
+                    <span aria-hidden="true" class="sidebar-icon {action.icon}"></span>
+                    {action.label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          {/snippet}
+        </RoomGroupSection>
       {/each}
     {/if}
   </nav>

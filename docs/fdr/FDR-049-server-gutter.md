@@ -1,7 +1,7 @@
 # FDR-049: Server Gutter
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -30,6 +30,11 @@ frontend. The order belongs to this browser or app installation.
 - If browser storage is unavailable, users can still change the order in
   the current tab.
 - The Add Server action stays at the bottom and opens the Server Directory.
+- A Chatto server shows the gutter in its bundled frontend only when the
+  operator sets `frontend.gutter.enabled` to `true`. The default is
+  `false`. Without the gutter, the frontend shows only its own server, and
+  `/chat/servers` redirects to `/`. The standalone frontend and the desktop
+  app always show the gutter.
 
 ## Design Decisions
 
@@ -54,6 +59,20 @@ origin. Concurrent moves use the last saved order.
 **Why:** This is frontend layout policy under ADR-112. Other clients can
 choose their own layout.
 **Tradeoff:** Each frontend must own its display order.
+
+### 4. Hide the gutter in the bundled frontend by default
+
+**Decision:** The server writes a `chatto-gutter` meta element into the
+bundled frontend document. Its value comes from
+`frontend.gutter.enabled`, which is `false` by default. When the meta
+element is missing, the frontend shows the gutter.
+**Why:** Most members of a server use only that server. Operators can turn on
+the gutter when they want it. The standalone frontend and the
+desktop app exist to connect to many servers, so they keep it.
+**Tradeoff:** Servers that a user added earlier stay in device storage, but
+the bundled frontend shows no control to switch to them while the setting is
+off. Server actions, including Sign out, stay available in the Server Menu of
+the Server Sidebar header and in the settings navigation.
 
 ## Related
 

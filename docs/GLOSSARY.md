@@ -24,6 +24,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter. It controls the position, mobile slide, size, and current-user footer of a server pane. Settings uses the same shell without the server footer when no server is authenticated. The sidebar contains the server banner and room list or the unified Settings navigation. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
 
+**Server Menu** — Menu of actions on one server, such as Server information, Mark as read, and Sign out. Right-click or long-press a Server Gutter icon, or select the server name in the Server Sidebar header, to open it. Implemented in `apps/frontend/src/lib/components/ServerActionsMenu.svelte`.
+
 **Room invitation** — A request for an existing human server member to join a channel room. It appears in the room list and welcome screen, expires after seven days, and grants membership only after acceptance. It is distinct from a server invite link. See [FDR-051](fdr/FDR-051-room-invitations.md).
 
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — _Room View_ is the canonical name.

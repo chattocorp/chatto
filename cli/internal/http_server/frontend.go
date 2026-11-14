@@ -327,6 +327,7 @@ func (s *HTTPServer) serveSPAFallback(c *gin.Context, clientFS fs.FS) bool {
 	defer cancel()
 
 	content = s.injectOpenGraphTags(ctx, content, c.Request.URL.Path)
+	content = s.injectFrontendConfig(content)
 
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	return true
