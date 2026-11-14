@@ -4,6 +4,7 @@
 # Release workflow builds the frontend once, then packages the static output.
 !apps/frontend/build/
 !apps/frontend/nginx.conf
+!docker/frontend-entrypoint.sh
 !LICENSES/
 !LICENSES/Apache-2.0.txt
 !LICENSES/MIT.txt

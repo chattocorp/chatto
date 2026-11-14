@@ -30,11 +30,7 @@ while mounted and discards cached data when the profile closes. -->
   } = $props();
   const scope = useServerScope();
   const query = createQuery(() => ({
-    queryKey: [
-      ...serverSessionQueryRoot(scope.serverId, scope.connection),
-      'bot-permissions',
-      botId
-    ],
+    queryKey: [...serverSessionQueryRoot(scope), 'bot-permissions', botId],
     queryFn: ({ signal }) =>
       scope.connection.getAPI(createEffectivePermissionAPI).listEffectivePermissions(botId, signal),
     refetchInterval: 30_000,
@@ -48,11 +44,7 @@ while mounted and discards cached data when the profile closes. -->
         scope.store.permissions.canManageBots)
   );
   const configuration = createQuery(() => ({
-    queryKey: [
-      ...serverSessionQueryRoot(scope.serverId, scope.connection),
-      'bot-permission-configuration',
-      botId
-    ],
+    queryKey: [...serverSessionQueryRoot(scope), 'bot-permission-configuration', botId],
     enabled: canManage,
     queryFn: async ({ signal }) => {
       const api = scope.connection.getAPI(createPermissionAPI);

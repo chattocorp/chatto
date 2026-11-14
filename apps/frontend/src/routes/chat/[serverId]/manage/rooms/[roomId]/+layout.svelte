@@ -59,11 +59,10 @@ through `roomManagementContext`.
   });
 
   const roomQuery = createQuery(() => {
-    const serverId = activeServerId;
     const connection = serverScope.connection;
     const targetRoomId = roomId;
     return {
-      queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
+      queryKey: adminQueryKeys.room(serverScope, targetRoomId),
       queryFn: async ({ signal }) => {
         const revalidation = pendingMemberRevalidation;
         const room = await connection
@@ -77,7 +76,7 @@ through `roomManagementContext`.
           revalidation.roomId === targetRoomId
         ) {
           pendingMemberRevalidation = null;
-          void invalidateRoomMemberQueries(serverId, connection, targetRoomId);
+          void invalidateRoomMemberQueries(serverScope, targetRoomId);
         }
         return room;
       },
@@ -134,19 +133,19 @@ through `roomManagementContext`.
     if (event.resource?.case === 'rooms') {
       if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
         snapshotGeneration += 1;
-        invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
+        invalidateAdminRoomLayoutQueries(serverScope, roomId);
         return;
       }
       snapshotGeneration += 1;
       session.invalidate();
-      purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
+      purgeAdminRoomQuery(serverScope, roomId);
       return;
     }
     if (event.event?.event.case === 'roomDeleted' && event.event.event.value.roomId === roomId) {
       snapshotGeneration += 1;
       session.invalidate();
       pendingMemberRevalidation = { roomId };
-      purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
+      purgeAdminRoomQuery(serverScope, roomId);
       return;
     }
   });

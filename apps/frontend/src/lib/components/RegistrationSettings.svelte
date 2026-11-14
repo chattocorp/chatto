@@ -14,7 +14,7 @@
 
   const scope = useServerScope();
   const session = createSessionGuard(scope);
-  const key = adminQueryKeys.registrationSettings(scope.serverId, scope.connection);
+  const key = adminQueryKeys.registrationSettings(scope);
   let {
     admission,
     loading,

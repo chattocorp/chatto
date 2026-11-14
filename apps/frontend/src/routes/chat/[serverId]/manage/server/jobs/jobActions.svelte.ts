@@ -45,8 +45,8 @@ export function createJobActions(
   const session = createSessionGuard(scope);
   const connection = scope.connection;
   const api = connection.getAPI(createAdminJobsAPI);
-  const listKey = adminQueryKeys.jobs(scope.serverId, connection);
-  const jobKey = (id: string) => adminQueryKeys.job(scope.serverId, connection, id);
+  const listKey = adminQueryKeys.jobs(scope);
+  const jobKey = (id: string) => adminQueryKeys.job(scope, id);
 
   function reloadList() {
     // The prefix covers the list under every status filter.

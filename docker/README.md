@@ -26,3 +26,24 @@ This directory contains Docker build assets used by CI and release automation.
 
 Copyable deployment examples still live under `examples/`, for example
 `examples/dockercompose/`.
+
+## Standalone frontend OAuth identity
+
+Set `CHATTO_FRONTEND_ORIGIN=https://app.chatto.run` on the `chatto-client`
+container to enable remote Chatto sign-in. Use the public HTTPS origin, with
+an optional port. DNS hostnames are supported; IPv6 literals are not.
+Do not include credentials, a path, a query, or a fragment. A trailing slash
+is accepted. Startup converts the hostname to lowercase and removes port 443.
+
+The entrypoint writes `/usr/share/nginx/html/oauth/frontend-client-metadata.json`
+before it starts Nginx. The file identifies the frontend and registers its
+`/servers/callback?mode=popup` callback. It contains no secrets. Remote Chatto
+servers must be able to fetch this public HTTPS URL. The container needs write
+access to the `oauth` directory at startup.
+
+An invalid value stops startup. An unset or empty value removes the generated
+metadata file and leaves static serving enabled; the metadata URL returns 404.
+Use a different origin for each deployment. No image rebuild is needed.
+
+Run `sh docker/frontend-entrypoint_test.sh` to check metadata generation,
+input validation, restart cleanup, and command forwarding.

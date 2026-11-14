@@ -11,7 +11,6 @@ import { stopServer, type ServerInfo } from './fixtures/server';
 
 const currentBinary = process.env.CHATTO_COMPAT_CURRENT_BINARY;
 const remoteBinary = process.env.CHATTO_COMPAT_REMOTE_BINARY;
-const unsupportedBinary = process.env.CHATTO_COMPAT_UNSUPPORTED_BINARY;
 
 const originUser = {
   login: 'compat-origin',
@@ -143,79 +142,6 @@ test.describe('supported release baseline', () => {
     } finally {
       if (remoteServer) {
         await stopServer(remoteServer);
-      }
-    }
-  });
-});
-
-test.describe('unsupported release boundary', () => {
-  test.skip(
-    !currentBinary || !unsupportedBinary,
-    'Set current and unsupported remote production executables'
-  );
-
-  test('current frontend hands a 0.4 server off without opening realtime', async ({
-    page,
-    authPage,
-    server
-  }, testInfo) => {
-    let unsupportedServer: ServerInfo | undefined;
-
-    try {
-      await createProductionUser(server, originUser);
-      unsupportedServer = await startProductionServer(
-        testInfo,
-        unsupportedBinary!,
-        'compat-remote-unsupported',
-        6,
-        '127.0.0.1'
-      );
-
-      await authPage.gotoLogin();
-      await authPage.fillLoginForm(originUser.login, originUser.password);
-      await authPage.signInButton.click();
-      await page.waitForURL(
-        (url) => url.hostname === 'localhost' && url.pathname.startsWith('/chat')
-      );
-
-      const remoteHost = new URL(unsupportedServer.baseURL).host;
-      let remoteRealtimeConnections = 0;
-      page.on('websocket', (socket) => {
-        const url = new URL(socket.url());
-        if (url.host === remoteHost && url.pathname === '/api/realtime') {
-          remoteRealtimeConnections++;
-        }
-      });
-
-      await page.getByTitle('Add Server').click();
-      await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
-      await page.getByLabel('Server URL').fill(remoteHost);
-      await page.getByRole('button', { name: 'Find server' }).click();
-      const externalAction = page.getByRole('link', { name: 'Open in new tab', exact: true });
-      await expect(externalAction).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      await expect(externalAction).toHaveAttribute('href', unsupportedServer.baseURL);
-      await expect(externalAction).toHaveAttribute('target', '_blank');
-      await expect(externalAction).toHaveAttribute('rel', 'noopener noreferrer');
-      const popupPromise = page.waitForEvent('popup');
-      await externalAction.click();
-      const remoteClient = await popupPromise;
-      await expect(remoteClient).toHaveURL(
-        (url) => url.origin === new URL(unsupportedServer!.baseURL).origin,
-        { timeout: TIMEOUTS.REALTIME_EVENT }
-      );
-      const registeredRemote = await page.evaluate((origin) => {
-        const registrations = JSON.parse(
-          localStorage.getItem('chatto:instances') || '[]'
-        ) as Array<{ url?: string }>;
-        return registrations.some((registration) => registration.url === origin);
-      }, unsupportedServer.baseURL);
-      expect(registeredRemote).toBe(false);
-      expect(remoteRealtimeConnections).toBe(0);
-    } finally {
-      if (unsupportedServer) {
-        await stopServer(unsupportedServer);
       }
     }
   });

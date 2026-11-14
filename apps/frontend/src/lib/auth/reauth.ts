@@ -2,23 +2,8 @@ import { OAuthPopupError } from '$lib/oauth/popupError';
 import { goto, invalidateAll } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
-import {
-  generateCodeChallenge,
-  generateCodeVerifier,
-  generateState,
-  loadAndClearFlowState,
-  saveFlowState
-} from '$lib/oauth/pkce';
-import {
-  isOAuthPopupResponse,
-  oauthPopupChannelName,
-  type OAuthPopupResponse
-} from '$lib/oauth/popup';
-import {
-  authorizationWindowFeatures,
-  openAuthorizationWindow,
-  type AuthorizationWindow
-} from '$lib/oauth/authorizationWindow';
+import { openOAuthPopup, type OAuthPopup, type OAuthPopupResponse } from '$lib/oauth/popup';
+import { authorizationWindowFeatures } from '$lib/oauth/authorizationWindow';
 import { serverRegistry } from '$lib/client';
 import { findServerByUrl } from '$lib/serverCatalogue';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -28,17 +13,20 @@ import { isLoopbackHostname } from '@chatto/client/util/runtimeOrigin';
 import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { saveReturnUrl } from './returnNavigation';
-import { oauthBearerSession, persistedBearerSession } from '@chatto/client/auth/bearerSession';
+import { persistedBearerSession } from '@chatto/client/auth/bearerSession';
+import {
+  exchangeAuthorizationCode,
+  isExpectedOAuthIssuer,
+  pkceCodeChallenge,
+  randomOAuthValue
+} from '@chatto/client/auth/oauth';
 import {
   authorizeNatively,
   hasNativeAuthorization,
   MOBILE_CALLBACK,
   MOBILE_CLIENT_ID
 } from '$lib/desktop/nativeAuthorization';
-import { m } from '$lib/i18n/messages';
 
-const POPUP_POLL_INTERVAL_MS = 250;
-const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const DESKTOP_CLIENT_ID = 'chatto://desktop';
 const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
 
@@ -62,12 +50,12 @@ async function runServerOAuthFlow(
   providerId?: string,
   screenHint?: 'signup'
 ): Promise<void> {
-  const verifier = generateCodeVerifier();
-  const state = generateState();
+  const verifier = randomOAuthValue(64);
+  const state = randomOAuthValue(32);
   if (hasNativeAuthorization()) {
     const info = await serverInfo;
     if (!info.authorizeUrl) throw new Error('This server does not support OAuth sign-in.');
-    const challenge = await generateCodeChallenge(verifier);
+    const challenge = await pkceCodeChallenge(verifier);
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: MOBILE_CLIENT_ID,
@@ -79,6 +67,7 @@ async function runServerOAuthFlow(
       state
     });
     const response = await authorizeNatively(`${serverUrl}${info.authorizeUrl}?${params}`, state);
+    requireResponseFromServer(response, serverUrl);
     if (response.error || !response.code) {
       throw new OAuthPopupError(
         response.errorDescription || response.error || 'Missing authorization code.'
@@ -105,46 +94,26 @@ async function runServerOAuthFlow(
 
   // Open synchronously from the user's click before hashing the PKCE verifier;
   // otherwise browsers may treat the secondary window as an unsolicited popup.
-  const authorizationWindow: AuthorizationWindow | null = openAuthorizationWindow(
-    `chatto-oauth-${state.slice(0, 12)}`,
-    authorizationWindowFeatures(window)
-  );
-  if (!authorizationWindow) {
-    loadAndClearFlowState();
+  let popup: OAuthPopup;
+  try {
+    popup = openOAuthPopup(state, authorizationWindowFeatures(window));
+  } catch (error) {
     // The blocked window replaces any later server-data error.
     serverInfo.catch(() => {});
-    throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
+    throw error;
   }
-
-  const responseChannel = createResponseChannel(state);
-  if (responseChannel) {
-    // The callback returns through BroadcastChannel, so the untrusted remote
-    // page does not need a reference capable of navigating the main client.
-    authorizationWindow.detachOpener();
-  }
-
-  const responseWait = waitForPopupResponse(authorizationWindow, state, responseChannel);
   // The window can close while server data still loads. Observe that early
   // rejection here; the later await still receives it.
-  responseWait.promise.catch(() => {});
+  popup.response.catch(() => {});
 
   try {
     // A deliberate close must end the attempt even while discovery is pending.
     // Both promises stay observed, including a late discovery failure.
-    const info = await Promise.race([serverInfo, responseWait.promise.then(() => serverInfo)]);
+    const info = await Promise.race([serverInfo, popup.response.then(() => serverInfo)]);
     if (!info.authorizeUrl) {
       throw new Error('This server does not support OAuth sign-in.');
     }
-    const flow = {
-      verifier,
-      state,
-      remoteUrl: serverUrl,
-      clientId,
-      serverName: info.name,
-      serverIconUrl: info.iconUrl ?? null
-    };
-    saveFlowState(flow);
-    const challenge = await generateCodeChallenge(verifier);
+    const challenge = await pkceCodeChallenge(verifier);
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
@@ -156,9 +125,10 @@ async function runServerOAuthFlow(
       state
     });
 
-    await authorizationWindow.navigate(`${serverUrl}${info.authorizeUrl}?${params}`);
+    await popup.navigate(`${serverUrl}${info.authorizeUrl}?${params}`);
 
-    const response = await responseWait.promise;
+    const response = await popup.response;
+    requireResponseFromServer(response, serverUrl);
     if (response.error) {
       throw new OAuthPopupError(response.errorDescription || response.error);
     }
@@ -166,14 +136,33 @@ async function runServerOAuthFlow(
       throw new OAuthPopupError('The server did not return an authorization code.');
     }
 
-    const serverId = await completeServerOAuthFlow(flow, response.code, redirectUri);
-    loadAndClearFlowState();
+    // The verifier stays in memory. A page reload cancels the attempt.
+    const serverId = await completeServerOAuthFlow(
+      {
+        verifier,
+        clientId,
+        remoteUrl: serverUrl,
+        serverName: info.name,
+        serverIconUrl: info.iconUrl ?? null
+      },
+      response.code,
+      redirectUri
+    );
     await openSignedInServer(serverId);
   } catch (err) {
-    responseWait.cancel();
-    loadAndClearFlowState();
-    await closeAuthorizationWindow(authorizationWindow);
+    popup.close();
     throw err;
+  }
+}
+
+/**
+ * Stop the sign-in when a different server sent the authorization response.
+ * The code then never reaches the token endpoint of `serverUrl`. See
+ * `isExpectedOAuthIssuer`.
+ */
+function requireResponseFromServer(response: OAuthPopupResponse, serverUrl: string): void {
+  if (!isExpectedOAuthIssuer(response.iss, serverUrl)) {
+    throw new OAuthPopupError('A different server sent the sign-in response.');
   }
 }
 
@@ -184,95 +173,6 @@ async function runServerOAuthFlow(
 async function openSignedInServer(serverId: string): Promise<void> {
   if (getActiveServer() === serverId) return invalidateAll();
   await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
-}
-
-function createResponseChannel(state: string): BroadcastChannel | null {
-  if (typeof BroadcastChannel === 'undefined') return null;
-  return new BroadcastChannel(oauthPopupChannelName(state));
-}
-
-function waitForPopupResponse(
-  authorizationWindow: AuthorizationWindow,
-  state: string,
-  channel: BroadcastChannel | null
-): { promise: Promise<OAuthPopupResponse>; cancel: () => void } {
-  let cancel = () => {};
-  const promise = new Promise<OAuthPopupResponse>((resolveResponse, reject) => {
-    let settled = false;
-
-    const cleanup = () => {
-      window.removeEventListener('message', handleWindowMessage);
-      channel?.close();
-      window.clearInterval(closePoll);
-      window.clearTimeout(timeout);
-    };
-
-    const settle = (response: OAuthPopupResponse) => {
-      if (settled || response.state !== state) return;
-      settled = true;
-      cleanup();
-      void closeAuthorizationWindow(authorizationWindow);
-      resolveResponse(response);
-    };
-
-    const fail = (message: string, reason: 'failed' | 'cancelled' = 'failed') => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new OAuthPopupError(message, reason));
-    };
-
-    cancel = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-    };
-
-    const handleWindowMessage = (event: MessageEvent) => {
-      if (
-        event.origin !== window.location.origin ||
-        !authorizationWindow.messageSource ||
-        event.source !== authorizationWindow.messageSource
-      )
-        return;
-      if (isOAuthPopupResponse(event.data)) settle(event.data);
-    };
-
-    window.addEventListener('message', handleWindowMessage);
-    if (channel) {
-      channel.onmessage = (event) => {
-        if (isOAuthPopupResponse(event.data)) settle(event.data);
-      };
-    }
-
-    let polling = false;
-    const closePoll = window.setInterval(async () => {
-      if (polling || settled) return;
-      polling = true;
-      try {
-        if (await authorizationWindow.isClosed()) {
-          fail('The sign-in window was closed before authorization completed.', 'cancelled');
-        }
-      } catch {
-        fail('The sign-in window could not be inspected.');
-      } finally {
-        polling = false;
-      }
-    }, POPUP_POLL_INTERVAL_MS);
-    const timeout = window.setTimeout(
-      () => fail('The server sign-in attempt timed out.'),
-      POPUP_TIMEOUT_MS
-    );
-  });
-  return { promise, cancel };
-}
-
-async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
-  try {
-    await authorizationWindow.close();
-  } catch {
-    // Closing is best-effort after the flow has already completed or failed.
-  }
 }
 
 /**
@@ -298,30 +198,13 @@ export async function completeServerOAuthFlow(
   // that this client no longer knows.
   if (!findServerByUrl(flow.remoteUrl)) throw new ServerNotRegisteredError();
 
-  const response = await fetch(`${flow.remoteUrl}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
-      code,
-      code_verifier: flow.verifier,
-      redirect_uri: redirectUri,
-      client_id: flow.clientId
-    }),
-    signal: AbortSignal.timeout(10000)
+  const { credentials, user } = await exchangeAuthorizationCode({
+    origin: flow.remoteUrl,
+    code,
+    verifier: flow.verifier,
+    redirectUri,
+    clientId: flow.clientId
   });
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new OAuthPopupError(
-      result.error_description || result.error || m('auth.callback.token_exchange_failed')
-    );
-  }
-  const credentials = oauthBearerSession(result, flow.clientId);
-  if (!credentials) {
-    throw new OAuthPopupError('The server did not return a renewable bearer session.');
-  }
-
   const persistedCredentials = persistedBearerSession(credentials);
 
   // The user can remove the server while the exchange runs.
@@ -333,10 +216,10 @@ export async function completeServerOAuthFlow(
   });
   serverRegistry.replaceServerAuthentication(server.id, {
     ...persistedCredentials,
-    userId: result.user?.id ?? null,
-    userLogin: result.user?.login ?? null,
-    userDisplayName: result.user?.displayName ?? null,
-    userAvatarUrl: result.user?.avatarUrl ?? null,
+    userId: user.id,
+    userLogin: user.login,
+    userDisplayName: user.displayName,
+    userAvatarUrl: user.avatarUrl,
     reauthRequiredAt: null
   });
   resumePushRegistrationAfterAuthentication(server.id);

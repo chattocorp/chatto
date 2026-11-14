@@ -52,15 +52,10 @@
   };
 
   const identitiesQuery = createQuery(() => {
-    const activeServerId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = accountId ?? '';
     return {
-      queryKey: settingsQueryKeys.externalIdentities(
-        activeServerId,
-        activeConnection,
-        activeUserId
-      ),
+      queryKey: settingsQueryKeys.externalIdentities(serverScope, activeUserId),
       queryFn: ({ signal }) => activeConnection.getAPI(createExternalIdentityAPI).list({ signal }),
       enabled: activeUserId !== '',
       // A provider callback returns to this route and must not reuse the pre-link snapshot.

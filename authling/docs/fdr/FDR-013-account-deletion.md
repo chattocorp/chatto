@@ -1,7 +1,7 @@
 # FDR-013: Account Deletion
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -15,7 +15,7 @@ account's encrypted history unreadable in live storage.
   current password and explicit confirmation. Password checks use the existing
   login attempt limits.
 - Accepted deletion ends access from all Authling browser sessions. Pending
-  recovery, identity changes, consent, code exchange, and UserInfo cannot grant
+  recovery, identity changes, consent, code exchange, refresh, and UserInfo cannot grant
   access to the deleted account.
 - Background key erasure resumes after failures and restarts. The result page
   confirms that account access has ended; it does not claim that background
@@ -24,7 +24,7 @@ account's encrypted history unreadable in live storage.
   account ID and OIDC `sub`; it cannot recover the deleted account or its grants.
 - Deletion does not close accounts or sessions in relying-party apps. It does
   not remove data already sent to those apps. An app can still accept an
-  already-issued ID token until that token expires.
+  already-issued ID or JWT access token until that token expires.
 - Opaque IDs, event types, timestamps, key references, client digests, scopes,
   and encrypted event payloads remain in history. The account's email,
   password verifier, profile, and client display metadata become unreadable

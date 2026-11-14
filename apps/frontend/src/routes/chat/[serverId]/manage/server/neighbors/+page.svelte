@@ -55,7 +55,7 @@ polls the cache briefly after a change. See FDR-042.
   let deleteTarget = $state<DeleteVariables | null>(null);
 
   const neighborsQuery = createQuery(() => ({
-    queryKey: adminQueryKeys.neighbors(serverScope.serverId, serverScope.connection),
+    queryKey: adminQueryKeys.neighbors(serverScope),
     queryFn: ({ signal }) => serverScope.connection.getAPI(createNeighborAPI).list({ signal })
   }));
 
@@ -179,7 +179,7 @@ polls the cache briefly after a change. See FDR-042.
     return {
       serverId,
       connection,
-      queryKey: adminQueryKeys.neighbors(serverId, connection)
+      queryKey: adminQueryKeys.neighbors(serverScope)
     };
   }
 

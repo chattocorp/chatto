@@ -796,7 +796,7 @@ describe('MessageComposer', () => {
       ['markdown', ':fre'],
       ['visual', ':fre']
     ] as const)(
-      'cycles every fuzzy match in %s for %s without editing or sending',
+      'navigates fuzzy matches with arrows and confirms with Tab in %s for %s',
       async (kind, query) => {
         userPreferences.composerEditor = kind;
         roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
@@ -815,7 +815,7 @@ describe('MessageComposer', () => {
             members: []
           });
         }
-        const { container } = renderMessageComposer({ roomId: 'fuzzy-tab-cycle' });
+        const { container } = renderMessageComposer({ roomId: 'fuzzy-tab-selection' });
         const editor = await findEditor(container);
         await typeEditorKeys(editor, query);
         await vi.waitFor(() =>
@@ -825,13 +825,17 @@ describe('MessageComposer', () => {
           (item) => item.textContent
         );
         for (let index = 1; index <= labels.length; index++) {
-          await pressEditorKey(editor, 'Tab');
+          await pressEditorKey(editor, 'ArrowDown');
           expect(container.querySelector('.menu-item-active')?.textContent).toBe(
             labels[index % labels.length]
           );
           expect(editor.textContent).toBe(query);
           expect(document.activeElement).toBe(editor);
         }
+        await pressEditorKey(editor, 'Tab');
+        expect(container.querySelector('.menu-item-active')).toBeNull();
+        expect(editor.textContent).not.toBe(query);
+        expect(document.activeElement).toBe(editor);
         expect(mutationMock).not.toHaveBeenCalled();
       }
     );
@@ -1419,7 +1423,7 @@ describe('MessageComposer', () => {
       expect(editor.textContent).toBe('Unchanged draft');
     });
 
-    it('cycles mention highlights with Tab before confirming with Enter', async () => {
+    it('moves mention highlights with arrows before confirming with Tab', async () => {
       roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
       const { container } = renderMessageComposer({ roomId: 'markdown-tab-mention' });
       const editor = await findEditor(container);
@@ -1428,13 +1432,13 @@ describe('MessageComposer', () => {
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
       );
 
-      await userEvent.keyboard('{Tab}');
+      await userEvent.keyboard('{ArrowDown}');
       await vi.waitFor(() => expect(editor.textContent).toBe('@ali'));
       expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alicia');
       expect(document.activeElement).toBe(editor);
-      await userEvent.keyboard('{Tab}');
+      await userEvent.keyboard('{ArrowDown}');
       expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alice');
-      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{Tab}');
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(document.activeElement).toBe(editor);
       expect(mutationMock).not.toHaveBeenCalled();
@@ -1456,7 +1460,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(handles()).toEqual(['@alice', '@alicia']));
     });
 
-    it('cycles through mentions in their priority order', async () => {
+    it('navigates mentions in their priority order and confirms with Tab', async () => {
       roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
       const { container } = renderMessageComposer({
         roomId: 'markdown-priority-mention',
@@ -1473,10 +1477,10 @@ describe('MessageComposer', () => {
       ].map((element) => element.textContent);
       expect(handles).toEqual(['@alicia', '@alice']);
 
-      await userEvent.keyboard('{Tab}');
+      await userEvent.keyboard('{ArrowDown}');
       expect(editor.textContent).toBe('@ali');
       expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alice');
-      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{Tab}');
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
     });
 

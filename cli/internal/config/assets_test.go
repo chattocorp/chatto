@@ -22,6 +22,7 @@ func TestGeneratedConfigOmitsAssetCache(t *testing.T) {
 
 func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
@@ -81,6 +82,7 @@ func TestReadConfig_S3PathPrefixFromTOMLAndEnv(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -166,6 +168,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
+				URL:                 "http://localhost:4000",
 				Port:                4000,
 				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
@@ -481,6 +484,7 @@ func TestSkipSetupWizardConfiguration(t *testing.T) {
 		t.Fatal("setup must default to enabled")
 	}
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", strings.Repeat("a", 64))
 	path := filepath.Join(t.TempDir(), "chatto.toml")
 	if err := os.WriteFile(path, []byte("[core]\nskip_setup_wizard = true\n"), 0600); err != nil {

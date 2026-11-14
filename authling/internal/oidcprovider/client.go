@@ -7,9 +7,11 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
 	"github.com/chattocorp/chatto/authling/internal/config"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -30,7 +32,12 @@ type Client struct {
 	IDValue     string
 	NameValue   string
 	DisplayHost string
-	Redirects   []string
+	// Resources contains exact operator-approved API identifiers.
+	Resources []string
+	// AccessTokenClaims maps a resource to the identity scopes whose claims its
+	// access tokens carry. Only configured clients have entries.
+	AccessTokenClaims map[string][]string
+	Redirects         []string
 	// Method selects the library authentication profile. Configured secret clients
 	// use Basic as their default profile and also accept POST credentials.
 	Method      liboidc.AuthMethod
@@ -38,6 +45,8 @@ type Client struct {
 	Source      ClientSource
 	Development bool
 	// AllowWithoutPKCE is an operator exception for configured confidential clients only.
+	// RefreshAllowed follows the configured policy or explicit CIMD grant_types.
+	RefreshAllowed   bool
 	AllowWithoutPKCE bool
 }
 
@@ -49,7 +58,13 @@ func (c *Client) AuthMethod() liboidc.AuthMethod    { return c.Method }
 func (*Client) ResponseTypes() []liboidc.ResponseType {
 	return []liboidc.ResponseType{liboidc.ResponseTypeCode}
 }
-func (*Client) GrantTypes() []liboidc.GrantType     { return []liboidc.GrantType{liboidc.GrantTypeCode} }
+func (c *Client) GrantTypes() []liboidc.GrantType {
+	types := []liboidc.GrantType{liboidc.GrantTypeCode}
+	if c.RefreshAllowed {
+		types = append(types, liboidc.GrantTypeRefreshToken)
+	}
+	return types
+}
 func (*Client) AccessTokenType() op.AccessTokenType { return op.AccessTokenTypeBearer }
 func (*Client) IDTokenLifetime() time.Duration      { return 5 * time.Minute }
 func (c *Client) DevMode() bool                     { return c.Development }
@@ -72,22 +87,58 @@ func (*Client) LoginURL(requestID string) string {
 // Resolver resolves conventional configuration and CIMD URL client IDs into
 // the same protocol client representation.
 type Resolver struct {
-	configured map[string]*Client
-	cimd       *CIMDResolver
+	reservedResources map[string]bool
+	configured        map[string]*Client
+	cimd              *CIMDResolver
+}
+
+// configuredClientHost is the consent and grant host label of configured clients.
+const configuredClientHost = "configured by this site’s operator"
+
+// CheckGrantCapacity rejects configuration in which one client's reachable
+// resources could exceed the encrypted grant metadata capacity. CIMD clients
+// use the worst-case name and host that CIMD validation admits.
+func CheckGrantCapacity(cfg config.Config) error {
+	for _, declared := range cfg.OIDC.Clients {
+		if err := authorizations.CheckMetadataCapacity(strings.TrimSpace(declared.Name), configuredClientHost, declared.Resources); err != nil {
+			return fmt.Errorf("oidc client %q resources: %w", declared.ID, err)
+		}
+	}
+	if !cfg.OIDC.AllowUnregisteredClients {
+		return nil
+	}
+	var resources []string
+	for _, resource := range cfg.OIDC.Resources {
+		if resource.AllowCIMD {
+			resources = append(resources, resource.URI)
+		}
+	}
+	// Each control character in a name encodes as six JSON bytes.
+	if err := authorizations.CheckMetadataCapacity(strings.Repeat("\x00", maxCIMDClientName), strings.Repeat("a", 253), resources); err != nil {
+		return fmt.Errorf("oidc resources with allow_cimd: %w", err)
+	}
+	return nil
 }
 
 // NewResolver constructs the combined client resolver.
 func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 	configured := make(map[string]*Client, len(cfg.OIDC.Clients))
+	reserved := map[string]bool{strings.TrimSuffix(cfg.HTTP.PublicURLOrDefault(), "/"): true}
+	for _, resource := range cfg.OIDC.Resources {
+		reserved[resource.URI] = true
+	}
 	development := strings.HasPrefix(cfg.HTTP.PublicURLOrDefault(), "http://")
 	for _, declared := range cfg.OIDC.Clients {
+		for _, resource := range declared.Resources {
+			reserved[resource] = true
+		}
 		method := liboidc.AuthMethodNone
 		if declared.Secret != "" {
 			method = liboidc.AuthMethodBasic
 		}
 		configured[declared.ID] = &Client{
-			IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: "configured by this site’s operator",
-			Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
+			RefreshAllowed: declared.AllowRefreshTokens == nil || *declared.AllowRefreshTokens, IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: configuredClientHost,
+			Resources: append([]string(nil), declared.Resources...), AccessTokenClaims: cloneClaims(declared.AccessTokenClaims), Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
 			AllowWithoutPKCE: declared.RequirePKCE != nil && !*declared.RequirePKCE,
 			Secret:           declared.Secret, Source: ClientSourceConfigured, Development: development,
 		}
@@ -95,20 +146,46 @@ func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 	if !cfg.OIDC.AllowUnregisteredClients {
 		cimd = nil
 	}
-	return &Resolver{configured: configured, cimd: cimd}
+	return &Resolver{configured: configured, cimd: cimd, reservedResources: reserved}
 }
 
 // Resolve resolves one exact client identifier.
 func (r *Resolver) Resolve(ctx context.Context, clientID string) (*Client, error) {
 	if client, ok := r.configured[clientID]; ok {
 		copy := *client
+		copy.Resources = append([]string(nil), client.Resources...)
+		copy.AccessTokenClaims = cloneClaims(client.AccessTokenClaims)
 		copy.Redirects = append([]string(nil), client.Redirects...)
 		return &copy, nil
+	}
+	if r.reservedResources[clientID] {
+		return nil, clientNotFoundError{}
 	}
 	if strings.HasPrefix(strings.ToLower(clientID), "https://") && r.cimd != nil {
 		return r.cimd.Resolve(ctx, clientID)
 	}
 	return nil, clientNotFoundError{clientID: clientID}
+}
+
+// ResolveForRefresh resolves a client for a refresh without network access.
+// Configured clients use current configuration. A refresh family proves that a
+// CIMD client was admitted with the refresh_token grant, so a CIMD client uses
+// its cached document when one is present, and otherwise a public client with
+// refresh permission. CIMD admission must still be enabled.
+func (r *Resolver) ResolveForRefresh(ctx context.Context, clientID string) (*Client, error) {
+	if _, ok := r.configured[clientID]; ok || r.reservedResources[clientID] {
+		return r.Resolve(ctx, clientID)
+	}
+	if r.cimd == nil || !strings.HasPrefix(strings.ToLower(clientID), "https://") {
+		return nil, clientNotFoundError{clientID: clientID}
+	}
+	if _, err := validateClientIdentifierURL(clientID); err != nil {
+		return nil, err
+	}
+	if cached, ok := r.cimd.cached(clientID); ok {
+		return cached, nil
+	}
+	return &Client{IDValue: clientID, Method: liboidc.AuthMethodNone, Source: ClientSourceCIMD, Development: r.cimd.allowLoopback, RefreshAllowed: true}, nil
 }
 
 // AuthorizeSecret performs constant-time verification for a conventional
@@ -129,6 +206,30 @@ type clientNotFoundError struct{ clientID string }
 
 func (e clientNotFoundError) Error() string { return "OIDC client not found" }
 func (clientNotFoundError) IsNotFound()     {}
+
+// accessTokenClaimScopes returns the granted identity scopes whose claims an
+// access token for resource carries. The result is empty unless the operator
+// configured claims for this client and resource.
+func (c *Client) accessTokenClaimScopes(resource string, granted []string) []string {
+	var scopes []string
+	for _, scope := range c.AccessTokenClaims[resource] {
+		if slices.Contains(granted, scope) {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
+}
+
+func cloneClaims(claims map[string][]string) map[string][]string {
+	if claims == nil {
+		return nil
+	}
+	cloned := make(map[string][]string, len(claims))
+	for resource, scopes := range claims {
+		cloned[resource] = append([]string(nil), scopes...)
+	}
+	return cloned
+}
 
 // requiresPKCE fails closed for public and CIMD clients, even if constructed
 // without configuration validation. A client secret alone does not opt out.

@@ -1,6 +1,14 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createOAuthFlow, exchangeOAuthCode, isOAuthCallback } from './oauth.js';
+import {
+  createOAuthFlow,
+  exchangeAuthorizationCode,
+  exchangeOAuthCode,
+  isExpectedOAuthIssuer,
+  isOAuthCallback,
+  pkceCodeChallenge,
+  randomOAuthValue
+} from './oauth.js';
 
 const config = {
   origin: 'https://chat.example',
@@ -14,8 +22,8 @@ const credentials = {
   expires_in: 300,
   refresh_token_expires_in: 3600
 };
-function callback(state: string, query = 'code=fixture-code') {
-  return `${config.redirectUri}&state=${state}&${query}`;
+function callback(state: string, query = 'code=fixture-code', issuer = config.origin) {
+  return `${config.redirectUri}&state=${state}&${query}&iss=${encodeURIComponent(issuer)}`;
 }
 afterEach(() => vi.unstubAllGlobals());
 
@@ -38,7 +46,7 @@ describe('native browser OAuth', () => {
       clientId: 'chatto://desktop',
       redirectUri: 'chatto://desktop/servers/callback?mode=popup'
     });
-    const callback = `${flow.redirectUri}&state=${flow.state}&code=fixture-code`;
+    const callback = `${flow.redirectUri}&state=${flow.state}&code=fixture-code&iss=${encodeURIComponent(flow.origin)}`;
     expect(isOAuthCallback(flow, callback)).toBe(true);
     expect(isOAuthCallback(flow, callback.replace('chatto://desktop', 'chatto://other'))).toBe(
       false
@@ -67,16 +75,21 @@ describe('native browser OAuth', () => {
   it('accepts exact callbacks, a bound issuer, and a declined flow', async () => {
     const flow = await createOAuthFlow(config);
     expect(isOAuthCallback(flow, callback(flow.state))).toBe(true);
-    expect(
-      isOAuthCallback(
-        flow,
-        callback(flow.state, `code=fixture&iss=${encodeURIComponent(flow.origin)}`)
-      )
-    ).toBe(true);
     expect(isOAuthCallback(flow, callback(flow.state, 'error=access_denied'))).toBe(true);
     await expect(
       exchangeOAuthCode(flow, callback(flow.state, 'error=access_denied'))
     ).rejects.toThrow('declined');
+  });
+  it('accepts only the issuer of the server that started the flow', () => {
+    expect(isExpectedOAuthIssuer('https://chat.example', 'https://chat.example/')).toBe(true);
+    expect(isExpectedOAuthIssuer('https://CHAT.example:443', 'https://chat.example')).toBe(true);
+    // A response without an issuer can come from a different server.
+    for (const missing of [undefined, null, '']) {
+      expect(isExpectedOAuthIssuer(missing, 'https://chat.example')).toBe(false);
+    }
+    for (const other of ['https://other.example', 'http://chat.example', 'not a URL']) {
+      expect(isExpectedOAuthIssuer(other, 'https://chat.example')).toBe(false);
+    }
   });
   it('rejects callback substitution and duplicate parameters', async () => {
     const flow = await createOAuthFlow(config);
@@ -91,7 +104,9 @@ describe('native browser OAuth', () => {
       callback(flow.state) + '&code=other',
       callback(flow.state) + '&error=',
       callback(flow.state) + '&error=denied',
-      callback(flow.state) + '&iss=https://other.example',
+      callback(flow.state, 'code=fixture-code', 'https://other.example'),
+      callback(flow.state, 'code=fixture-code', ''),
+      `${config.redirectUri}&state=${flow.state}&code=fixture-code`,
       callback(flow.state) + '&iss=a&iss=b',
       callback(flow.state) + '#fragment',
       callback(flow.state).replace('127.0.0.1', 'user@127.0.0.1'),
@@ -120,6 +135,36 @@ describe('native browser OAuth', () => {
       redirect_uri: config.redirectUri,
       client_id: config.clientId
     });
+  });
+  it('makes URL-safe PKCE values and the RFC 7636 example challenge', async () => {
+    expect(randomOAuthValue(64)).toMatch(/^[A-Za-z0-9_-]{86}$/);
+    expect(randomOAuthValue(32)).not.toBe(randomOAuthValue(32));
+    expect(await pkceCodeChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')).toBe(
+      'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+    );
+  });
+  it.each([
+    {
+      user: { id: 'U1', login: 'ada', displayName: 'Ada', avatarUrl: '/a.png' },
+      expected: { id: 'U1', login: 'ada', displayName: 'Ada', avatarUrl: '/a.png' }
+    },
+    {
+      user: { id: 7, login: null },
+      expected: { id: null, login: null, displayName: null, avatarUrl: null }
+    },
+    { user: 'invalid', expected: { id: null, login: null, displayName: null, avatarUrl: null } },
+    { user: undefined, expected: { id: null, login: null, displayName: null, avatarUrl: null } }
+  ])('returns the account summary of the token response %#', async ({ user, expected }) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ...credentials, user })));
+    await expect(
+      exchangeAuthorizationCode({
+        origin: 'https://chat.example',
+        code: 'fixture-code',
+        verifier: 'fixture-verifier',
+        redirectUri: 'https://app.example/servers/callback?mode=popup',
+        clientId: 'https://app.example/oauth/frontend-client-metadata.json'
+      })
+    ).resolves.toMatchObject({ credentials: { token: 'fixture-access' }, user: expected });
   });
   it.each([
     () => Response.json({ error_description: 'private-provider-data' }, { status: 400 }),

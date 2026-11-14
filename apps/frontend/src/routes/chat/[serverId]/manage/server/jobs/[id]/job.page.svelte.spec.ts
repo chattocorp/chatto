@@ -199,7 +199,10 @@ describe('job details', () => {
     await expect
       .poll(() =>
         queryClient.getQueryData(
-          adminQueryKeys.job(scope.serverId, scope.scope.connection, 'job-1')
+          adminQueryKeys.job(
+            { serverId: scope.serverId, connection: scope.scope.connection },
+            'job-1'
+          )
         )
       )
       .toBeUndefined();

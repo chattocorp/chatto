@@ -22,7 +22,7 @@ const (
 	// SigningKeyPublicationLead keeps a prepared public key in JWKS for twice
 	// the endpoint's five-minute cache lifetime before it may sign tokens.
 	SigningKeyPublicationLead = 10 * time.Minute
-	// SigningKeyRetirementOverlap covers Authling's five-minute ID-token
+	// SigningKeyRetirementOverlap covers Authling's five-minute ID- and access-token
 	// lifetime, five minutes of verifier clock skew, and five minutes of
 	// reconciliation and operational margin before the old public key disappears.
 	SigningKeyRetirementOverlap = 15 * time.Minute

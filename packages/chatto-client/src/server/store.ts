@@ -225,10 +225,15 @@ export class ServerStateStore {
 
   /**
    * Report that the viewer's session ended; the registry calls it. Clears the
-   * server's user profiles and notifies {@link onSessionEnded} listeners.
+   * server's user profiles and the room member stores that resolve IDs through
+   * them, and notifies {@link onSessionEnded} listeners.
    */
   endSession(): void {
     clearUserStores(this.serverId);
+    // The reconnect after reauthentication can keep the view, so no projection
+    // reset clears these stores. Cached member IDs whose profiles are gone
+    // would otherwise hide every mention suggestion until a reload.
+    for (const members of this.#rooms.all('members')) members.resetProjectionState();
     if (!this.#events.sessionEnded.emit().complete) this.#privacyCleanupFailed = true;
   }
 

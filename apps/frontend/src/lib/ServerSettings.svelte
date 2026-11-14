@@ -40,10 +40,9 @@
   type AssetVariables = SettingsMutationScope & { operation: AssetOperation; file?: File };
 
   const settingsQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.serverSettings(serverId, connection),
+      queryKey: adminQueryKeys.serverSettings(serverScope),
       queryFn: ({ signal }) => getAuthenticatedServerState(connection.apiConfig, { signal }),
       refetchOnMount: 'always' as const
     };
@@ -101,7 +100,7 @@
     const snapshot = session.snapshot();
     return {
       ...snapshot,
-      queryKey: adminQueryKeys.serverSettings(snapshot.serverId, snapshot.connection)
+      queryKey: adminQueryKeys.serverSettings(snapshot)
     };
   }
 

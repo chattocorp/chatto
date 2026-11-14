@@ -1,22 +1,17 @@
-import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import type { QueryKey } from '@tanstack/svelte-query';
 import { adminQueryKeys } from './admin';
-import { queryClient } from './queryClient';
-
-type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
+import type { QueryKeyScope } from './keys';
+import { purgeQueries, queryClient } from './queryClient';
 
 /** Refresh role listings and every user matrix whose effective decisions can inherit role rules. */
-export function invalidateRolePermissionDependents(
-  serverId: string,
-  connection: AdminQueryConnection,
-  roleName?: string
-): void {
-  invalidatePermissionTiers(serverId, connection);
+export function invalidateRolePermissionDependents(scope: QueryKeyScope, roleName?: string): void {
+  invalidatePermissionTiers(scope);
   void queryClient.invalidateQueries({
-    queryKey: adminQueryKeys.userPermissionsRoot(serverId, connection)
+    queryKey: adminQueryKeys.userPermissionsRoot(scope)
   });
   if (roleName) {
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.role(serverId, connection, roleName),
+      queryKey: adminQueryKeys.role(scope, roleName),
       exact: true,
       // The role page owns editable metadata drafts. Mark an active snapshot stale
       // without refetching underneath those drafts; inactive snapshots refresh now.
@@ -26,87 +21,68 @@ export function invalidateRolePermissionDependents(
 }
 
 /** Refresh role listings after role metadata or membership changes. */
-export function invalidatePermissionTiers(
-  serverId: string,
-  connection: AdminQueryConnection
-): void {
+export function invalidatePermissionTiers(scope: QueryKeyScope): void {
   void queryClient.invalidateQueries({
-    queryKey: adminQueryKeys.permissionTiers(serverId, connection)
+    queryKey: adminQueryKeys.permissionTiers(scope)
   });
   void queryClient.invalidateQueries({
-    queryKey: adminQueryKeys.roleCatalog(serverId, connection)
+    queryKey: adminQueryKeys.roleCatalog(scope)
   });
 }
 
 /** Remove a deleted role snapshot and refresh every cache that can derive from it. */
-export function removeDeletedRoleQueries(
-  serverId: string,
-  connection: AdminQueryConnection,
-  roleName: string
-): void {
-  const roleKey = adminQueryKeys.rolePermissions(serverId, connection, roleName);
-  const roleDetailsKey = adminQueryKeys.role(serverId, connection, roleName);
-  void queryClient.cancelQueries({ queryKey: roleKey, exact: true });
-  queryClient.setQueryData(roleKey, null);
+export function removeDeletedRoleQueries(scope: QueryKeyScope, roleName: string): void {
+  const roleDetailsKey = adminQueryKeys.role(scope, roleName);
+  purgeQueries({ queryKey: adminQueryKeys.rolePermissions(scope, roleName), exact: true });
   queryClient.setQueryData(roleDetailsKey, null);
-  queryClient.removeQueries({ queryKey: roleKey, exact: true });
   queryClient.removeQueries({ queryKey: roleDetailsKey, exact: true });
-  const membersKey = adminQueryKeys.roleMembers(serverId, connection, roleName);
-  void queryClient.cancelQueries({ queryKey: membersKey, exact: true });
-  queryClient.setQueryData(membersKey, null);
-  queryClient.removeQueries({ queryKey: membersKey, exact: true });
-  invalidateRolePermissionDependents(serverId, connection, roleName);
+  purgeQueries({ queryKey: adminQueryKeys.roleMembers(scope, roleName), exact: true });
+  invalidateRolePermissionDependents(scope, roleName);
 }
 
 /** Refresh the room and room-group snapshots affected by a layout projection. */
 export function invalidateAdminRoomLayoutQueries(
-  serverId: string,
-  connection: AdminQueryConnection,
+  scope: QueryKeyScope,
   roomId?: string,
   groupId?: string
 ): void {
   if (roomId) {
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.room(serverId, connection, roomId),
+      queryKey: adminQueryKeys.room(scope, roomId),
       exact: true
     });
   }
   if (groupId) {
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.roomGroup(serverId, connection, groupId),
+      queryKey: adminQueryKeys.roomGroup(scope, groupId),
       exact: true
     });
   }
 }
 
-/** Purge a room snapshot before attempting any projected re-authorization read. */
-export function purgeAdminRoomQuery(
-  serverId: string,
-  connection: AdminQueryConnection,
-  roomId: string
-): void {
-  const queryKey = adminQueryKeys.room(serverId, connection, roomId);
-  const permissionsKey = adminQueryKeys.permissionTier(serverId, connection, roomId, null);
+/**
+ * Purge a detail snapshot and its permission matrix, then read the detail
+ * again. The new read shows whether the viewer still has access.
+ */
+function purgeForReauthorization(queryKey: QueryKey, permissionsKey: QueryKey): void {
+  purgeQueries({ queryKey: permissionsKey, exact: true });
   void queryClient.cancelQueries({ queryKey, exact: true });
-  void queryClient.cancelQueries({ queryKey: permissionsKey, exact: true });
   queryClient.setQueryData(queryKey, null);
-  queryClient.setQueryData(permissionsKey, null);
-  queryClient.removeQueries({ queryKey: permissionsKey, exact: true });
   void queryClient.invalidateQueries({ queryKey, exact: true });
 }
 
+/** Purge a room snapshot before attempting any projected re-authorization read. */
+export function purgeAdminRoomQuery(scope: QueryKeyScope, roomId: string): void {
+  purgeForReauthorization(
+    adminQueryKeys.room(scope, roomId),
+    adminQueryKeys.permissionTier(scope, roomId, null)
+  );
+}
+
 /** Purge a room-group snapshot before attempting any projected re-authorization read. */
-export function purgeAdminRoomGroupQuery(
-  serverId: string,
-  connection: AdminQueryConnection,
-  groupId: string
-): void {
-  const queryKey = adminQueryKeys.roomGroup(serverId, connection, groupId);
-  const permissionsKey = adminQueryKeys.permissionTier(serverId, connection, null, groupId);
-  void queryClient.cancelQueries({ queryKey, exact: true });
-  void queryClient.cancelQueries({ queryKey: permissionsKey, exact: true });
-  queryClient.setQueryData(queryKey, null);
-  queryClient.setQueryData(permissionsKey, null);
-  queryClient.removeQueries({ queryKey: permissionsKey, exact: true });
-  void queryClient.invalidateQueries({ queryKey, exact: true });
+export function purgeAdminRoomGroupQuery(scope: QueryKeyScope, groupId: string): void {
+  purgeForReauthorization(
+    adminQueryKeys.roomGroup(scope, groupId),
+    adminQueryKeys.permissionTier(scope, null, groupId)
+  );
 }

@@ -21,6 +21,8 @@ Review the complete branch diff against the target branch.
   [chatto-code-review](../chatto-code-review/SKILL.md).
 - For public API or protocol changes, use
   [chatto-api-compatibility](../chatto-api-compatibility/SKILL.md).
+- For Chatto release PRs, run the
+  [chatto-release-checklist](../chatto-release-checklist/SKILL.md).
 - For frontend changes, use
   [chatto-frontend-review](../chatto-frontend-review/SKILL.md).
 - Follow root `AGENTS.md` for commit titles, PR status, and issue links.

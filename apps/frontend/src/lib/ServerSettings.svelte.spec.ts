@@ -150,7 +150,7 @@ describe('ServerSettings', () => {
   });
 
   it('replaces the exact cached snapshot after a successful save', async () => {
-    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+    const queryKey = adminQueryKeys.serverSettings(server.scope);
     const { container } = await renderSettings();
     inputDescription(
       container.querySelector<HTMLTextAreaElement>('#description')!,
@@ -207,7 +207,7 @@ describe('ServerSettings', () => {
   });
 
   it.each(['logo', 'banner'] as const)('updates the cached %s after an upload', async (asset) => {
-    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+    const queryKey = adminQueryKeys.serverSettings(server.scope);
     const { container } = await renderSettings();
     const fileInput = container.querySelector<HTMLInputElement>(
       `[data-testid="${asset}-drop-zone"] input[type="file"]`
@@ -257,7 +257,7 @@ describe('ServerSettings', () => {
     const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
     inputDescription(textarea, 'Unsaved draft');
 
-    queryClient.setQueryData(adminQueryKeys.serverSettings('origin', server.scope.connection), {
+    queryClient.setQueryData(adminQueryKeys.serverSettings(server.scope), {
       name: 'Renamed elsewhere',
       description: 'Remote description',
       motd: '',
@@ -278,7 +278,7 @@ describe('ServerSettings', () => {
     inputDescription(textarea, 'Temporary edit');
     inputDescription(textarea, 'Original description');
 
-    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+    const queryKey = adminQueryKeys.serverSettings(server.scope);
     queryClient.setQueryData(queryKey, {
       ...queryClient.getQueryData<object>(queryKey),
       description: 'Remote description'
@@ -318,7 +318,7 @@ describe('ServerSettings', () => {
       mocks.updateServerConfig.mockResolvedValue({ ...saved, description: newerDescription });
       container.querySelector<HTMLFormElement>('form')!.requestSubmit();
       await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledTimes(2));
-      const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
+      const queryKey = adminQueryKeys.serverSettings(server.scope);
       await vi.waitFor(() =>
         expect(queryClient.getQueryData<{ description: string }>(queryKey)?.description).toBe(
           newerDescription
@@ -358,9 +358,7 @@ describe('ServerSettings', () => {
     });
     await Promise.resolve();
 
-    expect(
-      queryClient.getQueryData(adminQueryKeys.serverSettings('origin', server.scope.connection))
-    ).toBeUndefined();
+    expect(queryClient.getQueryData(adminQueryKeys.serverSettings(server.scope))).toBeUndefined();
   });
 
   it('does not allow an overlapping save after an admin cache reset', async () => {

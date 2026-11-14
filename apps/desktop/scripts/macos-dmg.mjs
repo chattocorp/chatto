@@ -4,20 +4,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, Platform, Arch } from 'electron-builder';
 import packageJson from '../package.json' with { type: 'json' };
+import { desktopArchitecture } from './architecture.mjs';
 import { signMacOSDmg } from './macos-dmg-signing.mjs';
 
 if (process.platform !== 'darwin') {
   throw new Error('Build the macOS DMG on macOS.');
 }
+const architecture = desktopArchitecture(process.platform, process.arch, process.env);
 const desktopRoot = fileURLToPath(new URL('../', import.meta.url));
 const bundle = path.join(desktopRoot, 'dist/Chatto.app');
 await access(path.join(bundle, 'Contents/MacOS/Chatto'));
 await rm(path.join(desktopRoot, 'dist/dmg'), { recursive: true, force: true });
-const artifactName = `chatto-desktop_${packageJson.version}_macOS_${process.arch.toUpperCase()}.dmg`;
+const artifactName = `chatto-desktop_${packageJson.version}_macOS_${architecture.toUpperCase()}.dmg`;
 await build({
   projectDir: desktopRoot,
   prepackaged: bundle,
-  targets: Platform.MAC.createTarget('dmg', Arch[process.arch]),
+  targets: Platform.MAC.createTarget('dmg', Arch[architecture]),
   publish: 'never',
   config: {
     appId: 'run.chatto.desktop',

@@ -9,6 +9,7 @@ import { embedMacOSCaptureHelper } from './macos-capture-helper.mjs';
 import { macOSDistributionOptions } from './macos-signing.mjs';
 import { notarizeMacOSApp } from './macos-notarization.mjs';
 import { macOSVersions, releaseBuildVersion, restoreReleaseVersion } from './version.mjs';
+import { desktopArchitecture } from './architecture.mjs';
 import { desktopBuildProfile } from '../build_profile.mjs';
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,6 +17,7 @@ const repositoryRoot = path.resolve(desktopRoot, '../..');
 const distRoot = path.join(desktopRoot, 'dist');
 const packagerOut = path.join(distRoot, '.packager');
 const platform = process.platform;
+const architecture = desktopArchitecture(platform, process.arch, process.env);
 const profile = desktopBuildProfile(process.env.CHATTO_DESKTOP_BUILD);
 const autoUpdate =
   process.env.CHATTO_DESKTOP_AUTO_UPDATE === 'true' && profile.variant === 'release';
@@ -23,7 +25,10 @@ if (autoUpdate && platform === 'win32' && !process.env.CHATTO_WINDOWS_EXPECTED_P
   throw new Error('Update-capable Windows builds require CHATTO_WINDOWS_EXPECTED_PUBLISHER.');
 }
 const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
-const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
+if (electronChecksum && architecture === 'universal') {
+  throw new Error('CHATTO_ELECTRON_CHECKSUM requires a single-architecture build.');
+}
+const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${architecture}.zip`;
 const embedCaptureHelper = platform === 'darwin';
 const macVersions = platform === 'darwin' ? macOSVersions(packageJson.version) : undefined;
 const macOSDistribution = macOSDistributionOptions(platform, process.env);
@@ -44,6 +49,8 @@ const [bundleRoot] = await packager({
   out: packagerOut,
   overwrite: true,
   asar: true,
+  arch: architecture,
+  osxUniversal: { mergeASARs: true },
   name: profile.productName,
   executableName: platform === 'darwin' ? undefined : 'chatto-desktop',
   appVersion: macVersions?.shortVersion ?? packageJson.version,
@@ -99,12 +106,13 @@ const [bundleRoot] = await packager({
     : undefined,
   afterPrune: embedCaptureHelper
     ? [
-        async ({ buildPath }) => {
+        async ({ buildPath, arch }) => {
           const appBundle = path.resolve(buildPath, '../../..');
           const prunedLocales = await pruneElectronLocales(appBundle, platform, supportedLocales);
           logPrunedLocales(prunedLocales);
           await embedMacOSCaptureHelper(appBundle, {
             ...macVersions,
+            architecture: arch,
             bundleIdentifier: `${profile.bundleIdentifier}.capture-helper`
           });
         }

@@ -74,7 +74,7 @@ Roles section of a human member: the server role assignments.
 
     detail.invalidateMemberLists(target);
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.userPermissions(target.serverId, target.connection, target.userId),
+      queryKey: adminQueryKeys.userPermissions(target, target.userId),
       exact: true
     });
     detail.invalidateRole(target, roleName);

@@ -33,7 +33,7 @@
   const locale = $derived(getLocale());
 
   const id = $derived(page.params.id!);
-  const queryKey = $derived(adminQueryKeys.job(scope.serverId, connection, id));
+  const queryKey = $derived(adminQueryKeys.job(scope, id));
   const jobQuery = createQuery(() => ({
     queryKey,
     queryFn: ({ signal }) => api.getJob(id, { signal }),

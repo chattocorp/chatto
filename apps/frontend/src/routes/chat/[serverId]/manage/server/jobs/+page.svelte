@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { SvelteMap } from 'svelte/reactivity';
   import { createAdminJobsAPI, JobStatus, type AdminJob } from '$lib/api/adminJobs';
   import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
   import { m } from '$lib/i18n/messages';
@@ -12,6 +11,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery } from '$lib/query/client';
+  import { flattenUniquePages } from '$lib/query/pagination';
   import {
     ConfirmDialog,
     DataTable,
@@ -77,7 +77,7 @@
   // The server lists jobs newest first and filters by status from memory, so
   // polling every loaded page reads no storage.
   const jobsQuery = createInfiniteQuery(() => ({
-    queryKey: adminQueryKeys.jobList(scope.serverId, connection, status),
+    queryKey: adminQueryKeys.jobList(scope, status),
     queryFn: ({ pageParam, signal }) => api.listJobs({ cursor: pageParam, status }, { signal }),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextCursor || undefined,
@@ -88,13 +88,13 @@
   }));
 
   // Pages may overlap while running jobs change. Keep one row for each stable ID.
-  const jobs = $derived.by(() => {
-    const byId = new SvelteMap<string, AdminJob>();
-    for (const jobPage of jobsQuery.data?.pages ?? []) {
-      for (const job of jobPage.jobs) byId.set(job.id, job);
-    }
-    return [...byId.values()];
-  });
+  const jobs = $derived(
+    flattenUniquePages(
+      jobsQuery.data,
+      (jobPage) => jobPage.jobs,
+      (job) => job.id
+    )
+  );
   const loadError = $derived(
     jobsQuery.error ? errorMessage(jobsQuery.error, m('admin.jobs.load_failed')) : null
   );

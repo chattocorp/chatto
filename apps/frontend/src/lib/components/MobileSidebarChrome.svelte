@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ServerGutter from '$lib/ServerGutter.svelte';
+  import { gutterEnabled } from '$lib/frontendConfig';
   import { m } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
 
@@ -52,20 +53,22 @@
   style:--sidebar-progress={progress}
   style:--sidebar-width={`${sidebarNav.panelWidth}px`}
 >
-  <div
-    data-app-sidebar="true"
-    data-testid="mobile-sidebar-panel"
-    class={[
-      'sidebar-drawer z-50 min-h-0 flex-col self-stretch bg-background',
-      'max-md:fixed max-md:start-0 max-md:mobile-sidebar-insets max-md:w-17 max-md:touch-pan-y',
-      // Mobile: always rendered so we can animate transform.
-      // Desktop: hide entirely when closed (no overlay; layout reflows).
-      sidebarNav.isMobile || sidebarNav.isOpen ? 'flex' : 'hidden'
-    ]}
-    inert={mobileClosed}
-  >
-    <ServerGutter />
-  </div>
+  {#if gutterEnabled}
+    <div
+      data-app-sidebar="true"
+      data-testid="mobile-sidebar-panel"
+      class={[
+        'sidebar-drawer z-50 min-h-0 flex-col self-stretch bg-background',
+        'max-md:fixed max-md:start-0 max-md:mobile-sidebar-insets max-md:w-17 max-md:touch-pan-y',
+        // Mobile: always rendered so we can animate transform.
+        // Desktop: hide entirely when closed (no overlay; layout reflows).
+        sidebarNav.isMobile || sidebarNav.isOpen ? 'flex' : 'hidden'
+      ]}
+      inert={mobileClosed}
+    >
+      <ServerGutter />
+    </div>
+  {/if}
 
   {@render children?.()}
 </div>

@@ -34,11 +34,10 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   const serverScope = useServerScope();
 
   const matrixQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeRoleName = roleName;
     return {
-      queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName),
+      queryKey: adminQueryKeys.rolePermissions(serverScope, activeRoleName),
       queryFn: ({ signal }) =>
         activeConnection
           .getAPI(createPermissionAPI)
@@ -92,19 +91,11 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
         }
       } else {
         await queryClient.invalidateQueries({
-          queryKey: adminQueryKeys.rolePermissions(
-            snapshot.serverId,
-            snapshot.connection,
-            activeRoleName
-          ),
+          queryKey: adminQueryKeys.rolePermissions(snapshot, activeRoleName),
           exact: true
         });
         if (session.isCurrent(snapshot)) {
-          invalidateRolePermissionDependents(
-            snapshot.serverId,
-            snapshot.connection,
-            activeRoleName
-          );
+          invalidateRolePermissionDependents(snapshot, activeRoleName);
         }
       }
     }

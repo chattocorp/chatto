@@ -21,6 +21,7 @@ type ChattoConfig struct {
 	General         GeneralConfig         `toml:"general"`
 	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver       WebserverConfig       `toml:"webserver"`
+	Frontend        FrontendConfig        `toml:"frontend,commented" comment:"Bundled frontend settings. The standalone frontend and the desktop app ignore them."`
 	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter        ExporterConfig        `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	MCP             MCPConfig             `toml:"mcp,commented" comment:"Experimental MCP integration on the public HTTP server. Disabled by default."`
@@ -173,11 +174,6 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, "exporter.s3_timeout must not be negative")
 		}
 	}
-	if c.MCP.Enabled {
-		if strings.TrimSpace(c.Webserver.URL) == "" {
-			errs = append(errs, "webserver.url is required when MCP is enabled")
-		}
-	}
 	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" || c.SearchProvider.Languages != nil {
 		searchDirectory := filepath.Clean(c.SearchProvider.DirectoryOrDefault())
 		if searchDirectory == "." || filepath.IsAbs(searchDirectory) && searchDirectory == filepath.VolumeName(searchDirectory)+string(filepath.Separator) {
@@ -248,7 +244,9 @@ func (c *ChattoConfig) Validate() error {
 		}
 		configuredOriginByRequestHost[requestHost] = origin
 	}
-	if c.Webserver.URL != "" {
+	if strings.TrimSpace(c.Webserver.URL) == "" {
+		errs = append(errs, "webserver.url is required")
+	} else {
 		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
 			errs = append(errs, err.Error())
 		} else {
@@ -306,9 +304,6 @@ func (c *ChattoConfig) Validate() error {
 	mappedRoleProviders := make(map[string]string)
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when auth providers are configured")
-		}
 		if provider.ID == "" {
 			errs = append(errs, prefix+".id is required")
 		} else if strings.ContainsAny(provider.ID, "/?#") || strings.TrimSpace(provider.ID) != provider.ID {
@@ -424,9 +419,6 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
 		}
 		if c.SMTP.Enabled {
-			if c.Webserver.URL == "" {
-				errs = append(errs, "webserver.url is required when SMTP is enabled")
-			}
 			if c.SMTP.Host == "" {
 				errs = append(errs, "smtp.host is required when SMTP is enabled")
 			}
@@ -438,9 +430,6 @@ func (c *ChattoConfig) Validate() error {
 			}
 		}
 	case EmailTransportJMAP:
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when JMAP email is enabled")
-		}
 		if c.Email.JMAP.SessionURL == "" {
 			errs = append(errs, "email.jmap.session_url is required when email.transport is jmap")
 		} else if err := validateAbsoluteHTTPSURL("email.jmap.session_url", c.Email.JMAP.SessionURL); err != nil {
@@ -460,9 +449,6 @@ func (c *ChattoConfig) Validate() error {
 
 	// Push notification configuration
 	if c.Push.Enabled {
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when push is enabled")
-		}
 		if c.Push.VAPIDPublicKey == "" {
 			errs = append(errs, "push.vapid_public_key is required when push is enabled")
 		}
@@ -476,9 +462,6 @@ func (c *ChattoConfig) Validate() error {
 
 	// LiveKit configuration
 	if c.LiveKit.Enabled {
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when LiveKit is enabled")
-		}
 		if c.LiveKit.URL == "" {
 			errs = append(errs, "livekit.url is required when LiveKit is enabled")
 		}

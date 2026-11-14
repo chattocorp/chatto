@@ -12,7 +12,12 @@ Controls live in the viewer footer when one is provided through context.
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   import { m } from '$lib/i18n/messages';
-  import { useImageControls, hasImageControls } from './imageControlsContext';
+  import {
+    useImageZoomControls,
+    hasImageZoomControls,
+    type ImageZoomController
+  } from './imageControlsContext';
+  import ImageZoomControls from './ImageZoomControls.svelte';
   import SvgAnimation from './SvgAnimation.svelte';
   import { svgAnimationPoster, svgDataUrl } from '$lib/svgAnimationFrame';
 
@@ -30,14 +35,11 @@ Controls live in the viewer footer when one is provided through context.
   } = $props();
 
   let stage: HTMLDivElement;
-  const viewerControls = hasImageControls() ? useImageControls() : undefined;
+  const viewerZoomControls = hasImageZoomControls() ? useImageZoomControls() : undefined;
 
-  /** Relocate the one shared toolbar; its lifecycle and state stay with this canvas. */
-  function placeControls(node: HTMLDivElement) {
-    const target = viewerControls?.();
-    if (!target) return;
-    target.prepend(node);
-    return () => node.remove();
+  /** Register this stage only for its DOM lifetime; the viewer owns the toolbar. */
+  function connectControls() {
+    return viewerZoomControls?.(zoomControls);
   }
   let zoom = $state(1);
   let offsetX = $state(0);
@@ -48,7 +50,23 @@ Controls live in the viewer footer when one is provided through context.
   let stageHeight = $state(0);
   // Pointer positions stay relative to the stage; capture stays on the hit element.
   const pointers = new SvelteMap<number, { x: number; y: number }>();
-  const percent = $derived(Math.round(zoom * 100));
+  const zoomControls: ImageZoomController = {
+    get percent() {
+      return Math.round(zoom * 100);
+    },
+    get atMinimum() {
+      return zoom <= MIN_ZOOM;
+    },
+    get atMaximum() {
+      return zoom >= MAX_ZOOM;
+    },
+    get atFit() {
+      return zoom === 1;
+    },
+    zoomIn: () => zoomAt(zoom + 0.25),
+    zoomOut: () => zoomAt(zoom - 0.25),
+    fit
+  };
   const poster = $derived(svgSource ? svgDataUrl(svgAnimationPoster(svgSource)) : src);
   const limits = $derived(bounds());
 
@@ -228,6 +246,7 @@ Controls live in the viewer footer when one is provided through context.
 >
   <div
     bind:this={stage}
+    {@attach connectControls}
     {@attach measure}
     {@attach wheelZoom}
     {@attach gestureZoom}
@@ -298,40 +317,7 @@ Controls live in the viewer footer when one is provided through context.
       ]}
     ></span>
   </div>
-  <div
-    {@attach placeControls}
-    class="flex shrink-0 items-center gap-1 bg-background p-1 text-xs text-text"
-  >
-    <button
-      type="button"
-      class="mini-icon-action"
-      aria-label={m('ui.image_modal.zoom_out')}
-      title={m('ui.image_modal.zoom_out')}
-      disabled={zoom <= MIN_ZOOM}
-      onclick={() => zoomAt(zoom - 0.25)}
-    >
-      <span class="iconify icon-[uil--minus] text-xl" aria-hidden="true"></span>
-    </button>
-    <output class="w-14 text-center tabular-nums" aria-live="polite">{percent}%</output>
-    <button
-      type="button"
-      class="mini-icon-action"
-      aria-label={m('ui.image_modal.zoom_in')}
-      title={m('ui.image_modal.zoom_in')}
-      disabled={zoom >= MAX_ZOOM}
-      onclick={() => zoomAt(zoom + 0.25)}
-    >
-      <span class="iconify icon-[uil--plus] text-xl" aria-hidden="true"></span>
-    </button>
-    <button
-      type="button"
-      class="ms-2 mini-icon-action px-1"
-      aria-label={m('ui.image_modal.fit')}
-      title={m('ui.image_modal.fit')}
-      disabled={zoom === 1}
-      onclick={fit}
-    >
-      {m('ui.image_modal.fit')}
-    </button>
-  </div>
+  {#if !viewerZoomControls}
+    <ImageZoomControls controls={zoomControls} />
+  {/if}
 </div>
