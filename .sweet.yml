@@ -1,5 +1,5 @@
 name: Chatto
-version: 0.5.0
+version: 0.6.0
 tag-prefix: v
 version-files:
   - path: cli/version.go
