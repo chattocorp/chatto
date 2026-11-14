@@ -319,13 +319,24 @@ func (c *ChattoConfig) Validate() error {
 			seenProviderIDs[provider.ID] = struct{}{}
 		}
 		if !IsAllowedAuthProviderType(provider.Type) {
-			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord")
+			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord, atproto")
 		}
-		if provider.ClientID == "" {
-			errs = append(errs, prefix+".client_id is required")
-		}
-		if provider.ClientSecret == "" && provider.Type != AuthProviderTypeOpenIDConnect {
-			errs = append(errs, prefix+".client_secret is required")
+		if provider.Type == AuthProviderTypeATProto {
+			// The server publishes its own client metadata and requests only
+			// identity, so operators configure no client or scopes.
+			if provider.ClientID != "" || provider.ClientSecret != "" {
+				errs = append(errs, prefix+": atproto providers do not use client_id or client_secret")
+			}
+			if len(provider.Scopes) > 0 || provider.RequestEmail != nil {
+				errs = append(errs, prefix+": atproto providers do not support scopes or request_email")
+			}
+		} else {
+			if provider.ClientID == "" {
+				errs = append(errs, prefix+".client_id is required")
+			}
+			if provider.ClientSecret == "" && provider.Type != AuthProviderTypeOpenIDConnect {
+				errs = append(errs, prefix+".client_secret is required")
+			}
 		}
 		if method := provider.TokenEndpointAuthMethod; method != "" {
 			if provider.Type != AuthProviderTypeOpenIDConnect {

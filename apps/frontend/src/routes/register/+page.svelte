@@ -1,10 +1,16 @@
 <script lang="ts">
+  import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import {
+    confirmProviderAccount,
+    openProviderSignIn,
+    providerLoginUrl,
+    verifyProviderSignIn
+  } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
@@ -85,8 +91,8 @@
       !confirmError
   );
 
-  function providerLoginHref(provider: PublicAuthProvider): string {
-    const url = new URL(provider.loginUrl, window.location.origin);
+  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
+    const url = new URL(providerLoginUrl(provider.loginUrl, loginHint), window.location.origin);
     url.searchParams.set('redirect', data.redirectUrl);
     if (admissionId) url.searchParams.set('admission', admissionId);
     return url.href;
@@ -122,19 +128,29 @@
     }
   }
 
-  async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
+  async function handleProviderClick(
+    event: Event,
+    provider: PublicAuthProvider,
+    loginHint?: string
+  ) {
     event.preventDefault();
     providerError = '';
     selectedProviderId = provider.id;
     // Keep the server's OAuth session in this window throughout provider signup.
     if (compact) {
-      window.location.href = providerLoginHref(provider);
+      window.location.href = providerLoginHref(provider, loginHint);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(providerLoginHref(provider));
-      await verifyProviderSignIn(providerPopup);
+      providerPopup = openProviderSignIn(providerLoginHref(provider, loginHint));
+      const result = await verifyProviderSignIn(providerPopup);
+      // Only AT Protocol providers take a handle hint (FDR-056).
+      if (loginHint) rememberAtprotoHandle(loginHint);
       if (!active) return;
+      if (result.kind === 'confirm-account') {
+        await confirmProviderAccount(result.token, data.redirectUrl);
+        return;
+      }
       if (!(await completeOriginAuthentication()))
         await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
@@ -334,7 +350,10 @@
         href={providerLoginHref}
         onclick={handleProviderClick}
       />
-      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+      <AuthPopupNotice
+        pending={!compact && selectedProviderId !== null}
+        oncancel={() => providerPopup?.cancel()}
+      />
       <FormError error={providerError} />
     {/if}
   {:else if step === 'code'}

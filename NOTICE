@@ -52,6 +52,8 @@ Server and CLI Go Components:
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
 - AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
 - Bleve full-text search (https://github.com/blevesearch/bleve) - Apache License 2.0
+- Bluesky indigo AT Protocol OAuth and identity packages
+  (https://github.com/bluesky-social/indigo) - MIT License or Apache License 2.0
 - Buf Protovalidate and generated protocol buffer tooling
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License

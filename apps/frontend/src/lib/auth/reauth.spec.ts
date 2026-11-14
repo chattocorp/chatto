@@ -481,7 +481,8 @@ describe('remote server OAuth popup', () => {
     const completion = startRemoteReauthentication(remote);
 
     const cancelled = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
-    (popup as unknown as { closed: boolean }).closed = true;
+    const { cancelServerOAuthFlow } = await import('./reauth');
+    cancelServerOAuthFlow(remote.url);
     await cancelled;
     rejectServerInfo?.(new Error('discovery failed'));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -505,7 +506,30 @@ describe('remote server OAuth popup', () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
-  it('identifies a closed remote sign-in window as cancellation', async () => {
+  it('keeps waiting when a provider page hides the window, until the user cancels', async () => {
+    const popup = fakePopup();
+    const { owner } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const { startRemoteReauthentication, cancelServerOAuthFlow } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
+    let settled = false;
+    completion.then(
+      () => (settled = true),
+      () => (settled = true)
+    );
+    // A Cross-Origin-Opener-Policy page makes the handle report `closed`.
+    (popup as unknown as { closed: boolean }).closed = true;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(settled).toBe(false);
+
+    const rejected = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
+    cancelServerOAuthFlow(remote.url);
+    await rejected;
+    expect(gotoMock).not.toHaveBeenCalled();
+  });
+
+  it('without a channel, identifies a closed remote sign-in window as cancellation', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined);
     const popup = fakePopup();
     const { owner } = browserHarness(popup);
     vi.stubGlobal('window', owner);

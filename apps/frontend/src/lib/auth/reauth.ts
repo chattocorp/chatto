@@ -60,7 +60,8 @@ async function runServerOAuthFlow(
   serverUrl: string,
   serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
   providerId?: string,
-  screenHint?: 'signup'
+  screenHint?: 'signup',
+  loginHint?: string
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
@@ -75,6 +76,7 @@ async function runServerOAuthFlow(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       ...(providerId ? { provider_id: providerId } : {}),
+      ...(providerId && loginHint ? { login_hint: loginHint } : {}),
       ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
@@ -127,6 +129,11 @@ async function runServerOAuthFlow(
   // The window can close while server data still loads. Observe that early
   // rejection here; the later await still receives it.
   responseWait.promise.catch(() => {});
+  abandonActiveFlows.set(serverUrl, responseWait.abandon);
+  responseWait.promise.then(
+    () => abandonActiveFlows.delete(serverUrl),
+    () => abandonActiveFlows.delete(serverUrl)
+  );
 
   try {
     // A deliberate close must end the attempt even while discovery is pending.
@@ -152,6 +159,7 @@ async function runServerOAuthFlow(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       ...(providerId ? { provider_id: providerId } : {}),
+      ...(providerId && loginHint ? { login_hint: loginHint } : {}),
       ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
@@ -186,6 +194,17 @@ async function openSignedInServer(serverId: string): Promise<void> {
   await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
 }
 
+/** Cancels the waiting popup flow of each server URL that has one. */
+const abandonActiveFlows = new Map<string, () => void>();
+
+/**
+ * Stop waiting for the sign-in window of `serverUrl`. The user may have
+ * closed it while the window handle could not report this.
+ */
+export function cancelServerOAuthFlow(serverUrl: string): void {
+  abandonActiveFlows.get(serverUrl)?.();
+}
+
 function createResponseChannel(state: string): BroadcastChannel | null {
   if (typeof BroadcastChannel === 'undefined') return null;
   return new BroadcastChannel(oauthPopupChannelName(state));
@@ -195,8 +214,9 @@ function waitForPopupResponse(
   authorizationWindow: AuthorizationWindow,
   state: string,
   channel: BroadcastChannel | null
-): { promise: Promise<OAuthPopupResponse>; cancel: () => void } {
+): { promise: Promise<OAuthPopupResponse>; cancel: () => void; abandon: () => void } {
   let cancel = () => {};
+  let abandon = () => {};
   const promise = new Promise<OAuthPopupResponse>((resolveResponse, reject) => {
     let settled = false;
 
@@ -227,6 +247,7 @@ function waitForPopupResponse(
       settled = true;
       cleanup();
     };
+    abandon = () => fail('The sign-in attempt was cancelled.', 'cancelled');
 
     const handleWindowMessage = (event: MessageEvent) => {
       if (
@@ -251,6 +272,14 @@ function waitForPopupResponse(
       polling = true;
       try {
         if (await authorizationWindow.isClosed()) {
+          if (channel) {
+            // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
+            // Bluesky's, cuts the link to this window. The window handle then reports
+            // `closed` although the user is still signing in. With a channel, keep
+            // waiting for the result; the user can cancel the wait instead.
+            window.clearInterval(closePoll);
+            return;
+          }
           fail('The sign-in window was closed before authorization completed.', 'cancelled');
         }
       } catch {
@@ -264,7 +293,7 @@ function waitForPopupResponse(
       POPUP_TIMEOUT_MS
     );
   });
-  return { promise, cancel };
+  return { promise, cancel, abandon };
 }
 
 async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
@@ -385,10 +414,16 @@ export function oauthClientIdForLocation(
  * one of the server's configured providers; the server validates the hint.
  * The signup screen hint opens registration on servers that support it.
  */
+/**
+ * Sign in to `server` in its OAuth window. `providerId` starts that provider
+ * directly; `loginHint` is the identity to use there, such as a known AT
+ * Protocol handle (FDR-056).
+ */
 export function startRemoteReauthentication(
   server: RegisteredServer,
   providerId?: string,
-  screenHint?: 'signup'
+  screenHint?: 'signup',
+  loginHint?: string
 ): Promise<void> {
   const serverInfo = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
@@ -397,7 +432,7 @@ export function startRemoteReauthentication(
       iconUrl: info.iconUrl ?? server.iconUrl
     })
   );
-  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint);
+  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint, loginHint);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {

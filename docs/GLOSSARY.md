@@ -99,6 +99,8 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
+**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. Chatto does not show handles as verified. See [FDR-056](fdr/FDR-056-atproto-identity.md) and [ADR-123](adr/ADR-123-atproto-handle-verification-needs-an-issuer.md).
+
 **Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the _primary space_). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).

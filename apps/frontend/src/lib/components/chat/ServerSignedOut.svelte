@@ -8,6 +8,7 @@ window; an optional native host capability enables inline password submission.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { hasPasswordLogin, signInWithPassword } from '$lib/desktop/passwordLogin';
   import {
+    cancelRemoteSignIn,
     closeInlineSignIn,
     isRemoteSignInPending,
     startRemoteSignIn
@@ -21,6 +22,7 @@ window; an optional native host capability enables inline password submission.
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { serverHost } from '$lib/serverUrl';
   import { serverDisplayName } from '@chatto/client/server/state';
+  import { forgetAtprotoHandle, rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
   let { registration }: { registration: RegisteredServer } = $props();
   const { store, serverId } = useServerScope();
@@ -38,6 +40,16 @@ window; an optional native host capability enables inline password submission.
   const inlinePasswordLogin = hasPasswordLogin();
   const busy = $derived(submitting || isRemoteSignInPending(registration.id));
   const providers = $derived(store.serverInfo.authProviders ?? []);
+  // One-click sign-in with the handle that this device last used (FDR-056).
+  // The server still verifies it through its own provider.
+  const atprotoProvider = $derived(providers.find((provider) => provider.type === 'atproto'));
+  let rememberedHandle = $state(rememberedAtprotoHandle());
+  const knownAtprotoHandle = $derived(atprotoProvider ? rememberedHandle : '');
+
+  function forgetHandle() {
+    forgetAtprotoHandle();
+    rememberedHandle = '';
+  }
   const showPassword = $derived(
     inlinePasswordLogin && !store.serverInfo.loading && store.serverInfo.directLoginEnabled
   );
@@ -52,14 +64,14 @@ window; an optional native host capability enables inline password submission.
     welcomeMessage: store.serverInfo.welcomeMessage
   });
 
-  async function signInOnServer(providerId?: string, signup = false) {
+  async function signInOnServer(providerId?: string, signup = false, loginHint?: string) {
     if (busy) return;
     password = '';
     failed = false;
     selectedProviderId = providerId ?? null;
     signingUp = signup;
     try {
-      await startRemoteSignIn(registration, { useOAuth: true, providerId, signup });
+      await startRemoteSignIn(registration, { useOAuth: true, providerId, loginHint, signup });
     } finally {
       selectedProviderId = null;
       signingUp = false;
@@ -91,6 +103,24 @@ window; an optional native host capability enables inline password submission.
 >
   <AuthLayout serverInfo={branding} title={m('auth.login.title')} titleOnlyWithSideBranding>
     <div class="w-full text-start">
+      {#if atprotoProvider && knownAtprotoHandle}
+        <Button
+          fullWidth
+          size="lg"
+          disabled={busy}
+          loading={busy && selectedProviderId === atprotoProvider.id}
+          onclick={() => void signInOnServer(atprotoProvider.id, false, knownAtprotoHandle)}
+        >
+          <span aria-hidden="true" class="iconify icon-[mdi--at]"></span>
+          {m('auth.remote.continue_as_atproto', { handle: knownAtprotoHandle })}
+        </Button>
+        <p class="mt-2 text-center">
+          <button type="button" class="cursor-pointer link" disabled={busy} onclick={forgetHandle}
+            >{m('auth.remote.forget_atproto_handle')}</button
+          >
+        </p>
+        <Divider label={m('common.or')} />
+      {/if}
       {#if !inlinePasswordLogin}
         <p class="mb-6 text-center text-muted">
           {m('auth.remote.popup_notice', { server: serverHost(registration.url) })}
@@ -111,7 +141,8 @@ window; an optional native host capability enables inline password submission.
           {providers}
           {selectedProviderId}
           disabled={busy}
-          onclick={(_event, provider) => void signInOnServer(provider.id)}
+          onclick={(_event, provider, loginHint) =>
+            void signInOnServer(provider.id, false, loginHint)}
         />
         {#if showPassword}<Divider label={m('common.or')} />{/if}
       {/if}
@@ -154,7 +185,10 @@ window; an optional native host capability enables inline password submission.
           </button>
         </div>
       {/if}
-      <AuthPopupNotice pending={isRemoteSignInPending(registration.id)} />
+      <AuthPopupNotice
+        pending={isRemoteSignInPending(registration.id)}
+        oncancel={() => cancelRemoteSignIn(registration)}
+      />
     </div>
     {#if store.realtimeSync.hasDisplayableView}
       <div class="mt-4 text-center">

@@ -1,9 +1,15 @@
-<!-- @component Shared provider choices. The caller owns navigation and authentication. -->
+<!--
+@component
+Shared provider choices. The caller owns navigation and authentication.
+An AT Protocol provider also asks for the handle and suggests the handle that
+this device last used (FDR-056).
+-->
 <script lang="ts">
   import type { PublicAuthProvider } from '@chatto/client/api/server';
-  import { Button } from '$lib/ui/form';
+  import { Button, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
+  import { forgetAtprotoHandle, rememberedAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
   let {
     providers,
@@ -17,25 +23,81 @@
     selectedProviderId?: string | null;
     disabled?: boolean;
     compact?: boolean;
-    href?: (provider: PublicAuthProvider) => string;
-    onclick: (event: MouseEvent, provider: PublicAuthProvider) => void;
+    /** Link target for a provider; `loginHint` is set for AT Protocol providers. */
+    href?: (provider: PublicAuthProvider, loginHint?: string) => string;
+    onclick: (event: Event, provider: PublicAuthProvider, loginHint?: string) => void;
   } = $props();
+
+  let knownHandle = $state(rememberedAtprotoHandle());
+  let typedHandles = $state<Record<string, string>>({});
+
+  function forgetHandle() {
+    forgetAtprotoHandle();
+    knownHandle = '';
+    typedHandles = {};
+  }
+
+  function handleFor(provider: PublicAuthProvider): string {
+    return (typedHandles[provider.id] ?? knownHandle).trim().replace(/^@/, '');
+  }
 </script>
 
 <div class="flex flex-col gap-3">
   {#each providers as provider (provider.id)}
-    <Button
-      variant="secondary"
-      size={compact ? 'md' : 'lg'}
-      fullWidth
-      href={href?.(provider)}
-      disabled={disabled || selectedProviderId !== null}
-      loading={selectedProviderId === provider.id}
-      loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
-      onclick={(event) => onclick(event, provider)}
-    >
-      <span aria-hidden="true" class={['iconify text-lg', providerIcon(provider.type)]}></span>
-      {m('auth.login.continue_with_provider', { provider: provider.label })}
-    </Button>
+    {#if provider.type === 'atproto'}
+      <form
+        class="flex flex-col gap-2"
+        onsubmit={(event) => {
+          event.preventDefault();
+          onclick(event, provider, handleFor(provider) || undefined);
+        }}
+      >
+        <TextInput
+          id={`atproto-handle-${provider.id}`}
+          label={m('auth.login.atproto_handle_label')}
+          labelHidden
+          placeholder={m('auth.login.atproto_handle_placeholder')}
+          autocomplete="username"
+          value={typedHandles[provider.id] ?? knownHandle}
+          oninput={(event: Event) =>
+            (typedHandles[provider.id] = (event.currentTarget as HTMLInputElement).value)}
+          disabled={disabled || selectedProviderId !== null}
+        />
+        {#if knownHandle}
+          <button
+            type="button"
+            class="cursor-pointer self-start link"
+            disabled={disabled || selectedProviderId !== null}
+            onclick={forgetHandle}>{m('auth.remote.forget_atproto_handle')}</button
+          >
+        {/if}
+        <Button
+          type="submit"
+          variant="secondary"
+          size={compact ? 'md' : 'lg'}
+          fullWidth
+          disabled={disabled || selectedProviderId !== null}
+          loading={selectedProviderId === provider.id}
+          loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
+        >
+          <span aria-hidden="true" class={['iconify text-lg', providerIcon(provider.type)]}></span>
+          {m('auth.login.continue_with_provider', { provider: provider.label })}
+        </Button>
+      </form>
+    {:else}
+      <Button
+        variant="secondary"
+        size={compact ? 'md' : 'lg'}
+        fullWidth
+        href={href?.(provider)}
+        disabled={disabled || selectedProviderId !== null}
+        loading={selectedProviderId === provider.id}
+        loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
+        onclick={(event) => onclick(event, provider)}
+      >
+        <span aria-hidden="true" class={['iconify text-lg', providerIcon(provider.type)]}></span>
+        {m('auth.login.continue_with_provider', { provider: provider.label })}
+      </Button>
+    {/if}
   {/each}
 </div>

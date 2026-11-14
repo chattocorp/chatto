@@ -530,7 +530,7 @@ run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]
 description = "Build and run Chatto with Authling, Runling, Mailpit, and LiveKit"
 depends = ["check-dev-ports full", "setup", "build-dev-cli", "build-runling-bot"]
 # These settings reach the `chatto run` task. They enable email and LiveKit and
-# add the Authling login provider. Environment values replace the complete
+# add the Authling and AT Protocol login providers. Environment values replace the complete
 # provider list of `cli/chatto.toml`.
 env = {
   CHATTO_SMTP_ENABLED = "true",
@@ -543,6 +543,10 @@ env = {
   CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
   CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
   CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
+  CHATTO_AUTH_PROVIDERS_1_ID = "atproto",
+  CHATTO_AUTH_PROVIDERS_1_TYPE = "atproto",
+  CHATTO_AUTH_PROVIDERS_1_AUTO_PROVISION = "true",
+  CHATTO_AUTH_PROVIDERS_1_MANAGE_USERNAMES = "true",
 }
 # mise runs each service in its own process group. On SIGHUP, SIGINT, or
 # SIGTERM, it signals all of these groups, and when one service fails, it stops

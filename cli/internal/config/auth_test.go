@@ -396,6 +396,28 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		}
 	})
 
+	t.Run("atproto needs no client and rejects client settings", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			provider AuthProviderConfig
+			valid    bool
+		}{
+			{"minimal", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, ManageUsernames: true}, true},
+			{"client id", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, ClientID: "id"}, false},
+			{"client secret", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, ClientSecret: "secret"}, false},
+			{"scopes", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, Scopes: []string{"transition:generic"}}, false},
+			{"groups", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, AllowedGroups: []string{"staff"}}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				cfg := baseConfig()
+				cfg.Auth.Providers = []AuthProviderConfig{tc.provider}
+				if err := cfg.Validate(); (err == nil) != tc.valid {
+					t.Fatalf("Validate() = %v, valid %v", err, tc.valid)
+				}
+			})
+		}
+	})
+
 	t.Run("still requires secret for oauth-only provider", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.Auth.Providers = []AuthProviderConfig{{ID: "github", Type: AuthProviderTypeGitHub, ClientID: "id"}}

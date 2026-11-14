@@ -189,8 +189,14 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		// lets a client with an existing IdP session skip the redundant server
 		// login screen without letting the client supply an issuer or endpoint.
 		if providerID != "" && s.hasPublicAuthProvider(providerID) {
-			providerPath := "/auth/providers/" + url.PathEscape(providerID)
-			c.Redirect(http.StatusTemporaryRedirect, providerPath+"?redirect="+url.QueryEscape("/oauth/authorize"))
+			query := url.Values{"redirect": {"/oauth/authorize"}}
+			// An AT Protocol client that knows the user's identity sends it
+			// as login_hint, so the provider can skip the handle prompt
+			// (FDR-056). Other providers ignore it.
+			if hint := strings.TrimSpace(c.Query("login_hint")); hint != "" && len(hint) <= atprotoMaxIdentifierLength {
+				query.Set("login_hint", hint)
+			}
+			c.Redirect(http.StatusTemporaryRedirect, "/auth/providers/"+url.PathEscape(providerID)+"?"+query.Encode())
 			return
 		}
 

@@ -23,13 +23,17 @@ func TestLocalDevelopmentConfig(t *testing.T) {
 	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./data/search" {
 		t.Errorf("search provider directory = %q, want %q", got, "./data/search")
 	}
-	// The development users come from the file. TestBot and the Authling
-	// provider depend on workspace ports, so the mise tasks add them.
+	// The development users and the AT Protocol provider come from the file.
+	// TestBot and the Authling provider depend on workspace ports, so the mise
+	// tasks add them.
 	if len(cfg.Bootstrap.Users) != 2 || cfg.Bootstrap.Users[0].Login != "alice" || cfg.Bootstrap.Users[0].ServerRole != "owner" || cfg.Bootstrap.Users[1].Login != "bob" {
 		t.Fatalf("bootstrap users = %#v, want alice (owner) and bob", cfg.Bootstrap.Users)
 	}
-	if len(cfg.Bootstrap.Bots) != 0 || len(cfg.Auth.Providers) != 0 {
-		t.Fatalf("bootstrap bots = %#v, auth providers = %#v; want none in the file", cfg.Bootstrap.Bots, cfg.Auth.Providers)
+	if len(cfg.Bootstrap.Bots) != 0 {
+		t.Fatalf("bootstrap bots = %#v; want none in the file", cfg.Bootstrap.Bots)
+	}
+	if len(cfg.Auth.Providers) != 1 || cfg.Auth.Providers[0].Type != AuthProviderTypeATProto {
+		t.Fatalf("auth providers = %#v; want only the atproto provider", cfg.Auth.Providers)
 	}
 	// `mise dev` runs without Mailpit and LiveKit; `mise dev-full` enables both.
 	if cfg.SMTP.Enabled || cfg.LiveKit.Enabled {

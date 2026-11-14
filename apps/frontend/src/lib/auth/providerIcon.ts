@@ -9,6 +9,8 @@ export function providerIcon(type: string): string {
       return 'icon-[mdi--google]';
     case 'discord':
       return 'icon-[mdi--discord]';
+    case 'atproto':
+      return 'icon-[mdi--at]';
     default:
       return 'icon-[mdi--shield-account]';
   }

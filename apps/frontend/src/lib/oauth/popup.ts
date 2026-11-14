@@ -14,6 +14,11 @@ export type OAuthPopupResponse = {
   state: string;
   /** Provider sign-in established an origin cookie session; verify it with the server. */
   completed?: boolean;
+  /**
+   * Provider sign-in found no account and the user may create one. The opening
+   * window confirms the new account with this short-lived token.
+   */
+  externalIdentityToken?: string;
   code?: string;
   error?: string;
   errorDescription?: string;
@@ -37,7 +42,10 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   if (!state) return null;
 
   if (url.searchParams.get('mode') === 'provider' && !url.searchParams.has('error')) {
-    return { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
+    const externalIdentityToken = url.searchParams.get('external_identity');
+    return externalIdentityToken
+      ? { type: OAUTH_POPUP_RESPONSE_TYPE, state, externalIdentityToken }
+      : { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
   }
 
   const code = url.searchParams.get('code') ?? undefined;
@@ -59,6 +67,8 @@ export type OAuthPopup = {
   response: Promise<OAuthPopupResponse>;
   navigate(url: string): void;
   close(): void;
+  /** Stop waiting and reject `response` as cancelled. */
+  cancel(): void;
 };
 
 /** Open an OAuth popup while a user gesture is active. */
@@ -76,8 +86,10 @@ export function openOAuthPopup(state: string): OAuthPopup {
       : new BroadcastChannel(oauthPopupChannelName(state));
   if (channel) authorizationWindow.detachOpener();
 
+  const wait = waitForPopupResponse(authorizationWindow, state, channel);
   return {
-    response: waitForPopupResponse(authorizationWindow, state, channel),
+    response: wait.response,
+    cancel: wait.cancel,
     navigate: (url) => {
       void authorizationWindow.navigate(url);
     },
@@ -97,8 +109,9 @@ function waitForPopupResponse(
   authorizationWindow: AuthorizationWindow,
   state: string,
   channel: BroadcastChannel | null
-): Promise<OAuthPopupResponse> {
-  return new Promise((resolve, reject) => {
+): { response: Promise<OAuthPopupResponse>; cancel: () => void } {
+  let cancel = () => {};
+  const response = new Promise<OAuthPopupResponse>((resolve, reject) => {
     let settled = false;
 
     const cleanup = () => {
@@ -140,14 +153,24 @@ function waitForPopupResponse(
       };
     }
 
+    cancel = () => fail('The sign-in attempt was cancelled.', 'cancelled');
+
     const closePoll = window.setInterval(async () => {
-      if (await authorizationWindow.isClosed()) {
-        fail('The sign-in window was closed before authorization completed.', 'cancelled');
+      if (!(await authorizationWindow.isClosed())) return;
+      if (channel) {
+        // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
+        // Bluesky's, cuts the link to this window. The window handle then reports
+        // `closed` although the user is still signing in. With a channel, keep
+        // waiting for the result; the user can cancel the wait instead.
+        window.clearInterval(closePoll);
+        return;
       }
+      fail('The sign-in window was closed before authorization completed.', 'cancelled');
     }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
       () => fail('The sign-in attempt timed out.'),
       POPUP_TIMEOUT_MS
     );
   });
+  return { response, cancel };
 }

@@ -1,8 +1,15 @@
 <script lang="ts">
+  import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import {
+    confirmProviderAccount,
+    openProviderSignIn,
+    ProviderSignInError,
+    providerLoginUrl,
+    verifyProviderSignIn
+  } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
@@ -47,8 +54,9 @@
   );
   const displayedError = $derived(error || pageError);
 
-  function providerLoginHref(provider: PublicAuthProvider): string {
-    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
+  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
+    const url = providerLoginUrl(provider.loginUrl, loginHint);
+    return `${url}${url.includes('?') ? '&' : '?'}redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   function loginErrorMessage(code: string): string {
@@ -69,12 +77,14 @@
         return m('auth.login.error.external_identity_conflict');
       case 'invalid_invitation':
         return m('auth.login.error.invalid_invitation');
+      case 'atproto_identity_not_found':
+        return m('auth.login.error.atproto_identity_not_found');
       default:
         return '';
     }
   }
 
-  async function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
+  async function handleProviderClick(e: Event, provider: PublicAuthProvider, loginHint?: string) {
     e.preventDefault();
     error = '';
     pageErrorDismissed = true;
@@ -82,18 +92,27 @@
     // Remote authorization and existing-account linking already own this window.
     // Keep their continuation here instead of opening another provider popup.
     if (compact || isProviderContinuation(data.redirectUrl)) {
-      window.location.href = providerLoginHref(provider);
+      window.location.href = providerLoginHref(provider, loginHint);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(provider.loginUrl);
-      await verifyProviderSignIn(providerPopup);
+      providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
+      const result = await verifyProviderSignIn(providerPopup);
+      // Only AT Protocol providers take a handle hint (FDR-056).
+      if (loginHint) rememberAtprotoHandle(loginHint);
       if (!active) return;
+      if (result.kind === 'confirm-account') {
+        await confirmProviderAccount(result.token, data.redirectUrl);
+        return;
+      }
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
       const resumed = await completeOriginAuthentication();
       if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
-      if (active) error = popupErrorMessage(err, m('auth.login.failed'));
+      if (!active) return;
+      error =
+        (err instanceof ProviderSignInError && loginErrorMessage(err.code)) ||
+        popupErrorMessage(err, m('auth.login.failed'));
     } finally {
       providerPopup = null;
       selectedProviderId = null;
@@ -160,7 +179,10 @@
       href={providerLoginHref}
       onclick={handleProviderClick}
     />
-    <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+    <AuthPopupNotice
+      pending={!compact && selectedProviderId !== null}
+      oncancel={() => providerPopup?.cancel()}
+    />
     {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
   {/if}
 

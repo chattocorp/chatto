@@ -1,6 +1,6 @@
 ---
 title: Login Providers
-description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, or Discord, with a Pocket ID example.
+description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, Discord, or Bluesky (AT Protocol), with a Pocket ID example.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -18,6 +18,7 @@ in a popup, so users must allow popups for Chatto.
 | `gitlab` | GitLab OAuth applications |
 | `google` | Google OAuth clients |
 | `discord` | Discord OAuth2 applications |
+| `atproto` | [Bluesky and other AT Protocol accounts](#bluesky-at-protocol). Needs no client registration. |
 
 Self-hosted OIDC providers include [Pocket ID](https://pocket-id.org/),
 [Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth),
@@ -122,6 +123,45 @@ use them together with counted variables.
 </TabItem>
 </Tabs>
 
+## Bluesky (AT Protocol)
+
+The `atproto` type lets people sign in with a Bluesky account or another AT
+Protocol account. You do not register a client. Chatto publishes its own client
+metadata, and the user's server reads it during sign-in.
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+
+[[auth.providers]]
+id = "bluesky"
+type = "atproto"
+auto_provision = true
+```
+
+- Use an HTTPS `webserver.url` in production. With a local `http://` URL,
+  Chatto uses the AT Protocol development client, which returns through
+  `127.0.0.1`.
+- Do not set `client_id`, `client_secret`, `scopes`, `request_email`, or the
+  group settings. Chatto rejects them for this type.
+- The default button label is "Internet Handle". Set `label` to change it.
+- The login page asks for the handle, for example `alice.bsky.social`. Without
+  a handle, the user enters it on `bsky.social`.
+- Chatto requests only the `atproto` scope. It proves the account and gives
+  Chatto no access to the user's posts or other data.
+- The account link uses the account's DID. A changed handle does not change
+  the link.
+- With `manage_usernames = true`, new accounts get the handle as their
+  username. Usernames have at most 32 characters, so people with longer
+  handles, for example on a custom domain, cannot create an account. Keep
+  `manage_usernames` disabled unless your users have short handles.
+- New accounts get the display name and avatar of the person's public Bluesky
+  profile, when they have one.
+
+During sign-in, the Chatto server contacts the handle's domain, the PLC
+directory (`plc.directory`) for most accounts, and the user's AT Protocol
+server.
+
 ### Token endpoint authentication
 
 For `oidc` providers only, `token_endpoint_auth_method` can be
@@ -214,6 +254,7 @@ checks its format. The source depends on the provider:
 | GitLab | Account username |
 | Discord | Account username, not the global display name |
 | Google | Local part of the verified email address: `alice@example.com` becomes `alice` |
+| AT Protocol | Handle, when it resolves back to the account's DID |
 
 Google has no separate username. With default scopes, set `request_email = true`
 for managed Google usernames. Custom `scopes` replace those defaults and must
