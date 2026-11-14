@@ -290,8 +290,9 @@ jobs:
         run: |
           set -euo pipefail
           context=".context/ci/docker/frontend"
-          mkdir -p "$context/apps/frontend" "$context/LICENSES"
+          mkdir -p "$context/apps/frontend" "$context/docker" "$context/LICENSES"
           cp docker/Dockerfile.frontend.prebuilt "$context/Dockerfile"
+          cp docker/frontend-entrypoint.sh "$context/docker/frontend-entrypoint.sh"
           cp -a apps/frontend/build "$context/apps/frontend/build"
           cp apps/frontend/nginx.conf "$context/apps/frontend/nginx.conf"
           cp LICENSES/Apache-2.0.txt LICENSES/MIT.txt "$context/LICENSES/"
