@@ -85,7 +85,12 @@ The example configuration uses `openrouter/z-ai/glm-5.3-flash` with low reasonin
 Put operator-maintained skills in `.agents/skills/` beside `botto.toml` (or the
 file selected by `BOTTO_CONFIG`). Each skill uses a directory with a `SKILL.md`
 file containing YAML `name` and `description` fields and Markdown instructions.
-Chatto formatting guidance is part of Botto's internal prompt and needs no skill.
+The bundled `chatto-formatting` skill describes rendered SVG, Mermaid, and ANSI
+visuals. The core prompt supplies the fence tags and asks the agent to load matching
+skills before relevant work. The `chatto-support` and `github` skills cover bug
+triage, repository searches, issue drafts, and the operator-selected `@hmans`
+authorization handoff. Change that contact in those skills for another deployment;
+the contact name does not grant admin authority.
 
 The conversation agent uses Pi's skill catalog. It sees names and descriptions
 and can load instructions when needed. Only this directory is discovered;
