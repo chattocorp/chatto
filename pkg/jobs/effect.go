@@ -113,7 +113,8 @@ func (e *Effect) enqueue(ctx context.Context, d events.DurableDelivery) error {
 
 // Handle is the queue handler of this effect. A handler error created with
 // events.TerminateDelivery fails the job permanently; other errors use the
-// automatic retry budget.
+// automatic retry budget and the backoff of the queue. A delay from
+// events.RetryDeliveryAfter has no effect.
 func (e *Effect) Handle(ctx context.Context, job Job) error {
 	ref := new(jobpb.EffectSource)
 	if err := proto.Unmarshal(job.Payload, ref); err != nil || ref.Subject == "" || ref.Sequence == 0 {

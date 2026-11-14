@@ -13,6 +13,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
@@ -571,20 +572,117 @@ func TestQueueShutdownRepeatsInterruptedAttemptAndKeepsFinishedOne(t *testing.T)
 	}
 }
 
-func TestQueueFailsDeliveryBeyondTheAttemptBudget(t *testing.T) {
+// failNextPurge makes the next purge of the wrapped stream fail.
+type failNextPurge struct {
+	jetstream.Stream
+	fail bool
+}
+
+func (f *failNextPurge) Purge(ctx context.Context, opts ...jetstream.StreamPurgeOpt) error {
+	if f.fail {
+		f.fail = false
+		return errors.New("purge failed")
+	}
+	return f.Stream.Purge(ctx, opts...)
+}
+
+// queuedDelivery returns the queued fact of a job as a delivery.
+func queuedDelivery(t *testing.T, q *Queue, id string, delivered uint64) events.DurableDelivery {
+	t.Helper()
+	return eventsDelivery(must(q.stream.GetLastMsgForSubject(t.Context(), "jobs.work."+id+".queued")), delivered)
+}
+
+func TestQueueRunsDeliveryBeyondTheAttemptBudget(t *testing.T) {
 	q, _ := testQueue(t, Options{})
 	ctx := t.Context()
 	runView(t, q)
-	noError(t, q.Enqueue(ctx, testSpec("lost")))
-	msg := must(q.stream.GetLastMsgForSubject(ctx, "jobs.work.lost.queued"))
-	// A delivery past the budget: earlier deliveries ended without an outcome.
-	err := q.process(ctx, eventsDelivery(msg, 4), func(context.Context, Job) error {
-		t.Error("handler must not run")
-		return nil
-	})
-	noError(t, err)
-	if job := awaitStatus(t, q, "lost", Failed); job.Attempts != 3 || job.Failure != "attempts_exhausted" {
+	// Earlier deliveries ended without a stored outcome, for example because
+	// the outcome write failed. Their result is unknown, so the job runs.
+	noError(t, q.Enqueue(ctx, testSpec("lost-success")))
+	noError(t, q.process(ctx, queuedDelivery(t, q, "lost-success", 4), func(context.Context, Job) error { return nil }))
+	if job := awaitStatus(t, q, "lost-success", Succeeded); job.Attempts != 4 {
 		t.Fatalf("job = %+v", job)
+	}
+	noError(t, q.Enqueue(ctx, testSpec("lost-failure")))
+	noError(t, q.process(ctx, queuedDelivery(t, q, "lost-failure", 4), func(context.Context, Job) error { return &Failure{Category: "boom"} }))
+	if job := awaitStatus(t, q, "lost-failure", Failed); job.Attempts != 4 || job.Failure != "boom" {
+		t.Fatalf("job = %+v", job)
+	}
+}
+
+func TestQueueRepeatedDeliveryAfterOutcomeDoesNotRunAgain(t *testing.T) {
+	q, _ := testQueue(t, Options{})
+	ctx := t.Context()
+	runView(t, q)
+	var calls atomic.Int32
+	handler := func(_ context.Context, job Job) error {
+		calls.Add(1)
+		if job.ID == "bad" {
+			return &Failure{Category: "boom", Permanent: true}
+		}
+		return nil
+	}
+	deliveries := map[string]events.DurableDelivery{}
+	for id, status := range map[string]Status{"good": Succeeded, "bad": Failed} {
+		noError(t, q.Enqueue(ctx, testSpec(id)))
+		delivery := queuedDelivery(t, q, id, 1)
+		deliveries[id] = delivery
+		noError(t, q.process(ctx, delivery, handler))
+		awaitStatus(t, q, id, status)
+		// The acknowledgement was lost; the same fact arrives again.
+		delivery.NumDelivered = 2
+		noError(t, q.process(ctx, delivery, handler))
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("handler calls = %d, want one per job", calls.Load())
+	}
+	// A delivery of the old budget after a manual retry does not run either.
+	_, err := q.Retry(ctx, "bad", Version(awaitStatus(t, q, "bad", Failed)))
+	noError(t, err)
+	old := deliveries["bad"]
+	old.NumDelivered = 3
+	noError(t, q.process(ctx, old, handler))
+	if job := must(q.Get(ctx, "bad")); job.Status != Queued || calls.Load() != 2 {
+		t.Fatalf("job = %+v, calls = %d", job, calls.Load())
+	}
+}
+
+func TestQueueFinishesFailedPurgeOnTheNextDelivery(t *testing.T) {
+	q, _ := testQueue(t, Options{})
+	ctx := t.Context()
+	runView(t, q)
+	purge := &failNextPurge{Stream: q.stream, fail: true}
+	q.stream = purge
+	var calls atomic.Int32
+	handler := func(context.Context, Job) error { calls.Add(1); return nil }
+	noError(t, q.Enqueue(ctx, testSpec("one")))
+	delivery := queuedDelivery(t, q, "one", 1)
+	// The success is stored, but its earlier facts stay. The delivery returns.
+	if err := q.process(ctx, delivery, handler); err == nil {
+		t.Fatal("process must report the failed purge")
+	}
+	if subjects := factNames(t, q); len(subjects) != 3 {
+		t.Fatalf("facts after failed purge = %v", subjects)
+	}
+	delivery.NumDelivered = 2
+	noError(t, q.process(ctx, delivery, handler))
+	subjects := factNames(t, q)
+	if len(subjects) != 1 || subjects["jobs.work.one.succeeded"] != 1 || calls.Load() != 1 {
+		t.Fatalf("facts = %v, calls = %d", subjects, calls.Load())
+	}
+	if job := awaitStatus(t, q, "one", Succeeded); job.Attempts != 1 {
+		t.Fatalf("job = %+v", job)
+	}
+
+	// A delete reports a failed purge; the failed fact then stays.
+	noError(t, q.Enqueue(ctx, testSpec("two")))
+	noError(t, q.process(ctx, queuedDelivery(t, q, "two", 1), func(context.Context, Job) error {
+		return &Failure{Category: "boom", Permanent: true}
+	}))
+	failed := awaitStatus(t, q, "two", Failed)
+	purge.fail = true
+	if err := q.Delete(ctx, "two", Version(failed)); err == nil {
+		t.Fatal("delete must report the failed purge")
 	}
 }
 
@@ -628,6 +726,23 @@ func TestViewAppliesFactsInOrder(t *testing.T) {
 	e, _ = v.get("j")
 	if e.job.Status != Succeeded || e.job.Attempts != 2 || e.job.Failure != "" || !e.job.NextAttemptAt.IsZero() {
 		t.Fatalf("after success = %+v", e)
+	}
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Deleted{Deleted: &jobpb.JobDeleted{}}}, 8*time.Second), 11))
+	if _, ok := v.get("j"); ok {
+		t.Fatal("deleted job stays in the view")
+	}
+	// A success or a failure describes a job by itself, after the purge of its
+	// earlier facts.
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: 1, MaxAttempts: 2}}}, 9*time.Second), 12))
+	e, _ = v.get("j")
+	if e.job.Status != Succeeded || e.job.Type != "work" || !e.job.CreatedAt.Equal(at) || e.job.MaxAttempts != 2 {
+		t.Fatalf("lone success = %+v", e)
+	}
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Deleted{Deleted: &jobpb.JobDeleted{}}}, 10*time.Second), 13))
+	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 2, Failure: "boom", Spec: spec}}}, 11*time.Second), 14))
+	e, _ = v.get("j")
+	if e.job.Status != Failed || e.specSeq != 14 || e.job.MaxAttempts != 2 || e.job.RetryDelay != 5*time.Millisecond {
+		t.Fatalf("lone failure = %+v", e)
 	}
 }
 

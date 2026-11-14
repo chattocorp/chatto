@@ -77,9 +77,10 @@ type Options struct {
 	FailedRetention time.Duration
 	// Logger receives queue diagnostics. Nil discards them.
 	Logger *slog.Logger
-	// OnFailed observes each transition to failed, for application
-	// diagnostics. It gets the job with its payload and must honor
-	// cancellation. The failed fact stays authoritative.
+	// OnFailed observes a transition to failed, for application diagnostics.
+	// It gets the job with its payload and must honor cancellation. The failed
+	// fact stays authoritative: after a repeated delivery OnFailed can run
+	// again, and after a crash it can be missing.
 	OnFailed func(context.Context, Job)
 }
 
@@ -196,9 +197,10 @@ func (q *Queue) append(ctx context.Context, fact *jobpb.JobFact, name, messageID
 }
 
 // Enqueue accepts a job once: it appends the queued fact only when the job has
-// no facts. A repeated handoff changes nothing. A job that succeeded and
-// passed its retention is unknown again, so sources must acknowledge their
-// messages after Enqueue returns.
+// no facts. A repeated handoff changes nothing. Enqueue returns nil only when
+// a fact of the job is stored, so sources must acknowledge their messages
+// after it returns. A job whose facts are gone is unknown again: one that
+// succeeded and passed its retention, or one that was deleted an hour ago.
 func (q *Queue) Enqueue(ctx context.Context, spec Spec) error {
 	if !safeToken.MatchString(spec.ID) || !safeToken.MatchString(spec.Type) || spec.MaxAttempts == 0 || spec.RetryDelay < time.Millisecond {
 		return errors.New("jobs: invalid job specification")
@@ -210,10 +212,17 @@ func (q *Queue) Enqueue(ctx context.Context, spec Spec) error {
 	}
 	fact := &jobpb.JobFact{Id: spec.ID, Type: spec.Type, OccurredAt: now, CreatedAt: now, Fact: &jobpb.JobFact_Queued{Queued: &jobpb.JobQueued{Spec: stored}}}
 	expect := events.ExpectFilterSeq(q.jobFilter(spec.Type, spec.ID), 0)
-	if _, err := q.append(ctx, fact, factQueued, factQueued, 0, &expect); err != nil && !errors.Is(err, events.ErrConflict) {
+	_, err := q.append(ctx, fact, factQueued, factQueued, 0, &expect)
+	if !errors.Is(err, events.ErrConflict) {
 		return err
 	}
-	return nil
+	// A conflict can come from a concurrent write that is not stored yet and
+	// can still fail. Accept the handoff only when a fact of the job exists.
+	_, seq, err := q.latestFact(ctx, spec.Type, spec.ID)
+	if err == nil && seq == 0 {
+		err = errors.New("jobs: concurrent job acceptance is not confirmed")
+	}
+	return err
 }
 
 // Get returns the current state of a job from the view, without its payload.
@@ -278,7 +287,7 @@ func (q *Queue) Retry(ctx context.Context, id, expectedVersion string) (Job, err
 	if err != nil {
 		return Job{}, err
 	}
-	if err = q.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
+	if err = q.awaitView(ctx, filter, seq); err != nil {
 		return Job{}, err
 	}
 	if e, ok = q.view.get(id); !ok {
@@ -315,16 +324,45 @@ func (q *Queue) Delete(ctx context.Context, id, expectedVersion string) error {
 	if err != nil {
 		return err
 	}
-	q.purgeBefore(ctx, e.job.Type, id, seq)
-	return q.projector.WaitFor(ctx, events.SubjectPosition(filter, seq))
+	// When the purge fails, the failed fact stays. The job then shows again
+	// after the deleted fact expires, and an operator can delete it again.
+	if err = q.purgeBefore(ctx, e.job.Type, id, seq); err != nil {
+		return err
+	}
+	return q.awaitView(ctx, filter, seq)
 }
 
-// purgeBefore removes the facts of a job before seq. A failed purge leaves
-// facts that nothing reads; the next outcome of the job removes them.
-func (q *Queue) purgeBefore(ctx context.Context, kind, id string, seq uint64) {
-	if err := q.stream.Purge(ctx, jetstream.WithPurgeSubject(q.jobFilter(kind, id)), jetstream.WithPurgeSequence(seq)); err != nil {
-		q.logger.Warn("Earlier facts of a job were not removed", "job_id", id)
+// awaitView waits until the view has applied the fact at seq. A worker can
+// already have finished the job and removed that fact; the wait then cannot
+// confirm the position, and the caller reads the view as it is.
+func (q *Queue) awaitView(ctx context.Context, filter string, seq uint64) error {
+	if err := q.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil && ctx.Err() != nil {
+		return err
 	}
+	return nil
+}
+
+// latestFact returns the name and the sequence of the latest fact of a job.
+// The sequence is zero when the job has no facts.
+func (q *Queue) latestFact(ctx context.Context, kind, id string) (string, uint64, error) {
+	msg, err := q.stream.GetLastMsgForSubject(ctx, q.jobFilter(kind, id))
+	if errors.Is(err, jetstream.ErrMsgNotFound) {
+		return "", 0, nil
+	}
+	if err != nil {
+		return "", 0, err
+	}
+	return msg.Subject[strings.LastIndexByte(msg.Subject, '.')+1:], msg.Sequence, nil
+}
+
+// purgeBefore removes the facts of a job before seq. Leftover facts are not
+// harmless: a view would build a job from them. Callers therefore report the
+// error, so that the purge runs again.
+func (q *Queue) purgeBefore(ctx context.Context, kind, id string, seq uint64) error {
+	if err := q.stream.Purge(ctx, jetstream.WithPurgeSubject(q.jobFilter(kind, id)), jetstream.WithPurgeSequence(seq)); err != nil {
+		return fmt.Errorf("jobs: remove earlier job facts: %w", err)
+	}
+	return nil
 }
 
 // ListOptions selects a page of jobs.
@@ -339,7 +377,8 @@ type ListOptions struct {
 }
 
 // List returns jobs ordered by last update, newest first, from the view. It
-// reads no storage, so polling is cheap. Payloads are omitted. List waits until
+// reads no storage; it copies and sorts the matching jobs on each call.
+// Payloads are omitted. List waits until
 // Run has replayed the stream. Jobs that change while a caller pages can move
 // between pages, so callers should remove duplicate IDs.
 func (q *Queue) List(ctx context.Context, opts ListOptions) ([]Job, string, error) {
@@ -464,6 +503,12 @@ func specOf(fact *jobpb.JobFact) *jobpb.JobSpec {
 // process performs one attempt. The delivery is a queued or retried fact; its
 // delivery count is the attempt number. The consumer's acknowledgement wait is
 // the claim, and the durable worker's progress heartbeat renews it.
+//
+// A delivery can repeat after its outcome is stored: the acknowledgement was
+// lost, or the purge after the outcome failed. process then only finishes the
+// purge. A delivery whose earlier deliveries ended without a stored outcome
+// runs the handler again, also beyond the attempt budget, because the result
+// of those deliveries is unknown.
 func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler Handler) error {
 	fact := new(jobpb.JobFact)
 	spec := (*jobpb.JobSpec)(nil)
@@ -485,25 +530,29 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler H
 	if spec.ExpiresAt != nil {
 		job.ExpiresAt = spec.ExpiresAt.AsTime()
 	}
+	// The job already has an outcome, or an operator started a new attempt
+	// budget after this fact. Remove what the outcome or the retry replaced.
+	latest, seq, err := q.latestFact(ctx, job.Type, job.ID)
+	if err != nil {
+		return err
+	}
+	if seq > d.StreamSequence && (latest == factSucceeded || latest == factFailed || latest == factDeleted || latest == factRetried) {
+		return q.purgeBefore(ctx, job.Type, job.ID, seq)
+	}
 	if job.Expired(q.now()) {
 		job.Attempts--
 		return q.fail(ctx, job, spec, d, "expired")
-	}
-	if job.Attempts > job.MaxAttempts {
-		// Deliveries that ended without an outcome used the budget, for example
-		// a lost acknowledgement of the last failure.
-		job.Attempts = job.MaxAttempts
-		return q.fail(ctx, job, spec, d, "attempts_exhausted")
 	}
 	// The started and attempt-failed facts only feed the view. A failed write
 	// must not stop or repeat the attempt.
 	q.note(ctx, job, d, factStarted, &jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: job.Attempts}}})
 
-	err := handler(ctx, job)
+	err = handler(ctx, job)
 	if ctx.Err() != nil {
-		// Shutdown. A finished attempt keeps its result, so another worker does
-		// not repeat it. A failure can be an effect of the cancellation: it is
-		// not recorded, and the next delivery runs the job again.
+		// Shutdown. A finished attempt records its result, so that the next
+		// delivery does not repeat it. A failure can be an effect of the
+		// cancellation: it is not recorded, and the next delivery runs the job
+		// again.
 		if err == nil {
 			writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownWriteTimeout)
 			defer cancel()
@@ -557,21 +606,22 @@ func (q *Queue) note(ctx context.Context, job Job, d events.DurableDelivery, nam
 
 // succeed records success and then removes the earlier facts of the job. The
 // succeeded fact expires after the retention, so a succeeded job leaves one
-// small fact for a short time.
+// small fact for a short time. When a step fails, the delivery returns: the
+// next delivery runs the job again, or finishes the purge.
 func (q *Queue) succeed(ctx context.Context, job Job, d events.DurableDelivery) error {
 	fact := q.fill(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: job.Attempts, MaxAttempts: job.MaxAttempts}}}, job)
 	seq, err := q.append(ctx, fact, factSucceeded, fmt.Sprintf("%s.%d", factSucceeded, d.StreamSequence), q.opts.SucceededRetention, nil)
 	if err != nil {
 		return err
 	}
-	q.purgeBefore(ctx, job.Type, job.ID, seq)
-	return nil
+	return q.purgeBefore(ctx, job.Type, job.ID, seq)
 }
 
 // fail records the final failure before the delivery is acknowledged, and then
 // removes the earlier facts of the job. The failed fact carries the
 // specification, so a failed job is one fact that a manual retry can read.
-// When the write fails, the delivery returns and reaches this outcome again.
+// When the write fails, the delivery returns and the job runs again. When the
+// purge fails, the next delivery finishes it.
 func (q *Queue) fail(ctx context.Context, job Job, spec *jobpb.JobSpec, d events.DurableDelivery, category string) error {
 	job.Status, job.Failure = Failed, category
 	fact := q.fill(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: job.Attempts, Failure: category, Spec: spec}}}, job)
@@ -579,11 +629,10 @@ func (q *Queue) fail(ctx context.Context, job Job, spec *jobpb.JobSpec, d events
 	if err != nil {
 		return err
 	}
-	q.purgeBefore(ctx, job.Type, job.ID, seq)
 	if q.opts.OnFailed != nil {
 		q.opts.OnFailed(ctx, job)
 	}
-	return nil
+	return q.purgeBefore(ctx, job.Type, job.ID, seq)
 }
 
 // Backoff doubles the initial delay per attempt, capped at thirty minutes.
