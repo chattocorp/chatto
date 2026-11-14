@@ -179,6 +179,9 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 			return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
 		}
 	}
+	if err := oidcprovider.CheckGrantCapacity(cfg); err != nil {
+		return closeOnError(err)
+	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {
 		profile, err := accountService.Profile(ctx, accountID)

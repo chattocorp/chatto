@@ -25,3 +25,4 @@ Repository-wide decisions currently live in:
 | [ADR-007](ADR-007-limit-authling-to-identity-provider.md) | Limit Authling to Identity-Provider State | Accepted | 2026-08-14 |
 | [ADR-008](ADR-008-automatic-oidc-signing-key-rotation.md) | Automatically Rotate OIDC Signing Keys | Accepted | 2026-08-21 |
 | [ADR-009](ADR-009-live-presentation-settings.md) | Record Presentation Settings in the Primary Event Log | Accepted | 2026-10-30 |
+| [ADR-010](ADR-010-resource-access-and-refresh-tokens.md) | Issue Resource-Bound JWT Access Tokens and Rotating Refresh Tokens | Accepted | 2026-11-13 |

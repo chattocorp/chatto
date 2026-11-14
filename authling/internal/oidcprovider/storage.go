@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
+	"github.com/chattocorp/chatto/authling/internal/config"
 	"github.com/chattocorp/chatto/authling/internal/ids"
 	"github.com/chattocorp/chatto/authling/internal/issuer"
 	"github.com/chattocorp/chatto/authling/internal/runtimejson"
@@ -32,23 +34,26 @@ var ErrLoginRequired = errors.New("fresh authentication required")
 var errOIDCStateNotFound = errors.New("OIDC state not found")
 
 type authRequestState struct {
-	ID            string                      `json:"id"`
-	CreatedAt     time.Time                   `json:"created_at"`
-	ExpiresAt     time.Time                   `json:"expires_at"`
-	ClientID      string                      `json:"client_id"`
-	ClientName    string                      `json:"client_name"`
-	ClientHost    string                      `json:"client_host"`
-	RedirectURI   string                      `json:"redirect_uri"`
-	State         string                      `json:"state,omitempty"`
-	Nonce         string                      `json:"nonce,omitempty"`
-	Scopes        []string                    `json:"scopes"`
-	ResponseType  liboidc.ResponseType        `json:"response_type"`
-	ResponseMode  liboidc.ResponseMode        `json:"response_mode,omitempty"`
-	CodeChallenge string                      `json:"code_challenge"`
-	CodeMethod    liboidc.CodeChallengeMethod `json:"code_challenge_method"`
-	MaxAge        *uint                       `json:"max_age,omitempty"`
-	ForceLogin    bool                        `json:"force_login,omitempty"`
-	ForceConsent  bool                        `json:"force_consent,omitempty"`
+	PasswordVersion string                      `json:"password_version,omitempty"`
+	Resource        string                      `json:"resource,omitempty"`
+	GrantID         string                      `json:"grant_id,omitempty"`
+	ID              string                      `json:"id"`
+	CreatedAt       time.Time                   `json:"created_at"`
+	ExpiresAt       time.Time                   `json:"expires_at"`
+	ClientID        string                      `json:"client_id"`
+	ClientName      string                      `json:"client_name"`
+	ClientHost      string                      `json:"client_host"`
+	RedirectURI     string                      `json:"redirect_uri"`
+	State           string                      `json:"state,omitempty"`
+	Nonce           string                      `json:"nonce,omitempty"`
+	Scopes          []string                    `json:"scopes"`
+	ResponseType    liboidc.ResponseType        `json:"response_type"`
+	ResponseMode    liboidc.ResponseMode        `json:"response_mode,omitempty"`
+	CodeChallenge   string                      `json:"code_challenge"`
+	CodeMethod      liboidc.CodeChallengeMethod `json:"code_challenge_method"`
+	MaxAge          *uint                       `json:"max_age,omitempty"`
+	ForceLogin      bool                        `json:"force_login,omitempty"`
+	ForceConsent    bool                        `json:"force_consent,omitempty"`
 	// Silent prohibits login, consent, and other interactive pages.
 	Silent     bool      `json:"silent,omitempty"`
 	Subject    string    `json:"subject,omitempty"`
@@ -97,6 +102,10 @@ type tokenState struct {
 
 // ConsentRequest contains the non-sensitive metadata shown to an authenticated user.
 type ConsentRequest struct {
+	Resource string
+	// ResourceClaims lists the requested identity scopes whose claims the
+	// resource receives in access tokens. It is empty unless configured.
+	ResourceClaims                                       []string
 	ID, ClientID, ClientName, ClientHost, RedirectOrigin string
 	Scopes                                               []string
 	ForceConsent                                         bool
@@ -106,6 +115,8 @@ type ConsentRequest struct {
 
 // Storage persists OIDC protocol state in Authling's encrypted runtime bucket.
 type Storage struct {
+	grants  *authorizations.Service
+	cfg     config.OIDCConfig
 	kv      storage.KeyValue
 	key     []byte
 	clients *Resolver
@@ -128,13 +139,20 @@ func (s *Storage) admitAuthRequest(ctx context.Context) error {
 }
 
 func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRequest, _ string) (op.AuthRequest, error) {
-	client, err := s.clients.Resolve(ctx, request.ClientID)
-	if err != nil {
-		return nil, err
+	client, ok := ctx.Value(resolvedClientKey{}).(*Client)
+	if !ok || client.GetID() != request.ClientID {
+		var err error
+		if client, err = s.clients.Resolve(ctx, request.ClientID); err != nil {
+			return nil, err
+		}
 	}
 	if (client.requiresPKCE() || request.CodeChallenge != "" || request.CodeChallengeMethod != "") &&
 		(!validPKCEValue(request.CodeChallenge) || request.CodeChallengeMethod != liboidc.CodeChallengeMethodS256) {
 		return nil, liboidc.ErrInvalidRequest().WithDescription("S256 PKCE is required")
+	}
+	resource, _ := ctx.Value(resourceContextKey{}).(string)
+	if err := s.checkAuthorizationPolicy(client, request.Scopes, resource); err != nil {
+		return nil, err
 	}
 	id, err := ids.New("ar")
 	if err != nil {
@@ -142,7 +160,7 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRe
 	}
 	now := s.now().UTC()
 	state := &authRequestState{
-		ID: id, CreatedAt: now, ExpiresAt: now.Add(authRequestLifetime), ClientID: request.ClientID,
+		Resource: resource, ID: id, CreatedAt: now, ExpiresAt: now.Add(authRequestLifetime), ClientID: request.ClientID,
 		ClientName: client.NameValue, ClientHost: client.DisplayHost, RedirectURI: request.RedirectURI,
 		State: request.State, Nonce: request.Nonce, Scopes: append([]string(nil), request.Scopes...),
 		ResponseType: request.ResponseType, ResponseMode: request.ResponseMode,
@@ -232,10 +250,10 @@ func (s *Storage) Consent(ctx context.Context, id string) (ConsentRequest, error
 	}
 	return ConsentRequest{
 		ID: state.ID, ClientID: state.ClientID, ClientName: state.ClientName, ClientHost: state.ClientHost,
-		RedirectOrigin: redirectOrigin,
-		Scopes:         append([]string(nil), state.Scopes...),
-		ForceConsent:   state.ForceConsent,
-		Silent:         state.Silent,
+		Resource: state.Resource, ResourceClaims: s.resourceClaims(state), RedirectOrigin: redirectOrigin,
+		Scopes:       append([]string(nil), state.Scopes...),
+		ForceConsent: state.ForceConsent,
+		Silent:       state.Silent,
 	}, nil
 }
 
@@ -265,8 +283,21 @@ func (r *authRequestState) checkAuthentication(authenticatedAt, now time.Time) e
 	return nil
 }
 
+// resourceClaims reads only configured clients, so consent never fetches CIMD metadata.
+// CIMD clients receive no identity claims in access tokens.
+func (s *Storage) resourceClaims(state *authRequestState) []string {
+	if s.clients == nil {
+		return nil
+	}
+	client, ok := s.clients.configured[state.ClientID]
+	if !ok {
+		return nil
+	}
+	return client.accessTokenClaimScopes(state.Resource, state.Scopes)
+}
+
 // Authorize binds the current account to a pending request using OCC.
-func (s *Storage) Authorize(ctx context.Context, id, accountID string, authenticatedAt time.Time) error {
+func (s *Storage) Authorize(ctx context.Context, id, accountID string, authenticatedAt time.Time, grantID, passwordVersion string) error {
 	entry, state, err := s.readRequest(ctx, id)
 	if err != nil || state.Authorized || accountID == "" {
 		return errOIDCStateNotFound
@@ -274,6 +305,7 @@ func (s *Storage) Authorize(ctx context.Context, id, accountID string, authentic
 	if err := state.checkAuthentication(authenticatedAt, s.now().UTC()); err != nil {
 		return err
 	}
+	state.GrantID, state.PasswordVersion = grantID, passwordVersion
 	state.Subject, state.Authorized, state.AuthTime = accountID, true, authenticatedAt.UTC()
 	remaining := state.ExpiresAt.Sub(s.now().UTC())
 	data, err := s.seal(s.requestKey(id), state)
@@ -377,6 +409,8 @@ func (s *Storage) claimCode(ctx context.Context, request *authRequestState) erro
 	return nil
 }
 
+// Refresh exchange is owned by Service. These interface hooks fail closed if
+// a library route is enabled without Authling's resource and grant checks.
 func (*Storage) CreateAccessAndRefreshTokens(context.Context, op.TokenRequest, string) (string, string, time.Time, error) {
 	return "", "", time.Time{}, liboidc.ErrUnsupportedGrantType()
 }

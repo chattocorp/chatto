@@ -43,14 +43,14 @@ func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
 	service := &Service{vault: vault}
 	event := grantAuthorized("evt_protected", "grant_one", "")
 	client := Client{ID: "private-client", Name: "Private Person's App", Host: "private-person.example"}
-	if err := service.sealMetadata(t.Context(), event, accountKeys{userRef, dataRef}, client); err != nil {
+	if err := service.sealPermissions(t.Context(), event, accountKeys{userRef, dataRef}, client, map[string][]string{"https://private-resource.example": event.GetOidcGrantAuthorized().GetScopes()}); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := proto.Marshal(event)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{client.ID, client.Name, client.Host} {
+	for _, secret := range []string{client.ID, client.Name, client.Host, "https://private-resource.example"} {
 		if bytes.Contains(raw, []byte(secret)) {
 			t.Fatal("event leaked client metadata")
 		}
@@ -139,7 +139,7 @@ func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
 	if _, err := service.openMetadata(t.Context(), projected); err == nil {
 		t.Fatal("opened metadata after key loss")
 	}
-	if err := service.sealMetadata(t.Context(), event, accountKeys{userRef, dataRef}, client); err == nil {
+	if err := service.sealPermissions(t.Context(), event, accountKeys{userRef, dataRef}, client, map[string][]string{"": event.GetOidcGrantAuthorized().GetScopes()}); err == nil {
 		t.Fatal("sealed metadata after key loss")
 	}
 	// Revocation remains replayable without decrypting lost or damaged metadata.

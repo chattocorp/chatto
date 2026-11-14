@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -97,6 +98,20 @@ func NewCIMDResolver(issuer string, client *http.Client, trustedPrivateHosts, tr
 	return resolver, nil
 }
 
+// cached returns a copy of an unexpired cached client without network access.
+func (r *CIMDResolver) cached(clientID string) (*Client, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.removeExpiredLocked(time.Now())
+	cached, ok := r.cache[clientID]
+	if !ok {
+		return nil, false
+	}
+	copy := *cached.client
+	copy.Redirects = append([]string(nil), cached.client.Redirects...)
+	return &copy, true
+}
+
 // Resolve fetches and validates one CIMD document, caching only valid results.
 // A cache miss must acquire a slot without waiting before it can start DNS or
 // HTTP work. One deadline covers the complete lookup, including the body read.
@@ -111,19 +126,9 @@ func (r *CIMDResolver) Resolve(ctx context.Context, clientID string) (*Client, e
 	if err != nil {
 		return nil, err
 	}
-	r.mu.Lock()
-	if err := ctx.Err(); err != nil {
-		r.mu.Unlock()
-		return nil, err
+	if cached, ok := r.cached(clientID); ok {
+		return cached, nil
 	}
-	r.removeExpiredLocked(time.Now())
-	if cached, ok := r.cache[clientID]; ok {
-		copy := *cached.client
-		copy.Redirects = append([]string(nil), cached.client.Redirects...)
-		r.mu.Unlock()
-		return &copy, nil
-	}
-	r.mu.Unlock()
 
 	select {
 	case r.slots <- struct{}{}:
@@ -261,7 +266,7 @@ func validateCIMD(clientID string, identifier *url.URL, document cimdDocument, a
 			return nil, fmt.Errorf("CIMD contains an invalid redirect URI")
 		}
 	}
-	if len(document.GrantTypes) > 0 && !(len(document.GrantTypes) == 1 && document.GrantTypes[0] == string(liboidc.GrantTypeCode)) {
+	if !validCIMDGrantTypes(document.GrantTypes) {
 		return nil, fmt.Errorf("CIMD client supports an unsupported grant type")
 	}
 	if len(document.ResponseTypes) > 0 && !(len(document.ResponseTypes) == 1 && document.ResponseTypes[0] == string(liboidc.ResponseTypeCode)) {
@@ -277,13 +282,13 @@ func validateCIMD(clientID string, identifier *url.URL, document cimdDocument, a
 	if name == "" {
 		name = identifier.Hostname()
 	}
-	if len(name) > 100 {
+	if len(name) > maxCIMDClientName {
 		return nil, fmt.Errorf("CIMD client_name exceeds 100 characters")
 	}
 	return &Client{
 		IDValue: clientID, NameValue: name, DisplayHost: identifier.Hostname(),
 		Redirects: append([]string(nil), document.RedirectURIs...), Method: liboidc.AuthMethodNone,
-		Source: ClientSourceCIMD, Development: allowLoopback,
+		Source: ClientSourceCIMD, Development: allowLoopback, RefreshAllowed: slices.Contains(document.GrantTypes, "refresh_token"),
 	}, nil
 }
 
@@ -428,4 +433,18 @@ func isLoopbackHost(host string) bool {
 	}
 	address, err := netip.ParseAddr(host)
 	return err == nil && address.IsLoopback()
+}
+
+// maxCIMDClientName is the byte limit of a CIMD client_name.
+const maxCIMDClientName = 100
+
+func validCIMDGrantTypes(types []string) bool {
+	seen := map[string]bool{}
+	for _, value := range types {
+		if seen[value] || value != "authorization_code" && value != "refresh_token" {
+			return false
+		}
+		seen[value] = true
+	}
+	return len(types) == 0 || seen["authorization_code"]
 }

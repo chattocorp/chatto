@@ -70,7 +70,7 @@ one OpenID Provider. Tokens and discovery use this exact value; changing it is
 an identity migration, not an ordinary listener reconfiguration.
 
 **OIDC signing key** — An asymmetric RS256 key whose private part signs
-Authling ID tokens and whose public part appears in JWKS under its fingerprint
+Authling ID and access tokens and whose public part appears in JWKS under its fingerprint
 `kid`. Authling automatically moves keys through prepared, active, retiring,
 and retired lifecycle states without changing the issuer or account subjects.
 
@@ -84,10 +84,20 @@ treats every client ID as a separate account-facing application; a future
 relying-party identity may deliberately group multiple clients.
 
 **Authorization grant** — A durable, account-owned authorization for one exact
-OIDC client and scope set. It lets a covered future request skip repeated
+OIDC client, scope set, and API resource. It lets a covered future request skip repeated
 consent and can be revoked independently of Authling browser sessions. Grant
-revocation does not enumerate or terminate already issued short-lived tokens
+revocation blocks its refresh families but does not enumerate or terminate already issued short-lived tokens
 or the relying party's own sessions.
+
+**Refresh family** — The sequence of single-use refresh credentials issued from
+one explicit offline authorization. It has a fixed total lifetime and an idle
+limit. Reuse ends the family; revoking its grant ends every related family.
+The previous credential can repeat a rotation once within the reuse grace period.
+See [FDR-010](fdr/FDR-010-oidc-authorization-grants.md).
+
+**Resource** — An exact API audience selected during authorization and approved
+in the grant. Configured clients use operator allowlists; CIMD access requires
+explicit opt-in for each resource. See [ADR-010](adr/ADR-010-resource-access-and-refresh-tokens.md).
 
 **Client ID Metadata Document (CIMD)** — An HTTPS JSON document whose URL is
 also a public OIDC client's identifier. Authling uses CIMD for automatic,
