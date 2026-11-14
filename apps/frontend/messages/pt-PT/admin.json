@@ -617,7 +617,8 @@
       "created": "Criada",
       "details": "Detalhes",
       "detail_subtitle": "Estado, tentativas e último motivo de falha desta tarefa.",
-      "not_found": "Esta tarefa já não existe."
+      "not_found": "Esta tarefa já não existe.",
+      "all": "Todas"
     }
   }
 }

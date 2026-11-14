@@ -34,7 +34,8 @@ export function createJobRetry(scope: ServerScope) {
   const jobKey = (id: string) => adminQueryKeys.job(scope.serverId, connection, id);
 
   function reload(id: string) {
-    void queryClient.invalidateQueries({ queryKey: listKey, exact: true });
+    // The prefix covers the list under every status filter.
+    void queryClient.invalidateQueries({ queryKey: listKey });
     void queryClient.invalidateQueries({ queryKey: jobKey(id), exact: true });
   }
 
@@ -43,8 +44,8 @@ export function createJobRetry(scope: ServerScope) {
     onSuccess: (job, variables) => {
       if (!session.isCurrent(variables)) return;
       queryClient.setQueryData(jobKey(job.id), job);
-      queryClient.setQueryData<{ pages: AdminJobsPage[]; pageParams: string[] }>(
-        listKey,
+      queryClient.setQueriesData<{ pages: AdminJobsPage[]; pageParams: string[] }>(
+        { queryKey: listKey },
         (current) =>
           current && {
             ...current,

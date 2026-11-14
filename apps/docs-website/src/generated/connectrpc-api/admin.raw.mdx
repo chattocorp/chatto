@@ -329,7 +329,8 @@ Request for a bounded page. Jobs are ordered by stable opaque ID.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page_size` | `int32` | Page size: zero selects 50; the maximum is 200. |
-| `page_token` | `string` | Opaque token returned by the previous page, bound to this viewer. |
+| `page_token` | `string` | Opaque token returned by the previous page, bound to this viewer and status filter. |
+| `status` | [`JobStatus`](#chatto-admin-v1-JobStatus) | Returns only jobs in this state. Unspecified returns every job. Jobs are ordered by last update, newest first. |
 
 
 <a id="chatto-admin-v1-ListJobsResponse"></a>

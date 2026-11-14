@@ -286,8 +286,12 @@ type ListJobsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page size: zero selects 50; the maximum is 200.
 	PageSize int32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// Opaque token returned by the previous page, bound to this viewer.
-	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Opaque token returned by the previous page, bound to this viewer and
+	// status filter.
+	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Returns only jobs in this state. Unspecified returns every job. Jobs are
+	// ordered by last update, newest first.
+	Status        JobStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chatto.admin.v1.JobStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -334,6 +338,13 @@ func (x *ListJobsRequest) GetPageToken() string {
 		return x.PageToken
 	}
 	return ""
+}
+
+func (x *ListJobsRequest) GetStatus() JobStatus {
+	if x != nil {
+		return x.Status
+	}
+	return JobStatus_JOB_STATUS_UNSPECIFIED
 }
 
 // A live page, not an atomic snapshot. Refresh to see state changes and new work.
@@ -606,12 +617,13 @@ const file_chatto_admin_v1_jobs_proto_rawDesc = "" +
 	" \x01(\x0e2\x1e.chatto.admin.v1.RetryJobStateH\x00R\n" +
 	"retryState\x88\x01\x01\x12#\n" +
 	"\rretry_version\x18\v \x01(\tR\fretryVersionB\x0e\n" +
-	"\f_retry_state\"Y\n" +
+	"\f_retry_state\"\x8d\x01\n" +
 	"\x0fListJobsRequest\x12'\n" +
 	"\tpage_size\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\"d\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x122\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x1a.chatto.admin.v1.JobStatusR\x06status\"d\n" +
 	"\x10ListJobsResponse\x12(\n" +
 	"\x04jobs\x18\x01 \x03(\v2\x14.chatto.admin.v1.JobR\x04jobs\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"+\n" +
@@ -675,20 +687,21 @@ var file_chatto_admin_v1_jobs_proto_depIdxs = []int32{
 	9,  // 2: chatto.admin.v1.Job.updated_at:type_name -> google.protobuf.Timestamp
 	9,  // 3: chatto.admin.v1.Job.next_attempt_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: chatto.admin.v1.Job.retry_state:type_name -> chatto.admin.v1.RetryJobState
-	2,  // 5: chatto.admin.v1.ListJobsResponse.jobs:type_name -> chatto.admin.v1.Job
-	2,  // 6: chatto.admin.v1.GetJobResponse.job:type_name -> chatto.admin.v1.Job
-	2,  // 7: chatto.admin.v1.RetryJobResponse.job:type_name -> chatto.admin.v1.Job
-	3,  // 8: chatto.admin.v1.JobsService.ListJobs:input_type -> chatto.admin.v1.ListJobsRequest
-	5,  // 9: chatto.admin.v1.JobsService.GetJob:input_type -> chatto.admin.v1.GetJobRequest
-	7,  // 10: chatto.admin.v1.JobsService.RetryJob:input_type -> chatto.admin.v1.RetryJobRequest
-	4,  // 11: chatto.admin.v1.JobsService.ListJobs:output_type -> chatto.admin.v1.ListJobsResponse
-	6,  // 12: chatto.admin.v1.JobsService.GetJob:output_type -> chatto.admin.v1.GetJobResponse
-	8,  // 13: chatto.admin.v1.JobsService.RetryJob:output_type -> chatto.admin.v1.RetryJobResponse
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	0,  // 5: chatto.admin.v1.ListJobsRequest.status:type_name -> chatto.admin.v1.JobStatus
+	2,  // 6: chatto.admin.v1.ListJobsResponse.jobs:type_name -> chatto.admin.v1.Job
+	2,  // 7: chatto.admin.v1.GetJobResponse.job:type_name -> chatto.admin.v1.Job
+	2,  // 8: chatto.admin.v1.RetryJobResponse.job:type_name -> chatto.admin.v1.Job
+	3,  // 9: chatto.admin.v1.JobsService.ListJobs:input_type -> chatto.admin.v1.ListJobsRequest
+	5,  // 10: chatto.admin.v1.JobsService.GetJob:input_type -> chatto.admin.v1.GetJobRequest
+	7,  // 11: chatto.admin.v1.JobsService.RetryJob:input_type -> chatto.admin.v1.RetryJobRequest
+	4,  // 12: chatto.admin.v1.JobsService.ListJobs:output_type -> chatto.admin.v1.ListJobsResponse
+	6,  // 13: chatto.admin.v1.JobsService.GetJob:output_type -> chatto.admin.v1.GetJobResponse
+	8,  // 14: chatto.admin.v1.JobsService.RetryJob:output_type -> chatto.admin.v1.RetryJobResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_jobs_proto_init() }

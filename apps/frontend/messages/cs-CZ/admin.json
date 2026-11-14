@@ -639,7 +639,8 @@
       "created": "Vytvořeno",
       "details": "Podrobnosti",
       "detail_subtitle": "Stav, pokusy a poslední důvod selhání této úlohy.",
-      "not_found": "Tato úloha již neexistuje."
+      "not_found": "Tato úloha již neexistuje.",
+      "all": "Vše"
     }
   }
 }

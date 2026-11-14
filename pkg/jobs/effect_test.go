@@ -49,7 +49,7 @@ func TestEffectRunsHandlerOnceForAcceptedSourceMessages(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("effect did not run")
 	}
-	jobs, _, err := effect.queue.List(ctx, "", 10)
+	jobs, _, err := effect.queue.List(ctx, ListOptions{Limit: 10})
 	noError(t, err)
 	if len(jobs) != 1 {
 		t.Fatalf("jobs = %+v, want one job for the accepted message", jobs)

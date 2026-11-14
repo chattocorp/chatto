@@ -617,7 +617,8 @@
       "created": "Aangemaakt",
       "details": "Details",
       "detail_subtitle": "Status, pogingen en laatste foutreden van deze taak.",
-      "not_found": "Deze taak bestaat niet meer."
+      "not_found": "Deze taak bestaat niet meer.",
+      "all": "Alle"
     }
   }
 }

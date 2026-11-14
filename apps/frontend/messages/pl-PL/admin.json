@@ -639,7 +639,8 @@
       "created": "Utworzono",
       "details": "Szczegóły",
       "detail_subtitle": "Stan, próby i ostatnia przyczyna błędu tego zadania.",
-      "not_found": "To zadanie już nie istnieje."
+      "not_found": "To zadanie już nie istnieje.",
+      "all": "Wszystkie"
     }
   }
 }

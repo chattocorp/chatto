@@ -34,11 +34,15 @@ export function createAdminJobsAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(JobsService, config);
   return {
     async listJobs(
-      input: { pageSize?: number; pageToken?: string } = {},
+      input: { pageSize?: number; pageToken?: string; status?: JobStatus } = {},
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminJobsPage> {
       const response = await client.listJobs(
-        { pageSize: input.pageSize ?? 50, pageToken: input.pageToken ?? '' },
+        {
+          pageSize: input.pageSize ?? 50,
+          pageToken: input.pageToken ?? '',
+          status: input.status ?? JobStatus.UNSPECIFIED
+        },
         { signal: options.signal }
       );
       return { jobs: response.jobs.map(adminJob), nextPageToken: response.nextPageToken };

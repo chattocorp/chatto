@@ -617,7 +617,8 @@
       "created": "Loodud",
       "details": "Üksikasjad",
       "detail_subtitle": "Selle töö olek, katsed ja viimane tõrke põhjus.",
-      "not_found": "Seda tööd enam ei ole."
+      "not_found": "Seda tööd enam ei ole.",
+      "all": "Kõik"
     }
   }
 }

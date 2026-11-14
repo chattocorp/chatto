@@ -64,8 +64,12 @@ message Job {
 message ListJobsRequest {
   // Page size: zero selects 50; the maximum is 200.
   int32 page_size = 1 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
-  // Opaque token returned by the previous page, bound to this viewer.
+  // Opaque token returned by the previous page, bound to this viewer and
+  // status filter.
   string page_token = 2;
+  // Returns only jobs in this state. Unspecified returns every job. Jobs are
+  // ordered by last update, newest first.
+  JobStatus status = 3;
 }
 // A live page, not an atomic snapshot. Refresh to see state changes and new work.
 message ListJobsResponse {

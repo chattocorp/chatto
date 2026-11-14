@@ -617,7 +617,8 @@
       "created": "Erstellt",
       "details": "Details",
       "detail_subtitle": "Status, Versuche und letzter Fehlergrund dieses Auftrags.",
-      "not_found": "Dieser Auftrag existiert nicht mehr."
+      "not_found": "Dieser Auftrag existiert nicht mehr.",
+      "all": "Alle"
     }
   }
 }

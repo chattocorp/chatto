@@ -67,46 +67,49 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	runCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
-		done <- queue.Run(runCtx, consumer, map[string]jobqueue.Handler{"unregistered-test": func(context.Context, jobqueue.Job) error {
+		done <- queue.Work(runCtx, consumer, map[string]jobqueue.Handler{"unregistered-test": func(context.Context, jobqueue.Job) error {
 			return &jobqueue.Failure{Category: "http_error", Permanent: true}
 		}}, 3)
 	}()
+	byID := map[string]*adminv1.Job{}
+	var first *connect.Response[adminv1.ListJobsResponse]
 	require.Eventually(t, func() bool {
-		jobs, _, err := queue.List(ctx, "", 10)
-		if err != nil || len(jobs) != 3 {
+		first, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, Status: adminv1.JobStatus_JOB_STATUS_FAILED}))
+		if err != nil || len(first.Msg.Jobs) != 2 || first.Msg.NextPageToken == "" {
 			return false
 		}
-		for _, job := range jobs {
-			if job.Status != jobqueue.Failed {
-				return false
-			}
+		next, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, Status: adminv1.JobStatus_JOB_STATUS_FAILED, PageToken: first.Msg.NextPageToken}))
+		if err != nil || len(next.Msg.Jobs) != 1 || next.Msg.NextPageToken != "" {
+			return false
 		}
-		return true
+		for _, job := range append(first.Msg.Jobs, next.Msg.Jobs...) {
+			byID[job.Id] = job
+		}
+		return len(byID) == 3
 	}, 5*time.Second, 10*time.Millisecond)
 	stop()
 	require.NoError(t, <-done)
-	first, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2}))
-	require.NoError(t, err)
-	require.Len(t, first.Msg.Jobs, 2)
-	require.NotEmpty(t, first.Msg.NextPageToken)
 	encoded, err := protojson.Marshal(first.Msg)
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), "SECRET")
 	require.NotContains(t, string(encoded), "payload")
 	require.NotContains(t, string(encoded), "generation")
-	next, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, PageToken: first.Msg.NextPageToken}))
+	require.Equal(t, adminv1.RetryJobState_RETRY_JOB_STATE_EXPIRED, byID["c"].GetRetryState())
+	require.Equal(t, adminv1.RetryJobState_RETRY_JOB_STATE_ALLOWED, byID["a"].GetRetryState())
+	// A cursor is bound to its status filter.
+	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageSize: 2, PageToken: first.Msg.NextPageToken}))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+	queued, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Status: adminv1.JobStatus_JOB_STATUS_QUEUED}))
 	require.NoError(t, err)
-	require.Len(t, next.Msg.Jobs, 1)
-	require.Empty(t, next.Msg.NextPageToken)
-	require.Equal(t, adminv1.RetryJobState_RETRY_JOB_STATE_EXPIRED, next.Msg.Jobs[0].GetRetryState())
+	require.Empty(t, queued.Msg.Jobs)
 	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{PageToken: "tampered"}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
-	retried, err := service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: first.Msg.Jobs[0].RetryVersion}))
+	retried, err := service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: byID["a"].RetryVersion}))
 	require.NoError(t, err)
 	require.Equal(t, adminv1.JobStatus_JOB_STATUS_QUEUED, retried.Msg.Job.Status)
 	require.Zero(t, retried.Msg.Job.Attempts)
-	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: first.Msg.Jobs[0].RetryVersion}))
+	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", RetryVersion: byID["a"].RetryVersion}))
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
-	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "c", RetryVersion: next.Msg.Jobs[0].RetryVersion}))
+	_, err = service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "c", RetryVersion: byID["c"].RetryVersion}))
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -56,7 +57,14 @@ func (c *ChattoCore) initializeJobs(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, JobsConsumerName, append([]string{"webhook", "media"}, effectJobTypes()...)...))
+	// Media has its own consumer, shared with standalone media processes. A
+	// media backlog, or a replica without media processing, then holds no
+	// capacity of the shared consumer.
+	c.jobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, JobsConsumerName, append([]string{"webhook"}, effectJobTypes()...)...))
+	if err != nil {
+		return err
+	}
+	c.mediaJobsConsumer, err = c.storage.jobsStream.CreateOrUpdateConsumer(ctx, JobsConsumerConfig(c.jobs, MediaJobsConsumerName, "media"))
 	if err != nil {
 		return err
 	}
@@ -83,19 +91,12 @@ func (c *ChattoCore) recordWebhookJobFailure(ctx context.Context, job jobqueue.J
 }
 
 // SetMediaJobHandler registers media processing before Run starts. The handler
-// owns asset projection barriers and terminal outcomes. Concurrency bounds the
-// media attempts within the shared pool when processing runs in this replica.
+// owns asset projection barriers and terminal outcomes. Media jobs use their
+// own consumer and worker pool with this concurrency, so a video backlog cannot
+// delay other jobs.
 func (c *ChattoCore) SetMediaJobHandler(handler func(context.Context, string, string) error, concurrency int) {
-	slots := make(chan struct{}, max(1, concurrency))
-	c.mediaJobHandler = func(ctx context.Context, assetID, messageID string) error {
-		select {
-		case slots <- struct{}{}:
-			defer func() { <-slots }()
-			return handler(ctx, assetID, messageID)
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	c.mediaJobHandler = handler
+	c.mediaJobConcurrency = max(1, concurrency)
 }
 
 func (c *ChattoCore) runJobs(ctx context.Context) error {
@@ -106,24 +107,25 @@ func (c *ChattoCore) runJobs(ctx context.Context) error {
 	for kind, job := range c.effectJobs {
 		handlers[kind] = job.Handle
 	}
-	if c.mediaJobHandler != nil {
-		handlers["media"] = func(ctx context.Context, job jobqueue.Job) error {
-			request := new(statev1.MediaJob)
-			if err := proto.Unmarshal(job.Payload, request); err != nil {
-				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
-			}
-			if request.AssetId == "" || request.MessageEventId == "" {
-				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
-			}
-			return c.mediaJobHandler(ctx, request.AssetId, request.MessageEventId)
-		}
-		c.RecoverUnmanifestedVideoAttachments(ctx)
-	}
 	concurrency := c.config.JobConcurrency
 	if concurrency <= 0 {
 		concurrency = 8
 	}
-	return c.jobs.Run(ctx, c.jobsConsumer, handlers, concurrency)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return c.jobs.Run(ctx) })
+	g.Go(func() error { return c.jobs.Work(ctx, c.jobsConsumer, handlers, concurrency) })
+	if c.mediaJobHandler != nil {
+		c.RecoverUnmanifestedVideoAttachments(ctx)
+		media := map[string]jobqueue.Handler{"media": func(ctx context.Context, job jobqueue.Job) error {
+			request := new(statev1.MediaJob)
+			if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
+				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
+			}
+			return c.mediaJobHandler(ctx, request.AssetId, request.MessageEventId)
+		}}
+		g.Go(func() error { return c.jobs.Work(ctx, c.mediaJobsConsumer, media, c.mediaJobConcurrency) })
+	}
+	return g.Wait()
 }
 func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 	if err := c.WaitForBoot(ctx); err != nil {
@@ -152,7 +154,7 @@ func (c *ChattoCore) runMediaJobSource(ctx context.Context) error {
 
 // ListJobs returns safe-to-map private job records after the operation's gate.
 // The page token is sealed and bound to the viewer; no broker position is public.
-func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, token string) ([]jobqueue.Job, string, error) {
+func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, token string, status jobqueue.Status) ([]jobqueue.Job, string, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerJobsManage); err != nil {
 		return nil, "", err
 	}
@@ -162,21 +164,22 @@ func (c *ChattoCore) ListJobs(ctx context.Context, actorID string, limit int, to
 	if limit == 0 {
 		limit = 50
 	}
-	after := ""
+	// The sealed cursor binds the queue position to this viewer and filter.
+	purpose := fmt.Sprintf("jobs-page-v2:%d", status)
+	cursor := ""
 	if token != "" {
-		data, err := c.OpenPublicCursor("jobs-page-v1", actorID, token)
+		data, err := c.OpenPublicCursor(purpose, actorID, token)
 		if err != nil {
 			return nil, "", ErrInvalidArgument
 		}
-		after = string(data)
+		cursor = string(data)
 	}
-	jobs, more, err := c.jobs.List(ctx, after, limit)
+	jobs, next, err := c.jobs.List(ctx, jobqueue.ListOptions{Status: status, Limit: limit, Cursor: cursor})
 	if err != nil {
 		return nil, "", err
 	}
-	next := ""
-	if more && len(jobs) > 0 {
-		next, err = c.SealPublicCursor("jobs-page-v1", actorID, []byte(jobs[len(jobs)-1].ID))
+	if next != "" {
+		next, err = c.SealPublicCursor(purpose, actorID, []byte(next))
 	}
 	return jobs, next, err
 }

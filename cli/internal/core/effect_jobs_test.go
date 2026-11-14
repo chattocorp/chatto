@@ -18,14 +18,15 @@ func runWithEffectJobs(ctx context.Context, c *ChattoCore, source func(context.C
 	}
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return source(ctx) })
-	g.Go(func() error { return c.jobs.Run(ctx, c.jobsConsumer, handlers, 4) })
+	g.Go(func() error { return c.jobs.Run(ctx) })
+	g.Go(func() error { return c.jobs.Work(ctx, c.jobsConsumer, handlers, 4) })
 	return g.Wait()
 }
 
 // jobsOfType lists the current records of one job type.
 func jobsOfType(t testing.TB, ctx context.Context, c *ChattoCore, kind string) []jobqueue.Job {
 	t.Helper()
-	all, _, err := c.jobs.List(ctx, "", 200)
+	all, _, err := c.jobs.List(ctx, jobqueue.ListOptions{Limit: 200})
 	if err != nil {
 		t.Fatalf("list jobs: %v", err)
 	}

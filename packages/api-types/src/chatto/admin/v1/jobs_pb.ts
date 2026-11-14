@@ -237,11 +237,20 @@ export class ListJobsRequest extends Message<ListJobsRequest> {
   pageSize = 0;
 
   /**
-   * Opaque token returned by the previous page, bound to this viewer.
+   * Opaque token returned by the previous page, bound to this viewer and
+   * status filter.
    *
    * @generated from field: string page_token = 2;
    */
   pageToken = "";
+
+  /**
+   * Returns only jobs in this state. Unspecified returns every job. Jobs are
+   * ordered by last update, newest first.
+   *
+   * @generated from field: chatto.admin.v1.JobStatus status = 3;
+   */
+  status = JobStatus.UNSPECIFIED;
 
   constructor(data?: PartialMessage<ListJobsRequest>) {
     super();
@@ -253,6 +262,7 @@ export class ListJobsRequest extends Message<ListJobsRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "page_size", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 2, name: "page_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "status", kind: "enum", T: proto3.getEnumType(JobStatus) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListJobsRequest {

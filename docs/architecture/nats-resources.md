@@ -143,13 +143,16 @@ whose source message no longer matches the digest fails permanently. Each attemp
 source message again. A missing notification signal completes its job, because
 expiry reconciliation owns that outcome. A missing EVT source fails the job.
 
-`chatto-jobs-v1` consumes `jobs.{type}.*` from `JOBS` for `webhook`, `media`,
+`chatto-jobs-v1` consumes `jobs.{type}.*` from `JOBS` for `webhook`,
 `asset_cleanup`, `call_key_cleanup`, `push_subscription_cleanup`,
-`user_key_shredding`, and `notification_alert`.
-Server replicas share this durable consumer. `chatto-jobs-media-v1` is the
-optional standalone media consumer, filtered to `jobs.media.*`. Both use
-explicit acknowledgement, two-minute acknowledgement wait, unlimited delivery,
-and at most 64 unacknowledged dispatches per consumer. Current job revision
+`user_key_shredding`, and `notification_alert`. Server replicas share this
+durable consumer. `chatto-jobs-media-v1` consumes only `jobs.media.*`; server
+replicas with media processing and standalone media processes share it. Both
+use explicit acknowledgement, two-minute acknowledgement wait, unlimited
+delivery, and at most 64 unacknowledged dispatches per consumer. Workers
+acknowledge a dispatch when an attempt ends, so a job that waits for a retry
+holds no unacknowledged dispatch; the record watcher publishes it again when it
+is due. Current job revision
 claims coordinate the overlapping consumers. Acknowledgement does not delete
 retained dispatches. Both consumers appear in worker diagnostics.
 

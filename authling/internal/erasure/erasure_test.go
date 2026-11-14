@@ -220,12 +220,13 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 		t.Fatal(err)
 	}
 	workerCtx, stopWorker := context.WithCancel(ctx)
-	workerErr := make(chan error, 2)
+	workerErr := make(chan error, 3)
 	go func() { workerErr <- replacement.Run(workerCtx) }()
 	go func() {
-		workerErr <- queue.Run(workerCtx, jobsConsumer, map[string]jobs.Handler{JobType: replacement.Effect().Handle}, 1)
+		workerErr <- queue.Work(workerCtx, jobsConsumer, map[string]jobs.Handler{JobType: replacement.Effect().Handle}, 1)
 	}()
-	defer func() { stopWorker(); <-workerErr; <-workerErr }()
+	go func() { workerErr <- queue.Run(workerCtx) }()
+	defer func() { stopWorker(); <-workerErr; <-workerErr; <-workerErr }()
 	for {
 		state, _ := projection.Get("acc_test")
 		if state.Complete {

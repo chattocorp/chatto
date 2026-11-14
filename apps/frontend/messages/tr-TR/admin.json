@@ -617,7 +617,8 @@
       "created": "Oluşturuldu",
       "details": "Ayrıntılar",
       "detail_subtitle": "Bu işin durumu, denemeleri ve son hata nedeni.",
-      "not_found": "Bu iş artık mevcut değil."
+      "not_found": "Bu iş artık mevcut değil.",
+      "all": "Tümü"
     }
   }
 }

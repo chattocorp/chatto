@@ -617,7 +617,8 @@
       "created": "Kreita",
       "details": "Detaloj",
       "detail_subtitle": "Stato, provoj kaj lasta kialo de malsukceso de ĉi tiu tasko.",
-      "not_found": "Ĉi tiu tasko ne plu ekzistas."
+      "not_found": "Ĉi tiu tasko ne plu ekzistas.",
+      "all": "Ĉiuj"
     }
   }
 }

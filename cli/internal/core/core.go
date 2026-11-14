@@ -31,7 +31,9 @@ type ChattoCore struct {
 	jobs                *jobqueue.Queue
 	jobsConsumer        jetstream.Consumer
 	mediaSourceConsumer jetstream.Consumer
+	mediaJobsConsumer   jetstream.Consumer
 	mediaJobHandler     func(context.Context, string, string) error
+	mediaJobConcurrency int
 	effectJobs          map[string]*jobqueue.Effect // Registered during construction; read-only after Run starts.
 
 	botWebhooks               *botWebhookModel

@@ -29,8 +29,9 @@ and notification alerts.
   or abandoned. A retry repeats the idempotent deletion.
 - A notification alert job also succeeds when the alert expired or is no longer
   eligible. Retry does not extend the alert delivery window.
-- The list refreshes every three seconds while it is visible, and loads more
-  results as it scrolls. A job detail page refreshes until the job succeeds or
+- The list shows the most recently updated jobs first and can show all, failed,
+  or queued jobs. It refreshes every three seconds while it is visible, and
+  loads more results as it scrolls. A job detail page refreshes until the job succeeds or
   fails. The list also has a manual refresh. The pages have no cancellation,
   payload editing, or bulk controls.
 - Succeeded jobs leave the list seven days after completion. Failed jobs stay

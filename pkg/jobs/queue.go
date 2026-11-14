@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"regexp"
 	"slices"
+	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -80,6 +82,13 @@ type Queue struct {
 	kv     KeyValue
 	opts   Options
 	logger *slog.Logger
+
+	// index holds payload-free summaries of every current record. Run's
+	// watcher maintains it; ready closes after the initial sync.
+	mu        sync.RWMutex
+	index     map[string]Job
+	ready     chan struct{}
+	readyOnce sync.Once
 }
 
 // New binds already provisioned resources. It panics when js or kv is nil and
@@ -104,7 +113,7 @@ func New(js jetstream.JetStream, kv KeyValue, opts Options) (*Queue, error) {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Queue{js: js, kv: kv, opts: opts, logger: logger}, nil
+	return &Queue{js: js, kv: kv, opts: opts, logger: logger, index: map[string]Job{}, ready: make(chan struct{})}, nil
 }
 
 // ID derives a stable job ID from a job type and an application source
@@ -171,7 +180,9 @@ func (q *Queue) dispatch(ctx context.Context, r *jobpb.JobRecord) error {
 	if err != nil {
 		return err
 	}
-	_, err = q.js.Publish(ctx, q.subject(r), data, jetstream.WithMsgID(fmt.Sprintf("%s:%d", r.Id, r.Generation)))
+	// Each attempt budget and attempt count gets its own message ID. Repeated
+	// publications for the same due attempt collapse in the duplicate window.
+	_, err = q.js.Publish(ctx, q.subject(r), data, jetstream.WithMsgID(fmt.Sprintf("%s:%d:%d", r.Id, r.Generation, r.Attempts)))
 	return err
 }
 
@@ -256,91 +267,108 @@ func (q *Queue) Retry(ctx context.Context, id, expectedVersion string) (Job, err
 	return jobFromRecord(record), nil
 }
 
-// List returns a bounded page in stable ID order after the given ID. It lists
-// keys and reads only the page; it keeps no process-wide job cache.
-func (q *Queue) List(ctx context.Context, after string, limit int) ([]Job, bool, error) {
-	if limit <= 0 {
-		return nil, false, errors.New("jobs: list limit must be positive")
-	}
-	lister, err := q.kv.ListKeysFiltered(ctx, q.opts.KeyPrefix+">")
-	if errors.Is(err, jetstream.ErrNoKeysFound) {
-		return nil, false, nil
-	}
-	if err != nil {
-		return nil, false, err
-	}
-	var keys []string
-	for key := range lister.Keys() {
-		keys = append(keys, key)
-	}
-	lister.Stop()
-	if ctx.Err() != nil {
-		return nil, false, ctx.Err()
-	}
-	slices.Sort(keys)
-	keys = slices.Compact(keys)
-	out := make([]Job, 0, limit)
-	for _, key := range keys {
-		id := strings.TrimPrefix(key, q.opts.KeyPrefix)
-		if id <= after {
-			continue
-		}
-		if len(out) == limit {
-			return out, true, nil
-		}
-		record, _, err := q.read(ctx, id)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return nil, false, err
-		}
-		out = append(out, jobFromRecord(record))
-	}
-	return out, false, nil
+// ListOptions selects a page of jobs.
+type ListOptions struct {
+	// Status keeps only jobs in this state. Unknown keeps every job.
+	Status Status
+	// Limit is the page size. It must be positive.
+	Limit int
+	// Cursor continues after the page that returned it. Empty starts at the
+	// newest job. Applications must not expose it unprotected.
+	Cursor string
 }
 
-// Run processes dispatches from consumer and repairs unfinished handoffs until
-// cancellation. The application owns the consumer: it must filter to
-// FilterSubjects of the handled types, use explicit acknowledgement, and allow
-// unlimited deliveries. Handlers are fixed for the run. Workers never wait
-// through retry delays.
-func (q *Queue) Run(ctx context.Context, consumer jetstream.Consumer, handlers map[string]Handler, concurrency int) error {
-	worker, err := events.NewDurableWorker(consumer, func(ctx context.Context, d events.DurableDelivery) error {
-		return q.process(ctx, d, handlers)
-	}, events.DurableWorkerOptions{MaxConcurrent: concurrency, RetryDelay: 5 * time.Second, AckTimeout: 5 * time.Second, HeartbeatInterval: heartbeatInterval, Logger: q.logger})
-	if err != nil {
-		return err
+// List returns jobs ordered by last update, newest first, from the in-memory
+// index. It reads no storage, so polling is cheap. Payloads are omitted. The
+// index is current once Run has synchronized it; List waits until then. Jobs
+// that change while a caller pages can move between pages, so callers should
+// remove duplicate IDs.
+func (q *Queue) List(ctx context.Context, opts ListOptions) ([]Job, string, error) {
+	if opts.Limit <= 0 {
+		return nil, "", errors.New("jobs: list limit must be positive")
 	}
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return worker.Run(ctx) })
-	g.Go(func() error { return q.repair(ctx, handlers) })
-	return g.Wait()
+	afterTime, afterID, err := parseCursor(opts.Cursor)
+	if err != nil {
+		return nil, "", err
+	}
+	select {
+	case <-q.ready:
+	case <-ctx.Done():
+		return nil, "", ctx.Err()
+	}
+	q.mu.RLock()
+	jobs := make([]Job, 0, len(q.index))
+	for _, job := range q.index {
+		if opts.Status == Unknown || job.Status == opts.Status {
+			jobs = append(jobs, job)
+		}
+	}
+	q.mu.RUnlock()
+	slices.SortFunc(jobs, func(a, b Job) int {
+		if c := b.UpdatedAt.Compare(a.UpdatedAt); c != 0 {
+			return c
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
+	start := 0
+	if opts.Cursor != "" {
+		start = sort.Search(len(jobs), func(i int) bool {
+			if c := jobs[i].UpdatedAt.Compare(afterTime); c != 0 {
+				return c < 0
+			}
+			return jobs[i].ID > afterID
+		})
+	}
+	end := min(start+opts.Limit, len(jobs))
+	page := jobs[start:end]
+	next := ""
+	if end < len(jobs) && len(page) > 0 {
+		last := page[len(page)-1]
+		next = fmt.Sprintf("%d:%s", last.UpdatedAt.UnixNano(), last.ID)
+	}
+	return page, next, nil
 }
 
-// repair keeps only unfinished jobs in memory. One filtered watcher closes the
-// enqueue, retry, and restore gaps without scanning terminal jobs on every
-// tick. The index is a hint: consumers still claim authoritative revisions.
-func (q *Queue) repair(ctx context.Context, handlers map[string]Handler) error {
-	watcher, err := q.kv.Watch(ctx, q.opts.KeyPrefix+">", jetstream.IgnoreDeletes())
+func parseCursor(cursor string) (time.Time, string, error) {
+	if cursor == "" {
+		return time.Time{}, "", nil
+	}
+	nanos, id, ok := strings.Cut(cursor, ":")
+	value, err := strconv.ParseInt(nanos, 10, 64)
+	if !ok || err != nil || !safeToken.MatchString(id) {
+		return time.Time{}, "", errors.New("jobs: invalid list cursor")
+	}
+	return time.Unix(0, value), id, nil
+}
+
+// Run maintains the queue in this process until cancellation: one filtered
+// watcher keeps the List index and publishes dispatches for due jobs, including
+// after a lost publish, a retry delay, an expired lease, or a restore. Run it
+// once per process that enqueues, works, or lists jobs.
+func (q *Queue) Run(ctx context.Context) error {
+	watcher, err := q.kv.Watch(ctx, q.opts.KeyPrefix+">")
 	if err != nil {
 		return err
 	}
 	defer func() { _ = watcher.Stop() }()
+	// active holds unfinished records; the index is a hint and consumers still
+	// claim authoritative revisions.
 	active := map[string]*jobpb.JobRecord{}
-	ticker := time.NewTicker(repairInterval)
-	defer ticker.Stop()
-	publish := func(r *jobpb.JobRecord) {
-		if handlers[r.Type] == nil {
-			return
-		}
-		queued := r.Status == jobpb.JobStatus_JOB_STATUS_QUEUED
-		abandoned := r.Status == jobpb.JobStatus_JOB_STATUS_RUNNING && !time.Now().Before(r.LeaseUntil.AsTime())
-		if queued || abandoned {
-			if err := q.dispatch(ctx, r); err != nil && ctx.Err() == nil {
-				q.logger.Warn("Job dispatch awaits repair", "job_id", r.Id)
+	timer := time.NewTimer(repairInterval)
+	defer timer.Stop()
+	publishDue := func() {
+		now := time.Now()
+		next := now.Add(repairInterval)
+		for _, record := range active {
+			if due := dueAt(record); due.After(now) {
+				next = minTime(next, due)
+				continue
+			}
+			if err := q.dispatch(ctx, record); err != nil && ctx.Err() == nil {
+				q.logger.Warn("Job dispatch awaits repair", "job_id", record.Id)
 			}
 		}
+		timer.Reset(time.Until(next))
 	}
 	for {
 		select {
@@ -351,27 +379,79 @@ func (q *Queue) repair(ctx context.Context, handlers map[string]Handler) error {
 				if ctx.Err() != nil {
 					return nil
 				}
-				return errors.New("jobs: repair watcher closed")
+				return errors.New("jobs: watcher closed")
 			}
 			if entry == nil {
+				q.readyOnce.Do(func() { close(q.ready) })
+				publishDue()
+				continue
+			}
+			id := strings.TrimPrefix(entry.Key(), q.opts.KeyPrefix)
+			if entry.Operation() != jetstream.KeyValuePut {
+				delete(active, id)
+				q.mu.Lock()
+				delete(q.index, id)
+				q.mu.Unlock()
 				continue
 			}
 			record := new(jobpb.JobRecord)
 			if err := proto.Unmarshal(entry.Value(), record); err != nil {
 				return errors.New("jobs: invalid job record")
 			}
+			summary := jobFromRecord(record)
+			summary.Payload = nil
+			q.mu.Lock()
+			q.index[record.Id] = summary
+			q.mu.Unlock()
 			if record.Status == jobpb.JobStatus_JOB_STATUS_QUEUED || record.Status == jobpb.JobStatus_JOB_STATUS_RUNNING {
 				active[record.Id] = record
-				publish(record)
 			} else {
 				delete(active, record.Id)
 			}
-		case <-ticker.C:
-			for _, record := range active {
-				publish(record)
+			select {
+			case <-q.ready:
+				publishDue()
+			default:
 			}
+		case <-timer.C:
+			publishDue()
 		}
 	}
+}
+
+// dueAt is when an unfinished job needs a dispatch: its next attempt, or the
+// end of an abandoned claim.
+func dueAt(r *jobpb.JobRecord) time.Time {
+	if r.Status == jobpb.JobStatus_JOB_STATUS_RUNNING {
+		return r.LeaseUntil.AsTime()
+	}
+	if r.NextAttemptAt == nil {
+		return time.Time{}
+	}
+	return r.NextAttemptAt.AsTime()
+}
+
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
+}
+
+// Work processes dispatches from consumer until cancellation. The application
+// owns the consumer: it must filter to FilterSubjects of the handled types,
+// use explicit acknowledgement, and allow unlimited deliveries. Run must run in
+// the same deployment. A dispatch is acknowledged when an attempt ends,
+// including a failed attempt, so jobs that wait for a retry hold no consumer
+// capacity; Run publishes them again when they are due.
+func (q *Queue) Work(ctx context.Context, consumer jetstream.Consumer, handlers map[string]Handler, concurrency int) error {
+	worker, err := events.NewDurableWorker(consumer, func(ctx context.Context, d events.DurableDelivery) error {
+		return q.process(ctx, d, handlers)
+	}, events.DurableWorkerOptions{MaxConcurrent: concurrency, RetryDelay: 5 * time.Second, AckTimeout: 5 * time.Second, HeartbeatInterval: heartbeatInterval, Logger: q.logger})
+	if err != nil {
+		return err
+	}
+	return worker.Run(ctx)
 }
 
 func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers map[string]Handler) error {
@@ -388,11 +468,16 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handlers 
 	}
 	handler := handlers[record.Type]
 	if handler == nil {
-		return events.RetryDeliveryAfter(errors.New("job handler unavailable"), repairInterval)
+		// A consumer that this process cannot serve, for example during a
+		// rolling upgrade. Holding the dispatch would block other jobs; Run on a
+		// capable process publishes it again.
+		q.logger.Warn("Job type has no handler in this process", "job_type", record.Type)
+		return nil
 	}
 	now := time.Now()
 	if record.Status == jobpb.JobStatus_JOB_STATUS_RUNNING && now.Before(record.LeaseUntil.AsTime()) {
-		return events.RetryDeliveryAfter(errors.New("job already claimed"), time.Until(record.LeaseUntil.AsTime()))
+		// Another worker owns the attempt. Run publishes again if its lease ends.
+		return nil
 	}
 	if record.Status == jobpb.JobStatus_JOB_STATUS_QUEUED && now.Before(record.NextAttemptAt.AsTime()) {
 		return events.RetryDeliveryAfter(errors.New("job retry pending"), time.Until(record.NextAttemptAt.AsTime()))
@@ -474,10 +559,9 @@ func (q *Queue) complete(ctx context.Context, record *jobpb.JobRecord, revision 
 		next = record.ExpiresAt.AsTime()
 	}
 	record.NextAttemptAt = timestamppb.New(next)
-	if _, err = q.save(ctx, record, revision); err != nil {
-		return err
-	}
-	return events.RetryDeliveryAfter(errors.New("job attempt failed"), time.Until(next))
+	// Acknowledge the dispatch; Run publishes the next attempt when it is due.
+	_, err = q.save(ctx, record, revision)
+	return err
 }
 
 func (q *Queue) fail(ctx context.Context, record *jobpb.JobRecord, revision uint64) error {

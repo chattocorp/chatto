@@ -245,9 +245,10 @@ func (r *Runtime) Run(ctx context.Context) error {
 	group, groupContext := errgroup.WithContext(ctx)
 	group.Go(func() error { return r.erasureProjector.Run(groupContext) })
 	group.Go(func() error { return r.Erasure.Run(groupContext) })
+	group.Go(func() error { return r.jobs.Run(groupContext) })
 	group.Go(func() error {
 		// Erasure jobs ran one at a time before the queue existed; keep that.
-		return r.jobs.Run(groupContext, r.jobsConsumer, map[string]jobs.Handler{erasure.JobType: r.Erasure.Effect().Handle}, 1)
+		return r.jobs.Work(groupContext, r.jobsConsumer, map[string]jobs.Handler{erasure.JobType: r.Erasure.Effect().Handle}, 1)
 	})
 	for _, projector := range r.projectors {
 		projector := projector

@@ -9,7 +9,16 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery } from '$lib/query/client';
-  import { DataTable, Hint, PageTitle, PaneContent, PaneHeader, Panel, ToggleChip } from '$lib/ui';
+  import {
+    DataTable,
+    Hint,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    Panel,
+    SegmentedControl,
+    ToggleChip
+  } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -25,9 +34,18 @@
   const retry = createJobRetry(scope);
   let scrollContainer = $state<HTMLDivElement>();
 
+  let status = $state(JobStatus.UNSPECIFIED);
+  const statusOptions = [
+    { value: JobStatus.UNSPECIFIED, label: m('admin.jobs.all') },
+    { value: JobStatus.FAILED, label: m('admin.jobs.failed') },
+    { value: JobStatus.QUEUED, label: m('admin.jobs.queued') }
+  ];
+
+  // The server lists jobs newest first and filters by status from memory, so
+  // polling every loaded page reads no storage.
   const jobsQuery = createInfiniteQuery(() => ({
-    queryKey: adminQueryKeys.jobs(scope.serverId, connection),
-    queryFn: ({ pageParam, signal }) => api.listJobs({ pageToken: pageParam }, { signal }),
+    queryKey: adminQueryKeys.jobList(scope.serverId, connection, status),
+    queryFn: ({ pageParam, signal }) => api.listJobs({ pageToken: pageParam, status }, { signal }),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     refetchOnMount: 'always' as const,
@@ -72,6 +90,12 @@
 
       <Panel title={m('admin.jobs.title')} noPadding>
         {#snippet actions()}
+          <SegmentedControl
+            label={m('admin.common.status')}
+            options={statusOptions}
+            value={status}
+            onchange={(next) => (status = next)}
+          />
           <Button
             size="sm"
             variant="secondary"

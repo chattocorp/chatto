@@ -16,7 +16,18 @@ func (s *jobsService) ListJobs(ctx context.Context, req *connect.Request[adminv1
 	if err != nil {
 		return nil, err
 	}
-	jobs, next, err := s.api.core.ListJobs(ctx, caller.UserID, int(req.Msg.PageSize), req.Msg.PageToken)
+	status := jobqueue.Unknown
+	switch req.Msg.Status {
+	case adminv1.JobStatus_JOB_STATUS_QUEUED:
+		status = jobqueue.Queued
+	case adminv1.JobStatus_JOB_STATUS_RUNNING:
+		status = jobqueue.Running
+	case adminv1.JobStatus_JOB_STATUS_SUCCEEDED:
+		status = jobqueue.Succeeded
+	case adminv1.JobStatus_JOB_STATUS_FAILED:
+		status = jobqueue.Failed
+	}
+	jobs, next, err := s.api.core.ListJobs(ctx, caller.UserID, int(req.Msg.PageSize), req.Msg.PageToken, status)
 	if err != nil {
 		return nil, err
 	}

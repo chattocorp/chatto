@@ -617,7 +617,8 @@
       "created": "Created",
       "details": "Details",
       "detail_subtitle": "Status, attempts, and the last failure reason of this job.",
-      "not_found": "This job no longer exists."
+      "not_found": "This job no longer exists.",
+      "all": "All"
     }
   }
 }

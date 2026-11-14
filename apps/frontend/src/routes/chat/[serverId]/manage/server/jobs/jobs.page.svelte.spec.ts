@@ -91,7 +91,7 @@ describe('job queue list', () => {
     await expect
       .element(link)
       .toHaveAttribute('href', expect.stringMatching(/\/manage\/server\/jobs\/first$/));
-    await expect.element(screen.getByText('Failed', { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole('cell', { name: 'Failed' })).toBeVisible();
     await expect.element(screen.getByText('3 / 5')).toBeVisible();
     await expect.element(screen.getByText('http_error')).toBeVisible();
 
@@ -127,5 +127,16 @@ describe('job queue list', () => {
     await expect.element(screen.getByText('Running', { exact: true })).toBeVisible();
     expect(screen.container.querySelectorAll('[data-activity-indicator]')).toHaveLength(1);
     expect(screen.container.querySelectorAll('button')).toHaveLength(2);
+  });
+
+  it('requests the selected status filter', async () => {
+    mocks.listJobs.mockResolvedValue({ jobs: [job('failed')], nextPageToken: '' });
+    const screen = render(JobsPage);
+    await expect.element(screen.getByRole('link', { name: 'Webhook delivery' })).toBeVisible();
+    expect(mocks.listJobs.mock.calls[0][0]).toMatchObject({ status: JobStatus.UNSPECIFIED });
+    await screen.getByRole('radio', { name: 'Failed' }).click();
+    await expect
+      .poll(() => mocks.listJobs.mock.calls.some(([input]) => input.status === JobStatus.FAILED))
+      .toBe(true);
   });
 });

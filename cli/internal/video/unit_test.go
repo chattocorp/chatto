@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	statev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
@@ -36,7 +36,7 @@ func TestStandaloneMediaWorkerConsumesSharedJobs(t *testing.T) {
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
-		done <- queue.Run(runCtx, consumer, map[string]jobqueue.Handler{"media": func(_ context.Context, job jobqueue.Job) error {
+		done <- queue.Work(runCtx, consumer, map[string]jobqueue.Handler{"media": func(_ context.Context, job jobqueue.Job) error {
 			request := new(statev1.MediaJob)
 			err := proto.Unmarshal(job.Payload, request)
 			processed <- request

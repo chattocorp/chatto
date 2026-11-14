@@ -617,7 +617,8 @@
       "created": "Skapat",
       "details": "Detaljer",
       "detail_subtitle": "Status, försök och senaste felorsak för det här jobbet.",
-      "not_found": "Det här jobbet finns inte längre."
+      "not_found": "Det här jobbet finns inte längre.",
+      "all": "Alla"
     }
   }
 }

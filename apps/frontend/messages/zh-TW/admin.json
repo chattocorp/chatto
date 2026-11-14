@@ -606,7 +606,8 @@
       "created": "建立時間",
       "details": "詳細資料",
       "detail_subtitle": "此工作的狀態、嘗試次數與最近一次失敗原因。",
-      "not_found": "此工作已不存在。"
+      "not_found": "此工作已不存在。",
+      "all": "全部"
     }
   }
 }

@@ -86,8 +86,12 @@ export const adminQueryKeys = {
   event(serverId: string, connection: AdminQueryConnection, sequence: string) {
     return [...adminRoot(serverId, connection), 'event', sequence] as const;
   },
+  /** All job list queries. Each status filter has its own entry below it. */
   jobs(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'jobs'] as const;
+  },
+  jobList(serverId: string, connection: AdminQueryConnection, status: number) {
+    return [...adminRoot(serverId, connection), 'jobs', status] as const;
   },
   job(serverId: string, connection: AdminQueryConnection, id: string) {
     return [...adminRoot(serverId, connection), 'job', id] as const;

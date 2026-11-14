@@ -628,7 +628,8 @@
       "created": "Izveidots",
       "details": "Informācija",
       "detail_subtitle": "Šī uzdevuma statuss, mēģinājumi un pēdējais kļūmes iemesls.",
-      "not_found": "Šis uzdevums vairs nepastāv."
+      "not_found": "Šis uzdevums vairs nepastāv.",
+      "all": "Visi"
     }
   }
 }

@@ -617,7 +617,8 @@
       "created": "Créée",
       "details": "Détails",
       "detail_subtitle": "État, tentatives et dernière cause d’échec de cette tâche.",
-      "not_found": "Cette tâche n’existe plus."
+      "not_found": "Cette tâche n’existe plus.",
+      "all": "Toutes"
     }
   }
 }

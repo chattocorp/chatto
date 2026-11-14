@@ -11,8 +11,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 func TestMediaSourceHandsCurrentAndLegacyEventsToSharedPool(t *testing.T) {
@@ -49,7 +49,7 @@ func TestMediaSourceHandsCurrentAndLegacyEventsToSharedPool(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []string{evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted), evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted)}, info.Config.FilterSubjects)
 	}
-	jobs, _, err := c.jobs.List(ctx, "", 10)
+	jobs, _, err := c.jobs.List(ctx, jobqueue.ListOptions{Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, jobs, 2)
 }
@@ -84,4 +84,22 @@ func TestMediaJobRequiresTerminalAssetOutcome(t *testing.T) {
 		t.Error("terminal asset must not be processed again")
 		return nil
 	}))
+}
+
+// Media has its own consumer, so a media backlog or a replica without media
+// processing cannot hold capacity of the shared consumer.
+func TestJobConsumersSeparateMediaFromSharedWork(t *testing.T) {
+	c, _ := newTestCore(t)
+	ctx := testContext(t)
+	shared, err := c.jobsConsumer.Info(ctx)
+	require.NoError(t, err)
+	require.NotContains(t, shared.Config.FilterSubjects, "jobs.media.*")
+	require.Contains(t, shared.Config.FilterSubjects, "jobs.webhook.*")
+	for _, kind := range effectJobTypes() {
+		require.Contains(t, shared.Config.FilterSubjects, "jobs."+kind+".*")
+	}
+	media, err := c.mediaJobsConsumer.Info(ctx)
+	require.NoError(t, err)
+	require.Equal(t, MediaJobsConsumerName, media.Config.Durable)
+	require.Equal(t, []string{"jobs.media.*"}, media.Config.FilterSubjects)
 }

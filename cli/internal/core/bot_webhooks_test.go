@@ -17,11 +17,11 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -67,7 +67,7 @@ func waitWebhookDeliveriesDrained(t *testing.T, c *ChattoCore, replicas ...*Chat
 		if err != nil || source.AckFloor.Stream < target || source.NumPending != 0 || source.NumAckPending != 0 {
 			return false
 		}
-		jobs, _, err := c.jobs.List(ctx, "", 200)
+		jobs, _, err := c.jobs.List(ctx, jobqueue.ListOptions{Limit: 200})
 		if err != nil {
 			return false
 		}
@@ -605,10 +605,10 @@ func TestBotOutboundWebhookDurableHandoff(t *testing.T) {
 	request := &botWebhookDelivery{DeliveryID: "stable-job", BotUserID: "bot", WebhookID: "endpoint", SourceEventID: "source", MaxAttempts: 3, RetryDelay: time.Second, ExpiresAt: time.Now().Add(time.Hour)}
 	require.NoError(t, c.botWebhooks.enqueue(ctx, request))
 	require.NoError(t, c.botWebhooks.enqueue(ctx, request))
-	jobs, _, err := c.jobs.List(ctx, "", 10)
+	job, err := c.jobs.Get(ctx, "stable-job")
 	require.NoError(t, err)
-	require.Len(t, jobs, 1)
-	require.Equal(t, jobqueue.Queued, jobs[0].Status)
+	require.Equal(t, jobqueue.Queued, job.Status)
+	require.Equal(t, uint64(1), job.Generation)
 }
 
 func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {

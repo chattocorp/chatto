@@ -617,7 +617,8 @@
       "created": "Opprettet",
       "details": "Detaljer",
       "detail_subtitle": "Status, forsøk og siste feilårsak for denne jobben.",
-      "not_found": "Denne jobben finnes ikke lenger."
+      "not_found": "Denne jobben finnes ikke lenger.",
+      "all": "Alle"
     }
   }
 }

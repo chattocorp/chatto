@@ -606,7 +606,8 @@
       "created": "创建时间",
       "details": "详情",
       "detail_subtitle": "此作业的状态、尝试次数和最近一次失败原因。",
-      "not_found": "此作业已不存在。"
+      "not_found": "此作业已不存在。",
+      "all": "全部"
     }
   }
 }

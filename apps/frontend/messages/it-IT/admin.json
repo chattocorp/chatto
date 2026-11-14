@@ -617,7 +617,8 @@
       "created": "Creata",
       "details": "Dettagli",
       "detail_subtitle": "Stato, tentativi e ultimo motivo di errore di questa attività.",
-      "not_found": "Questa attività non esiste più."
+      "not_found": "Questa attività non esiste più.",
+      "all": "Tutte"
     }
   }
 }

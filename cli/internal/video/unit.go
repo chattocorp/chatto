@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -60,13 +61,18 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
 	go func() {
-		workerDone <- queue.Run(workerCtx, consumer, map[string]jobqueue.Handler{"media": func(ctx context.Context, job jobqueue.Job) error {
-			request := new(statev1.MediaJob)
-			if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
-				return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
-			}
-			return runtime.Core().ProcessMediaJob(ctx, request.AssetId, request.MessageEventId, processor.ProcessAsset)
-		}}, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
+		g, gctx := errgroup.WithContext(workerCtx)
+		g.Go(func() error { return queue.Run(gctx) })
+		g.Go(func() error {
+			return queue.Work(gctx, consumer, map[string]jobqueue.Handler{"media": func(ctx context.Context, job jobqueue.Job) error {
+				request := new(statev1.MediaJob)
+				if err := proto.Unmarshal(job.Payload, request); err != nil || request.AssetId == "" || request.MessageEventId == "" {
+					return &jobqueue.Failure{Category: "invalid_payload", Permanent: true}
+				}
+				return runtime.Core().ProcessMediaJob(ctx, request.AssetId, request.MessageEventId, processor.ProcessAsset)
+			}}, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
+		})
+		workerDone <- g.Wait()
 	}()
 
 	var workerErr, projectionErr error
