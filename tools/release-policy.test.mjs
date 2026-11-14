@@ -89,8 +89,9 @@ for (const [version, latest, serverTags, clientTags] of [
     });
     const expected = [];
     for (const [repository, tags] of [
-      ['chatto', serverTags],
-      ['chatto-client', clientTags]
+      // The shared stream must not advance before the frontend is available.
+      ['chatto-client', clientTags],
+      ['chatto', serverTags]
     ]) {
       const image = `ghcr.io/chattocorp/${repository}`;
       expected.push(
