@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0
+
+### Features
+
+- Add `docker.build()` with live output, task cancellation, private build metadata, and immutable image IDs. Add `workingTreeManifest()` in `runling/git` so applications can select current source files without implementing temporary-file lifecycle code. ([#3570](https://github.com/chattocorp/chatto/pull/3570))
+- Show a live task panel and task-labelled logs on interactive terminals. Keep ordinary logs in CI, redirected streams, JSON mode, and with `--plain`. Preserve workflow input and restore terminal scrolling when a run finishes or is interrupted.
+
+  Adapt the panel to terminal resizing, prioritize active child tasks and failures, show input waits, and print a compact task duration summary. ([#3575](https://github.com/chattocorp/chatto/pull/3575))
+- Add optional Docker helpers for disposable command and service containers, live output, readiness probes, networks, file copies, and cleanup. Operations take the task context directly to inherit cancellation and run labels. ([#3570](https://github.com/chattocorp/chatto/pull/3570))
+
+### Fixes
+
+- Keep large CI logs out of console activity snapshots. Browse continuous log scrollback with Virtua, bounded text caching, and no ancestor copies. Resume from output cursors after reconnection and download complete logs from existing journals. ([#3570](https://github.com/chattocorp/chatto/pull/3570))
+- Show child command output in parent task logs in the web console. Task details, the timeline inspector, and expanded log rows include output in journal order, with separate logs for parallel tasks.
+
+  Keep Docker events attached to their run when the server loads a workflow from its configuration file, including after configuration reload. ([#3570](https://github.com/chattocorp/chatto/pull/3570))
+- Render a console-owned error page when Runling serves workflows from another directory. Missing assets now return a normal error page without a Vite fallback-component overlay. ([#3570](https://github.com/chattocorp/chatto/pull/3570))
+
 ## [0.7.0](https://github.com/chattocorp/runling/compare/v0.6.0...v0.7.0) (2026-09-16)
 
 ### ⚠ BREAKING CHANGES
