@@ -536,7 +536,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 			t.Fatalf("consent omits %q", disclosure)
 		}
 	}
-	for _, version := range []string{"", "0", "1", "3"} {
+	for _, version := range []string{"", "0", "1", "2", "4"} {
 		stale := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
 			"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {version},
 		}.Encode(), cookie)
@@ -548,7 +548,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 		t.Fatalf("stale consent created grants: %d, %v", len(grants), err)
 	}
 	allow := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
-		"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"2"},
+		"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"3"},
 	}.Encode(), cookie)
 	if allow.Code != http.StatusSeeOther {
 		t.Fatalf("allow status/body = %d %s", allow.Code, allow.Body.String())
@@ -624,7 +624,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 	}
 	afterRevokeURL, _ := url.Parse(afterRevokeLocation)
 	reauthorize := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
-		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"2"},
+		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"3"},
 	}.Encode(), cookie)
 	if reauthorize.Code != http.StatusSeeOther {
 		t.Fatalf("reauthorization status/body = %d %s", reauthorize.Code, reauthorize.Body.String())
@@ -804,13 +804,16 @@ func completeAuthorization(t *testing.T, handler http.Handler, verifier string, 
 	return completeAuthorizationForScopes(t, handler, verifier, cookie, "openid")
 }
 
-func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier string, cookie *http.Cookie, scopes string) string {
+func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier string, cookie *http.Cookie, scopes string, resources ...string) string {
 	t.Helper()
 	challenge := "7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM"
 	if verifier != "" && verifier != strings.Repeat("v", 43) {
 		t.Fatal("test verifier and challenge fixture diverged")
 	}
 	query := url.Values{"client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"}, "response_type": {"code"}, "scope": {scopes}, "state": {"state-value"}, "nonce": {"nonce-value"}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}
+	if len(resources) > 0 {
+		query["resource"] = resources
+	}
 	if verifier == "" {
 		query.Del("code_challenge")
 		query.Del("code_challenge_method")
@@ -833,7 +836,7 @@ func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier
 		}
 		cookie = cookies[0]
 	}
-	consent := requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oidc/consent", url.Values{"id": {requestID}, "decision": {"allow"}, "consent_version": {"2"}}.Encode(), cookie)
+	consent := requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oidc/consent", url.Values{"id": {requestID}, "decision": {"allow"}, "consent_version": {"3"}}.Encode(), cookie)
 	if consent.Code != http.StatusSeeOther {
 		t.Fatalf("consent status/body = %d %s", consent.Code, consent.Body.String())
 	}
@@ -854,8 +857,10 @@ func redeemCode(t *testing.T, handler http.Handler, code, verifier string) *http
 }
 
 type oidcTokens struct {
-	AccessToken string `json:"access_token"`
-	IDToken     string `json:"id_token"`
+	ExpiresIn    int64  `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	AccessToken  string `json:"access_token"`
+	IDToken      string `json:"id_token"`
 }
 
 func issueOIDCTokens(t *testing.T, handler http.Handler, code, verifier string) oidcTokens {
@@ -2464,7 +2469,7 @@ func TestOIDCFreshnessEnforcedAcrossHTTPAndRestart(t *testing.T) {
 			target, body := path, ""
 			if method == http.MethodPost {
 				target = "/oidc/consent"
-				body = url.Values{"id": {id}, "decision": {"allow"}, "consent_version": {"2"}}.Encode()
+				body = url.Values{"id": {id}, "decision": {"allow"}, "consent_version": {"3"}}.Encode()
 			}
 			response := requestHandler(t, handler, method, target, body, cookie)
 			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login?id="+id {
@@ -2481,7 +2486,7 @@ func TestOIDCFreshnessEnforcedAcrossHTTPAndRestart(t *testing.T) {
 		t.Fatalf("valid existing session = %d", response.Code)
 	}
 	parsed, _ := url.Parse(recentEnough)
-	approved := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{"id": {parsed.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"2"}}.Encode(), cookie)
+	approved := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{"id": {parsed.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"3"}}.Encode(), cookie)
 	callback := requestHandler(t, handler, http.MethodGet, approved.Header().Get("Location"), "", cookie)
 	redirect, _ := url.Parse(callback.Header().Get("Location"))
 	tokens := issueOIDCTokens(t, handler, redirect.Query().Get("code"), strings.Repeat("v", 43))

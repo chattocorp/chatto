@@ -1,7 +1,7 @@
 # FDR-010: OIDC Authorization Grants
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -20,22 +20,22 @@ sessions.
   infer that clients with similar names, redirect hosts, or CIMD hostnames are
   the same relying party.
 - Explicitly allowing a consent request creates a durable grant for the
-  authenticated account, exact client, and granted scopes. The grant captures
+  authenticated account, exact client, and granted scopes and resource. The grant captures
   the validated client name and display host used by the account UI.
 - A later request skips the consent page only when its exact client ID has an
   active grant containing every requested scope and the current consent
-  disclosure version. Authentication is still
+  disclosure version and the same resource. Authentication is still
   required, and all ordinary client, redirect, request, and PKCE validation
   still runs.
 - `prompt=consent` always displays consent. Allowing it renews the active grant
   and records a new authorization fact without changing the active grant ID.
-- Consent disclosure version 2 lists the stable account ID (`sub`), names for
+- Consent disclosure version 3 lists the stable account ID (`sub`), names for
   `profile`, and the current verified address for `email`. It explains that
   access includes later changes to the requested profile and email information.
   The consent page groups this information by permission. The account ID is
   available under **Your account ID**. Approval and denial are adjacent actions.
-  A compact page layout keeps the standard consent flow within a small popup.
-- Explicit approval replaces the grant with exactly the approved scopes.
+  The page also identifies the selected API and explains offline access when requested.
+- Explicit approval adds the approved scopes for the selected resource.
   Subsets can reuse a covering grant; expanded requests require consent.
 - Approval forms carry the disclosure version. The server rejects an outdated
   approval form and asks the person to reload it. Denial remains available.
@@ -43,10 +43,11 @@ sessions.
 - The Connected apps tab at `/account/apps` lists active grants with their client name, display host,
   recorded scopes, and latest explicit authorization time. Same-origin POST is required to
   revoke one.
-- Revocation affects future authorization decisions immediately after the
+- Revocation prevents further refreshes and affects future authorization decisions after the
   durable write. Existing relying-party sessions, authorization codes, ID
   tokens, and five-minute access tokens are not enumerated or terminated and
-  remain subject to their own expiry and one-time-use rules.
+  remain subject to their own expiry and one-time-use rules. Codes that request
+  offline access also require their bound grant to remain active at exchange.
 - Re-authorizing a revoked client creates a fresh grant ID. This separates the
   new authorization generation from credentials that may later be bound to the
   revoked generation.
@@ -61,7 +62,7 @@ names and hosts can contain personal data, so events never store them in
 plaintext. Raw client IDs, CIMD URLs, account emails, tokens, codes, redirect
 URIs, and submitted request URLs are not added to these records.
 
-Metadata envelope version 1 encrypts the name and display host as a JSON object
+Metadata envelope version 1 encrypts the name, display host, and resource as a JSON object
 with XChaCha20-Poly1305. It uses the account's existing credential data key and
 user-key hierarchy; authorization does not provision or delete keys. Associated
 data binds the envelope to the event ID, account ID, grant ID, exact-client
@@ -74,12 +75,13 @@ fields retain their original tags but must be empty. Authling has not been
 deployed; this implementation does not provide a migration from plaintext
 grant history.
 
-Disclosure versions 1 and 2 can replay and decrypt with their original
-associated data. Only version 2 permits consent reuse. Version-1 grants remain
-visible and revocable, but require fresh approval. Old approval forms fail.
-Upgrade all replicas together. Older binaries cannot replay version-2 grants;
-rollback to those binaries is not supported after a new grant is recorded.
-No protobuf field or envelope shape changes are required.
+Disclosure versions 1, 2, and 3 replay and decrypt with their original
+associated data. Only version 3 permits consent reuse. Older grants remain
+visible and revocable but require fresh approval. Version 3 stores the resource
+inside encrypted metadata. No raw resource URL enters durable plaintext.
+Upgrade all replicas together. Older binaries reject version-3 grants, so
+rollback is not supported after the first new grant. No protobuf tag changes
+are required.
 
 The authorization projection consumes `authling.evt.account.*`, rebuilds the
 active grant inventory in memory, and is disposable. Commands synchronize it
@@ -119,26 +121,45 @@ resolution failures from hiding revocation controls.
 
 ### Refresh tokens
 
-Refresh tokens are the intended next OIDC feature because the durable grant is
-their revocation anchor. The implementation should:
+Refresh tokens require `offline_access` and explicit consent in the code flow.
+They are available to configured confidential and public clients and to CIMD
+public clients. Public clients must use S256 PKCE. An existing covering grant permits silent authorization after that explicit
+consent. CIMD metadata must declare the `refresh_token` grant. Configured clients
+can disable renewal with `allow_refresh_tokens = false`.
 
-- bind every opaque refresh-token family to the account, exact client ID,
-  grant ID, and granted scopes;
-- verify that the grant ID is still active on every refresh and fail closed
-  when the authorization projection is unavailable;
-- rotate refresh tokens with single-use OCC so concurrent reuse has at most one
-  winner;
-- keep refresh-token credentials in encrypted runtime state rather than the
-  durable event log;
-- make grant revocation invalidate every refresh token in that grant
-  generation, while leaving already issued short-lived access and ID tokens to
-  expire; and
-- decide and document the `offline_access` request, consent, client-policy, and
-  discovery semantics before advertising the refresh-token grant type.
+Each encrypted refresh family is bound to the account, exact client, grant
+generation, scopes, and resource. Each use checks current client admission,
+resource policy, active account state, and the authoritative grant. Additional consent adds permissions per resource. It never removes earlier
+scopes or resources and does not transfer scopes between resources. A family
+remains valid while the grant covers its original resource and scopes.
 
-Token revocation and RP-initiated logout remain separate protocol features.
-They may provide narrower ways to end credentials or relying-party sessions,
-but must not redefine account grant revocation implicitly.
+A family expires after 30 days or seven days without successful use. Operators
+can configure both limits from one through 365 days; the idle limit must not
+exceed the total limit. Rotation never extends the total limit. An explicit
+scope subset limits only the response. A replacement refresh token retains
+the original scope. Issue an ID token only with effective `openid`, and a
+replacement refresh token only with effective `offline_access`. Without the
+latter, consume the family without a replacement. Refreshes use current account claims and retain the original
+authentication time.
+
+A refresh token is single-use. Concurrent use has at most one winner. Reuse of
+an authentic older token invalidates the whole family, including its latest
+token. Invalid credentials or another client cannot revoke a family. Clients
+must serialize renewal and must not retry an old token after a lost response.
+A failed or uncertain rotation returns no credentials and can require new
+browser authorization. Family state survives restart and expires automatically.
+
+Revoking an app invalidates all families in that grant generation. Reauthorizing
+the app creates a new generation and cannot restore old refresh tokens.
+Account deletion also blocks refreshes. Password reset and signed-in password
+change invalidate all account families through the durable password-event
+version. Consent grants remain active. Email change and browser logout preserve
+families. Existing access tokens
+retain their issuance-time claims until expiry; UserInfo returns current data.
+Relying-party sessions remain under the relying party's control.
+
+Token revocation, introspection, RP-initiated logout, and first-party consent
+bypass are not implemented and are not required for this flow.
 
 ### Relying-party grouping
 
@@ -153,12 +174,13 @@ durable grouping or grant migration fact.
 ### Additional scopes and metadata changes
 
 Incremental authorization compares requested scopes with the active set and
-shows consent for new access. Explicit approval replaces the scope set. Client
+shows consent for new access. Explicit approval adds to the resource scope set. Client
 display-metadata refresh must remain separate from protocol client
 validation and must not let a changed document silently broaden a grant.
 
 ## Related
 
+- **Resource and refresh architecture:** [ADR-010](../adr/ADR-010-resource-access-and-refresh-tokens.md)
 - **OIDC provider:** [FDR-004](FDR-004-openid-connect-provider.md)
 - **Browser sessions:** [FDR-009](FDR-009-browser-session-management.md)
 - **Architecture:** [ADR-001](../adr/ADR-001-event-sourced-nats-architecture.md), [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)

@@ -1,7 +1,7 @@
 # FDR-008: Signed-in Password Change
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -30,6 +30,10 @@ OpenID Connect `sub` remain unchanged.
   password authenticates the same account.
 - Already issued OIDC ID and access tokens are not revoked. They expire after
   five minutes, and relying-party sessions remain under relying-party control.
+
+- All account refresh families are invalidated by the password change.
+  Durable app grants remain active, so applications can authorize again without
+  another consent decision. New tokens use current account claims. See [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Design Decisions
 

@@ -43,14 +43,14 @@ func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
 	service := &Service{vault: vault}
 	event := grantAuthorized("evt_protected", "grant_one", "")
 	client := Client{ID: "private-client", Name: "Private Person's App", Host: "private-person.example"}
-	if err := service.sealMetadata(t.Context(), event, accountKeys{userRef, dataRef}, client); err != nil {
+	if err := service.sealMetadata(t.Context(), event, accountKeys{userRef, dataRef}, client, "https://private-resource.example"); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := proto.Marshal(event)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{client.ID, client.Name, client.Host} {
+	for _, secret := range []string{client.ID, client.Name, client.Host, "https://private-resource.example"} {
 		if bytes.Contains(raw, []byte(secret)) {
 			t.Fatal("event leaked client metadata")
 		}

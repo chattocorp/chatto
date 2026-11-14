@@ -74,6 +74,9 @@ func TestOIDCScopeClaimsAndCurrentEmail(t *testing.T) {
 			code := completeAuthorizationForScopes(t, handler, verifier, cookie, scope)
 			tokens := issueOIDCTokens(t, handler, code, verifier)
 			tokensByScope[scope] = tokens
+			if tokens.RefreshToken != "" {
+				t.Fatal("refresh token issued without offline consent")
+			}
 			assertClaims(t, verifyIDToken(t, runtime, tokens.IDToken), scope, "oidc@example.com")
 			response := userinfo(tokens.AccessToken)
 			if response.Code != http.StatusOK {
@@ -86,17 +89,17 @@ func TestOIDCScopeClaimsAndCurrentEmail(t *testing.T) {
 			assertClaims(t, claims, scope, "oidc@example.com")
 		})
 	}
-	// Explicit consent replaces scopes; a covering grant can serve a subset.
+	// Explicit consent preserves previous scopes; a covering grant can serve a subset.
 	client := authorizations.Client{ID: "test-client", Name: "Test Client", Host: "configured"}
 	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid", "email"}); err != nil || !covered {
 		t.Fatalf("subset not covered: %v", err)
 	}
 	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"})
-	if err != nil || !slices.Equal(grant.Scopes, []string{"openid"}) {
+	if err != nil || !slices.Contains(grant.Scopes, "email") {
 		t.Fatalf("replacement scopes: %v, %v", grant.Scopes, err)
 	}
-	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid", "email"}); err != nil || covered {
-		t.Fatalf("expanded request covered: %v", err)
+	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid", "email"}); err != nil || !covered {
+		t.Fatalf("previous request not covered: %v", err)
 	}
 	target, err := runtime.Accounts.PrepareEmailChange(t.Context(), account.ID, password, "changed@example.com")
 	if err != nil {

@@ -91,7 +91,7 @@ templ accountPage(data accountPageData) {
 		if data.section == "apps" {
 			<section class="panel">
 				<h2 class="settings-heading">Connected apps</h2>
-				<p class="settings-description">Apps you allowed to access your { siteFromContext(ctx).Name } account. Each app can read the information listed below. Revoking access makes the app ask again next time. It does not sign you out of the app or invalidate tokens it already has.</p>
+				<p class="settings-description">Apps you allowed to access your { siteFromContext(ctx).Name } account. Each app can read the information listed below. Revoking access stops the app from renewing tokens and makes it ask again next time. It does not sign you out of the app. Existing access tokens expire within five minutes.</p>
 				if len(data.authorizationGrants) == 0 {
 					<p class="mt-4 text-muted">You haven’t authorized any apps yet.</p>
 				} else {
@@ -111,6 +111,14 @@ templ accountPage(data accountPageData) {
 												<span>, verified email address</span>
 											}
 										</p>
+										for _, resource := range grant.Resources {
+											if resource != "" {
+												<p class="break-all text-muted">API: { resource }</p>
+											}
+										}
+										if slices.Contains(grant.Scopes, "offline_access") {
+											<p class="text-muted">Access while signed out</p>
+										}
 										<p class="mt-2 text-muted">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
 									</div>
 									<form class="w-full sm:w-auto" method="post" action="/account/authorizations/revoke">
@@ -139,9 +147,12 @@ templ accountPage(data accountPageData) {
 										Other browser
 									}
 								</th>
-								<td>@sessionTimestamp(browserSession.CreatedAt)</td>
-								<td>@sessionTimestamp(browserSession.LastSeenAt)</td>
-								<td>@sessionTimestamp(browserSession.ExpiresAt)</td>
+								<td>@sessionTimestamp(browserSession.CreatedAt)
+</td>
+								<td>@sessionTimestamp(browserSession.LastSeenAt)
+</td>
+								<td>@sessionTimestamp(browserSession.ExpiresAt)
+</td>
 								<td class="text-right">
 									if !browserSession.Current {
 										<form method="post" action="/account/sessions/revoke">

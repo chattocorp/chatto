@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -261,7 +262,7 @@ func validateCIMD(clientID string, identifier *url.URL, document cimdDocument, a
 			return nil, fmt.Errorf("CIMD contains an invalid redirect URI")
 		}
 	}
-	if len(document.GrantTypes) > 0 && !(len(document.GrantTypes) == 1 && document.GrantTypes[0] == string(liboidc.GrantTypeCode)) {
+	if !validCIMDGrantTypes(document.GrantTypes) {
 		return nil, fmt.Errorf("CIMD client supports an unsupported grant type")
 	}
 	if len(document.ResponseTypes) > 0 && !(len(document.ResponseTypes) == 1 && document.ResponseTypes[0] == string(liboidc.ResponseTypeCode)) {
@@ -283,7 +284,7 @@ func validateCIMD(clientID string, identifier *url.URL, document cimdDocument, a
 	return &Client{
 		IDValue: clientID, NameValue: name, DisplayHost: identifier.Hostname(),
 		Redirects: append([]string(nil), document.RedirectURIs...), Method: liboidc.AuthMethodNone,
-		Source: ClientSourceCIMD, Development: allowLoopback,
+		Source: ClientSourceCIMD, Development: allowLoopback, RefreshAllowed: slices.Contains(document.GrantTypes, "refresh_token"),
 	}, nil
 }
 
@@ -428,4 +429,15 @@ func isLoopbackHost(host string) bool {
 	}
 	address, err := netip.ParseAddr(host)
 	return err == nil && address.IsLoopback()
+}
+
+func validCIMDGrantTypes(types []string) bool {
+	seen := map[string]bool{}
+	for _, value := range types {
+		if seen[value] || value != "authorization_code" && value != "refresh_token" {
+			return false
+		}
+		seen[value] = true
+	}
+	return len(types) == 0 || seen["authorization_code"]
 }

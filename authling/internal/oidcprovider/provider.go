@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +40,7 @@ type Service struct {
 
 // New constructs the provider boundary. Initialize must run after issuer initialization.
 func New(cfg config.Config, issuerService *issuer.Service, storage *Storage, grants *authorizations.Service, vault *keyvault.Vault) *Service {
+	storage.cfg, storage.grants = cfg.OIDC, grants
 	return &Service{cfg: cfg, issuer: issuerService, storage: storage, grants: grants, vault: vault}
 }
 
@@ -80,7 +82,7 @@ func (s *Service) Initialize(ctx context.Context) error {
 	}
 	provider, err := op.NewProvider(&op.Config{
 		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true, AuthMethodPost: true,
-		SupportedClaims: []string{"sub", "preferred_username", "name", "email", "email_verified", "auth_time"}, SupportedScopes: []string{liboidc.ScopeOpenID, liboidc.ScopeProfile, liboidc.ScopeEmail},
+		SupportedClaims: []string{"sub", "preferred_username", "name", "email", "email_verified", "auth_time"}, SupportedScopes: []string{liboidc.ScopeOpenID, liboidc.ScopeProfile, liboidc.ScopeEmail, liboidc.ScopeOfflineAccess},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
 		return fmt.Errorf("construct OIDC provider: %w", err)
@@ -130,12 +132,13 @@ func (s *Service) Authorize(ctx context.Context, id, accountID string, authentic
 	if err := s.storage.CheckAuthentication(ctx, id, authenticatedAt); err != nil {
 		return "", err
 	}
-	if _, err := s.grants.Authorize(ctx, accountID, authorizations.Client{
+	grant, err := s.grants.Authorize(ctx, accountID, authorizations.Client{
 		ID: consent.ClientID, Name: consent.ClientName, Host: consent.ClientHost,
-	}, consent.Scopes); err != nil {
+	}, consent.Scopes, consent.Resource)
+	if err != nil {
 		return "", err
 	}
-	if err := s.storage.Authorize(ctx, id, accountID, authenticatedAt); err != nil {
+	if err := s.storage.Authorize(ctx, id, accountID, authenticatedAt, grant.ID, grant.PasswordVersion); err != nil {
 		return "", err
 	}
 	return s.callback(ctx, id)
@@ -155,14 +158,14 @@ func (s *Service) TryAuthorize(ctx context.Context, id, accountID string, authen
 	if consent.ForceConsent || s.grants == nil {
 		return "", false, nil
 	}
-	covered, err := s.grants.Covers(ctx, accountID, consent.ClientID, consent.Scopes)
+	grant, covered, err := s.grants.CoveringGrant(ctx, accountID, consent.ClientID, consent.Scopes, consent.Resource)
 	if err != nil {
 		return "", false, err
 	}
 	if !covered {
 		return "", false, nil
 	}
-	if err := s.storage.Authorize(ctx, id, accountID, authenticatedAt); err != nil {
+	if err := s.storage.Authorize(ctx, id, accountID, authenticatedAt, grant.ID, grant.PasswordVersion); err != nil {
 		return "", false, err
 	}
 	target, err := s.callback(ctx, id)
@@ -269,6 +272,56 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 			response.WriteHeader(http.StatusOK)
 			return
 		}
+		if r.URL.Path == "/oauth/token" {
+			s.serveToken(w, r)
+			return
+		}
+		if r.URL.Path == "/oauth/userinfo" {
+			r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+			s.mu.RLock()
+			provider := s.provider
+			s.mu.RUnlock()
+			if provider == nil {
+				http.Error(w, "provider unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			token, err := op.ParseUserinfoRequest(r, provider.Decoder())
+			if err != nil {
+				http.Error(w, "invalid token", http.StatusUnauthorized)
+				return
+			}
+			if strings.Count(token, ".") == 2 {
+				s.serveJWTUserinfo(w, r, token)
+				return
+			}
+		}
+		if r.URL.Path == "/oauth/authorize" {
+			resources := r.URL.Query()["resource"]
+			if len(resources) > 1 || len(resources) == 1 && !config.ValidResource(resources[0], strings.HasPrefix(s.cfg.HTTP.PublicURLOrDefault(), "http://")) {
+				if !s.redirectAuthorizationError(w, r, &authorizationRequestError{code: "invalid_target", redirectable: true}) {
+					http.Error(w, "invalid target", http.StatusBadRequest)
+				}
+				return
+			}
+			// Reject policy errors here: the library logs client metadata on storage errors.
+			client, err := s.storage.clients.Resolve(r.Context(), r.URL.Query().Get("client_id"))
+			if err == nil {
+				code := ""
+				if s.storage.checkResource(client, r.URL.Query().Get("resource")) != nil {
+					code = "invalid_target"
+				}
+				if slices.Contains(strings.Fields(r.URL.Query().Get("scope")), liboidc.ScopeOfflineAccess) && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
+					code = "invalid_scope"
+				}
+				if code != "" {
+					if !s.redirectAuthorizationError(w, r, &authorizationRequestError{code: code, redirectable: true}) {
+						http.Error(w, "invalid authorization", http.StatusBadRequest)
+					}
+					return
+				}
+			}
+			r = r.WithContext(context.WithValue(r.Context(), resourceContextKey{}, r.URL.Query().Get("resource")))
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -373,10 +426,10 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"token_endpoint":                        issuer + "/oauth/token",
 		"userinfo_endpoint":                     issuer + "/oauth/userinfo",
 		"jwks_uri":                              issuer + "/oauth/jwks",
-		"scopes_supported":                      []string{"openid", "profile", "email"},
+		"scopes_supported":                      []string{"openid", "profile", "email", "offline_access"},
 		"response_types_supported":              []string{"code"},
 		"response_modes_supported":              []string{"query"},
-		"grant_types_supported":                 []string{"authorization_code"},
+		"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic", "client_secret_post"},
@@ -469,7 +522,7 @@ func validAuthorizeScopes(raw string) bool {
 	}
 	seen := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if scope != liboidc.ScopeOpenID && scope != liboidc.ScopeProfile && scope != liboidc.ScopeEmail {
+		if scope != liboidc.ScopeOpenID && scope != liboidc.ScopeProfile && scope != liboidc.ScopeEmail && scope != liboidc.ScopeOfflineAccess {
 			return false
 		}
 		if _, duplicate := seen[scope]; duplicate {
@@ -511,12 +564,12 @@ func validateTokenRequest(w http.ResponseWriter, r *http.Request) error {
 			return fmt.Errorf("multiple client authentication methods")
 		}
 	}
-	for _, name := range []string{"grant_type", "client_id", "client_secret", "redirect_uri", "code", "code_verifier"} {
+	for _, name := range []string{"grant_type", "client_id", "client_secret", "redirect_uri", "code", "code_verifier", "refresh_token", "scope"} {
 		if len(r.PostForm[name]) > 1 {
 			return fmt.Errorf("duplicate token parameter")
 		}
 	}
-	if r.PostForm.Get("grant_type") != string(liboidc.GrantTypeCode) || r.PostForm.Get("code") == "" || (r.PostForm.Has("code_verifier") && !validPKCEValue(r.PostForm.Get("code_verifier"))) {
+	if (r.PostForm.Get("grant_type") != string(liboidc.GrantTypeCode) && r.PostForm.Get("grant_type") != string(liboidc.GrantTypeRefreshToken)) || (r.PostForm.Get("grant_type") == string(liboidc.GrantTypeCode) && r.PostForm.Get("code") == "") || (r.PostForm.Has("code_verifier") && !validPKCEValue(r.PostForm.Get("code_verifier"))) {
 		return fmt.Errorf("unsupported token request")
 	}
 	if len(r.PostForm.Get("client_id")) > 2048 || len(r.PostForm.Get("redirect_uri")) > 2048 || len(r.PostForm.Get("code")) > 1024 || len(r.PostForm.Get("client_secret")) > 4096 {

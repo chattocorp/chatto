@@ -161,7 +161,7 @@ private-listener, storage-path, logging, and deployment policy.
 | Resource | Kind | Storage | Subjects | Purpose |
 |----------|------|---------|----------|---------|
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
-| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
+| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, access-token, and refresh-family state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
 
 `AUTHLING_EVT` enables JetStream atomic publication for multi-event
@@ -479,11 +479,11 @@ requires the current form disclosure version to record explicit approval
 before authorizing the expiring request or returns a denial to the validated
 client redirect.
 
-Disclosure version 2 is required for approval and reuse. The event decoder and
-metadata decryption retain version-1 support, but older binaries cannot replay
+Disclosure version 3 is required for approval and reuse. The event decoder and
+metadata decryption retain version-1 and version-2 support, but older binaries cannot replay
 new grants. Upgrade all replicas together; do not roll back after writing a
-version-2 grant. Explicit approval replaces scopes; subset reuse does not
-expand them.
+version-3 grant. Explicit approval adds scopes for the selected resource. Subset reuse does not
+expand permissions. The encrypted metadata keeps each resource scope set separate.
 
 The provider's account dependencies check active status for every claim
 response and hydrate profile or current verified email only for authorized
@@ -505,7 +505,7 @@ cache-miss lookups without a waiting queue, before DNS work starts. One
 five-second lookup deadline includes DNS and body reads. Its cache holds at
 most 256 clients, removes expired entries on access, and evicts the entry with
 the earliest expiry when full. Pending requests, code mappings,
-and opaque access-token records are encrypted and expire in runtime state.
+access-token records, and refresh families are encrypted and expire in runtime state.
 New authorization requests first consume a shared OCC admission counter in
 `AUTHLING_RUNTIME_STATE`. It permits 1,000 admissions and expires ten minutes
 after the last admission. Failed work does not refund it. Recovery uses separate
@@ -515,9 +515,9 @@ These counters contain no identifiers or secrets and share no event subjects.
 Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the active RS256 key; JWKS publishes its public key plus
 any prepared successor and unexpired predecessor. JWKS responses have a
-five-minute public cache lifetime. Opaque access-token encryption uses a
-separate stable symmetric key, so signing-key rotation does not invalidate
-UserInfo access. ID tokens and UserInfo return the account ID as `sub` and non-empty,
+five-minute public cache lifetime. New access tokens are RS256 JWTs with `typ: at+jwt`. Their five-minute lifetime
+fits the existing signing-key retirement overlap. A stable symmetric key
+remains available to read legacy opaque tokens until expiry. ID tokens and UserInfo return the account ID as `sub` and non-empty,
 encrypted-at-rest profile hints as `preferred_username` and `name`.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup,
@@ -533,6 +533,30 @@ confirmed reservations on a best-effort basis. Counter mutations retry only
 confirmed revision conflicts. An uncertain write acknowledgement stops the
 operation and can leave capacity consumed until expiry. Rollback attempts both
 counters even if one fails. Non-refundable request admission remains separate.
+
+## Resource and refresh-token state
+
+The OIDC boundary keeps library code, PKCE, and client authentication checks,
+and owns JWT access-token and refresh-token issuance. ID tokens keep client
+audiences; access tokens name UserInfo and an optional approved API. Every JWT
+UserInfo request verifies type, algorithm, signature, issuer, audience, expiry,
+and its live encrypted token record before reading current account claims.
+
+`oidc.refresh-family.*` keys use the existing deployment-keyed digest helper.
+One encrypted JSON record stores the bound authorization, current generation,
+absolute and idle deadlines, and revocation flag. The JSON representation is a
+persisted runtime contract, consistent with other OIDC workflow records.
+Credentials contain an opaque random family ID, generation, and domain-separated
+HMAC. Raw credentials are not stored. The record lives until absolute expiry;
+rotation and reuse revocation use revision-checked TTL writes through the bound
+leader-reading store. Definite OCC conflicts trigger family revocation; unknown
+write outcomes fail closed. No new bucket, stream, event variant, or worker is
+introduced.
+
+The grant service synchronizes to the account tail before returning a current
+grant. Refreshes require its generation, offline permission, scopes, resource,
+and current client policy. Local API validation cannot observe revocation until
+the JWT expires. See [ADR-010](../adr/ADR-010-resource-access-and-refresh-tokens.md).
 
 ## Account deletion and erasure
 
@@ -591,7 +615,7 @@ There is no migration or mixed-version fallback for this undeployed product.
 ## Deliberately absent
 
 The runtime does not yet contain MFA recovery, browser-device
-or location tracking, durable login history, OIDC refresh tokens, emergency
+or location tracking, durable login history, emergency
 manual signing-key rotation, diagnostic endpoints, or backup tooling.
 Application data, documents, and generic synchronization are deliberately
 outside Authling's identity-provider boundary.

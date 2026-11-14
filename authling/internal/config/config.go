@@ -91,6 +91,11 @@ func (c SiteConfig) Validate() error {
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
 // Registration-less CIMD clients require explicit operator opt-in.
 type OIDCConfig struct {
+	// Resources registers API audiences. CIMD admission is opt-in for each resource.
+	Resources []OIDCResourceConfig `toml:"resources"`
+	// Refresh lifetimes use days; zero selects the documented default.
+	RefreshTokenLifetimeDays int `toml:"refresh_token_lifetime_days" env:"AUTHLING_OIDC_REFRESH_TOKEN_LIFETIME_DAYS"`
+	RefreshTokenIdleDays     int `toml:"refresh_token_idle_days" env:"AUTHLING_OIDC_REFRESH_TOKEN_IDLE_DAYS"`
 	// AllowUnregisteredClients permits clients not declared in operator configuration.
 	// It defaults to false. Currently, admission uses HTTPS CIMD discovery.
 	AllowUnregisteredClients       bool               `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
@@ -114,6 +119,10 @@ func (c OIDCConfig) SigningKeyRotationInterval() time.Duration {
 // secret creates a public client; a non-empty secret enables client_secret_basic
 // and client_secret_post.
 type OIDCClientConfig struct {
+	// AllowRefreshTokens defaults to true for configured clients.
+	AllowRefreshTokens *bool `toml:"allow_refresh_tokens"`
+	// Resources is the exact allowlist of API audiences this client can request.
+	Resources    []string `toml:"resources"`
 	ID           string   `toml:"id"`
 	Name         string   `toml:"name"`
 	Secret       string   `toml:"secret"`
@@ -354,6 +363,36 @@ func (c Config) Validate() error {
 			problems = append(problems, "http.public_url may use plain HTTP only when both the public URL and listener are loopback")
 		}
 	}
+	if c.OIDC.RefreshTokenLifetimeDays < 0 || c.OIDC.RefreshTokenLifetimeDays > 365 || c.OIDC.RefreshTokenIdleDays < 0 || c.OIDC.RefreshTokenIdleDays > 365 || c.OIDC.RefreshIdleLifetime() > c.OIDC.RefreshLifetime() {
+		problems = append(problems, "oidc refresh lifetimes must be 1 to 365 days with idle lifetime no greater than total lifetime")
+	}
+	resourceCollides := func(resource string) bool {
+		if strings.TrimSuffix(resource, "/") == strings.TrimSuffix(c.HTTP.PublicURLOrDefault(), "/") {
+			return true
+		}
+		for _, client := range c.OIDC.Clients {
+			if resource == client.ID {
+				return true
+			}
+		}
+		return false
+	}
+	resources := map[string]bool{}
+	for _, resource := range c.OIDC.Resources {
+		if !ValidResource(resource.URI, strings.HasPrefix(c.HTTP.PublicURLOrDefault(), "http://")) || resources[resource.URI] || resourceCollides(resource.URI) {
+			problems = append(problems, "oidc.resources must contain unique valid resource URIs")
+		}
+		resources[resource.URI] = true
+	}
+	for _, client := range c.OIDC.Clients {
+		seen := map[string]bool{}
+		for _, resource := range client.Resources {
+			if !ValidResource(resource, strings.HasPrefix(c.HTTP.PublicURLOrDefault(), "http://")) || seen[resource] || resourceCollides(resource) {
+				problems = append(problems, "oidc client resources must contain unique valid resource URIs")
+			}
+			seen[resource] = true
+		}
+	}
 	seenClients := make(map[string]struct{}, len(c.OIDC.Clients))
 	for index, client := range c.OIDC.Clients {
 		field := fmt.Sprintf("oidc.clients[%d]", index)
@@ -525,4 +564,35 @@ func validNATSScheme(scheme string) bool {
 	default:
 		return false
 	}
+}
+
+// OIDCResourceConfig registers an exact resource identifier without fetching it.
+type OIDCResourceConfig struct {
+	URI       string `toml:"uri"`
+	AllowCIMD bool   `toml:"allow_cimd"`
+}
+
+// RefreshLifetime bounds the complete family, including all rotated credentials.
+func (c OIDCConfig) RefreshLifetime() time.Duration {
+	days := c.RefreshTokenLifetimeDays
+	if days == 0 {
+		days = 30
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
+
+// RefreshIdleLifetime bounds time between successful refreshes.
+func (c OIDCConfig) RefreshIdleLifetime() time.Duration {
+	days := c.RefreshTokenIdleDays
+	if days == 0 {
+		days = 7
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
+
+// ValidResource permits absolute HTTPS identifiers and loopback development HTTP.
+// Queries and fragments are excluded to keep secrets and personal data out of identifiers.
+func ValidResource(raw string, development bool) bool {
+	u, err := url.Parse(raw)
+	return err == nil && len(raw) <= 2048 && u.Hostname() != "" && u.User == nil && !u.ForceQuery && u.RawQuery == "" && u.Fragment == "" && !strings.Contains(raw, "#") && (u.Scheme == "https" || development && u.Scheme == "http" && isLoopbackHost(u.Hostname()))
 }

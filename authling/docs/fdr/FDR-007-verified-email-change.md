@@ -1,7 +1,7 @@
 # FDR-007: Verified Email Change
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -40,6 +40,10 @@ mailbox. The account ID and OpenID Connect `sub` remain unchanged.
   the completing browser.
 - Already issued OIDC ID and access tokens are not revoked. They expire after
   five minutes, and relying-party sessions remain under relying-party control.
+
+- Durable app grants and their refresh families remain active. Revoke an app
+  under **Connected apps** to stop renewal. New tokens use current account
+  claims. See [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Design Decisions
 
@@ -181,3 +185,7 @@ event rollout.
 - [FDR-006: Password Reset](FDR-006-password-reset.md)
 - [FDR-008: Signed-in Password Change](FDR-008-signed-in-password-change.md)
 - [Runtime architecture inventory](../architecture/INDEX.md)
+
+Email change deliberately preserves refresh families and consent grants. New
+tokens use the current verified email address. Password changes instead revoke
+all account refresh families.

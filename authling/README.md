@@ -356,6 +356,7 @@ your client needs:
 | `openid` | Stable account ID as `sub`, plus authentication claims in ID tokens |
 | `profile` | Non-empty `preferred_username` and optional `name` |
 | `email` | Current verified `email` and `email_verified` |
+| `offline_access` | Rotating refresh tokens after explicit consent |
 
 For example, send `scope=openid profile email` to request all supported account
 information. Unknown and duplicate scopes are rejected. Authling exposes no
@@ -364,14 +365,14 @@ application-data scopes.
 Clients that previously requested only `openid` must add `profile` to keep
 receiving names. Add `email` only when needed. Existing signed ID tokens remain
 valid until expiry; UserInfo follows the token's stored scopes and the current
-claim-release rules. Consent now uses disclosure version 2. Version-1 grants
+claim-release rules. Consent now uses disclosure version 3. Version-1 and version-3 grants
 remain readable but require fresh consent before reuse. Upgrade all Authling
-replicas together: older binaries cannot replay version-2 grants, so rollback
+replicas together: older binaries cannot replay version-3 grants, so rollback
 to those binaries is not supported after the first new grant is recorded.
 
 Authling rotates its RS256 signing key automatically every 90 days. A new
 public key is published before use, and the preceding public key remains in
-JWKS until its ID tokens have expired. Configure a whole-day interval from one
+JWKS until its ID and access tokens have expired. Configure a whole-day interval from one
 through 3,650 days with:
 
 ```toml
@@ -399,7 +400,7 @@ non-refundable limits of ten per address and 1,000 globally with a 15-minute
 quiet window. Each successful admission restarts its counter's window;
 failed work does not refund it. Update all replicas to enforce these limits.
 
-Revocation makes future requests ask again; it does not end already issued
+Revocation blocks further refreshes and makes future requests ask again; it does not end already issued
 five-minute tokens or sessions held by the relying party.
 
 Admission of unregistered clients is disabled by default. To allow it, set
@@ -462,3 +463,94 @@ instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
 The runtime currently has no public account-management, application-data,
 document, or synchronization API.
+
+### API audiences and refresh tokens
+
+New access tokens are five-minute RS256 JWTs with `typ: at+jwt`. An API can
+validate them through discovery and JWKS. It must require the trusted issuer,
+RS256, `at+jwt`, its exact audience, a valid expiry, and the expected subject.
+The tokens include `client_id`, `iat`, `jti`, and `scope`. The `email` scope adds
+`email` and `email_verified`; these values describe issuance time. APIs apply
+their own application permissions.
+
+Declare allowed API audiences for each configured client:
+
+```toml
+[[oidc.clients]]
+id = "cloud-website"
+name = "Cloud Website"
+redirect_uris = ["https://website.example/oidc/callback"]
+secret = "replace-with-a-secret-from-your-secret-store"
+resources = ["https://cloud.chatto.run"]
+```
+
+Send `resource=https://cloud.chatto.run` in the authorization request. Repeat
+it in the token request or omit it to retain the selected target. A token
+request cannot introduce or change the target. Only one explicit resource is
+supported per flow. Values match exactly and must be HTTPS URLs without
+credentials, queries, or fragments; loopback HTTP is permitted in development.
+Resource URLs are identifiers and are never fetched by Authling.
+
+All access tokens include the UserInfo endpoint as an audience. An explicit
+resource adds that API as a second audience. Without `resource`, UserInfo is the
+only audience. ID tokens retain the client ID as their audience. UserInfo keeps
+working with JWTs and accepts previously issued opaque tokens until expiry.
+New exchanges no longer issue opaque access tokens.
+
+CIMD resource access requires separate operator opt-in:
+
+```toml
+[[oidc.resources]]
+uri = "https://mcp.example"
+allow_cimd = true
+```
+
+This does not enable unregistered clients by itself. Keep
+`oidc.allow_unregistered_clients = true` when CIMD is required. CIMD metadata
+cannot grant API access. A configured client's own allowlist still controls
+its access, regardless of the CIMD setting.
+
+Request `scope=openid email offline_access` for renewable access. Authling
+requires explicit offline consent once. An existing covering grant permits
+silent authorization. Public and CIMD clients must use S256 PKCE. Exchange a
+refresh token at `/oauth/token` with `grant_type=refresh_token`, `client_id`,
+and `refresh_token`; confidential clients must authenticate with their secret.
+An optional scope subset limits this response; the replacement refresh token
+retains the original scope. A response includes an ID token only with `openid`
+and a replacement refresh token only with `offline_access`. Omitting
+`offline_access` consumes the family without a replacement. Serialize refreshes and store the new
+token before the next use. Reusing an old token revokes the whole family;
+there is no retry grace period after a lost response.
+
+Defaults are 30 days total and seven days without use. Configure them under
+`[oidc]` with `refresh_token_lifetime_days` and `refresh_token_idle_days`, or
+`AUTHLING_OIDC_REFRESH_TOKEN_LIFETIME_DAYS` and
+`AUTHLING_OIDC_REFRESH_TOKEN_IDLE_DAYS`. Values are one through 365 days, with
+the idle limit no greater than the total limit. Zero selects the default.
+Restart all replicas with the same settings. Total lifetime is fixed when the
+family starts; the current idle setting applies at the next rotation, within
+that total lifetime.
+
+Revoking an app at `/account/apps` blocks every refresh family bound to that
+grant. Account deletion also blocks refreshes. Already issued JWTs remain
+locally verifiable until expiry. Browser logout does not revoke app grants or
+relying-party sessions. Revocation and introspection endpoints and RP-initiated
+logout are not provided.
+
+Upgrade all replicas together. Consent disclosure version 3 requires fresh
+approval for older grants; older binaries cannot replay newly recorded grants.
+Do not roll back after recording a version-3 grant. Existing clients can keep
+using Authorization Code and UserInfo without requesting a resource or offline
+access. Clients must not depend on the previous opaque access-token format.
+
+Configured clients permit refresh tokens by default; set
+`allow_refresh_tokens = false` on a client to disable them. CIMD metadata must
+explicitly include `refresh_token` in `grant_types`; its default permits only
+`authorization_code`. All resource identifiers are reserved against use as CIMD
+client IDs, including identifiers with paths. Configuration rejects resources
+that equal the issuer or a configured client ID.
+
+Password reset and signed-in password change invalidate every account refresh
+family. Consent grants remain, so applications can authorize again silently.
+Email change and browser logout preserve refresh families. Additional consent
+adds scopes for the selected resource without removing other permissions.

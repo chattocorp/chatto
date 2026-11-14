@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -23,9 +24,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ConsentVersion identifies scope-gated subject, profile, and verified email disclosure.
+// ConsentVersion identifies scope, API resource, and offline-access disclosure.
 // Increase it before expanding the claim-release policy.
-const ConsentVersion uint32 = 2
+const ConsentVersion uint32 = 3
 
 // ErrNotFound indicates that an account or active authorization grant is not
 // available to the command.
@@ -42,10 +43,17 @@ type Client struct {
 
 // Grant is one active account-owned authorization for an exact OIDC client.
 type Grant struct {
-	ID                   string
-	AccountID            string
-	ClientName           string
-	ClientHost           string
+	ID         string
+	AccountID  string
+	ClientName string
+	ClientHost string
+	// Resources lists approved targets; an empty value means UserInfo only.
+	// Permissions binds each target to its consented scopes, avoiding cross-target expansion.
+	Permissions map[string][]string
+	// PasswordVersion is the latest account creation or password-change event ID.
+	// It is projection state, not a grant fact; email changes do not advance it.
+	PasswordVersion      string
+	Resources            []string
 	Scopes               []string
 	AuthorizedAt         time.Time
 	AuthorizationEventID string
@@ -58,11 +66,12 @@ type accountKeys struct{ userRef, dataRef string }
 // Projection rebuilds active OIDC grants from account aggregate history.
 type Projection struct {
 	events.MemoryProjection
-	accounts map[string]accountKeys
-	erased   map[string]bool
-	byClient map[string]map[string]Grant
-	byID     map[string]map[string]Grant
-	usedIDs  map[string]struct{}
+	passwordVersions map[string]string
+	accounts         map[string]accountKeys
+	erased           map[string]bool
+	byClient         map[string]map[string]Grant
+	byID             map[string]map[string]Grant
+	usedIDs          map[string]struct{}
 }
 
 // NewProjection creates an empty authorization-grant projection.
@@ -78,11 +87,22 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		defer p.Unlock()
 		if p.accounts == nil {
 			p.accounts = make(map[string]accountKeys)
+			p.passwordVersions = make(map[string]string)
 		}
 		if _, exists := p.accounts[created.GetAccountId()]; exists || p.erased[created.GetAccountId()] {
 			return fmt.Errorf("authorization projection saw duplicate account creation")
 		}
+		p.passwordVersions[created.GetAccountId()] = event.GetId()
 		p.accounts[created.GetAccountId()] = accountKeys{created.GetUserKeyRef(), created.GetCredentialKeyRef()}
+		return nil
+	}
+	if changed := event.GetPasswordChanged(); changed != nil {
+		p.Lock()
+		defer p.Unlock()
+		if _, ok := p.accounts[changed.GetAccountId()]; !ok {
+			return fmt.Errorf("password change references absent account")
+		}
+		p.passwordVersions[changed.GetAccountId()] = event.GetId()
 		return nil
 	}
 	if requested := event.GetAccountErasureRequested(); requested != nil {
@@ -98,6 +118,7 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		}
 		p.erased[id] = true
 		delete(p.accounts, id)
+		delete(p.passwordVersions, id)
 		delete(p.byClient, id)
 		delete(p.byID, id)
 		return nil
@@ -185,6 +206,7 @@ func (p *Projection) grantForClientDigest(accountID, clientDigest string) (Grant
 	p.RLock()
 	defer p.RUnlock()
 	grant, ok := p.byClient[accountID][clientDigest]
+	grant.PasswordVersion = p.passwordVersions[accountID]
 	grant.Scopes = append([]string(nil), grant.Scopes...)
 	return grant, ok
 }
@@ -233,7 +255,13 @@ func NewService(publisher *evtstream.Publisher, handle events.ProjectionHandle[*
 
 // Authorize records explicit consent. Re-consenting renews the current grant;
 // authorizing after revocation creates a new grant generation.
-func (s *Service) Authorize(ctx context.Context, accountID string, client Client, scopes []string) (Grant, error) {
+func (s *Service) Authorize(ctx context.Context, accountID string, client Client, scopes []string, resources ...string) (Grant, error) {
+	if len(resources) == 0 {
+		resources = []string{""}
+	}
+	if len(resources) != 1 || len(resources[0]) > 2048 {
+		return Grant{}, fmt.Errorf("invalid grant resources")
+	}
 	if client.ID == "" || !validMetadata(client.Name, client.Host) {
 		return Grant{}, fmt.Errorf("OIDC client metadata is invalid")
 	}
@@ -253,18 +281,29 @@ func (s *Service) Authorize(ctx context.Context, accountID string, client Client
 			}
 			priorEventID = ""
 		}
+		permissions := map[string][]string{}
+		mergedScopes := append([]string(nil), scopes...)
+		if active && prior.metadata.GetConsentVersion() == ConsentVersion {
+			prior, err = s.openMetadata(ctx, prior)
+			if err != nil {
+				return Grant{}, err
+			}
+			permissions = prior.Permissions
+			mergedScopes = union(prior.Scopes, scopes)
+		}
+		permissions[resources[0]] = union(permissions[resources[0]], scopes)
 		eventID, err := ids.New("evt")
 		if err != nil {
 			return Grant{}, err
 		}
 		event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
 			AccountId: accountID, GrantId: grantID, ClientIdDigest: []byte(clientDigest),
-			Scopes: append([]string(nil), scopes...), PriorAuthorizationEventId: priorEventID,
+			Scopes: mergedScopes, PriorAuthorizationEventId: priorEventID,
 		}}}
 		s.handle.Projection().RLock()
 		keys := s.handle.Projection().accounts[accountID]
 		s.handle.Projection().RUnlock()
-		if err := s.sealMetadata(ctx, event, keys, client); err != nil {
+		if err := s.sealPermissions(ctx, event, keys, client, permissions); err != nil {
 			return Grant{}, err
 		}
 		position, err := s.publisher.AppendOIDCGrantAuthorized(ctx, event, tail)
@@ -286,32 +325,34 @@ func (s *Service) Authorize(ctx context.Context, accountID string, client Client
 	return Grant{}, fmt.Errorf("OIDC grant authorization conflict")
 }
 
-// Covers reports whether the active client grant contains every requested
-// scope after synchronizing to the account aggregate tail.
-func (s *Service) Covers(ctx context.Context, accountID, clientID string, scopes []string) (bool, error) {
-	if clientID == "" {
-		return false, fmt.Errorf("OIDC client id is required")
+// Covers reports whether the active grant permits these scopes and resource.
+// An omitted resource means UserInfo only.
+func (s *Service) Covers(ctx context.Context, accountID, clientID string, scopes []string, resources ...string) (bool, error) {
+	_, covered, err := s.CoveringGrant(ctx, accountID, clientID, scopes, resources...)
+	return covered, err
+}
+
+// CoveringGrant returns the same authoritative grant snapshot that was checked.
+// Keeping the permission decision and generation together prevents a concurrent
+// grant replacement from binding a request to unrelated authorization.
+func (s *Service) CoveringGrant(ctx context.Context, accountID, clientID string, scopes []string, resources ...string) (Grant, bool, error) {
+	if len(resources) == 0 {
+		resources = []string{""}
 	}
-	if _, err := s.syncAccount(ctx, accountID); err != nil {
-		return false, err
+	if clientID == "" || len(resources) != 1 {
+		return Grant{}, false, fmt.Errorf("invalid grant lookup")
 	}
-	grant, ok := s.handle.Projection().grantForClientDigest(accountID, s.clientDigest(clientID))
-	if !ok || grant.metadata.GetConsentVersion() != ConsentVersion {
-		return false, nil
+	grant, err := s.Current(ctx, accountID, clientID)
+	if errors.Is(err, ErrNotFound) {
+		return Grant{}, false, nil
 	}
-	if _, err := s.openMetadata(ctx, grant); err != nil {
-		return false, err
+	if err != nil {
+		return Grant{}, false, err
 	}
-	have := make(map[string]struct{}, len(grant.Scopes))
-	for _, scope := range grant.Scopes {
-		have[scope] = struct{}{}
+	if !grant.Permits(resources[0], scopes) {
+		return Grant{}, false, nil
 	}
-	for _, scope := range scopes {
-		if _, ok := have[scope]; !ok {
-			return false, nil
-		}
-	}
-	return true, nil
+	return grant, true, nil
 }
 
 // List returns the account's active grants after synchronizing to its durable
@@ -406,15 +447,28 @@ func metadataAAD(eventID string, grant *corev1.OIDCGrantAuthorizedEvent) []byte 
 }
 
 type clientMetadata struct {
-	Name string `json:"name"`
-	Host string `json:"host"`
+	Name        string              `json:"name"`
+	Host        string              `json:"host"`
+	Resources   []string            `json:"resources,omitempty"`
+	Permissions map[string][]string `json:"permissions,omitempty"`
 }
 
 func validMetadata(name, host string) bool {
 	return strings.TrimSpace(name) != "" && len(name) <= 256 && strings.TrimSpace(host) != "" && len(host) <= 256
 }
 
-func (s *Service) sealMetadata(ctx context.Context, event *corev1.Event, keys accountKeys, client Client) error {
+func (s *Service) sealMetadata(ctx context.Context, event *corev1.Event, keys accountKeys, client Client, resources ...string) error {
+	permissions := map[string][]string{}
+	if len(resources) == 0 {
+		resources = []string{""}
+	}
+	for _, resource := range resources {
+		permissions[resource] = append([]string(nil), event.GetOidcGrantAuthorized().GetScopes()...)
+	}
+	return s.sealPermissions(ctx, event, keys, client, permissions)
+}
+
+func (s *Service) sealPermissions(ctx context.Context, event *corev1.Event, keys accountKeys, client Client, permissions map[string][]string) error {
 	if keys.userRef == "" || keys.dataRef == "" {
 		return fmt.Errorf("OIDC grant requires account encryption keys")
 	}
@@ -426,11 +480,19 @@ func (s *Service) sealMetadata(ctx context.Context, event *corev1.Event, keys ac
 	grant := event.GetOidcGrantAuthorized()
 	grant.MetadataEnvelopeVersion, grant.ConsentVersion = 1, ConsentVersion
 	grant.UserKeyRef, grant.CredentialKeyRef = keys.userRef, keys.dataRef
-	plain, err := json.Marshal(clientMetadata{client.Name, client.Host})
+	resources := make([]string, 0, len(permissions))
+	for resource := range permissions {
+		resources = append(resources, resource)
+	}
+	sort.Strings(resources)
+	plain, err := json.Marshal(clientMetadata{Name: client.Name, Host: client.Host, Resources: resources, Permissions: permissions})
 	if err != nil {
 		return fmt.Errorf("encode OIDC grant metadata")
 	}
 	defer clear(plain)
+	if len(plain) > 4080 {
+		return fmt.Errorf("authorization metadata capacity exceeded")
+	}
 	sealed, err := datacrypto.Seal(key, plain, metadataAAD(event.GetId(), grant))
 	if err != nil {
 		return fmt.Errorf("protect OIDC grant metadata: %w", err)
@@ -456,6 +518,71 @@ func (s *Service) openMetadata(ctx context.Context, grant Grant) (Grant, error) 
 	if json.Unmarshal(plain, &metadata) != nil || !validMetadata(metadata.Name, metadata.Host) {
 		return Grant{}, fmt.Errorf("invalid OIDC grant metadata")
 	}
+	if grant.metadata.GetConsentVersion() < 3 && (len(metadata.Resources) != 0 || len(metadata.Permissions) != 0) {
+		return Grant{}, fmt.Errorf("invalid historical grant resources")
+	}
+	// Earlier version-3 records held one resource and its scopes. Preserve replay.
+	if len(metadata.Permissions) == 0 {
+		metadata.Permissions = map[string][]string{}
+		for _, resource := range metadata.Resources {
+			metadata.Permissions[resource] = append([]string(nil), grant.Scopes...)
+		}
+	}
+	if len(metadata.Resources) != len(metadata.Permissions) {
+		return Grant{}, fmt.Errorf("invalid resource permissions")
+	}
+	seen := map[string]bool{}
+	for _, resource := range metadata.Resources {
+		permissions, ok := metadata.Permissions[resource]
+		if !ok || seen[resource] || len(resource) > 2048 || len(permissions) == 0 {
+			return Grant{}, fmt.Errorf("invalid resource permissions")
+		}
+		seen[resource] = true
+		for _, scope := range permissions {
+			if !slices.Contains(grant.Scopes, scope) {
+				return Grant{}, fmt.Errorf("invalid resource scope")
+			}
+		}
+	}
 	grant.ClientName, grant.ClientHost = metadata.Name, metadata.Host
+	grant.Resources = append([]string(nil), metadata.Resources...)
+	grant.Permissions = metadata.Permissions
 	return grant, nil
+}
+
+// Current returns the active exact-client grant after an authoritative account-tail read.
+// Callers must compare the generation and permissions before issuing credentials.
+func (s *Service) Current(ctx context.Context, accountID, clientID string) (Grant, error) {
+	if _, err := s.syncAccount(ctx, accountID); err != nil {
+		return Grant{}, err
+	}
+	grant, ok := s.handle.Projection().grantForClientDigest(accountID, s.clientDigest(clientID))
+	if !ok || grant.metadata.GetConsentVersion() != ConsentVersion {
+		return Grant{}, ErrNotFound
+	}
+	return s.openMetadata(ctx, grant)
+}
+
+// Permits checks permissions for one resource; scopes granted to other targets do not apply.
+func (g Grant) Permits(resource string, scopes []string) bool {
+	allowed, ok := g.Permissions[resource]
+	if !ok {
+		return false
+	}
+	for _, scope := range scopes {
+		if !slices.Contains(allowed, scope) {
+			return false
+		}
+	}
+	return true
+}
+
+func union(prior, added []string) []string {
+	result := append([]string(nil), prior...)
+	for _, value := range added {
+		if !slices.Contains(result, value) {
+			result = append(result, value)
+		}
+	}
+	return result
 }

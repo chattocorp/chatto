@@ -45,6 +45,12 @@ templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID str
 						<p class="mt-0.5 text-muted">{ signedInAs }</p>
 					</li>
 				}
+				if request.Resource != "" {
+					<li class="py-2"><p class="font-medium">API receiving your identity</p><p class="break-all text-muted">{ request.Resource }</p></li>
+				}
+				if slices.Contains(request.Scopes, "offline_access") {
+					<li class="py-2"><p class="font-medium">Access while you are signed out</p><p class="text-muted">This app can renew access until its authorization expires or you revoke it.</p></li>
+				}
 			</ul>
 		</section>
 		<div class="mt-4 space-y-1 text-muted">
