@@ -162,7 +162,6 @@ describe('remote server OAuth popup', () => {
     vi.resetModules();
     FakeBroadcastChannel.instances = [];
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
-    vi.stubGlobal('sessionStorage', memoryStorage());
     vi.stubGlobal('localStorage', memoryStorage());
     registered.servers = [remote];
     activeServer.id = 'origin';
@@ -197,7 +196,7 @@ describe('remote server OAuth popup', () => {
           providerId === 'signup' ? null : (providerId ?? null)
         );
         expect(url.searchParams.get('screen_hint')).toBe(providerId === 'signup' ? 'signup' : null);
-        return { state, code: 'native-code' };
+        return { state, code: 'native-code', iss: 'https://remote.example' };
       });
       const open = vi.fn();
       vi.stubGlobal('window', { open });
@@ -230,7 +229,8 @@ describe('remote server OAuth popup', () => {
     native.available = true;
     native.authorize.mockImplementation(async (_raw: string, state: string) => ({
       state,
-      code: 'native-code'
+      code: 'native-code',
+      iss: 'https://remote.example'
     }));
     vi.stubGlobal('window', { open: vi.fn() });
     vi.stubGlobal(
@@ -366,20 +366,23 @@ describe('remote server OAuth popup', () => {
       responseChannel!.emit({
         type: 'chatto:oauth-popup-response',
         state,
-        code: 'cht_ACcode'
+        code: 'cht_ACcode',
+        iss: 'https://remote.example'
       });
 
       await completion;
 
-      expect(fetch).toHaveBeenCalledWith(
-        'https://remote.example/oauth/token',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining(
-            '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
-          )
-        })
-      );
+      const [tokenUrl, tokenRequest] = vi.mocked(fetch).mock.calls[0]!;
+      expect(String(tokenUrl)).toBe('https://remote.example/oauth/token');
+      // The exchange sends no cookies and follows no redirect.
+      expect(tokenRequest).toMatchObject({
+        method: 'POST',
+        credentials: 'omit',
+        redirect: 'error',
+        body: expect.stringContaining(
+          '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
+        )
+      });
       expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toMatchObject({
         client_id: 'https://app.example/oauth/frontend-client-metadata.json'
       });
@@ -397,6 +400,56 @@ describe('remote server OAuth popup', () => {
       expect(localStorage.length).toBe(0);
     }
   );
+
+  it('does not exchange a native code that a different server issued', async () => {
+    native.available = true;
+    native.authorize.mockImplementation(async (_raw: string, state: string) => ({
+      state,
+      code: 'native-code',
+      iss: 'https://other.example'
+    }));
+    const exchange = vi.fn();
+    vi.stubGlobal('fetch', exchange);
+    const { startRemoteReauthentication } = await import('./reauth');
+
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow('different server');
+
+    expect(exchange).not.toHaveBeenCalled();
+    expect(replaceServerAuthenticationMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { iss: 'https://other.example', accepted: false },
+    { iss: 'not a URL', accepted: false },
+    { iss: 'https://remote.example', accepted: true },
+    // A response without an issuer can come from a different server.
+    { iss: '', accepted: false },
+    { iss: undefined, accepted: false }
+  ])('exchanges a popup code from issuer $iss: $accepted', async ({ iss, accepted }) => {
+    const popup = fakePopup();
+    const { owner, open } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const exchange = vi.fn(async () => tokenResponse());
+    vi.stubGlobal('fetch', exchange);
+    const { startRemoteReauthentication } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
+    completion.catch(() => {});
+
+    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
+    const state = new URL(authorizationLaunchTarget(open)!).searchParams.get('state');
+    FakeBroadcastChannel.instances
+      .find((channel) => channel.name === `chatto:oauth-popup:${state}`)
+      ?.emit({ type: 'chatto:oauth-popup-response', state, code: 'cht_ACcode', iss });
+
+    if (accepted) {
+      await completion;
+      expect(replaceServerAuthenticationMock).toHaveBeenCalledOnce();
+    } else {
+      await expect(completion).rejects.toThrow('different server');
+      expect(exchange).not.toHaveBeenCalled();
+      expect(replaceServerAuthenticationMock).not.toHaveBeenCalled();
+    }
+  });
 
   it('opens before server discovery completes', async () => {
     const popup = fakePopup();
@@ -430,7 +483,12 @@ describe('remote server OAuth popup', () => {
     const state = new URL(authorizationLaunchTarget(open)!).searchParams.get('state');
     FakeBroadcastChannel.instances
       .find((channel) => channel.name === `chatto:oauth-popup:${state}`)
-      ?.emit({ type: 'chatto:oauth-popup-response', state, code: 'cht_ACcode' });
+      ?.emit({
+        type: 'chatto:oauth-popup-response',
+        state,
+        code: 'cht_ACcode',
+        iss: 'https://remote.example'
+      });
 
     await completion;
     expect(updateRegistrationMock).toHaveBeenCalledWith(
@@ -449,7 +507,6 @@ describe('remote server OAuth popup', () => {
     await expect(startRemoteReauthentication(remote)).rejects.toThrow('discovery failed');
 
     expect(popup.close).toHaveBeenCalledOnce();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
   it('fails without navigating the main window when the popup is blocked', async () => {
@@ -460,7 +517,6 @@ describe('remote server OAuth popup', () => {
     await expect(startRemoteReauthentication(remote)).rejects.toMatchObject({ reason: 'blocked' });
 
     expect(gotoMock).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
   it('handles a sign-in window that closes while server data still loads', async () => {
@@ -515,7 +571,6 @@ describe('remote server OAuth popup', () => {
     (popup as unknown as { closed: boolean }).closed = true;
     await rejected;
     expect(gotoMock).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 });
 

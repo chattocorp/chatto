@@ -14,6 +14,8 @@ test.describe('Remote bearer renewal', () => {
     remote = await startServer(testInfo, {
       instanceId: 'remote-renewal',
       portOffset: 5,
+      // The tests add the server with this address; see startSecondServer.
+      hostname: '127.0.0.1',
       env: { CHATTO_AUTH_ACCESS_TOKEN_TTL: '5s' }
     });
   });
