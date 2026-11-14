@@ -63,7 +63,15 @@ and multiple resource values fail with `invalid_target`. Resource identifiers
 use HTTPS, with loopback HTTP available for local development. Credentials,
 queries, and fragments are not permitted. Authling does not fetch resources.
 
-The consent screen names the selected API. Changing it requires new consent.
+Access tokens contain no identity claims by default. An operator can set
+`access_token_claims` for a configured client and resource. Its access tokens
+then carry the claims of the listed scopes (`email`, `profile`) that the user
+granted. The consent screen names the selected API and the data it receives.
+CIMD clients never receive identity claims in access tokens. They cannot
+request the `email` scope unless the operator sets `cimd_allow_email = true`;
+otherwise authorization and refresh fail with `invalid_scope`.
+
+Changing the selected API requires new consent.
 A code or refresh exchange may omit `resource` to retain the authorized target,
 or repeat the exact target. It cannot introduce or change a target. Without
 an authorization resource, tokens are for UserInfo only.

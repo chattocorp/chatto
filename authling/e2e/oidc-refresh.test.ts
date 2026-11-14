@@ -8,7 +8,7 @@ const resource = 'https://cloud.example.invalid';
 const test = base.extend<{ stack: TestStack }>({
   stack: async ({}, use, testInfo) => {
     const stack = await startStack(testInfo, {
-      additionalConfig: `resources = ['${resource}']\n`
+      additionalConfig: `resources = ['${resource}']\naccess_token_claims = { '${resource}' = ['email'] }\n`
     });
     try {
       await use(stack);
@@ -46,7 +46,8 @@ test('discloses resource and offline access, rotates tokens, and revokes the gra
   }).toString();
   await page.setViewportSize({ width: 390, height: 720 });
   await page.goto(authorize.toString());
-  await expect(page.getByText('API receiving your identity')).toBeVisible();
+  await expect(page.getByText('API this app can use for you')).toBeVisible();
+  await expect(page.getByText('This API also receives your verified email address.')).toBeVisible();
   await expect(page.getByText(resource, { exact: true })).toBeVisible();
   await expect(page.getByText('Access while you are signed out')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

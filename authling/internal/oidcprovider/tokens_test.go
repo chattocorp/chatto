@@ -207,3 +207,35 @@ func TestRefreshRequestRevokesPreviousGenerationAfterGrace(t *testing.T) {
 		t.Fatal("reuse after grace did not revoke family")
 	}
 }
+
+func TestAuthorizationPolicyLimitsCIMDEmail(t *testing.T) {
+	cimd := &Client{Source: ClientSourceCIMD}
+	configured := &Client{Source: ClientSourceConfigured}
+	s := &Storage{}
+	if err := s.checkAuthorizationPolicy(cimd, []string{"openid", "email"}, ""); err == nil {
+		t.Fatal("CIMD client requested email by default")
+	}
+	if err := s.checkAuthorizationPolicy(cimd, []string{"openid", "profile"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.checkAuthorizationPolicy(configured, []string{"openid", "email"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	s.cfg.CIMDAllowEmail = true
+	if err := s.checkAuthorizationPolicy(cimd, []string{"openid", "email"}, ""); err != nil {
+		t.Fatal("operator opt-in ignored")
+	}
+}
+
+func TestAccessTokenClaimScopes(t *testing.T) {
+	client := &Client{AccessTokenClaims: map[string][]string{"https://api.example": {"email", "profile"}}}
+	if got := client.accessTokenClaimScopes("https://api.example", []string{"openid", "email"}); len(got) != 1 || got[0] != "email" {
+		t.Fatalf("granted subset: %v", got)
+	}
+	if got := client.accessTokenClaimScopes("https://other.example", []string{"openid", "email"}); len(got) != 0 {
+		t.Fatalf("other resource: %v", got)
+	}
+	if got := (&Client{}).accessTokenClaimScopes("", []string{"openid", "email", "profile"}); len(got) != 0 {
+		t.Fatalf("default: %v", got)
+	}
+}

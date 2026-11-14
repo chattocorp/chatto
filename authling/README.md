@@ -469,9 +469,9 @@ document, or synchronization API.
 New access tokens are five-minute RS256 JWTs with `typ: at+jwt`. An API can
 validate them through discovery and JWKS. It must require the trusted issuer,
 RS256, `at+jwt`, its exact audience, a valid expiry, and the expected subject.
-The tokens include `client_id`, `iat`, `jti`, and `scope`. The `email` scope adds
-`email` and `email_verified`; these values describe issuance time. APIs apply
-their own application permissions.
+The tokens include `client_id`, `iat`, `jti`, and `scope`. By default, they
+contain no identity claims: identify users by `sub`, and get profile or email
+data from UserInfo. APIs apply their own application permissions.
 
 Declare allowed API audiences for each configured client:
 
@@ -482,7 +482,19 @@ name = "Cloud Website"
 redirect_uris = ["https://website.example/oidc/callback"]
 secret = "replace-with-a-secret-from-your-secret-store"
 resources = ["https://cloud.chatto.run"]
+# Optional: identity claims in access tokens for this API.
+access_token_claims = { "https://cloud.chatto.run" = ["email"] }
 ```
+
+`access_token_claims` names, for each resource of the client, the identity
+scopes whose claims its access tokens carry: `email` adds `email` and
+`email_verified`, and `profile` adds `preferred_username` and `name`. A claim
+is added only when the user granted that scope. The values describe issuance
+time. The consent screen tells the user which data the API receives. CIMD
+clients never receive identity claims in access tokens.
+
+CIMD clients cannot request the `email` scope. To permit it, set
+`cimd_allow_email = true` under `[oidc]` or `AUTHLING_OIDC_CIMD_ALLOW_EMAIL=true`.
 
 Send `resource=https://cloud.chatto.run` in the authorization request. Repeat
 it in the token request or omit it to retain the selected target. A token

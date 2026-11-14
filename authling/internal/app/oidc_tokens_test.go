@@ -19,7 +19,7 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
 	const resource = "https://cloud.example.test"
-	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", RedirectURIs: []string{"http://localhost:9999/callback"}, Resources: []string{resource}}}
+	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", RedirectURIs: []string{"http://localhost:9999/callback"}, Resources: []string{resource}, AccessTokenClaims: map[string][]string{resource: {"email", "profile"}}}}
 	runtime, cancel, runErrors := startTestRuntime(t, cfg)
 	defer func() { stopTestRuntime(t, runtime, cancel, runErrors) }()
 	account, err := runtime.Accounts.CreateLocal(t.Context(), "oidc@example.com", "a deliberately uncommon password")
@@ -94,6 +94,10 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 	}
 	if claims["sub"] != account.ID || claims["client_id"] != "test-client" || claims["email"] != "oidc@example.com" || claims["email_verified"] != true {
 		t.Fatal("access claims")
+	}
+	// Profile is configured for this resource but was not granted.
+	if claims["preferred_username"] != nil {
+		t.Fatal("ungranted profile claim released")
 	}
 	audiences := claims["aud"].([]any)
 	if len(audiences) != 2 || audiences[0] != "http://localhost:8080/oauth/userinfo" || audiences[1] != resource {
@@ -183,6 +187,12 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 	claims = verifyIDToken(t, runtime, defaults.AccessToken)
 	if len(claims["aud"].([]any)) != 1 || claims["aud"].([]any)[0] != "http://localhost:8080/oauth/userinfo" {
 		t.Fatal("default audience")
+	}
+	// Without configured claims for the resource, access tokens carry no identity claims.
+	for _, name := range []string{"email", "email_verified", "preferred_username", "name"} {
+		if claims[name] != nil {
+			t.Fatalf("unconfigured access token carries %s", name)
+		}
 	}
 
 	// A correctly signed JWT with the wrong context must still fail at UserInfo.

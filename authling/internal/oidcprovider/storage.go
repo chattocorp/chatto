@@ -102,7 +102,10 @@ type tokenState struct {
 
 // ConsentRequest contains the non-sensitive metadata shown to an authenticated user.
 type ConsentRequest struct {
-	Resource                                             string
+	Resource string
+	// ResourceClaims lists the requested identity scopes whose claims the
+	// resource receives in access tokens. It is empty unless configured.
+	ResourceClaims                                       []string
 	ID, ClientID, ClientName, ClientHost, RedirectOrigin string
 	Scopes                                               []string
 	ForceConsent                                         bool
@@ -247,7 +250,7 @@ func (s *Storage) Consent(ctx context.Context, id string) (ConsentRequest, error
 	}
 	return ConsentRequest{
 		ID: state.ID, ClientID: state.ClientID, ClientName: state.ClientName, ClientHost: state.ClientHost,
-		Resource: state.Resource, RedirectOrigin: redirectOrigin,
+		Resource: state.Resource, ResourceClaims: s.resourceClaims(state), RedirectOrigin: redirectOrigin,
 		Scopes:       append([]string(nil), state.Scopes...),
 		ForceConsent: state.ForceConsent,
 		Silent:       state.Silent,
@@ -278,6 +281,19 @@ func (r *authRequestState) checkAuthentication(authenticatedAt, now time.Time) e
 		return ErrLoginRequired
 	}
 	return nil
+}
+
+// resourceClaims reads only configured clients, so consent never fetches CIMD metadata.
+// CIMD clients receive no identity claims in access tokens.
+func (s *Storage) resourceClaims(state *authRequestState) []string {
+	if s.clients == nil {
+		return nil
+	}
+	client, ok := s.clients.configured[state.ClientID]
+	if !ok {
+		return nil
+	}
+	return client.accessTokenClaimScopes(state.Resource, state.Scopes)
 }
 
 // Authorize binds the current account to a pending request using OCC.

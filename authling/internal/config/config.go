@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -101,7 +102,10 @@ type OIDCConfig struct {
 	RefreshTokenReuseGrace string `toml:"refresh_token_reuse_grace" env:"AUTHLING_OIDC_REFRESH_TOKEN_REUSE_GRACE"`
 	// AllowUnregisteredClients permits clients not declared in operator configuration.
 	// It defaults to false. Currently, admission uses HTTPS CIMD discovery.
-	AllowUnregisteredClients       bool               `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
+	AllowUnregisteredClients bool `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
+	// CIMDAllowEmail permits CIMD clients to request the email scope. It
+	// defaults to false: CIMD clients cannot receive email addresses.
+	CIMDAllowEmail                 bool               `toml:"cimd_allow_email" env:"AUTHLING_OIDC_CIMD_ALLOW_EMAIL"`
 	Clients                        []OIDCClientConfig `toml:"clients"`
 	CIMDTrustedPrivateHosts        []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
 	CIMDTrustedLoopbackHosts       []string           `toml:"cimd_trusted_loopback_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS"`
@@ -125,11 +129,16 @@ type OIDCClientConfig struct {
 	// AllowRefreshTokens defaults to true for configured clients.
 	AllowRefreshTokens *bool `toml:"allow_refresh_tokens"`
 	// Resources is the exact allowlist of API audiences this client can request.
-	Resources    []string `toml:"resources"`
-	ID           string   `toml:"id"`
-	Name         string   `toml:"name"`
-	Secret       string   `toml:"secret"`
-	RedirectURIs []string `toml:"redirect_uris"`
+	Resources []string `toml:"resources"`
+	// AccessTokenClaims maps a resource in Resources to the identity scopes
+	// ("email", "profile") whose claims its access tokens carry. Claims are
+	// released only when the user also granted that scope. Access tokens for
+	// other resources carry no identity claims.
+	AccessTokenClaims map[string][]string `toml:"access_token_claims"`
+	ID                string              `toml:"id"`
+	Name              string              `toml:"name"`
+	Secret            string              `toml:"secret"`
+	RedirectURIs      []string            `toml:"redirect_uris"`
 	// RequirePKCE defaults to true. Only clients with a secret may set it to false.
 	RequirePKCE *bool `toml:"require_pkce"`
 }
@@ -389,6 +398,20 @@ func (c Config) Validate() error {
 			problems = append(problems, "oidc.resources must contain unique valid resource URIs")
 		}
 		resources[resource.URI] = true
+	}
+	for _, client := range c.OIDC.Clients {
+		for resource, scopes := range client.AccessTokenClaims {
+			seen := map[string]bool{}
+			for _, scope := range scopes {
+				if scope != "email" && scope != "profile" || seen[scope] {
+					problems = append(problems, "oidc client access_token_claims must list email or profile once each")
+				}
+				seen[scope] = true
+			}
+			if !slices.Contains(client.Resources, resource) {
+				problems = append(problems, "oidc client access_token_claims must name resources of the same client")
+			}
+		}
 	}
 	for _, client := range c.OIDC.Clients {
 		seen := map[string]bool{}

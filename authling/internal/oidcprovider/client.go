@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,7 +34,10 @@ type Client struct {
 	DisplayHost string
 	// Resources contains exact operator-approved API identifiers.
 	Resources []string
-	Redirects []string
+	// AccessTokenClaims maps a resource to the identity scopes whose claims its
+	// access tokens carry. Only configured clients have entries.
+	AccessTokenClaims map[string][]string
+	Redirects         []string
 	// Method selects the library authentication profile. Configured secret clients
 	// use Basic as their default profile and also accept POST credentials.
 	Method      liboidc.AuthMethod
@@ -134,7 +138,7 @@ func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 		}
 		configured[declared.ID] = &Client{
 			RefreshAllowed: declared.AllowRefreshTokens == nil || *declared.AllowRefreshTokens, IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: configuredClientHost,
-			Resources: append([]string(nil), declared.Resources...), Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
+			Resources: append([]string(nil), declared.Resources...), AccessTokenClaims: cloneClaims(declared.AccessTokenClaims), Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
 			AllowWithoutPKCE: declared.RequirePKCE != nil && !*declared.RequirePKCE,
 			Secret:           declared.Secret, Source: ClientSourceConfigured, Development: development,
 		}
@@ -150,6 +154,7 @@ func (r *Resolver) Resolve(ctx context.Context, clientID string) (*Client, error
 	if client, ok := r.configured[clientID]; ok {
 		copy := *client
 		copy.Resources = append([]string(nil), client.Resources...)
+		copy.AccessTokenClaims = cloneClaims(client.AccessTokenClaims)
 		copy.Redirects = append([]string(nil), client.Redirects...)
 		return &copy, nil
 	}
@@ -201,6 +206,30 @@ type clientNotFoundError struct{ clientID string }
 
 func (e clientNotFoundError) Error() string { return "OIDC client not found" }
 func (clientNotFoundError) IsNotFound()     {}
+
+// accessTokenClaimScopes returns the granted identity scopes whose claims an
+// access token for resource carries. The result is empty unless the operator
+// configured claims for this client and resource.
+func (c *Client) accessTokenClaimScopes(resource string, granted []string) []string {
+	var scopes []string
+	for _, scope := range c.AccessTokenClaims[resource] {
+		if slices.Contains(granted, scope) {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
+}
+
+func cloneClaims(claims map[string][]string) map[string][]string {
+	if claims == nil {
+		return nil
+	}
+	cloned := make(map[string][]string, len(claims))
+	for resource, scopes := range claims {
+		cloned[resource] = append([]string(nil), scopes...)
+	}
+	return cloned
+}
 
 // requiresPKCE fails closed for public and CIMD clients, even if constructed
 // without configuration validation. A client secret alone does not opt out.

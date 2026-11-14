@@ -50,8 +50,12 @@ func (s *Storage) checkResource(client *Client, resource string) error {
 // checkAuthorizationPolicy applies current client policy to requested scopes
 // and resource. Authorization admission, auth-request creation and every token
 // request use it, so the rules cannot drift apart.
+// CIMD clients cannot request email unless the operator enables it.
 func (s *Storage) checkAuthorizationPolicy(client *Client, scopes []string, resource string) error {
 	if slices.Contains(scopes, liboidc.ScopeOfflineAccess) && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
+		return liboidc.ErrInvalidScope()
+	}
+	if client.Source == ClientSourceCIMD && slices.Contains(scopes, liboidc.ScopeEmail) && !s.cfg.CIMDAllowEmail {
 		return liboidc.ErrInvalidScope()
 	}
 	return s.checkResource(client, resource)
@@ -135,7 +139,7 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 	}
 	// Prepare the access record before consuming credentials. A failed record write
 	// leaves the old credential retryable; orphan records expire without a bearer.
-	access, tokenID, expires, err := s.storage.signAccessToken(ctx, issuerState.Issuer, request)
+	access, tokenID, expires, err := s.storage.signAccessToken(ctx, issuerState.Issuer, request, client)
 	if err != nil {
 		tokenError(w, issuanceError(err))
 		return
@@ -234,8 +238,11 @@ func (s *Service) refreshGrantRequest(ctx context.Context, r *http.Request, prov
 	return request, client, parsed.RefreshToken, nil
 }
 
-func (s *Storage) signAccessToken(ctx context.Context, issuerURL string, request *authRequestState) (string, string, time.Time, error) {
-	claims, err := s.accountClaims(ctx, request.Subject, request.Scopes)
+// signAccessToken issues an RFC 9068 access token. It carries identity claims
+// only for scopes that the operator configured for this client and resource;
+// by default it carries only sub, client_id and scope. The account must be active.
+func (s *Storage) signAccessToken(ctx context.Context, issuerURL string, request *authRequestState, client *Client) (string, string, time.Time, error) {
+	claims, err := s.accountClaims(ctx, request.Subject, client.accessTokenClaimScopes(request.Resource, request.Scopes))
 	if err != nil {
 		return "", "", time.Time{}, err
 	}

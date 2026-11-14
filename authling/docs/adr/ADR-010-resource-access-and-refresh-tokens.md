@@ -32,6 +32,12 @@ that also call an API. APIs must check their own audience and must not accept a
 UserInfo-only token. Identity scopes release identity information; they do not
 assign application roles or permissions.
 
+Access tokens carry no identity claims by default, as RFC 9068 section 6
+recommends. APIs identify users by `sub` and get identity data from UserInfo.
+An operator can configure identity claims for each configured client and
+resource. CIMD clients never receive identity claims in access tokens, and
+cannot request the email scope unless the operator permits it.
+
 `offline_access` is consented once per grant. A `prompt=none` request is
 auto-approved when the grant already covers its scopes for that resource.
 It is available to configured confidential clients and public clients, including
@@ -66,8 +72,8 @@ history, so rollback after recording such a grant is not supported.
 Resource servers can validate access tokens locally through discovery and JWKS.
 They must require `at+jwt`, RS256, the trusted issuer, their exact audience, a
 valid expiry, and the expected subject. JWT payloads are readable by their
-holders. The email scope exposes the verified email to the client and selected
-API. The client makes the API request; Authling makes no new outbound request.
+holders. Configured identity claims expose that data to the client and the
+selected API. The client makes the API request; Authling makes no new outbound request.
 Existing CIMD metadata fetches retain their established privacy boundary.
 Refreshes do not fetch CIMD metadata; they use a cached document when one is
 present. Startup rejects resource configuration that could exceed the
