@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -51,6 +52,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 
 	// Set required env vars
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "000102030405060708090a0b0c0d0e0f")
 	t.Setenv("CHATTO_WEBSERVER_API_COMPRESSION", "false")
@@ -113,6 +115,7 @@ enabled = false
 ttl = "invalid-obsolete-value"
 
 [webserver]
+url = "http://localhost:4000"
 port = 4000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -145,6 +148,7 @@ func TestReadConfig_WithConfigFile(t *testing.T) {
 	// Write a minimal config file
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -214,6 +218,7 @@ func TestReadConfig_EnvOverridesFile(t *testing.T) {
 	// Write a config file with port 5000
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -252,6 +257,7 @@ func TestReadConfig_ValidatesEnvOverrides(t *testing.T) {
 			name: "required secret overridden by env must be valid hex",
 			config: `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -308,9 +314,23 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
+func TestReadConfig_RequiresWebserverURL(t *testing.T) {
+	for _, raw := range []string{"", " ", "\t\n"} {
+		t.Run(fmt.Sprintf("%q", raw), func(t *testing.T) {
+			validCheckEnvironment(t)
+			t.Chdir(t.TempDir())
+			t.Setenv("CHATTO_WEBSERVER_URL", raw)
+			if _, err := ReadConfig(""); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
+				t.Fatalf("ReadConfig() = %v, want missing webserver.url error", err)
+			}
+		})
+	}
+}
+
 func validTestConfig() ChattoConfig {
 	return ChattoConfig{
 		Webserver: WebserverConfig{
+			URL:                 "http://localhost:4000",
 			Port:                4000,
 			CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		},
@@ -387,11 +407,23 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_Validate_RequiresWebserverURL(t *testing.T) {
+	for _, raw := range []string{"", " ", "\t\n"} {
+		t.Run(fmt.Sprintf("%q", raw), func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Webserver.URL = raw
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
+				t.Fatalf("Validate() = %v, want missing webserver.url error", err)
+			}
+		})
+	}
+}
+
 func TestChattoConfig_Validate_MCPRequiresPublicWebserverURL(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.Webserver.URL = ""
 	cfg.MCP.Enabled = true
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required when MCP is enabled") {
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
 		t.Fatalf("Validate() = %v, want missing webserver.url error", err)
 	}
 }
@@ -508,6 +540,7 @@ func TestReadConfig_DeprecatedServerAliases(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 4000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 

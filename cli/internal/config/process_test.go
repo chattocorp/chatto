@@ -72,6 +72,7 @@ func TestReadConfig_ShieldsEnabledFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
@@ -99,6 +100,7 @@ func TestReadConfig_ShieldsEnabledFromNestedWebserverConfig(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 4000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -233,6 +235,7 @@ func TestReadConfig_AssetProcessingSettingsFromEnv(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
@@ -285,6 +288,7 @@ func TestReadConfig_OperatorAPIFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
@@ -315,6 +319,7 @@ func TestReadConfig_InvalidCookieEncryptionSecretFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "not-hex")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
@@ -342,6 +347,7 @@ func TestReadConfig_GeneralLogFormatFromTOMLAndEnv(t *testing.T) {
 log_format = "text"
 
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -386,6 +392,7 @@ func TestReadConfig_WebserverNetworkingFromTOMLAndEnv(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 trusted_proxies = ["127.0.0.1", "10.0.0.0/8"]
@@ -663,6 +670,7 @@ func TestReadConfig_MetricsFromTOMLAndEnv(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -739,6 +747,7 @@ func TestReadConfig_ExporterFromTOMLAndEnv(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -823,6 +832,7 @@ func TestReadConfig_DiagnosticsFromTOMLAndEnv(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -1215,6 +1225,7 @@ func TestChattoConfig_Validate_TLS(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
+				URL:                 "http://localhost:4000",
 				Port:                4000,
 				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},

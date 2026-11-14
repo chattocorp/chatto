@@ -285,6 +285,19 @@ jobs:
             )
           done
 
+      - name: Prepare standalone frontend image context
+        shell: bash
+        run: |
+          set -euo pipefail
+          context=".context/ci/docker/frontend"
+          mkdir -p "$context/apps/frontend" "$context/docker" "$context/LICENSES"
+          cp docker/Dockerfile.frontend.prebuilt "$context/Dockerfile"
+          cp docker/frontend-entrypoint.sh "$context/docker/frontend-entrypoint.sh"
+          cp -a apps/frontend/build "$context/apps/frontend/build"
+          cp apps/frontend/nginx.conf "$context/apps/frontend/nginx.conf"
+          cp LICENSES/Apache-2.0.txt LICENSES/MIT.txt "$context/LICENSES/"
+          cp NOTICE "$context/NOTICE"
+
       - name: Upload production image contexts
         uses: actions/upload-artifact@v7
         with:
@@ -1257,6 +1270,26 @@ jobs:
             org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
+      # Publish the client before exposing the server tag selected by Flux.
+      # Both images must exist when the shared dev stream advances.
+      - name: Build and push standalone frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-contexts/frontend
+          file: docker-contexts/frontend/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/chattocorp/chatto-client:${{ github.sha }}
+            ghcr.io/chattocorp/chatto-client:${{ steps.main-image.outputs.tag }}
+          cache-from: type=gha,scope=chatto-client-main
+          cache-to: type=gha,scope=chatto-client-main,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
+            org.opencontainers.image.licenses=Apache-2.0
+
       - name: Publish multi-platform commit image
         shell: bash
         run: |
@@ -1271,6 +1304,8 @@ jobs:
             echo
             echo "\`ghcr.io/chattocorp/chatto:${GITHUB_SHA}\`"
             echo "\`ghcr.io/chattocorp/chatto:${{ steps.main-image.outputs.tag }}\`"
+            echo
+            echo "Frontend: \`ghcr.io/chattocorp/chatto-client:${{ steps.main-image.outputs.tag }}\`"
             echo
             echo "Version: \`${{ needs.build-main-image-contexts.outputs.image-version }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
