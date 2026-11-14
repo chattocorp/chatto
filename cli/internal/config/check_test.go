@@ -26,6 +26,7 @@ func validCheckEnvironment(t *testing.T) {
 	t.Helper()
 	cleanCheckEnvironment(t)
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	for _, name := range []string{"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "CHATTO_CORE_SECRET_KEY", "CHATTO_CORE_ASSETS_SIGNING_SECRET"} {
 		t.Setenv(name, strings.Repeat("ab", 32))
 	}
