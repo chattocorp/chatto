@@ -252,9 +252,12 @@ func (s *Storage) signAccessToken(ctx context.Context, issuerURL string, request
 	}
 	now := s.now().UTC()
 	expires := now.Add(accessTokenLifetime)
+	// A token for an API names only that API (RFC 9068 section 3). It cannot
+	// call UserInfo, so the API cannot read identity data beyond its
+	// configured access-token claims. Other tokens name UserInfo.
 	audience := []string{strings.TrimSuffix(issuerURL, "/") + "/oauth/userinfo"}
-	if request.Resource != "" && request.Resource != audience[0] {
-		audience = append(audience, request.Resource)
+	if request.Resource != "" {
+		audience = []string{request.Resource}
 	}
 	claims["iss"], claims["sub"], claims["aud"] = issuerURL, request.Subject, audience
 	claims["client_id"], claims["iat"], claims["exp"], claims["jti"] = request.ClientID, now.Unix(), expires.Unix(), id

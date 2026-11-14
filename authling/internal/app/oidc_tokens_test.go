@@ -100,8 +100,16 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 		t.Fatal("ungranted profile claim released")
 	}
 	audiences := claims["aud"].([]any)
-	if len(audiences) != 2 || audiences[0] != "http://localhost:8080/oauth/userinfo" || audiences[1] != resource {
+	if len(audiences) != 1 || audiences[0] != resource {
 		t.Fatal("access audience")
+	}
+	// An API token cannot read identity data from UserInfo.
+	apiUserinfo := httptest.NewRequest(http.MethodGet, "http://localhost:8080/oauth/userinfo", nil)
+	apiUserinfo.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	apiResult := httptest.NewRecorder()
+	handler.ServeHTTP(apiResult, apiUserinfo)
+	if apiResult.Code != http.StatusUnauthorized {
+		t.Fatalf("API token accepted at UserInfo: %d", apiResult.Code)
 	}
 	idClaims := verifyIDToken(t, runtime, tokens.IDToken)
 	if len(idClaims["aud"].([]any)) != 1 || idClaims["aud"].([]any)[0] != "test-client" {
@@ -159,7 +167,7 @@ func TestOIDCResourceJWTAndRefreshLifecycle(t *testing.T) {
 		t.Fatal("concurrent refresh revoked family")
 	}
 	// Revocation ends refresh authority, but does not revoke signed access tokens.
-	revoked := issue(resource)
+	revoked := issue()
 	grants, err := runtime.Authorizations.List(t.Context(), account.ID)
 	if err != nil || len(grants) != 1 {
 		t.Fatal("grant unavailable")

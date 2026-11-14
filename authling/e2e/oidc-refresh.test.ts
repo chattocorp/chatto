@@ -95,7 +95,7 @@ test('discloses resource and offline access, rotates tokens, and revokes the gra
   >;
   expect(claims).toMatchObject({
     iss: stack.baseURL,
-    aud: [`${stack.baseURL}/oauth/userinfo`, resource],
+    aud: [resource],
     client_id: 'authling-e2e',
     email: 'refresh@example.invalid',
     email_verified: true

@@ -503,9 +503,9 @@ supported per flow. Values match exactly and must be HTTPS URLs without
 credentials, queries, or fragments; loopback HTTP is permitted in development.
 Resource URLs are identifiers and are never fetched by Authling.
 
-All access tokens include the UserInfo endpoint as an audience. An explicit
-resource adds that API as a second audience. Without `resource`, UserInfo is the
-only audience. ID tokens retain the client ID as their audience. UserInfo keeps
+An access token for an explicit resource has that API as its only audience, so
+it cannot be used at UserInfo. Without `resource`, UserInfo is the only
+audience. Clients get identity data from the ID token. ID tokens retain the client ID as their audience. UserInfo keeps
 working with JWTs and accepts previously issued opaque tokens until expiry.
 New exchanges no longer issue opaque access tokens.
 

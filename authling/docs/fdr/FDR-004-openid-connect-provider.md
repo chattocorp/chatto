@@ -51,10 +51,10 @@ and returns to the relying party with an Authorization Code.
 ## Resource Access and Renewal
 
 Access tokens use RS256 and `typ: at+jwt`. They contain `iss`, `sub`, `aud`,
-`client_id`, `exp`, `iat`, `jti`, and `scope`. Authorized profile and email claims
-are included at issuance. ID tokens continue to identify the client as their
-audience. Access tokens always identify UserInfo as an audience; an explicit
-resource adds the selected API. Resource servers must check their own audience.
+`client_id`, `exp`, `iat`, `jti`, and `scope`. ID tokens continue to identify
+the client as their audience. An access token for an explicit resource has
+only the selected API as its audience and cannot be used at UserInfo. Without
+a resource, UserInfo is the only audience. Resource servers must check their own audience.
 
 Authorization accepts one optional `resource`. Configured clients may select
 only an exact entry in their `resources` allowlist. CIMD clients may select

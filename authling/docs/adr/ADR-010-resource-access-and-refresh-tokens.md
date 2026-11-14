@@ -25,10 +25,12 @@ to the consent grant, authorization request, code, and refresh family. Token
 requests may repeat that selection or omit it; they cannot change it. Requests
 for multiple resources return `invalid_target`.
 
-Every access token includes Authling's UserInfo endpoint as an audience. An
-explicit resource adds that API as a second audience. Without a resource,
-UserInfo is the only audience. This preserves OIDC UserInfo use for clients
-that also call an API. APIs must check their own audience and must not accept a
+An access token for an explicit resource has that API as its only audience
+(RFC 9068 section 3). Without a resource, UserInfo is the only audience. An API
+token therefore cannot be used at UserInfo, and an API cannot read identity data
+beyond its configured access-token claims. Clients that also call an API get
+identity data from the ID token, which each code exchange and refresh returns
+with `openid`. APIs must check their own audience and must not accept a
 UserInfo-only token. Identity scopes release identity information; they do not
 assign application roles or permissions.
 
