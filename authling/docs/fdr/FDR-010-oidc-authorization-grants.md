@@ -130,7 +130,12 @@ disable renewal with `allow_refresh_tokens = false`.
 
 Each encrypted refresh family is bound to the account, exact client, grant
 generation, scopes, and resource. Each use checks current client admission,
-resource policy, active account state, and the authoritative grant. Additional consent adds permissions per resource. It never removes earlier
+resource policy, active account state, and the authoritative grant. A refresh
+does not fetch CIMD metadata: the family proves that the CIMD client was
+admitted with the `refresh_token` grant. A refresh uses the cached CIMD
+document when one is present. Otherwise, it uses a public client with refresh
+permission. CIMD admission and resource policy remain current operator policy.
+A failed client authentication returns `invalid_client` with HTTP 401. Additional consent adds permissions per resource. It never removes earlier
 scopes or resources and does not transfer scopes between resources. A family
 remains valid while the grant covers its original resource and scopes.
 

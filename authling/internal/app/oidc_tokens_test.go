@@ -299,8 +299,8 @@ func TestOIDCConfidentialRefreshAuthentication(t *testing.T) {
 				response := httptest.NewRecorder()
 				handler.ServeHTTP(response, req)
 				if credential != secret {
-					if response.Code == http.StatusOK {
-						t.Fatal("bad refresh credentials accepted")
+					if response.Code != http.StatusUnauthorized || !strings.Contains(response.Body.String(), "invalid_client") || response.Header().Get("WWW-Authenticate") == "" {
+						t.Fatalf("bad refresh credentials: status %d: %s", response.Code, response.Body.String())
 					}
 					continue
 				}

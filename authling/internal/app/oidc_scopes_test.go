@@ -91,14 +91,14 @@ func TestOIDCScopeClaimsAndCurrentEmail(t *testing.T) {
 	}
 	// Explicit consent preserves previous scopes; a covering grant can serve a subset.
 	client := authorizations.Client{ID: "test-client", Name: "Test Client", Host: "configured"}
-	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid", "email"}); err != nil || !covered {
+	if _, covered, err := runtime.Authorizations.CoveringGrant(t.Context(), account.ID, client.ID, []string{"openid", "email"}, ""); err != nil || !covered {
 		t.Fatalf("subset not covered: %v", err)
 	}
-	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"})
+	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"}, "")
 	if err != nil || !slices.Contains(grant.Scopes, "email") {
 		t.Fatalf("replacement scopes: %v, %v", grant.Scopes, err)
 	}
-	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid", "email"}); err != nil || !covered {
+	if _, covered, err := runtime.Authorizations.CoveringGrant(t.Context(), account.ID, client.ID, []string{"openid", "email"}, ""); err != nil || !covered {
 		t.Fatalf("previous request not covered: %v", err)
 	}
 	target, err := runtime.Accounts.PrepareEmailChange(t.Context(), account.ID, password, "changed@example.com")
@@ -162,7 +162,7 @@ func TestOIDCLegacyGrantRequiresFreshConsentAfterRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	client := authorizations.Client{ID: "legacy-client", Name: "Legacy App", Host: "legacy.example"}
-	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"})
+	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,14 +209,14 @@ func TestOIDCLegacyGrantRequiresFreshConsentAfterRestart(t *testing.T) {
 	if err != nil || len(grants) != 1 || grants[0].ClientName != "Legacy App" {
 		t.Fatalf("historical grant read: %v", err)
 	}
-	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid"}); err != nil || covered {
+	if _, covered, err := runtime.Authorizations.CoveringGrant(t.Context(), account.ID, client.ID, []string{"openid"}, ""); err != nil || covered {
 		t.Fatalf("legacy disclosure reused: covered=%v err=%v", covered, err)
 	}
-	renewed, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid", "profile"})
+	renewed, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid", "profile"}, "")
 	if err != nil || renewed.ID != grant.ID {
 		t.Fatalf("renewal: %v", err)
 	}
-	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid"}); err != nil || !covered {
+	if _, covered, err := runtime.Authorizations.CoveringGrant(t.Context(), account.ID, client.ID, []string{"openid"}, ""); err != nil || !covered {
 		t.Fatalf("new disclosure not reused: %v", err)
 	}
 }

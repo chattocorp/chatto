@@ -644,7 +644,7 @@ func TestOIDCAuthorizationGrantsReplayAfterRestart(t *testing.T) {
 	}
 	grant, err := first.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{
 		ID: "client-one", Name: "Client One", Host: "client.example",
-	}, []string{"openid"})
+	}, []string{"openid"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -685,7 +685,7 @@ func TestConcurrentOIDCAuthorizationsShareOneGrantGeneration(t *testing.T) {
 	for range 2 {
 		go func() {
 			<-start
-			grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"})
+			grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"}, "")
 			results <- grant
 			errors <- err
 		}()
@@ -2395,7 +2395,7 @@ func TestGrantKeyLossFailsClosedAndAllowsRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant, err := runtime.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{ID: "client-one", Name: "Client One", Host: "client.example"}, []string{"openid"})
+	grant, err := runtime.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{ID: "client-one", Name: "Client One", Host: "client.example"}, []string{"openid"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2412,7 +2412,7 @@ func TestGrantKeyLossFailsClosedAndAllowsRevocation(t *testing.T) {
 	if err := stores.Keys.Purge(testContext(t), event.GetOidcGrantAuthorized().GetUserKeyRef()); err != nil {
 		t.Fatal(err)
 	}
-	if covered, err := runtime.Authorizations.Covers(testContext(t), account.ID, "client-one", []string{"openid"}); err == nil || covered {
+	if _, covered, err := runtime.Authorizations.CoveringGrant(testContext(t), account.ID, "client-one", []string{"openid"}, ""); err == nil || covered {
 		t.Fatal("automatic consent accepted missing metadata key")
 	}
 	if _, err := runtime.Authorizations.List(testContext(t), account.ID); err == nil {

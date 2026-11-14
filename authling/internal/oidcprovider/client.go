@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
 	"github.com/chattocorp/chatto/authling/internal/config"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -87,6 +88,34 @@ type Resolver struct {
 	cimd              *CIMDResolver
 }
 
+// configuredClientHost is the consent and grant host label of configured clients.
+const configuredClientHost = "configured by this site’s operator"
+
+// CheckGrantCapacity rejects configuration in which one client's reachable
+// resources could exceed the encrypted grant metadata capacity. CIMD clients
+// use the worst-case name and host that CIMD validation admits.
+func CheckGrantCapacity(cfg config.Config) error {
+	for _, declared := range cfg.OIDC.Clients {
+		if err := authorizations.CheckMetadataCapacity(strings.TrimSpace(declared.Name), configuredClientHost, declared.Resources); err != nil {
+			return fmt.Errorf("oidc client %q resources: %w", declared.ID, err)
+		}
+	}
+	if !cfg.OIDC.AllowUnregisteredClients {
+		return nil
+	}
+	var resources []string
+	for _, resource := range cfg.OIDC.Resources {
+		if resource.AllowCIMD {
+			resources = append(resources, resource.URI)
+		}
+	}
+	// Each control character in a name encodes as six JSON bytes.
+	if err := authorizations.CheckMetadataCapacity(strings.Repeat("\x00", maxCIMDClientName), strings.Repeat("a", 253), resources); err != nil {
+		return fmt.Errorf("oidc resources with allow_cimd: %w", err)
+	}
+	return nil
+}
+
 // NewResolver constructs the combined client resolver.
 func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 	configured := make(map[string]*Client, len(cfg.OIDC.Clients))
@@ -104,7 +133,7 @@ func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 			method = liboidc.AuthMethodBasic
 		}
 		configured[declared.ID] = &Client{
-			RefreshAllowed: declared.AllowRefreshTokens == nil || *declared.AllowRefreshTokens, IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: "configured by this site’s operator",
+			RefreshAllowed: declared.AllowRefreshTokens == nil || *declared.AllowRefreshTokens, IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: configuredClientHost,
 			Resources: append([]string(nil), declared.Resources...), Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
 			AllowWithoutPKCE: declared.RequirePKCE != nil && !*declared.RequirePKCE,
 			Secret:           declared.Secret, Source: ClientSourceConfigured, Development: development,
@@ -131,6 +160,27 @@ func (r *Resolver) Resolve(ctx context.Context, clientID string) (*Client, error
 		return r.cimd.Resolve(ctx, clientID)
 	}
 	return nil, clientNotFoundError{clientID: clientID}
+}
+
+// ResolveForRefresh resolves a client for a refresh without network access.
+// Configured clients use current configuration. A refresh family proves that a
+// CIMD client was admitted with the refresh_token grant, so a CIMD client uses
+// its cached document when one is present, and otherwise a public client with
+// refresh permission. CIMD admission must still be enabled.
+func (r *Resolver) ResolveForRefresh(ctx context.Context, clientID string) (*Client, error) {
+	if _, ok := r.configured[clientID]; ok || r.reservedResources[clientID] {
+		return r.Resolve(ctx, clientID)
+	}
+	if r.cimd == nil || !strings.HasPrefix(strings.ToLower(clientID), "https://") {
+		return nil, clientNotFoundError{clientID: clientID}
+	}
+	if _, err := validateClientIdentifierURL(clientID); err != nil {
+		return nil, err
+	}
+	if cached, ok := r.cimd.cached(clientID); ok {
+		return cached, nil
+	}
+	return &Client{IDValue: clientID, Method: liboidc.AuthMethodNone, Source: ClientSourceCIMD, Development: r.cimd.allowLoopback, RefreshAllowed: true}, nil
 }
 
 // AuthorizeSecret performs constant-time verification for a conventional

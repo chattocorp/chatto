@@ -47,8 +47,9 @@ type Grant struct {
 	AccountID  string
 	ClientName string
 	ClientHost string
-	// Resources lists approved targets; an empty value means UserInfo only.
-	// Permissions binds each target to its consented scopes, avoiding cross-target expansion.
+	// Permissions binds each approved resource ("" for UserInfo only) to its
+	// consented scopes, avoiding cross-resource expansion. Resources lists its
+	// keys in sorted order.
 	Permissions map[string][]string
 	// PasswordVersion is the latest account creation or password-change event ID.
 	// It is projection state, not a grant fact; email changes do not advance it.
@@ -255,12 +256,10 @@ func NewService(publisher *evtstream.Publisher, handle events.ProjectionHandle[*
 
 // Authorize records explicit consent. Re-consenting renews the current grant;
 // authorizing after revocation creates a new grant generation.
-func (s *Service) Authorize(ctx context.Context, accountID string, client Client, scopes []string, resources ...string) (Grant, error) {
-	if len(resources) == 0 {
-		resources = []string{""}
-	}
-	if len(resources) != 1 || len(resources[0]) > 2048 {
-		return Grant{}, fmt.Errorf("invalid grant resources")
+// An empty resource means UserInfo only.
+func (s *Service) Authorize(ctx context.Context, accountID string, client Client, scopes []string, resource string) (Grant, error) {
+	if len(resource) > 2048 {
+		return Grant{}, fmt.Errorf("invalid grant resource")
 	}
 	if client.ID == "" || !validMetadata(client.Name, client.Host) {
 		return Grant{}, fmt.Errorf("OIDC client metadata is invalid")
@@ -291,7 +290,7 @@ func (s *Service) Authorize(ctx context.Context, accountID string, client Client
 			permissions = prior.Permissions
 			mergedScopes = union(prior.Scopes, scopes)
 		}
-		permissions[resources[0]] = union(permissions[resources[0]], scopes)
+		permissions[resource] = union(permissions[resource], scopes)
 		eventID, err := ids.New("evt")
 		if err != nil {
 			return Grant{}, err
@@ -325,21 +324,12 @@ func (s *Service) Authorize(ctx context.Context, accountID string, client Client
 	return Grant{}, fmt.Errorf("OIDC grant authorization conflict")
 }
 
-// Covers reports whether the active grant permits these scopes and resource.
-// An omitted resource means UserInfo only.
-func (s *Service) Covers(ctx context.Context, accountID, clientID string, scopes []string, resources ...string) (bool, error) {
-	_, covered, err := s.CoveringGrant(ctx, accountID, clientID, scopes, resources...)
-	return covered, err
-}
-
 // CoveringGrant returns the same authoritative grant snapshot that was checked.
 // Keeping the permission decision and generation together prevents a concurrent
 // grant replacement from binding a request to unrelated authorization.
-func (s *Service) CoveringGrant(ctx context.Context, accountID, clientID string, scopes []string, resources ...string) (Grant, bool, error) {
-	if len(resources) == 0 {
-		resources = []string{""}
-	}
-	if clientID == "" || len(resources) != 1 {
+// An empty resource means UserInfo only.
+func (s *Service) CoveringGrant(ctx context.Context, accountID, clientID string, scopes []string, resource string) (Grant, bool, error) {
+	if clientID == "" {
 		return Grant{}, false, fmt.Errorf("invalid grant lookup")
 	}
 	grant, err := s.Current(ctx, accountID, clientID)
@@ -349,7 +339,7 @@ func (s *Service) CoveringGrant(ctx context.Context, accountID, clientID string,
 	if err != nil {
 		return Grant{}, false, err
 	}
-	if !grant.Permits(resources[0], scopes) {
+	if !grant.Permits(resource, scopes) {
 		return Grant{}, false, nil
 	}
 	return grant, true, nil
@@ -446,26 +436,42 @@ func metadataAAD(eventID string, grant *corev1.OIDCGrantAuthorizedEvent) []byte 
 	return data
 }
 
+// clientMetadata is the encrypted grant metadata. Permissions maps each
+// consented resource ("" for UserInfo only) to its scopes. Consent versions 1
+// and 2 have no permissions.
 type clientMetadata struct {
 	Name        string              `json:"name"`
 	Host        string              `json:"host"`
-	Resources   []string            `json:"resources,omitempty"`
 	Permissions map[string][]string `json:"permissions,omitempty"`
+}
+
+// maxMetadataPlaintext keeps the sealed metadata within the event validator's
+// 4096-byte ciphertext limit, which includes the 16-byte authentication tag.
+const maxMetadataPlaintext = 4096 - 16
+
+// grantScopes are all scopes that a grant can hold for one resource.
+var grantScopes = []string{"openid", "profile", "email", "offline_access"}
+
+// CheckMetadataCapacity reports whether a grant for a client with this name
+// and host can hold every scope for every listed resource. Configuration
+// validation uses it, so that a later consent cannot exceed the capacity.
+func CheckMetadataCapacity(name, host string, resources []string) error {
+	permissions := map[string][]string{"": grantScopes}
+	for _, resource := range resources {
+		permissions[resource] = grantScopes
+	}
+	plain, err := json.Marshal(clientMetadata{Name: name, Host: host, Permissions: permissions})
+	if err != nil {
+		return err
+	}
+	if len(plain) > maxMetadataPlaintext {
+		return fmt.Errorf("grant metadata needs %d bytes; the limit is %d", len(plain), maxMetadataPlaintext)
+	}
+	return nil
 }
 
 func validMetadata(name, host string) bool {
 	return strings.TrimSpace(name) != "" && len(name) <= 256 && strings.TrimSpace(host) != "" && len(host) <= 256
-}
-
-func (s *Service) sealMetadata(ctx context.Context, event *corev1.Event, keys accountKeys, client Client, resources ...string) error {
-	permissions := map[string][]string{}
-	if len(resources) == 0 {
-		resources = []string{""}
-	}
-	for _, resource := range resources {
-		permissions[resource] = append([]string(nil), event.GetOidcGrantAuthorized().GetScopes()...)
-	}
-	return s.sealPermissions(ctx, event, keys, client, permissions)
 }
 
 func (s *Service) sealPermissions(ctx context.Context, event *corev1.Event, keys accountKeys, client Client, permissions map[string][]string) error {
@@ -480,17 +486,12 @@ func (s *Service) sealPermissions(ctx context.Context, event *corev1.Event, keys
 	grant := event.GetOidcGrantAuthorized()
 	grant.MetadataEnvelopeVersion, grant.ConsentVersion = 1, ConsentVersion
 	grant.UserKeyRef, grant.CredentialKeyRef = keys.userRef, keys.dataRef
-	resources := make([]string, 0, len(permissions))
-	for resource := range permissions {
-		resources = append(resources, resource)
-	}
-	sort.Strings(resources)
-	plain, err := json.Marshal(clientMetadata{Name: client.Name, Host: client.Host, Resources: resources, Permissions: permissions})
+	plain, err := json.Marshal(clientMetadata{Name: client.Name, Host: client.Host, Permissions: permissions})
 	if err != nil {
 		return fmt.Errorf("encode OIDC grant metadata")
 	}
 	defer clear(plain)
-	if len(plain) > 4080 {
+	if len(plain) > maxMetadataPlaintext {
 		return fmt.Errorf("authorization metadata capacity exceeded")
 	}
 	sealed, err := datacrypto.Seal(key, plain, metadataAAD(event.GetId(), grant))
@@ -518,26 +519,15 @@ func (s *Service) openMetadata(ctx context.Context, grant Grant) (Grant, error) 
 	if json.Unmarshal(plain, &metadata) != nil || !validMetadata(metadata.Name, metadata.Host) {
 		return Grant{}, fmt.Errorf("invalid OIDC grant metadata")
 	}
-	if grant.metadata.GetConsentVersion() < 3 && (len(metadata.Resources) != 0 || len(metadata.Permissions) != 0) {
-		return Grant{}, fmt.Errorf("invalid historical grant resources")
+	if (grant.metadata.GetConsentVersion() < 3) != (len(metadata.Permissions) == 0) {
+		return Grant{}, fmt.Errorf("invalid grant resource permissions")
 	}
-	// Earlier version-3 records held one resource and its scopes. Preserve replay.
-	if len(metadata.Permissions) == 0 {
-		metadata.Permissions = map[string][]string{}
-		for _, resource := range metadata.Resources {
-			metadata.Permissions[resource] = append([]string(nil), grant.Scopes...)
-		}
-	}
-	if len(metadata.Resources) != len(metadata.Permissions) {
-		return Grant{}, fmt.Errorf("invalid resource permissions")
-	}
-	seen := map[string]bool{}
-	for _, resource := range metadata.Resources {
-		permissions, ok := metadata.Permissions[resource]
-		if !ok || seen[resource] || len(resource) > 2048 || len(permissions) == 0 {
+	resources := make([]string, 0, len(metadata.Permissions))
+	for resource, permissions := range metadata.Permissions {
+		if len(resource) > 2048 || len(permissions) == 0 {
 			return Grant{}, fmt.Errorf("invalid resource permissions")
 		}
-		seen[resource] = true
+		resources = append(resources, resource)
 		for _, scope := range permissions {
 			if !slices.Contains(grant.Scopes, scope) {
 				return Grant{}, fmt.Errorf("invalid resource scope")
@@ -545,8 +535,8 @@ func (s *Service) openMetadata(ctx context.Context, grant Grant) (Grant, error) 
 		}
 	}
 	grant.ClientName, grant.ClientHost = metadata.Name, metadata.Host
-	grant.Resources = append([]string(nil), metadata.Resources...)
-	grant.Permissions = metadata.Permissions
+	sort.Strings(resources)
+	grant.Resources, grant.Permissions = resources, metadata.Permissions
 	return grant, nil
 }
 

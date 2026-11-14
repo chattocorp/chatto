@@ -120,7 +120,7 @@ func TestOIDCReviewGrantAndRetryBoundaries(t *testing.T) {
 	// Consent to another API neither revokes A nor transfers A's email permission.
 	code = completeAuthorizationForScopes(t, handler, verifier, cookie, "openid profile", apiB)
 	decode(redeemCode(t, handler, code, verifier))
-	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, "test-client", []string{"openid", "email"}, apiB); err != nil || covered {
+	if _, covered, err := runtime.Authorizations.CoveringGrant(t.Context(), account.ID, "test-client", []string{"openid", "email"}, apiB); err != nil || covered {
 		t.Fatal("scope leaked across resources")
 	}
 	current = decode(renew(current.RefreshToken, ""))
@@ -233,7 +233,7 @@ func TestOIDCCredentialChangesInvalidateOnlyPasswordRefreshFamilies(t *testing.T
 			if kind != "email-change" && !strings.Contains(response.Body.String(), "invalid_grant") {
 				t.Fatal("password change error")
 			}
-			if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, "test-client", []string{"openid", "email", "offline_access"}); err != nil || !covered {
+			if _, covered, err := runtime.Authorizations.CoveringGrant(t.Context(), account.ID, "test-client", []string{"openid", "email", "offline_access"}, ""); err != nil || !covered {
 				t.Fatal("credential change removed consent")
 			}
 			// A new authenticated browser can reuse that explicit consent with prompt=none.

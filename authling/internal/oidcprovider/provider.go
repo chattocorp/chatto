@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -304,23 +303,19 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 				return
 			}
 			// Reject policy errors here: the library logs client metadata on storage errors.
+			// CreateAuthRequest reuses the resolved client, so CIMD resolves once.
+			ctx := context.WithValue(r.Context(), resourceContextKey{}, r.URL.Query().Get("resource"))
 			client, err := s.storage.clients.Resolve(r.Context(), r.URL.Query().Get("client_id"))
 			if err == nil {
-				code := ""
-				if s.storage.checkResource(client, r.URL.Query().Get("resource")) != nil {
-					code = "invalid_target"
-				}
-				if slices.Contains(strings.Fields(r.URL.Query().Get("scope")), liboidc.ScopeOfflineAccess) && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
-					code = "invalid_scope"
-				}
-				if code != "" {
-					if !s.redirectAuthorizationError(w, r, &authorizationRequestError{code: code, redirectable: true}) {
+				if err := s.storage.checkAuthorizationPolicy(client, strings.Fields(r.URL.Query().Get("scope")), r.URL.Query().Get("resource")); err != nil {
+					if !s.redirectAuthorizationError(w, r, &authorizationRequestError{code: protocolErrorCode(err), redirectable: true}) {
 						http.Error(w, "invalid authorization", http.StatusBadRequest)
 					}
 					return
 				}
+				ctx = context.WithValue(ctx, resolvedClientKey{}, client)
 			}
-			r = r.WithContext(context.WithValue(r.Context(), resourceContextKey{}, r.URL.Query().Get("resource")))
+			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
 	})

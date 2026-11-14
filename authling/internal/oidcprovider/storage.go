@@ -136,19 +136,19 @@ func (s *Storage) admitAuthRequest(ctx context.Context) error {
 }
 
 func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRequest, _ string) (op.AuthRequest, error) {
-	client, err := s.clients.Resolve(ctx, request.ClientID)
-	if err != nil {
-		return nil, err
+	client, ok := ctx.Value(resolvedClientKey{}).(*Client)
+	if !ok || client.GetID() != request.ClientID {
+		var err error
+		if client, err = s.clients.Resolve(ctx, request.ClientID); err != nil {
+			return nil, err
+		}
 	}
 	if (client.requiresPKCE() || request.CodeChallenge != "" || request.CodeChallengeMethod != "") &&
 		(!validPKCEValue(request.CodeChallenge) || request.CodeChallengeMethod != liboidc.CodeChallengeMethodS256) {
 		return nil, liboidc.ErrInvalidRequest().WithDescription("S256 PKCE is required")
 	}
-	if slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess) && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
-		return nil, liboidc.ErrInvalidScope()
-	}
 	resource, _ := ctx.Value(resourceContextKey{}).(string)
-	if err := s.checkResource(client, resource); err != nil {
+	if err := s.checkAuthorizationPolicy(client, request.Scopes, resource); err != nil {
 		return nil, err
 	}
 	id, err := ids.New("ar")

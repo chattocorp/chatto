@@ -510,6 +510,12 @@ This does not enable unregistered clients by itself. Keep
 cannot grant API access. A configured client's own allowlist still controls
 its access, regardless of the CIMD setting.
 
+Each grant stores its resources and scopes in encrypted metadata of at most
+4080 bytes. Authling does not start when the resources that one client can
+reach could exceed this limit. This applies to the `resources` of each
+configured client, and to all `allow_cimd` resources together. About 3 KB of
+resource URIs fit for CIMD clients.
+
 Request `scope=openid email offline_access` for renewable access. Authling
 requires explicit offline consent once. An existing covering grant permits
 silent authorization. Public and CIMD clients must use S256 PKCE. Exchange a

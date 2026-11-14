@@ -23,7 +23,11 @@ import (
 
 const userinfoClockSkew = 60 * time.Second
 
+// resourceContextKey carries the validated authorize resource into CreateAuthRequest.
 type resourceContextKey struct{}
+
+// resolvedClientKey carries the client that authorize admission resolved.
+type resolvedClientKey struct{}
 
 // checkResource checks current operator policy without fetching the resource.
 func (s *Storage) checkResource(client *Client, resource string) error {
@@ -43,16 +47,43 @@ func (s *Storage) checkResource(client *Client, resource string) error {
 	return &liboidc.Error{ErrorType: "invalid_target"}
 }
 
+// checkAuthorizationPolicy applies current client policy to requested scopes
+// and resource. Authorization admission, auth-request creation and every token
+// request use it, so the rules cannot drift apart.
+func (s *Storage) checkAuthorizationPolicy(client *Client, scopes []string, resource string) error {
+	if slices.Contains(scopes, liboidc.ScopeOfflineAccess) && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
+		return liboidc.ErrInvalidScope()
+	}
+	return s.checkResource(client, resource)
+}
+
+// tokenError writes an RFC 6749 section 5.2 error. A failed client
+// authentication uses 401 with a Basic challenge.
 func tokenError(w http.ResponseWriter, code string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
+	status := http.StatusBadRequest
+	if code == string(liboidc.InvalidClient) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="authling"`)
+		status = http.StatusUnauthorized
+	}
+	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
 }
 
-// serveToken retains the library's code, PKCE and client authentication checks.
-// Access-token signing is separate from ID-token signing because their audiences
-// and JOSE types have different contracts.
+// protocolErrorCode returns the OAuth error code of err, or invalid_grant.
+func protocolErrorCode(err error) string {
+	var protocolError *liboidc.Error
+	if errors.As(err, &protocolError) {
+		return string(protocolError.ErrorType)
+	}
+	return "invalid_grant"
+}
+
+// serveToken issues tokens for both grant types. Each grant parser returns the
+// authorized request; this function applies the shared policy and issues the
+// response. Access-token signing is separate from ID-token signing because
+// their audiences and JOSE types have different contracts.
 func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	provider := s.provider
@@ -69,67 +100,20 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 	ctx := op.ContextWithIssuer(r.Context(), issuerState.Issuer)
 	r = r.WithContext(ctx)
 	var request *authRequestState
-	var client op.Client
+	var client *Client
 	var code, refresh string
 	var err error
 	switch r.PostForm.Get("grant_type") {
-	case "authorization_code":
-		var parsed *liboidc.AccessTokenRequest
-		parsed, err = op.ParseAccessTokenRequest(r, provider.Decoder())
-		if err == nil {
-			var auth op.AuthRequest
-			auth, client, err = op.ValidateAccessTokenRequest(ctx, parsed, provider)
-			if err == nil {
-				request, ok = auth.(*authRequestState)
-				if !ok {
-					err = errOIDCStateNotFound
-				}
-				code = parsed.Code
-			}
-		}
-	case "refresh_token":
-		var parsed *liboidc.RefreshTokenRequest
-		parsed, err = op.ParseRefreshTokenRequest(r, provider.Decoder())
-		if err == nil {
-			client, err = s.storage.GetClientByClientID(ctx, parsed.ClientID)
-			if err == nil && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
-				tokenError(w, "unauthorized_client")
-				return
-			}
-			if err == nil && client.AuthMethod() != liboidc.AuthMethodNone {
-				err = s.storage.AuthorizeClientIDSecret(ctx, parsed.ClientID, parsed.ClientSecret)
-				if err != nil {
-					tokenError(w, "invalid_client")
-					return
-				}
-			}
-			if err == nil {
-				refresh = parsed.RefreshToken
-				request, err = s.storage.refreshRequest(ctx, refresh, client.GetID())
-				if err == nil && len(parsed.Scopes) > 0 {
-					seen := map[string]bool{}
-					for _, scope := range parsed.Scopes {
-						if seen[scope] || !slices.Contains(request.Scopes, scope) {
-							tokenError(w, "invalid_scope")
-							return
-						}
-						seen[scope] = true
-					}
-					request.Scopes = append([]string(nil), parsed.Scopes...)
-				}
-			}
-		}
+	case string(liboidc.GrantTypeCode):
+		request, client, code, err = s.codeGrantRequest(ctx, r, provider)
+	case string(liboidc.GrantTypeRefreshToken):
+		request, client, refresh, err = s.refreshGrantRequest(ctx, r, provider)
 	default:
 		tokenError(w, "unsupported_grant_type")
 		return
 	}
-	if err != nil || request == nil {
-		var protocolError *liboidc.Error
-		if errors.As(err, &protocolError) {
-			tokenError(w, string(protocolError.ErrorType))
-		} else {
-			tokenError(w, "invalid_grant")
-		}
+	if err != nil {
+		tokenError(w, protocolErrorCode(err))
 		return
 	}
 	resources := r.PostForm["resource"]
@@ -137,16 +121,13 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 		tokenError(w, "invalid_target")
 		return
 	}
-	resolved, ok := client.(*Client)
-	if !ok || s.storage.checkResource(resolved, request.Resource) != nil {
-		tokenError(w, "invalid_target")
+	if err := s.storage.checkAuthorizationPolicy(client, request.Scopes, request.Resource); err != nil {
+		tokenError(w, protocolErrorCode(err))
 		return
 	}
-	if slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess) && !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
-		tokenError(w, "invalid_scope")
-		return
-	}
-	if refresh != "" || slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess) {
+	offline := slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess)
+	// A new family needs the grant now. rotateRefresh checks it inside its OCC loop.
+	if refresh == "" && offline {
 		if err := s.storage.checkGrant(ctx, request); err != nil {
 			tokenError(w, "invalid_grant")
 			return
@@ -176,7 +157,7 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 	if refresh != "" {
 		refresh, err = s.storage.rotateRefresh(ctx, refresh, request)
 	} else {
-		if slices.Contains(request.Scopes, liboidc.ScopeOfflineAccess) {
+		if offline {
 			refresh, err = s.storage.newRefresh(ctx, request)
 			if err != nil {
 				tokenError(w, "temporarily_unavailable")
@@ -199,6 +180,58 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 		response["refresh_token"] = refresh
 	}
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+// codeGrantRequest retains the library's code, PKCE and client authentication checks.
+func (s *Service) codeGrantRequest(ctx context.Context, r *http.Request, provider *op.Provider) (*authRequestState, *Client, string, error) {
+	parsed, err := op.ParseAccessTokenRequest(r, provider.Decoder())
+	if err != nil {
+		return nil, nil, "", err
+	}
+	auth, client, err := op.ValidateAccessTokenRequest(ctx, parsed, provider)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	request, ok := auth.(*authRequestState)
+	resolved, resolvedOK := client.(*Client)
+	if !ok || !resolvedOK {
+		return nil, nil, "", errOIDCStateNotFound
+	}
+	return request, resolved, parsed.Code, nil
+}
+
+// refreshGrantRequest authenticates the client and returns the family's request.
+// An explicit scope subset narrows only this response.
+func (s *Service) refreshGrantRequest(ctx context.Context, r *http.Request, provider *op.Provider) (*authRequestState, *Client, string, error) {
+	parsed, err := op.ParseRefreshTokenRequest(r, provider.Decoder())
+	if err != nil {
+		return nil, nil, "", err
+	}
+	client, err := s.storage.clients.ResolveForRefresh(ctx, parsed.ClientID)
+	if err != nil {
+		return nil, nil, "", liboidc.ErrInvalidClient()
+	}
+	if !slices.Contains(client.GrantTypes(), liboidc.GrantTypeRefreshToken) {
+		return nil, nil, "", liboidc.ErrUnauthorizedClient()
+	}
+	if client.AuthMethod() != liboidc.AuthMethodNone && s.storage.AuthorizeClientIDSecret(ctx, parsed.ClientID, parsed.ClientSecret) != nil {
+		return nil, nil, "", liboidc.ErrInvalidClient()
+	}
+	request, err := s.storage.refreshRequest(ctx, parsed.RefreshToken, client.GetID())
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if len(parsed.Scopes) > 0 {
+		seen := map[string]bool{}
+		for _, scope := range parsed.Scopes {
+			if seen[scope] || !slices.Contains(request.Scopes, scope) {
+				return nil, nil, "", liboidc.ErrInvalidScope()
+			}
+			seen[scope] = true
+		}
+		request.Scopes = append([]string(nil), parsed.Scopes...)
+	}
+	return request, client, parsed.RefreshToken, nil
 }
 
 func (s *Storage) signAccessToken(ctx context.Context, issuerURL string, request *authRequestState) (string, string, time.Time, error) {

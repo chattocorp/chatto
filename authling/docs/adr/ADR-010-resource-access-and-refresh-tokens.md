@@ -69,6 +69,9 @@ valid expiry, and the expected subject. JWT payloads are readable by their
 holders. The email scope exposes the verified email to the client and selected
 API. The client makes the API request; Authling makes no new outbound request.
 Existing CIMD metadata fetches retain their established privacy boundary.
+Refreshes do not fetch CIMD metadata; they use a cached document when one is
+present. Startup rejects resource configuration that could exceed the
+encrypted grant metadata capacity of one client.
 
 JWT claims describe issuance time. UserInfo still returns current authorized
 account information and checks active account state. UserInfo accepts old
