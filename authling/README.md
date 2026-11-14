@@ -365,7 +365,7 @@ application-data scopes.
 Clients that previously requested only `openid` must add `profile` to keep
 receiving names. Add `email` only when needed. Existing signed ID tokens remain
 valid until expiry; UserInfo follows the token's stored scopes and the current
-claim-release rules. Consent now uses disclosure version 3. Version-1 and version-3 grants
+claim-release rules. Consent now uses disclosure version 3. Version-1 and version-2 grants
 remain readable but require fresh consent before reuse. Upgrade all Authling
 replicas together: older binaries cannot replay version-3 grants, so rollback
 to those binaries is not supported after the first new grant is recorded.
@@ -490,11 +490,16 @@ access_token_claims = { "https://cloud.chatto.run" = ["email"] }
 scopes whose claims its access tokens carry: `email` adds `email` and
 `email_verified`, and `profile` adds `preferred_username` and `name`. A claim
 is added only when the user granted that scope. The values describe issuance
-time. The consent screen tells the user which data the API receives. CIMD
-clients never receive identity claims in access tokens.
+time. The consent screen tells the user which data the API receives. Existing
+grants do not record this list. If you add claims later, existing grants and
+refresh tokens get them without new consent, provided that the user granted the
+scope to the client. CIMD clients never receive identity claims in access tokens.
 
 CIMD clients cannot request the `email` scope. To permit it, set
 `cimd_allow_email = true` under `[oidc]` or `AUTHLING_OIDC_CIMD_ALLOW_EMAIL=true`.
+
+A resource must not be the issuer URL or a URL below it, such as the UserInfo
+endpoint.
 
 Send `resource=https://cloud.chatto.run` in the authorization request. Repeat
 it in the token request or omit it to retain the selected target. A token

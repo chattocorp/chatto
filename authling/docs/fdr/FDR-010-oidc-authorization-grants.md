@@ -161,8 +161,11 @@ cannot revoke a family. A revoked or expired family has no grace period.
 The grace period defaults to 10 seconds. Operators can set it from 0 to 60
 seconds; 0 disables repeats. Okta (30 seconds by default), Auth0 and Ory Hydra
 (both disabled by default) use comparable settings.
-A failed or uncertain rotation returns no credentials and can require new
-browser authorization.
+A failed or uncertain rotation returns no credentials. A storage failure with an
+unknown outcome returns `temporarily_unavailable` with HTTP 503, so the client
+keeps its refresh token and retries. If the write succeeded, the retry is the
+repeat of that rotation inside the grace period. A missing, invalid, revoked or
+reused credential returns `invalid_grant`.
 
 The grace period trades a small exposure for reliability. An attacker who has
 a stolen previous token and uses the one repeat within the grace period of the

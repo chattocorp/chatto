@@ -2,12 +2,16 @@ package oidcprovider
 
 import (
 	"bytes"
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/chattocorp/chatto/authling/internal/config"
 	"github.com/chattocorp/chatto/authling/internal/natsruntime"
 	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestResourceAdmission(t *testing.T) {
@@ -237,5 +241,30 @@ func TestAccessTokenClaimScopes(t *testing.T) {
 	}
 	if got := (&Client{}).accessTokenClaimScopes("", []string{"openid", "email", "profile"}); len(got) != 0 {
 		t.Fatalf("default: %v", got)
+	}
+}
+
+func TestRefreshStorageErrorsAreRetryable(t *testing.T) {
+	if got := protocolErrorCode(storageError(jetstream.ErrKeyNotFound)); got != "invalid_grant" {
+		t.Fatalf("missing key: %s", got)
+	}
+	if got := protocolErrorCode(storageError(context.DeadlineExceeded)); got != "temporarily_unavailable" {
+		t.Fatalf("timeout: %s", got)
+	}
+	recorder := httptest.NewRecorder()
+	tokenError(recorder, "temporarily_unavailable")
+	if recorder.Code != http.StatusServiceUnavailable || recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("status %d", recorder.Code)
+	}
+	recorder = httptest.NewRecorder()
+	tokenError(recorder, "invalid_grant")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status %d", recorder.Code)
+	}
+}
+
+func TestLibraryAccessTokenHookFailsClosed(t *testing.T) {
+	if _, _, err := (&Storage{}).CreateAccessToken(t.Context(), &authRequestState{}); err == nil {
+		t.Fatal("library access-token hook issued a token")
 	}
 }

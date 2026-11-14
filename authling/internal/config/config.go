@@ -381,8 +381,11 @@ func (c Config) Validate() error {
 	if _, err := c.OIDC.parseRefreshReuseGrace(); err != nil {
 		problems = append(problems, "oidc.refresh_token_reuse_grace must be a duration from 0s to 60s")
 	}
+	// A resource must not be the issuer or one of its endpoints, such as
+	// UserInfo; a token for it would then pass that endpoint's audience check.
 	resourceCollides := func(resource string) bool {
-		if strings.TrimSuffix(resource, "/") == strings.TrimSuffix(c.HTTP.PublicURLOrDefault(), "/") {
+		issuer := strings.TrimSuffix(c.HTTP.PublicURLOrDefault(), "/")
+		if trimmed := strings.TrimSuffix(resource, "/"); trimmed == issuer || strings.HasPrefix(trimmed, issuer+"/") {
 			return true
 		}
 		for _, client := range c.OIDC.Clients {

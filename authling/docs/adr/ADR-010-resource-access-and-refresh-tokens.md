@@ -37,7 +37,9 @@ assign application roles or permissions.
 Access tokens carry no identity claims by default, as RFC 9068 section 6
 recommends. APIs identify users by `sub` and get identity data from UserInfo.
 An operator can configure identity claims for each configured client and
-resource. CIMD clients never receive identity claims in access tokens, and
+resource. Grants do not record this configuration, so claims added later apply
+to existing grants for the scopes that the user granted. CIMD clients never
+receive identity claims in access tokens, and
 cannot request the email scope unless the operator permits it.
 
 `offline_access` is consented once per grant. A `prompt=none` request is
@@ -87,9 +89,11 @@ opaque access tokens until their existing five-minute expiry; new exchanges
 issue only JWTs. Local API verification cannot observe account deletion, email
 changes, grant revocation, or family reuse before token expiry.
 
-An uncertain storage write can require new browser authorization. So can a
-lost successful refresh response that the client does not retry within the
-grace period. Concurrent refreshes of one credential converge on
+A storage failure with an unknown outcome returns `temporarily_unavailable`
+with HTTP 503, and the client keeps its credential. A retry finds the
+credential current, or repeats the rotation inside the grace period. A lost
+successful refresh response that the client does not retry within the grace
+period requires new browser authorization. Concurrent refreshes of one credential converge on
 one replacement: after an OCC conflict, the loser reads the family again and
 gets the winner's credential as a repeat. A third conflict revokes the family.
 The grace period lets an attacker with a stolen previous credential get the
@@ -111,7 +115,8 @@ email change does not. Grants remain available for silent authorization.
 
 All registered resource identifiers are reserved against CIMD resolution, even
 when a URI has a non-root path. This prevents a resource from also being a client
-audience. Configuration rejects equality with the issuer or configured clients.
+audience. Configuration rejects a resource that equals the issuer or a configured client,
+or that is below the issuer URL, such as UserInfo.
 
 Create the access-token record before consuming the code or refresh credential.
 A failed write leaves the credential retryable; an orphan record has no bearer

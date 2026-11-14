@@ -33,6 +33,20 @@ var ErrLoginRequired = errors.New("fresh authentication required")
 
 var errOIDCStateNotFound = errors.New("OIDC state not found")
 
+// errStorageUnavailable marks a storage failure whose outcome is unknown, such
+// as a timeout or leader election. The token endpoint reports it as
+// temporarily_unavailable, so the client keeps its credential and retries.
+var errStorageUnavailable = errors.New("OIDC storage unavailable")
+
+// storageError keeps a definite missing key as errOIDCStateNotFound and marks
+// every other storage error as errStorageUnavailable.
+func storageError(err error) error {
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return errOIDCStateNotFound
+	}
+	return fmt.Errorf("%w: %w", errStorageUnavailable, err)
+}
+
 type authRequestState struct {
 	PasswordVersion string                      `json:"password_version,omitempty"`
 	Resource        string                      `json:"resource,omitempty"`
@@ -343,26 +357,10 @@ func (s *Storage) reject(ctx context.Context, id, code string) (string, error) {
 	return redirect.String(), nil
 }
 
-func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest) (string, time.Time, error) {
-	if authRequest, ok := request.(*authRequestState); ok {
-		if err := s.claimCode(ctx, authRequest); err != nil {
-			return "", time.Time{}, liboidc.ErrInvalidGrant().WithDescription("invalid authorization code").WithParent(err)
-		}
-	}
-	id, err := ids.New("at")
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	expires := s.now().UTC().Add(accessTokenLifetime)
-	clientID := ""
-	if auth, ok := request.(op.AuthRequest); ok {
-		clientID = auth.GetClientID()
-	}
-	state := tokenState{ClientID: clientID, Subject: request.GetSubject(), Scopes: request.GetScopes(), Expires: expires}
-	if err := s.create(ctx, s.tokenKey(id), state, accessTokenLifetime); err != nil {
-		return "", time.Time{}, err
-	}
-	return id, expires, nil
+// CreateAccessToken fails closed. Service.serveToken issues all access tokens
+// with Authling's resource, audience and grant checks.
+func (*Storage) CreateAccessToken(context.Context, op.TokenRequest) (string, time.Time, error) {
+	return "", time.Time{}, liboidc.ErrUnsupportedGrantType()
 }
 
 func canonicalOrigin(raw string) (string, error) {
@@ -572,7 +570,7 @@ func (s *Storage) create(ctx context.Context, key string, value any, ttl time.Du
 func (s *Storage) read(key string, ctx context.Context, value any) error {
 	entry, err := s.kv.Get(ctx, key)
 	if err != nil {
-		return errOIDCStateNotFound
+		return storageError(err)
 	}
 	return s.open(key, entry.Value(), value)
 }

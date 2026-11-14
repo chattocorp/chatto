@@ -38,6 +38,7 @@ func TestInvalidResourceAndRefreshConfiguration(t *testing.T) {
 		oidc OIDCConfig
 	}{
 		{"issuer collision", OIDCConfig{Resources: []OIDCResourceConfig{{URI: "http://localhost:8080"}}}},
+		{"issuer endpoint collision", OIDCConfig{Resources: []OIDCResourceConfig{{URI: "http://localhost:8080/oauth/userinfo"}}}},
 		{"client collision", OIDCConfig{Clients: []OIDCClientConfig{{ID: "https://api.example", Resources: []string{"https://api.example"}}}}},
 		{"negative lifetime", OIDCConfig{RefreshTokenLifetimeDays: -1}},
 		{"excessive lifetime", OIDCConfig{RefreshTokenLifetimeDays: 366}},

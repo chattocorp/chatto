@@ -67,6 +67,9 @@ Access tokens contain no identity claims by default. An operator can set
 `access_token_claims` for a configured client and resource. Its access tokens
 then carry the claims of the listed scopes (`email`, `profile`) that the user
 granted. The consent screen names the selected API and the data it receives.
+Grants do not record the configured claims. Claims that the operator adds later
+apply to existing grants and refresh families without new consent, but only for
+scopes that the user granted to the client.
 CIMD clients never receive identity claims in access tokens. They cannot
 request the `email` scope unless the operator sets `cimd_allow_email = true`;
 otherwise authorization and refresh fail with `invalid_scope`.

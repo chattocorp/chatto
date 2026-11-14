@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/authling/internal/accounts"
+	"github.com/chattocorp/chatto/authling/internal/authorizations"
 	"github.com/chattocorp/chatto/authling/internal/ids"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	jose "github.com/go-jose/go-jose/v4"
@@ -62,21 +64,30 @@ func (s *Storage) checkAuthorizationPolicy(client *Client, scopes []string, reso
 }
 
 // tokenError writes an RFC 6749 section 5.2 error. A failed client
-// authentication uses 401 with a Basic challenge.
+// authentication uses 401 with a Basic challenge. A temporary server failure
+// uses 503, so clients retry and keep their credentials.
 func tokenError(w http.ResponseWriter, code string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	status := http.StatusBadRequest
-	if code == string(liboidc.InvalidClient) {
+	switch code {
+	case string(liboidc.InvalidClient):
 		w.Header().Set("WWW-Authenticate", `Basic realm="authling"`)
 		status = http.StatusUnauthorized
+	case "temporarily_unavailable":
+		w.Header().Set("Retry-After", "1")
+		status = http.StatusServiceUnavailable
 	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
 }
 
-// protocolErrorCode returns the OAuth error code of err, or invalid_grant.
+// protocolErrorCode returns the OAuth error code of err. A storage failure with
+// an unknown outcome is temporarily_unavailable; other errors are invalid_grant.
 func protocolErrorCode(err error) string {
+	if errors.Is(err, errStorageUnavailable) {
+		return "temporarily_unavailable"
+	}
 	var protocolError *liboidc.Error
 	if errors.As(err, &protocolError) {
 		return string(protocolError.ErrorType)
@@ -133,7 +144,7 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 	// A new family needs the grant now. rotateRefresh checks it inside its OCC loop.
 	if refresh == "" && offline {
 		if err := s.storage.checkGrant(ctx, request); err != nil {
-			tokenError(w, "invalid_grant")
+			tokenError(w, protocolErrorCode(err))
 			return
 		}
 	}
@@ -171,7 +182,7 @@ func (s *Service) serveToken(w http.ResponseWriter, r *http.Request) {
 		err = s.storage.claimCode(ctx, request)
 	}
 	if err != nil {
-		tokenError(w, "invalid_grant")
+		tokenError(w, protocolErrorCode(err))
 		return
 	}
 
@@ -422,6 +433,9 @@ func (s *Storage) checkGrant(ctx context.Context, request *authRequestState) err
 		return errOIDCStateNotFound
 	}
 	grant, err := s.grants.Current(ctx, request.Subject, request.ClientID)
+	if err != nil && !errors.Is(err, authorizations.ErrNotFound) {
+		return fmt.Errorf("%w: %w", errStorageUnavailable, err)
+	}
 	if err != nil || grant.ID != request.GrantID || request.PasswordVersion == "" || grant.PasswordVersion != request.PasswordVersion || !grant.Permits(request.Resource, append(append([]string(nil), request.Scopes...), liboidc.ScopeOfflineAccess)) {
 		return errOIDCStateNotFound
 	}
@@ -482,7 +496,7 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 	for attempt := 0; ; attempt++ {
 		entry, err := s.kv.Get(ctx, key)
 		if err != nil {
-			return "", errOIDCStateNotFound
+			return "", storageError(err)
 		}
 		var family refreshFamily
 		if s.open(key, entry.Value(), &family) != nil || family.Request.ClientID != request.ClientID {
@@ -491,27 +505,16 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 		now := s.now()
 		switch family.use(generation, now, s.cfg.RefreshReuseGrace()) {
 		case refreshCurrent:
+			family.Generation++
+			family.RotatedAt, family.Repeated = now, false
+			// The replacement retains the original scope. A narrowed scope affects
+			// only this response (RFC 6749 section 6, RFC 8707 section 2.2).
+			family.IdleExpires = now.Add(s.cfg.RefreshIdleLifetime())
+			if family.IdleExpires.After(family.Expires) {
+				family.IdleExpires = family.Expires
+			}
 		case refreshRepeat:
-			if err := s.checkGrant(ctx, &family.Request); err != nil {
-				return "", err
-			}
 			family.Repeated = true
-			data, err := s.seal(key, family)
-			if err != nil {
-				return "", err
-			}
-			_, err = s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), family.Expires.Sub(now))
-			if jetstreamutil.IsSequenceConflict(err) {
-				if attempt < 2 {
-					continue
-				}
-				_ = s.revokeRefreshFamily(ctx, id)
-				return "", errOIDCStateNotFound
-			}
-			if err != nil {
-				return "", err
-			}
-			return s.refreshToken(id, family.Generation), nil
 		case refreshReuse:
 			_ = s.revokeRefreshFamily(ctx, id)
 			return "", errOIDCStateNotFound
@@ -521,17 +524,9 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 		if err := s.checkGrant(ctx, &family.Request); err != nil {
 			return "", err
 		}
-		family.Generation++
-		family.RotatedAt, family.Repeated = now, false
-		// The replacement retains the original scope. A narrowed scope affects
-		// only this response (RFC 6749 section 6, RFC 8707 section 2.2).
-		family.IdleExpires = now.Add(s.cfg.RefreshIdleLifetime())
-		if family.IdleExpires.After(family.Expires) {
-			family.IdleExpires = family.Expires
-		}
 		data, err := s.seal(key, family)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("%w: %w", errStorageUnavailable, err)
 		}
 		_, err = s.kv.UpdateWithTTL(ctx, key, data, entry.Revision(), family.Expires.Sub(now))
 		if jetstreamutil.IsSequenceConflict(err) {
@@ -542,7 +537,9 @@ func (s *Storage) rotateRefresh(ctx context.Context, token string, request *auth
 			return "", errOIDCStateNotFound
 		}
 		if err != nil {
-			return "", err
+			// The write outcome is unknown. A retry with the same credential
+			// finds it current, or a repeat inside the grace period.
+			return "", fmt.Errorf("%w: %w", errStorageUnavailable, err)
 		}
 		return s.refreshToken(id, family.Generation), nil
 	}

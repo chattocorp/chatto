@@ -538,7 +538,8 @@ counters even if one fails. Non-refundable request admission remains separate.
 
 The OIDC boundary keeps library code, PKCE, and client authentication checks,
 and owns JWT access-token and refresh-token issuance. ID tokens keep client
-audiences; access tokens name UserInfo and an optional approved API. Every JWT
+audiences. An access token names the approved API as its only audience, or
+UserInfo when the request has no resource. Every JWT
 UserInfo request verifies type, algorithm, signature, issuer, audience, expiry,
 and its live encrypted token record before reading current account claims.
 
