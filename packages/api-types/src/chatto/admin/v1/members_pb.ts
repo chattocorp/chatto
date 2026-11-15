@@ -9,9 +9,12 @@ import { User } from "../../api/v1/users_pb.js";
 import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 import { AdminRole } from "./roles_pb.js";
 import { Role } from "../../api/v1/roles_pb.js";
+import { UserRoleAssignment } from "./users_pb.js";
 
 /**
- * User row returned by server-admin member management reads.
+ * Compatibility user row returned by member-management reads and commands.
+ * Read profiles, assigned roles, and creation times through
+ * chatto.api.v1.UserService. Private account fields have separate admin reads.
  *
  * The embedded user record carries public identity fields; remaining fields are
  * admin/member metadata with visibility controlled by the service.
@@ -694,6 +697,13 @@ export class AssignRoleRequest extends Message<AssignRoleRequest> {
  */
 export class AssignRoleResponse extends Message<AssignRoleResponse> {
   /**
+   * Canonical command outcome. Read GetUserRoleAssignments for current limits.
+   *
+   * @generated from field: chatto.admin.v1.UserRoleAssignment assignment = 3;
+   */
+  assignment?: UserRoleAssignment;
+
+  /**
    * Updated admin member row.
    *
    * @generated from field: chatto.admin.v1.AdminMember member = 2;
@@ -708,6 +718,7 @@ export class AssignRoleResponse extends Message<AssignRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.AssignRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 3, name: "assignment", kind: "message", T: UserRoleAssignment },
     { no: 2, name: "member", kind: "message", T: AdminMember },
   ]);
 
@@ -784,6 +795,13 @@ export class RevokeRoleRequest extends Message<RevokeRoleRequest> {
  */
 export class RevokeRoleResponse extends Message<RevokeRoleResponse> {
   /**
+   * Canonical command outcome, independent of administrative account access.
+   *
+   * @generated from field: chatto.admin.v1.UserRoleAssignment assignment = 3;
+   */
+  assignment?: UserRoleAssignment;
+
+  /**
    * Updated admin member row.
    *
    * @generated from field: chatto.admin.v1.AdminMember member = 2;
@@ -798,6 +816,7 @@ export class RevokeRoleResponse extends Message<RevokeRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.RevokeRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 3, name: "assignment", kind: "message", T: UserRoleAssignment },
     { no: 2, name: "member", kind: "message", T: AdminMember },
   ]);
 
@@ -1107,6 +1126,13 @@ export class SetUserDeactivatedRequest extends Message<SetUserDeactivatedRequest
  */
 export class SetUserDeactivatedResponse extends Message<SetUserDeactivatedResponse> {
   /**
+   * Updated public profile, available under the command's existing authority.
+   *
+   * @generated from field: chatto.api.v1.User profile = 2;
+   */
+  profile?: User;
+
+  /**
    * Updated administrative member record.
    *
    * @generated from field: chatto.admin.v1.AdminMember member = 1;
@@ -1121,6 +1147,7 @@ export class SetUserDeactivatedResponse extends Message<SetUserDeactivatedRespon
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.SetUserDeactivatedResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "profile", kind: "message", T: User },
     { no: 1, name: "member", kind: "message", T: AdminMember },
   ]);
 

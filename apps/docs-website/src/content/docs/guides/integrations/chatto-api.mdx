@@ -29,6 +29,49 @@ methods.
 
 Do not expose the Operator API over a network.
 
+## Administrative Resources
+
+Use `chatto.api.v1.UserService.ListUsers`, `GetUser`, and `BatchGetUsers` for
+profiles, assigned role names, and creation times. These reads return
+`DirectoryMember`.
+Read role metadata through `RoleService` or `AdminRoleService`. Use
+`AdminUserService.GetUserRoleAssignments` when you need the caller's current
+assignment limits. That read requires `role.assign`.
+
+Private account data has separate reads keyed by `user_id`:
+
+- `AdminUserService.ListVerifiedEmails` returns verified addresses,
+  verification times, and the primary choice. It requires `admin.view-users`.
+- `AdminUserService.GetUsernameCooldown` returns username-change history.
+  It requires `admin.view-users` and either `user.manage-accounts` or the
+  caller's own user ID. An absent timestamp means no change is recorded.
+
+Neither private read returns a profile, assigned roles, or editor data.
+
+Use `RoomDirectoryService.ListRoomGroups`, `GetRoomGroup`, and
+`BatchGetRoomGroups` for ordered room groups and their entries. Set
+`archive_filter` to `ACTIVE`, `ARCHIVED`, or `ALL`; the default is `ACTIVE`.
+The server returns room metadata the caller can see or manage. Group managers
+can read every room in that group. With `ALL`, they receive its complete layout.
+`role.manage` alone does not expose hidden rooms. Metadata access does not grant
+membership or message access.
+
+Clients choose which authorized entries to show. The bundled chat sidebar uses
+the existing navigation permissions to hide management-only room metadata.
+Sidebar links remain part of `RoomGroup.items`.
+
+Existing member reads and legacy mutation fields remain supported. New group
+mutations also return the shared `RoomGroup` in `room_group`, including authorized
+archived entries. Role commands expose an
+`assignment` outcome, and deactivation exposes the updated public `profile`.
+Human sessions must activate privileged mode for the applicable permissions.
+
+The `@chatto/client/api/adminAccounts` module provides private account reads.
+`@chatto/client/api/roomDirectory` provides group archive options.
+Use a server release that implements these operations. Older servers can ignore
+an unknown archive filter; do not treat their active-only output as a complete
+archived layout. Pin and test the server releases your integration supports.
+
 ## Role Metadata and Permission Decisions
 
 `chatto.admin.v1.AdminRole` contains role metadata and optional aggregate counts.

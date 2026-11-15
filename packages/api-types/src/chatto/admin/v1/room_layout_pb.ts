@@ -6,7 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { Room } from "../../api/v1/rooms_pb.js";
-import { SidebarLink } from "../../api/v1/room_directory_pb.js";
+import { RoomGroup, SidebarLink } from "../../api/v1/room_directory_pb.js";
 
 /**
  * One ordered sidebar item in an admin room group layout.
@@ -65,7 +65,8 @@ export class AdminRoomLayoutItem extends Message<AdminRoomLayoutItem> {
 }
 
 /**
- * Ordered room group returned after admin layout mutations.
+ * Legacy management layout. Main directory reads and new mutation fields use
+ * chatto.api.v1.RoomGroup with permission-filtered entries.
  *
  * @generated from message chatto.admin.v1.AdminRoomLayoutGroup
  */
@@ -521,6 +522,13 @@ export class CreateRoomGroupRequest extends Message<CreateRoomGroupRequest> {
  */
 export class CreateRoomGroupResponse extends Message<CreateRoomGroupResponse> {
   /**
+   * Canonical room group, with all entries the caller can see or manage.
+   *
+   * @generated from field: chatto.api.v1.RoomGroup room_group = 2;
+   */
+  roomGroup?: RoomGroup;
+
+  /**
    * Created room group.
    *
    * @generated from field: chatto.admin.v1.AdminRoomLayoutGroup group = 1;
@@ -535,6 +543,7 @@ export class CreateRoomGroupResponse extends Message<CreateRoomGroupResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.CreateRoomGroupResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "room_group", kind: "message", T: RoomGroup },
     { no: 1, name: "group", kind: "message", T: AdminRoomLayoutGroup },
   ]);
 
@@ -631,6 +640,13 @@ export class UpdateRoomGroupRequest extends Message<UpdateRoomGroupRequest> {
  */
 export class UpdateRoomGroupResponse extends Message<UpdateRoomGroupResponse> {
   /**
+   * Canonical group, including archived entries the caller can see or manage.
+   *
+   * @generated from field: chatto.api.v1.RoomGroup room_group = 2;
+   */
+  roomGroup?: RoomGroup;
+
+  /**
    * Updated room group.
    *
    * @generated from field: chatto.admin.v1.AdminRoomLayoutGroup group = 1;
@@ -645,6 +661,7 @@ export class UpdateRoomGroupResponse extends Message<UpdateRoomGroupResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UpdateRoomGroupResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "room_group", kind: "message", T: RoomGroup },
     { no: 1, name: "group", kind: "message", T: AdminRoomLayoutGroup },
   ]);
 
@@ -1059,6 +1076,13 @@ export class ReorderSidebarItemsInGroupRequest extends Message<ReorderSidebarIte
  */
 export class ReorderSidebarItemsInGroupResponse extends Message<ReorderSidebarItemsInGroupResponse> {
   /**
+   * Canonical updated group, including authorized archived entries.
+   *
+   * @generated from field: chatto.api.v1.RoomGroup room_group = 2;
+   */
+  roomGroup?: RoomGroup;
+
+  /**
    * Updated room group.
    *
    * @generated from field: chatto.admin.v1.AdminRoomLayoutGroup group = 1;
@@ -1073,6 +1097,7 @@ export class ReorderSidebarItemsInGroupResponse extends Message<ReorderSidebarIt
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ReorderSidebarItemsInGroupResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "room_group", kind: "message", T: RoomGroup },
     { no: 1, name: "group", kind: "message", T: AdminRoomLayoutGroup },
   ]);
 
@@ -1159,6 +1184,13 @@ export class MoveSidebarItemRequest extends Message<MoveSidebarItemRequest> {
  */
 export class MoveSidebarItemResponse extends Message<MoveSidebarItemResponse> {
   /**
+   * Canonical destination group, including authorized archived entries.
+   *
+   * @generated from field: chatto.api.v1.RoomGroup room_group = 2;
+   */
+  roomGroup?: RoomGroup;
+
+  /**
    * Destination room group after the move.
    *
    * @generated from field: chatto.admin.v1.AdminRoomLayoutGroup group = 1;
@@ -1173,6 +1205,7 @@ export class MoveSidebarItemResponse extends Message<MoveSidebarItemResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.MoveSidebarItemResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 2, name: "room_group", kind: "message", T: RoomGroup },
     { no: 1, name: "group", kind: "message", T: AdminRoomLayoutGroup },
   ]);
 

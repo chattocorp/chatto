@@ -57,29 +57,34 @@ const (
 type RoomDirectoryServiceClient interface {
 	// Lists rooms visible to the current user. Defaults to active rooms; use
 	// archive_filter to discover archived rooms or include both states. Channel
-	// rooms require membership or room.list. DM membership exposes room and
+	// rooms require membership, room.list, or room/group room.manage for metadata.
+	// DM membership exposes room and
 	// participant metadata. Message-derived DM state also requires current
 	// read permission. Accessible empty DMs are included. Returns up to 100 rooms
 	// ordered by ID ascending; the default page size is 50.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
-	// Lists ordered channel room groups and sidebar items visible to the current
-	// user as a finite navigation snapshot. Hidden room entries are omitted.
-	// Archived room entries are omitted.
+	// Lists ordered channel groups and authorized entries as a finite snapshot.
+	// Membership, room.list, or room.manage permits room metadata reads. Group
+	// managers can read every room entry in that group, including hidden rooms.
+	// archive_filter defaults to ACTIVE. ALL returns the complete layout of each
+	// managed group. Metadata access does not grant membership or message access.
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
-	// Returns one ordered room group by ID. Hidden room entries are omitted.
-	// Archived room entries are omitted.
+	// Returns one ordered group by ID with the same entry permissions and
+	// archive filter as ListRoomGroups. role.manage alone does not reveal hidden
+	// rooms. Empty entries can mean no rooms match the filter or permissions.
 	// Returns NOT_FOUND when the room group does not exist.
 	GetRoomGroup(context.Context, *connect.Request[v1.GetRoomGroupRequest]) (*connect.Response[v1.GetRoomGroupResponse], error)
-	// Returns ordered room groups for a set of stable group IDs. Hidden room
-	// entries are omitted. Archived room entries are omitted. Unknown groups are
+	// Returns ordered room groups with the same entry permissions and archive
+	// filter as ListRoomGroups. Unknown groups are
 	// omitted. Results preserve first-seen request order and repeated IDs are
 	// de-duplicated.
 	BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error)
-	// Returns one visible room by ID. DM rooms require membership. Returns
+	// Returns one room's authorized metadata by ID. Channel visibility matches
+	// ListRooms, including management access. DM rooms require membership. Returns
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
-	// exists but is hidden from the caller.
+	// exists and the caller has neither visibility nor management authority.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
-	// Returns visible rooms for a set of stable room IDs. This is a direct
+	// Returns authorized room metadata with the same permissions as GetRoom. This is a direct
 	// hydration API, so visible archived rooms may be returned. Unknown rooms and
 	// rooms hidden from the caller are omitted. Results preserve first-seen
 	// request order and repeated IDs are de-duplicated.
@@ -181,29 +186,34 @@ func (c *roomDirectoryServiceClient) BatchGetRooms(ctx context.Context, req *con
 type RoomDirectoryServiceHandler interface {
 	// Lists rooms visible to the current user. Defaults to active rooms; use
 	// archive_filter to discover archived rooms or include both states. Channel
-	// rooms require membership or room.list. DM membership exposes room and
+	// rooms require membership, room.list, or room/group room.manage for metadata.
+	// DM membership exposes room and
 	// participant metadata. Message-derived DM state also requires current
 	// read permission. Accessible empty DMs are included. Returns up to 100 rooms
 	// ordered by ID ascending; the default page size is 50.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
-	// Lists ordered channel room groups and sidebar items visible to the current
-	// user as a finite navigation snapshot. Hidden room entries are omitted.
-	// Archived room entries are omitted.
+	// Lists ordered channel groups and authorized entries as a finite snapshot.
+	// Membership, room.list, or room.manage permits room metadata reads. Group
+	// managers can read every room entry in that group, including hidden rooms.
+	// archive_filter defaults to ACTIVE. ALL returns the complete layout of each
+	// managed group. Metadata access does not grant membership or message access.
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
-	// Returns one ordered room group by ID. Hidden room entries are omitted.
-	// Archived room entries are omitted.
+	// Returns one ordered group by ID with the same entry permissions and
+	// archive filter as ListRoomGroups. role.manage alone does not reveal hidden
+	// rooms. Empty entries can mean no rooms match the filter or permissions.
 	// Returns NOT_FOUND when the room group does not exist.
 	GetRoomGroup(context.Context, *connect.Request[v1.GetRoomGroupRequest]) (*connect.Response[v1.GetRoomGroupResponse], error)
-	// Returns ordered room groups for a set of stable group IDs. Hidden room
-	// entries are omitted. Archived room entries are omitted. Unknown groups are
+	// Returns ordered room groups with the same entry permissions and archive
+	// filter as ListRoomGroups. Unknown groups are
 	// omitted. Results preserve first-seen request order and repeated IDs are
 	// de-duplicated.
 	BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error)
-	// Returns one visible room by ID. DM rooms require membership. Returns
+	// Returns one room's authorized metadata by ID. Channel visibility matches
+	// ListRooms, including management access. DM rooms require membership. Returns
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
-	// exists but is hidden from the caller.
+	// exists and the caller has neither visibility nor management authority.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
-	// Returns visible rooms for a set of stable room IDs. This is a direct
+	// Returns authorized room metadata with the same permissions as GetRoom. This is a direct
 	// hydration API, so visible archived rooms may be returned. Unknown rooms and
 	// rooms hidden from the caller are omitted. Results preserve first-seen
 	// request order and repeated IDs are de-duplicated.

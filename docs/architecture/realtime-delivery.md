@@ -207,6 +207,11 @@ message and thread timelines, search results, files, pins, and other large or
 paginated resources. The client reads those resources through ConnectRPC when
 it needs them.
 
+Room and group resources include metadata authorized by ordinary navigation or
+management permissions. Their default archive filter is ACTIVE. Viewer state
+keeps navigation, membership, and message access separate. The client can retain
+management metadata while the chat navigation hides those extra entries.
+
 The room family includes joined DMs that do not yet contain a message. Each DM
 summary says whether it has root-message history and gives the latest message
 and root-message posting times. The room directory read model derives these

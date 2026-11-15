@@ -101,7 +101,8 @@ export class ChangePasswordResponse extends Message<ChangePasswordResponse> {
 }
 
 /**
- * One email address that the authenticated user has proved they control.
+ * One email address that a user has proved they control. The containing API
+ * controls who can read this private account data.
  *
  * @generated from message chatto.api.v1.VerifiedEmail
  */

@@ -38,12 +38,31 @@ export class NavigationStore {
 
   readonly #rooms = computed((): RoomsListItem[] => {
     const { roomUnreadCounts, roomImportantUnreadCounts } = this.#counts();
-    return this.#roomList.rooms.map((room) => ({
-      ...room,
-      viewerNotificationCount: roomUnreadCounts[room.id] ?? 0,
-      viewerImportantNotificationCount: roomImportantUnreadCounts[room.id] ?? 0
-    }));
+    return this.#roomList.rooms
+      .filter((room) => room.type === RoomKind.DM || room.viewerCanListRoom !== false)
+      .map((room) => ({
+        ...room,
+        viewerNotificationCount: roomUnreadCounts[room.id] ?? 0,
+        viewerImportantNotificationCount: roomImportantUnreadCounts[room.id] ?? 0
+      }));
   });
+
+  // Management metadata stays available in the client. The chat sidebar hides
+  // entries for which the server explicitly denies ordinary navigation.
+  readonly #roomGroups = computed((): RoomsListGroup[] =>
+    this.#roomList.roomGroups.map((group) => {
+      const hidden = new Set(
+        group.items?.flatMap((item) =>
+          item.type === 'room' && item.viewerCanListRoom === false ? [item.roomId] : []
+        )
+      );
+      return {
+        ...group,
+        roomIds: group.roomIds.filter((id) => !hidden.has(id)),
+        items: group.items?.filter((item) => item.type !== 'room' || !hidden.has(item.roomId))
+      };
+    })
+  );
 
   constructor(roomList: RoomListView, counts: () => AttentionCounts) {
     this.#roomList = roomList;
@@ -55,7 +74,7 @@ export class NavigationStore {
   }
 
   get roomGroups(): RoomsListGroup[] {
-    return this.#roomList.roomGroups;
+    return this.#roomGroups.get();
   }
 
   get currentUserId(): string | null {

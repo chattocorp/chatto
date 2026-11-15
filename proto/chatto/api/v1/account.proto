@@ -30,7 +30,8 @@ message ChangePasswordResponse {
   User user = 1;
 }
 
-// One email address that the authenticated user has proved they control.
+// One email address that a user has proved they control. The containing API
+// controls who can read this private account data.
 message VerifiedEmail {
   // Normalized email address.
   string email = 1;

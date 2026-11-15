@@ -67,7 +67,11 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.
 		return nil, err
 	}
 
-	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID, core.RoomDirectoryGroupOptions{})
+	archiveFilter, err := coreRoomArchiveFilter(req.Msg.GetArchiveFilter())
+	if err != nil {
+		return nil, err
+	}
+	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID, core.RoomDirectoryGroupOptions{ArchiveFilter: archiveFilter})
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +89,11 @@ func (s *roomDirectoryService) GetRoomGroup(ctx context.Context, req *connect.Re
 		return nil, err
 	}
 
-	group, err := s.api.core.RoomDirectoryReads().GetRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), core.RoomDirectoryGroupOptions{})
+	archiveFilter, err := coreRoomArchiveFilter(req.Msg.GetArchiveFilter())
+	if err != nil {
+		return nil, err
+	}
+	group, err := s.api.core.RoomDirectoryReads().GetRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), core.RoomDirectoryGroupOptions{ArchiveFilter: archiveFilter})
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +106,11 @@ func (s *roomDirectoryService) BatchGetRoomGroups(ctx context.Context, req *conn
 		return nil, err
 	}
 
-	groups, err := s.api.core.RoomDirectoryReads().BatchGetRoomGroups(ctx, caller.UserID, req.Msg.GetGroupIds(), core.RoomDirectoryGroupOptions{})
+	archiveFilter, err := coreRoomArchiveFilter(req.Msg.GetArchiveFilter())
+	if err != nil {
+		return nil, err
+	}
+	groups, err := s.api.core.RoomDirectoryReads().BatchGetRoomGroups(ctx, caller.UserID, req.Msg.GetGroupIds(), core.RoomDirectoryGroupOptions{ArchiveFilter: archiveFilter})
 	if err != nil {
 		return nil, err
 	}

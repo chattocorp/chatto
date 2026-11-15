@@ -140,7 +140,7 @@ func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.AssignRoleResponse{Member: member}), nil
+	return connect.NewResponse(&adminv1.AssignRoleResponse{Member: member, Assignment: &adminv1.UserRoleAssignment{UserId: req.Msg.GetUserId(), RoleName: req.Msg.GetRoleName(), Assigned: true}}), nil
 }
 
 func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connect.Request[adminv1.RevokeRoleRequest]) (*connect.Response[adminv1.RevokeRoleResponse], error) {
@@ -161,7 +161,7 @@ func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.RevokeRoleResponse{Member: member}), nil
+	return connect.NewResponse(&adminv1.RevokeRoleResponse{Member: member, Assignment: &adminv1.UserRoleAssignment{UserId: req.Msg.GetUserId(), RoleName: req.Msg.GetRoleName()}}), nil
 }
 
 func (s *adminUserManagementService) ChangeUserPassword(ctx context.Context, req *connect.Request[adminv1.ChangeUserPasswordRequest]) (*connect.Response[adminv1.ChangeUserPasswordResponse], error) {
@@ -226,7 +226,7 @@ func (s *adminUserManagementService) SetUserDeactivated(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.SetUserDeactivatedResponse{Member: member}), nil
+	return connect.NewResponse(&adminv1.SetUserDeactivatedResponse{Member: member, Profile: member.GetUser()}), nil
 }
 
 func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connect.Request[adminv1.DeleteUserRequest]) (*connect.Response[adminv1.DeleteUserResponse], error) {

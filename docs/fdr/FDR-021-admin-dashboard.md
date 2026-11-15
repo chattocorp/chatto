@@ -1,13 +1,20 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-03
 
 ## Overview
 
 The server-management section gives owners and admins visibility into the server's operational state: user counts, room counts, storage resource usage, projection health, and audit/event-log diagnostics. It lives within a broader management area that also gives delegated managers direct access to the rooms and room groups they are authorised to configure. Operational views deliberately expose metadata — never message content, never per-user activity logs, never per-room conversation summaries.
 
 ## Behavior
+
+- User profiles, assigned roles, and creation times use the ordinary user
+  directory. Private email addresses and username-change history have separate
+  administrative reads. Both require `admin.view-users`; history for another
+  user also requires `user.manage-accounts`. Role-assignment limits have their
+  own read. Existing member-detail calls remain available for client
+  compatibility.
 
 - Room General settings have four independent forms: name and description,
   visibility, Slow Mode, and Threading Mode. Each form has Save changes and

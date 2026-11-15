@@ -149,6 +149,7 @@ Result of creating a room group.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `room_group` | [`chatto.api.v1.RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Canonical room group, with all entries the caller can see or manage. |
 | `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Created room group. |
 
 
@@ -184,6 +185,7 @@ Result of updating a room group.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `room_group` | [`chatto.api.v1.RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Canonical group, including archived entries the caller can see or manage. |
 | `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
 
 
@@ -347,6 +349,7 @@ Result of replacing the mixed sidebar item order.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `room_group` | [`chatto.api.v1.RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Canonical updated group, including authorized archived entries. |
 | `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
 
 
@@ -384,6 +387,7 @@ Result of moving one sidebar item.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `room_group` | [`chatto.api.v1.RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Canonical destination group, including authorized archived entries. |
 | `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Destination room group after the move. |
 
 

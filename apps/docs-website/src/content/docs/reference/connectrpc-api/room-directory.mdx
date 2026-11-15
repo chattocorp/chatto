@@ -26,7 +26,8 @@ Reads room directory data.
 
 Lists rooms visible to the current user. Defaults to active rooms; use
 archive_filter to discover archived rooms or include both states. Channel
-rooms require membership or room.list. DM membership exposes room and
+rooms require membership, room.list, or room/group room.manage for metadata.
+DM membership exposes room and
 participant metadata. Message-derived DM state also requires current
 read permission. Accessible empty DMs are included. Returns up to 100 rooms
 ordered by ID ascending; the default page size is 50.
@@ -65,9 +66,11 @@ can shift offsets. Follow page.has_more to read the complete directory.
 
 ### ListRoomGroups
 
-Lists ordered channel room groups and sidebar items visible to the current
-user as a finite navigation snapshot. Hidden room entries are omitted.
-Archived room entries are omitted.
+Lists ordered channel groups and authorized entries as a finite snapshot.
+Membership, room.list, or room.manage permits room metadata reads. Group
+managers can read every room entry in that group, including hidden rooms.
+archive_filter defaults to ACTIVE. ALL returns the complete layout of each
+managed group. Metadata access does not grant membership or message access.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
@@ -77,7 +80,11 @@ POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
 
 #### Input: ListRoomGroupsRequest
 
-Request for ordered room groups visible to the current user.
+Request ordered room groups with entries the caller can see or manage.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `archive_filter` | [`RoomArchiveFilter`](/reference/connectrpc-api/types/#chatto-api-v1-RoomArchiveFilter) | Defaults to ACTIVE. This filter does not grant access to room metadata. |
 
 
 <a id="chatto-api-v1-ListRoomGroupsResponse"></a>
@@ -95,8 +102,9 @@ Finite snapshot of ordered room groups visible to the current user.
 
 ### GetRoomGroup
 
-Returns one ordered room group by ID. Hidden room entries are omitted.
-Archived room entries are omitted.
+Returns one ordered group by ID with the same entry permissions and
+archive filter as ListRoomGroups. role.manage alone does not reveal hidden
+rooms. Empty entries can mean no rooms match the filter or permissions.
 Returns NOT_FOUND when the room group does not exist.
 
 ```http
@@ -112,6 +120,7 @@ Request for one ordered room group visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_id` | `string` | Required. Room group to resolve. |
+| `archive_filter` | [`RoomArchiveFilter`](/reference/connectrpc-api/types/#chatto-api-v1-RoomArchiveFilter) | Defaults to ACTIVE. Use ALL for the complete contents of a managed group. |
 
 
 <a id="chatto-api-v1-GetRoomGroupResponse"></a>
@@ -122,15 +131,15 @@ One ordered room group visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `group` | [`RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Resolved room group. Hidden and archived room entries are omitted. |
+| `group` | [`RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Group with authorized entries that match the requested archive filter. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-BatchGetRoomGroups"></a>
 
 ### BatchGetRoomGroups
 
-Returns ordered room groups for a set of stable group IDs. Hidden room
-entries are omitted. Archived room entries are omitted. Unknown groups are
+Returns ordered room groups with the same entry permissions and archive
+filter as ListRoomGroups. Unknown groups are
 omitted. Results preserve first-seen request order and repeated IDs are
 de-duplicated.
 
@@ -147,6 +156,7 @@ Request visible room groups by stable group ID.
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_ids` | `repeated string` | Required room group IDs. Unknown groups are omitted from the response. |
+| `archive_filter` | [`RoomArchiveFilter`](/reference/connectrpc-api/types/#chatto-api-v1-RoomArchiveFilter) | Defaults to ACTIVE. This filter does not grant access to room metadata. |
 
 
 <a id="chatto-api-v1-BatchGetRoomGroupsResponse"></a>
@@ -164,9 +174,10 @@ Visible room group batch response for direct group hydration.
 
 ### GetRoom
 
-Returns one visible room by ID. DM rooms require membership. Returns
+Returns one room's authorized metadata by ID. Channel visibility matches
+ListRooms, including management access. DM rooms require membership. Returns
 NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
-exists but is hidden from the caller.
+exists and the caller has neither visibility nor management authority.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
@@ -198,7 +209,7 @@ Room visible to the current user.
 
 ### BatchGetRooms
 
-Returns visible rooms for a set of stable room IDs. This is a direct
+Returns authorized room metadata with the same permissions as GetRoom. This is a direct
 hydration API, so visible archived rooms may be returned. Unknown rooms and
 rooms hidden from the caller are omitted. Results preserve first-seen
 request order and repeated IDs are de-duplicated.
