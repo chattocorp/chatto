@@ -104,6 +104,18 @@
       "yesterday": "Dün",
       "this_week": "Bu hafta",
       "this_month": "Bu ay"
+    },
+    "release_highlights": {
+      "title": "Yenilikler",
+      "new": "Yeni",
+      "dismiss": "Kapat",
+      "dismiss_all": "Tümünü kapat",
+      "empty": "Tüm yeniliklerden haberdarsınız.",
+      "unsupported": "Bu sunucu kapatılan duyuruları cihazlar arasında eşitleyemiyor.",
+      "newer_app": "Daha yeni bir uygulamayla kullanılabilir",
+      "user_title": "Chatto içinde yardım",
+      "admin_title": "Botlar hakkında yardım",
+      "read_guide": "Kılavuzu okuyun"
     }
   }
 }

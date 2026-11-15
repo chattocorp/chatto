@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Svar och trådar
@@ -43,7 +45,7 @@ Tryck på **Ctrl+Skift+K**, eller **Command+Skift+K** på Mac, för att se tillg
 Välj exempelvis **Prick för oläst innehåll** för nya rumsmeddelanden och **Pushavisering** för direkta omnämnanden om du vill läsa allmänna samtal när det passar dig.
 
 <p>Pushaviseringar kräver också enhetens tillåtelse. Följ på telefonen
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installera Chatto på din telefon</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Installera Chatto på din telefon</a>
 för att installera appen och aktivera aviseringar. Telefonens aviseringsinställningar styr om namn och meddelandeförhandsvisningar visas på låsskärmen.</p>
 
 ## När anslutningen bryts

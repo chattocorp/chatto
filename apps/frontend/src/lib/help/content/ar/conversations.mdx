@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## الردود وسلاسل المحادثات
@@ -43,7 +45,7 @@
 مثلًا، استخدم **نقطة غير المقروء** لرسائل الغرفة الجديدة و**إشعار فوري** للإشارات المباشرة إذا أردت مراجعة الدردشة العامة في الوقت الذي يناسبك.
 
 <p>تحتاج إشعارات الدفع أيضًا إلى إذن الجهاز. على الهاتف، اتبع
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>تثبيت Chatto على هاتفك</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>تثبيت Chatto على هاتفك</a>
 لتثبيت التطبيق وتفعيل الإشعارات. تتحكم إعدادات إشعارات الهاتف في ظهور الأسماء ومعاينات الرسائل على شاشة القفل.</p>
 
 ## عند انقطاع الاتصال

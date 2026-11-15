@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Respostas e tópicos
@@ -65,7 +67,7 @@ Por exemplo, use **Ponto de conteúdo não lido** para mensagens novas na sala e
 para menções diretas se quiser conferir as conversas gerais no seu próprio ritmo.
 
 <p>Os alertas push também precisam de permissão do dispositivo. No celular, siga
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalar o Chatto no celular</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Instalar o Chatto no celular</a>
 para instalar o aplicativo e ativar notificações. As configurações de notificações do
 celular controlam se nomes e prévias de mensagens aparecem na tela de bloqueio.</p>
 

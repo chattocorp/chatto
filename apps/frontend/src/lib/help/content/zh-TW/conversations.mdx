@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## 回覆與討論串
@@ -43,7 +45,7 @@
 例如，如果你想自行安排時間查看一般聊天，可以為新的聊天室訊息選擇**未讀圓點**，為直接提及選擇**推播通知**。
 
 <p>推播提醒也需要裝置許可。在手機上，請按照
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>在手機上安裝 Chatto</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>在手機上安裝 Chatto</a>
 的步驟安裝應用程式並啟用通知。手機的通知設定決定是否在鎖定畫面上顯示姓名和訊息預覽。</p>
 
 ## 連線中斷時

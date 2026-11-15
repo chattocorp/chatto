@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Απαντήσεις και νήματα
@@ -67,7 +69,7 @@
 όποτε σας βολεύει.
 
 <p>Οι ειδοποιήσεις push χρειάζονται και άδεια της συσκευής. Στο τηλέφωνο, ακολουθήστε
-τον οδηγό <a href={resolve('/help/[topic]', { topic: 'phone' })}>Εγκατάσταση του Chatto στο τηλέφωνο</a>
+τον οδηγό <a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Εγκατάσταση του Chatto στο τηλέφωνο</a>
 για να εγκαταστήσετε την εφαρμογή και να ενεργοποιήσετε τις ειδοποιήσεις. Οι ρυθμίσεις
 ειδοποιήσεων του τηλεφώνου καθορίζουν αν ονόματα και προεπισκοπήσεις μηνυμάτων εμφανίζονται
 στην οθόνη κλειδώματος.</p>

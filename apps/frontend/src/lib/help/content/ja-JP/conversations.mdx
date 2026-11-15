@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## 返信とスレッド
@@ -43,7 +45,7 @@
 たとえば、通常のチャットを自分の都合に合わせて確認したい場合は、ルームの新着メッセージを**未読の点**、直接のメンションを**プッシュ通知**にします。
 
 <p>プッシュ通知には端末側の許可も必要です。スマートフォンでは、
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>スマートフォンに Chatto をインストールする</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>スマートフォンに Chatto をインストールする</a>
 の手順でアプリをインストールし、通知を有効にしてください。ロック画面に名前やメッセージのプレビューを表示するかどうかは、端末の通知設定で決まります。</p>
 
 ## 接続が切れたとき

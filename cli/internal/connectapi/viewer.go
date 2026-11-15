@@ -389,8 +389,9 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 func coreUserSettingsToAPI(settings *evtv1.ServerUserPreferences) *apiv1.UserSettings {
 	shareTimezone := false
 	response := &apiv1.UserSettings{
-		TimeFormat:    apiv1.TimeFormat_TIME_FORMAT_AUTO,
-		ShareTimezone: &shareTimezone,
+		ReleaseHighlights: &apiv1.ReleaseHighlightState{},
+		TimeFormat:        apiv1.TimeFormat_TIME_FORMAT_AUTO,
+		ShareTimezone:     &shareTimezone,
 	}
 	if settings == nil {
 		return response
@@ -398,6 +399,9 @@ func coreUserSettingsToAPI(settings *evtv1.ServerUserPreferences) *apiv1.UserSet
 	if settings.Timezone != nil {
 		response.Timezone = settings.Timezone
 	}
+	response.ReleaseHighlights.DismissedIds = settings.GetDismissedReleaseHighlights()
+	response.ReleaseHighlights.UsersSinceVersion = settings.HighlightsUsersSinceVersion
+	response.ReleaseHighlights.AdminsSinceVersion = settings.HighlightsAdminsSinceVersion
 	response.TimeFormat = coreTimeFormatToAPI(settings.GetTimeFormat())
 	shareTimezone = settings.GetShareTimezone()
 	response.ShareTimezone = &shareTimezone

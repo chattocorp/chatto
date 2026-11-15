@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+Open Hulp voor vertaalde handleidingen over gesprekken, opmaak en het installeren van Chatto op je telefoon.
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Lees de handleiding</a>

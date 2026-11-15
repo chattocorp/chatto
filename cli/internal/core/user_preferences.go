@@ -47,16 +47,24 @@ func (cm *ConfigModel) userSettings(userID string) (*evtv1.ServerUserPreferences
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
-	if u == nil || (u.timezone == nil && u.timeFormat == nil && !u.shareTimezone) {
+	if u == nil || (u.timezone == nil && u.timeFormat == nil && !u.shareTimezone && len(u.dismissedReleaseHighlights) == 0 && u.highlightsUsersSinceVersion == nil && u.highlightsAdminsSinceVersion == nil) {
 		return nil, false
 	}
-	prefs := &evtv1.ServerUserPreferences{}
+	prefs := &evtv1.ServerUserPreferences{DismissedReleaseHighlights: sortedMapKeys(u.dismissedReleaseHighlights)}
 	if u.timezone != nil {
 		tz := *u.timezone
 		prefs.Timezone = &tz
 	}
 	if u.timeFormat != nil {
 		prefs.TimeFormat = *u.timeFormat
+	}
+	if u.highlightsUsersSinceVersion != nil {
+		value := *u.highlightsUsersSinceVersion
+		prefs.HighlightsUsersSinceVersion = &value
+	}
+	if u.highlightsAdminsSinceVersion != nil {
+		value := *u.highlightsAdminsSinceVersion
+		prefs.HighlightsAdminsSinceVersion = &value
 	}
 	prefs.ShareTimezone = u.shareTimezone
 	return prefs, true

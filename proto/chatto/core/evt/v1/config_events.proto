@@ -160,3 +160,12 @@ message ServerNeighborDeletedEvent {
 
 // Notifies clients that server configuration was updated.
 // Clients should refetch server info to get the new values.
+
+// Records additive private release-highlight acknowledgements for one account.
+message UserReleaseHighlightsChangedEvent {
+  string user_id = 1;
+  // Adds these IDs; never replaces previous acknowledgements.
+  repeated string ids = 2;
+  optional string users_since_version = 3;
+  optional string admins_since_version = 4;
+}

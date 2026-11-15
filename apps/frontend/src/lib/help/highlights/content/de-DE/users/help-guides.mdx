@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+Öffne die Hilfe für übersetzte Anleitungen zu Unterhaltungen, Formatierung und der Installation von Chatto auf deinem Handy.
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Anleitung lesen</a>

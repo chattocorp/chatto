@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+開啟說明，閱讀有關對話、格式設定及在手機上安裝 Chatto 的翻譯指南。
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>閱讀指南</a>

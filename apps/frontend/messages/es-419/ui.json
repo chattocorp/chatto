@@ -104,6 +104,18 @@
       "yesterday": "Ayer",
       "this_week": "Esta semana",
       "this_month": "Este mes"
+    },
+    "release_highlights": {
+      "title": "Novedades",
+      "new": "Nuevo",
+      "dismiss": "Descartar",
+      "dismiss_all": "Descartar todo",
+      "empty": "Estás al día.",
+      "unsupported": "Este servidor no puede sincronizar los avisos descartados entre dispositivos.",
+      "newer_app": "Disponible con una aplicación más reciente",
+      "user_title": "Ayuda dentro de Chatto",
+      "admin_title": "Ayuda con los bots",
+      "read_guide": "Lee la guía"
     }
   }
 }

@@ -1,4 +1,4 @@
-import { resolve } from '$app/paths';
+import { withHelpServer } from './links';
 import { m } from '$lib/i18n/messages';
 
 /** Stable article IDs also define the public help URLs. */
@@ -14,7 +14,7 @@ export const helpTopicIcons: Record<HelpTopic, string> = {
 };
 
 /** Derive translated navigation and overview cards from the same article list. */
-export function helpGroups() {
+export function helpGroups(serverSegment?: string | null) {
   const groups: { audience: 'users' | 'admins'; topics: HelpTopic[] }[] = [
     { audience: 'users', topics: ['conversations', 'formatting', 'phone'] },
     { audience: 'admins', topics: ['bots'] }
@@ -24,7 +24,7 @@ export function helpGroups() {
     persistKey: `collapsible:help:${audience}`,
     items: topics.map((topic) => ({
       topic,
-      href: resolve('/help/[topic]', { topic }),
+      href: withHelpServer(`/help/${topic}`, serverSegment),
       label: m(`help.${topic}.title`),
       description: m(`help.${topic}.description`),
       icon: helpTopicIcons[topic]

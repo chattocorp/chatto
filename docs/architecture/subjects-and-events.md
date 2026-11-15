@@ -324,6 +324,7 @@ reaction projection and read behavior.
 | `evt.asset.{assetId}.asset_deleted` | `AssetDeletedEvent` |
 | `evt.config.{subject}.server_name_changed` | `ServerNameChangedEvent` |
 | `evt.config.{subject}.server_description_changed` | `ServerDescriptionChangedEvent` |
+| `evt.config.{userId}.user_release_highlights_changed` | `UserReleaseHighlightsChangedEvent`; adds private dismissals or initializes a surface baseline |
 | `evt.config.{subject}.server_welcome_message_changed` | `ServerWelcomeMessageChangedEvent` |
 | `evt.config.{subject}.server_motd_changed` | `ServerMotdChangedEvent` |
 | `evt.config.{subject}.server_blocked_usernames_changed` | `ServerBlockedUsernamesChangedEvent` |

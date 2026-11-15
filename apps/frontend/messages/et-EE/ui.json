@@ -104,6 +104,18 @@
       "yesterday": "eile",
       "this_week": "Sel nädalal",
       "this_month": "Sel kuul"
+    },
+    "release_highlights": {
+      "title": "Mis on uut?",
+      "new": "Uus",
+      "dismiss": "Loobu",
+      "dismiss_all": "Loobu kõigist",
+      "empty": "Olete kõigi uudistega kursis.",
+      "unsupported": "See server ei saa peidetud teateid seadmete vahel sünkroonida.",
+      "newer_app": "Saadaval uuemas rakenduses",
+      "user_title": "Abi Chatto rakenduses",
+      "admin_title": "Abi robotitega",
+      "read_guide": "Lugege juhendit"
     }
   }
 }

@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## תשובות ושרשורים
@@ -43,7 +45,7 @@
 לדוגמה, השתמש ב־**נקודת תוכן שלא נקרא** להודעות חדשות בחדר וב־**התראת דחיפה** לאזכורים ישירים, אם אתה רוצה לקרוא את הצ'אט הכללי בזמן שנוח לך.
 
 <p>התראות דחיפה דורשות גם הרשאה מהמכשיר. בטלפון, פעל לפי
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>התקנת Chatto בטלפון</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>התקנת Chatto בטלפון</a>
 כדי להתקין את האפליקציה ולהפעיל התראות. הגדרות ההתראות בטלפון קובעות אם שמות ותצוגות מקדימות של הודעות יוצגו במסך הנעילה.</p>
 
 ## כשהחיבור מתנתק

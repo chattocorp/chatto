@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Réponses et fils de discussion
@@ -43,7 +45,7 @@ Ouvrez les paramètres **Notifications** de votre serveur pour modifier les aler
 Par exemple, choisissez **Point de contenu non lu** pour les nouveaux messages du salon et **Notification poussée** pour les mentions directes si vous souhaitez lire les discussions générales à votre rythme.
 
 <p>Les alertes push nécessitent aussi l'autorisation de l'appareil. Sur téléphone, suivez
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installer Chatto sur votre téléphone</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Installer Chatto sur votre téléphone</a>
 pour installer l'application et activer les notifications. Les paramètres de notification du téléphone déterminent si les noms et aperçus des messages apparaissent sur l'écran verrouillé.</p>
 
 ## En cas de perte de connexion

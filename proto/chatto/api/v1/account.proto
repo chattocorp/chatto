@@ -146,10 +146,52 @@ message DeleteMyAccountResponse {
   reserved "deleted";
 }
 
+// Dismiss specific release highlights for the authenticated account only.
+message DismissReleaseHighlightsRequest {
+  // Stable IDs prefixed with users: or admins:. At most 100 IDs per request.
+  repeated string ids = 1 [(buf.validate.field).repeated = {min_items: 1, max_items: 100, items: {string: {max_len: 128, pattern: "^(users|admins):[a-z0-9][a-z0-9._-]*$"}}}];
+}
+
+// Authoritative private settings after the dismissal has been saved.
+message DismissReleaseHighlightsResponse {
+  UserSettings settings = 1;
+}
+
+// Separate presentation surfaces for release highlights.
+enum ReleaseHighlightSurface {
+  // No surface selected; requests must select one.
+  RELEASE_HIGHLIGHT_SURFACE_UNSPECIFIED = 0;
+  // Everyday user changes shown in Help.
+  RELEASE_HIGHLIGHT_SURFACE_USERS = 1;
+  // Administrator and operator changes shown in administration.
+  RELEASE_HIGHLIGHT_SURFACE_ADMINS = 2;
+}
+
+// Records the first release shown on one highlight surface, without dismissing
+// articles. Subsequent calls preserve the first successfully stored version.
+message InitializeReleaseHighlightsRequest {
+  // Selects the independent baseline to initialize.
+  ReleaseHighlightSurface surface = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  // Full Semantic Version of the newest applicable bundled highlights.
+  string release_version = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+}
+
+// Current private settings after initialization.
+message InitializeReleaseHighlightsResponse {
+  UserSettings settings = 1;
+}
+
 // Self-service account, display preference, presence, custom-status,
 // external identity, and account lifecycle commands for the authenticated
 // user. Public profile and avatar changes use UserService.
 service MyAccountService {
+  // Sets the caller's first shown release once per surface. This is idempotent,
+  // does not dismiss entries, and does not grant administrative access.
+  rpc InitializeReleaseHighlights(InitializeReleaseHighlightsRequest) returns (InitializeReleaseHighlightsResponse);
+  // Adds IDs to the caller's dismissed highlights. Repeated IDs are no-ops.
+  // Concurrent calls merge; other dismissals are never replaced. This does not
+  // grant administrative access. Article content is bundled with the client.
+  rpc DismissReleaseHighlights(DismissReleaseHighlightsRequest) returns (DismissReleaseHighlightsResponse);
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
   // Lists the authenticated user's verified email addresses and primary choice.

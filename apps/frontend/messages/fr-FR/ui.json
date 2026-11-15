@@ -104,6 +104,18 @@
       "yesterday": "Hier",
       "this_week": "Cette semaine",
       "this_month": "Ce mois-ci"
+    },
+    "release_highlights": {
+      "title": "Quoi de neuf ?",
+      "new": "Nouveau",
+      "dismiss": "Ignorer",
+      "dismiss_all": "Tout ignorer",
+      "empty": "Vous êtes à jour.",
+      "unsupported": "Ce serveur ne peut pas synchroniser les annonces ignorées entre vos appareils.",
+      "newer_app": "Disponible avec une application plus récente",
+      "user_title": "L’aide arrive dans Chatto",
+      "admin_title": "Aide sur les bots",
+      "read_guide": "Lire le guide"
     }
   }
 }

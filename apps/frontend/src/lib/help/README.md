@@ -51,3 +51,8 @@ The `articles.spec.ts` test checks coverage for every supported locale and rejec
 translations that omit sections, examples, reference links, or permission names.
 Review the rendered article and exercise its examples. A successful build does
 not establish that the instructions are accurate or useful.
+
+Release highlights have their own [authoring rules](highlights/README.md). They
+use the same compiled MDX format and language inheritance, but keep separate
+user and administrator collections. Link from a short highlight to these guides
+for instructions instead of copying the guide into the release history.

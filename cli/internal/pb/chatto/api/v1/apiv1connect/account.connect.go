@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MyAccountServiceInitializeReleaseHighlightsProcedure is the fully-qualified name of the
+	// MyAccountService's InitializeReleaseHighlights RPC.
+	MyAccountServiceInitializeReleaseHighlightsProcedure = "/chatto.api.v1.MyAccountService/InitializeReleaseHighlights"
+	// MyAccountServiceDismissReleaseHighlightsProcedure is the fully-qualified name of the
+	// MyAccountService's DismissReleaseHighlights RPC.
+	MyAccountServiceDismissReleaseHighlightsProcedure = "/chatto.api.v1.MyAccountService/DismissReleaseHighlights"
 	// MyAccountServiceChangePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// ChangePassword RPC.
 	MyAccountServiceChangePasswordProcedure = "/chatto.api.v1.MyAccountService/ChangePassword"
@@ -91,6 +97,13 @@ const (
 
 // MyAccountServiceClient is a client for the chatto.api.v1.MyAccountService service.
 type MyAccountServiceClient interface {
+	// Sets the caller's first shown release once per surface. This is idempotent,
+	// does not dismiss entries, and does not grant administrative access.
+	InitializeReleaseHighlights(context.Context, *connect.Request[v1.InitializeReleaseHighlightsRequest]) (*connect.Response[v1.InitializeReleaseHighlightsResponse], error)
+	// Adds IDs to the caller's dismissed highlights. Repeated IDs are no-ops.
+	// Concurrent calls merge; other dismissals are never replaced. This does not
+	// grant administrative access. Article content is bundled with the client.
+	DismissReleaseHighlights(context.Context, *connect.Request[v1.DismissReleaseHighlightsRequest]) (*connect.Response[v1.DismissReleaseHighlightsResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
@@ -169,6 +182,18 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
 	return &myAccountServiceClient{
+		initializeReleaseHighlights: connect.NewClient[v1.InitializeReleaseHighlightsRequest, v1.InitializeReleaseHighlightsResponse](
+			httpClient,
+			baseURL+MyAccountServiceInitializeReleaseHighlightsProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("InitializeReleaseHighlights")),
+			connect.WithClientOptions(opts...),
+		),
+		dismissReleaseHighlights: connect.NewClient[v1.DismissReleaseHighlightsRequest, v1.DismissReleaseHighlightsResponse](
+			httpClient,
+			baseURL+MyAccountServiceDismissReleaseHighlightsProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("DismissReleaseHighlights")),
+			connect.WithClientOptions(opts...),
+		),
 		changePassword: connect.NewClient[v1.ChangePasswordRequest, v1.ChangePasswordResponse](
 			httpClient,
 			baseURL+MyAccountServiceChangePasswordProcedure,
@@ -284,24 +309,36 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // myAccountServiceClient implements MyAccountServiceClient.
 type myAccountServiceClient struct {
-	changePassword             *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
-	listVerifiedEmails         *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
-	requestEmailVerification   *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
-	confirmEmailVerification   *connect.Client[v1.ConfirmEmailVerificationRequest, v1.ConfirmEmailVerificationResponse]
-	setPrimaryEmail            *connect.Client[v1.SetPrimaryEmailRequest, v1.SetPrimaryEmailResponse]
-	getSettings                *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
-	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
-	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
-	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
-	disconnectExternalIdentity *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
-	setPresence                *connect.Client[v1.SetPresenceRequest, v1.SetPresenceResponse]
-	getPresencePreference      *connect.Client[v1.GetPresencePreferenceRequest, v1.GetPresencePreferenceResponse]
-	setPresencePreference      *connect.Client[v1.SetPresencePreferenceRequest, v1.SetPresencePreferenceResponse]
-	refreshPresence            *connect.Client[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse]
-	setCustomStatus            *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
-	deleteCustomStatus         *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
-	requestAccountDeletion     *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
-	deleteMyAccount            *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
+	initializeReleaseHighlights *connect.Client[v1.InitializeReleaseHighlightsRequest, v1.InitializeReleaseHighlightsResponse]
+	dismissReleaseHighlights    *connect.Client[v1.DismissReleaseHighlightsRequest, v1.DismissReleaseHighlightsResponse]
+	changePassword              *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	listVerifiedEmails          *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
+	requestEmailVerification    *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
+	confirmEmailVerification    *connect.Client[v1.ConfirmEmailVerificationRequest, v1.ConfirmEmailVerificationResponse]
+	setPrimaryEmail             *connect.Client[v1.SetPrimaryEmailRequest, v1.SetPrimaryEmailResponse]
+	getSettings                 *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
+	updateSettings              *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	listExternalIdentities      *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
+	startExternalIdentityLink   *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
+	disconnectExternalIdentity  *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
+	setPresence                 *connect.Client[v1.SetPresenceRequest, v1.SetPresenceResponse]
+	getPresencePreference       *connect.Client[v1.GetPresencePreferenceRequest, v1.GetPresencePreferenceResponse]
+	setPresencePreference       *connect.Client[v1.SetPresencePreferenceRequest, v1.SetPresencePreferenceResponse]
+	refreshPresence             *connect.Client[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse]
+	setCustomStatus             *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
+	deleteCustomStatus          *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
+	requestAccountDeletion      *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
+	deleteMyAccount             *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
+}
+
+// InitializeReleaseHighlights calls chatto.api.v1.MyAccountService.InitializeReleaseHighlights.
+func (c *myAccountServiceClient) InitializeReleaseHighlights(ctx context.Context, req *connect.Request[v1.InitializeReleaseHighlightsRequest]) (*connect.Response[v1.InitializeReleaseHighlightsResponse], error) {
+	return c.initializeReleaseHighlights.CallUnary(ctx, req)
+}
+
+// DismissReleaseHighlights calls chatto.api.v1.MyAccountService.DismissReleaseHighlights.
+func (c *myAccountServiceClient) DismissReleaseHighlights(ctx context.Context, req *connect.Request[v1.DismissReleaseHighlightsRequest]) (*connect.Response[v1.DismissReleaseHighlightsResponse], error) {
+	return c.dismissReleaseHighlights.CallUnary(ctx, req)
 }
 
 // ChangePassword calls chatto.api.v1.MyAccountService.ChangePassword.
@@ -396,6 +433,13 @@ func (c *myAccountServiceClient) DeleteMyAccount(ctx context.Context, req *conne
 
 // MyAccountServiceHandler is an implementation of the chatto.api.v1.MyAccountService service.
 type MyAccountServiceHandler interface {
+	// Sets the caller's first shown release once per surface. This is idempotent,
+	// does not dismiss entries, and does not grant administrative access.
+	InitializeReleaseHighlights(context.Context, *connect.Request[v1.InitializeReleaseHighlightsRequest]) (*connect.Response[v1.InitializeReleaseHighlightsResponse], error)
+	// Adds IDs to the caller's dismissed highlights. Repeated IDs are no-ops.
+	// Concurrent calls merge; other dismissals are never replaced. This does not
+	// grant administrative access. Article content is bundled with the client.
+	DismissReleaseHighlights(context.Context, *connect.Request[v1.DismissReleaseHighlightsRequest]) (*connect.Response[v1.DismissReleaseHighlightsResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
@@ -470,6 +514,18 @@ type MyAccountServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
+	myAccountServiceInitializeReleaseHighlightsHandler := connect.NewUnaryHandler(
+		MyAccountServiceInitializeReleaseHighlightsProcedure,
+		svc.InitializeReleaseHighlights,
+		connect.WithSchema(myAccountServiceMethods.ByName("InitializeReleaseHighlights")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceDismissReleaseHighlightsHandler := connect.NewUnaryHandler(
+		MyAccountServiceDismissReleaseHighlightsProcedure,
+		svc.DismissReleaseHighlights,
+		connect.WithSchema(myAccountServiceMethods.ByName("DismissReleaseHighlights")),
+		connect.WithHandlerOptions(opts...),
+	)
 	myAccountServiceChangePasswordHandler := connect.NewUnaryHandler(
 		MyAccountServiceChangePasswordProcedure,
 		svc.ChangePassword,
@@ -582,6 +638,10 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 	)
 	return "/chatto.api.v1.MyAccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MyAccountServiceInitializeReleaseHighlightsProcedure:
+			myAccountServiceInitializeReleaseHighlightsHandler.ServeHTTP(w, r)
+		case MyAccountServiceDismissReleaseHighlightsProcedure:
+			myAccountServiceDismissReleaseHighlightsHandler.ServeHTTP(w, r)
 		case MyAccountServiceChangePasswordProcedure:
 			myAccountServiceChangePasswordHandler.ServeHTTP(w, r)
 		case MyAccountServiceListVerifiedEmailsProcedure:
@@ -626,6 +686,14 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 
 // UnimplementedMyAccountServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMyAccountServiceHandler struct{}
+
+func (UnimplementedMyAccountServiceHandler) InitializeReleaseHighlights(context.Context, *connect.Request[v1.InitializeReleaseHighlightsRequest]) (*connect.Response[v1.InitializeReleaseHighlightsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.InitializeReleaseHighlights is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) DismissReleaseHighlights(context.Context, *connect.Request[v1.DismissReleaseHighlightsRequest]) (*connect.Response[v1.DismissReleaseHighlightsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.DismissReleaseHighlights is not implemented"))
+}
 
 func (UnimplementedMyAccountServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ChangePassword is not implemented"))

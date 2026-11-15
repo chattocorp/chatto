@@ -39,6 +39,12 @@ vi.mock('$lib/client', async () => ({
 
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
+// The UI barrel includes the header, whose route reads must use this test's
+// partial router fixture instead of loading the real SvelteKit client runtime.
+vi.mock('$app/state', () => ({
+  page: { url: new URL('https://chatto.test/chat/origin/search'), params: {}, state: {} }
+}));
+
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
   pushState: vi.fn(),

@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+ヘルプでは、会話、書式設定、スマートフォンへの Chatto のインストールについて、翻訳されたガイドを読めます。
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>ガイドを読む</a>

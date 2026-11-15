@@ -148,6 +148,7 @@ message Event {
     ServerBannerSetEvent server_banner_set = 508;
     ServerBannerClearedEvent server_banner_cleared = 509;
 
+    UserReleaseHighlightsChangedEvent user_release_highlights_changed = 526;
     UserTimezoneChangedEvent user_timezone_changed = 510;
     UserTimezoneClearedEvent user_timezone_cleared = 511;
     UserTimeFormatChangedEvent user_time_format_changed = 512;

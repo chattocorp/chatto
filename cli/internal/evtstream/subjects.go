@@ -153,6 +153,7 @@ const (
 	EventServerBannerCleared                    = "server_banner_cleared"
 	EventUserTimezoneChanged                    = "user_timezone_changed"
 	EventUserTimezoneCleared                    = "user_timezone_cleared"
+	EventUserReleaseHighlightsChanged           = "user_release_highlights_changed"
 	EventUserTimezoneSharingChanged             = "user_timezone_sharing_changed"
 	EventUserTimeFormatChanged                  = "user_time_format_changed"
 	EventUserTimeFormatCleared                  = "user_time_format_cleared"
@@ -402,6 +403,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserTimezoneChanged
 	case *evtv1.Event_UserTimezoneCleared:
 		return EventUserTimezoneCleared
+	case *evtv1.Event_UserReleaseHighlightsChanged:
+		return EventUserReleaseHighlightsChanged
 	case *evtv1.Event_UserTimezoneSharingChanged:
 		return EventUserTimezoneSharingChanged
 	case *evtv1.Event_UserTimeFormatChanged:

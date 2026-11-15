@@ -104,6 +104,18 @@
       "yesterday": "I går",
       "this_week": "Denne uken",
       "this_month": "Denne måneden"
+    },
+    "release_highlights": {
+      "title": "Hva er nytt?",
+      "new": "Nytt",
+      "dismiss": "Avvis",
+      "dismiss_all": "Avvis alle",
+      "empty": "Du er oppdatert.",
+      "unsupported": "Denne serveren kan ikke lagre avviste meldinger på tvers av enheter.",
+      "newer_app": "Tilgjengelig med en nyere app",
+      "user_title": "Hjelp i Chatto",
+      "admin_title": "Hjelp med boter",
+      "read_guide": "Les veiledningen"
     }
   }
 }

@@ -183,6 +183,12 @@ change the caller's private availability across devices. `RefreshPresence`
 refreshes liveness without changing this choice. Legacy `SetPresence` cannot
 override a saved choice.
 
+`MyAccountService.InitializeReleaseHighlights` records the caller's first shown
+release per surface. `DismissReleaseHighlights` adds caller-owned message IDs
+without replacing concurrent acknowledgements. Both return private settings;
+`GetSettings` and `ViewerService` return the same state. The service accepts
+bounded client-authored IDs because the frontend owns its article catalog.
+
 `MyAccountService.GetSettings` exposes caller-owned display preferences using
 the same settings resource as updates and the combined viewer response.
 `MyAccountService` also lists the caller's verified emails, sends and confirms

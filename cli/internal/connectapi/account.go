@@ -293,3 +293,38 @@ func apiTimeFormatToCore(format apiv1.TimeFormat) evtv1.TimeFormat {
 		return evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
 	}
 }
+
+// DismissReleaseHighlights changes only the authenticated account's acknowledgements.
+func (s *accountService) DismissReleaseHighlights(ctx context.Context, req *connect.Request[apiv1.DismissReleaseHighlightsRequest]) (*connect.Response[apiv1.DismissReleaseHighlightsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := s.api.core.DismissReleaseHighlights(ctx, caller.UserID, req.Msg.GetIds())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.DismissReleaseHighlightsResponse{Settings: coreUserSettingsToAPI(settings)}), nil
+}
+
+// InitializeReleaseHighlights records only the caller's first shown release.
+func (s *accountService) InitializeReleaseHighlights(ctx context.Context, req *connect.Request[apiv1.InitializeReleaseHighlightsRequest]) (*connect.Response[apiv1.InitializeReleaseHighlightsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var surface string
+	switch req.Msg.GetSurface() {
+	case apiv1.ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_USERS:
+		surface = "users"
+	case apiv1.ReleaseHighlightSurface_RELEASE_HIGHLIGHT_SURFACE_ADMINS:
+		surface = "admins"
+	default:
+		return nil, core.ErrInvalidArgument
+	}
+	settings, err := s.api.core.InitializeReleaseHighlights(ctx, caller.UserID, surface, req.Msg.GetReleaseVersion())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.InitializeReleaseHighlightsResponse{Settings: coreUserSettingsToAPI(settings)}), nil
+}

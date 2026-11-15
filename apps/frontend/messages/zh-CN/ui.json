@@ -104,6 +104,18 @@
       "yesterday": "昨天",
       "this_week": "本周",
       "this_month": "本月"
+    },
+    "release_highlights": {
+      "title": "最新消息",
+      "new": "新增",
+      "dismiss": "关闭",
+      "dismiss_all": "全部关闭",
+      "empty": "你已了解所有最新消息。",
+      "unsupported": "此服务器不支持在设备间同步已关闭的公告。",
+      "newer_app": "更新应用后即可使用",
+      "user_title": "Chatto 内的帮助",
+      "admin_title": "机器人帮助",
+      "read_guide": "阅读指南"
     }
   }
 }

@@ -1,3 +1,4 @@
+import { mergeReleaseHighlightState } from '../api/account.js';
 import type { ConnectAPIConfig } from '../api/connect.js';
 import { batch, signal } from '../reactivity/index.js';
 import { getCurrentUserViaConnect, type CurrentUser } from '../api/viewer.js';
@@ -94,6 +95,25 @@ export class CurrentUserState {
 
   /** Publish complete account data after the registry has checked the account boundary. */
   accept(user: CurrentUser): void {
+    // A viewer read can start before a local acknowledgement and arrive after
+    // it. These preferences only grow within one verified account session.
+    const previous = this.user;
+    if (
+      previous?.id === user.id &&
+      this.verifiedUserId === user.id &&
+      user.settings?.releaseHighlights
+    ) {
+      user = {
+        ...user,
+        settings: {
+          ...user.settings,
+          releaseHighlights: mergeReleaseHighlightState(
+            previous.settings?.releaseHighlights,
+            user.settings.releaseHighlights
+          )
+        }
+      };
+    }
     this.#generation++;
     batch(() => {
       this.user = user;

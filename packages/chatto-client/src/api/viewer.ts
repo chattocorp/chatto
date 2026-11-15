@@ -1,3 +1,4 @@
+import type { ReleaseHighlightState } from './account.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import {
   createChattoClient,
@@ -47,6 +48,8 @@ export type CurrentUser = {
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
   settings?: {
+    /** Absent on servers without synchronized release highlights. */
+    releaseHighlights?: ReleaseHighlightState;
     timezone?: string | null;
     timeFormat: TimeFormat;
     /** Present when the server supports private time-zone preferences. */
@@ -205,7 +208,16 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
         ? {
             timezone: response.user.settings.timezone ?? null,
             timeFormat: timeFormatOrAuto(response.user.settings.timeFormat),
-            shareTimezone: response.user.settings.shareTimezone
+            shareTimezone: response.user.settings.shareTimezone,
+            ...(response.user.settings.releaseHighlights
+              ? {
+                  releaseHighlights: {
+                    dismissedIds: [...response.user.settings.releaseHighlights.dismissedIds],
+                    usersSinceVersion: response.user.settings.releaseHighlights.usersSinceVersion,
+                    adminsSinceVersion: response.user.settings.releaseHighlights.adminsSinceVersion
+                  }
+                }
+              : {})
           }
         : null
     },

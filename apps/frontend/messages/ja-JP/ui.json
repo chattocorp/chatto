@@ -104,6 +104,18 @@
       "yesterday": "昨日",
       "this_week": "今週",
       "this_month": "今月"
+    },
+    "release_highlights": {
+      "title": "新着情報",
+      "new": "新着",
+      "dismiss": "非表示にする",
+      "dismiss_all": "すべて非表示にする",
+      "empty": "すべての新着情報を確認済みです。",
+      "unsupported": "このサーバーは非表示にしたお知らせのデバイス間同期に対応していません。",
+      "newer_app": "新しいアプリで利用できます",
+      "user_title": "Chatto 内のヘルプ",
+      "admin_title": "ボットのヘルプ",
+      "read_guide": "ガイドを読む"
     }
   }
 }

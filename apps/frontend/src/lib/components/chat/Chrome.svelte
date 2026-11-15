@@ -15,6 +15,8 @@
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
   import { getAdminNavItems } from './adminNav';
+  import { applicableHighlights, unreadHighlights } from '$lib/help/highlights/catalog';
+  import { version as frontendRelease } from '../../../../package.json';
   import { m } from '$lib/i18n/messages';
   import {
     DEFAULT_SERVER_SETTINGS_ROUTE,
@@ -81,7 +83,18 @@
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived(
-    getAdminNavItems({ serverSegment, permissions: activeStore.permissions })
+    getAdminNavItems({
+      serverSegment,
+      permissions: activeStore.permissions,
+      hasNewHighlights:
+        !!activeStore.currentUser.verifiedUserId &&
+        !!activeStore.currentUser.user?.settings?.releaseHighlights &&
+        unreadHighlights(
+          'admins',
+          applicableHighlights('admins', frontendRelease, activeStore.serverInfo.version),
+          activeStore.currentUser.user.settings.releaseHighlights
+        ).length > 0
+    })
   );
   const managedRoom = $derived(
     page.params.roomId

@@ -34,6 +34,8 @@
     const systemBase = serverBase + '/system';
     const eventLogBase = serverBase + '/event-log';
 
+    if (pathname.startsWith(serverBase + '/whats-new')) return () => permissions.canViewAdmin;
+
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
       return () => permissions.canManageServer;

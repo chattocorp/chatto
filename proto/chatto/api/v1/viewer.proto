@@ -19,8 +19,21 @@ enum TimeFormat {
   TIME_FORMAT_24_HOUR = 3;
 }
 
+// Private release-highlight acknowledgements. Absence on UserSettings means
+// this server does not support synchronised dismissal.
+message ReleaseHighlightState {
+  // Stable, surface-prefixed IDs. Dismissal never removes an article from history.
+  repeated string dismissed_ids = 1;
+  // First release shown to this reader on each surface. Later releases stay new
+  // until explicitly dismissed. Older releases remain available in history.
+  optional string users_since_version = 2;
+  optional string admins_since_version = 3;
+}
+
 // Server-level display settings for the authenticated user.
 message UserSettings {
+  // Always present on servers that support release-highlight dismissal.
+  ReleaseHighlightState release_highlights = 4;
   // Optional IANA timezone override. Absent means no choice has been recorded.
   // Empty means the user explicitly chose the browser's local timezone.
   // Both use browser-local time; only absence permits automatic device reporting.

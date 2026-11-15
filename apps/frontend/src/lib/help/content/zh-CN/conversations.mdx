@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## 回复与讨论串
@@ -43,7 +45,7 @@
 例如，如果你想自行安排时间查看普通聊天，可以为新房间消息选择**未读圆点**，为直接提及选择**推送通知**。
 
 <p>推送提醒也需要设备许可。在手机上，请按照
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>在手机上安装 Chatto</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>在手机上安装 Chatto</a>
 中的步骤安装应用并启用通知。手机的通知设置决定是否在锁屏上显示姓名和消息预览。</p>
 
 ## 连接中断时

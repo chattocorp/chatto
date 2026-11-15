@@ -2,7 +2,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { createAccountAPI } from '../account.js';
+import { createAccountAPI, mergeReleaseHighlightState } from '../account.js';
 import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(MyAccountService);
@@ -132,6 +132,42 @@ describe('createAccountAPI', () => {
     expect(receivedRequest(mocks.setPrimaryEmail)).toMatchObject({
       expectedUserId: 'U1',
       email: 'a@example.test'
+    });
+  });
+});
+
+describe('release highlights', () => {
+  it('maps acknowledgements and sends additive commands', async () => {
+    mocks.dismissReleaseHighlights.mockReturnValue({
+      settings: { releaseHighlights: { dismissedIds: ['users:help'], usersSinceVersion: '0.5.0' } }
+    });
+    const result = await accountAPI().dismissReleaseHighlights(['users:help']);
+    expect(receivedRequest(mocks.dismissReleaseHighlights)?.ids).toEqual(['users:help']);
+    expect(result.releaseHighlights).toEqual({
+      dismissedIds: ['users:help'],
+      usersSinceVersion: '0.5.0',
+      adminsSinceVersion: undefined
+    });
+  });
+  it('initializes separate surfaces and preserves absence on older servers', async () => {
+    mocks.initializeReleaseHighlights.mockReturnValue({ settings: {} });
+    const result = await accountAPI().initializeReleaseHighlights('admins', '0.5.0');
+    expect(receivedRequest(mocks.initializeReleaseHighlights)).toMatchObject({
+      surface: 2,
+      releaseVersion: '0.5.0'
+    });
+    expect(result.releaseHighlights).toBeUndefined();
+  });
+  it('merges out-of-order responses without restoring unread entries', () => {
+    expect(
+      mergeReleaseHighlightState(
+        { dismissedIds: ['users:new'], usersSinceVersion: '0.5.0' },
+        { dismissedIds: ['users:old'], usersSinceVersion: '0.5.0' }
+      )
+    ).toEqual({
+      dismissedIds: ['users:new', 'users:old'],
+      usersSinceVersion: '0.5.0',
+      adminsSinceVersion: undefined
     });
   });
 });

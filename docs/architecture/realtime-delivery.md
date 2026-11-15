@@ -27,6 +27,11 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-095](../adr/ADR-095-direct-message-permission-scope-and-threads.md), and
 [ADR-111](../adr/ADR-111-move-client-state-into-chatto-client.md).
 
+Private release-highlight changes use the existing viewer-preferences change
+hint. Only the owning account receives it; other viewers receive no profile
+change. The next viewer read returns the acknowledged IDs and surface baselines.
+See [the event mapper](../../cli/internal/http_server/realtime.go).
+
 ## Public protocol
 
 The client in [`@chatto/client`](../../packages/chatto-client/README.md)

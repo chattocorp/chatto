@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Odpowiedzi i wątki
@@ -62,7 +64,7 @@ Na przykład wybierz **Kropka nieprzeczytanej treści** dla nowych wiadomości w
 **Powiadomienie push** dla bezpośrednich wzmianek, jeśli chcesz czytać ogólny czat we własnym tempie.
 
 <p>Alerty push wymagają też zgody urządzenia. Na telefonie skorzystaj z poradnika
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Zainstaluj Chatto na telefonie</a>,
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Zainstaluj Chatto na telefonie</a>,
 aby zainstalować aplikację i włączyć powiadomienia. Ustawienia powiadomień telefonu
 kontrolują wyświetlanie nazw i podglądów wiadomości na ekranie blokady.</p>
 

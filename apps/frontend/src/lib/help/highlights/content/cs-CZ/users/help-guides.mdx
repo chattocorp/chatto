@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+Otevřete nápovědu s přeloženými průvodci konverzacemi, formátováním a instalací Chatto do telefonu.
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'conversations' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Přečtěte si průvodce</a>

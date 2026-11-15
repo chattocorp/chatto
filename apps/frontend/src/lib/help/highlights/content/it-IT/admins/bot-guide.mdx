@@ -1,0 +1,9 @@
+<script>
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
+</script>
+
+La guida ai bot spiega come collegare uno strumento esterno e controllarne l’accesso.
+
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'bots' }), page.url.searchParams.get('server') ?? page.params.serverId)}>Leggi la guida</a>

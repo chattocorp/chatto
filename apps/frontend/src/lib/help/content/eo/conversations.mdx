@@ -1,5 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { withHelpServer } from '$lib/help/links';
 </script>
 
 ## Respondoj kaj fadenoj
@@ -43,7 +45,7 @@ Malfermu la agordojn **Sciigoj** de via servilo por ŝanĝi atentigojn pri menci
 Ekzemple, uzu **Punkto por nelegita enhavo** por novaj ĉambraj mesaĝoj kaj **Puŝa sciigo** por rektaj mencioj, se vi volas legi ĝeneralajn konversaciojn laŭ via propra tempo.
 
 <p>Puŝaj atentigoj ankaŭ bezonas permeson de la aparato. Ĉe telefono, sekvu
-<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instali Chatto sur via telefono</a>
+<a class="link" href={withHelpServer(resolve('/help/[topic]', { topic: 'phone' }), page.url.searchParams.get('server'))}>Instali Chatto sur via telefono</a>
 por instali la aplikaĵon kaj ebligi sciigojn. La sciigaj agordoj de via telefono determinas, ĉu nomoj kaj mesaĝaj antaŭrigardoj aperas sur la ŝlosita ekrano.</p>
 
 ## Kiam la konekto perdiĝas

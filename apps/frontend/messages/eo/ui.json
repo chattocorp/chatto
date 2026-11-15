@@ -104,6 +104,18 @@
       "yesterday": "Hieraŭ",
       "this_week": "Ĉi-semajne",
       "this_month": "Ĉi-monate"
+    },
+    "release_highlights": {
+      "title": "Kio estas nova?",
+      "new": "Nova",
+      "dismiss": "Malakcepti",
+      "dismiss_all": "Malakcepti ĉiujn",
+      "empty": "Vi estas ĝisdata.",
+      "unsupported": "Ĉi tiu servilo ne povas sinkronigi malakceptitajn anoncojn inter aparatoj.",
+      "newer_app": "Disponebla per pli nova aplikaĵo",
+      "user_title": "Helpo en Chatto",
+      "admin_title": "Helpo pri robotoj",
+      "read_guide": "Legu la gvidilon"
     }
   }
 }
