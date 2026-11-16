@@ -542,24 +542,43 @@ Use `alice` when you need server administration access.
 ## CI Job Selection
 
 CI selects product jobs from the changed paths. Pull requests use the complete
-PR diff; pushes use the exact before and after commits.
+PR diff; pushes use the exact before and after commits. The `changes` job
+matches the paths against the filters in `.github/workflows/ci.yml`.
+`tools/ci-select-jobs.mjs` combines the filter results into the job outputs.
 
 - Sweet notes in any `.sweet/` directory and generated `CHANGELOG.md` files
   do not select product jobs or Authling image builds. Release preparation
   still runs for Sweet notes on `main`.
-- Ordinary frontend source, translations, and tests select Chatto checks,
-  including the frontend build and browser tests, without native desktop
-  packaging.
-- Desktop shell files, the frontend desktop bridge, frontend build settings,
-  scripts and static assets, shared client packages, protobufs, and desktop
-  test scripts select the full desktop platform matrix.
+- Chatto checks have two groups. Go sources, protobufs, Docker files, and
+  frontend build settings select the server tests and Go lint. Frontend
+  sources, workspace packages, protobufs, and Docker files select the
+  workspace type checks, lint, and unit tests. A change in one of the two
+  groups selects the browser tests.
+- Ordinary frontend source, translations, and tests do not select the Go
+  jobs or native desktop packaging.
+- Desktop shell files, the frontend desktop bridge, and desktop test scripts
+  select the full desktop platform matrix.
+- Frontend build settings, scripts and static assets, shared client packages,
+  and protobufs select one desktop build for each operating system in a pull
+  request: Linux, Linux arm64, macOS, and Windows. The macOS Intel and
+  universal builds and the native capture helper test run after the merge.
 - Shared build and dependency configuration selects all products. Release
   version files and package manifests still select their product checks.
+- A release pull request that changes only release files selects no product
+  jobs. The checks ran on `main` before, and run again on `main` after the
+  merge, before CI makes a tag. If you push another change to a release
+  branch, CI selects jobs as for an ordinary pull request.
+- `NOTICE`, `LICENSES/`, the Sweet Release configuration, and the workflows
+  that do not run product jobs select no product jobs.
 - Workflow/tooling checks, license checks, and PR formatting checks run
   independently of product selection.
 
-When you change these filters, run `mise lint-actions` and inspect the
-**Select affected products** step in CI to confirm which paths selected jobs.
+A pull request that changes the workflow selects all jobs. Thus, its CI run
+cannot show a filter that selects too few jobs. When you change the filters
+or the selection rules, add a case to `tools/ci-selection.test.mjs`, then run
+`mise lint-actions` and `node --test tools/ci-selection.test.mjs`. When you
+add a version file to a `.sweet.yml` manifest, add it to the `non-release`
+filter. Inspect the **Select jobs** step in CI to see the selection of a run.
 
 ## Repository Tooling Tests
 
