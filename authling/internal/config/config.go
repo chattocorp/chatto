@@ -548,7 +548,7 @@ func validOIDCRedirectURI(raw string, issuer *url.URL) bool {
 }
 
 func validConventionalClientID(value string) bool {
-	if value == "" || value != strings.TrimSpace(value) || len(value) > 256 || strings.HasPrefix(strings.ToLower(value), "https://") || strings.HasPrefix(strings.ToLower(value), "http://") {
+	if value == "" || value != strings.TrimSpace(value) || len(value) > 256 || strings.HasPrefix(strings.ToLower(value), "https://") {
 		return false
 	}
 	for _, char := range value {

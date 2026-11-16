@@ -470,3 +470,26 @@ func TestCIMDClassifiesIPv4LiteralsAsIPv4(t *testing.T) {
 		t.Fatal("plain-HTTP lookup accepted a public IPv4 address")
 	}
 }
+
+// A configured client can use a loopback HTTP URL as its ID, as a local
+// relying party that also publishes CIMD does. Configuration takes
+// precedence, so Authling must not fetch that URL.
+func TestConfiguredLoopbackURLClientTakesPrecedenceOverCIMD(t *testing.T) {
+	fetches := 0
+	cimd := newCIMDTestResolver(t, func(request *http.Request) (*http.Response, error) {
+		fetches++
+		return cimdTestResponse(request, "max-age=60"), nil
+	})
+	id := "http://localhost:4000/oauth/client-metadata.json"
+	cfg := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Clients: []config.OIDCClientConfig{{ID: id, RedirectURIs: []string{"http://localhost:4000/callback"}}}}}
+	resolver := NewResolver(cfg, cimd)
+	for _, resolve := range []func(context.Context, string) (*Client, error){resolver.Resolve, resolver.ResolveForRefresh} {
+		client, err := resolve(t.Context(), id)
+		if err != nil || client.Source != ClientSourceConfigured {
+			t.Fatalf("configured loopback URL client = %+v, %v", client, err)
+		}
+	}
+	if fetches != 0 {
+		t.Fatal("configured client was fetched as CIMD")
+	}
+}
