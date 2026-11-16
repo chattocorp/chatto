@@ -61,6 +61,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         shell: python
         run: |
+          import json
           import os
           import pathlib
           import re
@@ -85,7 +86,12 @@ jobs:
               semver = rf"{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?"
               if not re.fullmatch(semver, tag) or len(tag) > 128:
                   raise SystemExit("Release version is not a supported SemVer image tag")
-              manifest = re.search(r"(?m)^version: ([^\r\n]+)$", pathlib.Path("authling/.sweet.yml").read_text()).group(1)
+              manifest_path = pathlib.Path("authling/.sweet.yml")
+              if manifest_path.exists():
+                  manifest = re.search(r"(?m)^version: ([^\r\n]+)$", manifest_path.read_text()).group(1)
+              else:
+                  # Existing release tags can predate the Sweet Release migration.
+                  manifest = json.loads(pathlib.Path(".release-please-manifest.json").read_text())["authling"]
               if tag != version or tag != manifest:
                   raise SystemExit("Release tag, version.go and release manifest must agree")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
