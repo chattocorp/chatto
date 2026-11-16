@@ -194,7 +194,7 @@ export const quickSwitcher = new QuickSwitcherState();
  * unmount the video DOM node, and immediately exit fullscreen. Instead, we
  * render a separate Vidstack player in a fixed overlay outside the list.
  *
- * No OS-level fullscreen is used — the overlay is a CSS full-viewport div.
+ * The overlay requests native fullscreen and falls back to a full-window view.
  */
 export type FullscreenVideoSource = {
   src: string;
