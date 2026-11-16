@@ -16,6 +16,7 @@ const { mocks } = vi.hoisted(() => ({
     activeStore: undefined as
       | {
           serverInfo: { motd: string };
+          currentUser: { user: { id: string } | null };
           voiceCall: { connected: boolean };
           attention: {
             counts: {
@@ -26,6 +27,10 @@ const { mocks } = vi.hoisted(() => ({
         }
       | undefined,
     authenticated: {} as Record<string, boolean>,
+    connections: {} as Record<
+      string,
+      { status: string; showConnectionLostIcon: boolean; showConnectionLostBanner: boolean }
+    >,
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -63,10 +68,12 @@ vi.mock('$lib/client', async () => ({
           : undefined
   },
   serverConnectionManager: {
-    originClient: {
-      showConnectionLostIcon: false,
-      showConnectionLostBanner: false
-    }
+    getClient: (id: string) =>
+      mocks.connections[id] ?? {
+        status: 'connected',
+        showConnectionLostIcon: false,
+        showConnectionLostBanner: false
+      }
   }
 }));
 
@@ -181,6 +188,67 @@ describe('AppHeader', () => {
     mocks.activeServer = '';
   });
 
+  describe('connection warning', () => {
+    const signedInStore = {
+      serverInfo: { motd: '' },
+      currentUser: { user: { id: 'viewer' } },
+      voiceCall: { connected: false },
+      attention: { counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 } }
+    };
+
+    function renderWithConnection(connection: (typeof mocks.connections)[string]) {
+      mocks.activeServer = 'remote';
+      mocks.servers = [{ id: 'remote' }];
+      mocks.activeStore = signedInStore;
+      mocks.connections = { remote: connection };
+      return render(AppHeader);
+    }
+
+    it('shows no warning while the active server connection is healthy', () => {
+      const { container } = renderWithConnection({
+        status: 'connected',
+        showConnectionLostIcon: false,
+        showConnectionLostBanner: false
+      });
+      expect(container.querySelector('[role="img"]')).toBeNull();
+    });
+
+    it('warns when the realtime connection of the active server failed', async () => {
+      const { getByRole } = renderWithConnection({
+        status: 'disconnected',
+        showConnectionLostIcon: true,
+        showConnectionLostBanner: false
+      });
+      const warning = getByRole('img', { name: 'Real-time updates paused. Reconnecting...' });
+      await expect.element(warning).toHaveClass('animate-pulse');
+    });
+
+    it('warns urgently when API requests fail while realtime stays connected', async () => {
+      const { getByRole } = renderWithConnection({
+        status: 'connected',
+        showConnectionLostIcon: true,
+        showConnectionLostBanner: true
+      });
+      const warning = getByRole('img', { name: 'Connection unavailable' });
+      await expect.element(warning).toHaveClass('text-warning');
+    });
+
+    it('shows no warning for a server without a signed-in user', () => {
+      mocks.activeServer = 'remote';
+      mocks.servers = [{ id: 'remote' }];
+      mocks.activeStore = { ...signedInStore, currentUser: { user: null } };
+      mocks.connections = {
+        remote: {
+          status: 'disconnected',
+          showConnectionLostIcon: true,
+          showConnectionLostBanner: true
+        }
+      };
+      const { container } = render(AppHeader);
+      expect(container.querySelector('[role="img"]')).toBeNull();
+    });
+  });
+
   it('keeps global notifications available when the origin is signed out', () => {
     mocks.activeServer = 'origin';
     mocks.servers = [{ id: 'origin' }, { id: 'remote' }];
@@ -216,6 +284,7 @@ describe('AppHeader', () => {
     mocks.activeServer = '';
     mocks.activeStore = undefined;
     mocks.authenticated = {};
+    mocks.connections = {};
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
   });
@@ -299,6 +368,7 @@ describe('AppHeader', () => {
         await empty.unmount();
         mocks.activeStore = {
           serverInfo: { motd },
+          currentUser: { user: null },
           voiceCall: { connected: false },
           attention: {
             counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }

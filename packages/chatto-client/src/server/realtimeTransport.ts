@@ -248,7 +248,7 @@ export class EventBusManager {
       // Going dormant is not an outcome. Keep a reported failure until an
       // attempt succeeds; a forced reconnect clears it before it gets here.
       serverConnection.setRealtimeConnectionStatus(
-        serverConnection.showConnectionLostIcon ? 'disconnected' : status
+        serverConnection.realtimeConnectionFailed ? 'disconnected' : status
       );
     };
 

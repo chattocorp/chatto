@@ -1,5 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { StaleResponseError } from '@chatto/client/api/connect';
+import { isNetworkError, StaleResponseError } from '@chatto/client/api/connect';
 import { m } from '$lib/i18n/messages';
 import { toast } from '$lib/ui/toast';
 
@@ -30,6 +30,7 @@ const SERVER_MESSAGE_CODES = new Set([
  */
 export function errorMessage(error: unknown, fallback: string = m('common.error.generic')): string {
   if (error instanceof ConnectError) {
+    if (isNetworkError(error)) return m('common.error.network');
     switch (error.code) {
       case Code.PermissionDenied:
         return m('common.error.permission_denied');
@@ -37,9 +38,6 @@ export function errorMessage(error: unknown, fallback: string = m('common.error.
         return m('common.error.not_found');
       case Code.Unauthenticated:
         return m('common.error.unauthenticated');
-      case Code.Unavailable:
-      case Code.DeadlineExceeded:
-        return m('common.error.network');
       case Code.Aborted:
         return m('common.error.conflict');
     }
