@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "تسطير",
+      "strikethrough": "يتوسطه خط",
       "bold": "جريئة",
       "italic": "مائل",
       "inline_code": "شفرة مضمنة",

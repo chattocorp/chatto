@@ -3725,7 +3725,8 @@ describe('MessageComposer', () => {
 
     it.each([
       { label: 'Bold', tag: 'strong', text: 'bold', markdown: '**bold**' },
-      { label: 'Underline', tag: 'u', text: 'underlined', markdown: '__underlined__' }
+      { label: 'Underline', tag: 'u', text: 'underlined', markdown: '__underlined__' },
+      { label: 'Strikethrough', tag: 's', text: 'deleted', markdown: '~~deleted~~' }
     ])(
       'posts markdown after the $label composer formatting button is applied',
       async ({ label, tag, text, markdown }) => {

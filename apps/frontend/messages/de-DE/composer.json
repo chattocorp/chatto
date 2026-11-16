@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Unterstrichen",
+      "strikethrough": "Durchgestrichen",
       "bold": "Fett",
       "italic": "Kursiv",
       "inline_code": "Inline-Code",

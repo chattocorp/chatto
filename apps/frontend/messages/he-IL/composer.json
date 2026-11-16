@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "קו תחתון",
+      "strikethrough": "קו חוצה",
       "bold": "מודגש",
       "italic": "נטוי",
       "inline_code": "קוד מוטבע",

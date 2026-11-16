@@ -11,6 +11,7 @@ const inlineDelimiters: Partial<Record<ComposerFormattingCommand, [string, strin
   bold: ['**', '**'],
   italic: ['*', '*'],
   underline: ['__', '__'],
+  strikethrough: ['~~', '~~'],
   inlineCode: ['`', '`']
 };
 
@@ -60,6 +61,7 @@ export function getSourceFormattingState(state: EditorState): ComposerFormatting
     bold,
     underline,
     italic: activeNames.has('Emphasis'),
+    strikethrough: activeNames.has('Strikethrough'),
     inlineCode: activeNames.has('InlineCode'),
     heading: [...activeNames].some((name) => /^ATXHeading[1-6]$/.test(name)),
     bulletList: activeNames.has('BulletList'),

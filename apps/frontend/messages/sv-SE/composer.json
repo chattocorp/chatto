@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Understruken",
+      "strikethrough": "Genomstruken",
       "bold": "Fet",
       "italic": "Kursiv",
       "inline_code": "Radkod",

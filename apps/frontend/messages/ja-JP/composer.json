@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "下線",
+      "strikethrough": "取り消し線",
       "bold": "太字",
       "italic": "斜体",
       "inline_code": "インラインコード",

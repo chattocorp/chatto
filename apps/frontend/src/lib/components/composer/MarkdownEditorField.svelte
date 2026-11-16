@@ -113,6 +113,7 @@ external value changes, such as a successful save, update the mounted editor.
     bold: false,
     italic: false,
     underline: false,
+    strikethrough: false,
     inlineCode: false,
     heading: false,
     bulletList: false,

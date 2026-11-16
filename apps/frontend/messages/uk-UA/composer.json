@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Підкреслення",
+      "strikethrough": "Закреслення",
       "bold": "Жирний",
       "italic": "Курсив",
       "inline_code": "Вбудований код",
