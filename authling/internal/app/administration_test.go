@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -62,8 +63,12 @@ func TestAdministrationAccessAndReplay(t *testing.T) {
 	request(h, "", http.StatusSeeOther)
 	request(h, ordinaryToken, http.StatusForbidden)
 	w := request(h, adminToken, http.StatusOK)
-	if !strings.Contains(w.Body.String(), "Via server configuration") || !strings.Contains(w.Body.String(), "ordinary@example.invalid") || strings.Contains(w.Body.String(), "<script>") {
+	if !strings.Contains(w.Body.String(), "Via server configuration") || !strings.Contains(w.Body.String(), "o•••@e•••.invalid") || !strings.Contains(w.Body.String(), "&lt;•••") || strings.Contains(w.Body.String(), "<script>") {
 		t.Fatal("directory content or escaping is incorrect")
+	}
+	// The directory shows only masked personal data.
+	if strings.Contains(w.Body.String(), "ordinary@example.invalid") || strings.Contains(w.Body.String(), "alert(1)") {
+		t.Fatal("directory shows verbatim personal data")
 	}
 	request(handler(), adminToken, http.StatusForbidden)
 	if err := runtime.Accounts.SetAdministrator(t.Context(), ordinary.ID, true); err != nil {
@@ -121,7 +126,7 @@ func TestAdministrationAccessAndReplay(t *testing.T) {
 	if _, err := runtime.Accounts.Administrator(t.Context(), ordinary.ID, nil); err != accounts.ErrInvalidCredentials {
 		t.Fatalf("erased admin: %v", err)
 	}
-	rows, _, err = runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: accounts.SortByEmail, Limit: 50}, nil)
+	rows, _, err = runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: accounts.SortByID, Limit: 50}, nil)
 	if err != nil || len(rows) != 1 || rows[0].ID != admin.ID {
 		t.Fatalf("erased account remains in directory: %v", err)
 	}
@@ -132,14 +137,14 @@ func TestAdministrationDirectorySort(t *testing.T) {
 	runtime, cancel, runErrors := startTestRuntime(t, cfg)
 	defer func() { stopTestRuntime(t, runtime, cancel, runErrors) }()
 	password := "a deliberately uncommon administrator password"
-	// Registration order differs from email, name, and access order.
+	// Registration order differs from access and ID order.
 	type fixture struct{ email, username, fullName string }
 	fixtures := []fixture{
 		{"charlie@example.invalid", "zed", ""},
 		{"alice@example.invalid", "alice", "Bravo Person"},
 		{"bob@example.invalid", "bob", "alpha person"},
 	}
-	ids := map[string]string{}
+	var registered []string
 	for _, f := range fixtures {
 		account, err := runtime.Accounts.CreateLocal(t.Context(), f.email, password)
 		if err != nil {
@@ -148,59 +153,68 @@ func TestAdministrationDirectorySort(t *testing.T) {
 		if _, err := runtime.Accounts.UpdateProfile(t.Context(), account.ID, f.username, f.fullName); err != nil {
 			t.Fatal(err)
 		}
-		ids[f.email] = account.ID
+		registered = append(registered, account.ID)
 	}
-	if err := runtime.Accounts.SetAdministrator(t.Context(), ids["bob@example.invalid"], true); err != nil {
+	charlie, alice, bob := registered[0], registered[1], registered[2]
+	if err := runtime.Accounts.SetAdministrator(t.Context(), bob, true); err != nil {
 		t.Fatal(err)
 	}
 	adminEmails := []string{"charlie@example.invalid"}
-	order := func(query accounts.DirectoryQuery) []string {
+	order := func(query accounts.DirectoryQuery) []accounts.RegisteredAccount {
 		t.Helper()
 		query.Limit = 50
 		rows, more, err := runtime.Accounts.RegisteredAccounts(t.Context(), query, adminEmails)
 		if err != nil || more {
 			t.Fatalf("directory: more=%v err=%v", more, err)
 		}
-		emails := make([]string, 0, len(rows))
-		for _, row := range rows {
-			emails = append(emails, row.Email)
-		}
-		return emails
+		return rows
 	}
 	expect := func(query accounts.DirectoryQuery, want ...string) {
 		t.Helper()
-		if got := order(query); strings.Join(got, ",") != strings.Join(want, ",") {
+		var got []string
+		for _, row := range order(query) {
+			got = append(got, row.ID)
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
 			t.Fatalf("%+v order = %v, want %v", query, got, want)
 		}
 	}
-	expect(accounts.DirectoryQuery{Sort: accounts.SortByEmail}, "alice@example.invalid", "bob@example.invalid", "charlie@example.invalid")
-	expect(accounts.DirectoryQuery{Sort: accounts.SortByEmail, Descending: true}, "charlie@example.invalid", "bob@example.invalid", "alice@example.invalid")
-	// Name falls back to the preferred username and ignores case.
-	expect(accounts.DirectoryQuery{Sort: accounts.SortByName}, "bob@example.invalid", "alice@example.invalid", "charlie@example.invalid")
-	expect(accounts.DirectoryQuery{Sort: accounts.SortByRegistered}, "charlie@example.invalid", "alice@example.invalid", "bob@example.invalid")
-	expect(accounts.DirectoryQuery{Sort: accounts.SortByRegistered, Descending: true}, "bob@example.invalid", "alice@example.invalid", "charlie@example.invalid")
+	expect(accounts.DirectoryQuery{Sort: accounts.SortByRegistered}, charlie, alice, bob)
+	expect(accounts.DirectoryQuery{Sort: accounts.SortByRegistered, Descending: true}, bob, alice, charlie)
+	ids := slices.Sorted(slices.Values(registered))
+	expect(accounts.DirectoryQuery{Sort: accounts.SortByID}, ids...)
 	// Stored and configured administrators come first; ID breaks the tie.
-	admins := order(accounts.DirectoryQuery{Sort: accounts.SortByAccess})
-	if admins[2] != "alice@example.invalid" {
-		t.Fatalf("access order = %v", admins)
+	if rows := order(accounts.DirectoryQuery{Sort: accounts.SortByAccess}); rows[2].ID != alice {
+		t.Fatalf("access order = %v", rows)
 	}
-	if got := order(accounts.DirectoryQuery{Sort: accounts.SortByAccess, Descending: true}); got[0] != "alice@example.invalid" {
-		t.Fatalf("descending access order = %v", got)
+	if rows := order(accounts.DirectoryQuery{Sort: accounts.SortByAccess, Descending: true}); rows[0].ID != alice {
+		t.Fatalf("descending access order = %v", rows)
+	}
+	// Rows contain masked hints only. Name uses the preferred username when
+	// the account has no full name.
+	hints := map[string]string{}
+	for _, row := range order(accounts.DirectoryQuery{Sort: accounts.SortByRegistered}) {
+		hints[row.ID] = row.EmailHint + " " + row.NameHint
+	}
+	if hints[charlie] != "c•••@e•••.invalid z•••" || hints[alice] != "a•••@e•••.invalid B•••" || hints[bob] != "b•••@e•••.invalid a•••" {
+		t.Fatalf("hints = %v", hints)
 	}
 	// Pages slice the sorted directory.
-	page, more, err := runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: accounts.SortByEmail, Offset: 1, Limit: 1}, adminEmails)
-	if err != nil || !more || len(page) != 1 || page[0].Email != "bob@example.invalid" {
+	page, more, err := runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: accounts.SortByRegistered, Offset: 1, Limit: 1}, adminEmails)
+	if err != nil || !more || len(page) != 1 || page[0].ID != alice {
 		t.Fatalf("sorted page: %v", err)
 	}
-	page, more, err = runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: accounts.SortByEmail, Offset: 3, Limit: 1}, adminEmails)
+	page, more, err = runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: accounts.SortByRegistered, Offset: 3, Limit: 1}, adminEmails)
 	if err != nil || more || len(page) != 0 {
 		t.Fatalf("page past the end: %v", err)
 	}
-	if _, _, err := runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: "password", Limit: 1}, adminEmails); err == nil {
-		t.Fatal("unknown sort accepted")
+	for _, sort := range []accounts.DirectorySort{"password", "email", "name"} {
+		if _, _, err := runtime.Accounts.RegisteredAccounts(t.Context(), accounts.DirectoryQuery{Sort: sort, Limit: 1}, adminEmails); err == nil {
+			t.Fatalf("sort %q accepted", sort)
+		}
 	}
 
-	token, _, err := runtime.Sessions.Create(t.Context(), ids["charlie@example.invalid"])
+	token, _, err := runtime.Sessions.Create(t.Context(), charlie)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,17 +230,23 @@ func TestAdministrationDirectorySort(t *testing.T) {
 		}
 		return w.Body.String()
 	}
-	for _, target := range []string{"/admin?sort=password", "/admin?order=up", "/admin?page=0", "/admin?page=x", "/admin?page=1000001"} {
+	for _, target := range []string{"/admin?sort=password", "/admin?sort=email", "/admin?sort=name", "/admin?order=up", "/admin?page=0", "/admin?page=x", "/admin?page=1000001"} {
 		get(target, http.StatusBadRequest)
 	}
-	body := get("/admin?sort=email", http.StatusOK)
-	// The header also shows the signed-in email, so inspect only the rows.
+	body := get("/admin?sort=registered&order=asc", http.StatusOK)
+	// The header shows the signed-in administrator's own email, so inspect
+	// only the rows.
 	rows := body[strings.Index(body, "<tbody>"):]
-	if strings.Index(rows, "alice@example.invalid") > strings.Index(rows, "charlie@example.invalid") {
+	if strings.Index(rows, "account-"+charlie) > strings.Index(rows, "account-"+bob) {
 		t.Fatal("rendered directory ignores the sort")
 	}
-	// The current column reverses its order; another column uses its default.
-	if !strings.Contains(body, `aria-sort="ascending"`) || !strings.Contains(body, `href="/admin?order=desc&amp;sort=email"`) || !strings.Contains(body, `href="/admin"`) {
+	for _, private := range []string{"@example.invalid", "Bravo Person", "alpha person", "zed"} {
+		if strings.Contains(rows, private) {
+			t.Fatalf("directory shows verbatim personal data")
+		}
+	}
+	// The current column reverses its order; masked columns cannot sort.
+	if !strings.Contains(body, `aria-sort="ascending"`) || !strings.Contains(body, `href="/admin"`) || strings.Contains(body, "sort=email") || strings.Contains(body, "sort=name") {
 		t.Fatal("sort links are incorrect")
 	}
 	if strings.Contains(body, "Load more users") {
@@ -239,12 +259,12 @@ func TestAdministrationDirectorySort(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	body = get("/admin?sort=email", http.StatusOK)
-	if strings.Count(body, `class="whitespace-nowrap"`) != 50 || !strings.Contains(body, `hx-get="/admin?page=2&amp;sort=email"`) || !strings.Contains(body, `href="/admin?page=2&amp;sort=email"`) || strings.Contains(body, "First page") {
+	body = get("/admin?sort=id", http.StatusOK)
+	if strings.Count(body, `class="whitespace-nowrap"`) != 50 || !strings.Contains(body, `hx-get="/admin?page=2&amp;sort=id"`) || !strings.Contains(body, `href="/admin?page=2&amp;sort=id"`) || strings.Contains(body, "First page") {
 		t.Fatal("first page does not offer the next page")
 	}
-	body = get("/admin?sort=email&page=2", http.StatusOK)
-	if strings.Count(body, `class="whitespace-nowrap"`) != 1 || strings.Contains(body, "Load more users") || !strings.Contains(body, `href="/admin?sort=email"`) {
+	body = get("/admin?sort=id&page=2", http.StatusOK)
+	if strings.Count(body, `class="whitespace-nowrap"`) != 1 || strings.Contains(body, "Load more users") || !strings.Contains(body, `href="/admin?sort=id"`) {
 		t.Fatal("last page is incorrect")
 	}
 }

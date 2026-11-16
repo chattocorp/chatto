@@ -13,17 +13,22 @@ email override. There are no roles, groups, or configurable permissions.
 ## Behavior
 
 - An administrator sees an Administration link in the account-page header.
-- The directory shows verified email, profile names, account ID, registration
-  time, and the source of administrator access. The directory loads 50 users
+- The directory shows a masked email, a masked name, account ID, registration
+  time, and the source of administrator access. It never shows a verbatim
+  email address or profile name. The masked email keeps the first character of
+  the local part and of the domain name, and the top-level domain, for example
+  `a•••@e•••.com`. The masked name keeps the first character of the full name,
+  or of the preferred username if there is no full name. The mask length is
+  fixed and does not show the length of the value.
+- The directory loads 50 users
   at a time. When the end of the table scrolls into view, the next 50 users
   load below it. Without JavaScript, a link at the end of the table opens the
   next 50 users.
-- Each column header sorts the directory. The first page shows the newest
-  registrations first. Select a header to sort by that column; select it again
-  to reverse the order. Registration starts with the newest, other columns in
-  ascending order. Email and name sorting ignore case. The name column uses the
-  full name, or the preferred username if there is no full name. Access sorting
-  puts administrators first. Account ID breaks ties.
+- The Access, Registered, and Account ID headers sort the directory. The first
+  page shows the newest registrations first. Select a header to sort by that
+  column; select it again to reverse the order. Registration starts with the
+  newest, other columns in ascending order. Access sorting puts administrators
+  first. Account ID breaks ties. Email and name do not sort.
 - The sort, order, and page number are URL query parameters. The URL contains
   no personal data. Unknown values return an error.
 - The directory uses one compact line per user. Account IDs are truncated in
@@ -64,26 +69,31 @@ email override. There are no roles, groups, or configurable permissions.
 **Why:** Operators need an access path that browser-managed flags cannot remove.
 **Tradeoff:** Operators must protect the listed mailboxes and maintain the list.
 
+### Mask personal data
+
+**Decision:** The directory shows masked emails and names, and does not sort
+by them.
+**Why:** Administrators browse many accounts; they need to recognize a user,
+not read personal data. Sorting by a hidden value shows its alphabetical order.
+**Tradeoff:** Administrators cannot find a user by email or name in the
+directory. A later control can show the data after additional verification.
+
 ### Page numbers instead of cursors
 
 **Decision:** The directory uses page numbers, not cursors.
-**Why:** A cursor for email or name order would put personal data in the URL.
+**Why:** One page parameter works for every sort order and contains no
+personal data.
 **Tradeoff:** Registrations and deletions while an administrator scrolls
 shift later pages. The browser drops loaded rows for users that already show.
 A user can be skipped when an account is deleted until the page reloads.
-
-### Sort encrypted columns on request
-
-**Decision:** Email and name sorting decrypt that field for every account on
-each request. Other sorts decrypt only the selected page.
-**Why:** Authling stores no plaintext or order-revealing index of personal data.
-**Tradeoff:** Email and name sorting cost increases with the number of accounts.
 
 ## Open questions
 
 - Before adding flag-editing actions, define recent-authentication checks,
   last-administrator protection, and an audit record of the acting administrator.
 - User suspension and account edits remain future work.
+- Define which administrators can show unmasked user data, the additional
+  verification they need, and the audit record of each disclosure.
 
 ## Related
 

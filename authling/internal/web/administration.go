@@ -58,8 +58,8 @@ func parseDirectoryView(query url.Values) (directoryView, bool) {
 	return view, true
 }
 
-// defaultDescending puts the newest registrations first; text columns and
-// access start in ascending order.
+// defaultDescending puts the newest registrations first; other columns start
+// in ascending order.
 func defaultDescending(sort accounts.DirectorySort) bool {
 	return sort == accounts.SortByRegistered
 }
