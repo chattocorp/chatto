@@ -149,10 +149,10 @@ Existing CIMD deployments must opt in on upgrade. Restart all replicas with
 the same policy; the setting does not migrate or delete accounts or grants.
 It is not a general token or relying-party session revocation mechanism.
 
-When enabled, an unconfigured HTTPS URL client ID is resolved as a Client ID
+When enabled, an unconfigured URL client ID is resolved as a Client ID
 Metadata Document. It must describe that exact client ID, public token authentication,
 one or more safe redirect URIs, and Authorization Code with optional refresh-token support. Fetches
-are HTTPS-only, do not follow redirects, reject special-use destinations except
+use HTTPS except for loopback development, do not follow redirects, reject special-use destinations except
 for the development cases below, ignore proxy configuration, and have strict
 concurrency, response-size, timeout, and cache bounds. Invalid responses are
 never cached.
@@ -178,8 +178,7 @@ Ingress rate limits remain a separate control for aggregate request traffic.
 Special-use destinations are rejected by default. An issuer with a loopback
 hostname permits loopback CIMD destinations for local development. Other
 issuers require explicit trust for exact loopback hostnames. Operators may also
-trust exact private hostnames in controlled development environments. CIMD
-URLs still require HTTPS. Private-host and loopback-host trust are
+trust exact private hostnames in controlled development environments. A CIMD URL must use HTTPS, or plain HTTP on a loopback host for local development. A plain-HTTP fetch must resolve only to loopback addresses. Private-host and loopback-host trust are
 separate exceptions, and each admits only its named address class. Neither
 permits link-local, multicast, or other special-use destinations.
 

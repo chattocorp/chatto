@@ -371,7 +371,7 @@ func (c Config) Validate() error {
 		problems = append(problems, "http.public_url must be an absolute HTTP(S) origin without credentials, paths, queries, or fragments")
 	} else if publicURL.Scheme == "http" {
 		bindHost, _, bindErr := net.SplitHostPort(c.HTTP.BindAddressOrDefault())
-		if bindErr != nil || !isLoopbackHost(bindHost) || !isLoopbackHost(publicURL.Hostname()) {
+		if bindErr != nil || !IsLoopbackHost(bindHost) || !IsLoopbackHost(publicURL.Hostname()) {
 			problems = append(problems, "http.public_url may use plain HTTP only when both the public URL and listener are loopback")
 		}
 	}
@@ -544,11 +544,11 @@ func validOIDCRedirectURI(raw string, issuer *url.URL) bool {
 	if parsed.Scheme == "https" {
 		return true
 	}
-	return parsed.Scheme == "http" && issuer != nil && isLoopbackHost(issuer.Hostname()) && isLoopbackHost(parsed.Hostname())
+	return parsed.Scheme == "http" && issuer != nil && IsLoopbackHost(issuer.Hostname()) && IsLoopbackHost(parsed.Hostname())
 }
 
 func validConventionalClientID(value string) bool {
-	if value == "" || value != strings.TrimSpace(value) || len(value) > 256 || strings.HasPrefix(strings.ToLower(value), "https://") {
+	if value == "" || value != strings.TrimSpace(value) || len(value) > 256 || strings.HasPrefix(strings.ToLower(value), "https://") || strings.HasPrefix(strings.ToLower(value), "http://") {
 		return false
 	}
 	for _, char := range value {
@@ -559,12 +559,12 @@ func validConventionalClientID(value string) bool {
 	return true
 }
 
-// isLoopbackHost reports whether host is a loopback IP address, localhost, or
+// IsLoopbackHost reports whether host is a loopback IP address, localhost, or
 // a well-formed name beneath the special-use .localhost domain. RFC 6761
 // reserves .localhost names for loopback, and browsers resolve them without
 // DNS. Named loopback hosts give concurrent local development stacks separate
 // cookie scopes while keeping plain HTTP restricted to the local machine.
-func isLoopbackHost(host string) bool {
+func IsLoopbackHost(host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
 	if host == "localhost" {
 		return true
@@ -648,5 +648,5 @@ func (c OIDCConfig) parseRefreshReuseGrace() (time.Duration, error) {
 // Queries and fragments are excluded to keep secrets and personal data out of identifiers.
 func ValidResource(raw string, development bool) bool {
 	u, err := url.Parse(raw)
-	return err == nil && len(raw) <= 2048 && u.Hostname() != "" && u.User == nil && !u.ForceQuery && u.RawQuery == "" && u.Fragment == "" && !strings.Contains(raw, "#") && (u.Scheme == "https" || development && u.Scheme == "http" && isLoopbackHost(u.Hostname()))
+	return err == nil && len(raw) <= 2048 && u.Hostname() != "" && u.User == nil && !u.ForceQuery && u.RawQuery == "" && u.Fragment == "" && !strings.Contains(raw, "#") && (u.Scheme == "https" || development && u.Scheme == "http" && IsLoopbackHost(u.Hostname()))
 }

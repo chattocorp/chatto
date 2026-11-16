@@ -161,7 +161,7 @@ func (r *Resolver) Resolve(ctx context.Context, clientID string) (*Client, error
 	if r.reservedResources[clientID] {
 		return nil, clientNotFoundError{}
 	}
-	if strings.HasPrefix(strings.ToLower(clientID), "https://") && r.cimd != nil {
+	if isCIMDClientID(clientID) && r.cimd != nil {
 		return r.cimd.Resolve(ctx, clientID)
 	}
 	return nil, clientNotFoundError{clientID: clientID}
@@ -176,7 +176,7 @@ func (r *Resolver) ResolveForRefresh(ctx context.Context, clientID string) (*Cli
 	if _, ok := r.configured[clientID]; ok || r.reservedResources[clientID] {
 		return r.Resolve(ctx, clientID)
 	}
-	if r.cimd == nil || !strings.HasPrefix(strings.ToLower(clientID), "https://") {
+	if r.cimd == nil || !isCIMDClientID(clientID) {
 		return nil, clientNotFoundError{clientID: clientID}
 	}
 	if _, err := validateClientIdentifierURL(clientID); err != nil {
@@ -235,4 +235,11 @@ func cloneClaims(claims map[string][]string) map[string][]string {
 // without configuration validation. A client secret alone does not opt out.
 func (c *Client) requiresPKCE() bool {
 	return !(c.AllowWithoutPKCE && c.Source == ClientSourceConfigured && c.Method == liboidc.AuthMethodBasic && c.Secret != "")
+}
+
+// isCIMDClientID reports whether a client identifier has the URL form of a
+// CIMD client. validateClientIdentifierURL checks the complete syntax.
+func isCIMDClientID(clientID string) bool {
+	lower := strings.ToLower(clientID)
+	return strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://")
 }

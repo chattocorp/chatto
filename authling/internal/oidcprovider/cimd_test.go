@@ -393,3 +393,61 @@ func TestCheckGrantCapacity(t *testing.T) {
 		}
 	}
 }
+
+func TestCIMDAcceptsPlainHTTPOnlyOnLoopbackHosts(t *testing.T) {
+	for _, raw := range []string{"http://localhost:4000/client.json", "http://127.0.0.1/client.json", "http://[::1]:8080/client.json", "http://chatto.localhost/oauth/client.json"} {
+		if _, err := validateClientIdentifierURL(raw); err != nil {
+			t.Fatalf("loopback client identifier %q was rejected: %v", raw, err)
+		}
+	}
+	if !isCIMDClientID("HTTP://localhost/client.json") || isCIMDClientID("chatto-web") {
+		t.Fatal("CIMD client identifier form was not recognized")
+	}
+}
+
+func TestCIMDPlainHTTPRequiresLoopbackAddresses(t *testing.T) {
+	loopbackOnly := context.WithValue(t.Context(), cimdLoopbackOnlyContextKey{}, true)
+	trustedPrivate := map[string]struct{}{"10.0.0.1": {}}
+	if _, err := resolveCIMDAddresses(t.Context(), "10.0.0.1", true, trustedPrivate, nil); err != nil {
+		t.Fatalf("HTTPS lookup of a trusted private address: %v", err)
+	}
+	if _, err := resolveCIMDAddresses(loopbackOnly, "10.0.0.1", true, trustedPrivate, nil); err == nil {
+		t.Fatal("plain-HTTP lookup accepted a non-loopback address")
+	}
+	if _, err := resolveCIMDAddresses(loopbackOnly, "127.0.0.1", true, nil, nil); err != nil {
+		t.Fatalf("plain-HTTP lookup of a loopback address: %v", err)
+	}
+	if _, err := resolveCIMDAddresses(loopbackOnly, "127.0.0.1", false, nil, nil); err == nil {
+		t.Fatal("plain-HTTP lookup bypassed the loopback destination policy")
+	}
+}
+
+func TestCIMDResolvesPlainHTTPDocumentOnLoopback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		origin := "http://" + r.Host
+		_, _ = fmt.Fprintf(w, `{"client_id":%q,"client_uri":%q,"redirect_uris":[%q],"token_endpoint_auth_method":"none"}`, origin+r.URL.Path, origin+"/", origin+"/callback")
+	}))
+	defer server.Close()
+	clientID := server.URL + "/client.json"
+
+	resolver, err := NewCIMDResolver("http://localhost:8090", nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := resolver.Resolve(t.Context(), clientID)
+	if err != nil {
+		t.Fatalf("loopback plain-HTTP CIMD: %v", err)
+	}
+	if !client.Development || len(client.Redirects) != 1 || client.Redirects[0] != server.URL+"/callback" {
+		t.Fatalf("resolved client = %+v", client)
+	}
+
+	production, err := NewCIMDResolver("https://auth.example", nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := production.Resolve(t.Context(), clientID); err == nil {
+		t.Fatal("non-loopback issuer fetched a loopback plain-HTTP CIMD document")
+	}
+}

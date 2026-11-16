@@ -60,7 +60,7 @@ Special-use CIMD destinations remain denied by default. An issuer with a
 loopback hostname permits loopback CIMD destinations for local development.
 Other issuers require explicit trust for exact loopback hostnames. Operators
 may also explicitly trust exact private hostnames for controlled development
-environments. CIMD document URLs still require HTTPS.
+environments. A CIMD URL must use HTTPS, or plain HTTP on a loopback host for local development. A plain-HTTP fetch must resolve only to loopback addresses.
 Private-host and loopback-host trust are separate capabilities, and each
 permits only its named address class. Link-local, multicast, and all other
 special-use destinations stay blocked.
