@@ -32,12 +32,12 @@ _.file = '.env'
 GOFLAGS = "{{env.GOFLAGS | default(value='')}} -trimpath"
 CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # The development stack uses the workspace port block. The base is
-# `CONDUCTOR_PORT`, or 4000 outside Conductor. Conductor gives each workspace
-# ten ports. Tasks and scripts use these names, not offsets.
-CHATTO_DEV_PORT_BASE = "{% if env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
+# `GEORDI_PORT`, then `CONDUCTOR_PORT`, or 4000 outside these tools.
+# Each workspace needs ten ports. Tasks and scripts use these names, not offsets.
+CHATTO_DEV_PORT_BASE = "{% if env.GEORDI_PORT | default(value='') != '' %}{{env.GEORDI_PORT}}{% elif env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
 # Chatto with its embedded frontend (`mise dev`).
 # Keep override inputs separate from resolved values inherited by nested mise.
-# Paseo supplies the overrides; Conductor can still select a new port block.
+# Paseo supplies the overrides; Geordi and Conductor select port blocks.
 CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
@@ -58,13 +58,13 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # Browser-facing development services use `<service>.<workspace>.localhost`.
 # These names resolve to loopback without DNS or /etc/hosts changes. They also
 # give concurrent workspaces separate cookie scopes, because cookies ignore ports.
-# In Conductor, the label is `ws` followed by the Conductor port. Conductor
+# In Geordi and Conductor, the label is `ws` followed by the base port. Conductor
 # preview URLs in .conductor/settings.toml can expand the port, but not the
 # workspace name or ID. The port is different for each concurrent workspace
-# and does not change when a workspace is renamed. Outside Conductor, the
+# and does not change when a workspace is renamed. Outside these tools, the
 # label is `local`. The label must be a valid DNS label, and it keys the
 # Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
-CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
+CHATTO_DEV_WORKSPACE = "{% if env.GEORDI_PORT | default(value='') != '' %}{% set default_workspace = 'ws' ~ env.GEORDI_PORT %}{% elif env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
 CHATTO_DEV_CHATTO_URL = "{{env.CHATTO_DEV_CHATTO_URL_OVERRIDE | default(value='http://chatto.' ~ env.CHATTO_DEV_WORKSPACE ~ '.localhost:' ~ env.CHATTO_DEV_CHATTO_PORT)}}"
 CHATTO_DEV_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL_OVERRIDE | default(value='ws://localhost:' ~ env.CHATTO_DEV_LIVEKIT_PORT)}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
