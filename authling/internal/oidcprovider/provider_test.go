@@ -331,6 +331,9 @@ func TestValidateCIMDEnforcesPublicCodeClientProfile(t *testing.T) {
 		{"client secret", func(d *cimdDocument) { d.TokenEndpointAuthMethod = "client_secret_basic" }},
 		{"redirect fragment", func(d *cimdDocument) { d.RedirectURIs = []string{"https://client.example/callback#stolen"} }},
 		{"redirect downgrade", func(d *cimdDocument) { d.RedirectURIs = []string{"http://client.example/callback"} }},
+		// Configured clients may register loopback HTTP redirects on any issuer.
+		// Self-asserted CIMD clients may not, unless the issuer is loopback.
+		{"loopback redirect downgrade", func(d *cimdDocument) { d.RedirectURIs = []string{"http://localhost:5173/callback"} }},
 		{"implicit grant", func(d *cimdDocument) { d.GrantTypes = []string{"implicit"} }},
 		{"foreign client URI", func(d *cimdDocument) { d.ClientURI = "https://attacker.example/" }},
 		{"client URI downgrade", func(d *cimdDocument) { d.ClientURI = "http://client.example/" }},
