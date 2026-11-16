@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 )
 
@@ -35,6 +36,11 @@ var errCIMDBusy = errors.New("CIMD resolver busy")
 // cimdLookupContextKey carries the lookup context through net/http, which
 // detaches dial cancellation but preserves context values for connection reuse.
 type cimdLookupContextKey struct{}
+
+// cimdLoopbackOnlyContextKey marks a plain-HTTP lookup. Every resolved
+// address must then be loopback, so an unencrypted fetch never leaves the
+// local machine, also when DNS for a loopback-looking name points elsewhere.
+type cimdLoopbackOnlyContextKey struct{}
 
 type cimdDocument struct {
 	ClientID                string   `json:"client_id"`
@@ -72,7 +78,7 @@ func NewCIMDResolver(issuer string, client *http.Client, trustedPrivateHosts, tr
 	if err != nil {
 		return nil, err
 	}
-	allowLoopback := isLoopbackHost(parsed.Hostname())
+	allowLoopback := config.IsLoopbackHost(parsed.Hostname())
 	trustedHosts := make(map[string]struct{}, len(trustedPrivateHosts))
 	for _, host := range trustedPrivateHosts {
 		trustedHosts[normalizeCIMDHost(host)] = struct{}{}
@@ -128,6 +134,9 @@ func (r *CIMDResolver) Resolve(ctx context.Context, clientID string) (*Client, e
 	}
 	if cached, ok := r.cached(clientID); ok {
 		return cached, nil
+	}
+	if parsed.Scheme == "http" {
+		ctx = context.WithValue(ctx, cimdLoopbackOnlyContextKey{}, true)
 	}
 
 	select {
@@ -225,12 +234,16 @@ func (r *CIMDResolver) removeExpiredLocked(now time.Time) {
 	}
 }
 
+// validateClientIdentifierURL checks the syntax of a CIMD client identifier.
+// It must be an HTTPS URL, or a plain-HTTP URL on a loopback host for local
+// development. The destination check still decides whether a loopback fetch
+// is permitted, and restricts plain-HTTP fetches to loopback addresses.
 func validateClientIdentifierURL(raw string) (*url.URL, error) {
 	if len(raw) > 2048 {
 		return nil, fmt.Errorf("invalid CIMD client identifier URL")
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Path == "" || parsed.Path == "/" || parsed.RawQuery != "" || parsed.Fragment != "" {
+	if err != nil || !(parsed.Scheme == "https" || parsed.Scheme == "http" && config.IsLoopbackHost(parsed.Hostname())) || parsed.Host == "" || parsed.User != nil || parsed.Path == "" || parsed.Path == "/" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return nil, fmt.Errorf("invalid CIMD client identifier URL")
 	}
 	for _, segment := range strings.Split(strings.TrimPrefix(parsed.EscapedPath(), "/"), "/") {
@@ -262,7 +275,7 @@ func validateCIMD(clientID string, identifier *url.URL, document cimdDocument, a
 		}
 		seen[raw] = struct{}{}
 		redirect, err := url.Parse(raw)
-		if err != nil || redirect.Host == "" || redirect.User != nil || redirect.Fragment != "" || (redirect.Scheme != "https" && !(allowLoopback && redirect.Scheme == "http" && isLoopbackHost(redirect.Hostname()))) {
+		if err != nil || redirect.Host == "" || redirect.User != nil || redirect.Fragment != "" || (redirect.Scheme != "https" && !(allowLoopback && redirect.Scheme == "http" && config.IsLoopbackHost(redirect.Hostname()))) {
 			return nil, fmt.Errorf("CIMD contains an invalid redirect URI")
 		}
 	}
@@ -274,7 +287,7 @@ func validateCIMD(clientID string, identifier *url.URL, document cimdDocument, a
 	}
 	if document.ClientURI != "" {
 		clientURI, err := url.Parse(document.ClientURI)
-		if err != nil || clientURI.Scheme != "https" || clientURI.Host == "" || !strings.EqualFold(clientURI.Host, identifier.Host) {
+		if err != nil || clientURI.Scheme != identifier.Scheme || clientURI.Host == "" || !strings.EqualFold(clientURI.Host, identifier.Host) {
 			return nil, fmt.Errorf("CIMD client_uri must share the client identifier origin")
 		}
 	}
@@ -376,9 +389,19 @@ func resolveCIMDAddresses(ctx context.Context, host string, allowLoopback bool, 
 	if err != nil || len(addresses) == 0 {
 		return nil, fmt.Errorf("resolve CIMD destination")
 	}
+	// The resolver returns IPv4 literals in IPv4-mapped IPv6 form. Unmap every
+	// address so the IPv4 classification applies. A mapped private, loopback,
+	// or special-use address is still blocked after unmapping.
+	for index, address := range addresses {
+		addresses[index] = address.Unmap()
+	}
 	_, trustPrivate := trustedPrivateHosts[normalizeCIMDHost(host)]
 	_, trustLoopback := trustedLoopbackHosts[normalizeCIMDHost(host)]
+	loopbackOnly, _ := ctx.Value(cimdLoopbackOnlyContextKey{}).(bool)
 	for _, address := range addresses {
+		if loopbackOnly && !address.IsLoopback() {
+			return nil, fmt.Errorf("plain-HTTP CIMD destination resolves to a non-loopback address")
+		}
 		if !cimdAddressAllowed(address, allowLoopback, trustPrivate, trustLoopback) {
 			return nil, fmt.Errorf("CIMD destination resolves to a special-use address")
 		}
@@ -425,14 +448,6 @@ var specialUsePrefixes = []netip.Prefix{
 	netip.MustParsePrefix("2001:db8::/32"), netip.MustParsePrefix("2002::/16"),
 	netip.MustParsePrefix("2620:4f:8000::/48"), netip.MustParsePrefix("3fff::/20"),
 	netip.MustParsePrefix("5f00::/16"),
-}
-
-func isLoopbackHost(host string) bool {
-	if strings.EqualFold(host, "localhost") {
-		return true
-	}
-	address, err := netip.ParseAddr(host)
-	return err == nil && address.IsLoopback()
 }
 
 // maxCIMDClientName is the byte limit of a CIMD client_name.

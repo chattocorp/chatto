@@ -143,8 +143,7 @@ Configured clients are independent of this setting. HTTPS redirects are mandator
 separate, exact-host development exceptions. They permit named CIMD hosts to
 resolve only to private or loopback addresses respectively; neither permits
 other special-use destinations. An issuer with a loopback hostname also permits
-loopback CIMD destinations without an explicit trusted-host entry. CIMD URLs
-still require HTTPS.
+loopback CIMD destinations without an explicit trusted-host entry. A CIMD URL must use HTTPS, or plain HTTP on a loopback host for local development. A plain-HTTP fetch must resolve only to loopback addresses.
 
 Operators must select exactly one NATS mode:
 

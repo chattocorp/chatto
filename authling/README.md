@@ -451,8 +451,12 @@ equivalent environment variables are
 named address class. Link-local, multicast, and all other special-use
 destinations remain blocked.
 
-Redirect matching is exact. Production redirects require HTTPS; loopback HTTP
-is accepted only when Authling itself is in loopback development mode. The
+Redirect matching is exact, including the port. A configured client's
+redirect URIs must use HTTPS, or plain HTTP on a loopback host (`localhost`,
+`*.localhost`, `127.0.0.0/8`, or `[::1]`) on any issuer. This lets a local
+development server sign in against a production issuer. CIMD clients get
+loopback HTTP redirects only when Authling itself is in loopback development
+mode. The
 configured `http.public_url` becomes the deployment's immutable issuer after
 first startup. Reusing its data directory with another public URL fails
 readiness deliberately.
