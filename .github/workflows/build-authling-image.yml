@@ -31,10 +31,15 @@ on:
       - '!**/CHANGELOG.md'
       - '!**/.sweet/**'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing Authling release tag to build (for example authling/v0.1.0-alpha.3); empty builds the selected ref'
+        required: false
+        type: string
 
 concurrency:
   # Release builds share a group because they all update the latest tag.
-  group: authling-image-${{ startsWith(github.ref, 'refs/tags/authling/v') && 'latest' || github.ref }}
+  group: authling-image-${{ (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/authling/v')) && 'latest' || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -48,8 +53,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - name: Resolve image metadata
         id: metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         shell: python
         run: |
           import os
@@ -60,7 +69,8 @@ jobs:
           sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
           source = pathlib.Path("authling/version.go").read_text()
           version = re.search(r'const Version = "([^"]+)"', source).group(1)
-          ref = os.environ["GITHUB_REF"]
+          release_tag = os.environ.get("RELEASE_TAG", "")
+          ref = f"refs/tags/{release_tag}" if release_tag else os.environ["GITHUB_REF"]
           tag = sha
           stream_tag = "dev" if ref == "refs/heads/main" else ""
           if ref.startswith("refs/tags/"):
