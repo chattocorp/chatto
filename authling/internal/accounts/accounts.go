@@ -746,12 +746,6 @@ func (s *Service) Profile(ctx context.Context, accountID string) (Profile, error
 	if err := s.RequireActive(ctx, accountID); err != nil {
 		return Profile{}, err
 	}
-	return s.decryptProfile(ctx, accountID)
-}
-
-// decryptProfile decrypts the projected profile without the active-account
-// check. Callers must check account state, or tolerate a just-erased account.
-func (s *Service) decryptProfile(ctx context.Context, accountID string) (Profile, error) {
 	s.handle.Projection().RLock()
 	profile, ok := s.handle.Projection().profiles[accountID]
 	s.handle.Projection().RUnlock()

@@ -68,9 +68,9 @@ state denies access. Staged email changes cannot grant the email override.
 
 The `sort`, `order`, and `page` query parameters select the directory order
 and a page of at most 50 rows. Access, registration, and account ID orders use
-projected state and decrypt only the selected page. Email and name orders
-decrypt that field for every projected account on each request, then decrypt
-the rows of the selected page. The last row of a page that has more rows
+projected state; only the rows of the selected page are decrypted. The account
+service masks each row's email and name before it returns the row, so the web
+layer and the HTML receive no verbatim personal data. The last row of a page that has more rows
 links to the next page. The browser script loads that page when the row
 scrolls into view and appends its rows in place of the link. Each protected read checks the account's durable
 boundary. Erased accounts are omitted; other read errors fail the page. The

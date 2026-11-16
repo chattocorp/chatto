@@ -139,20 +139,17 @@ test('limits the user directory to administrators and renders it on small screen
     await expect(headers.nth(index)).toHaveAccessibleName(label);
   }
   const emails = table.getByRole('rowheader');
-  // Newest registrations come first by default.
+  // Newest registrations come first by default. Emails are masked.
   await expect(headers.nth(3)).toHaveAttribute('aria-sort', 'descending');
-  await expect(emails).toHaveText(['administrator@example.invalid', 'ordinary@example.invalid']);
-  await table.getByRole('link', { name: 'Email', exact: true }).click();
-  await expect(page).toHaveURL(`${stack.baseURL}/admin?sort=email`);
-  await expect(headers.nth(0)).toHaveAttribute('aria-sort', 'ascending');
-  await expect(headers.nth(3)).not.toHaveAttribute('aria-sort');
-  await expect(emails).toHaveText(['administrator@example.invalid', 'ordinary@example.invalid']);
-  await table.getByRole('link', { name: 'Email', exact: true }).click();
-  await expect(headers.nth(0)).toHaveAttribute('aria-sort', 'descending');
-  await expect(emails).toHaveText(['ordinary@example.invalid', 'administrator@example.invalid']);
-  await expect(table.getByRole('rowheader', { name: /ordinary@example.invalid/ })).toBeVisible();
+  await expect(emails).toHaveText(['a•••@e•••.invalid', 'o•••@e•••.invalid']);
+  await expect(table.getByText('ordinary@example.invalid')).toHaveCount(0);
+  await expect(table.getByRole('link', { name: 'Email', exact: true })).toHaveCount(0);
+  await table.getByRole('link', { name: 'Registered', exact: true }).click();
+  await expect(page).toHaveURL(`${stack.baseURL}/admin?order=asc`);
+  await expect(headers.nth(3)).toHaveAttribute('aria-sort', 'ascending');
+  await expect(emails).toHaveText(['o•••@e•••.invalid', 'a•••@e•••.invalid']);
   await expect(table.getByTitle('Via server configuration', { exact: true })).toBeVisible();
-  const row = table.getByRole('row').filter({ hasText: 'ordinary@example.invalid' });
+  const row = table.getByRole('row').filter({ hasText: 'o•••@e•••.invalid' });
   await expect(row.locator('code')).toBeVisible();
   for (const userRow of await table.locator('tbody tr').all()) {
     expect((await userRow.boundingBox())!.height).toBeLessThanOrEqual(56);

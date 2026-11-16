@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/chattocorp/chatto/authling/internal/ids"
 	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
@@ -95,24 +96,25 @@ func (s *Service) SetAdministrator(ctx context.Context, id string, enabled bool)
 	return fmt.Errorf("administrator change conflict")
 }
 
-// RegisteredAccount contains protected display data for the administrator list.
-// It must not be logged or returned to unauthenticated or ordinary accounts.
+// RegisteredAccount is one row of the administrator directory. EmailHint and
+// NameHint are masked: the directory must not show verbatim personal data. It
+// must not be logged or returned to unauthenticated or ordinary accounts.
 type RegisteredAccount struct {
 	Account
-	Email   string
-	Profile Profile
-	Access  AdministratorAccess
+	// EmailHint keeps the first character of the local part and of the domain
+	// name, and the top-level domain, for example "a•••@e•••.com".
+	EmailHint string
+	// NameHint keeps the first character of the full name, or of the preferred
+	// username if there is no full name. It is empty if both are empty.
+	NameHint string
+	Access   AdministratorAccess
 }
 
-// DirectorySort selects the column that orders the account directory.
+// DirectorySort selects the column that orders the account directory. Masked
+// columns are not sortable: their order would reveal the hidden values.
 type DirectorySort string
 
 const (
-	// SortByEmail orders by case-folded verified email.
-	SortByEmail DirectorySort = "email"
-	// SortByName orders by case-folded full name, or preferred username when
-	// the account has no full name. This is the name the directory displays.
-	SortByName DirectorySort = "name"
 	// SortByAccess puts administrators before users in ascending order.
 	SortByAccess DirectorySort = "access"
 	// SortByRegistered orders by account creation time.
@@ -124,7 +126,7 @@ const (
 // Valid reports whether the sort is a known directory column.
 func (s DirectorySort) Valid() bool {
 	switch s {
-	case SortByEmail, SortByName, SortByAccess, SortByRegistered, SortByID:
+	case SortByAccess, SortByRegistered, SortByID:
 		return true
 	}
 	return false
@@ -142,10 +144,9 @@ type DirectoryQuery struct {
 
 // RegisteredAccounts returns at most query.Limit active accounts and reports
 // whether more accounts follow. Callers must authorize administrator access
-// first. Access, registration, and ID orders decrypt only the selected page.
-// Email and name orders must decrypt that field for every account on each
-// request. Accounts erased during the read are omitted; storage failures fail
-// the whole page.
+// first. It sorts projected state and decrypts only the selected page.
+// Accounts erased during the read are omitted; storage failures fail the whole
+// page.
 func (s *Service) RegisteredAccounts(ctx context.Context, query DirectoryQuery, adminEmails []string) ([]RegisteredAccount, bool, error) {
 	if query.Limit < 1 || query.Limit > 100 {
 		return nil, false, fmt.Errorf("invalid account page size")
@@ -159,7 +160,6 @@ func (s *Service) RegisteredAccounts(ctx context.Context, query DirectoryQuery, 
 	type entry struct {
 		account Account
 		admin   bool
-		key     string
 	}
 	p := s.handle.Projection()
 	p.RLock()
@@ -169,26 +169,9 @@ func (s *Service) RegisteredAccounts(ctx context.Context, query DirectoryQuery, 
 		entries = append(entries, entry{account: account, admin: account.IsAdministrator || p.configuredAdministrator(id, digests)})
 	}
 	p.RUnlock()
-	if query.Sort == SortByEmail || query.Sort == SortByName {
-		kept := entries[:0]
-		for _, e := range entries {
-			key, err := s.directorySortKey(ctx, query.Sort, e.account.ID)
-			if errors.Is(err, ErrInvalidCredentials) {
-				continue
-			}
-			if err != nil {
-				return nil, false, err
-			}
-			e.key = key
-			kept = append(kept, e)
-		}
-		entries = kept
-	}
 	slices.SortFunc(entries, func(a, b entry) int {
 		c := 0
 		switch query.Sort {
-		case SortByEmail, SortByName:
-			c = strings.Compare(a.key, b.key)
 		case SortByAccess:
 			c = compareBool(b.admin, a.admin)
 		case SortByRegistered:
@@ -221,28 +204,7 @@ func (s *Service) RegisteredAccounts(ctx context.Context, query DirectoryQuery, 
 	return rows, more, nil
 }
 
-// directorySortKey decrypts the case-folded email or display name that orders
-// one directory entry. It returns ErrInvalidCredentials for an erased account.
-func (s *Service) directorySortKey(ctx context.Context, sort DirectorySort, id string) (string, error) {
-	if sort == SortByEmail {
-		credential, ok := s.handle.Projection().credentialForAccount(id)
-		if !ok {
-			return "", ErrInvalidCredentials
-		}
-		email, err := s.decryptCredentialEmail(ctx, credential)
-		return strings.ToLower(email), err
-	}
-	profile, err := s.decryptProfile(ctx, id)
-	if err != nil {
-		return "", err
-	}
-	if profile.FullName != "" {
-		return strings.ToLower(profile.FullName), nil
-	}
-	return strings.ToLower(profile.PreferredUsername), nil
-}
-
-// registeredAccount loads and decrypts one directory row.
+// registeredAccount loads one directory row and masks its personal data.
 func (s *Service) registeredAccount(ctx context.Context, id string, adminEmails []string) (RegisteredAccount, error) {
 	email, err := s.EmailAddress(ctx, id)
 	if err != nil {
@@ -260,7 +222,34 @@ func (s *Service) registeredAccount(ctx context.Context, id string, adminEmails 
 	if !ok {
 		return RegisteredAccount{}, ErrInvalidCredentials
 	}
-	return RegisteredAccount{Account: account, Email: email, Profile: profile, Access: access}, nil
+	name := profile.FullName
+	if name == "" {
+		name = profile.PreferredUsername
+	}
+	return RegisteredAccount{Account: account, EmailHint: maskEmail(email), NameHint: maskText(name), Access: access}, nil
+}
+
+// maskText keeps only the first character. A fixed mask hides the length.
+func maskText(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	if size == 0 {
+		return ""
+	}
+	return string(r) + "•••"
+}
+
+// maskEmail masks the local part and the domain name, and keeps the top-level
+// domain: "alice@example.com" becomes "a•••@e•••.com".
+func maskEmail(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at < 0 {
+		return maskText(email)
+	}
+	local, domain := email[:at], email[at+1:]
+	if dot := strings.LastIndex(domain, "."); dot > 0 {
+		return maskText(local) + "@" + maskText(domain[:dot]) + domain[dot:]
+	}
+	return maskText(local) + "@" + maskText(domain)
 }
 
 // compareBool orders false before true.

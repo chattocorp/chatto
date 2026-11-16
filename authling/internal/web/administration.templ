@@ -13,8 +13,8 @@ templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, c
 			}
 			<div class="mt-6">
 				@ui.SortableDataTable("Registered users", []ui.Column{
-					view.column("Email", accounts.SortByEmail),
-					view.column("Name", accounts.SortByName),
+					{Label: "Email"},
+					{Label: "Name"},
 					view.column("Access", accounts.SortByAccess),
 					view.column("Registered", accounts.SortByRegistered),
 					view.column("Account ID", accounts.SortByID),
@@ -24,14 +24,8 @@ templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, c
 					}
 					for _, row := range rows {
 						<tr id={ "account-" + row.ID } class="whitespace-nowrap">
-							<th scope="row" class="font-medium">{ row.Email }</th>
-							<td title={ row.Profile.PreferredUsername }>
-								if row.Profile.FullName != "" {
-									{ row.Profile.FullName }
-								} else {
-									{ row.Profile.PreferredUsername }
-								}
-							</td>
+							<th scope="row" class="font-medium">{ row.EmailHint }</th>
+							<td>{ row.NameHint }</td>
 							<td>
 								if row.Access.Allowed() {
 									if row.Access.Configured {
