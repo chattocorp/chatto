@@ -29,17 +29,23 @@ test('requires a terminal result and blocks later actions', async () => {
   });
   await expect(call('Second summary')).rejects.toThrow('already completed');
 });
-test.each(['', 'x'.repeat(401), 'First paragraph\nSecond paragraph'])(
-  'rejects invalid channel text',
-  async (summary) => {
-    const { call, response } = await setup();
-    await expect(call(summary)).rejects.toThrow('single-paragraph');
-    expect(() => response.result()).toThrow();
-  }
-);
+test.each(['', 'x'.repeat(401)])('rejects invalid channel text', async (summary) => {
+  const { call, response } = await setup();
+  await expect(call(summary)).rejects.toThrow('short Markdown');
+  expect(() => response.result()).toThrow();
+});
 test('rejects excessive details and cancellation', async () => {
   const { call, controller } = await setup();
   await expect(call('Summary', 'x'.repeat(4001))).rejects.toThrow();
   controller.abort();
   await expect(call('Summary')).rejects.toThrow();
+});
+
+test('preserves a compact Markdown heading and summary within the existing limit', async () => {
+  const { call, response } = await setup();
+  const summary =
+    '**Landed on `main` · Authling**\n\nThe admin user directory now supports sorting and infinite scroll.';
+  await call(summary);
+  expect(response.result().summary).toBe(summary);
+  expect(response.result().summary.length).toBeLessThanOrEqual(400);
 });

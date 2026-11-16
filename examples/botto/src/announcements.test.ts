@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { parseAnnouncements } from './announcement-settings.ts';
 import { AnnouncementStore } from './announcement-store.ts';
-import { parsePush } from './announcement-webhook.ts';
-import { deliverAnnouncement } from './announcements.ts';
+import { parseGitHubWebhook } from './announcement-webhook.ts';
+import { announcementLink, deliverAnnouncement } from './announcements.ts';
 
 const config = {
   repository: 'chattocorp/chatto',
@@ -51,12 +51,17 @@ function ledger() {
 
 test('requires the exact signed bytes before parsing malformed JSON', () => {
   const { body, headers } = signed(payload);
-  expect(parsePush(body, headers, config)).toEqual({ push, deliveryId: 'delivery-1' });
-  expect(() => parsePush(Buffer.from('{'), headers, config)).toThrow(
+  expect(parseGitHubWebhook(body, headers, config)).toEqual({
+    event: push,
+    deliveryId: 'delivery-1'
+  });
+  expect(() => parseGitHubWebhook(Buffer.from('{'), headers, config)).toThrow(
     expect.objectContaining({ status: 401 })
   );
-  expect(() => parsePush(body, {}, config)).toThrow(expect.objectContaining({ status: 401 }));
-  expect(() => parsePush(body, headers, { ...config, secret: 'wrong' })).toThrow(
+  expect(() => parseGitHubWebhook(body, {}, config)).toThrow(
+    expect.objectContaining({ status: 401 })
+  );
+  expect(() => parseGitHubWebhook(body, headers, { ...config, secret: 'wrong' })).toThrow(
     expect.objectContaining({ status: 401 })
   );
 });
@@ -67,7 +72,7 @@ test('filters signed pushes by repository and branch and ignores deletions', () 
     { deleted: true }
   ]) {
     const { body, headers } = signed({ ...payload, ...change });
-    expect(parsePush(body, headers, config)).toBeUndefined();
+    expect(parseGitHubWebhook(body, headers, config)).toBeUndefined();
   }
 });
 test('bounds commit input and excludes author fields', () => {
@@ -79,10 +84,11 @@ test('bounds commit input and excludes author fields', () => {
       author: { email: 'private@example.test' }
     }))
   });
-  const result = parsePush(body, headers, config)!;
-  expect(result.push.commits).toHaveLength(50);
-  expect(result.push.truncated).toBe(true);
-  expect(result.push.commits[0]).toEqual({ id: push.after, message: 'x'.repeat(2000) });
+  const result = parseGitHubWebhook(body, headers, config)!;
+  if ('kind' in result.event) throw new Error('Expected a push');
+  expect(result.event.commits).toHaveLength(50);
+  expect(result.event.truncated).toBe(true);
+  expect(result.event.commits[0]).toEqual({ id: push.after, message: 'x'.repeat(2000) });
 });
 test('disabled configuration allows missing secrets; enabled configuration validates them', () => {
   const github = {
@@ -135,7 +141,7 @@ test('persists independent root and reply receipts, then suppresses repeated del
   await deliverAnnouncement(store, key, compose, post, 'link');
   await deliverAnnouncement(store, key, compose, post, 'link');
   expect(post.mock.calls).toEqual([
-    ['Summary\n\nlink', expect.any(String), ''],
+    ['Summary link', expect.any(String), ''],
     ['Details', expect.any(String), 'root-1']
   ]);
   expect(post.mock.calls[0]![1]).not.toBe(post.mock.calls[1]![1]);
@@ -255,7 +261,7 @@ test('HTTP receiver persists valid requests, rejects invalid signatures and over
   const { store } = ledger();
   const controller = new AbortController();
   const server = createServer((req, res) => {
-    void receiveWebhook(req, res, config, store, controller.signal);
+    void receiveWebhook(req, res, { ...config, releases: true }, store, controller.signal);
   });
   try {
     await new Promise<void>((resolve, reject) => {
@@ -277,6 +283,12 @@ test('HTTP receiver persists valid requests, rejects invalid signatures and over
       ).status
     ).toBe(202);
     expect(store.queued).toHaveLength(1);
+    const release = released();
+    expect((await fetch(url, { method: 'POST', ...release })).status).toBe(202);
+    expect(store.queued).toHaveLength(2);
+    expect(store.get(store.queued[1]!)?.release).toMatchObject({ id: 123, kind: 'release' });
+    expect((await fetch(url, { method: 'POST', ...release })).status).toBe(202);
+    expect(store.queued).toHaveLength(2);
     expect((await fetch(url, { method: 'POST', body })).status).toBe(401);
     expect((await fetch(url, { method: 'POST', body: Buffer.alloc(1024 * 1024 + 1) })).status).toBe(
       413
@@ -288,4 +300,185 @@ test('HTTP receiver persists valid requests, rejects invalid signatures and over
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+});
+
+const releasePayload = {
+  action: 'published',
+  repository: { full_name: config.repository },
+  release: {
+    id: 123,
+    tag_name: 'authling/v1.2.0',
+    name: 'Authling 1.2.0',
+    body: 'New sign-in options.',
+    draft: false,
+    prerelease: false,
+    published_at: '2026-11-16T10:00:00Z',
+    target_commitish: 'release-branch',
+    html_url: 'https://untrusted.invalid',
+    author: { email: 'private@example.test' }
+  }
+};
+function released(value: unknown = releasePayload) {
+  const { body, headers } = signed(value);
+  return { body, headers: { ...headers, 'x-github-event': 'release' } };
+}
+function parseRelease(value: unknown = releasePayload) {
+  const { body, headers } = released(value);
+  return parseGitHubWebhook(body, headers, { ...config, releases: true });
+}
+
+test('release events require opt-in, valid signatures and matching repositories', () => {
+  const { body, headers } = released();
+  expect(parseGitHubWebhook(body, headers, config)).toBeUndefined();
+  expect(() =>
+    parseGitHubWebhook(Buffer.from('{'), headers, { ...config, releases: true })
+  ).toThrow(expect.objectContaining({ status: 401 }));
+  expect(
+    parseRelease({ ...releasePayload, repository: { full_name: 'other/repo' } })
+  ).toBeUndefined();
+  for (const action of ['created', 'edited', 'deleted', 'unpublished', 'prereleased']) {
+    expect(parseRelease({ ...releasePayload, action })).toBeUndefined();
+  }
+  expect(
+    parseRelease({ ...releasePayload, release: { ...releasePayload.release, draft: true } })
+  ).toBeUndefined();
+});
+
+test('accepts published prereleases and stable releases regardless of push branch', () => {
+  for (const prerelease of [true, false]) {
+    const event = parseRelease({
+      ...releasePayload,
+      release: { ...releasePayload.release, prerelease }
+    })!.event;
+    expect(event).toEqual({
+      kind: 'release',
+      id: 123,
+      tag: 'authling/v1.2.0',
+      name: 'Authling 1.2.0',
+      body: 'New sign-in options.',
+      prerelease,
+      publishedAt: '2026-11-16T10:00:00Z',
+      truncated: false
+    });
+    expect(announcementLink(config.repository, event)).toBe(
+      '[Release notes](https://github.com/chattocorp/chatto/releases/tag/authling%2Fv1.2.0)'
+    );
+  }
+  expect(parseRelease({ ...releasePayload, action: 'released' })).toBeDefined();
+  expect(
+    parseRelease({
+      ...releasePayload,
+      action: 'released',
+      release: { ...releasePayload.release, prerelease: true }
+    })
+  ).toBeUndefined();
+  const malformed = [
+    { id: 0 },
+    { id: 1.5 },
+    { tag_name: '' },
+    { tag_name: 'tag\nname' },
+    { body: [] },
+    { published_at: 'invalid' },
+    { draft: undefined },
+    { prerelease: 'false' }
+  ];
+  for (const change of malformed) {
+    expect(() =>
+      parseRelease({ ...releasePayload, release: { ...releasePayload.release, ...change } })
+    ).toThrow(expect.objectContaining({ status: 400 }));
+  }
+  expect(
+    parseRelease({
+      ...releasePayload,
+      release: { ...releasePayload.release, body: null, name: null }
+    })!.event
+  ).toMatchObject({ body: '', name: '' });
+  expect(
+    parseRelease({
+      ...releasePayload,
+      release: { ...releasePayload.release, body: 'a'.repeat(20001) }
+    })!.event
+  ).toMatchObject({ body: 'a'.repeat(20000), truncated: true });
+});
+
+test('release receipts survive restart, deduplicate publication stages, and deliver one root and reply', async () => {
+  const { directory, store } = ledger();
+  const pre = parseRelease({
+    ...releasePayload,
+    release: { ...releasePayload.release, prerelease: true }
+  })!.event;
+  const stable = parseRelease()!.event;
+  expect(store.accept(pre, 'pre')).toBe(true);
+  expect(store.accept(pre, 'replay')).toBe(false);
+  expect(store.accept(stable, 'stable')).toBe(true);
+  expect(store.accept(push, 'push')).toBe(true);
+  const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
+  expect(
+    restored.accept(parseRelease({ ...releasePayload, action: 'released' })!.event, 'released')
+  ).toBe(false);
+  expect(
+    restored.accept(
+      parseRelease({
+        ...releasePayload,
+        release: { ...releasePayload.release, body: 'Edited notes' }
+      })!.event,
+      'edit'
+    )
+  ).toBe(false);
+  const key = restored.queued[1]!;
+  const compose = vi.fn(async () => ({
+    summary: '**🚀 Released:** Authling 1.2.0 adds sign-in options.',
+    details: '**Highlights**\n- More sign-in options.'
+  }));
+  const post = vi.fn(async () => ({ id: 'root' }));
+  await deliverAnnouncement(
+    restored,
+    key,
+    compose,
+    post,
+    announcementLink(config.repository, stable)
+  );
+  expect(compose).toHaveBeenCalledWith(stable);
+  expect(post.mock.calls).toHaveLength(2);
+  expect(post).toHaveBeenNthCalledWith(
+    1,
+    '**🚀 Released:** Authling 1.2.0 adds sign-in options. [Release notes](https://github.com/chattocorp/chatto/releases/tag/authling%2Fv1.2.0)',
+    expect.any(String),
+    ''
+  );
+  expect(post).toHaveBeenNthCalledWith(
+    2,
+    '**Highlights**\n- More sign-in options.',
+    expect.any(String),
+    'root'
+  );
+  await deliverAnnouncement(restored, key, compose, post, 'unused');
+  expect(post).toHaveBeenCalledTimes(2);
+});
+
+test('skipped announcements post nothing and remain terminal across restart and redelivery', async () => {
+  const { directory, store } = ledger();
+  store.accept(push, 'original');
+  const key = store.queued[0]!;
+  const compose = vi.fn(async () => null);
+  const post = vi.fn(async () => ({ id: 'must-not-post' }));
+  await deliverAnnouncement(store, key, compose, post, 'link');
+  expect(store.get(key)?.status).toBe('skipped');
+  expect(store.queued).toEqual([]);
+  expect(store.uncertain).toBe(0);
+  const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
+  expect(restored.accept(push, 'redelivery')).toBe(false);
+  expect(restored.queued).toEqual([]);
+  await deliverAnnouncement(restored, key, compose, post, 'link');
+  expect(compose).toHaveBeenCalledTimes(1);
+  expect(post).not.toHaveBeenCalled();
+  expect(() => restored.prepare(key, 'Must not post')).toThrow();
+});
+
+test('prepared announcements cannot change to a skip on retry', () => {
+  const { store } = ledger();
+  store.accept(push, 'original');
+  const key = store.queued[0]!;
+  store.prepare(key, 'Saved summary', 'Saved reply');
+  expect(() => store.skip(key)).toThrow('after preparation');
 });

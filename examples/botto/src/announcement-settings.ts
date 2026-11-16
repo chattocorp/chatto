@@ -2,9 +2,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { TunnelSettings } from './tunnel.ts';
+import type { ChangeFilter } from './announcement-filter.ts';
 import { expandEnvironment } from './environment.ts';
 
 export interface AnnouncementSettings {
+  /** Optional deterministic push filter, evaluated before agent startup. */
+  changeFilter?: ChangeFilter;
   repository: string;
   branch: string;
   roomId: string;
@@ -15,6 +18,10 @@ export interface AnnouncementSettings {
   tunnel?: TunnelSettings;
   /** Operator-owned writing instructions, loaded from prompt_file at configuration time. */
   prompt?: string;
+  /** Opt in to published releases independently of the push branch filter. */
+  releases?: boolean;
+  /** Separate writing instructions for release events. */
+  releasePrompt?: string;
   /** Explicit MCP connections for this session; admin tools are never enabled. */
   mcpServers?: string[];
 }
@@ -27,7 +34,7 @@ export function parseAnnouncements(
 ): AnnouncementSettings | undefined {
   const fail = (): never => {
     throw new Error(
-      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, and mcp_servers.'
+      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, required_changed_path, and GitHub App credentials.'
     );
   };
   const table = (v: unknown): Record<string, unknown> => {
@@ -52,7 +59,13 @@ export function parseAnnouncements(
           'cloudflared_command',
           'cloudflare_tunnel_token',
           'prompt_file',
-          'mcp_servers'
+          'releases',
+          'release_prompt_file',
+          'mcp_servers',
+          'required_changed_path',
+          'github_app_id',
+          'github_installation_id',
+          'github_private_key_path'
         ].includes(k)
     )
   )
@@ -80,6 +93,16 @@ export function parseAnnouncements(
       mcpServers.some((name) => typeof name !== 'string' || !/^[a-z][a-z0-9_]*$/.test(name)))
   )
     return fail();
+  if (config.releases !== undefined && typeof config.releases !== 'boolean') return fail();
+  let releasePrompt: string | undefined;
+  if (config.release_prompt_file !== undefined) {
+    try {
+      releasePrompt = readFileSync(resolve(directory, text('release_prompt_file')), 'utf8').trim();
+    } catch {
+      return fail();
+    }
+    if (!releasePrompt) return fail();
+  }
   let prompt: string | undefined;
   if (config.prompt_file !== undefined) {
     try {
@@ -88,6 +111,24 @@ export function parseAnnouncements(
       return fail();
     }
     if (!prompt) return fail();
+  }
+  let changeFilter: ChangeFilter | undefined;
+  if (config.required_changed_path !== undefined) {
+    const pattern = text('required_changed_path');
+    try {
+      new RegExp(pattern);
+    } catch {
+      return fail();
+    }
+    const appId = text('github_app_id');
+    const installationId = text('github_installation_id');
+    if (!/^[0-9]+$/.test(appId) || !/^[0-9]+$/.test(installationId)) return fail();
+    changeFilter = {
+      pattern,
+      appId,
+      installationId,
+      privateKeyPath: resolve(directory, text('github_private_key_path'))
+    };
   }
   const repository = text('repository');
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return fail();
@@ -99,7 +140,10 @@ export function parseAnnouncements(
   const secret = text('webhook_secret');
   if (secret.length < 32) return fail();
   return {
+    ...(changeFilter ? { changeFilter } : {}),
     ...(prompt ? { prompt } : {}),
+    ...(config.releases !== undefined ? { releases: config.releases as boolean } : {}),
+    ...(releasePrompt ? { releasePrompt } : {}),
     ...(mcpServers ? { mcpServers: [...new Set(mcpServers as string[])] } : {}),
     repository,
     branch,

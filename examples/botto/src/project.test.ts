@@ -25,7 +25,7 @@ test(
       expect(config.workflows?.bottoConversation?.name).toBe('Botto conversation');
       expect(config.sources?.chatto).toBeTypeOf('function');
       expect(config.sources?.githubAnnouncements).toBeTypeOf('function');
-      expect(config.workflows?.githubAnnouncement?.name).toBe('GitHub commit announcement');
+      expect(config.workflows?.githubAnnouncement?.name).toBe('GitHub announcement');
       expect(config.webhooks).toEqual({});
       expect(process.env.RUNLING_DATA_DIRECTORY).toBe(join(directory, 'private/runling'));
       expect(process.umask()).toBe(0o077);

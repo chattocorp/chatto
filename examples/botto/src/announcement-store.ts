@@ -9,10 +9,26 @@ export interface PushSummary {
   commits: Array<{ id: string; message: string }>;
   truncated: boolean;
 }
-export interface Announcement {
-  push: PushSummary;
+/** Bounded release evidence from a signed GitHub webhook. */
+export interface ReleaseSummary {
+  kind: 'release';
+  id: number;
+  tag: string;
+  name: string;
+  body: string;
+  prerelease: boolean;
+  publishedAt: string;
+  truncated: boolean;
+}
+
+/** Pushes retain their original shape so existing receipts remain readable. */
+export type AnnouncementEvent = PushSummary | ReleaseSummary;
+export type Announcement = AnnouncementReceipt &
+  ({ push: PushSummary; release?: never } | { release: ReleaseSummary; push?: never });
+
+interface AnnouncementReceipt {
   deliveryId: string;
-  status: 'queued' | 'sending' | 'sent';
+  status: 'queued' | 'sending' | 'sent' | 'skipped';
   /** Stable caller UUID and exact body are persisted before the external write. */
   idempotencyKey: string;
   body?: string;
@@ -46,12 +62,25 @@ export class AnnouncementStore {
         const r = entry as Announcement;
         if (
           !/^[a-f0-9]{64}$/.test(key) ||
-          !r.push ||
-          typeof r.push.after !== 'string' ||
-          !Array.isArray(r.push.commits) ||
+          (!r.push && !r.release) ||
+          (r.push !== undefined &&
+            (r.release !== undefined ||
+              typeof r.push.after !== 'string' ||
+              !Array.isArray(r.push.commits))) ||
+          (r.release !== undefined &&
+            (r.release.kind !== 'release' ||
+              !Number.isSafeInteger(r.release.id) ||
+              r.release.id <= 0 ||
+              typeof r.release.tag !== 'string' ||
+              typeof r.release.body !== 'string' ||
+              typeof r.release.name !== 'string' ||
+              typeof r.release.prerelease !== 'boolean' ||
+              typeof r.release.publishedAt !== 'string' ||
+              typeof r.release.truncated !== 'boolean')) ||
           typeof r.idempotencyKey !== 'string' ||
-          !['queued', 'sending', 'sent'].includes(r.status) ||
-          (r.status !== 'queued' && typeof r.body !== 'string') ||
+          !['queued', 'sending', 'sent', 'skipped'].includes(r.status) ||
+          ((r.status === 'sending' || r.status === 'sent') && typeof r.body !== 'string') ||
+          (r.status === 'skipped' && (r.body !== undefined || r.detailsStatus !== undefined)) ||
           (r.detailsStatus !== undefined &&
             (!['queued', 'sending', 'sent'].includes(r.detailsStatus) ||
               typeof r.detailsBody !== 'string' ||
@@ -71,16 +100,26 @@ export class AnnouncementStore {
       this.save(this.records);
     }
   }
-  /** Bind deduplication to signed push facts, not the unsigned delivery header. */
-  accept(push: PushSummary, deliveryId: string): boolean {
+  /** Deduplicate signed push boundaries or release ID and stage, never delivery headers. */
+  accept(event: AnnouncementEvent, deliveryId: string): boolean {
+    const release = 'kind' in event;
     const key = createHash('sha256')
-      .update(JSON.stringify([push.before, push.after]))
+      .update(
+        JSON.stringify(
+          release ? ['release', event.id, event.prerelease] : [event.before, event.after]
+        )
+      )
       .digest('hex');
     if (this.records[key]) return false;
     if (this.queued.length >= 1000) throw new Error('Announcement queue full');
     this.save({
       ...this.records,
-      [key]: { push, deliveryId, status: 'queued', idempotencyKey: randomUUID() }
+      [key]: {
+        ...(release ? { release: event } : { push: event }),
+        deliveryId,
+        status: 'queued',
+        idempotencyKey: randomUUID()
+      }
     });
     return true;
   }
@@ -97,6 +136,13 @@ export class AnnouncementStore {
   }
   get(key: string): Announcement | undefined {
     return this.records[key];
+  }
+  /** Retain a terminal no-post decision so replay and restart cannot requeue it. */
+  skip(key: string): void {
+    const record = this.records[key];
+    if (!record || record.status !== 'queued' || record.body !== undefined)
+      throw new Error('Announcement cannot be skipped after preparation.');
+    this.save({ ...this.records, [key]: { ...record, status: 'skipped' } });
   }
   prepare(key: string, body: string, details?: string): void {
     const record = this.records[key];

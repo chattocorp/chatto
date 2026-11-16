@@ -13,7 +13,9 @@ export function announcementResponse(signal: AbortSignal) {
   let draft: AnnouncementDraft | undefined;
   const extension: ExtensionFactory = (pi) => {
     pi.on('tool_call', () =>
-      draft ? { block: true, reason: 'The announcement is complete.', terminate: true } : undefined
+      draft !== undefined
+        ? { block: true, reason: 'The announcement is complete.', terminate: true }
+        : undefined
     );
     pi.registerTool({
       name: 'finish_announcement',
@@ -26,7 +28,7 @@ export function announcementResponse(signal: AbortSignal) {
             minLength: 1,
             maxLength: 400,
             description:
-              'One short paragraph, ideally 25–40 words. No headings, lists, links, or line breaks.'
+              'Brief Markdown for the channel, up to 400 characters including formatting. Follow the configured prompt; put detailed explanation in the thread.'
           }),
           details: Type.String({
             minLength: 1,
@@ -39,18 +41,12 @@ export function announcementResponse(signal: AbortSignal) {
       ),
       async execute(_id, value) {
         signal.throwIfAborted();
-        if (draft) throw new Error('Announcement already completed.');
+        if (draft !== undefined) throw new Error('Announcement already completed.');
         const summary = value.summary.trim(),
           details = value.details.trim();
-        if (
-          !summary ||
-          summary.length > 400 ||
-          /[\r\n]/.test(summary) ||
-          !details ||
-          details.length > 4000
-        )
+        if (!summary || summary.length > 400 || !details || details.length > 4000)
           throw new Error(
-            'Provide a single-paragraph summary up to 400 characters and details up to 4000 characters.'
+            'Provide a short Markdown summary up to 400 characters and details up to 4000 characters.'
           );
         draft = { summary, details };
         return {
@@ -70,7 +66,7 @@ export function announcementResponse(signal: AbortSignal) {
     extension,
     result(): AnnouncementDraft {
       signal.throwIfAborted();
-      if (!draft) throw new Error('Agent did not finish the announcement.');
+      if (draft === undefined) throw new Error('Agent did not finish the announcement.');
       return draft;
     }
   };

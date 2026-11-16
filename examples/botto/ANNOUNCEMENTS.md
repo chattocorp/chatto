@@ -1,7 +1,7 @@
-# GitHub commit announcements
+# GitHub announcements
 
 Botto can post a short root message to a configured Chatto room after a GitHub
-push, then add details as a thread reply.
+push or published release, then add details as a thread reply.
 The operator selects one repository, branch, and destination. This configuration
 is permission to post announcements for matching pushes. Conversation participants
 cannot select another destination or use Chatto MCP write tools.
@@ -29,7 +29,8 @@ Restart Botto after configuration changes.
 Route a public HTTPS endpoint to `POST /github` on the configured host and port.
 Use a TLS reverse proxy or a tunnel. Do not expose the Runling console for this
 purpose. Configure a GitHub repository webhook with that URL, JSON content type,
-the same secret, and the **push** event. Keep SSL verification enabled.
+the same secret, and the **push** event. For releases, also subscribe to the
+**release** event in the webhook or GitHub App settings. Keep SSL verification enabled.
 The listener supports GitHub's signed ping request.
 
 The listener verifies the SHA-256 signature over the original request bytes.
@@ -37,6 +38,43 @@ It accepts bodies up to 1 MiB. Only matching repository and branch pushes enter
 the queue. Branch deletions and unchanged heads do not produce announcements.
 A successful response is `202`; the queue is saved before this response.
 Retry failed webhook deliveries through GitHub after the listener is available.
+
+## Release announcements
+
+Release announcements are opt-in. Add these fields to the existing
+`[announcements.github]` table:
+
+```toml
+releases = true
+release_prompt_file = "prompts/release-announcement.md"
+```
+
+Releases use the same endpoint, secret, repository, room, and selected MCP
+connections as push announcements. No new port or tunnel route is needed.
+The listener accepts `published` for stable releases and prereleases, and
+`released` for stable releases. Drafts and other actions, including edits,
+deletions, and unpublishing, do not produce posts. The push branch filter still
+applies to pushes; releases are selected by repository, not by their
+`target_commitish` field.
+
+The signed release ID and prerelease status identify each announcement.
+Repeated deliveries and the published/released pair create only one post.
+Promotion from prerelease to stable can create one new stable announcement.
+An edit or a repeated publication at the same stage does not create a new post.
+
+The agent receives the tag, title, publication time, prerelease status, and up
+to 20,000 characters of release notes, with a truncation flag. Author and asset
+records are omitted. Release notes and tool results go to the configured model
+provider and are subject to the same privacy constraints as push evidence.
+
+Klaus's [release prompt](prompts/release-announcement.md) uses the release notes
+as its main source. Stable messages start with **🚀 Released:**; prerelease
+messages start with **🧪 Prerelease:**. The root names the project, version,
+and main benefit. The host adds a **Release notes** link in the same paragraph.
+The reply gives short **Highlights** and **Upgrade notes** only when useful.
+It focuses on user and operator effects, not internal implementation details.
+A release does not imply that it is deployed, the latest version, or ready for
+production use.
 
 ## Content and delivery
 
@@ -64,12 +102,53 @@ patches with GitHub's `get_commit` tool using `detail: "full_patch"`. Add
 `get_commit` and `list_commits` to the GitHub connection's `tools` list, alongside
 `get_file_contents` for context. The agent finishes with the `finish_announcement`
 tool, which supplies a channel summary and separate thread details. The host
-requires a single-paragraph summary of at most 400 characters and details of at
+requires a Markdown summary of at most 400 characters and details of at
 most 4,000 characters. Intermediate model text is not posted. The host appends a
-comparison link (or a commit link for a new branch) to the root summary, then
+comparison link (or a commit link for a new branch) in the same paragraph as the
+root summary, then
 posts the details under that root message ID.
 
-Klaus's prompt targets 25–40 words in the summary and 100–180 words in the reply.
+Klaus's local configuration requires an added or changed Markdown release note
+under a release unit's `.sweet/` directory. This check runs before the model
+session starts. To use the same filter, add these fields to
+`[announcements.github]`:
+
+```toml
+required_changed_path = '(^|/)\.sweet/[^/]+\.md$'
+github_app_id = "${BOTTO_GITHUB_APP_ID}"
+github_installation_id = "${BOTTO_GITHUB_APP_INSTALLATION_ID}"
+github_private_key_path = "${BOTTO_GITHUB_APP_PRIVATE_KEY_PATH}"
+```
+
+The path setting is a regular expression; Botto does not hardcode Sweet Release.
+The key path is relative to the TOML file. The GitHub App must be installed on
+the configured repository with Contents read permission. These settings can use
+the same environment variables as the GitHub MCP connection. Botto creates a
+short-lived installation token scoped to that repository with Contents read
+permission. No additional credential is needed for Klaus.
+
+Botto requests the GitHub comparison for the signed before/after SHAs. If the
+changed-file list reaches GitHub's limit, or the push diverges from its old head,
+it compares the two Git trees instead. Added, modified, and renamed matching
+files qualify; deleted files alone and unchanged notes do not. API failures and
+incomplete trees keep the event queued for retry without starting a model.
+A complete negative result saves a `skipped` receipt and posts neither message.
+Repeated deliveries and restarts preserve that decision. Existing prepared
+messages resume delivery without a new eligibility check.
+Published releases bypass this push filter.
+
+The filter sends the repository and immutable commit IDs to GitHub. Its
+responses remain in the Botto process and are not sent to a model for skipped
+events. Klaus still uses its read tools to research qualifying announcements.
+
+Klaus's prompt starts the root message with **✅ Just merged:** followed by a
+15–30 word sentence that names the affected projects and the main benefit. It
+targets 80–140 words in the reply, focused on observable behavior, practical
+impact, and required actions. Internal symbols and file inventories are omitted
+unless a public API or configuration change makes them necessary for readers. The agent reads
+Sweet Release notes changed in the push to establish intent and project scope,
+and checks them against the diff. It does not repeat unrelated pending notes or
+announce consumed release notes as new implementation changes.
 The reply uses **What changed**, **Impact** when useful, and **Limitations** when
 needed. It requires disclosure if the agent cannot read the diff. Research and
 editorial format remain agent instructions; the host enforces only the output
@@ -93,7 +172,7 @@ and do not reuse conversation transcripts.
 The queue and receipts are saved in `announcements-<hash>.json` under
 `runtime.data_directory`. The ledger identity includes the Chatto server and bot
 account, repository, branch, and room. Run one Botto process per data directory.
-Keep these files when upgrading or restarting. They contain commit text and the
+Keep these files when upgrading or restarting. They contain commit text, release notes, and the
 posted message body; protect them like the bot's other private state.
 
 Repeated delivery of the same signed before/after commit pair does not create

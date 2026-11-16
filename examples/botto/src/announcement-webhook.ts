@@ -2,7 +2,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http';
 import type { AnnouncementSettings } from './announcement-settings.ts';
-import type { AnnouncementStore, PushSummary } from './announcement-store.ts';
+import type { AnnouncementStore, PushSummary, ReleaseSummary } from './announcement-store.ts';
 
 export class WebhookError extends Error {
   constructor(readonly status: number) {
@@ -10,12 +10,12 @@ export class WebhookError extends Error {
   }
 }
 
-/** Only repository/ref-matched pushes supply data; header changes cannot change dedupe identity. */
-export function parsePush(
+/** Verify signatures before accepting repository-matched push or release evidence. */
+export function parseGitHubWebhook(
   body: Buffer,
   headers: IncomingHttpHeaders,
   settings: AnnouncementSettings
-): { push: PushSummary; deliveryId: string } | undefined {
+): { event: PushSummary | ReleaseSummary; deliveryId: string } | undefined {
   const signature = headers['x-hub-signature-256'];
   if (typeof signature !== 'string' || !/^sha256=[a-f0-9]{64}$/.test(signature))
     throw new WebhookError(401);
@@ -23,7 +23,8 @@ export function parsePush(
   if (!timingSafeEqual(expected, Buffer.from(signature.slice(7), 'hex')))
     throw new WebhookError(401);
   if (headers['x-github-event'] === 'ping') return;
-  if (headers['x-github-event'] !== 'push') return;
+  const eventType = headers['x-github-event'];
+  if (eventType !== 'push' && !(eventType === 'release' && settings.releases)) return;
   const deliveryId = headers['x-github-delivery'];
   if (typeof deliveryId !== 'string' || !/^[A-Za-z0-9-]{1,100}$/.test(deliveryId))
     throw new WebhookError(400);
@@ -37,12 +38,46 @@ export function parsePush(
     throw new WebhookError(400);
   const value = decoded as Record<string, unknown>;
   const repository = value.repository as { full_name?: unknown } | undefined;
-  if (
-    repository?.full_name !== settings.repository ||
-    value.ref !== `refs/heads/${settings.branch}` ||
-    value.deleted === true
-  )
-    return;
+  if (repository?.full_name !== settings.repository) return;
+  if (eventType === 'release') {
+    if (value.action !== 'published' && value.action !== 'released') return;
+    const raw = value.release;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new WebhookError(400);
+    const release = raw as Record<string, unknown>;
+    if (release.draft === true) return;
+    if (
+      release.draft !== false ||
+      typeof release.prerelease !== 'boolean' ||
+      typeof release.id !== 'number' ||
+      !Number.isSafeInteger(release.id) ||
+      release.id <= 0 ||
+      typeof release.tag_name !== 'string' ||
+      !release.tag_name ||
+      release.tag_name.length > 200 ||
+      /[\u0000-\u0020\u007f]/.test(release.tag_name) ||
+      (release.name !== null && typeof release.name !== 'string') ||
+      (release.body !== null && typeof release.body !== 'string') ||
+      typeof release.published_at !== 'string' ||
+      !Number.isFinite(Date.parse(release.published_at))
+    )
+      throw new WebhookError(400);
+    if (value.action === 'released' && release.prerelease) return;
+    const notes = release.body ?? '';
+    return {
+      deliveryId,
+      event: {
+        kind: 'release',
+        id: release.id,
+        tag: release.tag_name,
+        name: (release.name ?? '').slice(0, 300),
+        body: notes.slice(0, 20000),
+        prerelease: release.prerelease,
+        publishedAt: release.published_at,
+        truncated: notes.length > 20000
+      }
+    };
+  }
+  if (value.ref !== `refs/heads/${settings.branch}` || value.deleted === true) return;
   const sha = (s: unknown): s is string => typeof s === 'string' && /^[a-f0-9]{40}$/.test(s);
   if (
     !sha(value.before) ||
@@ -61,7 +96,7 @@ export function parsePush(
   }
   return {
     deliveryId,
-    push: {
+    event: {
       before: value.before,
       after: value.after,
       commits,
@@ -91,8 +126,8 @@ export async function receiveWebhook(
       chunks.push(bytes);
     }
     signal.throwIfAborted();
-    const input = parsePush(Buffer.concat(chunks), request.headers, settings);
-    if (input) store.accept(input.push, input.deliveryId);
+    const input = parseGitHubWebhook(Buffer.concat(chunks), request.headers, settings);
+    if (input) store.accept(input.event, input.deliveryId);
     response.writeHead(202).end();
   } catch (error) {
     response

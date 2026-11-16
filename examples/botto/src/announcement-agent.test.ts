@@ -6,7 +6,7 @@ import { expect, test, vi } from 'vitest';
 import type { TaskContext } from 'runling';
 import { parseSettings } from './settings.ts';
 import { mcpServers } from './mcp.ts';
-import { announcementMcpSettings, describePush } from './announcements.ts';
+import { announcementMcpSettings, describeAnnouncement } from './announcements.ts';
 
 vi.mock('./announcement-response.ts', () => ({
   announcementResponse: () => ({
@@ -87,7 +87,7 @@ test('loads a prompt relative to TOML, sends the immutable push boundary, and di
       truncated: true
     };
     const signal = new AbortController().signal;
-    const result = await describePush({} as TaskContext, settings, push, signal);
+    const result = await describeAnnouncement({} as TaskContext, settings, push, signal);
     const { createAgentSession } = await import('runling');
     expect(createAgentSession).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -113,5 +113,91 @@ test('loads a prompt relative to TOML, sends the immutable push boundary, and di
     ).toThrow('Invalid announcements.github');
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('release sessions load their own prompt and receive release notes instead of push evidence', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'botto-release-prompt-'));
+  try {
+    writeFileSync(join(directory, 'release.md'), 'Use release notes and explain user benefits.');
+    writeFileSync(join(directory, 'push.md'), 'Inspect commit patches.');
+    const settings = parseSettings(
+      config + 'releases=true\nrelease_prompt_file="release.md"\nprompt_file="push.md"',
+      join(directory, 'botto.toml'),
+      {}
+    );
+    const event = {
+      kind: 'release' as const,
+      id: 123,
+      tag: 'v1.2.0',
+      name: 'Version 1.2.0',
+      body: 'Untrusted notes',
+      prerelease: false,
+      publishedAt: '2026-11-16T10:00:00Z',
+      truncated: false
+    };
+    const signal = new AbortController().signal;
+    await describeAnnouncement({} as TaskContext, settings, event, signal);
+    const { createAgentSession } = await import('runling');
+    const options = vi.mocked(createAgentSession).mock.calls.at(-1)![0]!;
+    expect(options.systemPrompt).toContain('Use release notes and explain user benefits.');
+    expect(options.systemPrompt).not.toContain('Inspect commit patches.');
+    expect(session.run).toHaveBeenLastCalledWith(
+      {},
+      JSON.stringify({ repository: 'owner/repo', branch: 'main', ...event }),
+      { signal }
+    );
+    expect(settings.announcements?.releases).toBe(true);
+    expect(() =>
+      parseSettings(config + 'releases="true"', join(directory, 'botto.toml'), {})
+    ).toThrow('Invalid announcements.github');
+    expect(() =>
+      parseSettings(config + 'release_prompt_file="missing.md"', join(directory, 'botto.toml'), {})
+    ).toThrow('Invalid announcements.github');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('the change filter runs before model startup, bypasses releases, and propagates lookup failures', async () => {
+  const filter = await import('./announcement-filter.ts');
+  const check = vi.spyOn(filter, 'hasReportableChanges');
+  const { createAgentSession } = await import('runling');
+  const settings = parseSettings(config, '/example/botto.toml', {});
+  const push = { before: 'a'.repeat(40), after: 'b'.repeat(40), commits: [], truncated: false };
+  const signal = new AbortController().signal;
+  try {
+    vi.mocked(createAgentSession).mockClear();
+    check.mockResolvedValue(false);
+    expect(await describeAnnouncement({} as TaskContext, settings, push, signal)).toBeNull();
+    expect(createAgentSession).not.toHaveBeenCalled();
+    check.mockRejectedValue(new Error('Lookup failed'));
+    await expect(describeAnnouncement({} as TaskContext, settings, push, signal)).rejects.toThrow(
+      'Lookup failed'
+    );
+    expect(createAgentSession).not.toHaveBeenCalled();
+    check.mockResolvedValue(true);
+    await describeAnnouncement({} as TaskContext, settings, push, signal);
+    expect(createAgentSession).toHaveBeenCalledTimes(1);
+    check.mockClear();
+    await describeAnnouncement(
+      {} as TaskContext,
+      settings,
+      {
+        kind: 'release',
+        id: 1,
+        tag: 'v1',
+        name: 'Version 1',
+        body: 'Notes',
+        prerelease: false,
+        publishedAt: '2026-11-16T10:00:00Z',
+        truncated: false
+      },
+      signal
+    );
+    expect(check).not.toHaveBeenCalled();
+    expect(createAgentSession).toHaveBeenCalledTimes(2);
+  } finally {
+    check.mockRestore();
   }
 });
