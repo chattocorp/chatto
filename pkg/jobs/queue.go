@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -170,8 +169,8 @@ func (q *Queue) jobFilter(kind, id string) string {
 }
 
 func (q *Queue) decodeForView(data []byte) (events.DecodedEvent[*fact], error) {
-	f := new(fact)
-	if err := json.Unmarshal(data, f); err != nil {
+	f, err := decodeFact(data)
+	if err != nil {
 		// One unreadable fact must not stop the view of all other jobs. The
 		// view ignores a fact without an ID.
 		q.logger.Warn("Job view ignored an unreadable fact")
@@ -184,7 +183,7 @@ func (q *Queue) decodeForView(data []byte) (events.DecodedEvent[*fact], error) {
 // be stable across retries of the same write. A nil expectation appends
 // without a guard.
 func (q *Queue) append(ctx context.Context, f *fact, messageID string, ttl time.Duration, expect *events.Expectation) (uint64, error) {
-	data, err := json.Marshal(f)
+	data, err := f.encode()
 	if err != nil {
 		return 0, err
 	}
@@ -272,8 +271,8 @@ func (q *Queue) Retry(ctx context.Context, id, expectedVersion string) (Job, err
 	if err != nil {
 		return Job{}, err
 	}
-	source := new(fact)
-	if err = json.Unmarshal(msg.Data, source); err != nil || specOf(source) == nil || source.ID != id {
+	source, err := decodeFact(msg.Data)
+	if err != nil || specOf(source) == nil || source.ID != id {
 		return Job{}, ErrNotRetryable
 	}
 	retried := &fact{ID: id, Type: e.job.Type, Kind: factRetried, OccurredAt: now, CreatedAt: e.job.CreatedAt, Spec: specOf(source)}
@@ -492,10 +491,10 @@ func (q *Queue) Work(ctx context.Context, consumer jetstream.Consumer, handler H
 // runs the handler again, also beyond the attempt budget, because the result
 // of those deliveries is unknown.
 func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler Handler) error {
-	delivered := new(fact)
 	var spec *factSpec
 	// Workers consume only queued and retried facts.
-	if err := json.Unmarshal(d.Data, delivered); err == nil && delivered.Kind != factFailed {
+	delivered, err := decodeFact(d.Data)
+	if err == nil && delivered.Kind != factFailed {
 		spec = specOf(delivered)
 	}
 	if spec == nil || !safeToken.MatchString(delivered.ID) || !safeToken.MatchString(delivered.Type) || spec.MaxAttempts == 0 {

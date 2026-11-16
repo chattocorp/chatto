@@ -78,12 +78,11 @@ func storedFacts() []struct {
 // failure here means that a change broke the persisted contract.
 func TestFactJSONFormIsPinned(t *testing.T) {
 	for _, tt := range storedFacts() {
-		var read fact
-		noError(t, json.Unmarshal([]byte(tt.json), &read))
-		if !reflect.DeepEqual(read, tt.fact) {
-			t.Errorf("%s: read %+v, want %+v", tt.name, read, tt.fact)
+		read := must(decodeFact([]byte(tt.json)))
+		if !reflect.DeepEqual(*read, tt.fact) {
+			t.Errorf("%s: read %+v, want %+v", tt.name, *read, tt.fact)
 		}
-		if written := must(json.Marshal(tt.fact)); string(written) != tt.json {
+		if written := must(tt.fact.encode()); string(written) != tt.json {
 			t.Errorf("%s:\n wrote %s\n want  %s", tt.name, written, tt.json)
 		}
 	}
@@ -108,9 +107,7 @@ func TestViewFoldsStoredFacts(t *testing.T) {
 	}
 	v := &view{jobs: map[string]*entry{}}
 	for seq, name := range []string{"queued", "started", "attempt_failed", "failed", "retried", "succeeded"} {
-		f := new(fact)
-		noError(t, json.Unmarshal([]byte(stored[name]), f))
-		noError(t, v.Apply(f, uint64(seq+1)))
+		noError(t, v.Apply(must(decodeFact([]byte(stored[name]))), uint64(seq+1)))
 	}
 	e, ok := v.get("j")
 	if !ok || e.job.Status != Succeeded || e.job.Attempts != 2 || e.job.MaxAttempts != 3 || e.job.Failure != "" || e.job.Revision != 6 || e.job.RetryDelay != 30*time.Second || e.job.ExpiresAt.IsZero() {
@@ -121,15 +118,37 @@ func TestViewFoldsStoredFacts(t *testing.T) {
 // A later version can add fields and kinds. This version must read such facts
 // without an error: it ignores the fields, and the view ignores the kind.
 func TestFactReadsFieldsAndKindsOfLaterVersions(t *testing.T) {
-	var f fact
-	noError(t, json.Unmarshal([]byte(`{"id":"j","type":"work","fact":"paused","occurred_at":"2026-11-16T12:00:00Z","created_at":"2026-11-16T12:00:00Z","priority":5,"spec":{"max_attempts":1,"retry_delay_ms":1,"queue":"fast"}}`), &f))
-	if f.ID != "j" || f.Kind != "paused" || specOf(&f) != nil {
+	f := must(decodeFact([]byte(`{"id":"j","type":"work","fact":"paused","occurred_at":"2026-11-16T12:00:00Z","created_at":"2026-11-16T12:00:00Z","priority":5,"spec":{"max_attempts":1,"retry_delay_ms":1,"queue":"fast"}}`)))
+	if f.ID != "j" || f.Kind != "paused" || specOf(f) != nil {
 		t.Fatalf("fact = %+v", f)
 	}
 	v := &view{jobs: map[string]*entry{}}
 	noError(t, v.Apply(&fact{ID: "j", Type: "work", Kind: factQueued, Spec: &factSpec{MaxAttempts: 1}}, 1))
-	noError(t, v.Apply(&f, 2))
+	noError(t, v.Apply(f, 2))
 	if e, _ := v.get("j"); e.job.Status != Queued || e.job.Revision != 2 {
 		t.Fatalf("job after an unknown kind = %+v", e)
+	}
+}
+
+// Stored times are UTC, whatever the time zone of the server and of the
+// application's deadline. A reader also accepts other offsets and fractional
+// seconds.
+func TestFactTimesAreStoredInUTC(t *testing.T) {
+	zone := time.FixedZone("test", -(3*3600 + 1800))
+	created := time.Date(2026, 11, 16, 8, 30, 0, 123456789, zone)
+	deadline := created.Add(time.Hour)
+	spec := &factSpec{MaxAttempts: 1, RetryDelayMillis: 1, ExpiresAt: &deadline}
+	f := &fact{ID: "j", Type: "work", Kind: factAttemptFailed, OccurredAt: created, CreatedAt: created, Spec: spec, NextAttemptAt: &deadline}
+	const want = `{"id":"j","type":"work","fact":"attempt_failed","occurred_at":"2026-11-16T12:00:00.123456789Z","created_at":"2026-11-16T12:00:00.123456789Z","spec":{"max_attempts":1,"retry_delay_ms":1,"expires_at":"2026-11-16T13:00:00.123456789Z"},"next_attempt_at":"2026-11-16T13:00:00.123456789Z"}`
+	if written := must(f.encode()); string(written) != want {
+		t.Fatalf("wrote %s\n want  %s", written, want)
+	}
+	// Encoding does not change the fact or the specification that it shares.
+	if f.OccurredAt.Location() != zone || spec.ExpiresAt.Location() != zone {
+		t.Fatal("encode changed the fact")
+	}
+	read := must(decodeFact([]byte(`{"id":"j","type":"work","fact":"started","occurred_at":"2026-11-16T08:30:00.123456789-03:30","created_at":"2026-11-16T08:30:00.123456789-03:30","attempts":1}`)))
+	if !read.OccurredAt.Equal(created) || !read.CreatedAt.Equal(created) {
+		t.Fatalf("read %+v", read)
 	}
 }

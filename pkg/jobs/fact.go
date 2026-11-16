@@ -1,6 +1,9 @@
 package jobs
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // fact is one fact in the history of a job. The job stream holds facts as JSON
 // on {prefix}.{type}.{id}.{kind}. The state of a job is the fold of its facts
@@ -47,6 +50,34 @@ type factSpec struct {
 	RetryDelayMillis int64  `json:"retry_delay_ms"`
 	// ExpiresAt is an optional deadline. A manual retry never extends it.
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+// decodeFact reads a stored fact. Every reader uses it, so that all of them
+// ignore fields that a later version added.
+func decodeFact(data []byte) (*fact, error) {
+	f := new(fact)
+	if err := json.Unmarshal(data, f); err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// encode returns the stored form of the fact. Times are written in UTC, so
+// that a stored fact does not depend on the time zone of the server.
+func (f *fact) encode() ([]byte, error) {
+	stored := *f
+	stored.OccurredAt, stored.CreatedAt = f.OccurredAt.UTC(), f.CreatedAt.UTC()
+	if f.NextAttemptAt != nil {
+		next := f.NextAttemptAt.UTC()
+		stored.NextAttemptAt = &next
+	}
+	if f.Spec != nil && f.Spec.ExpiresAt != nil {
+		spec := *f.Spec
+		expires := f.Spec.ExpiresAt.UTC()
+		spec.ExpiresAt = &expires
+		stored.Spec = &spec
+	}
+	return json.Marshal(stored)
 }
 
 // specOf returns the specification of a queued, retried, or failed fact, or
