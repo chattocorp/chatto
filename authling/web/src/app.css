@@ -206,6 +206,58 @@
     --surface-padding: 1.25rem;
   }
 
+  /* Consent identifies the requesting app, then lists each shared item in one
+     raised list that fits a 520 × 500px authorization popup. */
+  .consent-client {
+    @apply flex items-start gap-4;
+  }
+
+  .consent-client-icon {
+    @apply flex size-12 shrink-0 items-center justify-center rounded-surface border text-2xl text-muted;
+    border-color: var(--ui-raised-border);
+    background: var(--ui-raised);
+    box-shadow: var(--ui-raised-shadow);
+  }
+
+  .consent-scopes {
+    @apply mt-2 divide-y divide-line overflow-hidden rounded-surface border;
+    border-color: var(--ui-raised-border);
+    background: var(--ui-raised);
+    box-shadow: var(--ui-raised-shadow);
+  }
+
+  .consent-scope {
+    @apply flex items-start gap-3 px-4 py-2;
+  }
+
+  .consent-scope-icon {
+    @apply mt-0.5 shrink-0 text-xl text-muted;
+  }
+
+  .consent-scope-row {
+    @apply flex min-w-0 flex-1 flex-wrap justify-between gap-x-4;
+  }
+
+  .consent-disclosure {
+    @apply min-w-0 flex-1;
+  }
+
+  .consent-disclosure > summary {
+    @apply cursor-pointer list-none rounded-sm hover:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
+  }
+
+  .consent-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .consent-disclosure[open] .consent-scope-value {
+    @apply hidden;
+  }
+
+  .consent-scope-value {
+    @apply min-w-0 break-all text-muted;
+  }
+
   .panel {
     @apply w-full min-w-0 rounded-surface border border-line bg-surface p-4 sm:p-6;
     --surface-padding: 1rem;
