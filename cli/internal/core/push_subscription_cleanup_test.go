@@ -17,6 +17,7 @@ import (
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 func TestPushSubscriptionCleanupDeliveryRetriesPartialFailure(t *testing.T) {
@@ -204,6 +205,34 @@ func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *test
 	if err := <-secondRun; err != nil {
 		t.Fatalf("stop second push cleanup worker: %v", err)
 	}
+}
+
+// The complete path of the running server: the source consumer hands the
+// account deletion to the job queue, and the push-subscription cleanup job
+// removes the subscription.
+func TestPushSubscriptionCleanupRunsAsAJobOfTheRunningCore(t *testing.T) {
+	chatto, _ := newTestCore(t)
+	ctx := testContext(t)
+	startCoreServices(t, chatto)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "push-job-user", "Push Job", "password123")
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	endpoint := "https://push.example.com/job"
+	if _, err = chatto.SavePushSubscription(ctx, user.GetId(), endpoint, "key", "auth", "browser"); err != nil {
+		t.Fatalf("save subscription: %v", err)
+	}
+	// Append only the deletion fact. The account-deletion request also removes
+	// subscriptions directly; this test must prove the job.
+	appendPushAccountDeletionFact(t, chatto, user.GetId())
+	waitForRecoveryTest(t, 10*time.Second, func() bool {
+		owned, err := chatto.PushSubscriptionOwnedByUser(ctx, user.GetId(), endpoint)
+		return err == nil && !owned
+	}, "push-subscription cleanup job to remove the subscription")
+	waitForRecoveryTest(t, 10*time.Second, func() bool {
+		jobs := jobsOfType(t, ctx, chatto, jobTypePushSubscriptionCleanup)
+		return len(jobs) == 1 && jobs[0].Status == jobqueue.Succeeded
+	}, "push-subscription cleanup job to succeed")
 }
 
 func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDelivery(t *testing.T) {
