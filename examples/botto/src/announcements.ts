@@ -16,6 +16,8 @@ import { AnnouncementStore, type AnnouncementEvent } from './announcement-store.
 import { announcementResponse, type AnnouncementDraft } from './announcement-response.ts';
 import { mcpExtension } from './mcp.ts';
 import { loadChangedFiles } from './announcement-filter.ts';
+import { rememberParticipation } from './participation.ts';
+import { conversationIdentity } from './threads.ts';
 import { runTunnel } from './tunnel.ts';
 import { receiveWebhook } from './announcement-webhook.ts';
 
@@ -99,7 +101,8 @@ export async function deliverAnnouncement(
   key: string,
   compose: (event: AnnouncementEvent) => Promise<AnnouncementDraft | null>,
   post: (body: string, key: string, threadRootId: string) => Promise<{ id: string }>,
-  link: string
+  link: string,
+  registerRoot: (messageId: string) => void = () => {}
 ): Promise<void> {
   let record = store.get(key);
   if (!record) return;
@@ -118,6 +121,9 @@ export async function deliverAnnouncement(
     store.complete(key, sent.id);
   }
   record = store.get(key)!;
+  // Save participation after the root receipt, before attempting the details reply.
+  // A failed registration leaves the reply queued; startup repairs confirmed roots.
+  if (record.status === 'sent' && record.messageId) registerRoot(record.messageId);
   if (record.status === 'sent' && record.detailsStatus === 'queued') {
     store.sendingDetails(key);
     const sent = await post(record.detailsBody!, record.detailsIdempotencyKey!, record.messageId!);
@@ -129,12 +135,19 @@ export async function deliverAnnouncement(
 export function createGithubAnnouncements(settings: Settings) {
   const config = settings.announcements;
   if (!config) throw new Error('GitHub announcements are disabled');
-  let current: { server: Server; store: AnnouncementStore; signal: AbortSignal } | undefined;
+  let current:
+    | {
+        server: Server;
+        store: AnnouncementStore;
+        signal: AbortSignal;
+        registerRoot: (messageId: string) => void;
+      }
+    | undefined;
   const workflow = task(
     { name: 'GitHub announcement', input: Type.String(), result: Type.Null() },
     async (ctx, key) => {
       if (!current) throw new Error('Announcement source is unavailable');
-      const { server, store, signal: sourceSignal } = current;
+      const { server, store, registerRoot, signal: sourceSignal } = current;
       const signal = AbortSignal.any([ctx.signal, sourceSignal, AbortSignal.timeout(120_000)]);
       const record = store.get(key);
       if (!record) throw new Error('Unknown announcement');
@@ -151,7 +164,8 @@ export function createGithubAnnouncements(settings: Settings) {
               idempotencyKey
             });
           },
-          announcementLink(config.repository, record.push ?? record.release)
+          announcementLink(config.repository, record.push ?? record.release),
+          registerRoot
         );
         return null;
       } catch {
@@ -191,7 +205,17 @@ export function createGithubAnnouncements(settings: Settings) {
         config.branch,
         config.roomId
       ]);
-      current = { server, store, signal };
+      const registerRoot = (threadRootId: string) =>
+        rememberParticipation(
+          settings.directory,
+          conversationIdentity(settings.serverUrl, viewerId, {
+            roomId: config.roomId,
+            threadRootId
+          })
+        );
+      // Repair a crash between receipt and registration, and adopt older announcements.
+      for (const messageId of store.sentRoots) registerRoot(messageId);
+      current = { server, store, signal, registerRoot };
       if (store.uncertain)
         log.warn('Announcement delivery needs operator review', { messages: store.uncertain });
       await new Promise<void>((resolve, reject) => {

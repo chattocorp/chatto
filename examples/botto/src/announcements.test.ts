@@ -482,3 +482,140 @@ test('prepared announcements cannot change to a skip on retry', () => {
   store.prepare(key, 'Saved summary', 'Saved reply');
   expect(() => store.skip(key)).toThrow('after preparation');
 });
+
+test('a confirmed announcement admits untagged follow-ups without a transcript, including after restart', async () => {
+  const { rememberParticipation, hasParticipation } = await import('./participation.ts');
+  const { conversationIdentity } = await import('./threads.ts');
+  const { incomingMessage, hasTranscript } = await import('./messages.ts');
+  const { RealtimeEvent } = await import('@chatto/client');
+  const { RoomKind } = await import('@chatto/api-types/api/v1/rooms_pb');
+  const { directory, store } = ledger();
+  const location = { roomId: 'room', threadRootId: 'announcement-root' };
+  const identity = conversationIdentity('https://chat.example.test', 'bot', location);
+  store.accept(push, 'delivery');
+  const key = store.queued[0]!;
+  const post = vi.fn(async (_body: string, _key: string, root: string) => {
+    if (root) {
+      expect(await hasParticipation(directory, identity)).toBe(true);
+      throw new Error('Uncertain details delivery');
+    }
+    return { id: location.threadRootId };
+  });
+  await expect(
+    deliverAnnouncement(
+      store,
+      key,
+      async () => ({ summary: 'Summary', details: 'Details' }),
+      post,
+      'link',
+      (root) => {
+        expect(store.get(key)?.status).toBe('sent');
+        rememberParticipation(
+          directory,
+          conversationIdentity('https://chat.example.test', 'bot', {
+            ...location,
+            threadRootId: root
+          })
+        );
+      }
+    )
+  ).rejects.toThrow('Uncertain details');
+  expect(await hasTranscript(directory, identity)).toBe(false);
+  const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
+  expect(restored.sentRoots).toEqual([location.threadRootId]);
+  const isActive = (thread: typeof location) =>
+    hasParticipation(directory, conversationIdentity('https://chat.example.test', 'bot', thread));
+  const event = new RealtimeEvent({
+    id: 'follow-up',
+    actorId: 'human',
+    event: {
+      case: 'messagePosted',
+      value: {
+        roomId: 'room',
+        threadRootEventId: location.threadRootId,
+        roomKind: RoomKind.CHANNEL,
+        bodyPlaintext: 'Can you explain this change?'
+      }
+    }
+  });
+  const server = {
+    accountId: 'bot',
+    addressedMessage: vi.fn(async () => undefined),
+    getMessage: vi.fn()
+  };
+  expect(
+    await incomingMessage(server, event, isActive, new AbortController().signal)
+  ).toMatchObject({ body: 'Can you explain this change?', reasons: [] });
+  event.actorId = 'bot';
+  expect(
+    await incomingMessage(server, event, isActive, new AbortController().signal)
+  ).toBeUndefined();
+  expect(
+    await hasParticipation(
+      directory,
+      conversationIdentity('https://other.example.test', 'bot', location)
+    )
+  ).toBe(false);
+  expect(
+    await hasParticipation(
+      directory,
+      conversationIdentity('https://chat.example.test', 'other-bot', location)
+    )
+  ).toBe(false);
+  expect(await isActive({ ...location, roomId: 'other-room' })).toBe(false);
+  expect(await isActive({ ...location, threadRootId: 'other-thread' })).toBe(false);
+});
+
+test('startup can register legacy roots and repair a gap after saving the receipt without reposting', async () => {
+  const { rememberParticipation, hasParticipation } = await import('./participation.ts');
+  const { directory, store } = ledger();
+  store.accept(push, 'delivery');
+  const key = store.queued[0]!;
+  store.prepare(key, 'Legacy single-message announcement');
+  store.sending(key);
+  store.complete(key, 'old-root');
+  const identity = ['server', 'bot', 'room', 'old-root'];
+  expect(await hasParticipation(directory, identity)).toBe(false);
+  const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
+  for (const root of restored.sentRoots)
+    rememberParticipation(directory, ['server', 'bot', 'room', root]);
+  for (const root of restored.sentRoots)
+    rememberParticipation(directory, ['server', 'bot', 'room', root]);
+  expect(await hasParticipation(directory, identity)).toBe(true);
+  expect(restored.queued).toEqual([]);
+  const post = vi.fn(async () => ({ id: 'unexpected' }));
+  await deliverAnnouncement(
+    restored,
+    key,
+    async () => ({ summary: 'Unused', details: 'Unused' }),
+    post,
+    'link'
+  );
+  expect(post).not.toHaveBeenCalled();
+});
+
+test('unconfirmed and skipped announcement roots do not register participation', async () => {
+  const { store } = ledger();
+  store.accept(push, 'delivery');
+  const key = store.queued[0]!;
+  const register = vi.fn();
+  await deliverAnnouncement(store, key, async () => null, vi.fn(), 'link', register);
+  expect(register).not.toHaveBeenCalled();
+  expect(store.sentRoots).toEqual([]);
+  store.accept({ ...push, after: 'c'.repeat(40) }, 'second');
+  const other = store.queued[0]!;
+  await expect(
+    deliverAnnouncement(
+      store,
+      other,
+      async () => ({ summary: 'Summary', details: 'Details' }),
+      async () => {
+        throw new Error('Uncertain root');
+      },
+      'link',
+      register
+    )
+  ).rejects.toThrow('Uncertain root');
+  expect(register).not.toHaveBeenCalled();
+  expect(store.sentRoots).toEqual([]);
+});

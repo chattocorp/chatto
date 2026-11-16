@@ -179,6 +179,15 @@ account, repository, branch, and room. Run one Botto process per data directory.
 Keep these files when upgrading or restarting. They contain commit text, release notes, and the
 posted message body; protect them like the bot's other private state.
 
+Confirmed announcement roots also register Botto as a participant in the thread.
+Untagged human follow-ups can then reach the conversation agent without a new
+mention, including after restart. Normal author checks, allowlists, and explicit
+reply-recipient rules still apply. The agent can remain silent when appropriate.
+Participation markers are stored under `runtime.data_directory/participation`;
+keep them with the other runtime data. Startup registers existing confirmed
+announcement receipts too, without reposting messages. Uncertain root sends
+remain held until their receipt is resolved.
+
 Repeated delivery of the same signed before/after commit pair does not create
 another post. Queued work resumes after restart. Summary generation failures
 retry after 30 seconds. Before a write, Botto saves the exact body and a stable

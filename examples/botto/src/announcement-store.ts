@@ -123,6 +123,12 @@ export class AnnouncementStore {
     });
     return true;
   }
+  /** Confirmed roots include legacy receipts and roots whose details need operator review. */
+  get sentRoots(): string[] {
+    return Object.values(this.records)
+      .filter((record) => record.status === 'sent' && record.messageId)
+      .map((record) => record.messageId!);
+  }
   get queued(): string[] {
     return Object.keys(this.records).filter((key) => {
       const r = this.records[key]!;
