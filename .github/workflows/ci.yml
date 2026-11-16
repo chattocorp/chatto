@@ -293,6 +293,7 @@ jobs:
           mkdir -p "$context/apps/frontend" "$context/docker" "$context/LICENSES"
           cp docker/Dockerfile.frontend.prebuilt "$context/Dockerfile"
           cp docker/frontend-entrypoint.sh "$context/docker/frontend-entrypoint.sh"
+          cp docker/frontend-image_test.sh "$context/docker/frontend-image_test.sh"
           cp -a apps/frontend/build "$context/apps/frontend/build"
           cp apps/frontend/nginx.conf "$context/apps/frontend/nginx.conf"
           cp LICENSES/Apache-2.0.txt LICENSES/MIT.txt "$context/LICENSES/"
@@ -1269,6 +1270,19 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Build standalone frontend image for checks
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-contexts/frontend
+          file: docker-contexts/frontend/Dockerfile
+          load: true
+          platforms: linux/amd64
+          tags: chatto-client:check
+          cache-from: type=gha,scope=chatto-client-main
+
+      - name: Check standalone frontend image on a read-only file system
+        run: sh docker-contexts/frontend/docker/frontend-image_test.sh chatto-client:check
 
       # Publish the client before exposing the server tag selected by Flux.
       # Both images must exist when the shared dev stream advances.
