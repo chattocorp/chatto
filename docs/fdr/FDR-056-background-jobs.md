@@ -41,7 +41,7 @@ and notification alerts.
   seconds while it is visible, and loads more results as it scrolls. A job
   detail page refreshes until the job succeeds or fails. The pages have no
   cancellation of unfinished jobs, payload editing, or bulk controls.
-- Servers older than 0.6.0 have no job API. The settings navigation then omits
+- Servers older than `0.6.0-beta.0` have no job API. The settings navigation then omits
   Jobs, and the Jobs page shows a compatibility notice
   ([FDR-031](FDR-031-client-server-compatibility-discovery.md)).
 - A failed job can be deleted, also when it cannot be retried. The page asks

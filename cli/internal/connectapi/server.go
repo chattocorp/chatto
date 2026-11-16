@@ -97,7 +97,7 @@ func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 			Id:                "backgroundJobs",
 			Name:              "Background jobs",
 			Description:       "Inspect background jobs and retry failed jobs in server settings.",
-			IntroducedVersion: "0.6.0",
+			IntroducedVersion: "0.6.0-beta.0",
 		},
 	}
 	for _, feature := range features {

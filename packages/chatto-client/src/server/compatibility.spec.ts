@@ -84,7 +84,9 @@ describe('server compatibility evaluation', () => {
 
   it('reports background jobs without blocking older compatible servers', () => {
     expect(serverFeatureSupport('0.5.0', 'backgroundJobs')).toBe('limited');
-    expect(serverFeatureSupport('0.6.0-beta.1', 'backgroundJobs')).toBe('limited');
+    // The first 0.6.0 prerelease has the job queue.
+    expect(serverFeatureSupport('0.6.0-beta.0', 'backgroundJobs')).toBe('supported');
+    expect(serverFeatureSupport('0.6.0-beta.1', 'backgroundJobs')).toBe('supported');
     expect(serverFeatureSupport('0.6.0', 'backgroundJobs')).toBe('supported');
     expect(serverFeatureSupport('0.6.0-dev', 'backgroundJobs')).toBe('supported');
     expect(serverFeatureSupport('dev', 'backgroundJobs')).toBe('unknown');
@@ -94,7 +96,7 @@ describe('server compatibility evaluation', () => {
       reason: 'server-too-old'
     });
     expect(MINIMUM_CONNECTABLE_SERVER_VERSION).toBe('0.5.0-beta.9');
-    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.6.0');
+    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.6.0-beta.0');
   });
 
   it.each([
@@ -204,7 +206,8 @@ describe('server compatibility evaluation', () => {
   it('reports supported versions only for parseable releases at or above the minimum', () => {
     expect(isSupportedServerVersion('0.6.0')).toBe(true);
     expect(isSupportedServerVersion('0.6.0-dev')).toBe(true);
-    expect(isSupportedServerVersion('0.6.0-beta.1')).toBe(false);
+    expect(isSupportedServerVersion('0.6.0-beta.0')).toBe(true);
+    expect(isSupportedServerVersion('0.6.0-beta.1')).toBe(true);
     expect(isSupportedServerVersion('0.5.0')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-beta.18')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-beta.15')).toBe(false);

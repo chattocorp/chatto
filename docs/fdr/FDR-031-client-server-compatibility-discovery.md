@@ -25,7 +25,7 @@ Chatto's pre-1.0 API remains experimental.
   one server is registered. Retry, sign-in/out, and removal form the final group.
   The menu header shows the name and hostname; the version is on the information page.
 - Remote servers have two version thresholds. Full feature support requires
-  `0.6.0`. The minimum connectable release is `0.5.0-beta.9`.
+  `0.6.0-beta.0`. The minimum connectable release is `0.5.0-beta.9`.
   Between these thresholds, the client attempts the normal UI and realtime
   connection. The server menu shows a short summary and a Server information
   action. The Compatibility section of that page lists known feature limitations,
@@ -38,7 +38,7 @@ Chatto's pre-1.0 API remains experimental.
   that the lists may not be separated correctly. Independent channel and
   thread Slow Mode requires beta.18. Older servers keep a shared cooldown
   and a single setting; room field presence still controls the runtime fallback.
-  Background jobs require 0.6.0. On older servers, server settings omit the
+  Background jobs require `0.6.0-beta.0`, the first 0.6.0 prerelease. On older servers, server settings omit the
   Jobs page ([FDR-056](FDR-056-background-jobs.md)). Below the
   connection threshold, it blocks chat routes and the realtime connection.
 - A connected server's version stays current without a reload. The client

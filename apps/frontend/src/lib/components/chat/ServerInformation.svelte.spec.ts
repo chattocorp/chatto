@@ -69,7 +69,7 @@ describe('ServerInformation', () => {
     await expect.element(screen.getByText('Requires 0.5.0-beta.18 or newer')).toBeVisible();
     await expect.element(screen.getByText('Background jobs are unavailable')).toBeVisible();
     expect(screen.container.querySelector('#backgroundJobs')).not.toBeNull();
-    await expect.element(screen.getByText('Requires 0.6.0 or newer')).toBeVisible();
+    await expect.element(screen.getByText('Requires 0.6.0-beta.0 or newer')).toBeVisible();
     expect(screen.container.textContent?.match(/ask the server administrator/g)).toHaveLength(1);
   });
   it('shows a supported state without upgrade advice', async () => {
