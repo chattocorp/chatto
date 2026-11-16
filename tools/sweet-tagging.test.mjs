@@ -109,9 +109,11 @@ test('all release units preserve migration tags and bump independently configure
     const manifest = readFileSync(path.join(root, unit, '.sweet.yml'), 'utf8');
     sourceVersions[unit] = manifest.match(/^version: (.+)$/m)[1];
     mkdirSync(path.join(repo, unit), { recursive: true });
+    // Remove the prerelease label so the expected tags do not depend on the
+    // current release channel of each unit.
     writeFileSync(
       path.join(repo, unit, '.sweet.yml'),
-      manifest.replace(/^version: .+$/m, `version: ${version}`)
+      manifest.replace(/^version: .+$/m, `version: ${version}`).replace(/^prerelease: .+\n/m, '')
     );
   }
   for (const file of [
