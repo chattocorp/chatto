@@ -8,7 +8,7 @@ Conversation agents now have read-only access to Chatto MCP. The host continues 
 
 Botto can start and supervise an optional Cloudflare Tunnel connector with the webhook listener. The connector restarts after failure and stops with Botto, using a scoped token from local configuration.
 
-Announcement sessions support operator-owned prompt files and selected MCP connections without owner-only tools. Klaus uses its GitHub read tools to inspect commit patches and relevant Sweet Release notes. Channel updates start with **✅ Just merged:** and identify the affected projects in a short benefit summary. The thread explains observable behavior, practical impact, and required upgrade actions. It omits internal implementation inventories and discloses unavailable diff inspection.
+Announcement sessions support operator-owned prompt files and selected MCP connections without owner-only tools. Botto supplies the changed Sweet Release notes at the exact new commit to Klaus. Klaus uses their paths and contents to summarize project scope, benefits, and upgrade guidance, with GitHub read tools available for clarification. Channel updates start with **✅ Just merged:** and identify the affected projects in a short benefit summary. The thread explains observable behavior, practical impact, and required upgrade actions. It omits internal implementation inventories.
 
 Channel summaries are limited to 400 characters before the source link. Root and reply deliveries have separate durable receipts, so a restart resumes a pending reply without repeating the channel post.
 

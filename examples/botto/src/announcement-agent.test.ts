@@ -161,14 +161,14 @@ test('release sessions load their own prompt and receive release notes instead o
 
 test('the change filter runs before model startup, bypasses releases, and propagates lookup failures', async () => {
   const filter = await import('./announcement-filter.ts');
-  const check = vi.spyOn(filter, 'hasReportableChanges');
+  const check = vi.spyOn(filter, 'loadChangedFiles');
   const { createAgentSession } = await import('runling');
   const settings = parseSettings(config, '/example/botto.toml', {});
   const push = { before: 'a'.repeat(40), after: 'b'.repeat(40), commits: [], truncated: false };
   const signal = new AbortController().signal;
   try {
     vi.mocked(createAgentSession).mockClear();
-    check.mockResolvedValue(false);
+    check.mockResolvedValue([]);
     expect(await describeAnnouncement({} as TaskContext, settings, push, signal)).toBeNull();
     expect(createAgentSession).not.toHaveBeenCalled();
     check.mockRejectedValue(new Error('Lookup failed'));
@@ -176,9 +176,19 @@ test('the change filter runs before model startup, bypasses releases, and propag
       'Lookup failed'
     );
     expect(createAgentSession).not.toHaveBeenCalled();
-    check.mockResolvedValue(true);
+    check.mockResolvedValue([{ path: '.sweet/note.md', content: 'Useful release notes' }]);
     await describeAnnouncement({} as TaskContext, settings, push, signal);
     expect(createAgentSession).toHaveBeenCalledTimes(1);
+    expect(session.run).toHaveBeenLastCalledWith(
+      {},
+      JSON.stringify({
+        repository: 'owner/repo',
+        branch: 'main',
+        ...push,
+        changedFiles: [{ path: '.sweet/note.md', content: 'Useful release notes' }]
+      }),
+      { signal }
+    );
     check.mockClear();
     await describeAnnouncement(
       {} as TaskContext,

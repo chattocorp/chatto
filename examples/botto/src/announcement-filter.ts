@@ -58,14 +58,20 @@ async function installationToken(
   return data.token;
 }
 
-/** True means a matching file exists at the new head and differs from the old head. */
-export async function hasReportableChanges(
+/** Matched file evidence fetched at the immutable new head, never from the current branch. */
+export interface ChangedFile {
+  path: string;
+  content: string;
+}
+
+/** Undefined means filtering is disabled; an empty list is a durable skip. Read failures must retry. */
+export async function loadChangedFiles(
   config: AnnouncementSettings,
   push: PushSummary,
   signal: AbortSignal,
   request: typeof fetch = fetch
-): Promise<boolean> {
-  if (!config.changeFilter) return true;
+): Promise<ChangedFile[] | undefined> {
+  if (!config.changeFilter) return;
   signal.throwIfAborted();
   const token = await installationToken(config, signal, request);
   const matches = new RegExp(config.changeFilter.pattern);
@@ -79,12 +85,14 @@ export async function hasReportableChanges(
     if (!response.ok) throw new Error('GitHub change lookup failed.');
     return object(await response.json());
   };
+  let paths: string[] | undefined;
   if (push.before !== '0'.repeat(40)) {
     const comparison = await get(`/compare/${push.before}...${push.after}?per_page=1`);
     const mergeBase = object(comparison.merge_base_commit);
     // Compare uses the merge base. Divergent pushes need a direct tree comparison.
     if (mergeBase.sha === push.before) {
       if (!Array.isArray(comparison.files)) throw new Error('Missing GitHub changed files.');
+      const candidates: string[] = [];
       for (const raw of comparison.files) {
         const file = object(raw);
         if (typeof file.filename !== 'string' || typeof file.status !== 'string')
@@ -93,10 +101,10 @@ export async function hasReportableChanges(
           ['added', 'modified', 'renamed', 'changed', 'copied'].includes(file.status) &&
           matches.test(file.filename)
         )
-          return true;
+          candidates.push(file.filename);
       }
       // GitHub caps comparison files at 300, even when commit pages are requested.
-      if (comparison.files.length < 300) return false;
+      if (comparison.files.length < 300) paths = candidates;
     }
   }
   const tree = async (commit: string): Promise<Map<string, string>> => {
@@ -121,7 +129,34 @@ export async function hasReportableChanges(
     }
     return files;
   };
-  const before = await tree(push.before);
-  const after = await tree(push.after);
-  return [...after].some(([path, sha]) => before.get(path) !== sha);
+  if (paths === undefined) {
+    const before = await tree(push.before);
+    const after = await tree(push.after);
+    paths = [...after].filter(([path, sha]) => before.get(path) !== sha).map(([path]) => path);
+  }
+  // Do not silently omit or truncate notes: incomplete evidence stays queued for review/retry.
+  if (paths.length > 100) throw new Error('Too many announcement source files.');
+  const files: ChangedFile[] = [];
+  let totalBytes = 0;
+  for (const path of [...new Set(paths)].sort()) {
+    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+    const file = await get(`/contents/${encodedPath}?ref=${push.after}`);
+    if (
+      file.type !== 'file' ||
+      file.encoding !== 'base64' ||
+      typeof file.content !== 'string' ||
+      typeof file.size !== 'number' ||
+      !Number.isSafeInteger(file.size) ||
+      file.size < 0 ||
+      file.size > 65536 ||
+      file.content.length > 100000
+    )
+      throw new Error('Invalid or oversized announcement source file.');
+    const bytes = Buffer.from(file.content, 'base64');
+    totalBytes += bytes.length;
+    if (bytes.length !== file.size || totalBytes > 262144)
+      throw new Error('Incomplete or oversized announcement source files.');
+    files.push({ path, content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) });
+  }
+  return files;
 }

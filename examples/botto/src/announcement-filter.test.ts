@@ -1,7 +1,7 @@
 /** Verify pre-model eligibility against complete immutable changes and safe authentication. */
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import { hasReportableChanges } from './announcement-filter.ts';
+import { loadChangedFiles } from './announcement-filter.ts';
 import { parseAnnouncements } from './announcement-settings.ts';
 
 const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -32,6 +32,13 @@ function responses(...values: unknown[]) {
     return value instanceof Response ? value : Response.json(value);
   });
 }
+const noteContent = '---\ntype: feature\n---\nA useful change.';
+const note = {
+  type: 'file',
+  encoding: 'base64',
+  size: Buffer.byteLength(noteContent),
+  content: Buffer.from(noteContent).toString('base64')
+};
 const comparison = (files: unknown[]) => ({ merge_base_commit: { sha: push.before }, files });
 
 test('checks added, modified and renamed note paths; excludes removals and unrelated files', async () => {
@@ -44,8 +51,14 @@ test('checks added, modified and renamed note paths; excludes removals and unrel
     ['docs/not.sweet/note.md', 'added', false],
     ['.sweet/metadata.json', 'added', false]
   ] as const) {
-    const request = responses({ token: 'installation-token' }, comparison([{ filename, status }]));
-    expect(await hasReportableChanges(config, push, signal, request)).toBe(expected);
+    const request = responses(
+      { token: 'installation-token' },
+      comparison([{ filename, status }]),
+      ...(expected ? [note] : [])
+    );
+    expect(await loadChangedFiles(config, push, signal, request)).toEqual(
+      expected ? [{ path: filename, content: noteContent }] : []
+    );
     expect(request.mock.calls[1]![0]).toContain('/compare/' + push.before + '...' + push.after);
     const auth = request.mock.calls[0]![1]!;
     expect(JSON.parse(auth.body as string)).toEqual({
@@ -88,10 +101,13 @@ test('uses exact trees when compare files hit the limit or the push diverges', a
         {
           truncated: false,
           tree: [{ path: '.sweet/note.md', sha: changed ? 'new' : 'old', type: 'blob' }]
-        }
+        },
+        ...(changed ? [note] : [])
       );
-      expect(await hasReportableChanges(config, push, signal, request)).toBe(changed);
-      expect(request).toHaveBeenCalledTimes(6);
+      expect(await loadChangedFiles(config, push, signal, request)).toEqual(
+        changed ? [{ path: '.sweet/note.md', content: noteContent }] : []
+      );
+      expect(request).toHaveBeenCalledTimes(changed ? 7 : 6);
     }
   }
 });
@@ -101,16 +117,19 @@ test('branch creation checks the new tree; incomplete data and API failures neve
   const request = responses(
     { token: 'token' },
     { tree: { sha: 'd'.repeat(40) } },
-    { truncated: false, tree: [{ path: '.sweet/new.md', sha: 'new', type: 'blob' }] }
+    { truncated: false, tree: [{ path: '.sweet/new.md', sha: 'new', type: 'blob' }] },
+    note
   );
-  expect(await hasReportableChanges(config, created, signal, request)).toBe(true);
+  expect(await loadChangedFiles(config, created, signal, request)).toEqual([
+    { path: '.sweet/new.md', content: noteContent }
+  ]);
   for (const value of [
     { truncated: true, tree: [] },
     { tree: [] },
     new Response('secret failure', { status: 403 })
   ]) {
     await expect(
-      hasReportableChanges(
+      loadChangedFiles(
         config,
         created,
         signal,
@@ -119,7 +138,7 @@ test('branch creation checks the new tree; incomplete data and API failures neve
     ).rejects.toThrow();
   }
   await expect(
-    hasReportableChanges(
+    loadChangedFiles(
       config,
       push,
       signal,
@@ -127,7 +146,7 @@ test('branch creation checks the new tree; incomplete data and API failures neve
     )
   ).rejects.toThrow('authentication failed');
   await expect(
-    hasReportableChanges(
+    loadChangedFiles(
       config,
       push,
       signal,
@@ -137,11 +156,11 @@ test('branch creation checks the new tree; incomplete data and API failures neve
   const aborted = new AbortController();
   aborted.abort();
   const unused = responses();
-  await expect(hasReportableChanges(config, push, aborted.signal, unused)).rejects.toThrow();
+  await expect(loadChangedFiles(config, push, aborted.signal, unused)).rejects.toThrow();
   expect(unused).not.toHaveBeenCalled();
   expect(
-    await hasReportableChanges({ ...config, changeFilter: undefined }, push, signal, unused)
-  ).toBe(true);
+    await loadChangedFiles({ ...config, changeFilter: undefined }, push, signal, unused)
+  ).toBeUndefined();
 });
 
 test('validates filter settings and resolves existing credential references without reading keys', () => {
@@ -171,4 +190,102 @@ test('validates filter settings and resolves existing credential references with
       parseAnnouncements({ github: { ...github, ...changes } }, { APP: '123' })
     ).toThrow();
   }
+});
+
+test('fetches all matched notes at the new head and excludes source diffs and payload URLs', async () => {
+  const request = responses(
+    { token: 'token' },
+    comparison([
+      {
+        filename: 'authling/.sweet/z note.md',
+        status: 'modified',
+        raw_url: 'https://untrusted.invalid'
+      },
+      { filename: '.sweet/a.md', status: 'added', patch: 'implementation details' },
+      { filename: '.sweet/deleted.md', status: 'removed' },
+      { filename: 'src/app.ts', status: 'modified' }
+    ]),
+    note,
+    { ...note, content: Buffer.from('Second note').toString('base64'), size: 11 }
+  );
+  expect(await loadChangedFiles(config, push, signal, request)).toEqual([
+    { path: '.sweet/a.md', content: noteContent },
+    { path: 'authling/.sweet/z note.md', content: 'Second note' }
+  ]);
+  expect(request.mock.calls.slice(2).map(([url]) => url)).toEqual([
+    'https://api.github.com/repos/owner/repo/contents/.sweet/a.md?ref=' + push.after,
+    'https://api.github.com/repos/owner/repo/contents/authling/.sweet/z%20note.md?ref=' + push.after
+  ]);
+});
+
+test('incomplete comparisons collect matching notes beyond the first 300 files', async () => {
+  const request = responses(
+    { token: 'token' },
+    comparison([
+      { filename: '.sweet/first.md', status: 'added' },
+      ...Array.from({ length: 299 }, (_, i) => ({ filename: 'src/' + i, status: 'modified' }))
+    ]),
+    { tree: { sha: 'd'.repeat(40) } },
+    { truncated: false, tree: [] },
+    { tree: { sha: 'e'.repeat(40) } },
+    {
+      truncated: false,
+      tree: [
+        { path: '.sweet/first.md', sha: 'one', type: 'blob' },
+        { path: '.sweet/last.md', sha: 'two', type: 'blob' }
+      ]
+    },
+    note,
+    note
+  );
+  expect(await loadChangedFiles(config, push, signal, request)).toEqual([
+    { path: '.sweet/first.md', content: noteContent },
+    { path: '.sweet/last.md', content: noteContent }
+  ]);
+});
+
+test('missing, oversized, invalid UTF-8 and incomplete note contents fail before model input', async () => {
+  for (const file of [
+    new Response('not found', { status: 404 }),
+    { ...note, type: 'symlink' },
+    { ...note, size: 65537 },
+    { ...note, size: 1 },
+    { ...note, encoding: 'none' },
+    { ...note, size: 1, content: '/w==' }
+  ]) {
+    await expect(
+      loadChangedFiles(
+        config,
+        push,
+        signal,
+        responses(
+          { token: 'token' },
+          comparison([{ filename: '.sweet/a.md', status: 'added' }]),
+          file
+        )
+      )
+    ).rejects.toThrow();
+  }
+  const large = 'x'.repeat(65536);
+  await expect(
+    loadChangedFiles(
+      config,
+      push,
+      signal,
+      responses(
+        { token: 'token' },
+        comparison(
+          Array.from({ length: 5 }, (_, i) => ({
+            filename: '.sweet/' + i + '.md',
+            status: 'added'
+          }))
+        ),
+        ...Array.from({ length: 5 }, () => ({
+          ...note,
+          size: 65536,
+          content: Buffer.from(large).toString('base64')
+        }))
+      )
+    )
+  ).rejects.toThrow('oversized');
 });

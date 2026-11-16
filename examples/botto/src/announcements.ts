@@ -15,7 +15,7 @@ import type { Settings } from './settings.ts';
 import { AnnouncementStore, type AnnouncementEvent } from './announcement-store.ts';
 import { announcementResponse, type AnnouncementDraft } from './announcement-response.ts';
 import { mcpExtension } from './mcp.ts';
-import { hasReportableChanges } from './announcement-filter.ts';
+import { loadChangedFiles } from './announcement-filter.ts';
 import { runTunnel } from './tunnel.ts';
 import { receiveWebhook } from './announcement-webhook.ts';
 
@@ -39,8 +39,9 @@ export async function describeAnnouncement(
   event: AnnouncementEvent,
   signal: AbortSignal
 ): Promise<AnnouncementDraft | null> {
-  if (!('kind' in event) && !(await hasReportableChanges(settings.announcements!, event, signal)))
-    return null;
+  const changedFiles =
+    'kind' in event ? undefined : await loadChangedFiles(settings.announcements!, event, signal);
+  if (changedFiles?.length === 0) return null;
   const response = announcementResponse(signal);
   await using agent = await createAgentSession({
     model: `${settings.provider}/${settings.modelId}`,
@@ -69,7 +70,8 @@ export async function describeAnnouncement(
     JSON.stringify({
       repository: settings.announcements!.repository,
       branch: settings.announcements!.branch,
-      ...event
+      ...event,
+      ...(changedFiles ? { changedFiles } : {})
     }),
     { signal }
   );

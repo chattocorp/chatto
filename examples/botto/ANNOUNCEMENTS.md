@@ -80,8 +80,8 @@ production use.
 
 A separate model session writes the announcement. Botto passes the repository,
 branch, immutable before/after commit IDs, and commit messages to it. Botto does
-not fetch diffs or prescribe a research method. The operator's prompt and selected
-MCP tools guide the agent's research and writing.
+not pass full diffs to the model. When a path filter is configured, it also
+supplies the matching file contents. The operator's prompt and selected MCP tools guide the agent's research and writing.
 
 For Klaus, add these fields to `[announcements.github]` in `botto.toml`:
 
@@ -97,16 +97,14 @@ for read access. Announcement sessions do not receive the built-in Chatto or Exa
 connections, conversation history, skills, or ambient local tools. If no MCP
 connections are selected, the session has no research tools.
 
-Klaus's [announcement prompt](prompts/commit-announcement.md) tells it to inspect
-patches with GitHub's `get_commit` tool using `detail: "full_patch"`. Add
-`get_commit` and `list_commits` to the GitHub connection's `tools` list, alongside
-`get_file_contents` for context. The agent finishes with the `finish_announcement`
-tool, which supplies a channel summary and separate thread details. The host
-requires a Markdown summary of at most 400 characters and details of at
-most 4,000 characters. Intermediate model text is not posted. The host appends a
-comparison link (or a commit link for a new branch) in the same paragraph as the
-root summary, then
-posts the details under that root message ID.
+Klaus's [announcement prompt](prompts/commit-announcement.md) uses the changed
+release notes supplied by the host as its main source. It calls GitHub read tools
+only to resolve a specific ambiguity or missing detail. The agent finishes with
+the `finish_announcement` tool, which supplies a channel summary and separate
+thread details. The host requires a Markdown summary of at most 400 characters
+and details of at most 4,000 characters. Intermediate model text is not posted.
+The host appends a comparison link (or a commit link for a new branch) in the same
+paragraph as the root summary, then posts the details under that root message ID.
 
 Klaus's local configuration requires an added or changed Markdown release note
 under a release unit's `.sweet/` directory. This check runs before the model
@@ -132,6 +130,11 @@ changed-file list reaches GitHub's limit, or the push diverges from its old head
 it compares the two Git trees instead. Added, modified, and renamed matching
 files qualify; deleted files alone and unchanged notes do not. API failures and
 incomplete trees keep the event queued for retry without starting a model.
+For a qualifying push, Botto fetches every matched file at the immutable `after`
+SHA and supplies its path and UTF-8 contents in `changedFiles`. It accepts at most
+100 files, 64 KiB per file, and 256 KiB in total. Missing, invalid, or oversized
+contents keep the event queued; they do not start an agent with partial notes.
+The filter remains generic: the configured path expression selects the files.
 A complete negative result saves a `skipped` receipt and posts neither message.
 Repeated deliveries and restarts preserve that decision. Existing prepared
 messages resume delivery without a new eligibility check.
@@ -139,25 +142,26 @@ Published releases bypass this push filter.
 
 The filter sends the repository and immutable commit IDs to GitHub. Its
 responses remain in the Botto process and are not sent to a model for skipped
-events. Klaus still uses its read tools to research qualifying announcements.
+events. Matched file contents go to the configured model provider for qualifying events.
+Klaus can use read tools for clarification, but routine diff inspection is not required.
 
 Klaus's prompt starts the root message with **✅ Just merged:** followed by a
 15–30 word sentence that names the affected projects and the main benefit. It
 targets 80–140 words in the reply, focused on observable behavior, practical
 impact, and required actions. Internal symbols and file inventories are omitted
-unless a public API or configuration change makes them necessary for readers. The agent reads
-Sweet Release notes changed in the push to establish intent and project scope,
-and checks them against the diff. It does not repeat unrelated pending notes or
+unless a public API or configuration change makes them necessary for readers.
+The supplied Sweet Release notes establish intent and project scope. Klaus does
+not repeat unrelated pending notes or
 announce consumed release notes as new implementation changes.
 The reply uses **What changed**, **Impact** when useful, and **Limitations** when
-needed. It requires disclosure if the agent cannot read the diff. Research and
+needed. It does not add routine disclaimers about uninspected diffs. Research and
 editorial format remain agent instructions; the host enforces only the output
 contract and length limits.
 
 The webhook supplies the first 50 commit messages, each limited to 2,000
-characters. The prompt tells Klaus to use the immutable `after` SHA when it needs
-to inspect missing history and to disclose incomplete evidence. A commit-message
-summary must not claim code inspection, successful tests, or release availability.
+characters. Klaus uses these as secondary context and bases the announcement
+on the supplied notes. It must not claim code inspection, successful tests, or
+release availability from commit messages.
 
 GitHub sends the webhook payload to your endpoint and receives the agent's tool
 requests. The configured model provider receives the event and tool results,
