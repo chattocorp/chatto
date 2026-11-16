@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: chatto/core/job/v1/jobs.proto
+// source: chatto/core/job_payload/v1/job_payloads.proto
 
-package jobv1
+package jobpayloadv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -25,7 +25,7 @@ const (
 // Payload of a webhook job in JOBS: delivery references and immutable
 // source-time policy. Credentials and
 // message content are loaded through current authorization on every attempt.
-type WebhookJob struct {
+type WebhookJobPayload struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	BotUserId             string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
 	WebhookId             string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
@@ -38,21 +38,21 @@ type WebhookJob struct {
 	sizeCache             protoimpl.SizeCache
 }
 
-func (x *WebhookJob) Reset() {
-	*x = WebhookJob{}
-	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[0]
+func (x *WebhookJobPayload) Reset() {
+	*x = WebhookJobPayload{}
+	mi := &file_chatto_core_job_payload_v1_job_payloads_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebhookJob) String() string {
+func (x *WebhookJobPayload) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebhookJob) ProtoMessage() {}
+func (*WebhookJobPayload) ProtoMessage() {}
 
-func (x *WebhookJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[0]
+func (x *WebhookJobPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_job_payload_v1_job_payloads_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -63,54 +63,54 @@ func (x *WebhookJob) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebhookJob.ProtoReflect.Descriptor instead.
-func (*WebhookJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_job_v1_jobs_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use WebhookJobPayload.ProtoReflect.Descriptor instead.
+func (*WebhookJobPayload) Descriptor() ([]byte, []int) {
+	return file_chatto_core_job_payload_v1_job_payloads_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WebhookJob) GetBotUserId() string {
+func (x *WebhookJobPayload) GetBotUserId() string {
 	if x != nil {
 		return x.BotUserId
 	}
 	return ""
 }
 
-func (x *WebhookJob) GetWebhookId() string {
+func (x *WebhookJobPayload) GetWebhookId() string {
 	if x != nil {
 		return x.WebhookId
 	}
 	return ""
 }
 
-func (x *WebhookJob) GetSourceEventId() string {
+func (x *WebhookJobPayload) GetSourceEventId() string {
 	if x != nil {
 		return x.SourceEventId
 	}
 	return ""
 }
 
-func (x *WebhookJob) GetRoomId() string {
+func (x *WebhookJobPayload) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *WebhookJob) GetConfigurationSequence() uint64 {
+func (x *WebhookJobPayload) GetConfigurationSequence() uint64 {
 	if x != nil {
 		return x.ConfigurationSequence
 	}
 	return 0
 }
 
-func (x *WebhookJob) GetTriggers() []string {
+func (x *WebhookJobPayload) GetTriggers() []string {
 	if x != nil {
 		return x.Triggers
 	}
 	return nil
 }
 
-func (x *WebhookJob) GetOccurredAt() *timestamppb.Timestamp {
+func (x *WebhookJobPayload) GetOccurredAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.OccurredAt
 	}
@@ -119,7 +119,7 @@ func (x *WebhookJob) GetOccurredAt() *timestamppb.Timestamp {
 
 // Payload of a media job in JOBS: processing references. The asset projection
 // owns the terminal outcome.
-type MediaJob struct {
+type MediaJobPayload struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
@@ -127,21 +127,21 @@ type MediaJob struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *MediaJob) Reset() {
-	*x = MediaJob{}
-	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[1]
+func (x *MediaJobPayload) Reset() {
+	*x = MediaJobPayload{}
+	mi := &file_chatto_core_job_payload_v1_job_payloads_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *MediaJob) String() string {
+func (x *MediaJobPayload) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MediaJob) ProtoMessage() {}
+func (*MediaJobPayload) ProtoMessage() {}
 
-func (x *MediaJob) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_job_v1_jobs_proto_msgTypes[1]
+func (x *MediaJobPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_job_payload_v1_job_payloads_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -152,32 +152,31 @@ func (x *MediaJob) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MediaJob.ProtoReflect.Descriptor instead.
-func (*MediaJob) Descriptor() ([]byte, []int) {
-	return file_chatto_core_job_v1_jobs_proto_rawDescGZIP(), []int{1}
+// Deprecated: Use MediaJobPayload.ProtoReflect.Descriptor instead.
+func (*MediaJobPayload) Descriptor() ([]byte, []int) {
+	return file_chatto_core_job_payload_v1_job_payloads_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *MediaJob) GetAssetId() string {
+func (x *MediaJobPayload) GetAssetId() string {
 	if x != nil {
 		return x.AssetId
 	}
 	return ""
 }
 
-func (x *MediaJob) GetMessageEventId() string {
+func (x *MediaJobPayload) GetMessageEventId() string {
 	if x != nil {
 		return x.MessageEventId
 	}
 	return ""
 }
 
-var File_chatto_core_job_v1_jobs_proto protoreflect.FileDescriptor
+var File_chatto_core_job_payload_v1_job_payloads_proto protoreflect.FileDescriptor
 
-const file_chatto_core_job_v1_jobs_proto_rawDesc = "" +
+const file_chatto_core_job_payload_v1_job_payloads_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/core/job/v1/jobs.proto\x12\x12chatto.core.job.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x02\n" +
-	"\n" +
-	"WebhookJob\x12\x1e\n" +
+	"-chatto/core/job_payload/v1/job_payloads.proto\x12\x1achatto.core.job_payload.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x02\n" +
+	"\x11WebhookJobPayload\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tR\twebhookId\x12&\n" +
@@ -186,32 +185,32 @@ const file_chatto_core_job_v1_jobs_proto_rawDesc = "" +
 	"\x16configuration_sequence\x18\x05 \x01(\x04R\x15configurationSequence\x12\x1a\n" +
 	"\btriggers\x18\x06 \x03(\tR\btriggers\x12;\n" +
 	"\voccurred_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\"O\n" +
-	"\bMediaJob\x12\x19\n" +
+	"occurredAt\"V\n" +
+	"\x0fMediaJobPayload\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventIdB\xd5\x01\n" +
-	"\x16com.chatto.core.job.v1B\tJobsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1;jobv1\xa2\x02\x03CCJ\xaa\x02\x12Chatto.Core.Job.V1\xca\x02\x12Chatto\\Core\\Job\\V1\xe2\x02\x1eChatto\\Core\\Job\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Job::V1b\x06proto3"
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventIdB\x8f\x02\n" +
+	"\x1ecom.chatto.core.job_payload.v1B\x10JobPayloadsProtoP\x01ZTgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/job_payload/v1;jobpayloadv1\xa2\x02\x03CCJ\xaa\x02\x19Chatto.Core.JobPayload.V1\xca\x02\x19Chatto\\Core\\JobPayload\\V1\xe2\x02%Chatto\\Core\\JobPayload\\V1\\GPBMetadata\xea\x02\x1cChatto::Core::JobPayload::V1b\x06proto3"
 
 var (
-	file_chatto_core_job_v1_jobs_proto_rawDescOnce sync.Once
-	file_chatto_core_job_v1_jobs_proto_rawDescData []byte
+	file_chatto_core_job_payload_v1_job_payloads_proto_rawDescOnce sync.Once
+	file_chatto_core_job_payload_v1_job_payloads_proto_rawDescData []byte
 )
 
-func file_chatto_core_job_v1_jobs_proto_rawDescGZIP() []byte {
-	file_chatto_core_job_v1_jobs_proto_rawDescOnce.Do(func() {
-		file_chatto_core_job_v1_jobs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_job_v1_jobs_proto_rawDesc), len(file_chatto_core_job_v1_jobs_proto_rawDesc)))
+func file_chatto_core_job_payload_v1_job_payloads_proto_rawDescGZIP() []byte {
+	file_chatto_core_job_payload_v1_job_payloads_proto_rawDescOnce.Do(func() {
+		file_chatto_core_job_payload_v1_job_payloads_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_job_payload_v1_job_payloads_proto_rawDesc), len(file_chatto_core_job_payload_v1_job_payloads_proto_rawDesc)))
 	})
-	return file_chatto_core_job_v1_jobs_proto_rawDescData
+	return file_chatto_core_job_payload_v1_job_payloads_proto_rawDescData
 }
 
-var file_chatto_core_job_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_chatto_core_job_v1_jobs_proto_goTypes = []any{
-	(*WebhookJob)(nil),            // 0: chatto.core.job.v1.WebhookJob
-	(*MediaJob)(nil),              // 1: chatto.core.job.v1.MediaJob
+var file_chatto_core_job_payload_v1_job_payloads_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_core_job_payload_v1_job_payloads_proto_goTypes = []any{
+	(*WebhookJobPayload)(nil),     // 0: chatto.core.job_payload.v1.WebhookJobPayload
+	(*MediaJobPayload)(nil),       // 1: chatto.core.job_payload.v1.MediaJobPayload
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
-var file_chatto_core_job_v1_jobs_proto_depIdxs = []int32{
-	2, // 0: chatto.core.job.v1.WebhookJob.occurred_at:type_name -> google.protobuf.Timestamp
+var file_chatto_core_job_payload_v1_job_payloads_proto_depIdxs = []int32{
+	2, // 0: chatto.core.job_payload.v1.WebhookJobPayload.occurred_at:type_name -> google.protobuf.Timestamp
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -219,26 +218,26 @@ var file_chatto_core_job_v1_jobs_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_chatto_core_job_v1_jobs_proto_init() }
-func file_chatto_core_job_v1_jobs_proto_init() {
-	if File_chatto_core_job_v1_jobs_proto != nil {
+func init() { file_chatto_core_job_payload_v1_job_payloads_proto_init() }
+func file_chatto_core_job_payload_v1_job_payloads_proto_init() {
+	if File_chatto_core_job_payload_v1_job_payloads_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_job_v1_jobs_proto_rawDesc), len(file_chatto_core_job_v1_jobs_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_job_payload_v1_job_payloads_proto_rawDesc), len(file_chatto_core_job_payload_v1_job_payloads_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_chatto_core_job_v1_jobs_proto_goTypes,
-		DependencyIndexes: file_chatto_core_job_v1_jobs_proto_depIdxs,
-		MessageInfos:      file_chatto_core_job_v1_jobs_proto_msgTypes,
+		GoTypes:           file_chatto_core_job_payload_v1_job_payloads_proto_goTypes,
+		DependencyIndexes: file_chatto_core_job_payload_v1_job_payloads_proto_depIdxs,
+		MessageInfos:      file_chatto_core_job_payload_v1_job_payloads_proto_msgTypes,
 	}.Build()
-	File_chatto_core_job_v1_jobs_proto = out.File
-	file_chatto_core_job_v1_jobs_proto_goTypes = nil
-	file_chatto_core_job_v1_jobs_proto_depIdxs = nil
+	File_chatto_core_job_payload_v1_job_payloads_proto = out.File
+	file_chatto_core_job_payload_v1_job_payloads_proto_goTypes = nil
+	file_chatto_core_job_payload_v1_job_payloads_proto_depIdxs = nil
 }

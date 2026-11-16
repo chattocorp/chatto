@@ -18,8 +18,11 @@ become public only because it exists in an `Event`.
 - `notification/v1` owns the bounded `NOTIFICATIONS` envelope and lifecycle
   facts.
 - `runtime_state/v1` owns durable latest-value records in `RUNTIME_STATE`.
-- `job/v1` owns the payloads of background jobs in `JOBS`. The shared
-  `pkg/jobs` module owns the job facts that carry them.
+- `job_payload/v1` owns the payloads of Chatto's background jobs in `JOBS`:
+  the references that a job handler needs. It does not hold the job itself.
+  The shared `pkg/jobs` module owns the job facts (`jobs.v1` in
+  `pkg/jobs/proto/`) that carry a payload as opaque bytes. The public job
+  summary is `chatto.admin.v1.Job`.
 - `key_material/v1` owns KMS records in `ENCRYPTION_KEYS`.
 - `cache_state/v1` owns volatile shared records in `MEMORY_CACHE`.
 - `projection/v1` owns rebuildable projection snapshot payloads.

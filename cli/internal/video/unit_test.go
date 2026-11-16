@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	jobv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1"
+	jobpayloadv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job_payload/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
@@ -26,16 +26,16 @@ func TestStandaloneMediaWorkerRunsOnlyMediaJobs(t *testing.T) {
 	require.NoError(t, err)
 	queue, consumer, err := openJobs(ctx, runtimeunit.Env{NC: nc, JS: js, Logger: log.New(io.Discard)})
 	require.NoError(t, err)
-	payload, err := proto.Marshal(&jobv1.MediaJob{AssetId: "asset", MessageEventId: "message"})
+	payload, err := proto.Marshal(&jobpayloadv1.MediaJobPayload{AssetId: "asset", MessageEventId: "message"})
 	require.NoError(t, err)
 	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "media-job", Type: "media", Payload: payload, MaxAttempts: 5, RetryDelay: time.Second}))
 	require.NoError(t, queue.Enqueue(ctx, jobqueue.Spec{ID: "webhook-job", Type: "webhook", MaxAttempts: 3, RetryDelay: time.Second}))
-	processed := make(chan *jobv1.MediaJob, 1)
+	processed := make(chan *jobpayloadv1.MediaJobPayload, 1)
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
 		done <- queue.Work(runCtx, consumer, func(_ context.Context, job jobqueue.Job) error {
-			request := new(jobv1.MediaJob)
+			request := new(jobpayloadv1.MediaJobPayload)
 			err := proto.Unmarshal(job.Payload, request)
 			processed <- request
 			return err
