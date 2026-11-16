@@ -365,3 +365,16 @@ func TestSMTPConfigInsecureTransportSettings(t *testing.T) {
 		})
 	}
 }
+
+// A local relying party can register its loopback CIMD URL as a configured
+// client ID. Plain-HTTP client IDs remain valid configuration.
+func TestConfiguredClientAcceptsLoopbackHTTPURLID(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "authling.toml")
+	data := "[nats.embedded]\nenabled = true\n[[oidc.clients]]\nid = 'http://localhost:4000/oauth/client-metadata.json'\nname = 'Local'\nredirect_uris = ['http://localhost:4000/callback']\n"
+	if err := os.WriteFile(file, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Read(file); err != nil {
+		t.Fatalf("loopback HTTP client ID was rejected: %v", err)
+	}
+}
