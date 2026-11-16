@@ -7,7 +7,6 @@ ready, activates Shield Mode, and suggests the first configuration tasks.
 Renders nothing on other servers or later visits.
 -->
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/client';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
@@ -17,6 +16,7 @@ Renders nothing on other servers or later visits.
   import { Button } from '$lib/ui/form';
   import { toastError } from '$lib/utils/errorMessage';
   import DestinationCard from '../settings/DestinationCard.svelte';
+  import { adminNavItem } from './adminNav';
 
   const scope = useServerScope();
   const store = scope.store;
@@ -24,6 +24,8 @@ Renders nothing on other servers or later visits.
   const serverSegment = serverIdToSegment(serverId);
 
   let visible = $state(false);
+  // Show the inactive hint only after activation fails, not while it runs.
+  let shieldFailed = $state(false);
   const privilegedMode = $derived(store.projection.viewer?.privilegedMode);
 
   // Take the setup hand-off once the viewer, and with it the privileged-mode
@@ -34,37 +36,15 @@ Renders nothing on other servers or later visits.
     visible = true;
     if (privilegedMode.available && !privilegedMode.active) {
       store.setPrivilegedMode(true).catch((error: unknown) => {
+        shieldFailed = true;
         toastError(error, m('chat.owner_welcome.shield_failed'));
       });
     }
   });
 
-  const nextSteps = [
-    {
-      href: resolve('/chat/[serverId]/manage/server/general', { serverId: serverSegment }),
-      label: m('chat.management_nav.general'),
-      description: m('settings.overview.descriptions.general'),
-      icon: 'iconify icon-[uil--setting]'
-    },
-    {
-      href: resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }),
-      label: m('chat.management_nav.rooms'),
-      description: m('settings.overview.descriptions.rooms'),
-      icon: 'iconify icon-[uil--comments]'
-    },
-    {
-      href: resolve('/chat/[serverId]/manage/server/registration', { serverId: serverSegment }),
-      label: m('chat.management_nav.registration'),
-      description: m('settings.overview.descriptions.registration'),
-      icon: 'iconify icon-[uil--user-plus]'
-    },
-    {
-      href: resolve('/chat/[serverId]/manage/server/invites', { serverId: serverSegment }),
-      label: m('chat.management_nav.invites'),
-      description: m('settings.overview.descriptions.invitations'),
-      icon: 'iconify icon-[uil--envelope-share]'
-    }
-  ];
+  const nextSteps = (['general', 'rooms', 'registration', 'invites'] as const).map((destination) =>
+    adminNavItem(destination, serverSegment)
+  );
 </script>
 
 <Dialog bind:visible title={m('chat.owner_welcome.title')} size="lg">
@@ -74,7 +54,7 @@ Renders nothing on other servers or later visits.
       <Hint tone="success" icon="icon-[uil--shield-check]">
         {m('chat.owner_welcome.shield_active')}
       </Hint>
-    {:else}
+    {:else if shieldFailed}
       <Hint tone="warning" icon="icon-[uil--shield]">
         {m('chat.owner_welcome.shield_inactive')}
       </Hint>

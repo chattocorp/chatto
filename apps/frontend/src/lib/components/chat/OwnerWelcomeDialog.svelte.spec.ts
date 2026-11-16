@@ -51,6 +51,25 @@ describe('OwnerWelcomeDialog', () => {
     expect(takeOwnerOnboarding()).toBe(false);
   });
 
+  it('shows no Shield Mode hint while activation is still running', async () => {
+    mocks.setPrivilegedMode.mockReturnValue(new Promise(() => {}));
+    markOwnerOnboardingPending();
+    const view = render(OwnerWelcomeDialog);
+    await expect
+      .element(view.getByRole('dialog', { name: 'Your server is ready' }))
+      .toBeInTheDocument();
+    await expect.element(view.getByText(/shield button/)).not.toBeInTheDocument();
+  });
+
+  it('tells the owner to use the shield button when activation fails', async () => {
+    mocks.setPrivilegedMode.mockRejectedValue(new Error('unavailable'));
+    markOwnerOnboardingPending();
+    const view = render(OwnerWelcomeDialog);
+    await expect
+      .element(view.getByText(/To set up your server, activate Shield Mode/))
+      .toBeInTheDocument();
+  });
+
   it('closes when the owner follows a next step', async () => {
     markOwnerOnboardingPending();
     const view = render(OwnerWelcomeDialog);

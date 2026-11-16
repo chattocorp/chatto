@@ -81,7 +81,7 @@ describe('first-run wizard', () => {
     expect(takeOwnerOnboarding()).toBe(true);
   });
 
-  it('opens the sign-in page when the automatic sign-in fails', async () => {
+  it('keeps the owner welcome for a manual sign-in when the automatic sign-in fails', async () => {
     mocks.complete.mockResolvedValue(undefined);
     mocks.signIn.mockRejectedValue(new Error('Sign-in failed'));
     const view = renderSetup();
@@ -90,6 +90,8 @@ describe('first-run wizard', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/login', { invalidateAll: true })
     );
     expect(mocks.completeAuthentication).not.toHaveBeenCalled();
+    // The installer's manual sign-in in this tab still receives the welcome.
+    expect(takeOwnerOnboarding()).toBe(true);
   });
 
   it('welcomes the installer with a navigable link to the form', async () => {

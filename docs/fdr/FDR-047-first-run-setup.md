@@ -123,15 +123,19 @@ client-wide navigation or require an account on the origin server.
 
 After a successful setup, the wizard signs in with the new credentials through
 the normal password login. Setup itself does not create a session. If this
-sign-in fails, the wizard opens the sign-in page.
+sign-in fails, the wizard opens the sign-in page. The welcome request stays
+pending, so the first manual sign-in in that tab still gets the welcome
+dialog and privileged mode. The installer is the person who just completed
+setup in that tab.
 
-The origin server's chat shell then shows a welcome dialog once. Before it
+The origin server's chat shell then shows a welcome dialog once. When it
 opens, the client activates privileged mode (Shield Mode) without the usual
 confirmation, because the owner has just created the server and must
-configure it. The dialog explains that owner permissions stay off during
-ordinary use and how to activate them again. It links to General,
-Rooms, Registration, and Invites. If the activation fails, the dialog
-tells the owner to use the shield button.
+configure it. The dialog shows the Shield Mode notice after activation
+succeeds, or the shield-button guidance if activation fails. It explains
+that owner permissions stay off during ordinary use and how to activate them
+again. Its links to General, Rooms, Registration, and Invites use the same
+entries as Settings Overview.
 
 The hand-off from setup to the chat shell is in memory only. A page reload
 before the shell loads drops it; the owner can still use the normal
