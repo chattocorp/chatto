@@ -195,7 +195,7 @@
       "shield_inactive": "若要設定伺服器，請使用名稱旁的盾牌按鈕啟用特權模式。它會保持開啟 15 分鐘。",
       "shield_failed": "無法啟用特權模式。",
       "next_steps": "後續步驟",
-      "start": "開始聊天"
+      "continue_setup": "繼續設定"
     }
   }
 }

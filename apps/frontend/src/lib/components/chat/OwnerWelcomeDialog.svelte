@@ -73,7 +73,7 @@ Renders nothing on other servers or later visits.
   </div>
   {#snippet primaryAction()}
     <Button defaultAction onclick={() => (visible = false)}>
-      {m('chat.owner_welcome.start')}
+      {m('chat.owner_welcome.continue_setup')}
     </Button>
   {/snippet}
 </Dialog>

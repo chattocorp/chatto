@@ -195,7 +195,7 @@
       "shield_inactive": "To set up your server, activate Shield Mode with the shield button beside your name. It stays on for 15 minutes.",
       "shield_failed": "Shield Mode could not be activated.",
       "next_steps": "Next steps",
-      "start": "Start chatting"
+      "continue_setup": "Continue setup"
     }
   }
 }

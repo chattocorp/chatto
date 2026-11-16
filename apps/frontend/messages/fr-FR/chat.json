@@ -195,7 +195,7 @@
       "shield_inactive": "Pour configurer votre serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom. Il reste actif pendant 15 minutes.",
       "shield_failed": "Le mode privilégié n’a pas pu être activé.",
       "next_steps": "Prochaines étapes",
-      "start": "Commencer à discuter"
+      "continue_setup": "Poursuivre la configuration"
     }
   }
 }

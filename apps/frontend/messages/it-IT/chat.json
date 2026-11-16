@@ -195,7 +195,7 @@
       "shield_inactive": "Per configurare il tuo server, attiva la modalità privilegiata con il pulsante dello scudo accanto al tuo nome. Resta attiva per 15 minuti.",
       "shield_failed": "Impossibile attivare la modalità privilegiata.",
       "next_steps": "Prossimi passi",
-      "start": "Inizia a chattare"
+      "continue_setup": "Continua la configurazione"
     }
   }
 }

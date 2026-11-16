@@ -195,7 +195,7 @@
       "shield_inactive": "Serveri seadistamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga. See jääb sisse 15 minutiks.",
       "shield_failed": "Privilegeeritud režiimi ei õnnestunud aktiveerida.",
       "next_steps": "Järgmised sammud",
-      "start": "Alusta vestlust"
+      "continue_setup": "Jätka seadistamist"
     }
   }
 }

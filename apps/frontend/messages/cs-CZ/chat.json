@@ -195,7 +195,7 @@
       "shield_inactive": "Chcete-li nastavit server, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména. Zůstane zapnutý 15 minut.",
       "shield_failed": "Privilegovaný režim se nepodařilo aktivovat.",
       "next_steps": "Další kroky",
-      "start": "Začít chatovat"
+      "continue_setup": "Pokračovat v nastavení"
     }
   }
 }

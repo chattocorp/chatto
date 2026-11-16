@@ -195,7 +195,7 @@
       "shield_inactive": "Sunucunuzu kurmak için adınızın yanındaki kalkan düğmesiyle ayrıcalıklı modu etkinleştirin. 15 dakika boyunca açık kalır.",
       "shield_failed": "Ayrıcalıklı mod etkinleştirilemedi.",
       "next_steps": "Sonraki adımlar",
-      "start": "Sohbete başlayın"
+      "continue_setup": "Kuruluma devam edin"
     }
   }
 }

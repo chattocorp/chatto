@@ -195,7 +195,7 @@
       "shield_inactive": "Activeer de bevoorrechte modus met de schildknop naast je naam om je server in te stellen. Hij blijft 15 minuten actief.",
       "shield_failed": "De bevoorrechte modus kon niet worden geactiveerd.",
       "next_steps": "Volgende stappen",
-      "start": "Begin met chatten"
+      "continue_setup": "Doorgaan met instellen"
     }
   }
 }

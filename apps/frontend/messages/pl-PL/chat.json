@@ -201,7 +201,7 @@
       "shield_inactive": "Aby skonfigurować serwer, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia. Pozostaje włączony przez 15 minut.",
       "shield_failed": "Nie udało się włączyć trybu uprzywilejowanego.",
       "next_steps": "Następne kroki",
-      "start": "Zacznij rozmawiać"
+      "continue_setup": "Kontynuuj konfigurację"
     }
   }
 }

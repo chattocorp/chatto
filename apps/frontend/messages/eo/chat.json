@@ -195,7 +195,7 @@
       "shield_inactive": "Por agordi vian servilon, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo. Ĝi restas ŝaltita dum 15 minutoj.",
       "shield_failed": "Ne eblis aktivigi la privilegian reĝimon.",
       "next_steps": "Sekvaj paŝoj",
-      "start": "Ekbabili"
+      "continue_setup": "Daŭrigi agordadon"
     }
   }
 }

@@ -195,7 +195,7 @@
       "shield_inactive": "Aktiviere den privilegierten Modus mit der Schild-Schaltfläche neben deinem Namen, um deinen Server einzurichten. Er bleibt 15 Minuten aktiv.",
       "shield_failed": "Der privilegierte Modus konnte nicht aktiviert werden.",
       "next_steps": "Nächste Schritte",
-      "start": "Loslegen"
+      "continue_setup": "Einrichtung fortsetzen"
     }
   }
 }

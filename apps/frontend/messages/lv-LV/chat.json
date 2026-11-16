@@ -198,7 +198,7 @@
       "shield_inactive": "Lai iestatītu serveri, aktivizējiet privileģēto režīmu ar vairoga pogu blakus savam vārdam. Tas paliek ieslēgts 15 minūtes.",
       "shield_failed": "Privileģēto režīmu neizdevās aktivizēt.",
       "next_steps": "Nākamās darbības",
-      "start": "Sākt tērzēt"
+      "continue_setup": "Turpināt iestatīšanu"
     }
   }
 }

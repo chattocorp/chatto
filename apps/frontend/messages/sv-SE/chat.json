@@ -195,7 +195,7 @@
       "shield_inactive": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att konfigurera din server. Det är på i 15 minuter.",
       "shield_failed": "Privilegierat läge kunde inte aktiveras.",
       "next_steps": "Nästa steg",
-      "start": "Börja chatta"
+      "continue_setup": "Fortsätt konfigurera"
     }
   }
 }

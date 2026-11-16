@@ -195,7 +195,7 @@
       "shield_inactive": "Para configurar o seu servidor, ative o modo privilegiado com o botão de escudo junto ao seu nome. Fica ativo durante 15 minutos.",
       "shield_failed": "Não foi possível ativar o modo privilegiado.",
       "next_steps": "Próximos passos",
-      "start": "Começar a conversar"
+      "continue_setup": "Continuar a configuração"
     }
   }
 }

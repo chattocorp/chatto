@@ -195,7 +195,7 @@
       "shield_inactive": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å sette opp serveren din. Den er på i 15 minutter.",
       "shield_failed": "Privilegert modus kunne ikke aktiveres.",
       "next_steps": "Neste steg",
-      "start": "Begynn å chatte"
+      "continue_setup": "Fortsett oppsettet"
     }
   }
 }
