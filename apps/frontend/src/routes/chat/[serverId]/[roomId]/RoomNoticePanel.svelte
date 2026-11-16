@@ -5,6 +5,7 @@
   import { page } from '$app/state';
   import type { RoomNoticeStore } from '@chatto/client/room/notice';
   import { MAX_ROOM_NOTICE_LENGTH } from '@chatto/client/api/roomNotices';
+  import { isNetworkError } from '@chatto/client/api/connect';
   import { Code, ConnectError } from '@connectrpc/connect';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import { Button } from '$lib/ui/form';
@@ -100,7 +101,11 @@
   {:else}
     <div class="flex flex-col gap-3 px-2 py-3">
       {#if store.error}
-        <LoadRetry message={errorMessage(store.error)} onretry={() => store.refresh()} />
+        <LoadRetry
+          message={errorMessage(store.error)}
+          autoRetry={isNetworkError(store.error)}
+          onretry={() => store.refresh()}
+        />
       {:else if !notice}
         <LoadingFog class="min-h-24" label={m('common.loading')} />
       {:else if notice.body}

@@ -109,10 +109,10 @@ describe('createRealtimeResourceAPI', () => {
     rooms.listRooms
       .mockReturnValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
       .mockImplementationOnce(() => {
-        throw new ConnectError('second page failed', Code.Unavailable);
+        throw new ConnectError('second page failed', Code.Internal);
       });
     await expect(realtimeAPI().read('rooms')).rejects.toMatchObject({
-      code: Code.Unavailable,
+      code: Code.Internal,
       rawMessage: 'second page failed'
     });
   });

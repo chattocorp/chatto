@@ -74,9 +74,9 @@
       "thread_views_description": "Följda trådar och trådar som du har startat kanske inte visas separat på den här servern.",
       "independent_slow_mode_title": "Oberoende långsamt läge är inte tillgängligt",
       "independent_slow_mode_description": "Den här servern använder en gemensam väntetid för kanalmeddelanden och trådsvar.",
+      "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd.",
       "background_jobs_title": "Bakgrundsjobb är inte tillgängliga",
-      "background_jobs_description": "Den här servern kan inte visa eller försöka igen med bakgrundsjobb i serverinställningarna.",
-      "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd."
+      "background_jobs_description": "Den här servern kan inte visa eller försöka igen med bakgrundsjobb i serverinställningarna."
     },
     "server_gutter": {
       "move_up": "Flytta upp",
@@ -190,6 +190,15 @@
       "invites": "Inbjudningar",
       "registration": "Registrering",
       "jobs": "Jobb"
+    },
+    "owner_welcome": {
+      "title": "Din server är klar",
+      "intro": "Du är ägare till den här servern. För att skydda ditt konto är dina ägarbehörigheter avstängda vid vanlig användning.",
+      "shield_active": "Privilegierat läge är på de närmaste 15 minuterna, så du kan konfigurera din server nu. Slå på det igen senare med sköldknappen bredvid ditt namn.",
+      "shield_inactive": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att konfigurera din server. Det är på i 15 minuter.",
+      "shield_failed": "Privilegierat läge kunde inte aktiveras.",
+      "next_steps": "Nästa steg",
+      "continue_setup": "Fortsätt konfigurera"
     }
   }
 }

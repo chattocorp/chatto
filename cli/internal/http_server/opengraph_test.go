@@ -23,6 +23,8 @@ func TestOpenGraphMetaGenerateTags(t *testing.T) {
 			},
 			contains: []string{
 				`og:title" content="Test Title"`,
+				`<title>Test Title</title>`,
+				`<meta name="description" content="Test Description" />`,
 				`og:description" content="Test Description"`,
 				`og:url" content="https://example.com/test"`,
 				`og:type" content="website"`,

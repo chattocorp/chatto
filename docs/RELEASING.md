@@ -39,6 +39,9 @@ The Prepare releases workflow runs on `main` when notes, manifests, Sweet
 configuration, or the workflow change. It uses Sweet's pinned reusable workflow
 to create one PR per package. Run it manually to refresh a PR or retry a failure.
 A release PR consumes notes, updates version targets, and adds a changelog entry.
+A release PR that changes only these release files runs no product jobs in CI.
+The full checks run on `main` after the merge, before CI makes the tag. See
+[CI Job Selection](../CONTRIBUTING.md#ci-job-selection).
 
 After selected CI jobs succeed, tagging uses the push's complete before/after
 range. Tags point to the commits that introduced each version. Rerunning the

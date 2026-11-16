@@ -74,9 +74,9 @@
       "thread_views_description": "Followed threads and threads you started may not be listed separately on this server.",
       "independent_slow_mode_title": "Independent slow mode is unavailable",
       "independent_slow_mode_description": "This server uses one shared cooldown for channel messages and thread replies.",
+      "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer.",
       "background_jobs_title": "Background jobs are unavailable",
-      "background_jobs_description": "This server cannot show or retry background jobs in server settings.",
-      "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer."
+      "background_jobs_description": "This server cannot show or retry background jobs in server settings."
     },
     "server_gutter": {
       "move_up": "Move up",
@@ -190,6 +190,15 @@
       "invites": "Invites",
       "registration": "Registration",
       "jobs": "Jobs"
+    },
+    "owner_welcome": {
+      "title": "Your server is ready",
+      "intro": "You are the owner of this server. To protect your account, your owner permissions stay off during ordinary use.",
+      "shield_active": "Shield Mode is on for the next 15 minutes, so you can set up your server now. To turn it on again later, use the shield button beside your name.",
+      "shield_inactive": "To set up your server, activate Shield Mode with the shield button beside your name. It stays on for 15 minutes.",
+      "shield_failed": "Shield Mode could not be activated.",
+      "next_steps": "Next steps",
+      "continue_setup": "Continue setup"
     }
   }
 }

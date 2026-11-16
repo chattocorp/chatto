@@ -74,9 +74,9 @@
       "thread_views_description": "Le discussioni che segui e quelle che hai avviato potrebbero non essere elencate separatamente su questo server.",
       "independent_slow_mode_title": "La modalità lenta indipendente non è disponibile",
       "independent_slow_mode_description": "Questo server usa un unico intervallo di attesa per i messaggi del canale e le risposte nei thread.",
+      "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva.",
       "background_jobs_title": "Le attività in background non sono disponibili",
-      "background_jobs_description": "Questo server non può mostrare né riprovare le attività in background nelle impostazioni del server.",
-      "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva."
+      "background_jobs_description": "Questo server non può mostrare né riprovare le attività in background nelle impostazioni del server."
     },
     "server_gutter": {
       "move_up": "Sposta in alto",
@@ -190,6 +190,15 @@
       "invites": "Inviti",
       "registration": "Registrazione",
       "jobs": "Attività"
+    },
+    "owner_welcome": {
+      "title": "Il tuo server è pronto",
+      "intro": "Sei il proprietario di questo server. Per proteggere il tuo account, i permessi di proprietario restano disattivati durante l’uso normale.",
+      "shield_active": "La modalità privilegiata è attiva per i prossimi 15 minuti, quindi puoi configurare subito il tuo server. Per riattivarla in seguito, usa il pulsante dello scudo accanto al tuo nome.",
+      "shield_inactive": "Per configurare il tuo server, attiva la modalità privilegiata con il pulsante dello scudo accanto al tuo nome. Resta attiva per 15 minuti.",
+      "shield_failed": "Impossibile attivare la modalità privilegiata.",
+      "next_steps": "Prossimi passi",
+      "continue_setup": "Continua la configurazione"
     }
   }
 }

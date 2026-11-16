@@ -74,9 +74,9 @@
       "thread_views_description": "Gevolgde threads en threads die je hebt gestart, worden op deze server mogelijk niet afzonderlijk weergegeven.",
       "independent_slow_mode_title": "Onafhankelijke langzame modus is niet beschikbaar",
       "independent_slow_mode_description": "Deze server gebruikt één gedeelde wachttijd voor kanaalberichten en antwoorden in threads.",
+      "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning.",
       "background_jobs_title": "Achtergrondtaken zijn niet beschikbaar",
-      "background_jobs_description": "Deze server kan achtergrondtaken niet tonen of opnieuw proberen in de serverinstellingen.",
-      "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning."
+      "background_jobs_description": "Deze server kan achtergrondtaken niet tonen of opnieuw proberen in de serverinstellingen."
     },
     "server_gutter": {
       "move_up": "Omhoog verplaatsen",
@@ -190,6 +190,15 @@
       "invites": "Uitnodigingen",
       "registration": "Registratie",
       "jobs": "Taken"
+    },
+    "owner_welcome": {
+      "title": "Je server is klaar",
+      "intro": "Je bent de eigenaar van deze server. Om je account te beschermen, blijven je eigenaarsrechten bij normaal gebruik uitgeschakeld.",
+      "shield_active": "De bevoorrechte modus is de komende 15 minuten actief, dus je kunt je server nu instellen. Schakel hem later opnieuw in met de schildknop naast je naam.",
+      "shield_inactive": "Activeer de bevoorrechte modus met de schildknop naast je naam om je server in te stellen. Hij blijft 15 minuten actief.",
+      "shield_failed": "De bevoorrechte modus kon niet worden geactiveerd.",
+      "next_steps": "Volgende stappen",
+      "continue_setup": "Doorgaan met instellen"
     }
   }
 }

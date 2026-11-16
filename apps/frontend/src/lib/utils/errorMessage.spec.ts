@@ -16,6 +16,12 @@ describe('errorMessage', () => {
     expect(errorMessage(new ConnectError('internal detail', code), 'Fallback')).toBe(expected);
   });
 
+  it('localizes a fetch failure that Connect wraps as an unknown error', () => {
+    const error = ConnectError.from(new TypeError('Failed to fetch'));
+    expect(error.code).toBe(Code.Unknown);
+    expect(errorMessage(error, 'Fallback')).toBe('Network error. Please try again.');
+  });
+
   it.each([
     Code.InvalidArgument,
     Code.FailedPrecondition,

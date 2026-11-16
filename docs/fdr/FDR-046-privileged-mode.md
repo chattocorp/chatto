@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-11-03
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -16,7 +16,9 @@ server session when they need them.
   entitlement and explicit allows at any scope. A deny can still prevent an
   explicit allow from becoming effective.
 - Settings Overview shows a notice inside Server configuration when the mode is available but inactive. It directs the user to the shield button beside their name to activate additional permissions. The notice disappears while the mode is active.
-- Activating the mode requires a confirmation.
+- Activating the mode requires a confirmation. One exception: after first-run
+  setup, the client activates the mode for the new owner without a
+  confirmation and explains it in a welcome dialog (FDR-047).
 - The mode activates all elevation-required permissions that the user is
   entitled to use. It does not activate a role and does not add a grant.
 - For an effective owner, the mode also activates the owner override. Without

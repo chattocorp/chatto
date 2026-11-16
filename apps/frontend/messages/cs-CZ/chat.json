@@ -74,9 +74,9 @@
       "thread_views_description": "Sledovaná vlákna a vlákna, která jste založili, se na tomto serveru nemusí zobrazovat odděleně.",
       "independent_slow_mode_title": "Nezávislý pomalý režim není dostupný",
       "independent_slow_mode_description": "Tento server používá společnou čekací dobu pro zprávy kanálu a odpovědi ve vláknech.",
+      "upgrade": "Pro plnou podporu požádejte správce serveru o aktualizaci na verzi {version} nebo novější.",
       "background_jobs_title": "Úlohy na pozadí nejsou dostupné",
-      "background_jobs_description": "Tento server nemůže v nastavení serveru zobrazit úlohy na pozadí ani je opakovat.",
-      "upgrade": "Pro plnou podporu požádejte správce serveru o aktualizaci na verzi {version} nebo novější."
+      "background_jobs_description": "Tento server nemůže v nastavení serveru zobrazit úlohy na pozadí ani je opakovat."
     },
     "server_gutter": {
       "move_up": "Přesunout nahoru",
@@ -190,6 +190,15 @@
       "invites": "Pozvánky",
       "registration": "Registrace",
       "jobs": "Úlohy"
+    },
+    "owner_welcome": {
+      "title": "Váš server je připraven",
+      "intro": "Jste vlastníkem tohoto serveru. Kvůli ochraně vašeho účtu zůstávají oprávnění vlastníka při běžném používání vypnutá.",
+      "shield_active": "Privilegovaný režim je zapnutý na příštích 15 minut, takže můžete server nastavit hned teď. Později jej znovu zapnete tlačítkem štítu vedle svého jména.",
+      "shield_inactive": "Chcete-li nastavit server, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména. Zůstane zapnutý 15 minut.",
+      "shield_failed": "Privilegovaný režim se nepodařilo aktivovat.",
+      "next_steps": "Další kroky",
+      "continue_setup": "Pokračovat v nastavení"
     }
   }
 }

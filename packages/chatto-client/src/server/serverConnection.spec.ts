@@ -143,6 +143,46 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
+  it('shows the connection warning while API requests fail on the network', () => {
+    const client = new ServerConnection(makeConfig());
+    client.setRealtimeConnectionStatus('connected');
+
+    client.apiConfig.onRequestOutcome?.(false);
+    expect(client.showConnectionLostIcon).toBe(true);
+    expect(client.showConnectionLostBanner).toBe(false);
+    // The realtime transport reads its own failure, which did not occur.
+    expect(client.realtimeConnectionFailed).toBe(false);
+    expect(client.status).toBe('connected');
+
+    client.apiConfig.onRequestOutcome?.(false);
+    client.apiConfig.onRequestOutcome?.(false);
+    expect(client.showConnectionLostBanner).toBe(true);
+
+    client.apiConfig.onRequestOutcome?.(true);
+    expect(client.showConnectionLostIcon).toBe(false);
+    expect(client.showConnectionLostBanner).toBe(false);
+    client.dispose();
+  });
+
+  it('keeps a realtime failure when an API request succeeds', () => {
+    const client = new ServerConnection(makeConfig());
+    client.setRealtimeConnectionStatus('disconnected', 1);
+
+    client.recordRequestOutcome(true);
+    expect(client.showConnectionLostIcon).toBe(true);
+    client.dispose();
+  });
+
+  it('clears failed API requests when a forced reconnect starts fresh', () => {
+    const client = new ServerConnection(makeConfig());
+    client.setRealtimeConnectionStatus('connected');
+    client.recordRequestOutcome(false);
+
+    client.forceReconnect('network recovered');
+    expect(client.showConnectionLostIcon).toBe(false);
+    client.dispose();
+  });
+
   it('keeps the connection warning through a new attempt until one succeeds', () => {
     const client = new ServerConnection(makeConfig());
 

@@ -9,7 +9,8 @@
     label,
     icon,
     description,
-    artwork
+    artwork,
+    onclick
   }: {
     href: string;
     label: string;
@@ -17,6 +18,8 @@
     description?: string;
     /** Optional destination-specific illustration; kept decorative by the card. */
     artwork?: Snippet;
+    /** Runs when the link is followed, for example to close a containing dialog. */
+    onclick?: () => void;
   } = $props();
   const titleId = $props.id();
 </script>
@@ -25,6 +28,7 @@
   <!-- Keep the hit area fixed and the description separate from the link's label. -->
   <a
     href={resolve(href as '/')}
+    {onclick}
     aria-labelledby={titleId}
     aria-describedby={description ? `${titleId}-description` : undefined}
     class="absolute inset-0 z-10 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
