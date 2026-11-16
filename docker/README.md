@@ -52,11 +52,11 @@ Twitter card tags into `200.html` before it starts Nginx. Link previews then
 show the frontend in chat apps and social networks. The defaults describe
 Chatto. Set these variables to change them:
 
-| Variable | Default | Use |
-| --- | --- | --- |
-| `CHATTO_FRONTEND_TITLE` | `Chatto` | Page title and `og:title` |
-| `CHATTO_FRONTEND_DESCRIPTION` | A short Chatto description | Page description and `og:description` |
-| `CHATTO_FRONTEND_IMAGE` | `/icons/social-preview.png` | `og:image`: an HTTPS URL, or a path that starts with `/` |
+| Variable                      | Default                     | Use                                                      |
+| ----------------------------- | --------------------------- | -------------------------------------------------------- |
+| `CHATTO_FRONTEND_TITLE`       | `Chatto`                    | Page title and `og:title`                                |
+| `CHATTO_FRONTEND_DESCRIPTION` | A short Chatto description  | Page description and `og:description`                    |
+| `CHATTO_FRONTEND_IMAGE`       | `/icons/social-preview.png` | `og:image`: an HTTPS URL, or a path that starts with `/` |
 
 Crawlers require an absolute image URL. A path is resolved against
 `CHATTO_FRONTEND_ORIGIN`. Without an origin, the page has no `og:url` and only
