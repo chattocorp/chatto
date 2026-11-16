@@ -44,7 +44,7 @@
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, LoadRetry, ScrollFader } from '$lib/ui';
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { Code, isConnectCode } from '@chatto/client/api/connect';
+  import { Code, isConnectCode, isNetworkError } from '@chatto/client/api/connect';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '@chatto/client/room/messages/MessagesStore';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -1050,6 +1050,7 @@
         <LoadRetry
           onretry={retryLoad}
           message={errorMessage(loadError, m('room.timeline.load_failed'))}
+          autoRetry={isNetworkError(loadError)}
         />
       {:else if virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">

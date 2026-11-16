@@ -91,6 +91,19 @@ Chatto's pre-1.0 API remains experimental.
   immediate retry after a dropped connection, or a credential renewal does not
   change the state. Tab wake and network recovery start again from the normal
   state, because results from before the wake are out of date.
+- A realtime connection attempt and an API request are both attempts. An API
+  request fails when the network or a proxy cannot reach the server, or when
+  the request reaches its timeout. An answer from the server, also an error,
+  is a success. Each type of attempt removes only its own failure.
+- The client repeats a read that failed on the network up to two times before
+  the read counts as failed. It does not repeat a write, because the server
+  can have applied the write.
+- The application header shows the connection warning of the active server.
+  The warning becomes urgent after six failed realtime attempts or three
+  failed API requests in sequence.
+- A part of the interface that failed to load on the network tries again
+  without the user: at an interval, when the browser goes online, and when
+  the tab becomes visible. The Retry button stays available.
 - The server context menu and touch sheet explain the problem. When more than
   one problem applies, they show the first problem in the order above.
 - When discovery finds a remote version below the connection threshold, or cannot

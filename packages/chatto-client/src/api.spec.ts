@@ -32,7 +32,7 @@ it('reads the viewer once and reads it again after a failure', async () => {
   let fail = true;
   const request = vi.fn<typeof fetch>(async () =>
     fail
-      ? Response.json({ code: 'unavailable', message: 'down' }, { status: 503 })
+      ? Response.json({ code: 'internal', message: 'broken' }, { status: 500 })
       : Response.json({ user: { profile: { id: 'bot' } } })
   );
   const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request });

@@ -121,6 +121,10 @@ class FakeServerConnection {
     return this.#connectionFailed;
   }
 
+  get realtimeConnectionFailed(): boolean {
+    return this.#connectionFailed;
+  }
+
   forceReconnect(reason: string, options?: RealtimeReconnectOptions): void {
     this.#connectionFailed = false;
     this.#reconnect?.(reason, options);
