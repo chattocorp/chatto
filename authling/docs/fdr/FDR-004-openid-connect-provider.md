@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-16
 
 ## Overview
 
@@ -18,8 +18,18 @@ and returns to the relying party with an Authorization Code.
   requires `openid` and accepts optional `profile`, `email`, and `offline_access` scopes. Unknown
   and duplicate scopes are rejected. S256 PKCE is required by default. Operators may
   set `require_pkce = false` only for configured confidential clients.
-- Redirect URI matching is exact. Authorization errors are sent to a client
-  only after that client and redirect have been validated.
+- Redirect URI matching is exact, including the port. Authling does not use
+  the "any port" loopback matching of RFC 8252. Authorization errors are sent
+  to a client only after that client and redirect have been validated.
+- A configured client may register HTTPS redirect URIs, or plain-HTTP
+  redirect URIs on a loopback host (`localhost`, `*.localhost`, `127.0.0.0/8`,
+  or `::1`), on any issuer. Plain HTTP on any other host is a configuration
+  error. RFC 8252 section 7.3 permits loopback HTTP because the response does
+  not leave the user's computer. This lets a relying party's local development
+  server sign in against a production issuer without local TLS. The operator
+  registers each such URI explicitly. A CIMD client is self-asserted, so its
+  document may use loopback HTTP redirect URIs only when the issuer itself is
+  loopback.
 - A signed-out person is sent through local login and then resumes the pending
   consent decision. When consent is required, the screen identifies the
   signed-in account and client and lists only the requested information. It

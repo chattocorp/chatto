@@ -459,8 +459,8 @@ func (c Config) Validate() error {
 				continue
 			}
 			seenRedirects[redirect] = struct{}{}
-			if !validOIDCRedirectURI(redirect, publicURL) {
-				problems = append(problems, field+".redirect_uris must contain absolute HTTPS URIs, or loopback HTTP URIs for loopback development")
+			if !validOIDCRedirectURI(redirect) {
+				problems = append(problems, field+".redirect_uris must contain absolute HTTPS URIs or HTTP URIs on a loopback host")
 			}
 		}
 	}
@@ -536,15 +536,18 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func validOIDCRedirectURI(raw string, issuer *url.URL) bool {
+// validOIDCRedirectURI reports whether a configured client may register raw.
+// HTTPS URIs are valid on any host. Plain-HTTP URIs are valid only on a
+// loopback host, whatever the issuer is: RFC 8252 section 7.3 permits HTTP for
+// loopback redirects because the response never leaves the user's machine.
+// The provider still matches redirect URIs exactly, including the port.
+// CIMD clients have their own, stricter rule in the oidcprovider package.
+func validOIDCRedirectURI(raw string) bool {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
 		return false
 	}
-	if parsed.Scheme == "https" {
-		return true
-	}
-	return parsed.Scheme == "http" && issuer != nil && IsLoopbackHost(issuer.Hostname()) && IsLoopbackHost(parsed.Hostname())
+	return parsed.Scheme == "https" || parsed.Scheme == "http" && IsLoopbackHost(parsed.Hostname())
 }
 
 func validConventionalClientID(value string) bool {
